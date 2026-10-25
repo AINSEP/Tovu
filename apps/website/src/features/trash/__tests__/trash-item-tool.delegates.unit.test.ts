@@ -127,3 +127,47 @@ test("generic kind: a missing row is not-found before any write", async () => {
   );
   assert.deepEqual(writes, []);
 });
+
+test("trash_item's declared input schema is closed and requires both entityType and entityId (non-empty id)", () => {
+  const schema = getTrashItemAgentToolCatalog()[0]!.inputSchema as Record<string, unknown> & { properties: Record<string, Record<string, unknown>> };
+  assert.equal(schema.type, "object");
+  assert.equal(schema.additionalProperties, false);
+  assert.deepEqual(schema.required, ["entityType", "entityId"]);
+  assert.deepEqual(Object.keys(schema.properties).sort(), ["entityId", "entityType"]);
+  assert.equal(schema.properties.entityId!.type, "string");
+  assert.equal(schema.properties.entityId!.minLength, 1);
+  assert.equal(schema.properties.entityType!.type, "string");
+});
+
+test("both the generic and the delegate path authorize with the entity in scope (type and id), against the kind's own permission", async () => {
+  const seen: Array<Record<string, unknown>> = [];
+  const authorize = (async (q: Record<string, unknown>) => (seen.push(q), { allowed: false, reason: "nope" })) as unknown as TrashItemToolDeps["authorize"];
+  const d = deps({
+    authorize, registry: new Map([["form", FORM_ENTRY]]),
+    db: { run: async () => { throw new Error("denied calls must not read"); } } as unknown as TrashItemToolDeps["db"],
+  });
+  const delegateHandler = async () => { throw new Error("denied calls must not reach the delegate"); };
+  const [reg] = deriveTrashItemRegistrations(
+    { registrations: [{ descriptor: { id: "media_trash_asset" }, handler: delegateHandler } as unknown as ToolRegistration], routeDeps: d, surfaces: {} as never },
+    { delegates: new Map([["media", TRASH_ITEM_DELEGATES.get("media")!]]) },
+  );
+  await assert.rejects(call(reg!, { entityType: "form", entityId: "f1" }), (e: unknown) => (e as { permission?: string }).permission === "admin.forms.manage");
+  await assert.rejects(call(reg!, { entityType: "media", entityId: "m1" }), (e: unknown) => (e as { permission?: string }).permission === "media.delete");
+  assert.deepEqual(seen, [
+    { principalId: "p", permission: "admin.forms.manage", workspaceId: "ws", entityType: "form", entityId: "f1" },
+    { principalId: "p", permission: "media.delete", workspaceId: "ws", entityType: "media", entityId: "m1" },
+  ]);
+});
+
+test("generic kind: the version read by the tool is the one enforced — a row bumped before the write is version-changed", async () => {
+  let reads = 0;
+  const writes: unknown[] = [];
+  const d = deps({
+    registry: new Map([["form", FORM_ENTRY]]),
+    db: { run: async () => ({ title: "F", version: ++reads === 1 ? 2 : 3 }) } as unknown as TrashItemToolDeps["db"],
+    trash: { trash: async (a: unknown) => (writes.push(a), { ok: true, version: 4 }) } as unknown as TrashPort,
+  });
+  const [reg] = deriveTrashItemRegistrations({ registrations: [], routeDeps: d, surfaces: {} as never }, { delegates: new Map() });
+  await assert.rejects(call(reg!, { entityType: "form", entityId: "f1" }), (e: unknown) => e instanceof ToolInputError && /changed during removal/.test(e.message));
+  assert.deepEqual(writes, []);
+});
