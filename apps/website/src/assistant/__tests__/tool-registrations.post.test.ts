@@ -208,7 +208,7 @@ test("the delete tool's description tells the model the SAME call reports the ou
   const entry = catalogEntry("content_post_delete");
   assert.ok(
     entry.description.startsWith(
-      "Waits for human approval, then moves one post or page to Trash with {id, kind}. Returns {deleted: true, cancelled: false, post}.",
+      "Waits for human approval, then moves one post or page to Trash with {id}. Omitted kind is derived from the stored post or page; an explicit kind is also accepted. Returns {deleted: true, cancelled: false, post}.",
     ),
     entry.description,
   );
@@ -459,7 +459,7 @@ test("content_post_create rejects a malformed slug, with the schema attached for
   assert.ok(error, "a malformed slug must reject");
   assert.match(error.message, /slug must use lowercase letters, numbers, and dashes/);
   assert.match(error.message, /will not resolve on retry without an input change/);
-  assert.match(error.message, /"required":\["kind","title"\]/, "the published schema must travel with the failure");
+  assert.match(error.message, /"required":\["title"\]/, "the published schema must travel with the failure");
 });
 
 test("content_post_update rejects a non-JSON-object bodyJson", async () => {

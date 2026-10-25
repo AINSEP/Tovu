@@ -694,11 +694,19 @@ function toPostListRow(routeDeps: PostToolDeps, post: PostRecord, excerptChars: 
  * `content_post_get` uses (kind mismatch and trashed rows both read as not-found — a second delete
  * cannot "succeed"). Throws `PostNotFoundError` rather than returning `null` because there is no
  * valid "keep going" path once this fails.
+ * @param required - Workspace-bound dependencies and the target id; call only after read authorization.
+ * @param optional - Requested public kind, if supplied; omitted kind is derived from the returned row.
+ * @returns The live public post/page; internal templates are not content-tool targets.
+ * @throws {PostNotFoundError} For missing, internal, trashed or page-kind-mismatched rows.
+ * @complexity O(1) repository reads and auxiliary space.
  */
-async function loadDeletablePost(routeDeps: PostToolDeps, id: string, kind: PostKind): Promise<PostRecord> {
+async function loadDeletablePost(
+  { routeDeps, id }: { routeDeps: PostToolDeps; id: string },
+  { kind }: { kind?: PublicPostKind } = {},
+): Promise<PublicPostRecord> {
   const existing = await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id });
-  if (!existing || isTrashed(existing) || (kind === "page" && existing.kind !== "page")) {
-    throw new PostNotFoundError(`${kind} '${id}' was not found`);
+  if (!isPublicPost(existing) || isTrashed(existing) || (kind === "page" && existing.kind !== "page")) {
+    throw new PostNotFoundError(`${kind ?? "post"} '${id}' was not found`);
   }
   return existing;
 }
@@ -974,7 +982,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
     content_post_create: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
       return withSchemaOnRejection({ toolId: "content_post_create", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isPostShapeRejection(error), fn: async () => {
-        const kind = requirePostKind(input);
+        const kind = input.kind === undefined ? "post" : requirePostKind(input);
         const title = requireString({ input: input, key: "title" });
         const slug = optionalString({ input: input, key: "slug" });
         const bodyJson = input.bodyJson !== undefined ? requireBodyJson(input, "bodyJson") : undefined;
@@ -1198,7 +1206,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
     content_post_delete: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
       const id = requireString({ input: input, key: "id" });
-      const kind = requirePostKind(input);
+      const requestedKind = input.kind === undefined ? undefined : requirePostKind(input);
 
       // Gated exactly like content_post_get, and performed before opening anything so a caller with
       // no read access learns nothing and never causes a dialog to be raised.
@@ -1208,7 +1216,8 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
       // `pages/update.ts` — and carrying the same disclosed asymmetry the rest of this catalog has:
       // kind:'page' rejects an actual 'post' row, kind:'post' is not guarded the other way.
       // A trashed row is not-found too (post.ts's own rule), so a second delete cannot "succeed".
-      const existing = await loadDeletablePost(routeDeps, id, kind);
+      const existing = await loadDeletablePost({ routeDeps, id }, { kind: requestedKind });
+      const kind = requestedKind ?? existing.kind;
 
       // Keep the version check before the reversible removal.
       const current = await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id });
