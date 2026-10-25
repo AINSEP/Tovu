@@ -50,6 +50,12 @@ function submitter(store: ReturnType<typeof createSurfaceExchangeStore>, value: 
   return { emitted, emitSurface };
 }
 const outcomeText = (emission: SurfaceEmission | undefined) => (emission?.payload as { resource: { resource: { text: string } } } | undefined)?.resource.resource.text ?? "";
+/** The rendered outcome's status line. `/success|failure/` alone is not evidence: both words occur in
+ *  every outcome page's shared CSS/JS, so a regex on the whole page can never fail. */
+const outcomeStatus = (emission: SurfaceEmission | undefined) => {
+  const m = outcomeText(emission).match(/<p class="mcpui-status"[^>]*data-state="([^"]*)"[^>]*>([^<]*)<\/p>/);
+  return m ? { state: m[1], text: m[2] } : undefined;
+};
 
 test("a vendor failure after submit returns fixed storage text and a failure outcome, never the value", async () => {
   const h = await harness({ [`GET ${API}`]: { status: 200, body: { secrets: [] } }, [`GET ${API}/STRIPE_KEY?reveal=true`]: { status: 404, body: {} }, [`POST ${API}/STRIPE_KEY`]: { status: 500, body: { error: "echo typed-canary-value" } } });
@@ -61,7 +67,7 @@ test("a vendor failure after submit returns fixed storage text and a failure out
   assert.equal(h.calls.includes(`POST ${API}/STRIPE_KEY`), true);
   assert.equal(emitted.length, 2);
   assert.equal(JSON.stringify([result, emitted]).includes("typed-canary-value"), false);
-  assert.match(outcomeText(emitted[1]), /failure/);
+  assert.deepEqual(outcomeStatus(emitted[1]), { state: "failed", text: STORAGE });
 });
 
 test("a credential removed while the card is open returns the credential-setup recovery and emits no outcome", async () => {
@@ -109,7 +115,7 @@ test("a typed dry run against an absent secret reports the comparison, changes n
   assert.equal((result as { dryRun?: true }).dryRun, true);
   assert.equal(h.calls.some(call => call.startsWith("POST")), false);
   assert.equal(emitted.length, 2);
-  assert.match(outcomeText(emitted[1]), /failure/);
+  assert.deepEqual(outcomeStatus(emitted[1]), { state: "failed", text: STORAGE });
   assert.equal(JSON.stringify([result, emitted]).includes("typed-canary-value"), false);
 });
 
@@ -166,6 +172,6 @@ test("a successful save returns the adapter's result and a success outcome, neve
   const result = await collectTypedDeploySecret({ ctx: execution({}) as never, deps: h.f.deps as never, surfaces: h.surfaces as never, input: { platform: "example-host", target: "shop", name: "STRIPE_KEY", source: { kind: "typed" } }, permit: async () => {} }, { emitSurface });
   assert.equal((result as { changed: boolean }).changed, true);
   assert.equal(emitted.length, 2);
-  assert.match(outcomeText(emitted[1]), /success/);
+  assert.deepEqual(outcomeStatus(emitted[1]), { state: "done", text: "Saved." });
   assert.equal(JSON.stringify([result, emitted]).includes("typed-canary-value"), false);
 });
