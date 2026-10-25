@@ -15,7 +15,7 @@ test("every delegated tool call becomes one tool.call operation with outcome and
   const fake = createRecordingObservabilityPort();
   const kinds = await runToolCallScenario({ observability: fake.port });
   // The route's answers are unchanged by observation.
-  assert.deepEqual(kinds, ["ok", "BAD_REQUEST", "TOOL_EXECUTION_FAILED", "BAD_REQUEST"]);
+  assert.deepEqual(kinds, ["ok", "BAD_REQUEST", "TOOL_EXECUTION_FAILED", "BAD_REQUEST", "BAD_REQUEST"]);
   assert.deepEqual(fake.normalized(), EXPECTED_OPERATIONS);
   assert.equal(fake.operations[0]?.attributes["agent.run.id"] !== undefined, true);
 });

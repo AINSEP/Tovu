@@ -528,7 +528,7 @@ function composeSurfaceExecutor(
         ? { settled: federation.started, connectFailures: federation.connectFailures(), configuredConnectionIds: federation.configuredConnectionIds() }
         : { settled: true, connectFailures: [] } }, {});
   // Outermost of all, as in `agent-daemon-server.ts`: the operation records what the caller sees.
-  return options.observability ? withToolCallObservability({ inner: executor, observability: options.observability }, {}) : executor;
+  return options.observability ? withToolCallObservability({ inner: executor, observability: options.observability }, { isRegisteredTool: ({ toolId }) => registry.has({ toolId }) }) : executor;
 }
 
 /**

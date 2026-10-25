@@ -716,7 +716,8 @@ const toolExecutor = withFederatedRefusalDiagnosis({ inner: createAssistantToolE
 // call on `routeDeps.observability` (the injected port — never an SDK import here). The executor
 // itself when telemetry is off. The delegated-tool route takes it; the MCP-UI callback route (a
 // human answering a surface) still takes the bare executor — prototype scope, see the plan.
-const observedToolExecutor = withToolCallObservability({ inner: toolExecutor, observability: routeDeps.observability }, {});
+// `isRegisteredTool`: an id the registry does not know is exported only as a fixed label (review 10-25 #1).
+const observedToolExecutor = withToolCallObservability({ inner: toolExecutor, observability: routeDeps.observability }, { isRegisteredTool: ({ toolId }) => registry.has({ toolId }) });
 
 /**
  * The admin Instructions tab's system-prompt seam (`core.instructions.custom`) — see

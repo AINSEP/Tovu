@@ -17,8 +17,11 @@ import { createAssistantToolExecutor, delegatedToolErrorDisclosure, withToolCall
 export const SCENARIO_SECRET = ["sk", "live", ""].join("_") + "Ab3".repeat(8);
 const PRINCIPAL: Principal = { id: "principal-observability" };
 
-/** Four calls: a success, a model input mistake, a handler crash carrying a secret, an unknown tool. */
-export const SCENARIO_CALLS = ["pages_list", "theme_set", "deploy_run", "no_such_tool"] as const;
+/** Five calls: a success, a model input mistake, a handler crash carrying a secret, an unknown tool,
+ * and an unknown tool whose id IS a secret (review 2026-10-25 #1: it must never reach an adapter). */
+export const SCENARIO_CALLS = ["pages_list", "theme_set", "deploy_run", "no_such_tool", SCENARIO_SECRET] as const;
+/** WHO did it: every operation carries the principal's pseudonymous id as `user.id` (owner 10-25). */
+export const SCENARIO_USER_ID = "principal-observability";
 
 /** Runs every scenario call in order and returns the HTTP-facing result kinds the route produced. */
 export async function runToolCallScenario({ observability }: { observability: ObservabilityPort }): Promise<string[]> {
@@ -29,7 +32,7 @@ export async function runToolCallScenario({ observability }: { observability: Ob
   registry.register({ descriptor: { id: "deploy_run" }, policy: allow, handler: () => { throw new Error(`deploy failed: key=${SCENARIO_SECRET}`); } });
   const toolFailures = { mintErrorId: () => "ERR-AAAA-1111-BBBB-2222", onFailure: () => undefined };
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const toolExecutor = withToolCallObservability({ inner: createAssistantToolExecutor({ registry, surfaceExchanges, toolFailures }, {}), observability }, {});
+  const toolExecutor = withToolCallObservability({ inner: createAssistantToolExecutor({ registry, surfaceExchanges, toolFailures }, {}), observability }, { isRegisteredTool: ({ toolId }) => registry.has({ toolId }) });
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-observability" });
   const kinds: string[] = [];
@@ -44,7 +47,7 @@ export async function runToolCallScenario({ observability }: { observability: Ob
 
 /** What every adapter must agree on, per operation, once vendor detail is stripped. */
 export interface NormalizedOperation {
-  name: string; toolId: string; outcome: string; failed: boolean; errorKind?: string;
+  name: string; toolId: string; userId: string; outcome: string; failed: boolean; errorKind?: string;
   /** Error types reported inside this operation, in order. */
   reported: string[];
 }
@@ -65,7 +68,7 @@ export function createRecordingObservabilityPort(): { port: ObservabilityPort; o
     reportError: ({ error }) => { active?.errors.push(error); },
   };
   const normalized = () => operations.map((op) => ({
-    name: op.name, toolId: String(op.attributes["tool.id"]), outcome: op.end?.outcome ?? "open", failed: op.end?.failed ?? false,
+    name: op.name, toolId: String(op.attributes["tool.id"]), userId: String(op.attributes["user.id"]), outcome: op.end?.outcome ?? "open", failed: op.end?.failed ?? false,
     ...(op.end?.attributes?.["tool.error_kind"] ? { errorKind: String(op.end.attributes["tool.error_kind"]) } : {}),
     reported: op.errors.map((error) => (error instanceof Error ? error.name : typeof error)),
   }));
@@ -74,8 +77,9 @@ export function createRecordingObservabilityPort(): { port: ObservabilityPort; o
 
 /** The observation every adapter must reproduce for {@link SCENARIO_CALLS}. */
 export const EXPECTED_OPERATIONS: NormalizedOperation[] = [
-  { name: "tool.call", toolId: "pages_list", outcome: "completed", failed: false, reported: [] },
-  { name: "tool.call", toolId: "theme_set", outcome: "failed", failed: true, errorKind: "validation", reported: [] },
-  { name: "tool.call", toolId: "deploy_run", outcome: "failed", failed: true, errorKind: "internal", reported: ["ToolExecutionFailure"] },
-  { name: "tool.call", toolId: "no_such_tool", outcome: "threw", failed: true, errorKind: "validation", reported: [] },
+  { name: "tool.call", toolId: "pages_list", userId: SCENARIO_USER_ID, outcome: "completed", failed: false, reported: [] },
+  { name: "tool.call", toolId: "theme_set", userId: SCENARIO_USER_ID, outcome: "failed", failed: true, errorKind: "validation", reported: [] },
+  { name: "tool.call", toolId: "deploy_run", userId: SCENARIO_USER_ID, outcome: "failed", failed: true, errorKind: "internal", reported: ["ToolExecutionFailure"] },
+  { name: "tool.call", toolId: "unregistered", userId: SCENARIO_USER_ID, outcome: "threw", failed: true, errorKind: "validation", reported: [] },
+  { name: "tool.call", toolId: "unregistered", userId: SCENARIO_USER_ID, outcome: "threw", failed: true, errorKind: "validation", reported: [] },
 ];

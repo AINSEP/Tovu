@@ -9,7 +9,7 @@ import type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { withToolFailureRecovery as withDaemonRecovery, withRedactedToolFailures as withDaemonRedaction,
   createAssistantToolExecutor as createDaemonToolExecutor, mintToolErrorId as mintDaemonErrorId,
   describeDelegatedInternalError as describeDaemonError, delegatedToolErrorDisclosure as daemonErrorDisclosure,
-  withFederatedRefusalDiagnosis as withDaemonFederationDiagnosis, withToolCallObservability as withDaemonToolCallObservability } from "@jini-ai/daemon/tool-recovery";
+  withFederatedRefusalDiagnosis as withDaemonFederationDiagnosis, withToolCallObservability as withDaemonToolCallObservability, type IsRegisteredTool } from "@jini-ai/daemon/tool-recovery";
 import { isNoopObservabilityPort, type ObservabilityPort } from "#src/platform/observability/index";
 import type { ToolFailureRecord, RedactedToolFailuresDeps as DaemonFailureDeps,
   DelegatedInternalErrorContext, FederationBootStatus } from "@jini-ai/daemon/tool-recovery";
@@ -122,7 +122,7 @@ export function withFederatedRefusalDiagnosis(required: { inner: ToolExecutor; g
  * validation vs internal error; execution errors through `reportError`). Compose OUTERMOST so the
  * operation sees what the caller sees, federated-refusal diagnoses included. Off (the noop port),
  * the executor is returned as-is: a disabled install pays no wrapper frame per call. */
-export function withToolCallObservability(required: { inner: ToolExecutor; observability: ObservabilityPort }, optional = {}): ToolExecutor {
+export function withToolCallObservability(required: { inner: ToolExecutor; observability: ObservabilityPort }, optional: { isRegisteredTool?: IsRegisteredTool } = {}): ToolExecutor {
   if (isNoopObservabilityPort(required.observability)) return required.inner;
   return withDaemonToolCallObservability(required, optional);
 }

@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { combineObservabilityPorts, createObservabilityPort as createDiagnosticObservabilityPort, createNoopObservabilityPort, type ObservabilityConfig, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import { combineObservabilityPorts, createNoopObservabilityPort, type ObservabilityAdapter, type ObservabilityConfig, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 import type { SentryConfig } from "./config.js";
 // Decorators for the DB kernel, the guarded HTTP client and raw fetch; all are identity for the no-op port.
 export { instrumentStorageKernel, isNoopObservabilityPort, trackFetch, trackHttpClient } from "@jini-ai/diagnostics/observability";
@@ -16,13 +16,21 @@ const require = createRequire(import.meta.url);
 // Zero-allocation disabled-request rationale: Jini/packages/diagnostics/src/observability/noop.ts.
 // Hermetic roots choose the no-op directly so a stray OTEL_EXPORTER_OTLP_ENDPOINT in a developer's
 // shell cannot cause tests to contact a real collector; only the running root uses operator config.
-// Load the SDK with require only after enablement: composition is synchronous, and this host-only
-// SDK module has no competing first-party runtime import to create a second tsx module instance.
+// Load the SDK with require only after enablement: composition is synchronous. The SDK adapters are
+// Jini provider subpaths (owner 2026-10-25: "a provider plugin … no way it should be in core, because
+// we're gonna want to use it for other projects"), so nothing under this directory imports
+// `@opentelemetry/*` or `@sentry/*` (`observability-vendor-boundary.unit.test.ts`). Requiring a
+// package's ESM subpath shares Node's one ESM module cache with the static imports above, so there is
+// no second copy of the port module (and `isNoopObservabilityPort` identity holds). Literal specifiers
+// so `no-first-party-require.boundary.test.ts` can see they are packages, not first-party modules.
 /**
- * Selects Jini's request tracker with lazily loaded Tovu OpenTelemetry SDK factories.
+ * Selects the observability port from config: the noop, or the lazily required Jini provider
+ * subpaths (OpenTelemetry, Sentry), fanned out when both are configured.
  * Disabled telemetry never loads the SDK. Composition supplies explicit operator configuration;
  * hermetic roots must call Jini's createNoopObservabilityPort({}) directly.
  * @param required Resolved telemetry policy.
+ * @param optional `sentry` config; `onDispose` receives each enabled provider's teardown (the site
+ *   store's `onClose` in `deps.ts`), so a closed site releases its SDK clients and timers.
  * @returns The diagnostics request-tracking port, with no global tracer registration.
  * @throws SDK initialization errors when enabled.
  * @complexity O(1) setup; requests are tracked by the package-owned lifecycle.
@@ -44,8 +52,8 @@ const require = createRequire(import.meta.url);
  *
  * Architectural role:
  * Mirrors `platform/mail/ports.ts`'s "port file has no concrete adapter" shape. Jini lifecycle adapters:
- * `noop.ts` (the default — see its own header for why it must cost nothing) and `otel.ts` (request lifecycle through structural factories); Tovu's SDK factories are
- * lazily loaded by this `createObservabilityPort`.
+ * `noop.ts` (the default — see its own header for why it must cost nothing) and `otel.ts` (request lifecycle through structural factories); the SDK
+ * provider subpaths (`observability/opentelemetry`, `observability/sentry`) are lazily required by this `createObservabilityPort`.
  *
  * Originally kept to one method (inbound HTTP, via `server/inbound/shared/observability-middleware.ts`):
  * `trackDbQuery`/`trackOutboundCall`/`trackAgentRun` were named as the port's next additions but
@@ -80,31 +88,30 @@ const require = createRequire(import.meta.url);
  * already follows — `ConsoleMailerAdapter` vs `SmtpMailerAdapter`, `InMemoryPublishHistoryStore`
  * vs `SqlitePublishHistoryStore`, etc.).
  *
- * The OTel adapter module is loaded lazily — see `otel.ts`'s file header for the full mechanism and
- * why it matters — so this function costs nothing beyond the `enabled` check for the common case.
+ * The OTel adapter module is loaded lazily — see the provider's file header
+ * (Jini `diagnostics/src/observability/opentelemetry.ts`) for the full mechanism and why it matters —
+ * so this function costs nothing beyond the `enabled` check for the common case.
  *
  * @complexity O(1); the disabled branch never touches the filesystem or module resolver.
  */
-export function createObservabilityPort({ config }: { config: ObservabilityConfig }, { sentry }: { sentry?: SentryConfig } = {}): ObservabilityPort {
+export function createObservabilityPort({ config }: { config: ObservabilityConfig }, { sentry, onDispose }: { sentry?: SentryConfig; onDispose?: (dispose: () => Promise<void>) => void } = {}): ObservabilityPort {
   if (!config.enabled && !sentry?.enabled) return createNoopObservabilityPort({});
   // Both configured: fan out (OpenTelemetry carries traces, Sentry carries incidents). Each adapter
   // is loaded only when its own setting is present; neither knows the other exists.
-  return combineObservabilityPorts({ ports: [createOtelPort({ config }), createSentryPort({ sentry })] });
+  const adapters = [createOtelAdapter({ config }), createSentryAdapter({ sentry })].filter((adapter) => adapter !== undefined);
+  for (const adapter of adapters) onDispose?.(adapter.dispose);
+  return combineObservabilityPorts({ ports: adapters.map((adapter) => adapter.port) });
 }
 
-function createOtelPort({ config }: { config: ObservabilityConfig }): ObservabilityPort {
-  if (!config.enabled) return createNoopObservabilityPort({});
-  const { createOtelFactories, createAsyncLocalSpanScope }: typeof import("./otel.js") = require("./otel.js");
-  const factories = createOtelFactories({});
-  return createDiagnosticObservabilityPort({
-    config,
-    ...factories,
-  }, { scope: createAsyncLocalSpanScope({}) });
+function createOtelAdapter({ config }: { config: ObservabilityConfig }): ObservabilityAdapter | undefined {
+  if (!config.enabled) return undefined;
+  const { createOtelObservabilityAdapter }: typeof import("@jini-ai/diagnostics/observability/opentelemetry") = require("@jini-ai/diagnostics/observability/opentelemetry");
+  return createOtelObservabilityAdapter({ config });
 }
 
 /** Same lazy-load rule as the OTel SDK: `@sentry/node` is required only once `SENTRY_DSN` is set. */
-function createSentryPort({ sentry }: { sentry?: SentryConfig }): ObservabilityPort {
-  if (!sentry?.enabled) return createNoopObservabilityPort({});
-  const { createSentryObservabilityPort }: typeof import("./sentry.js") = require("./sentry.js");
-  return createSentryObservabilityPort({ config: sentry });
+function createSentryAdapter({ sentry }: { sentry?: SentryConfig | undefined }): ObservabilityAdapter | undefined {
+  if (!sentry?.enabled) return undefined;
+  const { createSentryObservabilityAdapter }: typeof import("@jini-ai/diagnostics/observability/sentry") = require("@jini-ai/diagnostics/observability/sentry");
+  return createSentryObservabilityAdapter({ config: sentry });
 }

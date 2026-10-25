@@ -5,7 +5,7 @@ import { SpanKind, SpanStatusCode } from "@opentelemetry/api";
 import { InMemorySpanExporter, SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 
-import { createAsyncLocalSpanScope, createOtelFactories, createOtelObservabilityPort } from "../../otel.js";
+import { createAsyncLocalSpanScope, createOtelFactories, createOtelObservabilityPort } from "@jini-ai/diagnostics/observability/opentelemetry";
 import type { ObservabilityConfigEnabled } from "@jini-ai/diagnostics/observability";
 
 /**
@@ -115,11 +115,14 @@ test("SDK factories reject an exporter of the wrong kind before starting a provi
 test("without test processors the SDK factories build a real OTLP exporter and accept it into the batch pipeline", async () => {
   const { exporterFactory, tracerProviderFactory } = createOtelFactories({});
   const exporter = exporterFactory.create({ endpoint: "http://127.0.0.1:9/v1/traces" });
-  assert.ok(exporter instanceof OTLPTraceExporter);
+  // By name, not instanceof: the SDK factories now live in the Jini provider subpath, which (in the
+  // linked dev setup, `npm run link:jini`) resolves its own copy of the optional peer SDK. Published,
+  // the peer resolves to the host's single copy; the factory's own `instanceof` guard is self-consistent either way.
+  assert.equal((exporter as { constructor?: { name?: string } } | undefined)?.constructor?.name, OTLPTraceExporter.name);
   const tracer = tracerProviderFactory.create({ serviceName: "tovu-default", exporter }).getTracer({ name: "tovu.test" });
   const span = tracer.startSpan({ name: "unended", kind: "internal", attributes: {} });
   assert.equal(typeof span.end, "function", "a provider built on the OTLP batch processor hands out live spans");
-  await exporter.shutdown();
+  await (exporter as { shutdown(): Promise<void> }).shutdown();
 });
 
 test("explicit test processors suppress the network exporter entirely", () => {

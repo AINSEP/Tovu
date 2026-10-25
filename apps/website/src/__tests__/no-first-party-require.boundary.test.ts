@@ -45,19 +45,12 @@ for (const glob of workspaceGlobs) {
  * (file + specifier), not a glob — a future legitimate lazy leaf must be added here deliberately,
  * which is the point (G3 below re-checks every entry is still true).
  */
-const ALLOWED_FIRST_PARTY_REQUIRES: ReadonlyMap<string, readonly string[]> = new Map([
-  [
-    // `platform/observability/index.ts`'s `createObservabilityPort` reaches this module lazily so
-    // the OTel SDK is never loaded into a process that hasn't enabled it. Safe because nothing
-    // `import`s `otel.ts` (so tsx's `require()` copy is the ONLY copy) and `otel.ts` itself has no
-    // first-party runtime import (so its "second copy" can never diverge from a first one) — G3
-    // re-verifies both facts on every run rather than trusting this comment forever.
-    // `./sentry.js` is the same lazy leaf for the Sentry SDK (gated on SENTRY_DSN), under the same
-    // two facts: nothing imports it, and it has no first-party runtime import.
-    "apps/website/src/platform/observability/index.ts",
-    ["./otel.js", "./sentry.js"],
-  ],
-]);
+// Empty since 2026-10-25: `platform/observability/index.ts` used to lazily `require("./otel.js")` /
+// `"./sentry.js"` (the SDK adapters, then in core). Those moved to Jini provider subpaths
+// (`@jini-ai/diagnostics/observability/{opentelemetry,sentry}`), which are packages, not first-party
+// modules, so the one exception this guard carried is gone. The reasons it was safe (nothing imported
+// the leaf; the leaf had no first-party runtime import) now hold by construction.
+const ALLOWED_FIRST_PARTY_REQUIRES: ReadonlyMap<string, readonly string[]> = new Map([]);
 
 /** Recursively lists candidate source files under `dir` — production `.ts`/`.tsx`/`.mts`/`.cts`, no tests, no type declarations. */
 function listSourceFiles(dir: string): string[] {

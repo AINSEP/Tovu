@@ -5,7 +5,7 @@ import { SpanKind, SpanStatusCode } from "@opentelemetry/api";
 import { InMemorySpanExporter, SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
 import { sql } from "kysely";
 
-import { createOtelObservabilityPort } from "../../otel.js";
+import { createOtelObservabilityPort } from "@jini-ai/diagnostics/observability/opentelemetry";
 import { createObservabilityPort, instrumentStorageKernel, isNoopObservabilityPort } from "../../index.js";
 import { openMemorySqliteKernel } from "#src/platform/db/kernel/drivers/sqlite";
 import type { ObservabilityConfigEnabled } from "@jini-ai/diagnostics/observability";
