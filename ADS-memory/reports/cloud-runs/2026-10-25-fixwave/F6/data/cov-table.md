@@ -1,0 +1,34 @@
+| file | lines before | lines after | branches before | branches after |
+|--|--|--|--|--|
+| features/database-transfer/destination-store.ts | 100.0 | 100.0 (146/146) | 98.0 | 100.0 (51/51) |
+| features/database-transfer/exclusions.ts | 100.0 | 100.0 (77/77) | 100.0 | 100.0 (2/2) |
+| features/identity/api-key-secret.ts | n/a | 100.0 (235/235) | n/a | 100.0 (51/51) |
+| features/identity/boot-session-token.ts | 100.0 | 100.0 (135/135) | 93.8 | 100.0 (17/17) |
+| features/identity/permission-list-tool.ts | 75.5 | 100.0 (49/49) | 100.0 | 100.0 (10/10) |
+| features/identity/user-manage-permission.ts | 100.0 | 100.0 (10/10) | 100.0 | 100.0 (3/3) |
+| features/mail/attempts.repo.ts | 100.0 | 100.0 (32/32) | 95.0 | 95.2 (20/21) |
+| features/member-login/link-policy.ts | 100.0 | 100.0 (39/39) | 100.0 | 100.0 (28/28) |
+| features/member-login/link-service.ts | 98.2 | 100.0 (166/166) | 88.1 | 98.7 (74/75) |
+| features/member-login/oidc-login.ts | 96.8 | 100.0 (247/247) | 83.3 | 94.6 (87/92) |
+| features/member-login/providers.ts | 99.1 | 99.1 (110/111) | 73.9 | 98.6 (68/69) |
+| features/member-login/ready-providers.ts | 66.7 | 100.0 (21/21) | 100.0 | 100.0 (8/8) |
+| features/members/agent-tools.ts | n/a | 100.0 (158/158) | n/a | 100.0 (1/1) |
+| features/members/password-auth.ts | 100.0 | 100.0 (203/203) | 100.0 | 100.0 (74/74) |
+| features/members/write-service.ts | 99.8 | 100.0 (660/660) | 98.3 | 98.9 (181/183) |
+| features/settings/form-delivery.ts | 100.0 | 100.0 (200/200) | 100.0 | 100.0 (70/70) |
+| features/settings/publish-content.ts | 100.0 | 100.0 (154/154) | 100.0 | 100.0 (55/55) |
+| features/settings/tool-registrations.ts | 100.0 | 100.0 (157/157) | 97.8 | 97.8 (45/46) |
+| features/settings/visitor-tools-agent-tools.ts | n/a | 100.0 (25/25) | n/a | 100.0 (1/1) |
+| server/inbound/admin-http/publish-trust-auth.ts | 100.0 | 100.0 (437/437) | 96.4 | 96.3 (52/54) |
+| server/inbound/admin-http/routes/api-keys/create-principal.ts | 100.0 | 100.0 (46/46) | 80.0 | 100.0 (9/9) |
+| server/inbound/admin-http/routes/api-keys/issue.ts | 100.0 | 100.0 (46/46) | 80.0 | 100.0 (11/11) |
+| server/inbound/admin-http/routes/system/site-key.ts | 99.7 | 99.7 (616/618) | 90.3 | 91.2 (145/159) |
+| server/inbound/admin-http/routes/system/site-shares.ts | n/a | 62.7 (52/83) | n/a | 100.0 (14/14) |
+| server/inbound/public-http/middleware/canonical-site-host.ts | 100.0 | 100.0 (43/43) | 100.0 | 100.0 (24/24) |
+| server/inbound/public-http/routes/api-connections/oauth-callback.ts | 97.5 | 97.5 (119/122) | 97.9 | 97.9 (46/47) |
+| server/inbound/public-http/routes/members/complete-sign-in.ts | 100.0 | 100.0 (89/89) | 96.6 | 100.0 (31/31) |
+| server/inbound/public-http/routes/members/me.ts | 100.0 | 100.0 (42/42) | 91.7 | 100.0 (26/26) |
+| server/inbound/public-http/routes/members/oidc-callback.ts | 98.7 | 100.0 (77/77) | 92.0 | 96.8 (30/31) |
+| server/inbound/public-http/routes/members/oidc-verify-email.ts | 100.0 | 100.0 (51/51) | 80.0 | 97.0 (32/33) |
+| server/inbound/public-http/routes/members/unlink-identity.ts | 100.0 | 100.0 (80/80) | 78.1 | 94.1 (32/34) |
+| server/runtime/boot/site-listener-origin.ts | 100.0 | 100.0 (25/25) | 75.0 | 100.0 (12/12) |
