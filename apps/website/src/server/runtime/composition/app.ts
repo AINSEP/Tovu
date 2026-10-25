@@ -2008,6 +2008,8 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // file, the hermetic test composition), durable SQL from `deps.ts`'s
   // `createSiteRouteDeps()` (the real site, ADR-046 Phase 1).
   const memberPublicDeps: MemberPublicRouteDeps = {
+    // Password writes fail closed without the shared store; never mix kernel transactions with memory repos.
+    credentialLifecycle: routeDeps.contentKernel,
     workspaceId: routeDeps.workspaceId,
     memberRepo: routeDeps.memberRepo,
     memberTierRepo: routeDeps.memberTierRepo,

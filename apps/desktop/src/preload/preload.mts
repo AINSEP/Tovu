@@ -1,7 +1,7 @@
 /**
  * Deliberately narrow renderer bridge for the SITES HOME window. This is a native ESM Electron preload:
  * its `.mjs` output and unsandboxed, context-isolated renderer configuration are required by
- * Electron's ESM loader. The page remains isolated from Node and receives only the two fixed,
+ * Electron's ESM loader. The page remains isolated from Node and receives only the fixed,
  * explicit allowlists below.
  *
  * Ported from `Tovu-Runner/src/preload/preload.mts`. The `tovuRunner` half is that file unchanged;
@@ -16,6 +16,7 @@
  * Both preloads now use Jini's narrow bridge with Tovu's channel namespace; the sandboxed admin
  * preload bundles it so Electron's restricted require needs only electron. The host keeps its
  * positional renderer API, and preload tests guard channel/payload parity with speech-ipc.ts.
+ * Shared keys use `tovuOwnerStore`, with fixed channels and all filesystem/CLI work kept in main.
  *
  * The `tovuRunner` channel names, by contrast, are imported from `../contracts/*.js` — this
  * preload is unsandboxed, so a relative import resolves, and the contracts are pure constant/type
@@ -28,6 +29,7 @@ import { createSpeechBridge } from '@jini-ai/desktop-host/speech';
 import { RUNNER_AGENT_INVENTORY_CHANNELS } from '../contracts/runtime-inventory.js';
 import { RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL, RUNNER_APP_VERSION_CHANNEL } from '../contracts/app-version.js';
 import { RUNNER_RESOURCES_GET_CHANNEL, type ResourcesRequest } from '../contracts/resources.js';
+import { OWNER_STORE_CHANNELS, type OwnerStoreBridge } from '../contracts/owner-store.js';
 import {
   SITE_HISTORY_CHANNEL,
   SITE_IPC_CHANNELS,
@@ -73,6 +75,20 @@ function subscribe<Payload>(channel: string, listener: (payload: Payload) => voi
     ipcRenderer.removeListener(channel, handler);
   };
 }
+
+// Separate from the inventory bridge so S4 can adopt the typed API without changing site tools.
+const ownerStoreBridge: OwnerStoreBridge = {
+  status: (input, _options = {}) => ipcRenderer.invoke(OWNER_STORE_CHANNELS.status, input),
+  list: (input, _options = {}) => ipcRenderer.invoke(OWNER_STORE_CHANNELS.list, input),
+  put: (input, _options = {}) => ipcRenderer.invoke(OWNER_STORE_CHANNELS.put, input),
+  delete: (input, _options = {}) => ipcRenderer.invoke(OWNER_STORE_CHANNELS.delete, input),
+  grant: (input, _options = {}) => ipcRenderer.invoke(OWNER_STORE_CHANNELS.grant, input),
+  revoke: (input, _options = {}) => ipcRenderer.invoke(OWNER_STORE_CHANNELS.revoke, input),
+  sync: (input, _options = {}) => ipcRenderer.invoke(OWNER_STORE_CHANNELS.sync, input),
+  export: (input, _options = {}) => ipcRenderer.invoke(OWNER_STORE_CHANNELS.export, input),
+  restore: (input, _options = {}) => ipcRenderer.invoke(OWNER_STORE_CHANNELS.restore, input),
+};
+contextBridge.exposeInMainWorld('tovuOwnerStore', Object.freeze(ownerStoreBridge));
 
 contextBridge.exposeInMainWorld(
   'tovuRunner',

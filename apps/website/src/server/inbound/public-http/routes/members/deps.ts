@@ -41,6 +41,7 @@ import { rejectOversizedJsonBody } from "../../../shared/body-size-limit.js";
  * consults, so the two surfaces share one counter per email, not two.
  */
 export interface MemberPublicRouteDeps {
+  credentialLifecycle?: MembersWriteServiceDeps["credentialLifecycle"];
   workspaceId: UUID;
   memberRepo: MemberRepoPort;
   memberTierRepo: MemberTierRepoPort;
@@ -71,6 +72,7 @@ export interface MemberPublicRouteDeps {
 /** Assemble the `MembersWriteServiceDeps` bundle from `MemberPublicRouteDeps`. */
 export function toPublicMembersWriteServiceDeps(deps: MemberPublicRouteDeps): MembersWriteServiceDeps {
   return {
+    credentialLifecycle: deps.credentialLifecycle,
     passwordHasher: deps.passwordHasher,
     clock: deps.clock,
     ids: deps.idGen,
