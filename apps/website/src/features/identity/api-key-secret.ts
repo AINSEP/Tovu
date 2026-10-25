@@ -137,10 +137,13 @@ function isIntegerTriple(N: number, r: number, p: number): boolean {
 /** True iff `N`/`r`/`p` are within the bounds a legitimately-written digest can have: strictly
  *  positive (`N` additionally > 1, scrypt's own requirement), and under the memory ceiling. Refuses
  *  to spend unbounded memory on parameters read out of a row (a hand-edited or hostile `key_hash`
- *  must not become a denial-of-service knob) — `128 * N * r` is scrypt's own footprint. */
+ *  must not become a denial-of-service knob) — `128 * N * r` is scrypt's own footprint. Its CPU work
+ *  is `128 * N * r * p` bytes mixed, linear in `p` (~41 ms per unit at this file's N and r), so the
+ *  same ceiling bounds `p` too; otherwise a row with `p=100000` would hold a threadpool thread for
+ *  over an hour. This file writes `p=1`, so no digest it wrote is refused. */
 function isWithinScryptBounds(N: number, r: number, p: number): boolean {
   if (N <= 1 || r <= 0 || p <= 0) return false;
-  return 128 * N * r <= SCRYPT_MAXMEM;
+  return 128 * N * r * p <= SCRYPT_MAXMEM;
 }
 
 /** Parses and validates the three numeric scrypt cost parameters embedded in a stored hash.
