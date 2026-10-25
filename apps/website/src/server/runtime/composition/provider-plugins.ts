@@ -156,7 +156,8 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
   const leases = new Map<ProviderContract, unknown[]>();
   for (const { binding, credential } of configured.filter(({ binding }) => loaded.has(binding.pluginId))) {
     const lease: PluginProviderLease | undefined = await host.initialize({ contract: binding.contract, id: binding.id, input: binding.input({ credential, serviceName: required.serviceName }) })
-      .catch((error: unknown) => { warn(`provider plugin '${binding.pluginId}' did not initialize: ${error instanceof Error ? error.message : String(error)}`); return undefined; });
+      // Class only: an SDK's construction error can quote the endpoint or DSN it was given.
+      .catch((error: unknown) => { warn(`provider plugin '${binding.pluginId}' did not initialize: ${error instanceof Error ? error.name : typeof error}`); return undefined; });
     if (lease) leases.set(binding.contract, [...(leases.get(binding.contract) ?? []), lease.port]);
   }
   return { ...composePorts({ leases, consent: required.consent, consentRevision: required.consentRevision }), dispose: () => host.dispose({}) };
