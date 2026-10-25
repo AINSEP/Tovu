@@ -19,3 +19,6 @@ Jini commits since last entry: bce4b8eb artifacts manifest, 3be0b790 cli caps, 2
 agent-plugins suite: 104 files / 1857 passed / 2 skipped (was 92 / 1465). Per-file coverage of every touched non-UI source = 100 % lines+branches except cms plugin-export.ts (97.4 % branches, lines 79 + 95: unreachable defensive arms) and vibecoding store.ts (not edited; tests only).
 Stryker AFTER: cms plugin-export.ts 85.21 % → **96.45 %** (6 survivors left, all equivalent/unreachable). agent-plugins BEFORE (sibling copy, 979 mutants) still running.
 FAILURE (setup, fixed): `vitest --maxWorkers=2` alone crashes vitest 2.1.9 (tinypool min/max conflict) — ran without it.
+
+## 2026-10-25T23:30Z — DONE
+All Stryker runs finished (agent-plugins before 1+2, after; cms before/after; L10 after ×2). Results and survivor lists in REPORT.md / data/. Measurement artifact found: import-breaking mutants (memoised factories) are reported "Survived" with 0 tests run by the vitest-runner. Throwaway sibling copies (packages/*-before, *-after) deleted; Jini working tree clean. Final agent-plugins suite 107 files / 1903 passed / 2 skipped.

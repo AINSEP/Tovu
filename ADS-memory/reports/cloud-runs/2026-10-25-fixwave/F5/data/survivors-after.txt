@@ -1,0 +1,320 @@
+src/admin-surfaces/capability-declarations.ts	130	130	0	0	100.00
+src/admin-surfaces/host-validator.ts	134	133	1	0	99.25
+src/admin-surfaces/settings-value.ts	61	60	1	0	98.36
+src/admin-surfaces/surface-capabilities.ts	242	235	7	0	97.11
+src/admin-surfaces/surface-client.ts	263	255	8	0	96.96
+src/admin-surfaces/surface-handlers.ts	187	180	7	0	96.26
+src/folder-zip-node.ts	72	66	6	0	91.67
+src/folder-zip.ts	95	93	2	0	97.89
+src/lifecycle/bundled-digests.ts	141	124	17	0	87.94
+src/lifecycle/bundled-source-archive.ts	72	66	6	0	91.67
+src/lifecycle/capability-projection.ts	34	27	7	0	79.41
+src/lifecycle/installed-package-roots.ts	64	64	0	0	100.00
+src/lifecycle/node.ts	38	37	1	0	97.37
+src/lifecycle/package-paths.ts	68	65	3	0	95.59
+src/lifecycle/persistent-state.ts	29	29	0	0	100.00
+src/lifecycle/seed-bundled.ts	53	45	8	0	84.91
+src/lifecycle/set-enabled.ts	26	21	5	0	80.77
+src/lifecycle/skill-file-reader.ts	185	166	19	0	89.73
+src/lifecycle/tools/capabilities.ts	139	137	2	0	98.56
+src/lifecycle/tools/projection.ts	268	250	18	0	93.28
+src/lifecycle/uninstall.ts	17	12	5	0	70.59
+src/manifest.ts	46	46	0	0	100.00
+src/lifecycle/activation.ts	5	1	4	0	20.00
+src/lifecycle/install.ts	5	1	4	0	20.00
+src/lifecycle/resolve-agent-plugin-refs.ts	5	1	4	0	20.00
+src/lifecycle/retire-bundled.ts	5	1	4	0	20.00
+src/lifecycle/search.ts	5	1	4	0	20.00
+src/lifecycle/trusted-plugin-files.ts	5	1	4	0	20.00
+src/admin-surfaces/host-validator.ts:114:65 Survived ConditionalExpression -> false
+src/admin-surfaces/settings-value.ts:15:88 Survived ConditionalExpression -> true
+src/admin-surfaces/surface-capabilities.ts:255:45 Survived ObjectLiteral -> {}
+src/admin-surfaces/surface-capabilities.ts:265:98 Survived ObjectLiteral -> {}
+src/admin-surfaces/surface-capabilities.ts:288:13 Survived ConditionalExpression -> false
+src/admin-surfaces/surface-capabilities.ts:288:62 Survived EqualityOperator -> slug.length >= 64
+src/admin-surfaces/surface-capabilities.ts:288:82 Survived ConditionalExpression -> false
+src/admin-surfaces/surface-capabilities.ts:314:101 Survived ArrayDeclaration -> ["Stryker was here"]
+src/admin-surfaces/surface-capabilities.ts:322:87 Survived ArrayDeclaration -> ["Stryker was here"]
+src/admin-surfaces/surface-client.ts:97:7 Survived ConditionalExpression -> false
+src/admin-surfaces/surface-client.ts:102:7 Survived ConditionalExpression -> false
+src/admin-surfaces/surface-client.ts:112:8 Survived ConditionalExpression -> true
+src/admin-surfaces/surface-client.ts:149:67 Survived ConditionalExpression -> true
+src/admin-surfaces/surface-client.ts:180:9 Survived ConditionalExpression -> false
+src/admin-surfaces/surface-client.ts:207:26 Survived OptionalChaining -> init.origin
+src/admin-surfaces/surface-client.ts:207:75 Survived ConditionalExpression -> false
+src/admin-surfaces/surface-client.ts:225:9 Survived ConditionalExpression -> true
+src/admin-surfaces/surface-handlers.ts:116:87 Survived MethodExpression -> undeclared
+src/admin-surfaces/surface-handlers.ts:151:23 Survived ConditionalExpression -> false
+src/admin-surfaces/surface-handlers.ts:154:54 Survived ArrayDeclaration -> ["Stryker was here"]
+src/admin-surfaces/surface-handlers.ts:153:143 Survived ConditionalExpression -> true
+src/admin-surfaces/surface-handlers.ts:184:24 Survived ArrayDeclaration -> []
+src/admin-surfaces/surface-handlers.ts:208:11 Survived ConditionalExpression -> false
+src/admin-surfaces/surface-handlers.ts:211:125 Survived ObjectLiteral -> {}
+src/folder-zip-node.ts:20:9 Survived EqualityOperator -> total >= maxBytes
+src/folder-zip-node.ts:71:77 Survived ConditionalExpression -> true
+src/folder-zip-node.ts:71:26 Survived EqualityOperator -> a.webkitRelativePath <= b.webkitRelativePath
+src/folder-zip-node.ts:71:77 Survived ConditionalExpression -> false
+src/folder-zip-node.ts:71:77 Survived EqualityOperator -> a.webkitRelativePath >= b.webkitRelativePath
+src/folder-zip-node.ts:71:77 Survived EqualityOperator -> a.webkitRelativePath <= b.webkitRelativePath
+src/folder-zip.ts:73:7 Survived EqualityOperator -> files.reduce((sum, file) => sum + file.size, 0) >= maxBytes
+src/folder-zip.ts:30:19 Survived EqualityOperator -> n <= 256
+src/lifecycle/bundled-digests.ts:125:13 Survived BlockStatement -> {}
+src/lifecycle/bundled-digests.ts:118:13 Survived BlockStatement -> {}
+src/lifecycle/bundled-digests.ts:146:11 Survived ConditionalExpression -> false
+src/lifecycle/bundled-digests.ts:185:11 Survived ConditionalExpression -> false
+src/lifecycle/bundled-digests.ts:234:13 Survived BlockStatement -> {}
+src/lifecycle/bundled-digests.ts:259:17 Survived BlockStatement -> {}
+src/lifecycle/bundled-digests.ts:291:9 Survived ConditionalExpression -> false
+src/lifecycle/bundled-digests.ts:294:9 Survived ConditionalExpression -> false
+src/lifecycle/bundled-digests.ts:320:11 Survived ConditionalExpression -> true
+src/lifecycle/bundled-digests.ts:318:11 Survived ConditionalExpression -> false
+src/lifecycle/bundled-digests.ts:331:12 Survived ConditionalExpression -> true
+src/lifecycle/bundled-digests.ts:91:56 Survived BlockStatement -> {}
+src/lifecycle/bundled-digests.ts:339:78 Survived BlockStatement -> {}
+src/lifecycle/bundled-digests.ts:96:22 Survived ArrowFunction -> () => undefined
+src/lifecycle/bundled-digests.ts:341:7 Survived BooleanLiteral -> instance
+src/lifecycle/bundled-digests.ts:341:7 Survived ConditionalExpression -> false
+src/lifecycle/bundled-digests.ts:341:18 Survived BlockStatement -> {}
+src/lifecycle/bundled-source-archive.ts:125:9 Survived ConditionalExpression -> false
+src/lifecycle/bundled-source-archive.ts:60:56 Survived BlockStatement -> {}
+src/lifecycle/bundled-source-archive.ts:193:84 Survived BlockStatement -> {}
+src/lifecycle/bundled-source-archive.ts:195:7 Survived BooleanLiteral -> instance
+src/lifecycle/bundled-source-archive.ts:195:7 Survived ConditionalExpression -> false
+src/lifecycle/bundled-source-archive.ts:195:18 Survived BlockStatement -> {}
+src/lifecycle/capability-projection.ts:43:13 Survived BlockStatement -> {}
+src/lifecycle/capability-projection.ts:50:13 Survived BlockStatement -> {}
+src/lifecycle/capability-projection.ts:11:56 Survived BlockStatement -> {}
+src/lifecycle/capability-projection.ts:80:84 Survived BlockStatement -> {}
+src/lifecycle/capability-projection.ts:82:7 Survived BooleanLiteral -> instance
+src/lifecycle/capability-projection.ts:82:7 Survived ConditionalExpression -> false
+src/lifecycle/capability-projection.ts:82:18 Survived BlockStatement -> {}
+src/lifecycle/node.ts:16:17 Survived LogicalOperator -> optional.filesystem && nativeFilesystem
+src/lifecycle/package-paths.ts:58:86 Survived ConditionalExpression -> false
+src/lifecycle/package-paths.ts:113:12 Survived ConditionalExpression -> false
+src/lifecycle/package-paths.ts:121:28 Survived ArrayDeclaration -> []
+src/lifecycle/seed-bundled.ts:204:53 Survived ConditionalExpression -> true
+src/lifecycle/seed-bundled.ts:220:11 Survived ConditionalExpression -> true
+src/lifecycle/seed-bundled.ts:220:114 Survived ArrayDeclaration -> ["Stryker was here"]
+src/lifecycle/seed-bundled.ts:303:11 Survived ConditionalExpression -> false
+src/lifecycle/seed-bundled.ts:321:75 Survived BlockStatement -> {}
+src/lifecycle/seed-bundled.ts:323:7 Survived BooleanLiteral -> instance
+src/lifecycle/seed-bundled.ts:323:7 Survived ConditionalExpression -> false
+src/lifecycle/seed-bundled.ts:323:18 Survived BlockStatement -> {}
+src/lifecycle/set-enabled.ts:59:109 Survived ArrayDeclaration -> ["Stryker was here"]
+src/lifecycle/set-enabled.ts:110:74 Survived BlockStatement -> {}
+src/lifecycle/set-enabled.ts:112:7 Survived BooleanLiteral -> instance
+src/lifecycle/set-enabled.ts:112:7 Survived ConditionalExpression -> false
+src/lifecycle/set-enabled.ts:112:18 Survived BlockStatement -> {}
+src/lifecycle/skill-file-reader.ts:23:7 Survived ConditionalExpression -> false
+src/lifecycle/skill-file-reader.ts:26:10 Survived EqualityOperator -> length <= buffer.length
+src/lifecycle/skill-file-reader.ts:83:13 Survived BlockStatement -> {}
+src/lifecycle/skill-file-reader.ts:102:78 Survived ArrowFunction -> () => undefined
+src/lifecycle/skill-file-reader.ts:111:37 Survived ConditionalExpression -> false
+src/lifecycle/skill-file-reader.ts:111:37 Survived EqualityOperator -> remaining < 0
+src/lifecycle/skill-file-reader.ts:121:36 Survived ConditionalExpression -> true
+src/lifecycle/skill-file-reader.ts:133:14 Survived MethodExpression -> await filesystem.readdir(directory, { withFileTypes: true })
+src/lifecycle/skill-file-reader.ts:133:82 Survived ArrowFunction -> () => undefined
+src/lifecycle/skill-file-reader.ts:133:92 Survived ArithmeticOperator -> Number(a.name > b.name) + Number(a.name < b.name)
+src/lifecycle/skill-file-reader.ts:133:99 Survived ConditionalExpression -> true
+src/lifecycle/skill-file-reader.ts:133:99 Survived ConditionalExpression -> false
+src/lifecycle/skill-file-reader.ts:133:99 Survived EqualityOperator -> a.name >= b.name
+src/lifecycle/skill-file-reader.ts:133:99 Survived EqualityOperator -> a.name <= b.name
+src/lifecycle/skill-file-reader.ts:133:125 Survived ConditionalExpression -> true
+src/lifecycle/skill-file-reader.ts:133:125 Survived ConditionalExpression -> false
+src/lifecycle/skill-file-reader.ts:133:125 Survived EqualityOperator -> a.name <= b.name
+src/lifecycle/skill-file-reader.ts:134:13 Survived BlockStatement -> {}
+src/lifecycle/skill-file-reader.ts:133:125 Survived EqualityOperator -> a.name >= b.name
+src/lifecycle/tools/capabilities.ts:141:11 Survived BlockStatement -> {}
+src/lifecycle/tools/capabilities.ts:169:78 Survived ArrayDeclaration -> ["Stryker was here"]
+src/lifecycle/tools/projection.ts:83:66 Survived BooleanLiteral -> false
+src/lifecycle/tools/projection.ts:125:115 Survived ObjectLiteral -> {}
+src/lifecycle/tools/projection.ts:136:61 Survived ConditionalExpression -> false
+src/lifecycle/tools/projection.ts:149:8 Survived MethodExpression -> value.some(item => typeof item === 'string' && item.length > 0 && item.length <= MAX_RESOU
+src/lifecycle/tools/projection.ts:149:28 Survived ConditionalExpression -> true
+src/lifecycle/tools/projection.ts:172:9 Survived ConditionalExpression -> true
+src/lifecycle/tools/projection.ts:172:67 Survived ArrayDeclaration -> ["Stryker was here"]
+src/lifecycle/tools/projection.ts:227:15 Survived ConditionalExpression -> false
+src/lifecycle/tools/projection.ts:227:93 Survived ConditionalExpression -> false
+src/lifecycle/tools/projection.ts:230:103 Survived ConditionalExpression -> false
+src/lifecycle/tools/projection.ts:241:26 Survived ConditionalExpression -> true
+src/lifecycle/tools/projection.ts:243:80 Survived ArrayDeclaration -> ["Stryker was here"]
+src/lifecycle/tools/projection.ts:277:24 Survived MethodExpression -> tools
+src/lifecycle/tools/projection.ts:277:45 Survived ConditionalExpression -> true
+src/lifecycle/tools/projection.ts:293:83 Survived ObjectLiteral -> {}
+src/lifecycle/tools/projection.ts:297:47 Survived ObjectLiteral -> {}
+src/lifecycle/tools/projection.ts:77:64 Survived ObjectLiteral -> {}
+src/lifecycle/tools/projection.ts:77:105 Survived ObjectLiteral -> {}
+src/lifecycle/uninstall.ts:342:26 Survived MethodExpression -> matches.map(plugin => plugin.archiveDigest)
+src/lifecycle/uninstall.ts:497:73 Survived BlockStatement -> {}
+src/lifecycle/uninstall.ts:499:7 Survived BooleanLiteral -> instance
+src/lifecycle/uninstall.ts:499:7 Survived ConditionalExpression -> false
+src/lifecycle/uninstall.ts:499:18 Survived BlockStatement -> {}
+src/lifecycle/activation.ts:869:64 Survived BlockStatement -> {}
+src/lifecycle/activation.ts:871:7 Survived BooleanLiteral -> instance
+src/lifecycle/activation.ts:871:7 Survived ConditionalExpression -> false
+src/lifecycle/activation.ts:871:18 Survived BlockStatement -> {}
+src/lifecycle/install.ts:590:71 Survived BlockStatement -> {}
+src/lifecycle/install.ts:592:7 Survived BooleanLiteral -> instance
+src/lifecycle/install.ts:592:7 Survived ConditionalExpression -> false
+src/lifecycle/install.ts:592:18 Survived BlockStatement -> {}
+src/lifecycle/resolve-agent-plugin-refs.ts:339:86 Survived BlockStatement -> {}
+src/lifecycle/resolve-agent-plugin-refs.ts:341:7 Survived BooleanLiteral -> instance
+src/lifecycle/resolve-agent-plugin-refs.ts:341:7 Survived ConditionalExpression -> false
+src/lifecycle/resolve-agent-plugin-refs.ts:341:18 Survived BlockStatement -> {}
+src/lifecycle/retire-bundled.ts:224:77 Survived BlockStatement -> {}
+src/lifecycle/retire-bundled.ts:226:7 Survived BooleanLiteral -> instance
+src/lifecycle/retire-bundled.ts:226:7 Survived ConditionalExpression -> false
+src/lifecycle/retire-bundled.ts:226:18 Survived BlockStatement -> {}
+src/lifecycle/search.ts:219:70 Survived BlockStatement -> {}
+src/lifecycle/search.ts:221:7 Survived BooleanLiteral -> instance
+src/lifecycle/search.ts:221:7 Survived ConditionalExpression -> false
+src/lifecycle/search.ts:221:18 Survived BlockStatement -> {}
+src/lifecycle/trusted-plugin-files.ts:155:82 Survived BlockStatement -> {}
+src/lifecycle/trusted-plugin-files.ts:157:7 Survived BooleanLiteral -> instance
+src/lifecycle/trusted-plugin-files.ts:157:7 Survived ConditionalExpression -> false
+src/lifecycle/trusted-plugin-files.ts:157:18 Survived BlockStatement -> {}
+src/widgets/html/plugin-export.ts	169	163	6	0	96.45
+src/widgets/html/plugin-export.ts:79:9 Survived ConditionalExpression -> false
+src/widgets/html/plugin-export.ts:94:20 Survived OptionalChaining -> node.sourceCodeLocation?.attrs[attr.name]
+src/widgets/html/plugin-export.ts:94:20 Survived OptionalChaining -> node.sourceCodeLocation.attrs
+src/widgets/html/plugin-export.ts:108:7 Survived ConditionalExpression -> true
+src/widgets/html/plugin-export.ts:137:7 Survived ConditionalExpression -> false
+src/widgets/html/plugin-export.ts:152:7 Survived ConditionalExpression -> false
+src/ingest.ts	372	352	20	0	94.62
+src/ingest.ts:61:53 Survived BlockStatement -> {}
+src/ingest.ts:235:7 Survived ConditionalExpression -> false
+src/ingest.ts:235:27 Survived BlockStatement -> {}
+src/ingest.ts:240:29 Survived MethodExpression -> head.split(":")
+src/ingest.ts:240:63 Survived ConditionalExpression -> true
+src/ingest.ts:240:63 Survived EqualityOperator -> group.length >= 0
+src/ingest.ts:241:29 Survived MethodExpression -> tail.split(":")
+src/ingest.ts:241:63 Survived ConditionalExpression -> true
+src/ingest.ts:241:63 Survived EqualityOperator -> group.length >= 0
+src/ingest.ts:241:83 Survived ArrayDeclaration -> ["Stryker was here"]
+src/ingest.ts:416:7 Survived ConditionalExpression -> false
+src/ingest.ts:436:27 Survived ConditionalExpression -> true
+src/ingest.ts:454:72 Survived ConditionalExpression -> false
+src/ingest.ts:486:7 Survived ConditionalExpression -> false
+src/ingest.ts:503:7 Survived ConditionalExpression -> false
+src/ingest.ts:503:22 Survived UnaryOperator -> +1
+src/ingest.ts:520:102 Survived ArrayDeclaration -> ["Stryker was here"]
+src/ingest.ts:57:29 Survived Regex -> /[^\s@]@[^\s@]+\.[^\s@]+/
+src/ingest.ts:57:29 Survived Regex -> /[^\s@]+@[^\s@]+\.[^\s@]/
+src/ingest.ts:248:34 Survived Regex -> /^::ffff:(\d{1,3}\.\d{1,3}\.\d\.\d{1,3})$/i
+src/render-service.ts	70	56	14	0	80.00
+src/render-service.ts:92:31 Survived ArrayDeclaration -> ["Stryker was here"]
+src/render-service.ts:105:7 Survived ConditionalExpression -> false
+src/render-service.ts:119:23 Survived BooleanLiteral -> false
+src/render-service.ts:129:17 Survived BooleanLiteral -> false
+src/render-service.ts:130:11 Survived ConditionalExpression -> true
+src/render-service.ts:131:7 Survived OptionalChaining -> signal.removeEventListener
+src/render-service.ts:134:48 Survived ObjectLiteral -> {}
+src/render-service.ts:134:56 Survived BooleanLiteral -> false
+src/render-service.ts:138:13 Survived ConditionalExpression -> false
+src/render-service.ts:139:19 Survived BooleanLiteral -> false
+src/render-service.ts:140:13 Survived ConditionalExpression -> true
+src/render-service.ts:145:13 Survived ConditionalExpression -> false
+src/render-service.ts:146:19 Survived BooleanLiteral -> false
+src/render-service.ts:147:13 Survived ConditionalExpression -> true
+src/prompt.ts	125	108	17	0	86.40
+src/redact.ts	32	31	1	0	96.88
+src/prompt.ts:99:94 Survived ConditionalExpression -> true
+src/prompt.ts:111:43 Survived ConditionalExpression -> true
+src/prompt.ts:126:11 Survived ConditionalExpression -> false
+src/prompt.ts:127:17 Survived BooleanLiteral -> false
+src/prompt.ts:169:7 Survived OptionalChaining -> (process.stdin as unknown as { pause?: () => void; }).pause()
+src/prompt.ts:186:14 Survived LogicalOperator -> limits.signal?.reason && new Error('stdin read aborted')
+src/prompt.ts:186:14 Survived OptionalChaining -> limits.signal.reason
+src/prompt.ts:191:55 Survived ObjectLiteral -> {}
+src/prompt.ts:191:63 Survived BooleanLiteral -> false
+src/prompt.ts:233:33 Survived OptionalChaining -> stdin.destroy(new Error('stdin read aborted'))
+src/prompt.ts:234:53 Survived ObjectLiteral -> {}
+src/prompt.ts:234:61 Survived BooleanLiteral -> false
+src/prompt.ts:240:20 Survived ConditionalExpression -> true
+src/prompt.ts:240:20 Survived ConditionalExpression -> false
+src/prompt.ts:240:20 Survived EqualityOperator -> typeof chunk !== 'string'
+src/prompt.ts:243:9 Survived OptionalChaining -> stdin.destroy()
+src/prompt.ts:249:13 Survived BlockStatement -> {}
+src/redact.ts:44:48 Survived ObjectLiteral -> {}
+src/manifest.ts	278	268	10	0	96.40
+src/manifest.ts:81:17 Survived ConditionalExpression -> false
+src/manifest.ts:110:17 Survived MethodExpression -> normalized.split('/')
+src/manifest.ts:111:7 Survived ConditionalExpression -> false
+src/manifest.ts:111:60 Survived ConditionalExpression -> false
+src/manifest.ts:190:9 Survived ConditionalExpression -> true
+src/manifest.ts:200:104 Survived ObjectLiteral -> {}
+src/manifest.ts:203:9 Survived ConditionalExpression -> true
+src/manifest.ts:213:9 Survived ConditionalExpression -> true
+src/manifest.ts:323:7 Survived ConditionalExpression -> true
+src/manifest.ts:346:19 Survived ConditionalExpression -> false
+src/core/secrets-only.ts	508	447	61	0	87.99
+src/redaction.ts	72	72	0	0	100.00
+src/web-evidence/request-guard.ts	283	276	7	0	97.53
+src/core/secrets-only.ts:221:7 Survived ConditionalExpression -> false
+src/core/secrets-only.ts:221:7 Survived LogicalOperator -> content.length < 20 && /\s/.test(content)
+src/core/secrets-only.ts:221:7 Survived ConditionalExpression -> false
+src/core/secrets-only.ts:244:7 Survived ConditionalExpression -> false
+src/core/secrets-only.ts:244:7 Survived LogicalOperator -> separator !== "," && name.type !== "StringLiteral"
+src/core/secrets-only.ts:244:7 Survived ConditionalExpression -> false
+src/core/secrets-only.ts:244:28 Survived ConditionalExpression -> false
+src/core/secrets-only.ts:244:61 Survived OptionalChaining -> previous.at(-3).value
+src/core/secrets-only.ts:247:48 Survived Regex -> /(if|while|for|switch|catch|with|function)$/
+src/core/secrets-only.ts:247:48 Survived Regex -> /^(if|while|for|switch|catch|with|function)/
+src/core/secrets-only.ts:259:17 Survived ConditionalExpression -> false
+src/core/secrets-only.ts:261:8 Survived Regex -> /(pass(word|wd)|secret|token|api[-_]?key|access[-_]?key|private[-_]?key|client[-_]?secret|
+src/core/secrets-only.ts:261:8 Survived Regex -> /(pass(word|wd)?|secret|token|api[-_]?key|access[-_]key|private[-_]?key|client[-_]?secret|
+src/core/secrets-only.ts:261:8 Survived Regex -> /(pass(word|wd)?|secret|token|api[-_]?key|access[^-_]?key|private[-_]?key|client[-_]?secre
+src/core/secrets-only.ts:261:8 Survived Regex -> /(pass(word|wd)?|secret|token|api[-_]?key|access[-_]?key|private[-_]key|client[-_]?secret|
+src/core/secrets-only.ts:261:8 Survived Regex -> /(pass(word|wd)?|secret|token|api[-_]?key|access[-_]?key|private[-_]?key|client[-_]secret|
+src/core/secrets-only.ts:261:8 Survived Regex -> /(pass(word|wd)?|secret|token|api[-_]?key|access[-_]?key|private[-_]?key|client[^-_]?secre
+src/core/secrets-only.ts:280:7 Survived ConditionalExpression -> true
+src/core/secrets-only.ts:280:7 Survived Regex -> /(SingleLineComment|MultiLineComment|HashbangComment)$/
+src/core/secrets-only.ts:280:7 Survived Regex -> /^(SingleLineComment|MultiLineComment|HashbangComment)/
+src/core/secrets-only.ts:281:58 Survived BooleanLiteral -> true
+src/core/secrets-only.ts:290:33 Survived Regex -> /(Bearer|Basic|Token) /i
+src/core/secrets-only.ts:292:70 Survived Regex -> /[A-Za-z]+(?:[-_.][A-Za-z]+)+$/
+src/core/secrets-only.ts:292:70 Survived Regex -> /^[A-Za-z]+(?:[-_.][A-Za-z]+)+/
+src/core/secrets-only.ts:308:9 Survived Regex -> /[ux]/
+src/core/secrets-only.ts:308:33 Survived ConditionalExpression -> true
+src/core/secrets-only.ts:308:33 Survived EqualityOperator -> escape.length >= 1
+src/core/secrets-only.ts:309:9 Survived Regex -> /[0-7]+$/
+src/core/secrets-only.ts:309:9 Survived Regex -> /^[0-7]+/
+src/core/secrets-only.ts:310:9 Survived Regex -> /[\r\n]/
+src/core/secrets-only.ts:324:7 Survived ConditionalExpression -> true
+src/core/secrets-only.ts:324:7 Survived LogicalOperator -> literal || strict.redactions === 0
+src/core/secrets-only.ts:324:18 Survived ConditionalExpression -> true
+src/core/secrets-only.ts:343:7 Survived Regex -> /(WhiteSpace|LineTerminatorSequence|SingleLineComment|MultiLineComment|HashbangComment)$/
+src/core/secrets-only.ts:343:7 Survived Regex -> /^(WhiteSpace|LineTerminatorSequence|SingleLineComment|MultiLineComment|HashbangComment)/
+src/core/secrets-only.ts:345:7 Survived ConditionalExpression -> false
+src/core/secrets-only.ts:353:11 Survived BooleanLiteral -> false
+src/core/secrets-only.ts:357:41 Survived ObjectLiteral -> {}
+src/core/secrets-only.ts:357:48 Survived BooleanLiteral -> false
+src/core/secrets-only.ts:358:55 Survived ArrayDeclaration -> ["Stryker was here"]
+src/core/secrets-only.ts:360:28 Survived Regex -> /(StringLiteral|NoSubstitutionTemplate|TemplateHead)$/
+src/core/secrets-only.ts:360:28 Survived Regex -> /^(StringLiteral|NoSubstitutionTemplate|TemplateHead)/
+src/core/secrets-only.ts:432:8 Survived MethodExpression -> REDACTION_RULES
+src/core/secrets-only.ts:59:14 Survived Regex -> /-----BEGIN ([^A-Z ]*)PRIVATE KEY-----[\s\S]*?(?:-----END \1PRIVATE KEY-----|$)/g
+src/core/secrets-only.ts:77:7 Survived Regex -> /(?<![A-Za-z0-9-])((?:proxy-)?authorization|x-api-key|api-key|x-goog-api-key|x-auth-token)
+src/core/secrets-only.ts:77:7 Survived Regex -> /(?<![A-Za-z0-9-])((?:proxy-)?authorization|x-api-key|api-key|x-goog-api-key|x-auth-token)
+src/core/secrets-only.ts:77:7 Survived Regex -> /(?<![A-Za-z0-9-])((?:proxy-)?authorization|x-api-key|api-key|x-goog-api-key|x-auth-token)
+src/core/secrets-only.ts:77:7 Survived Regex -> /(?<![A-Za-z0-9-])((?:proxy-)?authorization|x-api-key|api-key|x-goog-api-key|x-auth-token)
+src/core/secrets-only.ts:77:7 Survived Regex -> /(?<![A-Za-z0-9-])((?:proxy-)?authorization|x-api-key|api-key|x-goog-api-key|x-auth-token)
+src/core/secrets-only.ts:82:14 Survived Regex -> /(?<![^A-Za-z0-9-])((?:set-)?cookie)(\s*[:=]\s*)(?!\[REDACTED)[^\s"'),;]+(?:;\s*[^\s"'),;]
+src/core/secrets-only.ts:82:14 Survived Regex -> /(?<![A-Za-z0-9-])((?:set-)?cookie)(\S*[:=]\s*)(?!\[REDACTED)[^\s"'),;]+(?:;\s*[^\s"'),;]+
+src/core/secrets-only.ts:82:14 Survived Regex -> /(?<![A-Za-z0-9-])((?:set-)?cookie)(\s*[:=]\s*)(?!\[REDACTED)[^\s"'),;]+(?:;\s[^\s"'),;]+)
+src/core/secrets-only.ts:92:14 Survived Regex -> /\b([a-z][a-z0-9+.-]*:\/\/)(?!\[REDACTED)[^\s/@:]:[^\s/?]+@/gi
+src/core/secrets-only.ts:103:14 Survived Regex -> /(?<![^A-Za-z0-9_])whsec_[A-Za-z0-9]{24,}/g
+src/core/secrets-only.ts:109:14 Survived Regex -> /(?<![^A-Za-z0-9_])gh[pousr]_[A-Za-z0-9]{30,}/g
+src/core/secrets-only.ts:123:14 Survived Regex -> /(?<![A-Za-z0-9_-])sk-ant-[A-Za-z0-9_-]/g
+src/core/secrets-only.ts:124:18 Survived ArrowFunction -> () => undefined
+src/core/secrets-only.ts:133:14 Survived Regex -> /(?<![^0-9A-Z])ASIA[0-9A-Z]{16}(?![0-9A-Z])/g
+src/core/secrets-only.ts:133:14 Survived Regex -> /(?<![0-9A-Z])ASIA[0-9A-Z]{16}(?![^0-9A-Z])/g
+src/core/secrets-only.ts:146:14 Survived Regex -> /\b(Bearer|Basic|Token)\s(?!\[REDACTED)(?=[A-Za-z0-9._~+/=:-]*\d)[A-Za-z0-9._~+/=:-]{16,}/
+src/core/secrets-only.ts:146:14 Survived Regex -> /\b(Bearer|Basic|Token)\s+(?!\[REDACTED)(?=[A-Za-z0-9._~+/=:-]*\D)[A-Za-z0-9._~+/=:-]{16,}
+src/web-evidence/request-guard.ts:93:11 Survived BlockStatement -> {}
+src/web-evidence/request-guard.ts:217:40 Survived ArithmeticOperator -> 60 * 1024 / 1024
+src/web-evidence/request-guard.ts:217:40 Survived ArithmeticOperator -> 60 / 1024
+src/web-evidence/request-guard.ts:271:9 Survived ConditionalExpression -> true
+src/web-evidence/request-guard.ts:335:45 Survived BlockStatement -> {}
+src/web-evidence/request-guard.ts:337:7 Survived ConditionalExpression -> true
+src/web-evidence/request-guard.ts:119:134 Survived ConditionalExpression -> true
