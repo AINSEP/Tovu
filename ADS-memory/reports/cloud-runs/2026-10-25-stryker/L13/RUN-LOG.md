@@ -13,3 +13,5 @@ Started A then B at 17:40Z.
 
 ## 2026-10-25T18:47Z — PROGRESS / REPLAN 2
 Run A (scoped tests, 3721 mutants) reached 2597/2859 in ~65 min, then stalled: stryker runs "static" mutants (top-level code, need environment reload) LAST and each runs the whole 2217-test set (~2+ min each) -> ETA >2 h. Killed it (SIGINT writes no report, nothing salvaged). Rerun A2 = same 64 files with `ignoreStatic: true`, concurrency 4 (static mutants will be reported as IGNORED, i.e. unmeasured), started 18:46Z. Batch B (37 non-i18n files) will NOT be run unless A2 finishes by ~19:00 (it won't) — listed NOT RUN.
+## 2026-10-25T19:43:10Z — DONE
+Batch A2 (64 files) and B2 (37 files) complete; REPORT.md written. Untracked files left in apps/admin: vitest.stryker.config.ts, .stryker-tmp (never committed).

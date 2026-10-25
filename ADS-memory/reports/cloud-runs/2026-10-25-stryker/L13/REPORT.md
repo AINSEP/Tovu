@@ -5,10 +5,11 @@ Report-only. No source or test edits in the repo. Run on 2026-10-25, 4 cores, No
 ## 1. Headline
 - **Stryker's vitest-runner CAN drive vitest 4.1.11** (no runner error). It needed two environment fixes (below) before the dry run was green.
 - **Batch A (64 files: `src/hooks/*.ts`, `src/integrations/*.ts`, risky `src/lib/*.ts`): 2569 mutants tested of 3721 generated — 1152 were IGNORED as "static" (see §7). Killed 2181, timeout 5, survived 270, no-coverage 113. Mutation score on the tested mutants: 85.09 %.** Wall: dry run ~3 min, mutation 35 min (concurrency 4).
-- Batch B (37 lower-risk lib/theme/nav files, 1183 mutants, `ignoreStatic`): see §9 (appended at the end if it finished; otherwise NOT RUN).
+- **Batch B (37 lower-risk lib/theme/nav files): 979 of 1183 tested (204 static ignored); score 74.67 %, but mostly a scoping artefact for `admin-themes` — see §9.**
+- **Combined: 3548 mutants tested; killed 2912 (+5 timeout), survived 440, no-coverage 191 → 82.1 % on tested mutants (1356 static mutants unmeasured).**
 - Not covered at all: `src/features/**` (455 `.ts` files / 96k lines), `src/components/**/*.ts`, `App.hooks.ts`, the three big i18n tables — see §6.
 - **The test set is SCOPED**: only `src/lib`, `src/hooks`, `src/integrations` tests (158 files / 2217 tests) were used to kill mutants, minus 8 files that fail on the unmodified tree here. Feature/component/App-level tests were not run, so a "survived"/"no-coverage" below may be killed by a test in `features/` or `src/__tests__/` — see §7.
-- Wall total ≈ 3 h 30 m (setup 30 min; first attempt with the whole suite wasted ~1 h; second attempt wasted ~1 h on static mutants). Tokens ≈ 0.15 M.
+- Wall total ≈ 3 h 42 m (setup 30 min; first attempt with the whole suite wasted ~1 h; second attempt wasted ~1 h on static mutants). Tokens ≈ 0.15 M.
 
 ### Setup facts (for repeating this)
 1. Stryker's sandbox is `apps/admin/.stryker-tmp/sandbox-X`, two levels deeper than the app, so relative imports out of the app (`../../../website/...` in `src/lib/settings-tabs.ts`, and `vitest.config.ts` aliases to `../website`) break. Fix used: `ln -s ../../website apps/admin/.stryker-tmp/website` + `cleanTempDir: false`. (Other escapes — `deployment`, `ADS-memory` — appear only from tests; not hit by the scoped test set.)
@@ -140,7 +141,51 @@ Class: (a) real test gap, (b) equivalent, (c) noise. `N` = no-coverage, `S` = su
 10. `browser-stream`: hidden-tab grace-window boundary (`HIDDEN_GRACE_MS`), `dispose()` idempotence, aborted request signal — plus tests for the never-tested hooks `use-cms-sidebar-label-tooltips` and `use-credential-hint`.
 
 
-## 9. Batch B (37 lower-risk files, 1183 mutants)
-IN PROGRESS at time of this push (started 19:26Z, ignoreStatic, concurrency 4). If this section is not replaced, treat batch B as NOT RUN.
+## 9. Batch B (37 lower-risk files; 1183 mutants generated, 979 tested, 204 static IGNORED) — finished 19:42Z
+Killed 731, survived 170, no-coverage 78, timeout 0 → **score 74.67 %** on tested mutants. Same scoped test set and caveats as §7.
+**The low scores are dominated by `src/admin-themes/*` (registry 6 %, apply 10 %, use-admin-theme.hooks 15.5 %; 140 of the 248 non-killed mutants): its tests live in `src/admin-themes/__tests__/`, which the scoped include (lib/hooks/integrations) did not run — so this is a scoping artefact, not evidence that the theme code is untested.** Re-measure with `src/admin-themes/**` tests included. Same for `nav.ts` (61.5 %, tests in `src/__tests__`), `media-panel.ts` and `lib/visitor-tools.ts` (0 %, 3 and 2 no-coverage mutants — no scoped test touches them).
+Other survivors (all small): `assistant-agents-snapshot` (9 S), `assistant-prompt-bus` (6 S), `post-title-extension` (6 S), `visible-interval` (4 S), `agent-screenshot` data-URL regex anchors (`^`/`$` removal at line 171 survive → no test feeds a malformed/prefixed data URL), `media-embed-extension.hooks` (`contentType.trim().toLowerCase()` at 61, cleanup `live=false` at 78–79, `isRef` boundary at 132).
 
-L13 PARTIAL (batch A complete) 2026-10-25T19:27:27Z
+### Batch B per-file table
+| file | mutants | killed | survived | no-cov | timeout | score |
+|---|---|---|---|---|---|---|
+| lib/visitor-tools.ts | 2 | 0 | 0 | 2 | 0 | 0.0% |
+| media-panel.ts | 3 | 0 | 0 | 3 | 0 | 0.0% |
+| admin-themes/registry.ts | 16 | 1 | 11 | 4 | 0 | 6.3% |
+| admin-themes/apply.ts | 29 | 3 | 23 | 3 | 0 | 10.3% |
+| admin-themes/use-admin-theme.hooks.ts | 161 | 25 | 70 | 66 | 0 | 15.5% |
+| nav.ts | 13 | 8 | 5 | 0 | 0 | 61.5% |
+| lib/assistant-prompt-bus.ts | 23 | 17 | 6 | 0 | 0 | 73.9% |
+| lib/assistant-agents-snapshot.ts | 37 | 28 | 9 | 0 | 0 | 75.7% |
+| lib/chat-attachment-liveness.ts | 10 | 8 | 2 | 0 | 0 | 80.0% |
+| lib/visible-interval.ts | 20 | 16 | 4 | 0 | 0 | 80.0% |
+| lib/post-title-extension.ts | 38 | 32 | 6 | 0 | 0 | 84.2% |
+| lib/agent-screen-context.ts | 28 | 24 | 4 | 0 | 0 | 85.7% |
+| lib/ledger-slice.ts | 21 | 18 | 3 | 0 | 0 | 85.7% |
+| lib/block-atom-insert.ts | 22 | 19 | 3 | 0 | 0 | 86.4% |
+| lib/assistant-chats.ts | 32 | 28 | 4 | 0 | 0 | 87.5% |
+| lib/stream-activity.ts | 39 | 35 | 4 | 0 | 0 | 89.7% |
+| lib/playground-render-target-bus.ts | 12 | 11 | 1 | 0 | 0 | 91.7% |
+| lib/media-embed-extension.hooks.ts | 69 | 64 | 5 | 0 | 0 | 92.8% |
+| lib/credential-card-guidance.ts | 14 | 13 | 1 | 0 | 0 | 92.9% |
+| lib/plain-text-blocks.ts | 28 | 26 | 2 | 0 | 0 | 92.9% |
+| lib/content-refresh-bus.ts | 20 | 19 | 1 | 0 | 0 | 95.0% |
+| lib/agent-screenshot.ts | 50 | 48 | 2 | 0 | 0 | 96.0% |
+| lib/widget-embed-placement-content.ts | 26 | 25 | 1 | 0 | 0 | 96.2% |
+| lib/widget-embed-extension.hooks.ts | 83 | 81 | 2 | 0 | 0 | 97.6% |
+| lib/addons-routes.ts | 48 | 47 | 1 | 0 | 0 | 97.9% |
+| lib/a2ui-action-poster.ts | 6 | 6 | 0 | 0 | 0 | 100.0% |
+| lib/agent-pages.ts | 19 | 19 | 0 | 0 | 0 | 100.0% |
+| lib/agent-screenshot-bus.ts | 8 | 8 | 0 | 0 | 0 | 100.0% |
+| lib/assistant-dock-bus.ts | 20 | 20 | 0 | 0 | 0 | 100.0% |
+| lib/assistant-subagents.ts | 2 | 2 | 0 | 0 | 0 | 100.0% |
+| lib/credential-copy.ts | 27 | 27 | 0 | 0 | 0 | 100.0% |
+| lib/escape-owned-by-inner-layer.ts | 16 | 16 | 0 | 0 | 0 | 100.0% |
+| lib/external-entry-refresh.ts | 24 | 24 | 0 | 0 | 0 | 100.0% |
+| lib/editor-template-options.rules.ts | 6 | 6 | 0 | 0 | 0 | 100.0% |
+| lib/admin-dev-origin.ts | 4 | 4 | 0 | 0 | 0 | 100.0% |
+| lib/merge-locale-overlays.ts | 3 | 3 | 0 | 0 | 0 | 100.0% |
+
+Still NOT RUN: features/**, components/**/*.ts, App.hooks.ts, admin-nav-i18n, i18n-common, app-i18n, descriptor-i18n, all .tsx, and the static mutants (A: 1152, B: 204).
+
+L13 DONE 2026-10-25T19:43:10Z — wall ≈ 3 h 42 m, rough tokens ≈ 0.2 M
