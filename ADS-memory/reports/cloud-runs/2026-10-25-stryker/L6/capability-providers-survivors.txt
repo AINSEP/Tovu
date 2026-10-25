@@ -1,0 +1,157 @@
+## src/visitor-auth/definitions.ts
+45:70 ObjectLiteral -> {} || export const GOOGLE_VISITOR_AUTH_PROVIDER = freezeProviderDefinition({
+50:70 BooleanLiteral -> false || { key: 'clientId', label: 'Client ID', kind: 'public', required: true },
+51:78 BooleanLiteral -> false || { key: 'clientSecret', label: 'Client secret', kind: 'secret', required: true },
+58:72 ObjectLiteral -> {} || export const FACEBOOK_VISITOR_AUTH_PROVIDER = freezeProviderDefinition({
+63:64 BooleanLiteral -> false || { key: 'appId', label: 'App ID', kind: 'public', required: true },
+66:18 ArrayDeclaration -> [] || defaultScopes: ['public_profile', 'email'],
+64:72 BooleanLiteral -> false || { key: 'appSecret', label: 'App secret', kind: 'secret', required: true },
+72:72 ObjectLiteral -> {} || export const LINKEDIN_VISITOR_AUTH_PROVIDER = freezeProviderDefinition({
+77:70 BooleanLiteral -> false || { key: 'clientId', label: 'Client ID', kind: 'public', required: true },
+78:78 BooleanLiteral -> false || { key: 'clientSecret', label: 'Client secret', kind: 'secret', required: true },
+80:18 ArrayDeclaration -> [] || defaultScopes: ['openid', 'profile', 'email'],
+## src/visitor-auth/lifecycle.ts
+67:10 ConditionalExpression -> false || return allowLoopbackHttp && url.protocol === 'http:' && LOOPBACK_HOSTS.has(url.hostname);
+67:10 ConditionalExpression -> true || return allowLoopbackHttp && url.protocol === 'http:' && LOOPBACK_HOSTS.has(url.hostname);
+67:10 LogicalOperator -> allowLoopbackHttp || url.protocol === 'http:' || return allowLoopbackHttp && url.protocol === 'http:' && LOOPBACK_HOSTS.has(url.hostname);
+67:31 ConditionalExpression -> true || return allowLoopbackHttp && url.protocol === 'http:' && LOOPBACK_HOSTS.has(url.hostname);
+67:31 EqualityOperator -> url.protocol !== 'http:' || return allowLoopbackHttp && url.protocol === 'http:' && LOOPBACK_HOSTS.has(url.hostname);
+162:9 ConditionalExpression -> true || if (RESERVED_AUTHORIZATION_PARAMETERS.has(key)) {
+313:63 BlockStatement -> {} || function safeProviderError(value: string): string | undefined {
+342:27 ObjectLiteral -> {} || ...(providerError ? { providerError } : {}),
+392:33 EqualityOperator -> skew <= 0 || if (!Number.isFinite(skew) || skew < 0 || skew > 300) {
+392:45 EqualityOperator -> skew >= 300 || if (!Number.isFinite(skew) || skew < 0 || skew > 300) {
+407:31 ConditionalExpression -> true || if (audiences.length > 1 && required.authorizedParty !== required.clientId) {
+420:36 ArithmeticOperator -> required.nowSeconds + required.skewSeconds || if (required.expiresAtSeconds <= required.nowSeconds - required.skewSeconds) return 'expired';
+429:7 ConditionalExpression -> false || if (!required.transaction.expectedIssuer) return 'issuer-mismatch';
+431:7 ConditionalExpression -> false || if (!required.transaction.nonce) return 'nonce-mismatch';
+446:11 ConditionalExpression -> false || ...(required.claims.emailVerified === undefined
+11:36 ArithmeticOperator -> 10 * 60 / 1000 || const DEFAULT_TRANSACTION_TTL_MS = 10 * 60 * 1000;
+11:36 ArithmeticOperator -> 10 / 60 || const DEFAULT_TRANSACTION_TTL_MS = 10 * 60 * 1000;
+12:32 ArithmeticOperator -> 15 * 60 / 1000 || const MAX_TRANSACTION_TTL_MS = 15 * 60 * 1000;
+12:32 ArithmeticOperator -> 15 / 60 || const MAX_TRANSACTION_TTL_MS = 15 * 60 * 1000;
+13:20 Regex -> /[A-Za-z0-9._~-]{43,128}$/ || const PKCE_VALUE = /^[A-Za-z0-9._~-]{43,128}$/;
+13:20 Regex -> /^[A-Za-z0-9._~-]{43,128}/ || const PKCE_VALUE = /^[A-Za-z0-9._~-]{43,128}$/;
+13:20 Regex -> /^[A-Za-z0-9._~-]$/ || const PKCE_VALUE = /^[A-Za-z0-9._~-]{43,128}$/;
+13:20 Regex -> /^[^A-Za-z0-9._~-]{43,128}$/ || const PKCE_VALUE = /^[A-Za-z0-9._~-]{43,128}$/;
+14:31 Regex -> /[A-Za-z0-9._~-]{32,512}$/ || const OPAQUE_SECURITY_VALUE = /^[A-Za-z0-9._~-]{32,512}$/;
+14:31 Regex -> /^[A-Za-z0-9._~-]{32,512}/ || const OPAQUE_SECURITY_VALUE = /^[A-Za-z0-9._~-]{32,512}$/;
+14:31 Regex -> /^[A-Za-z0-9._~-]$/ || const OPAQUE_SECURITY_VALUE = /^[A-Za-z0-9._~-]{32,512}$/;
+14:31 Regex -> /^[^A-Za-z0-9._~-]{32,512}$/ || const OPAQUE_SECURITY_VALUE = /^[A-Za-z0-9._~-]{32,512}$/;
+15:29 Regex -> /[A-Za-z0-9._-]{1,64}$/ || const SAFE_PROVIDER_ERROR = /^[A-Za-z0-9._-]{1,64}$/;
+15:29 Regex -> /^[A-Za-z0-9._-]{1,64}/ || const SAFE_PROVIDER_ERROR = /^[A-Za-z0-9._-]{1,64}$/;
+15:29 Regex -> /^[A-Za-z0-9._-]$/ || const SAFE_PROVIDER_ERROR = /^[A-Za-z0-9._-]{1,64}$/;
+15:29 Regex -> /^[^A-Za-z0-9._-]{1,64}$/ || const SAFE_PROVIDER_ERROR = /^[A-Za-z0-9._-]{1,64}$/;
+16:32 ArrayDeclaration -> [] || const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
+50:89 BlockStatement -> {} || function parsedSecureUrl(value: string, label: string, allowLoopbackHttp: boolean): URL {
+52:7 BlockStatement -> {} || try {
+59:7 ConditionalExpression -> true || if (!secure || url.username || url.password || url.hash) {
+59:7 BooleanLiteral -> secure || if (!secure || url.username || url.password || url.hash) {
+65:74 BlockStatement -> {} || function isSecureProtocol(url: URL, allowLoopbackHttp: boolean): boolean {
+66:7 ConditionalExpression -> false || if (url.protocol === 'https:') return true;
+66:7 EqualityOperator -> url.protocol !== 'https:' || if (url.protocol === 'https:') return true;
+66:41 BooleanLiteral -> false || if (url.protocol === 'https:') return true;
+71:7 BooleanLiteral -> value.trim() || if (!value.trim()) {
+71:7 ConditionalExpression -> true || if (!value.trim()) {
+82:5 ConditionalExpression -> true || required.provider.id !== required.server.providerId ||
+82:5 EqualityOperator -> required.provider.id === required.server.providerId || required.provider.id !== required.server.providerId ||
+83:5 EqualityOperator -> required.provider.id === required.registration.providerId || required.provider.id !== required.registration.providerId
+90:20 LogicalOperator -> ttlMs && DEFAULT_TRANSACTION_TTL_MS || const resolved = ttlMs ?? DEFAULT_TRANSACTION_TTL_MS;
+91:7 ConditionalExpression -> true || if (!Number.isInteger(resolved) || resolved <= 0 || resolved > MAX_TRANSACTION_TTL_MS) {
+91:7 BooleanLiteral -> Number.isInteger(resolved) || if (!Number.isInteger(resolved) || resolved <= 0 || resolved > MAX_TRANSACTION_TTL_MS) {
+91:38 EqualityOperator -> resolved > 0 || if (!Number.isInteger(resolved) || resolved <= 0 || resolved > MAX_TRANSACTION_TTL_MS) {
+91:55 EqualityOperator -> resolved >= MAX_TRANSACTION_TTL_MS || if (!Number.isInteger(resolved) || resolved <= 0 || resolved > MAX_TRANSACTION_TTL_MS) {
+91:55 EqualityOperator -> resolved <= MAX_TRANSACTION_TTL_MS || if (!Number.isInteger(resolved) || resolved <= 0 || resolved > MAX_TRANSACTION_TTL_MS) {
+108:7 ConditionalExpression -> true || if (!Number.isFinite(required.nowMs)) {
+108:7 BooleanLiteral -> Number.isFinite(required.nowMs) || if (!Number.isFinite(required.nowMs)) {
+117:7 BooleanLiteral -> OPAQUE_SECURITY_VALUE.test(security.state) || if (!OPAQUE_SECURITY_VALUE.test(security.state)) {
+117:7 ConditionalExpression -> true || if (!OPAQUE_SECURITY_VALUE.test(security.state)) {
+120:7 ConditionalExpression -> true || if (!PKCE_VALUE.test(security.codeVerifier) || !PKCE_VALUE.test(security.codeChallenge)) {
+120:7 BooleanLiteral -> PKCE_VALUE.test(security.codeVerifier) || if (!PKCE_VALUE.test(security.codeVerifier) || !PKCE_VALUE.test(security.codeChallenge)) {
+120:50 BooleanLiteral -> PKCE_VALUE.test(security.codeChallenge) || if (!PKCE_VALUE.test(security.codeVerifier) || !PKCE_VALUE.test(security.codeChallenge)) {
+126:7 ConditionalExpression -> true || if (!nonce || !OPAQUE_SECURITY_VALUE.test(nonce)) {
+126:7 BooleanLiteral -> nonce || if (!nonce || !OPAQUE_SECURITY_VALUE.test(nonce)) {
+126:17 BooleanLiteral -> OPAQUE_SECURITY_VALUE.test(nonce) || if (!nonce || !OPAQUE_SECURITY_VALUE.test(nonce)) {
+136:7 BooleanLiteral -> required.server.supportsPkceS256 || if (!required.server.supportsPkceS256) {
+136:7 ConditionalExpression -> true || if (!required.server.supportsPkceS256) {
+139:7 ConditionalExpression -> true || if (required.provider.protocol === 'oidc' && !required.server.issuer) {
+139:7 LogicalOperator -> required.provider.protocol === 'oidc' || !required.server.is || if (required.provider.protocol === 'oidc' && !required.server.issuer) {
+142:7 ConditionalExpression -> true || if (required.server.requiresAuthorizationResponseIssuer && !required.server.issuer) {
+139:48 BooleanLiteral -> required.server.issuer || if (required.provider.protocol === 'oidc' && !required.server.issuer) {
+142:62 BooleanLiteral -> required.server.issuer || if (required.server.requiresAuthorizationResponseIssuer && !required.server.issuer) {
+159:5 BooleanLiteral -> true || false,
+167:9 ConditionalExpression -> true || if (RESERVED_AUTHORIZATION_PARAMETERS.has(key)) {
+209:33 BlockStatement -> {} || ): VisitorAuthAuthorizationPlan {
+215:89 BooleanLiteral -> true || const tokenEndpoint = parsedSecureUrl(required.server.tokenEndpoint, 'tokenEndpoint', false);
+216:76 BooleanLiteral -> false || const redirectUri = parsedSecureUrl(required.redirectUri, 'redirectUri', true).toString();
+217:55 ObjectLiteral -> {} || const authorizationUrl = configuredAuthorizationUrl({
+227:10 ObjectLiteral -> {} || return {
+## src/adapters/jwt-auth/index.ts
+27:83 Regex -> /=+/g || return input.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+27:83 Regex -> /=$/g || return input.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+32:21 ConditionalExpression -> true || const padLength = padded.length % 4 === 0 ? 0 : 4 - (padded.length % 4);
+32:21 ConditionalExpression -> false || const padLength = padded.length % 4 === 0 ? 0 : 4 - (padded.length % 4);
+32:21 EqualityOperator -> padded.length % 4 !== 0 || const padLength = padded.length % 4 === 0 ? 0 : 4 - (padded.length % 4);
+32:21 ArithmeticOperator -> padded.length * 4 || const padLength = padded.length % 4 === 0 ? 0 : 4 - (padded.length % 4);
+32:51 ArithmeticOperator -> 4 + padded.length % 4 || const padLength = padded.length % 4 === 0 ? 0 : 4 - (padded.length % 4);
+52:28 MethodExpression -> stored || const salt = Buffer.from(stored.slice(0, separatorIndex), 'hex');
+72:18 ObjectLiteral -> {} || const header = { alg: 'HS256', typ: 'JWT' };
+88:34 ObjectLiteral -> {} || if (parts.length !== 3) return { ok: false };
+97:7 ConditionalExpression -> false || if (actualSignature.length !== expectedSignature.length || !timingSafeEqual(actualSignature, expectedSignature
+97:116 BlockStatement -> {} || if (actualSignature.length !== expectedSignature.length || !timingSafeEqual(actualSignature, expectedSignature
+98:12 ObjectLiteral -> {} || return { ok: false };
+105:12 ObjectLiteral -> {} || return { ok: false };
+104:11 BlockStatement -> {} || } catch {
+109:5 ConditionalExpression -> false || typeof parsed !== 'object' ||
+110:5 ConditionalExpression -> false || typeof (parsed as Record<string, unknown>).sub !== 'string' ||
+111:5 ConditionalExpression -> false || typeof (parsed as Record<string, unknown>).jti !== 'string' ||
+112:5 ConditionalExpression -> false || typeof (parsed as Record<string, unknown>).exp !== 'number'
+114:12 ObjectLiteral -> {} || return { ok: false };
+181:19 UpdateOperator -> this.nextId-- || id: `user-${this.nextId++}`,
+202:25 ArithmeticOperator -> nowMs * 1000 || iat: Math.floor(nowMs / 1000),
+221:9 EqualityOperator -> result.payload.exp * 1000 < this.now() || if (result.payload.exp * 1000 <= this.now()) return null;
+24:32 ArithmeticOperator -> 60 / 60 || const DEFAULT_SESSION_TTL_MS = 60 * 60 * 1000;
+## src/adapters/ws/index.ts
+56:10 BlockStatement -> {} || } else {
+63:11 BlockStatement -> {} || } catch {
+66:18 ConditionalExpression -> false || if (!parsed || typeof parsed !== 'object') return null;
+68:7 ConditionalExpression -> false || if ((obj.type !== 'subscribe' && obj.type !== 'unsubscribe') || typeof obj.channel !== 'string') return null;
+68:7 LogicalOperator -> obj.type !== 'subscribe' && obj.type !== 'unsubscribe' && ty || if ((obj.type !== 'subscribe' && obj.type !== 'unsubscribe') || typeof obj.channel !== 'string') return null;
+68:8 ConditionalExpression -> false || if ((obj.type !== 'subscribe' && obj.type !== 'unsubscribe') || typeof obj.channel !== 'string') return null;
+68:67 ConditionalExpression -> false || if ((obj.type !== 'subscribe' && obj.type !== 'unsubscribe') || typeof obj.channel !== 'string') return null;
+108:9 OptionalChaining -> this.socketsByChannel.get(message.channel).delete || this.socketsByChannel.get(message.channel)?.delete(socket);
+125:9 ConditionalExpression -> true || if (!sockets) {
+134:9 ConditionalExpression -> true || if (!handlers) {
+148:20 ConditionalExpression -> true || if (sockets && sockets.size > 0) {
+148:20 EqualityOperator -> sockets.size >= 0 || if (sockets && sockets.size > 0) {
+161:11 ConditionalExpression -> false || if (unsubscribed) return;
+162:22 BooleanLiteral -> false || unsubscribed = true;
+198:16 ConditionalExpression -> true || else if (required.event === 'close') socket.on('close', required.listener);
+198:16 ConditionalExpression -> false || else if (required.event === 'close') socket.on('close', required.listener);
+198:16 EqualityOperator -> required.event !== 'close' || else if (required.event === 'close') socket.on('close', required.listener);
+114:9 OptionalChaining -> this.socketsByChannel.get(channel).delete || this.socketsByChannel.get(channel)?.delete(socket);
+## src/adapters/stripe/index.ts
+38:9 ConditionalExpression -> true || if (stripeType !== undefined) this.stripeType = stripeType;
+39:9 ConditionalExpression -> true || if (stripeCode !== undefined) this.stripeCode = stripeCode;
+67:30 ConditionalExpression -> false || if (raw === 'succeeded' || raw === 'pending' || raw === 'failed') return raw;
+67:51 ConditionalExpression -> false || if (raw === 'succeeded' || raw === 'pending' || raw === 'failed') return raw;
+94:45 ObjectLiteral -> {} || throw new StripePaymentsProviderError({ message: 'StripePaymentsProvider requires a non-empty options.secretKe
+102:66 Regex -> /\/$/ || this.apiBase = (optional.apiBase ?? STRIPE_API_BASE).replace(/\/+$/, '');
+150:129 ObjectLiteral -> {} || throw new StripePaymentsProviderError({ message: `Stripe refund ${String(refundStatus)} for charge ${id}`, sta
+176:14 ConditionalExpression -> true || return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {};
+176:14 LogicalOperator -> parsed || typeof parsed === 'object' || return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {};
+176:24 ConditionalExpression -> true || return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {};
+183:22 LogicalOperator -> json.error || typeof json.error === 'object' || const errorObj = json.error && typeof json.error === 'object' ? (json.error as Record<string, unknown>) : {};
+183:36 ConditionalExpression -> true || const errorObj = json.error && typeof json.error === 'object' ? (json.error as Record<string, unknown>) : {};
+184:21 LogicalOperator -> typeof errorObj.message === 'string' || errorObj.message || const message = typeof errorObj.message === 'string' && errorObj.message ? errorObj.message : `Stripe request 
+184:21 ConditionalExpression -> true || const message = typeof errorObj.message === 'string' && errorObj.message ? errorObj.message : `Stripe request 
+185:24 ConditionalExpression -> true || const stripeType = typeof errorObj.type === 'string' ? errorObj.type : undefined;
+186:24 ConditionalExpression -> true || const stripeCode = typeof errorObj.code === 'string' ? errorObj.code : undefined;
+188:11 ConditionalExpression -> false || ...(stripeType === undefined ? {} : { stripeType }),
+189:11 ConditionalExpression -> false || ...(stripeCode === undefined ? {} : { stripeCode }),
+## src/comments/tokens.ts
+4:78 ObjectLiteral -> {} || export const CommentsProviderRegistryToken = token<CommentsProviderRegistry>({ id: 'jini.capabilityProviders.c
+5:76 ObjectLiteral -> {} || export const CommentThreadRendererToken = token<CommentThreadRendererPort>({ id: 'jini.capabilityProviders.com
+6:68 ObjectLiteral -> {} || export const CommentModerationToken = token<CommentModerationPort>({ id: 'jini.capabilityProviders.comments.mo
+7:68 ObjectLiteral -> {} || export const CommentSubmissionToken = token<CommentSubmissionPort>({ id: 'jini.capabilityProviders.comments.su
+8:78 ObjectLiteral -> {} || export const CommentsSelectionStoreToken = token<CommentsSelectionStorePort>({ id: 'jini.capabilityProviders.c

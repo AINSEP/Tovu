@@ -1,0 +1,15 @@
+{
+  "testRunner": "vitest",
+  "vitest": { "configFile": "vitest.kernel.config.ts" },
+  "mutate": ["src/money/**/*.ts","src/payments/**/*.ts","src/http/**/*.ts","!src/**/__tests__/**","!src/**/*.test.ts","!src/**/*.d.ts","!src/payments/testkit/**","!src/payments/ledger/migrations/**"],
+  "coverageAnalysis": "perTest",
+  "concurrency": 3,
+  "incremental": true,
+  "incrementalFile": "/root/stryker/c/incremental.json",
+  "mutator": {"excludedMutations": ["StringLiteral"]},
+  "reporters": ["json","clear-text","progress-append-only"],
+  "jsonReporter": {"fileName": "/root/stryker/c/mutation.json"},
+  "tempDirName": ".stryker-tmp",
+  "cleanTempDir": true,
+  "disableTypeChecks": true
+}

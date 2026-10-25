@@ -1,0 +1,252 @@
+## src/webhooks/signing.ts
+41:83 ConditionalExpression -> false || if (!Number.isFinite(nowSeconds) || !Number.isFinite(input.toleranceSeconds) || input.toleranceSeconds < 0) re
+52:9 ConditionalExpression -> false || if (!/^[0-9a-f]+$/i.test(candidateHex)) return false;
+52:10 Regex -> /[0-9a-f]+$/i || if (!/^[0-9a-f]+$/i.test(candidateHex)) return false;
+52:10 Regex -> /^[0-9a-f]+/i || if (!/^[0-9a-f]+$/i.test(candidateHex)) return false;
+64:40 ArrayDeclaration -> ["Stryker was here"] || const parts: SignatureHeaderPart[] = [];
+66:18 MethodExpression -> rawPart || const part = rawPart.trim();
+68:9 ConditionalExpression -> false || if (eq === -1) continue;
+69:23 MethodExpression -> part.slice(0, eq) || parts.push({ key: part.slice(0, eq).trim(), value: part.slice(eq + 1).trim() });
+69:56 MethodExpression -> part.slice(eq + 1) || parts.push({ key: part.slice(0, eq).trim(), value: part.slice(eq + 1).trim() });
+84:51 BooleanLiteral -> true || if (!Number.isFinite(parsedTimestamp)) return false;
+84:9 ConditionalExpression -> false || if (!Number.isFinite(parsedTimestamp)) return false;
+86:14 ConditionalExpression -> true || } else if (part.key === vocabulary.signatureField) {
+93:57 ArrayDeclaration -> ["Stryker was here"] || const acc: SignatureHeaderAccumulator = { signatures: [] };
+99:7 ConditionalExpression -> false || if (acc.timestamp === undefined || acc.signatures.length === 0) return null;
+99:7 LogicalOperator -> acc.timestamp === undefined && acc.signatures.length === 0 || if (acc.timestamp === undefined || acc.signatures.length === 0) return null;
+99:7 ConditionalExpression -> false || if (acc.timestamp === undefined || acc.signatures.length === 0) return null;
+99:38 ConditionalExpression -> false || if (acc.timestamp === undefined || acc.signatures.length === 0) return null;
+## src/media-providers/dispatch/ssrf-guard.ts
+55:47 ObjectLiteral -> {} || return result.map(({ address, family }) => ({ address, family }));
+60:16 ConditionalExpression -> false || const host = hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname;
+60:16 LogicalOperator -> hostname.startsWith('[') || hostname.endsWith(']') || const host = hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname;
+60:44 MethodExpression -> hostname.startsWith(']') || const host = hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname;
+60:16 MethodExpression -> hostname.endsWith('[') || const host = hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname;
+60:69 MethodExpression -> hostname || const host = hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname;
+61:7 Regex -> /\d{1,3}(?:\.\d{1,3}){3}$/ || if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)) return true;
+61:7 Regex -> /^\d(?:\.\d{1,3}){3}$/ || if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)) return true;
+61:7 Regex -> /^\d{1,3}(?:\.\d{1,3}){3}/ || if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)) return true;
+61:7 Regex -> /^\d{1,3}(?:\.\d){3}$/ || if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)) return true;
+70:46 Regex -> /\/+/ || parsed = new URL(String(baseUrl).replace(/\/+$/, ''));
+70:46 Regex -> /\/$/ || parsed = new URL(String(baseUrl).replace(/\/+$/, ''));
+80:20 MethodExpression -> parsed.hostname.toUpperCase() || const hostname = parsed.hostname.toLowerCase();
+111:119 BooleanLiteral -> false || if (addresses.length === 0) return { ok: false, error: defaultMediaOutboundMessages.dnsResolutionFailed, forbi
+114:16 MethodExpression -> String(addr.address).toUpperCase() || const ip = String(addr.address).toLowerCase();
+131:7 ConditionalExpression -> false || if (typeof rawUrl !== 'string' || !rawUrl) {
+162:9 ConditionalExpression -> true || if (!check.ok) throw new Error(`blocked download url (${check.error})`);
+160:7 ConditionalExpression -> true || if (outbound.allowPrivateNetwork !== true && outbound.httpClient === undefined) {
+160:40 BooleanLiteral -> false || if (outbound.allowPrivateNetwork !== true && outbound.httpClient === undefined) {
+## src/credentialed-http/credentialed-request.ts
+50:7 ConditionalExpression -> false || if (typeof raw !== "string" || !SUPPORTED_METHODS.has(raw)) {
+60:7 ConditionalExpression -> false || if (typeof candidate !== "string" || candidate.trim() === "") {
+60:40 MethodExpression -> candidate || if (typeof candidate !== "string" || candidate.trim() === "") {
+69:7 ConditionalExpression -> true || if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+72:7 LogicalOperator -> parsed.username && parsed.password || if (parsed.username || parsed.password) {
+356:24 EqualityOperator -> status <= 300 || if (status >= 200 && status < 300) return "ok";
+370:7 ConditionalExpression -> true || if (outcome === "invalid") {
+396:9 ConditionalExpression -> true || if (typeof path === "string" && path.trim() !== "" && !/[\u0000-\u001f\u007f]/.test(path) && !/^([a-z][a-z\d+.
+396:99 Regex -> /([a-z][a-z\d+.-]*:|[\\/]{2})/i || if (typeof path === "string" && path.trim() !== "" && !/[\u0000-\u001f\u007f]/.test(path) && !/^([a-z][a-z\d+.
+396:99 Regex -> /^([a-z][a-z\D+.-]*:|[\\/]{2})/i || if (typeof path === "string" && path.trim() !== "" && !/[\u0000-\u001f\u007f]/.test(path) && !/^([a-z][a-z\d+.
+396:137 MethodExpression -> path || if (typeof path === "string" && path.trim() !== "" && !/[\u0000-\u001f\u007f]/.test(path) && !/^([a-z][a-z\d+.
+423:50 ObjectLiteral -> {} || const schemes = await deps.schemeRegistry.load({ workspaceId: input.workspaceId });
+471:7 ConditionalExpression -> true || if (resolvedScheme.kind === "basic") return [authorizationHeader, connection.token, buildBasicAuthPayload(reso
+494:50 ObjectLiteral -> {} || const schemes = await deps.schemeRegistry.load({ workspaceId: input.workspaceId });
+534:184 BooleanLiteral -> true || throw new CredentialedRequestTransportError({ message: `request to '${auditBase.label}' failed: ${resolveRedac
+565:109 ObjectLiteral -> {} || if (response.bodyTruncated || response.bodyBytesTruncated) throw new CredentialedRequestValidationError({ mess
+569:52 ObjectLiteral -> {} || throw new CredentialedRequestValidationError({ message: "JSON response must be valid" });
+## src/api-connections/token-store/vault-token-store.ts
+76:20 MethodExpression -> loads.get(key) ?? [] || const recent = (loads.get(key) ?? []).filter(entry => nowMs - entry.atMs < LOAD_OBSERVATION_WINDOW_MS);
+76:59 ConditionalExpression -> true || const recent = (loads.get(key) ?? []).filter(entry => nowMs - entry.atMs < LOAD_OBSERVATION_WINDOW_MS);
+76:50 ArrowFunction -> () => undefined || const recent = (loads.get(key) ?? []).filter(entry => nowMs - entry.atMs < LOAD_OBSERVATION_WINDOW_MS);
+76:39 ArrayDeclaration -> ["Stryker was here"] || const recent = (loads.get(key) ?? []).filter(entry => nowMs - entry.atMs < LOAD_OBSERVATION_WINDOW_MS);
+76:59 ConditionalExpression -> false || const recent = (loads.get(key) ?? []).filter(entry => nowMs - entry.atMs < LOAD_OBSERVATION_WINDOW_MS);
+76:59 EqualityOperator -> nowMs - entry.atMs >= LOAD_OBSERVATION_WINDOW_MS || const recent = (loads.get(key) ?? []).filter(entry => nowMs - entry.atMs < LOAD_OBSERVATION_WINDOW_MS);
+76:59 EqualityOperator -> nowMs - entry.atMs <= LOAD_OBSERVATION_WINDOW_MS || const recent = (loads.get(key) ?? []).filter(entry => nowMs - entry.atMs < LOAD_OBSERVATION_WINDOW_MS);
+76:59 ArithmeticOperator -> nowMs + entry.atMs || const recent = (loads.get(key) ?? []).filter(entry => nowMs - entry.atMs < LOAD_OBSERVATION_WINDOW_MS);
+81:39 ArrayDeclaration -> ["Stryker was here"] || const recent = (loads.get(key) ?? []).filter(entry => nowMs - entry.atMs < LOAD_OBSERVATION_WINDOW_MS);
+133:9 ConditionalExpression -> true || if (target.generation !== null && target.generation > required.generation) throw new OAuthTokenStoreError({ co
+150:14 BooleanLiteral -> false || return true;
+178:29 EqualityOperator -> attempt <= WRITE_ATTEMPTS || for (let attempt = 0; attempt < WRITE_ATTEMPTS; attempt += 1) {
+194:11 ConditionalExpression -> true || if (record?.meta.leaseHolder && leaseExpiresAtMs !== null && leaseExpiresAtMs > clock.nowMs()) return false;
+194:11 LogicalOperator -> record?.meta.leaseHolder || leaseExpiresAtMs !== null || if (record?.meta.leaseHolder && leaseExpiresAtMs !== null && leaseExpiresAtMs > clock.nowMs()) return false;
+194:39 ConditionalExpression -> true || if (record?.meta.leaseHolder && leaseExpiresAtMs !== null && leaseExpiresAtMs > clock.nowMs()) return false;
+## src/api-connections/token-store/errors.ts
+31:11 ObjectLiteral -> {} || super({ message: TEXT[code].message }, cause === undefined ? {} : { options: { cause } });
+31:44 ConditionalExpression -> false || super({ message: TEXT[code].message }, cause === undefined ? {} : { options: { cause } });
+42:10 LogicalOperator -> error instanceof OAuthTokenStoreError || error.code === "own || return error instanceof OAuthTokenStoreError && (error.code === "owner-mismatch" || error.code === "invalid-re
+42:52 ConditionalExpression -> true || return error instanceof OAuthTokenStoreError && (error.code === "owner-mismatch" || error.code === "invalid-re
+10:18 ObjectLiteral -> {} || configuration: { message: "OAuth token store: the vault scope does not belong to the expected workspace.",
+12:21 ObjectLiteral -> {} || "lease-not-held": { message: "OAuth token store: tokens can only be written while holding this connection's re
+14:17 ObjectLiteral -> {} || "lease-lost": { message: "OAuth token store: a newer attempt took over this connection, so this result was dis
+16:23 ObjectLiteral -> {} || "stale-generation": { message: "OAuth token store: the connection was disconnected, switched or reconnected wh
+18:21 ObjectLiteral -> {} || "owner-mismatch": { message: "OAuth token store: the stored credential belongs to a different connection owner
+20:21 ObjectLiteral -> {} || "write-conflict": { message: "OAuth token store: the connection kept changing while its credential was being w
+22:21 ObjectLiteral -> {} || "invalid-record": { message: "OAuth token store: the stored credential is not a valid OAuth token record.",
+## src/media-providers/ui-defaults.ts
+11:56 ArrayDeclaration -> [] || const starterCatalog: readonly MediaProviderOption[] = [
+15:13 ArrayDeclaration -> [] || models: ['gemini-3.1-flash-image-preview'],
+12:3 ObjectLiteral -> {} || {
+17:3 ObjectLiteral -> {} || {
+22:3 ObjectLiteral -> {} || {
+20:13 ArrayDeclaration -> [] || models: ['gemini-3.1-flash-image-preview'],
+25:13 ArrayDeclaration -> [] || models: ['gemini-3.1-flash-image-preview'],
+27:3 ObjectLiteral -> {} || {
+31:3 ObjectLiteral -> {} || {
+34:13 ArrayDeclaration -> [] || models: ['gemini-3.1-flash-image-preview'],
+36:3 ObjectLiteral -> {} || {
+40:3 ObjectLiteral -> {} || {
+43:13 ArrayDeclaration -> [] || models: ['gemini-3.1-flash-image-preview'],
+45:3 ObjectLiteral -> {} || {
+49:3 ObjectLiteral -> {} || {
+53:3 ObjectLiteral -> {} || {
+56:13 ArrayDeclaration -> [] || models: ['gpt-image-2', 'dall-e-3'],
+58:3 ObjectLiteral -> {} || {
+62:3 ObjectLiteral -> {} || {
+66:3 ObjectLiteral -> {} || {
+70:3 ObjectLiteral -> {} || {
+80:109 BlockStatement -> {} || export const DEFAULT_MEDIA_PROVIDER_CATALOG: readonly MediaProviderOption[] = starterCatalog.map((entry) => {
+74:3 ObjectLiteral -> {} || {
+81:39 ObjectLiteral -> {} || const id = canonicalMediaProviderId({ id: entry.id });
+82:33 ObjectLiteral -> {} || const provider = findProvider({ id })!;
+83:10 ObjectLiteral -> {} || return { ...entry, id, label: provider.label, ...(provider.defaultBaseUrl ? { defaultBaseUrl: provider.default
+83:79 ObjectLiteral -> {} || return { ...entry, id, label: provider.label, ...(provider.defaultBaseUrl ? { defaultBaseUrl: provider.default
+93:3 ObjectLiteral -> {} || {
+92:113 ArrayDeclaration -> [] || export const DEFAULT_PROVIDER_PRESETS: readonly ProviderPreset<'anthropic' | 'openai' | 'azure' | 'google'>[] 
+98:22 ArrayDeclaration -> [] || preferredModels: ['claude-sonnet-5', 'claude-opus-5', 'claude-haiku-4-5'],
+102:3 ObjectLiteral -> {} || {
+115:22 ArrayDeclaration -> [] || preferredModels: ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna'],
+119:3 ObjectLiteral -> {} || {
+124:22 ArrayDeclaration -> ["Stryker was here"] || preferredModels: [],
+132:3 ObjectLiteral -> {} || {
+142:22 ArrayDeclaration -> [] || preferredModels: ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.5-pro'],
+150:3 ObjectLiteral -> {} || {
+155:22 ArrayDeclaration -> [] || preferredModels: ['anthropic/claude-sonnet-5', 'google/gemini-2.5-pro', 'openai/gpt-5.6-sol'],
+161:3 ObjectLiteral -> {} || {
+166:22 ArrayDeclaration -> ["Stryker was here"] || preferredModels: [],
+168:21 BooleanLiteral -> true || requiresApiKey: false,
+## src/media-providers/seed.ts
+22:27 ArrayDeclaration -> [] || supportedFrameImages: ['first_frame', 'reference_image'],
+23:28 ArrayDeclaration -> [] || supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+24:20 BooleanLiteral -> false || generateAudio: true,
+25:11 BooleanLiteral -> false || seed: true,
+33:27 ArrayDeclaration -> [] || supportedFrameImages: ['first_frame', 'reference_image'],
+34:28 ArrayDeclaration -> [] || supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+44:25 ArrayDeclaration -> [] || supportedDurations: [5, 10],
+45:27 ArrayDeclaration -> [] || supportedResolutions: ['480P', '720P', '1080P'],
+53:27 ArrayDeclaration -> [] || supportedFrameImages: ['first_frame'],
+54:25 ArrayDeclaration -> [] || supportedDurations: [5, 10],
+55:27 ArrayDeclaration -> [] || supportedResolutions: ['480P', '720P', '1080P'],
+63:27 ArrayDeclaration -> [] || supportedFrameImages: ['first_frame'],
+64:27 ArrayDeclaration -> [] || supportedResolutions: ['480P', '720P', '1080P'],
+74:27 ArrayDeclaration -> [] || supportedFrameImages: ['first_frame'],
+76:25 ArrayDeclaration -> [] || supportedDurations: [4, 8, 12],
+75:21 ArrayDeclaration -> [] || supportedSizes: ['720x1280', '1280x720'],
+84:27 ArrayDeclaration -> [] || supportedFrameImages: ['first_frame'],
+85:21 ArrayDeclaration -> [] || supportedSizes: ['720x1280', '1280x720', '1792x1024', '1024x1792'],
+86:25 ArrayDeclaration -> [] || supportedDurations: [4, 8, 12],
+100:25 ArrayDeclaration -> [] || supportedDurations: [4, 6, 8],
+108:25 ArrayDeclaration -> [] || supportedDurations: [4, 6, 8],
+121:27 ArrayDeclaration -> [] || supportedFrameImages: ['first_frame'],
+122:25 ArrayDeclaration -> [] || supportedDurations: [5],
+123:27 ArrayDeclaration -> [] || supportedResolutions: ['480P', '720P', '1080P'],
+## src/media-providers/dispatch/media-provider-registry.ts
+105:20 ArithmeticOperator -> left.index + right.index || return a === b ? left.index - right.index : a - b;
+105:10 ConditionalExpression -> false || return a === b ? left.index - right.index : a - b;
+145:20 ConditionalExpression -> true || const kind = surface === 'audio' ? audioKind ?? 'music' : undefined;
+47:112 BlockStatement -> {} || export function mediaProviderRegistryId({ id }: { id: string }, _optional: Record<string, never> = {}): string
+48:35 ObjectLiteral -> {} || return canonicalMediaProviderId({ id }).replaceAll('-', '_');
+55:50 BlockStatement -> {} || ): ProviderDefinition<MediaProviderContribution> {
+56:40 ObjectLiteral -> {} || return { id: mediaProviderRegistryId({ id: contribution.provider.id }), provider: contribution, label: contrib
+56:10 ObjectLiteral -> {} || return { id: mediaProviderRegistryId({ id: contribution.provider.id }), provider: contribution, label: contrib
+59:45 BlockStatement -> {} || function isAdapter(value: unknown): boolean {
+61:10 ConditionalExpression -> false || return typeof candidate?.buildRequest === 'function' && typeof candidate.parseResponse === 'function';
+61:10 ConditionalExpression -> true || return typeof candidate?.buildRequest === 'function' && typeof candidate.parseResponse === 'function';
+61:10 EqualityOperator -> typeof candidate?.buildRequest !== 'function' || return typeof candidate?.buildRequest === 'function' && typeof candidate.parseResponse === 'function';
+61:17 OptionalChaining -> candidate.buildRequest || return typeof candidate?.buildRequest === 'function' && typeof candidate.parseResponse === 'function';
+61:59 EqualityOperator -> typeof candidate.parseResponse !== 'function' || return typeof candidate?.buildRequest === 'function' && typeof candidate.parseResponse === 'function';
+65:17 ConditionalExpression -> false || const valid = typeof provider?.id === 'string' && typeof provider.label === 'string' && provider.label.trim() 
+65:17 EqualityOperator -> typeof provider?.id !== 'string' || const valid = typeof provider?.id === 'string' && typeof provider.label === 'string' && provider.label.trim() 
+65:53 ConditionalExpression -> true || const valid = typeof provider?.id === 'string' && typeof provider.label === 'string' && provider.label.trim() 
+65:53 EqualityOperator -> typeof provider.label !== 'string' || const valid = typeof provider?.id === 'string' && typeof provider.label === 'string' && provider.label.trim() 
+65:91 EqualityOperator -> provider.label.trim() === '' || const valid = typeof provider?.id === 'string' && typeof provider.label === 'string' && provider.label.trim() 
+70:7 BooleanLiteral -> Array.isArray(models) || if (!Array.isArray(models)) return 'models must be an array';
+70:7 ConditionalExpression -> true || if (!Array.isArray(models)) return 'models must be an array';
+73:89 ConditionalExpression -> true || const at = (models as (Partial<MediaProviderModel> | undefined)[]).findIndex(model => model?.provider !== prov
+73:89 EqualityOperator -> model?.provider === providerId || const at = (models as (Partial<MediaProviderModel> | undefined)[]).findIndex(model => model?.provider !== prov
+73:123 ConditionalExpression -> false || const at = (models as (Partial<MediaProviderModel> | undefined)[]).findIndex(model => model?.provider !== prov
+73:123 EqualityOperator -> typeof model.id === 'string' || const at = (models as (Partial<MediaProviderModel> | undefined)[]).findIndex(model => model?.provider !== prov
+73:155 BooleanLiteral -> model.id || const at = (models as (Partial<MediaProviderModel> | undefined)[]).findIndex(model => model?.provider !== prov
+74:10 ConditionalExpression -> false || return at === -1 ? undefined : `model '${String(models[at]?.id)}' must have an id and belong to provider '${pr
+74:10 EqualityOperator -> at !== -1 || return at === -1 ? undefined : `model '${String(models[at]?.id)}' must have an id and belong to provider '${pr
+74:17 UnaryOperator -> +1 || return at === -1 ? undefined : `model '${String(models[at]?.id)}' must have an id and belong to provider '${pr
+78:7 ConditionalExpression -> true || if (typeof adapters !== 'object' || adapters === null) return 'adapters must be an object';
+78:7 ConditionalExpression -> false || if (typeof adapters !== 'object' || adapters === null) return 'adapters must be an object';
+78:7 EqualityOperator -> typeof adapters === 'object' || if (typeof adapters !== 'object' || adapters === null) return 'adapters must be an object';
+78:39 EqualityOperator -> adapters !== null || if (typeof adapters !== 'object' || adapters === null) return 'adapters must be an object';
+80:56 BooleanLiteral -> isAdapter(byRoute[routeKey]) || const broken = Object.keys(byRoute).find(routeKey => !isAdapter(byRoute[routeKey]));
+81:10 ConditionalExpression -> false || return broken === undefined ? undefined : `adapter for route '${broken}' needs buildRequest and parseResponse 
+81:10 EqualityOperator -> broken !== undefined || return broken === undefined ? undefined : `adapter for route '${broken}' needs buildRequest and parseResponse 
+96:42 ObjectLiteral -> {} || const ownKey = mediaProviderRegistryId({ id: contribution.provider.id });
+97:25 MethodExpression -> registered || const taken = new Set(registered.filter(entry => entry.id !== ownKey).flatMap(entry => entry.provider.models.m
+97:52 ConditionalExpression -> true || const taken = new Set(registered.filter(entry => entry.id !== ownKey).flatMap(entry => entry.provider.models.m
+99:10 ConditionalExpression -> false || return clash === undefined ? undefined : `model '${clash.id}' is already offered by another provider`;
+99:10 EqualityOperator -> clash !== undefined || return clash === undefined ? undefined : `model '${clash.id}' is already offered by another provider`;
+131:64 ObjectLiteral -> {} || for (const contribution of contributions) providers.register({ definition: mediaProviderDefinition({ contribut
+131:102 ObjectLiteral -> {} || for (const contribution of contributions) providers.register({ definition: mediaProviderDefinition({ contribut
+153:48 BlockStatement -> {} || function builtinModels(): MediaProviderModel[] {
+160:18 ArrowFunction -> () => undefined || return all.map((model, order) => ({ ...model, order }));
+169:119 BlockStatement -> {} || export function builtinMediaProviderContributions(_required: Record<string, never> = {}): MediaProviderContrib
+171:33 ObjectLiteral -> {} || registerBuiltinVendorAdapters({
+172:15 ObjectLiteral -> {} || registry: {
+174:25 LogicalOperator -> adapters.get(providerId) && {} || const byRoute = adapters.get(providerId) ?? {};
+181:30 ArrowFunction -> () => undefined || return MEDIA_PROVIDERS.map(provider => ({
+181:43 ObjectLiteral -> {} || return MEDIA_PROVIDERS.map(provider => ({
+183:13 MethodExpression -> models || models: models.filter(model => model.provider === provider.id),
+183:36 ConditionalExpression -> true || models: models.filter(model => model.provider === provider.id),
+183:36 EqualityOperator -> model.provider !== provider.id || models: models.filter(model => model.provider === provider.id),
+184:15 LogicalOperator -> adapters.get(provider.id) && {} || adapters: adapters.get(provider.id) ?? {},
+## src/media-providers/dispatch/operation-runtime.ts
+85:9 ConditionalExpression -> true || ...(result.suggestedExt !== undefined ? { suggestedExt: result.suggestedExt } : {}),
+85:45 ObjectLiteral -> {} || ...(result.suggestedExt !== undefined ? { suggestedExt: result.suggestedExt } : {}),
+85:9 ConditionalExpression -> false || ...(result.suggestedExt !== undefined ? { suggestedExt: result.suggestedExt } : {}),
+85:9 EqualityOperator -> result.suggestedExt === undefined || ...(result.suggestedExt !== undefined ? { suggestedExt: result.suggestedExt } : {}),
+109:9 ConditionalExpression -> false || ...(deps.allowPrivateNetwork === undefined ? {} : { allowPrivateNetwork: deps.allowPrivateNetwork }),
+110:9 ConditionalExpression -> false || ...(deps.outboundMessages === undefined ? {} : { outboundMessages: deps.outboundMessages }),
+150:13 BlockStatement -> {} || } catch {
+151:11 ConditionalExpression -> false || if (attempt === retryDelaysMs.length) return false;
+151:52 BooleanLiteral -> true || if (attempt === retryDelaysMs.length) return false;
+149:14 BooleanLiteral -> false || return true;
+170:32 ArrowFunction -> () => undefined || const newId = deps.newId ?? (() => `op_${Math.random().toString(36).slice(2, 10)}_${now()}`);
+170:44 MethodExpression -> Math.random().toString(36) || const newId = deps.newId ?? (() => `op_${Math.random().toString(36).slice(2, 10)}_${now()}`);
+183:4 ArrayDeclaration -> [] || }, ["id", "providerId", "routeKey", "ownerRef", "maxAttempts", "deadlineAt"]));
+201:66 ArithmeticOperator -> now() - (outcome.retryAfterMs ?? DEFAULT_POLL_INTERVAL_MS) || : { status: 'polling', state: outcome.state, nextPollAt: now() + (outcome.retryAfterMs ?? DEFAULT_POLL_INTERVA
+201:75 LogicalOperator -> outcome.retryAfterMs && DEFAULT_POLL_INTERVAL_MS || : { status: 'polling', state: outcome.state, nextPollAt: now() + (outcome.retryAfterMs ?? DEFAULT_POLL_INTERVA
+214:28 ConditionalExpression -> false || const effectiveGraceMs = params.adapter.expectedLatencyClass === 'slow' ? 0 : graceMs;
+225:13 BlockStatement -> {} || } finally {
+226:9 ConditionalExpression -> true || if (graceTimer) clearTimeout(graceTimer);
+226:9 ConditionalExpression -> false || if (graceTimer) clearTimeout(graceTimer);
+269:9 ConditionalExpression -> true || ...(params.limit !== undefined ? { limit: params.limit } : {}),
+270:4 ArrayDeclaration -> [] || }, ["now", "leaseOwner", "leaseMs"]));
+334:35 ObjectLiteral -> {} || const adapter = params.adapters({ providerId: row.providerId, routeKey: row.routeKey });
+394:48 ConditionalExpression -> true || error: { message: outcome.message, ...(outcome.code !== undefined ? { code: outcome.code } : {}) },
+440:37 ObjectLiteral -> {} || const adapter = params.adapters({ providerId: row.providerId, routeKey: row.routeKey });
+441:9 OptionalChaining -> adapter.submitIsIdempotent || if (adapter?.submitIsIdempotent === true) {
+466:59 ObjectLiteral -> {} || for (const row of await store.claimDue(...partitionArgs({ now: Number.MAX_SAFE_INTEGER, leaseOwner: RECOVERY_L
+466:171 ArrayDeclaration -> [] || for (const row of await store.claimDue(...partitionArgs({ now: Number.MAX_SAFE_INTEGER, leaseOwner: RECOVERY_L
+52:67 ArrayDeclaration -> [] || export const DEFAULT_PERSIST_RETRY_DELAYS_MS: readonly number[] = [50, 150, 400];
+## src/saved-requests/execute.ts
+24:26 BooleanLiteral -> true || let responseReceived = false;
+32:31 ArrowFunction -> () => undefined || resolver: { describe: async () => credential, resolve: async () => credential },
+44:9 LogicalOperator -> responseReceived || error instanceof CredentialedRequestVali || if (responseReceived && error instanceof CredentialedRequestValidationError) throw new SavedRequestError({ cod
+75:44 ArrayDeclaration -> ["Stryker was here"] || return { ...credential, additionalHosts: [] };
+82:78 ArrayDeclaration -> ["Stryker was here"] || allowedSchemes: ["https"], denyPrivateAddresses: true, devHostAllowlist: [], maxRedirects: 0,
+86:103 ConditionalExpression -> true || const bounded: HttpRequest = { ...request, totalDeadlineMs: 10_000, maxResponseBytes: 65_536, ...(signal === u
+86:103 EqualityOperator -> signal !== undefined || const bounded: HttpRequest = { ...request, totalDeadlineMs: 10_000, maxResponseBytes: 65_536, ...(signal === u
+86:103 ConditionalExpression -> false || const bounded: HttpRequest = { ...request, totalDeadlineMs: 10_000, maxResponseBytes: 65_536, ...(signal === u
+86:131 ObjectLiteral -> {} || const bounded: HttpRequest = { ...request, totalDeadlineMs: 10_000, maxResponseBytes: 65_536, ...(signal === u
+94:29 ConditionalExpression -> true || requireCondition({ valid: response.status >= 200 && response.status < 300, code: "invalid_response" });
+94:55 EqualityOperator -> response.status <= 300 || requireCondition({ valid: response.status >= 200 && response.status < 300, code: "invalid_response" });
+96:23 MethodExpression -> headers["content-type"]?.split(";")[0] || const contentType = headers["content-type"]?.split(";")[0]?.trim() ?? "";
+96:23 OptionalChaining -> headers["content-type"]?.split(";")[0].trim || const contentType = headers["content-type"]?.split(";")[0]?.trim() ?? "";
+97:29 Regex -> /application\/(?:[a-z0-9.-]+\+)?json$/i || requireCondition({ valid: /^application\/(?:[a-z0-9.-]+\+)?json$/i.test(contentType), code: "invalid_response"
+97:29 Regex -> /^application\/(?:[a-z0-9.-]+\+)?json/i || requireCondition({ valid: /^application\/(?:[a-z0-9.-]+\+)?json$/i.test(contentType), code: "invalid_response"

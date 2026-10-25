@@ -1,0 +1,13 @@
+{
+  "testRunner": "tap",
+  "tap": { "testFiles": ["src/catalog/__tests__/unit/*.test.ts"], "nodeArgs": ["--import","tsx","--test-reporter=tap"] },
+  "mutate": ["src/catalog/**/*.ts","!src/catalog/**/__tests__/**","!src/**/*.d.ts"],
+  "coverageAnalysis": "perTest",
+  "concurrency": 3,
+  "mutator": {"excludedMutations": ["StringLiteral"]},
+  "reporters": ["json","clear-text","progress-append-only"],
+  "jsonReporter": {"fileName": "/root/stryker/c/catalog.json.out"},
+  "tempDirName": ".stryker-tmp",
+  "cleanTempDir": true,
+  "disableTypeChecks": true
+}

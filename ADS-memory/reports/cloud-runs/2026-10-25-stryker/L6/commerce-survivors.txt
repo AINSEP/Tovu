@@ -1,0 +1,159 @@
+## src/http/payments-webhook.ts
+52:19 EqualityOperator -> i + 1 <= raw.length || for (let i = 0; i + 1 < raw.length; i += 2) {
+## src/money/money.ts
+88:16 EqualityOperator -> value.minorUnits <= 0 || const sign = value.minorUnits < 0 ? "-" : "";
+## src/payments/accounting/apply-evidence.ts
+134:7 ConditionalExpression -> true || if (plan.write === "update") {
+161:7 ConditionalExpression -> true || if (plan.write === "update") {
+221:10 ConditionalExpression -> true || return evidence.next && evidence.status === intentStatus ? { nextActionJson: JSON.stringify(evidence.next) } :
+221:10 LogicalOperator -> evidence.next || evidence.status === intentStatus || return evidence.next && evidence.status === intentStatus ? { nextActionJson: JSON.stringify(evidence.next) } :
+221:27 ConditionalExpression -> true || return evidence.next && evidence.status === intentStatus ? { nextActionJson: JSON.stringify(evidence.next) } :
+225:85 ConditionalExpression -> true || return [...refunds.filter((r) => r.status === "failed"), ...refunds.filter((r) => r.status !== "failed")];
+225:63 MethodExpression -> refunds || return [...refunds.filter((r) => r.status === "failed"), ...refunds.filter((r) => r.status !== "failed")];
+271:36 LogicalOperator -> optional.inboxId && null || const ctx = await open(required, optional.inboxId ?? null);
+253:35 ObjectLiteral -> {} || await enqueue(ctx, plan.outbox, { amountMinor: ctx.payment.capturedMinor, currency: ctx.payment.currency });
+274:57 ConditionalExpression -> false || await applyOneRefund(ctx, { ...required.evidence, ...(correlationId === undefined ? {} : { correlationId }) })
+334:35 ConditionalExpression -> true || const row = refunds.find((r) => r.id === required.refundId);
+341:10 ObjectLiteral -> {} || return { kind: "applied", quarantined: [], outbox: [], deferred: 0 };
+341:42 ArrayDeclaration -> ["Stryker was here"] || return { kind: "applied", quarantined: [], outbox: [], deferred: 0 };
+341:54 ArrayDeclaration -> ["Stryker was here"] || return { kind: "applied", quarantined: [], outbox: [], deferred: 0 };
+413:62 ObjectLiteral -> {} || await enqueue(ctx, succeeded ? ["payment.succeeded"] : [], { amountMinor: p.amountMinor, currency: p.currency 
+## src/payments/accounting/plan-evidence.ts
+144:25 ConditionalExpression -> false || const byCorrelation = evidence.correlationId === undefined ? undefined : refunds.find((r) => r.id === evidence
+148:88 ConditionalExpression -> true || const isUnboundInFlight = (r: RefundState): boolean => r.providerRefundRef === null && r.status !== "failed" &
+148:113 ConditionalExpression -> true || const isUnboundInFlight = (r: RefundState): boolean => r.providerRefundRef === null && r.status !== "failed" &
+154:10 ConditionalExpression -> true || return next === "failed" && previous === "succeeded" ? ["refund.failed"] : [];
+191:18 ConditionalExpression -> false || if (matched || evidence.correlationId !== undefined) return { existing: matched };
+195:39 ObjectLiteral -> {} || if (candidates.length === 0) return { existing: undefined };
+278:51 OptionalChaining -> existing.status || if (bad !== "amount-mismatch" || row.status === existing?.status) return undefined;
+## src/payments/contract/provider.ts
+150:9 ConditionalExpression -> false || ...(optional.providerStatus === undefined ? {} : { providerStatus: optional.providerStatus }),
+## src/payments/contract/tokens.ts
+12:80 ObjectLiteral -> {} || export const PaymentsPortToken = token<PaymentsPort, "commerce.payments.port">({ id: "commerce.payments.port" 
+## src/payments/ingest/receive.ts
+86:130 ConditionalExpression -> true || return typeof fact?.providerEventId === "string" && fact.providerEventId.length > 0 && typeof fact.providerRef
+86:130 EqualityOperator -> fact.providerRef.length >= 0 || return typeof fact?.providerEventId === "string" && fact.providerEventId.length > 0 && typeof fact.providerRef
+93:48 ObjectLiteral -> {} || const resolved = await deps.contexts.resolve({ scope: endpoint.scope, provider: endpoint.provider }, signal ? 
+137:98 ObjectLiteral -> {} || results.push(row.inserted || (await tx.reviveInbox({ id: row.id, nextAttemptAt: now }, { payload: { factsJson,
+## src/payments/ingest/worker.ts
+115:11 BlockStatement -> {} || } catch {
+114:19 OptionalChaining -> fact.providerRef || return typeof fact?.providerRef === "string" ? fact : null;
+166:54 ObjectLiteral -> {} || const resolved = await env.deps.contexts.resolve({ scope: scopeOf(row), provider });
+171:39 OptionalChaining -> (error as Error).name || return { error: `retrieve threw ${(error as Error)?.name ?? "a non-error"}` };
+185:7 ConditionalExpression -> false || if (!evidence.correlationId) return null;
+188:10 ConditionalExpression -> true || return byId.providerId === row.providerId && byId.providerAccountId === row.providerAccountId ? byId : "foreig
+205:7 ConditionalExpression -> true || if (result.kind === "applied" && result.deferred === 0) return { kind: "applied", paymentId: payment.id, quara
+217:49 OptionalChaining -> (error as Error).name || return { kind: "retry", error: `apply threw ${(error as Error)?.name ?? "a non-error"}`, paymentId };
+221:46 ObjectLiteral -> {} || const seen: { paymentId: string | null } = { paymentId: null };
+## src/payments/ledger/repo.memory.ts
+57:84 ConditionalExpression -> false || const missing = Object.entries(row).some(([column, value]) => (value === null || value === undefined) && !rule
+131:95 ConditionalExpression -> false || return [...this.rows.values()].filter(match).sort((a, b) => order(a) - order(b) || Number(a.id > b.id) - Numbe
+131:95 EqualityOperator -> a.id >= b.id || return [...this.rows.values()].filter(match).sort((a, b) => order(a) - order(b) || Number(a.id > b.id) - Numbe
+131:117 ConditionalExpression -> true || return [...this.rows.values()].filter(match).sort((a, b) => order(a) - order(b) || Number(a.id > b.id) - Numbe
+131:117 EqualityOperator -> a.id <= b.id || return [...this.rows.values()].filter(match).sort((a, b) => order(a) - order(b) || Number(a.id > b.id) - Numbe
+151:68 ConditionalExpression -> true || && (after === undefined || row.updatedAt > after.updatedAt || (row.updatedAt === after.updatedAt && row.id > a
+180:120 ObjectLiteral -> {} || readonly inbox = new MemoryTable<InboxRecord>({ name: LEDGER_TABLES.inbox, codec: codec(inboxToRow, inboxFromR
+180:131 ArrayDeclaration -> [] || readonly inbox = new MemoryTable<InboxRecord>({ name: LEDGER_TABLES.inbox, codec: codec(inboxToRow, inboxFromR
+237:14 ConditionalExpression -> true || (r) => scoped(r) && r.providerId === required.providerId && r.providerAccountId === required.providerAccountId
+237:14 LogicalOperator -> scoped(r) || r.providerId === required.providerId || (r) => scoped(r) && r.providerId === required.providerId && r.providerAccountId === required.providerAccountId
+237:27 ConditionalExpression -> true || (r) => scoped(r) && r.providerId === required.providerId && r.providerAccountId === required.providerAccountId
+291:27 ConditionalExpression -> false || const byCorrelation = optional.correlationId === undefined ? null : this.t.refunds.find((r) => own(r) && r.id 
+272:55 ArrowFunction -> () => undefined || return this.t.attempts.list(ofPayment(paymentId), (r) => r.createdAt);
+292:35 ConditionalExpression -> false || if (byCorrelation !== null || optional.providerRefundRef === undefined) return byCorrelation;
+317:40 ConditionalExpression -> true || return this.t.disputes.find((r) => r.paymentId === paymentId && r.providerDisputeRef === providerDisputeRef);
+331:55 ArrowFunction -> () => undefined || return this.t.evidence.list(ofPayment(paymentId), (r) => r.recordedAt);
+321:55 ArrowFunction -> () => undefined || return this.t.disputes.list(ofPayment(paymentId), (r) => r.createdAt);
+381:36 ArithmeticOperator -> this.outboxSeq.size - 1 || this.outboxSeq.set(message.id, this.outboxSeq.size + 1);
+386:62 ArrowFunction -> () => undefined || return this.t.outbox.list((r) => r.publishedAt === null, (r) => r.createdAt).sort((a, b) => a.createdAt - b.cr
+403:44 ArrowFunction -> () => undefined || return this.t.quarantine.list(visible, (r) => r.createdAt);
+439:62 ArrowFunction -> () => undefined || return this.t.operatorActions.list(ofPayment(paymentId), (r) => r.createdAt);
+## src/payments/ledger/repo.sql.ts
+55:16 ConditionalExpression -> true || const code = typeof error === "object" && error !== null ? (error as { code?: unknown }).code : undefined;
+56:10 ConditionalExpression -> true || return typeof code === "string" ? (CONSTRAINT_CODES.get(code) ?? null) : null;
+206:7 ConditionalExpression -> false || optional.correlationId === undefined ? null : await this.refundWhere({ paymentId, column: "id", value: optiona
+207:35 ConditionalExpression -> false || if (byCorrelation !== null || optional.providerRefundRef === undefined) return byCorrelation;
+## src/payments/ledger/rows.ts
+40:7 ConditionalExpression -> true || if (typeof value === "string") return DECIMAL_INTEGER.test(value) ? checkedSafe(Number(value), value) : fail(v
+42:10 ConditionalExpression -> true || return typeof value === "number" ? checkedSafe(value, value) : fail(value);
+## src/payments/ops/capture-void.ts
+69:11 ConditionalExpression -> false || if (provider.capabilities.capture !== "manual" || typeof capture !== "function") return null;
+103:22 ConditionalExpression -> false || const sameAmount = amount === null || prior.amountMinor === null || (prior.amountMinor === amount.minorUnits &
+130:68 ConditionalExpression -> true || const open = (await tx.listAttempts({ paymentId })).find((a) => (a.op === "capture" || a.op === "void") && OPE
+158:7 ConditionalExpression -> false || spec.amount === null ? {} : { amount: spec.amount }
+## src/payments/ops/common.ts
+63:60 ConditionalExpression -> false || const blank = Object.entries(fields).find(([, value]) => typeof value !== "string" || value.trim().length === 
+113:11 ConditionalExpression -> true || return (outcome?.kind === "rejected" || outcome?.kind === "unknown") && typeof outcome.error?.code === "string
+112:7 OptionalChaining -> outcome.kind || if (outcome?.kind === "ok") return true;
+113:11 OptionalChaining -> outcome.kind || return (outcome?.kind === "rejected" || outcome?.kind === "unknown") && typeof outcome.error?.code === "string
+113:43 OptionalChaining -> outcome.kind || return (outcome?.kind === "rejected" || outcome?.kind === "unknown") && typeof outcome.error?.code === "string
+197:9 ConditionalExpression -> false || if (!(error instanceof LedgerConstraintError) || error.kind !== "unique") throw error;
+197:9 LogicalOperator -> !(error instanceof LedgerConstraintError) && error.kind !==  || if (!(error instanceof LedgerConstraintError) || error.kind !== "unique") throw error;
+197:54 ConditionalExpression -> false || if (!(error instanceof LedgerConstraintError) || error.kind !== "unique") throw error;
+37:105 BooleanLiteral -> true || export const NOT_ASSESSED_RISK: RiskDecision = { verdict: "allow", reasons: ["not-assessed"], fallback: false 
+## src/payments/ops/intent.ts
+76:82 ConditionalExpression -> false || const input = { scope: required.scope, amount: required.amount, paymentId, ...(optional.partyId === undefined 
+93:14 LogicalOperator -> optional.partyId && null || partyId: optional.partyId ?? null, currency: required.amount.currency, amountMinor: required.amount.minorUnits
+154:7 ConditionalExpression -> false || if (replay) return replay;
+165:9 ConditionalExpression -> false || ...(optional.partyId === undefined ? {} : { partyId: optional.partyId }),
+166:9 ConditionalExpression -> false || ...(optional.providerOptions === undefined ? {} : { providerOptions: optional.providerOptions }),
+## src/payments/ops/operator.ts
+74:18 ConditionalExpression -> false || const refund = required.refundId === undefined ? null : await tx.findRefund({ paymentId: before.id }, { correl
+## src/payments/ops/reconcile-attempts.ts
+50:26 ObjectLiteral -> {} || await tx.lockPayment({ ...scope, id: attempt.paymentId });
+53:19 ConditionalExpression -> false || const error = outcome === "ok" ? {} : { errorCode: "RECONCILED", errorMessage: `reconciled: the provider repor
+## src/payments/ops/reconcile-snapshot.ts
+24:52 ConditionalExpression -> false || if (provider.capabilities.retrieve === "none" || typeof retrieve !== "function") return { ok: false, why: `pro
+## src/payments/ops/reconciler.ts
+80:7 ConditionalExpression -> false || if (candidate.correlationId === row.id || (row.providerRefundRef !== null && candidate.providerRefundRef === r
+80:46 LogicalOperator -> row.providerRefundRef !== null || candidate.providerRefundRe || if (candidate.correlationId === row.id || (row.providerRefundRef !== null && candidate.providerRefundRef === r
+80:46 ConditionalExpression -> true || if (candidate.correlationId === row.id || (row.providerRefundRef !== null && candidate.providerRefundRef === r
+80:80 ConditionalExpression -> true || if (candidate.correlationId === row.id || (row.providerRefundRef !== null && candidate.providerRefundRef === r
+81:46 ConditionalExpression -> false || const boundElsewhere = refunds.some((r) => r.id === candidate.correlationId || r.providerRefundRef === candida
+92:37 ConditionalExpression -> false || if (row.status === "succeeded" || row.status === "failed") return "settled";
+109:7 ConditionalExpression -> true || if (refund.status === "reserved") {
+132:33 ConditionalExpression -> false || return rows.length < limit || last === undefined ? null : { updatedAt: last.updatedAt, id: last.id };
+137:16 ConditionalExpression -> false || return { ...(scope === undefined ? {} : { scope }), ...(after ? { after } : {}) };
+154:82 ObjectLiteral -> {} || refunds: await tx.listUnsettledRefunds({ updatedBefore, limit }, scanOptions({ scope, after: cursor?.refunds }
+## src/payments/ops/refund.ts
+70:60 ConditionalExpression -> true || && prior.amountMinor === required.amount.minorUnits && prior.currency === required.amount.currency;
+89:34 ArithmeticOperator -> payment.capturedMinor - payment.refundedMinor - payment.refu || const refundable = Math.max(0, payment.capturedMinor - payment.refundedMinor - payment.refundHeldMinor - payme
+89:34 ArithmeticOperator -> payment.capturedMinor - payment.refundedMinor + payment.refu || const refundable = Math.max(0, payment.capturedMinor - payment.refundedMinor - payment.refundHeldMinor - payme
+89:34 ArithmeticOperator -> payment.capturedMinor + payment.refundedMinor || const refundable = Math.max(0, payment.capturedMinor - payment.refundedMinor - payment.refundHeldMinor - payme
+125:7 ConditionalExpression -> false || reason === undefined ? {} : { reason }
+141:123 ObjectLiteral -> {} || if (outcome.kind === "ok") return applyRefundEvidence({ ...target, tx, source: "response", evidence: outcome.v
+168:89 ConditionalExpression -> false || const outcome = await dispatch({ call: () => checked.call({ req, ctx: resolved.ctx }, optional.reason === unde
+## src/payments/plugin-contribution.ts
+67:11 BlockStatement -> {} || } catch {
+## src/payments/provider-module-guard.ts
+24:72 ConditionalExpression -> true || const oneOf = (value: unknown, allowed: readonly string[]): boolean => typeof value === "string" && allowed.in
+## src/payments/provider-registry.ts
+34:21 Regex -> /^[a-z0-9]+(-[a-z0-9])*$/ || const PROVIDER_ID = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+## src/payments/state/status.ts
+122:7 ConditionalExpression -> false || if (intent !== "succeeded" || refundedMinor <= 0) return intent;
+33:14 ArrayDeclaration -> ["Stryker was here"] || succeeded: [],
+38:13 ArrayDeclaration -> ["Stryker was here"] || canceled: [],
+47:11 ArrayDeclaration -> ["Stryker was here"] || failed: [],
+52:8 ArrayDeclaration -> ["Stryker was here"] || won: [],
+53:9 ArrayDeclaration -> ["Stryker was here"] || lost: [],
+## src/payments/tools/catalog.ts
+83:69 ObjectLiteral -> {} || sideEffects: "none", authorization: read, inputSchema: strict({ paymentId: PAYMENT_ID }, ["paymentId"]),
+83:96 ArrayDeclaration -> [] || sideEffects: "none", authorization: read, inputSchema: strict({ paymentId: PAYMENT_ID }, ["paymentId"]),
+88:73 ArrayDeclaration -> ["Stryker was here"] || sideEffects: "none", authorization: read, inputSchema: strict({}, []),
+100:103 ArrayDeclaration -> [] || inputSchema: strict({ paymentId: PAYMENT_ID, amount: AMOUNT, idempotencyKey: IDEMPOTENCY_KEY }, ["paymentId", 
+## src/payments/tools/deps.ts
+106:34 ConditionalExpression -> false || { entityType: "payment", ...(optional.paymentId === undefined ? {} : { entityId: optional.paymentId }) }
+## src/payments/tools/input.ts
+19:36 EqualityOperator -> value.length >= max || if (value.trim().length === 0 || value.length > max) throw new ToolInputError({ message: `'${key}' must be 1 t
+19:81 ObjectLiteral -> {} || if (value.trim().length === 0 || value.length > max) throw new ToolInputError({ message: `'${key}' must be 1 t
+## src/payments/tools/money-tools.ts
+93:91 ConditionalExpression -> false || { scope, paymentId: payment.id, amount: amount as Money, idempotencyKey, grant }, reason === undefined ? {} : 
+126:60 ObjectLiteral -> {} || reason: optionalText({ input: record, key: "reason" }, { max: MAX_REASON_LENGTH }),
+132:37 ObjectLiteral -> {} || const scope = await deps.scopeFor({ ctx });
+178:130 ObjectLiteral -> {} || describe: ({ prepared }) => (prepared.kind === "ready" ? { ask: true, description: describeOp({ spec, ready: p
+## src/payments/tools/read-tools.ts
+13:39 ObjectLiteral -> {} || const scope = await deps.scopeFor({ ctx });
+24:39 ObjectLiteral -> {} || const scope = await deps.scopeFor({ ctx });
+## src/payments/ops/service.ts
+21:7 ConditionalExpression -> false || if (scopeProblem({ scope })) return null;
+## src/payments/ops/view.ts
+32:11 ConditionalExpression -> false || next: record.nextActionJson === null ? null : (JSON.parse(record.nextActionJson) as NextAction),
