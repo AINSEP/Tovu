@@ -75,6 +75,8 @@ export function toAgentPluginToolId(pluginId: string): string {
 }
 
 /**
+ * Explicit skill/file requests use the shared loader so supporting reads need no per-plugin tool.
+ *
  * `pointer` delivery — the ~400-byte replacement for the ~15KB `inject` section above.
  *
  * Two properties are load-bearing, each one bought with a measurement rather than reasoned from
@@ -108,7 +110,8 @@ export function toAgentPluginToolId(pluginId: string): string {
  * Deliberately points at the plugin's own EPONYMOUS skill, exactly what `inject` sends, so arm 2 and
  * arm 3 of the A/B differ in delivery alone and not in content.
  */
-export function formatPluginToolPointer({ pluginId: pluginRefId }: { readonly pluginId: string }, _optional = {}): string {
+export function formatPluginToolPointer({ pluginId: pluginRefId, skill, file }: { readonly pluginId: string; readonly skill?: string; readonly file?: string }, _optional = {}): string {
+  if (skill !== undefined || file !== undefined) return `load_agent_plugin(${JSON.stringify({ pluginId: pluginRefId, ...(skill === undefined ? {} : { skill }), ...(file === undefined ? {} : { file }) })})`;
   const toolId = toAgentPluginToolId(pluginRefId);
   return [
     `MANDATORY — before you begin this task, make this one tool call and follow what it returns:`,
