@@ -190,7 +190,7 @@ test("both places a site enters openSites schedule its preview capture", () => {
   );
   assert.match(
     serverBody,
-    /openSites\.set\(siteDir, \{ server \}\);\s*\n\s*scheduleSitePreview\(siteDir\);/,
+    /openSites\.set\(siteDir, \{ server, siteDir \}\);\s*\n\s*scheduleSitePreview\(siteDir\);/,
     "openSiteServer must schedule a capture immediately after publishing into openSites",
   );
   // The capture still needs the site's partition, or it would run on the DEFAULT
