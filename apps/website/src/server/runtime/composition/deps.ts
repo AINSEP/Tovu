@@ -64,7 +64,7 @@ import { dirname, join, resolve, sep } from "node:path";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { instrumentStorageKernel, trackFetch, type ObservabilityPort } from "#src/platform/observability/index";
-import { bootProviderPlugins } from "./provider-plugins.js";
+import { bootProviderPlugins, providerPluginCredentialOf } from "./provider-plugins.js";
 import { createTelemetryConsent } from "./telemetry-consent.js";
 import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 // A plain static import, unlike `createApp`/`exportSite` below: `resolveStorefrontProducts` has no
@@ -1097,6 +1097,11 @@ export async function createSiteRouteDeps(
   }
 }
 
+/** The provider-plugin boot to run: the test seam when supplied, else the real selection. */
+function providerPluginBoot({ overrides }: { overrides: Partial<CreateSiteRouteDepsOverrides> }): typeof bootProviderPlugins {
+  return overrides.bootProviderPlugins ?? bootProviderPlugins;
+}
+
 /**
  * {@link createSiteRouteDeps}'s body, over the store it opened. Every `await` sits in the prelude
  * (workspace → deny store → orphaned-chat check), before the body starts any fire-and-forget boot
@@ -1989,12 +1994,9 @@ async function composeSiteRouteDeps(
   // `ObservabilityDeps` doc for the rule-of-two this mirrors. The storage kernels and guarded HTTP
   // clients below are decorated with the port (identity for the no-op port, so a default boot keeps
   // its exact objects). See `provider-plugins.ts`.
-  const providerPlugins = await (overrides.bootProviderPlugins ?? bootProviderPlugins)({
+  const providerPlugins = await providerPluginBoot({ overrides })({
     runtime: pluginRuntime,
-    readCredential: async ({ label }) => {
-      const resolved = await resolveCustomCredentialByLabel({ repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer }, { workspaceId, label });
-      return resolved && { baseUrl: resolved.baseUrl, token: resolved.connection.token, ...(resolved.connection.username ? { username: resolved.connection.username } : {}) };
-    },
+    readCredential: async ({ label }) => providerPluginCredentialOf({ resolved: await resolveCustomCredentialByLabel({ repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer }, { workspaceId, label }) }),
     serviceName: "tovu",
     ...createTelemetryConsent({ settingsRepo, workspaceId }),
   });
@@ -2447,7 +2449,7 @@ async function composeSiteRouteDeps(
     // From provider plugins (see `providerPlugins` above for the rule-of-two it follows).
     observability,
     productAnalytics,
-    ...(aiTraceSink ? { aiTraceSink } : {}),
+    aiTraceSink,
     // Built and probed in the prelude above, over the same content kernel that carries site content.
     publishTrustRevocations,
     clock,
