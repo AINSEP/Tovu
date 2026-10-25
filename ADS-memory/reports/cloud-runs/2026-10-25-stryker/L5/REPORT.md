@@ -91,4 +91,4 @@ Type checks are off, so type-invalid mutants are not filtered and may inflate or
 9. search `registry.ts` and `testkit/conformance.ts`: provider id pattern, `maxBatch = 1` boundary, and highlight ranges that are non-integer, negative, empty, or past the end must fail conformance.
 10. memory `llm-provider.ts` / `verify.ts` / `entry-frontmatter.ts`: base-URL `/v1` and trailing-slash variants, fenced model output, CRLF and padded frontmatter, and the 4-char word cutoff and stopwords.
 
-L5 DONE 2026-10-25T19:30Z, wall about 3 h 33 m, tokens about 0.15M.
+L5 DONE 2026-10-25T19:22Z, wall about 3 h 25 m, tokens about 0.15M.
