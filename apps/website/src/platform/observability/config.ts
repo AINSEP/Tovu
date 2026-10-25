@@ -43,3 +43,24 @@ export function resolveObservabilityConfig({ env }: { env: NodeJS.ProcessEnv }):
     tracesEndpoint: env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
   });
 }
+
+export type SentryConfig = { enabled: false } | { enabled: true; dsn: string; environment?: string; tracesSampleRate: number };
+
+/**
+ * Resolves the optional Sentry error tracker from an explicit environment snapshot. Same rule as
+ * OTLP above: Sentry's OWN standard env names (`SENTRY_DSN`, `SENTRY_ENVIRONMENT`,
+ * `SENTRY_TRACES_SAMPLE_RATE`), and the DSN's presence is the opt-in.
+ * Traces default to 0 (errors only): every sampled operation is a billed Sentry span, and the
+ * OpenTelemetry adapter already carries traces when an operator wants them.
+ * @param required Operator environment; composition owns the process.env read.
+ * @returns Disabled config, or the DSN with environment and a sample rate clamped to [0, 1].
+ * @complexity O(1).
+ * @example resolveSentryConfig({ env: process.env });
+ */
+export function resolveSentryConfig({ env }: { env: NodeJS.ProcessEnv }): SentryConfig {
+  const dsn = env.SENTRY_DSN?.trim();
+  if (!dsn) return { enabled: false };
+  const rate = Number(env.SENTRY_TRACES_SAMPLE_RATE ?? 0);
+  const environment = env.SENTRY_ENVIRONMENT?.trim();
+  return { enabled: true, dsn, tracesSampleRate: Number.isFinite(rate) ? Math.min(1, Math.max(0, rate)) : 0, ...(environment ? { environment } : {}) };
+}

@@ -59,7 +59,7 @@ import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
-import { resolveObservabilityConfig, createObservabilityPort, instrumentStorageKernel, trackFetch, type ObservabilityPort } from "#src/platform/observability/index";
+import { resolveObservabilityConfig, resolveSentryConfig, createObservabilityPort, instrumentStorageKernel, trackFetch, type ObservabilityPort } from "#src/platform/observability/index";
 import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 // A plain static import, unlike `createApp`/`exportSite` below: `resolveStorefrontProducts` has no
 // eager top-level side effect (`routes/site/products.ts`'s module body only declares functions/a
@@ -1135,7 +1135,7 @@ async function composeSiteRouteDeps(
   // `ObservabilityDeps` doc for the rule-of-two this mirrors. Resolved here, ahead of every
   // consumer, because the storage kernels and guarded HTTP clients below are decorated with it
   // (identity for the no-op port, so a default boot keeps its exact objects).
-  const observability = createObservabilityPort({ config: resolveObservabilityConfig({ env: process.env }) });
+  const observability = createObservabilityPort({ config: resolveObservabilityConfig({ env: process.env }) }, { sentry: resolveSentryConfig({ env: process.env }) });
   instrumentStorageKernel({ kernel, observability });
   // Resolved here, before the first fire-and-forget boot promise below: `createMediaBlobStore` throws
   // on an unknown TOVU_MEDIA_BLOB_STORE or an incomplete S3 config, and a throw after those promises

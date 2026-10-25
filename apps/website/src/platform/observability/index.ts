@@ -1,13 +1,14 @@
 import { createRequire } from "node:module";
-import { createObservabilityPort as createDiagnosticObservabilityPort, createNoopObservabilityPort, type ObservabilityConfig, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import { combineObservabilityPorts, createObservabilityPort as createDiagnosticObservabilityPort, createNoopObservabilityPort, type ObservabilityConfig, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import type { SentryConfig } from "./config.js";
 // Decorators for the DB kernel, the guarded HTTP client and raw fetch; all are identity for the no-op port.
 export { instrumentStorageKernel, isNoopObservabilityPort, trackFetch, trackHttpClient } from "@jini-ai/diagnostics/observability";
 
 // Retained host adapter surface: consumers must continue to resolve these names while r15
 // rewires the shared roots to the package and explicit configuration arguments.
-export type { AgentRunStatus, ObservabilityConfig, ObservabilityConfigDisabled, ObservabilityConfigEnabled, ObservabilityPort, RequestTracker, RequestTrackingInput, RequestTrackingOptions, RequestTrackingOutcome } from "@jini-ai/diagnostics/observability";
+export type { AgentRunStatus, ErrorReport, ObservabilityConfig, ObservabilityConfigDisabled, ObservabilityConfigEnabled, ObservabilityPort, RequestTracker, RequestTrackingInput, RequestTrackingOptions, RequestTrackingOutcome, OperationAttributes, OperationTracker, OperationTrackingInput, OperationTrackingOutcome } from "@jini-ai/diagnostics/observability";
 export { createNoopObservabilityPort };
-export { resolveObservabilityConfig } from "./config.js";
+export { resolveObservabilityConfig, resolveSentryConfig, type SentryConfig } from "./config.js";
 
 const require = createRequire(import.meta.url);
 
@@ -84,13 +85,26 @@ const require = createRequire(import.meta.url);
  *
  * @complexity O(1); the disabled branch never touches the filesystem or module resolver.
  */
-export function createObservabilityPort({ config }: { config: ObservabilityConfig }): ObservabilityPort {
-  if (!config.enabled) return createNoopObservabilityPort({});
+export function createObservabilityPort({ config }: { config: ObservabilityConfig }, { sentry }: { sentry?: SentryConfig } = {}): ObservabilityPort {
+  if (!config.enabled && !sentry?.enabled) return createNoopObservabilityPort({});
+  // Both configured: fan out (OpenTelemetry carries traces, Sentry carries incidents). Each adapter
+  // is loaded only when its own setting is present; neither knows the other exists.
+  return combineObservabilityPorts({ ports: [createOtelPort({ config }), createSentryPort({ sentry })] });
+}
 
+function createOtelPort({ config }: { config: ObservabilityConfig }): ObservabilityPort {
+  if (!config.enabled) return createNoopObservabilityPort({});
   const { createOtelFactories, createAsyncLocalSpanScope }: typeof import("./otel.js") = require("./otel.js");
   const factories = createOtelFactories({});
   return createDiagnosticObservabilityPort({
     config,
     ...factories,
   }, { scope: createAsyncLocalSpanScope({}) });
+}
+
+/** Same lazy-load rule as the OTel SDK: `@sentry/node` is required only once `SENTRY_DSN` is set. */
+function createSentryPort({ sentry }: { sentry?: SentryConfig }): ObservabilityPort {
+  if (!sentry?.enabled) return createNoopObservabilityPort({});
+  const { createSentryObservabilityPort }: typeof import("./sentry.js") = require("./sentry.js");
+  return createSentryObservabilityPort({ config: sentry });
 }

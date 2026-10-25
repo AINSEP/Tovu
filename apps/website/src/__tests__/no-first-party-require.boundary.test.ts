@@ -52,8 +52,10 @@ const ALLOWED_FIRST_PARTY_REQUIRES: ReadonlyMap<string, readonly string[]> = new
     // `import`s `otel.ts` (so tsx's `require()` copy is the ONLY copy) and `otel.ts` itself has no
     // first-party runtime import (so its "second copy" can never diverge from a first one) — G3
     // re-verifies both facts on every run rather than trusting this comment forever.
+    // `./sentry.js` is the same lazy leaf for the Sentry SDK (gated on SENTRY_DSN), under the same
+    // two facts: nothing imports it, and it has no first-party runtime import.
     "apps/website/src/platform/observability/index.ts",
-    ["./otel.js"],
+    ["./otel.js", "./sentry.js"],
   ],
 ]);
 
