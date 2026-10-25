@@ -23,3 +23,8 @@ Fix: attached AINSEP/Jini to the session (add_repo, push). Retry pushed OK.
 ## 2026-10-25T16:35:39Z — PROGRESS
 
 Step 2 done in Jini 0b413aed: ports.ts trackOperation/reportError, noop (shared frozen tracker, no-op reportError), hooks pass-through, Jini otel.ts operation spans + exception events, errors.ts describeReportedError. diagnostics vitest 8 files / 63 tests pass; tsc --noEmit clean; eslint complexity 0 errors (7 pre-existing sonarjs warnings).
+
+## 2026-10-25T16:40:29Z — PROGRESS
+
+Step 3 done. Jini e9f64d43 (daemon withToolCallObservability + 6 tests). Tovu 15f08a9b (preset wrapper, daemon-server + BYOK composition, scenario fixture + 3 tests). Touched-file tests: 9 files / 123 node tests pass; Tovu tsc -p tsconfig.json 0 errors.
+Push of step 3 was first rejected (non-fast-forward): owner pushed ac08e110 (BRIEF-2.md, a run-2 brief) to this branch meanwhile. Merged (d0b96360), not rebased. BRIEF-2 records the owner decision that OTel (and Sentry) adapters must be provider plugins, moved in run 2 — so run 1 keeps the Sentry adapter in one isolated module beside otel.ts and leaves the move to run 2.
