@@ -12,15 +12,15 @@ Prototype only: nothing is merged, no PR was opened, no real DSN or key was used
 | `e9f64d43` | 3 | `daemon/tool-recovery/observability.ts` `withToolCallObservability`: each `ToolExecutor.execute` becomes one `tool.call` operation (`tool.id`, `agent.run.id`, outcome = settled status, `tool.error_kind` validation/internal). Timeouts, internal failures and non-input throws are `reportError`ed inside the operation's scope. Validation failures and unknown tool ids are counted but not reported. The port is taken structurally, so the daemon gains no dependency. 6 tests. |
 | `a0206790` | 4 | `diagnostics/observability/fanout.ts` `combineObservabilityPorts`: noop-only returns the noop, one live port is returned as-is, and n ports share nested scopes. A throwing reporter never skips the others. 2 tests. |
 
-**Tovu** `cloud/observability-1025-tovu` (base `496776d4`)
+**Tovu** `cloud/observability-1025-tovu` (base `2f0e7191`, the brief commit; `496776d4` below has an identical `apps/` tree)
 | Commit | Step | Change |
 |---|---|---|
-| `c1d6…`→ see `git log` | 1 | `GAP-MAP.md` |
+| `54609b81` | 1 | `GAP-MAP.md` |
 | `15f08a9b` | 3 | `assistant/tool-recovery-preset.ts` `withToolCallObservability`, which returns the executor itself for the noop port. Wired into BYOK (`byok-tool-surface.ts` option `observability`, fed by `assistant-byok.ts`). Scenario fixture: real delegated-tool route + real Tovu executor stack. Fake-port tests. |
 | `d0b96360` | — | merge of owner's `ac08e110` (BRIEF-2.md) that landed on the branch mid-run |
 | `51a19f1d` | 4 | `platform/observability/sentry.ts` (lazy, private `NodeClient`). `config.ts` `resolveSentryConfig`. `index.ts` selection + fan-out. `deps.ts` passes Sentry config. `@sentry/node` pinned to `11.6.0`. Boundary allow-list adds `./sentry.js`. Swap-proof test. Config tests. |
 | `8201ad2e` | 5 | `OBSERVABILITY-PLAN.md` |
-| latest | 3 fix | daemon server: `const toolExecutor = withFederatedRefusalDiagnosis(` restored verbatim (source-anchored tests pin it). The new `observedToolExecutor` feeds the delegated-tool route. |
+| `685f2fc1` | 3 fix | daemon server: `const toolExecutor = withFederatedRefusalDiagnosis(` restored verbatim (source-anchored tests pin it). The new `observedToolExecutor` feeds the delegated-tool route. |
 
 ## The feature, before / after
 
@@ -68,10 +68,16 @@ because that adapter is returned as-is.
 - **Tovu `tsc -p tsconfig.tests.json`:** 344 errors, **0 in any file this run touched or added** (grep for observab/sentry/tool-call/trackOperation/reportError). I ran no baseline for this typecheck, so the claim that the 344 are pre-existing is **unverified**.
 - **Tovu new tests:** feature 3/3, swap 5/5, Sentry config/selection 4/4.
 - **Tovu touched + existing tests:** every test file mentioning observability / tool-recovery-preset / byok-tool-surface / agent-daemon-server (final run below). `agent-daemon-server` source-scan unit tests: 18 files / **163/163**.
-- **Complexity:** `eslint --rule 'complexity: ["error", 10]'` reports 0 errors on all touched files. The only warnings are pre-existing sonarjs warnings in Jini `otel.ts`, plus 1 warning each in `errors.ts` and `index.ts`.
+- **Complexity:** `eslint --rule 'complexity: ["error", 10]'` reports 0 errors on all touched files. The only warnings are pre-existing sonarjs warnings in Jini `otel.ts`, plus 1 warning in the new Jini `errors.ts`/`fanout.ts` pair and 1 in Tovu `platform/observability/*.ts`. All are warnings, not errors.
 - **Cost:** noop tool call 0.96 µs (= bare executor; the decorator is identity). Enabled per call: OTel ~45 µs, Sentry ~25–30 µs (micro-bench, pessimistic in-memory exporter). SDK load: OTel ~155 ms / +21 MB RSS; Sentry ~465 ms / +40 MB RSS (`require` delta, 3 runs each).
 
-FINAL_TEST_RUN_PLACEHOLDER
+**Final broad Tovu run** (`node --test --test-concurrency=1 --experimental-test-module-mocks`): every
+`*.test.ts` under `apps/website/src` that mentions observability / ObservabilityPort / tool-recovery-preset /
+byok-tool-surface / agent-daemon-server. That is **128 files**, excluding the pre-existing hang below and
+`agent-daemon-real-spawn` (it spawns a real daemon, not attempted). Result: **1283 tests, 1275 pass, 6 fail, 2 skipped.**
+**All 6 failures reproduce with this run's Tovu diff reverted** (list below), so none is caused by this
+change. Four of them were already known before this run: `mcp-ui-tool-calls-route.ask-choice` "real round trip"
+is in COMMON.md's known list, and the three others were baseline-checked earlier in this run.
 
 ## Concerns (pushback)
 
@@ -96,9 +102,12 @@ FINAL_TEST_RUN_PLACEHOLDER
 - `assistant/__tests__/mcp-ui-allowlist-completeness.test.ts` "every surfaceExchanges.open(...) call names a toolId constant…" (`visitor-confirmations.ts:42`, `oidc-login.ts:170,229`).
 - `assistant/__tests__/tool-search-keywords.operator-requests.test.ts` "every operator request with a tool finds it in the top 3".
 - `server/runtime/composition/__tests__/deps-observability-wiring.integration.test.ts` "no OTLP endpoint … left undecorated" (probe count 2 vs 1).
+- `server/__tests__/integration/agent-daemon-outbox-event-loss.integration.test.ts` "an outbox drain in the agent daemon no longer swallows events…".
+- `assistant/__tests__/mcp-ui-tool-calls-route.static-publish.integration.test.ts` "deployment_execute_static_publish waits for one human approval over HTTP…".
+- `mcp-ui-tool-calls-route.ask-choice` "real round trip" (already in COMMON.md's known list).
 - `server/__tests__/assistant-chat-recovery-bounds.unit.test.ts` **hangs** after 3/4 tests pass. The process never exits (timeout 124 on baseline too). I killed it by pid in the broad run.
 
-All four reproduce on the baseline Tovu tree. The Jini link still carried this run's additive Jini
+All of these reproduce on the baseline Tovu tree. The Jini link still carried this run's additive Jini
 changes during that check, but `instrumentation.ts` and the other files those tests touch were unchanged.
 
 ## Open questions for the owner (top 3)
@@ -126,4 +135,4 @@ changes during that check, but `instrumentation.ts` and the other files those te
 - The full Tovu suite. Only files related to observability or the touched code ran (counts above).
 - Swap-proof limits: it checks the adapters' *outputs* in their in-process forms (OTel `ReadableSpan`s, Sentry envelopes). It does not check that a real Sentry project or collector accepts them; no network was allowed.
 
-DONE_LINE_PLACEHOLDER
+OBS DONE 2026-10-25T17:27Z — wall ≈ 0 h 52 m (16:31 → 17:27 UTC). Tokens: the session counter fell by roughly 0.21M; that excludes cached re-reads, so it is a lower bound. No subagents.

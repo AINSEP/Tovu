@@ -35,3 +35,13 @@ Step 4 done. Jini a0206790 (combineObservabilityPorts + 2 tests). Tovu: sentry.t
 Measured: SDK load OTel ~155ms/+21MB RSS, Sentry ~465ms/+40MB RSS; per tool call noop 0.96µs (identity), OTel ~45µs, Sentry ~25-30µs (micro-bench, caveats in plan).
 tsc -p tsconfig.tests.json: 344 errors, 0 in observability/sentry/tool-call files; no baseline run, so "pre-existing" is unverified.
 Step 5 plan written (OBSERVABILITY-PLAN.md). Running all Tovu tests mentioning observability in background.
+
+## 2026-10-25T17:27:09Z — PROGRESS
+
+Broad run 1: 728 tests / 6 fail. Two failures were mine: source-anchored tests pin `const toolExecutor = withFederatedRefusalDiagnosis(` and `registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges });`. Fixed in 685f2fc1 (anchor restored, observedToolExecutor on the delegated route only). agent-daemon-server unit scans: 163/163.
+FAILURE (pre-existing): apps/website/src/server/__tests__/assistant-chat-recovery-bounds.unit.test.ts never exits (timeout 124 at 120 s, both with and without this diff); killed pid 8544 in the broad run.
+Broad run 2 (128 files): 1283 tests, 1275 pass, 6 fail, 2 skipped. All 6 reproduce with `git checkout 496776d4 -- apps/website/src` (tree restored afterwards, verified with git status).
+
+## 2026-10-25T17:27:09Z — DONE
+
+All 5 steps done. REPORT.md + OBSERVABILITY-PLAN.md written. Final pushes below.
