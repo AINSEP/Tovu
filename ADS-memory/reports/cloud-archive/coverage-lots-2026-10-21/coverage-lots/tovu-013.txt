@@ -1,0 +1,2 @@
+apps/desktop/scripts/verify-package.ts	lines 0/63	branches 0/18	functions 0/8	NEVER-LOADED
+apps/desktop/scripts/verify-site-power.ts	lines 0/210	branches 0/96	functions 0/44	NEVER-LOADED

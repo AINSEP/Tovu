@@ -1,0 +1,3 @@
+packages/chat/src/react/features/chat-pane/agent-tools.ts	lines 0/2	branches 0/0	functions 0/0	NEVER-LOADED
+packages/chat/src/react/features/chat-pane/components/AgentPluginUsage.tsx	lines 0/29	branches 0/16	functions 0/10	NEVER-LOADED
+packages/chat/src/react/features/chat-pane/components/AgentRuntimePicker.tsx	lines 0/59	branches 0/94	functions 0/19	NEVER-LOADED

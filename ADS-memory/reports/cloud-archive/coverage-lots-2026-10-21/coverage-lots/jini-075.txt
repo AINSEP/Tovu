@@ -1,0 +1,14 @@
+packages/db/src/migrate/checksum.ts	lines 2/4	branches 0/0	functions 0/1	LOADED
+packages/db/src/migrate/runner.ts	lines 94/102	branches 54/66	functions 11/11	LOADED
+packages/db/src/pglite/owner.ts	lines 225/248	branches 73/86	functions 21/22	LOADED
+packages/db/src/pglite/socket-server.ts	lines 287/287	branches 124/135	functions 31/31	LOADED
+packages/db/src/postgres/index.ts	lines 0/1	branches 0/1	functions 0/1	LOADED
+packages/db/src/postgres/types.ts	lines 0/2	branches 0/1	functions 0/1	LOADED
+packages/db/src/recovery/deep-link.ts	lines 0/11	branches 1/1	functions 1/1	LOADED
+packages/db/src/recovery/degraded-banners.ts	lines 0/47	branches 1/1	functions 1/1	LOADED
+packages/db/src/recovery/disclosure.ts	lines 0/24	branches 1/1	functions 1/1	LOADED
+packages/db/src/recovery/evaluate-boot-migration-policy.ts	lines 0/23	branches 1/1	functions 1/1	LOADED
+packages/db/src/recovery/index.ts	lines 0/1	branches 0/1	functions 0/1	LOADED
+packages/db/src/recovery/lookup-adapters.ts	lines 0/16	branches 1/1	functions 1/1	LOADED
+packages/db/src/recovery/migrate-forward-execute.ts	lines 0/41	branches 1/1	functions 1/1	LOADED
+packages/db/src/recovery/reconcile-interrupted-migration.ts	lines 0/13	branches 1/1	functions 1/1	LOADED

@@ -1,0 +1,13 @@
+apps/website/src/cli/commands/plugin/install.ts	lines 39/51	branches 7/11	functions 2/6	LOADED
+apps/website/src/cli/commands/plugin/integrity.ts	lines 21/22	branches 6/9	functions 3/4	LOADED
+apps/website/src/cli/commands/serve.ts	lines 451/458	branches 29/47	functions 23/25	LOADED
+apps/website/src/cli/commands/storage-move.ts	lines 25/50	branches 2/2	functions 1/2	LOADED
+apps/website/src/cli/commands/theme/migrate.ts	lines 59/61	branches 8/13	functions 4/4	LOADED
+apps/website/src/cli/commands/theme/normalize-build.ts	lines 56/67	branches 5/8	functions 4/5	LOADED
+apps/website/src/cli/commands/theme/sync-originals.ts	lines 29/39	branches 2/2	functions 1/3	LOADED
+apps/website/src/cli/commands/theme/validate.ts	lines 64/75	branches 4/7	functions 2/4	LOADED
+apps/website/src/cli/main.ts	lines 42/45	branches 3/5	functions 2/2	LOADED
+apps/website/src/cli/program.ts	lines 223/244	branches 5/5	functions 4/20	LOADED
+apps/website/src/contracts/core/agent-permission-mode.ts	lines 37/37	branches 9/11	functions 2/2	LOADED
+apps/website/src/contracts/core/chat-delete-grant.ts	lines 26/26	branches 14/16	functions 5/5	LOADED
+apps/website/src/contracts/core/credential-copy.ts	lines 0/15	branches 0/12	functions 0/8	NEVER-LOADED

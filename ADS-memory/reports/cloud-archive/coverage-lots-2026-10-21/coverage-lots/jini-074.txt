@@ -1,0 +1,17 @@
+packages/daemon/src/tool-recovery/redaction.ts	lines 45/85	branches 4/9	functions 4/13	LOADED
+packages/daemon/src/tool-recovery/stack.ts	lines 2/10	branches 0/0	functions 0/1	LOADED
+packages/db/src/pg-fixture.ts	lines 37/37	branches 14/15	functions 4/4	LOADED
+packages/db/src/core/messages.ts	lines 23/23	branches 3/3	functions 3/5	LOADED
+packages/db/src/kernel/dialect.ts	lines 87/114	branches 47/48	functions 13/18	LOADED
+packages/db/src/kernel/kernel-core.ts	lines 83/83	branches 54/57	functions 12/12	LOADED
+packages/db/src/kernel/ops.ts	lines 30/32	branches 7/10	functions 4/4	LOADED
+packages/db/src/kernel/pglite/dialect.ts	lines 61/63	branches 22/22	functions 15/16	LOADED
+packages/db/src/kernel/pglite/ops.ts	lines 53/56	branches 22/23	functions 5/5	LOADED
+packages/db/src/kernel/postgres/driver.ts	lines 2/24	branches 0/0	functions 0/1	LOADED
+packages/db/src/kernel/postgres/ops.ts	lines 24/26	branches 5/7	functions 3/3	LOADED
+packages/db/src/kernel/postgres/pglite-socket.ts	lines 26/28	branches 4/5	functions 3/3	LOADED
+packages/db/src/kernel/schema-shape.ts	lines 58/91	branches 32/36	functions 4/6	LOADED
+packages/db/src/kernel/sqlite/driver.ts	lines 95/95	branches 38/38	functions 20/21	LOADED
+packages/db/src/kernel/sqlite/ops.ts	lines 21/25	branches 7/9	functions 3/3	LOADED
+packages/db/src/kernel/store-copy.ts	lines 188/195	branches 99/104	functions 22/23	LOADED
+packages/db/src/kernel/typegen.ts	lines 15/66	branches 0/0	functions 0/3	LOADED

@@ -1,0 +1,4 @@
+packages/chat/src/react/hooks/useCopyToClipboard.ts	lines 0/37	branches 0/8	functions 0/6	NEVER-LOADED
+packages/chat/src/react/hooks/useExtEventGroups.ts	lines 0/31	branches 0/16	functions 0/6	NEVER-LOADED
+packages/chat/src/react/hooks/useLatestOperation.ts	lines 0/26	branches 0/8	functions 0/10	NEVER-LOADED
+packages/chat/src/react/hooks/usePinnedTodos.ts	lines 0/19	branches 0/10	functions 0/8	NEVER-LOADED

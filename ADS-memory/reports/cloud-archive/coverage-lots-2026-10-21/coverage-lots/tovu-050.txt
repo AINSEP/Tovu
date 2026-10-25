@@ -1,0 +1,13 @@
+apps/website/src/server/runtime/boot/plugin-sdk-resolver.ts	lines 123/123	branches 7/8	functions 5/5	LOADED
+apps/website/src/server/runtime/boot/process-error-guards.ts	lines 102/102	branches 8/8	functions 5/7	LOADED
+apps/website/src/server/runtime/boot/production-readiness-gate.ts	lines 202/202	branches 41/42	functions 9/9	LOADED
+apps/website/src/server/runtime/boot/resolve-mailer.ts	lines 300/300	branches 58/61	functions 20/23	LOADED
+apps/website/src/server/runtime/composition/agent-daemon-deps.ts	lines 157/158	branches 37/38	functions 13/14	LOADED
+apps/website/src/server/runtime/composition/agent-plugin-connections.ts	lines 175/175	branches 32/34	functions 20/20	LOADED
+apps/website/src/server/runtime/composition/app.ts	lines 2389/2403	branches 144/152	functions 119/138	LOADED
+apps/website/src/server/runtime/composition/chart-providers.ts	lines 43/43	branches 7/9	functions 6/6	LOADED
+apps/website/src/server/runtime/composition/deps.ts	lines 2798/2864	branches 239/266	functions 130/164	LOADED
+apps/website/src/server/runtime/composition/domain-dns-adapters.ts	lines 139/139	branches 93/95	functions 17/17	LOADED
+apps/website/src/server/runtime/composition/form-delivery.ts	lines 94/94	branches 22/24	functions 15/15	LOADED
+apps/website/src/server/runtime/composition/form-submissions.ts	lines 262/264	branches 89/94	functions 41/41	LOADED
+apps/website/src/server/runtime/composition/installed-extension-tools.ts	lines 105/105	branches 15/22	functions 5/5	LOADED

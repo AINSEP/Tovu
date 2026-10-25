@@ -1,0 +1,2 @@
+apps/desktop/scripts/stage-payload.ts	lines 0/141	branches 0/56	functions 0/17	NEVER-LOADED
+apps/desktop/scripts/verify-find-in-page.ts	lines 0/227	branches 0/100	functions 0/45	NEVER-LOADED

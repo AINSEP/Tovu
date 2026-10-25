@@ -1,0 +1,4 @@
+packages/chat/src/react/features/chat-pane/hooks/useChatPaneControlsHeight.hooks.ts	lines 0/16	branches 0/6	functions 0/4	NEVER-LOADED
+packages/chat/src/react/features/chat-pane/hooks/useChatPaneFileDrop.hooks.ts	lines 0/35	branches 0/26	functions 0/10	NEVER-LOADED
+packages/chat/src/react/features/chat-pane/hooks/useChatPaneNewTabLinks.hooks.ts	lines 0/23	branches 0/24	functions 0/6	NEVER-LOADED
+packages/chat/src/react/features/chat-pane/hooks/useChatPaneRuntimeInventory.hooks.ts	lines 0/153	branches 0/52	functions 0/36	NEVER-LOADED

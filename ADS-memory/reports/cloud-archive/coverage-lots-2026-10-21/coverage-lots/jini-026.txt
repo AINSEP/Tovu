@@ -1,0 +1,2 @@
+packages/chat/src/embed-widget/vanilla/state.ts	lines 0/71	branches 0/42	functions 0/18	NEVER-LOADED
+packages/chat/src/react/agent-bridge/frontend-session-bridge.ts	lines 0/105	branches 0/55	functions 0/27	NEVER-LOADED

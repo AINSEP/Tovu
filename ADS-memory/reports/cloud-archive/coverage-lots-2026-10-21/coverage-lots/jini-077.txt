@@ -1,0 +1,10 @@
+packages/db/src/testing/transfer-pg-test-db.ts	lines 0/16	branches 0/10	functions 0/5	NEVER-LOADED
+packages/db/src/tools/plan-store.ts	lines 25/31	branches 10/13	functions 4/4	LOADED
+packages/db/src/tools/read-tools.ts	lines 74/74	branches 22/27	functions 8/8	LOADED
+packages/db/src/tools/registration.ts	lines 7/7	branches 3/4	functions 1/2	LOADED
+packages/db/src/tools/transfer-tools.ts	lines 223/254	branches 63/90	functions 25/28	LOADED
+packages/db/src/transfer/copy-engine.ts	lines 179/184	branches 109/125	functions 17/17	LOADED
+packages/db/src/transfer/postgres-ddl.ts	lines 13/13	branches 3/4	functions 3/9	LOADED
+packages/db/src/transfer/postgres-target.ts	lines 75/82	branches 29/39	functions 7/9	LOADED
+packages/db/src/transfer/sqlite-source.ts	lines 31/68	branches 12/14	functions 8/13	LOADED
+packages/db/src/transfer/table-catalog.ts	lines 7/86	branches 0/0	functions 0/7	LOADED

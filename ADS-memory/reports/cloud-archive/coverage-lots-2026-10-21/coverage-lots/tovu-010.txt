@@ -1,0 +1,6 @@
+apps/desktop/scripts/check-gates.ts	lines 166/174	branches 19/24	functions 12/12	LOADED
+apps/desktop/scripts/check-js-backslide.ts	lines 0/26	branches 0/4	functions 0/5	NEVER-LOADED
+apps/desktop/scripts/check-tree-quiet.ts	lines 0/58	branches 0/14	functions 0/11	NEVER-LOADED
+apps/desktop/scripts/merge-latest-mac.ts	lines 31/34	branches 3/4	functions 2/2	LOADED
+apps/desktop/scripts/smoke-bridge.ts	lines 0/32	branches 0/18	functions 0/3	NEVER-LOADED
+apps/desktop/scripts/smoke-native.ts	lines 0/67	branches 0/44	functions 0/8	NEVER-LOADED

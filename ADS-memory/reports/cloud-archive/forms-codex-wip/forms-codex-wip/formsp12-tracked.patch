@@ -1,0 +1,859 @@
+diff --git a/apps/website/src/cli/__tests__/unit/serve-command-wiring.unit.test.ts b/apps/website/src/cli/__tests__/unit/serve-command-wiring.unit.test.ts
+index 056bcdfb4..36043a09d 100644
+--- a/apps/website/src/cli/__tests__/unit/serve-command-wiring.unit.test.ts
++++ b/apps/website/src/cli/__tests__/unit/serve-command-wiring.unit.test.ts
+@@ -189,6 +189,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
+   });
+   module("../../../server/runtime/composition/serving-app.ts", {
+     createServingApp: () => ({
++      formPullTriggers: { stop: async () => {} },
+       app: { listen: (...args: unknown[]) => {
+         listens.push(args);
+         const server = new EventEmitter() as InstanceType<typeof EventEmitter> & { close(done: () => void): void };
+diff --git a/apps/website/src/cli/commands/serve.ts b/apps/website/src/cli/commands/serve.ts
+index 0fda3c556..2a4906e31 100644
+--- a/apps/website/src/cli/commands/serve.ts
++++ b/apps/website/src/cli/commands/serve.ts
+@@ -341,8 +341,8 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
+   // `createServingApp`, not bare `createApp`: it also starts the background outbox drainer (after
+   // `createApp` has attached every subscriber), Trash auto-purge sweeper and theme watcher. All stop
+   // in `shutdown` below.
+-  const { app, outboxDrainer, trashSweeper, themeWatcher, bootWork } = (optional.createServingApp ?? createServingApp)(deps);
+-  owned.workers.push(outboxDrainer, { stop: () => trashSweeper.stop({}) }, themeWatcher);
++  const { app, outboxDrainer, trashSweeper, themeWatcher, formPullTriggers, bootWork } = (optional.createServingApp ?? createServingApp)(deps);
++  owned.workers.push(outboxDrainer, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTriggers);
+   owned.bootWork.push(...bootWork);
+ 
+   await new Promise<void>((resolve, reject) => {
+@@ -351,7 +351,7 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
+     // "no TOVU_HOST override, use Node's own all-interfaces default" case) is routed to the
+     // callback-only overload explicitly, rather than widening the type with a cast.
+     const server = host !== undefined ? app.listen(port, host) : app.listen(port);
+-    server.once("close", () => { void themeWatcher.stop(); });
++    server.once("close", () => { void themeWatcher.stop(); void formPullTriggers.stop(); });
+ 
+     // Forwards Vite's HMR WebSocket when `TOVU_ADMIN_DEV_PROXY_URL` is set. `registerAdminStatic`
+     // (reached via `createApp` above) already proxies ordinary `/admin/*` REQUESTS on this path, but
+@@ -448,7 +448,7 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
+       }, {
+         bootWork: () => owned.bootWork,
+         stopServing: () => stopServingWithinGrace({ server, workers: [
+-          { stop: () => outboxDrainer.stop() }, { stop: () => trashSweeper.stop({}) }, themeWatcher,
++          { stop: () => outboxDrainer.stop() }, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTriggers,
+         ] }),
+         // Opt-in (the desktop on Windows): an ignored or terminal stdin must never stop the site.
+         stopOnEnd: process.env.TOVU_STOP_ON_STDIN_EOF === "1" ? process.stdin : undefined,
+diff --git a/apps/website/src/contracts/core/events/outbox-drainer.ts b/apps/website/src/contracts/core/events/outbox-drainer.ts
+index ffd8cb0e2..da079f328 100644
+--- a/apps/website/src/contracts/core/events/outbox-drainer.ts
++++ b/apps/website/src/contracts/core/events/outbox-drainer.ts
+@@ -1,3 +1,4 @@
++import { formDeliveryRetryPolicy } from "./form-delivery-retry.js";
+ import type { Clock as ClockPort } from "@jini-ai/core/primitives";
+ import type { EventBusPort, OutboxPort } from "@jini-ai/cms/core";
+ import { startOutboxDrainer as startJiniOutboxDrainer, type OutboxDrainer } from "@jini-ai/infra/events/outbox";
+@@ -50,5 +51,5 @@ export function startOutboxDrainer(
+   required: { outbox: OutboxPort; bus: EventBusPort; clock: ClockPort },
+   optional: { intervalMs?: number; batchSize?: number; deliveryTimeoutMs?: number; onError?: (error: unknown) => void } = {}
+ ): OutboxDrainer {
+-  return startJiniOutboxDrainer(outboxWorkerArgs(required), optional);
++  return startJiniOutboxDrainer(outboxWorkerArgs(required), { ...optional, retryPolicyForEvent: formDeliveryRetryPolicy });
+ }
+diff --git a/apps/website/src/contracts/core/events/outbox-worker.ts b/apps/website/src/contracts/core/events/outbox-worker.ts
+index f0d9e17d7..3f6c6a8d9 100644
+--- a/apps/website/src/contracts/core/events/outbox-worker.ts
++++ b/apps/website/src/contracts/core/events/outbox-worker.ts
+@@ -1,3 +1,4 @@
++import { formDeliveryRetryPolicy } from "./form-delivery-retry.js";
+ import type { Clock as ClockPort } from "@jini-ai/core/primitives";
+ import type { EventBusPort, OutboxPort } from "@jini-ai/cms/core";
+ import { computeOutboxBackoffMs as jiniBackoff, processOutbox as processJiniOutbox } from "@jini-ai/infra/events/outbox";
+@@ -91,6 +92,7 @@ export async function processOutbox(
+   optional: { batchSize?: number; random?: () => number; deliveryTimeoutMs?: number } = {}
+ ): Promise<number> {
+   return processJiniOutbox(outboxWorkerArgs(required, { random: optional.random }), {
++    retryPolicyForEvent: formDeliveryRetryPolicy,
+     batchSize: optional.batchSize, deliveryTimeoutMs: optional.deliveryTimeoutMs,
+   });
+ }
+diff --git a/apps/website/src/contracts/core/tool-metadata/forms.ts b/apps/website/src/contracts/core/tool-metadata/forms.ts
+index 4d6e4add3..89bc33bef 100644
+--- a/apps/website/src/contracts/core/tool-metadata/forms.ts
++++ b/apps/website/src/contracts/core/tool-metadata/forms.ts
+@@ -3,6 +3,10 @@ import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-
+ 
+ /** forms registration declarations; shared placement rationale is in ./index.ts. */
+ export const toolMetadata = {
++  "forms_delivery_status": {
++    search: { keywords: "form submission delivery destination status retry failed attempts", queries: ["Did this form submission reach its destinations?", "Which form deliveries failed or are retrying?"] },
++    approval: { class: 'read', confirmation: 'direct' },
++  },
+   "forms_create_definition": {
+     search: {
+       keywords: "form contact form build create new fields",
+diff --git a/apps/website/src/features/form-destinations/types.ts b/apps/website/src/features/form-destinations/types.ts
+index d8d049af4..9dbfcb7d9 100644
+--- a/apps/website/src/features/form-destinations/types.ts
++++ b/apps/website/src/features/form-destinations/types.ts
+@@ -1,3 +1,4 @@
++import type { FormDeliveryBinding, FormDeliveryResult } from "@jini-ai/cms/forms";
+ /**
+  * @file The form destination contract: where a published static site's form submissions go, as an
+  * Agent Plugin contribution category (`tovu-form-destinations.json`, `./registry.ts`). It copies the
+@@ -75,11 +76,14 @@ export interface FormDestinationModule {
+   pull?(required: { readonly kit: FormDestinationKit; readonly destination: FormDestinationAddress }, optional?: { readonly after?: number; readonly limit?: number }): Promise<FormDestinationPage>;
+   /** Marks rows Tovu has durably imported, so they are no longer pending at the receiver. */
+   ack?(required: { readonly kit: FormDestinationKit; readonly destination: FormDestinationAddress; readonly ids: readonly string[] }, optional?: Record<string, never>): Promise<{ readonly acknowledged: number }>;
+-  /** Push model (sheets, tables, email). Called from a `form.submission.received` subscriber.
+-   *  NOT wired yet; declared now so the first push destination needs no contract edit. */
+-  deliver?(required: { readonly kit: FormDestinationKit; readonly credential: FormDestinationCredential; readonly form: FormDestinationForm; readonly submission: { readonly id: string; readonly answers: Readonly<Record<string, unknown>>; readonly submittedAt: string } }, optional?: Record<string, never>): Promise<void>;
++  /** Push delivery from a durable per-binding child job. Optional fields and void results preserve
++   * legacy adapters; new adapters use binding config and the stable submission+binding key. */
++  deliver?(required: { readonly kit: FormDestinationKit; readonly credential: FormDestinationCredential; readonly form: FormDestinationForm; readonly binding?: FormDeliveryBinding; readonly idempotencyKey?: string; readonly submission: { readonly id: string; readonly answers: Readonly<Record<string, unknown>>; readonly submittedAt: string } }, optional?: Record<string, never>): Promise<void | FormDeliveryResult>;
+ }
+ 
++/** Runtime resolves a connection reference through its owning vault; plugins receive no vault access. */
++export type FormDeliveryConnectionPort = (required: { workspaceId: string; connectionRef: string; adapterId: string }, optional?: Record<string, never>) => Promise<FormDestinationCredential | null>;
++
+ /** One entry of a plugin's `tovu-form-destinations.json`. */
+ export interface FormDestinationDescriptor {
+   readonly id: string;
+diff --git a/apps/website/src/features/forms/agent-tools.ts b/apps/website/src/features/forms/agent-tools.ts
+index fcd40ed07..ce195ec68 100644
+--- a/apps/website/src/features/forms/agent-tools.ts
++++ b/apps/website/src/features/forms/agent-tools.ts
+@@ -318,4 +318,11 @@ export const formsAgentToolCatalog: AgentToolDefinition[] = [
+       },
+     },
+   },
++  {
++    name: "forms_delivery_status",
++    description: "Reads per-destination delivery status, attempts, next retry, and sanitized errors for a form submission. Read-only; excludes answers and credentials.",
++    sideEffects: "none",
++    authorization: { permission: "admin.forms.submissions.read" },
++    inputSchema: { type: "object", additionalProperties: false, required: ["submissionId"], properties: { submissionId: SUBMISSION_ID_SCHEMA } },
++  },
+ ];
+diff --git a/apps/website/src/features/forms/import-remote-submissions.ts b/apps/website/src/features/forms/import-remote-submissions.ts
+index b9fe030aa..d61eaf879 100644
+--- a/apps/website/src/features/forms/import-remote-submissions.ts
++++ b/apps/website/src/features/forms/import-remote-submissions.ts
+@@ -117,6 +117,7 @@ function submittedAt({ value, now }: { value: string; now: string }, _optional =
+ 
+ /** One destination's outcome in a pull. `error` is a person-facing reason without any key. */
+ export interface FormDestinationPullReport {
++  readonly skipReason?: 'in-flight-or-recent';
+   readonly targetId: string;
+   readonly url: string;
+   readonly pulled: number;
+diff --git a/apps/website/src/features/forms/tool-registrations.ts b/apps/website/src/features/forms/tool-registrations.ts
+index 0c480ceaa..1be4c4226 100644
+--- a/apps/website/src/features/forms/tool-registrations.ts
++++ b/apps/website/src/features/forms/tool-registrations.ts
+@@ -73,6 +73,7 @@ export interface FormsToolDeps {
+   formSubmissionRepo: FormSubmissionRepoPort;
+   /** `RouteDeps.formSubmissionsPull`: absent outside the real site composition. */
+   formSubmissionsPull?: FormSubmissionsPullPort;
++  formDelivery?: { status: import('@jini-ai/cms/forms').FormDeliveryStatusPort };
+ }
+ 
+ /**
+@@ -98,6 +99,7 @@ export const formsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSi
+   // -> formSubmissionsPull.pull: host reads, then per row receipt + submission + outbox in one
+   //    transaction, then an acknowledgement to the host for the committed rows.
+   ["forms_pull_submissions", "mutates-durable-state"],
++  ["forms_delivery_status", "none"],
+ ]);
+ 
+ /**
+@@ -405,6 +407,16 @@ export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistrat
+       return { submission: toFormSubmissionView(submission) };
+     },
+ 
++    forms_delivery_status: async (ctx) => {
++      const input = requireInputRecord({ input: ctx.input });
++      const submissionId = requireString({ input, key: 'submissionId' });
++      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
++        workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: 'admin.forms.submissions.read',
++      }, { entityType: 'form_submission', entityId: submissionId });
++      if (!routeDeps.formDelivery) throw new ToolInputError({ message: 'Form delivery status is unavailable on this server.' });
++      return { submissionId, deliveries: await routeDeps.formDelivery.status.read({ workspaceId: routeDeps.workspaceId, submissionId }) };
++    },
++
+     forms_pull_submissions: async (ctx) => {
+       const input = requireInputRecord({ input: ctx.input });
+       const targetId = optionalString({ input, key: "targetId" });
+diff --git a/apps/website/src/index.ts b/apps/website/src/index.ts
+index ad5d21468..ef051f5f0 100644
+--- a/apps/website/src/index.ts
++++ b/apps/website/src/index.ts
+@@ -409,9 +409,9 @@ async function main(): Promise<void> {
+   // `createServingApp`, not bare `createApp`: it also starts the background outbox drainer, after
+   // `createApp` has attached every subscriber. The drainer's timer is unref'd, so it never holds this
+   // process open.
+-  const { app, outboxDrainer, trashSweeper, themeWatcher, bootWork: servingBootWork } = createServingApp(deps);
++  const { app, outboxDrainer, trashSweeper, themeWatcher, formPullTriggers, bootWork: servingBootWork } = createServingApp(deps);
+   bootWork.push(...servingBootWork);
+-  stopServing = () => stopServingWithinGrace({ server, workers: [outboxDrainer, { stop: () => trashSweeper.stop({}) }, themeWatcher] });
++  stopServing = () => stopServingWithinGrace({ server, workers: [outboxDrainer, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTriggers] });
+   // TLS-gated the same way `apps/admin/vite.config.ts` gates Vite's own dev server: cert pair
+   // present -> HTTPS, absent -> plain HTTP/1.1 (`devTls`/`devScheme`, computed above at module
+   // load). Express 4 has no native HTTP/2 support (no `spdy`/`http2` compat shim added here), so
+diff --git a/apps/website/src/platform/db/content-database.generated.ts b/apps/website/src/platform/db/content-database.generated.ts
+index 9b55a3a6e..3c2c7b263 100644
+--- a/apps/website/src/platform/db/content-database.generated.ts
++++ b/apps/website/src/platform/db/content-database.generated.ts
+@@ -27,6 +27,9 @@ export interface ContentDatabase {
+   external_mcp_servers: ExternalMcpServersTable;
+   external_mcp_tool_approvals: ExternalMcpToolApprovalsTable;
+   form_definitions: FormDefinitionsTable;
++  form_delivery_jobs: FormDeliveryJobsTable;
++  form_delivery_plans: FormDeliveryPlansTable;
++  form_receiver_pulls: FormReceiverPullsTable;
+   form_submission_remote_receipts: FormSubmissionRemoteReceiptsTable;
+   form_submissions: FormSubmissionsTable;
+   gated_mutation_tokens: GatedMutationTokensTable;
+@@ -316,6 +319,27 @@ export interface FormDefinitionsTable {
+   version: Generated<number>;
+ }
+ 
++export interface FormDeliveryJobsTable {
++  workspace_id: string;
++  submission_id: string;
++  binding_id: string;
++  job_id: string;
++}
++
++export interface FormDeliveryPlansTable {
++  workspace_id: string;
++  submission_id: string;
++  plan_json: string;
++}
++
++export interface FormReceiverPullsTable {
++  workspace_id: string;
++  receiver_key: string;
++  lease_token: string | null;
++  lease_expires_at: string | null;
++  last_started_at: string | null;
++}
++
+ export interface FormSubmissionRemoteReceiptsTable {
+   workspace_id: string;
+   destination_key: string;
+diff --git a/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts b/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts
+index e0afc3d0a..d5a707cd7 100644
+--- a/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts
++++ b/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts
+@@ -71,7 +71,7 @@ test("the content history through the current head applies on real Postgres", as
+     "0006_submission_ip_retention", "0007_publish_backstop", "0008_posts_publish_at_featured_media",
+     "0009_posts_author", "0010_members_credentials_revoked_at", "0011_drop_empty_core_commerce_tables", "0012_secrets_vault",
+     "0013_unify_vault_credentials", "0014_media_library", "0015_document_blob_ownership",
+-    "0016_publish_destination_history", "0017_publish_history_kind", "0018_form_submission_remote_receipts",
++    "0016_publish_destination_history", "0017_publish_history_kind", "0018_form_submission_remote_receipts", "0019_form_delivery_and_pull",
+   ];
+   assert.deepEqual(report.applied, head);
+   assert.deepEqual(CONTENT_MIGRATIONS.map(step => step.id), head);
+@@ -79,7 +79,7 @@ test("the content history through the current head applies on real Postgres", as
+     sql`SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema = current_schema() AND table_type = 'BASE TABLE' AND left(table_name, 14) <> '_vault_backup_'`
+   );
+   assert.equal(n, collectCoreTables().length + 2, "declared content tables plus post_search_document and tovu_migrations");
+-  assert.equal(n, 76, "76 tables at 0018_form_submission_remote_receipts: an accidental drop or addition must change this pin");
++  assert.equal(n, 79, "79 tables at 0019_form_delivery_and_pull: an accidental drop or addition must change this pin");
+   const [{ cfg }] = await baseline.query<{ cfg: number }>(sql`SELECT count(*)::int AS cfg FROM pg_ts_config WHERE cfgname = 'tovu_search'`);
+   assert.equal(cfg, 1);
+   assert.deepEqual((await migrateContentDatabase(baseline)).applied, [], "a rerun applies nothing");
+diff --git a/apps/website/src/platform/db/migrations/checksums.ts b/apps/website/src/platform/db/migrations/checksums.ts
+index 7c03a3d23..a5ce9d17e 100644
+--- a/apps/website/src/platform/db/migrations/checksums.ts
++++ b/apps/website/src/platform/db/migrations/checksums.ts
+@@ -35,4 +35,5 @@ export const MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = {
+   "0016_publish_destination_history": "2b400f28186beb7ace8845629523cf6a42fdcf1685f4694b4035a6603554d93b",
+   "0017_publish_history_kind": "283a3c719013f6d7489b0d75abf7e98d8f1f097ac00928a6d6b13313d9a33b70",
+   "0018_form_submission_remote_receipts": "0dcd48feebad2a61c5dad7faa6925c93f264654b4430bbf6e4a8f2a63df0679c",
++  "0019_form_delivery_and_pull": "44a73de692d3ec772aa3b4c897496ccf4a80316c37f9899260d7cbd9a8aa17aa",
+ };
+diff --git a/apps/website/src/platform/db/migrations/index.ts b/apps/website/src/platform/db/migrations/index.ts
+index d5ceaedf2..20c2b7fa9 100644
+--- a/apps/website/src/platform/db/migrations/index.ts
++++ b/apps/website/src/platform/db/migrations/index.ts
+@@ -1,3 +1,4 @@
++import { formDeliveryAndPull } from "./0019_form_delivery_and_pull.js";
+ import { publishHistoryKind } from "./0017_publish_history_kind.js";
+ import { formSubmissionRemoteReceipts } from "./0018_form_submission_remote_receipts.js";
+ import { AI_CHAT_SCHEMA } from "../chat-kernel.js";
+@@ -64,6 +65,7 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [
+   publishDestinationHistory({ checksum: pinned("0016_publish_destination_history") }),
+   publishHistoryKind({ checksum: pinned("0017_publish_history_kind") }),
+   formSubmissionRemoteReceipts({ checksum: pinned("0018_form_submission_remote_receipts") }),
++  formDeliveryAndPull({ checksum: pinned("0019_form_delivery_and_pull") }),
+ ];
+ 
+ export const CHAT_MIGRATIONS: readonly MigrationStep[] = [
+diff --git a/apps/website/src/platform/db/repos/outbox-repo.ts b/apps/website/src/platform/db/repos/outbox-repo.ts
+index 9e35e716d..091ce28dc 100644
+--- a/apps/website/src/platform/db/repos/outbox-repo.ts
++++ b/apps/website/src/platform/db/repos/outbox-repo.ts
+@@ -88,9 +88,23 @@ export class SqlOutboxAdapter implements OutboxPort {
+         db
+           .selectFrom("outbox_events")
+           .selectAll()
++          // MOVE: binding-order semantics belong to forms; the worker remains queue-agnostic.
++          // An earlier pending/processing child holds this binding, including while backing off.
++          .where(eb => eb.not(eb.exists(
++            eb.selectFrom('form_delivery_jobs as current')
++              .innerJoin('form_delivery_jobs as earlier', join => join.onRef('earlier.workspace_id', '=', 'current.workspace_id').onRef('earlier.binding_id', '=', 'current.binding_id'))
++              .innerJoin('outbox_events as prior', 'prior.id', 'earlier.job_id')
++              .select('prior.id').whereRef('current.job_id', '=', 'outbox_events.id')
++              .where('prior.status', 'in', CLAIMABLE_STATUSES)
++              .where(order => order.or([
++                order('prior.created_at', '<', order.ref('outbox_events.created_at')),
++                order.and([order('prior.created_at', '=', order.ref('outbox_events.created_at')), order('prior.id', '<', order.ref('outbox_events.id'))]),
++              ]))
++          )))
+           .where("status", "in", CLAIMABLE_STATUSES)
+           .where("next_attempt_at", "<=", nowIso)
+           .orderBy("next_attempt_at", "asc")
++          .orderBy("id", "asc")
+           .limit(batchSize)
+           .execute()
+       );
+diff --git a/apps/website/src/platform/db/schema.postgres.ts b/apps/website/src/platform/db/schema.postgres.ts
+index c0fecba6f..57bc06274 100644
+--- a/apps/website/src/platform/db/schema.postgres.ts
++++ b/apps/website/src/platform/db/schema.postgres.ts
+@@ -9,7 +9,7 @@
+  * declarations, and PostgreSQL's tsvector/GIN equivalent is hand-authored. See the generator's
+  * module doc.
+  *
+- * Tables: 74
++ * Tables: 77
+  */
+ import { sql } from "drizzle-orm";
+ import { bigint, boolean, check, customType, foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
+@@ -295,6 +295,35 @@ export const formDefinitions = pgTable("form_definitions", {
+     index("idx_form_definitions_workspace").on(t.workspaceId),
+   ]);
+ 
++export const formDeliveryJobs = pgTable("form_delivery_jobs", {
++  workspaceId: text("workspace_id").notNull(),
++  submissionId: text("submission_id").notNull(),
++  bindingId: text("binding_id").notNull(),
++  jobId: text("job_id").notNull(),
++}, (t) => [
++    primaryKey({ columns: [t.workspaceId, t.submissionId, t.bindingId] }),
++    uniqueIndex("ux_form_delivery_job_id").on(t.jobId),
++    index("idx_form_delivery_binding").on(t.workspaceId, t.bindingId),
++  ]);
++
++export const formDeliveryPlans = pgTable("form_delivery_plans", {
++  workspaceId: text("workspace_id").notNull(),
++  submissionId: text("submission_id").notNull(),
++  planJson: jsonText("plan_json").notNull(),
++}, (t) => [
++    primaryKey({ columns: [t.workspaceId, t.submissionId] }),
++  ]);
++
++export const formReceiverPulls = pgTable("form_receiver_pulls", {
++  workspaceId: text("workspace_id").notNull(),
++  receiverKey: text("receiver_key").notNull(),
++  leaseToken: text("lease_token"),
++  leaseExpiresAt: text("lease_expires_at"),
++  lastStartedAt: text("last_started_at"),
++}, (t) => [
++    primaryKey({ columns: [t.workspaceId, t.receiverKey] }),
++  ]);
++
+ export const formSubmissionRemoteReceipts = pgTable("form_submission_remote_receipts", {
+   workspaceId: text("workspace_id").notNull(),
+   destinationKey: text("destination_key").notNull(),
+diff --git a/apps/website/src/platform/db/schema.sqlite.ts b/apps/website/src/platform/db/schema.sqlite.ts
+index bcc893d63..01aec5e17 100644
+--- a/apps/website/src/platform/db/schema.sqlite.ts
++++ b/apps/website/src/platform/db/schema.sqlite.ts
+@@ -591,6 +591,30 @@ export const formSubmissionRemoteReceipts = sqliteTable(
+   (table) => [primaryKey({ columns: [table.workspaceId, table.destinationKey, table.remoteId] })]
+ );
+ 
++/** Delivery plans freeze binding selection and payload; status stays in outbox_events (0019). */
++export const formDeliveryPlans = sqliteTable('form_delivery_plans', {
++  workspaceId: text('workspace_id').notNull(),
++  submissionId: text('submission_id').notNull(),
++  planJson: text('plan_json').notNull(),
++}, table => [primaryKey({ columns: [table.workspaceId, table.submissionId] })]);
++
++/** Link child jobs to a submission and binding without coupling deletion to external delivery. */
++export const formDeliveryJobs = sqliteTable('form_delivery_jobs', {
++  workspaceId: text('workspace_id').notNull(),
++  submissionId: text('submission_id').notNull(),
++  bindingId: text('binding_id').notNull(),
++  jobId: text('job_id').notNull(),
++}, table => [primaryKey({ columns: [table.workspaceId, table.submissionId, table.bindingId] }), uniqueIndex('ux_form_delivery_job_id').on(table.jobId), index('idx_form_delivery_binding').on(table.workspaceId, table.bindingId)]);
++
++/** Shared manual/automatic receiver admission; recent attempts debounce only automatic triggers. */
++export const formReceiverPulls = sqliteTable('form_receiver_pulls', {
++  workspaceId: text('workspace_id').notNull(),
++  receiverKey: text('receiver_key').notNull(),
++  leaseToken: text('lease_token'),
++  leaseExpiresAt: text('lease_expires_at'),
++  lastStartedAt: text('last_started_at'),
++}, table => [primaryKey({ columns: [table.workspaceId, table.receiverKey] })]);
++
+ /**
+  * Redirects (SPEC-009, ADR-033 §2). Core-owned tables reusing ADR-022's write-
+  * chokepoint discipline (single write chokepoint, append-only revisions, ULIDs)
+diff --git a/apps/website/src/platform/db/sqlite/fresh-content-db.ts b/apps/website/src/platform/db/sqlite/fresh-content-db.ts
+index 58982efa3..1c0394bad 100644
+--- a/apps/website/src/platform/db/sqlite/fresh-content-db.ts
++++ b/apps/website/src/platform/db/sqlite/fresh-content-db.ts
+@@ -1,3 +1,4 @@
++import { formDeliveryAndPullStatements } from "../migrations/0019_form_delivery_and_pull.js";
+ import { documentBlobOwnershipStatements } from "../migrations/0015_document_blob_ownership.js";
+ import { MEDIA_LIBRARY_STATEMENTS } from "../migrations/0014_media_library.js";
+ import { FORM_SUBMISSION_REMOTE_RECEIPTS_STATEMENTS } from "../migrations/0018_form_submission_remote_receipts.js";
+@@ -147,6 +148,9 @@ export function bootstrapFreshContentDb(
+     "0017_publish_history_kind": () => {
+       client.exec("ALTER TABLE publish_history ADD COLUMN kind text DEFAULT 'static'");
+     },
++    "0019_form_delivery_and_pull": () => {
++      for (const statement of formDeliveryAndPullStatements({ dialect: "sqlite" })) client.exec(statement);
++    },
+     "0018_form_submission_remote_receipts": () => {
+       for (const statement of FORM_SUBMISSION_REMOTE_RECEIPTS_STATEMENTS) client.exec(statement);
+     },
+diff --git a/apps/website/src/server/inbound/admin-http/dev-auth.ts b/apps/website/src/server/inbound/admin-http/dev-auth.ts
+index 6dc1f776d..9e33fd957 100644
+--- a/apps/website/src/server/inbound/admin-http/dev-auth.ts
++++ b/apps/website/src/server/inbound/admin-http/dev-auth.ts
+@@ -149,7 +149,7 @@ export interface AuthenticatedCredential {
+  * clock/idGen for `identity/*`'s `login`/`logout`/`validateSession`. Narrower than full `RouteDeps` —
+  * see `routes/types.ts`'s `ClockDeps`/`IdentityDeps` doc for why this Slice-1 extraction exists.
+  */
+-type SessionAuthDeps = IdentityDeps & ClockDeps;
++type SessionAuthDeps = IdentityDeps & ClockDeps & Pick<RouteDeps, 'onAdminSignIn'>;
+ 
+ /** Assemble the `IdentityRepos` bag `identity/*` functions expect from `RouteDeps`'s flat fields. */
+ function identityReposFrom(deps: IdentityDeps): IdentityRepos {
+@@ -493,9 +493,21 @@ export async function redeemOwnerBootSession(
+   // The ordinary desktop cookie also replaces/clears local bootstrap; revoke what it supersedes.
+   if (cookieName === SESSION_COOKIE) await revokeRequestSessions({ deps, req: res.req });
+   setSessionCookie(res, rawToken, expiresAt, { name: cookieName });
++  void notifyAdminSignIn({ deps, principalId: principal.id });
+   return principal;
+ }
+ 
++/** Sign-in eligibility reuses the identity owner's owner/admin classifier. Authentication never
++ * waits for network pulls and a pull failure cannot invalidate a successful login. Exporters have
++ * no hook: createServingApp alone installs it, after every event subscriber has registered. */
++export async function notifyAdminSignIn(required: { deps: SessionAuthDeps; principalId: string }, _options: Record<string, never> = {}): Promise<void> {
++  if (!required.deps.onAdminSignIn) return;
++  await callerMayManageUserTrash({ deps: authServiceDepsFrom(required.deps), workspaceId: required.deps.workspaceId,
++    callerPrincipalId: required.principalId }).then(eligible => {
++      if (eligible) required.deps.onAdminSignIn?.({ principalId: required.principalId });
++    }).catch(() => console.warn('[form-submissions] sign-in pull trigger failed'));
++}
++
+ /** Registers login/logout/me and the loopback boot exchange before the admin session gate. */
+ export function registerAuthRoutes(app: Express, deps: RouteDeps,
+   { localOwnerSignIn = bootLocalOwnerSignIn }: { localOwnerSignIn?: LocalOwnerSignInPolicy } = {},
+@@ -544,6 +556,7 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
+       // Credentials succeeded; revoke both superseded bearers before clearing/replacing cookies.
+       await revokeRequestSessions({ deps, req });
+       setSessionCookie(res, rawToken, session.expiresAt);
++      void notifyAdminSignIn({ deps, principalId: principal.id });
+       res.json({ user: { id: principal.id, username } });
+     } catch (err) {
+       if (err instanceof AuthInvalidCredentialsError) {
+diff --git a/apps/website/src/server/routes/types.ts b/apps/website/src/server/routes/types.ts
+index 6a9a08a49..f238f49b0 100644
+--- a/apps/website/src/server/routes/types.ts
++++ b/apps/website/src/server/routes/types.ts
+@@ -703,6 +703,11 @@ export interface FormsDeps {
+   /** Pulls submissions a published static site stored at its host (`composeFormSubmissions`). Optional:
+    *  only the real composition wires it; absent, the pull tool and route say it is unavailable. */
+   formSubmissionsPull?: FormSubmissionsPullPort;
++  /** Trigger-only pulls: installed exclusively by createServingApp. */
++  formSubmissionsAutoPull?: { run(required: { workspaceId: string }, optional?: Record<string, never>): Promise<void> };
++  formDelivery?: import('../runtime/composition/form-delivery.js').FormDeliveryRuntimePort;
++  /** Password and boot-session sign-ins call this host hook after authentication succeeds. */
++  onAdminSignIn?: (required: { principalId: string }, optional?: Record<string, never>) => void;
+   /** The publish-side half of the same composition: active forms plus the receiver key. Absent,
+    *  publishing carries no forms (the old behavior). */
+   formDestination?: StaticPublishFormDestinationPort;
+diff --git a/apps/website/src/server/runtime/composition/__tests__/form-submissions.test.ts b/apps/website/src/server/runtime/composition/__tests__/form-submissions.test.ts
+index 8451e865a..e1a08cbb8 100644
+--- a/apps/website/src/server/runtime/composition/__tests__/form-submissions.test.ts
++++ b/apps/website/src/server/runtime/composition/__tests__/form-submissions.test.ts
+@@ -10,18 +10,33 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+ import { createCustomCredential, InMemoryCustomCredentialSetRepo, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
+ import type { DeployHostKit } from "#src/features/deployments/deploy-targets/types";
+ import { formDestinationKeyLabel, type FormDestinationPage, type FormDestinationRegistry } from "#src/features/form-destinations/index";
++import { ensureFormDeliverySettings } from "#src/features/settings/form-delivery";
++import { set } from "@jini-ai/core/settings";
+ import { InMemorySettingsRepo } from "@jini-ai/core/settings";
++import type { FormPullLeasePort } from '@jini-ai/cms/forms';
+ import { composeFormSubmissions, type FormSubmissionsCompositionDeps } from "../form-submissions.js";
+ 
+ /** @file The composed form destination pull: saved keys → destination pages → import → acknowledge → outbox. */
+ 
++/** Shared fake admission for both trigger paths; the SQL suite covers cross-process persistence. */
++class TestPullLeases implements FormPullLeasePort {
++  private readonly held = new Set<string>();
++  private readonly last = new Map<string, number>();
++  async claim(input: { workspaceId: string; receiverKey: string; token: string; nowIso: string; debounceMs: number }) {
++    const key = JSON.stringify([input.workspaceId, input.receiverKey]);
++    if (this.held.has(key) || Date.parse(input.nowIso) - (this.last.get(key) ?? -Infinity) < input.debounceMs) return false;
++    this.held.add(key); this.last.set(key, Date.parse(input.nowIso)); return true;
++  }
++  async release(input: { workspaceId: string; receiverKey: string; token: string }) { this.held.delete(JSON.stringify([input.workspaceId, input.receiverKey])); }
++}
++
+ const W = "ws-1";
+ const waitlist: FormDefinitionRecord = { id: "f1", workspaceId: W, slug: "waitlist", name: "Waitlist", status: "active", notify: { enabled: true, recipients: [] },
+   createdAt: "t", updatedAt: "t", version: 1, fields: [{ id: "email", label: "Email", type: "email", required: true, maxLength: 254 }] };
+ const page = (ids: string[], slug = "waitlist"): FormDestinationPage => ({ hasMore: false, nextAfter: ids.length,
+   items: ids.map((id, index) => ({ seq: index + 1, id, formSlug: slug, answers: { email: `${id}@example.com` }, submittedAt: "2026-10-19T10:00:00.000Z", ip: null })) });
+ 
+-function setup({ hosts }: { hosts: Record<string, { pages?: FormDestinationPage[]; fail?: string }> }) {
++function setup({ hosts }: { hosts: Record<string, { pages?: FormDestinationPage[]; fail?: string; onPull?: () => Promise<void> }> }) {
+   const keyring = new InMemoryKeyring();
+   let n = 0;
+   const clock = createFakeClock({ startIso: "2026-10-19T12:00:00.000Z" });
+@@ -37,8 +52,8 @@ function setup({ hosts }: { hosts: Record<string, { pages?: FormDestinationPage[
+     return (...args: unknown[]) => { if (prop !== "enqueue") outboxReads.push(String(prop)); return value.apply(target, args); };
+   } });
+   // Each saved scope resolves to its own fake destination, as a co-hosted one resolves by host id.
+-  const modules = new Map(Object.entries(hosts).map(([scope, host]) => [scope, { module: {
+-    pull: async () => { if (host.fail) throw new Error(host.fail); return host.pages?.shift() ?? { items: [], nextAfter: 0, hasMore: false }; },
++  const modules = new Map(Object.entries(hosts).map(([scope, host]) => [scope, { pluginId: scope, descriptor: { id: scope, label: scope, module: "receiver.mjs", receive: "co-hosted" as const, hosts: [scope] }, module: {
++    pull: async () => { await host.onPull?.(); if (host.fail) throw new Error(host.fail); return host.pages?.shift() ?? { items: [], nextAfter: 0, hasMore: false }; },
+     ack: async ({ ids }: { ids: readonly string[] }) => { (acks[scope] ??= []).push(...ids); return { acknowledged: ids.length }; },
+   } }]));
+   let registryLoads = 0;
+@@ -46,9 +61,10 @@ function setup({ hosts }: { hosts: Record<string, { pages?: FormDestinationPage[
+     formDefinitionRepo: { list: async () => [waitlist], findBySlug: async ({ slug }) => (slug === "waitlist" ? waitlist : null) },
+     formSubmissionRepo: { create: async (record) => { rows.push(record); }, transaction: async (work) => work() },
+     receipts: { claim: async () => true },
++    pullLeases: new TestPullLeases(),
+     outbox, bus: new InMemoryEventBus(), clock: { ...clock, nowIso: () => new Date(clock.nowMs()).toISOString() },
+     idGen: { newId: () => `id-${++n}` }, credentials,
+-    loadFormDestinations: async () => { registryLoads += 1; return { resolve: ({ scope }: { scope: string }) => modules.get(scope), get: () => undefined, list: () => [], refusals: [] } as unknown as FormDestinationRegistry; },
++    loadFormDestinations: async () => { registryLoads += 1; return { resolve: ({ scope }: { scope: string }) => modules.get(scope), get: () => undefined, list: () => [], refusals: [] }; },
+     settingsRepo: new InMemorySettingsRepo(),
+   };
+   const save = async (scope: string, url: string) => createCustomCredential(credentials, { workspaceId: W, label: formDestinationKeyLabel({ scope }), category: "hosting", baseUrl: url, connection: { token: "k".repeat(43) } });
+@@ -122,3 +138,67 @@ test("the publish-side port hands the site's active forms, as the generic manife
+   const preview = await composeFormSubmissions(s.deps).destination.previewInput({ workspaceId: W, hostingTargetId: "host-a", projectName: "demo", kit: {} as DeployHostKit });
+   assert.deepEqual(preview.hosting?.forms.map((form) => form.slug), ["waitlist"]);
+ });
++
++/** Real ledger writes ensure effective-setting cache invalidation participates in off/on behavior. */
++async function setAutoPull(required: { deps: FormSubmissionsCompositionDeps; value: boolean }, _options = {}) {
++  const { deps, value } = required;
++  const principals = { findActiveById: async ({ id }: { id: string }) => ({ id }) };
++  await ensureFormDeliverySettings({ deps: { settingsRepo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen, principals }, systemPrincipalId: 'system' });
++  await set({ deps: { repo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen, principals, authorize: async () => ({ allowed: true, reason: 'test' }) },
++    input: { namespace: 'core.forms', key: 'autoPull', scope: 'workspace', workspaceId: W, authWorkspaceId: W, callerPrincipalId: 'owner', value } });
++}
++
++const noNetworkKit = { fetch: async () => { throw new Error('unexpected HTTP'); }, timeouts: {} };
++
++test('autoPull off makes no receiver request; on imports through the existing pull and manual remains available', async () => {
++  const s = setup({ hosts: { 'host-a': { pages: [page(['r1']), page(['r2'])] } } });
++  await s.save('host-a', 'https://a.example');
++  const composed = composeFormSubmissions(s.deps, { kit: noNetworkKit });
++  await setAutoPull({ deps: s.deps, value: false });
++  await composed.autoPull.run({ workspaceId: W });
++  assert.equal(s.registryLoads(), 0); assert.equal(s.rows.length, 0);
++  await composed.pull.pull({ workspaceId: W });
++  assert.equal(s.rows.length, 1, 'manual pull ignores autoPull');
++  await setAutoPull({ deps: s.deps, value: true });
++  await composed.autoPull.run({ workspaceId: W });
++  assert.equal(s.rows.length, 1, 'recent manual pull debounces automatic even after enabling it');
++});
++
++test('default ON imports once, then a second automatic trigger is debounced per receiver', async () => {
++  const s = setup({ hosts: { 'host-a': { pages: [page(['r1'])] }, 'host-b': { pages: [page(['r2'])] } } });
++  await s.save('host-a', 'https://a.example'); await s.save('host-b', 'https://b.example');
++  const composed = composeFormSubmissions(s.deps, { kit: noNetworkKit });
++  await composed.autoPull.run({ workspaceId: W });
++  assert.equal(s.rows.length, 2);
++  await composed.autoPull.run({ workspaceId: W });
++  assert.equal(s.rows.length, 2);
++  assert.equal(s.registryLoads(), 2, 'registry reads are allowed, receiver calls are debounced');
++});
++
++test('a concurrent manual and automatic pull use the same lease and issue one receiver call', async () => {
++  let finish!: () => void; const gate = new Promise<void>(resolve => { finish = resolve; });
++  let enter!: () => void; const entered = new Promise<void>(resolve => { enter = resolve; });
++  let calls = 0;
++  const s = setup({ hosts: { 'host-a': { pages: [page(['r1'])], onPull: async () => { calls++; enter(); await gate; } } } });
++  await s.save('host-a', 'https://a.example');
++  const composed = composeFormSubmissions(s.deps, { kit: noNetworkKit });
++  const manual = composed.pull.pull({ workspaceId: W });
++  await entered;
++  await composed.autoPull.run({ workspaceId: W });
++  const alsoManual = await composed.pull.pull({ workspaceId: W });
++  assert.equal(calls, 1); assert.equal(alsoManual.destinations[0]!.skipReason, 'in-flight-or-recent');
++  finish(); await manual;
++  assert.equal(s.rows.length, 1);
++});
++
++test('enabling autoPull takes effect on the next trigger without recreating the composition', async () => {
++  const s = setup({ hosts: { 'host-a': { pages: [page(['r1'])] } } });
++  await s.save('host-a', 'https://a.example');
++  const composed = composeFormSubmissions(s.deps, { kit: noNetworkKit });
++  await setAutoPull({ deps: s.deps, value: false });
++  await composed.autoPull.run({ workspaceId: W });
++  assert.equal(s.rows.length, 0);
++  await setAutoPull({ deps: s.deps, value: true });
++  await composed.autoPull.run({ workspaceId: W });
++  assert.equal(s.rows.length, 1);
++});
+diff --git a/apps/website/src/server/runtime/composition/app.ts b/apps/website/src/server/runtime/composition/app.ts
+index f0222b791..44d7a281b 100644
+--- a/apps/website/src/server/runtime/composition/app.ts
++++ b/apps/website/src/server/runtime/composition/app.ts
+@@ -207,6 +207,7 @@ import { readAdminChartProviderSnapshot } from "./chart-providers.js";
+ import { RECHARTS_RUNTIME_SOURCE, RECHARTS_BROWSER_APPROVAL } from "./charts-recharts-source.js";
+ import { ensureChartProviderSetting } from "#src/features/settings/chart-provider";
+ import { ensureFormDestinationSetting } from "#src/features/settings/form-destination";
++import { ensureSiteConsentDefinitions } from "#src/features/consent/settings";
+ import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
+ import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
+ import { createDeclaredContentTypePorts } from "#src/features/plugin-runtime/declarative-enable";
+@@ -258,6 +259,7 @@ import { applyTrustProxy } from "../../inbound/shared/trust-proxy.js";
+ import { applySiteServingGate } from "../../inbound/public-http/middleware/site-serving-gate.js";
+ import { applyPublicPageSecurityHeaders } from "../../inbound/public-http/middleware/public-page-security-headers.js";
+ import { applyPublishedWebMcp } from '../../inbound/public-http/middleware/published-webmcp.js';
++import { applySiteConsent } from '../../inbound/public-http/middleware/site-consent.js';
+ import { isPublishedWebMcpEnabled } from '#src/features/webmcp/settings';
+ import { registerAdminStatic } from "../../inbound/admin-http/admin-static.js";
+ import { registerSiteChatStatic } from "../../inbound/public-http/middleware/site-chat-static.js";
+@@ -530,6 +532,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
+     .then(() => ensureAdminInterfaceSettingDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
+     .then(() => ensureChartProviderSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
+     .then(() => ensureFormDestinationSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
++    // Visitor cookie consent's `core.consent.*` definitions; registering them enables nothing.
++    .then(() => ensureSiteConsentDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
+     .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
+     .then(() =>
+       preserveLegacySiteTitles(
+@@ -1762,6 +1766,7 @@ function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
+   startModule(
+     createIntegrationsModule({
+       bus: routeDeps.bus,
++      formDelivery: routeDeps.formDelivery,
+       webhookSubscriptionRepo: routeDeps.webhookSubscriptionRepo,
+       webhookDeliveryRepo: routeDeps.webhookDeliveryRepo,
+       idGen: routeDeps.idGen,
+@@ -1823,6 +1828,10 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
+   // public route runs. See `public-page-security-headers.ts`.
+   applyPublicPageSecurityHeaders(app);
+   applyPublishedWebMcp({ app, readEnabled: () => isPublishedWebMcpEnabled(routeDeps, { workspaceId: routeDeps.workspaceId }) });
++  // Visitor cookie consent (`site-consent.ts`): after WebMCP so its injected script is gated too,
++  // before every public renderer. The region header is trusted only when the operator names it,
++  // and only behind an edge that strips visitor-supplied copies.
++  applySiteConsent({ app, deps: routeDeps }, { trustedRegionHeader: process.env.TOVU_CONSENT_REGION_HEADER?.trim() || undefined });
+ 
+   // Public routes parse JSON at a small limit here; session-gated paths are left unparsed and
+   // parsed by `requireAdminSession` only once the caller has authenticated (15 MB, 75 MB for the
+diff --git a/apps/website/src/server/runtime/composition/deps.ts b/apps/website/src/server/runtime/composition/deps.ts
+index c7586a6c8..ea779a060 100644
+--- a/apps/website/src/server/runtime/composition/deps.ts
++++ b/apps/website/src/server/runtime/composition/deps.ts
+@@ -1,3 +1,6 @@
++import { ensureFormDeliverySettings } from "#src/features/settings/form-delivery";
++import { composeFormDelivery, resolveFormDeliveryCredential } from "./form-delivery.js";
++import { SqlFormDeliveryRepo, SqlFormPullLeaseRepo } from "#src/platform/db/repos/form-delivery-repo";
+ import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
+ import { createSiteShareBackend } from "#src/features/site-backup/share-backend";
+ import { createSiteImportBackend } from "#src/features/site-backup/import-backend";
+@@ -1300,6 +1303,7 @@ async function composeSiteRouteDeps(
+     .then(() => ensureAdminInterfaceSettingDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
+     .then(() => ensureChartProviderSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
+     .then(() => ensureFormDestinationSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
++    .then(() => ensureFormDeliverySettings({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
+     // Visitor cookie consent's `core.consent.*` definitions; registering them enables nothing.
+     .then(() => ensureSiteConsentDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
+     .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
+@@ -2608,12 +2612,22 @@ async function composeSiteRouteDeps(
+   const formSubmissions = composeFormSubmissions({
+     formDefinitionRepo: routeDeps.formDefinitionRepo, formSubmissionRepo: routeDeps.formSubmissionRepo,
+     receipts: new SqlFormSubmissionReceiptRepo(kernel), outbox, bus, clock, idGen,
++    pullLeases: new SqlFormPullLeaseRepo({ kernel }),
+     credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring, clock, idGen },
+     loadFormDestinations: (workspaceId) => loadFormDestinationRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
+     settingsRepo,
+   }, { observability });
+   routeDeps.formDestination = formSubmissions.destination;
+   routeDeps.formSubmissionsPull = formSubmissions.pull;
++  routeDeps.formSubmissionsAutoPull = formSubmissions.autoPull;
++  routeDeps.formDelivery = composeFormDelivery({
++    workspaceId, bus, plans: new SqlFormDeliveryRepo({ kernel }), settingsRepo,
++    formDefinitionRepo: routeDeps.formDefinitionRepo, formSubmissionRepo: routeDeps.formSubmissionRepo,
++    resolveConnection: input => resolveFormDeliveryCredential({ ...input,
++      credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring, clock, idGen } }),
++    loadRegistry: (workspaceId) => loadFormDestinationRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
++    kit: createDeployHostKit({ observability }), clock, idGen,
++  });
+ 
+   siteAppBootWorkByDeps.set(routeDeps, siteAppBootWork);
+   routeDeps.pluginHost = createTovuPluginHost({ deps: routeDeps });
+diff --git a/apps/website/src/server/runtime/composition/form-submissions.ts b/apps/website/src/server/runtime/composition/form-submissions.ts
+index d778f1692..c349ef583 100644
+--- a/apps/website/src/server/runtime/composition/form-submissions.ts
++++ b/apps/website/src/server/runtime/composition/form-submissions.ts
+@@ -1,12 +1,14 @@
++import { withFormPullLease, type FormPullLeasePort } from "@jini-ai/cms/forms";
++import { readFormsAutoPull } from "#src/features/settings/form-delivery";
++import { formDestinationKey } from "#src/features/form-destinations/index";
+ import type { EventBusPort, OutboxPort } from "@jini-ai/cms/core";
+ import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "@jini-ai/cms/forms";
+ import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
+ import { processOutbox } from "#src/contracts/core/events/index";
+ import type { CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
+ import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
+-import type { DeployHostKit } from "#src/features/deployments/deploy-targets/types";
+ import type { StaticPublishFormDestinationPort } from "#src/features/deployments/static-publish/index";
+-import { createFormDestinationPort, listFormDestinations, pullFromFormDestination, type FormDestinationAddress, type FormDestinationRegistry } from "#src/features/form-destinations/index";
++import { createFormDestinationPort, listFormDestinations, pullFromFormDestination, type FormDestinationAddress, type FormDestinationKit, type FormDestinationRegistry } from "#src/features/form-destinations/index";
+ import { readFormDestinationSetting } from "#src/features/settings/form-destination";
+ import type { SettingsRepoPort } from "@jini-ai/core/settings";
+ import { buildFormDestinationManifest, importRemoteFormSubmissions, type FormDestinationPullReport, type FormSubmissionReceiptPort, type FormSubmissionsPullPort, type RemoteImportResult } from "#src/features/forms/index";
+@@ -22,6 +24,7 @@ export interface FormSubmissionsCompositionDeps {
+   readonly formDefinitionRepo: Pick<FormDefinitionRepoPort, "list" | "findBySlug">;
+   readonly formSubmissionRepo: Pick<FormSubmissionRepoPort, "create" | "transaction">;
+   readonly receipts: FormSubmissionReceiptPort;
++  readonly pullLeases: FormPullLeasePort;
+   readonly outbox: OutboxPort;
+   readonly bus: EventBusPort;
+   readonly clock: Clock & { nowIso(): string };
+@@ -35,15 +38,20 @@ export interface FormSubmissionsCompositionDeps {
+ /** @complexity O(1) to build; see each port for its own cost. */
+ export function composeFormSubmissions(
+   required: FormSubmissionsCompositionDeps,
+-  optional: { observability?: ObservabilityPort; kit?: DeployHostKit; warn?: (message: string) => void; logError?: (message: string) => void } = {},
+-): { destination: StaticPublishFormDestinationPort; pull: FormSubmissionsPullPort } {
++  optional: { observability?: ObservabilityPort; kit?: FormDestinationKit; warn?: (message: string) => void; logError?: (message: string) => void } = {},
++): { destination: StaticPublishFormDestinationPort; pull: FormSubmissionsPullPort; autoPull: { run(required: { workspaceId: string }, optional?: Record<string, never>): Promise<void> } } {
+   const destination = createFormDestinationPort({
+     listForms: async ({ workspaceId }) => buildFormDestinationManifest({ definitions: await required.formDefinitionRepo.list({ workspaceId }) }),
+     credentials: required.credentials,
+     loadRegistry: required.loadFormDestinations,
+     readSetting: ({ workspaceId }) => readFormDestinationSetting({ settingsRepo: required.settingsRepo, workspaceId }),
+   });
+-  return { destination, pull: { pull: (input, options = {}) => pullAll({ deps: required, workspaceId: input.workspaceId }, { ...optional, ...options }) } };
++  return { destination, pull: { pull: (input, options = {}) => pullAll({ deps: required, workspaceId: input.workspaceId }, { ...optional, ...options }) },
++    autoPull: { run: async (input, _options = {}) => {
++      if (!await readFormsAutoPull({ settingsRepo: required.settingsRepo, workspaceId: input.workspaceId })) return;
++      await pullAll({ deps: required, workspaceId: input.workspaceId }, { ...optional, trigger: 'automatic' });
++    } },
++  };
+ }
+ 
+ /** Each saved destination in turn; one failing host is reported and the others still run. Delivery
+@@ -51,7 +59,7 @@ export function composeFormSubmissions(
+  * @complexity O(destinations * pull cap). */
+ async function pullAll(
+   required: { deps: FormSubmissionsCompositionDeps; workspaceId: string },
+-  optional: { targetId?: string; observability?: ObservabilityPort; kit?: DeployHostKit; warn?: (message: string) => void; logError?: (message: string) => void },
++  optional: { trigger?: 'automatic'; targetId?: string; observability?: ObservabilityPort; kit?: FormDestinationKit; warn?: (message: string) => void; logError?: (message: string) => void },
+ ): Promise<{ message: string; destinations: FormDestinationPullReport[] }> {
+   const { deps, workspaceId } = required;
+   // `targetId` (the tool's field name, kept for compatibility) is the receiver scope: the hosting
+@@ -62,7 +70,14 @@ async function pullAll(
+   const kit = optional.kit ?? createDeployHostKit({ observability: optional.observability });
+   const destinations: FormDestinationPullReport[] = [];
+   for (const { scope, destination } of saved) {
+-    destinations.push(await pullOne({ deps, workspaceId, scope, destination, module: registry.resolve({ scope })?.module ?? {}, kit }, { logError: optional.logError }));
++    const outcome = await withFormPullLease({ leases: deps.pullLeases, workspaceId,
++      receiverKey: formDestinationKey({ scope, url: destination.url }), token: deps.idGen.newId(), nowIso: deps.clock.nowIso(),
++      trigger: optional.trigger ?? 'manual',
++      pull: () => pullOne({ deps, workspaceId, scope, destination, module: registry.resolve({ scope })?.module ?? {}, kit }, { logError: optional.logError }),
++    });
++    if (outcome.ran) destinations.push(outcome.result);
++    else destinations.push({ targetId: scope, url: new URL(destination.url).origin, pulled: 0, imported: 0, duplicates: 0,
++      acknowledged: 0, hasMore: false, invalid: [], skipped: [], skipReason: 'in-flight-or-recent' });
+   }
+   if (destinations.some((report) => report.imported > 0)) {
+     void processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock }).catch(() => (optional.warn ?? console.warn)("[form-submissions] notification delivery for pulled submissions failed; the outbox retries it"));
+@@ -74,7 +89,7 @@ async function pullAll(
+  * The failure's full cause is logged under a reference the report repeats, so a person can quote it.
+  * @complexity O(pull cap * rows). */
+ async function pullOne(
+-  required: { deps: FormSubmissionsCompositionDeps; workspaceId: string; scope: string; destination: FormDestinationAddress; module: Parameters<typeof pullFromFormDestination>[0]["module"]; kit: DeployHostKit },
++  required: { deps: FormSubmissionsCompositionDeps; workspaceId: string; scope: string; destination: FormDestinationAddress; module: Parameters<typeof pullFromFormDestination>[0]["module"]; kit: FormDestinationKit },
+   optional: { logError?: (message: string) => void } = {},
+ ): Promise<FormDestinationPullReport> {
+   const { deps, workspaceId, scope, destination, module, kit } = required;
+@@ -115,6 +130,7 @@ function sumPages({ pages }: { pages: readonly RemoteImportResult[] }, _optional
+ function pullMessage({ destinations }: { destinations: readonly FormDestinationPullReport[] }, _optional = {}): string {
+   const imported = destinations.reduce((total, report) => total + report.imported, 0);
+   const parts = [`Imported ${imported} new form submission${imported === 1 ? "" : "s"} from ${destinations.length} published site${destinations.length === 1 ? "" : "s"}.`];
++  parts.push(...pullSkipMessage({ destinations }));
+   const invalid = destinations.reduce((total, report) => total + report.invalid.length, 0);
+   if (invalid > 0) parts.push(`${invalid} did not pass the form's checks; they are imported so you can review them in Submissions.`);
+   const skipped = destinations.reduce((total, report) => total + report.skipped.length, 0);
+@@ -123,3 +139,9 @@ function pullMessage({ destinations }: { destinations: readonly FormDestinationP
+   for (const report of destinations) if (report.error) parts.push(`${report.url}: ${report.error}`);
+   return parts.join(" ");
+ }
++
++/** Explain lease skips without treating them as failed imports. */
++function pullSkipMessage(required: { destinations: readonly FormDestinationPullReport[] }, _options = {}): string[] {
++  const count = required.destinations.filter(report => report.skipReason).length;
++  return count ? [`${count} receiver pull${count === 1 ? ' is' : 's are'} already running or ran recently.`] : [];
++}
+diff --git a/apps/website/src/server/runtime/composition/modules/integrations.ts b/apps/website/src/server/runtime/composition/modules/integrations.ts
+index 67c2dd847..3f61b838c 100644
+--- a/apps/website/src/server/runtime/composition/modules/integrations.ts
++++ b/apps/website/src/server/runtime/composition/modules/integrations.ts
+@@ -25,6 +25,7 @@ import type { ServerModuleHandle } from "./types.js";
+  */
+ export interface IntegrationsModuleDeps {
+   bus: EventBusPort;
++  formDelivery?: { start(): void };
+   webhookSubscriptionRepo: WebhookSubscriptionRepoPort;
+   webhookDeliveryRepo: WebhookDeliveryRepoPort;
+   idGen: IdGeneratorPort;
+@@ -36,6 +37,7 @@ export function createIntegrationsModule(deps: IntegrationsModuleDeps): ServerMo
+   return {
+     name: "integrations",
+     start: () => {
++      deps.formDelivery?.start();
+       const formsWebhookEnvelopeStore = new InMemoryDeliveryEnvelopeStore();
+       void deps.bus.subscribe<JsonObject>({
+         eventName: "form.submission.received",
+diff --git a/apps/website/src/server/runtime/composition/serving-app.ts b/apps/website/src/server/runtime/composition/serving-app.ts
+index cb87d9ae4..f08aa4fe3 100644
+--- a/apps/website/src/server/runtime/composition/serving-app.ts
++++ b/apps/website/src/server/runtime/composition/serving-app.ts
+@@ -1,3 +1,4 @@
++import { installServingFormPullTriggers } from "./form-pull-triggers.js";
+ import { createTrashScheduler } from "#src/features/trash/scheduler.node";
+ import { startThemeWatcher } from "#src/features/theme/theme-watcher";
+ import type { Express } from "express";
+@@ -43,9 +44,14 @@ import { createApp } from "./app.js";
+ export function createServingApp(
+   routeDeps: NonNullable<Parameters<typeof createApp>[0]>,
+   optional: { outboxDrainIntervalMs?: number; trashSweepIntervalMs?: number } = {}
+-): { app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; themeWatcher: ReturnType<typeof startThemeWatcher>; bootWork: Promise<void>[] } {
++): { app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; themeWatcher: ReturnType<typeof startThemeWatcher>; formPullTriggers: { stop(): Promise<void> }; bootWork: Promise<void>[] } {
+   const bootWork: Promise<void>[] = [];
+   const app = createApp(routeDeps, { recoverAssistantChatRuns: true, onBootWork: (work) => bootWork.push(work) });
++  // MOVE: serving-only ownership and subscriber ordering are documented in this file's header.
++  const formPullTriggers = installServingFormPullTriggers({ deps: routeDeps, track: work => {
++    bootWork.push(work);
++    void work.finally(() => { const at = bootWork.indexOf(work); if (at >= 0) bootWork.splice(at, 1); });
++  } });
+   const outboxDrainer = startOutboxDrainer(
+     { outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock },
+     { intervalMs: optional.outboxDrainIntervalMs }
+@@ -66,5 +72,5 @@ export function createServingApp(
+     }
+   );
+   const themeWatcher = startThemeWatcher({ themes: routeDeps.themes, themesDir: routeDeps.themesDir });
+-  return { app, outboxDrainer, trashSweeper, themeWatcher, bootWork };
++  return { app, outboxDrainer, trashSweeper, themeWatcher, formPullTriggers, bootWork };
+ }

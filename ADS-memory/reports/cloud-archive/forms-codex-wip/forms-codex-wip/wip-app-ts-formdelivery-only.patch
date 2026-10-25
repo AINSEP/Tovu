@@ -1,0 +1,11 @@
+diff --git a/apps/website/src/server/runtime/composition/app.ts b/apps/website/src/server/runtime/composition/app.ts
+--- a/apps/website/src/server/runtime/composition/app.ts
++++ b/apps/website/src/server/runtime/composition/app.ts
+@@ -1762,6 +1762,7 @@ function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
+   startModule(
+     createIntegrationsModule({
+       bus: routeDeps.bus,
++      formDelivery: routeDeps.formDelivery,
+       webhookSubscriptionRepo: routeDeps.webhookSubscriptionRepo,
+       webhookDeliveryRepo: routeDeps.webhookDeliveryRepo,
+       idGen: routeDeps.idGen,

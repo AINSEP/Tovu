@@ -1,0 +1,14 @@
+apps/site-chat/scripts/measure-bundles.mjs	lines 0/12	branches 0/2	functions 0/3	NEVER-LOADED
+apps/site-chat/src/SiteAssistantActivation.hooks.ts	lines 67/67	branches 24/26	functions 16/16	LOADED
+apps/site-chat/src/SiteAssistantHeader.tsx	lines 18/18	branches 3/4	functions 2/2	LOADED
+apps/site-chat/src/SiteAssistantWidget.tsx	lines 254/267	branches 14/16	functions 10/14	LOADED
+apps/site-chat/src/loader-entry.ts	lines 0/3	branches 0/0	functions 0/0	NEVER-LOADED
+apps/site-chat/src/loader-host.ts	lines 63/64	branches 24/25	functions 6/7	LOADED
+apps/site-chat/src/main.tsx	lines 0/28	branches 0/10	functions 0/3	NEVER-LOADED
+apps/site-chat/src/session-store.ts	lines 275/275	branches 52/55	functions 19/19	LOADED
+apps/site-chat/src/site-assistant-transport.ts	lines 304/304	branches 72/73	functions 22/22	LOADED
+apps/site-chat/src/site-chat-comparison.ts	lines 67/68	branches 34/37	functions 17/18	LOADED
+apps/site-chat/src/site-chat-i18n.ts	lines 0/10	branches 0/12	functions 0/6	NEVER-LOADED
+apps/site-chat/src/site-page-actions.ts	lines 18/18	branches 8/8	functions 3/4	LOADED
+apps/site-chat/src/vanilla-entry.ts	lines 0/6	branches 0/0	functions 0/0	NEVER-LOADED
+apps/site-chat/src/vanilla-host.ts	lines 64/78	branches 11/12	functions 3/16	LOADED

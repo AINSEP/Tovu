@@ -1,0 +1,240 @@
+[automation-engine-vocabulary-firewall] SKIPPED: untracked foundry/automation is absent.
+[residual-js-review] packages/sqlite/src/__tests__/packed-fixture.js — classify before defining the guard allowlist
+[residual-js-review] packages/sandbox/src/__tests__/fixtures/exit-worker.cjs — classify before defining the guard allowlist
+[residual-js-review] packages/sandbox/src/__tests__/fixtures/register-worker.cjs — classify before defining the guard allowlist
+[residual-js-review] packages/sandbox/src/__tests__/fixtures/reply-worker.cjs — classify before defining the guard allowlist
+[residual-js-review] packages/agent-runtime/src/skills/web-clone/scripts/asset-harvest.mjs — classify before defining the guard allowlist
+[residual-js-review] packages/agent-runtime/src/skills/web-clone/scripts/audit-clone.mjs — classify before defining the guard allowlist
+[residual-js-review] packages/agent-runtime/src/skills/web-clone/scripts/compare-recon.mjs — classify before defining the guard allowlist
+[residual-js-review] packages/agent-runtime/src/skills/web-clone/scripts/dna-scaffold.mjs — classify before defining the guard allowlist
+[residual-js-review] packages/agent-runtime/src/skills/web-clone/scripts/init-clone.mjs — classify before defining the guard allowlist
+[residual-js-review] packages/agent-runtime/src/skills/web-clone/scripts/interaction-probe.mjs — classify before defining the guard allowlist
+[residual-js-review] packages/agent-runtime/src/skills/web-clone/scripts/mirror-site.mjs — classify before defining the guard allowlist
+[residual-js-review] packages/agent-runtime/src/skills/web-clone/scripts/network-capture.mjs — classify before defining the guard allowlist
+[residual-js-review] packages/agent-runtime/src/skills/web-clone/scripts/od-preview-rewrite.mjs — classify before defining the guard allowlist
+[residual-js-review] packages/agent-runtime/src/skills/web-clone/scripts/recon-site.mjs — classify before defining the guard allowlist
+[residual-js-review] packages/agent-runtime/src/skills/web-clone/scripts/route-crawl.mjs — classify before defining the guard allowlist
+[residual-js-review] packages/agent-runtime/src/skills/web-clone/scripts/sourcemap-hunt.mjs — classify before defining the guard allowlist
+[residual-js-review] packages/agent-runtime/src/skills/web-clone/scripts/visual-diff.mjs — classify before defining the guard allowlist
+[residual-js-review] packages/agent-runtime/src/skills/web-clone/scripts/lib/playwright-loader.mjs — classify before defining the guard allowlist
+
+  warn no-orphans: packages/ui/src/features/panel-kit/hooks/__tests__/focus-trap.test-helpers.ts
+  warn no-orphans: packages/admin/src/media/styles.ts
+  warn no-circular: packages/user-management/src/react/users/UserRowParts.tsx → 
+      packages/user-management/src/react/users/Users.tsx →
+      packages/user-management/src/react/users/UserRowParts.tsx
+  warn no-circular: packages/user-management/src/core/builtin-permissions.ts → 
+      packages/user-management/src/core/permissions.ts →
+      packages/user-management/src/core/builtin-permissions.ts
+  warn no-circular: packages/ui/src/renderers/annotation-canvas/react/hooks/useAnnotationCanvas.controller.ts → 
+
+      packages/ui/src/renderers/annotation-canvas/react/hooks/useAnnotationCanvas.ts
+      →
+
+      packages/ui/src/renderers/annotation-canvas/react/hooks/useAnnotationCanvas.controller.ts
+  warn no-circular: packages/ui/src/features/tab-strip/react/components/TabBar.hooks.tsx → 
+      packages/ui/src/features/tab-strip/react/components/TabBar.tsx →
+      packages/ui/src/features/tab-strip/react/components/TabBar.hooks.tsx
+  warn no-circular: packages/ui/src/features/skills/react/components/SkillsTab.labels.ts → 
+      packages/ui/src/features/skills/react/components/SkillsTab.tsx →
+      packages/ui/src/features/skills/react/components/SkillsTab.labels.ts
+  warn no-circular: packages/ui/src/features/skills/react/components/SkillRow.labels.ts → 
+      packages/ui/src/features/skills/react/components/SkillRow.tsx →
+      packages/ui/src/features/skills/react/components/SkillRow.labels.ts
+  warn no-circular: packages/ui/src/features/skills/react/components/SkillDraftForm.labels.ts → 
+      packages/ui/src/features/skills/react/components/SkillDraftForm.tsx →
+
+      packages/ui/src/features/skills/react/components/SkillDraftForm.labels.ts
+  warn no-circular: packages/ui/src/features/resource-dashboard/react/components/ResourceRowListView.tsx → 
+
+      packages/ui/src/features/resource-dashboard/react/components/ResourceRowListViewParts.tsx
+      →
+
+      packages/ui/src/features/resource-dashboard/react/components/ResourceRowListView.tsx
+  warn no-circular: packages/ui/src/features/resource-dashboard/react/components/ResourceBoardView.tsx → 
+
+      packages/ui/src/features/resource-dashboard/react/components/ResourceBoardViewParts.tsx
+      →
+
+      packages/ui/src/features/resource-dashboard/react/components/ResourceBoardView.tsx
+  warn no-circular: packages/ui/src/features/panel-kit/helpers/standing-draft-local-backup.ts → 
+
+      packages/ui/src/features/panel-kit/hooks/use-standing-draft-autosave.hooks.ts
+      →
+
+      packages/ui/src/features/panel-kit/helpers/standing-draft-local-backup.ts
+  warn no-circular: packages/ui/src/features/media-providers/react/components/MediaProviderCard.tsx → 
+
+      packages/ui/src/features/media-providers/react/components/media-providers-tab-labels.ts
+      →
+
+      packages/ui/src/features/media-providers/react/components/MediaProvidersTab.tsx
+      →
+
+      packages/ui/src/features/media-providers/react/components/MediaProviderCard.tsx
+  warn no-circular: packages/ui/src/features/media-providers/react/components/media-providers-tab-labels.ts → 
+
+      packages/ui/src/features/media-providers/react/components/MediaProvidersTab.tsx
+      →
+
+      packages/ui/src/features/media-providers/react/components/media-providers-tab-labels.ts
+  warn no-circular: packages/plugins/src/host/contributions.ts → 
+      packages/plugins/src/host/ports.ts →
+      packages/plugins/src/host/contributions.ts
+  warn no-circular: packages/plugins/src/host/__tests__/support/fixture-hooks.ts → 
+      packages/plugins/src/host/__tests__/support/fixture-sdk.ts →
+      packages/plugins/src/host/__tests__/support/fixture-hooks.ts
+  warn no-circular: packages/mcp/src/federation/messages.ts → 
+      packages/mcp/src/federation/trust.ts →
+      packages/mcp/src/federation/messages.ts
+  warn no-circular: packages/mcp/src/federation/approvals/revocation-reason.ts → 
+      packages/mcp/src/federation/approvals/revocation.ts →
+      packages/mcp/src/federation/approvals/revocation-reason.ts
+  warn no-circular: packages/integrations/src/media-providers/task-lifecycle.ts → 
+      packages/integrations/src/media-providers/task-store.ts →
+      packages/integrations/src/media-providers/task-lifecycle.ts
+  warn no-circular: packages/db/src/transfer/copy-engine.ts → 
+      packages/db/src/transfer/plan.ts →
+      packages/db/src/transfer/copy-engine.ts
+  warn no-circular: packages/daemon/src/http/research-tavily.adapter.ts → 
+      packages/daemon/src/http/research.ts →
+      packages/daemon/src/http/research-tavily.adapter.ts
+  warn no-circular: packages/core/src/tool-input-normalization.ts → 
+      packages/core/src/tool-registry.ts →
+      packages/core/src/tool-input-normalization.ts
+  warn no-circular: packages/core/src/settings/agent-value-write-tools.ts → 
+      packages/core/src/settings/tool-registrations.ts →
+      packages/core/src/settings/agent-value-write-tools.ts
+  warn no-circular: packages/cms/src/taxonomy/list.ts → 
+      packages/cms/src/taxonomy/write-service.ts →
+      packages/cms/src/taxonomy/list.ts
+  warn no-circular: packages/cms/src/navigation/menu-service.ts → 
+      packages/cms/src/navigation/repo.memory.ts →
+      packages/cms/src/navigation/menu-service.ts
+  warn no-circular: packages/cms/src/forms/ports.ts → 
+      packages/cms/src/forms/write-service.ts →
+      packages/cms/src/forms/ports.ts
+  warn no-circular: packages/cms/src/forms/field-registry.ts → 
+      packages/cms/src/forms/types.ts →
+      packages/cms/src/forms/field-registry.ts
+  warn no-circular: packages/cms/src/forms/descriptor-rules.ts → 
+      packages/cms/src/forms/forms.ts →
+      packages/cms/src/forms/descriptor-rules.ts
+  warn no-circular: packages/chat/src/react/components/ConversationList.hooks.ts → 
+      packages/chat/src/react/components/ConversationList.tsx →
+      packages/chat/src/react/components/ConversationList.hooks.ts
+  warn no-circular: packages/chat/src/react/components/AttachmentGallery.hooks.ts → 
+      packages/chat/src/react/components/AttachmentGallery.rules.ts →
+      packages/chat/src/react/components/AttachmentPreviewModal.hooks.ts →
+      packages/chat/src/react/components/AttachmentGallery.hooks.ts
+  warn no-circular: packages/chat/src/embed-widget/react/header.hooks.ts → 
+      packages/chat/src/embed-widget/react/header.tsx →
+      packages/chat/src/embed-widget/react/header.hooks.ts
+  warn no-circular: packages/chat/src/core/messages.ts → 
+      packages/chat/src/core/user-text-redaction.ts →
+      packages/chat/src/core/messages.ts
+  warn no-circular: packages/agentic/src/core/dom/model-context.ts → 
+      packages/agentic/src/core/dom/native-model-context.ts →
+      packages/agentic/src/core/dom/model-context.ts
+  warn no-circular: packages/agent-runtime/src/providers/operation-schema.ts → 
+      packages/agent-runtime/src/providers/tool-turn-types.ts →
+      packages/agent-runtime/src/providers/operation-schema.ts
+  warn no-circular: packages/agent-runtime/src/providers/openai-chat.ts → 
+      packages/agent-runtime/src/providers/tool-turn-types.ts →
+      packages/agent-runtime/src/providers/openai-chat.ts
+  warn no-circular: packages/agent-runtime/src/providers/google-schema.ts → 
+      packages/agent-runtime/src/providers/tool-turn-types.ts →
+      packages/agent-runtime/src/providers/operation-schema.ts →
+      packages/agent-runtime/src/providers/google-schema.ts
+  warn no-circular: packages/agent-runtime/src/providers/google-messages.ts → 
+      packages/agent-runtime/src/providers/tool-turn-types.ts →
+      packages/agent-runtime/src/providers/google-messages.ts
+  warn no-circular: packages/agent-runtime/src/providers/google-messages.ts → 
+      packages/agent-runtime/src/providers/openai-chat.ts →
+      packages/agent-runtime/src/providers/tool-turn-types.ts →
+      packages/agent-runtime/src/providers/google-messages.ts
+  warn no-circular: packages/agent-runtime/src/providers/azure-chat.ts → 
+      packages/agent-runtime/src/providers/tool-turn-types.ts →
+      packages/agent-runtime/src/providers/azure-chat.ts
+  warn no-circular: packages/agent-runtime/src/providers/azure-chat.ts → 
+      packages/agent-runtime/src/providers/openai-chat.ts →
+      packages/agent-runtime/src/providers/tool-turn-types.ts →
+      packages/agent-runtime/src/providers/azure-chat.ts
+  warn no-circular: packages/agent-runtime/src/providers/anthropic-messages.ts → 
+      packages/agent-runtime/src/providers/tool-turn-types.ts →
+      packages/agent-runtime/src/providers/anthropic-messages.ts
+  warn no-circular: packages/agent-runtime/src/providers/anthropic-messages.ts → 
+      packages/agent-runtime/src/providers/openai-chat.ts →
+      packages/agent-runtime/src/providers/tool-turn-types.ts →
+      packages/agent-runtime/src/providers/anthropic-messages.ts
+  warn no-circular: packages/agent-runtime/src/model-discovery-types.ts → 
+      packages/agent-runtime/src/types.ts →
+      packages/agent-runtime/src/model-discovery-types.ts
+  warn no-circular: packages/agent-plugins/src/admin-surfaces/protocol.ts → 
+      packages/agent-plugins/src/admin-surfaces/theme.ts →
+      packages/agent-plugins/src/admin-surfaces/protocol.ts
+  warn no-circular: packages/admin/src/seo/models.ts → 
+      packages/admin/src/seo/rules.ts →
+      packages/admin/src/seo/models.ts
+  warn no-circular: packages/admin/src/react/OverlayHost.tsx → 
+      packages/admin/src/react/OverlayHost.hooks.ts →
+      packages/admin/src/react/overlays.ts →
+      packages/admin/src/react/OverlayHost.tsx
+  warn no-circular: packages/admin/src/react/OverlayHost.hooks.ts → 
+      packages/admin/src/react/overlays.ts →
+      packages/admin/src/react/OverlayHost.hooks.ts
+  warn no-circular: packages/admin/src/forms/react/components/FormEditorFieldsBodyParts.tsx → 
+      packages/admin/src/forms/react/hooks/forms-view.hooks.ts →
+      packages/admin/src/forms/react/components/FormEditorFieldsBody.tsx →
+      packages/admin/src/forms/react/components/FormEditorFieldsBodyParts.tsx
+  warn no-circular: packages/admin/src/forms/react/components/FormEditorFieldsBodyParts.tsx → 
+      packages/admin/src/forms/react/components/FormFieldsEditor.tsx →
+      packages/admin/src/forms/react/hooks/forms-view.hooks.ts →
+      packages/admin/src/forms/react/components/FormEditorFieldsBody.tsx →
+      packages/admin/src/forms/react/components/FormEditorFieldsBodyParts.tsx
+  warn no-circular: packages/admin/src/forms/react/components/FormEditorFieldsBody.tsx → 
+      packages/admin/src/forms/react/hooks/forms-view.hooks.ts →
+      packages/admin/src/forms/react/components/FormEditorFieldsBody.tsx
+  warn no-circular: packages/admin/src/forms/react/components/FormEditorFieldsBody.tsx → 
+      packages/admin/src/forms/react/components/FormEditorFieldsBodyParts.tsx →
+
+      packages/admin/src/forms/react/components/FormEditorFieldsBody.tsx
+  warn no-circular: packages/admin/src/forms/react/components/FieldSettingsRows.tsx → 
+      packages/admin/src/forms/react/hooks/forms-view.hooks.ts →
+      packages/admin/src/forms/react/components/FormEditorFieldsBody.tsx →
+      packages/admin/src/forms/react/components/FormEditorFieldsBodyParts.tsx →
+
+      packages/admin/src/forms/react/components/FormFieldsEditor.tsx →
+      packages/admin/src/forms/react/components/FieldAttributesDialog.tsx →
+      packages/admin/src/forms/react/components/FieldSettingsSection.tsx →
+      packages/admin/src/forms/react/components/FieldSettingsRows.tsx
+  warn no-circular: packages/admin/src/forms/react/components/FieldAttributesDialog.tsx → 
+      packages/admin/src/forms/react/hooks/forms-view.hooks.ts →
+      packages/admin/src/forms/react/components/FormEditorFieldsBody.tsx →
+      packages/admin/src/forms/react/components/FormEditorFieldsBodyParts.tsx →
+
+      packages/admin/src/forms/react/components/FormFieldsEditor.tsx →
+      packages/admin/src/forms/react/components/FieldAttributesDialog.tsx
+  warn no-circular: packages/admin/src/forms/react/components/FieldAttributesDialog.tsx → 
+      packages/admin/src/forms/react/components/FieldSettingsSection.tsx →
+      packages/admin/src/forms/react/hooks/forms-view.hooks.ts →
+      packages/admin/src/forms/react/components/FormEditorFieldsBody.tsx →
+      packages/admin/src/forms/react/components/FormEditorFieldsBodyParts.tsx →
+
+      packages/admin/src/forms/react/components/FormFieldsEditor.tsx →
+      packages/admin/src/forms/react/components/FieldAttributesDialog.tsx
+  warn no-circular: packages/admin/src/consent/react/ConsentSettingsPanel.tsx → 
+      packages/admin/src/consent/react/settings-panel.hooks.ts →
+      packages/admin/src/consent/react/ConsentSettingsPanel.tsx
+  warn no-circular: packages/admin/src/comments/react/hooks/CommentsPage.hooks.ts → 
+      packages/admin/src/comments/react/pages/CommentsPage.tsx →
+      packages/admin/src/comments/react/hooks/CommentsPage.hooks.ts
+  warn no-circular: packages/admin/src/comments/react/components/SettingsSection.tsx → 
+      packages/admin/src/comments/react/hooks/SettingsSection.hooks.ts →
+      packages/admin/src/comments/react/components/SettingsSection.tsx
+  warn no-circular: packages/admin/src/comments/react/components/QueueSection.tsx → 
+      packages/admin/src/comments/react/hooks/QueueSection.hooks.ts →
+      packages/admin/src/comments/react/components/QueueSection.tsx
+
+x 58 dependency violations (0 errors, 58 warnings). 5813 modules, 18942 dependencies cruised.
+

@@ -1,0 +1,5 @@
+packages/agent-runtime/src/skills/chat-motion-overlay/assets/remotion-template/src/components/ChatMotionOverlay.tsx	lines 0/8	branches 0/2	functions 0/1	NEVER-LOADED
+packages/agent-runtime/src/skills/chat-motion-overlay/assets/remotion-template/src/components/DeviceFrame.tsx	lines 0/3	branches 0/0	functions 0/1	NEVER-LOADED
+packages/agent-runtime/src/skills/chat-motion-overlay/assets/remotion-template/src/components/avatarLibrary.tsx	lines 0/8	branches 0/4	functions 0/2	NEVER-LOADED
+packages/agent-runtime/src/skills/chat-motion-overlay/assets/remotion-template/src/index.ts	lines 0/3	branches 0/0	functions 0/0	NEVER-LOADED
+packages/agent-runtime/src/skills/web-clone/scripts/asset-harvest.mjs	lines 0/159	branches 0/162	functions 0/25	NEVER-LOADED

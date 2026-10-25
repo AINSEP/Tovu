@@ -1,0 +1,15 @@
+apps/desktop/src/sites-mcp-registration.ts	lines 632/640	branches 68/68	functions 22/23	LOADED
+apps/desktop/src/sites-mcp-tools.ts	lines 363/365	branches 36/38	functions 15/15	LOADED
+apps/desktop/src/smoke-bridge.ts	lines 250/250	branches 84/89	functions 23/23	LOADED
+apps/desktop/src/smoke-packaged-chat.ts	lines 200/200	branches 104/108	functions 25/25	LOADED
+apps/desktop/src/stage-payload-lib.ts	lines 701/703	branches 146/151	functions 43/43	LOADED
+apps/desktop/src/tovu-server.ts	lines 987/990	branches 102/111	functions 40/42	LOADED
+apps/desktop/src/tracked-sites.ts	lines 713/713	branches 124/128	functions 49/49	LOADED
+apps/desktop/src/update-manifest-merge.ts	lines 103/103	branches 33/34	functions 13/13	LOADED
+apps/desktop/src/workspace-chat-ipc.ts	lines 151/204	branches 4/4	functions 3/25	LOADED
+apps/desktop/src/workspace-conversation-store.ts	lines 134/135	branches 28/37	functions 21/26	LOADED
+apps/desktop/src/contracts/sections.ts	lines 285/285	branches 13/13	functions 11/15	LOADED
+apps/desktop/src/contracts/site-name.ts	lines 26/26	branches 11/14	functions 5/6	LOADED
+apps/desktop/src/contracts/site-theme-preview-bridge.ts	lines 22/22	branches 8/8	functions 5/7	LOADED
+apps/desktop/src/contracts/workspace-chat.ts	lines 127/127	branches 6/7	functions 5/7	LOADED
+apps/desktop/src/preload/preload.mts	lines 171/187	branches 11/11	functions 10/57	LOADED

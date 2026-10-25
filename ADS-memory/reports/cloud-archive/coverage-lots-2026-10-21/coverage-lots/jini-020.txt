@@ -1,0 +1,12 @@
+packages/agent-runtime/src/skills/web-clone/scripts/visual-diff.mjs	lines 0/106	branches 0/62	functions 0/10	NEVER-LOADED
+packages/agentic/src/index.ts	lines 0/2	branches 0/1	functions 0/1	LOADED
+packages/agentic/src/core/a2ui/interpreter.ts	lines 222/222	branches 119/120	functions 23/23	LOADED
+packages/agentic/src/core/site-guide/topic-schema.ts	lines 47/48	branches 36/42	functions 11/12	LOADED
+packages/agentic/src/skills/install/install-service.ts	lines 101/101	branches 36/43	functions 13/13	LOADED
+packages/agentic/src/skills/install/live-registration.ts	lines 49/50	branches 22/27	functions 8/8	LOADED
+packages/agentic/src/skills/install/node-filesystem.ts	lines 32/32	branches 13/18	functions 8/8	LOADED
+packages/agentic/src/skills/install/yauzl-archive-reader.ts	lines 21/21	branches 9/10	functions 4/4	LOADED
+packages/analytics/src/repo.memory.ts	lines 24/28	branches 9/9	functions 6/8	LOADED
+packages/analytics/src/salt.ts	lines 9/9	branches 6/7	functions 1/1	LOADED
+packages/artifacts/src/node/stub-guard.ts	lines 111/111	branches 57/58	functions 10/10	LOADED
+packages/capability-providers/src/visitor-auth/lifecycle.ts	lines 280/305	branches 104/126	functions 22/22	LOADED

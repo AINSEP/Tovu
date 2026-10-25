@@ -1,0 +1,12 @@
+apps/website/src/server/runtime/composition/local-credential-copy.ts	lines 205/207	branches 75/84	functions 31/32	LOADED
+apps/website/src/server/runtime/composition/media-video-ports.ts	lines 20/21	branches 3/3	functions 2/3	LOADED
+apps/website/src/server/runtime/composition/modules/assistant-ag-ui.ts	lines 775/783	branches 150/161	functions 50/52	LOADED
+apps/website/src/server/runtime/composition/modules/assistant-byok.ts	lines 621/633	branches 102/116	functions 33/36	LOADED
+apps/website/src/server/runtime/composition/modules/assistant-chats.ts	lines 239/250	branches 60/67	functions 24/25	LOADED
+apps/website/src/server/runtime/composition/modules/assistant-daemon-client.ts	lines 397/397	branches 61/66	functions 24/25	LOADED
+apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts	lines 611/627	branches 172/191	functions 54/62	LOADED
+apps/website/src/server/runtime/composition/modules/assistant.ts	lines 637/659	branches 97/126	functions 39/45	LOADED
+apps/website/src/server/runtime/composition/modules/external-mcp.ts	lines 76/76	branches 4/6	functions 3/3	LOADED
+apps/website/src/server/runtime/composition/modules/forms.ts	lines 49/49	branches 5/5	functions 4/5	LOADED
+apps/website/src/server/runtime/composition/modules/site-assistant.ts	lines 710/726	branches 73/92	functions 29/30	LOADED
+apps/website/src/server/runtime/composition/move-site-storage.ts	lines 112/130	branches 10/14	functions 5/5	LOADED

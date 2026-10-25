@@ -1,0 +1,9 @@
+packages/agent-runtime/src/defs/kiro.ts	lines 22/22	branches 5/5	functions 2/3	LOADED
+packages/agent-runtime/src/defs/mimo.ts	lines 20/20	branches 3/3	functions 1/2	LOADED
+packages/agent-runtime/src/defs/qwen.ts	lines 25/25	branches 4/4	functions 1/2	LOADED
+packages/agent-runtime/src/defs/reasonix.ts	lines 43/43	branches 11/11	functions 3/4	LOADED
+packages/agent-runtime/src/defs/trae-cli.ts	lines 25/25	branches 7/7	functions 2/3	LOADED
+packages/agent-runtime/src/defs/vibe.ts	lines 22/22	branches 5/5	functions 2/3	LOADED
+packages/agent-runtime/src/providers/azure-chat.ts	lines 167/171	branches 91/94	functions 15/15	LOADED
+packages/agent-runtime/src/providers/connection-guard.ts	lines 127/130	branches 59/65	functions 7/8	LOADED
+packages/agent-runtime/src/providers/connection-test.ts	lines 0/149	branches 0/132	functions 0/28	NEVER-LOADED

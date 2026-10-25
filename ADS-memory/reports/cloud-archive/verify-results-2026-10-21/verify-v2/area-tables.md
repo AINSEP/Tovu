@@ -1,0 +1,28 @@
+## jini area table (top 20 by uncovered lines): area | files | never-loaded | uncovered lines | line% | branch% | fn%
+- packages/chat | 192 | 138 | 6804 | 35.43 | 33.51 | 18.12
+- packages/plugins | 41 | 41 | 1746 | 0 | 0 | 0
+- packages/agent-runtime | 145 | 24 | 1734 | 87.92 | 81.57 | 78.81
+- packages/commerce | 24 | 1 | 1706 | 8.96 | 45.45 | 45.45
+- packages/devops | 41 | 33 | 1517 | 15.25 | 9.92 | 6.07
+- packages/cms | 254 | 3 | 1188 | 93 | 96.73 | 94.55
+- packages/db | 81 | 7 | 716 | 80.57 | 88.97 | 84.39
+- packages/admin | 337 | 2 | 555 | 95.97 | 96.2 | 93.8
+- packages/ui | 654 | 2 | 394 | 99.1 | 98.39 | 97.18
+- packages/artifacts | 10 | 10 | 390 | 0 | 0 | 0
+- packages/agent-plugins | 61 | 6 | 351 | 92.35 | 93.74 | 84.87
+- packages/core | 91 | 3 | 276 | 94.64 | 94.1 | 92.86
+- packages/daemon | 101 | 2 | 214 | 97.95 | 98.56 | 97.72
+- packages/oauth | 38 | 6 | 156 | 92 | 91.54 | 82.51
+- packages/user-management | 94 | 2 | 153 | 97.37 | 95.33 | 96.54
+- packages/platform | 72 | 1 | 58 | 99.14 | 98.97 | 97.76
+- packages/ui-kit | 26 | 1 | 40 | 95.32 | 96.75 | 96.3
+- packages/charts-recharts | 12 | 2 | 38 | 85.71 | 88.24 | 81.25
+- packages/capability-providers | 19 | 1 | 33 | 97.07 | 94.19 | 100
+- packages/diagnostics | 33 | 2 | 24 | 99 | 97.94 | 98.36
+## tovu area table (top 20 by uncovered lines): area | files | never-loaded | uncovered lines | line% | branch% | fn%
+- apps/desktop | 155 | 18 | 5803 | 79.48 | 60.35 | 49.94
+- apps/website | 1657 | 13 | 1811 | 99.25 | 94.75 | 93.91
+- apps/admin | 727 | 2 | 281 | 98.35 | 95.8 | 97.26
+- apps/site-chat | 24 | 8 | 196 | 87.9 | 72.62 | 64.52
+- content | 87 | 3 | 123 | 98.74 | 94.74 | 95.57
+- packages/sdk | 2 | 0 | 3 | 99 | 86.67 | 100

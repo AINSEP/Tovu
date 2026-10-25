@@ -1,0 +1,5 @@
+packages/chat/src/react/hooks/useSurfaceExpiry.ts	lines 0/13	branches 0/4	functions 0/7	NEVER-LOADED
+packages/chat/src/react/hooks/useToolTimeline.ts	lines 0/21	branches 0/10	functions 0/12	NEVER-LOADED
+packages/chat/src/react/hooks/useUserTextGuard.ts	lines 0/13	branches 0/4	functions 0/4	NEVER-LOADED
+packages/chat/src/react/index.ts	lines 0/50	branches 0/0	functions 0/0	NEVER-LOADED
+packages/chat/src/react/message-blocks.ts	lines 0/55	branches 0/46	functions 0/12	NEVER-LOADED

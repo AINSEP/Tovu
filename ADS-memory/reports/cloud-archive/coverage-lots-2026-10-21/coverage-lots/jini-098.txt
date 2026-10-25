@@ -1,0 +1,10 @@
+packages/user-management/src/server/agent-tool-registrations.ts	lines 296/301	branches 62/69	functions 31/31	LOADED
+packages/user-management/src/server/authorize.ts	lines 69/71	branches 36/38	functions 3/3	LOADED
+packages/user-management/src/server/grant-service.ts	lines 274/280	branches 71/77	functions 14/14	LOADED
+packages/user-management/src/server/repo.memory-transactions.ts	lines 60/62	branches 22/25	functions 6/6	LOADED
+packages/user-management/src/server/repo.memory.ts	lines 174/174	branches 82/84	functions 48/48	LOADED
+packages/vibecoding/src/core/history.ts	lines 103/103	branches 43/43	functions 12/16	LOADED
+packages/vibecoding/src/html/regions.ts	lines 121/122	branches 50/53	functions 10/10	LOADED
+packages/vibecoding/src/react/components/DocumentPreview.tsx	lines 17/17	branches 1/2	functions 0/0	LOADED
+packages/vibecoding/src/react/components/VibecodingWorkbench.tsx	lines 86/86	branches 18/19	functions 0/0	LOADED
+packages/vibecoding/src/react/session.ts	lines 123/123	branches 37/39	functions 12/12	LOADED

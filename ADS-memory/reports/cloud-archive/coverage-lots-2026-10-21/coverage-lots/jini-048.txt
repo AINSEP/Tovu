@@ -1,0 +1,2 @@
+packages/chat/src/react/features/chat-pane/styles.ts	lines 0/1	branches 0/0	functions 0/0	NEVER-LOADED
+packages/chat/src/react/hooks/assistant-chats.ts	lines 0/230	branches 0/126	functions 0/73	NEVER-LOADED

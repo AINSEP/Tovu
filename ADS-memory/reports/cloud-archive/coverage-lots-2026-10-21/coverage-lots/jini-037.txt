@@ -1,0 +1,2 @@
+packages/chat/src/react/components/ToolCallGroup.tsx	lines 0/5	branches 0/8	functions 0/1	NEVER-LOADED
+packages/chat/src/react/components/ToolCard.tsx	lines 0/164	branches 0/196	functions 0/45	NEVER-LOADED

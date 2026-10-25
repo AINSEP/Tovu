@@ -1,0 +1,5 @@
+packages/chat/src/react/components/AttachmentPreviewModal.tsx	lines 0/22	branches 0/20	functions 0/5	NEVER-LOADED
+packages/chat/src/react/components/AttachmentTray.tsx	lines 0/19	branches 0/16	functions 0/5	NEVER-LOADED
+packages/chat/src/react/components/ChatFab.tsx	lines 0/7	branches 0/14	functions 0/2	NEVER-LOADED
+packages/chat/src/react/components/ChatSettingsDialog.hooks.ts	lines 0/13	branches 0/16	functions 0/12	NEVER-LOADED
+packages/chat/src/react/components/ChatSettingsDialog.tsx	lines 0/32	branches 0/64	functions 0/15	NEVER-LOADED

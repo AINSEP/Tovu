@@ -1,0 +1,51 @@
+wave,file,lines%,branches%,functions%,uncovered,status
+J1,packages/admin/src/media/styles.ts,,,,,NEVER-LOADED
+J1,packages/agent-plugins/ui-ux-design/skills/shadcn-ui/examples/auth-layout.tsx,0,0,0,"1 20 21 23 24 25 28 29 30 31 33 34 35 36 37 38 39 41 42 43 44 45 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 75 76 77 78 79 80 81 83 84 85 86 87 89 90 91 92 93 95 96 97 98 99 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 120 121 122 123 124 125 126 127 128 129 130 131 132 133 134 135 136 137 139 140 141 142 143 144 145 146 148 b1 f1",BELOW
+J1,packages/agent-plugins/ui-ux-design/skills/shadcn-ui/examples/data-table.tsx,0,0,0,"1 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 75 76 77 78 79 80 81 82 83 85 86 88 89 90 91 92 93 94 95 96 97 98 100 101 103 104 105 106 107 108 109 110 112 113 114 115 116 117 119 120 121 122 123 124 126 127 128 129 130 131 132 133 134 135 136 137 138 140 141 142 143 144 145 147 148 149 151 152 153 154 155 157 158 159 160 161 162 163 164 165 166 167 168 169 170 171 172 173 174 176 177 178 179 180 181 182 183 185 186 187 188 189 190 191 192 193 194 195 196 197 198 199 200 201 202 203 204 207 208 210 211 212 213 214 215 216 217 218 219 220 221 222 223 224 225 226 227 228 230 231 232 233 234 235 236 237 238 239 241 242 243 244 245 246 247 248 249 250 252 253 254 255 256 258 259 261 262 263 264 265 266 267 268 269 270 271 272 273 274 275 277 278 279 280 281 282 283 285 286 287 288 290 b1 f1",BELOW
+J1,packages/agent-plugins/ui-ux-design/skills/shadcn-ui/examples/form-pattern.tsx,0,0,0,"1 31 32 33 34 35 36 37 38 39 40 41 42 43 44 48 50 51 52 53 54 55 56 57 60 62 64 65 66 67 68 70 71 72 73 74 75 76 77 78 79 80 81 82 84 85 86 88 90 91 92 93 94 95 96 97 98 99 100 102 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 120 121 122 124 125 126 128 130 131 132 133 134 135 136 137 138 139 140 141 142 143 145 146 147 149 151 152 153 155 b1 f1",BELOW
+J1,packages/agent-runtime/src/skills/chat-motion-overlay/assets/remotion-template/src/Root.tsx,0,0,0,"1 5 6 7 8 9 10 11 12 13 14 15 17 b1 f1",BELOW
+J1,packages/agent-runtime/src/skills/chat-motion-overlay/assets/remotion-template/src/chatSpec.ts,0,0,0,"1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 b1 f1",BELOW
+J1,packages/agent-runtime/src/skills/chat-motion-overlay/assets/remotion-template/src/components/ChatMotionOverlay.tsx,0,0,0,"1 7 8 9 10 11 12 13 14 15 16 18 19 21 b1 f1",BELOW
+J1,packages/agent-runtime/src/skills/chat-motion-overlay/assets/remotion-template/src/components/DeviceFrame.tsx,0,0,0,"1 3 4 5 6 7 8 9 10 11 12 13 14 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 38 39 40 42 b1 f1",BELOW
+J1,packages/agent-runtime/src/skills/chat-motion-overlay/assets/remotion-template/src/components/avatarLibrary.tsx,100,50,100,"b15 b16",BELOW
+J1,packages/agent-runtime/src/skills/chat-motion-overlay/assets/remotion-template/src/index.ts,0,0,0,"1 2 4 b1 f1",BELOW
+J1,packages/charts-recharts/scripts/build-artifact.mjs,0,0,0,"1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 b1 f1",BELOW
+J2,packages/chat/src/react/features/chat-pane/rules.ts,100,99.2,100,"b283",BELOW
+J2,packages/chat/src/react/hooks/assistant-chats.ts,100,99.47,100,"b862",BELOW
+J2,packages/cms/src/consent/html/gate.ts,100,99.33,100,"b230",BELOW
+J3,packages/core/src/args-convention.typecheck.ts,0,0,0,"1 2 6 8 10 12 14 16 18 20 22 24 26 27 28 29 31 32 38 43 45 47 49 50 52 54 56 58 60 62 64 66 68 69 71 72 74 76 77 78 80 81 82 b1 f1",BELOW
+J3,packages/core/src/compose.typecheck.ts,0,0,0,"1 9 10 11 12 18 20 21 22 23 24 27 28 29 30 33 34 35 36 b1 f1",BELOW
+J3,packages/core/src/fetch/cache.ts,100,99.15,100,"b138",BELOW
+J3,packages/daemon/src/http/xai.ts,100,99.45,100,"b300",BELOW
+J3,packages/oauth/src/oidc.ts,100,96.67,100,"b64",BELOW
+J3,packages/oauth/tests/args-convention.types.ts,0,0,0,"1 33 34 35 36 38 40 42 44 46 48 50 52 53 b1 f1",BELOW
+J3,packages/oauth/tests/dispatcher-stub.ts,100,100,66.67,"f5",BELOW
+J3,packages/oauth/tests/fixtures.ts,100,100,60,"f8 f23",BELOW
+J3,packages/oauth/tests/helpers.ts,99.48,92.68,100,"96 b95 b165 b150 b151 b281",BELOW
+J3,packages/oauth/tests/integration-contract.types.ts,0,0,0,"1 23 27 28 30 32 33 34 36 38 40 42 43 b1 f1",BELOW
+J3,packages/platform/src/net/address.ts,100,92.86,100,"b27",BELOW
+J3,packages/server/src/create-local-node-daemon.typecheck.ts,0,0,0,"1 12 13 19 21 22 23 24 25 29 30 31 32 33 38 39 40 41 42 43 46 47 48 49 50 51 55 56 57 58 59 60 b1 f1",BELOW
+J3,packages/ui-kit/scripts/headless-smoke.mjs,0,0,0,"1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 b1 f1",BELOW
+J3,packages/ui/scripts/generate-agent-icon-data-uris.mjs,0,0,0,"1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 b1 f1",BELOW
+J3,packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx,100,97.7,100,"b212 b219",BELOW
+J3,packages/ui/src/react/mcp-ui/host-message-source.ts,100,75,100,"b27",BELOW
+J3,packages/ui/src/utils/smooth-scroll-to-top.ts,100,96.55,100,"b43",BELOW
+J3,packages/user-management/src/server/agent-tool-registrations.ts,98.67,97.22,100,"211 212 213 214 b164 b210",BELOW
+T1,apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx,100,98.91,100,"b1160 b1203 b1210",BELOW
+T1,apps/admin/src/features/plugins/hooks/use-agent-plugins.hooks.ts,100,93.75,100,"b147",BELOW
+T1,apps/admin/src/features/plugins/hooks/use-package-file-tree.hooks.ts,100,96.77,100,"b81",BELOW
+T1,apps/admin/src/features/publish-content/hooks/use-publish-content-confirm.hooks.ts,100,99.02,100,"b727 b981 b1302",BELOW
+T1,apps/admin/src/features/settings/AdminAppearance.tsx,100,95.83,100,"b39",BELOW
+T1,apps/admin/src/features/settings/ExternalMcpSettingsPanel.tsx,100,100,91.67,"f168 f223",BELOW
+T1,apps/admin/src/features/themes/ThemeExplore.tsx,100,99.14,100,"b998",BELOW
+T1,apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts,100,100,99.21,"f902",BELOW
+T1,apps/admin/src/features/users/UsersPanel.tsx,100,100,85.71,"f33",BELOW
+T1,apps/admin/src/lib/page-lifecycle.ts,100,50,100,"b18",BELOW
+T1,apps/desktop/main.ts,,,,,NEVER-LOADED
+T1,apps/desktop/scripts/verify-find-in-page.ts,,,,,NEVER-LOADED
+T1,apps/desktop/scripts/verify-site-power.ts,,,,,NEVER-LOADED
+T1,apps/desktop/src/desktop-agent.ts,100,99.15,98,"b314 f380",BELOW
+T1,apps/desktop/src/shared-sites.ts,100,98.75,95,"b56 f64",BELOW
+T1,apps/desktop/src/site-process-registry.ts,99.2,95.61,100,"506 507 566 567 568 b313 b502 b505 b564 b565",BELOW
+T1,apps/desktop/src/renderer/App.hooks.ts,100,99.42,100,"b358 b363",BELOW
+T1,apps/desktop/src/renderer/App.tsx,96.32,100,97.14,"537 538 539 540 541 542 543 544 545 546 547 548 549 550 551 552 553 554 555 556 557 558 559 560 561 562 563 564 565 566 567 568 569 570 571 572 573 574 575 576 577 578 579 580 581 582 583 584 585 586 587 588 589 590 f536",BELOW

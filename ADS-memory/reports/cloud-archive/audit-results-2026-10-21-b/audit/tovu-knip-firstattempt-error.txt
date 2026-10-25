@@ -1,0 +1,4 @@
+ERROR: Error loading /home/user/Tovu/apps/site-chat/vite.config.ts
+Reason: Cannot find module '@vitejs/plugin-react'
+Require stack:
+- /home/user/Tovu/apps/site-chat/vite.config.ts

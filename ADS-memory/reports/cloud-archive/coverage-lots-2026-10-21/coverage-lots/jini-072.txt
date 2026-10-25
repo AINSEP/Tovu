@@ -1,0 +1,8 @@
+packages/core/src/args-convention.typecheck.ts	lines 0/43	branches 0/1	functions 0/1	LOADED
+packages/core/src/batch-tool-inputs.ts	lines 105/140	branches 40/54	functions 10/13	LOADED
+packages/core/src/compose.typecheck.ts	lines 0/8	branches 0/0	functions 0/2	NEVER-LOADED
+packages/core/src/model-facing-tool-errors.ts	lines 56/67	branches 23/23	functions 6/8	LOADED
+packages/core/src/target-scope.ts	lines 45/53	branches 39/39	functions 4/5	LOADED
+packages/core/src/tool-registry.ts	lines 84/91	branches 43/48	functions 12/13	LOADED
+packages/core/src/fetch/cache.ts	lines 176/182	branches 95/101	functions 26/29	LOADED
+packages/core/src/primitives/sse.ts	lines 1/76	branches 0/0	functions 0/4	LOADED

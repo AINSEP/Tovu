@@ -1,0 +1,4 @@
+packages/chat/src/react/components/attachment-size.ts	lines 0/11	branches 0/10	functions 0/1	NEVER-LOADED
+packages/chat/src/react/components/composer-discovery.ts	lines 0/52	branches 0/50	functions 0/13	NEVER-LOADED
+packages/chat/src/react/components/mcp-ui-surface-state.ts	lines 0/19	branches 0/20	functions 0/5	NEVER-LOADED
+packages/chat/src/react/ext-event-renderer-registry.ts	lines 0/30	branches 0/8	functions 0/10	NEVER-LOADED

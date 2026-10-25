@@ -1,0 +1,4 @@
+packages/chat/src/react/hooks/last-conversation-store.ts	lines 0/33	branches 0/18	functions 0/8	NEVER-LOADED
+packages/chat/src/react/hooks/testing/fake-transport.ts	lines 0/22	branches 0/6	functions 0/11	NEVER-LOADED
+packages/chat/src/react/hooks/useAnsweredCards.ts	lines 0/22	branches 0/14	functions 0/9	NEVER-LOADED
+packages/chat/src/react/hooks/useArtifactStream.ts	lines 0/20	branches 0/12	functions 0/4	NEVER-LOADED

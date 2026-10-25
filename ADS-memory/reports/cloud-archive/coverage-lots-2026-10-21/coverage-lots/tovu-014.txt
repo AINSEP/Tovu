@@ -1,0 +1,9 @@
+apps/desktop/src/admin-dev-proxy.ts	lines 154/157	branches 20/22	functions 6/7	LOADED
+apps/desktop/src/agent-plugin-tokens.ts	lines 171/171	branches 48/52	functions 17/17	LOADED
+apps/desktop/src/asar-verify.ts	lines 126/126	branches 12/12	functions 9/10	LOADED
+apps/desktop/src/auto-update-controller.ts	lines 49/49	branches 6/8	functions 5/5	LOADED
+apps/desktop/src/complexity-debt.ts	lines 176/176	branches 29/30	functions 6/6	LOADED
+apps/desktop/src/desktop-agent-inventory.ts	lines 62/62	branches 17/19	functions 10/12	LOADED
+apps/desktop/src/desktop-agent-tools.ts	lines 112/187	branches 1/1	functions 0/8	LOADED
+apps/desktop/src/desktop-agent.ts	lines 359/400	branches 35/46	functions 19/41	LOADED
+apps/desktop/src/desktop-capture.ts	lines 64/77	branches 13/14	functions 9/29	LOADED
