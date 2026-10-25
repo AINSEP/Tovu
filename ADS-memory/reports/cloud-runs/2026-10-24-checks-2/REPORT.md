@@ -97,3 +97,16 @@ Open items for the owner (LISTED, not fixed):
   not known whether the write committed.
 - `delete.expectedRevision` is cast to number without a check in IPC. The CLI validates it, so this is fine.
 - Fix the 2 pre-existing desktop test failures above; they block every desktop push via the hook.
+
+## 2026-10-25T05:40Z — PROGRESS — Item 3 guard-2: baseline measured on Codex's f3107709
+
+Jini `/root/Jini` @ f3107709 (over f4f01f4f): `pnpm install --frozen-lockfile` OK and `pnpm -r build` exit 0.
+`pnpm guard` exit 0, zero violations. Rule tables are unchanged apart from `search: 5`. That placement is
+correct: search imports `@jini-ai/core` (L0) and `@jini-ai/agent-plugins/lifecycle` (L4, contribution.ts:25),
+and no package imports search. tsc --noEmit passes (0 errors) for core, platform, db, agent-runtime, daemon,
+integrations, server, vibecoding, and server tsconfig.tests.json.
+Vitest (`--maxWorkers=2 --minWorkers=1`; vitest 2.1.9 throws a RangeError without `--minWorkers`): 637/637 —
+platform 123, agent-runtime 20, daemon 32, integrations 313, server owner-store 23, vibecoding 60, scripts layers 66.
+COMPAT PROBLEM: `@jini-ai/db/owner-store` no longer exports openOwnerStore/OwnerStoreService/backup, which
+Tovu's owner-store CLI imports (apps/website/src/cli/commands/owner-store.ts:7-8). Tovu also has no
+`@jini-ai/server` dependency at all.
