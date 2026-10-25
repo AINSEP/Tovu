@@ -30,6 +30,9 @@ Owner: "when I don't have anything off the top of my head to do for Claude, I wa
 Ideas to offer the owner (not approved yet): landing-page hero animations and screenshots, one short tutorial clip per agent plugin, social-post cutdowns (vertical 9:16) of each video.
 Every cloud run here still follows the iron rule: the owner approves a cost estimate and hard caps first.
 
+## Assistant prompt tests: MORE prompts + two suites (owner 2026-10-25)
+Grow `development/assistant-prompts/capability-prompts.md` beyond the 40-prompt subset. Two suites: **non-Bash** (main — the online assistant has no Bash, so every job must work through Tovu tools with no gaps) and a small **Bash** suite. Always run through the real admin assistant chat on localhost (fake-test-site) in Claude in Chrome — never the headless probe script. Fix the doc's "How to run" section to say so.
+
 ## MEDIUM, NOT NOW (owner 2026-10-25): Renovate for dependency updates — set up, turn on when we ramp up
 Owner picked Renovate (free, best-rated for monorepo grouping/scheduling) over Dependabot updates. Don't enable yet. When we turn it on: group updates (one batch per week, `@jini-ai/*` separate), no auto-merge, and respect the no-PR-spam rule (owner dislikes PR floods — batch hard). Pair with OSV-Scanner in CI (report-only, no PRs) and Dependabot *alerts* (no update PRs). Gitleaks already added for Tovu (b07d968c8, 10-25).
 
