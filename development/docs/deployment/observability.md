@@ -1,15 +1,25 @@
 # Observability: sending Tovu traces to Datadog or Grafana
 
-Tovu exports OpenTelemetry traces over OTLP/HTTP. It is **off by default** and costs nothing while
-off: no SDK is loaded, the DB kernel and HTTP clients are not wrapped. Setting an OTLP endpoint turns
-it on. There is no vendor-specific code; configuration is the standard `OTEL_*` variables.
+Tovu exports OpenTelemetry traces over OTLP/HTTP through the **`observability-opentelemetry`
+provider plugin** (from `@jini-ai/provider-plugins`). It is **off by default** and costs nothing
+while off: Tovu core contains no OTel SDK, and the DB kernel and HTTP clients are not wrapped. Since
+2026-10-25 the `OTEL_*` environment variables no longer turn it on.
 
-| Variable | Meaning |
-| --- | --- |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | Collector base URL. `/v1/traces` is appended. |
-| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | Full traces URL, used as is. Wins over the base. |
-| `OTEL_EXPORTER_OTLP_HEADERS` | `key=value,...` sent with every export (auth). URL-encode spaces as `%20`. |
-| `OTEL_SERVICE_NAME` | Service name on every span. Default `tovu`. |
+To turn it on (all three are required; checked at boot, before the site serves requests):
+
+1. **Install** the plugin folder (`plugins/observability-opentelemetry/<version>/` from the
+   `@jini-ai/provider-plugins` package) through the admin Plugins screen.
+2. **Enable** it.
+3. **Configure** its key card: save an API credential labelled exactly
+   `plugin:observability-opentelemetry` with
+   - Base URL: the collector's OTLP/HTTP endpoint (`/v1/traces` is appended);
+   - Token: the collector's credential; with a Username it is sent as HTTP Basic
+     (`username:token`), otherwise as `Authorization: Bearer <token>`.
+
+Restart the site after enabling (a provider plugin initializes once, at boot); disabling it stops
+export at once. The service name on every span is `tovu`. A Sentry error tracker
+(`observability-sentry`, card `plugin:observability-sentry`, Token = the DSN) can run alongside;
+both receive every signal.
 
 ## What is traced
 
@@ -19,6 +29,8 @@ it on. There is no vendor-specific code; configuration is the standard `OTEL_*` 
 | DB query (kernel `run`/`transaction`/`query`/`execute`) | client | `SELECT posts`, `TRANSACTION` | `db.system.name`, `db.operation.name`, `db.collection.name` |
 | Outbound HTTP (guarded clients: mail APIs, custom credentials, media import, publish peers, deploy ops) | client | `POST api.example.com` | `http.request.method`, `server.address`, `server.port`, `url.scheme`, `http.response.status_code` |
 | Admin-chat agent run (API-side finalizer) | internal, own trace | `invoke_agent` | `agent.run.id`, `agent.run.status`, `gen_ai.conversation.id` |
+| Static publish run | internal | `site.publish` | `publish.target`, `operation.outcome` (`published` or the failure code) |
+| Background outbox delivery | internal | `outbox.deliver` | `event.name`, `operation.outcome` |
 
 DB and outbound spans made while serving a request are children of that request's span. Errors set
 span status ERROR, `error.type`, and an `exception` event (type only). Outbound 4xx/5xx and
@@ -32,23 +44,14 @@ are kept.
 ## Datadog
 
 Enable OTLP ingest on the Datadog Agent (`DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT=0.0.0.0:4318`),
-then point Tovu at the Agent:
-
-```
-OTEL_EXPORTER_OTLP_ENDPOINT=http://datadog-agent:4318
-OTEL_SERVICE_NAME=tovu
-```
+then set the plugin card's Base URL to the Agent: `http://datadog-agent:4318`.
 
 ## Grafana
 
-Through Alloy or a Tempo OTLP receiver: `OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4318`.
+Through Alloy or a Tempo OTLP receiver: Base URL `http://alloy:4318`.
 
-Grafana Cloud (OTLP gateway, from the stack's "OpenTelemetry" tile):
-
-```
-OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp-gateway-<zone>.grafana.net/otlp
-OTEL_EXPORTER_OTLP_HEADERS=Authorization=Basic%20<base64 instanceId:token>
-```
+Grafana Cloud (OTLP gateway, from the stack's "OpenTelemetry" tile): Base URL
+`https://otlp-gateway-<zone>.grafana.net/otlp`, Username = the instance id, Token = the access token.
 
 ## Not covered yet
 

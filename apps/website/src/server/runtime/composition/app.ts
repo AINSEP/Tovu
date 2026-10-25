@@ -1401,10 +1401,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     }),
     outbox,
     bus,
-    // Always the no-op adapter here, never the env-driven `createObservabilityPort()` — this root
-    // is documented "hermetic, no filesystem" (file header above), and a stray
-    // `OTEL_EXPORTER_OTLP_ENDPOINT` left in a developer's shell must never make a test try to reach
-    // a real collector. See `routes/types.ts`'s `ObservabilityDeps` doc for the full rule-of-two.
+    // Always the no-op adapter here, never provider-plugin selection (`provider-plugins.ts`) — this
+    // root is documented "hermetic, no filesystem" (file header above), and nothing configured on a
+    // developer's machine must ever make a test try to reach a real collector. See `routes/types.ts`'s
+    // `ObservabilityDeps` doc for the full rule-of-two.
     observability: createNoopObservabilityPort({}),
     clock,
     idGen,
