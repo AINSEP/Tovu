@@ -1,0 +1,124 @@
+[hardwiring] HW1-env-default: 18 total; 1 new
+[hardwiring] HW2-vendor-adapter: 21 total; 3 new
+[hardwiring] HW3-module-state: 176 total; 40 new
+[hardwiring] HW4-injected-fetch: 2 total; 0 new
+[hardwiring] HW5-jini-export: 0 total; 0 new
+[hardwiring] HW6-boot-default: 0 total; 0 new
+[hardwiring] HW7-public-react: 0 total; 0 new
+[hardwiring] HW8-provider-url: 50 total; 1 new
+[hardwiring] HW9-plugin-import: 0 total; 0 new
+[hardwiring] 25 stale debt occurrences; remove them from scripts/hardwiring-debt.json.
+[guard] R13-model-fallback-freshness claude: MF3 compared 16 live id(s) against 20 fallback entr(ies).
+[guard] R13-model-fallback-freshness codex: MF3 compared 7 live id(s) against 16 fallback entr(ies).
+[guard] R13-model-fallback-freshness antigravity: MF3 compared 13 live id(s) against 18 fallback entr(ies).
+[guard] R13-model-fallback-freshness pi: MF3 SKIPPED — MF3 does not apply to `pi` — only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness aider: MF3 SKIPPED — MF3 does not apply to `aider` — only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness opencode: MF3 SKIPPED — MF3 does not apply to `opencode` — only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).
+[guard] N1-consumer-identity packages/agent-plugins/src/lifecycle/set-enabled.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/core/src/redact.ts: forbidden source reference "apps/admin" (comments included)
+[guard] N1-consumer-identity packages/ui/src/styles/lightbox.css: forbidden source reference "Tovu" (comments included)
+[guard] N1-consumer-identity packages/ui/src/styles/variables.css: forbidden source reference "Tovu" (comments included)
+[guard] L1-layer-edge packages/db/src/owner-store/backup.ts: db → @jini-ai/platform/secrets: L2 cannot depend on L2
+[guard] L1-layer-edge packages/db/src/owner-store/backup.ts: db → @jini-ai/platform/secrets/credential-sets: L2 cannot depend on L2
+[guard] L1-layer-edge packages/db/src/owner-store/backup.ts: db → @jini-ai/platform/secrets/credential-sets/contracts: L2 cannot depend on L2
+[guard] L1-layer-edge packages/db/src/owner-store/open.ts: db → @jini-ai/platform/secrets: L2 cannot depend on L2
+[guard] L1-layer-edge packages/db/src/owner-store/open.ts: db → @jini-ai/platform/secrets/credential-sets: L2 cannot depend on L2
+[guard] L1-layer-edge packages/db/src/owner-store/service.ts: db → @jini-ai/platform/secrets/credential-sets: L2 cannot depend on L2
+[guard] L1-layer-edge packages/db/src/owner-store/service.ts: db → @jini-ai/platform/secrets/credential-sets/contracts: L2 cannot depend on L2
+[guard] L0-unlisted-package packages/search/package.json: package missing from the approved layer table
+[guard] L0-unlisted-package packages/search/package.json: search → @jini-ai/core: package missing from the approved layer table
+[guard] L0-unlisted-package packages/search/package.json: search → @jini-ai/agent-plugins: package missing from the approved layer table
+[guard] L0-unlisted-package packages/search/src/contract.ts: search → @jini-ai/core/primitives: package missing from the approved layer table
+[guard] L0-unlisted-package packages/search/src/contract.ts: search → @jini-ai/core/provider-registry: package missing from the approved layer table
+[guard] L0-unlisted-package packages/search/src/contribution.ts: search → @jini-ai/agent-plugins/lifecycle: package missing from the approved layer table
+[guard] L0-unlisted-package packages/search/src/contribution.ts: search → @jini-ai/agent-plugins/lifecycle: package missing from the approved layer table
+[guard] L0-unlisted-package packages/search/src/indexer.ts: search → @jini-ai/core/provider-registry: package missing from the approved layer table
+[guard] L0-unlisted-package packages/search/src/registry.ts: search → @jini-ai/core/provider-registry: package missing from the approved layer table
+[guard] L0-unlisted-package packages/search/src/service.ts: search → @jini-ai/core/provider-registry: package missing from the approved layer table
+[guard] L0-unlisted-package packages/search/src/testkit/conformance.ts: search → @jini-ai/core/provider-registry: package missing from the approved layer table
+[guard] L0-unlisted-package packages/search/src/testkit/fakes.ts: search → @jini-ai/core/primitives: package missing from the approved layer table
+[guard] L0-unlisted-package packages/search/src/testkit/memory-provider.ts: search → @jini-ai/core/provider-registry: package missing from the approved layer table
+[guard] L0-unlisted-package packages/search/src/tokens.ts: search → @jini-ai/core: package missing from the approved layer table
+[guard] L0-unlisted-package packages/search/src/tools.ts: search → @jini-ai/core: package missing from the approved layer table
+[guard] L0-unlisted-package packages/search/src/tools.ts: search → @jini-ai/core/provider-registry: package missing from the approved layer table
+[guard] L1-layer-edge packages/vibecoding/package.json: vibecoding → @jini-ai/platform: L2 cannot depend on L2
+[guard] L1-layer-edge packages/vibecoding/src/node/paths.ts: vibecoding → @jini-ai/platform/fs: L2 cannot depend on L2
+[guard] L1-layer-edge packages/vibecoding/src/node/project.ts: vibecoding → @jini-ai/platform/fs: L2 cannot depend on L2
+[guard] L1-layer-edge packages/vibecoding/src/node/store.ts: vibecoding → @jini-ai/platform/fs: L2 cannot depend on L2
+[guard] SI-domain packages/agent-plugins/src/lifecycle/exports.ts: ./lifecycle (lifecycle) reaches src/admin-surfaces/action-schema.ts (admin-surfaces) via ../admin-surfaces/action-schema.js
+[guard] SI-domain packages/agent-plugins/src/lifecycle/exports.ts: ./manifest (lifecycle) reaches src/admin-surfaces/action-schema.ts (admin-surfaces) via ../admin-surfaces/action-schema.js
+[guard] SI-domain packages/agent-runtime/src/model-discovery.ts: ./model-discovery (model-discovery) reaches src/model-discovery-shared.ts (model-selection) via ./model-discovery-shared.js
+[guard] SI-domain packages/cms/src/widgets/html/plugin-export.ts: ./widgets/html/html-embeds (widgets) reaches src/consent/types.ts (consent) via ../../consent/types.js
+[guard] SI-domain packages/cms/src/widgets/html/plugin-export.ts: ./widgets/html (widgets) reaches src/consent/types.ts (consent) via ../../consent/types.js
+[guard] SI-domain packages/db/src/owner-store/service.ts: ./owner-store (owner-store) reaches src/secrets-vault/repo.sql.ts (secrets-vault) via ../secrets-vault/repo.sql.js
+[guard] SI-domain packages/db/src/owner-store/open.ts: ./owner-store (owner-store) reaches src/kernel/sqlite/index.ts (kernel) via ../kernel/sqlite/index.js
+[guard] SI-domain packages/db/src/owner-store/open.ts: ./owner-store (owner-store) reaches src/migrate/runner.ts (migrate) via ../migrate/runner.js
+[guard] SI-domain packages/db/src/owner-store/open.ts: ./owner-store (owner-store) reaches src/sqlite/open.ts (sqlite) via ../sqlite/open.js
+[guard] SI-dependency packages/diagnostics/package.json: js-tokens is an install-time dependency used by 2/7 source closures; declare an optional peer and a development dependency
+[guard] SI-domain packages/integrations/src/saved-requests/execute.ts: ./saved-requests (saved-requests) reaches src/credentialed-http/credentialed-request.ts (credentialed-http) via ../credentialed-http/credentialed-request.js
+[guard] SI-dependency packages/oauth/package.json: openid-client is an install-time dependency used by 1/4 source closures; declare an optional peer and a development dependency
+[guard] SI-dependency packages/oauth/package.json: oauth4webapi is an install-time dependency used by 1/4 source closures; declare an optional peer and a development dependency
+[guard] SI-domain packages/vibecoding/src/react/session.ts: ./react (react) reaches src/session.ts (session) via ../session.js
+[guard] SI-dependency packages/vibecoding/package.json: @jini-ai/platform is an install-time dependency used by 1/7 source closures; declare an optional peer and a development dependency
+[guard] R10-chatpane-public-surface packages/chat/src/react/features/chat-pane/components/AgentPluginUsage.tsx: imports "ChatMessage" from "../../../../core/messages.js" (resolves outside features/chat-pane/**), but "ChatMessage" is not in the public barrel's export list (packages/chat/src/react/index.ts) — a consumer of the published API could not reach this the same way ChatPane does
+[guard] R10-chatpane-public-surface packages/chat/src/react/features/chat-pane/components/AgentPluginUsage.tsx: imports "AGENT_PLUGIN_STATE_CHANGED" from "../../../../core/agent-plugin-chat-state.js" (resolves outside features/chat-pane/**), but "AGENT_PLUGIN_STATE_CHANGED" is not in the public barrel's export list (packages/chat/src/react/index.ts) — a consumer of the published API could not reach this the same way ChatPane does
+[guard] R10-chatpane-public-surface packages/chat/src/react/features/chat-pane/components/AgentPluginUsage.tsx: imports "readAgentPluginChatState" from "../../../../core/agent-plugin-chat-state.js" (resolves outside features/chat-pane/**), but "readAgentPluginChatState" is not in the public barrel's export list (packages/chat/src/react/index.ts) — a consumer of the published API could not reach this the same way ChatPane does
+[guard] R10-chatpane-public-surface packages/chat/src/react/features/chat-pane/components/AgentPluginUsage.tsx: imports "writeAgentPluginChatState" from "../../../../core/agent-plugin-chat-state.js" (resolves outside features/chat-pane/**), but "writeAgentPluginChatState" is not in the public barrel's export list (packages/chat/src/react/index.ts) — a consumer of the published API could not reach this the same way ChatPane does
+[guard] R10-chatpane-public-surface packages/chat/src/react/features/chat-pane/components/AgentPluginUsage.tsx: imports "Usage" from "../../../../core/agent-plugin-chat-state.js" (resolves outside features/chat-pane/**), but "Usage" is not in the public barrel's export list (packages/chat/src/react/index.ts) — a consumer of the published API could not reach this the same way ChatPane does
+[guard] R10-chatpane-public-surface packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts: imports "acceptedInputEvent" from "../../../../core/accepted-input.js" (resolves outside features/chat-pane/**), but "acceptedInputEvent" is not in the public barrel's export list (packages/chat/src/react/index.ts) — a consumer of the published API could not reach this the same way ChatPane does
+[guard] R10-chatpane-public-surface packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts: imports "acceptedInputUserEvent" from "../../../../core/accepted-input.js" (resolves outside features/chat-pane/**), but "acceptedInputUserEvent" is not in the public barrel's export list (packages/chat/src/react/index.ts) — a consumer of the published API could not reach this the same way ChatPane does
+[guard] R10-chatpane-public-surface packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts: imports "projectAcceptedInputEvents" from "../../../../core/accepted-input.js" (resolves outside features/chat-pane/**), but "projectAcceptedInputEvents" is not in the public barrel's export list (packages/chat/src/react/index.ts) — a consumer of the published API could not reach this the same way ChatPane does
+[guard] R10-chatpane-public-surface packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts: imports "AcceptedChatInput" from "../../../../core/accepted-input.js" (resolves outside features/chat-pane/**), but "AcceptedChatInput" is not in the public barrel's export list (packages/chat/src/react/index.ts) — a consumer of the published API could not reach this the same way ChatPane does
+[guard] R10-chatpane-public-surface packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts: imports "isAwaitingAnswer" from "../../../../core/run-activity.js" (resolves outside features/chat-pane/**), but "isAwaitingAnswer" is not in the public barrel's export list (packages/chat/src/react/index.ts) — a consumer of the published API could not reach this the same way ChatPane does
+[guard] R10-chatpane-public-surface packages/chat/src/react/features/chat-pane/rules.ts: imports "isTerminalRunStatus" from "../../../core/messages.js" (resolves outside features/chat-pane/**), but "isTerminalRunStatus" is not in the public barrel's export list (packages/chat/src/react/index.ts) — a consumer of the published API could not reach this the same way ChatPane does
+[guard] R10-chatpane-public-surface packages/chat/src/react/features/chat-pane/rules.ts: imports "acceptedInputEvent" from "../../../core/accepted-input.js" (resolves outside features/chat-pane/**), but "acceptedInputEvent" is not in the public barrel's export list (packages/chat/src/react/index.ts) — a consumer of the published API could not reach this the same way ChatPane does
+[guard] R10-chatpane-public-surface packages/chat/src/react/features/chat-pane/rules.ts: imports "isAwaitingAnswer" from "../../../core/run-activity.js" (resolves outside features/chat-pane/**), but "isAwaitingAnswer" is not in the public barrel's export list (packages/chat/src/react/index.ts) — a consumer of the published API could not reach this the same way ChatPane does
+[guard] HW3-module-state packages/admin/src/agent-plugins/package-file-tree.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/admin/src/comments/react/hooks/use-comment-queue.hooks.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/admin/src/media/react/hooks/MediaPage.hooks.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/agent-plugins/src/lifecycle/exports.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/agent-plugins/src/lifecycle/search.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/agent-plugins/src/lifecycle/search.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/agent-runtime/src/claude-filesystem-policy.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/agent-runtime/src/json-event-stream.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/agent-runtime/src/model-discovery-adapters.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/agent-runtime/src/model-discovery-adapters.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/agent-runtime/src/model-discovery-adapters.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/agent-runtime/src/model-discovery-config.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/agent-runtime/src/model-discovery-config.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/agent-runtime/src/model-discovery-config.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/agent-runtime/src/providers/model-catalog.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/agent-runtime/src/providers/operation-schema.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/agent-runtime/src/providers/operation-schema.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/chat/src/core/question-form/normalize.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/chat/src/core/run-activity.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/cms/src/consent/css.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/cms/src/forms/html/html-authoring.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/cms/src/media/sanitize-svg.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/cms/src/widgets/html/plugin-export.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/cms/src/widgets/html/plugin-export.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/commerce/src/payments/tools/catalog.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/core/src/tool-input-normalization.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW1-env-default packages/daemon/src/agent-executor/mcp-bridge-probe.ts: process.env is allowed only as an injected environment default (?? process.env or env = process.env).
+[guard] HW3-module-state packages/diagnostics/src/core/secrets-only.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW2-vendor-adapter packages/mcp/src/server/message-relay.ts: Driver/vendor dependency belongs in an adapter, kernel or provider.
+[guard] HW2-vendor-adapter packages/mcp/src/server/tool-arguments.ts: Driver/vendor dependency belongs in an adapter, kernel or provider.
+[guard] HW2-vendor-adapter packages/mcp/src/server/tools/delegated-tool.ts: Driver/vendor dependency belongs in an adapter, kernel or provider.
+[guard] HW3-module-state packages/memory/src/rule-body.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/platform/src/http/guarded/client.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/platform/src/proxy-env.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/platform/src/web/html-document.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/platform/src/web/html-document.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/platform/src/web/html-to-markdown.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/search/src/tools.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/ui/src/features/about/rules.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/ui/src/features/iframe-pool/react/dom-sync.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW8-provider-url packages/ui/src/features/media-providers/react/components/media-providers-tab-labels.ts: Vendor API URL belongs in a provider, adapter or catalog.
+[guard] HW3-module-state packages/ui/src/react/components/select-popover.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/vibecoding/src/html/edit.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/vibecoding/src/html/node/parse5-region-parser.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/vibecoding/src/node/paths.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] R13-model-fallback-freshness packages/agent-runtime/src/defs/codex.ts: fallbackModels is missing 3 model(s) the live codex-catalog reports: gpt-6.1-sol, gpt-6-sol, gpt-6-luna. Add them (keeping the existing entries) and bump `fallbackModelsAssertedAt`.
+[guard] R13-model-fallback-freshness packages/agent-runtime/src/defs/antigravity.ts: fallbackModels is missing 6 model(s) the live antigravity-catalog reports: claude-opus-5-5-low, claude-opus-5-5-medium, claude-opus-5-5-high, claude-sonnet-5-5-low, claude-sonnet-5-5-medium, claude-sonnet-5-5-high. Add them (keeping the existing entries) and bump `fallbackModelsAssertedAt`.
+
+106 guard violation(s).
