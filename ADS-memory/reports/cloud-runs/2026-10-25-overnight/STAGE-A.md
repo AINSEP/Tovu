@@ -1,6 +1,6 @@
 <<SUBAGENT_DISPATCH>>
 # Stage A — full VERIFY, REPORT ONLY (Sonnet). Read COMMON.md in this dir first.
-HARD CAPS: 3 h wall clock (at 2h45m stop and write the report), ~2M tokens, no subagents beyond 2 sonnet test runners. NEVER edit source/test/config files — report only.
+HARD CAPS: 2.5 h wall clock (at 2h15m stop and write the report), ~1.8M tokens, no subagents beyond 2 sonnet test runners. NEVER edit source/test/config files — report only.
 FIRST: `hostname && uname -a && nproc`. Then SETUP from COMMON.md.
 Steps (commit+push REPORT-A.md after each):
 1. Tests — Tovu: website node:test split into 8 shards by directory (run 3 at a time, each with its own log + TAP; list the shard globs you used), admin vitest (apps/admin), site-chat, development/scripts tests, content/agent-plugins tests, desktop (`npm run --silent gates` in apps/desktop = tree-quiet, tests, typecheck, coverage, complexity, js-backslide; report each gate). Jini: every package's vitest (`pnpm -r --no-bail --workspace-concurrency=2 exec vitest run --maxWorkers=2 --minWorkers=1` or per package). Per suite: files run, tests run/pass/fail/skip, failing test names + first error lines. Mark each failure NEW / PRE-EXISTING (known list) / ENV.
