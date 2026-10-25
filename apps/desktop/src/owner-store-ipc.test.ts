@@ -164,3 +164,15 @@ test('S3 the existing queue orders revoke after a blocked startup copy', async (
   assert.equal((await revoked).ok, true);
   assert.deepEqual(f.calls.map(call => call.action), ['list', 'sync', 'revoke']);
 });
+
+test('S3 an open backup dialog does not hold the queue; its CLI call still queues', async () => {
+  let choose!: (filePath: string) => void;
+  const picking = new Promise<string>(resolve => { choose = resolve; });
+  const f = fixture({ pickBackup: () => picking, listSites: () => [first] });
+  const exporting = f.controller.execute({ action: 'export', input: { passphrase: secret } });
+  assert.equal((await f.controller.syncOnStart({ siteDir: first.siteDir }))?.ok, true, 'startup sync runs while the dialog is open');
+  assert.deepEqual(f.calls.map(call => call.action), ['list', 'sync']);
+  choose(path.join(tmpdir(), 'later.tovu-owner-backup'));
+  assert.equal((await exporting).ok, true);
+  assert.deepEqual(f.calls.map(call => call.action), ['list', 'sync', 'export']);
+});
