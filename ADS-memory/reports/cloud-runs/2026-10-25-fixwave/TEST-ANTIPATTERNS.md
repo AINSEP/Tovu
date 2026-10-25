@@ -212,3 +212,9 @@
 - **L12:** `publish-trust-auth.ts:423` backstop grant; dev-auth local-owner sign-in gates; `me.ts` suspended member; unlink-identity 900000 ms edge; 6-digit code regex.
 - **L13:** `admin-boot-scope` `queryScope` (cross-user cache key); `DEFAULT_PRIVACY` telemetry off; `api.ts` AbortError rethrow; `queued-daemon-start` busy-retry/abort.
 - **L14:** `secret-scan-guard.ts:154` allowlist per clause; `move-to-trash` unknown type/`expectedVersion` (`:116,141`); `content-hash` key order + excluded keys; deploy-ops module-path clauses; tool-definition contracts. `apps/website/src/cli/` was NOT RUN.
+
+## OWNER DECISIONS — DO NOT "FIX" THESE IN SOURCE (added 2:45 PM PT)
+Three red security pin tests reflect OWNER-APPROVED behaviour (2026-10-25). Update the TEST to the decision; never change source to satisfy the old pin:
+1. database-transfer copies `members.password_hash` — owner: ALLOW in database transfer (never in public/static exports). Update exclusions.unit.test.ts accordingly (and assert it stays out of public/static exports).
+2. mcp-ui allowlist containing `members_delete` (and the grown allow-lists/exemption map) — owner SIGNED OFF. Update the allowlist pin.
+3. owner policy containing `visitor-tools.manage` — owner: admins AND owner get it. Update wiring.test.ts (owner policy is not `['*']`-only).

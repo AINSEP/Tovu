@@ -23,3 +23,9 @@ Your lane id (F1…F8), packages and Stryker source lanes are in the trigger pro
 
 ## REPORT — `ADS-memory/reports/cloud-runs/2026-10-25-fixwave/F<n>/REPORT.md` (update + push after each step)
 1. Headline: tests added, source bugs found/fixed, files at 100% coverage (before → after), CCN>10 functions (before → after), Stryker score before → after per touched file, wall, rough tokens. 2. Source bugs (failing test → fix commit). 3. Per-file table. 4. Anti-patterns seen most (feed AI Dev Shop). 5. NOT done list. 6. Commits. End with "F<n> DONE <UTC>", wall, rough tokens.
+
+## OWNER DECISIONS — DO NOT "FIX" THESE IN SOURCE (added 2:45 PM PT)
+Three red security pin tests reflect OWNER-APPROVED behaviour (2026-10-25). Update the TEST to the decision; never change source to satisfy the old pin:
+1. database-transfer copies `members.password_hash` — owner: ALLOW in database transfer (never in public/static exports). Update exclusions.unit.test.ts accordingly (and assert it stays out of public/static exports).
+2. mcp-ui allowlist containing `members_delete` (and the grown allow-lists/exemption map) — owner SIGNED OFF. Update the allowlist pin.
+3. owner policy containing `visitor-tools.manage` — owner: admins AND owner get it. Update wiring.test.ts (owner policy is not `['*']`-only).
