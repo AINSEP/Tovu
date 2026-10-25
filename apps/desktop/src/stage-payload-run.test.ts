@@ -19,7 +19,7 @@ import { STAGED_SHELLS, stageDir, stagePayloadFiles } from "./stage-payload-lib.
 import { resolveStageRoot, runStagePayload, stagePayloadCli, StagePayloadError } from "./stage-payload-run.ts";
 import type { ShellEntry, StagePorts, StageSteps } from "./stage-payload-run.ts";
 
-const { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } = realFs;
+const { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, unlinkSync, writeFileSync } = realFs;
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const MB = 1048576;
 
@@ -30,7 +30,8 @@ function write(file: string, content = ""): void {
 
 /** A complete, stageable checkout under `<tmp>/repo`, a Jini tree under `<tmp>/jini`, and `<tmp>/desktop`. */
 function fixture() {
-  const tmp = mkdtempSync(path.join(os.tmpdir(), "stage-payload-run-"));
+  // Real path: staging resolves the Jini link, and macOS's tmpdir `/var` is a link to `/private/var`.
+  const tmp = realpathSync(mkdtempSync(path.join(os.tmpdir(), "stage-payload-run-")));
   const repo = path.join(tmp, "repo");
   const desktop = path.join(tmp, "desktop");
   write(path.join(repo, "package.json"), JSON.stringify({ bin: { tovu: "dist/cli.js" }, dependencies: { "dep-a": "1", "better-sqlite3": "1" } }));
@@ -133,6 +134,8 @@ test("stages the payload, the dependency closure and the Jini packages, and repo
   // The outward link is now a real directory; the dangling one is gone.
   assert.ok(lstatSync(path.join(modules, "linked-pkg")).isDirectory());
   assert.equal(readFileSync(path.join(modules, "linked-pkg", "index.js"), "utf8"), "linked");
+  // Materializing an outward link must preserve its original target as well as the staged copy.
+  assert.equal(readFileSync(path.join(fx.tmp, "elsewhere", "linked-pkg", "index.js"), "utf8"), "linked");
   assert.ok(!readdirSync(modules).includes("dangling"));
   assert.deepEqual(calls.prune, [[{ platform: "darwin", arch: "x64" }, { platform: "darwin", arch: "arm64" }]]);
   assert.deepEqual(calls.imports, [{
@@ -245,7 +248,8 @@ test("no @jini-ai/core link, or no better-sqlite3 in the staged tree, refuses", 
   t.after(fx.cleanup);
   rmSync(path.join(fx.repo, "node_modules", "better-sqlite3"), { recursive: true });
   refusal(harness(fx).run, "staged tree has no better-sqlite3 — Tovu's CLI cannot open a site database without it.");
-  rmSync(path.join(fx.repo, "node_modules", "@jini-ai", "core"));
+  // Remove only the fixture link; rmSync misclassifies directory symlinks on Node 24.2.
+  unlinkSync(path.join(fx.repo, "node_modules", "@jini-ai", "core"));
   refusal(harness(fx).run, `no @jini-ai/core under ${path.join(fx.repo, "node_modules")}; cannot locate the Jini packages.`);
 });
 
@@ -330,7 +334,8 @@ test("the repo root defaults to this checkout and --repo-root overrides it", () 
 test("scripts/stage-payload.ts refuses an unbuilt checkout with exit 1 and a stage-payload: message", (t) => {
   const empty = mkdtempSync(path.join(os.tmpdir(), "stage-payload-empty-"));
   t.after(() => rmSync(empty, { recursive: true, force: true }));
-  const run = spawnSync(process.execPath, [path.join(DESKTOP_ROOT, "scripts/stage-payload.ts"), "--repo-root", empty], {
+  // Node 24.2 still prints a type-stripping ExperimentalWarning, which would break the exact stderr match.
+  const run = spawnSync(process.execPath, ["--disable-warning=ExperimentalWarning", path.join(DESKTOP_ROOT, "scripts/stage-payload.ts"), "--repo-root", empty], {
     cwd: DESKTOP_ROOT, encoding: "utf8", timeout: 60_000,
   });
   assert.equal(run.status, 1, run.stderr);

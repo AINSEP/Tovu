@@ -1,5 +1,6 @@
 import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
 import { randomUUID } from "node:crypto";
+import { MID_RUN_USER_MESSAGE_EVENT_NAME, questionAnswerLabel, questionAnswerText, SURFACE_QUESTION_META_KEY, type AcceptedChatInput } from '@jini-ai/chat/core';
 
 import { buildFormSurface, type SurfaceField, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 import { ToolInputError, buildDomainRegistrations, decorateWithSchema, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
@@ -409,7 +410,7 @@ export function buildAskChoiceRegistrations(
 
 /** Ask the same principal-bound choice exchange for automatic plugin use. Only real form actions
  * can select Auto; typed/model-authored answers and dismissal mean Skip. No preference is written here.
- * @complexity O(m) offered matches, bounded by the automatic-use owner.
+ * @complexity O(m * s) time, O(m + s) space for m offered matches and s selections, plus exchange I/O.
  */
 export async function askAgentPluginChoice(
   { surfaces, principalId, emitSurface, signal, matches }: {
@@ -423,9 +424,23 @@ export async function askAgentPluginChoice(
     actions: [{ id: 'use', label: 'Use' }, { id: 'auto', label: "Don't ask again" }],
   };
   const exchange = askChoiceExchanges({ surfaces }).open({ toolId: ASK_CHOICE_TOOL_ID, principalId, emit: ({ emission }) => emitSurface(emission) });
+  // Consent has no model tool call. Keep its display question and answer in the existing transcript
+  // receipt path, keyed by the actual resource, so refresh cannot revive its buttons.
+  const displayQuestion = { title: question.title, options: matches.map(match => ({ value: match.id, label: match.name })) };
+  let surfaceUri: string | undefined;
   const answer = await askChoice({ exchange, question, toolId: ASK_CHOICE_TOOL_ID, principalId, signal, messages: askChoiceMessages,
-    presentation: { render: buildAskChoiceFormSurface },
+    presentation: { render: (input, options = {}) => {
+      const ui = buildAskChoiceFormSurface(input, options);
+      surfaceUri = ui.resource.uri;
+      return { ...ui, resource: { ...ui.resource, _meta: { ...ui.resource._meta, [SURFACE_QUESTION_META_KEY]: displayQuestion } } };
+    } },
   });
+  const answerText = questionAnswerText({ answer, input: displayQuestion });
+  if (surfaceUri !== undefined && answerText !== undefined) {
+    const receipt: AcceptedChatInput = { id: `answer:${exchange.id}`, surfaceUri, answerText,
+      text: questionAnswerLabel({ input: displayQuestion, text: answerText }) };
+    await emitSurface({ channel: MID_RUN_USER_MESSAGE_EVENT_NAME, payload: { ...receipt } });
+  }
   // Only a validated form action can change plugin policy; typed answers and dismissal mean Skip.
   if (answer.submitted !== true || !Array.isArray(answer.selections) || (answer.action !== 'use' && answer.action !== 'auto')) return { action: 'skip', selected: [] };
   return { action: answer.action, selected: answer.selections as string[] };

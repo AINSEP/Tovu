@@ -7,6 +7,7 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import type { OutboundEmail } from "#src/platform/mail/index";
 import type { MembersWriteServiceDeps } from "../ports.js";
 import {
+  createInMemoryCredentialLifecycle,
   InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo,
   InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo,
 } from "../repo.memory.js";
@@ -26,6 +27,8 @@ function harness() {
   const verifications: Array<{ hash: string; password: string }> = [];
   const hashInputs: string[] = [];
   const deps: MembersWriteServiceDeps = {
+    // Policy tests use memory ports; real lock/rollback guarantees live in password-lifecycle.dialects.test.ts.
+    credentialLifecycle: createInMemoryCredentialLifecycle(),
     clock, ids: { newId: () => `id-${++seq}` }, members: new InMemoryMemberRepo(),
     sessions: new InMemoryMemberSessionRepo(), magicLinks: new InMemoryMagicLinkTokenRepo(),
     subscriptions: new InMemoryMemberSubscriptionRepo(), tiers: new InMemoryMemberTierRepo(),
@@ -283,7 +286,7 @@ test("reset consumes first, writes hash and cutoff, revokes all sessions, and in
   const revoke = h.deps.sessions.revokeAllForMember.bind(h.deps.sessions);
   h.deps.sessions.revokeAllForMember = async input => { events.push("revoke"); await revoke(input); };
   await resetPassword({ deps: h.deps, input: { workspaceId: WS, token, password: "new" } });
-  // Revoke before the profile save: a profile conflict must never leave old sessions alive.
+  // These effects now commit together; a profile conflict must also roll back the password.
   assert.deepEqual(events, ["consume", "hash", "revoke", "cutoff"]);
   const sessions = await h.deps.sessions.listByMember({ workspaceId: WS, memberId: "ada" });
   assert.deepEqual(sessions.map(s => s.id), [first.session.id, second.session.id], "reset issues no session");
@@ -345,4 +348,20 @@ test("reset persists only credential hashes and cutoff; reset mail uses the capt
   const member = await h.deps.members.findById({ workspaceId: WS, id: "ada" });
   assert.equal(JSON.stringify(member).includes("Secret🗝"), false);
   assert.equal(JSON.stringify(member).includes("test-hash:"), false);
+});
+
+
+test("memory credential lifecycle runs transactions one at a time and survives a failed one", async () => {
+  const lifecycle = createInMemoryCredentialLifecycle();
+  const events: string[] = [];
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const first = lifecycle.transaction(async () => { events.push("first:start"); await gate; events.push("first:end"); throw new Error("boom"); });
+  const second = lifecycle.transaction(async () => { events.push("second"); return "ok"; });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(events, ["first:start"], "the second transaction waits for the first");
+  release();
+  await assert.rejects(first, /boom/);
+  assert.equal(await second, "ok");
+  assert.deepEqual(events, ["first:start", "first:end", "second"]);
 });

@@ -50,7 +50,7 @@ test("creates, lists, renames and deletes a conversation", async (t) => {
   assert.equal(created.status, 201);
   const { conversation } = (await created.json()) as { conversation: { id: string; title: string | null } };
   // The title comes from the local heuristic: filler verb and stop words dropped, Title Case.
-  assert.equal(conversation.title, "Posts Slow Mornings");
+  assert.equal(conversation.title, "Posts for slow mornings");
 
   const listed = (await (await api(baseUrl, cookie, "")).json()) as { conversations: { id: string }[] };
   assert.deepEqual(listed.conversations.map((c) => c.id), [conversation.id]);
@@ -149,7 +149,7 @@ test("names an untitled conversation from its first user message", async (t) => 
   const listed = (await (await api(baseUrl, cookie, "")).json()) as {
     conversations: { title: string | null; titleSource: string }[];
   };
-  assert.equal(listed.conversations[0]?.title, "Rebuild Sitemap Blog");
+  assert.equal(listed.conversations[0]?.title, "Please rebuild the sitemap for the blog");
   assert.equal(listed.conversations[0]?.titleSource, "fallback");
 });
 
@@ -199,7 +199,7 @@ test("an unusable first message leaves the chat namable by the next one", async 
   const named = (await (await api(baseUrl, cookie, "")).json()) as {
     conversations: { title: string | null }[];
   };
-  assert.equal(named.conversations[0]?.title, "Redirect Loop");
+  assert.equal(named.conversations[0]?.title, "Redirect loop");
 });
 
 test("a message id belonging to another conversation cannot overwrite it", async (t) => {

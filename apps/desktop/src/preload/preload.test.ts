@@ -13,6 +13,8 @@ import ts from "typescript";
 
 import { IPC_CHANNEL_IS_AVAILABLE, IPC_CHANNEL_TRANSCRIBE } from "../speech/speech-ipc.ts";
 import { RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL, RUNNER_APP_VERSION_CHANNEL } from "../contracts/app-version.ts";
+import { RUNNER_RESOURCES_GET_CHANNEL } from "../contracts/resources.ts";
+import { OWNER_STORE_CHANNELS } from "../contracts/owner-store.ts";
 import { RUNNER_AGENT_INVENTORY_CHANNELS as INVENTORY } from "../contracts/runtime-inventory.ts";
 import { SITE_IPC_CHANNELS as SITE, SITE_THEME_PREVIEW_CHANNELS as THEME } from "../contracts/project.ts";
 import { WORKSPACE_CHAT_CHANNELS as CHAT } from "../contracts/workspace-chat.ts";
@@ -39,7 +41,7 @@ test("preload.mts exposes both bridges — dropping either is what the port had 
 });
 
 // PARITY: both renderer bridges remain exposed and the ESM voice bridge preserves positional IPC.
-test("the ESM preload exposes runner and voice, forwards the exact speech payload, and maps every runner method to its contract channel", async (t) => {
+test("the ESM preload exposes shared keys, runner and voice and maps methods to fixed contract channels", async (t) => {
   // Resolve the preload's emitted .js contract paths back to TypeScript source under Node.
   const unregister = register();
   t.after(unregister);
@@ -72,7 +74,7 @@ test("the ESM preload exposes runner and voice, forwards the exact speech payloa
     },
   });
   await import("./preload.mts");
-  assert.deepEqual([...exposed.keys()], ["tovuRunner", "tovuVoice"]);
+  assert.deepEqual([...exposed.keys()], ["tovuOwnerStore", "tovuRunner", "tovuVoice"]);
   const runner = exposed.get("tovuRunner")!;
   const bridgeSource = ts.createSourceFile("runner-api.ts", fs.readFileSync(path.join(__dirname, "../renderer/runner-api.ts"), "utf8"), ts.ScriptTarget.Latest, true);
   const declaration = bridgeSource.statements.find((node): node is ts.InterfaceDeclaration => ts.isInterfaceDeclaration(node) && node.name.text === "RunnerInventoryBridge");
@@ -102,6 +104,14 @@ test("the ESM preload exposes runner and voice, forwards the exact speech payloa
   assert.equal(await voice.transcribe!(samples, 48000), transcription);
   assert.deepEqual(invokes, [[IPC_CHANNEL_IS_AVAILABLE], [IPC_CHANNEL_TRANSCRIBE, samples, 48000]]);
   assert.equal(invokes[1]![1], samples);
+  const ownerStore = exposed.get("tovuOwnerStore")!;
+  assert.ok(Object.isFrozen(ownerStore));
+  assert.deepEqual(Object.keys(ownerStore), Object.keys(OWNER_STORE_CHANNELS));
+  const privateInput = { passphrase: "stdin-only-value" };
+  for (const [action, channel] of Object.entries(OWNER_STORE_CHANNELS)) {
+    assert.equal(await ownerStore[action]!(privateInput, {}), `reply:${channel}`);
+    assert.deepEqual(invokes.at(-1), [channel, privateInput]);
+  }
   await assertEveryRunnerMethod({ exposed, invokes, listeners, frameCalls, file });
 });
 
@@ -121,6 +131,7 @@ async function assertEveryRunnerMethod({ exposed, invokes, listeners, frameCalls
   const input = { marker: "renderer-input" };
   const cases: [method: string, args: unknown[], expected: unknown[]][] = [
     ["getAppVersion", [], [RUNNER_APP_VERSION_CHANNEL]],
+    ["getResources", [{ panelOpen: true }, {}], [RUNNER_RESOURCES_GET_CHANNEL, { panelOpen: true }]],
     ["checkForUpdates", [], [RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL]],
     ["listAgents", [], [INVENTORY.list]],
     ["rescanAgents", [], [INVENTORY.rescan]],

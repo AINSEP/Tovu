@@ -886,7 +886,7 @@ describe("guards proven necessary by deleting them", () => {
     });
     await waitFor(() => expect(result.current.activeId).toBe("fake-1"));
     await waitFor(() =>
-      expect(result.current.conversations.find((c) => c.id === "fake-1")?.title).toBe("How Many Published Posts"),
+      expect(result.current.conversations.find((c) => c.id === "fake-1")?.title).toBe("How many published posts do I have"),
     );
   });
 

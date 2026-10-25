@@ -762,6 +762,8 @@ export interface FormsDeps {
  * they need; shared ownership follows the post domain rather than a whole-group caller.
  */
 export interface PostDeps {
+  pluginExports?: import("#src/features/agent-plugins/exports/runtime").PluginExportRuntime;
+  pluginExportRender?: import("#src/features/agent-plugins/exports/runtime").PluginExportRenderSession;
   postRepo: PostRepoPort;
   /**
    * Scheduled go-live candidates (2026-10-21) for the serving process's go-live sweep

@@ -15,6 +15,11 @@ export const defaultMediaPort: MediaPort = {
   updateMedia: (target, options) => api.updateMedia(target, options),
   trashMedia: (id) => api.trashMedia(id),
   deleteMedia: (id) => api.deleteMedia(id),
+  // No media-specific restore route: the shared Trash restore already handles media rows.
+  restoreMedia: async (id) => {
+    const report = await api.restoreTrashItems({ items: [{ entityType: "media", entityId: id }] });
+    return { restored: report.restored === 1 };
+  },
   mediaOriginalUrl: (id) => api.mediaOriginalUrl(id),
   listUsers: () => api.listUsers(),
 };
@@ -95,6 +100,13 @@ export function createFakeMediaPort(options: FakeMediaPortOptions = {}): MediaPo
       const trashed: AdminMedia = { ...items[index]!, status: "trashed" };
       items[index] = trashed;
       return { media: trashed };
+    },
+
+    async restoreMedia(id) {
+      const index = items.findIndex((item) => item.id === id);
+      if (index < 0) throw new Error(`fake media not found: ${id}`);
+      items[index] = { ...items[index]!, status: "active" };
+      return { restored: true };
     },
 
     async deleteMedia(id) {

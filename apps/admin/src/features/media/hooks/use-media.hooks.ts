@@ -97,6 +97,8 @@ export interface MediaController {
   /** Closes the edit panel and reloads — the `EditMediaPanel`'s `onSaved` callback. */
   onMetadataSaved: () => void;
   trash: (item: AdminMedia) => Promise<void>;
+  /** Puts a trashed item back in the library (the Trash tab's Restore button). */
+  restore: (item: AdminMedia) => Promise<void>;
   // Purge (permanent delete) confirmation — mirrors `Posts.tsx`'s `pendingDelete`/`rowSavingId`
   // pair exactly. Trashing (the reversible first rung of the ladder) has no confirm step, matching
   // the original `window.confirm` call's own scope: it only ever guarded the permanent-delete path.
@@ -164,8 +166,16 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
   });
   const trashMutation = useFetchMutation({ run: ({ input: id }: { input: string }) => port.trashMedia(id) }, { invalidates: [KEYS.list] });
   const purgeMutation = useFetchMutation({ run: ({ input: id }: { input: string }) => port.deleteMedia(id) }, { invalidates: [KEYS.list] });
+  const restoreFallback = translate({ locale: locale, key: "failed to restore" });
+  const restoreMutation = useFetchMutation({
+    run: async ({ input: id }: { input: string }) => {
+      // The Trash answers a refused restore (changed or gone row) with 200 + `restored: false`.
+      const { restored } = await port.restoreMedia(id);
+      if (!restored) throw new Error(restoreFallback);
+    },
+  }, { invalidates: [KEYS.list] });
 
-  const writes = [uploadMutation, trashMutation, purgeMutation];
+  const writes = [uploadMutation, trashMutation, purgeMutation, restoreMutation];
   /** Clears the OTHER writes' failures before starting one — same shape/reasoning as
    *  `Jini redirects/SOURCE-RATIONALE.md`'s `clearOtherWriteErrors` (see `Jini redirects/SOURCE-RATIONALE.md`'s own copy): three
    *  independent mutations each keep their own error until reset, so a stale failure from one must
@@ -223,6 +233,19 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
     }
   }
 
+  async function restore(item: AdminMedia) {
+    clearOtherWriteErrors(restoreMutation);
+    setRowSavingId(item.id);
+    try {
+      await restoreMutation.mutate({ input: item.id });
+    } catch {
+      // already surfaced through restoreMutation.error -> error below
+    } finally {
+      // Self-referential for the same reason `trash`'s own finally is — see its comment above.
+      setRowSavingId((current) => (current === item.id ? null : current));
+    }
+  }
+
   async function purge() {
     if (!pendingPurge) return;
     const item = pendingPurge;
@@ -268,6 +291,8 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
     trashError: trashMutation.error,
     purgeError: purgeMutation.error,
     deleteFallback: translate({ locale: locale, key: "delete failed" }),
+    restoreError: restoreMutation.error,
+    restoreFallback,
     listError: list.error,
     listFallback: translate({ locale: locale, key: "failed to load media" }),
     hasMedia: media !== null,
@@ -294,6 +319,7 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
     toggleEditing,
     onMetadataSaved,
     trash,
+    restore,
     pendingPurge,
     setPendingPurge,
     rowSavingId,

@@ -1,0 +1,185 @@
+{
+  "personas": "Programmer + Refactor: implement the approved boundary repairs without changing service behavior.",
+  "branch": "guard-cleanup-2",
+  "baseCommit": "f4f01f4f",
+  "commitsMade": false,
+  "testsRun": false,
+  "decisions": [
+    {
+      "id": 1,
+      "change": "Register search at L5, the lowest layer above its agent-plugins L4 contribution dependency. No layer rule or exception changed.",
+      "files": [
+        "scripts/check-package-layers.ts"
+      ]
+    },
+    {
+      "id": 2,
+      "change": "Move shared reader contracts/refusal identity to core/filesystem; platform reexports the same identity. Inject the existing containment, locking and atomic-write owners into vibecoding through ProjectFilesystemPort. Bind owner-store SQL repo in server opening composition rather than inside its service.",
+      "files": [
+        "packages/core/src/filesystem.ts",
+        "packages/platform/src/fs/guarded-reader.ts",
+        "packages/vibecoding/src/core/project-filesystem.ts",
+        "packages/vibecoding/src/node/paths.ts",
+        "packages/vibecoding/src/node/store.ts",
+        "packages/vibecoding/src/node/project.ts",
+        "packages/server/src/owner-store/open.ts",
+        "packages/server/src/owner-store/service.ts"
+      ]
+    },
+    {
+      "id": 3,
+      "change": "Move concrete owner-store assembly/service/backups and integration tests to server/owner-store, leaving pinned schema history in db/owner-store. Inject the credentialed-http executor into SavedRequestDeps; move its shared validation-error identity to integrations/contracts.",
+      "files": [
+        "packages/db/src/owner-store/index.ts",
+        "packages/server/src/owner-store",
+        "packages/integrations/src/saved-requests/execute.ts",
+        "packages/integrations/src/saved-requests/types.ts",
+        "packages/integrations/src/contracts/credentialed-request-errors.ts",
+        "packages/integrations/src/credentialed-http/credentialed-request.ts"
+      ]
+    },
+    {
+      "id": 4,
+      "change": "Create the executable-identity cache in createClaudeFilesystemSupportProbe and bind one check per createAgentExecutor. Keep concurrency deduplication, mtime invalidation, uncertainty caching, timeout budgets and why-comment.",
+      "files": [
+        "packages/agent-runtime/src/claude-filesystem-policy.ts",
+        "packages/daemon/src/agent-executor/launch.ts"
+      ]
+    }
+  ],
+  "integrationChanges": [
+    "Owner-store runtime imports move from @jini-ai/db/owner-store to @jini-ai/server/owner-store. Database entry retains SQL history exports only.",
+    "Direct OwnerStoreService construction now receives its repo from composition. openOwnerStore keeps its existing required and optional arguments.",
+    "Native vibecoding hosts supply filesystem: ProjectFilesystemPort; README and test composition bind the existing platform functions.",
+    "Saved-request composition supplies executeCredentialedRequest: makeCredentialedRequest; README and fixture updated."
+  ],
+  "checks": {
+    "guard": {
+      "command": "pnpm guard",
+      "exitCode": 0,
+      "remainingViolations": 0,
+      "clearedRequestedViolations": 33
+    },
+    "typescript": [
+      {
+        "package": "core",
+        "command": "pnpm --dir packages/core exec tsc --noEmit",
+        "exitCode": 0
+      },
+      {
+        "package": "platform",
+        "command": "pnpm --dir packages/platform exec tsc --noEmit",
+        "exitCode": 0
+      },
+      {
+        "package": "db",
+        "command": "pnpm --dir packages/db exec tsc --noEmit",
+        "exitCode": 0
+      },
+      {
+        "package": "agent-runtime",
+        "command": "pnpm --dir packages/agent-runtime exec tsc --noEmit",
+        "exitCode": 0
+      },
+      {
+        "package": "daemon",
+        "command": "pnpm --dir packages/daemon exec tsc --noEmit",
+        "exitCode": 0
+      },
+      {
+        "package": "integrations",
+        "command": "pnpm --dir packages/integrations exec tsc --noEmit",
+        "exitCode": 0
+      },
+      {
+        "package": "server",
+        "command": "pnpm --dir packages/server exec tsc --noEmit",
+        "exitCode": 0
+      },
+      {
+        "package": "vibecoding",
+        "command": "pnpm --dir packages/vibecoding exec tsc --noEmit",
+        "exitCode": 0
+      }
+    ],
+    "additionalTypeChecks": [
+      {
+        "command": "pnpm --dir packages/server exec tsc -p tsconfig.tests.json --noEmit",
+        "exitCode": 0
+      },
+      {
+        "command": "pnpm exec tsc -p scripts/tsconfig.json --noEmit",
+        "exitCode": 0
+      }
+    ],
+    "complexity": {
+      "exitCode": 0,
+      "filesChecked": 17,
+      "threshold": 10,
+      "note": "Cyclomatic complexity scan, not a full lint verdict. Two legacy CCN-11 executor helpers were split into filesystem-option forwarding and a relay predicate; no runtime policy changed."
+    },
+    "diffWhitespace": {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  },
+  "deferredTests": [
+    {
+      "package": "platform",
+      "command": "pnpm --dir packages/platform exec vitest run --maxWorkers=2 --minWorkers=1 src/fs/__tests__/guarded-reader",
+      "status": "NOT RUN: explicit user instruction"
+    },
+    {
+      "package": "agent-runtime",
+      "command": "pnpm --dir packages/agent-runtime exec vitest run --maxWorkers=2 --minWorkers=1 src/defs/__tests__/claude-filesystem-policy.test.ts",
+      "status": "NOT RUN: explicit user instruction"
+    },
+    {
+      "package": "daemon",
+      "command": "pnpm --dir packages/daemon exec vitest run --maxWorkers=2 --minWorkers=1 src/agent-executor/__tests__/agent-executor-filesystem-policy.test.ts src/agent-executor/__tests__/launch-defaults-and-staging.test.ts src/agent-executor/__tests__/launch-characterization.test.ts",
+      "status": "NOT RUN: explicit user instruction"
+    },
+    {
+      "package": "integrations",
+      "command": "pnpm --dir packages/integrations exec vitest run --maxWorkers=2 --minWorkers=1 src/saved-requests/__tests__ src/credentialed-http/__tests__/credentialed-request.unit.test.ts",
+      "status": "NOT RUN: explicit user instruction"
+    },
+    {
+      "package": "server",
+      "command": "pnpm --dir packages/server exec vitest run --maxWorkers=2 --minWorkers=1 src/owner-store/__tests__",
+      "status": "NOT RUN: explicit user instruction"
+    },
+    {
+      "package": "vibecoding",
+      "command": "pnpm --dir packages/vibecoding exec vitest run --maxWorkers=2 --minWorkers=1 src/node/__tests__",
+      "status": "NOT RUN: explicit user instruction"
+    },
+    {
+      "package": "scripts",
+      "command": "pnpm exec vitest run --maxWorkers=2 --minWorkers=1 scripts/__tests__/check-package-layers.test.ts",
+      "status": "NOT RUN: explicit user instruction"
+    }
+  ],
+  "testMappingNotes": [
+    "Moved core reader contracts/refusal identity are exercised by existing platform guarded-reader tests.",
+    "The db owner-store migration/open/service/backup integration tests now live in server/src/owner-store/__tests__. Test bodies and assertions were retained; fixtures bind the same implementations.",
+    "Static comparison retains 61 test declaration sites and 229 expect calls across the eight moved/rebound test files. Parameterized cases are not expanded, and no passing test count is claimed."
+  ],
+  "unclearedViolations": [],
+  "existingNotices": [
+    "Guard reports 25 stale historical debt occurrences; debt baseline was left unchanged.",
+    "Guard visibly skips optional agy live-model comparison when agy models is unavailable; MF1/MF2 remain enforced."
+  ],
+  "environment": [
+    "First-pass handoff.md and verification.md were absent in the supplied clone.",
+    "Codebase Memory executable and Graphify output were absent; available understand-anything graph was queried and claims cross-checked against source.",
+    "Sidekick initialization failed in the collaboration runtime; work continued directly.",
+    "Clone had no node_modules/dist. Installed external dependencies were linked read-only from existing local workspaces; workspace imports point to this clone. Existing build caches were copied locally and required declarations refreshed. No dependency download, test execution, commit, or push."
+  ],
+  "retainedInvariants": [
+    "Guard aggregator, isolation checker, hardwiring checker and debt baseline unchanged.",
+    "Published owner-store DDL/checksum unchanged.",
+    "Owner-store backup implementation preserved verbatim.",
+    "No test assertions, rules, capabilities, thresholds or measured source scopes removed."
+  ]
+}

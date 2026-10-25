@@ -5,11 +5,15 @@ import { randomUUID } from "node:crypto";
 import { sql } from "kysely";
 import { laneForPurpose } from "@jini-ai/platform/mail";
 import type { MailRepoDeps, MailRepoOptions } from "./ledger.repo.js";
-import type { MailPolicyWrapperDeps } from "../../server/runtime/boot/mail-delivery-policy.js";
+import type { MailTestModeSetting } from "#src/features/settings/mail-provider";
+import type { MailerSendOptions, MailerSendResult, OutboundEmail } from "#src/platform/mail/index";
+
+/** The delivery policy's per-result observer. Declared here (not in server/) so features never import server code. */
+export type MailAttemptObserver = (required: { message: OutboundEmail; options: MailerSendOptions; providerId: string; mode: MailTestModeSetting; result: MailerSendResult }) => Promise<void>;
 
 /** Upsert one request's latest result without changing its original position in activity history.
  * @complexity One indexed write; no subject, body or authentication link is stored; only a scrubbed failure diagnostic. */
-export function createMailAttemptObserver<DB>({ db }: MailRepoDeps<DB>, options: MailRepoOptions & { newId?: () => string } = {}): NonNullable<MailPolicyWrapperDeps["observe"]> {
+export function createMailAttemptObserver<DB>({ db }: MailRepoDeps<DB>, options: MailRepoOptions & { newId?: () => string } = {}): MailAttemptObserver {
   const nowIso = options.nowIso ?? (() => new Date().toISOString());
   const newId = options.newId ?? randomUUID;
   return async ({ message, options: send, providerId, mode, result }) => {

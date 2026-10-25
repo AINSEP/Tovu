@@ -1,5 +1,6 @@
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { once } from "node:events";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -7,6 +8,8 @@ import path from "node:path";
 import test from "node:test";
 
 import type { PostRecord } from "#src/features/post/index";
+import { InMemoryMemberSessionRepo } from "#src/features/members/index";
+import { MEMBER_SESSION_COOKIE } from "../../members/complete-sign-in.js";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { loadTheme } from "#src/features/theme/index";
 import { createSeoPostPort } from "#src/features/seo/index";
@@ -23,6 +26,20 @@ import { MEMBER_PAGES, memberPagePost, registerMemberPageRoutes } from "../membe
 
 const starter = loadTheme({ themeDir: path.resolve("content/themes/static/tovu-starter"), id: "tovu-starter", source: "built-in" });
 const basic2 = loadTheme({ themeDir: path.resolve("content/themes/static/basic-2"), id: "basic-2", source: "built-in" });
+
+const memberToken = "member-page-session";
+const memberCookie = `${MEMBER_SESSION_COOKIE}=${memberToken}`;
+
+/** Exercise the real session validator without a write-service or database fixture. */
+function authenticatedDeps() {
+  const deps = createRouteDeps();
+  deps.memberSessionRepo = new InMemoryMemberSessionRepo([{
+    id: "session-1", workspaceId: deps.workspaceId, memberId: "member-1",
+    tokenHash: createHash("sha256").update(memberToken).digest("hex"),
+    createdAt: "2026-01-01T00:00:00.000Z", expiresAt: "2099-01-01T00:00:00.000Z",
+  }]);
+  return deps;
+}
 
 async function startServer(overrides: Partial<ReturnType<typeof createRouteDeps>>) {
   const deps = { ...createRouteDeps(), ...overrides };
@@ -66,10 +83,12 @@ test("login provider slots ship empty and hidden: core names no provider, the sc
 for (const theme of [starter, basic2]) {
   test(`GET each member page renders in the ${theme.manifest.id} theme with the member script`, async (t) => {
     assert.equal(theme.status, "valid", JSON.stringify(theme.errors));
-    const { server, baseUrl } = await startServer({ themes: [theme], postRepo: new InMemoryPostRepo([]) });
+    const { server, baseUrl } = await startServer({ ...authenticatedDeps(), themes: [theme], postRepo: new InMemoryPostRepo([]) });
     t.after(() => closeServer(server));
     for (const [route, entry] of Object.entries(MEMBER_PAGES)) {
-      const res = await fetch(`${baseUrl}${route}`);
+      const res = await fetch(`${baseUrl}${route}`, {
+        headers: route === "/account" ? { cookie: memberCookie } : {}, redirect: "manual",
+      });
       assert.equal(res.status, 200, route);
       const html = await res.text();
       assert.ok(html.includes(entry.body), `${route}: the page body reaches the theme's content slot`);
@@ -78,6 +97,39 @@ for (const theme of [starter, basic2]) {
     }
   });
 }
+
+test("signed-out GET /account redirects to sign-in with a fixed local return path, before rendering", async (t) => {
+  const { server, baseUrl } = await startServer({ themes: [] });
+  t.after(() => closeServer(server));
+  for (const requestPath of ["/account", "/account/", "/account?redirect=https%3A%2F%2Fevil.example", "/account?next=%2F%2Fevil.example"]) {
+    const res = await fetch(`${baseUrl}${requestPath}`, { redirect: "manual" });
+    assert.equal(res.status, 303, requestPath);
+    assert.equal(res.headers.get("location"), "/signin#redirect=%2Faccount");
+    assert.match(res.headers.get("cache-control")!, /private.*no-store/);
+    const signin = new URL(res.headers.get("location")!, baseUrl);
+    assert.equal(signin.origin, baseUrl);
+    assert.equal(new URLSearchParams(signin.hash.slice(1)).get("redirect"), "/account");
+  }
+});
+
+test("unknown, expired and revoked member sessions cannot render /account", async (t) => {
+  const deps = authenticatedDeps();
+  const session = (await deps.memberSessionRepo.listByMember({ workspaceId: deps.workspaceId, memberId: "member-1" }))[0]!;
+  const { server, baseUrl } = await startServer({ ...deps, themes: [starter] });
+  t.after(() => closeServer(server));
+  for (const cookie of [`${MEMBER_SESSION_COOKIE}=forged`, "tovu_session=admin-only"]) {
+    const res = await fetch(`${baseUrl}/account`, { headers: { cookie }, redirect: "manual" });
+    assert.equal(res.status, 303);
+    assert.equal(res.headers.get("location"), "/signin#redirect=%2Faccount");
+  }
+  for (const invalid of [{ ...session, expiresAt: "2000-01-01T00:00:00.000Z" },
+    { ...session, revokedAt: "2026-01-02T00:00:00.000Z" }]) {
+    await deps.memberSessionRepo.save(invalid);
+    const res = await fetch(`${baseUrl}/account`, { headers: { cookie: memberCookie }, redirect: "manual" });
+    assert.equal(res.status, 303);
+    assert.equal(res.headers.get("location"), "/signin#redirect=%2Faccount");
+  }
+});
 
 test("the tovu-starter header carries the member Sign in hook on every public page", async (t) => {
   const { server, baseUrl } = await startServer({ themes: [starter], postRepo: new InMemoryPostRepo([]) });

@@ -47,15 +47,23 @@ import { resolveProductRoot } from "../../product-root.js";
  * `todos.md`, not done as of this note.
  *
  * Outcome Matrix:
- *   Given templateId "starter"        -> workspace + presentation, no entries
+ *   Given templateId "starter"        -> workspace + presentation + Blog listing, no sample posts
  *   Given "starter" + sample opt-in   -> returns { template, seed } where seed deep-equals
  *                                         { workspace: seededWorkspace, posts: seededPosts, presentation: seededPresentation }
  *   Given an unknown/missing templateId -> throws InternalError (BR-01 step 3; nothing created yet)
  */
 
-test("new-site default keeps workspace and theme settings with zero authored posts", () => {
+test("new-site default keeps only the Blog listing page alongside workspace, theme settings, and Gallery", () => {
   const result = readTemplate({ templateId: "starter" });
-  assert.deepEqual(result.seed.posts, []);
+  const blog = seededPosts.find((entry) => entry.id === "page-blog");
+  assert.ok(blog);
+  assert.deepEqual(result.seed.posts, [blog]);
+  assert.equal(blog.kind, "page");
+  assert.equal(blog.slug, "blog");
+  assert.equal(blog.status, "published");
+  assert.equal(blog.templateChoice, "listing-default.html");
+  assert.deepEqual(result.seed.contentEntries?.map((entry) => entry.id), ["widget-default-gallery"]);
+  assert.deepEqual(readTemplate({ templateId: "starter" }, { withSampleContent: false }).seed, result.seed);
   assert.deepEqual(result.seed.workspace, seededWorkspace);
   assert.deepEqual(result.seed.presentation, seededPresentation);
 });
@@ -66,7 +74,7 @@ test("explicit sample-content opt-in is byte-equivalent to server/seed.ts's curr
   assert.deepEqual(result.seed.workspace, seededWorkspace, "workspace seed must equal today's seeded workspace verbatim");
   assert.deepEqual(result.seed.posts, seededPosts, "entries seed (incl. the SPEC-002 'about' page and every other current post) must equal today's seed module output verbatim");
   assert.deepEqual(result.seed.presentation, seededPresentation, "presentation seed must equal today's seeded presentation verbatim");
-  assert.deepEqual(readTemplate({ templateId: "starter" }).seed.posts, [], "fixture opt-in never changes the next site's default");
+  assert.deepEqual(readTemplate({ templateId: "starter" }).seed.posts.map((entry) => entry.id), ["page-blog"], "fixture opt-in never changes the next site's default");
 });
 
 test("state.spec.md §2 TemplateJson: readTemplate('starter').template has the required shape", () => {

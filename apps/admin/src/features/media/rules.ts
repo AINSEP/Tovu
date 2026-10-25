@@ -640,7 +640,7 @@ export function findEditingItem(media: AdminMedia[] | null, editingId: string | 
  * `useMedia`'s error banner, extracted out of that hook (`refactor/fetch-query` complexity pass,
  * 2026-08-12 — same reason `Jini redirects/SOURCE-RATIONALE.md`'s `visibleRedirectsError` was extracted).
  *
- * Precedence: an active write's own failure (trash/purge, in array order) always wins over a
+ * Precedence: an active write's own failure (trash/purge/restore, in array order) always wins over a
  * background list-refresh failure — `use-media.hooks.ts`'s `clearOtherWriteErrors` is this rule's
  * other half, same pairing `Jini redirects/SOURCE-RATIONALE.md`'s `firstWriteError`/`clearOtherWriteErrors` document,
  * so at most one write error is ever live at a time and array order rarely matters in practice. The
@@ -654,18 +654,21 @@ export function findEditingItem(media: AdminMedia[] | null, editingId: string | 
  * (whose hook never localized its own error strings), `use-media.hooks.ts`'s pre-migration catches
  * all used `translate(locale, "...")` fallbacks, and this preserves that.
  *
- * @complexity Time/space: O(1) — three fixed checks, no iteration.
+ * @complexity Time/space: O(1) — four fixed checks, no iteration.
  */
 export function visibleMediaError(params: {
   trashError: Error | null;
   purgeError: Error | null;
   deleteFallback: string;
+  restoreError: Error | null;
+  restoreFallback: string;
   listError: Error | null;
   listFallback: string;
   hasMedia: boolean;
 }): string | null {
   if (params.trashError) return describeApiError(params.trashError, params.deleteFallback);
   if (params.purgeError) return describeApiError(params.purgeError, params.deleteFallback);
+  if (params.restoreError) return describeApiError(params.restoreError, params.restoreFallback);
   if (params.hasMedia) return null;
   return params.listError ? describeApiError(params.listError, params.listFallback) : null;
 }

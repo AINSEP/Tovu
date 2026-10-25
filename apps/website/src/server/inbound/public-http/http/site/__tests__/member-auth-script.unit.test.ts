@@ -128,7 +128,8 @@ test("a sign-in link waits for Continue, then posts only the token", async () =>
 });
 
 for (const [redirect, expected] of [["%2Faccount", "/account"], ["%2F%2Fevil.example", undefined], ["https%3A%2F%2Fevil.example", undefined],
-  ["%2Fa%252fb", undefined], ["%2Fa%5Cb", undefined]] as const) {
+  ["%2Fa%252fb", undefined], ["%2Fa%5Cb", undefined], ["%2F%5Cevil.example", undefined],
+  ["%2F%0A%2Fevil.example", undefined], ["javascript%3Aalert(1)", undefined]] as const) {
   test(`a code request forwards redirect=${redirect} only when it is a same-origin path`, async () => {
     const page = boot({ url: `https://site.example/signin#view=code&redirect=${redirect}`,
       replies: { "POST /sign-in": { status: 200, body: { accepted: true, challengeId: "ch-1" } } } });

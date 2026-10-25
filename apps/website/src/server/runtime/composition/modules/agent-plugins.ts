@@ -1,3 +1,4 @@
+import { registerPluginExportFilesRoute } from "#src/server/inbound/public-http/routes/agent-plugin-surfaces/export-files";
 import { registerAgentPluginMemoryRoutes } from "#src/server/inbound/admin-http/routes/agent-plugins/memory";
 import { registerAgentPluginFilesRoute } from "#src/server/inbound/admin-http/routes/agent-plugins/files";
 import { registerAgentPluginInstallRoute } from "#src/server/inbound/admin-http/routes/agent-plugins/install";
@@ -50,6 +51,7 @@ export function createAgentPluginsModule(deps: RouteDeps): ServerModuleHandle {
       registerAgentPluginMemoryRoutes(app, deps);
       registerAgentPluginAdminSurfaceRoutes(app, deps);
       registerAdminSurfaceFilesRoute(app, deps);
+      registerPluginExportFilesRoute({ app, deps });
       if (deps.apiConnections) {
         registerApiConnectionSignInRoute(app, { workspaceId: deps.workspaceId, host: deps.apiConnections.host });
         registerApiConnectionOAuthCallbackRoute(app, { host: deps.apiConnections.host, callbackLimiter });

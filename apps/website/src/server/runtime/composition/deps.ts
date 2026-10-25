@@ -1,3 +1,7 @@
+import { defaultBundledSourceRoot } from "#src/features/agent-plugins/supersession";
+import { createReadyLoginProviderList } from "#src/features/member-login/ready-providers";
+import { createPluginExportRuntime } from "#src/features/agent-plugins/exports/runtime";
+import { createPluginExportSource } from "#src/features/agent-plugins/exports/source";
 import { readSiteListenerOrigin } from "../boot/site-listener-origin.js";
 import { loadDeployWorkflowFiles } from "#src/features/deployments/index";
 import { createPluginAccountTokenResolver } from "../boot/mail-plugin-account-token.js";
@@ -2222,7 +2226,9 @@ async function composeSiteRouteDeps(
   }, {
     ensurePrivacyDefaults: () => ensureSiteConsentPrivacy({ deps: routeDepsBuilt }),
   });
+  const pluginExports = createPluginExportRuntime({ workspaceId: workspaceId, source: createPluginExportSource({ lifecycle: agentPluginLifecycle }), listProviders: createReadyLoginProviderList({ sourceRoot: defaultBundledSourceRoot({ env: process.env }), loadContributions: agentPluginLifecycle.loadPluginContributions, credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer } }) });
   const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {
+    pluginExports,
     assistantAgentInventory,
     workspaceId: workspaceId,
     peerSiteReads: createPeerSiteReads({ currentSiteDir: resolvedSiteBinding.dir }, {}),
@@ -2288,7 +2294,7 @@ async function composeSiteRouteDeps(
     // 2026-09-24 row 14) is the SAME `postRepo` constructed above — one `post_revisions` ledger,
     // not a second writer of that either.
     // `outbox`: a published HTML page edit enqueues `entry.updated`, so site search reindexes it.
-    pagesHtmlStore: (scope, options: { allowedKinds?: ReadonlySet<import("#src/features/post/index").PostKind> } = {}) => new PagesHtmlDocumentStore(scope, { ...options, db: kernel, clock, entryRefsRepo, revisions: postRepo, outbox }),
+    pagesHtmlStore: (scope, options: { allowedKinds?: ReadonlySet<import("#src/features/post/index").PostKind> } = {}) => new PagesHtmlDocumentStore(scope, { ...options, db: kernel, clock, entryRefsRepo, revisions: postRepo, outbox, validatePluginEmbeds: pluginExports.validateHtml }),
     // `chat` is the store's chat kernel (on SQLite, the sidecar `chat.db`, NOT `content.db` —
     // ADS-memory/reports/2026-09-05-db-split-scoping.md §6). None of these stores opens a database
     // itself.

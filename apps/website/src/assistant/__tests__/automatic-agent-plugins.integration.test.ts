@@ -94,6 +94,11 @@ for (const action of ['use', 'skip'] as const) {
           if (abort.signal.aborted) throw new Error('cannot emit on a terminal attempt');
           await f.context.publish(value);
         }, emitSurface: async (emission: Parameters<AutomaticPluginRun['emitSurface']>[0]) => {
+          if (emission.channel === 'user_message') {
+            assert.equal(typeof emission.payload.surfaceUri, 'string');
+            assert.equal(typeof emission.payload.text, 'string');
+            return;
+          }
         cards++;
         savedCard = emission.payload.resource;
         const html = (emission.payload.resource as { resource: { text: string } }).resource.text;
@@ -207,6 +212,11 @@ test("Don't ask again writes Auto only for the answering principal through the r
     return setting;
   };
   assert.match(await f.runs.start({ runId: 'ask-auto', context: { ...f.context, emitSurface: async emission => {
+    if (emission.channel === 'user_message') {
+      assert.equal(typeof emission.payload.surfaceUri, 'string');
+      assert.equal(typeof emission.payload.text, 'string');
+      return;
+    }
     assert.equal((await read('alice')).value, 'ask', 'opening the form must not change the setting');
     const html = (emission.payload.resource as { resource: { text: string } }).resource.text;
     const exchangeId = html.match(/__exchangeId"\s*:\s*"([^"]+)"/)?.[1];
@@ -237,6 +247,30 @@ test('CLI onStarted places the relevance note, without guidance bodies, into the
   assert.doesNotMatch(input.prompt, /Use holographic layout discipline/);
   assert.match(input.prompt, /Design holography/);
   f.runs.forget({ runId: 'daemon-test-run' });
+});
+
+test('CLI preflight preserves the answer receipt channel in the durable run stream', async () => {
+  const resource = { type: 'resource', resource: { uri: 'ui://tovu/ask-choice/alice/one', mimeType: 'text/html', text: '<form>Choose</form>' } };
+  const receipt = { id: 'answer:one', surfaceUri: resource.resource.uri, text: 'Agent plugins: GitHub', answerText: 'GitHub' };
+  const wire: Record<string, unknown>[] = [];
+  await captureDaemonRun({ conversationId: 'chat', prompt: 'Use the repository' }, {
+    lifecycle: { waitForTerminal: () => new Promise(() => {}), onCancelRequested: () => () => {}, stream: async () => {},
+      emit: async ({ input }: { input: { data: Record<string, unknown> } }) => { wire.push(input.data); } },
+    bindings: {
+      automaticPluginRuns: { forget() {}, start: async ({ context }: { context: AutomaticPluginRun }) => {
+        await context.emitSurface({ channel: 'mcp-ui', payload: { resource } });
+        await context.emitSurface({ channel: 'user_message', payload: receipt });
+        return '';
+      } },
+      routeDeps: { agentSessions: { getSessionId: async () => null, setSessionId: async () => {} } },
+      liveRunTracker: { register() {}, hasConcurrentLiveRun: () => false },
+      waitForStoppingRuns: async () => {}, STOPPING_RUN_WAIT_MS: 20_000,
+    },
+  });
+  assert.deepEqual(wire, [
+    { type: 'mcp-ui', toolUseId: 'agent-plugins:daemon-test-run', resource },
+    { type: 'user_message', ...receipt },
+  ]);
 });
 
 for (const maturity of ['untested', 'soon', undefined] as const) {

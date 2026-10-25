@@ -8,7 +8,9 @@ import { deployConfigTargetOptionHelp, runDeployConfigCommand } from "./commands
 import { runExportCommand } from "./commands/export.js";
 import { runInitCommand } from "./commands/init.js";
 import { runImportSiteCommand } from "./commands/import-site.js";
+import { OWNER_STORE_ACTIONS, runOwnerStoreCommand } from "./commands/owner-store.js";
 import { runStorageMoveCommand } from "./commands/storage-move.js";
+import { runSiteRenameCommand } from "./commands/site-rename.js";
 import { runIntrospectCommand } from "./commands/introspect.js";
 import { runServeCommand } from "./commands/serve.js";
 import { runThemeGenerateIndexCommand } from "./commands/theme/generate-index.js";
@@ -44,6 +46,14 @@ export function createProgram(): Command {
   program.description("Tovu — the website product you own. Manage local site install directories.");
   program.exitOverride();
   program.configureOutput({ writeErr: () => {} });
+  registerOwnerStoreCommands({ program });
+  program.command("site").description("manage local site folders")
+    .command("rename").description("rename a stopped site's folder in the sites home; preserve its display name")
+    .argument("<old-name>", "current folder name")
+    .argument("<new-name>", "new folder name")
+    .action(async (oldName: string, newName: string) => {
+      await runSiteRenameCommand({ oldName, newName });
+    });
   program.command("import").description("install a Tovu share into a NEW site via a running admin server; reads {authorization,url|uploadId,displayName?,requestId?} JSON from stdin; owner password setup stays private in the browser")
     .requiredOption("--server <origin>", "running admin server origin")
     .requiredOption("--workspace <id>", "workspace authorizing local site creation")
@@ -241,4 +251,18 @@ export function createProgram(): Command {
     });
 
   return program;
+}
+
+/** The private desktop protocol has no inline secret flags; Commander owns argv parsing. */
+function registerOwnerStoreCommands({ program }: { program: Command }, _options = {}): void {
+  const ownerStore = program.command("owner-store").description("manage desktop shared keys; private JSON request on stdin");
+  for (const action of OWNER_STORE_ACTIONS) {
+    const command = ownerStore.command(action)
+      .description(`${action} shared keys; reads {userDataDir, ...request} JSON on stdin`)
+      .option("--json", "print one JSON reply (the only format)");
+    if (action === "sync" || action === "revoke") command.requiredOption("--site <dir>", "existing local SQLite site directory");
+    command.action(async (options: { site?: string }) => {
+      await runOwnerStoreCommand({ action, site: options.site });
+    });
+  }
 }
