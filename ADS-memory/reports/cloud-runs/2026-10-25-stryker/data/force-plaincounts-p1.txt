@@ -4,3 +4,8 @@ p1a related plain:
  Test Files  74 passed (74)
       Tests  1134 passed | 2 skipped (1136)
 p1a START 22:35:01
+p1a EXIT 0 22:58:30
+p1b related plain:
+ Test Files  71 passed (71)
+      Tests  1073 passed | 2 skipped (1075)
+p1b START 22:58:52

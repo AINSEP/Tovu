@@ -2,6 +2,7 @@ import sys,json,collections
 sys.path.insert(0,'/home/user/stryker'); from analyze import analyze,score,strict
 old,new=sys.argv[1],sys.argv[2]
 ro,to,_,_=analyze(old); rn,tn,coll,vto=analyze(new)
+ro={f:c for f,c in ro.items() if f in rn}; to=sum(ro.values(),collections.Counter())
 def fmt(c): return 'K%d T%d S%d NC%d' % (c['Killed'],c['Timeout'],c['Survived'],c['NoCoverage'])
 print('| file | run 2 | run 2 score | forced | forced score | Δ | static surv (r2→forced) | coll-err kills | vitest-timeout kills | strict forced |')
 print('|---|---|---|---|---|---|---|---|---|---|')

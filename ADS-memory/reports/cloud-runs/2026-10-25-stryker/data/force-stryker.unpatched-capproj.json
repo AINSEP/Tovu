@@ -1,0 +1,35 @@
+{
+ "testRunner": "vitest",
+ "vitest": {
+  "configFile": "vitest.stryker.config.ts",
+  "related": true
+ },
+ "coverageAnalysis": "perTest",
+ "concurrency": 3,
+ "incremental": false,
+ "force": true,
+ "mutator": {
+  "excludedMutations": [
+   "StringLiteral"
+  ]
+ },
+ "reporters": [
+  "json",
+  "clear-text",
+  "progress-append-only"
+ ],
+ "tempDirName": "/home/user/stryker/tmp-unp",
+ "cleanTempDir": true,
+ "timeoutMS": 10000,
+ "disableTypeChecks": true,
+ "plugins": [
+  "/home/user/stryker/node_modules/@stryker-mutator/vitest-runner/dist/src/index.js"
+ ],
+ "mutate": [
+  "src/lifecycle/capability-projection.ts"
+ ],
+ "jsonReporter": {
+  "fileName": "/home/user/stryker/reports/force-unpatched-capproj.json"
+ },
+ "inPlace": true
+}
