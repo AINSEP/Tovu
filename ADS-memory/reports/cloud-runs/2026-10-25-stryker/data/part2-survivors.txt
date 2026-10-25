@@ -1,0 +1,226 @@
+## src/admin-surfaces/action-dispatcher.ts survivors 6 {"ConditionalExpression":3,"EqualityOperator":1,"LogicalOperator":1,"ObjectLiteral":1}
+ 18:29 ConditionalExpression -> false | super(required.message, optional.cause === undefined ? undefined : { cause: optional.cause });
+ 18:29 EqualityOperator -> optional.cause !== undefined | super(required.message, optional.cause === undefined ? undefined : { cause: optional.cause });
+ 21:22 LogicalOperator -> optional.retryable && false | this.retryable = optional.retryable ?? false;
+ 18:29 ConditionalExpression -> true | super(required.message, optional.cause === undefined ? undefined : { cause: optional.cause });
+ 66:33 ObjectLiteral -> {} | optional.onHandlerError?.({ surfaceId: descriptor.id, action: action.name, error });
+ 69:9 ConditionalExpression -> true | if (action.result !== undefined && validateAdminSurfaceActionValue({ schema: action.result, value: result }) !
+ NOCOV lines 18,21
+## src/admin-surfaces/action-tools.ts survivors 0 {}
+ NOCOV lines 23,25,26,27,28,47,48,50,52,54,55,56,57,58,59,60,61,62,63,66,67,68
+## src/admin-surfaces/callback-field-inbox.ts survivors 3 {"ArithmeticOperator":2,"ArrowFunction":1}
+ 23:22 ArithmeticOperator -> 10 * 60 / 1000 | const INBOX_TTL_MS = 10 * 60 * 1000;
+ 23:22 ArithmeticOperator -> 10 / 60 | const INBOX_TTL_MS = 10 * 60 * 1000;
+ 28:15 ArrowFunction -> () => undefined | const keyOf = (key: AdminSurfaceCallbackFieldKey) => [key.workspaceId, key.pluginId, key.connectionId, key.att
+ NOCOV lines 28,38,42,43,44,47,49,52,55,58,60
+## src/admin-surfaces/capability-declarations.ts survivors 62 {"ConditionalExpression":24,"LogicalOperator":7,"EqualityOperator":3,"ArrowFunction":3,"ObjectLiteral":2,"Regex":23}
+ 55:59 ConditionalExpression -> true | const isPlainObject = (value: unknown): value is Entry => typeof value === 'object' && value !== null && !Arra
+ 55:59 LogicalOperator -> typeof value === 'object' && value !== null || !Ar | const isPlainObject = (value: unknown): value is Entry => typeof value === 'object' && value !== null && !Arra
+ 55:59 ConditionalExpression -> true | const isPlainObject = (value: unknown): value is Entry => typeof value === 'object' && value !== null && !Arra
+ 55:59 LogicalOperator -> typeof value === 'object' || value !== null | const isPlainObject = (value: unknown): value is Entry => typeof value === 'object' && value !== null && !Arra
+ 55:59 ConditionalExpression -> true | const isPlainObject = (value: unknown): value is Entry => typeof value === 'object' && value !== null && !Arra
+ 55:88 ConditionalExpression -> true | const isPlainObject = (value: unknown): value is Entry => typeof value === 'object' && value !== null && !Arra
+ 60:7 ConditionalExpression -> false | if (!Array.isArray(value) || value.length > max) return `${at} must be an array of at most ${max}`;
+ 60:7 LogicalOperator -> !Array.isArray(value) && value.length > max | if (!Array.isArray(value) || value.length > max) return `${at} must be an array of at most ${max}`;
+ 60:32 ConditionalExpression -> false | if (!Array.isArray(value) || value.length > max) return `${at} must be an array of at most ${max}`;
+ 60:32 EqualityOperator -> value.length >= max | if (!Array.isArray(value) || value.length > max) return `${at} must be an array of at most ${max}`;
+ 61:31 ArrowFunction -> () => undefined | const bad = value.findIndex((name, index) => typeof name !== 'string' || !pattern.test(name) || value.indexOf(
+ 61:48 ConditionalExpression -> false | const bad = value.findIndex((name, index) => typeof name !== 'string' || !pattern.test(name) || value.indexOf(
+ 61:48 LogicalOperator -> (typeof name !== 'string' || !pattern.test(name))  | const bad = value.findIndex((name, index) => typeof name !== 'string' || !pattern.test(name) || value.indexOf(
+ 61:48 ConditionalExpression -> false | const bad = value.findIndex((name, index) => typeof name !== 'string' || !pattern.test(name) || value.indexOf(
+ 61:48 LogicalOperator -> typeof name !== 'string' && !pattern.test(name) | const bad = value.findIndex((name, index) => typeof name !== 'string' || !pattern.test(name) || value.indexOf(
+ 61:48 ConditionalExpression -> false | const bad = value.findIndex((name, index) => typeof name !== 'string' || !pattern.test(name) || value.indexOf(
+ 61:99 ConditionalExpression -> false | const bad = value.findIndex((name, index) => typeof name !== 'string' || !pattern.test(name) || value.indexOf(
+ 62:10 ConditionalExpression -> true | return bad === -1 ? (value as string[]) : `${at}[${bad}] must be a unique name matching ${pattern.source}`;
+ 66:7 ConditionalExpression -> false | if (!isPlainObject(entry)) return `${at} must be an object`;
+ 67:7 ConditionalExpression -> false | if (typeof entry.id !== 'string' || !CONNECTION_ID_PATTERN.test(entry.id)) return `${at}.id must be a short co
+ 67:7 LogicalOperator -> typeof entry.id !== 'string' && !CONNECTION_ID_PAT | if (typeof entry.id !== 'string' || !CONNECTION_ID_PATTERN.test(entry.id)) return `${at}.id must be a short co
+ 67:7 ConditionalExpression -> false | if (typeof entry.id !== 'string' || !CONNECTION_ID_PATTERN.test(entry.id)) return `${at}.id must be a short co
+ 68:59 ObjectLiteral -> {} | const startParams = parseNames(entry.startParams ?? [], { pattern: FIELD_NAME_PATTERN, max: MAX_FIELDS, at: `$
+ 69:7 ConditionalExpression -> false | if (typeof startParams === 'string') return startParams;
+ 70:65 ObjectLiteral -> {} | const callbackFields = parseNames(entry.callbackFields ?? [], { pattern: CALLBACK_FIELD_NAME_PATTERN, max: MAX
+ 71:10 ConditionalExpression -> false | return typeof callbackFields === 'string' ? callbackFields : { id: entry.id, startParams, callbackFields };
+ 75:7 ConditionalExpression -> false | if (!Array.isArray(value) || value.length > MAX_CONNECTIONS) return `${at} must be an array of at most ${MAX_C
+ 75:7 LogicalOperator -> !Array.isArray(value) && value.length > MAX_CONNEC | if (!Array.isArray(value) || value.length > MAX_CONNECTIONS) return `${at} must be an array of at most ${MAX_C
+ 75:32 ConditionalExpression -> false | if (!Array.isArray(value) || value.length > MAX_CONNECTIONS) return `${at} must be an array of at most ${MAX_C
+ 75:32 EqualityOperator -> value.length >= MAX_CONNECTIONS | if (!Array.isArray(value) || value.length > MAX_CONNECTIONS) return `${at} must be an array of at most ${MAX_C
+ 79:9 ConditionalExpression -> false | if (typeof parsed === 'string') return parsed;
+ 80:9 ConditionalExpression -> false | if (connections.some((seen) => seen.id === parsed.id)) return `${at}[${index}].id '${parsed.id}' is declared t
+ 80:26 ArrowFunction -> () => undefined | if (connections.some((seen) => seen.id === parsed.id)) return `${at}[${index}].id '${parsed.id}' is declared t
+ 88:7 ConditionalExpression -> true | if (typeof names === 'string') return names;
+ 88:7 ConditionalExpression -> false | if (typeof names === 'string') return names;
+ 88:7 EqualityOperator -> typeof names !== 'string' | if (typeof names === 'string') return names;
+ 89:34 ArrowFunction -> () => undefined | const secret = names.findIndex((name) => SECRET_NAME_PATTERN.test(name));
+ 90:10 ConditionalExpression -> true | return secret === -1 ? names : `${at}[${secret}] names a secret; public config may only hold values that are s
+ 118:9 ConditionalExpression -> false | if (typeof parsed === 'string') return parsed;
+ 36:31 Regex -> /[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/ | const CONNECTION_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+ NOCOV lines 80,93,94,98,99
+## src/admin-surfaces/delivery-bindings.ts survivors 7 {"Regex":5,"ArrowFunction":2}
+ 52:25 Regex -> /[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/ | const FORM_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+ 52:25 Regex -> /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}/ | const FORM_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+ 52:25 Regex -> /^[^A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/ | const FORM_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+ 52:25 Regex -> /^[A-Za-z0-9][A-Za-z0-9._:-]$/ | const FORM_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+ 52:25 Regex -> /^[A-Za-z0-9][^A-Za-z0-9._:-]{0,127}$/ | const FORM_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+ 56:15 ArrowFunction -> () => undefined | const named = (value: unknown) => String(value).slice(0, 64);
+ 57:18 ArrowFunction -> () => undefined | const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> => typeof value === 'object' && 
+ NOCOV lines 56,57,61,62,63,64,65,69,70,71,76,77,78,82,83,88,89,91,92,93,94,95,103,105,106,124,126,127,130,132,133,136,137,138,140,143
+## src/admin-surfaces/descriptor.ts survivors 29 {"ConditionalExpression":18,"ArrowFunction":2,"MethodExpression":1,"Regex":1,"EqualityOperator":4,"LogicalOperator":1,"BlockStatement":1,"ArrayDeclaration":1}
+ 153:7 ConditionalExpression -> false | if (!isContainedAdminSurfacePath({ value: handlerModule, extensions: ['.mjs'] })) return `${at}.handlerModule 
+ 154:7 ConditionalExpression -> false | if (surface.files.includes(handlerModule as string)) return `${at}.handlerModule is server code and may not al
+ 155:47 ArrowFunction -> () => undefined | const unchecked = surface.actions.findIndex((action) => action.result === undefined);
+ 155:59 ConditionalExpression -> false | const unchecked = surface.actions.findIndex((action) => action.result === undefined);
+ 156:7 ConditionalExpression -> false | if (unchecked !== -1) return `${at}.actions[${unchecked}] must declare a result schema when the surface has a 
+ 158:7 ConditionalExpression -> false | if (typeof declarations === 'string') return declarations;
+ 160:10 ConditionalExpression -> false | return typeof handler === 'string' ? handler : { ...handler, ...declarations };
+ 171:7 ConditionalExpression -> true | if (bootstrap === undefined) return { handlerModule };
+ 196:32 ConditionalExpression -> true | if (actions.some((seen) => seen.name === parsed.name)) return `${at}.actions[${index}].name '${parsed.name}' i
+ 220:10 MethodExpression -> sources.some(source => isAllowedAdminSurfaceCspSou | if (!sources.every((source) => isAllowedAdminSurfaceCspSource({ value: source }))) return `${at}.csp['${direct
+ 66:28 Regex -> /https:\/\/(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])? | const CSP_SOURCE_PATTERN = /^https:\/\/(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}(?::\d{1,5})?$/;
+ 69:39 ConditionalExpression -> true | return typeof value === 'object' && value !== null && !Array.isArray(value);
+ 71:51 ConditionalExpression -> true | const isId = (value: unknown): value is string => typeof value === 'string' && value.length <= MAX_ID_LENGTH &
+ 85:7 ConditionalExpression -> false | if (typeof value !== 'string' || !CSP_SOURCE_PATTERN.test(value)) return false;
+ 95:7 EqualityOperator -> required.raw.length >= MAX_RAW_BYTES | if (required.raw.length > MAX_RAW_BYTES) return { ok: false, reason: 'larger than 64 KiB' };
+ 133:10 ConditionalExpression -> false | return typeof handler === 'string' ? handler : { ...surface, csp, ...(linkOrigins && { linkOrigins }), ...hand
+ 138:32 EqualityOperator -> value.length >= MAX_LINK_ORIGINS | if (!Array.isArray(value) || value.length > MAX_LINK_ORIGINS) return `${at} must be an array of at most ${MAX_
+ 152:43 LogicalOperator -> handlerOnlyFieldRefusal(entry, at) && {} | if (handlerModule === undefined) return handlerOnlyFieldRefusal(entry, at) ?? {};
+ 164:75 BlockStatement -> {} | function handlerOnlyFieldRefusal(entry: Entry, at: string): string | null {
+ 165:7 ConditionalExpression -> false | if (entry.bootstrap !== undefined) return `${at}.bootstrap needs a handlerModule that provides it`;
+ 166:20 ArrayDeclaration -> [] | const declared = ['connections', 'publicConfig', 'deliveryAdapters', 'forms'].find((name) => entry[name] !== u
+ 166:86 ArrowFunction -> () => undefined | const declared = ['connections', 'publicConfig', 'deliveryAdapters', 'forms'].find((name) => entry[name] !== u
+ 166:96 ConditionalExpression -> false | const declared = ['connections', 'publicConfig', 'deliveryAdapters', 'forms'].find((name) => entry[name] !== u
+ 167:10 ConditionalExpression -> true | return declared === undefined ? null : `${at}.${declared} needs a handlerModule that uses it`;
+ 191:32 EqualityOperator -> value.length >= MAX_ACTIONS | if (!Array.isArray(value) || value.length > MAX_ACTIONS) return `${at}.actions must be an array of at most ${M
+ 205:18 ConditionalExpression -> true | const effect = action.effect === undefined ? 'write' : action.effect;
+ 206:7 ConditionalExpression -> false | if (effect !== 'read' && effect !== 'write' && effect !== 'destructive') return `${at}.effect must be read, wr
+ 206:7 ConditionalExpression -> true | if (effect !== 'read' && effect !== 'write' && effect !== 'destructive') return `${at}.effect must be read, wr
+ 206:7 EqualityOperator -> effect === 'read' | if (effect !== 'read' && effect !== 'write' && effect !== 'destructive') return `${at}.effect must be read, wr
+ NOCOV lines 172,173,206
+## src/admin-surfaces/host-validator.ts survivors 23 {"ConditionalExpression":17,"LogicalOperator":5,"BooleanLiteral":1}
+ 42:7 ConditionalExpression -> false | if (typeof data !== 'object' || data === null) return false;
+ 42:7 LogicalOperator -> typeof data !== 'object' && data === null | if (typeof data !== 'object' || data === null) return false;
+ 42:7 ConditionalExpression -> false | if (typeof data !== 'object' || data === null) return false;
+ 42:35 ConditionalExpression -> false | if (typeof data !== 'object' || data === null) return false;
+ 44:22 ConditionalExpression -> true | const isProtocol = message.protocol === ADMIN_SURFACE_PROTOCOL && message.version === ADMIN_SURFACE_PROTOCOL_V
+ 44:22 LogicalOperator -> message.protocol === ADMIN_SURFACE_PROTOCOL && mes | const isProtocol = message.protocol === ADMIN_SURFACE_PROTOCOL && message.version === ADMIN_SURFACE_PROTOCOL_V
+ 44:22 ConditionalExpression -> true | const isProtocol = message.protocol === ADMIN_SURFACE_PROTOCOL && message.version === ADMIN_SURFACE_PROTOCOL_V
+ 44:22 LogicalOperator -> message.protocol === ADMIN_SURFACE_PROTOCOL || mes | const isProtocol = message.protocol === ADMIN_SURFACE_PROTOCOL && message.version === ADMIN_SURFACE_PROTOCOL_V
+ 44:22 ConditionalExpression -> true | const isProtocol = message.protocol === ADMIN_SURFACE_PROTOCOL && message.version === ADMIN_SURFACE_PROTOCOL_V
+ 44:69 ConditionalExpression -> true | const isProtocol = message.protocol === ADMIN_SURFACE_PROTOCOL && message.version === ADMIN_SURFACE_PROTOCOL_V
+ 44:123 ConditionalExpression -> true | const isProtocol = message.protocol === ADMIN_SURFACE_PROTOCOL && message.version === ADMIN_SURFACE_PROTOCOL_V
+ 49:10 ConditionalExpression -> true | return typeof message.mountId === 'string' && typeof message.requestId === 'string' && REQUEST_ID_PATTERN.test
+ 49:10 LogicalOperator -> typeof message.mountId === 'string' || typeof mess | return typeof message.mountId === 'string' && typeof message.requestId === 'string' && REQUEST_ID_PATTERN.test
+ 49:10 ConditionalExpression -> true | return typeof message.mountId === 'string' && typeof message.requestId === 'string' && REQUEST_ID_PATTERN.test
+ 49:49 ConditionalExpression -> true | return typeof message.mountId === 'string' && typeof message.requestId === 'string' && REQUEST_ID_PATTERN.test
+ 50:8 ConditionalExpression -> true | && typeof message.action === 'string' && Object.hasOwn(message, 'payload');
+ 80:196 BooleanLiteral -> true | const refuse = (code: string, message: string) => ({ ok: false as const, refused: code, response: adminSurface
+ 97:20 ConditionalExpression -> true | const isResize = message.protocol === ADMIN_SURFACE_PROTOCOL && message.version === ADMIN_SURFACE_PROTOCOL_VER
+ 97:20 LogicalOperator -> message.protocol === ADMIN_SURFACE_PROTOCOL || mes | const isResize = message.protocol === ADMIN_SURFACE_PROTOCOL && message.version === ADMIN_SURFACE_PROTOCOL_VER
+ 97:20 ConditionalExpression -> true | const isResize = message.protocol === ADMIN_SURFACE_PROTOCOL && message.version === ADMIN_SURFACE_PROTOCOL_VER
+ 97:67 ConditionalExpression -> true | const isResize = message.protocol === ADMIN_SURFACE_PROTOCOL && message.version === ADMIN_SURFACE_PROTOCOL_VER
+ 112:59 ConditionalExpression -> false | if (frameTransportRefusal({ event, mount }) !== null || typeof event.data !== 'object' || event.data === null)
+ 114:65 ConditionalExpression -> false | if (!isResizeForMount({ message, mountId: mount.mountId }) || typeof message.height !== 'number' || !Number.is
+ NOCOV lines 42
+## src/admin-surfaces/protocol.ts survivors 0 {}
+ NOCOV lines 102
+## src/admin-surfaces/settings-value.ts survivors 2 {"ObjectLiteral":1,"ArithmeticOperator":1}
+ 11:57 ObjectLiteral -> {} | export const ADMIN_SURFACE_STATE_LIMITS = Object.freeze({ maxKeyLength: PLUGIN_STATE_MAX_KEY_LENGTH, maxValueB
+ 11:117 ArithmeticOperator -> 16 / 1024 | export const ADMIN_SURFACE_STATE_LIMITS = Object.freeze({ maxKeyLength: PLUGIN_STATE_MAX_KEY_LENGTH, maxValueB
+ NOCOV lines 14,15,19,20,21,22,24,35,37,39,40
+## src/admin-surfaces/surface-capabilities.ts survivors 19 {"Regex":16,"ArrowFunction":3}
+ 135:30 Regex -> /[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/ | const SCOPE_SET_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+ 135:30 Regex -> /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}/ | const SCOPE_SET_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+ 135:30 Regex -> /^[^A-Za-z0-9][A-Za-z0-9._-]{0,63}$/ | const SCOPE_SET_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+ 135:30 Regex -> /^[A-Za-z0-9][A-Za-z0-9._-]$/ | const SCOPE_SET_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+ 135:30 Regex -> /^[A-Za-z0-9][^A-Za-z0-9._-]{0,63}$/ | const SCOPE_SET_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+ 136:28 Regex -> /[A-Za-z0-9_-]{1,128}$/ | const ATTEMPT_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
+ 136:28 Regex -> /^[A-Za-z0-9_-]{1,128}/ | const ATTEMPT_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
+ 136:28 Regex -> /^[A-Za-z0-9_-]$/ | const ATTEMPT_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
+ 136:28 Regex -> /^[^A-Za-z0-9_-]{1,128}$/ | const ATTEMPT_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
+ 141:15 ArrowFunction -> () => undefined | const named = (value: unknown) => String(value).slice(0, 64);
+ 142:18 ArrowFunction -> () => undefined | const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> => typeof value === 'object' && 
+ 174:27 Regex -> /[a-z0-9]+(?:-[a-z0-9]+)*$/ | const SAFE_CODE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+ 174:27 Regex -> /^[a-z0-9]+(?:-[a-z0-9]+)*/ | const SAFE_CODE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+ 174:27 Regex -> /^[a-z0-9](?:-[a-z0-9]+)*$/ | const SAFE_CODE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+ 174:27 Regex -> /^[^a-z0-9]+(?:-[a-z0-9]+)*$/ | const SAFE_CODE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+ 174:27 Regex -> /^[a-z0-9]+(?:-[a-z0-9]+)$/ | const SAFE_CODE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+ 174:27 Regex -> /^[a-z0-9]+(?:-[a-z0-9])*$/ | const SAFE_CODE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+ 174:27 Regex -> /^[a-z0-9]+(?:-[^a-z0-9]+)*$/ | const SAFE_CODE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+ 176:20 ArrowFunction -> () => undefined | const isSafeCode = (value: unknown): value is string => typeof value === 'string' && value.length <= MAX_SAFE_
+ NOCOV lines 141,142,144,145,146,151,152,153,154,155,157,160,161,162,163,167,168,169,170,176,180,181,183,187,188,189,190,196,197,198,204,205,213,214,218,219,220,223,225,227,229,231,232,238,239,240,242,244,245,247,248,249,251,252,253,255,256,261,262,263,264,265,269,270,271,272,273,281,283,284,287,288,289,311,313,314,316,317,318,319,320,322,323,324,326
+## src/admin-surfaces/surface-handlers.ts survivors 11 {"ArrayDeclaration":1,"Regex":7,"ArrowFunction":3}
+ 35:39 ArrayDeclaration -> [] | const HOST_KINDS: readonly string[] = ['hosted', 'desktop'] satisfies readonly AdminSurfaceHostKind[];
+ 70:30 Regex -> /[a-z0-9]+(?:-[a-z0-9]+)*$/ | const FAILURE_CODE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+ 70:30 Regex -> /^[a-z0-9]+(?:-[a-z0-9]+)*/ | const FAILURE_CODE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+ 70:30 Regex -> /^[a-z0-9](?:-[a-z0-9]+)*$/ | const FAILURE_CODE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+ 70:30 Regex -> /^[^a-z0-9]+(?:-[a-z0-9]+)*$/ | const FAILURE_CODE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+ 70:30 Regex -> /^[a-z0-9]+(?:-[a-z0-9]+)$/ | const FAILURE_CODE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+ 70:30 Regex -> /^[a-z0-9]+(?:-[a-z0-9])*$/ | const FAILURE_CODE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+ 70:30 Regex -> /^[a-z0-9]+(?:-[^a-z0-9]+)*$/ | const FAILURE_CODE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+ 74:20 ArrowFunction -> () => undefined | const isFunction = (value: unknown) => typeof value === 'function';
+ 75:18 ArrowFunction -> () => undefined | const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> => typeof value === 'object' && 
+ 129:15 ArrowFunction -> () => undefined | const keyOf = (pluginId: string, surfaceId: string) => `${pluginId}\u0000${surfaceId}`;
+ NOCOV lines 74,75,78,79,80,81,94,95,97,98,99,101,102,107,109,110,114,115,116,117,142,144,149,151,152,153,154,155,158,159,160,162,163,168,169,170,171,176,177,181,183,184,186,189,191,193,194,197,200,201,205,207,208,211,213,214
+## src/admin-surfaces/action-schema.ts survivors 10 {"ConditionalExpression":6,"EqualityOperator":1,"OptionalChaining":1,"ArrayDeclaration":2}
+ 41:37 ConditionalExpression -> false | const isBound = (value: unknown) => value === undefined || (typeof value === 'number' && Number.isFinite(value
+ 41:37 EqualityOperator -> value !== undefined | const isBound = (value: unknown) => value === undefined || (typeof value === 'number' && Number.isFinite(value
+ 41:61 ConditionalExpression -> true | const isBound = (value: unknown) => value === undefined || (typeof value === 'number' && Number.isFinite(value
+ 136:14 ConditionalExpression -> true | const ok = typeof value === 'number' && Number.isFinite(value) && (schema.type === 'number' || Number.isIntege
+ 160:17 OptionalChaining -> JSON.stringify(required.payload).length | try { return (JSON.stringify(required.payload)?.length ?? Infinity) > MAX_PAYLOAD_CHARS; } catch { return true
+ 31:12 ArrayDeclaration -> ["Stryker was here"] | boolean: [],
+ 32:9 ArrayDeclaration -> ["Stryker was here"] | null: [],
+ 53:7 ConditionalExpression -> false | if (typeof type !== 'string' || !Object.hasOwn(KEYWORDS, type)) return 'must declare a supported type';
+ 64:7 ConditionalExpression -> true | if (type === 'number' || type === 'integer') return isBound(schema.minimum) && isBound(schema.maximum) ? null 
+ 80:125 ConditionalExpression -> true | const listsDeclaredKeys = (required: unknown, properties: SchemaNode) => Array.isArray(required) && required.e
+## src/admin-surfaces/contribution.ts survivors 0 {}
+## src/admin-surfaces/external-links.ts survivors 11 {"ConditionalExpression":8,"LogicalOperator":2,"ArrayDeclaration":1}
+ 33:7 ConditionalExpression -> false | if (typeof data !== 'object' || data === null) return false;
+ 35:22 ConditionalExpression -> true | const isProtocol = message.protocol === ADMIN_SURFACE_PROTOCOL && message.version === ADMIN_SURFACE_PROTOCOL_V
+ 35:22 LogicalOperator -> message.protocol === ADMIN_SURFACE_PROTOCOL || mes | const isProtocol = message.protocol === ADMIN_SURFACE_PROTOCOL && message.version === ADMIN_SURFACE_PROTOCOL_V
+ 35:22 ConditionalExpression -> true | const isProtocol = message.protocol === ADMIN_SURFACE_PROTOCOL && message.version === ADMIN_SURFACE_PROTOCOL_V
+ 35:69 ConditionalExpression -> true | const isProtocol = message.protocol === ADMIN_SURFACE_PROTOCOL && message.version === ADMIN_SURFACE_PROTOCOL_V
+ 36:24 ConditionalExpression -> true | return isProtocol && typeof message.mountId === 'string' && typeof message.requestId === 'string' && REQUEST_I
+ 36:63 ConditionalExpression -> true | return isProtocol && typeof message.mountId === 'string' && typeof message.requestId === 'string' && REQUEST_I
+ 48:7 LogicalOperator -> parsed.username !== '' && parsed.password !== '' | if (parsed.username !== '' || parsed.password !== '') return { code: 'link-invalid', message: 'That link is no
+ 48:7 ConditionalExpression -> false | if (parsed.username !== '' || parsed.password !== '') return { code: 'link-invalid', message: 'That link is no
+ 48:33 ConditionalExpression -> false | if (parsed.username !== '' || parsed.password !== '') return { code: 'link-invalid', message: 'That link is no
+ 71:74 ArrayDeclaration -> ["Stryker was here"] | const checked = checkLink(request.url, mount.descriptor.linkOrigins ?? []);
+## src/admin-surfaces/sandbox.ts survivors 1 {"ConditionalExpression":1}
+ 68:41 ConditionalExpression -> false | const script = extension === 'mjs' || extension === 'js';
+## src/admin-surfaces/surface-client.ts survivors 33 {"ConditionalExpression":22,"LogicalOperator":4,"MethodExpression":1,"EqualityOperator":2,"UnaryOperator":1,"OptionalChaining":1,"Regex":2}
+ 97:7 ConditionalExpression -> false | if (typeof data !== 'object' || data === null) return false;
+ 99:10 ConditionalExpression -> true | return message.protocol === PROTOCOL && message.version === VERSION && message.kind === kind;
+ 99:10 LogicalOperator -> message.protocol === PROTOCOL || message.version = | return message.protocol === PROTOCOL && message.version === VERSION && message.kind === kind;
+ 99:10 ConditionalExpression -> true | return message.protocol === PROTOCOL && message.version === VERSION && message.kind === kind;
+ 99:43 ConditionalExpression -> true | return message.protocol === PROTOCOL && message.version === VERSION && message.kind === kind;
+ 102:7 ConditionalExpression -> false | if (typeof value !== 'object' || value === null) return false;
+ 104:10 ConditionalExpression -> true | return typeof error.code === 'string' && typeof error.message === 'string' && typeof error.retryable === 'bool
+ 104:10 LogicalOperator -> typeof error.code === 'string' || typeof error.mes | return typeof error.code === 'string' && typeof error.message === 'string' && typeof error.retryable === 'bool
+ 104:10 ConditionalExpression -> true | return typeof error.code === 'string' && typeof error.message === 'string' && typeof error.retryable === 'bool
+ 104:44 ConditionalExpression -> true | return typeof error.code === 'string' && typeof error.message === 'string' && typeof error.retryable === 'bool
+ 108:36 ConditionalExpression -> false | if (typeof value !== 'object' || value === null) return undefined;
+ 110:52 ConditionalExpression -> false | if ((scheme !== 'light' && scheme !== 'dark') || typeof tokens !== 'object' || tokens === null) return undefin
+ 110:82 ConditionalExpression -> false | if ((scheme !== 'light' && scheme !== 'dark') || typeof tokens !== 'object' || tokens === null) return undefin
+ 111:16 MethodExpression -> Object.entries(tokens) | const safe = Object.entries(tokens).slice(0, MAX_THEME_TOKENS).filter(([name, token]) => THEME_TOKEN.test(name
+ 112:8 ConditionalExpression -> true | && typeof token === 'string' && token.length > 0 && token.length <= 200 && !UNSAFE_THEME_VALUE.test(token));
+ 112:37 ConditionalExpression -> true | && typeof token === 'string' && token.length > 0 && token.length <= 200 && !UNSAFE_THEME_VALUE.test(token));
+ 112:37 EqualityOperator -> token.length >= 0 | && typeof token === 'string' && token.length > 0 && token.length <= 200 && !UNSAFE_THEME_VALUE.test(token));
+ 112:57 ConditionalExpression -> true | && typeof token === 'string' && token.length > 0 && token.length <= 200 && !UNSAFE_THEME_VALUE.test(token));
+ 112:57 EqualityOperator -> token.length < 200 | && typeof token === 'string' && token.length > 0 && token.length <= 200 && !UNSAFE_THEME_VALUE.test(token));
+ 126:7 LogicalOperator -> (!body || !scope.ResizeObserver) && !scope.Mutatio | if (!body || !scope.ResizeObserver || !scope.MutationObserver || !scope.getComputedStyle) return null;
+ 126:7 ConditionalExpression -> false | if (!body || !scope.ResizeObserver || !scope.MutationObserver || !scope.getComputedStyle) return null;
+ 126:7 LogicalOperator -> !body && !scope.ResizeObserver | if (!body || !scope.ResizeObserver || !scope.MutationObserver || !scope.getComputedStyle) return null;
+ 126:7 ConditionalExpression -> false | if (!body || !scope.ResizeObserver || !scope.MutationObserver || !scope.getComputedStyle) return null;
+ 149:67 ConditionalExpression -> true | return message.ok === true ? Object.hasOwn(message, 'result') : message.ok === false && isFailure(message.erro
+ 176:20 UnaryOperator -> +1 | let lastHeight = -1;
+ 180:9 ConditionalExpression -> false | if (init === undefined || !Number.isFinite(height) || height === lastHeight) return;
+ 190:71 ConditionalExpression -> true | for (const name of Object.keys(currentTheme?.tokens ?? {})) if (!(name in next.tokens)) themeRoot.style.remove
+ 207:26 OptionalChaining -> init.origin | if (event.origin !== init?.origin || data.mountId !== init.mountId || typeof data.requestId !== 'string') retu
+ 207:75 ConditionalExpression -> false | if (event.origin !== init?.origin || data.mountId !== init.mountId || typeof data.requestId !== 'string') retu
+ 220:14 ConditionalExpression -> true | else if (isMessage(event.data, 'action-response')) onResponse(event, event.data);
+ 225:9 ConditionalExpression -> true | if (init === undefined) await ready;
+ 21:21 Regex -> /--jini-[a-z0-9-]{1,60}$/ | const THEME_TOKEN = /^--jini-[a-z0-9-]{1,60}$/;
+ 21:21 Regex -> /^--jini-[a-z0-9-]{1,60}/ | const THEME_TOKEN = /^--jini-[a-z0-9-]{1,60}$/;
+## src/admin-surfaces/theme.ts survivors 3 {"ConditionalExpression":1,"EqualityOperator":1,"OptionalChaining":1}
+ 54:10 ConditionalExpression -> true | return typeof value === 'string' && value.length > 0 && value.length <= MAX_VALUE_LENGTH && !UNSAFE_VALUE.test
+ 54:59 EqualityOperator -> value.length < MAX_VALUE_LENGTH | return typeof value === 'string' && value.length > 0 && value.length <= MAX_VALUE_LENGTH && !UNSAFE_VALUE.test
+ 71:51 OptionalChaining -> optional.sources[token] | const value = required.style.getPropertyValue(optional.sources?.[token] ?? token).trim();

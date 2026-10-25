@@ -10,3 +10,6 @@ Correction: the retried Jini push SUCCEEDED (cloud/stryker-1025-jini @ 9fa38851)
 
 ## 2026-10-25T17:43:21Z — PROGRESS
 Part 1 (lifecycle) done: 4508 mutants, 87.84%, 97m29s Stryker wall. Data in data/. Part 2 running.
+
+## 2026-10-25T18:11:32Z — PROGRESS
+Part 2 (admin-surfaces) done: 2085 mutants. Anomaly: 6 files show 0 kills / 666 NoCoverage under perTest although tests exist (478 tests pass) — rerunning those 6 with coverageAnalysis=off against admin-surfaces tests only. Part 3 running.

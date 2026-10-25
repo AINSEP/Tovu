@@ -1,0 +1,19 @@
+TOTAL mutants,killed,surv,nocov,timeout [ 2085, 1199, 220, 666, 0 ] 57.51
+file|mutants|killed|surv|nocov|timeout|score|err
+src/admin-surfaces/action-tools.ts|44|0|0|44|0|0.0|0
+src/admin-surfaces/callback-field-inbox.ts|26|0|3|23|0|0.0|0
+src/admin-surfaces/delivery-bindings.ts|128|0|7|121|0|0.0|0
+src/admin-surfaces/settings-value.ts|61|0|2|59|0|0.0|0
+src/admin-surfaces/surface-capabilities.ts|242|0|19|223|0|0.0|0
+src/admin-surfaces/surface-handlers.ts|187|0|11|176|0|0.0|0
+src/admin-surfaces/capability-declarations.ts|130|59|62|9|0|45.4|0
+src/admin-surfaces/host-validator.ts|134|110|23|1|0|82.1|0
+src/admin-surfaces/protocol.ts|6|5|0|1|0|83.3|0
+src/admin-surfaces/action-dispatcher.ts|60|52|6|2|0|86.7|0
+src/admin-surfaces/surface-client.ts|263|230|33|0|0|87.5|0
+src/admin-surfaces/external-links.ts|101|90|11|0|0|89.1|0
+src/admin-surfaces/theme.ts|28|25|3|0|0|89.3|0
+src/admin-surfaces/descriptor.ts|344|308|29|7|0|89.5|0
+src/admin-surfaces/action-schema.ts|272|262|10|0|0|96.3|0
+src/admin-surfaces/sandbox.ts|40|39|1|0|0|97.5|0
+src/admin-surfaces/contribution.ts|19|19|0|0|0|100.0|0
