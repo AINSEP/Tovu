@@ -10,3 +10,6 @@ First attempt (whole admin suite 13.5k tests as the test set, batch A = 64 files
 Also needed: `retry: 2` + 60 s timeouts (a widgets-swap test flaked once in the dry run, passes alone).
 REPLAN: wrapper config now INCLUDES only src/lib, src/hooks, src/integrations tests (158 files / 2217 tests, 2m20s, all pass). Consequence: mutants only killed by feature/component/App-level tests will show as survived/no-coverage — see report section 7.
 Started A then B at 17:40Z.
+
+## 2026-10-25T18:47Z — PROGRESS / REPLAN 2
+Run A (scoped tests, 3721 mutants) reached 2597/2859 in ~65 min, then stalled: stryker runs "static" mutants (top-level code, need environment reload) LAST and each runs the whole 2217-test set (~2+ min each) -> ETA >2 h. Killed it (SIGINT writes no report, nothing salvaged). Rerun A2 = same 64 files with `ignoreStatic: true`, concurrency 4 (static mutants will be reported as IGNORED, i.e. unmeasured), started 18:46Z. Batch B (37 non-i18n files) will NOT be run unless A2 finishes by ~19:00 (it won't) — listed NOT RUN.

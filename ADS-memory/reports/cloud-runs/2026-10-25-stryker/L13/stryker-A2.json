@@ -70,9 +70,8 @@
   "src/lib/version-conflict.ts"
  ],
  "coverageAnalysis": "perTest",
- "concurrency": 3,
- "incremental": true,
- "incrementalFile": "/root/stryker/reports/incr-A.json",
+ "concurrency": 4,
+ "incremental": false,
  "mutator": {
   "excludedMutations": [
    "StringLiteral"
@@ -84,12 +83,13 @@
   "progress-append-only"
  ],
  "jsonReporter": {
-  "fileName": "/root/stryker/reports/A.json"
+  "fileName": "/root/stryker/reports/A2.json"
  },
  "tempDirName": ".stryker-tmp",
  "cleanTempDir": false,
  "disableTypeChecks": true,
  "dryRunTimeoutMinutes": 40,
  "timeoutMS": 20000,
- "timeoutFactor": 2
+ "timeoutFactor": 2,
+ "ignoreStatic": true
 }

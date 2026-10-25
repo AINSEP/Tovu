@@ -1,0 +1,68 @@
+{
+ "testRunner": "vitest",
+ "vitest": {
+  "configFile": "vitest.stryker.config.ts"
+ },
+ "mutate": [
+  "src/admin-themes/apply.ts",
+  "src/admin-themes/registry.ts",
+  "src/admin-themes/use-admin-theme.hooks.ts",
+  "src/lib/a2ui-action-poster.ts",
+  "src/lib/addons-routes.ts",
+  "src/lib/admin-dev-origin.ts",
+  "src/lib/agent-pages.ts",
+  "src/lib/agent-screen-context.ts",
+  "src/lib/agent-screenshot-bus.ts",
+  "src/lib/agent-screenshot.ts",
+  "src/lib/app-version.ts",
+  "src/lib/assistant-agents-snapshot.ts",
+  "src/lib/assistant-chats.ts",
+  "src/lib/assistant-dock-bus.ts",
+  "src/lib/assistant-prompt-bus.ts",
+  "src/lib/assistant-subagents.ts",
+  "src/lib/block-atom-insert.ts",
+  "src/lib/chat-attachment-liveness.ts",
+  "src/lib/content-refresh-bus.ts",
+  "src/lib/credential-card-guidance.ts",
+  "src/lib/credential-copy.ts",
+  "src/lib/editor-template-options.rules.ts",
+  "src/lib/escape-owned-by-inner-layer.ts",
+  "src/lib/external-entry-refresh.ts",
+  "src/lib/ledger-slice.ts",
+  "src/lib/media-embed-extension.hooks.ts",
+  "src/lib/merge-locale-overlays.ts",
+  "src/lib/plain-text-blocks.ts",
+  "src/lib/playground-render-target-bus.ts",
+  "src/lib/post-title-extension.ts",
+  "src/lib/stream-activity.ts",
+  "src/lib/visible-interval.ts",
+  "src/lib/visitor-tools.ts",
+  "src/lib/widget-embed-extension.hooks.ts",
+  "src/lib/widget-embed-placement-content.ts",
+  "src/media-panel.ts",
+  "src/nav.ts"
+ ],
+ "coverageAnalysis": "perTest",
+ "concurrency": 4,
+ "incremental": false,
+ "mutator": {
+  "excludedMutations": [
+   "StringLiteral"
+  ]
+ },
+ "reporters": [
+  "json",
+  "clear-text",
+  "progress-append-only"
+ ],
+ "jsonReporter": {
+  "fileName": "/root/stryker/reports/B2.json"
+ },
+ "tempDirName": ".stryker-tmp",
+ "cleanTempDir": false,
+ "disableTypeChecks": true,
+ "dryRunTimeoutMinutes": 40,
+ "timeoutMS": 20000,
+ "timeoutFactor": 2,
+ "ignoreStatic": true
+}
