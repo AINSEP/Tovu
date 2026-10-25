@@ -589,3 +589,27 @@ test('saved-only provider metadata is authorized before checking whether a crede
   await assert.rejects(call(execute, { input: { provider: 'example-git', owner: 'octo', repo: 'demo', commitMessage: 'x' } }));
   assert.equal(lookups, 0);
 });
+
+test("backup discovery finds an installed git host without credentials and denies before credential summaries", async () => {
+  let registryReads = 0;
+  const { deps, setAllow } = fakeDeps({ loadSourceControlProviders: async () => {
+    registryReads++;
+    return { ...exampleRegistry({ probe: false, ids: ["github"] }), switchedOff: new Map([["disabled-git", "disabled-git-plugin"]]) };
+  } });
+  const capabilities = tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), "source_control_get_capabilities");
+  const result = await call(capabilities) as { providers: { providerId: string; configured: boolean; commitSupported: boolean; savedCredentials: unknown[]; guidance?: string }[] };
+  const installed = result.providers.find(item => item.providerId === "github")!;
+  assert.equal(installed.configured, false);
+  assert.equal(installed.commitSupported, true);
+  assert.deepEqual(installed.savedCredentials, []);
+  const disabled = result.providers.find(item => item.providerId === "disabled-git")!;
+  assert.equal(disabled.commitSupported, false);
+  assert.match(disabled.guidance!, /disabled-git-plugin/);
+  setAllow(false);
+  const denied = { ...deps, sourceControlCredentialSetRepo: new Proxy(deps.sourceControlCredentialSetRepo, {
+    get() { throw new Error("Denied capability read reached credential storage"); },
+  }) };
+  const deniedTool = tool(buildRegistrations(denied, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), "source_control_get_capabilities");
+  await assert.rejects(call(deniedTool), /source-control.read/);
+  assert.equal(registryReads, 1);
+});

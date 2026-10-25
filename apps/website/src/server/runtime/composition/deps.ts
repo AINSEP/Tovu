@@ -123,7 +123,7 @@ import { SqliteSourceControlCredentialSetRepo } from "#src/platform/db/sqlite/so
 import { SqliteVendorCredentialSetRepo } from "#src/platform/db/sqlite/vendor-credential-repo.sqlite";
 import { executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
 import { InMemoryPublishCredentialVerificationCache } from "#src/features/deployments/static-publish/index";
-import { loadDeployTargetRegistry } from "#src/features/deployments/deploy-targets/registry";
+import { loadDeployTargetRegistry, loadInstalledDeployTargets } from "#src/features/deployments/deploy-targets/registry";
 import { loadFormDestinationRegistry } from "#src/features/form-destinations/registry";
 import { PagesHtmlDocumentStore } from "#src/features/pages/index";
 import {
@@ -2711,6 +2711,13 @@ async function composeSiteRouteDeps(
     publishOutputRootDir: resolvePublishOutputRootDir({ siteDir: resolvedSiteBinding.dir }),
     // See `routes/types.ts`'s `loadDeployTargets` doc: the installed, activated deploy Agent Plugin.
     loadDeployTargets: (workspaceId) => loadDeployTargetRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
+    loadInstalledDeployTargets: ({ workspaceId }) => loadInstalledDeployTargets({ workspaceId,
+      loadContributions: agentPluginLifecycle.loadPluginContributions,
+      readEnabled: async ({ workspaceId, pluginId }) => {
+        const activation = await agentPluginLifecycle.resolveAgentPluginActivation({ workspaceRoot: agentPluginLayout.forWorkspace(workspaceId).root, pluginId });
+        return activation.verdict === "undetermined" ? null : activation.verdict === "active";
+      },
+    }),
     loadDeployWorkflowFiles: input => loadDeployWorkflowFiles({ ...input, loadContributions: agentPluginLifecycle.loadPluginContributions }),
     loadDeployOps: (ctx) => loadDeployOpsRegistry(ctx, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
     loadSourceControlProviders: (workspaceId) => loadSourceControlProviderRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),

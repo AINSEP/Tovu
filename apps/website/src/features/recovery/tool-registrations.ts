@@ -243,7 +243,13 @@ export function buildRecoveryRegistrations(
       requireNoInput({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "backup.read" }, { entityType: "restore-point" });
       const capabilities = await routeDeps.dbOps.getCapabilities();
-      return { costClass: capabilities.restorePoint.costClass, kind: capabilities.restorePoint.kind };
+      return { costClass: capabilities.restorePoint.costClass, kind: capabilities.restorePoint.kind,
+        fullSiteBackup: {
+          discoveryTool: "source_control_get_capabilities", planTool: "site_backup_plan", pushTool: "site_backup_push",
+          guidance: "Discover installed source-control hosts, including disabled hosts, before choosing a private repository. Enable the chosen plugin and configure its connection through the secure card. Plan and review the private full-site backup before pushing; rendered static output commits are separate.",
+        },
+        portableExport: { href: "/admin/sites", guidance: "Admin → Sites → Export creates a portable .tovu.zip." },
+      };
     },
 
     backup_plan_restore: async (ctx) => {

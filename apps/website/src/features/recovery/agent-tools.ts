@@ -119,7 +119,7 @@ export const recoveryAgentToolCatalog: AgentToolDefinition[] = [
   },
   {
     name: "backup_get_capabilities",
-    description: "Reports this site's restore-point cost class and mechanism kind.",
+    description: "Reports this site's restore-point cost class and mechanism kind. For private full-site repository backups, call source_control_get_capabilities to discover installed hosts (including disabled ones), then site_backup_plan → site_backup_push. Portable .tovu.zip exports are available under Admin → Sites → Export. Rendered static output commits are a separate publishing workflow.",
     sideEffects: "none",
     authorization: { permission: "backup.read" },
     inputSchema: NO_INPUT_SCHEMA,

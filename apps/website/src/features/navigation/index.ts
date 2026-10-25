@@ -108,6 +108,7 @@ export {
 } from "@jini-ai/cms/navigation/node";
 
 export {
+  findBoundMenu,
   resolveForLocation,
   resolveMenuDoc,
   type ResolveTargetHrefFn,

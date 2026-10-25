@@ -103,6 +103,7 @@ export type ContentRouteDeps = Pick<
   | "entryRepo"
   | "mediaRepo"
   | "transformDefinitionRepo"
+  | "navLocationBindingRepo"
   | "menuRepo"
   | "mediaContentTypeStore"
   // Preview uses the public route's member-access resolver for post-list embeds. Its anonymous

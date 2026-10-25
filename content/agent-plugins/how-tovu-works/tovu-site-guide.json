@@ -279,7 +279,7 @@
         {
           "title": "Publish the static site to a host",
           "steps": [
-            "Check what is ready: deployment_get_static_publish_capabilities lists every host and whether a credential is saved for it. Do not guess from memory.",
+            "Discover installed hosts: deployment_get_static_publish_capabilities includes disabled hosting plugins, their pluginId, enabled state and how to turn them on. This is the installed inventory, not every possible host. Credential configuration and readiness are separate; an unchecked credential state is unknown. Enable the chosen plugin, then check capabilities again. Do not guess from memory.",
             "Pick the host with the person. Use what they already have: 'my Netlify' means Netlify. Each host's own plugin has its token steps and failure messages.",
             "No credential saved? The person saves it themselves in Admin, Deployment, Static site, or through credential_save's secure card. Never ask them to paste a token into chat, and never put one in a tool argument.",
             "Preview first, always: deployment_preview_static_publish publishes nothing. Tell the person what will be published and where.",

@@ -2,9 +2,9 @@ import { bundledContributionSources } from "../../agent-plugins/bundled-contribu
 import path from "node:path";
 
 import { parseDescriptorI18n } from "#src/features/agent-plugins/descriptor-i18n";
-import { defineExecutablePluginContribution, type LoadPluginContributions, loadPluginContributionsFromSource, type TrustedPluginPackage } from "../../agent-plugins/lifecycle.js";
+import { defineExecutablePluginContribution, type LoadPluginContributions, type PluginContributionDefinition, loadPluginContributionsFromSource, type TrustedPluginPackage } from "../../agent-plugins/lifecycle.js";
 
-import type { DeployTargetCredentialSpec, DeployTargetDescriptor, DeployTargetEnvFallback, DeployTargetFieldSpec, DeployTargetModule, DeployTargetProjectNameCopy, DeployTargetRegistry, LoadedDeployTarget } from "./types.js";
+import type { InstalledDeployTarget, InstalledDeployTargetInventory, DeployTargetCredentialSpec, DeployTargetDescriptor, DeployTargetEnvFallback, DeployTargetFieldSpec, DeployTargetModule, DeployTargetProjectNameCopy, DeployTargetRegistry, LoadedDeployTarget } from "./types.js";
 
 /**
  * @file Loads deploy targets that Agent Plugins contribute — the generic seam that lets each hosting
@@ -65,7 +65,28 @@ export async function loadDeployTargetRegistry(ctx: { readonly workspaceId: stri
   // Plugin-id order, not installed order: each host is its own plugin, so the Static site tab
   // lists them the same way on every site, and the same way as the hermetic bundled registry below.
   const load = await required.loadContributions({ ...ctx, definition: targetContribution }, { orderByPluginId: true });
-  return buildRegistry(load.items, load.refusals);
+  return buildRegistry({ loaded: load.items, refusals: load.refusals });
+}
+
+/** Discover installed host descriptors through the existing data loader, including disabled hosts.
+ * No module is imported. Digest, containment, parser and ambiguous-id refusals retain their owners.
+ * @returns Installed metadata and every refusal; activation read failures are represented as unknown.
+ * @complexity O(p + t) installed packages and targets, with one activation read per target.
+ */
+export async function loadInstalledDeployTargets(required: {
+  readonly workspaceId: string;
+  readonly loadContributions: LoadPluginContributions;
+  readonly readEnabled: (input: { workspaceId: string; pluginId: string }) => Promise<boolean | null>;
+}, _optional: Record<string, never> = {}): Promise<InstalledDeployTargetInventory> {
+  const definition: PluginContributionDefinition<DeployTargetDescriptor, InstalledDeployTarget> = {
+    filename: DEPLOY_TARGETS_FILENAME, contribution: "deploy targets", kind: "data",
+    parse: ({ raw }) => parseDeployTargetsFile(raw),
+    load: async ({ plugin, descriptor }) => ({ descriptor, pluginId: plugin.pluginId,
+      enabled: await required.readEnabled({ workspaceId: required.workspaceId, pluginId: plugin.pluginId }) }),
+  };
+  const load = await required.loadContributions({ workspaceId: required.workspaceId, definition }, { requireActive: false, orderByPluginId: true });
+  const registry = buildRegistry({ loaded: load.items, refusals: load.refusals });
+  return { items: registry.list(), refusals: registry.refusals };
 }
 
 /** The two facts the source loader needs about a package: whose it is and where it lives. */
@@ -81,7 +102,7 @@ type TargetPackage = TrustedPluginPackage;
  */
 export async function loadDeployTargetRegistryFromSource(plugin: TargetPackage, _optional: Record<string, never> = {}): Promise<DeployTargetRegistry> {
   const load = await loadPluginContributionsFromSource({ plugin, definition: targetContribution });
-  return buildRegistry(load.items, load.refusals);
+  return buildRegistry({ loaded: load.items, refusals: load.refusals });
 }
 
 /**
@@ -106,7 +127,7 @@ export async function loadBundledDeployTargetRegistry(required: { readonly sourc
     items.push(...load.items);
     refusals.push(...load.refusals);
   }
-  return buildRegistry(items, refusals);
+  return buildRegistry({ loaded: items, refusals });
 }
 
 /** Validate the default export after Jini's contained import. @complexity O(1). */
@@ -281,11 +302,14 @@ function isEnvVarName(value: unknown): value is string {
 
 /** Indexes loaded targets by id, dropping every id more than one plugin declares.
  *  @complexity O(n) in the loaded target count. */
-function buildRegistry(loaded: readonly LoadedDeployTarget[], refusals: readonly string[]): DeployTargetRegistry {
-  const byId = new Map<string, LoadedDeployTarget[]>();
+function buildRegistry<T extends Pick<LoadedDeployTarget, "descriptor" | "pluginId">>(
+  { loaded, refusals }: { loaded: readonly T[]; refusals: readonly string[] },
+  _optional: Record<string, never> = {},
+) {
+  const byId = new Map<string, T[]>();
   for (const target of loaded) byId.set(target.descriptor.id, [...(byId.get(target.descriptor.id) ?? []), target]);
 
-  const unique = new Map<string, LoadedDeployTarget>();
+  const unique = new Map<string, T>();
   const allRefusals = [...refusals];
   for (const [id, claimants] of byId) {
     if (claimants.length === 1) unique.set(id, claimants[0]!);
@@ -295,7 +319,7 @@ function buildRegistry(loaded: readonly LoadedDeployTarget[], refusals: readonly
     }
   }
   return {
-    get: (targetId) => unique.get(targetId),
+    get: (targetId: string) => unique.get(targetId),
     list: () => [...unique.values()],
     refusals: allRefusals,
   };

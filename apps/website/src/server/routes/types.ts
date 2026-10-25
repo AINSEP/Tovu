@@ -1596,6 +1596,8 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * directory directly (`loadBundledDeployTargetRegistry`).
    */
   loadDeployTargets: (workspaceId: string) => Promise<DeployTargetRegistry>;
+  /** Data-only installed host inventory; disabled plugins remain discoverable. */
+  loadInstalledDeployTargets?: import("#src/features/deployments/deploy-targets/types").LoadInstalledDeployTargets;
   /** Fresh installed-plugin trust gates in production; server/app.ts's hermetic root reads the bundled plugins' sources. */
   loadDeployOps: (ctx: { workspaceId: string }) => Promise<import("#src/features/deployments/deploy-ops/types").DeployOpsRegistry>;
   /**

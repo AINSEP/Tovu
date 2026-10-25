@@ -87,7 +87,7 @@ test("hidden-topic errors retain their exact message and classify as tool input 
 });
 test("every admin execution path receives the same vendor-neutral learning pointer", () => {
   for (const overlay of [buildBaseSystemOverlay(false), buildBaseSystemOverlay(true), SYSTEM_PREAMBLE]) assert.ok(overlay.startsWith(SITE_GUIDE_POINTER));
-  assert.deepEqual(TOVU_CAPABILITY_CARDS.map(card => card.id), ["content", "forms", "widgets", "themes", "members", "seo", "deploy", "plugins", "jini-packages"]);
+  assert.deepEqual(TOVU_CAPABILITY_CARDS.map(card => card.id), ["content", "forms", "widgets", "themes", "members", "seo", "deploy", "backup", "plugins", "jini-packages"]);
 });
 
 test("site_guide search metadata reaches the shared projection and the production catalog", async () => {
@@ -159,4 +159,24 @@ test('listener pin uses actual dev TLS, desktop host and selected port before gu
     assert.equal(pinSiteListenerOrigin({ scheme, host, port }, { env }), expected);
     assert.equal(env.TOVU_SITE_LISTENER_ORIGIN, expected);
   }
+});
+
+test("backup guide gates source-control pointers and private-backup workflow without reading credentials", async () => {
+  const d = deps(); const grants = new Set(["admin.assistant.use", "backup.read"]);
+  d.authorize = async ({ permission }) => ({ allowed: grants.has(permission), reason: "test grants" });
+  const loader = createPluginContributionLoader({
+    findPackages: async () => [], readFile: async () => { throw new Error("No contributions"); },
+    importModule: async () => { throw new Error("Guide must remain data-only"); },
+  });
+  Object.defineProperty(d, "agentPluginLifecycle", { value: { ...createTovuAgentPluginLifecycle({ layout: d.agentPluginLayout }), loadPluginContributions: loader.loadPluginContributions } });
+  const guide = createTovuSiteGuide({ deps: d }, { engine: resolveSiteGuideEngine({}) });
+  const explain = () => guide.run({ caller: { principalId: "reader" }, operation: "explain", topic: "backup" });
+  const restricted = JSON.stringify(await explain());
+  assert.match(restricted, /backup_get_capabilities/);
+  assert.doesNotMatch(restricted, /source_control_get_capabilities|site_backup_plan|site_backup_push|savedCredentials/);
+  grants.add("source-control.read"); grants.add("site-backup.push");
+  const allowed = JSON.stringify(await explain());
+  for (const tool of ["source_control_get_capabilities", "site_backup_plan", "site_backup_push"]) assert.ok(allowed.includes(tool));
+  assert.match(allowed, /private.*full-site|full-site.*private/);
+  assert.match(allowed, /rendered static output/i);
 });

@@ -9,7 +9,7 @@ import type { PostRecord } from "#src/features/post/index";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { renderStaticPage, type DiscoveredTheme } from "#src/features/theme/index";
 import { resolveStaticMenusForRender } from "../pages.js";
-import { InMemoryMenuRepo, NAV_DOC_TYPE } from "#src/features/navigation/index";
+import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, NAV_DOC_TYPE } from "#src/features/navigation/index";
 import type { NavMenuEntry } from "#src/features/navigation/index";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 
@@ -707,4 +707,42 @@ test("reserved menu markers preserve authored fallback and mark the correct grou
     const menus = await resolveStaticMenusForRender(missingDeps, theme, `/${pageId}`);
     assert.ok(renderStaticPage({ theme, pageId, menus })!.includes(`<span>${fallback} fallback</span>`));
   }
+});
+
+test("static menu assignment and reassignment shadow legacy names, preserve HTML and isolate workspaces", async () => {
+  const theme = themeWithMenuMarker("about");
+  const first: NavMenuEntry = { ...menuEntry(), id: "assigned", slug: "assigned", doc: {
+    type: NAV_DOC_TYPE, version: 1, items: [{ id: "first", label: "Assigned link", target: { kind: "url", href: "/assigned" } }],
+  } };
+  const second: NavMenuEntry = { ...first, id: "reassigned", slug: "reassigned", doc: {
+    type: NAV_DOC_TYPE, version: 1, mode: "html", html: '<a href="/replacement">Replacement</a>', items: [],
+  } };
+  const bindingRepo = new InMemoryNavLocationBindingRepo({});
+  const deps = { ...createRouteDeps(), postRepo: new InMemoryPostRepo([publishedPost()]),
+    navLocationBindingRepo: bindingRepo, menuRepo: new InMemoryMenuRepo({}, { initialRows: [menuEntry(), first, second] }) };
+  const render = async () => renderStaticPage({ theme, pageId: "about", menus: await resolveStaticMenusForRender(deps, theme, "/about") });
+  await bindingRepo.upsert({ workspaceId: "another-workspace", locationKey: MENU_SLUG, menuId: "assigned", boundAt: "2026-10-25" });
+  assertResolvedPrimaryMenu((await render())!);
+  await bindingRepo.upsert({ workspaceId: WORKSPACE_ID, locationKey: MENU_SLUG, menuId: "assigned", boundAt: "2026-10-25" });
+  const assigned = (await render())!;
+  assert.match(assigned, /href="\/assigned"/);
+  assert.doesNotMatch(assigned, /href="\/linked-post"/);
+  await bindingRepo.upsert({ workspaceId: WORKSPACE_ID, locationKey: MENU_SLUG, menuId: "reassigned", boundAt: "2026-10-25" });
+  assert.match((await render())!, /href="\/replacement"/);
+  // A dangling id in this workspace must not resolve a menu stored only in a different workspace.
+  await deps.menuRepo.save({ ...first, id: "foreign", workspaceId: "another-workspace" });
+  await bindingRepo.upsert({ workspaceId: WORKSPACE_ID, locationKey: MENU_SLUG, menuId: "foreign", boundAt: "2026-10-25" });
+  assertResolvedPrimaryMenu((await render())!);
+});
+
+test("Docs header-derived markers follow the assigned header menu", async () => {
+  const original = headerNavMenuWithDocsSubtree();
+  const assigned = { ...original, id: "assigned-docs", slug: "assigned-docs" };
+  const bindingRepo = new InMemoryNavLocationBindingRepo({});
+  const deps = { ...createRouteDeps(), postRepo: new InMemoryPostRepo([]), navLocationBindingRepo: bindingRepo,
+    menuRepo: new InMemoryMenuRepo({}, { initialRows: [assigned] }) };
+  await bindingRepo.upsert({ workspaceId: WORKSPACE_ID, locationKey: "menu-header-nav", menuId: assigned.id, boundAt: "2026-10-25" });
+  const theme = themeWithDocsSectionPages();
+  const menus = await resolveStaticMenusForRender(deps, theme, "/quickstart");
+  assert.match(renderStaticPage({ theme, pageId: "quickstart", menus })!, /Quickstart/);
 });

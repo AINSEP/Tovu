@@ -616,7 +616,8 @@ test("timeline, capabilities, recovery status and deep links return the adapter 
   const registrations = combinedRegistrations(deps);
 
   assert.deepEqual(await wired(registrations, "database_query_timeline").handler(executionContext({})), { items: [row], nextCursor: null });
-  assert.deepEqual(await wired(registrations, "backup_get_capabilities").handler(executionContext({})), { costClass: "expensive", kind: "logical-dump" });
+  const { costClass, kind } = await wired(registrations, "backup_get_capabilities").handler(executionContext({})) as { costClass: string; kind: string };
+  assert.deepEqual({ costClass, kind }, { costClass: "expensive", kind: "logical-dump" });
   assert.deepEqual(await wired(registrations, "recovery_get_status").handler(executionContext({})), {
     costClass: "expensive",
     banner: {

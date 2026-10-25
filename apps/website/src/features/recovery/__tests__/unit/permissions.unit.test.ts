@@ -113,7 +113,15 @@ test("a backup.read principal can use list and capabilities handlers but cannot 
   const handler = (id: string) => registrations.find(r => r.descriptor.id === id)!.handler;
   const ctx = { principal: { id: "user-read-only" }, input: {}, signal: new AbortController().signal };
   assert.deepEqual(await handler("backup_list_restore_points")(ctx as never), { items: [] });
-  assert.deepEqual(await handler("backup_get_capabilities")(ctx as never), { costClass: "cheap", kind: "file-snapshot" });
+  const capabilities = await handler("backup_get_capabilities")(ctx as never) as {
+    costClass: string; kind: string; fullSiteBackup: { discoveryTool: string; planTool: string; pushTool: string };
+  };
+  assert.equal(capabilities.costClass, "cheap");
+  assert.equal(capabilities.kind, "file-snapshot");
+  assert.equal(capabilities.fullSiteBackup.discoveryTool, "source_control_get_capabilities");
+  assert.equal(capabilities.fullSiteBackup.planTool, "site_backup_plan");
+  assert.equal(capabilities.fullSiteBackup.pushTool, "site_backup_push");
+  assert.doesNotMatch(JSON.stringify(capabilities), /savedCredentials|tokenTail|tokenHint/);
   await assert.rejects(handler("backup_execute_restore")({ ...ctx, input: { restorePointId: "rp-1" } } as never), /backup.restore/);
   assert.deepEqual(checks, ["backup.read", "backup.read", "backup.restore"]);
   assert.equal(surfacesOpened, 0);
