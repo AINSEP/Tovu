@@ -63,7 +63,7 @@ import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
-import { instrumentStorageKernel, trackFetch, type ObservabilityPort } from "#src/platform/observability/index";
+import { instrumentStorageKernel, trackFetch } from "#src/platform/observability/index";
 import { bootProviderPlugins, providerPluginCredentialOf } from "./provider-plugins.js";
 import { createTelemetryConsent } from "./telemetry-consent.js";
 import { resolveProductRoot } from "#src/platform/site-dir/product-root";

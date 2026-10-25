@@ -121,7 +121,8 @@ async function configuredBindings({ bindings, readCredential, warn }: { bindings
 
 /** Fans product events out to every configured analytics port (normally one). */
 function fanOutProductAnalytics({ ports }: { ports: readonly ProductAnalyticsPort[] }): ProductAnalyticsPort {
-  if (ports.length === 1) return ports[0]!;
+  const [only, ...rest] = ports;
+  if (only && rest.length === 0) return only;
   const each = (send: (port: ProductAnalyticsPort) => void) => { for (const port of ports) { try { send(port); } catch { /* one vendor never blocks another */ } } };
   return { capture: (event) => each((port) => port.capture(event)), identify: (identity) => each((port) => port.identify(identity)) };
 }
