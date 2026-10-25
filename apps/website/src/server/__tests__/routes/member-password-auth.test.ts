@@ -120,9 +120,9 @@ for (const method of ["link", "code"]) {
     assert.deepEqual(await result.json(), { ok: true });
     assert.equal(result.headers.has("set-cookie"), false);
     const me = await fetch(`${base}${BASE}/me`, { headers: { cookie } });
-    assert.deepEqual(await me.json(), { member: { id: member.id, email: member.email, status: "active" } });
+    assert.deepEqual(await me.json(), { member: { id: member.id, email: member.email, status: "active" }, identities: [] });
     const other = await fetch(`${base}${BASE}/me`, { headers: { cookie: otherCookie } });
-    assert.deepEqual(await other.json(), { member: null });
+    assert.deepEqual(await other.json(), { member: null, identities: [] });
     assert.equal(await h.deps.memberRepo.findPasswordHash({ workspaceId: h.deps.workspaceId, memberId: member.id }), hash("🙂"));
     const sessions = await h.deps.memberSessionRepo.listByMember({ workspaceId: h.deps.workspaceId, memberId: member.id });
     assert.equal(sessions.length, 2);
@@ -394,15 +394,15 @@ test("password session, /me status/no-store, and idempotent sign-out share cooki
     assert.equal(response.headers.get("cache-control"), "no-store");
     return response.json();
   }
-  assert.deepEqual(await me(cookie), { member: { id: member.id, email: member.email, status: "active" } });
-  assert.deepEqual(await me("tovu_session=staff-cookie"), { member: null });
+  assert.deepEqual(await me(cookie), { member: { id: member.id, email: member.email, status: "active" }, identities: [] });
+  assert.deepEqual(await me("tovu_session=staff-cookie"), { member: null, identities: [] });
   await h.deps.memberRepo.save({ ...member, status: "pending", version: 2 });
-  assert.deepEqual(await me(cookie), { member: { id: member.id, email: member.email, status: "pending" } });
+  assert.deepEqual(await me(cookie), { member: { id: member.id, email: member.email, status: "pending" }, identities: [] });
   await h.deps.memberRepo.save({ ...member, status: "disabled", version: 3 });
-  assert.deepEqual(await me(cookie), { member: null });
+  assert.deepEqual(await me(cookie), { member: null, identities: [] });
   // Trash is terminal in the repo, so it is checked last.
   await h.deps.memberRepo.save({ ...member, status: "trash", version: 4 });
-  assert.deepEqual(await me(cookie), { member: null });
+  assert.deepEqual(await me(cookie), { member: null, identities: [] });
   for (let attempt = 0; attempt < 2; attempt++) {
     const logout = await post(base, "sign-out", {}, { cookie });
     assert.equal(logout.status, 204);
@@ -410,7 +410,7 @@ test("password session, /me status/no-store, and idempotent sign-out share cooki
     for (const attribute of ["Path=/", "HttpOnly", "Secure", "SameSite=Lax"]) assert.ok(clear.includes(attribute));
     assert.match(clear, /Expires=Thu, 01 Jan 1970/);
   }
-  assert.deepEqual(await me(cookie), { member: null });
+  assert.deepEqual(await me(cookie), { member: null, identities: [] });
   const sessions = await h.deps.memberSessionRepo.listByMember({ workspaceId: h.deps.workspaceId, memberId: member.id });
   assert.ok(sessions[0].revokedAt);
 });
