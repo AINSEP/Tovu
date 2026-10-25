@@ -6,7 +6,7 @@ Report-only. No source or test edits in the repo. Run on 2026-10-25, 4 cores, No
 - **Stryker's vitest-runner CAN drive vitest 4.1.11** (no runner error). It needed two environment fixes (below) before the dry run was green.
 - **Batch A (64 files: `src/hooks/*.ts`, `src/integrations/*.ts`, risky `src/lib/*.ts`): 2569 mutants tested of 3721 generated — 1152 were IGNORED as "static" (see §7). Killed 2181, timeout 5, survived 270, no-coverage 113. Mutation score on the tested mutants: 85.09 %.** Wall: dry run ~3 min, mutation 35 min (concurrency 4).
 - **Batch B (37 lower-risk lib/theme/nav files): 979 of 1183 tested (204 static ignored); score 74.67 %, but mostly a scoping artefact for `admin-themes` — see §9.**
-- **Combined: 3548 mutants tested; killed 2912 (+5 timeout), survived 440, no-coverage 191 → 82.1 % on tested mutants (1356 static mutants unmeasured).**
+- **Combined: 3548 mutants tested; killed 2912 (+5 timeout), survived 440, no-coverage 191 → 82.2 % on tested mutants (1356 static mutants unmeasured).**
 - Not covered at all: `src/features/**` (455 `.ts` files / 96k lines), `src/components/**/*.ts`, `App.hooks.ts`, the three big i18n tables — see §6.
 - **The test set is SCOPED**: only `src/lib`, `src/hooks`, `src/integrations` tests (158 files / 2217 tests) were used to kill mutants, minus 8 files that fail on the unmodified tree here. Feature/component/App-level tests were not run, so a "survived"/"no-coverage" below may be killed by a test in `features/` or `src/__tests__/` — see §7.
 - Wall total ≈ 3 h 42 m (setup 30 min; first attempt with the whole suite wasted ~1 h; second attempt wasted ~1 h on static mutants). Tokens ≈ 0.15 M.
