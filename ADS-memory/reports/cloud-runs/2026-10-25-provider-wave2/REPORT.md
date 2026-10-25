@@ -12,7 +12,7 @@
 - **Tests added/changed:** Jini `@jini-ai/provider-plugins` 1 → 129 tests (per file: stripe 28 + runtime-ports 1, sentry 10, langfuse 17, OTel 37, packed-install 7, build script 5, core boundary 11, posthog 12, fixture 1). Moved, not new: the Stripe suites (25), Sentry 5, PostHog 1, Langfuse mapping/loader 2 — the rest are new or ported from Tovu's former OTel unit tests. Jini step-0 regressions: daemon +3 (trace reopen after dispose, abortable stalled start, start-failure correlation clear) + 1 table case, infra +1 (sync `awaitOverlap` throw), mcp 1 case fixed (test-only); each new step-0 test was shown **red without its fix**. Tovu: new files `provider-plugins.unit` (18), `telemetry-consent.unit` (4), `plugin-runtime.provider-plugins` (5), `run-lifecycle-tracing.unit` (5), `owner-action-product-events` (4), `operation.unit` (3), `publish-operation.unit` (1); `outbox-drainer` +3; `deps-observability-wiring` rewritten (2); status route +1 (500), env cases replaced by a provider-port case.
 - **Coverage (touched non-UI files, v8/node coverage, lines/branches):** see §8 — every new or moved file at 100/100 except the listed exceptions.
 - **CCN ≤ 10 (lizard 1.17, `-C 10`)** on all new/moved functions; pre-existing over-10 functions in touched files listed in §8 (none increased except `checkPackageLayers` 29→30).
-- **Wall:** started 22:21Z. **Rough tokens:** see end.
+- **Wall:** 22:21Z → 23:55Z (~1 h 35 m of the 5 h cap). **Rough tokens:** ~0.7M of ~2.5M.
 
 ## 2. Before / after per vendor
 
@@ -70,6 +70,15 @@ Owner-action events: `post_created`, `post_published` (draft→published only), 
 Jini `cloud/prov-wave2-jini`: b1fcb8f1 (step 0) · 63bacc58 (step 1) · 212cf50f (step 2) · e46b6ec5 (step 3) · 31819c82 (step 4 + guard) · c3929bb5 (coverage/CCN) · 800d9caf (coverage).
 Tovu `cloud/prov-wave2-tovu`: d0cc43f1 (SDK) · d182461e + 733da5f6 (step 6) · 1b06f260, 56caf3ad, 2d553e8d (step 7) · 2325303c, e577eee4 (step 8) · 3eb42aa8 (docs) · report commits.
 
+## 7. Test runs (final tree)
+
+**Jini** (vitest 2, `--minWorkers=1 --maxWorkers=2`): provider-plugins 129/129 · diagnostics 786/786 · analytics 164/164 · capability-providers 196/196 · agent-runtime 4227 pass + 1 skipped · mcp 1370/1370 · devops checks 259/259 · infra 144/144 · daemon 3631/3631 with `agent-executor/__tests__/usage-cost-basis.test.ts` excluded — its 6 cases fail on the base too (they predate the `stopReason` field the base's e2f6a4bc Langfuse import added; stale expectation, not touched here). Full `pnpm --no-bail -r build` green. `pnpm guard`: 23 → **3** violations, all pre-existing and untouched (daemon `tool-recovery/observability.ts` "Tovu" comment; mcp `stdio-hosting.ts` HW2 ×2). Jini `scripts` vitest: 3 failures identical with my changes stashed (coupling isolation ×2, db/infra peer ranges).
+
+**Tovu** (`node --test --test-concurrency=1`, linked Jini): final wide run over 159 files touching observability, plugin runtime, provider plugins, outbox, publish, posts/plugins routes, SDK → **1846 tests, 1830 pass, 13 fail, 3 skipped**. All 13 fail identically on an untouched base worktree (083acb99) or are ENV: Postgres (no server) ×2; publish-site route ×7 (hermetic consent refuses publish with 409 since the owner's default-on consent); `plugin-host` list/toggle (`exports: []`); `mcp-ui-allowlist-completeness` scan; `message-attachment-delivery` daemon pixels; SDK "external type contracts" (`@jini-ai/plugins` range `^0.6.10` vs expected `^0.4.0 || ^0.5.0`). Excluded: `assistant-chat-recovery-bounds.unit.test.ts` — **hangs** (and 2 cases fail) on the base too; I killed it by PID in the first wide run. Typecheck `tsc -p tsconfig.json` clean (excludes tests by config). Biome on changed files: 3 errors, all on pre-existing lines.
+Step 0e (earlier, 868 tests / 21 fail) triage is in the run log below; the deps-observability case it listed is now rewritten and green.
+
+**Findings outside the steps (listed, not fixed):** consent-on-by-default broke 6 pages + 7 publish-site route tests' expectations; `assistant-chat-recovery-bounds` hangs; analytics-providers "forwards to plausible" empty; commerce retention fixture vs member schema (`password_hash`); `usage-cost-basis` stale; guard's 3 pre-existing violations.
+
 ## 8. Measurements
 
 **Coverage (lines / branches), measured:**
@@ -113,3 +122,8 @@ Caps: stop new work 02:51Z, hard end 03:21Z. Next: Node 24 + Jini install/build 
   - commerce-data-retention "commerce off": `table members has no column named password_hash` (fixture vs member schema drift).
   - deps-observability-wiring "no OTLP endpoint": content kernel decorated twice — superseded by step 6 rewiring (I rewrite this composition).
 - Jini step 4 (Stripe move only) DONE — 31819c82. Guard: 23 → 3 violations; the 3 left are pre-existing and untouched (daemon tool-recovery/observability.ts "Tovu" comment; mcp stdio-hosting HW2 ×2). Jini `scripts` suite: 3 failures identical with my changes stashed (pre-existing).
+
+## 2026-10-25T23:55Z — DONE
+All brief steps done except the §5 list. Jini final head 800d9caf on `cloud/prov-wave2-jini`; Tovu head on `cloud/prov-wave2-tovu` (this commit). No test processes left running.
+
+WAVE2 DONE 2026-10-25T23:55Z — wall ~1 h 35 m, rough tokens ~0.7M.
