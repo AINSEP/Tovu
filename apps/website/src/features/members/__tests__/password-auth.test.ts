@@ -26,6 +26,8 @@ function harness() {
   const verifications: Array<{ hash: string; password: string }> = [];
   const hashInputs: string[] = [];
   const deps: MembersWriteServiceDeps = {
+    // Policy tests use memory ports; real lock/rollback guarantees live in password-lifecycle.dialects.test.ts.
+    credentialLifecycle: { transaction: work => work(), lockKey: async () => {} },
     clock, ids: { newId: () => `id-${++seq}` }, members: new InMemoryMemberRepo(),
     sessions: new InMemoryMemberSessionRepo(), magicLinks: new InMemoryMagicLinkTokenRepo(),
     subscriptions: new InMemoryMemberSubscriptionRepo(), tiers: new InMemoryMemberTierRepo(),
@@ -283,7 +285,7 @@ test("reset consumes first, writes hash and cutoff, revokes all sessions, and in
   const revoke = h.deps.sessions.revokeAllForMember.bind(h.deps.sessions);
   h.deps.sessions.revokeAllForMember = async input => { events.push("revoke"); await revoke(input); };
   await resetPassword({ deps: h.deps, input: { workspaceId: WS, token, password: "new" } });
-  // Revoke before the profile save: a profile conflict must never leave old sessions alive.
+  // These effects now commit together; a profile conflict must also roll back the password.
   assert.deepEqual(events, ["consume", "hash", "revoke", "cutoff"]);
   const sessions = await h.deps.sessions.listByMember({ workspaceId: WS, memberId: "ada" });
   assert.deepEqual(sessions.map(s => s.id), [first.session.id, second.session.id], "reset issues no session");
