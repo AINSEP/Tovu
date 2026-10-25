@@ -538,3 +538,17 @@ test("expired, consumed, exhausted, wrong-purpose and wrong-code challenges shar
     assert.deepEqual(await response.json(), INVALID);
   }
 });
+
+// F6 fix wave (L12 Stryker top-3, me.ts:16): a valid member cookie presented under ANOTHER workspace's
+// /me path is a 404 that never resolves the session or returns the member.
+test("/me under a foreign workspace id is 404 even with a valid member session cookie", async t => {
+  const h = harness(); const member = await h.seed();
+  const cookie = await h.cookieFor(member);
+  const base = await startTestServer(h.app, t);
+  const foreign = await fetch(`${base}/api/members/v1/workspaces/foreign/me`, { headers: { cookie } });
+  assert.equal(foreign.status, 404);
+  assert.equal(foreign.headers.get("cache-control"), "no-store");
+  assert.deepEqual(await foreign.json(), { error: "workspace was not found" });
+  const own = await fetch(`${base}${BASE}/me`, { headers: { cookie } });
+  assert.deepEqual(await own.json(), { member: { id: member.id, email: member.email, status: "active" }, identities: [] });
+});

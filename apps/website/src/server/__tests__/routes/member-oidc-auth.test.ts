@@ -362,3 +362,48 @@ test("S3 a pending member's provisioned password is not a usable alternative for
   assert.equal(response.status, 401);
   assert.ok(!(await f.identities.findByMemberAndProvider({ workspaceId: "ws", memberId: member.id, providerId: "google" }))?.unlinkedAt);
 });
+
+// F6 fix wave (L12 Stryker top-4, unlink-identity.ts): the 15-minute recent-auth window at both edges,
+// the empty-body contract and the already-unlinked refusal, each with its fixed code.
+async function unlinkAfter(t: test.TestContext, advanceMs: number, body: unknown = {}) {
+  const f = fixture(), base = await startTestServer(f.app, t), start = await f.start(base), login = await callback(base, start.params, start.binding);
+  const sessionCookie = cookie(login, "tovu_member_session");
+  f.clock.advanceMs(advanceMs);
+  const response = await post(base, `${BASE}/identities/google/unlink`, body, sessionCookie);
+  const [member] = await f.members.memberRepo.list({ workspaceId: "ws" });
+  const unlinked = Boolean((await f.identities.findByMemberAndProvider({ workspaceId: "ws", memberId: member.id, providerId: "google" }))?.unlinkedAt);
+  return { f, base, response, unlinked };
+}
+
+test("S3 unlink accepts a session exactly 15 minutes old", async t => {
+  const { response, unlinked } = await unlinkAfter(t, 900000);
+  assert.equal(response.status, 200);
+  assert.equal(unlinked, true);
+});
+
+for (const [label, advanceMs] of [["15 minutes and 1 ms old", 900001], ["dated 1 ms in the future", -1]] as const) {
+  test(`S3 unlink refuses a session ${label} as LOGIN_BLOCKED`, async t => {
+    const { response, unlinked } = await unlinkAfter(t, advanceMs);
+    assert.equal(response.status, 401);
+    assert.deepEqual(await response.json(), { error: "member login failed", code: "LOGIN_BLOCKED" });
+    assert.equal(unlinked, false);
+  });
+}
+
+for (const body of [[], ["google"], { providerId: "google" }]) {
+  test(`S3 unlink refuses a non-empty or non-object body ${JSON.stringify(body)} as LOGIN_INVALID`, async t => {
+    const { response, unlinked } = await unlinkAfter(t, 1, body);
+    assert.equal(response.status, 401);
+    assert.deepEqual(await response.json(), { error: "member login failed", code: "LOGIN_INVALID" });
+    assert.equal(unlinked, false);
+  });
+}
+
+test("S3 unlinking an already-unlinked provider is LOGIN_INVALID and issues no session", async t => {
+  const { base, response } = await unlinkAfter(t, 1);
+  assert.equal(response.status, 200);
+  const again = await post(base, `${BASE}/identities/google/unlink`, {}, cookie(response, "tovu_member_session"));
+  assert.equal(again.status, 401);
+  assert.deepEqual(await again.json(), { error: "member login failed", code: "LOGIN_INVALID" });
+  assert.ok(!cookie(again, "tovu_member_session"));
+});
