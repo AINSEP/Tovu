@@ -611,3 +611,36 @@ describe("saveInterface", () => {
     expect(candidates.every((c) => c.changed)).toBe(true);
   });
 });
+
+// L13 Stryker: telemetry-off-by-default and the "unchanged ⇒ changed:false" flags survived.
+describe("L13 mutation gaps — privacy defaults and unchanged flags", () => {
+  it("telemetry is OFF by default and no installation or decision is assumed", () => {
+    expect(DEFAULT_PRIVACY).toEqual({ telemetry: { metrics: false, content: false }, installationId: null, privacyDecisionAt: null });
+  });
+  it("the interface defaults keep the phone tab strip one row and the chat FAB hidden while open", () => {
+    expect(DEFAULT_INTERFACE).toEqual({ hideChatFabWhileOpen: true, wrapTabs: false, adminTheme: "classic" });
+    expect(DEFAULT_APPEARANCE).toEqual({ theme: "light", accentColor: "#2563eb" });
+  });
+  it("saving identical notification preferences marks no field changed, with desktop on or off", async () => {
+    for (const desktopEnabled of [true, false]) {
+      const prefs: NotificationsPreferences = { ...DEFAULT_NOTIFICATIONS, desktopEnabled };
+      await saveNotifications(prefs, { ...prefs });
+      const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{ changed: boolean }>;
+      expect(candidates.map(c => c.changed)).toEqual([false, false, false, false]);
+    }
+  });
+  it("saving an identical interface marks no field changed; flipping wrapTabs alone marks only it", async () => {
+    for (const wrapTabs of [true, false]) {
+      const config = { ...DEFAULT_INTERFACE, wrapTabs };
+      await saveInterface(config, { ...config });
+      expect(saveChangedEntries.mock.calls.at(-1)).toEqual(["core.interface", "user", [
+        { key: "hideChatFabWhileOpen", valueJson: true, changed: false },
+        { key: "wrapTabs", valueJson: wrapTabs, changed: false },
+        { key: "adminTheme", valueJson: "classic", changed: false },
+      ]]);
+    }
+    await saveInterface({ ...DEFAULT_INTERFACE, wrapTabs: true }, DEFAULT_INTERFACE);
+    const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{ key: string; changed: boolean }>;
+    expect(candidates.filter(c => c.changed).map(c => c.key)).toEqual(["wrapTabs"]);
+  });
+});
