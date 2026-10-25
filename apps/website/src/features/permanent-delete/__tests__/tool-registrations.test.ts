@@ -140,7 +140,7 @@ test("expired human confirmation returns an explicit refusal without a delete", 
   const keepAlive = setTimeout(() => {}, 50); // The production exchange timers deliberately unref().
   try {
   assert.deepEqual(await registration.handler({ executionId: "e", principal: { id: "owner" }, run: { id: "r" }, input: {}, signal: new AbortController().signal }, { emitSurface: async () => {} }), {
-    removed: false, cancelled: false, reason: "expired", note: "The user did not answer the confirmation dialog before it expired. Nothing was changed.",
+    removed: false, cancelled: false, reason: "expired", note: "The user did not answer the confirmation dialog before it expired. Nothing was changed. Do not retry this action or reopen its confirmation automatically. Tell the user it expired and nothing changed, then wait for a new explicit request.",
   });
   assert.equal(deletes, 0);
   } finally { clearTimeout(keepAlive); }

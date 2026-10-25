@@ -135,7 +135,7 @@ test('the card renders its description, warning, danger styling and custom cance
 
 for (const [reason, result] of [
   ['declined', { cancelled: true, note: 'The user cancelled. Nothing was changed.' }],
-  ['expired', { cancelled: false, reason: 'expired', note: 'The user did not answer the confirmation dialog before it expired. Nothing was changed.' }],
+  ['expired', { cancelled: false, reason: 'expired', note: 'The user did not answer the confirmation dialog before it expired. Nothing was changed. Do not retry this action or reopen its confirmation automatically. Tell the user it expired and nothing changed, then wait for a new explicit request.' }],
   ['abandoned', { cancelled: false, reason: 'abandoned', note: 'The confirmation dialog was closed because the run ended. Nothing was changed.' }],
 ] as const) test(`a ${reason} confirmation returns the precise model-facing refusal`, () => {
   assert.deepEqual(notConfirmedResult({ confirmed: false, reason }), result);

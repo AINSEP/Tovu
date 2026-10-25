@@ -206,6 +206,7 @@ test("an unanswered form returns an explicit no-answer result, not a hang or a t
   assert.equal(result.submitted, false);
   assert.equal(result.reason, "expired");
   assert.match(result.note, /did not respond/);
+  assert.match(result.note, /Do not retry this question.*Tell the administrator it expired.*wait for a new explicit request/);
 });
 
 test("a cancelled run closes the exchange rather than holding the handler to the deadline", async () => {

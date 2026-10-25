@@ -129,7 +129,7 @@ export function notConfirmedResult(outcome: Extract<ConfirmationOutcome, { confi
     reason: outcome.reason,
     note:
       outcome.reason === "expired"
-        ? "The user did not answer the confirmation dialog before it expired. Nothing was changed."
+        ? "The user did not answer the confirmation dialog before it expired. Nothing was changed. Do not retry this action or reopen its confirmation automatically. Tell the user it expired and nothing changed, then wait for a new explicit request."
         : "The confirmation dialog was closed because the run ended. Nothing was changed.",
   };
 }

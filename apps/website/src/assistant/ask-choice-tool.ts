@@ -221,7 +221,7 @@ const askChoiceMessages: AskChoiceMessages = {
   typed: "The administrator answered in their own words instead of picking one of the options. Treat 'freeText' as " +
     "what they said, not as a selection: none of the options you offered was chosen. Say what you understood " +
     "before acting on it, and ask again if it is ambiguous.",
-  expired: "The administrator did not respond before the form expired. Do not assume any answer.",
+  expired: "The administrator did not respond before the form expired. Do not assume any answer. Do not retry this question or reopen its form automatically. Tell the administrator it expired and no answer was received, then wait for a new explicit request.",
   abandoned: "The form was dismissed because the run ended. Do not assume any answer.",
   cancelled: "The administrator cancelled the form without answering. Do not assume any answer.",
 };
