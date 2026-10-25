@@ -22,6 +22,9 @@ before building the eventual agent tool catalog. See
 
 ---
 
+## ⭐ HIGH PRIORITY, NOT NOW (owner 2026-10-24): Software factory on GitHub
+Owner: "a software factory on GitHub… when somebody creates an issue, there's a loop to solve it… people log bugs and that helps us fix it much faster." "We're not gonna do it for a while." Unbiased research (no tools named in the brief) is done: `ADS-memory/.local-artifacts/codex/2026-10-24-software-factory-research/out/software-factory-research.md`. It recommends a bounded issue → draft-PR pipeline where humans approve scope, merge and release. Start with GitHub controls (issue forms, rulesets, required CI and reviews, actionlint/zizmor), then triage in suggestion mode, then reproduce before fixing, then one sandboxed worker (mini-swe-agent) on maintainer-approved issues only. Also required: the 8 must-have safety controls for public issue text, and hard cost caps plus a kill switch. Next step when the owner restarts it: an Opus grade, or the owner picks parts. Also queued: an in-app "Report a bug" path that files a GitHub issue with secrets stripped.
+
 ## UI FIX BATCH — queued, one Opus + Chrome pass (owner 2026-10-23 ~11:35: "queue that up… fix a bunch of things at once")
 - **Chat UI:** messages sent mid-run render inside the assistant turn, with no copy button and under that turn's "Done · 3m 42s · $3.95 · total $26.94" footer. More findings: `ADS-memory/reports/2026-10-23-orvellea-chat-errors.md`, "UI findings" section (Opus + Chrome look, in progress).
 
