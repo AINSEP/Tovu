@@ -27,6 +27,30 @@ async function publicFixture({ t }: { t: import('node:test').TestContext }, _opt
   return { ...f, deps, revisionId: saved.revision.id };
 }
 
+test('live canonical metadata reaches crawlers on all public pages without a consent grant', async t => {
+  const f = await publicFixture({ t });
+  const app = express(); applySiteConsent({ app, deps: f.deps });
+  app.get(['/', '/about', '/docs'], (req, res) => res.type('html').send(`<html><head>` +
+    `<link rel="canonical" href="https://site.example${req.path}">` +
+    '<meta name="description" data-consent-category="marketing" content="Site description">' +
+    '<script type="application/ld+json" data-consent-category="marketing">{"@type":"WebSite"}</script>' +
+    '</head><body><script data-consent-category="analytics">window.tracking=1</script></body></html>'));
+  const base = await startTestServer(app, t);
+  for (const page of ['/', '/about', '/docs']) {
+    const response = await fetch(base + page);
+    assert.equal(response.status, 200);
+    const dom = new JSDOM(await response.text());
+    try {
+      const document = dom.window.document;
+      assert.equal(document.head.querySelector('link[rel="canonical"]')?.getAttribute('href'), `https://site.example${page}`);
+      assert.equal(document.head.querySelector('meta[name="description"]')?.getAttribute('content'), 'Site description');
+      assert.equal(document.head.querySelector('script[type="application/ld+json"]')?.textContent, '{"@type":"WebSite"}');
+      assert.equal(document.querySelector('script[data-consent-category="analytics"]'), null);
+      assert.equal(document.querySelectorAll('template[data-jini-consent-script]').length, 1);
+    } finally { dom.window.close(); }
+  }
+});
+
 test('live and audit gates retain active and preview theme scripts across overlapping requests', async t => {
   const f = await publicFixture({ t });
   f.deps.themes = ['first', 'second'].map(id => ({
@@ -362,4 +386,47 @@ test('an accepted choice is durably written under the site receipts directory, c
   assert.match(res.headers.get('set-cookie') ?? '', /jini_consent=/);
   const receipts = await fs.readdir(path.join(dir, CONSENT_RECEIPTS_DIR_NAME), { recursive: true });
   assert.ok(receipts.length > 0);
+});
+
+for (const footer of ['', '<footer>Theme footer</footer>']) test(`host link reaches streamed and ordinary pages with footer=${Boolean(footer)}`, async t => {
+  const f = await publicFixture({ t });
+  const app = express(); applySiteConsent({ app, deps: f.deps });
+  app.get(['/', '/about', '/stream', '/headerless'], (req, res) => {
+    if (req.path !== '/headerless') res.type('html');
+    const html = `<html><head></head><body><main>${req.path}</main>${footer}</body></html>`;
+    if (req.path === '/stream' || req.path === '/headerless') { res.write(html.slice(0, 25)); res.end(html.slice(25)); }
+    else res.send(html);
+  });
+  const base = await startTestServer(app, t);
+  for (const page of ['/', '/about', '/stream', '/headerless']) {
+    const response = await fetch(base + page);
+    assert.equal(response.status, 200);
+    const dom = new JSDOM(await response.text());
+    try {
+      const link = dom.window.document.querySelector('a[data-jini-consent-open]');
+      assert.equal(link?.textContent, 'Cookie settings');
+      assert.equal(link?.closest('footer') !== null, Boolean(footer));
+      assert.equal(dom.window.document.querySelector('#jini-consent')?.getAttribute('data-reopen'), 'link');
+    } finally { dom.window.close(); }
+  }
+});
+
+test('cached published unsafe-eval and the host link survive a later configuration read failure', async t => {
+  const f = consentFixture({ t });
+  const draft = await f.service.saveDraft({ principalId: 'owner', config: { ...f.config, allowUnsafeEval: true }, expectedDraftId: null });
+  await f.service.publish({ principalId: 'owner', draftId: draft.revision.id, expectedPublishedId: null });
+  const deps = createRouteDeps(); deps.consentStore = f.store;
+  const app = express(); applySiteConsent({ app, deps });
+  app.get('/', (_req, res) => res.type('html').send('<html><head></head><body>Page</body></html>'));
+  const base = await startTestServer(app, t);
+  for (const failRead of [false, true]) {
+    if (failRead) deps.consentStore = { ...f.store, read: async () => { throw new Error('temporary storage failure'); } };
+    const response = await fetch(base);
+    assert.equal(response.status, 200);
+    const dom = new JSDOM(await response.text());
+    try {
+      assert.ok(dom.window.document.querySelector('a[data-jini-consent-open]'));
+      assert.match(dom.window.document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.getAttribute('content') ?? '', /'unsafe-eval'/);
+    } finally { dom.window.close(); }
+  }
 });

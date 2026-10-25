@@ -130,3 +130,20 @@ test('contributeConsentTools contributes the consent domain builder and its deri
   assert.equal(contribution.build, buildConsentRegistrations);
   assert.equal(contribution.risk, consentDerivedRisk);
 });
+
+for (const toolId of ['consent_update_settings', 'consent_publish_settings']) test(`${toolId} warns about unsafe-eval on the human confirmation card`, async t => {
+  const f = tools({ t });
+  const config = { ...f.config, allowUnsafeEval: true };
+  const draft = toolId === 'consent_publish_settings' ? await f.service.saveDraft({ principalId: 'admin', config, expectedDraftId: null }) : null;
+  const input = draft ? { draftId: draft.revision.id, expectedPublishedId: null } : { config, expectedDraftId: null };
+  let shown = '';
+  const answer = f.answer(toolId);
+  await f.call(toolId, input, { emitSurface: async surface => {
+    shown += JSON.stringify(surface);
+    await answer.emitSurface!(surface);
+  } });
+  assert.match(shown, /unsafe-eval/);
+  assert.match(shown, /weakens script protection/);
+  assert.match(shown, /Optional scripts still wait for consent/);
+  assert.equal((await f.store.read({}))[draft ? 'published' : 'draft']?.config.allowUnsafeEval, true);
+});

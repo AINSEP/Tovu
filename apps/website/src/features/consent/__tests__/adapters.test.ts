@@ -36,7 +36,7 @@ test('enabled consent falls back for definitions missing during a partial regist
   await write('enabled', true);
   const definitions = (await settingsRepo.listActiveDefinitions({ workspaceId: null })).filter(definition => definition.key === 'enabled');
   const partial = new InMemorySettingsRepo({ definitions, workspaceValues: await settingsRepo.listWorkspaceValues({ workspaceId: 'site-a' }) });
-  assert.deepEqual(await createSiteConsentConfig({ settingsRepo: partial, workspaceId: 'site-a' }, {}).get({}, {}), { ...SITE_CONSENT_DEFAULTS, enabled: true });
+  assert.deepEqual(await createSiteConsentConfig({ settingsRepo: partial, workspaceId: 'site-a' }, {}).get({}, {}), { ...SITE_CONSENT_DEFAULTS, reopen: 'link', enabled: true });
 });
 
 test('a malformed persisted enabled flag is refused instead of enabling or disabling consent', async () => {
@@ -63,7 +63,7 @@ test('explicit opt-in mode is returned without replacing it with the automatic d
   const { settingsRepo, write } = await ledger();
   await write('enabled', true);
   await write('regionMode', 'opt-in');
-  assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get(), { ...SITE_CONSENT_DEFAULTS, enabled: true, regionMode: 'opt-in' });
+  assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get(), { ...SITE_CONSENT_DEFAULTS, reopen: 'link', enabled: true, regionMode: 'opt-in' });
 });
 
 test('a policy version beyond 128 characters is refused even within the general copy limit', async () => {
@@ -79,10 +79,10 @@ test('all sites default ON through the existing ledger and isolate explicit site
   await ensureSiteConsentDefinitions(deps, { systemPrincipalId: 'system-test' });
   assert.equal(await settingsRepo.maxRevisionSeq(), before);
   const config = createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' });
-  assert.deepEqual(await config.get({}), SITE_CONSENT_DEFAULTS);
+  assert.deepEqual(await config.get({}), { ...SITE_CONSENT_DEFAULTS, reopen: 'link' });
   await write('enabled', true); await write('privacyPolicyUrl', '/legal/privacy'); await write('regionMode', 'opt-out'); await write('message', 'Our policy text.');
-  assert.deepEqual(await config.get({}), { ...SITE_CONSENT_DEFAULTS, enabled: true, privacyPolicyUrl: '/legal/privacy', regionMode: 'opt-out', message: 'Our policy text.' });
-  assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-b' }).get({}), SITE_CONSENT_DEFAULTS);
+  assert.deepEqual(await config.get({}), { ...SITE_CONSENT_DEFAULTS, reopen: 'link', enabled: true, privacyPolicyUrl: '/legal/privacy', regionMode: 'opt-out', message: 'Our policy text.' });
+  assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-b' }).get({}), { ...SITE_CONSENT_DEFAULTS, reopen: 'link' });
   await assert.rejects(write('regionMode', 'invalid'));
 });
 
@@ -90,7 +90,7 @@ test('WebMCP bootstrap does not own or register public consent settings', async 
   const { deps, settingsRepo, write } = await ledger({ register: false });
   await ensureSettingsUiTabDefinitions(deps, { systemPrincipalId: 'system-test' });
   assert.equal(await settingsRepo.findActiveDefinition({ namespace: SITE_CONSENT_NAMESPACE, key: 'enabled', workspaceId: null }), null);
-  assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get({}), SITE_CONSENT_DEFAULTS);
+  assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get({}), { ...SITE_CONSENT_DEFAULTS, reopen: 'link' });
   await assert.rejects(write('enabled', true));
 });
 
@@ -102,7 +102,7 @@ test('invalid enabled copy fails visibly, but disabling remains a safe rollback'
   await write('policyVersion', '1'); await write('message', 'x'.repeat(2001));
   await assert.rejects(config.get({}), { message: 'Cookie consent setting message exceeds 2000 characters.' });
   await write('enabled', false);
-  assert.deepEqual(await config.get({}), SITE_CONSENT_OFF);
+  assert.deepEqual(await config.get({}), { ...SITE_CONSENT_OFF, reopen: 'link' });
 });
 
 test('request ports ignore region headers until configured and parse malformed cookies without throwing', async () => {
@@ -153,7 +153,7 @@ test('consent has independent readiness after the shared ledger boot and cannot 
   let release!: () => void;
   const after = new Promise<void>(resolve => { release = resolve; });
   const ready = createSiteConsentReadiness({ ...deps, after, systemPrincipalId: 'system-test' });
-  assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get({}), SITE_CONSENT_DEFAULTS);
+  assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get({}), { ...SITE_CONSENT_DEFAULTS, reopen: 'link' });
   release(); await ready;
   await write('enabled', true);
   assert.equal((await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get({})).enabled, true);
@@ -175,7 +175,7 @@ test('consent has independent readiness after the shared ledger boot and cannot 
 test('all no-choice sites default ON, including missing definitions', async () => {
   for (const register of [false, true]) {
     const { settingsRepo } = await ledger({ register });
-    assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get(), SITE_CONSENT_DEFAULTS);
+    assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get(), { ...SITE_CONSENT_DEFAULTS, reopen: 'link' });
     assert.deepEqual(await resolveSiteConsentActivation({ settingsRepo, workspaceId: 'site-a' }), { enabled: true, source: 'default' });
   }
 });
@@ -192,7 +192,7 @@ test('explicit owner ON and OFF win over the product default', async () => {
     await write('enabled', enabled);
     assert.deepEqual(await resolveSiteConsentActivation({ settingsRepo, workspaceId: 'site-a' }), { enabled, source: 'owner' });
     assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get(), {
-      ...SITE_CONSENT_DEFAULTS, enabled,
+      ...SITE_CONSENT_DEFAULTS, enabled, reopen: 'link',
     });
   }
 });
@@ -246,7 +246,7 @@ test('privacy bootstrap failure is reported without blocking consent and retries
   const options = { ensurePrivacyDefaults: async () => { if (++attempts === 1) throw failure; } };
   await createSiteConsentReadiness({ ...deps, after: Promise.resolve(), systemPrincipalId: 'system-test' }, options);
   assert.deepEqual(logged, [['[consent] privacy defaults failed: privacy bootstrap failed']]);
-  assert.deepEqual(await createSiteConsentConfig({ settingsRepo: deps.settingsRepo, workspaceId: 'site-a' }).get(), SITE_CONSENT_DEFAULTS);
+  assert.deepEqual(await createSiteConsentConfig({ settingsRepo: deps.settingsRepo, workspaceId: 'site-a' }).get(), { ...SITE_CONSENT_DEFAULTS, reopen: 'link' });
   await createSiteConsentReadiness({ ...deps, after: Promise.resolve(), systemPrincipalId: 'system-test' }, options);
   assert.equal(attempts, 2);
   assert.equal(logged.length, 1);

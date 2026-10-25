@@ -281,3 +281,25 @@ test("canary: real Post and Page records render their selected templates through
   assert.ok(rendered.post.includes('<article class="post-detail wrap"'));
   assert.ok(rendered.page.includes('<article class="wrap post-detail"'));
 });
+
+
+test('every rendered bundled theme page retains a host withdrawal link with and without footer partials', async () => {
+  const { gateConsentHtml } = await import('@jini-ai/cms/consent/html');
+  const { withSiteConsentSettingsLink } = await import('#src/features/consent/settings-link');
+  const { SITE_CONSENT_DEFAULTS } = await import('#src/features/consent/config');
+  const { JSDOM } = await import('jsdom');
+  const theme = tovuTheme();
+  for (const partials of [theme.partials, {}]) {
+    for (const pageId of Object.keys(theme.pages)) {
+      const rendered = renderStaticPage({ theme: { ...theme, partials }, pageId });
+      assert.ok(rendered, pageId);
+      const gated = gateConsentHtml({ html: rendered, config: { ...SITE_CONSENT_DEFAULTS, reopen: 'link' }, record: null, regionMode: 'opt-in', gpc: false, endpoint: '/api/site-consent' });
+      const dom = new JSDOM(withSiteConsentSettingsLink({ html: gated }));
+      try {
+        const doc = dom.window.document;
+        assert.equal(doc.querySelector('a[data-jini-consent-open]')?.textContent, 'Cookie settings', pageId);
+        if (doc.querySelector('footer')) assert.ok(doc.querySelector('footer a[data-jini-consent-open]'), pageId);
+      } finally { dom.window.close(); }
+    }
+  }
+});

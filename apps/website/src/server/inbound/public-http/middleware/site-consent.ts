@@ -1,4 +1,5 @@
 import { parseConsentConfig, consentConfigProblems } from '#src/features/consent/validation';
+import { withSiteConsentSettingsLink } from "#src/features/consent/settings-link";
 import { randomBytes } from "node:crypto";
 import * as fs from "node:fs/promises";
 import path from "node:path";
@@ -88,7 +89,7 @@ export function createSiteConsentPorts({ deps }: { deps: RouteDeps }, { trustedR
       const config = withSiteConsentDefaultCss({ config: parseConsentConfig({ value: state.published.config }) });
       if (consentConfigProblems({ config, trustedRegion: Boolean(trustedRegionHeader) }).length) throw new Error('Published consent policy is invalid.');
       // Receipts name an immutable configuration; changing a published revision requires a new choice.
-      return { ...config, policyVersion: `${config.policyVersion}:${state.published.id}` };
+      return { ...config, reopen: "link", policyVersion: `${config.policyVersion}:${state.published.id}` };
     } },
     records: createConsentFileRecords({ directory: path.join(deps.siteBinding.dir, CONSENT_RECEIPTS_DIR_NAME), files: createNodeConsentFiles({ atomicWrite }) }),
     clock: deps.clock,
@@ -135,6 +136,25 @@ export function applySiteConsent({ app, deps }: { app: Express; deps: RouteDeps 
         delete req.headers["if-modified-since"];
       }
     }
+    next();
+  });
+  consentApp.use((_req, res, next) => {
+    const end = res.end;
+    // Jini captures this native end and calls it with the complete gated body, even for pipes.
+    // Inspect that output rather than rereading config: lastGood remains Jini's sole authority.
+    res.end = function (this: typeof res, chunk?: unknown, encoding?: BufferEncoding | (() => void), callback?: () => void) {
+      const type = String(res.getHeader('content-type') ?? '');
+      if ((typeof chunk === 'string' || Buffer.isBuffer(chunk)) && (!type || type.includes('text/html'))) {
+        const html = Buffer.isBuffer(chunk) ? chunk.toString('utf8') : chunk;
+        const linked = withSiteConsentSettingsLink({ html });
+        if (linked !== html) {
+          chunk = Buffer.from(linked);
+          res.removeHeader('Content-Length');
+          res.removeHeader('ETag');
+        }
+      }
+      return Reflect.apply(end, this, [chunk, encoding, callback]);
+    } as typeof res.end;
     next();
   });
   registerConsentHttp({ app: consentApp, ports }, {
