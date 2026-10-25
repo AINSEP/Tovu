@@ -672,3 +672,29 @@ test("the host confirmation list names each setting once; the chat agent picker 
     assert.ok(coordinates.includes(`core.execution.${key}`), `core.execution.${key} must need a human card`);
   }
 });
+
+// F6 fix wave (Stryker re-score: the card's title and detail rows survived every mutant). The human
+// approves what this card shows, so its rows must name the exact setting, scope, previous override and
+// the value that will be written (or the fall-back for a clear).
+test("the confirmation card shows the change's title, setting, scope, previous override and new value", async () => {
+  const f = fixture("core.interface", "useClaudeInChrome", { type: "boolean" });
+  const cards: string[] = [];
+  const answer = (toolId: string) => ({ emitSurface: async (emission: unknown) => {
+    cards.push(JSON.stringify(emission));
+    f.surfaceExchanges.deliver({ exchangeId: "exchange-1", principalId: "caller", params: { decision: "confirm" } }, { toolId });
+  } });
+  const input = { namespace: "core.interface", key: "useClaudeInChrome", scope: "user" as const };
+  await f.call("settings_set_value", { ...input, value: true }, answer("settings_set_value"));
+  await f.call("settings_clear_value", input, answer("settings_clear_value"));
+  const html = (card: string) => (JSON.parse(card) as { payload: { resource: { resource: { text: string } } } }).payload.resource.resource.text;
+  const rows = (card: string) => [...html(card).matchAll(/<dt>([^<]*)<\/dt><dd>([^<]*)<\/dd>/g)].map(([, label, value]) => [label, value]);
+  assert.match(html(cards[0]!), /<title>Change this assistant setting\?<\/title>/);
+  assert.match(html(cards[1]!), /<title>Clear this assistant setting override\?<\/title>/);
+  const set = rows(cards[0]!), clear = rows(cards[1]!);
+  for (const expected of [["Setting", "core.interface.useClaudeInChrome"], ["Scope", "user"], ["Previous override", "null"], ["New value", "true"]]) {
+    assert.ok(set.some(([label, value]) => label === expected[0] && value === expected[1]), `set card row ${expected[0]}: ${JSON.stringify(set)}`);
+  }
+  assert.ok(clear.some(([label, value]) => label === "New value" && value === "Fall back to the next layer or default"), JSON.stringify(clear));
+  assert.ok(clear.some(([label, value]) => label === "Previous override" && value === "true"), JSON.stringify(clear));
+  assert.equal(set.some(([label]) => label === "Resulting chat selection"), false, "only chat-execution writes show a resulting selection");
+});
