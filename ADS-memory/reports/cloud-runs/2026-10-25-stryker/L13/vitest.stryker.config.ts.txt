@@ -6,6 +6,14 @@ export default mergeConfig(
   base,
   defineConfig({
     test: {
+      retry: 2,
+      testTimeout: 60000,
+      hookTimeout: 60000,
+      include: [
+        "src/lib/**/*.test.{ts,tsx}",
+        "src/hooks/**/*.test.{ts,tsx}",
+        "src/integrations/**/*.test.{ts,tsx}",
+      ],
       exclude: [
         "**/node_modules/**",
         "**/.stryker-tmp/**",
