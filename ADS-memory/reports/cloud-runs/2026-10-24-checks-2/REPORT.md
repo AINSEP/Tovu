@@ -48,3 +48,52 @@ Minor (LISTED, not fixed):
   `resettableMember`'s `>= createdAt` cutoff check (stricter, harmless).
 - Memory lifecycle has no rollback (documented): a profile conflict after setPasswordHash in memory mode
   keeps the new hash. Dev/test only.
+
+## 2026-10-25T05:26Z — PROGRESS — Item 2 owner-store-s3: FIXED
+
+Commits (Tovu `cloud/check-1024-tovu-fu-wip`): `c5f75f7a`, `aff01475`, `dde891fe`, `255c971c`.
+
+Security review — all hold (read in source): secrets (put payload, passphrase, backup path) go only into
+the stdin JSON (owner-store-cli.ts serializeRequest); argv = `owner-store <fixed action> --json [--site <abs>]`;
+env = `buildCliEnv` over baseEnv + a scratch siteDir, nothing request-derived; errors are a fixed code→message
+table (child messages/stderr discarded, stderr drained not kept); stdout capped at 1 MiB, exactly one JSON line,
+version/action checked, data whitelisted field-by-field (no meta/payload crosses IPC); 64 KiB stdin cap
+checked in both IPC and CLI layer; 60 s deadline + SIGKILL. IPC: same main-frame check as resources-ipc.ts:27
+(`senderFrame` non-null, `parent === null`, exact sites-home file URL). Renderer gives site IDs only; main maps
+to tracked canonical (realpath) dirs; the CLI realpaths consumerId/--site too (owner-store.ts:160,229), so
+grant ids and startup-sync matching agree. main.ts never imports `@jini-ai/db/owner-store`; owner.db is
+opened only in the CLI child. Windows: userDataDir from `app.getPath("userData")`, `path.isAbsolute` checks.
+
+BUG found + fixed (`c5f75f7a`): export/restore awaited the native dialog INSIDE the shared `owner-store`
+queue, so while a backup dialog was open every site start (`finishStartedSite` → `syncOnStart`) and every
+other shared-key call blocked. Now only the CLI call is queued. New test hung (killed by the 300 s timeout)
+before the fix and passes after.
+
+Gate fixes:
+- `aff01475`: the desktop pre-push complexity gate has a 9/9 ceiling; Codex's `parseReply` = 10 and
+  `executeRequest` = 10 (Codex claimed "max 10", which passes the brief's ≤10 but not the repo gate).
+  Extracted `singleLineJson`; dispatch via a total `Record` instead of a switch.
+- `255c971c`: preload-staleness.test.ts pinned the exposed bridges to [tovuRunner, tovuVoice]; Codex missed it.
+- `dde891fe`: PRE-EXISTING base failure (not Codex's): main-preview-wiring.test.ts regex expected
+  `openSites.set(siteDir, { server })`, but abb14dab changed main.ts to `{ server, siteDir }`.
+
+Tests: Codex's 5 files + preview wiring: 56/56. Full desktop `npm test`: 1766 tests, 1754 pass, 2 fail — both
+PRE-EXISTING and outside this diff: `nested-sites-migration.test.ts` (ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX: a
+parameter property in apps/website/src/platform/site-dir/local-site-supervisor.ts under Node 24 strip-only), and
+site-dir-store.test.ts:538 `initSiteDir … through Tovu's actual CLI` (got `[{id:'page-blog'}]`, expected `[]`).
+Desktop typecheck (preload/renderer/main/live-verify): 0 errors. eslint ≤10 on touched files: 0 errors.
+
+PUSH NOTE: the desktop pre-push hook stays red on those 2 pre-existing tests, so `255c971c` was pushed with
+`git push --no-verify` (RUN-PROTOCOL §3: never hold a commit behind an unrelated red suite). Verified the
+remote head with `git ls-remote` = 255c971c.
+
+Open items for the owner (LISTED, not fixed):
+- Every site start now spawns ≥1 CLI child (`list`) before navigation, even when there are no grants.
+  That's up to 60 s per call if the CLI hangs, and adds Electron-as-node spawn latency to every open.
+  A cheap "any grants?" check, or running the sync after navigation, would avoid it.
+- `syncOnStart` also runs for externally attached sites, so the CLI writes into a live site's DB while
+  that site's server runs. This relies on SQLite busy handling; not exercised by tests.
+- A timeout on `put`/`restore` SIGKILLs the child mid-write. The message tells the user to refresh, but it is
+  not known whether the write committed.
+- `delete.expectedRevision` is cast to number without a check in IPC. The CLI validates it, so this is fine.
+- Fix the 2 pre-existing desktop test failures above; they block every desktop push via the hook.
