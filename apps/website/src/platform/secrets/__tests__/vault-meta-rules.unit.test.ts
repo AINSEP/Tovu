@@ -119,7 +119,7 @@ test("a custom credential (or a vendor marked custom) needs a known category", (
     assert.equal(assertHostMetaRules({ kind: "custom", meta: { category } }), undefined, category);
     assert.equal(assertHostMetaRules({ kind: "vendor", meta: { credentialType: "custom", category } }), undefined, category);
   }
-  for (const meta of [{}, { category: "other" }, { category: "General" }]) {
+  for (const meta of [{}, { category: "other" }, { category: "General" }] as Array<Record<string, string>>) {
     assert.throws(() => assertHostMetaRules({ kind: "custom", meta }), invalidMeta, JSON.stringify(meta));
     assert.throws(() => assertHostMetaRules({ kind: "vendor", meta: { ...meta, credentialType: "custom" } }), invalidMeta);
   }
