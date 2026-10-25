@@ -155,6 +155,7 @@ import { createLocalAnalyticsSink } from "#src/features/analytics/jini-adapters"
 import { analyticsProviderRouteDeps } from "./analytics-providers.js";
 import {
   ConsoleMailerAdapter,
+  createInMemoryCredentialLifecycle,
   InMemoryMagicLinkTokenRepo,
   InMemoryMemberRepo,
   InMemoryMemberSessionRepo,
@@ -278,6 +279,7 @@ import { applySiteServingGate } from "../../inbound/public-http/middleware/site-
 import { applyPublicPageSecurityHeaders } from "../../inbound/public-http/middleware/public-page-security-headers.js";
 import { applyPublishedWebMcp } from '../../inbound/public-http/middleware/published-webmcp.js';
 import { applySiteConsent } from '../../inbound/public-http/middleware/site-consent.js';
+import { applyCanonicalSiteHostRedirect } from '../../inbound/public-http/middleware/canonical-site-host.js';
 import { isPublishedWebMcpEnabled } from '#src/features/webmcp/settings';
 import { registerAdminStatic } from "../../inbound/admin-http/admin-static.js";
 import { registerSiteChatStatic } from "../../inbound/public-http/middleware/site-chat-static.js";
@@ -1926,6 +1928,8 @@ function applyPublicMiddleware(
   // nosniff + Referrer-Policy + a report-only CSP on every non-admin response, set before any
   // public route runs. See `public-page-security-headers.ts`.
   applyPublicPageSecurityHeaders(app);
+  // Redirect page aliases before consent/preview middleware can render or set a visitor cookie.
+  applyCanonicalSiteHostRedirect({ app, originRegistry: routeDeps.originRegistry, workspaceId: routeDeps.workspaceId, runtimeMode: routeDeps.seoDeps.runtimeMode });
   if (options.themeIdOverride === undefined) applyThemePreviewSwitcher({ app, deps: routeDeps });
   applyPublishedWebMcp({ app, readEnabled: () => isPublishedWebMcpEnabled(routeDeps, { workspaceId: routeDeps.workspaceId }) });
   // Visitor cookie consent (`site-consent.ts`): after WebMCP so its injected script is gated too,
@@ -2005,6 +2009,9 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // file, the hermetic test composition), durable SQL from `deps.ts`'s
   // `createSiteRouteDeps()` (the real site, ADR-046 Phase 1).
   const memberPublicDeps: MemberPublicRouteDeps = {
+    // Password writes need the SAME store as the member repos: the durable kernel, or (memory-only
+    // composition, no kernel) an in-process mutex. Never mix kernel transactions with memory repos.
+    credentialLifecycle: routeDeps.contentKernel ?? createInMemoryCredentialLifecycle(),
     workspaceId: routeDeps.workspaceId,
     memberRepo: routeDeps.memberRepo,
     memberTierRepo: routeDeps.memberTierRepo,

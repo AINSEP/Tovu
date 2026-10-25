@@ -1,13 +1,14 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
-/** Shard D: real HTTP security contracts, with in-memory ports and a deterministic hasher. */
+/** Shard D: real HTTP security contracts, with transactional member storage and a deterministic hasher. */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import test from "node:test";
+import test, { after } from "node:test";
 import express from "express";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
+import { freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
+import { SqlMagicLinkTokenRepo, SqlMemberRepo, SqlMemberSessionRepo } from "#src/features/members/repo";
 import {
-  InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo,
   InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo, requestSignInLink, requestPasswordReset,
   type MemberRecord, type OutboundEmail,
 } from "#src/features/members/index";
@@ -34,14 +35,17 @@ const digest = (value: string) => createHash("sha256").update(value).digest("hex
 const hash = (value: string) => `test:${digest(value)}`;
 
 function harness() {
+  const kernel = freshSqliteContentKernel();
+  after(() => kernel.close());
   const clock = createFakeClock({ startIso: "2026-10-24T12:00:00.000Z" });
   const sent: OutboundEmail[] = [];
   let sequence = 0;
   const deps: MemberPublicRouteDeps = {
+    credentialLifecycle: kernel,
     workspaceId: "member-http", clock, idGen: { newId: () => `id-${++sequence}` },
-    memberRepo: new InMemoryMemberRepo(), memberSessionRepo: new InMemoryMemberSessionRepo(),
+    memberRepo: new SqlMemberRepo(kernel), memberSessionRepo: new SqlMemberSessionRepo(kernel),
     memberTierRepo: new InMemoryMemberTierRepo(), memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo(),
-    magicLinkRepo: new InMemoryMagicLinkTokenRepo(), principalRepo: new InMemoryPrincipalRepo({}),
+    magicLinkRepo: new SqlMagicLinkTokenRepo(kernel), principalRepo: new InMemoryPrincipalRepo({}),
     passwordHasher: { hash: async ({ password }) => hash(password), verify: async input => input.hash === hash(input.password) },
     origin: {
       canonicalOrigin: async () => ({ scheme: "https", host: "members.example.test", source: "workspace-setting", verifiedAt: clock.nowIso() }),
@@ -457,6 +461,12 @@ test("challenge CAS rejection is 401 but database outage surfaces as 500", async
 
 test("createApp uses the staff hasher and admin routes reject a valid member cookie", async t => {
   const deps = createRouteDeps();
+  const kernel = freshSqliteContentKernel();
+  t.after(() => kernel.close());
+  deps.contentKernel = kernel;
+  deps.memberRepo = new SqlMemberRepo(kernel);
+  deps.memberSessionRepo = new SqlMemberSessionRepo(kernel);
+  deps.magicLinkRepo = new SqlMagicLinkTokenRepo(kernel);
   const member: MemberRecord = { id: "cookie-realm-member", workspaceId: deps.workspaceId,
     email: "realm@example.test", status: "active", createdAt: deps.clock.nowIso(), updatedAt: deps.clock.nowIso(), version: 1 };
   await deps.memberRepo.save(member);
@@ -484,6 +494,29 @@ test("createApp uses the staff hasher and admin routes reject a valid member coo
   assert.equal(admin.status, 401);
 });
 
+
+test("memory-only createApp still changes passwords and revalidates concurrent changes", async t => {
+  // No contentKernel: the composition must supply its in-process lifecycle, not fail closed.
+  const deps = createRouteDeps();
+  assert.equal(deps.contentKernel, undefined);
+  const member: MemberRecord = { id: "memory-member", workspaceId: deps.workspaceId,
+    email: "memory@example.test", status: "active", createdAt: deps.clock.nowIso(), updatedAt: deps.clock.nowIso(), version: 1 };
+  await deps.memberRepo.save(member);
+  await deps.memberRepo.setPasswordHash({ workspaceId: deps.workspaceId, memberId: member.id,
+    passwordHash: await deps.passwordHasher.hash({ password: "x" }) });
+  const base = await startTestServer(createApp(deps), t);
+  const route = (path: string) => `${base}/api/members/v1/workspaces/${deps.workspaceId}/password/${path}`;
+  const json = (body: object, cookie?: string) => ({ method: "POST",
+    headers: { "content-type": "application/json", ...(cookie ? { cookie } : {}) }, body: JSON.stringify(body) });
+  const login = await fetch(route("sign-in"), json({ email: member.email, password: "x" }));
+  assert.equal(login.status, 200);
+  const cookie = login.headers.get("set-cookie")!.split(";")[0];
+  const statuses = (await Promise.all(["y", "z"].map(password =>
+    fetch(route("set"), json({ password, currentPassword: "x" }, cookie))))).map(r => r.status).sort();
+  assert.deepEqual(statuses, [200, 401], "the second change revalidates against the first one's credential");
+  const signIns = await Promise.all(["y", "z"].map(password => fetch(route("sign-in"), json({ email: member.email, password }))));
+  assert.deepEqual(signIns.map(r => r.status).sort(), [200, 401]);
+});
 
 test("expired, consumed, exhausted, wrong-purpose and wrong-code challenges share the same 401", async t => {
   const h = harness(); await h.seed();
