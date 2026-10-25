@@ -1111,3 +1111,53 @@ describe("createExecutionPort", () => {
     expect(detectExecutionAgents).toHaveBeenCalledTimes(2); // the rescan, not a third re-probe
   });
 });
+
+// L13 Stryker: `.trim()` removal on the local-CLI fields, each enum fallback branch, the maxTokens
+// sentinel/type guard and the legacy-key parse paths survived. One row per branch.
+describe("L13 mutation gaps — ledger readers", () => {
+  it("trims the selected agent, its model and its reasoning, and keys both maps by the trimmed id", () => {
+    const byKey = new Map<string, unknown>([["localCli.agentId", "  claude \n"], ["localCli.model", " opus "], ["localCli.reasoning", "\thigh "]]);
+    expect(buildLocalCliConfigFromLedger(byKey)).toEqual({ agentId: "claude", modelByAgentId: { claude: "opus" }, reasoningByAgentId: { claude: "high" } });
+  });
+  it("a whitespace-only agent is nothing selected; whitespace-only model/reasoning are omitted", () => {
+    expect(buildLocalCliConfigFromLedger(new Map<string, unknown>([["localCli.agentId", "   "], ["localCli.model", "opus"]]))).toEqual({ agentId: null });
+    expect(buildLocalCliConfigFromLedger(new Map<string, unknown>([["localCli.agentId", "codex"], ["localCli.model", "  "], ["localCli.reasoning", " "]]))).toEqual({ agentId: "codex" });
+    expect(buildLocalCliConfigFromLedger(new Map<string, unknown>([["localCli.agentId", 7], ["localCli.model", "opus"]]))).toEqual({ agentId: null });
+  });
+  it("every unrecognized mode and protocol value falls back, including case and type variants", () => {
+    for (const raw of [undefined, null, "", "BYOK", "local", 1, {}]) expect(readExecutionMode(raw, "byok")).toBe("byok");
+    expect(readExecutionMode("local-cli", "byok")).toBe("local-cli");
+    for (const raw of [undefined, null, "", "Anthropic", "bedrock", 1]) expect(readByokProtocol(raw, "google")).toBe("google");
+  });
+  it("maxTokens is kept only as a non-sentinel number", () => {
+    const rows = (value: unknown) => new Map<string, unknown>([["byok.maxTokens", value]]);
+    expect(buildByokConfigFromLedger(rows(1), DEFAULT_EXECUTION_CONFIG).maxTokens).toBe(1);
+    for (const value of [0, "4096", null, undefined]) {
+      expect(Object.hasOwn(buildByokConfigFromLedger(rows(value), DEFAULT_EXECUTION_CONFIG), "maxTokens")).toBe(false);
+    }
+  });
+  it("a non-string baseUrl or model falls back to the defaults", () => {
+    const byKey = new Map<string, unknown>([["byok.baseUrl", 5], ["byok.model", null]]);
+    const result = buildByokConfigFromLedger(byKey, DEFAULT_EXECUTION_CONFIG);
+    expect(result.baseUrl).toBe("https://api.anthropic.com");
+    expect(result.model).toBe("");
+  });
+  it("a whitespace-only typed key with nothing stored is not usable", () => {
+    expect(hasUsableAdminKey(" \t ", null)).toBe(false);
+    expect(hasUsableAdminKey(" \t ", { isSet: false })).toBe(false);
+  });
+});
+
+describe("L13 mutation gaps — legacy local credential", () => {
+  afterEach(() => { window.localStorage.clear(); });
+  // The pre-2026-08-05 browser key; pinned literally so a rename cannot orphan stored keys.
+  const store = (value: string) => window.localStorage.setItem("tovu:execution-credentials:v1", value);
+  it("reads a trimmed string key and refuses blank, non-string and malformed values", () => {
+    store(JSON.stringify({ apiKey: "  sk-legacy  " }));
+    expect(readLegacyLocalCredential()).toBe("sk-legacy");
+    for (const raw of [JSON.stringify({ apiKey: "   " }), JSON.stringify({ apiKey: 42 }), JSON.stringify({}), "{not json", ""]) {
+      store(raw);
+      expect(readLegacyLocalCredential()).toBeNull();
+    }
+  });
+});

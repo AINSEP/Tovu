@@ -47,3 +47,15 @@ test("without a signal it simply runs start", async () => {
   expect(await withAcceptanceCancellation({ start: async () => 7, cancel })).toBe(7);
   expect(cancel).not.toHaveBeenCalled();
 });
+
+test("a failing immediate cancel is swallowed and the post-start retry still runs", async () => {
+  const cancel = vi.fn(async () => { throw new Error("cancel lost"); });
+  const controller = new AbortController();
+  let accept!: (value: string) => void;
+  const pending = withAcceptanceCancellation({ signal: controller.signal, start: () => new Promise<string>(resolve => { accept = resolve; }), cancel });
+  controller.abort();
+  await Promise.resolve();
+  accept("accepted");
+  expect(await pending).toBe("accepted");
+  expect(cancel).toHaveBeenCalledTimes(2);
+});
