@@ -56,12 +56,18 @@ function readJsonFile(dir: string, fileName: string): unknown {
 }
 
 /** state.spec.md §2: `config.json.name` is required, 1..200 chars after trim. */
-function validateConfig(parsed: unknown): ConfigJson {
-  const candidate = parsed as Partial<ConfigJson> | null;
+function requireConfigName(candidate: Partial<ConfigJson> | null): string {
   const name = typeof candidate?.name === "string" ? candidate.name.trim() : "";
   if (name.length === 0 || name.length > 200) {
     throw new SiteDirInvalidError("config.json.name must be 1..200 chars after trim");
   }
+  return name;
+}
+
+/** The name rule above, then the optional fields passed through (absent domain/port read as null). */
+function validateConfig(parsed: unknown): ConfigJson {
+  const candidate = parsed as Partial<ConfigJson> | null;
+  const name = requireConfigName(candidate);
   return {
     name,
     domain: candidate?.domain ?? null,
