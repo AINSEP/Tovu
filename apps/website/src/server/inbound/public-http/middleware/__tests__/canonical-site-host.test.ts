@@ -121,3 +121,17 @@ test("an absolute-form request target is passed through instead of joined onto t
   assert.equal(response.status, 200);
   assert.equal(response.location, undefined);
 });
+
+// F6 fix wave (L12 Stryker top-9): the excluded-route pattern is anchored to whole leading segments, so
+// page paths that merely CONTAIN or EXTEND an excluded word are still canonicalized.
+test("page paths that only resemble admin/api/health routes still redirect to the canonical origin", async t => {
+  const { base } = await fixture({ t, origin: canonical });
+  for (const path of ["/foo/admin/x", "/administrator", "/apiary", "/healthy-eating", "/blog/api", "/readyz-guide", "/healthz.html"]) {
+    const response = await send({ base, path, host: "www.tovu.dev" });
+    assert.equal(response.status, 308, path);
+    assert.equal(response.location, `https://tovu.dev${path}`);
+  }
+  for (const path of ["/health", "/healthz", "/readyz", "/api", "/admin/"]) {
+    assert.equal((await send({ base, path, host: "www.tovu.dev" })).status, 200, path);
+  }
+});

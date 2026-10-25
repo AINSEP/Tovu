@@ -108,3 +108,19 @@ test("API-key revoke: `req.params.id ?? \"\"` fallback, forced via a direct hand
   assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: "api key '' was not found", code: "RESOURCE_NOT_FOUND" } });
   assert.deepEqual(lookup.mock.calls.map(({ arguments: args }) => args), [[{ workspaceId: "ws-7", id: "" }]]);
 });
+
+// F6 fix wave (L12 Stryker top-10: `req.body?.x` → `req.body.x` survived): a request with NO parsed body
+// is a 400 validation refusal through the service, never a TypeError 500, and writes nothing.
+for (const [label, register, path] of [
+  ["API-key issuance", registerAdminApiKeyIssueRoute, "/api/admin/v1/api-keys"],
+  ["API-key principal create", registerAdminApiKeyPrincipalCreateRoute, "/api/admin/v1/api-keys/principals"],
+] as const) {
+  test(`${label} without a request body is a 400 refusal, not a 500`, async () => {
+    const deps = await depsForHandler();
+    const capture = await invoke(register, deps, path, undefined);
+    assert.equal(capture.statusCode, 400, JSON.stringify(capture.jsonBody));
+    assert.notDeepEqual(capture.jsonBody, { error: "internal error" });
+    assert.equal(await deps.principalRepo.findById({ workspaceId: "ws-7", id: "new-1" }), null);
+    assert.deepEqual(await deps.apiKeyRepo.listByPrincipalId({ workspaceId: "ws-7", principalId: "machine-3" }), []);
+  });
+}
