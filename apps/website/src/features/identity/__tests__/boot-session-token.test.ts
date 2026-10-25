@@ -91,3 +91,13 @@ test("the production process wrappers share one armed single-use store", (t) => 
   assert.equal(redeemBootSessionToken(token), false);
   assert.equal(redeemBootSessionToken(""), false);
 });
+
+test("an ARMED store refuses empty and non-string tokens without throwing and without burning the real one", () => {
+  const store = createBootSessionTokenStore();
+  const token = store.mint();
+  for (const candidate of ["", 0, 1234, null, undefined, {}, [token], Buffer.from(token), true]) {
+    assert.equal(store.redeem(candidate), false, `armed store accepted ${JSON.stringify(candidate)}`);
+  }
+  assert.equal(store.isArmed(), true);
+  assert.equal(store.redeem(token), true);
+});

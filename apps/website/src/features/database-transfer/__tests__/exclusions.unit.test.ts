@@ -8,6 +8,7 @@ import { getTableConfig } from "drizzle-orm/sqlite-core";
 import { collectCoreTables } from "#src/platform/db/migration/manifest";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { collectTransferTables, countPartialExclusions, planSnapshotTables } from "../copy-engine.js";
+import { SHARE_LEGACY_PRIVATE_TABLES, SHARE_TABLES } from "#src/features/site-backup/share-policy";
 import { EXCLUDED_CORE_TABLES, SECRET_COLUMN_PATTERN } from "../exclusions.js";
 import { openSqliteSnapshotSource } from "../sqlite-source.js";
 
@@ -16,13 +17,41 @@ import { openSqliteSnapshotSource } from "../sqlite-source.js";
  * gains a secret-shaped column and is not on the exclusion list fails here, before it can ride along.
  */
 
-test("every core table with a secret-shaped column is excluded from the copy", () => {
+/**
+ * Owner decision 2026-10-25: a database transfer DOES carry `members.password_hash`, so site members
+ * can still sign in on the copy. It is the only secret-shaped column a copy may carry; it must never
+ * reach a public share/static export (pinned below against `share-policy.ts`).
+ */
+const ALLOWED_COPIED_SECRET_COLUMNS: Readonly<Record<string, readonly string[]>> = { members: ["password_hash"] };
+
+test("every core table with a secret-shaped column is excluded from the copy, except the owner-approved member password hash", () => {
   const leaking = collectCoreTables().flatMap(({ table }) => {
     const cfg = getTableConfig(table);
-    const secrets = cfg.columns.map((column) => column.name).filter((name) => SECRET_COLUMN_PATTERN.test(name));
+    const allowed = ALLOWED_COPIED_SECRET_COLUMNS[cfg.name] ?? [];
+    const secrets = cfg.columns.map((column) => column.name)
+      .filter((name) => SECRET_COLUMN_PATTERN.test(name) && !allowed.includes(name));
     return secrets.length > 0 && !(cfg.name in EXCLUDED_CORE_TABLES) ? [`${cfg.name} (${secrets.join(", ")})`] : [];
   });
   assert.deepEqual(leaking, []);
+});
+
+test("the member password hash is copied by a transfer but never by a public site share", () => {
+  const members = collectCoreTables().map(({ table }) => getTableConfig(table)).find((cfg) => cfg.name === "members");
+  assert.ok(members?.columns.some((column) => column.name === "password_hash"));
+  assert.equal("members" in EXCLUDED_CORE_TABLES, false);
+  assert.ok(collectTransferTables().some((table) => table.name === "members"));
+  assert.equal(SHARE_TABLES.has("members"), false);
+  assert.equal(SHARE_LEGACY_PRIVATE_TABLES.has("members"), true);
+});
+
+test("the secret-column pattern matches whole underscore-delimited segments only", () => {
+  const cases: [string, boolean][] = [
+    ["password_hash", true], ["password", true], ["sealed_value", true], ["value_sealed_json", true],
+    ["token_hash", true], ["refresh_token_hash", true], ["key_hash", true], ["api_key_hash", true],
+    ["passwords", false], ["xpassword", false], ["unsealed", false], ["sealedvalue", false],
+    ["token_hashes", false], ["keyhash", false], ["display_name", false], ["", false], ["PASSWORD", false],
+  ];
+  assert.deepEqual(cases.map(([name]) => [name, SECRET_COLUMN_PATTERN.test(name)]), cases);
 });
 
 test("every excluded name is a current or migrated-away core table, and none of them is copied", () => {

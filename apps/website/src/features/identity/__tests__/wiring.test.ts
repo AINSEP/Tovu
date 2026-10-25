@@ -426,13 +426,19 @@ test("createInMemoryIdentityRouteDeps: identityReady grants pages.edit_html to t
     );
   }
 
-  // The owner policy holds only `*`; `authorize()` short-circuits on it, so a row here would mean
-  // the backfill had started writing onto the wildcard policy.
+  // The owner policy holds `*` plus the explicit role grants registered for owner. Owner decision
+  // 2026-10-25: `visitor-tools.manage` is granted to BOTH owner and admin (review F12,
+  // `visitor-tools-permissions.ts`), so it is the one extra row; any other row would mean the
+  // pages.edit_html backfill had started writing onto the wildcard policy.
   assert.deepEqual(
-    await permissionsOfPolicyNamed("owner-builtin-policy"),
-    ["*"],
-    "the owner policy stays exactly its seeded wildcard"
+    [...await permissionsOfPolicyNamed("owner-builtin-policy")].sort(),
+    ["*", "visitor-tools.manage"],
+    "the owner policy is its seeded wildcard plus the owner-approved visitor-tools.manage grant"
   );
+  assert.ok((await permissionsOfPolicyNamed("admin-builtin-policy")).includes("visitor-tools.manage"), "admins manage visitor tools too");
+  for (const name of ["editor-builtin-policy", "viewer-builtin-policy"] as const) {
+    assert.ok(!(await permissionsOfPolicyNamed(name)).includes("visitor-tools.manage"), `${name} must NOT manage visitor tools`);
+  }
 });
 
 /**
@@ -489,7 +495,7 @@ test("createSqliteIdentityRouteDeps: identityReady grants pages.edit_html to adm
     for (const name of ["editor-builtin-policy", "viewer-builtin-policy"] as const) {
       assert.ok(!(await permissionsOfPolicyNamed(name)).includes(PAGES_EDIT_HTML_PERMISSION), `${name} must NOT gain raw-page-HTML authoring`);
     }
-    assert.deepEqual(await permissionsOfPolicyNamed("owner-builtin-policy"), ["*"], "the owner policy stays exactly its seeded wildcard");
+    assert.deepEqual([...await permissionsOfPolicyNamed("owner-builtin-policy")].sort(), ["*", "visitor-tools.manage"], "the owner policy is its seeded wildcard plus the owner-approved visitor-tools.manage grant (2026-10-25)");
   } finally {
     if (setupDb.$client.open) setupDb.$client.close();
     bootDb?.$client.close();
