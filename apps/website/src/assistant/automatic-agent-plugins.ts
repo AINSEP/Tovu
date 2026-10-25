@@ -1,6 +1,6 @@
 /** Tovu wiring for Jini's automatic-use owner. No plugin identities or matching rules live here. */
 import { createAutomaticAgentPluginUse, readChatAgentPluginState, type ChatAgentPluginState, type ChatAgentPlugins } from '@jini-ai/agent-plugins/lifecycle';
-import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, ToolInputError, type AgentToolDefinition, type AgentToolSideEffect, type Principal, type SurfaceEmitter } from '@jini-ai/core';
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, optionalString, ToolInputError, type AgentToolDefinition, type AgentToolSideEffect, type Principal, type SurfaceEmitter } from '@jini-ai/core';
 import type { PrepareToolGuidance } from '@jini-ai/daemon';
 import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
 import { loadAgentPluginSearchCandidates } from '../features/agent-plugins/tool-registrations.js';
@@ -8,16 +8,16 @@ import type { PluginMaturity } from '../features/agent-plugins/identity.js';
 import { createSettingsPrincipalLookup } from '../features/settings/index.js';
 import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY } from '../features/settings/admin-interface.js';
 import type { RouteDeps } from '#src/server/routes/types';
-import { resolveAgentPluginRefs, rankInstalledAgentPlugins } from '../features/agent-plugins/lifecycle.js';
+import { resolveAgentPluginGuidance, rankInstalledAgentPlugins } from '../features/agent-plugins/lifecycle.js';
 import { toolMetadata } from '../contracts/core/tool-metadata/agent-plugins.js';
 import { askAgentPluginChoice } from './ask-choice-tool.js';
 
 /** Root-added tool contract; both roots register it before constructing tool search. */
 export const agentPluginGuidanceCatalog = [{
   name: 'load_agent_plugin',
-  description: 'Load one relevant Agent Plugin by pluginId before acting in its domain. Returns its real guidance and records it in the loaded-plugin chip. Only active, trusted plugins allowed for this chat can load. Find ids with search_agent_plugin_local.',
+  description: 'Load one relevant Agent Plugin by pluginId before acting in its domain. Returns full guidance; optional skill selects a declared skill and file reads a supporting file relative to that skill folder (default SKILL.md). Requested files can be read even after guidance is loaded. Only active, trusted plugins allowed for this chat can load. Find ids with search_agent_plugin_local.',
   sideEffects: 'none', authorization: { permission: 'admin.assistant.use' },
-  inputSchema: { type: 'object', additionalProperties: false, required: ['pluginId'], properties: { pluginId: { type: 'string', minLength: 1 } } },
+  inputSchema: { type: 'object', additionalProperties: false, required: ['pluginId'], properties: { pluginId: { type: 'string', minLength: 1 }, skill: { type: 'string', minLength: 1 }, file: { type: 'string', minLength: 1 } } },
 }] satisfies AgentToolDefinition[];
 
 export const agentPluginGuidanceRisk = new Map<string, AgentToolSideEffect>([['load_agent_plugin', 'none']]);
@@ -103,7 +103,7 @@ export function createAutomaticPluginRuns({ deps, surfaces }: { deps: AutomaticP
         return candidates;
       },
       rank: (input) => rankInstalledAgentPlugins(input.query.slice(0, 16000), input.candidates, input.limit, { automatic: true }),
-      resolve: ({ pluginId }) => resolveAgentPluginRefs([pluginId], deps.agentPluginLayout.forWorkspace(deps.workspaceId), 'inject'),
+      resolve: ({ pluginId, ...request }) => resolveAgentPluginGuidance({ pluginRefIds: [pluginId], workspaceLayout: deps.agentPluginLayout.forWorkspace(deps.workspaceId) }, { deliveryMode: 'inject', ...request }),
       ask: async ({ matches }) => {
         entry.pending = true;
         try {
@@ -141,10 +141,12 @@ export function createAutomaticPluginRuns({ deps, surfaces }: { deps: AutomaticP
     handlers: { load_agent_plugin: async ({ input: raw, run, principal, signal }) => {
       const input = requireInputRecord({ input: raw });
       const pluginId = requireString({ input, key: 'pluginId' });
-      if (Object.keys(input).some(key => key !== 'pluginId')) throw new ToolInputError({ message: 'Only pluginId is accepted' });
+      if (Object.keys(input).some(key => !['pluginId', 'skill', 'file'].includes(key))) throw new ToolInputError({ message: 'Only pluginId, skill and file are accepted' });
+      const skill = optionalString({ input, key: 'skill' });
+      const file = optionalString({ input, key: 'file' });
       const entry = runs.get(run.id);
       if (!entry || entry.context.principal.id !== principal.id) throw new Error('Agent Plugin run is unavailable');
-      const result = await entry.controller.load({ pluginId, signal }).finally(() => releaseDetached(entry));
+      const result = await entry.controller.load({ pluginId, signal, ...(skill === undefined ? {} : { skill }), ...(file === undefined ? {} : { file }) }).finally(() => releaseDetached(entry));
       const id = JSON.stringify(pluginId);
       const notes = {
         loaded: '',

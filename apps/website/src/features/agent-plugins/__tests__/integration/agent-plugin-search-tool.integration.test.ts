@@ -17,7 +17,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { forceRemove } from "../fixtures/force-remove.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../lifecycle.js";
-import { buildAgentPluginSearchRegistrations } from "../../tool-registrations.js";
+import { buildAgentPluginSearchRegistrations, loadAgentPluginSearchCandidates } from "../../tool-registrations.js";
 
 /**
  * @file Behavioral certification for `search_agent_plugin_local`'s handler — real installs through
@@ -109,13 +109,9 @@ interface SearchResponse {
   matches: {
     maturity?: 'untested' | 'soon';
     pluginId: string;
-    version: string | null;
-    description: string | null;
-    keywords: readonly string[];
+    id: string;
+    description: string;
     enabled: boolean;
-    skills: readonly { name: string; summary: string }[];
-    mcpServers: readonly string[];
-    score: number;
   }[];
   totalInstalled: number;
 }
@@ -175,7 +171,7 @@ test("the description sends the model to plugins_set_enabled's 'agent-plugin' fa
   assert.match(description, /plugins_set_enabled with family 'agent-plugin'/);
 });
 
-test("finds a real installed plugin by keyword, with description/version/keywords/skills carried through", async () => {
+test("finds a real installed plugin by keyword, with compact discovery and full metadata retained by the detail loader", async () => {
   await withAgentPluginsDir(async () => {
     await installReal(
       WORKSPACE_A,
@@ -197,12 +193,15 @@ test("finds a real installed plugin by keyword, with description/version/keyword
     const [match] = result.matches;
     assert.ok(match);
     assert.equal(match.pluginId, "site-compliance");
-    assert.equal(match.version, "1.0.0");
+    assert.deepEqual(Object.keys(match).sort(), ['description', 'enabled', 'id', 'pluginId']);
+    const [detail] = await loadAgentPluginSearchCandidates({ workspaceId: WORKSPACE_A, agentPluginLayout: resolveAgentPluginLayout() });
+    assert.ok(detail);
+    assert.equal(detail.version, "1.0.0");
     assert.match(match.description ?? "", /risk screening/);
-    assert.deepEqual([...match.keywords].sort(), ["accessibility", "ccpa", "compliance", "consent", "cookie", "gdpr", "privacy", "wcag"]);
+    assert.deepEqual([...detail.keywords].sort(), ["accessibility", "ccpa", "compliance", "consent", "cookie", "gdpr", "privacy", "wcag"]);
     assert.equal(match.enabled, true, "absent activation record defaults to enabled");
-    assert.deepEqual(match.skills, [{ name: "site-compliance", summary: "Evidence-based privacy, cookie/consent, and accessibility risk screening for a Tovu site." }]);
-    assert.ok(match.score > 0);
+    assert.deepEqual(detail.skills, [{ name: "site-compliance", summary: "Evidence-based privacy, cookie/consent, and accessibility risk screening for a Tovu site." }]);
+    assert.ok(Buffer.byteLength(JSON.stringify(result)) <= 8192);
   });
 });
 
@@ -242,7 +241,7 @@ test("a DISABLED plugin is still found (unlike the dynamic agent_plugin_<id> too
   });
 });
 
-test("MCP server ids are surfaced, but never their transport config (command/args/env)", async () => {
+test("MCP server ids stay on the detail path, while discovery omits transport config", async () => {
   await withAgentPluginsDir(async () => {
     await installReal(
       WORKSPACE_A,
@@ -256,7 +255,9 @@ test("MCP server ids are surfaced, but never their transport config (command/arg
 
     const result = await search(WORKSPACE_A, { query: "example-host.io deploy" });
     assert.equal(result.matches.length, 1);
-    assert.deepEqual(result.matches[0]?.mcpServers, ["example-host-cli"]);
+    assert.equal(Object.hasOwn(result.matches[0]!, 'mcpServers'), false);
+    const [detail] = await loadAgentPluginSearchCandidates({ workspaceId: WORKSPACE_A, agentPluginLayout: resolveAgentPluginLayout() });
+    assert.deepEqual(detail?.mcpServerIds, ["example-host-cli"]);
 
     const serialized = JSON.stringify(result);
     assert.doesNotMatch(serialized, /should-never-leave-disk/, "mcp.json's transport config (command) must never reach the response");
@@ -264,13 +265,14 @@ test("MCP server ids are surfaced, but never their transport config (command/arg
   });
 });
 
-test("a plugin with no mcp.json at all reports an empty mcpServers array, not an error", async () => {
+test("a plugin with no mcp.json remains discoverable and has no servers on the detail path", async () => {
   await withAgentPluginsDir(async () => {
     await installReal(WORKSPACE_A, "no-mcp-plugin", { "plugin.json": manifestJson("no-mcp-plugin", { description: "plain plugin" }) }, "archive-no-mcp");
 
     const result = await search(WORKSPACE_A, { query: "plain" });
     assert.equal(result.matches.length, 1);
-    assert.deepEqual(result.matches[0]?.mcpServers, []);
+    const [detail] = await loadAgentPluginSearchCandidates({ workspaceId: WORKSPACE_A, agentPluginLayout: resolveAgentPluginLayout() });
+    assert.deepEqual(detail?.mcpServerIds, []);
   });
 });
 
@@ -298,8 +300,8 @@ test("SINK: a plugin whose SKILL.md is no longer readable does not take another 
     // readable — e.g. a permissions problem on disk. chmod 0 revokes read for everyone, including
     // this test's own process.
     const skillFile = path.join(broken.packageRoot, "skills", "broken-plugin", "SKILL.md");
-    const before = await search(WORKSPACE_A, { query: "plugin" });
-    assert.equal(before.matches.find((m) => m.pluginId === "broken-plugin")?.skills.length, 1);
+    const before = await loadAgentPluginSearchCandidates({ workspaceId: WORKSPACE_A, agentPluginLayout: resolveAgentPluginLayout() });
+    assert.equal(before.find((m) => m.pluginId === "broken-plugin")?.skills.length, 1);
     await chmod(skillFile, 0o000);
 
     const result = await search(WORKSPACE_A, { query: "plugin" });
@@ -309,7 +311,8 @@ test("SINK: a plugin whose SKILL.md is no longer readable does not take another 
       ["broken-plugin", "healthy-plugin"],
       "the plugin with the missing skill file must still be found — search degrades per-skill, not per-plugin"
     );
-    const brokenMatch = result.matches.find((m) => m.pluginId === "broken-plugin");
+    const details = await loadAgentPluginSearchCandidates({ workspaceId: WORKSPACE_A, agentPluginLayout: resolveAgentPluginLayout() });
+    const brokenMatch = details.find((m) => m.pluginId === "broken-plugin");
     assert.deepEqual(brokenMatch?.skills, [], "the unreadable skill itself is dropped, not fabricated");
   });
 });
@@ -403,8 +406,8 @@ test("L025b search projection preserves optional metadata and isolates invalid i
     const result = await search(WORKSPACE_A, { query: "minimal-pinned" });
     assert.equal(result.totalInstalled, 1);
     assert.equal(result.matches[0]!.pluginId, "minimal-pinned");
-    assert.equal(result.matches[0]!.version, null);
-    assert.equal(result.matches[0]!.description, null);
+    assert.equal(Object.hasOwn(result.matches[0]!, 'version'), false);
+    assert.equal(result.matches[0]!.description, '');
   });
 });
 

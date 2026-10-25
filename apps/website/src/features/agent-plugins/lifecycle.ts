@@ -129,7 +129,7 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
    * @throws A manifest read failure; never deliver guidance while hiding its maturity.
    * @complexity One catalog scan plus one contained manifest read per selected plugin.
    */
-  async function resolveHostPluginRefs(input: { pluginRefIds: readonly string[]; workspaceLayout: Pick<AgentPluginWorkspaceLayout, "packages" | "root"> }, options: { deliveryMode: AgentPluginDeliveryMode }) {
+  async function resolveHostPluginRefs(input: { pluginRefIds: readonly string[]; workspaceLayout: Pick<AgentPluginWorkspaceLayout, "packages" | "root"> }, options: { deliveryMode?: AgentPluginDeliveryMode; skill?: string; file?: string } = {}) {
     const result = await owner.resolveAgentPluginRefs(input, options);
     if (!result.ok || input.pluginRefIds.length === 0) return result;
     const installed = owner.preferBundledAgentPluginDigests({
@@ -165,6 +165,7 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
     seedBundledAgentPlugins: (input: SeedBundledAgentPluginsRequired) => owner.seedBundledAgentPlugins({ ...input, layout: ownerLayout(input.layout) }),
     retireBundledAgentPlugins: (input: RetireBundledAgentPluginsRequired, options: Parameters<typeof owner.retireBundledAgentPlugins>[1] = {}) => owner.retireBundledAgentPlugins({ ...input, layout: ownerLayout(input.layout) }, options),
     resolveAgentPluginRefs: (pluginRefIds: readonly string[], workspaceLayout: Pick<AgentPluginWorkspaceLayout, "packages" | "root">, deliveryMode = resolveAgentPluginDeliveryMode()) => resolveHostPluginRefs({ pluginRefIds, workspaceLayout }, { deliveryMode }),
+    resolveAgentPluginGuidance: resolveHostPluginRefs,
     listInstalledPlugins: (workspaceRoot: string) => owner.listInstalledPlugins({ workspaceRoot }),
     isInstalledDigestPresent: (packagesDir: string, archiveDigest: string) => owner.isInstalledDigestPresent({ packagesDir, archiveDigest }),
     indexInstalledRoot: (packageRoot: string, archiveDigest: string) => owner.indexInstalledRoot({ packageRoot, archiveDigest }),
@@ -199,7 +200,7 @@ const explicitRootLifecycle = createTovuAgentPluginLifecycle({ layout: unboundSi
 export const {
   installAgentPlugin, uninstallAgentPlugin, previewAgentPluginUninstall, stageForRemoval,
   restoreStagedTrees, removeFrozenPackageTree, seedBundledAgentPlugins, retireBundledAgentPlugins,
-  resolveAgentPluginRefs, listInstalledPlugins, isInstalledDigestPresent, indexInstalledRoot,
+  resolveAgentPluginRefs, resolveAgentPluginGuidance, listInstalledPlugins, isInstalledDigestPresent, indexInstalledRoot,
   maxAgentPluginInstallArchiveBytes, normalizePackageEntryPath, assertContainedOnDisk,
   readBundledAgentPluginDigests, normalizeBundledDigests, preferBundledAgentPluginDigests,
   recordBundledAgentPluginDigests, removeBundledAgentPluginDigest, rankInstalledAgentPlugins,

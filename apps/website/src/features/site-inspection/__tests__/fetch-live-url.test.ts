@@ -102,7 +102,7 @@ test("body shaping is bounded and textOnly precedes the requested output cap", a
   const { deps } = fake([origin], [{ status: 200, headers: {}, bodyText: '<style>' + 'x'.repeat(300) + '</style><p>Hello there</p>' }]);
   assert.equal((await fetchLiveUrl(deps, { path: '/', textOnly: true, maxBytes: 5 })).body, 'Hello');
   const capped = fake([origin], [{ status: 200, headers: {}, bodyText: 'x'.repeat(200001) }]);
-  const result = await fetchLiveUrl(capped.deps, { path: '/' }); assert.equal(result.bodyBytes, 200000); assert.equal(result.truncated, true); assert.equal(result.body?.length, 200000);
+  const result = await fetchLiveUrl(capped.deps, { path: '/' }); assert.equal(result.bodyBytes, 20000); assert.equal(result.truncated, true); assert.equal(result.body?.length, 20000);
 });
 test("live find counts only available text and reports the upstream raw-read ceiling", async () => {
   const { deps, calls } = fake([origin], [{ status: 200, headers: {}, bodyText: '<script>needle</script><p>Needle</p>', bodyTruncated: true }]);

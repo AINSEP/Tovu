@@ -92,3 +92,10 @@ test("published-page shaping preserves legacy bytes and applies find/textOnly th
   assert.equal(text.body, 'Needle'); assert.equal(text.truncated, false);
   assert.equal(closed, 4); assert.equal(requests, 4);
 });
+
+
+test("the default model-facing body is 20 KB and callers can explicitly request more", () => {
+  const body = 'x'.repeat(25_000);
+  assert.deepEqual(shapePageBody(body, {}), { body: body.slice(0, 20_000), bodyBytes: 20_000, truncated: true });
+  assert.deepEqual(shapePageBody(body, { maxBytes: 30_000 }), { body, bodyBytes: 25_000, truncated: false });
+});

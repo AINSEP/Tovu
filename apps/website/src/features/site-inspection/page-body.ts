@@ -2,7 +2,7 @@ import { ToolInputError } from "@jini-ai/core";
 import { parse, type DefaultTreeAdapterMap } from "parse5";
 
 /** t08: shared HTML/text/find projection. Network producers also enforce a raw 1 MB ceiling. */
-export const DEFAULT_MAX_BODY_BYTES = 200_000;
+export const DEFAULT_MAX_BODY_BYTES = 20_000;
 export const MAX_MAX_BODY_BYTES = 1_000_000;
 export interface PageBodyOptions { maxBytes?: number | undefined; find?: string | undefined; textOnly?: boolean | undefined }
 export type ShapedPageBody = { bodyBytes: number; truncated: boolean } & (

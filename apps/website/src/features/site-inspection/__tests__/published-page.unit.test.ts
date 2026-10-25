@@ -238,9 +238,12 @@ test("fetchPublishedPage: caps the body at maxBytes and flags the truncation", a
   assert.equal(result.truncated, true);
 
   const defaulted = await fetchPublishedPage(DEPS, { path: "/big" });
-  assert.equal(defaulted.bodyBytes, 50_000);
-  assert.ok(defaulted.bodyBytes < DEFAULT_MAX_BODY_BYTES);
-  assert.equal(defaulted.truncated, false);
+  assert.equal(defaulted.bodyBytes, DEFAULT_MAX_BODY_BYTES);
+  assert.equal(defaulted.truncated, true);
+
+  const requested = await fetchPublishedPage(DEPS, { path: "/big" }, { maxBytes: 60_000 });
+  assert.equal(requested.bodyBytes, 50_000);
+  assert.equal(requested.truncated, false);
 });
 
 test("fetchPublishedPage: maxBytes is clamped to the hard maximum and defaulted for nonsense", async () => {
@@ -250,7 +253,7 @@ test("fetchPublishedPage: maxBytes is clamped to the hard maximum and defaulted 
   assert.equal(huge.truncated, true);
 
   const negative = await fetchPublishedPage(DEPS, { path: "/big" }, { maxBytes: -1 });
-  assert.equal(negative.bodyBytes, 50_000);
+  assert.equal(negative.bodyBytes, DEFAULT_MAX_BODY_BYTES);
 });
 
 test("fetchPublishedPage: refuses an off-site path and never issues the request", async () => {

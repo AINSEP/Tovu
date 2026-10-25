@@ -89,31 +89,27 @@ test("search_agent_plugin_local IS registered in the real catalog and describabl
     inputSchema?: { required?: string[]; properties?: Record<string, unknown> & { items?: { minItems: number; maxItems: number; description: string } } };
   };
   assert.equal(entry.id, "search_agent_plugin_local");
-  // Default-on batching moves required fields into the item contract; query remains required per call/item.
+  // Default-on batching keeps the item contract; query is optional (blank lists every installed plugin).
   assert.equal(entry.inputSchema?.required, undefined);
   assert.equal(entry.inputSchema?.properties?.items?.minItems, 1);
   assert.equal(entry.inputSchema?.properties?.items?.maxItems, 25);
-  assert.match(entry.inputSchema?.properties?.items?.description ?? "", /Each item needs query \(inside each item\)/);
+  assert.doesNotMatch(entry.inputSchema?.properties?.items?.description ?? "", /needs query/);
   assert.ok(entry.inputSchema?.properties?.query, "the query argument must be describable, or the model cannot send one");
   assert.ok(entry.inputSchema?.properties?.limit, "the limit argument must be describable");
 });
 
-test("search_agent_plugin_local still requires query for both single calls and batch items", async () => {
+test("search_agent_plugin_local lists installed plugins when query is omitted, for single calls and batch items", async () => {
   const s = surface();
   const tool = s.registry.list({}).find((entry) => entry.id === "search_agent_plugin_local");
   assert.ok(tool);
   for (const input of [{}, { items: [{}] }]) {
     const result = await s.executeMetaTool(PRINCIPAL, RUN, { name: "execute_delegated_tool", input: { toolId: tool.id, input } });
     const payload = result as { content: string; isError?: boolean };
+    assert.notEqual(payload.isError, true, payload.content);
     if ("items" in input) {
-      const batch = JSON.parse(payload.content) as { succeeded: number; failed: number; results: { ok: boolean; error: string }[] };
-      assert.equal(batch.succeeded, 0);
-      assert.equal(batch.failed, 1);
-      assert.equal(batch.results[0]?.ok, false);
-      assert.match(batch.results[0]?.error ?? "", /'query'.*required/);
-    } else {
-      assert.equal(payload.isError, true);
-      assert.match(payload.content, /'query'.*required/);
+      const batch = JSON.parse(payload.content) as { succeeded: number; failed: number };
+      assert.equal(batch.succeeded, 1);
+      assert.equal(batch.failed, 0);
     }
   }
 });
