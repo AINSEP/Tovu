@@ -171,6 +171,11 @@ for (const [label, value, refused] of [
   ["Basic with trailing whitespace", `Basic ${B64_USER_PASS}  `, true],
   ["Basic followed by more words", `Basic ${B64_USER_PASS} and more`, false],
   ["Basic preceded by a word", `My Basic ${B64_USER_PASS}`, false],
+  ["Bearer with several spaces", "bearer   abc", true],
+  ["Basic with several spaces", `Basic   ${B64_USER_PASS}`, true],
+  ["Basic glued to a preceding token", `xBasic ${B64_USER_PASS}`, false],
+  ["unpadded Basic base64", `Basic ${Buffer.from(`user:${"s".repeat(13)}`).toString("base64")}`, true],
+  ["double-padded Basic base64", `Basic ${Buffer.from(`user:${"s".repeat(11)}`).toString("base64")}`, true],
 ] as const) {
   test(`credential-shaped value table: ${label} is ${refused ? "refused" : "allowed"}`, () => {
     const config = { note: value };
@@ -178,3 +183,15 @@ for (const [label, value, refused] of [
     else assert.deepEqual(parseFormDeliveryBindings({ value: [binding({ config })] })[0]?.config, config);
   });
 }
+
+test("null config values are allowed (only strings are scanned, objects are walked)", () => {
+  const config = { optional: null, nested: { also: null } };
+  assert.deepEqual(parseFormDeliveryBindings({ value: [binding({ config })] })[0]?.config, config);
+});
+
+test("a refused field path is echoed whole up to 80 characters and truncated beyond", () => {
+  const exactly80 = `token${"x".repeat(80 - "config.".length - "token".length)}`;
+  assert.match(refusal([binding({ config: { [exactly80]: "a" } })]).message, new RegExp(`"config\\.${exactly80}" is named like a secret`));
+  const longer = `${exactly80}y`;
+  assert.match(refusal([binding({ config: { [longer]: "a" } })]).message, new RegExp(`"config\\.${exactly80.slice(0, 80 - "config.".length)}…" is named like a secret`));
+});
