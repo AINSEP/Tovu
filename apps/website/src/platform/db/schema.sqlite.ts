@@ -739,6 +739,25 @@ export const members = sqliteTable(
   (table) => [uniqueIndex("members_workspace_email_unique").on(table.workspaceId, table.email)]
 );
 
+/** Reference declaration for ADR-066 step 0035; unlink markers keep both reservations. */
+export const memberExternalIdentities = sqliteTable(
+  "member_external_identities",
+  {
+    id: text("id").primaryKey().notNull(),
+    workspaceId: text("workspace_id").notNull(),
+    memberId: text("member_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    issuer: text("issuer").notNull(),
+    subject: text("subject").notNull(),
+    linkedAt: text("linked_at").notNull(),
+    unlinkedAt: text("unlinked_at"),
+  },
+  (table) => [
+    uniqueIndex("member_external_identities_workspace_subject_unique").on(table.workspaceId, table.issuer, table.subject),
+    uniqueIndex("member_external_identities_workspace_member_provider_unique").on(table.workspaceId, table.memberId, table.providerId),
+  ]
+);
+
 export const memberTiers = sqliteTable(
   "member_tiers",
   {

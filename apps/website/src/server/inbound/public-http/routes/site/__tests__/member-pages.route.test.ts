@@ -53,6 +53,16 @@ test("memberPagePost: a published html Page per member path, titled like its own
   assert.equal(memberPagePost({ path: "/nope", workspaceId: "ws-1" }), undefined);
 });
 
+test("login provider slots ship empty and hidden: core names no provider, the script fills them", () => {
+  const signin = MEMBER_PAGES["/signin"]!.body, account = MEMBER_PAGES["/account"]!.body;
+  assert.match(signin, /<div class="member-providers" data-member-providers hidden><div class="member-provider-list" data-member-provider-list><\/div>/);
+  assert.match(signin, /<p class="member-note member-oidc-error" data-member-oidc-error role="alert" tabindex="-1" hidden><\/p>/);
+  assert.match(signin, /<section data-member-view="oidc-code" hidden>[\s\S]*autocomplete="one-time-code"/);
+  assert.match(account, /<div class="member-identities" data-member-identities hidden>[\s\S]*<ul class="member-identity-list" data-member-identity-list><\/ul>/);
+  assert.match(account, /signs you out on your other devices/, "the connect tip says other devices are signed out");
+  for (const body of [signin, account]) assert.doesNotMatch(body, /google/i);
+});
+
 for (const theme of [starter, basic2]) {
   test(`GET each member page renders in the ${theme.manifest.id} theme with the member script`, async (t) => {
     assert.equal(theme.status, "valid", JSON.stringify(theme.errors));

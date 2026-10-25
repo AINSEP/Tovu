@@ -5,7 +5,7 @@ import { ToolInputError } from '@jini-ai/core';
 import { SITE_CONSENT_DEFAULTS, SITE_CONSENT_PLACEMENTS, SITE_CONSENT_REGION_MODES, SITE_CONSENT_TEXT_LIMITS, type SiteConsentSettings } from './config.js';
 
 export type ConsentProblem = { code: string; message: string; field?: string };
-const FIELDS = [...Object.keys(SITE_CONSENT_DEFAULTS), 'appearance', 'customCss'];
+const FIELDS = [...Object.keys(SITE_CONSENT_DEFAULTS), 'appearance', 'customCss', 'allowUnsafeEval', 'reopen'];
 
 /** Strict full configuration input; every host field is explicit, including the on/off choice.
  * Missing fields, unknown fields and type mismatches never reach persistence.
@@ -18,6 +18,7 @@ export function parseConsentConfig({ value }: { value: unknown }, _options = {})
   for (const [key, fallback] of Object.entries(SITE_CONSENT_DEFAULTS)) {
     if (!Object.prototype.hasOwnProperty.call(raw, key) || typeof raw[key] !== typeof fallback) throw new ToolInputError({ message: `Invalid consent field: ${key}.` });
   }
+  validateConsentOptions({ raw });
   const config = { ...raw } as SiteConsentSettings;
   validateConsentCopy({ config });
   validateConsentAppearanceShape({ raw });
@@ -55,4 +56,10 @@ export function consentConfigProblems({ config, trustedRegion }: { config: Conse
   if (Boolean(config.secondaryLinkLabel) !== Boolean(config.secondaryLinkUrl) || (config.secondaryLinkUrl && !consentPolicyHref({ url: config.secondaryLinkUrl }))) problems.push({ code: 'SECONDARY_LINK_INVALID', field: 'secondaryLinkUrl', message: 'Supply both a secondary link label and a local or HTTPS link.' });
   if (config.regionMode === 'auto' && !trustedRegion) problems.push({ code: 'TRUSTED_REGION_REQUIRED', field: 'regionMode', message: 'Automatic region mode requires an operator-configured trusted region header. Choose opt-in everywhere.' });
   return problems;
+}
+
+/** Optional engine fields stay outside required defaults so older snapshots still parse. */
+function validateConsentOptions({ raw }: { raw: Record<string, unknown> }, _options = {}): void {
+  if ('allowUnsafeEval' in raw && typeof raw.allowUnsafeEval !== 'boolean') throw new ToolInputError({ message: 'allowUnsafeEval must be a boolean.' });
+  if ('reopen' in raw && raw.reopen !== 'link') throw new ToolInputError({ message: 'Tovu cookie preferences reopen through a link.' });
 }

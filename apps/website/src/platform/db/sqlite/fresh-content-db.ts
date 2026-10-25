@@ -1,3 +1,4 @@
+import { MEMBER_EXTERNAL_IDENTITIES_STATEMENTS } from "../migrations/0035_member_external_identities.js";
 import { memberAuthStatements } from "../migrations/0034_member_auth.js";
 import { MAIL_ACTIVITY_MESSAGE_SQL } from "../migrations/0033_mail_activity_message.js";
 import { MEMBER_SIGNUP_EMAIL_SQL } from "../migrations/0032_member_signup_email.js";
@@ -198,6 +199,9 @@ export function bootstrapFreshContentDb(
     "0033_mail_activity_message": () => client.exec(MAIL_ACTIVITY_MESSAGE_SQL),
     "0034_member_auth": () => {
       for (const statement of memberAuthStatements({ dialect: "sqlite" })) client.exec(statement);
+    },
+    "0035_member_external_identities": () => {
+      for (const statement of MEMBER_EXTERNAL_IDENTITIES_STATEMENTS) client.exec(statement);
     },
     "0018_form_submission_remote_receipts": () => {
       for (const statement of FORM_SUBMISSION_REMOTE_RECEIPTS_STATEMENTS) client.exec(statement);

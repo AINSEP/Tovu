@@ -1,3 +1,4 @@
+import { memberExternalIdentities } from "./0035_member_external_identities.js";
 import { memberAuth } from "./0034_member_auth.js";
 import { mailActivityMessage } from "./0033_mail_activity_message.js";
 import { memberSignupEmail } from "./0032_member_signup_email.js";
@@ -96,6 +97,7 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [
   memberSignupEmail({ checksum: pinned("0032_member_signup_email") }),
   mailActivityMessage({ checksum: pinned("0033_mail_activity_message") }),
   memberAuth({ checksum: pinned("0034_member_auth") }),
+  memberExternalIdentities({ checksum: pinned("0035_member_external_identities") }),
 ];
 
 export const CHAT_MIGRATIONS: readonly MigrationStep[] = [

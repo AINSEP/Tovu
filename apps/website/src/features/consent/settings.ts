@@ -82,12 +82,12 @@ export function createSiteConsentConfig({ settingsRepo, workspaceId }: Deps, _op
     async get(_input: Record<string, never> = {}, _optional = {}): Promise<SiteConsentSettings> {
       // Disabling remains a working rollback even if another consent setting is malformed.
       const activation = await resolveSiteConsentActivation({ settingsRepo, workspaceId });
-      if (!activation.enabled) return { ...SITE_CONSENT_OFF };
+      if (!activation.enabled) return { ...SITE_CONSENT_OFF, reopen: 'link' };
       const values = await readValues({ settingsRepo, workspaceId });
       if (!SITE_CONSENT_REGION_MODES.includes(values.regionMode)) throw new Error('Choose automatic, opt-in, or opt-out cookie consent region mode.');
       if (!SITE_CONSENT_PLACEMENTS.includes(values.placement)) throw new Error(`Choose a cookie banner placement: ${SITE_CONSENT_PLACEMENTS.join(', ')}.`);
       if (!values.policyVersion.trim() || values.policyVersion.length > 128) throw new Error('Cookie consent policy version must contain 1–128 characters.');
-      return { ...values, enabled: true };
+      return { ...values, enabled: true, reopen: 'link' };
     },
   };
 }

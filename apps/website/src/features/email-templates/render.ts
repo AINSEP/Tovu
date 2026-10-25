@@ -57,7 +57,9 @@ export interface FilledText {
 
 /** The `{{field}}` names a string uses, de-duplicated in first-use order. */
 export function placeholdersIn({ text }: { text: string }, _optional: Record<string, never> = {}): string[] {
-  return [...new Set([...text.matchAll(PLACEHOLDER)].map((match) => match[1]))];
+  // PLACEHOLDER requires this capture; narrow it explicitly because indexed reads may be undefined.
+  const names = [...text.matchAll(PLACEHOLDER)].map((match) => match[1]).filter((name): name is string => name !== undefined);
+  return [...new Set(names)];
 }
 
 /** Escapes a value for HTML text AND quoted-attribute context. */
@@ -81,7 +83,8 @@ export function fillPlaceholders(
       missing.add(name);
       return "";
     }
-    return escape(values[name]);
+    // Own keys contain strings by contract; the default also makes the indexed read explicit.
+    return escape(values[name] ?? "");
   });
   return { text: filled, missingFields: [...missing] };
 }
@@ -122,11 +125,13 @@ function attribute({ element, name }: { element: Element; name: string }, _optio
 function* elementsIn(root: ParentNode, _options: Record<string, never> = {}): Generator<Element> {
   const pending: ParentNode[] = [root];
   while (pending.length > 0) {
-    const node = pending.pop() as ParentNode;
+    const node = pending.pop();
+    // Array length checks do not narrow pop() or indexed reads under the desktop config.
+    if (node === undefined) continue;
     if (isElement(node)) yield node;
     for (let i = node.childNodes.length - 1; i >= 0; i--) {
       const child = node.childNodes[i];
-      if ("childNodes" in child) pending.push(child);
+      if (child !== undefined && "childNodes" in child) pending.push(child);
     }
   }
 }
@@ -287,7 +292,9 @@ export function emailTemplateSkeleton(
   _optional: Record<string, never> = {},
 ): string {
   const meta = fields.length > 0 ? `\n<meta name="${EMAIL_FIELDS_META_NAME}" content="${escapeHtml({ value: formatFieldDeclarations({ fields }) })}">` : "";
-  const greeting = fields.length > 0 ? `Hello {{${fields[0].name}}},` : "Hello,";
+  // Guard the first field itself so an empty list keeps its plain greeting.
+  const firstField = fields[0];
+  const greeting = firstField === undefined ? "Hello," : `Hello {{${firstField.name}}},`;
   return `<!doctype html>
 <html>
 <head>

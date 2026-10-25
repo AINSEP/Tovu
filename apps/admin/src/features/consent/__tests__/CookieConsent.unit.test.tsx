@@ -244,3 +244,32 @@ describe('CookieConsent: Reset to default', () => {
     expect(screen.queryByRole('button', { name: 'Reset to default' })).not.toBeInTheDocument();
   });
 });
+
+describe('CookieConsent: dynamic code exception', () => {
+  it('autosaves the generic switch and reloads the published value', async () => {
+    let current = { ...CONSENT_CONFIG, allowUnsafeEval: false };
+    let published = { ...current };
+    const saveDraft = vi.fn(async ({ config }: Parameters<ConsentRevisionsPort['saveDraft']>[0]) => {
+      current = { ...config, allowUnsafeEval: config.allowUnsafeEval === true };
+      return { revision: revision('d2', current), blockingProblems: [] };
+    });
+    const port = fakeConsentPort({
+      get: async () => consentSnapshot({ effective: published, published: revision('p1', published) }), saveDraft,
+      publish: async () => { published = { ...current }; return { published: true, revisionId: 'd2' }; },
+    });
+    const view = renderPage(port, 'rules');
+    const toggle = await screen.findByRole('switch', { name: 'Allow dynamic code (unsafe-eval)' });
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    fireEvent.click(toggle);
+    await waitFor(() => expect(saveDraft).toHaveBeenCalledWith(expect.objectContaining({ config: expect.objectContaining({ allowUnsafeEval: true }) })));
+    await waitFor(() => expect(publishButton()).toBeEnabled());
+    fireEvent.click(publishButton());
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Live.'));
+    view.unmount();
+    renderPage(port, 'rules');
+    const reloaded = await screen.findByRole('switch', { name: 'Allow dynamic code (unsafe-eval)' });
+    expect(reloaded).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(reloaded);
+    await waitFor(() => expect(saveDraft).toHaveBeenLastCalledWith(expect.objectContaining({ config: expect.objectContaining({ allowUnsafeEval: false }) })));
+  });
+});

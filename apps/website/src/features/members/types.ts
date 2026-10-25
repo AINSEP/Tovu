@@ -38,6 +38,21 @@ export type MemberPrincipalKind = Extract<PrincipalKind, "member">;
 // marker so a sign-in request cannot recreate an account that still reserves its email.
 export type MemberStatus = "pending" | "active" | "disabled" | "trash";
 
+/** Trusted issuer/subject association, independent of the member's current email.
+ * An unlink marker reserves the member/provider pair until an explicit signed-in reconnect.
+ * No provider tokens, client secrets or claims are persisted here (Google login review, S1).
+ */
+export interface MemberExternalIdentityRecord {
+  id: UUID;
+  workspaceId: UUID;
+  memberId: UUID;
+  providerId: string;
+  issuer: string;
+  subject: string;
+  linkedAt: ISODateTime;
+  unlinkedAt?: ISODateTime;
+}
+
 /**
  * Front-end member account. `id` is the member's principal id (ULID); the row
  * is the member's profile, analogous to ADR-021's `users` table for operators.

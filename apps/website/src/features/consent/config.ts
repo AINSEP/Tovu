@@ -26,7 +26,7 @@ export const SITE_CONSENT_DEFAULTS = {
   // A corner card covers far less of the page than a full-width bar (owner, 2026-10-22).
   placement: 'bottom-right' as SiteConsentPlacement,
 };
-export type SiteConsentSettings = typeof SITE_CONSENT_DEFAULTS;
+export type SiteConsentSettings = typeof SITE_CONSENT_DEFAULTS & { allowUnsafeEval?: boolean; reopen?: 'link' };
 
 /** Tovu's default banner Custom CSS: live whenever the owner's field is empty, and shown in that
  * field so the owner edits it like their own. The engine allows only its banner selectors and a few
