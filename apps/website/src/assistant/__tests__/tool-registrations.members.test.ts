@@ -143,9 +143,14 @@ function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistrati
 
 function signInUrl(message: unknown): URL {
   const mail = message as { text?: string };
-  const link = mail.text?.match(/(?:https?:\/\/[^\s]+)?\/auth\/magic\?[^\s]+/);
+  const link = mail.text?.match(/(?:https?:\/\/[^\s]+)?\/signin#magic=[^\s]+/);
   assert.ok(link, "mail must contain a sign-in URL");
   return new URL(link[0], "https://members.example.test");
+}
+
+/** The shipped link carries its token and redirect in the fragment (`write-service.ts` signInPath), never the query. */
+function linkParams(url: URL): URLSearchParams {
+  return new URLSearchParams(url.hash.slice(1));
 }
 
 // ---------------------------------------------------------------------------
@@ -349,9 +354,9 @@ test("members_request_magic_link: delivers {delivered:true} for a valid email an
   assert.deepEqual((sentMail[0] as { to: unknown }).to, { email: "member@example.test" });
   assert.deepEqual((sentMail[0] as { from: unknown }).from, { email: "hello@example.test", name: "Example Site" }, "the tool path must send from the site's configured sender");
   const url = signInUrl(sentMail[0]);
-  assert.equal(url.pathname, "/auth/magic");
-  assert.equal(url.searchParams.has("redirect"), false);
-  const token = url.searchParams.get("token");
+  assert.equal(url.pathname, "/signin");
+  assert.equal(linkParams(url).has("redirect"), false);
+  const token = linkParams(url).get("magic");
   assert.ok(token, "the link needs a token the member can redeem");
   const stored = await magicLinkRepo.findByTokenHash({ workspaceId: WORKSPACE_ID, tokenHash: createHash("sha256").update(token).digest("hex") });
   assert.equal(stored?.memberId, "member-1", "the emailed token must sign in the intended member");
@@ -382,11 +387,11 @@ test("members_request_magic_link: a string redirectPath in the input is threaded
   );
   assert.deepEqual(result, { delivered: true, mailDeliveryAvailable: true });
   assert.equal(sentMail.length, 1);
-  assert.equal(signInUrl(sentMail[0]).searchParams.get("redirect"), "/welcome");
+  assert.equal(linkParams(signInUrl(sentMail[0])).get("redirect"), "/welcome");
   const withoutRedirect = await wired("members_request_magic_link", deps).handler(executionContext({ email: "member@example.test" }));
   assert.deepEqual(withoutRedirect, { delivered: true, mailDeliveryAvailable: true });
   assert.equal(sentMail.length, 2);
-  assert.equal(signInUrl(sentMail[1]).searchParams.has("redirect"), false);
+  assert.equal(linkParams(signInUrl(sentMail[1])).has("redirect"), false);
 });
 
 test("members_request_magic_link: exceeding the per-email rate limit throws, naming the email and a retry-after", async () => {
