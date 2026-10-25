@@ -11,7 +11,7 @@ test('a new starter site stores one empty Gallery in content.db and a restart pr
   const db = openContentDb(':memory:');
   try {
     const seed = readTemplate({ templateId: 'starter' }).seed;
-    assert.deepEqual(seed.posts, []);
+    assert.deepEqual(seed.posts.map((entry) => entry.id), ['page-blog']);
     await prepareContentStore(contentKernel(db), { seed });
     const widgets = db.select().from(schema.entries).all();
     assert.equal(widgets.length, 1); assert.equal(widgets[0].title, 'Gallery'); assert.equal(widgets[0].type, 'widget');
