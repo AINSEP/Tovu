@@ -1,0 +1,34 @@
+{
+ "testRunner": "vitest",
+ "vitest": {
+  "configFile": "vitest.stryker.config.ts"
+ },
+ "mutate": [
+  "src/**/*.ts",
+  "!**/__tests__/**",
+  "!**/*.test.ts",
+  "!**/*.spec.ts",
+  "!**/*.d.ts",
+  "!**/*.tsx"
+ ],
+ "coverageAnalysis": "perTest",
+ "concurrency": 3,
+ "incremental": true,
+ "incrementalFile": ".stryker-tmp/incremental.json",
+ "mutator": {
+  "excludedMutations": [
+   "StringLiteral"
+  ]
+ },
+ "reporters": [
+  "json",
+  "clear-text",
+  "progress-append-only"
+ ],
+ "jsonReporter": {
+  "fileName": "/root/stryker/reports/all.json"
+ },
+ "tempDirName": ".stryker-tmp",
+ "cleanTempDir": false,
+ "disableTypeChecks": true
+}
