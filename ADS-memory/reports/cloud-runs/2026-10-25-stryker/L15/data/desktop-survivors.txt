@@ -1,0 +1,603 @@
+src/webview-guest-policy.ts:17:51 ConditionalExpression -> false
+src/window-navigation-policy.ts:67:27 ArrowFunction -> () => undefined
+src/desktop-auth.ts:175:8 Regex -> /[a-f0-9]{64}$/
+src/desktop-auth.ts:175:8 Regex -> /^[a-f0-9]{64}/
+src/agent-plugin-tokens.ts:45:27 Regex -> /^[a-z0-9][a-z0-9-]{0,63}/
+src/agent-plugin-tokens.ts:58:28 ConditionalExpression -> false
+src/agent-plugin-tokens.ts:59:28 MethodExpression -> Object.entries(raw).some(([pluginId, value]) => isTokenEntry
+src/agent-plugin-tokens.ts:71:37 ConditionalExpression -> true
+src/agent-plugin-tokens.ts:71:76 EqualityOperator -> Object.keys(raw).length < MAX_TOKENS
+src/agent-plugin-tokens.ts:76:46 ConditionalExpression -> true
+src/agent-plugin-tokens.ts:76:75 EqualityOperator -> value.length < MAX_TOKEN_LENGTH
+src/agent-plugin-tokens.ts:114:17 Regex -> /agent-plugin-tokens: (saved|failed) ([a-z0-9,-]+)$/m
+src/agent-plugin-tokens.ts:114:17 Regex -> /^agent-plugin-tokens: (saved|failed) ([a-z0-9,-]+)/m
+src/agent-plugin-tokens.ts:116:79 MethodExpression -> match[2]!.split(",")
+src/agent-plugin-tokens.ts:121:16 MethodExpression -> stdout.split(/\r?\n/)
+src/agent-plugin-tokens.ts:121:68 MethodExpression -> candidate
+src/agent-plugin-tokens.ts:123:68 ArrayDeclaration -> ["Stryker was here"]
+src/agent-plugin-tokens.ts:126:9 ConditionalExpression -> false
+src/agent-plugin-tokens.ts:126:78 ConditionalExpression -> false
+src/agent-plugin-tokens.ts:126:113 ConditionalExpression -> false
+src/agent-plugin-tokens.ts:127:12 Regex -> /https:\/\//
+src/agent-plugin-tokens.ts:149:125 ArrayDeclaration -> []
+src/agent-plugin-tokens.ts:165:13 BlockStatement -> {}
+src/agent-plugin-tokens.ts:166:50 BooleanLiteral -> false
+src/project-delete-guard.ts:86:19 OptionalChaining -> meta.siteId
+src/project-delete-guard.ts:86:48 ConditionalExpression -> true
+src/project-delete-guard.ts:101:14 OptionalChaining -> row.siteId
+src/project-delete-guard.ts:101:42 ConditionalExpression -> false
+src/project-delete-guard.ts:153:7 ConditionalExpression -> false
+src/project-delete-guard.ts:178:7 ConditionalExpression -> false
+src/site-dir-store.ts:124:7 ConditionalExpression -> false
+src/site-dir-store.ts:124:71 BooleanLiteral -> true
+src/site-dir-store.ts:127:28 MethodExpression -> recent.recentSiteDirs
+src/site-dir-store.ts:127:85 ConditionalExpression -> true
+src/site-dir-store.ts:164:39 ObjectLiteral -> {}
+src/site-dir-store.ts:188:12 MethodExpression -> entries.sort((a, b) => (b.lastOpened ? Date.parse(b.lastOpen
+src/site-dir-store.ts:188:12 MethodExpression -> entries.sort((a, b) => (b.lastOpened ? Date.parse(b.lastOpen
+src/site-dir-store.ts:189:51 ConditionalExpression -> true
+src/site-dir-store.ts:229:11 BlockStatement -> {}
+src/site-dir-store.ts:337:24 ConditionalExpression -> false
+src/site-dir-store.ts:483:47 ObjectLiteral -> {}
+src/site-dir-store.ts:578:18 MethodExpression -> input.envDir
+src/site-dir-store.ts:595:64 ObjectLiteral -> {}
+src/site-dir-store.ts:602:26 ConditionalExpression -> false
+src/site-scan-policy.ts:15:7 ConditionalExpression -> true
+src/site-scan-policy.ts:19:76 Regex -> /\/$/
+src/site-scan-policy.ts:24:55 Regex -> /\/$/
+src/site-scan-policy.ts:24:108 Regex -> /\/$/
+src/site-scan-policy.ts:29:3 Regex -> /~\/[^/]+$/
+src/site-scan-policy.ts:29:3 Regex -> /^~\/[^/]+/
+src/site-scan-policy.ts:29:17 Regex -> /\/(?:Users|home)(?:\/[^/]+)?$/
+src/site-scan-policy.ts:29:17 Regex -> /^\/(?:Users|home)(?:\/[^/]+)?/
+src/site-scan-policy.ts:29:17 Regex -> /^\/(?:Users|home)(?:\/[/]+)?$/
+src/site-scan-policy.ts:29:17 Regex -> /^\/(?:Users|home)(?:\/[^/])?$/
+src/site-scan-policy.ts:29:51 Regex -> /[a-z]:$/i
+src/site-scan-policy.ts:29:51 Regex -> /^[a-z]:/i
+src/site-scan-policy.ts:29:64 Regex -> /\/\/[^/]+(?:\/[^/]+)?$/
+src/site-scan-policy.ts:29:64 Regex -> /^\/\/[^/]+(?:\/[^/]+)?/
+src/site-scan-policy.ts:29:64 Regex -> /^\/\/[^/]+(?:\/[^/]+)$/
+src/site-scan-policy.ts:29:91 Regex -> /\/(?:Volumes|mnt|media)(?:\/[^/]+)?$/
+src/site-scan-policy.ts:29:91 Regex -> /^\/(?:Volumes|mnt|media)(?:\/[^/]+)?/
+src/site-name.ts:18:9 ConditionalExpression -> true
+src/site-name-policy.ts:3:46 MethodExpression -> name.trim().toUpperCase()
+src/site-name-policy.ts:23:10 MethodExpression -> base.slice(0, SITE_NAME_MAX_LENGTH - suffix.length).trimStar
+src/site-name-policy.ts:30:10 MethodExpression -> names.every(existing => normalized(existing) === normalized(
+src/shared-sites.ts:19:27 ObjectLiteral -> {}
+src/shared-sites.ts:19:67 Regex -> /(?:minted-id|new-site-id)-\d+$/
+src/shared-sites.ts:19:67 Regex -> /^(?:minted-id|new-site-id)-\d+/
+src/shared-sites.ts:19:67 Regex -> /^(?:minted-id|new-site-id)-\d$/
+src/shared-sites.ts:19:67 Regex -> /^(?:minted-id|new-site-id)-\D+$/
+src/shared-sites.ts:26:62 ObjectLiteral -> {}
+src/shared-sites.ts:51:106 ObjectLiteral -> {}
+src/shared-sites.ts:55:24 MethodExpression -> fs.readdirSync(nested).every(name => fs.existsSync(path.join
+src/shared-sites.ts:72:7 ConditionalExpression -> false
+src/shared-sites.ts:73:68 ObjectLiteral -> {}
+src/shared-sites.ts:76:7 ConditionalExpression -> false
+src/shared-sites.ts:76:7 LogicalOperator -> saved.state === "ok" || (saved.value as {   sitesHome?: unkn
+src/shared-sites.ts:76:7 ConditionalExpression -> true
+src/shared-sites.ts:76:31 ConditionalExpression -> true
+src/shared-sites.ts:76:7 EqualityOperator -> saved.state !== "ok"
+src/shared-sites.ts:76:31 EqualityOperator -> (saved.value as {   sitesHome?: unknown; } | null)?.sitesHom
+src/shared-sites.ts:76:31 OptionalChaining -> (saved.value as {   sitesHome?: unknown; } | null).sitesHome
+src/shared-sites.ts:83:11 BlockStatement -> {}
+src/shared-sites.ts:171:12 ArrayDeclaration -> ["Stryker was here"]
+src/shared-sites.ts:182:109 EqualityOperator -> running.port >= 65535
+src/shared-sites.ts:204:9 BlockStatement -> {}
+src/site-process-registry.ts:72:31 Regex -> /(\d+)-[0-9a-f]+\.json$/
+src/site-process-registry.ts:152:10 ConditionalExpression -> true
+src/site-process-registry.ts:152:10 LogicalOperator -> typeof row === "object" || row !== null
+src/site-process-registry.ts:152:10 ConditionalExpression -> true
+src/site-process-registry.ts:152:37 ConditionalExpression -> true
+src/site-process-registry.ts:264:7 ConditionalExpression -> false
+src/site-process-registry.ts:264:40 ArrayDeclaration -> ["Stryker was here"]
+src/site-process-registry.ts:265:61 ArrayDeclaration -> ["Stryker was here"]
+src/site-process-registry.ts:312:7 ConditionalExpression -> false
+src/site-process-registry.ts:416:36 MethodExpression -> runPs(["-o", "ppid=", "-p", String(pid)])
+src/site-process-registry.ts:483:11 BlockStatement -> {}
+src/site-process-registry.ts:488:10 EqualityOperator -> Date.now() <= deadline
+src/site-process-registry.ts:489:9 ConditionalExpression -> false
+src/site-process-registry.ts:509:39 ConditionalExpression -> true
+src/site-process-registry.ts:509:39 EqualityOperator -> Date.now() <= killDeadline
+src/site-process-registry.ts:509:12 LogicalOperator -> isProcessAlive(row.pid) || Date.now() < killDeadline
+src/site-process-registry.ts:563:9 ConditionalExpression -> false
+src/site-process-registry.ts:564:9 ConditionalExpression -> false
+src/site-process-registry.ts:586:22 ConditionalExpression -> false
+src/site-process-registry.ts:588:30 ObjectLiteral -> {}
+src/site-process-registry.ts:588:39 BooleanLiteral -> false
+src/tracked-sites.ts:165:7 ConditionalExpression -> false
+src/tracked-sites.ts:165:104 BooleanLiteral -> true
+src/tracked-sites.ts:166:7 ConditionalExpression -> true
+src/tracked-sites.ts:175:10 ConditionalExpression -> true
+src/tracked-sites.ts:175:10 LogicalOperator -> typeof value === "object" || value !== null
+src/tracked-sites.ts:175:10 ConditionalExpression -> true
+src/tracked-sites.ts:175:39 ConditionalExpression -> true
+src/tracked-sites.ts:211:36 ConditionalExpression -> false
+src/tracked-sites.ts:213:68 ArrayDeclaration -> ["Stryker was here"]
+src/tracked-sites.ts:211:71 ArrayDeclaration -> ["Stryker was here"]
+src/tracked-sites.ts:214:9 ConditionalExpression -> false
+src/tracked-sites.ts:214:9 LogicalOperator -> typeof row !== "object" && row === null
+src/tracked-sites.ts:214:9 ConditionalExpression -> false
+src/tracked-sites.ts:214:36 ConditionalExpression -> false
+src/tracked-sites.ts:296:31 ObjectLiteral -> {}
+src/tracked-sites.ts:343:32 ArrayDeclaration -> ["Stryker was here"]
+src/tracked-sites.ts:353:14 ConditionalExpression -> true
+src/tracked-sites.ts:369:21 LogicalOperator -> origin === SITE_ORIGIN.created || typeof siteId === "string"
+src/tracked-sites.ts:369:21 ConditionalExpression -> true
+src/tracked-sites.ts:369:85 ConditionalExpression -> true
+src/tracked-sites.ts:369:55 ConditionalExpression -> true
+src/tracked-sites.ts:381:32 ArrayDeclaration -> ["Stryker was here"]
+src/tracked-sites.ts:449:40 ConditionalExpression -> true
+src/tracked-sites.ts:474:7 ConditionalExpression -> false
+src/tracked-sites.ts:484:10 EqualityOperator -> adoptDiscoveredSites(projectsPath, [devFallbackDir]).length 
+src/tracked-sites.ts:498:106 ConditionalExpression -> true
+src/tracked-sites.ts:498:106 EqualityOperator -> row.siteDir !== devFallbackDir
+src/tracked-sites.ts:499:17 BooleanLiteral -> true
+src/tracked-sites.ts:502:15 ConditionalExpression -> true
+src/tracked-sites.ts:561:9 ConditionalExpression -> true
+src/tracked-sites.ts:572:7 EqualityOperator -> scanRoots.length >= maxRoots
+src/tracked-sites.ts:589:11 ConditionalExpression -> false
+src/tracked-sites.ts:589:11 EqualityOperator -> candidates.length > maxCandidates
+src/tracked-sites.ts:592:13 BlockStatement -> {}
+src/tracked-sites.ts:623:7 BlockStatement -> {}
+src/tracked-sites.ts:625:35 ObjectLiteral -> {}
+src/tracked-sites.ts:625:53 BooleanLiteral -> true
+src/tracked-sites.ts:626:9 ConditionalExpression -> false
+src/tracked-sites.ts:626:9 LogicalOperator -> stat === undefined && !stat.isDirectory()
+src/tracked-sites.ts:626:9 ConditionalExpression -> false
+src/tracked-sites.ts:627:11 BlockStatement -> {}
+src/tracked-sites.ts:647:11 BlockStatement -> {}
+src/tracked-sites.ts:674:27 ArrayDeclaration -> ["Stryker was here"]
+src/tracked-sites.ts:686:9 ConditionalExpression -> false
+src/site-relocation.ts:81:17 OptionalChaining -> meta.siteId
+src/site-relocation.ts:81:31 OptionalChaining -> meta.siteKeyId
+src/site-relocation.ts:93:11 BlockStatement -> {}
+src/site-relocation.ts:94:12 ArrayDeclaration -> ["Stryker was here"]
+src/site-relocation.ts:110:7 ConditionalExpression -> false
+src/site-relocation.ts:110:7 LogicalOperator -> identity === null && identity === undefined
+src/site-relocation.ts:110:7 ConditionalExpression -> false
+src/site-relocation.ts:110:28 ConditionalExpression -> false
+src/site-relocation.ts:113:51 ConditionalExpression -> true
+src/site-relocation.ts:139:20 ConditionalExpression -> false
+src/site-relocation.ts:164:40 ArrayDeclaration -> ["Stryker was here"]
+src/site-relocation.ts:187:46 ArrayDeclaration -> ["Stryker was here"]
+src/site-relocation.ts:259:17 BooleanLiteral -> true
+src/site-relocation.ts:261:42 ConditionalExpression -> true
+src/site-relocation.ts:262:9 ConditionalExpression -> false
+src/site-relocation.ts:262:9 LogicalOperator -> !tracked && fromDir === toDir
+src/site-relocation.ts:262:21 ConditionalExpression -> false
+src/site-relocation.ts:268:56 ArrowFunction -> () => undefined
+src/site-relocation.ts:268:65 ConditionalExpression -> false
+src/external-site-stop.ts:66:22 Regex -> /(?:[\s/])development\/scripts\/dev\.mjs(?:\s|$)/
+src/external-site-stop.ts:66:22 Regex -> /(?:^|[\s/])development\/scripts\/dev\.mjs(?:\S|$)/
+src/external-site-stop.ts:80:60 EqualityOperator -> startMs < claimedMs
+src/external-site-stop.ts:95:7 ConditionalExpression -> false
+src/external-site-stop.ts:97:23 ConditionalExpression -> true
+src/external-site-stop.ts:97:23 LogicalOperator -> pid !== null || pid > 1
+src/external-site-stop.ts:97:23 ConditionalExpression -> true
+src/external-site-stop.ts:97:39 ConditionalExpression -> true
+src/external-site-stop.ts:97:39 EqualityOperator -> pid >= 1
+src/external-site-stop.ts:97:50 EqualityOperator -> depth <= MAX_ANCESTORS
+src/external-site-stop.ts:99:9 ConditionalExpression -> true
+src/external-site-stop.ts:148:60 ObjectLiteral -> {}
+src/external-site-stop.ts:164:31 MethodExpression -> runPs(["-o", "lstart=", "-p", String(pid)])
+src/external-site-stop.ts:175:26 BlockStatement -> {}
+src/external-site-stop.ts:176:10 ArrowFunction -> () => undefined
+src/external-site-stop.ts:197:11 ConditionalExpression -> true
+src/external-site-stop.ts:197:11 ConditionalExpression -> false
+src/external-site-stop.ts:197:11 EqualityOperator -> launchers.size > LAUNCHER_CACHE_LIMIT
+src/external-site-stop.ts:197:11 EqualityOperator -> launchers.size < LAUNCHER_CACHE_LIMIT
+src/update-check-now.ts:115:9 ConditionalExpression -> true
+src/update-check-now.ts:122:21 OptionalChaining -> result?.updateInfo.version
+src/update-check-now.ts:122:21 OptionalChaining -> result.updateInfo
+src/update-check-now.ts:123:10 OptionalChaining -> result.isUpdateAvailable
+src/update-check-now.ts:126:5 OptionalChaining -> result.downloadPromise.catch
+src/auto-update-controller.ts:45:6 ConditionalExpression -> true
+src/auto-update-controller.ts:45:47 ObjectLiteral -> {}
+src/auto-update-controller.ts:45:57 ObjectLiteral -> {}
+src/update-manifest-merge.ts:49:9 ConditionalExpression -> false
+src/update-manifest-merge.ts:49:16 OptionalChaining -> entry.url
+src/update-manifest-merge.ts:75:23 MethodExpression -> manifests.map(manifest => manifest.releaseDate).filter((date
+src/update-manifest-merge.ts:75:23 MethodExpression -> manifests.map(manifest => manifest.releaseDate)
+src/update-manifest-merge.ts:75:106 ConditionalExpression -> true
+src/update-manifest-merge.ts:75:142 UnaryOperator -> +1
+src/update-manifest-merge.ts:93:16 MethodExpression -> files
+src/update-manifest-merge.ts:96:7 ConditionalExpression -> false
+src/desktop-update-preference.ts:7:7 ConditionalExpression -> false
+src/owner-store-ipc.ts:29:7 LogicalOperator -> !input && typeof input !== 'object'
+src/owner-store-ipc.ts:29:17 ConditionalExpression -> false
+src/owner-store-ipc.ts:30:73 ArrayDeclaration -> ["Stryker was here"]
+src/owner-store-ipc.ts:30:83 ArrayDeclaration -> ["Stryker was here"]
+src/owner-store-ipc.ts:31:13 ArrayDeclaration -> []
+src/owner-store-ipc.ts:32:11 ArrayDeclaration -> []
+src/owner-store-ipc.ts:33:7 MethodExpression -> Object.keys(input).every(field => !fields[action].includes(f
+src/owner-store-ipc.ts:34:7 EqualityOperator -> Buffer.byteLength(JSON.stringify(input)) >= 64 * 1024
+src/owner-store-ipc.ts:42:7 ConditionalExpression -> false
+src/owner-store-ipc.ts:55:32 ArrayDeclaration -> ["Stryker was here"]
+src/owner-store-ipc.ts:44:7 ConditionalExpression -> false
+src/owner-store-ipc.ts:63:36 ObjectLiteral -> {}
+src/owner-store-ipc.ts:75:58 ObjectLiteral -> {}
+src/owner-store-ipc.ts:79:21 MethodExpression -> inventory.data.grants
+src/owner-store-ipc.ts:79:59 ConditionalExpression -> true
+src/owner-store-ipc.ts:88:36 ObjectLiteral -> {}
+src/owner-store-ipc.ts:98:7 ConditionalExpression -> false
+src/owner-store-ipc.ts:102:7 ConditionalExpression -> false
+src/owner-store-ipc.ts:115:43 ObjectLiteral -> {}
+src/owner-store-ipc.ts:122:7 ConditionalExpression -> false
+src/owner-store-ipc.ts:122:7 LogicalOperator -> (typeof value !== 'string' || !value.trim()) && value.includ
+src/owner-store-ipc.ts:122:7 ConditionalExpression -> false
+src/owner-store-ipc.ts:122:7 LogicalOperator -> typeof value !== 'string' && !value.trim()
+src/owner-store-ipc.ts:122:7 ConditionalExpression -> false
+src/owner-store-ipc.ts:122:37 MethodExpression -> value
+src/owner-store-ipc.ts:135:13 ArrowFunction -> () => undefined
+src/owner-store-ipc.ts:136:11 ArrowFunction -> () => undefined
+src/owner-store-ipc.ts:138:13 ArrowFunction -> () => undefined
+src/owner-store-ipc.ts:141:11 ArrowFunction -> () => undefined
+src/owner-store-ipc.ts:161:42 ObjectLiteral -> {}
+src/owner-store-ipc.ts:169:13 ConditionalExpression -> false
+src/owner-store-ipc.ts:193:33 ObjectLiteral -> {}
+src/durable-json-file.ts:52:38 ObjectLiteral -> {}
+src/workspace-conversation-store.ts:86:9 ConditionalExpression -> false
+src/workspace-conversation-store.ts:92:9 ConditionalExpression -> false
+src/workspace-conversation-store.ts:114:73 MethodExpression -> [...entries, entry]
+src/window-bounds-store.ts:61:41 ObjectLiteral -> {}
+src/window-bounds-store.ts:69:31 ObjectLiteral -> {}
+src/sites-mcp-tools.ts:119:17 OptionalChaining -> args[name]
+src/sites-mcp-tools.ts:120:36 MethodExpression -> value
+src/sites-mcp-tools.ts:140:15 ObjectLiteral -> {}
+src/sites-mcp-tools.ts:141:14 ObjectLiteral -> {}
+src/sites-mcp-tools.ts:148:13 ArrayDeclaration -> []
+src/sites-mcp-tools.ts:149:25 BooleanLiteral -> true
+src/sites-mcp-tools.ts:178:7 ConditionalExpression -> false
+src/sites-mcp-tools.ts:216:7 ConditionalExpression -> true
+src/sites-mcp-tools.ts:242:72 ConditionalExpression -> true
+src/sites-mcp-tools.ts:250:10 ObjectLiteral -> {}
+src/sites-mcp-tools.ts:251:17 ObjectLiteral -> {}
+src/sites-mcp-tools.ts:251:38 BooleanLiteral -> false
+src/sites-mcp-tools.ts:272:88 BooleanLiteral -> true
+src/sites-mcp-tools.ts:285:19 ObjectLiteral -> {}
+src/sites-mcp-tools.ts:286:18 ObjectLiteral -> {}
+src/sites-mcp-tools.ts:292:17 ArrayDeclaration -> []
+src/sites-mcp-tools.ts:293:29 BooleanLiteral -> true
+src/sites-mcp-tools.ts:353:9 ConditionalExpression -> false
+src/sites-mcp-registration.ts:187:7 ConditionalExpression -> false
+src/sites-mcp-registration.ts:283:42 ObjectLiteral -> {}
+src/sites-mcp-registration.ts:323:18 Regex -> /\/Volumes\/[^/]+/
+src/sites-mcp-registration.ts:355:11 BlockStatement -> {}
+src/sites-mcp-registration.ts:358:20 OptionalChaining -> /^exec '([^']+)'/m.exec(existing)[1]
+src/sites-mcp-registration.ts:358:20 Regex -> /exec '([^']+)'/m
+src/sites-mcp-registration.ts:359:10 LogicalOperator -> electron !== undefined && !isTransientAppPath(electron, {   
+src/sites-mcp-registration.ts:359:10 ConditionalExpression -> true
+src/sites-mcp-registration.ts:359:10 LogicalOperator -> electron !== undefined || !isTransientAppPath(electron, {   
+src/sites-mcp-registration.ts:359:10 ConditionalExpression -> true
+src/sites-mcp-registration.ts:495:9 ConditionalExpression -> true
+src/sites-mcp-registration.ts:505:11 ConditionalExpression -> true
+src/sites-mcp-registration.ts:505:28 EqualityOperator -> status <= 300
+src/sites-mcp-registration.ts:513:9 ConditionalExpression -> true
+src/sites-mcp-registration.ts:522:11 BlockStatement -> {}
+src/sites-mcp-registration.ts:548:7 ConditionalExpression -> false
+src/sites-mcp-registration.ts:550:19 OptionalChaining -> result.body.servers
+src/sites-mcp-registration.ts:555:40 OptionalChaining -> server.serverId
+src/sites-mcp-registration.ts:556:30 ObjectLiteral -> {}
+src/sites-mcp-registration.ts:616:18 ConditionalExpression -> false
+src/sites-mcp-server.ts:49:26 UnaryOperator -> +32601
+src/sites-mcp-server.ts:46:35 ObjectLiteral -> {}
+src/sites-mcp-server.ts:122:45 ArrayDeclaration -> []
+src/site-config.ts:74:9 EqualityOperator -> fs.statSync(filePath).size >= MAX_CONFIG_BYTES
+src/site-config.ts:76:42 ConditionalExpression -> true
+src/site-config.ts:129:9 BlockStatement -> {}
+src/site-config.ts:130:27 ObjectLiteral -> {}
+src/site-config.ts:130:36 BooleanLiteral -> false
+src/site-config.ts:147:34 OptionalChaining -> readSiteConfig(siteDir).name
+src/site-config.ts:149:24 EqualityOperator -> fs.statSync(marker).size >= MAX_CONFIG_BYTES
+src/site-folders.ts:40:17 ConditionalExpression -> true
+src/site-folders.ts:41:17 LogicalOperator -> Array.isArray(value?.creationRoots) || Array.isArray(value?.
+src/site-folders.ts:41:70 OptionalChaining -> value.extraRoots
+src/site-folders.ts:42:80 ConditionalExpression -> true
+src/site-folders.ts:45:77 ConditionalExpression -> true
+src/site-folders.ts:45:22 MethodExpression -> value!.creationRoots!
+src/site-folders.ts:45:77 LogicalOperator -> typeof root === 'string' || path.isAbsolute(root)
+src/site-folders.ts:45:77 ConditionalExpression -> true
+src/site-folders.ts:46:19 MethodExpression -> value!.extraRoots!
+src/site-folders.ts:46:71 ConditionalExpression -> true
+src/site-folders.ts:46:71 LogicalOperator -> typeof root === 'string' || path.isAbsolute(root)
+src/site-folders.ts:46:71 ConditionalExpression -> true
+src/site-folders.ts:83:44 ObjectLiteral -> {}
+src/site-folders.ts:101:103 ArrowFunction -> () => undefined
+src/site-folders.ts:101:114 ConditionalExpression -> false
+src/site-folders.ts:119:89 ConditionalExpression -> true
+src/site-folders.ts:119:54 MethodExpression -> config.extraRoots
+src/site-folders.ts:119:89 LogicalOperator -> root !== config.sitesHome || !config.defaultRoots.includes(r
+src/site-folders.ts:119:89 ConditionalExpression -> true
+src/site-folders.ts:126:11 ConditionalExpression -> true
+src/site-folders.ts:128:80 ObjectLiteral -> {}
+src/site-folders.ts:134:11 ConditionalExpression -> true
+src/site-folders.ts:136:13 ConditionalExpression -> true
+src/site-folders.ts:146:11 ConditionalExpression -> false
+src/site-folders.ts:156:11 ConditionalExpression -> false
+src/site-supervisor.ts:120:18 OptionalChaining -> entry?.server.onExit
+src/site-supervisor.ts:120:18 OptionalChaining -> entry.server
+src/desktop-user-data-dir.ts:56:52 MethodExpression -> env.APPDATA
+src/desktop-user-data-dir.ts:57:52 MethodExpression -> env.XDG_CONFIG_HOME
+src/keyed-serializer.ts:43:11 ConditionalExpression -> true
+src/keyed-serializer.ts:40:29 BlockStatement -> {}
+src/keyed-serializer.ts:43:11 ConditionalExpression -> false
+src/keyed-serializer.ts:43:11 EqualityOperator -> chains.get(key) !== next
+src/move-to-applications.ts:88:7 ConditionalExpression -> false
+src/move-to-applications.ts:89:19 OptionalChaining -> (read.value as {   declinedVersion?: unknown; } | null).decl
+src/move-to-applications.ts:101:10 Regex -> /^(.*\.app)\/Contents\/MacOS\/[^/]+/
+src/move-to-applications.ts:101:10 Regex -> /(.*\.app)\/Contents\/MacOS\/[^/]+$/
+src/move-to-applications.ts:114:12 MethodExpression -> /<key>CFBundleShortVersionString<\/key>\s*<string>([^<]+)<\/
+src/move-to-applications.ts:114:12 OptionalChaining -> /<key>CFBundleShortVersionString<\/key>\s*<string>([^<]+)<\/
+src/move-to-applications.ts:114:12 OptionalChaining -> /<key>CFBundleShortVersionString<\/key>\s*<string>([^<]+)<\/
+src/move-to-applications.ts:122:16 Regex -> /(\d+(?:\.\d+)*)/
+src/move-to-applications.ts:122:16 Regex -> /^(\d(?:\.\d+)*)/
+src/move-to-applications.ts:134:24 ConditionalExpression -> false
+src/move-to-applications.ts:135:23 EqualityOperator -> index <= Math.max(left.length, right.length)
+src/admin-dev-proxy.ts:81:20 MethodExpression -> input.env.TOVU_ADMIN_DEV_PROXY_URL
+src/admin-dev-proxy.ts:85:34 ConditionalExpression -> false
+src/admin-dev-proxy.ts:85:34 EqualityOperator -> port <= 1
+src/admin-dev-proxy.ts:85:46 EqualityOperator -> port >= 65535
+src/admin-dev-proxy.ts:120:29 BooleanLiteral -> true
+src/desktop-agent.ts:46:98 ArrayDeclaration -> []
+src/desktop-agent.ts:140:17 Regex -> /Bearer\s+(.+)$/i
+src/desktop-agent.ts:140:17 Regex -> /^Bearer\s+(.+)/i
+src/desktop-agent.ts:177:21 MethodExpression -> query.toLowerCase().split(/\s+/)
+src/desktop-agent.ts:177:47 Regex -> /\s/
+src/desktop-agent.ts:177:71 ConditionalExpression -> true
+src/desktop-agent.ts:183:95 OptionalChaining -> optional.limit
+src/desktop-agent.ts:286:83 BooleanLiteral -> true
+src/desktop-agent.ts:288:131 ObjectLiteral -> {}
+src/desktop-agent.ts:321:69 ObjectLiteral -> {}
+src/desktop-agent.ts:326:20 ObjectLiteral -> {}
+src/desktop-agent.ts:324:51 BooleanLiteral -> false
+src/desktop-agent.ts:326:76 BooleanLiteral -> true
+src/desktop-agent.ts:328:27 ObjectLiteral -> {}
+src/desktop-agent.ts:328:14 ArrowFunction -> () => undefined
+src/desktop-agent.ts:333:24 ObjectLiteral -> {}
+src/desktop-agent.ts:339:38 ObjectLiteral -> {}
+src/desktop-agent.ts:356:43 ObjectLiteral -> {}
+src/desktop-agent.ts:356:85 ObjectLiteral -> {}
+src/desktop-agent.ts:360:26 ObjectLiteral -> {}
+src/desktop-agent.ts:362:52 ArrayDeclaration -> ["Stryker was here"]
+src/desktop-agent.ts:365:13 ConditionalExpression -> true
+src/desktop-agent.ts:372:60 ArrowFunction -> () => undefined
+src/desktop-agent.ts:372:88 ArrowFunction -> () => undefined
+src/desktop-agent.ts:377:90 ObjectLiteral -> {}
+src/desktop-agent.ts:383:13 ConditionalExpression -> false
+src/desktop-agent.ts:384:13 ConditionalExpression -> false
+src/desktop-agent.ts:385:13 ConditionalExpression -> false
+src/desktop-agent.ts:392:11 ConditionalExpression -> true
+src/desktop-agent.ts:392:11 LogicalOperator -> status !== undefined || status.state === "queued" || status.
+src/desktop-agent.ts:392:11 ConditionalExpression -> true
+src/desktop-agent.ts:392:36 ConditionalExpression -> true
+src/desktop-agent.ts:392:36 ConditionalExpression -> false
+src/desktop-agent.ts:392:36 LogicalOperator -> status.state === "queued" && status.state === "starting"
+src/desktop-agent.ts:392:36 ConditionalExpression -> false
+src/desktop-agent.ts:392:36 EqualityOperator -> status.state !== "queued"
+src/desktop-agent.ts:392:65 ConditionalExpression -> false
+src/desktop-agent.ts:392:65 EqualityOperator -> status.state !== "starting"
+src/desktop-agent.ts:407:25 ArrayDeclaration -> []
+src/desktop-agent.ts:407:48 ArrowFunction -> () => undefined
+src/desktop-agent-tools.ts:111:11 ConditionalExpression -> false
+src/desktop-agent-tools.ts:135:22 ObjectLiteral -> {}
+src/desktop-agent-tools.ts:135:78 BooleanLiteral -> true
+src/desktop-agent-tools.ts:136:19 BooleanLiteral -> false
+src/desktop-agent-tools.ts:151:22 ObjectLiteral -> {}
+src/desktop-agent-tools.ts:151:52 ObjectLiteral -> {}
+src/desktop-agent-tools.ts:151:62 ObjectLiteral -> {}
+src/desktop-agent-tools.ts:151:89 ObjectLiteral -> {}
+src/desktop-agent-tools.ts:151:121 ArrayDeclaration -> []
+src/desktop-agent-tools.ts:151:155 BooleanLiteral -> true
+src/desktop-capture.ts:13:33 ObjectLiteral -> {}
+src/desktop-capture.ts:13:63 ObjectLiteral -> {}
+src/desktop-resources.ts:26:18 ConditionalExpression -> false
+src/desktop-resources.ts:26:18 EqualityOperator -> at < previous.at
+src/desktop-resources.ts:26:39 EqualityOperator -> usage.cpuSeconds <= before.cpuSeconds
+src/desktop-resources.ts:42:41 ConditionalExpression -> true
+src/desktop-resources.ts:42:41 EqualityOperator -> row.pid !== rootPid
+src/desktop-resources.ts:43:21 ConditionalExpression -> true
+src/desktop-resources.ts:44:53 ConditionalExpression -> true
+src/desktop-resources.ts:57:96 BooleanLiteral -> true
+src/desktop-resources.ts:57:77 BooleanLiteral -> true
+src/desktop-resources.ts:61:17 MethodExpression -> processes.some(row => row.cpuPercent !== null)
+src/desktop-resources.ts:64:17 MethodExpression -> processes.every(row => row.cpuWarning)
+src/desktop-resources.ts:88:99 ConditionalExpression -> true
+src/desktop-resources.ts:96:64 ObjectLiteral -> {}
+src/desktop-resources.ts:115:21 UnaryOperator -> +Infinity
+src/desktop-resources.ts:120:64 ArrayDeclaration -> ["Stryker was here"]
+src/desktop-resources.ts:135:27 ObjectLiteral -> {}
+src/tovu-server.ts:36:19 Regex -> /^tovu serve: dir=(.+) port=(\d+) schemaVersion=(\d+) worksp
+src/tovu-server.ts:36:19 Regex -> /tovu serve: dir=(.+) port=(\d+) schemaVersion=(\d+) workspa
+src/tovu-server.ts:47:25 Regex -> /tovu serve: bootToken=(\S+)$/m
+src/tovu-server.ts:47:25 Regex -> /^tovu serve: bootToken=(\S+)/m
+src/tovu-server.ts:51:32 Regex -> /tovu serve: bootToken=\S*\r?\n?/gm
+src/tovu-server.ts:51:32 Regex -> /^tovu serve: bootToken=\S\r?\n?/gm
+src/tovu-server.ts:76:24 Regex -> /tovu: (\S+): (.*)$/m
+src/tovu-server.ts:76:24 Regex -> /^tovu: (\S+): (.*)/m
+src/tovu-server.ts:298:21 ArrayDeclaration -> []
+src/tovu-server.ts:298:59 ArrayDeclaration -> ["Stryker was here"]
+src/tovu-server.ts:299:25 ConditionalExpression -> true
+src/tovu-server.ts:299:6 ObjectLiteral -> {}
+src/tovu-server.ts:299:25 ConditionalExpression -> false
+src/tovu-server.ts:299:25 EqualityOperator -> process.platform !== "win32"
+src/tovu-server.ts:301:7 ConditionalExpression -> true
+src/tovu-server.ts:301:7 ConditionalExpression -> false
+src/tovu-server.ts:301:32 BlockStatement -> {}
+src/tovu-server.ts:307:7 ConditionalExpression -> true
+src/tovu-server.ts:436:79 ObjectLiteral -> {}
+src/tovu-server.ts:508:7 ConditionalExpression -> true
+src/tovu-server.ts:532:7 ConditionalExpression -> true
+src/tovu-server.ts:671:15 ConditionalExpression -> true
+src/tovu-server.ts:676:23 BlockStatement -> {}
+src/tovu-server.ts:697:21 BlockStatement -> {}
+src/tovu-server.ts:728:16 MethodExpression -> output
+src/tovu-server.ts:728:16 MethodExpression -> output.trim().split("\n")
+src/tovu-server.ts:729:10 ConditionalExpression -> true
+src/tovu-server.ts:729:10 EqualityOperator -> tail.length >= 0
+src/tovu-server.ts:890:17 ConditionalExpression -> true
+src/tovu-server.ts:919:11 ConditionalExpression -> false
+src/tovu-server.ts:920:17 BooleanLiteral -> false
+src/tovu-server.ts:928:26 ArrowFunction -> () => undefined
+src/tovu-server.ts:931:13 ConditionalExpression -> false
+src/tovu-server.ts:932:13 EqualityOperator -> output.length + chunk.length >= 1_000_000
+src/site-preview-store.ts:146:27 ObjectLiteral -> {}
+src/site-preview-store.ts:146:36 BooleanLiteral -> false
+src/site-preview-store.ts:162:59 BooleanLiteral -> false
+src/site-preview-store.ts:162:50 ObjectLiteral -> {}
+src/site-preview-store.ts:196:69 BooleanLiteral -> false
+src/site-preview-store.ts:196:60 ObjectLiteral -> {}
+src/site-preview-scheduler.ts:44:11 ConditionalExpression -> true
+src/site-preview-scheduler.ts:44:11 OptionalChaining -> attempt.timer
+src/site-discovery.ts:37:54 ArrayDeclaration -> ["Stryker was here"]
+src/site-discovery.ts:38:11 ConditionalExpression -> false
+src/site-discovery.ts:39:17 BooleanLiteral -> false
+src/site-discovery.ts:51:47 ObjectLiteral -> {}
+src/site-discovery.ts:51:55 BooleanLiteral -> false
+src/shell-staleness.ts:46:11 Regex -> /\.(test|spec)\.[cm]?[jt]sx?/
+src/shell-staleness.ts:46:11 Regex -> /\.(test|spec)\.[^cm]?[jt]sx?$/
+src/shell-staleness.ts:65:24 ConditionalExpression -> false
+src/workspace-chat-ipc.ts:147:13 ConditionalExpression -> true
+src/workspace-chat-ipc.ts:206:7 ConditionalExpression -> false
+src/workspace-chat-ipc.ts:206:7 LogicalOperator -> typeof directory !== "string" && directory === ""
+src/workspace-chat-ipc.ts:206:7 ConditionalExpression -> false
+src/workspace-chat-ipc.ts:206:40 ConditionalExpression -> false
+src/resources-ipc.ts:8:17 ConditionalExpression -> false
+src/site-theme-preview-ipc.ts:31:150 Regex -> /[\w-]{1,100}$/
+src/site-theme-preview-ipc.ts:52:5 OptionalChaining -> owner?.claims.get(id)()
+src/site-theme-preview-ipc.ts:50:9 ConditionalExpression -> false
+src/site-theme-preview-ipc.ts:65:7 ConditionalExpression -> false
+src/site-theme-preview-ipc.ts:65:7 LogicalOperator -> (!input || typeof input !== 'object') && !('siteDir' in inpu
+src/site-theme-preview-ipc.ts:65:7 ConditionalExpression -> false
+src/site-theme-preview-ipc.ts:65:7 LogicalOperator -> !input && typeof input !== 'object'
+src/site-theme-preview-ipc.ts:65:17 ConditionalExpression -> false
+src/site-theme-preview.ts:37:9 ConditionalExpression -> true
+src/site-theme-preview.ts:67:10 ConditionalExpression -> true
+src/site-theme-preview.ts:67:10 LogicalOperator -> !!frame && typeof frame === 'object' || 'revision' in frame
+src/site-theme-preview.ts:67:10 ConditionalExpression -> true
+src/site-theme-preview.ts:67:10 LogicalOperator -> !!frame || typeof frame === 'object'
+src/site-theme-preview.ts:67:21 ConditionalExpression -> true
+src/site-theme-preview.ts:84:11 OptionalChaining -> stream?.close()
+src/site-theme-preview.ts:84:11 OptionalChaining -> stream.close
+src/site-theme-preview.ts:88:21 OptionalChaining -> watchers.get(siteDir).size
+src/site-theme-preview.ts:88:57 ObjectLiteral -> {}
+src/site-theme-preview.ts:90:10 ObjectLiteral -> {}
+src/site-theme-preview.ts:95:13 LogicalOperator -> streams.get(siteDir) !== stream && ports.current({   siteDir
+src/site-theme-preview.ts:95:13 ConditionalExpression -> false
+src/site-theme-preview.ts:95:48 ConditionalExpression -> false
+src/site-theme-preview.ts:95:48 OptionalChaining -> ports.current({   siteDir }, {}).lifecycle
+src/site-theme-preview.ts:103:13 BlockStatement -> {}
+src/find-in-page-ipc.ts:34:39 OptionalChaining -> ipcMain.removeHandler(channel)
+src/find-in-page-ipc.ts:68:46 ConditionalExpression -> true
+src/find-in-page-ipc.ts:68:62 OptionalChaining -> window.webContents.removeListener(event, nativeListener)
+src/site-history-menu.ts:146:30 ArrayDeclaration -> ["Stryker was here"]
+src/spellcheck-menu.ts:51:8 ObjectLiteral -> {}
+src/spellcheck-menu.ts:88:42 ConditionalExpression -> true
+src/spellcheck-menu.ts:88:58 OptionalChaining -> webContents.removeListener(event, nativeListener)
+src/spellcheck-menu.ts:93:8 ObjectLiteral -> {}
+src/desktop-i18n.ts:14:7 ArrayDeclaration -> []
+src/desktop-i18n.ts:39:7 ArrayDeclaration -> []
+src/desktop-i18n.ts:40:7 ArrayDeclaration -> []
+src/desktop-i18n.ts:41:7 ArrayDeclaration -> []
+src/desktop-i18n.ts:42:7 ArrayDeclaration -> []
+src/desktop-i18n.ts:43:12 ArrayDeclaration -> []
+src/desktop-i18n.ts:44:12 ArrayDeclaration -> []
+src/desktop-i18n.ts:45:7 ArrayDeclaration -> []
+src/desktop-i18n.ts:46:7 ArrayDeclaration -> []
+src/desktop-i18n.ts:47:7 ArrayDeclaration -> []
+src/desktop-i18n.ts:49:7 ArrayDeclaration -> []
+src/desktop-i18n.ts:48:7 ArrayDeclaration -> []
+src/desktop-i18n.ts:50:12 ArrayDeclaration -> []
+src/desktop-i18n.ts:51:7 ArrayDeclaration -> []
+src/desktop-i18n.ts:52:7 ArrayDeclaration -> []
+src/desktop-i18n.ts:53:7 ArrayDeclaration -> []
+src/desktop-i18n.ts:55:7 ArrayDeclaration -> []
+src/desktop-i18n.ts:54:7 ArrayDeclaration -> []
+src/desktop-i18n.ts:56:7 ArrayDeclaration -> []
+src/desktop-i18n.ts:57:7 ArrayDeclaration -> []
+src/desktop-i18n.ts:58:7 ArrayDeclaration -> []
+src/desktop-i18n.ts:59:7 ArrayDeclaration -> []
+src/desktop-i18n.ts:60:7 ArrayDeclaration -> []
+src/desktop-i18n.ts:109:90 ObjectLiteral -> {}
+src/desktop-chat-main.ts:43:19 MethodExpression -> ports.readTracked().every(row => row.siteDir === resolved)
+src/desktop-chat-main.ts:57:49 ObjectLiteral -> {}
+src/desktop-chat-main.ts:62:25 ObjectLiteral -> {}
+src/js-backslide-guard.ts:43:95 ArrayDeclaration -> ["Stryker was here"]
+src/site-power-verify.ts:55:55 EqualityOperator -> menu.left > name.right
+src/site-power-verify.ts:65:9 EqualityOperator -> Math.abs(power.left - details.left) < 1
+src/site-power-verify.ts:65:53 EqualityOperator -> power.top > rowBottom - 1
+src/site-power-verify.ts:65:66 ArithmeticOperator -> rowBottom + 1
+src/site-power-verify.ts:73:9 EqualityOperator -> Math.abs(status.right - menu.right) < 1
+src/site-power-verify.ts:73:53 ConditionalExpression -> true
+src/site-power-verify.ts:73:53 EqualityOperator -> status.top > menu.bottom - 1
+src/site-power-verify.ts:73:67 ArithmeticOperator -> menu.bottom + 1
+src/site-power-verify.ts:73:86 EqualityOperator -> Math.abs(middle(status) - middle(details)) < 4
+src/site-power-verify.ts:150:29 ObjectLiteral -> {}
+src/site-power-verify.ts:150:42 BooleanLiteral -> false
+src/find-in-page-verify.ts:16:17 Regex -> /^(\d) of (\d+)$/
+src/project-ipc.ts:252:31 ConditionalExpression -> true
+src/project-ipc.ts:295:27 ConditionalExpression -> true
+src/project-ipc.ts:295:27 EqualityOperator -> sharedRunning.port >= 0
+src/project-ipc.ts:300:65 ConditionalExpression -> true
+src/project-ipc.ts:300:7 ConditionalExpression -> false
+src/project-ipc.ts:300:65 ConditionalExpression -> false
+src/project-ipc.ts:300:65 EqualityOperator -> sharedRunning.port >= 0
+src/project-ipc.ts:300:65 EqualityOperator -> sharedRunning.port <= 0
+src/project-ipc.ts:389:7 ConditionalExpression -> false
+src/project-ipc.ts:417:61 ObjectLiteral -> {}
+src/project-ipc.ts:417:76 LogicalOperator -> (deps.siteFolders?.read({}).roots ?? deps.siteScanRoots) && 
+src/project-ipc.ts:417:76 LogicalOperator -> deps.siteFolders?.read({}).roots && deps.siteScanRoots
+src/project-ipc.ts:418:19 BlockStatement -> {}
+src/project-ipc.ts:417:134 ArrayDeclaration -> ["Stryker was here"]
+src/project-ipc.ts:422:7 ConditionalExpression -> false
+src/project-ipc.ts:422:92 ArrowFunction -> () => undefined
+src/project-ipc.ts:438:9 LogicalOperator -> record.status === "running" || record.port > 0
+src/project-ipc.ts:438:9 ConditionalExpression -> true
+src/project-ipc.ts:438:40 ConditionalExpression -> true
+src/project-ipc.ts:438:40 EqualityOperator -> record.port >= 0
+src/project-ipc.ts:439:7 OptionalChaining -> deps.requestPreviewCapture({   siteDir: record.id,   port: r
+src/project-ipc.ts:451:39 ConditionalExpression -> true
+src/project-ipc.ts:464:7 MethodExpression -> rows.every(row => names.has(row.siteDir) && names.get(row.si
+src/project-ipc.ts:464:26 LogicalOperator -> names.has(row.siteDir) || names.get(row.siteDir) !== row.dis
+src/project-ipc.ts:464:52 ConditionalExpression -> true
+src/project-ipc.ts:487:51 ObjectLiteral -> {}
+src/project-ipc.ts:491:17 ArrayDeclaration -> []
+src/project-ipc.ts:493:7 LogicalOperator -> picked.canceled && picked.filePaths.length === 0
+src/project-ipc.ts:493:26 ConditionalExpression -> false
+src/project-ipc.ts:501:82 ConditionalExpression -> true
+src/project-ipc.ts:502:133 BooleanLiteral -> false
+src/project-ipc.ts:520:37 ConditionalExpression -> true
+src/project-ipc.ts:536:18 MethodExpression -> name
+src/project-ipc.ts:536:52 Regex -> /[^a-z0-9]/g
+src/project-ipc.ts:580:7 ConditionalExpression -> false
+src/project-ipc.ts:583:16 ObjectLiteral -> {}
+src/project-ipc.ts:596:100 ObjectLiteral -> {}
+src/project-ipc.ts:608:9 BlockStatement -> {}
+src/project-ipc.ts:607:9 OptionalChaining -> deps.siteFolders.rememberCreated
+src/project-ipc.ts:685:7 LogicalOperator -> picked.canceled && picked.filePaths.length === 0
+src/project-ipc.ts:685:26 ConditionalExpression -> false
+src/project-ipc.ts:698:28 ConditionalExpression -> true
+src/project-ipc.ts:702:20 ObjectLiteral -> {}
+src/project-ipc.ts:713:28 ArrowFunction -> () => undefined
+src/project-ipc.ts:755:41 ConditionalExpression -> true
+src/project-ipc.ts:805:67 ConditionalExpression -> true
+src/project-ipc.ts:853:43 OptionalChaining -> openEntry.server
+src/project-ipc.ts:862:9 OptionalChaining -> sharedSites.registry
+src/project-ipc.ts:912:41 ConditionalExpression -> false
+src/project-ipc.ts:957:14 OptionalChaining -> input.id
+src/project-ipc.ts:958:69 ConditionalExpression -> true
+src/project-ipc.ts:980:43 OptionalChaining -> input.name
+src/project-ipc.ts:981:7 ConditionalExpression -> false
+src/project-ipc.ts:984:48 OptionalChaining -> input.name
+src/project-ipc.ts:1102:67 ArrowFunction -> () => undefined
+src/project-ipc.ts:1152:69 ConditionalExpression -> true
+src/project-ipc.ts:1184:54 OptionalChaining -> deps.sharedSites.running
+src/project-ipc.ts:1261:6 ObjectLiteral -> {}
+src/project-ipc.ts:1277:26 ConditionalExpression -> false
+src/project-ipc.ts:1283:113 ObjectLiteral -> {}
+src/project-ipc.ts:1337:34 OptionalChaining -> input.name
+src/project-ipc.ts:1334:51 ObjectLiteral -> {}
+src/project-ipc.ts:1348:9 LogicalOperator -> picked.canceled && !picked.filePaths[0]
+src/project-ipc.ts:1355:9 LogicalOperator -> !deps.sharedSites && !deps.siteFolders
+src/project-ipc.ts:1356:19 ConditionalExpression -> false
+src/project-ipc.ts:1357:8 ConditionalExpression -> true
