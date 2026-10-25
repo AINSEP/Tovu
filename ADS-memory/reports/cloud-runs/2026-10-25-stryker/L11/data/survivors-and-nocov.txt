@@ -1,0 +1,743 @@
+## assistant/a2ui-actions-route.ts {"Survived:ConditionalExpression":2,"Survived:EqualityOperator":1,"Survived:ObjectLiteral":3}
+  L80 ConditionalExpression -> true | return typeof value === "string" && value.length > 0 ? value : undefined;
+  L80 ConditionalExpression -> true | return typeof value === "string" && value.length > 0 ? value : undefined;
+  L80 EqualityOperator -> value.length >= 0 | return typeof value === "string" && value.length > 0 ? value : undefined;
+  L130 ObjectLiteral -> {} | return {
+  L132 ObjectLiteral -> {} | error: {
+  L175 ObjectLiteral -> {} | res.status(401).json({ error: `${RUN_PRINCIPAL_HEADER} is required`, code: "UNAUTHENTICATED" });
+## assistant/ask-choice-tool.ts {"NoCoverage:ObjectLiteral":26,"NoCoverage:ArrayDeclaration":3,"NoCoverage:ArrowFunction":5,"NoCoverage:BlockStatement":3,"NoCoverage:ConditionalExpression":11,"NoCoverage:LogicalOperator":4,"NoCoverage:EqualityOperator":5,"NoCoverage:BooleanLiteral":2,"Survived:ObjectLiteral":3,"Survived:ArrayDeclaration":3,"Survived:BooleanLiteral":1,"Survived:ConditionalExpression":19,"Survived:EqualityOperator":2,"Survived:LogicalOperator":6,"Survived:MethodExpression":3,"Survived:ArrowFunction":1}
+  L122 ObjectLiteral -> {} | label: { type: "string", minLength: 1, description: "Flat options label; defaults to question, then title." },
+  L166 ArrayDeclaration -> ["Stryker was here"] | const fields: SurfaceField[] = [];
+  L173 BooleanLiteral -> false | required: true,
+  L182 ConditionalExpression -> false | ...(parsed.multiSelect.hint === undefined ? {} : { hint: parsed.multiSelect.hint }),
+  L203 ConditionalExpression -> true | ...(parsed.description === undefined ? {} : { description: parsed.description }),
+  L203 ConditionalExpression -> false | ...(parsed.description === undefined ? {} : { description: parsed.description }),
+  L203 ObjectLiteral -> {} | ...(parsed.description === undefined ? {} : { description: parsed.description }),
+  L203 EqualityOperator -> parsed.description !== undefined | ...(parsed.description === undefined ? {} : { description: parsed.description }),
+  L207 LogicalOperator -> parsed.actions?.slice(1).map(action => ({   id: ac | additionalSubmitActions: parsed.actions?.slice(1).map(action => ({ id: action.id, label: action.label, params:
+  L210 ObjectLiteral -> {} | app: { appName: "tovu-ask-choice", appVersion: "1" },
+  NOCOV lines: 184,206-207,254,420-446
+## assistant/assistant-vault.ts {"Survived:ConditionalExpression":3,"Survived:LogicalOperator":1,"Survived:OptionalChaining":2}
+  L12 ConditionalExpression -> false | if (!("vault" in repo)) throw new VaultError({ code: "invalid-record" });
+  L59 ConditionalExpression -> true | return { record, tokenHint: record.sealed && sealer ? await openTokenHint({ repo, context, sealer, record }) :
+  L59 LogicalOperator -> record.sealed || sealer | return { record, tokenHint: record.sealed && sealer ? await openTokenHint({ repo, context, sealer, record }) :
+  L73 ConditionalExpression -> true | return typeof opened?.payload?.apiKey === "string" ? credentialTokenHint({ token: opened.payload.apiKey }) : n
+  L73 OptionalChaining -> opened?.payload.apiKey | return typeof opened?.payload?.apiKey === "string" ? credentialTokenHint({ token: opened.payload.apiKey }) : n
+  L73 OptionalChaining -> opened.payload | return typeof opened?.payload?.apiKey === "string" ? credentialTokenHint({ token: opened.payload.apiKey }) : n
+## assistant/batch-tool-inputs.ts {"Survived:ObjectLiteral":4,"Survived:ConditionalExpression":5,"Survived:LogicalOperator":2,"Survived:ArrayDeclaration":1}
+  L14 ObjectLiteral -> {} | { toolId: "media_view_video", maxItems: 8 },
+  L15 ObjectLiteral -> {} | { toolId: "web_screenshot_page", maxItems: 8 },
+  L22 ObjectLiteral -> {} | { toolId: "theme_read_file", maxItems: 20 },
+  L23 ObjectLiteral -> {} | { toolId: 'plugin_source_read', maxItems: 20 },
+  L26 ConditionalExpression -> true | if (typeof input === "object" && input !== null && "screenshot" in input && input.screenshot === true) {
+  L26 LogicalOperator -> typeof input === "object" && input !== null || "sc | if (typeof input === "object" && input !== null && "screenshot" in input && input.screenshot === true) {
+  L26 ConditionalExpression -> true | if (typeof input === "object" && input !== null && "screenshot" in input && input.screenshot === true) {
+  L26 LogicalOperator -> typeof input === "object" || input !== null | if (typeof input === "object" && input !== null && "screenshot" in input && input.screenshot === true) {
+  L26 ConditionalExpression -> true | if (typeof input === "object" && input !== null && "screenshot" in input && input.screenshot === true) {
+  L26 ConditionalExpression -> true | if (typeof input === "object" && input !== null && "screenshot" in input && input.screenshot === true) {
+## assistant/byok-credential.ts {"Survived:ConditionalExpression":2,"Survived:MethodExpression":1}
+  L80 ConditionalExpression -> true | return typeof value === "string" && VALID_PROTOCOLS.has(value) ? (value as ResolvedByokCredential["protocol"])
+  L165 ConditionalExpression -> false | if (!stored.model || stored.model.trim().length === 0) return null;
+  L165 MethodExpression -> stored.model | if (!stored.model || stored.model.trim().length === 0) return null;
+## assistant/byok-meta-tool-result.ts {"Survived:ConditionalExpression":5,"Survived:LogicalOperator":2}
+  L33 ConditionalExpression -> false | if (!isRecord(block)) return null;
+  L34 LogicalOperator -> block.type === "text" || typeof block.text === "st | if (block.type === "text" && typeof block.text === "string") return { type: "text", text: block.text };
+  L34 ConditionalExpression -> true | if (block.type === "text" && typeof block.text === "string") return { type: "text", text: block.text };
+  L34 ConditionalExpression -> true | if (block.type === "text" && typeof block.text === "string") return { type: "text", text: block.text };
+  L35 LogicalOperator -> block.type === "image" || typeof block.mimeType == | if (block.type === "image" && typeof block.mimeType === "string" && typeof block.data === "string") {
+  L35 ConditionalExpression -> true | if (block.type === "image" && typeof block.mimeType === "string" && typeof block.data === "string") {
+  L35 ConditionalExpression -> true | if (block.type === "image" && typeof block.mimeType === "string" && typeof block.data === "string") {
+## assistant/byok-tool-surface.ts {"Survived:ObjectLiteral":9,"Survived:ArrayDeclaration":6,"Survived:BooleanLiteral":4,"Survived:LogicalOperator":2,"Survived:ConditionalExpression":4,"Survived:MethodExpression":1,"Survived:BlockStatement":2}
+  L171 ObjectLiteral -> {} | query: {
+  L188 ArrayDeclaration -> [] | required: ["query"],
+  L189 BooleanLiteral -> true | additionalProperties: false,
+  L196 ObjectLiteral -> {} | inputSchema: {
+  L198 ObjectLiteral -> {} | properties: {
+  L199 ObjectLiteral -> {} | id: { type: "string", description: "Tool id returned by search_tools. Required." },
+  L201 ArrayDeclaration -> [] | required: ["id"],
+  L202 BooleanLiteral -> true | additionalProperties: false,
+  L209 ObjectLiteral -> {} | inputSchema: {
+  L211 ObjectLiteral -> {} | properties: {
+## assistant/content-target-inputs.ts {"NoCoverage:ObjectLiteral":11,"NoCoverage:ConditionalExpression":13,"NoCoverage:EqualityOperator":7,"NoCoverage:BlockStatement":3,"NoCoverage:ArrayDeclaration":1,"NoCoverage:LogicalOperator":2,"NoCoverage:BooleanLiteral":1,"NoCoverage:Regex":1,"Survived:ConditionalExpression":20,"Survived:OptionalChaining":3,"Survived:MethodExpression":4,"Survived:EqualityOperator":3,"Survived:ObjectLiteral":4,"Survived:LogicalOperator":1,"Survived:BlockStatement":1,"Survived:ArrayDeclaration":5}
+  L19 ConditionalExpression -> false | if (id.startsWith("seo_") || id === "content_read.seo_entry_meta") return "post";
+  L20 ConditionalExpression -> false | if (["pages_", "content_post_"].some(prefix => id.startsWith(prefix)) || id === "content_read.content_post") r
+  L21 ConditionalExpression -> true | if (id.startsWith("media_") || ["content_read.media_asset", "library_read"].includes(id)) return "media";
+  L29 OptionalChaining -> (inputSchema as {   properties?: Record<string, un | const properties = (inputSchema as { properties?: Record<string, unknown> } | undefined)?.properties ?? {};
+  L31 ConditionalExpression -> false | if (!entityType) return;
+  L33 ConditionalExpression -> false | if (!key) return;
+  L35 MethodExpression -> id.endsWith("pages_") | const slugAlias = !Object.hasOwn(properties, "slug") || id.startsWith("pages_") || id.startsWith("media_view_"
+  L35 MethodExpression -> id.endsWith("media_view_") | const slugAlias = !Object.hasOwn(properties, "slug") || id.startsWith("pages_") || id.startsWith("media_view_"
+  L36 ConditionalExpression -> true | const authorizationEntityType = id.startsWith("seo_") || id === "content_read.seo_entry_meta" ? "seo-entry" : 
+  L36 ConditionalExpression -> false | const authorizationEntityType = id.startsWith("seo_") || id === "content_read.seo_entry_meta" ? "seo-entry" : 
+  NOCOV lines: 55,61-62,68-70,77-79,110-112,123
+## assistant/credential-chat-intake.ts {"Survived:BlockStatement":1,"Survived:ConditionalExpression":1}
+  L6 BlockStatement -> {} | try { envelope = JSON.parse(contextRef); } catch { throw new Error("The run context must be a JSON object."); 
+  L7 ConditionalExpression -> false | if (typeof envelope !== "object" || envelope === null || Array.isArray(envelope)) throw new Error("The run con
+## assistant/daemon-access.ts {"NoCoverage:BlockStatement":3,"NoCoverage:ObjectLiteral":6,"NoCoverage:ArrowFunction":2,"Survived:Regex":12,"Survived:ObjectLiteral":2,"Survived:ConditionalExpression":3,"Survived:EqualityOperator":1,"Survived:ArrowFunction":1,"Survived:MethodExpression":1}
+  L15 Regex -> /\/api\/runs\/[^/]+$/ | { method: "GET", path: /^\/api\/runs\/[^/]+$/ },
+  L16 Regex -> /\/api\/runs\/[^/]+\/cancel$/ | { method: "POST", path: /^\/api\/runs\/[^/]+\/cancel$/ },
+  L16 Regex -> /^\/api\/runs\/[^/]+\/cancel/ | { method: "POST", path: /^\/api\/runs\/[^/]+\/cancel$/ },
+  L17 Regex -> /\/api\/tools\/[^/]+$/ | { method: "GET", path: /^\/api\/tools\/[^/]+$/ },
+  L18 Regex -> /\/api\/components\/[^/]+$/ | { method: "GET", path: /^\/api\/components\/[^/]+$/ },
+  L18 Regex -> /^\/api\/components\/[^/]+/ | { method: "GET", path: /^\/api\/components\/[^/]+$/ },
+  L19 Regex -> /\/api\/active$/ | { method: "GET", path: /^\/api\/active$/ },
+  L19 Regex -> /^\/api\/active/ | { method: "GET", path: /^\/api\/active$/ },
+  L20 Regex -> /^\/api\/agents/ | { method: "GET", path: /^\/api\/agents$/ },
+  L20 Regex -> /\/api\/agents$/ | { method: "GET", path: /^\/api\/agents$/ },
+  NOCOV lines: 28-29,43-44,52-58
+## assistant/daemon-respawn-policy.ts {}
+
+## assistant/execution-credential-store.ts {"Survived:ConditionalExpression":3,"Survived:LogicalOperator":1,"Survived:ObjectLiteral":1,"Survived:OptionalChaining":2}
+  L131 ConditionalExpression -> true | if (maxTokens !== undefined && !(typeof maxTokens === "number" && maxTokens > 0)) {
+  L159 ConditionalExpression -> true | provider: input.providerId !== undefined ? input.providerId : existing?.provider ?? null,
+  L159 LogicalOperator -> existing?.provider && null | provider: input.providerId !== undefined ? input.providerId : existing?.provider ?? null,
+  L164 ConditionalExpression -> false | if (input.apiKey !== undefined) tokenHint = credentialTokenHint({ token: input.apiKey });
+  L165 ObjectLiteral -> {} | else tokenHint = (await readAssistantVault({ repo, context, sealer: deps.sealer }, { record: saved })).tokenHi
+  L192 OptionalChaining -> opened?.payload.apiKey | if (typeof opened?.payload?.apiKey !== "string") return null;
+  L192 OptionalChaining -> opened.payload | if (typeof opened?.payload?.apiKey !== "string") return null;
+## assistant/execution-mode-settings.ts {"Survived:ObjectLiteral":7,"Survived:ArrayDeclaration":2,"Survived:BooleanLiteral":1}
+  L119 ObjectLiteral -> {} | { key: "localCli.agentId", schema: { type: "string" }, defaultValue: "", scopes: SCOPE_BIT.workspace | SCOPE_B
+  L206 ObjectLiteral -> {} | { key: ASSISTANT_CLI_PERMISSIONS_KEY, schema: { type: "json" }, defaultValue: {}, scopes: SCOPE_BIT.user }],
+  L211 ArrayDeclaration -> [] | definitions: [{ key: ASSISTANT_PERMANENT_DELETES_KEY, schema: { type: "json" }, defaultValue: { enabled: false
+  L211 ObjectLiteral -> {} | definitions: [{ key: ASSISTANT_PERMANENT_DELETES_KEY, schema: { type: "json" }, defaultValue: { enabled: false
+  L211 ObjectLiteral -> {} | definitions: [{ key: ASSISTANT_PERMANENT_DELETES_KEY, schema: { type: "json" }, defaultValue: { enabled: false
+  L211 ObjectLiteral -> {} | definitions: [{ key: ASSISTANT_PERMANENT_DELETES_KEY, schema: { type: "json" }, defaultValue: { enabled: false
+  L211 BooleanLiteral -> true | definitions: [{ key: ASSISTANT_PERMANENT_DELETES_KEY, schema: { type: "json" }, defaultValue: { enabled: false
+  L211 ArrayDeclaration -> ["Stryker was here"] | definitions: [{ key: ASSISTANT_PERMANENT_DELETES_KEY, schema: { type: "json" }, defaultValue: { enabled: false
+  L212 ObjectLiteral -> {} | { key: "riskAcknowledgment", schema: { type: "json" }, defaultValue: {} }],
+  L212 ObjectLiteral -> {} | { key: "riskAcknowledgment", schema: { type: "json" }, defaultValue: {} }],
+## assistant/external-mcp-call-confirmation.ts {"Survived:BooleanLiteral":2,"Survived:ObjectLiteral":2,"Survived:ConditionalExpression":4,"Survived:EqualityOperator":1}
+  L63 BooleanLiteral -> true | offers: FederatedCardOffers = { offerChat: false, offerAlways: false },
+  L63 ObjectLiteral -> {} | offers: FederatedCardOffers = { offerChat: false, offerAlways: false },
+  L63 BooleanLiteral -> true | offers: FederatedCardOffers = { offerChat: false, offerAlways: false },
+  L65 ObjectLiteral -> {} | return actionConfirmSpec(buildJiniSpec({ request, messages: tovuFederationMessages, errorCode: "EXTERNAL_MCP" 
+  L72 ConditionalExpression -> false | : request.approvalClass === 'trash' ? 'moves data to Trash'
+  L73 ConditionalExpression -> false | : request.approvalClass === 'restore-over-existing' ? 'restores over existing data' : undefined;
+  L74 ConditionalExpression -> false | return action ? { ...spec, danger: request.approvalClass !== 'publish',
+  L74 ConditionalExpression -> true | return action ? { ...spec, danger: request.approvalClass !== 'publish',
+  L74 EqualityOperator -> request.approvalClass === 'publish' | return action ? { ...spec, danger: request.approvalClass !== 'publish',
+## assistant/external-mcp-connection-source.ts {"Survived:ArrayDeclaration":1,"Survived:ObjectLiteral":3}
+  L75 ArrayDeclaration -> ["Stryker was here"] | let configFailures: readonly StoredExternalMcpConnectionFailure[] = [];
+  L171 ObjectLiteral -> {} | const assertConnectionUsable = createExternalMcpConnectionGate({
+  L187 ObjectLiteral -> {} | { surfaceExchanges },
+  L188 ObjectLiteral -> {} | { ...inputs.approvals, workspaceId: inputs.workspaceId, authorize: inputs.authorize },
+## assistant/external-mcp-revocation.ts {"Survived:ConditionalExpression":2}
+  L106 ConditionalExpression -> true | return resolveExternalMcpAuthMode(record) === "oauth" && resolveExternalMcpOAuthStatus(record) === "disconnect
+  L118 ConditionalExpression -> false | return refusal === "remote-declares-not-read-only" ? "write-not-allowed" : "tool-not-allowed";
+## assistant/external-mcp-tool-approval-adapters.ts {"Survived:ArrowFunction":2,"Survived:ObjectLiteral":1}
+  L22 ArrowFunction -> () => undefined | listByScope: () => repo.listByWorkspaceId(workspaceId),
+  L31 ObjectLiteral -> {} | return { has: key => store.has(key), ...(store.hasIdentity ? { hasIdentity: key => store.hasIdentity!(key) } :
+  L31 ArrowFunction -> () => undefined | return { has: key => store.has(key), ...(store.hasIdentity ? { hasIdentity: key => store.hasIdentity!(key) } :
+## assistant/external-mcp-vault.ts {"NoCoverage:ObjectLiteral":5,"NoCoverage:BlockStatement":1,"Survived:ConditionalExpression":19,"Survived:BlockStatement":2,"Survived:LogicalOperator":4,"Survived:ArrowFunction":2,"Survived:OptionalChaining":2,"Survived:ObjectLiteral":1}
+  L26 ConditionalExpression -> false | if (!context || context.workspaceId !== identity.workspaceId || context.ownerKey !== identity.serverId ||
+  L27 ConditionalExpression -> false | context.kind !== kind || context.principalId !== null || context.binding !== null) throw new VaultError({ code
+  L27 ConditionalExpression -> false | context.kind !== kind || context.principalId !== null || context.binding !== null) throw new VaultError({ code
+  L27 ConditionalExpression -> false | context.kind !== kind || context.principalId !== null || context.binding !== null) throw new VaultError({ code
+  L35 ConditionalExpression -> false | if (kind !== "mcp-env" && kind !== "mcp-auth") throw new VaultError({ code: "context" });
+  L37 BlockStatement -> {} | validateMeta: ({ kind: requested, meta }) => {
+  L38 ConditionalExpression -> false | if (requested !== "mcp-env" && requested !== "mcp-auth") throw new VaultError({ code: "context" });
+  L43 BlockStatement -> {} | authorize: async ({ context }) => {
+  L44 ConditionalExpression -> false | if (context.workspaceId !== identity.workspaceId || context.ownerKey !== identity.serverId ||
+  L44 LogicalOperator -> (context.workspaceId !== identity.workspaceId || c | if (context.workspaceId !== identity.workspaceId || context.ownerKey !== identity.serverId ||
+  NOCOV lines: 38,45,62,77,82
+## assistant/frontend-control-capabilities.ts {"Survived:BooleanLiteral":2,"Survived:ObjectLiteral":2}
+  L125 BooleanLiteral -> true | inputSchema: { type: "object", properties: {}, additionalProperties: false },
+  L125 ObjectLiteral -> {} | inputSchema: { type: "object", properties: {}, additionalProperties: false },
+  L146 ObjectLiteral -> {} | confirm: {
+  L152 BooleanLiteral -> true | additionalProperties: false,
+## assistant/lost-frontend-binding.ts {"Survived:Regex":3,"Survived:ConditionalExpression":1,"Survived:EqualityOperator":1}
+  L25 Regex -> /frontend session ".*" detached before answering$/ | const DETACHED = /^frontend session ".*" detached before answering$/;
+  L24 Regex -> /no frontend is bound to run / | const NOT_BOUND = /^no frontend is bound to run /;
+  L25 Regex -> /^frontend session ".*" detached before answering/ | const DETACHED = /^frontend session ".*" detached before answering$/;
+  L52 ConditionalExpression -> false | if (!(err instanceof Error)) return null;
+  L81 EqualityOperator -> lostRuns.size >= maxRuns | if (lostRuns.size > maxRuns) lostRuns.delete(lostRuns.values().next().value as string);
+## assistant/mcp-injection.ts {}
+
+## assistant/mcp-ui-sandbox-proxy-route.ts {}
+
+## assistant/mcp-ui-tool-calls-route.ts {"NoCoverage:ConditionalExpression":3,"NoCoverage:EqualityOperator":3,"NoCoverage:MethodExpression":1,"NoCoverage:BlockStatement":3,"NoCoverage:ObjectLiteral":4,"Survived:ConditionalExpression":5,"Survived:EqualityOperator":1,"Survived:ObjectLiteral":2,"Survived:BlockStatement":1}
+  L104 ConditionalExpression -> true | return typeof value === "string" && value.length > 0 ? value : undefined;
+  L104 ConditionalExpression -> true | return typeof value === "string" && value.length > 0 ? value : undefined;
+  L104 EqualityOperator -> value.length >= 0 | return typeof value === "string" && value.length > 0 ? value : undefined;
+  L108 ConditionalExpression -> true | return typeof value === "object" && value !== null && !Array.isArray(value);
+  L221 ObjectLiteral -> {} | const delivered = deps.surfaceExchanges.deliver(input, { toolId: input.toolId });
+  L248 BlockStatement -> {} | export function isTypedSurfaceAnswer(params: Record<string, unknown>): boolean {
+  L250 ConditionalExpression -> false | return typeof raw === "string" && raw.trim().length > 0;
+  L329 ObjectLiteral -> {} | res.status(401).json({ error: `${RUN_PRINCIPAL_HEADER} is required`, code: "UNAUTHENTICATED" });
+  L345 ConditionalExpression -> false | if (isTypedSurfaceAnswer(parsed.params)) {
+  NOCOV lines: 250,275-276,280,284,291,345-346
+## assistant/mcp-ui-tool-calls.ts {"NoCoverage:BlockStatement":1,"Survived:Regex":6}
+  L77 Regex -> /p_[a-z0-9_]+__[a-z0-9_]+$/ | const PLUGIN_TOOL_ID = /^p_[a-z0-9_]+__[a-z0-9_]+$/;
+  L77 Regex -> /^p_[a-z0-9_]+__[a-z0-9_]+/ | const PLUGIN_TOOL_ID = /^p_[a-z0-9_]+__[a-z0-9_]+$/;
+  L77 Regex -> /^p_[a-z0-9_]__[a-z0-9_]+$/ | const PLUGIN_TOOL_ID = /^p_[a-z0-9_]+__[a-z0-9_]+$/;
+  L77 Regex -> /^p_[^a-z0-9_]+__[a-z0-9_]+$/ | const PLUGIN_TOOL_ID = /^p_[a-z0-9_]+__[a-z0-9_]+$/;
+  L77 Regex -> /^p_[a-z0-9_]+__[a-z0-9_]$/ | const PLUGIN_TOOL_ID = /^p_[a-z0-9_]+__[a-z0-9_]+$/;
+  L77 Regex -> /^p_[a-z0-9_]+__[^a-z0-9_]+$/ | const PLUGIN_TOOL_ID = /^p_[a-z0-9_]+__[a-z0-9_]+$/;
+  NOCOV lines: 46
+## assistant/permanent-delete-settings.ts {"Survived:ConditionalExpression":3,"Survived:EqualityOperator":1,"Survived:MethodExpression":1}
+  L31 ConditionalExpression -> false | if (!value || typeof value.enabled !== "boolean" || !Array.isArray(value.allowedToolIds) ||
+  L32 ConditionalExpression -> false | value.allowedToolIds.length > PERMANENT_DELETE_TOOLS.length || new Set(value.allowedToolIds).size !== value.al
+  L32 EqualityOperator -> value.allowedToolIds.length >= PERMANENT_DELETE_TO | value.allowedToolIds.length > PERMANENT_DELETE_TOOLS.length || new Set(value.allowedToolIds).size !== value.al
+  L32 ConditionalExpression -> false | value.allowedToolIds.length > PERMANENT_DELETE_TOOLS.length || new Set(value.allowedToolIds).size !== value.al
+  L33 MethodExpression -> value.allowedToolIds.every(id => !PERMANENT_DELETE | value.allowedToolIds.some(id => !PERMANENT_DELETE_TOOLS.some(tool => tool.id === id))) {
+## assistant/permanent-delete-tool-gate.ts {"Survived:MethodExpression":1,"Survived:ObjectLiteral":3}
+  L15 MethodExpression -> required.catalog.search({   query }, {   limit: li | search: ({ query }, { limit = 10 } = {}) => required.catalog.search({ query }, { limit: limit + PERMANENT_DELE
+  L15 ObjectLiteral -> {} | search: ({ query }, { limit = 10 } = {}) => required.catalog.search({ query }, { limit: limit + PERMANENT_DELE
+  L15 ObjectLiteral -> {} | search: ({ query }, { limit = 10 } = {}) => required.catalog.search({ query }, { limit: limit + PERMANENT_DELE
+  L32 ObjectLiteral -> {} | const snapshot = await required.readPolicy({ principalId: input.principalId });
+## assistant/public-assistant-availability.ts {"NoCoverage:BlockStatement":2,"NoCoverage:ObjectLiteral":2,"NoCoverage:BooleanLiteral":2,"Survived:MethodExpression":2,"Survived:ConditionalExpression":2,"Survived:OptionalChaining":1}
+  L20 MethodExpression -> credential?.apiKey | if (!credential?.apiKey.trim()) {
+  L23 ConditionalExpression -> false | if (!resolveByokProtocol({ provider: credential.provider })) {
+  L26 ConditionalExpression -> false | if (!credential.model?.trim()) {
+  L26 MethodExpression -> credential.model | if (!credential.model?.trim()) {
+  L26 OptionalChaining -> credential.model.trim | if (!credential.model?.trim()) {
+  NOCOV lines: 23-27
+## assistant/public-assistant-settings.ts {"Survived:ObjectLiteral":1}
+  L77 ObjectLiteral -> {} | { key: "visitor_tools", schema: { type: "json" }, defaultValue: { version: 1, tools: {} } },
+## assistant/read-only-tool-constraint.ts {"NoCoverage:BlockStatement":1,"NoCoverage:ObjectLiteral":1,"Survived:ObjectLiteral":1,"Survived:ArrowFunction":1}
+  L77 ObjectLiteral -> {} | return constrainDaemonPrincipal({ principal });
+  L172 ArrowFunction -> () => undefined | idGenerator: { newId: () => randomUUID() },
+  NOCOV lines: 120-121
+## assistant/rewrap-page-navigate-error.ts {"Survived:Regex":2,"Survived:ConditionalExpression":1}
+  L42 Regex -> /"(.*)" is not a published page\. Available: (.*)$ | const PAGE_NAVIGATE_NOT_FOUND_PATTERN = /^"(.*)" is not a published page\. Available: (.*)$/s;
+  L42 Regex -> /^"(.*)" is not a published page\. Available: (.*) | const PAGE_NAVIGATE_NOT_FOUND_PATTERN = /^"(.*)" is not a published page\. Available: (.*)$/s;
+  L53 ConditionalExpression -> false | if (!(err instanceof Error)) return err;
+## assistant/run-active-context.ts {"Survived:LogicalOperator":1}
+  L57 LogicalOperator -> pageContext.entry?.kind && null | return JSON.stringify([pageContext.path, pageContext.entry?.kind ?? null, pageContext.entry?.id ?? null]);
+## assistant/run-page-context.ts {"Survived:ConditionalExpression":4,"Survived:EqualityOperator":1,"Survived:ArrayDeclaration":1,"Survived:OptionalChaining":1}
+  L61 ConditionalExpression -> true | return typeof value === "string" && value.length > 0 ? value.slice(0, MAX_FIELD_LENGTH) : undefined;
+  L61 EqualityOperator -> value.length >= 0 | return typeof value === "string" && value.length > 0 ? value.slice(0, MAX_FIELD_LENGTH) : undefined;
+  L78 ConditionalExpression -> false | if (kind === undefined || id === undefined || title === undefined) return undefined;
+  L78 ConditionalExpression -> false | if (kind === undefined || id === undefined || title === undefined) return undefined;
+  L140 ArrayDeclaration -> ["Stryker was here"] | ...(context.view === undefined ? [] : [`- Screen: ${JSON.stringify(context.view)}`]),
+  L166 ConditionalExpression -> false | if (block === "" || last?.role !== "user") return messages;
+  L166 OptionalChaining -> last.role | if (block === "" || last?.role !== "user") return messages;
+## assistant/run-start-context.ts {"NoCoverage:ObjectLiteral":3,"Survived:ConditionalExpression":13,"Survived:BlockStatement":1,"Survived:ObjectLiteral":3,"Survived:LogicalOperator":1,"Survived:EqualityOperator":2,"Survived:BooleanLiteral":3,"Survived:MethodExpression":2}
+  L17 ConditionalExpression -> false | if (typeof value !== "string" || value.length === 0) {
+  L29 ConditionalExpression -> true | return Array.isArray(value) ? value.filter((id): id is string => typeof id === "string" && id.length > 0) : []
+  L42 BlockStatement -> {} | ): { assistantMessageId?: string; recoveryMode?: "native" | "reconstruction"; recoverySessionId?: string } {
+  L45 ObjectLiteral -> {} | return {
+  L47 ConditionalExpression -> true | ...(parsed.recoveryMode === "native" || parsed.recoveryMode === "reconstruction" ? { recoveryMode: parsed.reco
+  L47 ConditionalExpression -> false | ...(parsed.recoveryMode === "native" || parsed.recoveryMode === "reconstruction" ? { recoveryMode: parsed.reco
+  L47 LogicalOperator -> parsed.recoveryMode === "native" && parsed.recover | ...(parsed.recoveryMode === "native" || parsed.recoveryMode === "reconstruction" ? { recoveryMode: parsed.reco
+  L47 ConditionalExpression -> false | ...(parsed.recoveryMode === "native" || parsed.recoveryMode === "reconstruction" ? { recoveryMode: parsed.reco
+  L47 EqualityOperator -> parsed.recoveryMode !== "native" | ...(parsed.recoveryMode === "native" || parsed.recoveryMode === "reconstruction" ? { recoveryMode: parsed.reco
+  L47 ConditionalExpression -> false | ...(parsed.recoveryMode === "native" || parsed.recoveryMode === "reconstruction" ? { recoveryMode: parsed.reco
+  NOCOV lines: 46-48
+## assistant/runtime-preferences.ts {"Survived:ObjectLiteral":1,"Survived:BlockStatement":1,"Survived:OptionalChaining":1}
+  L38 ObjectLiteral -> {} | const effective = await deps.getEffective({ repo: deps.settingsRepo }, {
+  L42 BlockStatement -> {} | } catch {
+  L41 OptionalChaining -> effective.value | return effective?.value;
+## assistant/site-credential-store.ts {"Survived:ConditionalExpression":1,"Survived:ObjectLiteral":1,"Survived:OptionalChaining":2}
+  L135 ConditionalExpression -> false | if (input.apiKey !== undefined) tokenHint = credentialTokenHint({ token: input.apiKey });
+  L136 ObjectLiteral -> {} | else tokenHint = (await readAssistantVault({ repo, context, sealer: deps.sealer }, { record: saved })).tokenHi
+  L161 OptionalChaining -> opened?.payload.apiKey | if (typeof opened?.payload?.apiKey !== "string") return null;
+  L161 OptionalChaining -> opened.payload | if (typeof opened?.payload?.apiKey !== "string") return null;
+## assistant/subagent-settings.ts {}
+
+## assistant/tool-catalog-query.ts {"NoCoverage:BlockStatement":1,"Survived:LogicalOperator":4,"Survived:ConditionalExpression":10,"Survived:EqualityOperator":5,"Survived:ObjectLiteral":3,"Survived:MethodExpression":1,"Survived:Regex":1,"Survived:BlockStatement":1}
+  L28 LogicalOperator -> prefix || prefix.length > 0 | return prefix && prefix.length > 0 ? prefix : "tovu";
+  L28 ConditionalExpression -> true | return prefix && prefix.length > 0 ? prefix : "tovu";
+  L28 EqualityOperator -> prefix.length >= 0 | return prefix && prefix.length > 0 ? prefix : "tovu";
+  L45 ObjectLiteral -> {} | indexableDescription({ id, description }), { ...optional, ...(metadata ? { metadata } : {}) }),
+  L53 ConditionalExpression -> true | const actionParagraphOnly = id === "sites_create_site" || id === "pages_read_html" || id === "deployment_execu
+  L53 ConditionalExpression -> false | const actionParagraphOnly = id === "sites_create_site" || id === "pages_read_html" || id === "deployment_execu
+  L53 LogicalOperator -> (id === "sites_create_site" || id === "pages_read_ | const actionParagraphOnly = id === "sites_create_site" || id === "pages_read_html" || id === "deployment_execu
+  L53 ConditionalExpression -> false | const actionParagraphOnly = id === "sites_create_site" || id === "pages_read_html" || id === "deployment_execu
+  L53 LogicalOperator -> (id === "sites_create_site" || id === "pages_read_ | const actionParagraphOnly = id === "sites_create_site" || id === "pages_read_html" || id === "deployment_execu
+  L53 ConditionalExpression -> false | const actionParagraphOnly = id === "sites_create_site" || id === "pages_read_html" || id === "deployment_execu
+  NOCOV lines: 126
+## assistant/tool-gaps-tool.ts {"Survived:ObjectLiteral":2,"Survived:BooleanLiteral":1}
+  L14 ObjectLiteral -> {} | inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+  L14 BooleanLiteral -> true | inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+  L26 ObjectLiteral -> {} | return { entries: await required.toolGaps.list({ workspaceId: required.workspaceId, principalId: principal.id 
+## assistant/tool-recovery-preset.ts {"NoCoverage:ArrayDeclaration":1,"NoCoverage:ObjectLiteral":2,"NoCoverage:BlockStatement":1,"Survived:BlockStatement":1,"Survived:ArrayDeclaration":3,"Survived:ObjectLiteral":4,"Survived:BooleanLiteral":2,"Survived:ArrowFunction":5}
+  L35 BlockStatement -> {} | function recoverySurfaceUri(exchangeId: string): UIResourceUri {
+  L50 ArrayDeclaration -> [] | const fields: SurfaceField[] = askFor ? [{ kind: "string", name: askFor.key, label: askFor.prompt, required: t
+  L50 ObjectLiteral -> {} | const fields: SurfaceField[] = askFor ? [{ kind: "string", name: askFor.key, label: askFor.prompt, required: t
+  L50 BooleanLiteral -> false | const fields: SurfaceField[] = askFor ? [{ kind: "string", name: askFor.key, label: askFor.prompt, required: t
+  L56 ArrayDeclaration -> [] | details: [{ label: "Suggested fix", value: remedyToolId }],
+  L59 ObjectLiteral -> {} | baseParams: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId },
+  L64 ObjectLiteral -> {} | params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, [SURFACE_DISMISSED_PARAM]: true },
+  L64 BooleanLiteral -> false | params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, [SURFACE_DISMISSED_PARAM]: true },
+  L66 ObjectLiteral -> {} | app: { appName: "tovu-tool-failure-recovery", appVersion: "1" },
+  L67 ArrayDeclaration -> [] | preferredFrameSize: ["100%", askFor ? "340px" : "260px"],
+  NOCOV lines: 50,83,88-89
+## assistant/tool-registrations.ts {"NoCoverage:ArrayDeclaration":13,"NoCoverage:ObjectLiteral":60,"NoCoverage:BlockStatement":21,"NoCoverage:LogicalOperator":15,"NoCoverage:OptionalChaining":8,"NoCoverage:ConditionalExpression":44,"NoCoverage:EqualityOperator":13,"NoCoverage:ArrowFunction":15,"NoCoverage:BooleanLiteral":9,"NoCoverage:MethodExpression":6}
+
+  NOCOV lines: 187-194,199-214,228-229,245,250,268-269,273-283,296-304,318,323,327-332,350-353,377,395-406,414-426,431-441,445-446,450-452,456-469,473-478,482-493
+## contracts/core/agent-permission-mode.ts {"Survived:ConditionalExpression":2,"Survived:ObjectLiteral":1}
+  L39 ConditionalExpression -> false | if (required.env.TOVU_AGENT_PERMISSION_MODE === "bypass") return "bypass";
+  L41 ConditionalExpression -> false | return resolveRuntimeMode({ env: required.env }) === "production" ? "restricted" : "bypass";
+  L41 ObjectLiteral -> {} | return resolveRuntimeMode({ env: required.env }) === "production" ? "restricted" : "bypass";
+## contracts/core/approval-i18n.ts {}
+
+## contracts/core/chat-delete-grant.ts {}
+
+## contracts/core/commands/revert.ts {"Survived:ConditionalExpression":1,"Survived:ObjectLiteral":1}
+  L230 ConditionalExpression -> true | current !== null
+  L231 ObjectLiteral -> {} | ? ((await reverter.currentActor?.({ workspaceId: input.workspaceId, entityId: item.entityId })) ?? null)
+## contracts/core/credential-copy.ts {}
+
+## contracts/core/credential-token.ts {}
+
+## contracts/core/entry-refs/extractor.ts {"Survived:MethodExpression":1,"Survived:ArithmeticOperator":1,"Survived:ConditionalExpression":5,"Survived:LogicalOperator":1}
+  L53 MethodExpression -> key.startsWith("RefId") | if (key.endsWith("RefId") || key.endsWith("Ref") || key.endsWith("Id")) return "entry";
+  L74 ArithmeticOperator -> node.length + 1 | for (let index = node.length - 1; index >= 0; index--) stack.push({ node: node[index], path: `${path}[${index}
+  L90 ConditionalExpression -> true | const attrs = { value: candidate.value.type === "widgetEmbed" ? candidate.value.attrs : undefined };
+  L104 ConditionalExpression -> true | if (Array.isArray(candidate.value.content)) stack.push({ node: candidate.value.content, path: `${path}.content
+  L201 ConditionalExpression -> true | if (namespace === "widget" && (widgetType === "gallery" || widgetType === "media")) {
+  L201 LogicalOperator -> namespace === "widget" || widgetType === "gallery" | if (namespace === "widget" && (widgetType === "gallery" || widgetType === "media")) {
+  L201 ConditionalExpression -> true | if (namespace === "widget" && (widgetType === "gallery" || widgetType === "media")) {
+  L201 ConditionalExpression -> true | if (namespace === "widget" && (widgetType === "gallery" || widgetType === "media")) {
+## contracts/core/events/outbox-drainer.ts {}
+
+## contracts/core/events/outbox-retry-policies.ts {}
+
+## contracts/core/events/outbox-worker.ts {}
+
+## contracts/core/gated-mutations/composition.ts {}
+
+## contracts/core/gated-mutations/gateway.ts {"NoCoverage:BlockStatement":1,"NoCoverage:ObjectLiteral":1}
+
+  NOCOV lines: 157-158
+## contracts/core/gated-mutations/token.ts {}
+
+## contracts/core/gated-mutations/watermark.ts {}
+
+## contracts/core/host-signals.ts {"Survived:ObjectLiteral":3,"Survived:BooleanLiteral":4,"Survived:ConditionalExpression":2,"Survived:MethodExpression":1}
+  L39 ObjectLiteral -> {} | Object.freeze({ env: "FLY_APP_NAME", facts: Object.freeze({ hosted: true, trustProxyHops: 1, nativeToolsRestri
+  L39 BooleanLiteral -> false | Object.freeze({ env: "FLY_APP_NAME", facts: Object.freeze({ hosted: true, trustProxyHops: 1, nativeToolsRestri
+  L39 BooleanLiteral -> false | Object.freeze({ env: "FLY_APP_NAME", facts: Object.freeze({ hosted: true, trustProxyHops: 1, nativeToolsRestri
+  L40 ObjectLiteral -> {} | Object.freeze({ env: "FLY_MACHINE_ID", facts: Object.freeze({ nativeToolsRestricted: true }) }),
+  L40 BooleanLiteral -> false | Object.freeze({ env: "FLY_MACHINE_ID", facts: Object.freeze({ nativeToolsRestricted: true }) }),
+  L41 ObjectLiteral -> {} | Object.freeze({ env: "FLY_ALLOC_ID", facts: Object.freeze({ nativeToolsRestricted: true }) }),
+  L41 BooleanLiteral -> false | Object.freeze({ env: "FLY_ALLOC_ID", facts: Object.freeze({ nativeToolsRestricted: true }) }),
+  L50 ConditionalExpression -> true | Object.keys(signal.facts).length === Object.keys(baseline.facts).length &&
+  L51 MethodExpression -> Object.entries(baseline.facts).some(([key, value]) | Object.entries(baseline.facts).every(([key, value]) => signal.facts[key as keyof HostSignal["facts"]] === valu
+  L88 ConditionalExpression -> true | nativeToolsRestricted: matched.some(signal => signal.facts.nativeToolsRestricted === true),
+## contracts/core/human-confirm.ts {"NoCoverage:ObjectLiteral":3,"NoCoverage:ArrowFunction":3,"NoCoverage:ArrayDeclaration":2,"NoCoverage:ArithmeticOperator":1,"NoCoverage:MethodExpression":1,"Survived:ObjectLiteral":5,"Survived:BooleanLiteral":3,"Survived:ConditionalExpression":5,"Survived:BlockStatement":1,"Survived:EqualityOperator":1,"Survived:ArrayDeclaration":1}
+  L83 ObjectLiteral -> {} | await requireChatDeleteGrant({ surfaces, toolId: spec.toolId, principalId: ctx.principal.id });
+  L99 ObjectLiteral -> {} | ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
+  L99 BooleanLiteral -> false | ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
+  L103 ConditionalExpression -> false | if (!outcome.confirmed || answer.status !== "received") return outcome;
+  L105 ObjectLiteral -> {} | await requireChatDeleteGrant({ surfaces, toolId: spec.toolId, principalId: ctx.principal.id });
+  L108 ConditionalExpression -> true | return offered && typeof choice === "string" ? { confirmed: true, choice } : { confirmed: true };
+  L109 BlockStatement -> {} | } finally {
+  L165 ObjectLiteral -> {} | }, { flag: spec.flag });
+  L196 BooleanLiteral -> true | notConfirmed: declined ?? (({ reason }) => ({ [flag]: false, ...notConfirmedResult({ confirmed: false, reason 
+  L198 ConditionalExpression -> false | if (batch) return createBatchApprovalHandler({ steps, combineDescriptions: ({ descriptions }) => ({
+  NOCOV lines: 198,202-205
+## contracts/core/model-facing-tool-errors.ts {"NoCoverage:BlockStatement":2,"NoCoverage:ObjectLiteral":2}
+
+  NOCOV lines: 35-36,51-52
+## contracts/core/native-approval-memory.ts {}
+
+## contracts/core/public-page-security-headers.ts {"Survived:MethodExpression":2}
+  L33 MethodExpression -> `script-src 'self' 'unsafe-inline' ${origins(resou | `script-src 'self' 'unsafe-inline' ${origins(resources.scripts)}`.trimEnd(),
+  L34 MethodExpression -> `style-src 'self' 'unsafe-inline' ${origins(resour | `style-src 'self' 'unsafe-inline' ${origins(resources.styles)}`.trimEnd(),
+## contracts/core/publish-history-list-limit.ts {}
+
+## contracts/core/rate-limit/rate-limit.ts {"Survived:ObjectLiteral":4,"Survived:ArrayDeclaration":1}
+  L103 ObjectLiteral -> {} | export const OUTBOUND_CALL_PER_IP: RateLimitProfile = {
+  L139 ObjectLiteral -> {} | export const EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP: RateLimitProfile = {
+  L125 ObjectLiteral -> {} | export const EXTERNAL_MCP_OAUTH_PER_IP: RateLimitProfile = {
+  L148 ObjectLiteral -> {} | export const ADMIN_SURFACE_FILES_PER_IP: RateLimitProfile = {
+  L200 ArrayDeclaration -> ["Stryker was here"] | export function resolveClientIp(req: ClientIpSource, trustedProxies: readonly string[] = []): string {
+## contracts/core/runtime-mode.ts {}
+
+## contracts/core/scheduled-publish.ts {"Survived:ConditionalExpression":1,"Survived:EqualityOperator":1}
+  L35 ConditionalExpression -> true | return record.status === "published" && typeof record.publishAt === "string" && record.publishAt > nowIso;
+  L53 EqualityOperator -> left <= right | if (left !== right) return left < right ? 1 : -1;
+## contracts/core/secret-redaction.ts {}
+
+## contracts/core/strict-base64.ts {"Survived:Regex":1}
+  L19 Regex -> /[A-Za-z0-9+/]+={0,2}$/ | const STRICT_BASE64_PATTERN = /^[A-Za-z0-9+/]+={0,2}$/;
+## contracts/core/tool-failure-diagnostics.ts {"Survived:ArrowFunction":1}
+  L9 ArrowFunction -> () => undefined | containsSecret: ({ text }) => redactUserText({ text }).secretRedacted }, optional);
+## contracts/core/upload-limits.ts {}
+
+## contracts/headless/assistant-permanent-deletes-policy.ts {"NoCoverage:BlockStatement":1,"NoCoverage:ConditionalExpression":10,"NoCoverage:LogicalOperator":2,"NoCoverage:EqualityOperator":3,"NoCoverage:BooleanLiteral":3,"NoCoverage:MethodExpression":1,"NoCoverage:ArrowFunction":1,"Survived:ArrayDeclaration":1,"Survived:ArrowFunction":1,"Survived:LogicalOperator":1}
+  L29 ArrayDeclaration -> ["Stryker was here"] | export const DEFAULT_PERMANENT_DELETES_POLICY: AssistantPermanentDeletesPolicy = { enabled: false, allowedTool
+  L43 ArrowFunction -> () => undefined | PERMANENT_DELETE_TOOLS.map(tool => `${tool.id}: ${tool.adminPath ?? "there is no Tovu admin screen for this op
+  L43 LogicalOperator -> tool.adminPath && "there is no Tovu admin screen f | PERMANENT_DELETE_TOOLS.map(tool => `${tool.id}: ${tool.adminPath ?? "there is no Tovu admin screen for this op
+  NOCOV lines: 36-39
+## contracts/headless/assistant-subagents-policy.ts {"NoCoverage:BlockStatement":1,"NoCoverage:ObjectLiteral":1}
+
+  NOCOV lines: 26-27
+## contracts/headless/assistant-tool-approval-policy.ts {"Survived:ArrayDeclaration":1,"Survived:ConditionalExpression":9,"Survived:EqualityOperator":3}
+  L37 ArrayDeclaration -> [] | const DIRECT_PAGE_HANDLES: ReadonlySet<string> = new Set([
+  L47 ConditionalExpression -> false | if (!Object.hasOwn(TOOL_APPROVAL_POLICY, capabilityId)) throw new Error(`${capabilityId} has no approval class
+  L48 ConditionalExpression -> true | if (capabilityId !== 'page.click') return TOOL_APPROVAL_POLICY[capabilityId]!.confirmation === 'direct';
+  L48 ConditionalExpression -> false | if (capabilityId !== 'page.click') return TOOL_APPROVAL_POLICY[capabilityId]!.confirmation === 'direct';
+  L48 EqualityOperator -> capabilityId === 'page.click' | if (capabilityId !== 'page.click') return TOOL_APPROVAL_POLICY[capabilityId]!.confirmation === 'direct';
+  L48 ConditionalExpression -> false | if (capabilityId !== 'page.click') return TOOL_APPROVAL_POLICY[capabilityId]!.confirmation === 'direct';
+  L49 ConditionalExpression -> false | const handle = input && typeof input === 'object' ? (input as Record<string, unknown>).handle : undefined;
+  L49 EqualityOperator -> typeof input !== 'object' | const handle = input && typeof input === 'object' ? (input as Record<string, unknown>).handle : undefined;
+  L49 ConditionalExpression -> true | const handle = input && typeof input === 'object' ? (input as Record<string, unknown>).handle : undefined;
+  L50 ConditionalExpression -> false | return typeof handle === 'string' && DIRECT_PAGE_HANDLES.has(handle);
+## contracts/headless/chat-attachment.ts {"Survived:Regex":2}
+  L8 Regex -> /^attachment:[A-Za-z0-9-]{8,80}/u | export const CHAT_ATTACHMENT_REF_PATTERN = /^attachment:[A-Za-z0-9-]{8,80}$/u;
+  L8 Regex -> /attachment:[A-Za-z0-9-]{8,80}$/u | export const CHAT_ATTACHMENT_REF_PATTERN = /^attachment:[A-Za-z0-9-]{8,80}$/u;
+## contracts/headless/plugin-install-source.ts {"Survived:ConditionalExpression":1}
+  L77 ConditionalExpression -> false | if (kind !== "zip" || typeof attachmentRef !== "string" || !CHAT_ATTACHMENT_REF_PATTERN.test(attachmentRef)) t
+## contracts/headless/secret-form-cards.ts {}
+
+## platform/db/drift.ts {"Survived:EqualityOperator":1}
+  L56 EqualityOperator -> siteMeta.version >= runtime.version | return siteMeta.version > runtime.version ? "ahead" : "behind";
+## platform/db/key-dependent-data.ts {}
+
+## platform/db/keyset-cursor.ts {"Survived:ConditionalExpression":1,"Survived:EqualityOperator":1}
+  L30 ConditionalExpression -> false | if (separatorIndex < 0 || id.length === 0 || Number.isNaN(Date.parse(createdAt))) {
+  L30 EqualityOperator -> separatorIndex <= 0 | if (separatorIndex < 0 || id.length === 0 || Number.isNaN(Date.parse(createdAt))) {
+## platform/db/repos/custom-credential-repo.ts {}
+
+## platform/db/repos/execution-credential-repo.ts {"Survived:ObjectLiteral":1}
+  L9 ObjectLiteral -> {} | super({ vault: new SqlSecretsVaultRepo({ kernel: kernel as unknown as StorageKernel<SecretsVaultDatabase> }) }
+## platform/db/repos/external-mcp-tool-approval-repo.ts {}
+
+## platform/db/repos/gated-mutation-token-repo.ts {}
+
+## platform/db/repos/media-provider-credential-repo.ts {}
+
+## platform/db/repos/oauth-pending-store.ts {}
+
+## platform/db/repos/publish-trust-revocations.ts {"Survived:BooleanLiteral":1,"Survived:ArrowFunction":1,"Survived:ConditionalExpression":1}
+  L114 BooleanLiteral -> false | return { ok: true, revocations: current.revocations, changed: false };
+  L123 ArrowFunction -> () => undefined | revocations: current.revocations.filter((revocation) => revocation.sourceInstallationId !== input.sourceInstal
+  L123 ConditionalExpression -> false | revocations: current.revocations.filter((revocation) => revocation.sourceInstallationId !== input.sourceInstal
+## platform/db/repos/site-credential-repo.ts {"Survived:ObjectLiteral":1}
+  L9 ObjectLiteral -> {} | super({ vault: new SqlSecretsVaultRepo({ kernel: kernel as unknown as StorageKernel<SecretsVaultDatabase> }) }
+## platform/db/repos/source-control-credential-repo.ts {}
+
+## platform/db/repos/vendor-credential-repo.ts {}
+
+## platform/db/sqlite/chat-orphan-check.ts {}
+
+## platform/db/vault-credential-inventory.ts {"Survived:MethodExpression":1,"Survived:ConditionalExpression":4,"Survived:OptionalChaining":1}
+  L84 MethodExpression -> await listTables(kernel) | for (const table of (await listTables(kernel)).sort()) {
+  L141 ConditionalExpression -> true | return ref.table === "oauth_device_authorizations" && ref.column === "sealed_ciphertext" &&
+  L146 ConditionalExpression -> true | return typeof row.workspace_id === "string" && typeof row.server_id === "string"
+  L178 ConditionalExpression -> true | sealedKeyId: typeof row.key_id === "string" ? row.key_id : null };
+  L200 ConditionalExpression -> true | const read = ref.table === "secrets_vault" && ref.column === "sealed_ciphertext"
+  L250 OptionalChaining -> value.sealed.alg | if (value.sealed?.alg !== check.alg) return { reason: "unsupported-alg" };
+## platform/db/vault-credential-recovery.ts {"NoCoverage:ObjectLiteral":1,"Survived:BlockStatement":1,"Survived:ArrowFunction":1,"Survived:ArrayDeclaration":3,"Survived:MethodExpression":2,"Survived:OptionalChaining":2,"Survived:ConditionalExpression":5,"Survived:LogicalOperator":1}
+  L29 BlockStatement -> {} | async function lockWorkspaces({ deps, values }: { deps: SealedCredentialKeyDeps; values: VaultCredentialValue[
+  L30 ArrowFunction -> () => undefined | const workspaces = values.flatMap(value => value.record ? [value.record.workspaceId] : []);
+  L30 ArrayDeclaration -> [] | const workspaces = values.flatMap(value => value.record ? [value.record.workspaceId] : []);
+  L30 ArrayDeclaration -> ["Stryker was here"] | const workspaces = values.flatMap(value => value.record ? [value.record.workspaceId] : []);
+  L31 MethodExpression -> [...new Set(workspaces)] | for (const workspaceId of [...new Set(workspaces)].sort()) await deps.kernel.lockKey(`secrets_vault:${workspac
+  L31 ArrayDeclaration -> [] | for (const workspaceId of [...new Set(workspaces)].sort()) await deps.kernel.lockKey(`secrets_vault:${workspac
+  L40 OptionalChaining -> row.revision | if (row?.revision === value.record.revision) current.push(value);
+  L48 ConditionalExpression -> true | if (record.kind === "mcp-env") await deps.kernel.execute(sql`UPDATE external_mcp_servers SET env_secret_id=NUL
+  L50 ConditionalExpression -> true | if (record.kind === "mcp-auth") await deps.kernel.execute(sql`UPDATE external_mcp_servers SET oauth_secret_id=
+  L59 ConditionalExpression -> false | if (!record) return 0;
+  NOCOV lines: 77
+## platform/db/watermark-kernel.ts {}
+
+## platform/dev-supervisor/dev-restart.ts {"Survived:OptionalChaining":1}
+  L50 OptionalChaining -> setTimeout(fn, ms).unref() | const schedule = optional.schedule ?? ((fn: () => void, ms: number) => void setTimeout(fn, ms).unref?.());
+## platform/html/escape.ts {}
+
+## platform/html/slug.ts {"Survived:Regex":1}
+  L22 Regex -> /[\x00-\x2f\x3a-\x40\x5b-\x60\x7b-\x7f]/g | const ASCII_NON_ALNUM = /[\x00-\x2f\x3a-\x40\x5b-\x60\x7b-\x7f]+/g;
+## platform/html/style-values.ts {"Survived:Regex":3}
+  L43 Regex -> /\d{1,4}(\.\d{1,4})?\s*\/\s*\d{1,4}(\.\d{1,4})?$/ | const ASPECT_RATIO_PATTERN = /^\d{1,4}(\.\d{1,4})?\s*\/\s*\d{1,4}(\.\d{1,4})?$/;
+  L43 Regex -> /^\d{1,4}(\.\d)?\s*\/\s*\d{1,4}(\.\d{1,4})?$/ | const ASPECT_RATIO_PATTERN = /^\d{1,4}(\.\d{1,4})?\s*\/\s*\d{1,4}(\.\d{1,4})?$/;
+  L43 Regex -> /^\d{1,4}(\.\d{1,4})?\s*\/\s*\d(\.\d{1,4})?$/ | const ASPECT_RATIO_PATTERN = /^\d{1,4}(\.\d{1,4})?\s*\/\s*\d{1,4}(\.\d{1,4})?$/;
+## platform/http/client.ts {}
+
+## platform/http/egress-policies.ts {"Survived:ArrayDeclaration":12,"Survived:ObjectLiteral":3,"Survived:BooleanLiteral":6,"Survived:ArithmeticOperator":10}
+  L34 ArrayDeclaration -> [] | allowedSchemes: ["https"],
+  L33 ObjectLiteral -> {} | export const SINGLE_HOP_HTTPS_EGRESS_POLICY: EgressPolicy = {
+  L35 BooleanLiteral -> false | denyPrivateAddresses: true,
+  L36 ArrayDeclaration -> ["Stryker was here"] | devHostAllowlist: [],
+  L62 ArithmeticOperator -> 60 / 1024 | const MEDIA_IMPORT_MAX_RESPONSE_BYTES = 60 * 1024 * 1024;
+  L62 ArithmeticOperator -> 60 * 1024 / 1024 | const MEDIA_IMPORT_MAX_RESPONSE_BYTES = 60 * 1024 * 1024;
+  L97 ArrayDeclaration -> [] | allowedSchemes: ["https"],
+  L98 BooleanLiteral -> false | denyPrivateAddresses: true,
+  L99 ArrayDeclaration -> ["Stryker was here"] | devHostAllowlist: [],
+  L156 ArrayDeclaration -> [] | allowedSchemes: ["https"],
+## platform/http/test-origin-allowlist.ts {"Survived:BlockStatement":1,"Survived:ConditionalExpression":1,"Survived:Regex":4,"Survived:ObjectLiteral":2}
+  L45 BlockStatement -> {} | try { url = new URL(raw); } catch { throw new TypeError(`test origin '${raw}' is not a URL`); }
+  L46 ConditionalExpression -> true | const exact = (url.protocol === "http:" || url.protocol === "https:") && LOOPBACK_LITERALS.has(url.hostname)
+  L66 Regex -> /\[|\]$/g | const host = url.hostname.replace(/^\[|\]$/g, "");
+  L66 Regex -> /^\[|\]/g | const host = url.hostname.replace(/^\[|\]$/g, "");
+  L70 ObjectLiteral -> {} | throw new EgressRefusedError({ message: `egress to '${url.origin}' rejected: not an allowed test origin` }, { 
+  L70 ObjectLiteral -> {} | throw new EgressRefusedError({ message: `egress to '${url.origin}' rejected: not an allowed test origin` }, { 
+  L98 Regex -> /\[|\]$/g | devHostAllowlist: [...new Set([...policy.devHostAllowlist, ...origins.map((url) => url.hostname.replace(/^\[|\
+  L98 Regex -> /^\[|\]/g | devHostAllowlist: [...new Set([...policy.devHostAllowlist, ...origins.map((url) => url.hostname.replace(/^\[|\
+## platform/mail/purpose-scoped-mailer.ts {}
+
+## platform/mail/sender-identity.ts {}
+
+## platform/markdown/frontmatter.ts {"Survived:MethodExpression":1,"Survived:Regex":2,"Survived:ConditionalExpression":5,"Survived:ObjectLiteral":2,"Survived:LogicalOperator":1}
+  L36 MethodExpression -> raw | return collapseWhitespace(raw.trim().replace(/^["']|["']$/g, ""));
+  L36 Regex -> /["']|["']$/g | return collapseWhitespace(raw.trim().replace(/^["']|["']$/g, ""));
+  L36 Regex -> /^["']|["']/g | return collapseWhitespace(raw.trim().replace(/^["']|["']$/g, ""));
+  L48 ConditionalExpression -> false | if (!markdown.startsWith("---")) return undefined;
+  L53 ObjectLiteral -> {} | const parsed = { value: undefined as unknown };
+  L55 ObjectLiteral -> {} | parsed.value = load(frontmatter, { schema: FAILSAFE_SCHEMA });
+  L60 ConditionalExpression -> false | if (!isNonArrayRecord(parsed)) return undefined;
+  L65 ConditionalExpression -> false | return raw === undefined || raw === null ? undefined : readFieldByRegex(frontmatter, key);
+  L65 LogicalOperator -> raw === undefined && raw === null | return raw === undefined || raw === null ? undefined : readFieldByRegex(frontmatter, key);
+  L65 ConditionalExpression -> false | return raw === undefined || raw === null ? undefined : readFieldByRegex(frontmatter, key);
+## platform/oauth/endpoint-safety.ts {"Survived:MethodExpression":1,"Survived:ConditionalExpression":2,"Survived:LogicalOperator":1}
+  L82 MethodExpression -> url.hostname.toUpperCase() | const hostname = url.hostname.toLowerCase();
+  L186 ConditionalExpression -> true | const error = caught instanceof JiniOAuthError && caught.code === "OAUTH_PROVIDER_UNREACHABLE"
+  L186 LogicalOperator -> caught instanceof JiniOAuthError || caught.code == | const error = caught instanceof JiniOAuthError && caught.code === "OAUTH_PROVIDER_UNREACHABLE"
+  L186 ConditionalExpression -> true | const error = caught instanceof JiniOAuthError && caught.code === "OAUTH_PROVIDER_UNREACHABLE"
+## platform/oauth/legacy-endpoint-error.ts {}
+
+## platform/observability/config.ts {}
+
+## platform/observability/index.ts {"NoCoverage:BlockStatement":1,"NoCoverage:BooleanLiteral":1,"NoCoverage:ConditionalExpression":2,"NoCoverage:ObjectLiteral":2}
+
+  NOCOV lines: 87-88,92-95
+## platform/observability/otel.ts {"Survived:ObjectLiteral":1,"Survived:ArrayDeclaration":1}
+  L133 ObjectLiteral -> {} | return new OTLPTraceExporter({ url: endpoint });
+  L145 ArrayDeclaration -> [] | spanProcessors = [new BatchSpanProcessor(exporter)];
+## platform/routing/reserved-paths.ts {}
+
+## platform/secrets/store-vault-guards.ts {}
+
+## platform/secrets/vault-kinds.ts {"Survived:ConditionalExpression":1}
+  L96 ConditionalExpression -> false | return a.label < b.label ? -1 : a.label > b.label ? 1 : 0;
+## platform/secrets/vault-meta-rules.ts {"NoCoverage:ConditionalExpression":38,"NoCoverage:LogicalOperator":12,"NoCoverage:EqualityOperator":16,"NoCoverage:BooleanLiteral":5,"NoCoverage:ObjectLiteral":11,"NoCoverage:BlockStatement":6,"NoCoverage:MethodExpression":1,"NoCoverage:ArrayDeclaration":1,"NoCoverage:ArrowFunction":1,"Survived:ArrayDeclaration":5,"Survived:BlockStatement":6,"Survived:ConditionalExpression":21,"Survived:ObjectLiteral":3,"Survived:EqualityOperator":2,"Survived:LogicalOperator":4,"Survived:MethodExpression":2,"Survived:ArrowFunction":1}
+  L10 ArrayDeclaration -> [] | const MIGRATION_LABEL_FIELDS = ["originalLabel", "mappedLabel"];
+  L9 ArrayDeclaration -> [] | const NORMALIZATION_STATUSES = ["missing-key", "unopenable", "invalid-meta", "catalog-unavailable", "conflict"
+  L12 ArrayDeclaration -> [] | const SUCCESS_RUN_FIELDS = ["copied", "snapshotAt", "tableCount", "rowCount"];
+  L14 ArrayDeclaration -> [] | const CREDENTIAL_FREE_TEXT_FIELDS = ["baseUrl", "model", "username", "accountLabel"];
+  L13 ArrayDeclaration -> [] | const FAILURE_RUN_FIELDS = ["copied", "snapshotAt", "code", "message"];
+  L26 BlockStatement -> {} | export function assertRecoveryMeta({ meta }: { meta: VaultMeta }, _optional = {}): void {
+  L27 ConditionalExpression -> false | if (Object.hasOwn(meta, "legacyAad")) throw invalidMeta();
+  L29 ConditionalExpression -> false | if (normalization !== undefined && (typeof normalization !== "string" || !NORMALIZATION_STATUSES.includes(norm
+  L30 ConditionalExpression -> false | if (migration !== undefined) assertMigrationProvenance({ migration });
+  L49 ConditionalExpression -> false | if (kind === "api-connection") return parseApiConnectionMeta({ meta });
+  NOCOV lines: 29-37,49,55-56,69,75-76,86-94,101-102,106-107,113-117
+## platform/server-logs/log-buffer.ts {"Survived:EqualityOperator":6,"Survived:ConditionalExpression":4,"Survived:LogicalOperator":1,"Survived:ArithmeticOperator":1}
+  L69 EqualityOperator -> message.length < maxLength | if (message.length <= maxLength) return message;
+  L97 ConditionalExpression -> true | if (head > 1_024 && head * 2 > items.length) {
+  L97 ConditionalExpression -> false | if (head > 1_024 && head * 2 > items.length) {
+  L97 LogicalOperator -> head > 1_024 || head * 2 > items.length | if (head > 1_024 && head * 2 > items.length) {
+  L97 ConditionalExpression -> true | if (head > 1_024 && head * 2 > items.length) {
+  L97 EqualityOperator -> head >= 1_024 | if (head > 1_024 && head * 2 > items.length) {
+  L97 EqualityOperator -> head <= 1_024 | if (head > 1_024 && head * 2 > items.length) {
+  L97 ConditionalExpression -> true | if (head > 1_024 && head * 2 > items.length) {
+  L97 EqualityOperator -> head * 2 >= items.length | if (head > 1_024 && head * 2 > items.length) {
+  L97 EqualityOperator -> head * 2 <= items.length | if (head > 1_024 && head * 2 > items.length) {
+## platform/server-logs/log-file.ts {"Survived:BlockStatement":1,"Survived:ConditionalExpression":8,"Survived:EqualityOperator":2,"Survived:LogicalOperator":1}
+  L50 BlockStatement -> {} | } finally {
+  L85 ConditionalExpression -> true | if (size > 0 && size + lineBytes > maxBytes) {
+  L85 EqualityOperator -> size >= 0 | if (size > 0 && size + lineBytes > maxBytes) {
+  L100 ConditionalExpression -> false | if (typeof value !== "object" || value === null) return false;
+  L100 LogicalOperator -> typeof value !== "object" && value === null | if (typeof value !== "object" || value === null) return false;
+  L100 ConditionalExpression -> false | if (typeof value !== "object" || value === null) return false;
+  L100 ConditionalExpression -> false | if (typeof value !== "object" || value === null) return false;
+  L110 ConditionalExpression -> false | if (line === "") continue;
+  L128 ConditionalExpression -> false | if (required.size === null) return [];
+  L148 ConditionalExpression -> false | const rotated = remaining <= 0 ? [] : readTailEntries({ io, filePath: rotatedPath, size: rotatedSize, budget: 
+## platform/server-logs/redact-local-text.ts {"Survived:Regex":1,"Survived:LogicalOperator":1,"Survived:ConditionalExpression":1}
+  L21 Regex -> /[\\/]$/ | const home = homeDir.replace(/[\\/]+$/, "");
+  L22 LogicalOperator -> !home && path.parse(homeDir).root === homeDir | if (!home || path.parse(homeDir).root === homeDir) return redacted;
+  L22 ConditionalExpression -> false | if (!home || path.parse(homeDir).root === homeDir) return redacted;
+## platform/site-dir/active-site.ts {"Survived:ConditionalExpression":4,"Survived:EqualityOperator":1}
+  L65 ConditionalExpression -> false | const lines = source.length === 0 ? [] : source.split("\n");
+  L70 ConditionalExpression -> true | if (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
+  L70 EqualityOperator -> lines.length >= 0 | if (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
+  L115 ConditionalExpression -> false | if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+  L174 ConditionalExpression -> false | if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+## platform/site-dir/atomic-write.ts {"NoCoverage:BlockStatement":1,"NoCoverage:ObjectLiteral":1}
+
+  NOCOV lines: 87-89
+## platform/site-dir/boot-site-dir.ts {"NoCoverage:ObjectLiteral":7,"NoCoverage:BlockStatement":4,"NoCoverage:ArrowFunction":1,"NoCoverage:ConditionalExpression":2,"NoCoverage:EqualityOperator":1,"Survived:BlockStatement":3,"Survived:ConditionalExpression":6,"Survived:EqualityOperator":1,"Survived:ObjectLiteral":2}
+  L84 BlockStatement -> {} | export async function closeSiteDirBoot(boot: BootSiteDirResult, composed?: Pick<SiteStore, "close">): Promise<
+  L85 BlockStatement -> {} | try {
+  L86 ConditionalExpression -> false | if (composed !== undefined) await composed.close();
+  L87 ConditionalExpression -> false | else if (boot.store !== undefined) await boot.store.close();
+  L88 BlockStatement -> {} | } finally {
+  L89 ConditionalExpression -> true | if (boot.db !== undefined) closeSqliteConnection(boot.db);
+  L89 ConditionalExpression -> false | if (boot.db !== undefined) closeSqliteConnection(boot.db);
+  L89 EqualityOperator -> boot.db === undefined | if (boot.db !== undefined) closeSqliteConnection(boot.db);
+  L123 ObjectLiteral -> {} | await completeKeyOnlySiteMeta({ dir: target });
+  L128 ConditionalExpression -> false | if (storage.kind !== "sqlite") return bootStoreSiteDir({ target, storage, config, meta }, options);
+  NOCOV lines: 128,201-203,209-213,217-218
+## platform/site-dir/duplicate-site.ts {"Survived:ConditionalExpression":6,"Survived:BooleanLiteral":3,"Survived:LogicalOperator":1,"Survived:MethodExpression":1,"Survived:ArithmeticOperator":1,"Survived:ObjectLiteral":2,"Survived:BlockStatement":1}
+  L125 ConditionalExpression -> true | if (!announced) {
+  L127 BooleanLiteral -> false | announced = true;
+  L135 ConditionalExpression -> true | const excluded = entry.name === UPLOADS_ENTRY_NAME ? path.join(from, CHAT_ATTACHMENTS_ENTRY_NAME) : null;
+  L207 ConditionalExpression -> true | const externalDbDir = storage.kind === "sqlite" && !paths.contentDbPath.startsWith(target + path.sep) ? path.d
+  L207 LogicalOperator -> storage.kind === "sqlite" || !paths.contentDbPath. | const externalDbDir = storage.kind === "sqlite" && !paths.contentDbPath.startsWith(target + path.sep) ? path.d
+  L207 ConditionalExpression -> true | const externalDbDir = storage.kind === "sqlite" && !paths.contentDbPath.startsWith(target + path.sep) ? path.d
+  L207 MethodExpression -> paths.contentDbPath.endsWith(target + path.sep) | const externalDbDir = storage.kind === "sqlite" && !paths.contentDbPath.startsWith(target + path.sep) ? path.d
+  L207 ArithmeticOperator -> target - path.sep | const externalDbDir = storage.kind === "sqlite" && !paths.contentDbPath.startsWith(target + path.sep) ? path.d
+  L208 ObjectLiteral -> {} | const progress: DuplicateProgress = { wroteAnything: false, createdExternalDbDir: false };
+  L208 BooleanLiteral -> true | const progress: DuplicateProgress = { wroteAnything: false, createdExternalDbDir: false };
+## platform/site-dir/errors.ts {}
+
+## platform/site-dir/init-site.ts {"NoCoverage:BlockStatement":6,"NoCoverage:BooleanLiteral":1,"NoCoverage:ConditionalExpression":8,"NoCoverage:EqualityOperator":5,"NoCoverage:ObjectLiteral":5,"NoCoverage:ArithmeticOperator":2,"NoCoverage:MethodExpression":1,"NoCoverage:OptionalChaining":2,"Survived:BlockStatement":9,"Survived:MethodExpression":3,"Survived:ConditionalExpression":14,"Survived:LogicalOperator":2,"Survived:EqualityOperator":2,"Survived:ArithmeticOperator":1,"Survived:ObjectLiteral":6,"Survived:BooleanLiteral":7,"Survived:ArrowFunction":1}
+  L73 BlockStatement -> {} | function stockThemesDir(): string {
+  L114 MethodExpression -> name | const trimmed = name.trim();
+  L115 ConditionalExpression -> false | if (trimmed.length === 0 || trimmed.length > MAX_NAME_LENGTH) {
+  L115 LogicalOperator -> trimmed.length === 0 && trimmed.length > MAX_NAME_ | if (trimmed.length === 0 || trimmed.length > MAX_NAME_LENGTH) {
+  L115 ConditionalExpression -> false | if (trimmed.length === 0 || trimmed.length > MAX_NAME_LENGTH) {
+  L115 ConditionalExpression -> false | if (trimmed.length === 0 || trimmed.length > MAX_NAME_LENGTH) {
+  L115 EqualityOperator -> trimmed.length >= MAX_NAME_LENGTH | if (trimmed.length === 0 || trimmed.length > MAX_NAME_LENGTH) {
+  L158 BlockStatement -> {} | try {
+  L160 BlockStatement -> {} | } catch {
+  L164 ConditionalExpression -> true | if (stat === undefined) {
+  NOCOV lines: 115,175-178,311,435-436,458-469
+## platform/site-dir/key-only-site-meta.ts {"Survived:ConditionalExpression":4,"Survived:MethodExpression":1,"Survived:BlockStatement":2}
+  L67 ConditionalExpression -> false | if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return undefined;
+  L70 MethodExpression -> candidate.siteKeyId | if (typeof candidate.siteKeyId !== "string" || candidate.siteKeyId.trim() === "") return undefined;
+  L79 BlockStatement -> {} | } catch {
+  L86 ConditionalExpression -> false | if (text === undefined) return undefined;
+  L89 BlockStatement -> {} | } catch {
+  L110 ConditionalExpression -> false | ...(keyOnly.siteKeyFingerprint === undefined ? {} : { siteKeyFingerprint: keyOnly.siteKeyFingerprint }),
+  L195 ConditionalExpression -> false | if (!fs.existsSync(dbPath)) return undefined;
+## platform/site-dir/layout.ts {"NoCoverage:BlockStatement":1,"Survived:ArrayDeclaration":1}
+  L88 ArrayDeclaration -> [] | const PORTABLE_ENTRY_NAMES: ReadonlySet<string> = new Set([
+  NOCOV lines: 148
+## platform/site-dir/move-sites-home.ts {"Survived:BooleanLiteral":10,"Survived:ObjectLiteral":11,"Survived:ConditionalExpression":7,"Survived:MethodExpression":3,"Survived:ArithmeticOperator":1,"Survived:ArrayDeclaration":4,"Survived:OptionalChaining":1,"Survived:ArrowFunction":1,"Survived:BlockStatement":3,"Survived:Regex":2}
+  L46 BooleanLiteral -> true | export function planSitesMove({ repoRoot }: { repoRoot: string }, { workspace = createSitesWorkspace({}, { cwd
+  L46 ObjectLiteral -> {} | export function planSitesMove({ repoRoot }: { repoRoot: string }, { workspace = createSitesWorkspace({}, { cwd
+  L111 ConditionalExpression -> true | if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+  L122 BooleanLiteral -> true | const existing = resolveSiteDatabasePaths({ dir: from, siteId }, { workspace, reserveIdentity: false });
+  L130 ConditionalExpression -> false | to: placement === "inSite" && db.from.startsWith(from + path.sep) ? path.join(to, path.relative(from, db.from)
+  L130 MethodExpression -> db.from.endsWith(from + path.sep) | to: placement === "inSite" && db.from.startsWith(from + path.sep) ? path.join(to, path.relative(from, db.from)
+  L130 ArithmeticOperator -> from - path.sep | to: placement === "inSite" && db.from.startsWith(from + path.sep) ? path.join(to, path.relative(from, db.from)
+  L140 ConditionalExpression -> true | if (db.from !== db.to && fs.existsSync(db.to + suffix)) throw new Error(`Database move target already exists: 
+  L153 BooleanLiteral -> true | { repoRoot }: { repoRoot: string }, { apply = false, workspace = createSitesWorkspace({}, { cwd: repoRoot, cat
+  L153 ObjectLiteral -> {} | { repoRoot }: { repoRoot: string }, { apply = false, workspace = createSitesWorkspace({}, { cwd: repoRoot, cat
+## platform/site-dir/nested-sites-root.ts {"NoCoverage:ArrayDeclaration":2,"NoCoverage:BlockStatement":1,"NoCoverage:BooleanLiteral":1,"NoCoverage:ConditionalExpression":1,"NoCoverage:EqualityOperator":1,"NoCoverage:OptionalChaining":1,"Survived:BlockStatement":5,"Survived:ConditionalExpression":8,"Survived:LogicalOperator":3,"Survived:ObjectLiteral":2,"Survived:MethodExpression":1,"Survived:ArrowFunction":1,"Survived:EqualityOperator":1}
+  L23 BlockStatement -> {} | return { nestedSitesRoot, roots: (_required: Record<string, never>) => {
+  L25 ConditionalExpression -> true | return nested && holdsSites({ folder: nested }, { folders }) ? [...new Set([...roots, nested])] : roots;
+  L25 ConditionalExpression -> false | return nested && holdsSites({ folder: nested }, { folders }) ? [...new Set([...roots, nested])] : roots;
+  L25 LogicalOperator -> nested || holdsSites({   folder: nested }, {   fol | return nested && holdsSites({ folder: nested }, { folders }) ? [...new Set([...roots, nested])] : roots;
+  L25 ObjectLiteral -> {} | return nested && holdsSites({ folder: nested }, { folders }) ? [...new Set([...roots, nested])] : roots;
+  L25 ObjectLiteral -> {} | return nested && holdsSites({ folder: nested }, { folders }) ? [...new Set([...roots, nested])] : roots;
+  L30 BlockStatement -> {} | function holdsSites({ folder }: { folder: string }, { folders }: { folders: NestedSitesFolders }): boolean {
+  L31 BlockStatement -> {} | try {
+  L32 MethodExpression -> folders.readdirSync(folder).every(name => folders. | return folders.readdirSync(folder).some((name) => folders.existsSync(path.join(folder, name, ".site-meta.json"
+  L32 ArrowFunction -> () => undefined | return folders.readdirSync(folder).some((name) => folders.existsSync(path.join(folder, name, ".site-meta.json"
+  NOCOV lines: 25,48,61-62
+## platform/site-dir/new-site-owner.ts {}
+
+## platform/site-dir/product-root.ts {"Survived:ConditionalExpression":1}
+  L40 ConditionalExpression -> false | if (parent === dir) return undefined; // reached the filesystem root
+## platform/site-dir/publish-backstop-file.ts {"Survived:OptionalChaining":1,"Survived:EqualityOperator":2,"Survived:BlockStatement":2,"Survived:ObjectLiteral":3,"Survived:Regex":2}
+  L8 OptionalChaining -> (error as {   code?: string; }).code | function missing(error: unknown): boolean { return (error as { code?: string })?.code === "ENOENT"; }
+  L65 EqualityOperator -> stat.size >= BACKSTOP_LIMITS.bytes | if (stat.size > BACKSTOP_LIMITS.bytes) throw new Error("Choose files totaling at most 50 MB per send.");
+  L67 BlockStatement -> {} | } finally { closeSync(fd); }
+  L73 ObjectLiteral -> {} | if (!stat) mkdirSync(dir, { mode: 0o700 });
+  L83 ObjectLiteral -> {} | if (!stat) mkdirSync(current, { mode: 0o755 });
+  L89 EqualityOperator -> bytes.byteLength >= BACKSTOP_LIMITS.bytes | if (bytes.byteLength > BACKSTOP_LIMITS.bytes) throw new Error("Choose files totaling at most 50 MB per send.")
+  L92 ObjectLiteral -> {} | writeFileSync(stage, bytes, { mode: normalizeMode(mode), flag: "wx" });
+  L118 Regex -> /[a-f0-9-]{36}$/ | if (!/^[a-f0-9-]{36}$/.test(inverse.backupName)) throw new Error("The saved undo file has an unsafe address.")
+  L118 Regex -> /^[a-f0-9-]{36}/ | if (!/^[a-f0-9-]{36}$/.test(inverse.backupName)) throw new Error("The saved undo file has an unsafe address.")
+  L122 BlockStatement -> {} | try { bytes = readFileSync(fd); } finally { closeSync(fd); }
+## platform/site-dir/read-applied-schema-identity.ts {"Survived:ObjectLiteral":1,"Survived:BooleanLiteral":1,"Survived:BlockStatement":1}
+  L119 ObjectLiteral -> {} | const kernel = openSqliteFileKernel(dbPath, { readOnly: true });
+  L119 BooleanLiteral -> false | const kernel = openSqliteFileKernel(dbPath, { readOnly: true });
+  L122 BlockStatement -> {} | } finally {
+## platform/site-dir/read-site-dir.ts {"Survived:BlockStatement":2,"Survived:EqualityOperator":3,"Survived:OptionalChaining":4,"Survived:ConditionalExpression":2}
+  L53 BlockStatement -> {} | } catch (err) {
+  L46 EqualityOperator -> stat.size >= MAX_FILE_SIZE_BYTES | if (stat.size > MAX_FILE_SIZE_BYTES) {
+  L61 OptionalChaining -> candidate.name | const name = typeof candidate?.name === "string" ? candidate.name.trim() : "";
+  L62 EqualityOperator -> name.length >= 200 | if (name.length === 0 || name.length > 200) {
+  L67 OptionalChaining -> candidate.domain | domain: candidate?.domain ?? null,
+  L68 OptionalChaining -> candidate.port | port: candidate?.port ?? null,
+  L69 OptionalChaining -> candidate.timezone | ...(typeof candidate?.timezone === "string" ? { timezone: candidate.timezone } : {}),
+  L106 ConditionalExpression -> false | if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+  L115 ConditionalExpression -> false | if (typeof meta.schemaVersion !== "number" || !Number.isSafeInteger(meta.schemaVersion) || meta.schemaVersion 
+  L165 BlockStatement -> {} | } catch {
+## platform/site-dir/read-template.ts {}
+
+## platform/site-dir/repair-site.ts {"Survived:BlockStatement":1,"Survived:BooleanLiteral":1,"Survived:ConditionalExpression":1}
+  L133 BlockStatement -> {} | } catch {
+  L307 BooleanLiteral -> true | let wroteConfig = false;
+  L314 ConditionalExpression -> true | if (wroteConfig) {
+## platform/site-dir/resolve-install-dir-target.ts {}
+
+## platform/site-dir/schema-guard.ts {"Survived:ConditionalExpression":1}
+  L51 ConditionalExpression -> false | if (latest === undefined) throw new Error(`the Drizzle journal at ${JOURNAL_PATH} has no entries`);
+## platform/site-dir/site-key-dependent-data.ts {"NoCoverage:ArrowFunction":1,"NoCoverage:ObjectLiteral":1,"Survived:ConditionalExpression":6,"Survived:LogicalOperator":1,"Survived:EqualityOperator":2,"Survived:MethodExpression":1}
+  L38 ConditionalExpression -> false | if (existsSync(join(siteDir, STORAGE_SECRET_FILENAME))) return true;
+  L53 LogicalOperator -> optional.env && process.env | return postgresHasKeyDependentData(storage, optional.env ?? process.env);
+  L75 ConditionalExpression -> true | if (storage.secretRef === "site") return true;
+  L75 ConditionalExpression -> false | if (storage.secretRef === "site") return true;
+  L75 EqualityOperator -> storage.secretRef !== "site" | if (storage.secretRef === "site") return true;
+  L77 ConditionalExpression -> true | if (connectionString === undefined || connectionString.trim() === "") return true;
+  L77 ConditionalExpression -> false | if (connectionString === undefined || connectionString.trim() === "") return true;
+  L77 ConditionalExpression -> false | if (connectionString === undefined || connectionString.trim() === "") return true;
+  L77 EqualityOperator -> connectionString.trim() !== "" | if (connectionString === undefined || connectionString.trim() === "") return true;
+  L77 MethodExpression -> connectionString | if (connectionString === undefined || connectionString.trim() === "") return true;
+  NOCOV lines: 78
+## platform/site-dir/site-registry.ts {"NoCoverage:ArrayDeclaration":1,"NoCoverage:ObjectLiteral":1,"NoCoverage:BooleanLiteral":1,"Survived:ObjectLiteral":9,"Survived:ConditionalExpression":14,"Survived:ArrowFunction":1,"Survived:BlockStatement":1,"Survived:EqualityOperator":3,"Survived:MethodExpression":3,"Survived:LogicalOperator":1,"Survived:BooleanLiteral":3,"Survived:ArithmeticOperator":1}
+  L104 ObjectLiteral -> {} | active: dir === currentSiteDir, running: readSiteRunning({ dir }, { workspace }) });
+  L106 ConditionalExpression -> true | if (discovered.length) registry.merge({ entries: discovered });
+  L106 ConditionalExpression -> false | if (discovered.length) registry.merge({ entries: discovered });
+  L114 ArrowFunction -> () => undefined | const known = new Set(workspace.registry({}).list({}).map((entry) => entry.path));
+  L116 ConditionalExpression -> true | for (const entry of readRootEntries({ root })) if (entry.isDirectory()) known.add(path.join(root, entry.name))
+  L132 BlockStatement -> {} | catch {
+  L143 EqualityOperator -> basename.length < MAX_SITE_NAME_LENGTH | return SITE_NAME_PATTERN.test(basename) && basename.length <= MAX_SITE_NAME_LENGTH && !usedNames.has(basename)
+  L149 MethodExpression -> name | const trimmed = name.trim();
+  L150 ConditionalExpression -> false | if (trimmed.length === 0 || trimmed.length > MAX_SITE_NAME_LENGTH || !SITE_NAME_PATTERN.test(trimmed)) {
+  L150 LogicalOperator -> trimmed.length === 0 && trimmed.length > MAX_SITE_ | if (trimmed.length === 0 || trimmed.length > MAX_SITE_NAME_LENGTH || !SITE_NAME_PATTERN.test(trimmed)) {
+  NOCOV lines: 489
+## platform/site-dir/site-root.ts {"NoCoverage:BlockStatement":2,"NoCoverage:ArrayDeclaration":1,"Survived:ConditionalExpression":1,"Survived:LogicalOperator":1}
+  L101 ConditionalExpression -> false | if (env.TOVU_SITE_DIR === undefined) {
+  L82 LogicalOperator -> fs.existsSync(path.join(dir, "config.json")) || fs | isInitialized: ({ path: dir }) => fs.existsSync(path.join(dir, "config.json")) && fs.existsSync(path.join(dir,
+  NOCOV lines: 89-90,101
+## platform/site-dir/site-running.ts {}
+
+## platform/site-dir/site-storage.ts {"Survived:LogicalOperator":2,"Survived:ConditionalExpression":5,"Survived:Regex":1,"Survived:OptionalChaining":1}
+  L37 LogicalOperator -> typeof value === "object" && value !== null || typ | if (typeof value === "object" && value !== null && typeof env === "string" && ENV_NAME.test(env)) return { env
+  L37 ConditionalExpression -> true | if (typeof value === "object" && value !== null && typeof env === "string" && ENV_NAME.test(env)) return { env
+  L28 Regex -> /^[A-Za-z_][A-Za-z0-9_]*/ | const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+  L37 LogicalOperator -> typeof value === "object" || value !== null | if (typeof value === "object" && value !== null && typeof env === "string" && ENV_NAME.test(env)) return { env
+  L37 ConditionalExpression -> true | if (typeof value === "object" && value !== null && typeof env === "string" && ENV_NAME.test(env)) return { env
+  L37 ConditionalExpression -> true | if (typeof value === "object" && value !== null && typeof env === "string" && ENV_NAME.test(env)) return { env
+  L37 ConditionalExpression -> true | if (typeof value === "object" && value !== null && typeof env === "string" && ENV_NAME.test(env)) return { env
+  L75 ConditionalExpression -> false | if (siteDir === ":memory:") return DEFAULT_SITE_STORAGE;
+  L89 OptionalChaining -> (parsed as {   storage?: unknown; } | null).storag | return parseSiteStorage((parsed as { storage?: unknown } | null)?.storage);
+## platform/site-dir/site-trash.ts {"Survived:Regex":2,"Survived:ConditionalExpression":3,"Survived:BooleanLiteral":1,"Survived:ObjectLiteral":6}
+  L17 Regex -> /([a-z0-9-]{1,100})--([0-9a-f]{8}-[0-9a-f]{4}-[0-9 | const TRASH_ID = /^([a-z0-9-]{1,100})--([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
+  L17 Regex -> /^([a-z0-9-]{1,100})--([0-9a-f]{8}-[0-9a-f]{4}-[0- | const TRASH_ID = /^([a-z0-9-]{1,100})--([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
+  L34 ConditionalExpression -> false | if (fs.realpathSync(dir) !== dir || !fs.lstatSync(dir).isDirectory()) throw new LocalSiteError("SITE_PATH_UNSA
+  L45 BooleanLiteral -> true | function trashRoot({ base }: { base: string }, { create = false, ...optional }: SiteTrashOptions & { create?: 
+  L48 ObjectLiteral -> {} | sitesWorkspace({ base }, optional).home({});
+  L50 ConditionalExpression -> true | if (create) fs.mkdirSync(root, { recursive: true });
+  L57 ObjectLiteral -> {} | const home = sitesWorkspace({ base }, optional).home({});
+  L70 ObjectLiteral -> {} | const managedParents = [sitesWorkspace({ base }, optional).home({}), path.resolve(base, "sites")];
+  L74 ConditionalExpression -> true | const site = list({ ...optional, cwd: base }).find((entry) => entry.name === name);
+  L126 ObjectLiteral -> {} | sitesWorkspace({ base }, optional).registry({}).remove({ path: dir });
+## platform/site-dir/sites-home.ts {"NoCoverage:ArrayDeclaration":3,"NoCoverage:ArrowFunction":3,"NoCoverage:BlockStatement":4,"NoCoverage:ConditionalExpression":14,"NoCoverage:LogicalOperator":5,"NoCoverage:EqualityOperator":4,"NoCoverage:BooleanLiteral":2,"NoCoverage:MethodExpression":3,"Survived:ObjectLiteral":8,"Survived:Regex":4,"Survived:BooleanLiteral":2,"Survived:LogicalOperator":2,"Survived:ArrayDeclaration":1,"Survived:BlockStatement":1,"Survived:ConditionalExpression":2}
+  L10 ObjectLiteral -> {} | const CATALOG_RECOVERY = { registryRecovery: { fixtureIdPattern: /^(?:minted-id|new-site-id)-\d+$/ } };
+  L10 ObjectLiteral -> {} | const CATALOG_RECOVERY = { registryRecovery: { fixtureIdPattern: /^(?:minted-id|new-site-id)-\d+$/ } };
+  L10 Regex -> /(?:minted-id|new-site-id)-\d+$/ | const CATALOG_RECOVERY = { registryRecovery: { fixtureIdPattern: /^(?:minted-id|new-site-id)-\d+$/ } };
+  L10 Regex -> /^(?:minted-id|new-site-id)-\d+/ | const CATALOG_RECOVERY = { registryRecovery: { fixtureIdPattern: /^(?:minted-id|new-site-id)-\d+$/ } };
+  L10 Regex -> /^(?:minted-id|new-site-id)-\d$/ | const CATALOG_RECOVERY = { registryRecovery: { fixtureIdPattern: /^(?:minted-id|new-site-id)-\d+$/ } };
+  L10 Regex -> /^(?:minted-id|new-site-id)-\D+$/ | const CATALOG_RECOVERY = { registryRecovery: { fixtureIdPattern: /^(?:minted-id|new-site-id)-\d+$/ } };
+  L12 BooleanLiteral -> true | export function createSitesWorkspace(_required: Record<string, never>, { homeDir = os.homedir(), env = process
+  L20 ObjectLiteral -> {} | assertTestHomeIsolation({ homeDir }, { paths: ownerStorageOverrides({ env, cwd }, { appDataDir, sourceRoots })
+  L20 ObjectLiteral -> {} | assertTestHomeIsolation({ homeDir }, { paths: ownerStorageOverrides({ env, cwd }, { appDataDir, sourceRoots })
+  L20 ObjectLiteral -> {} | assertTestHomeIsolation({ homeDir }, { paths: ownerStorageOverrides({ env, cwd }, { appDataDir, sourceRoots })
+  NOCOV lines: 42-52,58,63-65
+## platform/site-dir/sites-project-references.ts {"Survived:MethodExpression":1,"Survived:ConditionalExpression":4}
+  L15 MethodExpression -> env.TOVU_DESKTOP_USER_DATA_DIR | const override = env.TOVU_DESKTOP_USER_DATA_DIR?.trim();
+  L31 ConditionalExpression -> true | return { ...state, projects: state.projects.map((row) => isProjectRow(row) && row.siteDir === from ? { ...row,
+  L40 ConditionalExpression -> false | if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Desktop projects catalog is 
+  L54 ConditionalExpression -> true | return !!row && typeof row === "object" && typeof (row as { siteDir?: unknown }).siteDir === "string" && typeo
+  L54 ConditionalExpression -> true | return !!row && typeof row === "object" && typeof (row as { siteDir?: unknown }).siteDir === "string" && typeo
+## assistant/tool-approval-policy.ts {"Survived:LogicalOperator":5,"Survived:ConditionalExpression":13,"Survived:EqualityOperator":4,"Survived:ArrowFunction":2,"Survived:BooleanLiteral":3,"Survived:ObjectLiteral":5,"Survived:BlockStatement":1,"Survived:MethodExpression":1,"Survived:Regex":13}
+  L23 LogicalOperator -> setting.namespace === args.namespace || setting.ke | 'execution-setting': ({ args }, _options = {}) => ASSISTANT_EXECUTION_APPROVAL_SETTINGS.some(setting => settin
+  L23 ConditionalExpression -> true | 'execution-setting': ({ args }, _options = {}) => ASSISTANT_EXECUTION_APPROVAL_SETTINGS.some(setting => settin
+  L23 ConditionalExpression -> true | 'execution-setting': ({ args }, _options = {}) => ASSISTANT_EXECUTION_APPROVAL_SETTINGS.some(setting => settin
+  L23 EqualityOperator -> setting.key !== args.key | 'execution-setting': ({ args }, _options = {}) => ASSISTANT_EXECUTION_APPROVAL_SETTINGS.some(setting => settin
+  L26 ConditionalExpression -> true | 'http-method': ({ args }, _options = {}) => typeof args.method === 'string' && args.method.toUpperCase() === '
+  L31 ArrowFunction -> () => undefined | { localeFor = async () => 'en', disclose }: {
+  L41 LogicalOperator -> policy.confirmation === 'plan' && policy.confirmat | if (policy.confirmation === 'plan' || (policy.confirmation === 'direct' && !policy.rule)) return registration;
+  L41 ConditionalExpression -> false | if (policy.confirmation === 'plan' || (policy.confirmation === 'direct' && !policy.rule)) return registration;
+  L41 ConditionalExpression -> false | if (policy.confirmation === 'plan' || (policy.confirmation === 'direct' && !policy.rule)) return registration;
+  L41 ConditionalExpression -> false | if (policy.confirmation === 'plan' || (policy.confirmation === 'direct' && !policy.rule)) return registration;
