@@ -1,0 +1,36 @@
+{
+ "testRunner": "vitest",
+ "vitest": {
+  "configFile": "vitest.stryker.config.ts",
+  "related": false
+ },
+ "coverageAnalysis": "perTest",
+ "concurrency": 3,
+ "incremental": false,
+ "force": true,
+ "mutator": {
+  "excludedMutations": [
+   "StringLiteral"
+  ]
+ },
+ "reporters": [
+  "json",
+  "clear-text",
+  "progress-append-only"
+ ],
+ "tempDirName": "/home/user/stryker/tmp-p1a",
+ "cleanTempDir": true,
+ "timeoutMS": 10000,
+ "disableTypeChecks": true,
+ "plugins": [
+  "/home/user/stryker/node_modules/@stryker-mutator/vitest-runner/dist/src/index.js"
+ ],
+ "mutate": [
+  "src/lifecycle/[a-h]*.ts",
+  "!src/**/*.test.ts"
+ ],
+ "jsonReporter": {
+  "fileName": "/home/user/stryker/reports/force-p1a.json"
+ },
+ "inPlace": true
+}

@@ -1,0 +1,16 @@
+150a151,165
+>         // STRYKER-FORCE PATCH: a test file that fails to collect (import/module-load error) yields
+>         // zero tests and no errorsSet entry, so upstream reports the run as all-green (mutant Survived).
+>         // Treat such a file as a failed test so the mutant is Killed with a recognisable reason.
+>         for (const file of this.ctx.state.getFiles()) {
+>             if (file.result?.state === 'fail' && collectTestsFromSuite(file).filter((t) => t.result).length === 0) {
+>                 failure = true;
+>                 testResults.unshift({
+>                     id: `${normalizeFileName(file.filepath)}#<collection>`,
+>                     name: `<collection error> ${file.name}`,
+>                     status: TestStatus.Failed,
+>                     timeSpentMs: 0,
+>                     failureMessage: `STRYKER-FORCE-COLLECTION-ERROR ${file.name}: ${String(file.result?.errors?.[0]?.message ?? 'unknown').slice(0, 300)}`,
+>                 });
+>             }
+>         }
