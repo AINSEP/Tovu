@@ -1,0 +1,6 @@
+fe3f1309 test(agent-runtime): use a labeled fake secret instead of a vendor-key-shaped string
+4503bf6c perf(agent-runtime): AI-trace keeps streamed text only in full capture; counts otherwise
+87b72e61 feat(agent-runtime): lazy AI-trace sink (bounded queue) for hosts that build lifecycles synchronously
+1acf1445 feat(daemon): withAiTracing RunLifecycle decorator — one tap traces every provider path
+544ab0da test(agent-runtime): per-provider AI-trace fixtures over real normalizers; attribute post-stream tool_use to the closing turn; CCN<=10
+2fc06dc9 feat(agent-runtime): vendor-neutral AI-trace port, recorder over normalized agent events, Langfuse adapter (prototype)
