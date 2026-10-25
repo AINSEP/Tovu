@@ -1,3 +1,4 @@
+import { createReadyLoginProviderList } from "#src/features/member-login/ready-providers";
 import { registerAdminMemberDeleteRoute } from "#src/server/inbound/admin-http/routes/members/delete";
 import { registerAdminMemberListRoute } from "#src/server/inbound/admin-http/routes/members/list";
 import { registerAdminMemberGetRoute } from "#src/server/inbound/admin-http/routes/members/get-by-id";
@@ -15,8 +16,7 @@ import { registerPublicMemberSignOutRoute } from "#src/server/inbound/public-htt
 import type { MemberPublicRouteDeps } from "#src/server/inbound/public-http/routes/members/deps";
 import type { ServerModuleHandle } from "./types.js";
 import { randomBytes } from "node:crypto";
-import { loadBundledLoginProviders, loadLoginProviders, hasLoginCredentials, resolveLoginCredentials,
-  type LoginProvider } from "#src/features/member-login/index";
+import { resolveLoginCredentials } from "#src/features/member-login/index";
 import { SqlMemberExternalIdentityRepo } from "#src/features/members/index";
 import { defaultBundledSourceRoot } from "#src/features/agent-plugins/supersession";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
@@ -38,13 +38,8 @@ export function createMemberOidcRouteDeps(required: { admin: MembersRouteDeps; p
   const kernel = admin.contentKernel;
   if (!kernel || !members.origin) return undefined;
   const credentials = { repo: admin.customCredentialSetRepo, sealer: admin.siteAssistantSecretSealer };
-  const listProviders = async ({ workspaceId }: { workspaceId: string }): Promise<readonly LoginProvider[]> => {
-    const bundledProviders = await loadBundledLoginProviders({ sourceRoot: defaultBundledSourceRoot({ env: process.env }) });
-    const providers = await loadLoginProviders({ workspaceId, bundledProviders, loadContributions: admin.agentPluginLifecycle.loadPluginContributions });
-    const configured = await Promise.all(providers.map(async provider =>
-      await hasLoginCredentials({ deps: credentials, workspaceId, provider }) ? provider : null));
-    return configured.filter(provider => provider !== null);
-  };
+  const listProviders = createReadyLoginProviderList({ sourceRoot: defaultBundledSourceRoot({ env: process.env }),
+    loadContributions: admin.agentPluginLifecycle.loadPluginContributions, credentials });
   return { members, listProviders,
     protocol: { clock: members.clock, randomBytesFn: ({ byteLength }) => randomBytes(byteLength),
       httpPorts: createTovuOAuthHttpPorts({ http: admin.mediaGenerationHttpClient }),

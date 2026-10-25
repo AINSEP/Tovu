@@ -9,6 +9,10 @@ for (const action of ['use', 'skip', 'auto'] as const) test(`plugin ask-choice: 
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
   const result = await askAgentPluginChoice({ surfaces: { surfaceExchanges }, principalId: 'alice', signal: new AbortController().signal,
     matches: [{ id: 'synthetic', name: 'Synthetic', why: 'Provides holography' }], emitSurface: async emission => {
+      if (emission.channel === 'user_message') {
+        assert.equal(emission.payload.text, `Agent plugins: ${action === 'skip' ? 'Declined' : 'Synthetic'}`);
+        return;
+      }
       const html = (emission.payload.resource as { resource: { text: string } }).resource.text;
       assert.match(html, /Synthetic/);
       assert.match(html, /Provides holography/);

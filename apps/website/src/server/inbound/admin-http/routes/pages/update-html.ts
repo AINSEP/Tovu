@@ -1,3 +1,4 @@
+import { PluginEmbedValidationError } from "#src/features/agent-plugins/exports/diagnostics";
 import type { Response } from "express";
 
 import {
@@ -51,6 +52,10 @@ async function allowedToWrite(deps: ContentRouteDeps, res: Response): Promise<bo
  * complexity reason as {@link allowedToWrite}; behavior is unchanged except for the new
  * `entityNotLiveResponse` arm (S5, web-high fix plan 2026-09-24). */
 function sendStoreError(res: Response, err: unknown): void {
+  if (err instanceof PluginEmbedValidationError) {
+    res.status(400).json({ error: err.message, code: err.code });
+    return;
+  }
   const live = entityNotLiveResponse(err);
   if (live) {
     res.status(live.status).json(live.body);
@@ -69,6 +74,12 @@ function sendStoreError(res: Response, err: unknown): void {
     return;
   }
   res.status(500).json({ error: "internal error" });
+}
+
+/** Attach safe editor warnings without changing ordinary saves' response shape. */
+function withEmbedWarnings(required: { post: ReturnType<typeof toAdminPostResponse>; store: import("#src/features/pages/index").PagesHtmlDocumentStorePort }, _options = {}) {
+  const warnings = required.store.embedWarnings?.() ?? [];
+  return warnings.length ? { ...required.post, warnings } : required.post;
 }
 
 /**
@@ -169,6 +180,9 @@ export const registerAdminPageUpdateHtmlRoute: ContentRouteRegistrar = (app, dep
         // `res.locals`, no second auth check (`allowedToWrite` above already ran one).
         const store = deps.pagesHtmlStore({ workspaceId: deps.workspaceId, postId: pageId, actorId: getAuthedPrincipal(res).id });
 
+        // Validate the submitted HTML before the skeleton conversion can replace a doc body.
+        // The store still owns the authoritative seed/write checks for every other caller.
+        await deps.pluginExports?.validateHtml({ workspaceId: deps.workspaceId, html });
         // Idempotent: a no-op once the page is already html-format, so both the first write and
         // every later one take this identical path.
         await store.ensureHtmlFormat(DEFAULT_PAGE_SKELETON);
@@ -186,7 +200,7 @@ export const registerAdminPageUpdateHtmlRoute: ContentRouteRegistrar = (app, dep
           return;
         }
 
-        res.json(toAdminPostResponse(updated));
+        res.json(withEmbedWarnings({ post: toAdminPostResponse(updated), store }));
       } catch (err) {
         sendStoreError(res, err);
       }

@@ -1,3 +1,4 @@
+import type { PluginExportRender } from "@jini-ai/cms/widgets/html";
 import { renderThemeFontLinks } from "#src/features/theme/font-links";
 import { renderMediaRawHtml } from "#src/features/widgets/media-html";
 import { existsSync } from "node:fs";
@@ -1915,7 +1916,7 @@ function resolvePageBodyEmbed(
     byline: string;
   },
   { postAuthor, postPresentation }: NonNullable<PageBodyRenderOptions> = {},
-): string | undefined {
+): string | PluginExportRender | undefined {
   if (!isPageEmbedType({ type: ref.type })) return undefined;
   // D4 guard (2026-09-23): a "content"/"post" marker naming neither an id nor a slug has no
   // current entity to resolve against at all — e.g. the static theme's own `index.html`, whose
@@ -1926,12 +1927,18 @@ function resolvePageBodyEmbed(
   // named but failed to resolve.
   if (isPostEntityRef(ref) && ref.id === null && ref.slug === null) return undefined;
   const resolvedIr = lookupPageEmbedIr(ref, resolved);
+  if (ref.type === "plugin") return pluginExportRender({ ir: resolvedIr });
   // Deleted/missing widget ids must not leave raw markers or placeholder markup on the public site.
   if (ref.type === "widget" && resolvedIr === undefined) return "";
   const formIr = withHtmlFormMode(resolvedIr ?? HTML_EMBED_PLACEHOLDER_IR, ref);
   const authorIr = withCurrentPostByline(formIr, { ref, postAuthor, byline });
   const presented = withPresentedPostBody(authorIr, { ref, post: postPresentation });
   return renderWidgetIr(withOccurrenceMediaAttributes(withOccurrenceHeader(presented, ref), ref, occurrence));
+}
+
+/** Keep canonical stamps with validated plugin HTML; missing IR retains the authored fallback. */
+function pluginExportRender({ ir }: { ir: WidgetRenderIR | undefined }, _options = {}): PluginExportRender | undefined {
+  return ir?.componentId === "plugin-export" ? ir.props as unknown as PluginExportRender : undefined;
 }
 
 /** A `"content"` or `"post"` marker — the two types that name a post entity. */

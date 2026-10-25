@@ -109,7 +109,15 @@ export function createAutomaticPluginRuns({ deps, surfaces }: { deps: AutomaticP
       ask: async ({ matches }) => {
         entry.pending = true;
         try {
-          return await askAgentPluginChoice({ surfaces, principalId: context.principal.id, emitSurface: entry.context.emitSurface, signal: abort.signal, matches });
+          return await askAgentPluginChoice({ surfaces, principalId: context.principal.id,
+            // A retry can replace this attempt while the card is open; its receipt belongs to the
+            // current transcript emitter, just like the later plugin-state publication below.
+            emitSurface: async emission => {
+              // Detached turns already hand late consent to the next turn below. A terminal
+              // lifecycle refuses emissions; recording must not turn that valid consent into an error.
+              if (emission.channel === 'user_message' && !entry.attempts.size) return;
+              await entry.context.emitSurface(emission);
+            }, signal: abort.signal, matches });
         } finally { entry.pending = false; }
       },
       saveAuto: async () => {

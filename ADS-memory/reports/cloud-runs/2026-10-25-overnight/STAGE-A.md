@@ -1,0 +1,11 @@
+<<SUBAGENT_DISPATCH>>
+# Stage A — full VERIFY, REPORT ONLY (Sonnet). Read COMMON.md in this dir first.
+HARD CAPS: 2.5 h wall clock (at 2h15m stop and write the report), ~1.8M tokens, no subagents beyond 2 sonnet test runners. NEVER edit source/test/config files — report only.
+FIRST: `hostname && uname -a && nproc`. Then SETUP from COMMON.md.
+Steps (commit+push REPORT-A.md after each):
+1. Tests — Tovu: website node:test split into 8 shards by directory (run 3 at a time, each with its own log + TAP; list the shard globs you used), admin vitest (apps/admin), site-chat, development/scripts tests, content/agent-plugins tests, desktop (`npm run --silent gates` in apps/desktop = tree-quiet, tests, typecheck, coverage, complexity, js-backslide; report each gate). Jini: every package's vitest (`pnpm -r --no-bail --workspace-concurrency=2 exec vitest run --maxWorkers=2 --minWorkers=1` or per package). Per suite: files run, tests run/pass/fail/skip, failing test names + first error lines. Mark each failure NEW / PRE-EXISTING (known list) / ENV.
+2. Typecheck — Tovu: `npx tsc --noEmit -p` for every workspace tsconfig (root, apps/website, apps/admin, apps/site-chat, apps/desktop main+preload+renderer, packages/*) — list each with error count + first 5 errors. Jini: `pnpm -r --no-bail exec tsc --noEmit`.
+3. Complexity — eslint with `complexity: ["error",10]` and `sonarjs/cognitive-complexity: ["error",10]` over Tovu apps/*/src + packages/*/src and Jini packages/*/src (non-test files). Report totals and the worst 30 functions (file:line, CCN, cognitive).
+4. Coverage — Tovu `npm run coverage:all-files` (or test:cov + coverage-all-files.ts) and Jini vitest --coverage on the 6 most-changed packages tonight (chat, cms, agent-plugins, platform, db, ui): per-file line/branch %, files under 100% sorted by uncovered lines (top 50), never-imported files. State coverage's limits.
+5. Guard + baseline — Jini `pnpm guard` (count by rule), Tovu `npm run check:test-baseline` if a TAP exists.
+REPORT-A.md: a summary table first (suite → pass/fail/ENV counts), then the NEW failures list (the input for Stage B, ranked: test failures > type errors > complexity), then details. End with "STAGE A DONE <UTC time>", wall time, rough tokens. Commit + push.

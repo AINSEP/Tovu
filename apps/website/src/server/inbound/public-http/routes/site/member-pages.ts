@@ -1,7 +1,11 @@
 import type { Express } from "express";
+import { nowIso } from "@jini-ai/core/primitives";
 
+import { resolveMemberSession } from "#src/features/members/index";
 import type { PublicPostRecord as PostRecord } from "#src/features/post/index";
+import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { RouteDeps } from "#src/server/routes/types";
+import { MEMBER_SESSION_COOKIE } from "../members/complete-sign-in.js";
 import { serveVirtualPage } from "./pages.js";
 
 /**
@@ -156,12 +160,26 @@ export function memberPagePost(required: { path: string; workspaceId: string }, 
   };
 }
 
-/** Register `GET` for every {@link MEMBER_PAGES} path. Call before `registerSiteRoutes`. */
+/** Register member pages before `registerSiteRoutes`; /account requires a live member session.
+ * Session lookup failures reach the existing 500 handler. @complexity O(1) indexed session lookup
+ * plus the existing virtual-page rendering cost.
+ */
 export function registerMemberPageRoutes(app: Pick<Express, "get">, deps: RouteDeps): void {
   app.get(Object.keys(MEMBER_PAGES), async (req, res) => {
     try {
       const post = memberPagePost({ path: req.path.replace(/\/$/, ""), workspaceId: deps.workspaceId });
       if (!post) { res.status(404).end(); return; }
+      if (post.slug === "account") {
+        // The response depends on a cookie: never share either the page or redirect through a cache.
+        res.set("Cache-Control", "private, no-store");
+        const session = await resolveMemberSession({ sessions: deps.memberSessionRepo, workspaceId: deps.workspaceId,
+          sessionToken: readRequestCookie({ request: req, name: MEMBER_SESSION_COOKIE }), nowIso: nowIso({ clock: deps.clock }) });
+        if (!session) {
+          // Use sign-in's validated fragment contract; a fixed local path cannot inherit an attacker return URL.
+          res.redirect(303, "/signin#redirect=%2Faccount");
+          return;
+        }
+      }
       await serveVirtualPage({ req, res, deps, post });
     } catch (error) {
       // Express 4 does not catch a rejected async handler; answer instead of hanging the visitor.

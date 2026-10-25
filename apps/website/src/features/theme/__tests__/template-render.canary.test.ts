@@ -200,6 +200,7 @@ test("canary: a POST-style template (blog-sidebar-template.html) renders nav, tr
 
   assert.ok(!html.includes("widget-placeholder"), "no marker may render as an empty widget placeholder");
   assert.ok(html.includes('<nav class="main-nav"'), "the nav partial must be spliced in");
+  assert.match(html, /<div class="nav-actions">[\s\S]*<a href="\/signin" class="btn btn-ghost nav-signin" data-member-nav data-toolname="starter_sign_in" data-tooldescription="Sign in">Sign in<\/a>\s*<a href="\/download" class="btn btn-solid nav-cta">Download<\/a>/, "member sign-in must render before the Download CTA with the starter's attributes");
   assert.ok(html.includes('<a href="/about">About</a>'), "the header menu must resolve to real links");
   assert.ok(html.includes("<footer"), "the footer partial must be spliced in");
   assert.ok(html.includes("<h1>Theme Authoring</h1>"), "the resolved entity must render into the template's slot");

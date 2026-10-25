@@ -79,6 +79,39 @@ test("binary assets round-trip without UTF-8 decoding", async () => {
   }
 });
 
+test("packed plugins omit tests and their fixtures while preserving runtime files", async () => {
+  const runtimeFiles = {
+    "plugin.json": '{"name":"runtime-only"}',
+    "mcp/server.mjs": 'export const ready = true;',
+    "skills/runtime/SKILL.md": "# Runtime skill",
+    // A runtime example must not be removed just because tests also use fixtures.
+    "skills/runtime/examples/fixture.json": '{"example":true}',
+    "mcp/test-client.mjs": "export const client = {};",
+    "mcp/spec.json": '{"version":1}',
+  };
+  const dir = await fixtureDir({
+    ...runtimeFiles,
+    "__tests__/plain.mjs": "test helper",
+    "__tests__/fixtures/response.json": "test-only fixture",
+    "mcp/__tests__/fixtures.mjs": "nested test-only fixture",
+    "mcp/server.test.mjs": "test",
+    "mcp/server.spec.mjs": "spec",
+    "mcp/server.test.ts": "TypeScript test",
+    "mcp/server.spec.js.map": "test source map",
+  });
+  try {
+    const packed = await packAgentPluginDirectory(dir);
+    assert.deepEqual([...packed.files], Object.keys(runtimeFiles).sort());
+    // Check the encoded archive too: filtering only the reported file list cannot pass.
+    assert.deepEqual(await readBack(packed.bytes), runtimeFiles);
+    await writeFile(path.join(dir, "__tests__/plain.mjs"), "changed test helper");
+    assert.equal((await packAgentPluginDirectory(dir)).sha256, packed.sha256,
+      "test-only edits must not republish installed runtime packages");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("the source-tree cap accepts 2048 files and refuses 2049", async () => {
   const dir = await fixtureDir({});
   try {

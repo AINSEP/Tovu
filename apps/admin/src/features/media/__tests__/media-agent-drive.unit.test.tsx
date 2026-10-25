@@ -72,6 +72,7 @@ function mediaController(overrides: Partial<MediaController> = {}): MediaControl
     toggleEditing: vi.fn(),
     onMetadataSaved: vi.fn(),
     trash: vi.fn(async () => {}),
+    restore: vi.fn(async () => {}),
     pendingPurge: null,
     setPendingPurge: vi.fn(),
     rowSavingId: null,

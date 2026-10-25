@@ -78,11 +78,16 @@ async function configuration(deps: OidcLoginDeps, input: LoginContext) {
   return { provider, client, redirectUri, version };
 }
 
+async function sealState(required: { deps: OidcLoginDeps; plaintext: string; aad: string }, _options = {}) {
+  const { deps, plaintext, aad } = required;
+  const sealed = await deps.sealer.seal({ plaintext, key: await deps.keyring.activeKey(), aad });
+  return Buffer.from(JSON.stringify(sealed), "utf8").toString("base64url");
+}
+
 function stateCodec(deps: OidcLoginDeps, aad: string) {
   return {
     async seal({ plaintext }: { plaintext: string }, _options = {}) {
-      const sealed = await deps.sealer.seal({ plaintext, key: await deps.keyring.activeKey(), aad });
-      return Buffer.from(JSON.stringify(sealed), "utf8").toString("base64url");
+      return sealState({ deps, plaintext, aad });
     },
     async open({ state }: { state: string }, _options = {}) {
       const bytes = Buffer.from(state, "base64url");
@@ -185,10 +190,13 @@ export async function completeOidcLogin(required: {
   }
 }
 
-function continuationCodec(deps: OidcLoginDeps, input: LoginContext & { browserBinding: string }, version: string) {
+function continuationAad(input: LoginContext & { browserBinding: string }, version: string) {
   const { ownerKey } = bindingContext(input, input.browserBinding);
-  const aad = formatAad({ kind: "member-login-email-proof", version: "v1", parts: [JSON.stringify([input.workspaceId, input.providerId, version, hash(ownerKey)])] });
-  return stateCodec(deps, aad);
+  return formatAad({ kind: "member-login-email-proof", version: "v1", parts: [JSON.stringify([input.workspaceId, input.providerId, version, hash(ownerKey)])] });
+}
+
+function continuationCodec(deps: OidcLoginDeps, input: LoginContext & { browserBinding: string }, version: string) {
+  return stateCodec(deps, continuationAad(input, version));
 }
 
 /** Seal only the verified normalized identity for the emailed-code continuation. The callback
@@ -207,7 +215,8 @@ export async function sealLoginEmailContinuation(required: {
       || login.connectMemberId !== input.connectMemberId) throw new MemberLoginError({ code: "LOGIN_INVALID" });
     const expiresAt = Date.parse(login.startedAt) + 600000;
     if (!Number.isFinite(expiresAt) || expiresAt <= deps.clock.nowMs()) throw new MemberLoginError({ code: "LOGIN_INVALID" });
-    return await continuationCodec(deps, input, config.version).seal({ plaintext: JSON.stringify({ login, expiresAt }) });
+    // Seal directly with the visible continuation aad so check:seal-aad can verify this call site.
+    return await sealState({ deps, plaintext: JSON.stringify({ login, expiresAt }), aad: continuationAad(input, config.version) });
   } catch {
     throw new MemberLoginError({ code: "LOGIN_INVALID" });
   }

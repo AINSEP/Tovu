@@ -36,20 +36,26 @@ describe("media error presentation", () => {
   });
 
   it("prioritizes trash over purge and list failures even after media has loaded", () => {
-    expect(visibleMediaError({ trashError: new Error("Trash refused"), purgeError: new Error("Purge refused"),
+    expect(visibleMediaError({ trashError: new Error("Trash refused"), purgeError: new Error("Purge refused"), restoreError: null, restoreFallback: "Restore failed",
       listError: new Error("Refresh failed"), hasMedia: true, deleteFallback: "Delete failed", listFallback: "Load failed" })).toBe("Trash refused");
   });
 
   it("shows the purge fallback ahead of the list error when trash succeeded", () => {
-    expect(visibleMediaError({ trashError: null, purgeError: new ApiError("", 503, "UNAVAILABLE"),
+    expect(visibleMediaError({ trashError: null, purgeError: new ApiError("", 503, "UNAVAILABLE"), restoreError: new Error("Restore refused"), restoreFallback: "Restore failed",
       listError: new Error("Refresh failed"), hasMedia: true, deleteFallback: "Delete failed", listFallback: "Load failed" })).toBe("Delete failed");
   });
 
   it("shows an initial list failure but keeps a background refresh failure off loaded media", () => {
-    const input = { trashError: null, purgeError: null, listError: new Error("Offline"), deleteFallback: "Delete failed", listFallback: "Load failed" };
+    const input = { trashError: null, purgeError: null, restoreError: null, restoreFallback: "Restore failed", listError: new Error("Offline"), deleteFallback: "Delete failed", listFallback: "Load failed" };
     expect(visibleMediaError({ ...input, hasMedia: false })).toBe("Offline");
     expect(visibleMediaError({ ...input, hasMedia: true })).toBeNull();
     expect(visibleMediaError({ ...input, listError: null, hasMedia: false })).toBeNull();
+  });
+
+  it("shows a restore failure (fallback when empty) ahead of a loaded list's refresh error", () => {
+    const input = { trashError: null, purgeError: null, restoreFallback: "Restore failed", listError: new Error("Offline"), deleteFallback: "Delete failed", listFallback: "Load failed", hasMedia: true };
+    expect(visibleMediaError({ ...input, restoreError: new ApiError("", 409, "CONFLICT") })).toBe("Restore failed");
+    expect(visibleMediaError({ ...input, restoreError: new Error("Restore refused") })).toBe("Restore refused");
   });
 });
 
@@ -300,6 +306,35 @@ describe("useMedia — injected port (no fetch stub)", () => {
     });
 
     await waitFor(() => expect(result.current.media?.[0]?.status).toBe("trashed"));
+  });
+
+  it("restores a trashed item through the injected port, and the re-read list shows it active", async () => {
+    const port = createFakeMediaPort({ media: [fakeMedia({ id: "m1", status: "trashed" })] });
+    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    await waitFor(() => expect(result.current.media).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.restore(result.current.media![0]!);
+    });
+
+    await waitFor(() => expect(result.current.media?.[0]?.status).toBe("active"));
+    expect(result.current.rowSavingId).toBeNull();
+    expect(result.current.error).toBeNull();
+  });
+
+  it("shows the restore fallback when the Trash refuses the restore, and frees the row", async () => {
+    const port = createFakeMediaPort({ media: [fakeMedia({ id: "m1", status: "trashed" })] });
+    port.restoreMedia = async () => ({ restored: false });
+    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    await waitFor(() => expect(result.current.media).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.restore(result.current.media![0]!);
+    });
+
+    await waitFor(() => expect(result.current.error).toBe("failed to restore"));
+    expect(result.current.rowSavingId).toBeNull();
+    expect(result.current.media?.[0]?.status).toBe("trashed");
   });
 
   /**

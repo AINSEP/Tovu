@@ -144,10 +144,10 @@ export async function resolveFederatedIdentity(required: {
 
 async function retryLink(deps: MemberLoginLinkDeps, input: MemberLoginLinkInput, proof: MemberRecord | null) {
   try {
-    return await deps.transaction(() => linkInTransaction(deps, input, proof));
+    return await deps.transaction(async () => linkInTransaction(deps, input, proof));
   } catch (error) {
     if (!isUniqueViolation(error)) throw error;
-    return deps.transaction(() => linkInTransaction(deps, input, proof));
+    return deps.transaction(async () => linkInTransaction(deps, input, proof));
   }
 }
 

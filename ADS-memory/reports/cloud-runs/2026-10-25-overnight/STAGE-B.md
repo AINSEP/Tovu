@@ -1,0 +1,7 @@
+<<SUBAGENT_DISPATCH>>
+# Stage B — FIX (Opus). Read COMMON.md in this dir first.
+HARD CAPS: 2.5 h wall clock (at 2h15m stop and write the report), ~1.8M tokens, at most 12 fixes, at most 2 sonnet subagents at once ONLY for running tests.
+FIRST: `hostname && uname -a`. SETUP from COMMON.md (pull the latest of both branches — Stage A pushed REPORT-A.md). Read REPORT-A.md. If it's missing or has no "STAGE A DONE", work from whatever sections exist and say so.
+Fix ONLY Stage A's NEW items, in this order: (1) NEW test failures, (2) NEW type errors, (3) the worst complexity offenders in code changed on 10-24 (git log --since=2026-10-24 on both branches) — refactor to CCN ≤ 10 without behaviour change. Do NOT fix: pre-existing/ENV items, coverage gaps (list them), Jini guard rules (owner decision), anything needing a product decision — LIST those.
+Rules per fix: smallest change; behaviour preserved; API args `(requiredObj, optionalObj = {})`; "why" comments kept/moved; never weaken a test, gate, lint rule or coverage scope to make it pass; a test failing because the TEST is wrong may be fixed only with a one-line reason. Re-run the touched tests + tsc of touched packages. Commit each fix separately (`fix(overnight): …`, message ends `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`) and push after each.
+REPORT-B.md: per fix → what was wrong (file:line), the change, commit hash, tests run before/after; then "Not fixed (needs owner)" list. End with "STAGE B DONE <UTC>", wall time, rough tokens. Commit + push.

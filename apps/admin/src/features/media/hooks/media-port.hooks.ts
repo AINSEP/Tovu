@@ -55,6 +55,8 @@ export interface MediaPort {
   ): Promise<{ media: AdminMedia }>;
   trashMedia(id: string): Promise<{ media: AdminMedia }>;
   deleteMedia(id: string): Promise<{ purged: boolean }>;
+  /** Puts a trashed asset back in the library. `restored: false` means the Trash refused it. */
+  restoreMedia(id: string): Promise<{ restored: boolean }>;
   /** Names the edit dialog's "Created by" principal. Optional: a port without it shows raw ids. */
   listUsers?(): Promise<{ users: ReadonlyArray<{ principalId: string; username: string }> }>;
   /**

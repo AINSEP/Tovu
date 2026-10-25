@@ -50,3 +50,19 @@ test('the page footer hosts the control, not an earlier article footer; a theme 
     assert.deepEqual([...themed.window.document.querySelectorAll('a[data-jini-consent-open]')].map(a => a.textContent), ['Privacy choices']);
   } finally { post.window.close(); themed.window.close(); }
 });
+
+test('a footer link joins the theme\'s last row (the © line), never a hidden row; a footerless page gets its own row', () => {
+  const gate = (body: string) => gateConsentHtml({ html: `<html><body>${body}</body></html>`,
+    config: { ...SITE_CONSENT_DEFAULTS, reopen: 'link' }, record: null, regionMode: 'opt-in', gpc: false, endpoint: '/api/site-consent' });
+  const starter = new JSDOM(withSiteConsentSettingsLink({ html: gate('<footer><div class="wrap"><div class="grid"><a href="/">Home</a></div><div class="footer-bottom"><span>© Site</span></div></div></footer>') }));
+  const hidden = new JSDOM(withSiteConsentSettingsLink({ html: gate('<footer><div id="row"><span>© Site</span></div><div hidden>Later</div></footer>') }));
+  const bare = new JSDOM(withSiteConsentSettingsLink({ html: gate('<main>Page</main>') }));
+  try {
+    const row = starter.window.document.querySelector('[data-tovu-consent-settings]');
+    assert.equal(row?.tagName, 'SPAN');
+    assert.equal(row?.parentElement?.className, 'footer-bottom');
+    assert.equal(row?.previousElementSibling?.textContent, '© Site');
+    assert.equal(hidden.window.document.querySelector('[data-tovu-consent-settings]')?.parentElement?.tagName, 'FOOTER');
+    assert.equal(bare.window.document.querySelector('[data-tovu-consent-settings]')?.tagName, 'P');
+  } finally { starter.window.close(); hidden.window.close(); bare.window.close(); }
+});
