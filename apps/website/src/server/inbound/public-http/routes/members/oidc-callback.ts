@@ -12,7 +12,7 @@ import { MEMBER_OIDC_PATH, MEMBER_OIDC_BINDING_COOKIE, memberOidcContext, member
  * Provider denial takes the same fixed error path, after clearing the browser cookie; Cancel
  * (`access_denied`) only picks a kinder message. O(k) keys.
  */
-function callbackParams({ req }: { req: Request }, _options = {}) {
+export function callbackParams({ req }: { req: Request }, _options = {}) {
   const { code, state, error } = req.query;
   if (error === "access_denied") throw new MemberOidcCancelled();
   if (error !== undefined || typeof code !== "string" || typeof state !== "string") throw new MemberLoginError({ code: "LOGIN_INVALID" });

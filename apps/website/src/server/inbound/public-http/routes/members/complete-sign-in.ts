@@ -50,7 +50,7 @@ export function sendMemberAuthError({ res, error }: { res: Response; error: unkn
 }
 
 /** Exactly one credential form, with no missing/empty handle passed to the repository. O(1). */
-function completionCredential({ body, workspaceId }: { body: unknown; workspaceId: string }, _options = {}): MemberSignInInput | null {
+export function completionCredential({ body, workspaceId }: { body: unknown; workspaceId: string }, _options = {}): MemberSignInInput | null {
   const token = memberStringBody({ body, kind: "token" });
   if (token?.token) return { workspaceId, token: token.token };
   const code = memberStringBody({ body, kind: "code" });

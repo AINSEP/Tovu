@@ -9,7 +9,7 @@ import { MEMBER_OIDC_PATH, MEMBER_OIDC_PROOF_COOKIE, memberOidcContext, memberOi
   memberOidcHeaders, sendMemberOidcError, uniqueMemberCookie, type MemberOidcRouteDeps } from "./oidc-deps.js";
 
 /** Strict JSON DTO; callers cannot inject claims, intent or proof booleans. O(k) body keys. */
-function proofBody({ body }: { body: unknown }, _options = {}): { continuation: string; challengeId: string; code: string } {
+export function proofBody({ body }: { body: unknown }, _options = {}): { continuation: string; challengeId: string; code: string } {
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new MemberLoginError({ code: "LOGIN_INVALID" });
   const record = body as Record<string, unknown>;
   if (Object.keys(record).length !== 3 || !Object.keys(record).every(key => ["continuation", "challengeId", "code"].includes(key))) throw new MemberLoginError({ code: "LOGIN_INVALID" });
@@ -20,7 +20,7 @@ function proofBody({ body }: { body: unknown }, _options = {}): { continuation: 
 }
 
 /** Bound opaque handles before cryptography or challenge repository work. O(1). */
-function proofString({ value, maxLength }: { value: unknown; maxLength: number }, _options = {}): string {
+export function proofString({ value, maxLength }: { value: unknown; maxLength: number }, _options = {}): string {
   if (typeof value !== "string" || !value || value.length > maxLength) throw new MemberLoginError({ code: "LOGIN_INVALID" });
   return value;
 }
