@@ -431,6 +431,7 @@ export function createAssistantByokModule(
       // The root injects the audit sink; see RouteDeps.toolAttemptAuditSink for why
       // consumers must not open their own database. A supplied toolSurface bypasses this branch.
       toolAttemptAudit: { sink: routeDeps.toolAttemptAuditSink, workspaceId: routeDeps.workspaceId },
+      observability: routeDeps.observability,
       // Feature registrars `assistant/` must not import by value (module cycles) — injected here.
       registerInstalledExtensions: async (registry, deps, log) => {
         await registerInstalledExtensionTools(registry, deps, log);

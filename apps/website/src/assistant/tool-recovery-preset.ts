@@ -9,7 +9,8 @@ import type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { withToolFailureRecovery as withDaemonRecovery, withRedactedToolFailures as withDaemonRedaction,
   createAssistantToolExecutor as createDaemonToolExecutor, mintToolErrorId as mintDaemonErrorId,
   describeDelegatedInternalError as describeDaemonError, delegatedToolErrorDisclosure as daemonErrorDisclosure,
-  withFederatedRefusalDiagnosis as withDaemonFederationDiagnosis } from "@jini-ai/daemon/tool-recovery";
+  withFederatedRefusalDiagnosis as withDaemonFederationDiagnosis, withToolCallObservability as withDaemonToolCallObservability } from "@jini-ai/daemon/tool-recovery";
+import { isNoopObservabilityPort, type ObservabilityPort } from "#src/platform/observability/index";
 import type { ToolFailureRecord, RedactedToolFailuresDeps as DaemonFailureDeps,
   DelegatedInternalErrorContext, FederationBootStatus } from "@jini-ai/daemon/tool-recovery";
 export { TOOL_ERROR_ID_PATTERN, readToolErrorId, isRedactedToolFailure } from "@jini-ai/daemon/tool-recovery";
@@ -116,4 +117,12 @@ export function withFederatedRefusalDiagnosis(required: { inner: ToolExecutor; g
     isFederatedTool: ({ toolId }) => toolId.startsWith(FEDERATED_TOOL_ID_PREFIX), parseConnectionId: parseFederatedConnectionId,
     findRefusal: ({ toolId }) => findFederatedToolRefusal({ toolId, snapshot: required.getSnapshot(), messages: tovuFederationMessages }),
     ...(required.getBootStatus ? { getBootStatus: required.getBootStatus } : {}) }, optional);
+}
+/** Each tool call as one `tool.call` operation on the injected port (tool id, outcome, duration,
+ * validation vs internal error; execution errors through `reportError`). Compose OUTERMOST so the
+ * operation sees what the caller sees, federated-refusal diagnoses included. Off (the noop port),
+ * the executor is returned as-is: a disabled install pays no wrapper frame per call. */
+export function withToolCallObservability(required: { inner: ToolExecutor; observability: ObservabilityPort }, optional = {}): ToolExecutor {
+  if (isNoopObservabilityPort(required.observability)) return required.inner;
+  return withDaemonToolCallObservability(required, optional);
 }

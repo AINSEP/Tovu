@@ -200,7 +200,7 @@ import { buildListPendingChatAttachmentsTool } from "#src/features/media/list-pe
 import { TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
 import { createLostFrontendBindings } from "#src/assistant/lost-frontend-binding";
 import { withPageNavigateErrorRewrap } from "#src/assistant/rewrap-page-navigate-error";
-import { delegatedToolErrorDisclosure } from "#src/assistant/tool-recovery-preset";
+import { delegatedToolErrorDisclosure, withToolCallObservability } from "#src/assistant/tool-recovery-preset";
 import { registerCredentialRunIntake, registerDurableRunStartRoute, registerDurableToolGuard } from "./durable-run-routes.js";
 import { createEarlySessionCapture } from "./early-run-session.js";
 import { agentReceivesImageAttachments, durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPrompt } from "./run-start-decisions.js";
@@ -706,12 +706,15 @@ const auditSink = routeDeps.toolAttemptAuditSink;
 // returns a real result naming the tool, the server, and the fix instead. See that file's own header.
 const automaticPluginRuns = createAutomaticPluginRuns({ deps: routeDeps, surfaces: { surfaceExchanges } });
 registry.register(automaticPluginRuns.loadRegistration);
-const toolExecutor = withFederatedRefusalDiagnosis({ inner: createAssistantToolExecutor({
+// And a third time, outermost of all, by `withToolCallObservability`: one `tool.call` operation per
+// call on `routeDeps.observability` (the injected port — never an SDK import here). Identity when
+// telemetry is off.
+const toolExecutor = withToolCallObservability({ inner: withFederatedRefusalDiagnosis({ inner: createAssistantToolExecutor({
     registry,
     surfaceExchanges,
     prepareGuidance: automaticPluginRuns.prepareGuidance,
     toolAttemptAudit: { sink: auditSink, workspaceId: routeDeps.workspaceId },
-  }, {}), getSnapshot: () => toolExtensions?.federation.reports() ?? [] }, {});
+  }, {}), getSnapshot: () => toolExtensions?.federation.reports() ?? [] }, {}), observability: routeDeps.observability }, {});
 
 /**
  * The admin Instructions tab's system-prompt seam (`core.instructions.custom`) — see

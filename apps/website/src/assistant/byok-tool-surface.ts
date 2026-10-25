@@ -38,7 +38,8 @@ import { createChatDeleteScope, ALL_CHAT_DELETE_TOOLS } from "./permanent-delete
 import { readChatPermanentDeletesPolicy } from "./permanent-delete-settings.js";
 import { isChatToolAllowed } from "../contracts/headless/assistant-permanent-deletes-policy.js";
 import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "./tool-registrations.js";
-import { createAssistantToolExecutor } from "./tool-recovery-preset.js";
+import { createAssistantToolExecutor, withToolCallObservability } from "./tool-recovery-preset.js";
+import type { ObservabilityPort } from "#src/platform/observability/index";
 import { err, isRecord, mapToolExecutionResult, ok, resolveDelegatedInput, type ByokMetaToolResult } from "./byok-meta-tool-result.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
@@ -384,6 +385,9 @@ export interface ByokToolSurfaceOptions {
    * supplies this.
    */
   readonly toolAttemptAudit?: { readonly sink: ToolAttemptAuditSink; readonly workspaceId: string };
+  /** Each tool call as one `tool.call` operation (`withToolCallObservability`). Omitted, nothing is
+   * tracked — same as the noop port, which returns the executor untouched. */
+  readonly observability?: ObservabilityPort;
   /**
    * Whether this surface also registers installed Agent Plugin, Agent Skill, and enabled
    * plugin-capability tools (`installed-extension-tools.ts`) onto its own registry. Defaults to
@@ -511,10 +515,10 @@ function attachSurfaceExtensions(
 // then a no-op passthrough, never a behavior change for `installExtensions: false`.
 function composeSurfaceExecutor(
   required: { readonly registry: ToolRegistry; readonly surfaceExchanges: SurfaceExchangeStore; readonly federation: FederationRuntime | undefined },
-  options: Pick<ByokToolSurfaceOptions, "prepareGuidance" | "toolAttemptAudit">,
+  options: Pick<ByokToolSurfaceOptions, "prepareGuidance" | "toolAttemptAudit" | "observability">,
 ): ToolExecutor {
   const { registry, surfaceExchanges, federation } = required;
-  return withFederatedRefusalDiagnosis({ inner: createAssistantToolExecutor({
+  const executor = withFederatedRefusalDiagnosis({ inner: createAssistantToolExecutor({
       registry,
       surfaceExchanges,
       ...(options.prepareGuidance ? { prepareGuidance: options.prepareGuidance } : {}),
@@ -523,6 +527,8 @@ function composeSurfaceExecutor(
       federation
         ? { settled: federation.started, connectFailures: federation.connectFailures(), configuredConnectionIds: federation.configuredConnectionIds() }
         : { settled: true, connectFailures: [] } }, {});
+  // Outermost of all, as in `agent-daemon-server.ts`: the operation records what the caller sees.
+  return options.observability ? withToolCallObservability({ inner: executor, observability: options.observability }, {}) : executor;
 }
 
 /**
