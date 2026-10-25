@@ -93,4 +93,4 @@ Type checks disabled (type-invalid mutants counted as ordinary; no checker plugi
 9. sandbox `node-worker.ts`: malformed worker replies (non-object, ok without html, error not string), worker `error` event, env/timeout parsing boundaries (`"12a"`, `"0"`, `"2147483648"`).
 10. devops `coverage/floors.ts` + `lcov.ts`: NaN/negative/>100 floors rejected; backslash/trailing-slash/extension filtering; shared `isRecord`-style negative tables (array/null/primitive) for protocol delegated-result and agentic validators.
 
-L9 DONE 2026-10-25T17:05Z — wall ~1 h, ~0.15M tokens (rough).
+L9 DONE 2026-10-25T17:00Z — wall ~1 h, ~0.15M tokens (rough).
