@@ -410,7 +410,7 @@ test("daemon shutdown waits for publication even when durability fails after ren
   let releaseStore!: () => void;
   const storeClosed = new Promise<void>((resolve) => { releaseStore = resolve; });
   const exit = new Function("registryPublication", "daemonRegistry", "process", "console", "closeWithinBound", "awaitBootWorkWithinBound", "assistantInventory", "daemonStore",
-    `let daemonExiting = false; const stopPluginPolling = () => {}; const stopDaemonServing = async () => {}; const daemonBootWork = []; ${code}; return exitDaemon;`)(
+    `let daemonExiting = false; const stopPluginPolling = () => {}; const stopDaemonServing = async () => {}; const disposeAiTracing = () => {}; const daemonBootWork = []; ${code}; return exitDaemon;`)(
       publication,
       { removeIfCurrent: async ({ pid }: { pid: number }) => { calls.push(`remove:${pid}`); } },
       { pid: 123, exit: (code: number) => { calls.push(`exit:${code}`); } },
