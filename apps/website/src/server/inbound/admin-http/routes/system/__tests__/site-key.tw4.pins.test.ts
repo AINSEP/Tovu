@@ -7,10 +7,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import express from "express";
 import { registerAdminSiteKeyRoutes, type AdminSiteKeyDeps, type SiteKeyKeyWriter, type SiteKeyEnsureOutcome, type SiteKeyKeyCheck, type SiteKeyInstallOutcome } from "../site-key.js";
-import { fingerprintSiteKeyHex } from "#src/features/webhooks/keyring.env";
+import { fingerprintSiteKeyHex, SiteKeyFileAlreadyExistsError } from "#src/features/webhooks/keyring.env";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 
-async function fixture({ t }: { t: TestContext }, _options = {}) {
+async function fixture({ t }: { t: TestContext }, { credentialKind = "session", allowed = true }: { credentialKind?: string; allowed?: boolean } = {}) {
   const dir = mkdtempSync(join(tmpdir(), "tw4-site-key-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   for (const name of ["TOVU_SITE_KEY", "TOVU_RUNTIME_MODE"]) {
@@ -25,8 +25,9 @@ async function fixture({ t }: { t: TestContext }, _options = {}) {
   let check: SiteKeyKeyCheck = { sealed: 1, opens: 1, storageSecret: "absent" };
   let installed: SiteKeyInstallOutcome | undefined = { outcome: "installed", keyFilePath: "/fixture/key", fingerprint: "fingerprint" };
   let available = true;
+  let ensureError: Error | undefined;
   const writer: SiteKeyKeyWriter = {
-    ensureSiteKeyForSite: async () => { events.push("ensure"); return ensured; },
+    ensureSiteKeyForSite: async () => { events.push("ensure"); if (ensureError) throw ensureError; return ensured; },
     checkKey: async () => { events.push("check"); return check; },
     resealFrom: async input => { events.push(`reseal:${input.previousHex}`); return { resealed: 2, unreadable: 0 }; },
     installSiteKey: () => { events.push("install"); return installed; },
@@ -40,12 +41,12 @@ async function fixture({ t }: { t: TestContext }, _options = {}) {
   };
   const save: AdminSiteKeyDeps["restorePointsRepo"]["save"] = async row => { events.push(`save:${row.trigger}`); };
   const ports = {
-    workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "fixture" }),
+    workspaceId: "ws", authorize: async () => ({ allowed, reason: allowed ? "fixture" : "insufficient_permission" }),
     siteBinding: { dir, name: "fixture", dirOverridden: true, switcherCompatible: false },
     dbOps, idGen: { newId: () => randomUUID() }, clock: { nowMs: () => 0, nowIso: () => "2026-10-20T00:00:00.000Z" },
   } satisfies Pick<AdminSiteKeyDeps, "workspaceId" | "authorize" | "siteBinding" | "dbOps" | "idGen" | "clock">;
   const app = express(); app.use(express.json());
-  app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
+  app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = credentialKind; next(); });
   registerAdminSiteKeyRoutes(app, { ...ports, restorePointsRepo: { save } } as AdminSiteKeyDeps, writer);
   const base = await startTestServer(app, t);
   const post = async ({ verb, body = {} }: { verb: string; body?: unknown }, _options = {}) => {
@@ -56,11 +57,12 @@ async function fixture({ t }: { t: TestContext }, _options = {}) {
     const folder = join(isolatedCatalogHome, ".tovu", "site-keys"); mkdirSync(folder, { recursive: true });
     const file = join(folder, `${siteKeyId}.hex`); writeFileSync(file, hex); t.after(() => rmSync(file, { force: true }));
   };
-  return { post, events, dir, meta, currentKey,
+  return { post, events, dir, meta, currentKey, base,
     setEnsure: ({ value }: { value: SiteKeyEnsureOutcome | undefined }, _options = {}) => { ensured = value; },
     setCheck: ({ value }: { value: SiteKeyKeyCheck }, _options = {}) => { check = value; },
     setInstalled: ({ value }: { value: SiteKeyInstallOutcome | undefined }, _options = {}) => { installed = value; },
     unavailable: (_required = {}, _options = {}) => { available = false; },
+    setEnsureThrows: (error: Error) => { ensureError = error; },
   };
 }
 
@@ -140,4 +142,53 @@ test("import refuses unavailable restore points and preserves installation refus
   for (const [value, error] of [[undefined, "SITE_META_UNREADABLE"], [{ outcome: "env-key-set" }, "ENV_KEY_SET"]] as const) {
     f.setInstalled({ value }); const result = await f.post({ verb: "import", body: { siteKey: hex } }); assert.equal(result.status, 409); assert.equal(result.body.error, error);
   }
+});
+
+// F6 fix wave (L12 Stryker top-8, site-key.ts): every route refuses an api-key credential, an
+// unauthorized principal and a foreign workspace before touching the key writer; a missing JSON body
+// is a 4xx refusal, never a 500; a key file appearing mid-generate is 409 ALREADY_EXISTS.
+const ROUTES = [["GET", ""], ["POST", "/reveal"], ["POST", "/generate"], ["POST", "/import"], ["GET", "/start-fresh"], ["POST", "/start-fresh"]] as const;
+async function call(base: string, { method, suffix, workspace = "ws" }: { method: string; suffix: string; workspace?: string }) {
+  const response = await fetch(`${base}/api/admin/v1/workspaces/${workspace}/system/site-key${suffix}`, method === "GET" ? {} : { method, headers: { "content-type": "application/json" }, body: "{}" });
+  return { status: response.status, body: await response.json() as Record<string, unknown> };
+}
+
+test("every site-key route refuses an api-key credential with the credential-kind reason, before any writer call", async t => {
+  const f = await fixture({ t }, { credentialKind: "api_key" });
+  for (const [method, suffix] of ROUTES) {
+    const result = await call(f.base, { method, suffix });
+    assert.equal(result.status, 403, `${method} ${suffix}`);
+    assert.deepEqual(result.body.details, { permission: "admin.security.site-key.manage", reason: "credential_kind_not_permitted" });
+  }
+  assert.deepEqual(f.events, []);
+});
+
+test("every site-key route answers a foreign workspace with 404 and an unauthorized principal with 403", async t => {
+  const f = await fixture({ t });
+  for (const [method, suffix] of ROUTES) {
+    const result = await call(f.base, { method, suffix, workspace: "other-ws" });
+    assert.equal(result.status, 404, `${method} ${suffix}`);
+    assert.deepEqual(result.body, { error: "workspace was not found" });
+  }
+  const denied = await fixture({ t }, { allowed: false });
+  for (const [method, suffix] of ROUTES) assert.equal((await call(denied.base, { method, suffix })).status, 403, `${method} ${suffix}`);
+  assert.deepEqual([...f.events, ...denied.events], []);
+});
+
+test("import and start-fresh without a JSON body are refused as client errors, not 500s", async t => {
+  const f = await fixture({ t });
+  for (const suffix of ["/import", "/start-fresh"]) {
+    const response = await fetch(`${f.base}/api/admin/v1/workspaces/ws/system/site-key${suffix}`, { method: "POST" });
+    assert.ok(response.status >= 400 && response.status < 500, `${suffix}: ${response.status}`);
+  }
+  assert.deepEqual(f.events, []);
+});
+
+test("generate answers a key file that appears mid-request with 409 ALREADY_EXISTS", async t => {
+  const f = await fixture({ t });
+  f.setEnsureThrows(new SiteKeyFileAlreadyExistsError("/fixture/key"));
+  const result = await f.post({ verb: "generate" });
+  assert.equal(result.status, 409);
+  assert.equal(result.body.error, "ALREADY_EXISTS");
+  assert.match(String(result.body.detail), /already exists at \/fixture\/key/);
 });
