@@ -3,22 +3,76 @@
 Report-only run; no source or test edits (Jini clone `cloud/overnight-1024-jini`; only untracked `vitest.stryker.config.ts` per package, see §7). Config: vitest runner, `coverageAnalysis: perTest`, concurrency 3, `incremental`, `StringLiteral` excluded, type checks off.
 
 ## 1. Headline
-| package | mutants run | killed (incl. timeout) | survived | no-coverage | score |
-|---|---|---|---|---|---|
-| vibecoding | 2260 | 1487 | 348 | 89 | 77.29% |
-| cli | 1635 | 1175 | 181 | 0 | 86.65% |
-| artifacts | 946 | 717 | 89 | 0 | 88.96% |
-| analytics | 642 | 487 | 54 | 0 | 90.02% |
-| diagnostics | 3179 | 2425 | 282 | 2 | 89.52% |
-| desktop-host | 3040 | 2304 | 287 | 5 | 88.75% |
+| package | mutants generated | killed (incl. timeout) | survived | no-coverage | ignored (StringLiteral, excluded) | score (killed / (killed+survived+no-cov)) |
+|---|---|---|---|---|---|---|
+| adminA | 1862 | 1415 | 156 | 5 | 286 | 89.78% |
+| adminC | 1584 | 1109 | 210 | 0 | 265 | 84.08% |
+| adminD | 346 | 301 | 9 | 0 | 36 | 97.10% |
+| vibecoding | 2260 | 1487 | 348 | 89 | 336 | 77.29% |
+| cli | 1635 | 1175 | 181 | 0 | 279 | 86.65% |
+| artifacts | 946 | 717 | 89 | 0 | 140 | 88.96% |
+| analytics | 642 | 487 | 54 | 0 | 101 | 90.02% |
+| diagnostics | 3179 | 2425 | 282 | 2 | 470 | 89.52% |
+| desktop-host | 3040 | 2304 | 287 | 5 | 410 | 88.75% |
 
-**Total: 11702 mutants run, 8595 killed, 1241 survived, 96 no-coverage; aggregate score 86.5%.** Wall ≈ 4 h budget; Stryker machine time ≈ 2 h 40 m (desktop-host 54 m, admin batch A last). Packages run in full: analytics, cli, artifacts, vibecoding, diagnostics, desktop-host. `packages/admin` was NOT run in full — 10,748 mutants projected at ~8 h (measured: 2% in 10 min incl. a 4-min dry run, 2498 tests); a risk-ordered subset (batch A) was run instead — see §6.
+**Total: 15494 mutants generated (incl. ignored), 11420 killed, 1616 survived, 101 no-coverage; aggregate score 86.9%.** (Rows `adminA`/`adminC`/`adminD` are three risk-ordered subsets of `packages/admin`; `ignored` = the StringLiteral mutants excluded by config, not counted in the score.) Wall ≈ 3 h 40 m. Run in full: analytics, cli, artifacts, vibecoding, diagnostics, desktop-host. **`packages/admin` was NOT run in full**: its 170 non-UI files = 10,748 mutants projected at ~8 h (2498-test suite; ~35–60 mutants/min); only the subsets in §6 ran.
 
 ## 2. Suspected source bugs
 **None found.** No survivor looks like a behaviour defect; all are weak/absent assertions. The sharpest *security-adjacent test gaps* (not bugs) are listed in §8, e.g. symlink refusal in vibecoding `node/store.ts` and default-deny flags in diagnostics `request-guard.ts`.
 
 
 ## 3. Per-file tables (worst score first)
+
+### adminA
+| file | mutants | killed | survived | no-cov | timeout | score |
+|---|---|---|---|---|---|---|
+| src/security/security.module.ts | 18 | 6 | 6 | 0 | 0 | 50.0% |
+| src/security/conformance/security-api.conformance.ts | 110 | 58 | 30 | 4 | 0 | 63.0% |
+| src/security/controllers/other-credentials.controller.ts | 121 | 81 | 32 | 1 | 0 | 71.1% |
+| src/security/adapters/memory.ts | 315 | 255 | 25 | 0 | 0 | 91.1% |
+| src/security/controllers/access-tokens.controller.ts | 206 | 177 | 16 | 0 | 0 | 91.7% |
+| src/security/controllers/root-key.controller.ts | 195 | 166 | 13 | 0 | 0 | 92.7% |
+| src/security/rules.ts | 302 | 220 | 16 | 0 | 0 | 93.2% |
+| src/core/manifest/rules.ts | 111 | 95 | 6 | 0 | 0 | 94.1% |
+| src/security/adapters/http.ts | 278 | 195 | 10 | 0 | 0 | 95.1% |
+| src/core/transport/http.ts | 101 | 79 | 2 | 0 | 0 | 97.5% |
+| src/contracts/credential-management.ts | 2 | 1 | 0 | 0 | 0 | 100.0% |
+| src/contracts/media-picker.ts | 2 | 1 | 0 | 0 | 0 | 100.0% |
+| src/contracts/playground-render-target.ts | 2 | 1 | 0 | 0 | 0 | 100.0% |
+| src/core/permissions/rules.ts | 5 | 4 | 0 | 0 | 0 | 100.0% |
+| src/core/routing/rules.ts | 80 | 66 | 0 | 0 | 0 | 100.0% |
+| src/core/transport/errors.ts | 8 | 7 | 0 | 0 | 0 | 100.0% |
+| src/security/ports.ts | 6 | 3 | 0 | 0 | 0 | 100.0% |
+
+### adminC
+| file | mutants | killed | survived | no-cov | timeout | score |
+|---|---|---|---|---|---|---|
+| src/source-control/source-control.module.ts | 14 | 6 | 3 | 0 | 0 | 66.7% |
+| src/agent-plugins/conformance/agent-plugins-api.conformance.ts | 232 | 141 | 68 | 0 | 0 | 67.5% |
+| src/source-control/adapters/memory.ts | 125 | 89 | 30 | 0 | 0 | 74.8% |
+| src/source-control/conformance/source-control-api.conformance.ts | 162 | 105 | 30 | 0 | 0 | 77.8% |
+| src/agent-plugins/controllers/agent-plugins.controller.ts | 193 | 167 | 25 | 0 | 0 | 87.0% |
+| src/agent-plugins/rules.ts | 163 | 75 | 11 | 0 | 0 | 87.2% |
+| src/source-control/controllers/source-control.controller.ts | 157 | 135 | 17 | 0 | 0 | 88.8% |
+| src/agent-plugins/agent-plugins.module.ts | 14 | 9 | 1 | 0 | 0 | 90.0% |
+| src/agent-plugins/controllers/agent-plugin-files.controller.ts | 75 | 63 | 5 | 0 | 0 | 92.6% |
+| src/source-control/adapters/http.ts | 43 | 27 | 2 | 0 | 0 | 93.1% |
+| src/source-control/rules.ts | 109 | 89 | 6 | 0 | 0 | 93.7% |
+| src/agent-plugins/package-file-tree.ts | 214 | 147 | 9 | 0 | 0 | 94.2% |
+| src/agent-plugins/adapters/http.ts | 27 | 17 | 1 | 0 | 0 | 94.4% |
+| src/agent-plugins/adapters/memory.ts | 43 | 36 | 2 | 0 | 0 | 94.7% |
+| src/agent-plugins/ports.ts | 2 | 1 | 0 | 0 | 0 | 100.0% |
+| src/source-control/messages.en.ts | 9 | 1 | 0 | 0 | 0 | 100.0% |
+| src/source-control/ports.ts | 2 | 1 | 0 | 0 | 0 | 100.0% |
+
+### adminD
+| file | mutants | killed | survived | no-cov | timeout | score |
+|---|---|---|---|---|---|---|
+| src/core/module/controller-store.ts | 17 | 15 | 2 | 0 | 0 | 88.2% |
+| src/core/ledger-slice.ts | 32 | 28 | 1 | 0 | 0 | 96.6% |
+| src/core/module/create-admin.ts | 293 | 255 | 6 | 0 | 2 | 97.7% |
+| src/core/module/token.ts | 3 | 2 | 0 | 0 | 0 | 100.0% |
+| src/core/module/define-admin-module.ts | 1 | 1 | 0 | 0 | 0 | 100.0% |
 
 ### vibecoding
 | file | mutants | killed | survived | no-cov | timeout | score |
@@ -183,6 +237,18 @@ Report-only run; no source or test edits (Jini clone `cloud/overnight-1024-jini`
 - `text-suppression.ts` (87.2%): empty text early return (68), `index >= min` window edge (154), `>` char guard (166), prefix/suffix canonical match `some`→`every` (185). `manifest.ts` (89.2%): plain-object guard (81–83: arrays/class instances/null-proto), max-length boundaries `>` vs `>=` (94, 101), Windows drive-letter regex anchor (105), `..` traversal (109) cases. `tokens.ts` 0% = `{id}` ObjectLiteral on a DI token (c, equivalent unless id is asserted).
 ### analytics (90.0%)
 - `ingest.ts` (87.5%, 45 survivors): (a) IPv6 coarse-bucketing: `expandIpv6Groups` ("::" handling 235–242: leading/trailing "::", empty groups filter, zero-fill arithmetic), IPv4-mapped regex (248), bracketed `[::1]` unwrapping (291) — privacy truncation depends on these; (a) CIDR check `ip.includes(":")`/`NaN prefix`/octet range (436–448) for bot/IP filters; (a) `decodeURIComponent` failure fallback (61); email-shaped PII regex anchors/classes (57); referrer null (480), UTM `queryIndex === -1` (497); `validateEventPropEntry({pending: []})` (514). `repo.memory.ts`: list limit `||`→`&&` (30) — NaN/undefined limit; `initialHits` copy (43). `forwarding.ts`: forwarder shape guards (74, 85), `limiter.tryAcquire` negation (204: dropped-event report), `structuredClone` on non-null props (67), `cached?.value` (281).
+### admin — batch A (security + core contracts; 89.8%)
+- `security/security.module.ts` 50%: (c/a) module manifest literal `{requires/provides/…}` and array fields replaced by `{}`/`[]` without failure — no test asserts the module's declared `requires`/`permissions`/nav entries.
+- `security/conformance/security-api.conformance.ts` 63% (4 no-coverage, line 9): the shared conformance suite's own `check(...)` assertions are weak (update/rename result `renamed.id === a.id && label` → `true`; default-flag move on update 16:120) — conformance adapters could pass while wrong.
+- `security/controllers/*.controller.ts` (71–93%): (a) **stale-response guard `ticket === generation` → `true` survives in every controller** (other-credentials 10:17, access-tokens 21/24, root-key 19:19): no test resolves an older request after a newer one started; (a) **permission gate** `store.signal.aborted || !grants.has('security.read')` → `&&` / `false` (other-credentials 13:9) survives — no test with signal aborted and read granted, or read missing and not aborted; (a) `++generation` → `--generation` (16:20 etc.); `loading`/`initial` boolean seeds `true`; `{signal: store.signal}` option bags → `{}` (c: signal propagation untested).
+- `security/adapters/memory.ts` 91%: (a) default-row selection `!items.some(r.kind===kind && r.providerId===providerId)` and uniqueness check `check()` (18, 27, 29) — "first credential of a provider becomes default / default moves on set" across providers of different kind. `security/rules.ts` 93%: provider label lookup `&&`→`||`, search `query.trim().toLowerCase()` (25), search across `baseUrl`/`accountLabel` (26), duplicate-label check (32), update-without-token (39). `security/adapters/http.ts` 95%: optional-field spread `!== undefined` pattern (b/c, as in cli) and request option branches (61, 85).
+- `core/manifest/rules.ts` 94% (6), `core/transport/http.ts` 97.5% (2), `core/routing/rules.ts` 100%, `core/permissions/rules.ts` 100%: no meaningful gaps.
+### admin — batch C (agent-plugins + source-control; 84.1%)
+- `*/conformance/*.conformance.ts` (67.5% / 77.8%, 98 survivors): these are shared *test-support* suites run against adapters; their own `check()`/`pass({ok})` expressions have `&&`→`||`, `.some`→`.every` and `true` substitutions that go unnoticed — i.e. the conformance suites would still pass for a buggy adapter in those clauses (a, medium value; fix by running the suites against a deliberately broken adapter).
+- `source-control/adapters/memory.ts` 74.8% (30): (a) default-credential demotion `setDefault` (10: `old.providerId===row.providerId && old.id!==row.id`), `checkLabel` trim/duplicate (8), connection validation arrays (9) — reference adapter semantics weakly pinned; `source-control.module.ts` 66.7% (module literal, as security module).
+- `agent-plugins/controllers/agent-plugins.controller.ts` 87% (25): (a) `pendingStillEnabled` (`pluginId === pendingDisable.pluginId && p.enabled`, 17) — disable-confirm dialog clearing logic; `++generation` stale-response guard; `permissions = []` default (7: default no-grants not asserted); `source-control.controller.ts` 88.8% (17), `agent-plugin-files.controller.ts` 92.6%, `rules.ts` 87.2% (11), `package-file-tree.ts` 94.2% (9) — path/tree helper boundary cases.
+### admin — batch D (core/module; 97.1%)
+- `core/module/create-admin.ts` 97.7% (6 survivors, 2 timeouts), `controller-store.ts` 88.2% (2), `ledger-slice.ts` 96.6% (1): healthy; see `raw/summ-adminD.md`.
 ### desktop-host (88.7%)
 - Thin Electron/Tauri adapters are the weak spots: `electron/electron-protocol.ts` 47% (scheme privileges `standard/secure/corsEnabled/supportFetchAPI` flags and the `registerSchemesAsPrivileged` argument shape unasserted), `electron-window-lifecycle.ts` 64.5% (`show ?? false` default, delegating `show/hide/focus`), `create-electron-desktop-host.ts` 64%, `electron-render-service.ts` 68%, `tauri/*` 75–83%.
 - `render-service.ts` (67.1%, 23): (a) **`allowedOrigins ?? []` default-deny not asserted (92)**, timeout/abort settle-once logic (105–147): `settled` guard, clearTimeout when timer set, abort listener `{once:true}` / removal.
@@ -194,7 +260,7 @@ Report-only run; no source or test edits (Jini clone `cloud/overnight-1024-jini`
 - cli, artifacts, analytics: none.
 
 ## 6. NOT RUN
-- `packages/admin` — only batch A below was attempted (see §9 status); NOT RUN: everything outside batch A: `src/forms/**`, `src/redirects/**`, `src/comments/**`, `src/media/**`, `src/widgets/**`, `src/seo/**`, `src/playground/**`, `src/consent/**`, `src/core/ports/**`, `src/core/entities/**`, `src/core/*.ts`, `src/*.ts` (batch B, ~7.7k mutants) and all `**/react/**` + `src/browser/**` (UI/hooks, by lane rule).
+- `packages/admin` — ran only adminA (`security/**`, `core/{manifest,transport,routing,gated,permissions}`, `contracts/**`; 1862 mutants), adminC (`agent-plugins/**`, `source-control/**`; 1584) and adminD (`core/module/**`, `core/ledger-slice.ts`; 346) = 3,792 of 10,748 (35%). **NOT RUN (≈7k mutants): `src/forms/**`, `src/redirects/**`, `src/comments/**`, `src/media/**`, `src/widgets/**`, `src/seo/**`, `src/playground/**`, `src/consent/**`, `src/core/ports/**`, `src/core/entities/**`**, plus all `**/react/**` and `src/browser/**` (UI/hooks, by lane rule). Dropped for the clock at 19:30 (no new run after 19:30 in the final queue).
 - diagnostics `web-evidence/page-performance-script.ts` and `page-structure-script.ts` (functions stringified into the browser; Stryker instrumentation breaks them — `stryMutAct is not defined`).
 - Tests excluded from every run because they fail in the Stryker sandbox: admin `react/entities/__tests__/draft-rules.test.ts` (asserts a forced non-UTC TZ), vibecoding `session/__tests__/session-exports.test.ts` (packs `dist` to /tmp; `@jini-ai/core` not resolvable — fails standalone too), diagnostics `web-evidence/__tests__/page-performance.test.ts`. Mutants only those tests would kill appear as survivors.
 
@@ -214,4 +280,4 @@ Type checks are off (`disableTypeChecks`; no checker plugin), so type-invalid mu
 10. diagnostics `lazy-browser.ts` + `public-page.ts`: refcount never negative/idle close only when active==0; wildcard URL matcher with repeated parts; header `Content-Type` any case.
 
 
-L10 INTERIM (admin batch A still running) — see RUN-LOG
+L10 DONE 2026-10-25T19:31Z — wall ~3h30m (16:03–19:35 UTC), ~0.25M tokens (rough)

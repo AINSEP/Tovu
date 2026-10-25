@@ -7,3 +7,6 @@ Runs go sequentially in order admin, cli, desktop-host, vibecoding, diagnostics,
 
 ## 2026-10-25T18:08Z — PROGRESS
 analytics, cli, artifacts, vibecoding, diagnostics, desktop-host complete (see REPORT.md). admin batch A (security/core/agent-plugins/source-control) running; batch B gated out unless clock allows. Full admin (10.7k mutants) projected ~8h -> not feasible.
+
+## 2026-10-25T19:36Z — DONE
+All queued runs finished (admin subsets A/C/D; E gated out by clock). Final REPORT.md pushed. Jini clone untouched except untracked vitest.stryker.config.ts files.

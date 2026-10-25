@@ -54,7 +54,7 @@
 | src/single-instance.ts | 12 | 12 | 0 | 0 | 0 | 100.0% |
 | src/tauri/tauri-single-instance.ts | 6 | 6 | 0 | 0 | 0 | 100.0% |
 
-TOTAL mutants 3040 killed 2304 survived 287 nocov 5 score 88.75%
+TOTAL mutants 3040 killed 2304 survived 287 nocov 5 ignored 410 score 88.75%
 
 ### src/electron/electron-protocol.ts
 by mutator: {"ObjectLiteral":3,"ArrayDeclaration":1,"BooleanLiteral":5}
@@ -66,6 +66,7 @@ by mutator: {"ObjectLiteral":3,"ArrayDeclaration":1,"BooleanLiteral":5}
 8:43 BooleanLiteral `{ scheme, privileges: { standard: true, secure: true, corsEnabled: true, supportFetchAPI: ` -> false
 8:76 BooleanLiteral `{ scheme, privileges: { standard: true, secure: true, corsEnabled: true, supportFetchAPI: ` -> false
 8:99 BooleanLiteral `{ scheme, privileges: { standard: true, secure: true, corsEnabled: true, supportFetchAPI: ` -> false
+8:113 BooleanLiteral `{ scheme, privileges: { standard: true, secure: true, corsEnabled: true, supportFetchAPI: ` -> false
 
 ### src/electron/create-electron-desktop-host.ts
 by mutator: {"ObjectLiteral":5}
@@ -85,6 +86,8 @@ by mutator: {"BlockStatement":1,"ObjectLiteral":2,"ArrowFunction":3,"BooleanLite
 22:29 BooleanLiteral `show: options.show ?? false,` -> true
 22:13 LogicalOperator `show: options.show ?? false,` -> options.show && false
 27:26 ObjectLiteral `await handle.loadUrl({ url: options.url });` -> {}
+28:9 ConditionalExpression `if (options.show ?? true) handle.show();` -> false
+28:9 LogicalOperator `if (options.show ?? true) handle.show();` -> options.show && true
 
 ### src/render-service.ts
 by mutator: {"ArrayDeclaration":1,"ConditionalExpression":11,"EqualityOperator":4,"BooleanLiteral":5,"OptionalChaining":1,"ObjectLiteral":1}
@@ -96,6 +99,8 @@ by mutator: {"ArrayDeclaration":1,"ConditionalExpression":11,"EqualityOperator":
 119:23 BooleanLiteral `settled = true;` -> false
 129:17 BooleanLiteral `settled = true;` -> false
 130:11 ConditionalExpression `if (timer != null) clearTimeout(timer);` -> true
+130:11 ConditionalExpression `if (timer != null) clearTimeout(timer);` -> false
+130:11 EqualityOperator `if (timer != null) clearTimeout(timer);` -> timer == null
 
 ### src/electron/electron-render-service.ts
 by mutator: {"BooleanLiteral":2,"LogicalOperator":2,"ConditionalExpression":4,"ObjectLiteral":2}
@@ -107,6 +112,8 @@ by mutator: {"BooleanLiteral":2,"LogicalOperator":2,"ConditionalExpression":4,"O
 36:15 ConditionalExpression `...(options.pageWidth != null && options.pageHeight != null` -> true
 36:44 ConditionalExpression `...(options.pageWidth != null && options.pageHeight != null` -> true
 39:15 ConditionalExpression `...(options.margins == null ? {} : { margins: options.margins }),` -> false
+46:128 ObjectLiteral `const image = await withRenderWindow({ createBrowserWindow, html, options, run: (win) => w` -> {}
+51:36 ObjectLiteral `throw new RenderServiceError({ message: `exportArtifact format "${format}" is not implemen` -> {}
 
 ### src/tauri/tauri-protocol.ts
 by mutator: {"ObjectLiteral":1}
@@ -133,6 +140,8 @@ by mutator: {"ConditionalExpression":5,"LogicalOperator":2,"ArithmeticOperator":
 23:45 ConditionalExpression `if (![x, y, width, height].every((n) => typeof n === "number" && Number.isFinite(n))) retu` -> true
 37:20 ArithmeticOperator `const height = Math.min(bounds.y + bounds.height, display.bounds.y + display.bounds.height` -> Math.min(bounds.y + bounds.height, display.bounds.y + displa
 37:20 MethodExpression `const height = Math.min(bounds.y + bounds.height, display.bounds.y + display.bounds.height` -> Math.max(bounds.y + bounds.height, display.bounds.y + displa
+37:99 MethodExpression `const height = Math.min(bounds.y + bounds.height, display.bounds.y + display.bounds.height` -> Math.min(bounds.y, display.bounds.y)
+38:38 ConditionalExpression `return width >= minOnscreenPx && height >= minOnscreenPx;` -> true
 
 ### src/sidecar.ts
 by mutator: {"ConditionalExpression":8,"LogicalOperator":3,"BooleanLiteral":3,"ArrowFunction":2,"ObjectLiteral":2,"ArrayDeclaration":1,"BlockStatement":1}
@@ -144,6 +153,8 @@ by mutator: {"ConditionalExpression":8,"LogicalOperator":3,"BooleanLiteral":3,"A
 73:15 BooleanLiteral `resolve(true);` -> false
 85:26 LogicalOperator `const pollIntervalMs = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;` -> options.pollIntervalMs && DEFAULT_POLL_INTERVAL_MS
 89:7 ConditionalExpression `logPath == null ? '' : `; see ${logPath} for details`` -> false
+87:21 ArrowFunction `const exitError = (code: number | null, signal: NodeJS.Signals | null) => new Error(` -> () => undefined
+92:24 ArrowFunction `const timeoutError = () => new Error(` -> () => undefined
 
 ### src/tauri/tauri-sidecar.ts
 by mutator: {"BooleanLiteral":1,"ConditionalExpression":3,"LogicalOperator":2,"ObjectLiteral":3,"EqualityOperator":1,"ArrayDeclaration":1}
@@ -155,6 +166,8 @@ by mutator: {"BooleanLiteral":1,"ConditionalExpression":3,"LogicalOperator":2,"O
 46:91 LogicalOperator `throw new Error(`sidecar exited before reporting ready (code=${info.code}, signal=${info.s` -> info.signal && 'none'
 60:7 ConditionalExpression `if (options.requestShutdown != null) {` -> true
 68:7 ConditionalExpression `if (await waitForProcessExit(child, gracefulTimeoutMs)) return;` -> false
+77:97 ArrayDeclaration `const child = await api.spawnSidecar({ binaryName: options.command, args: options.args ?? ` -> ["Stryker was here"]
+77:103 ObjectLiteral `const child = await api.spawnSidecar({ binaryName: options.command, args: options.args ?? ` -> {}
 
 ### src/tauri/testing.ts
 by mutator: {"BlockStatement":1,"ConditionalExpression":3,"ObjectLiteral":2,"ArrayDeclaration":2,"LogicalOperator":1,"BooleanLiteral":4}
@@ -166,6 +179,8 @@ by mutator: {"BlockStatement":1,"ConditionalExpression":3,"ObjectLiteral":2,"Arr
 89:25 LogicalOperator `const files = new Set(seed.files ?? []);` -> seed.files && []
 92:14 ConditionalExpression `return directories.has(path) || files.has(path);` -> true
 128:20 BooleanLiteral `let killed = false;` -> true
+135:87 BooleanLiteral `if (script.ignoresGracefulShutdown === true && signal !== 'SIGKILL') return true;` -> false
+136:20 BooleanLiteral `killed = true;` -> false
 nocov lines: 62
 
 ### src/electron/testing.ts
@@ -180,6 +195,8 @@ by mutator: {"OptionalChaining":4,"BooleanLiteral":3,"ArrayDeclaration":1,"Condi
   errorCode: script.failLoad.er
 106:54 ObjectLiteral `if (script.failLoad != null) didFailLoad?.({ event: null, errorCode: script.failLoad.error` -> {}
 124:13 ConditionalExpression `if (event === 'closed') closedListeners.push(listener);` -> true
+127:43 ObjectLiteral `let result: { cancel: boolean } = { cancel: false };` -> {}
+127:53 BooleanLiteral `let result: { cancel: boolean } = { cancel: false };` -> true
 
 ### src/speech/macos/mac-on-device-transcriber.ts
 by mutator: {"ConditionalExpression":13,"LogicalOperator":3,"MethodExpression":2,"EqualityOperator":1,"ObjectLiteral":1}
@@ -191,6 +208,8 @@ by mutator: {"ConditionalExpression":13,"LogicalOperator":3,"MethodExpression":2
 116:40 MethodExpression `const parsed: unknown = JSON.parse(stdout.trim());` -> stdout
 117:9 ConditionalExpression `if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) throw new Type` -> false
 117:9 LogicalOperator `if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) throw new Type` -> parsed === null && typeof parsed !== "object"
+117:9 ConditionalExpression `if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) throw new Type` -> false
+117:28 ConditionalExpression `if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) throw new Type` -> false
 
 ### src/logging.ts
 by mutator: {"ConditionalExpression":10,"EqualityOperator":2,"BooleanLiteral":1,"LogicalOperator":1}
@@ -202,6 +221,8 @@ by mutator: {"ConditionalExpression":10,"EqualityOperator":2,"BooleanLiteral":1,
 72:11 ConditionalExpression `if (echo) out.error(message, error === undefined ? meta ?? '' : { ...meta, error });` -> true
 76:11 ConditionalExpression `if (echo) out.info(message, error === undefined ? meta ?? '' : { ...meta, error });` -> true
 79:30 ConditionalExpression `write('warn', message, error === undefined ? meta : { ...meta, error });` -> false
+80:11 ConditionalExpression `if (echo) out.warn(message, error === undefined ? meta ?? '' : { ...meta, error });` -> true
+93:7 ConditionalExpression `if (!(value instanceof Error)) return false;` -> false
 
 ### src/electron/electron-url-capture.ts
 by mutator: {"ArrayDeclaration":1,"BooleanLiteral":3,"OptionalChaining":1,"ConditionalExpression":3,"UpdateOperator":1,"EqualityOperator":1}
@@ -213,6 +234,7 @@ by mutator: {"ArrayDeclaration":1,"BooleanLiteral":3,"OptionalChaining":1,"Condi
 42:15 ConditionalExpression `if (cancel) blockedRequests++;` -> false
 42:23 UpdateOperator `if (cancel) blockedRequests++;` -> blockedRequests--
 65:11 EqualityOperator `if (png.byteLength > URL_CAPTURE_MAX_BYTES) throw new RenderServiceError({ code: 'load-fai` -> png.byteLength >= URL_CAPTURE_MAX_BYTES
+75:30 ConditionalExpression `return request.fullPage && typeof rawHeight === 'number' && Number.isFinite(rawHeight)` -> true
 nocov lines: 19
 
 ### src/electron/updates/auto-update-controller.ts
@@ -225,6 +247,8 @@ by mutator: {"ConditionalExpression":10,"EqualityOperator":1,"BooleanLiteral":1,
 212:32 BooleanLiteral `catch (error) { checking = false; log({ message: messages.checkFailed({ message: messageOf` -> true
 213:26 OptionalChaining `result.then(value => value?.downloadPromise ?? null)` -> value.downloadPromise
 225:9 ConditionalExpression `if (stopped) return;` -> false
+227:54 ConditionalExpression `const action = decideRestartClick({ updateReady: readyVersion !== null, otherInstances: co` -> true
+259:25 ConditionalExpression `otherInstances: readyVersion !== null && !installStarted ? otherInstances() : 0,` -> true
 
 ### src/electron/usability/spellcheck-menu.ts
 by mutator: {"BlockStatement":1,"OptionalChaining":1,"ObjectLiteral":1}

@@ -13,7 +13,7 @@
 | src/core/history.ts | 103 | 95 | 1 | 0 | 1 | 99.0% |
 | src/core/apply.ts | 35 | 30 | 0 | 0 | 0 | 100.0% |
 
-TOTAL mutants 2260 killed 1487 survived 348 nocov 89 score 77.29%
+TOTAL mutants 2260 killed 1487 survived 348 nocov 89 ignored 336 score 77.29%
 
 ### src/core/project.ts
 by mutator: {"ObjectLiteral":1}
@@ -29,6 +29,8 @@ by mutator: {"BlockStatement":25,"ObjectLiteral":16,"ConditionalExpression":83,"
 15:38 ConditionalExpression `return left.size === right.size && left.mtimeMs === right.mtimeMs && left.ctimeMs === righ` -> true
 15:72 ConditionalExpression `return left.size === right.size && left.mtimeMs === right.mtimeMs && left.ctimeMs === righ` -> true
 19:40 ArrowFunction `const kept = new Set(after.files.map(file => file.path)), folders = new Set<string>();` -> () => undefined
+21:9 ConditionalExpression `if (kept.has(file.path)) continue;` -> false
+48:60 ConditionalExpression `return child === '' || (!child.startsWith(`..${sep}`) && child !== '..' && !isAbsolute(chi` -> true
 nocov lines: 85,184-185,233,245,261,274,307,340,359,388-389,399,409-410
 
 ### src/react/use-vibecoding-session.ts
@@ -50,6 +52,8 @@ by mutator: {"ArrayDeclaration":7,"ObjectLiteral":26,"MethodExpression":5,"Boole
 55:7 ConditionalExpression `if (change.content.length > limits.maxFileBytes) fail('LIMIT', `file exceeds byte limit: $` -> false
 55:7 EqualityOperator `if (change.content.length > limits.maxFileBytes) fail('LIMIT', `file exceeds byte limit: $` -> change.content.length >= limits.maxFileBytes
 57:7 EqualityOperator `if (bytes.byteLength > limits.maxFileBytes) fail('LIMIT', `file exceeds byte limit: ${path` -> bytes.byteLength >= limits.maxFileBytes
+61:7 ConditionalExpression `if (files.size > limits.maxFiles) fail('LIMIT', 'candidate exceeds file count');` -> false
+61:7 EqualityOperator `if (files.size > limits.maxFiles) fail('LIMIT', 'candidate exceeds file count');` -> files.size >= limits.maxFiles
 nocov lines: 77-79,90-91,102,130,144,151-153,185-186,242-243,259,264-265,268-269,272-277,293-300,308-312,321,328
 
 ### src/node/paths.ts
@@ -62,6 +66,8 @@ by mutator: {"MethodExpression":4,"BlockStatement":1,"ConditionalExpression":6,"
 29:9 LogicalOperator `if (!Number.isSafeInteger(value) || value <= 0) throw new TypeError('project limits must b` -> !Number.isSafeInteger(value) && value <= 0
 29:41 ConditionalExpression `if (!Number.isSafeInteger(value) || value <= 0) throw new TypeError('project limits must b` -> false
 29:41 EqualityOperator `if (!Number.isSafeInteger(value) || value <= 0) throw new TypeError('project limits must b` -> value < 0
+42:7 EqualityOperator `if (segments.length > maxDepth) throw new ProjectError({ code: 'LIMIT', message: 'path exc` -> segments.length >= maxDepth
+48:19 ConditionalExpression `if (!segment || segment === '.' || segment === '..' || /[<>:"|?*\x00-\x1f\x7f]/.test(segme` -> false
 
 ### src/session.ts
 by mutator: {"ObjectLiteral":1,"ConditionalExpression":11,"ArrowFunction":1,"LogicalOperator":1}
@@ -73,6 +79,8 @@ by mutator: {"ObjectLiteral":1,"ConditionalExpression":11,"ArrowFunction":1,"Log
 192:13 ConditionalExpression `if (applyTurn) partContent.clear();` -> false
 196:50 ConditionalExpression `for (const id of partContent.keys()) if (!known.has(id)) partContent.delete(id);` -> true
 193:41 ArrowFunction `const known = new Set(parts.map((p) => p.id));` -> () => undefined
+207:13 ConditionalExpression `if (applyTurn) partContent.clear();` -> true
+207:13 ConditionalExpression `if (applyTurn) partContent.clear();` -> false
 
 ### src/html/node/parse5-region-parser.ts
 by mutator: {"ArrayDeclaration":2,"LogicalOperator":4,"ConditionalExpression":9,"ObjectLiteral":1,"UnaryOperator":4,"EqualityOperator":1,"BooleanLiteral":1}
@@ -84,4 +92,6 @@ by mutator: {"ArrayDeclaration":2,"LogicalOperator":4,"ConditionalExpression":9,
 139:10 LogicalOperator `return parent !== null && "tagName" in parent && TEXT_BODY_ELEMENTS.has(parent.tagName);` -> parent !== null || "tagName" in parent
 139:10 ConditionalExpression `return parent !== null && "tagName" in parent && TEXT_BODY_ELEMENTS.has(parent.tagName);` -> true
 169:35 ObjectLiteral `if (!location?.startTag) return { start: -1, end: -1, innerStart: -1, innerEnd: -1 };` -> {}
+169:44 UnaryOperator `if (!location?.startTag) return { start: -1, end: -1, innerStart: -1, innerEnd: -1 };` -> +1
+169:53 UnaryOperator `if (!location?.startTag) return { start: -1, end: -1, innerStart: -1, innerEnd: -1 };` -> +1
 nocov lines: 312

@@ -27,7 +27,7 @@
 | src/observability/node.ts | 4 | 4 | 0 | 0 | 0 | 100.0% |
 | src/observability/noop.ts | 10 | 10 | 0 | 0 | 0 | 100.0% |
 
-TOTAL mutants 3179 killed 2425 survived 282 nocov 2 score 89.52%
+TOTAL mutants 3179 killed 2425 survived 282 nocov 2 ignored 470 score 89.52%
 
 ### src/web-evidence/lazy-browser.ts
 by mutator: {"ConditionalExpression":8,"ArithmeticOperator":1,"MethodExpression":1,"BooleanLiteral":3,"BlockStatement":2,"ObjectLiteral":1,"OptionalChaining":1}
@@ -39,6 +39,8 @@ by mutator: {"ConditionalExpression":8,"ArithmeticOperator":1,"MethodExpression"
 77:11 ConditionalExpression `if (idleCloseMs === undefined || browser === null) return;` -> false
 108:22 BooleanLiteral `let acquired = false;` -> true
 109:82 ConditionalExpression `const release = () => { if (!released) { released = true; active -= 1; if (acquired) lazy.` -> true
+113:35 BlockStatement `void acquisition.then(() => { acquired = true; if (released) lazy.release(); }, () => {});` -> {}
+113:48 BooleanLiteral `void acquisition.then(() => { acquired = true; if (released) lazy.release(); }, () => {});` -> false
 
 ### src/web-evidence/public-page.ts
 by mutator: {"ObjectLiteral":7,"MethodExpression":3,"ConditionalExpression":15,"ArithmeticOperator":5,"OptionalChaining":3,"Regex":2,"EqualityOperator":10,"AssignmentOperator":2,"LogicalOperator":4,"BooleanLiteral":1,"ArrayDeclaration":1}
@@ -50,6 +52,8 @@ by mutator: {"ObjectLiteral":7,"MethodExpression":3,"ConditionalExpression":15,"
 52:23 OptionalChaining `const contentType = Object.entries(headers).find(([key]) => key.toLowerCase() === "content` -> Object.entries(headers).find(([key]) => key.toLowerCase() ==
 52:23 OptionalChaining `const contentType = Object.entries(headers).find(([key]) => key.toLowerCase() === "content` -> Object.entries(headers).find(([key]) => key.toLowerCase() ==
 52:63 ConditionalExpression `const contentType = Object.entries(headers).find(([key]) => key.toLowerCase() === "content` -> true
+53:10 Regex `return /^(?:application|text)\/(?:json|[\w.+-]+\+json)$/i.test(contentType);` -> /(?:application|text)\/(?:json|[\w.+-]+\+json)$/i
+53:10 Regex `return /^(?:application|text)\/(?:json|[\w.+-]+\+json)$/i.test(contentType);` -> /^(?:application|text)\/(?:json|[\w.+-]+\+json)/i
 nocov lines: 178
 
 ### src/redaction.ts
@@ -62,6 +66,8 @@ by mutator: {"Regex":11}
 11:24 Regex `const BARE_SECRET_RE = /(^|[\s,;])(access_token|refresh_token|id_token|api[_-]?key|passwor` -> /(^|[\s,;])(access_token|refresh_token|id_token|api[_-]key|p
 11:24 Regex `const BARE_SECRET_RE = /(^|[\s,;])(access_token|refresh_token|id_token|api[_-]?key|passwor` -> /(^|[\s,;])(access_token|refresh_token|id_token|api[^_-]?key
 11:24 Regex `const BARE_SECRET_RE = /(^|[\s,;])(access_token|refresh_token|id_token|api[_-]?key|passwor` -> /(^|[\s,;])(access_token|refresh_token|id_token|api[_-]?key|
+11:24 Regex `const BARE_SECRET_RE = /(^|[\s,;])(access_token|refresh_token|id_token|api[_-]?key|passwor` -> /(^|[\s,;])(access_token|refresh_token|id_token|api[_-]?key|
+11:24 Regex `const BARE_SECRET_RE = /(^|[\s,;])(access_token|refresh_token|id_token|api[_-]?key|passwor` -> /(^|[\s,;])(access_token|refresh_token|id_token|api[_-]?key|
 
 ### src/core/secrets-only.ts
 by mutator: {"ConditionalExpression":12,"LogicalOperator":4,"Regex":43,"OptionalChaining":1,"BooleanLiteral":3,"EqualityOperator":1,"ObjectLiteral":1,"ArrayDeclaration":1,"MethodExpression":1,"ArrowFunction":1}
@@ -73,6 +79,8 @@ by mutator: {"ConditionalExpression":12,"LogicalOperator":4,"Regex":43,"Optional
 221:53 Regex `if (content.length < 20 || /\s/.test(content) || !/[a-z]/i.test(content) || !/\d/.test(con` -> /[^a-z]/i
 224:8 Regex `if (!/^[A-Za-z0-9_\-+/=.]{20,}$/.test(content)) return false;` -> /^[A-Za-z0-9_\-+/=.]{20,}/
 224:8 Regex `if (!/^[A-Za-z0-9_\-+/=.]{20,}$/.test(content)) return false;` -> /[A-Za-z0-9_\-+/=.]{20,}$/
+229:32 Regex `if (content.includes("/") || /^[\w$-]+(?:\.[\w$-]+)+$/.test(content)) return false;` -> /[\w$-]+(?:\.[\w$-]+)+$/
+229:32 Regex `if (content.includes("/") || /^[\w$-]+(?:\.[\w$-]+)+$/.test(content)) return false;` -> /^[\w$-]+(?:\.[\w$-]+)+/
 
 ### src/web-evidence/render-page.ts
 by mutator: {"ObjectLiteral":6,"BooleanLiteral":3,"ConditionalExpression":8,"MethodExpression":2,"LogicalOperator":3,"EqualityOperator":2,"Regex":1,"ArrowFunction":1,"BlockStatement":3,"OptionalChaining":1}
@@ -84,6 +92,8 @@ by mutator: {"ObjectLiteral":6,"BooleanLiteral":3,"ConditionalExpression":8,"Met
 139:40 MethodExpression `const allowed = Object.fromEntries(CONTEXT_OPTION_KEYS.filter(key => contextOptions[key] !` -> CONTEXT_OPTION_KEYS
 139:74 ConditionalExpression `const allowed = Object.fromEntries(CONTEXT_OPTION_KEYS.filter(key => contextOptions[key] !` -> true
 143:9 LogicalOperator `if (budget.remainingMs() <= 0 || signal.aborted) {` -> budget.remainingMs() <= 0 && signal.aborted
+143:9 ConditionalExpression `if (budget.remainingMs() <= 0 || signal.aborted) {` -> false
+143:9 EqualityOperator `if (budget.remainingMs() <= 0 || signal.aborted) {` -> budget.remainingMs() < 0
 nocov lines: 146
 
 ### src/observability/otel.ts
@@ -98,6 +108,8 @@ by mutator: {"OptionalChaining":1,"LogicalOperator":1,"ConditionalExpression":3,
 22:49 Regex `return redactSecretShapes({ text: path.replace(/[?#][\s\S]*$/, ''), policy: {} }).text;` -> /[?#][\s\S]*/
 22:49 Regex `return redactSecretShapes({ text: path.replace(/[?#][\s\S]*$/, ''), policy: {} }).text;` -> /[?#][\S\S]*$/
 30:41 Regex `'url.scheme': parsed.protocol.replace(/:$/, ''), 'server.address': parsed.hostname,` -> /:/
+50:7 ConditionalExpression `if (error !== undefined) span.addEvent({ name: 'exception', attributes: { 'exception.type'` -> true
+62:42 ObjectLiteral `const exporter = exporterFactory.create({ endpoint: config.endpoint });` -> {}
 
 ### src/web-evidence/collect-page-evidence.ts
 by mutator: {"ObjectLiteral":3,"MethodExpression":1,"ArithmeticOperator":1,"ConditionalExpression":3,"EqualityOperator":2,"BlockStatement":1,"LogicalOperator":1,"BooleanLiteral":1}
@@ -109,6 +121,8 @@ by mutator: {"ObjectLiteral":3,"MethodExpression":1,"ArithmeticOperator":1,"Cond
 240:7 ConditionalExpression `if (remainingMs <= 0) {` -> false
 240:7 EqualityOperator `if (remainingMs <= 0) {` -> remainingMs < 0
 240:25 BlockStatement `if (remainingMs <= 0) {` -> {}
+258:56 EqualityOperator `const reason = error instanceof PageWorkTimeout && remainingMs <= SITE_EVIDENCE_LIMITS.max` -> remainingMs < SITE_EVIDENCE_LIMITS.maxPageLoadMs
+286:27 LogicalOperator `collectAccessibility: input.collectAccessibility ?? true,` -> input.collectAccessibility && true
 
 ### src/web-evidence/playwright-browser.ts
 by mutator: {"ObjectLiteral":2,"ConditionalExpression":5,"BlockStatement":2,"EqualityOperator":2}
@@ -120,6 +134,8 @@ by mutator: {"ObjectLiteral":2,"ConditionalExpression":5,"BlockStatement":2,"Equ
 148:11 ConditionalExpression `if (error instanceof PageWorkTimeout) throw error;` -> false
 170:11 ConditionalExpression `if (error instanceof PageWorkTimeout) throw error;` -> false
 256:9 ConditionalExpression `...(input.blockedReason !== undefined ? { blockedReason: input.blockedReason } : {}),` -> true
+291:40 ObjectLiteral `...(request.collectAccessibility ? { accessibility: structure.accessibility } : {}),` -> {}
+294:11 EqualityOperator `...(input.cookies.length > request.maxCookies` -> input.cookies.length >= request.maxCookies
 
 ### src/domain-dns/index.ts
 by mutator: {"Regex":1,"ConditionalExpression":5,"MethodExpression":5,"EqualityOperator":1,"ArithmeticOperator":1,"ObjectLiteral":2}
@@ -133,6 +149,8 @@ by mutator: {"Regex":1,"ConditionalExpression":5,"MethodExpression":5,"EqualityO
 89:10 MethodExpression `return [...new Set(records.map(({ value }) => type === "AAAA" ? new URL(`https://[${value}` -> [...new Set(records.map(({
   value
 }) => type === "AAAA" ? n
+89:122 MethodExpression `return [...new Set(records.map(({ value }) => type === "AAAA" ? new URL(`https://[${value}` -> value.toUpperCase()
+99:17 MethodExpression `const hosts = [...new Set(await deps.listExpectedHosts({}))].filter(host => host !== domai` -> [...new Set(await deps.listExpectedHosts({}))].filter(host =
 
 ### src/web-evidence/request-guard.ts
 by mutator: {"BooleanLiteral":2,"BlockStatement":2,"ConditionalExpression":5,"ArithmeticOperator":4,"ObjectLiteral":1,"EqualityOperator":2}
@@ -144,3 +162,5 @@ by mutator: {"BooleanLiteral":2,"BlockStatement":2,"ConditionalExpression":5,"Ar
 217:40 ArithmeticOperator `{ maxRequests = 300, maxTotalBytes = 60 * 1024 * 1024, maxResourceBytes = 15 * 1024 * 1024` -> 60 / 1024
 217:77 ArithmeticOperator `{ maxRequests = 300, maxTotalBytes = 60 * 1024 * 1024, maxResourceBytes = 15 * 1024 * 1024` -> 15 * 1024 / 1024
 217:77 ArithmeticOperator `{ maxRequests = 300, maxTotalBytes = 60 * 1024 * 1024, maxResourceBytes = 15 * 1024 * 1024` -> 15 / 1024
+224:88 ObjectLiteral `return ownSiteFetch({ url, method: decision.method as "GET" | "HEAD", headers }, { signal,` -> {}
+233:35 EqualityOperator `if (started >= maxRequests || report.bytes >= maxTotalBytes || signal.aborted) return "bud` -> report.bytes > maxTotalBytes

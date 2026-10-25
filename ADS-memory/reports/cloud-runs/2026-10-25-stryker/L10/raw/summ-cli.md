@@ -16,7 +16,7 @@
 | src/tokens.ts | 2 | 1 | 0 | 0 | 0 | 100.0% |
 | src/usage.ts | 31 | 24 | 0 | 0 | 0 | 100.0% |
 
-TOTAL mutants 1635 killed 1175 survived 181 nocov 0 score 86.65%
+TOTAL mutants 1635 killed 1175 survived 181 nocov 0 ignored 279 score 86.65%
 
 ### src/version-command.ts
 by mutator: {"LogicalOperator":2,"ConditionalExpression":10,"EqualityOperator":2,"ObjectLiteral":5,"ArrayDeclaration":1}
@@ -28,6 +28,8 @@ by mutator: {"LogicalOperator":2,"ConditionalExpression":10,"EqualityOperator":2
 66:9 EqualityOperator `...(deps.writeErr !== undefined ? { write: deps.writeErr } : {}),` -> deps.writeErr === undefined
 66:39 ObjectLiteral `...(deps.writeErr !== undefined ? { write: deps.writeErr } : {}),` -> {}
 67:9 ConditionalExpression `...(deps.exit !== undefined ? { exit: deps.exit } : {}),` -> true
+68:9 ConditionalExpression `...(deps.exitCodes !== undefined ? { exitCodes: deps.exitCodes } : {}),` -> true
+68:40 ObjectLiteral `...(deps.exitCodes !== undefined ? { exitCodes: deps.exitCodes } : {}),` -> {}
 
 ### src/daemon-command.ts
 by mutator: {"LogicalOperator":1,"ConditionalExpression":7,"EqualityOperator":2,"ObjectLiteral":9,"ArrayDeclaration":3}
@@ -39,6 +41,8 @@ by mutator: {"LogicalOperator":1,"ConditionalExpression":7,"EqualityOperator":2,
 72:9 EqualityOperator `...(deps.writeErr !== undefined ? { write: deps.writeErr } : {}),` -> deps.writeErr === undefined
 72:39 ObjectLiteral `...(deps.writeErr !== undefined ? { write: deps.writeErr } : {}),` -> {}
 73:9 ConditionalExpression `...(deps.exit !== undefined ? { exit: deps.exit } : {}),` -> true
+74:9 ConditionalExpression `...(deps.exitCodes !== undefined ? { exitCodes: deps.exitCodes } : {}),` -> true
+74:9 ConditionalExpression `...(deps.exitCodes !== undefined ? { exitCodes: deps.exitCodes } : {}),` -> false
 
 ### src/run-command.ts
 by mutator: {"ConditionalExpression":17,"EqualityOperator":5,"ObjectLiteral":27,"ArrayDeclaration":8,"BlockStatement":1}
@@ -50,6 +54,8 @@ by mutator: {"ConditionalExpression":17,"EqualityOperator":5,"ObjectLiteral":27,
 87:39 ObjectLiteral `...(deps.writeErr !== undefined ? { write: deps.writeErr } : {}),` -> {}
 88:9 ConditionalExpression `...(deps.exit !== undefined ? { exit: deps.exit } : {}),` -> true
 89:9 ConditionalExpression `...(deps.exitCodes !== undefined ? { exitCodes: deps.exitCodes } : {}),` -> true
+89:9 ConditionalExpression `...(deps.exitCodes !== undefined ? { exitCodes: deps.exitCodes } : {}),` -> false
+89:40 ObjectLiteral `...(deps.exitCodes !== undefined ? { exitCodes: deps.exitCodes } : {}),` -> {}
 
 ### src/prompt.ts
 by mutator: {"ConditionalExpression":5,"BooleanLiteral":3,"BlockStatement":3,"OptionalChaining":4,"EqualityOperator":3,"ObjectLiteral":4,"LogicalOperator":1}
@@ -63,6 +69,8 @@ by mutator: {"ConditionalExpression":5,"BooleanLiteral":3,"BlockStatement":3,"Op
   pause?: () => void;
 }).paus
 173:11 EqualityOperator `if (total > limits.maxBytes) {` -> total >= limits.maxBytes
+176:41 ObjectLiteral `reject(new PayloadTooLargeError({ message: `stdin exceeded the ${limits.maxBytes}-byte lim` -> {}
+186:14 LogicalOperator `reject(limits.signal?.reason ?? new Error('stdin read aborted'));` -> limits.signal?.reason && new Error('stdin read aborted')
 
 ### src/main.ts
 by mutator: {"ConditionalExpression":5,"EqualityOperator":2,"MethodExpression":1,"ObjectLiteral":7,"ArrayDeclaration":1}
@@ -74,6 +82,8 @@ by mutator: {"ConditionalExpression":5,"EqualityOperator":2,"MethodExpression":1
 214:71 MethodExpression `return argv[0] === '--version' || argv[0] === '-v' ? ['version', ...argv.slice(1)] : argv;` -> argv
 225:39 ConditionalExpression `const commandDeps = { ...ports, ...(fetchImpl === undefined ? {} : { fetchImpl }) };` -> false
 115:32 ObjectLiteral `const ROOT_USAGE = renderUsage({ usage: ['jini <command> [...args]'] }, { description: 'CL` -> {}
+115:73 ObjectLiteral `const ROOT_USAGE = renderUsage({ usage: ['jini <command> [...args]'] }, { description: 'CL` -> {}
+115:175 ArrayDeclaration `const ROOT_USAGE = renderUsage({ usage: ['jini <command> [...args]'] }, { description: 'CL` -> []
 
 ### src/http.ts
 by mutator: {"ConditionalExpression":10,"OptionalChaining":3,"LogicalOperator":1,"BlockStatement":1}
@@ -85,3 +95,5 @@ by mutator: {"ConditionalExpression":10,"OptionalChaining":3,"LogicalOperator":1
 98:7 ConditionalExpression `if (contentLength === null || contentLength === undefined) return;` -> false
 98:33 ConditionalExpression `if (contentLength === null || contentLength === undefined) return;` -> false
 119:13 BlockStatement `} finally {` -> {}
+133:7 ConditionalExpression `if (text.length === 0) return {};` -> false
+152:23 ConditionalExpression `if (body != null && typeof body.getReader === 'function') return parseJsonOrEmpty(await re` -> true
