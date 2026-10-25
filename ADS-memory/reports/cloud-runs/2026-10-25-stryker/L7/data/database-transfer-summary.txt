@@ -1,0 +1,104 @@
+file|mutants|killed|surv|nocov|timeout|score
+database-transfer/pg-store-copy.ts|14|0|9|5|0|0.0
+database-transfer/plan-store.ts|0|0|0|0|0|0.0
+database-transfer/copy-engine.ts|22|3|6|13|0|13.6
+database-transfer/postgres-target.ts|6|1|2|3|0|16.7
+database-transfer/exclusions.ts|7|2|5|0|0|28.6
+database-transfer/tool-registrations.ts|93|67|26|0|0|72.0
+database-transfer/destination-ui.ts|19|15|4|0|0|78.9
+database-transfer/sqlite-source.ts|7|6|1|0|0|85.7
+database-transfer/destination-store.ts|101|87|13|1|0|86.1
+database-transfer/table-catalog.ts|143|129|14|0|0|90.2
+database-transfer/confirmation-ui.ts|25|24|1|0|0|96.0
+database-transfer/destination-exchange.ts|53|51|1|1|0|96.2
+database-transfer/postgres-ddl.ts|18|18|0|0|0|100.0
+database-transfer/transfer-messages.ts|5|5|0|0|0|100.0
+database-transfer/destination-repo.ts|2|2|0|0|0|100.0
+
+### database-transfer/copy-engine.ts (19 survivors/no-cov)
+by mutator: {"BlockStatement":4,"ObjectLiteral":8,"ArrayDeclaration":3,"ConditionalExpression":2,"EqualityOperator":1,"ArithmeticOperator":1}
+N 14:54 BlockStatement: export function siteSchemaName(site: string): string { return engine.siteSchemaName({ site => {}
+N 14:85 ObjectLiteral: export function siteSchemaName(site: string): string { return engine.siteSchemaName({ site => {}
+N 15:105 BlockStatement: export function countSourceRows(source: TransferSource, tables: readonly TransferTable[]): => {}
+N 15:137 ObjectLiteral: export function countSourceRows(source: TransferSource, tables: readonly TransferTable[]): => {}
+N 15:157 ObjectLiteral: export function countSourceRows(source: TransferSource, tables: readonly TransferTable[]): => {}
+N 23:48 ArrayDeclaration: if (source.columns(table) === null) return []; => ["Stryker was here"]
+N 29:73 BlockStatement: export function inspectTarget(target: PostgresTargetPort, site: string) { return engine.in => {}
+N 29:103 ObjectLiteral: export function inspectTarget(target: PostgresTargetPort, site: string) { return engine.in => {}
+N 30:215 BlockStatement: export function runCopy(input: { source: TransferSource; target: PostgresTargetPort; table => {}
+N 33:25 ObjectLiteral: return engine.runCopy({ sources: [{ name: "content.db", source: input.source, tables: inpu => {}
+
+### database-transfer/destination-store.ts (14 survivors/no-cov)
+by mutator: {"ObjectLiteral":2,"BlockStatement":1,"ConditionalExpression":5,"LogicalOperator":2,"OptionalChaining":1,"BooleanLiteral":2,"EqualityOperator":1}
+N 67:137 ObjectLiteral: if (context.kind !== destinationScope.kind || context.ownerKey !== "tovu" || context.princ => {}
+S 66:41 BlockStatement: authorize: async ({ context }) => { => {}
+S 67:13 ConditionalExpression: if (context.kind !== destinationScope.kind || context.ownerKey !== "tovu" || context.princ => false
+S 67:13 LogicalOperator: if (context.kind !== destinationScope.kind || context.ownerKey !== "tovu" || context.princ => (context.kind !== destinationScope.kind || context
+S 67:13 ConditionalExpression: if (context.kind !== destinationScope.kind || context.ownerKey !== "tovu" || context.princ => false
+S 67:13 LogicalOperator: if (context.kind !== destinationScope.kind || context.ownerKey !== "tovu" || context.princ => context.kind !== destinationScope.kind && context.
+S 67:13 ConditionalExpression: if (context.kind !== destinationScope.kind || context.ownerKey !== "tovu" || context.princ => false
+S 67:55 ConditionalExpression: if (context.kind !== destinationScope.kind || context.ownerKey !== "tovu" || context.princ => false
+S 67:86 ConditionalExpression: if (context.kind !== destinationScope.kind || context.ownerKey !== "tovu" || context.princ => false
+S 76:86 ObjectLiteral: if (typeof opened.payload?.connectionString !== "string") throw new VaultError({ code: "in => {}
+
+### database-transfer/pg-store-copy.ts (14 survivors/no-cov)
+by mutator: {"ObjectLiteral":8,"ArrayDeclaration":1,"ArrowFunction":5}
+N 13:69 ObjectLiteral: excludeTable: ({ name }, _options = {}) => isVaultRestoreArtifact({ table: name }), => {}
+N 15:81 ObjectLiteral: export const readCatalog = (kernel: StorageKernel<unknown>) => copy.readCatalog({ kernel,  => {}
+N 16:87 ObjectLiteral: export const nonEmptyTables = (kernel: StorageKernel<unknown>) => copy.nonEmptyTables({ ke => {}
+N 17:127 ObjectLiteral: export const assertLedgersAgree = (source: StorageKernel<unknown>, target: StorageKernel<u => {}
+N 18:164 ObjectLiteral: export const copyPgStore = (source: StorageKernel<unknown>, target: StorageKernel<unknown> => {}
+S 9:24 ArrayDeclaration: export const LEDGERS = [{ schema: "public", name: "tovu_migrations" }, { schema: "ai_chat" => []
+S 9:25 ObjectLiteral: export const LEDGERS = [{ schema: "public", name: "tovu_migrations" }, { schema: "ai_chat" => {}
+S 9:72 ObjectLiteral: export const LEDGERS = [{ schema: "public", name: "tovu_migrations" }, { schema: "ai_chat" => {}
+S 10:36 ObjectLiteral: const scope: copy.StoreCopyScope = { => {}
+S 13:17 ArrowFunction: excludeTable: ({ name }, _options = {}) => isVaultRestoreArtifact({ table: name }), => () => undefined
+
+### database-transfer/postgres-target.ts (5 survivors/no-cov)
+by mutator: {"BlockStatement":1,"ObjectLiteral":4}
+N 5:52 BlockStatement: export function parseConnectionString(raw: string) { return parse({ raw }, { applicationNa => {}
+N 5:67 ObjectLiteral: export function parseConnectionString(raw: string) { return parse({ raw }, { applicationNa => {}
+N 5:76 ObjectLiteral: export function parseConnectionString(raw: string) { return parse({ raw }, { applicationNa => {}
+S 7:23 ObjectLiteral: return createTarget({ connectionString }, { parentEnv, applicationName: "tovu-database-tra => {}
+S 7:45 ObjectLiteral: return createTarget({ connectionString }, { parentEnv, applicationName: "tovu-database-tra => {}
+
+### database-transfer/destination-ui.ts (4 survivors/no-cov)
+by mutator: {"ObjectLiteral":2,"ArrayDeclaration":2}
+S 43:10 ObjectLiteral: app: { appName: "tovu-database-transfer-destination", appVersion: "1" }, => {}
+S 44:25 ArrayDeclaration: preferredFrameSize: ["100%", "340px"], => []
+S 55:10 ObjectLiteral: app: { appName: "tovu-database-transfer-destination-outcome", appVersion: "1" }, => {}
+S 56:25 ArrayDeclaration: preferredFrameSize: ["100%", "200px"], => []
+
+### database-transfer/exclusions.ts (5 survivors/no-cov)
+by mutator: {"ObjectLiteral":2,"Regex":2,"ArrayDeclaration":1}
+S 23:88 ObjectLiteral: export const EXCLUDED_CORE_TABLES: Readonly<Record<string, TransferExclusionReason>> = { => {}
+S 64:38 Regex: export const SECRET_COLUMN_PATTERN = /(^|_)(sealed|password|token_hash|key_hash)(_|$)/; => /(_)(sealed|password|token_hash|key_hash)(_|$)/
+S 64:38 Regex: export const SECRET_COLUMN_PATTERN = /(^|_)(sealed|password|token_hash|key_hash)(_|$)/; => /(^|_)(sealed|password|token_hash|key_hash)(_)/
+S 73:3 ArrayDeclaration: ["setting_values_global", "setting_values_workspace", "setting_values_user", "setting_revi => []
+S 75:5 ObjectLiteral: { keep: "setting_id NOT IN (SELECT setting_id FROM setting_definitions WHERE secret <> 0)" => {}
+
+### database-transfer/table-catalog.ts (14 survivors/no-cov)
+by mutator: {"MethodExpression":1,"LogicalOperator":3,"ConditionalExpression":6,"ObjectLiteral":1,"ArrowFunction":1,"ArrayDeclaration":2}
+S 57:14 MethodExpression: columns: index.config.columns.filter(column => !is(column, SQL)).map(column => (column as  => index.config.columns
+S 66:98 LogicalOperator: const uniqueColumns = cfg.columns.filter((column) => column.isUnique).map((column) => ({ n => column.uniqueName && `${cfg.name}_${column.name}_u
+S 80:9 ConditionalExpression: ...(keep === undefined ? {} : { keep }), => true
+S 80:35 ObjectLiteral: ...(keep === undefined ? {} : { keep }), => {}
+S 112:9 ConditionalExpression: if (getTableConfig(table).name in EXCLUDED_CORE_TABLES) return []; => false
+S 136:9 ConditionalExpression: if (value !== null && typeof value === "object" && Symbol.for("drizzle:IsDrizzleTable") in => true
+S 136:9 LogicalOperator: if (value !== null && typeof value === "object" && Symbol.for("drizzle:IsDrizzleTable") in => value !== null && typeof value === "object" || Sym
+S 136:9 ConditionalExpression: if (value !== null && typeof value === "object" && Symbol.for("drizzle:IsDrizzleTable") in => true
+S 136:9 LogicalOperator: if (value !== null && typeof value === "object" && Symbol.for("drizzle:IsDrizzleTable") in => value !== null || typeof value === "object"
+S 136:9 ConditionalExpression: if (value !== null && typeof value === "object" && Symbol.for("drizzle:IsDrizzleTable") in => true
+
+### database-transfer/tool-registrations.ts (26 survivors/no-cov)
+by mutator: {"ObjectLiteral":9,"BlockStatement":4,"OptionalChaining":1,"BooleanLiteral":1,"LogicalOperator":1,"ConditionalExpression":6,"EqualityOperator":2,"ArrayDeclaration":1,"ArrowFunction":1}
+S 39:89 ObjectLiteral: export const databaseTransferAgentToolCatalog = getDatabaseTransferAgentToolCatalog({}, {  => {}
+S 76:3 ObjectLiteral: { error: DestinationUnreadableError, code: "DATABASE_TRANSFER_DESTINATION_UNREADABLE" }, => {}
+S 93:13 BlockStatement: } finally { => {}
+S 94:9 BlockStatement: try { await source?.close(); } => {}
+S 94:17 OptionalChaining: try { await source?.close(); } => source.close
+S 95:13 BlockStatement: finally { await rm(dir, { recursive: true, force: true }); } => {}
+S 95:55 BooleanLiteral: finally { await rm(dir, { recursive: true, force: true }); } => false
+S 103:50 BlockStatement: localeForExchange: async ({ exchangeId }) => { => {}
+S 102:63 ObjectLiteral: const reportDestination = createDestinationExchangeReporter({ store: destinations, workspa => {}
+S 104:29 LogicalOperator: const locale = await (localeByExchange.get(exchangeId) ?? Promise.resolve('en')); => localeByExchange.get(exchangeId) && Promise.resolv
