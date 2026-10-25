@@ -5,20 +5,4 @@
  * `server/runtime/boot/resolve-mailer.ts`; declared here so features need no boot import.
  */
 
-/** What the provider says about the sender domain, when it can say anything. */
-export type ProviderDomainState = "verified" | "pending" | "failed" | "not_found";
-
-export type SenderDomainVerification =
-  /** The provider answered. */
-  | { state: ProviderDomainState; domain: string; providerId: string }
-  /** No sender address is configured, so there is no domain to verify. */
-  | { state: "no_sender"; providerId: string | null }
-  /** No transactional provider is selected (or the selected one is not installed). */
-  | { state: "no_provider"; domain: string; providerId: string | null }
-  /** The provider has no domain-verification API: "DNS verification unavailable for this provider". */
-  | { state: "unsupported"; domain: string; providerId: string }
-  /** The provider could not be asked (missing key) or its answer failed; never read as a failure. */
-  | { state: "unknown"; domain?: string; providerId: string | null; reason: string };
-
-/** Fresh read of the provider-side sender-domain state; never throws. */
-export type SenderDomainVerificationPort = () => Promise<SenderDomainVerification>;
+export type { ProviderDomainState, SenderDomainVerification, SenderDomainVerificationPort } from "@jini-ai/platform/mail";

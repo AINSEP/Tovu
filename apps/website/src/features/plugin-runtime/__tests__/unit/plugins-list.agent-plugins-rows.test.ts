@@ -10,7 +10,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
 /**
- * @file S14 review: `plugins_list`'s `agentPlugins` rows carry exactly the four promised fields —
+ * @file S14 review: `plugins_list`'s `agentPlugins` rows carry only the promised public fields and export contracts —
  * never `packageRoot`, `files` or a skill's `skillPath` (absolute host paths) — and a failing Agent
  * Plugin read degrades to `agentPlugins: []` instead of failing the whole call. The sibling
  * `plugins-list.agent-plugins.test.ts` only covers an empty directory, which neither guard touches.
@@ -78,7 +78,7 @@ function runtimeDeps(): Deps {
   });
 }
 
-test("an installed Agent Plugin's row is exactly pluginId/version/archiveDigest/skill names — no absolute paths", async () => {
+test("an installed Agent Plugin's row carries identity/skill names/exports — no absolute paths", async () => {
   const directories: string[] = [];
   listBehavior = async (dir) => {
     directories.push(dir);
@@ -99,7 +99,7 @@ test("an installed Agent Plugin's row is exactly pluginId/version/archiveDigest/
   assert.equal(directories[0], path.join(resolveAgentPluginLayout().root, "ws", "ws-tools"));
   assert.deepEqual(result.plugins, [RUNTIME_ROW]);
   assert.deepEqual(result.agentPlugins, [
-    { pluginId: "ui-ux-design", version: null, archiveDigest: "a".repeat(64), skills: ["web-compliance"] },
+    { pluginId: "ui-ux-design", version: null, archiveDigest: "a".repeat(64), skills: ["web-compliance"], exports: [] },
   ]);
   assert.equal(JSON.stringify(result).includes("/abs/host/path"), false);
 });
@@ -111,4 +111,16 @@ test("a failing Agent Plugin read degrades to agentPlugins: [] and still reports
   const result = await callPluginsList(runtimeDeps());
   assert.deepEqual(result.plugins, [RUNTIME_ROW]);
   assert.deepEqual(result.agentPlugins, []);
+});
+
+test("T1: plugins_list attaches export contracts, availability and ready snippets to the owning plugin row", async () => {
+  listBehavior = async () => [{ pluginId: "demo", archiveDigest: "b".repeat(64), packageRoot: "/private/package", files: [], skills: [] }];
+  const { harness, owner, definition } = await import("../../../agent-plugins/__tests__/fixtures/plugin-exports.js");
+  const runtime = harness({ packages: [{ ...owner, exports: { button: { ...definition, props: { type: "object", properties: {}, additionalProperties: false } } } }] }).runtime;
+  const result = await callPluginsList(fakeDeps({ workspaceId: "ws-embeds", pluginExports: runtime }));
+  const row = result.agentPlugins[0] as { exports: { availability: string; snippet: string; consent: string }[] };
+  assert.equal(row.exports[0]!.availability, "ready");
+  assert.equal(row.exports[0]!.consent, "functional");
+  assert.match(row.exports[0]!.snippet, /data-embed-config/);
+  assert.doesNotMatch(JSON.stringify(result), /private\/package|not-exposed|button.html/);
 });

@@ -452,7 +452,7 @@ export async function resolveHtmlEmbedsForRender(deps: RenderContextResolutionDe
       mediaContentTypeStore: deps.mediaContentTypeStore,
       taxonomyRepo: deps.taxonomyRepo,
       termRepo: deps.termRepo,
-      ...siteTimeZoneDep(deps),
+      ...htmlEmbedHostDeps(deps),
     },
     // The same unmodified body `render.ts`'s `renderPostBody` renders (trusted page HTML, see there).
     input: { workspaceId: deps.workspaceId, html: post.bodyHtml ?? "" },
@@ -850,7 +850,7 @@ export async function finishStaticTierDocument(
       mediaContentTypeStore: deps.mediaContentTypeStore,
       taxonomyRepo: deps.taxonomyRepo,
       termRepo: deps.termRepo,
-      ...siteTimeZoneDep(deps),
+      ...htmlEmbedHostDeps(deps),
     },
     input: { workspaceId: deps.workspaceId, html: expanded },
   });
@@ -1180,11 +1180,17 @@ export const MAX_CONTENT_EMBED_FETCHES = 50;
 export type ContentMarkerResolutionDeps = Pick<
   RouteDeps,
   "workspaceId" | "postRepo" | "entryRepo" | "mediaRepo" | "transformDefinitionRepo" | "mediaContentTypeStore"
-> & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo" | "siteTimeZone">>;
+> & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo" | "siteTimeZone" | "pluginExports" | "pluginExportRender">>;
 
 /** Bug D: the site-zone port for a `resolveHtmlPageEmbeds` deps object, when the host wired one. */
 function siteTimeZoneDep(deps: Pick<RouteDeps, "workspaceId"> & Partial<Pick<RouteDeps, "siteTimeZone">>): Pick<RouteDeps, "siteTimeZone"> {
   return deps.siteTimeZone ? { siteTimeZone: deps.siteTimeZone } : {};
+}
+
+/** Host ports for every HTML embed pass. The site zone remains optional (Bug D);
+ * plugin admission is injected only through the node-only CMS HTML entry. */
+function htmlEmbedHostDeps(deps: Pick<RouteDeps, "workspaceId"> & Partial<Pick<RouteDeps, "siteTimeZone" | "pluginExports" | "pluginExportRender">>): Pick<RouteDeps, "siteTimeZone"> & Pick<import("@jini-ai/cms/widgets/html").ResolveHtmlPageEmbedsDeps, "pluginExports"> {
+  return { ...siteTimeZoneDep(deps), pluginExports: deps.pluginExportRender ?? deps.pluginExports?.forRender({ mode: "live" }) };
 }
 
 /** Bug D follow-up: the site's zone for `renderSite` (`dateShort`, `.entry-meta`, Liquid's `| date:`);
@@ -1222,7 +1228,7 @@ export type TemplateRenderDeps = Pick<
   // C5 (collections plan, 2026-09-23) — `resolveCollectionListsForRender`'s content-type lookup for
   // a `{"type":"collection"}` marker's `typeKey`, threaded through `finishStaticTierDocument`.
   | "contentTypeRepo"
-> & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo" | "commentsProviders" | "commentsCursor">> & {
+> & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo" | "commentsProviders" | "commentsCursor" | "pluginExports" | "pluginExportRender">> & {
   /** A see-more batch request (`<page>/_more/<key>/<after>`): that one listing renders from `after`. */
   readonly listingBatch?: ListingBatchRequest;
   /** A numbered listing page request (`<page>/page/<n>`, Bug C): `paged` post-previews render page `n`. */
@@ -1244,7 +1250,7 @@ export type TemplateRenderDeps = Pick<
 export type RenderContextResolutionDeps = Pick<
   RouteDeps,
   "workspaceId" | "postRepo" | "entryRepo" | "mediaRepo" | "transformDefinitionRepo" | "widgetBindingRepo" | "mediaContentTypeStore"
-> & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo" | "siteTimeZone">>;
+> & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo" | "siteTimeZone" | "pluginExports" | "pluginExportRender">>;
 
 /** A `{"type":"content"}` marker's authored `slug`, or `undefined` when absent/non-string/empty —
  * the marker-scan-side counterpart to `resolver-service.ts`'s `normalizeEmbedSlug`, needed here
@@ -1401,7 +1407,7 @@ export async function resolveHtmlFormatContentMarkers(
           mediaContentTypeStore: deps.mediaContentTypeStore,
           taxonomyRepo: deps.taxonomyRepo,
           termRepo: deps.termRepo,
-          ...siteTimeZoneDep(deps),
+          ...htmlEmbedHostDeps(deps),
         },
         input: { workspaceId: deps.workspaceId, html: nestedHtml },
       });
@@ -1604,7 +1610,7 @@ export async function renderViaTemplate(
       mediaContentTypeStore: deps.mediaContentTypeStore,
       taxonomyRepo: deps.taxonomyRepo,
       termRepo: deps.termRepo,
-      ...siteTimeZoneDep(deps),
+      ...htmlEmbedHostDeps(deps),
       ...(pendingBodyJson !== undefined
         ? { pendingContentOverride: { id: post.id, title: post.title, slug: post.slug, updatedAt: post.updatedAt, publishAt: post.publishAt ?? null, bodyJson: pendingBodyJson } }
         : {}),
@@ -2626,6 +2632,7 @@ async function finalizePublicPageHtml(req: Request, html: string, formResult: Fo
     return renderListingBatchDocument({ key: listingBatch.key, ...batch });
   }
   assertListingPageServed({ req, html });
+  html = injectExtraHeadIntoStaticPage(html, deps.pluginExportRender?.headHtml({}));
   html = injectListingScript({ html });
   if (deps.pluginContributions) html = await renderPluginWidgetPartials({ html, workspaceId: deps.workspaceId, contributions: deps.pluginContributions, activationRepo: deps.pluginActivationRepo });
   const finished = injectFormSubmissionResultIntoHtml(markOffSiteLinksOpenInNewTab(html, req.hostname), formResult);
@@ -2703,16 +2710,23 @@ function rewriteToListingPage({ req, pagePath }: { req: Request; pagePath: strin
   req.url = pagePath + (queryStart === -1 ? "" : req.url.slice(queryStart));
 }
 
+/** One port/stylesheet collector per request, including nested template renders. */
+function pluginExportSession({ deps, req }: { deps: RouteDeps; req: Request }, _options = {}) {
+  const mode = typeof req.header === "function" && isStaticExportRequest(req) ? "static" : "live";
+  return deps.pluginExports?.forRender({ mode });
+}
+
 /** `deps` for this request, carrying its see-more batch request (if any) down to the listing render. */
 function withListingBatch<T extends RouteDeps>(deps: T, req: Request): T & Pick<TemplateRenderDeps, "listingBatch" | "listingPage"> {
   const listingBatch = listingBatchRequests.get(req);
   const listingPage = listingPageRequests.get(req)?.page;
+  const pluginExportRender = pluginExportSession({ deps, req });
   const commentsCursor = typeof req.query?.commentCursor === 'string' ? req.query.commentCursor : undefined;
   // A static export/static-publish has no `/api/site/comments` to post to, and a snapshot would keep a
   // comment public after it is trashed: like the assistant bubble, it ships an empty comments surface.
   // (`req.header` is absent only on the route tests' direct handler calls.)
-  if (typeof req.header === 'function' && isStaticExportRequest(req)) return { ...deps, listingBatch, listingPage, commentsCursor, commentsProviders: undefined };
-  return { ...deps, listingBatch, listingPage, commentsCursor };
+  if (typeof req.header === 'function' && isStaticExportRequest(req)) return { ...deps, pluginExportRender, listingBatch, listingPage, commentsCursor, commentsProviders: undefined };
+  return { ...deps, pluginExportRender, listingBatch, listingPage, commentsCursor };
 }
 
 /** A batch request whose page has no such listing: restore the batch URL and fall through to the 404.

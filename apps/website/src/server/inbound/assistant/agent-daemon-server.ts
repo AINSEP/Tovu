@@ -87,6 +87,7 @@ import express from "express";
 
 import { createContributionRegistry, createToolRegistry } from "@jini-ai/core";
 import type { Principal } from "@jini-ai/core";
+import type { RunAgentPayload } from '@jini-ai/protocol';
 import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle, prepareMessageAttachments, probeMcpBridge, type MessageAttachmentImage, type UserMessageDelivery } from "@jini-ai/daemon";
 import { formatBridgePreflightLogLine, formatRunEndLogLine, formatRunErrorLogLine } from "./run-log-lines.js";
 import { bridgePreflightEntry } from "./bridge-preflight-entry.js";
@@ -1299,9 +1300,12 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       const automaticPrefix = await automaticPluginRuns.start({ runId: run.id, ...(durableMessageId === undefined ? {} : { messageId: durableMessageId }), context: {
         principal, conversationId, state: agentPluginState, query: userPrompt ?? prompt, pinned: pluginRefIds,
         signal: pluginAbort.signal,
+        // This trusted preflight emits both its resource and its validated answer receipt. Keep the
+        // named channel so the latter reaches the same durable event stream as composer input.
         emitSurface: async emission => { await runLifecycle.emit({ runId: run.id, input: { event: 'agent', data: {
-          type: 'mcp-ui', toolUseId: `agent-plugins:${run.id}`, resource: emission.payload['resource'],
-        } } }); },
+          ...emission.payload, type: emission.channel,
+          ...(emission.channel === 'mcp-ui' ? { toolUseId: `agent-plugins:${run.id}` } : {}),
+        } as RunAgentPayload } }); },
         publish: async value => { await runLifecycle.emit({ runId: run.id, input: { event: 'agent', data: { type: 'agent_plugins', ...value } } }); },
       } });
       return [pinnedPrefix, automaticPrefix].filter(Boolean).join('\n\n');

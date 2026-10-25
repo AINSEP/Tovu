@@ -16,7 +16,7 @@ export interface MemberOidcRouteDeps {
   listProviders: (input: { workspaceId: string }) => Promise<readonly LoginProvider[]>;
 }
 
-export const MEMBER_OIDC_PATH = "/api/members/v1/workspaces/:workspaceId/oidc/:providerId";
+export { MEMBER_OIDC_PATH } from "#src/features/member-login/public-path";
 export const MEMBER_OIDC_BINDING_COOKIE = "__Secure-tovu_member_login_binding";
 export const MEMBER_OIDC_PROOF_COOKIE = "__Secure-tovu_member_login_proof";
 const COOKIE_OPTIONS = { httpOnly: true, secure: true, sameSite: "lax" as const };
