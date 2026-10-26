@@ -173,7 +173,7 @@ export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = (app, deps) 
       // snapshot, so reaching this line means the record is in it.
       const record = discovery.find((r) => r.id === pluginId) as PluginDiscoveryRecord;
       // Owner-action product event (consent-gated port): which way, never which plugin or by name.
-      deps.productAnalytics?.capture({ name: "plugin_toggled", userId: principal.id, properties: { enabled } });
+      deps.tracker.capture({ name: "plugin_toggled", userId: principal.id, properties: { enabled } });
       res.json({
         plugin: toAdminPluginResponse(record, result.activation),
         changeSetId,

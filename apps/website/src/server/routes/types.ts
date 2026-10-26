@@ -953,17 +953,19 @@ export interface EventBusDeps {
 }
 
 /**
- * Constitution Article VIII observability seam. Routes and modules receive only
- * `ObservabilityPort`, never a concrete adapter; see `platform/observability/ports.ts`.
+ * Constitution Article VIII observability seam. Application signals use `tracker`, never a
+ * concrete adapter. The lower-level port still wires existing storage/HTTP/deploy adapters.
  * The hermetic root supplies the no-op adapter and the real root the provider-plugin selection
  * (`server/runtime/composition/provider-plugins.ts`: installed + enabled + configured, else noop).
  */
 export interface ObservabilityDeps {
+  /** Infrastructure integration only; request, error and feature signals use the facade below. */
   observability: ObservabilityPort;
-  /** How owners use Tovu (product analytics, not site-visitor analytics): a configured provider
+  /** One facade for product events, redacted/deduplicated errors and scoped tracing.
+   * How owners use Tovu (product analytics, not site-visitor analytics): a configured provider
    * plugin behind `withProductAnalyticsGuards` (operator consent `core.privacy.telemetry.metrics`
-   * first), else the shared noop. Optional: hermetic roots and fixtures omit it, meaning "off". */
-  productAnalytics?: import("@jini-ai/analytics/product").ProductAnalyticsPort;
+   * first), else the shared noop. Hermetic roots supply the no-provider facade. */
+  tracker: import("@jini-ai/diagnostics/observability").Tracker;
   /** AI-trace sink of trace providers and optional analytics generation hooks; absent means off. */
   aiTraceSink?: import("@jini-ai/agent-runtime/ai-trace").AiTraceSink;
   /** Saved provider-plugin settings (project store, else site vault); the admin settings card reads/writes it. */

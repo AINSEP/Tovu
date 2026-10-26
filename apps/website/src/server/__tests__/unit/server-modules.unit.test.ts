@@ -1,4 +1,5 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -79,6 +80,7 @@ test("createIntegrationsModule().start() enqueues a webhook delivery when a form
 test("createFormsModule().start() registers the C-009 notify subscriber without throwing", () => {
   const bus = new InMemoryEventBus();
   const handle = createFormsModule({
+    tracker: createTracker({}),
     bus,
     mailer: new ConsoleMailerAdapter(),
     formDefinitionRepo: new InMemoryFormDefinitionRepo(),

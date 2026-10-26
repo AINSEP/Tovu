@@ -14,7 +14,6 @@ import { randomBytes } from "node:crypto";
 import { isSameOrigin, normalizeOriginCandidate } from "@jini-ai/http-kit/verified-origin";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { registerSiteAssistantConfirm } from "#src/server/inbound/public-http/routes/site-assistant-confirm";
-import { reportErrorOnce } from "#src/platform/observability/report-error";
 import type { ErrorRequestHandler, Express, Request, Response } from "express";
 
 import {
@@ -586,7 +585,7 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
     log: (entry) => {
       log(entry);
       const incident = siteAssistantIncident({ entry });
-      if (incident) reportErrorOnce({ observability: deps.observability, error: incident, operation: "site_assistant.chat" }, { attributes: { code: entry.code, errorId: entry.errorId } });
+      if (incident) deps.tracker.error(incident, { operation: "site_assistant.chat", attributes: { code: entry.code, errorId: entry.errorId } });
     },
   });
 

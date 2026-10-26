@@ -1,3 +1,4 @@
+import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -27,6 +28,7 @@ const WORKSPACE_ID = "ws-detail-branches";
 function baseDeps(themesDir: string): ContentRouteDeps {
   const themes = discoverAllBuiltInThemes({ dir: themesDir, source: "site" });
   return {
+    tracker: createNoopTracker({}),
     workspaceId: WORKSPACE_ID,
     authorize: async () => ({ allowed: true, reason: "matched" }),
     themes,

@@ -1,3 +1,4 @@
+import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import test from "node:test";
@@ -23,7 +24,7 @@ const secret = ["sk", "live", "P".repeat(12) + "w".repeat(12)].join("_");
 test("a rejection and an exception are each reported once with the process role; uninstall removes both", () => {
   const { port, reports } = recording();
   const target = new EventEmitter();
-  const uninstall = installProcessErrorReporting({ observability: port, processRole: "daemon" }, { target });
+  const uninstall = installProcessErrorReporting({ tracker: createTracker({ observability: port }), processRole: "daemon" }, { target });
   const rejection = new Error(`provider refused ${secret}`);
   target.emit("unhandledRejection", rejection, Promise.resolve());
   target.emit("unhandledRejection", rejection, Promise.resolve());

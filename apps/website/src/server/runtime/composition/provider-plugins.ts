@@ -1,5 +1,7 @@
+import { createTracker, createTrackerWarning } from "@jini-ai/diagnostics/observability/node";
+import type { Tracker } from "@jini-ai/diagnostics/observability";
 import { combineObservabilityPorts, createNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
-import { createAiGenerationSink, createNoopProductAnalytics, withProductAnalyticsGuards, type ProductAnalyticsConsent, type ProductAnalyticsConsentRevision, type ProductAnalyticsPort } from "@jini-ai/analytics/product";
+import { createAiGenerationSink, createNoopProductAnalytics, fanOutProductAnalytics, withProductAnalyticsGuards, type ProductAnalyticsConsent, type ProductAnalyticsConsentRevision, type ProductAnalyticsPort } from "@jini-ai/analytics/product";
 import { createFanOutAiTraceSink, type AiTraceSink } from "@jini-ai/agent-runtime/ai-trace";
 import { createPluginProviderHost, isProviderSettingRequired, type PluginContributionRegistry, type PluginProviderContract, type PluginProviderDeclaration, type PluginProviderLease } from "@jini-ai/plugins/host";
 
@@ -114,8 +116,7 @@ export interface ProviderPluginRuntime {
 
 export interface ProviderPluginPorts {
   readonly observability: ObservabilityPort;
-  /** Already behind `withProductAnalyticsGuards` (consent first); slots stay inert when unconfigured. */
-  readonly productAnalytics: ProductAnalyticsPort;
+  readonly tracker: Tracker;
   /** Undefined when neither a trace nor analytics provider is declared; slots can activate live. */
   readonly aiTraceSink: AiTraceSink | undefined;
   appliesAt(required: { pluginId: string }, optional?: Record<string, never>): "now" | "restart";
@@ -148,24 +149,6 @@ function unchangedSlot({ slot, signature }: { slot: ProviderSlot; signature: str
   return signature === undefined || slot.lease?.isCurrent({}) === true;
 }
 const KNOWN_CONTRACTS = new Set<string>(["observability", "product_analytics", "ai_trace"]);
-
-/** Fans product events out to every configured analytics port (normally one), isolating failures
- * and each provider's content opt-in. @complexity O(p) per event for p configured providers. */
-function fanOutProductAnalytics({ ports }: { ports: readonly ProductAnalyticsPort[] }): ProductAnalyticsPort {
-  const each = (send: (port: ProductAnalyticsPort) => void) => { for (const port of ports) { try { send(port); } catch { /* one vendor never blocks another */ } } };
-  return {
-    capture: (event) => each((port) => port.capture(event)), identify: (identity) => each((port) => port.identify(identity)),
-    get includeAiContent() { return ports.some((port) => port.captureAiGeneration && port.includeAiContent === true); },
-    ...(ports.some((port) => port.captureAiGeneration) ? {
-      captureAiGeneration: (event: Parameters<NonNullable<ProductAnalyticsPort["captureAiGeneration"]>>[0]) => each((port) => {
-        // Each provider owns its opt-in, even when another provider requests content.
-        // Recheck even a single provider: its policy can rotate during async consent.
-        const { input: _input, output: _output, ...metadata } = event;
-        port.captureAiGeneration?.(port.includeAiContent === true ? event : metadata);
-      }),
-    } : {}),
-  };
-}
 
 /** Each contract's inert behavior, used once a lease is retired. */
 const NOOP_PORTS: Readonly<Record<ProviderContract, () => object>> = {
@@ -203,10 +186,11 @@ function gatedPort({ slot, contract }: { slot: ProviderSlot; contract: ProviderC
 
 /** Composes guarded analytics, trace destinations and independent observability without vendor knowledge.
  * @complexity O(p + s) at boot for p analytics providers and s trace sinks; no external I/O. */
-function composePorts({ leases, consent, consentRevision, site }: { leases: ReadonlyMap<ProviderContract, unknown[]>; consent: ProductAnalyticsConsent; consentRevision: ProductAnalyticsConsentRevision; site: SiteIdentity }) {
+function composePorts({ leases, consent, consentRevision, site, warn }: { warn: (message: string) => void; leases: ReadonlyMap<ProviderContract, unknown[]>; consent: ProductAnalyticsConsent; consentRevision: ProductAnalyticsConsentRevision; site: SiteIdentity }) {
   const analytics = (leases.get("product_analytics") ?? []) as ProductAnalyticsPort[];
   const sinks = [...(leases.get("ai_trace") ?? [])] as AiTraceSink[];
-  const inner = fanOutProductAnalytics({ ports: analytics });
+  const failed = createTrackerWarning({}, { warn });
+  const inner = fanOutProductAnalytics({ ports: analytics }, { onFailure: failed });
   // Jini snapshots capability flags at construction; the site wrappers must follow live opt-ins.
   const productAnalytics = analytics.length === 0 ? createNoopProductAnalytics({}) : {
     ...withProductAnalyticsGuards({ inner, consent }, { consentRevision }),
@@ -216,9 +200,10 @@ function composePorts({ leases, consent, consentRevision, site }: { leases: Read
   // identity or prompt-derived id is needed. The plugin attaches the same site group as other events.
   const generations = createAiGenerationSink({ analytics: productAnalytics, userId: `site:${site.siteId}` });
   if (generations) sinks.push({ ...generations, get capture() { return productAnalytics.includeAiContent === true ? "full" : "metadata"; } });
+  const observability = combineObservabilityPorts({ ports: (leases.get("observability") ?? []) as ObservabilityPort[] }, { onFailure: failed });
   return {
-    observability: combineObservabilityPorts({ ports: (leases.get("observability") ?? []) as ObservabilityPort[] }),
-    productAnalytics,
+    observability,
+    tracker: createTracker({ observability, productAnalytics }, { warn: failed }),
     shutdownGenerations: () => generations?.shutdown?.(),
     aiTraceSink: sinks.length === 0 ? undefined : {
       ...createFanOutAiTraceSink({ sinks }),
@@ -298,7 +283,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
   const leases = new Map<ProviderContract, unknown[]>();
   for (const slot of slots) leases.set(slot.contract, [...(leases.get(slot.contract) ?? []), gatedPort({ slot, contract: slot.contract })]);
   await Promise.all([...new Set(slots.map(slot => slot.pluginId))].map(pluginId => reapply({ pluginId })));
-  const { shutdownGenerations, ...ports } = composePorts({ leases, consent: required.consent, consentRevision: required.consentRevision, site: required.site });
+  const { shutdownGenerations, ...ports } = composePorts({ leases, consent: required.consent, consentRevision: required.consentRevision, site: required.site, warn });
   return { ...ports, reapply, appliesAt: ({ pluginId }) => applied.get(pluginId) ?? "now",
     async dispose() { closed = true; await Promise.all(queues.values()); await shutdownGenerations(); await host.dispose({}); } };
 }

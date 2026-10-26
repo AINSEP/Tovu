@@ -1,6 +1,6 @@
-import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/diagnostics/observability";
 
-import { reportErrorOnce } from "../../../platform/observability/report-error.js";
+import { redactedError } from "../../../platform/observability/report-error.js";
 
 /**
  * @file Process-level safety net for an unhandled promise rejection escaping every route/middleware
@@ -98,16 +98,16 @@ export function installUnhandledRejectionGuard(options: InstallUnhandledRejectio
  * @complexity O(1) to install; O(n) per report in the error's text length.
  */
 export function installProcessErrorReporting(
-  required: { observability: ObservabilityPort; processRole: "server" | "daemon" },
+  required: { tracker: Tracker; processRole: "server" | "daemon" },
   optional: { target?: Pick<NodeJS.EventEmitter, "on" | "off"> } = {},
 ): () => void {
-  const { observability, processRole } = required;
+  const { tracker, processRole } = required;
   const target = optional.target ?? process;
   const onRejection = (reason: unknown): void => {
-    reportErrorOnce({ observability, error: reason, operation: "process.unhandled_rejection" }, { attributes: { process: processRole } });
+    tracker.error(reason instanceof Error ? reason : redactedError({ error: reason }), { operation: "process.unhandled_rejection", attributes: { process: processRole } });
   };
   const onUncaught = (error: unknown): void => {
-    reportErrorOnce({ observability, error, operation: "process.uncaught_exception" }, { attributes: { process: processRole } });
+    tracker.error(error instanceof Error ? error : redactedError({ error }), { operation: "process.uncaught_exception", attributes: { process: processRole } });
   };
   target.on("unhandledRejection", onRejection);
   target.on("uncaughtExceptionMonitor", onUncaught);

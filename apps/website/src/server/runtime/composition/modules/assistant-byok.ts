@@ -79,7 +79,7 @@ import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/adm
 import type { RouteDeps } from "#src/server/routes/types";
 import { createTestOriginHttpClientFactory } from "#src/platform/http/test-origin-allowlist";
 import type { AgentRunStatus } from "#src/platform/observability/index";
-import { reportErrorOnce } from "#src/platform/observability/report-error";
+import { redactedError } from "#src/platform/observability/report-error";
 import { registerInstalledExtensionTools } from "../installed-extension-tools.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 import type { ServerModuleHandle } from "./types.js";
@@ -586,64 +586,65 @@ export function createAssistantByokModule(
 
     // One agent-run span per turn (its own trace root); the turn runs inside it, so its tool calls'
     // DB and outbound spans nest under the run rather than the long-lived request.
-    const runTracker = routeDeps.observability.trackAgentRun({ runId: run.id }, { agentName: credential.protocol });
-    // BYOK bypasses the daemon lifecycle, but publishes the same normalized model/tool events.
-    // Reuse its recorder so both execution modes report generations with the same semantics.
-    const aiTrace = routeDeps.aiTraceSink ? createAiTraceRecorder({ sink: routeDeps.aiTraceSink, runId: run.id, agentId: credential.protocol },
-      { provider: credential.protocol, model: credential.model, exactSecrets: [credential.apiKey] }) : undefined;
-    aiTrace?.start(routeDeps.aiTraceSink?.capture === "full" ? { input: messages.at(-1)?.content ?? null } : {});
-    let reportedError = false;
-    // A failed turn (a provider error event or a throw, not an owner's cancel) is an incident for
-    // the error tracker too: the protocol and run id only, the key blanked even without a known shape.
-    const reportRunFailure = (error: unknown) => reportErrorOnce({ observability: routeDeps.observability, error, operation: "assistant.run" },
-      { attributes: { agent: credential.protocol, runId: run.id }, exactSecrets: [credential.apiKey] });
-    const stampUsage = createByokUsageTimer({ startedAt: Date.now() });
-    let result: ByokProviderTurnResult;
-    try {
-      result = await runTracker.run(() => runByokProviderTurn({
-        protocol: credential.protocol,
-        apiKey: credential.apiKey,
-        ...(credential.baseUrl ? { baseUrl: credential.baseUrl } : {}),
-        model: credential.model,
-        ...(credential.maxTokens !== undefined ? { maxTokens: credential.maxTokens } : {}),
-        maxToolTurns: BYOK_MAX_TOOL_TURNS,
-        system,
-        messages,
-        // 3 descriptors, not all 131. The full catalog is ~119 KB (~30 k tokens) of `inputSchema`
-        // re-sent on EVERY message; the meta-set is under 1 KB and initially reaches the same tools through
-        // `search_tools` → `describe_tool` → `execute_delegated_tool`. See `META_TOOL_DESCRIPTORS`.
-        tools: toolRun?.getToolSnapshot() ?? resolvedToolSurface.metaTools,
-        getToolSnapshot: toolRun?.getToolSnapshot,
-        onSchemaFallback: ({ toolId, protocol, reason }) => {
-          console.warn("[assistant-byok] tool schema fallback", { toolId, protocol, reason });
-        },
-        executeTool,
-        signal: abort.signal,
-        // `error`-typed events get their OWN SSE event name, not folded into `agent` — mirrors the
-        // daemon path's distinct `source.addEventListener("error", ...)` on the client
-        // (`assistant-transport.ts`), which is what actually calls `handlers.onError` rather than
-        // rendering an unrecognized `ext` event. Everything else rides `agent` unchanged, reusing
-        // `translateRunAgentPayload`'s existing switch on the client with zero new cases.
-        onEvent: (event: ByokTurnEvent) => {
-          aiTrace?.observe(event as unknown as Record<string, unknown>);
-          if (event.type === "error") { reportedError = true; reportRunFailure(new Error(event.message)); }
-          sse(res, event.type === "error" ? "error" : "agent", stampUsage(event));
-        },
-      }));
-    } catch (error) {
-      aiTrace?.observe({ type: "error", message: error instanceof Error ? error.message : String(error) });
-      aiTrace?.finish({ outcome: abort.signal.aborted ? "cancelled" : "failed" });
-      runTracker.end(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }, { thrown: { error } }));
-      if (!abort.signal.aborted) reportRunFailure(error);
-      sse(res, "error", { type: "error", message: error instanceof Error ? error.message : String(error) });
-      sse(res, "end", { reason: "error" });
-      res.end();
-      return;
-    }
+    return routeDeps.tracker.span("assistant.run", async (span) => {
+      // BYOK bypasses the daemon lifecycle, but publishes the same normalized model/tool events.
+      // Reuse its recorder so both execution modes report generations with the same semantics.
+      const aiTrace = routeDeps.aiTraceSink ? createAiTraceRecorder({ sink: routeDeps.aiTraceSink, runId: run.id, agentId: credential.protocol },
+        { provider: credential.protocol, model: credential.model, exactSecrets: [credential.apiKey] }) : undefined;
+      aiTrace?.start(routeDeps.aiTraceSink?.capture === "full" ? { input: messages.at(-1)?.content ?? null } : {});
+      let reportedError = false;
+      // A failed turn (a provider error event or a throw, not an owner's cancel) is an incident for
+      // the error tracker too: the protocol and run id only, the key blanked even without a known shape.
+      const reportRunFailure = (error: unknown) => routeDeps.tracker.error(error instanceof Error ? error : redactedError({ error }),
+        { operation: "assistant.run", attributes: { agent: credential.protocol, runId: run.id }, exactSecrets: [credential.apiKey] });
+      const stampUsage = createByokUsageTimer({ startedAt: Date.now() });
+      let result: ByokProviderTurnResult;
+      try {
+        result = await runByokProviderTurn({
+          protocol: credential.protocol,
+          apiKey: credential.apiKey,
+          ...(credential.baseUrl ? { baseUrl: credential.baseUrl } : {}),
+          model: credential.model,
+          ...(credential.maxTokens !== undefined ? { maxTokens: credential.maxTokens } : {}),
+          maxToolTurns: BYOK_MAX_TOOL_TURNS,
+          system,
+          messages,
+          // 3 descriptors, not all 131. The full catalog is ~119 KB (~30 k tokens) of `inputSchema`
+          // re-sent on EVERY message; the meta-set is under 1 KB and initially reaches the same tools through
+          // `search_tools` → `describe_tool` → `execute_delegated_tool`. See `META_TOOL_DESCRIPTORS`.
+          tools: toolRun?.getToolSnapshot() ?? resolvedToolSurface.metaTools,
+          getToolSnapshot: toolRun?.getToolSnapshot,
+          onSchemaFallback: ({ toolId, protocol, reason }) => {
+            console.warn("[assistant-byok] tool schema fallback", { toolId, protocol, reason });
+          },
+          executeTool,
+          signal: abort.signal,
+          // `error`-typed events get their OWN SSE event name, not folded into `agent` — mirrors the
+          // daemon path's distinct `source.addEventListener("error", ...)` on the client
+          // (`assistant-transport.ts`), which is what actually calls `handlers.onError` rather than
+          // rendering an unrecognized `ext` event. Everything else rides `agent` unchanged, reusing
+          // `translateRunAgentPayload`'s existing switch on the client with zero new cases.
+          onEvent: (event: ByokTurnEvent) => {
+            aiTrace?.observe(event as unknown as Record<string, unknown>);
+            if (event.type === "error") { reportedError = true; reportRunFailure(new Error(event.message)); }
+            sse(res, event.type === "error" ? "error" : "agent", stampUsage(event));
+          },
+        });
+      } catch (error) {
+        aiTrace?.observe({ type: "error", message: error instanceof Error ? error.message : String(error) });
+        aiTrace?.finish({ outcome: abort.signal.aborted ? "cancelled" : "failed" });
+        span.setOutcome(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }, { thrown: { error } }));
+        if (!abort.signal.aborted) reportRunFailure(error);
+        sse(res, "error", { type: "error", message: error instanceof Error ? error.message : String(error) });
+        sse(res, "end", { reason: "error" });
+        res.end();
+        return;
+      }
 
-    runTracker.end(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }));
-    aiTrace?.finish({ outcome: abort.signal.aborted ? "cancelled" : reportedError ? "failed" : "succeeded" });
-    sse(res, "end", { reason: result.stopReason ?? "stop" });
-    res.end();
+      span.setOutcome(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }));
+      aiTrace?.finish({ outcome: abort.signal.aborted ? "cancelled" : reportedError ? "failed" : "succeeded" });
+      sse(res, "end", { reason: result.stopReason ?? "stop" });
+      res.end();
+    }, { agent: { runId: run.id, agentName: credential.protocol } });
   }
 }

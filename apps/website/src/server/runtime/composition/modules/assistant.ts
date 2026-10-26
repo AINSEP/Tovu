@@ -159,7 +159,7 @@ async function proxyAcceptedRun(
   const principal = getAuthedPrincipal(res);
   const durable = deps.chatRunLedger.durable;
   if (durable && typeof decoded.conversationId === "string" && typeof decoded.assistantMessageId === "string") {
-    const finalizer = assistantRunFinalizerFor({ ledger: deps.chatRunLedger, observability: deps.observability }, {});
+    const finalizer = assistantRunFinalizerFor({ ledger: deps.chatRunLedger, tracker: deps.tracker, observability: deps.observability }, {});
     const client = createHttpRunDaemonClient({ observability: deps.observability });
     const acceptance = createRunAcceptance({ store: durable, now: Date.now, mintRunId: randomUUID,
       launch: (required, optional) => client.launch!(required, optional),
@@ -201,7 +201,7 @@ async function readDurableCheckpoint({ req, res, deps }: { req: Request; res: Re
 async function recoverDurableRun({ req, res, deps }: { req: Request; res: Response; deps: RouteDeps }, _optional = {}): Promise<void> {
   const run = await ownedDurableRun({ req, res, deps }, {});
   if (!run) { res.status(404).json({ error: "not found" }); return; }
-  const finalizer = assistantRunFinalizerFor({ ledger: deps.chatRunLedger, observability: deps.observability }, {});
+  const finalizer = assistantRunFinalizerFor({ ledger: deps.chatRunLedger, tracker: deps.tracker, observability: deps.observability }, {});
   await finalizer.recover({ messageId: run.messageId, trigger: "browser" }, {});
   const current = await deps.chatRunLedger.durable!.load({ messageId: run.messageId }, {});
   if (!current) { res.status(404).json({ error: "not found" }); return; }
@@ -213,7 +213,7 @@ async function cancelDurableRun({ req, res, deps, daemon }: { req: Request; res:
   if (!run) run = await cancelBeforeAcceptance({ req, res, deps }, {});
   if (!run) { await proxyPassthrough(req, res, daemon); return; }
   await deps.chatRunLedger.durable!.cancel({ runId: run.runId, reason: "user-stop" }, {});
-  await assistantRunFinalizerFor({ ledger: deps.chatRunLedger, observability: deps.observability }, {})
+  await assistantRunFinalizerFor({ ledger: deps.chatRunLedger, tracker: deps.tracker, observability: deps.observability }, {})
     .recover({ messageId: run.messageId, trigger: "browser" }, {});
   res.json({ run: { id: run.runId, state: "cancelled" } });
 }

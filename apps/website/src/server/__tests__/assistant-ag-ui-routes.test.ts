@@ -1,4 +1,5 @@
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
@@ -250,7 +251,7 @@ function harness() {
       daemon: server,
       buildApp: (observability?: ObservabilityPort) => {
         const deps: RouteDeps = createRouteDeps();
-        if (observability) deps.observability = observability;
+        if (observability) { deps.observability = observability; deps.tracker = createTracker({ observability }); }
         const app = express();
         app.use(express.json());
         registerAuthRoutes(app, deps);

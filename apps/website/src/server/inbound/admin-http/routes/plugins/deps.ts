@@ -26,8 +26,8 @@ import type { RemovePluginFn } from "@jini-ai/plugins/host";
  * handler bodies are what carry the "not implemented" stub behavior.
  */
 export interface PluginsRouteDeps {
-  /** Owner-action product events; absent or the noop means off (consent-gated by the port). */
-  productAnalytics?: import("@jini-ai/analytics/product").ProductAnalyticsPort;
+  /** Owner-action signals; the shared noop means off (consent-gated inside the facade). */
+  tracker: import("@jini-ai/diagnostics/observability").Tracker;
   pluginSourcePolicy?: import('@jini-ai/plugins/host').PluginSourcePolicyPort;
   /** Records the owner's enable as the site plugin's approved capability set (consent gap, 2026-10-12). */
   pluginSource?: Pick<import('@jini-ai/plugins/host/node').PluginSourcePort, "recordApproval">;

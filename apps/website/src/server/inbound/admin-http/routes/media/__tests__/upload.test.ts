@@ -1,4 +1,5 @@
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
@@ -37,6 +38,7 @@ const MP4_FTYP_HEADER = Buffer.from([0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x69
 function buildApp(depsOverrides: Partial<MediaRouteDeps> = {}): express.Express {
   const base = createRouteDeps();
   const deps: MediaRouteDeps = {
+    tracker: createNoopTracker({}),
     workspaceId: base.workspaceId,
     authorize: async () => ({ allowed: true, reason: "matched" }),
     removeMedia: base.removeMedia,

@@ -86,7 +86,7 @@ export const registerAdminPresentationPatchRoute: ContentRouteRegistrar = (app, 
       // theme (not the one that was active before this PATCH), so switching themes immediately
       // updates what BOTH pickers offer, matching `get.ts`'s identical computation.
       const activeTheme = findStoredTheme({ themes: deps.themes, id: result.settings.activeThemeId });
-      deps.productAnalytics?.capture({ name: "theme_changed", userId: principal.id, properties: { themeId: result.settings.activeThemeId } });
+      deps.tracker.capture({ name: "theme_changed", userId: principal.id, properties: { themeId: result.settings.activeThemeId } });
       requestThemePreviewRefresh({ themesDir: deps.themesDir });
       const activeThemeTemplates = activeTheme?.manifest.templates ?? [];
       const activeThemeStaticPageIds = activeTheme ? Object.keys(activeTheme.pages) : [];

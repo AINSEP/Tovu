@@ -1,4 +1,5 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -50,10 +51,11 @@ function createSpyObservabilityPort(): {
   return { port, calls };
 }
 
-test("createApp(createRouteDeps()) — the in-memory composition root src/index.ts's `useMemory` branch builds — records inbound requests through RouteDeps.observability", async (t) => {
+test("createApp(createRouteDeps()) — the in-memory composition root src/index.ts's `useMemory` branch builds — records inbound requests through RouteDeps.tracker", async (t) => {
   const { port: spy, calls } = createSpyObservabilityPort();
   const deps = createRouteDeps();
   deps.observability = spy;
+  deps.tracker = createTracker({ observability: spy });
   const app = createApp(deps);
   const baseUrl = await startTestServer(app, t);
 
@@ -87,7 +89,7 @@ test("createApp() round-trips x-request-id on a real route, including an auth-re
   assert.match(denied.headers.get("x-request-id") ?? "", /^[0-9a-f-]{36}$/);
 });
 
-test("createApp(createSiteRouteDeps()) — the REAL SQLite composition root both src/index.ts's non-memory branch AND cli/commands/serve.ts's `tovu serve` build RouteDeps from — records inbound requests through RouteDeps.observability", async (t) => {
+test("createApp(createSiteRouteDeps()) — the REAL SQLite composition root both src/index.ts's non-memory branch AND cli/commands/serve.ts's `tovu serve` build RouteDeps from — records inbound requests through RouteDeps.tracker", async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-observability-wiring-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
 
@@ -101,6 +103,7 @@ test("createApp(createSiteRouteDeps()) — the REAL SQLite composition root both
   // the closure-bound fields that note is actually about), but mutating in place costs nothing and
   // keeps this test consistent with that documented convention rather than being a special case.
   deps.observability = spy;
+  deps.tracker = createTracker({ observability: spy });
   const app = createApp(deps);
   const baseUrl = await startTestServer(app, t);
 

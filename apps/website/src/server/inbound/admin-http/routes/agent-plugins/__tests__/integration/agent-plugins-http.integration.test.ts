@@ -1,4 +1,5 @@
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
@@ -99,6 +100,7 @@ function buildTestApp(): { app: express.Express; agentPluginsDeps: AgentPluginsR
   // reason.
   const baseDeps = createRouteDeps();
   const agentPluginsDeps: AgentPluginsRouteDeps = testSiteLayoutContext({
+    tracker: createNoopTracker({}),
     // Pin the port so failure injection and the request use the same layout object.
     agentPluginLayout: resolveAgentPluginLayout(),
     workspaceId: baseDeps.workspaceId,

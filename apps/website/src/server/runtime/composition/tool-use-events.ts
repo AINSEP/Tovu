@@ -1,4 +1,4 @@
-import type { ProductAnalyticsPort } from "@jini-ai/analytics/product";
+import type { Tracker } from "@jini-ai/diagnostics/observability";
 import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
 
 /**
@@ -15,12 +15,12 @@ import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
  * @returns A sink with the same audit behavior; capture never blocks or fails the audit write.
  * @complexity O(1) per attempt on top of the wrapped sink.
  */
-export function withToolUseEvents({ sink, productAnalytics }: { sink: ToolAttemptAuditSink; productAnalytics: ProductAnalyticsPort }): ToolAttemptAuditSink {
+export function withToolUseEvents({ sink, tracker }: { sink: ToolAttemptAuditSink; tracker: Tracker }): ToolAttemptAuditSink {
   return {
     append: (required, optional) => {
       if (required.phase !== "requested") {
         const toolId = required.phase === "unknown-tool" ? "unknown" : required.toolId;
-        productAnalytics.capture({ name: "assistant_tool_used", userId: required.principalId, properties: { toolId, outcome: required.phase } });
+        tracker.capture({ name: "assistant_tool_used", userId: required.principalId, properties: { toolId, outcome: required.phase } });
       }
       return sink.append(required, optional);
     },

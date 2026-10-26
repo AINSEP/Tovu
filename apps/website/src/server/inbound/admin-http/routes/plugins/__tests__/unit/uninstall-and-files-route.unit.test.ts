@@ -1,3 +1,4 @@
+import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import test, { type TestContext } from "node:test";
@@ -22,6 +23,7 @@ const FILES_PATH = "/api/admin/v1/workspaces/:workspaceId/plugins/:pluginId/file
 function fakeDeps(overrides: Partial<PluginsRouteDeps> = {}) {
   const calls = { discover: 0, remove: 0, readFiles: 0 };
   const deps: PluginsRouteDeps = {
+    tracker: createNoopTracker({}),
     workspaceId: WS,
     authorize: async () => ({ allowed: true, reason: "ok" }),
     clock: { nowMs: () => Date.parse("2026-10-21T00:00:00.000Z"), nowIso: () => "2026-10-21T00:00:00.000Z" } as unknown as PluginsRouteDeps["clock"],

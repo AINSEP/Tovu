@@ -1,3 +1,4 @@
+import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import test, { type TestContext } from "node:test";
@@ -31,6 +32,7 @@ async function boot(t: TestContext, options: BootOptions = {}) {
     install: async (input) => { calls.push({ method: "install", input }); return answer({ method: "install", input }); },
   });
   const deps: PluginInstallRouteDeps = {
+    tracker: createNoopTracker({}),
     workspaceId: WS,
     ...(options.policy === "none" ? {} : { pluginSourcePolicy: createSitePluginPolicy({ env: { NODE_ENV: 'production', TOVU_PLUGIN_LOCAL_INSTALL: options.env ?? '1' } }) }),
     authorize: async (request) => { authorizations.push(request); return options.allowed === false ? { allowed: false, reason: "denied" } : { allowed: true, reason: "ok" }; },

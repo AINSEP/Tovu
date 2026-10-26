@@ -1,4 +1,5 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from "node:assert/strict";
 import { rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -16,7 +17,7 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 /**
  * @file The owner-action product events (provider wave 2): each key admin action makes ONE generic
- * `capture({ name, userId, properties? })` on `RouteDeps.productAnalytics` with the signed-in
+ * `capture({ name, userId, properties? })` on `RouteDeps.tracker` with the signed-in
  * principal's opaque id and no content. A recording fake stands in for the port; consent and PII
  * rules are the port's own (`withProductAnalyticsGuards`, tested with the provider selection).
  */
@@ -32,7 +33,7 @@ async function adminFetch(baseUrl: string, cookie: string, url: string, init: { 
 
 test("post_created, then post_published once on the draft → published transition only", async (t) => {
   const { port, events } = recording();
-  const deps = { ...createRouteDeps(), productAnalytics: port };
+  const deps = { ...createRouteDeps(), tracker: createTracker({ productAnalytics: port }) };
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   const principalId = (await (await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } })).json() as { user: { id: string } }).user.id;
   const base = `/api/admin/v1/workspaces/${deps.workspaceId}/posts`;
@@ -50,7 +51,7 @@ test("post_created, then post_published once on the draft → published transiti
 
 test("assistant_chat_started on a new chat, carrying no chat text", async (t) => {
   const { port, events } = recording();
-  const deps = { ...createRouteDeps(), productAnalytics: port };
+  const deps = { ...createRouteDeps(), tracker: createTracker({ productAnalytics: port }) };
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   const response = await adminFetch(baseUrl, cookie, "/api/assistant/chats", { method: "POST", body: { firstMessage: "my private question" } });
   assert.equal(response.status, 201);
@@ -66,7 +67,7 @@ test("site_publish_started when an owner starts a publish run", async (t) => {
   const base = createRouteDeps();
   // The hermetic site has consent on by default without a ready privacy page, which refuses every
   // publish (409); this test is about the event, so readiness is stubbed as passing.
-  const deps = { ...base, productAnalytics: port, publishOutputRootDir, siteConsent: { ...base.siteConsent!, deploymentCheck: async () => null } };
+  const deps = { ...base, tracker: createTracker({ productAnalytics: port }), publishOutputRootDir, siteConsent: { ...base.siteConsent!, deploymentCheck: async () => null } };
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   const trigger = await adminFetch(baseUrl, cookie, `/api/admin/v1/workspaces/${deps.workspaceId}/system/publish`, { method: "POST", body: { target: "github-pages", owner: "octo", repo: "demo-repo", projectName: "demo" } });
   assert.equal(trigger.status, 202);
@@ -91,7 +92,7 @@ test("plugin_toggled with only the direction, never the plugin id", async (t) =>
     discoverPlugins: async () => [{ id: "word-count", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", errors: [] }],
     onPluginEnabled: async () => {}, onPluginDisabled: () => {}, removePlugin: baseDeps.removePlugin,
     readPluginPackageFiles: baseDeps.readPluginPackageFiles, previewPluginBeforeSave: baseDeps.previewPluginBeforeSave,
-    productAnalytics: port,
+    tracker: createTracker({ productAnalytics: port }),
   });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   for (const enabled of [true, false]) {

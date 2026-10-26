@@ -2110,7 +2110,7 @@ async function composeSiteRouteDeps(
     siteId: projectSiteId, siteName: resolvedSiteBinding.name, reapply: input => providerPlugins.reapply(input),
     transaction: input => projectStore.transaction(input) }) : undefined;
   if (projectStore) onStoreClose(watchProviderRevisions({ read: () => projectStore.providerRevisions({ siteId: projectSiteId }), reapply: input => providerPlugins.reapply(input) }));
-  const { observability, productAnalytics, aiTraceSink } = providerPlugins;
+  const { observability, tracker, aiTraceSink } = providerPlugins;
   instrumentStorageKernel({ kernel, observability });
   instrumentStorageKernel({ kernel: chat, observability });
   // `runtimeMode` itself is now resolved further up (see `newsletterKeyring`'s own hoisting
@@ -2557,7 +2557,7 @@ async function composeSiteRouteDeps(
     bus,
     // From provider plugins (see `providerPlugins` above for the rule-of-two it follows).
     observability,
-    productAnalytics,
+    tracker,
     aiTraceSink,
     providerConfig: providerConfigSource,
     reapplyProvider: input => providerPlugins.reapply(input),
@@ -2732,7 +2732,7 @@ async function composeSiteRouteDeps(
     // `openContentDb(dbPath)`: that call migrates unconditionally, and this root has already opened
     // (and migrated) the one file both handles would point at.
     // Also the `assistant_tool_used` product event (tool id + outcome only): see `tool-use-events.ts`.
-    toolAttemptAuditSink: withToolUseEvents({ productAnalytics, sink: new SqliteToolAttemptAuditSink(kernel, {
+    toolAttemptAuditSink: withToolUseEvents({ tracker, sink: new SqliteToolAttemptAuditSink(kernel, {
       onError: error => { reportToolAuditError({ code: "tool_audit", diagnostic: error }); },
     }) }),
     toolGaps: createToolGapReader({ kernel }, {}),

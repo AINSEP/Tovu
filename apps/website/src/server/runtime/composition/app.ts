@@ -1,3 +1,4 @@
+import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import { createPluginExportRuntime } from "#src/features/agent-plugins/exports/runtime";
 import { createPluginExportSource } from "#src/features/agent-plugins/exports/source";
 import { readBundledDeployWorkflowFiles } from "#src/features/deployments/index";
@@ -1407,6 +1408,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // developer's machine must ever make a test try to reach a real collector. See `routes/types.ts`'s
     // `ObservabilityDeps` doc for the full rule-of-two.
     observability: createNoopObservabilityPort({}),
+    tracker: createNoopTracker({}),
     clock,
     idGen,
     analyticsSink: createLocalAnalyticsSink({}),
@@ -1853,7 +1855,7 @@ function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
       mailer: routeDeps.mailer,
       formDefinitionRepo: routeDeps.formDefinitionRepo,
       formSubmissionRepo: routeDeps.formSubmissionRepo,
-      productAnalytics: routeDeps.productAnalytics,
+      tracker: routeDeps.tracker,
       senderIdentity: routeDeps.mailSenderIdentity,
     })
   );
@@ -1924,7 +1926,7 @@ function applyPublicMiddleware(
   // 2026-08-28-observability-groundwork.md` §1-2 for why that distinction matters here).
   // Bearer share paths never enter request logging, page analytics, or public rendering.
   registerPublicShareRoutes({ app, registry: routeDeps.siteShareBackend?.registry });
-  applyRequestTracking(app, { observability: routeDeps.observability });
+  applyRequestTracking(app, { tracker: routeDeps.tracker });
   // Only a `createSiteApp({ themeId })` loopback app has this; see `render-theme-override.ts`.
   if (options.themeIdOverride !== undefined) applyRenderThemeOverride(app, { themeId: options.themeIdOverride });
   // ADR-041/043/044/045 — must precede the normal traffic handlers so a

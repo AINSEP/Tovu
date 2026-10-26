@@ -1,10 +1,10 @@
+import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import express from "express";
 import { createNoopObservabilityPort, type ErrorReport, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 
-import { trackAsyncOperation } from "#src/platform/observability/operation";
 import { applyRequestTracking, captureRouteError } from "../observability-middleware.js";
 import { startTestServer } from "../../../__tests__/helpers/http-test-server.js";
 
@@ -25,14 +25,14 @@ const secret = ["sk", "live", "R".repeat(12) + "y".repeat(12)].join("_");
 
 async function boot(t: test.TestContext, port: ObservabilityPort): Promise<string> {
   const app = express();
-  applyRequestTracking(app, { observability: port, env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } });
+  applyRequestTracking(app, { tracker: createTracker({ observability: port }), env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } });
   app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "principal-1", email: "owner@example.test" }; next(); });
   app.post("/api/things/:id", () => { throw new Error("handler exploded"); });
   app.get("/api/handled", (_req, res) => { res.status(503).json({ error: "down" }); });
   app.get("/api/missing", (_req, res) => { res.status(404).end(); });
   app.post("/api/publish", async (_req, res) => {
-    await trackAsyncOperation({ observability: port, name: "site.publish", work: async () => { throw new Error("publish failed"); }, outcomeOf: () => ({ outcome: "ok", failed: false }) })
+    await createTracker({ observability: port }).span("site.publish", async () => { throw new Error("publish failed"); })
       .catch(() => res.status(500).json({ error: "publish failed" }));
   });
   app.use(captureRouteError);

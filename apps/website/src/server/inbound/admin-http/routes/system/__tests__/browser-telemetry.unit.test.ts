@@ -1,3 +1,4 @@
+import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Express, Request, Response } from 'express';
@@ -26,13 +27,13 @@ const allowAll: RateLimiter = { check: async () => ({ allowed: true, retryAfterS
 
 /** Runs only the route callback: no listener, no app. */
 async function post(body: unknown, options: {
-  deps?: Partial<ReturnType<typeof fakePorts>>; limiter?: RateLimiter; kind?: string; contentLength?: number; principalId?: string;
+  warn?: (message: string) => void; deps?: Partial<ReturnType<typeof fakePorts>>; limiter?: RateLimiter; kind?: string; contentLength?: number; principalId?: string;
 } = {}) {
   let handler!: (req: Request, res: Response) => Promise<void>;
   let path = '';
   const ports = { ...fakePorts(), ...options.deps };
   registerAdminBrowserTelemetryRoute({ post: (p: string, cb: typeof handler) => { path = p; handler = cb; } } as unknown as Express, {
-    clock: { nowMs: () => 0, nowIso: () => new Date(0).toISOString() }, observability: ports.observability, productAnalytics: ports.productAnalytics,
+    clock: { nowMs: () => 0, nowIso: () => new Date(0).toISOString() }, tracker: createTracker({ observability: ports.observability, productAnalytics: ports.productAnalytics }, { warn: options.warn }),
   }, options.limiter ?? allowAll);
   let status = 200, json: unknown;
   const headers: Record<string, string> = {};
@@ -140,11 +141,13 @@ test('the per-principal limit answers 429 with Retry-After and forwards nothing'
   assert.equal(out.events.length, 0);
 });
 
-test('a failing port is a generic 500 that logs no event content', async (t) => {
-  const logged: unknown[][] = [];
-  t.mock.method(console, 'error', (...args: unknown[]) => { logged.push(args); });
+test('a failing provider leaves the browser action successful and logs only a fixed warning', async () => {
+  const logged: string[] = [];
   const observability = { ...createNoopObservabilityPort({}), reportError: () => { throw new Error('vendor detail'); } };
-  const out = await post({ type: 'error', message: 'private', stack: '', route: '/admin' }, { deps: { observability } });
-  assert.deepEqual([out.status, out.json], [500, { error: 'internal error', code: 'INTERNAL_ERROR' }]);
-  assert.deepEqual(logged, [['[telemetry] browser telemetry route failed']]);
+  const out = await post({ type: 'error', message: 'private', stack: '', route: '/admin' }, {
+    deps: { observability }, warn: (message) => { logged.push(message); },
+  });
+  assert.equal(out.status, 204);
+  assert.equal(out.json, undefined);
+  assert.deepEqual(logged, ['[tracker] a telemetry provider failed; application work continues']);
 });

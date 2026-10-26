@@ -1,3 +1,4 @@
+import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from "node:assert/strict";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { once } from "node:events";
@@ -73,7 +74,7 @@ const stub: ChatMessage = { id: "a1", role: "assistant", content: "", runId: "ru
 async function watchOnce(input: { daemon: RunDaemonClient; ledger?: ChatRunLedger & { settled: string[] } }) {
   const { port, runs } = recordingPort();
   const ledger = input.ledger ?? fakeLedger();
-  const finalizer = createAssistantRunFinalizer({ ledger, daemon: input.daemon, observability: port, reconnectDelayMs: 1, maxReconnects: 1, checkpointIntervalMs: 0 });
+  const finalizer = createAssistantRunFinalizer({ ledger, daemon: input.daemon, tracker: createTracker({ observability: port }), observability: port, reconnectDelayMs: 1, maxReconnects: 1, checkpointIntervalMs: 0 });
   finalizer.watch({ principalId: "p1", conversationId: "conv-1", message: stub });
   await finalizer.idle();
   return { runs, ledger };
@@ -113,7 +114,7 @@ test("the follow loop, including its ledger write, runs inside the tracked run's
     seen.push(inside());
     return original(input);
   };
-  const finalizer = createAssistantRunFinalizer({ ledger, daemon: daemon(() => stream(frame("end", { code: 0, status: "succeeded" }))), observability: port, checkpointIntervalMs: 0 });
+  const finalizer = createAssistantRunFinalizer({ ledger, daemon: daemon(() => stream(frame("end", { code: 0, status: "succeeded" }))), tracker: createTracker({ observability: port }), observability: port, checkpointIntervalMs: 0 });
   finalizer.watch({ principalId: "p1", conversationId: "conv-1", message: stub });
   await finalizer.idle();
   assert.deepEqual(seen, [true]);
@@ -205,7 +206,7 @@ test("createAssistantRunFinalizer without a daemon traces its default client's l
   });
   const { exporter, port } = createInMemoryOtel();
   const ledger = fakeLedger();
-  const finalizer = createAssistantRunFinalizer({ ledger, observability: port, checkpointIntervalMs: 0 });
+  const finalizer = createAssistantRunFinalizer({ ledger, tracker: createTracker({ observability: port }), observability: port, checkpointIntervalMs: 0 });
 
   finalizer.watch({ principalId: "p1", conversationId: "conv-1", message: stub });
   await finalizer.idle();

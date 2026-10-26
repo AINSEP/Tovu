@@ -1,3 +1,4 @@
+import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import express from "express";
@@ -14,6 +15,7 @@ import { InMemoryVersionedMediaRepo, InMemoryAssetBlobRepo, InMemoryAssetRenditi
 test("admin upload stamps its actor, PATCH preserves it, and list exposes it", async (t) => {
   let id = 0;
   const deps: MediaRouteDeps = {
+    tracker: createNoopTracker({}),
     workspaceId: "creator-ws", clock: { nowIso: () => "2026-10-04T00:00:00Z", nowMs: () => Date.parse("2026-10-04T00:00:00Z") },
     idGen: { newId: () => `creator-http-${++id}` }, authorize: async () => ({ allowed: true, reason: "matched" }),
     mediaRepo: new InMemoryVersionedMediaRepo(), assetBlobRepo: new InMemoryAssetBlobRepo({}),
