@@ -58,7 +58,7 @@ Tests: Jini `observability-opentelemetry` (every span's resource; `service.name`
 
 - **Jini** (vitest 2, `--minWorkers=1 --maxWorkers=2`): provider-plugins **162/162** (incl. packed-install `artifact.integration` 7/7: npm pack → extract outside repo → integrity → fresh-process import with no vendor SDK resolvable → install + load under both host ABIs; core boundary 29/29); plugins **710/710**; diagnostics **788/788**. `pnpm guard`: 3 violations, the same 3 pre-existing ones (daemon `tool-recovery/observability.ts` "Tovu" comment; mcp `stdio-hosting.ts` HW2 ×2).
 - **Tovu** new/changed: `deps-provider-plugin-boot.integration` (3), `provider-plugins.unit` (20), `plugin-runtime.provider-plugins` (7), `provider-config-source.unit` (4), `project-store.unit` (5), `provider-settings-route.unit` (4), migrations `checksums` (4), admin `plugin-provider-settings.unit` (5) + admin plugins folder 555/555. `tsc -p tsconfig.json` clean; admin `tsc --noEmit`: 1 error, pre-existing and unrelated (`lib/__tests__/agent-plugin-choice-replay.unit.test.ts` vs published `@jini-ai/chat`).
-WIDE_RUN_PLACEHOLDER
+- **Tovu wide regression** (`node --test --test-concurrency=1`, linked Jini, 213 files: all `runtime/composition/__tests__`, `platform/db/migrations/__tests__`, admin-http `routes/plugins/__tests__`, `features/plugin-runtime/__tests__`, `features/api-connections/__tests__`): **1575 tests, 1553 pass, 19 fail, 3 skipped**. None caused by this run: Postgres (no server) — `runner.postgres` ×4, `create-site-route-deps.postgres`, `move-site-storage.postgres` ×5, `open-site-store.postgres`; `postgres-baseline` "matches schema.postgres.ts" (re-run with this run's migration changes reverted: same failure); `domain-bindings-step` = V8 fatal native crash in PGlite (ENV); and the three listed by wave 2 as pre-existing: `analytics-providers` "forwards to plausible", `commerce-data-retention` "commerce off", `plugin-host.integration` list/toggle (`exports: []`). No test process left running.
 
 ## Measurements
 
@@ -103,3 +103,8 @@ Caps: stop new work 03:02Z, hard end 03:22Z. Next: Node 24 + Jini install/build 
 - Step 1 DONE: Tovu ac543391 (TDZ; integration test red→green), ad5c96ee (retired leases inert); Jini 839dba92 (OTel injected config only).
 - Step 2 DONE: Tovu 7ddd0f38 (bounded provider load); Jini 146be48f (Langfuse borrowed client, TS-parser boundary scan), 8395a5f6 + 2ccf809a (fan-out scope containment).
 - Each fix's test shown red first (TDZ: PLUGIN_SETUP_FAILED→noop; lease: calls after detach reached the port; load: hung 100 s; OTel: hostile OTEL_* → nothing exported; Langfuse: borrowed client shut down; fan-out: "scope down" reached caller).
+
+## 2026-10-26T01:35Z — DONE
+All 7 steps done; wide run triaged (19 failures, all ENV/pre-existing). Jini head 03cc91e0 on `cloud/prov-wave2-jini`; Tovu head on `cloud/prov-wave2-tovu` (this commit). No test processes left running.
+
+WAVE2-FIX DONE 2026-10-26T01:35Z — wall ~1 h 13 m (00:22Z → 01:35Z), rough tokens ~0.55M.
