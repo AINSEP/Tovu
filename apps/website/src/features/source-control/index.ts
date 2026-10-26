@@ -13,6 +13,7 @@ export type {
 export {
   createSourceControlCredential,
   deleteSourceControlCredential,
+  findDefaultSourceControlCredential,
   describeCredential,
   isUniqueLabelViolation,
   listSourceControlCredentials,

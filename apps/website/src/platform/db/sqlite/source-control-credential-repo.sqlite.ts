@@ -1,6 +1,8 @@
 import { type ContentKernel, contentKernel } from "../content-kernel.js";
 import { SqlSourceControlCredentialSetRepo } from "../repos/source-control-credential-repo.js";
 import type { ContentDb } from "./content-db.js";
+import type { SourceControlCredentialSetRepoPort } from "#src/features/source-control/types";
+import type { CredentialProjectHalf } from "#src/features/vendor-credentials/project-scope";
 
 /**
  * @file The source-control credential set repo on a site's SQLite `content.db`: {@link SqlSourceControlCredentialSetRepo} (the one Kysely
@@ -8,8 +10,9 @@ import type { ContentDb } from "./content-db.js";
  * from the content db handle stay as they are.
  */
 export class SqliteSourceControlCredentialSetRepo extends SqlSourceControlCredentialSetRepo {
-  /** The connection's kernel, or the content db handle it is derived from. */
-  constructor(store: ContentKernel | ContentDb) {
-    super(contentKernel(store));
+  /** The connection's kernel, or the content db handle it is derived from; `optional.project` is the
+   *  project store its rows fall back to (`features/source-control/types.ts`). */
+  constructor(store: ContentKernel | ContentDb, optional: { project?: CredentialProjectHalf<SourceControlCredentialSetRepoPort> } = {}) {
+    super(contentKernel(store), optional);
   }
 }

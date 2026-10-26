@@ -1,4 +1,6 @@
 import { applyPluginCredentialCard, findPluginCredentialCard, type LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
+import { siteOnlyScope, withSiteOnlyField } from "../custom-credentials/site-only-field.js";
+import { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-repo.js";
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/secret-form-cards.js";
 import { assertCredentialFreeField, CREDENTIAL_MESSAGES, type CredentialTokenHint, type CredentialConnection } from '../../contracts/core/credential-token.js';
 import { credentialText, formatCredentialHint } from '../../contracts/core/credential-copy.js';
@@ -67,7 +69,8 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
   }, Awaited<ReturnType<typeof createSourceControlCredential>>, ProposalResult>({
     toolId: CREDENTIAL_SAVE_TOOL_ID,
     prepare: async () => ({ descriptor: ctx.signal.aborted ? undefined : descriptor, provider, label, locale }),
-    form: ({ prep }) => applyPluginCredentialCard({ card: pluginCard, form: {
+    // Project-first (owner 2026-10-25): the box opts this one key out, for this site only.
+    form: ({ prep }) => withSiteOnlyField({ shared: Boolean(deps.sourceControlCredentialSetRepo.project), form: applyPluginCredentialCard({ card: pluginCard, form: {
       title: `Connect ${prep.descriptor!.label}`,
       description: `${prep.descriptor!.credential!.help ?? 'Type the secret here. The assistant never sees it.'} ${BACKUP_REPOSITORY_RULES}`,
       submitLabel: 'Save credential',
@@ -77,7 +80,7 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
           return field.secret || field.name === prep.descriptor!.credential!.tokenField
             ? { ...base, secret: true, allowBlank: !field.required } : base;
         })],
-    } }),
+    } }) }),
     // Saves only provider-declared fields through the admin POST's existing store function.
     // Returns an explicit safe projection; errors may quote secrets and are never forwarded.
     save: ({ values, prep, signal }) => {
@@ -105,13 +108,15 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
         listByWorkspace: input => store.listByWorkspace(input),
         delete: input => store.delete(input),
         ...(store.updateAccountLabel ? { updateAccountLabel: (input: Parameters<NonNullable<typeof store.updateAccountLabel>>[0]) => store.updateAccountLabel!(input) } : {}),
+        // The project half writes too (project-first saves): guarded alike.
+        ...(store.project ? { project: { ...store.project, repo: abortGuardedCredentialRepo({ store: store.project.repo, signal }) } } : {}),
       };
       return createSourceControlCredential({ deps: {
         repo, sealer: deps.siteAssistantSecretSealer,
         keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen,
         loadSourceControlProviders: deps.loadSourceControlProviders,
         ...(deps.fetchFn ? { fetchFn: deps.fetchFn } : {}), observability: deps.observability,
-      }, input: { workspaceId: deps.workspaceId, label: values.label, connection } });
+      }, input: { workspaceId: deps.workspaceId, label: values.label, connection, ...(siteOnlyScope({ values }) ? { scope: "site" } : {}) } });
     },
     result: ({ prep, run }): ProposalResult => {
       const declined = { saved: false, credentialId: null, provider: prep.provider, label: prep.label, cancelled: run.status === 'cancelled' };

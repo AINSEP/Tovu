@@ -196,7 +196,8 @@ import {
 import { DefaultMemberAccessResolver, MembersSubscriberDirectory } from "#src/features/members/index";
 import { listCustomCredentials, resolveCustomCredentialByLabel } from "#src/features/custom-credentials/index";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
-import { VendorCredentialSetVaultRepo } from "#src/features/vendor-credentials/vault-adapter";
+import { TovuCredentialSetVaultAdapter, VendorCredentialSetVaultRepo } from "#src/features/vendor-credentials/vault-adapter";
+import type { SourceControlCredentialSetRecord } from "#src/features/source-control/types";
 import { ensureSearchProviderSetting } from "#src/features/site-search/settings";
 import { bindSiteSearchPorts, createSiteSearchRuntime } from "./modules/site-search.js";
 import {
@@ -2856,7 +2857,8 @@ async function composeSiteRouteDeps(
     // 2026-08-15 — see `routes/types.ts`'s `sourceControlCredentialSetRepo` doc. Sealed via the
     // same shared sealer/keyring the credential repos above already reuse (no third
     // `EnvOrFileKeyring` instance).
-    sourceControlCredentialSetRepo: new SqliteSourceControlCredentialSetRepo(kernel),
+    // Its rows: this site's own, then the project's (owner 2026-10-25).
+    sourceControlCredentialSetRepo: new SqliteSourceControlCredentialSetRepo(kernel, credentialProject(projectVault, vault => new TovuCredentialSetVaultAdapter<SourceControlCredentialSetRecord>({ vault, kind: "source-control" }))),
     // Read ONCE here rather than deep in `source-control/commit-site.ts` — see
     // `resolveSourceControlExportRootDir`'s own doc above and `routes/types.ts`'s
     // `sourceControlExportRootDir` doc.

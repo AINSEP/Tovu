@@ -162,6 +162,8 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
         label: body.label,
         connection: body.connection,
         isDefault: body.isDefault,
+        // "site" = only for this site; omitted = the project store when one is attached.
+        scope: body.scope,
       } });
       res.status(201).json({ credential });
     } catch (err) {

@@ -32,7 +32,7 @@ import {
 } from "./provider-registry.js";
 import type { RepositoryTargetValidator } from "./provider-module.js";
 import { proposeSourceControlCredential } from "./credential-setup.js";
-import { listSourceControlCredentials } from "./store.js";
+import { findDefaultSourceControlCredential, listSourceControlCredentials } from "./store.js";
 import type { SourceControlCredentialSetRepoPort } from "./types.js";
 import type { ObservabilityPort } from "../../platform/observability/index.js";
 
@@ -131,7 +131,7 @@ async function requireKnownHost({ deps, providerId, authorizeSavedLookup }: {
 
 /** Saved default metadata for any opaque id, never decrypted; null when no default exists. */
 async function findSavedDefault({ deps, providerId }: { deps: SourceControlToolDeps; providerId: string }, _options = {}) {
-  return deps.sourceControlCredentialSetRepo.findDefaultByProvider({ workspaceId: deps.workspaceId, providerId });
+  return findDefaultSourceControlCredential({ repo: deps.sourceControlCredentialSetRepo }, { workspaceId: deps.workspaceId, providerId });
 }
 
 const EXECUTE_COMMIT_SCHEMA = {
