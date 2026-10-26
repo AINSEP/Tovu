@@ -8,9 +8,10 @@ import type { SiteConsentState, SiteConsentStore } from './revisions.js';
 import { SiteConsentConflict } from './revisions.js';
 import { consentConfigProblems, parseConsentConfig, type ConsentProblem } from './validation.js';
 import { CONSENT_CATEGORIES, CONSENT_MAX_AGE_MS, CONSENT_MAX_CSS_LENGTH, CONSENT_CSS_SELECTORS } from '@jini-ai/cms/consent';
-import { SITE_CONSENT_DEFAULT_CSS, SITE_CONSENT_DEFAULTS, SITE_CONSENT_PLACEMENTS, SITE_CONSENT_TEXT_LIMITS, withSiteConsentDefaultCss } from './config.js';
+import { SITE_CONSENT_BANNER_MODES, SITE_CONSENT_DEFAULT_CSS, SITE_CONSENT_DEFAULTS, SITE_CONSENT_PLACEMENTS, SITE_CONSENT_TEXT_LIMITS, withSiteConsentDefaultCss } from './config.js';
 import { consentPagePath } from './request.js';
 import { consentDryRun, type ConsentDryRunGate } from './readiness.js';
+import { withSiteBannerMode } from './cookie-consent.js';
 
 export interface ConsentServicePorts {
   workspaceId: string;
@@ -27,6 +28,9 @@ export interface ConsentServicePorts {
   receiptStorage(required: Record<string, never>, optional?: Record<string, never>): Promise<ConsentReceiptStorageHealth>;
   /** The engine consent gate used by dry runs; omitted means the real `gateConsentHtml`. */
   consentGate?: ConsentDryRunGate;
+  /** Set when `@jini-ai/cookie-consent` serves the site: banner modes are editable, a bad CSS rule is
+   * dropped alone instead of blocking, and static exports carry the banner. TODO(P4): always on. */
+  cookieConsent?: boolean;
 }
 
 /** Unsaved input takes precedence over the draft, then the effective published/legacy policy.
@@ -63,13 +67,13 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
     return { ...state, draft, effective: withSiteConsentDefaultCss({ config: parseConsentConfig({ value: state.published?.config ?? legacy }) }), categoriesEditable: false,
       editor: { defaults: { ...SITE_CONSENT_DEFAULTS, customCss: SITE_CONSENT_DEFAULT_CSS }, placements: [...SITE_CONSENT_PLACEMENTS], textLimits: { ...SITE_CONSENT_TEXT_LIMITS },
         maxCssLength: CONSENT_MAX_CSS_LENGTH, cssSelectors: [...CONSENT_CSS_SELECTORS],
-        regionModes: ['opt-in', 'auto'],
+        regionModes: ['opt-in', 'auto'], ...(ports.cookieConsent ? { bannerModes: [...SITE_CONSENT_BANNER_MODES] } : {}),
         categories: CONSENT_CATEGORIES.map(id => ({ id, required: id === 'necessary', editable: false })),
-        rules: { gpc: 'always-enforced', preferenceMaxAgeMs: CONSENT_MAX_AGE_MS, staticReceipts: false } } };
+        rules: { gpc: 'always-enforced', preferenceMaxAgeMs: CONSENT_MAX_AGE_MS, staticReceipts: false, staticBanner: Boolean(ports.cookieConsent) } } };
   };
   /** Engine validation plus this site's privacy-page linkage; no HTTP fetch to external policies. */
   const problems = async ({ config }: { config: ConsentConfig }, _optional = {}): Promise<ConsentProblem[]> => {
-    const found = consentConfigProblems({ config, trustedRegion: ports.trustedRegion });
+    const found = consentConfigProblems({ config, trustedRegion: ports.trustedRegion }, { cssBlocks: !ports.cookieConsent });
     if (config.enabled && config.privacyPolicyUrl && !found.some(problem => problem.field === 'privacyPolicyUrl') && !await ports.privacyPageExists({ url: config.privacyPolicyUrl })) found.push({ code: 'PRIVACY_PAGE_MISSING', field: 'privacyPolicyUrl', message: 'Publish the linked privacy page before enabling consent.' });
     return found;
   };
@@ -114,7 +118,8 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
   /** Append an immutable draft; invalid CSS is saved for editing but cannot be published. */
   const saveDraft = async ({ principalId, config: value, expectedDraftId }: { principalId: string; config: unknown; expectedDraftId: string | null }, _optional = {}) => {
     const store = await authorize({ principalId, write: true });
-    const config = parseConsentConfig({ value });
+    const parsed = parseConsentConfig({ value });
+    const config = ports.cookieConsent ? withSiteBannerMode({ config: parsed }) : parsed;
     const blockingProblems = await problems({ config });
     const revision = { id: ports.ids.newId(), config, actorId: principalId, createdAt: ports.clock.nowIso() };
     await store.saveDraft({ revision, expectedDraftId });
@@ -142,6 +147,8 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
       const config = parseConsentConfig({ value: state.published?.config ?? await ports.readLegacy({}) });
       if (!config.enabled) return null;
       const blockingProblems = await problems({ config });
+      // The cookie-consent banner works on a static host (choices kept in the browser, labelled so).
+      if (ports.cookieConsent) return blockingProblems.length ? deploymentRefusal({ problems: blockingProblems }) : null;
       blockingProblems.push({ code: 'STATIC_RECEIPTS_UNAVAILABLE', message: 'Static delivery cannot save consent receipts. Keep the banner on a live server, or explicitly publish with the banner disabled.' });
       return deploymentRefusal({ problems: blockingProblems });
     } catch {
