@@ -706,11 +706,17 @@ export function useComposerCapabilities(_input: Record<string, never> = {}, _opt
   useEffect(() => {
     let cancelled = false;
     let generation = 0;
+    let shown = "";
     const reload = () => {
       const current = ++generation;
       return projectComposerCapabilities([createBundledComposerCapabilitySource(), createInstalledSkillsComposerCapabilitySource()])
       .then((projection) => {
-        if (!cancelled && current === generation) setComposerCapabilities(projection);
+        // An unchanged catalog keeps its state, so refreshes do not re-render the dock. JSON drops
+        // `resolve`; every source's binding is derived from the serialized fields (item id).
+        const next = JSON.stringify([...projection.byItemId.values()]);
+        if (cancelled || current !== generation || next === shown) return;
+        shown = next;
+        setComposerCapabilities(projection);
       })
       .catch((error: unknown) => {
         console.error("[AssistantDock] composer capability projection failed", error);

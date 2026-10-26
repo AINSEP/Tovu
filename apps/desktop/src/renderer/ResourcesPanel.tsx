@@ -136,7 +136,7 @@ export function ResourcesPanel({ projects, snapshot, onSiteUpdated, onClose,
   return <div ref={containerRef}><Shell onClose={onClose} fullscreenEnabled={false} className="resources-dialog"
     dialogAriaLabelledBy="desktop-resources-title" tabs={[{ id: 'resources', label: 'Resources', title: 'Resources', panel: <>
       <p className="resources-total">Total: {metricsText({ metrics: snapshot?.status === 'available' ? snapshot.total : undefined })}</p>
-      <ResourceRowListView title="Memory and CPU" lede="Memory is an estimate: Electron private memory where available (resident memory otherwise), plus RSS for other processes. Shared resident pages and uncollected heap can inflate it. CPU uses one core as 100%."
+      <ResourceRowListView title="Memory and CPU" lede="Memory totals are estimates and can include not-yet-freed memory. CPU uses one core as 100%."
         metrics={[]} metricsAriaLabel="Resource totals" loading={false} error={null}
         actionError={errors || null} sectionLabel="Running sites and Tovu app" loadingLabel="Reading resources…"
         emptyTitle="No resources" emptyBody="Start a site to see its resource use."
