@@ -305,3 +305,29 @@ test("when the lock wait runs out and the old file vanishes before it opens, the
   assert.deepEqual(opener.opens, [{ dbPath: d.next.dbPath, mustExist: false }]);
   assert.equal(fs.existsSync(d.legacy.dbPath), false, "nothing was created at the old place");
 });
+
+test("a stray key at the new place with no database beside it is replaced by the old key (nothing is sealed under it yet)", async (t) => {
+  const d = dirs(t);
+  await seedLegacy(d);
+  fs.mkdirSync(path.dirname(d.next.keyFile), { recursive: true });
+  fs.writeFileSync(d.next.keyFile, "cd".repeat(32), { mode: 0o600 });
+  const store = await openProjectStore({ sitesHome: d.sitesHome, home: d.home });
+  t.after(() => store.close({}));
+  assert.equal(fs.readFileSync(d.next.keyFile, "utf8").trim(), fs.readFileSync(d.legacy.keyFile, "utf8").trim());
+  assert.equal(fs.statSync(d.next.keyFile).mode & 0o777, 0o600);
+  assert.deepEqual(await store.config.read({ pluginId: PLUGIN }), CONFIG, "the moved rows open with the key that sealed them");
+  assert.deepEqual(fs.readdirSync(path.dirname(d.next.dbPath)).filter((name) => name.includes(".tmp")), [], "no temp key left");
+});
+
+test("when both places hold a project.db, one warning names both paths", async (t) => {
+  const d = dirs(t);
+  await seedLegacy(d);
+  fs.mkdirSync(path.dirname(d.next.dbPath), { recursive: true });
+  fs.writeFileSync(d.next.dbPath, "");
+  const warnings: string[] = [];
+  t.mock.method(console, "warn", (message: string) => { warnings.push(message); });
+  resolveProjectFiles({ home: d.home, sitesHome: d.sitesHome, projectId: d.projectId });
+  resolveProjectFiles({ home: d.home, sitesHome: d.sitesHome, projectId: d.projectId });
+  assert.equal(warnings.length, 1);
+  assert.ok(warnings[0]!.includes(d.legacy.dbPath) && warnings[0]!.includes(d.next.dbPath), warnings[0]);
+});

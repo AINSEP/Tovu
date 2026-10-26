@@ -9,7 +9,7 @@ import {
   type DeployConfigGeneratorRegistry,
   type RenderDeployConfigOptions,
 } from "../../features/deployments/index.js";
-import { readSiteMetaId } from "../../features/webhooks/site-key-sources.js";
+import { isSiteIdToken, readSiteMetaId } from "../../features/webhooks/site-key-sources.js";
 import { resolveProductRoot, resolveSiteRoot, ValidationError } from "../../platform/site-dir/index.js";
 
 /**
@@ -42,6 +42,8 @@ export interface RunDeployConfigCommandInput {
   target?: string;
   region?: string;
   out?: string;
+  /** Which local site's id to stamp (a registered site name); default: the site this process serves. */
+  site?: string;
 }
 
 /** The bundled hosting plugins' source root. Same resolution as
@@ -94,27 +96,44 @@ async function loadGenerators(env: NodeJS.ProcessEnv, stderr: (message: string) 
   return registry;
 }
 
-/**
- * The deployed server's site identity: `TOVU_SITE_ID` = the local site's own `.site-meta.json` id
- * (the site this process serves: `TOVU_SITE_DIR`, else `TOVU_SITE`, else the default). Production
- * never mints a meta of its own, so without this every deployed site reports as the shared starter
- * workspace id (`deps.ts`'s `siteIdentityFor` reads it). A non-secret id, so it goes in the generated
- * env block. Nothing is added for a site with no id yet, or when the site cannot be resolved (told on
- * stderr): the config still renders.
- * @complexity O(n) registered sites (`resolveSiteRoot`) plus one small file read.
- */
-function siteIdentityEnv(env: NodeJS.ProcessEnv, stderr: (message: string) => void): Record<string, string> {
-  let siteId: string | undefined;
-  try {
-    siteId = readSiteMetaId(resolveSiteRoot({ env }));
-  } catch (error) {
-    stderr(`tovu deploy config: the site could not be resolved, so TOVU_SITE_ID is not set: ${error instanceof Error ? error.message : String(error)}\n`);
-  }
-  return siteId ? { TOVU_SITE_ID: siteId } : {};
+/** The env `resolveSiteRoot` reads, with `--site <name>` taking the place of TOVU_SITE_DIR / TOVU_SITE. */
+function siteSelectionEnv(env: NodeJS.ProcessEnv, site: string | undefined): NodeJS.ProcessEnv {
+  if (site === undefined) return env;
+  const { TOVU_SITE_DIR: _ignored, ...rest } = env;
+  return { ...rest, TOVU_SITE: site };
 }
 
 /**
- * Run `tovu deploy config --target <t> --region <r> [--out <file>]`.
+ * The deployed server's site identity: `TOVU_SITE_ID` = the local site's own `.site-meta.json` id
+ * (`--site <name>`, else the site this process serves: `TOVU_SITE_DIR`, else `TOVU_SITE`, else the
+ * default). Production never mints a meta of its own, so without this every deployed site reports as
+ * the shared starter workspace id (`deps.ts`'s `siteIdentityFor` reads it). A non-secret id, so it
+ * goes in the generated env block, and only as a short token (`isSiteIdToken`): a hand-edited id
+ * holding a newline or quotes would otherwise write lines of its own into the file. Which site was
+ * stamped is told on stderr. Nothing is added for a site with no id yet, an id that is not a token,
+ * or when the site cannot be resolved (told on stderr): the config still renders.
+ * @complexity O(n) registered sites (`resolveSiteRoot`) plus one small file read.
+ */
+function siteIdentityEnv(env: NodeJS.ProcessEnv, stderr: (message: string) => void, site?: string): Record<string, string> {
+  let siteRoot: string;
+  try {
+    siteRoot = resolveSiteRoot({ env: siteSelectionEnv(env, site) });
+  } catch (error) {
+    stderr(`tovu deploy config: the site could not be resolved, so TOVU_SITE_ID is not set: ${error instanceof Error ? error.message : String(error)}\n`);
+    return {};
+  }
+  const siteId = readSiteMetaId(siteRoot);
+  if (siteId === undefined) return {};
+  if (!isSiteIdToken(siteId)) {
+    stderr(`tovu deploy config: ${path.join(siteRoot, ".site-meta.json")} holds ${JSON.stringify(siteId.slice(0, 80))}, which is not a valid site id, so TOVU_SITE_ID is not set\n`);
+    return {};
+  }
+  stderr(`tovu deploy config: stamped TOVU_SITE_ID=${siteId} (site '${path.basename(siteRoot)}' at ${siteRoot})\n`);
+  return { TOVU_SITE_ID: siteId };
+}
+
+/**
+ * Run `tovu deploy config --target <t> --region <r> [--site <name>] [--out <file>]`.
  *
  * @throws {ValidationError} an unknown `--target`, a missing/invalid `--region` (raised by the
  *   chosen generator itself, through the kit).
@@ -135,7 +154,7 @@ export async function runDeployConfigCommand(input: RunDeployConfigCommandInput,
   }
 
   const descriptor = buildDeploymentDescriptor();
-  const options: RenderDeployConfigOptions = { region: input.region ?? "", env: siteIdentityEnv(env, stderr) };
+  const options: RenderDeployConfigOptions = { region: input.region ?? "", env: siteIdentityEnv(env, stderr, input.site) };
   const rendered = generator.module.render(descriptor, options, createDeployConfigKit());
 
   if (input.out !== undefined) {

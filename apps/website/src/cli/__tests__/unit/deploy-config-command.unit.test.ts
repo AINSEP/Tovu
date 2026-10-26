@@ -110,3 +110,33 @@ test("by default the rendered config goes to stdout", async (t) => {
   }
   assert.ok(written.some((chunk) => chunk.includes("ams")));
 });
+
+test("--site <name> picks which local site's id is stamped, and stderr says which site it was", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "tovu-deploy-config-sites-")); t.after(() => rm(root, { recursive: true, force: true }));
+  const siteAt = async (name: string, siteId: string) => {
+    const dir = path.join(root, name);
+    await mkdir(dir, { recursive: true });
+    await writeFile(path.join(dir, "config.json"), "{}");
+    await writeFile(path.join(dir, ".site-meta.json"), JSON.stringify({ siteId }));
+    return dir;
+  };
+  const current = await siteAt("current", "site-uuid-current");
+  await siteAt("blog", "site-uuid-blog");
+  const io = capture({ TOVU_BUNDLED_AGENT_PLUGINS_DIR: FIXTURE_PLUGINS_DIR, TOVU_SITES_HOME: root, TOVU_SITE_DIR: current });
+  await runDeployConfigCommand({ target: "example-host", region: "ams", site: "blog" }, io.ports);
+  assert.match(io.out[0]!, /^env\.TOVU_SITE_ID = "site-uuid-blog"$/m);
+  assert.ok(io.err.some((line) => /^tovu deploy config: stamped TOVU_SITE_ID=site-uuid-blog \(site 'blog' at .*blog\)\n$/.test(line)), io.err.join(""));
+  // Without --site, the process's own site (and stderr names it too).
+  await runDeployConfigCommand({ target: "example-host", region: "ams" }, io.ports);
+  assert.match(io.out[1]!, /^env\.TOVU_SITE_ID = "site-uuid-current"$/m);
+  assert.ok(io.err.some((line) => line.includes("stamped TOVU_SITE_ID=site-uuid-current (site 'current'")));
+});
+
+test("a site id that is not a short token (a newline, quotes, a long string) is never stamped into the config", async (t) => {
+  const site = await mkdtemp(path.join(tmpdir(), "tovu-deploy-config-badid-")); t.after(() => rm(site, { recursive: true, force: true }));
+  await writeFile(path.join(site, ".site-meta.json"), JSON.stringify({ siteId: "x\"\nenv.EVIL = \"1" }));
+  const io = capture({ TOVU_BUNDLED_AGENT_PLUGINS_DIR: FIXTURE_PLUGINS_DIR, TOVU_SITE_DIR: site });
+  await runDeployConfigCommand({ target: "example-host", region: "ams" }, io.ports);
+  assert.doesNotMatch(io.out[0]!, /TOVU_SITE_ID|EVIL/);
+  assert.ok(io.err.some((line) => /not a valid site id, so TOVU_SITE_ID is not set/.test(line)), io.err.join(""));
+});

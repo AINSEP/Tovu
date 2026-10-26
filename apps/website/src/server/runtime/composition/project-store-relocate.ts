@@ -80,10 +80,26 @@ function foldIntoOneFile(dbPath: string, busyTimeoutMs: number): boolean {
   }
 }
 
-/** Publishes a copy of the old key at the new path, unless a key is already there. */
+/**
+ * Publishes a copy of the old key at the new path. Runs only while no database is there (under the
+ * lock), so a key already there (a stray: an earlier move that stopped part-way, a store opened then
+ * removed) seals nothing yet and is replaced: keeping it would leave the moved rows unopenable.
+ */
 function carryKey(from: string, to: string): void {
-  if (fs.existsSync(to) || !fs.lstatSync(from, { throwIfNoEntry: false })?.isFile()) return;
-  atomicCreateSiteKeyFile(to, fs.readFileSync(from, "utf8").trim());
+  if (!fs.lstatSync(from, { throwIfNoEntry: false })?.isFile()) return;
+  const hex = fs.readFileSync(from, "utf8").trim();
+  if (!fs.existsSync(to)) {
+    atomicCreateSiteKeyFile(to, hex);
+    return;
+  }
+  if (fs.readFileSync(to, "utf8").trim() === hex) return;
+  const tmp = `${to}.tmp-${process.pid}-${randomBytes(4).toString("hex")}`;
+  try {
+    atomicCreateSiteKeyFile(tmp, hex);
+    fs.renameSync(tmp, to);
+  } finally {
+    tryRemove(tmp, (file) => fs.rmSync(file, { force: true }));
+  }
 }
 
 const sha256Of = (file: string): string => createHash("sha256").update(fs.readFileSync(file)).digest("hex");
@@ -207,9 +223,20 @@ function removeLeftOriginal(from: string, to: string, optional: RelocateOptions)
     const old = fs.statSync(from, { bigint: true, throwIfNoEntry: false });
     if (old && (sameFile(old, fs.statSync(to, { bigint: true })) || isCopiedOriginal(from, to))) {
       tryRemove(from, optional.rm ?? ((file) => fs.rmSync(file, { force: true })));
+    } else if (old) {
+      warnBothOnce(from, to);
     }
     if (!fs.existsSync(from)) tryRemove(movedFromMarker(to), (file) => fs.rmSync(file, { force: true }));
   } catch { /* a later start tries again */ }
+}
+
+const warnedPairs = new Set<string>();
+
+/** Two different project.db files (an old build wrote a new one at the old place): said once per process. */
+function warnBothOnce(from: string, to: string): void {
+  if (warnedPairs.has(`${from}\0${to}`)) return;
+  warnedPairs.add(`${from}\0${to}`);
+  console.warn(`[project-store] two project.db files: using ${to}; ${from} was not moved there and is left as it is`);
 }
 
 /** True when there is an old file to move and nothing at the new place yet. */
