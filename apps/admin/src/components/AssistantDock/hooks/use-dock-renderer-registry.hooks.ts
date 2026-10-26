@@ -149,10 +149,12 @@ function registerDockRenderers({ registry }: { registry: ExtEventRendererRegistr
     // existing (unrendered) `'status'` kind" reasoning.
     registry.register({ name: "slow_running", renderer: (props) => createElement(SlowRunNoticeCard, props) }),
     registry.register({ name: AGENT_FAILURE_EVENT, renderer: (props) => createElement(AgentFailureCard, props) }),
-    // What the operator sent mid-run, drawn as their bubble inside the running turn where the agent
+    // What the operator sent mid-run, drawn as their own transcript row where the agent
     // got it. Jini's `registerMidRunUserMessageRenderer` only targets the global registry, so this
     // repeats its two lines (component + slot key) against the owned one.
-    registry.register({ name: MID_RUN_USER_MESSAGE_EXT_EVENT_NAME, renderer: (props) => createElement(MidRunUserMessage, { events: props.events }) }, { slotKey: midRunUserMessageSlotKey }),
+    registry.register({ name: MID_RUN_USER_MESSAGE_EXT_EVENT_NAME, renderer: (props) => createElement(MidRunUserMessage, {
+      events: props.events, runStreaming: props.runStreaming, transcriptRow: props.transcriptRow === true,
+    }) }, { slotKey: midRunUserMessageSlotKey }),
   ];
   return () => { unregister.forEach(dispose => dispose()); };
 }

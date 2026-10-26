@@ -67,6 +67,7 @@ export interface SitesToolDeps {
   createSite?: CreateSiteForOwnerPorts["createSite"];
   /** Defaults to the real `persistActiveSite` (via `site-admin.ts`). Injectable for `sites_switch_site` tests. */
   persistActiveSite?: ActivateSitePorts["persistActiveSite"];
+  readSiteRunning?: ActivateSitePorts["readSiteRunning"];
   /** The `npm run dev` restart channel (`platform/dev-supervisor`). Filled in by
    *  `assistant/tool-registrations.ts`'s `enrichedRouteDeps`; `null`/absent = no supervisor. */
   devRestart?: DevRestartPort | null;

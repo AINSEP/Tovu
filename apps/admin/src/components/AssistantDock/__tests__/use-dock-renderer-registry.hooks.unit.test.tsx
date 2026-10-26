@@ -1,4 +1,4 @@
-import { renderHook } from "@testing-library/react";
+import { render, renderHook, screen } from "@testing-library/react";
 import { isValidElement, StrictMode } from "react";
 import { describe, expect, it } from "vitest";
 import {
@@ -17,6 +17,22 @@ const eventNames = [MCP_UI_EXT_EVENT_NAME, "a2ui", "slow_running", AGENT_FAILURE
 const resource = (uri: string) => ({ type: "resource", resource: { uri, mimeType: "text/html", text: "<p>choice</p>" } });
 
 describe("admin dock owned renderer lifecycle", () => {
+  it("preserves ordinary transcript spacing and queued state in the real mid-run renderer", () => {
+    const { result } = renderHook(() => useDockRendererRegistry());
+    const renderer = result.current.registry.get({ name: MID_RUN_USER_MESSAGE_EXT_EVENT_NAME })!;
+    const props = { name: MID_RUN_USER_MESSAGE_EXT_EVENT_NAME, runStreaming: true, runSucceeded: false,
+      transcriptRow: true, runId: "active", events: [{ id: "steering", text: "Also update the footer.", deliveryState: "queued" }] };
+    const { container, rerender } = render(<>{renderer(props)}</>);
+    const bubble = container.querySelector('.jini-message-user');
+    expect(bubble).not.toBeNull();
+    expect(bubble).not.toHaveClass('jini-message-user--mid-run');
+    expect(screen.getByText('Queued — read after the current step')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copy message' })).toBeInTheDocument();
+    rerender(<>{renderer({ ...props, runStreaming: false, runSucceeded: true })}</>);
+    expect(screen.queryByText('Queued — read after the current step')).not.toBeInTheDocument();
+    expect(screen.getByText('Also update the footer.')).toBeInTheDocument();
+  });
+
   it("keeps renderers and slot keys isolated from compatibility globals, including on import", () => {
     // Importing the hook must not register any dock behavior before it is mounted.
     for (const name of eventNames) expect(getExtEventRenderer({ name })).toBeUndefined();

@@ -173,3 +173,7 @@ button.access-tokens-row-summary-expand:hover { color: var(--fg); }
 .access-tokens-scope-guidance-summary::-webkit-details-marker { display: none; }
 
 .access-tokens-add-another { align-self: flex-start; }
+
+/* Keep native radio sizing: `.field input` expands every input to full width. */
+.access-tokens-key-scope { display: grid; gap: var(--space-2); border: 0; padding: 0; margin: 0; min-width: 0; }
+.access-tokens-key-scope > label { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); color: var(--fg-2); cursor: pointer; }

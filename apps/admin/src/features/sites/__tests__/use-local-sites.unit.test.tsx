@@ -295,6 +295,22 @@ it("switching uses confirmation, cancellation and the existing busy/error lifecy
   expect(result.current.busyName).toBeNull(); expect(result.current.error).toBeNull(); unmount();
 });
 
+it("shows the Desktop refusal URL without starting restart polling or changing the served site", async () => {
+  const snapshot = fixture();
+  const polling = pollingFakes();
+  const message = "Site 'alpha' is open in Desktop at https://localhost:53775/admin/. Switch refused; the current site is still running.";
+  const port = createFakeSitesPort(snapshot, {
+    manageLocalSite: async () => { throw new ApiError(message, 409, "SITE_ALREADY_RUNNING"); },
+  });
+  const { result, unmount } = renderHook(() => useLocalSites({ port, snapshot, t }, { ...polling, confirm: () => true }), { wrapper });
+  await act(async () => { await result.current.run("alpha", "switch"); });
+  expect(result.current.error).toBe(message);
+  expect(result.current.busyName).toBeNull();
+  expect(snapshot.currentSite.name).toBe("owner");
+  expect(polling.active.size).toBe(0);
+  unmount();
+});
+
 
 it("the shared confirmation modal presents and settles a site switch", async () => {
   const { result, unmount } = renderHook(() => useSiteConfirm({ t }));

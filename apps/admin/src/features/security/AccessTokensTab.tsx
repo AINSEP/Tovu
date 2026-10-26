@@ -393,20 +393,54 @@ function TokenRow({
           <ConnectedMarkIcon />
         </span>
         <span className="access-tokens-row-name">{state.name}</span>
+        <CustomKeyUsage state={state} controller={controller} />
         <TokenRowDefaultIndicator state={state} showDefaultUi={showDefaultUi} controller={controller} t={translate} />
         <span className="access-tokens-row-summary-meta">
           {state.row.worksFor?.length ? <span>{translate("Works for")}: {state.row.worksFor.join(", ")} · </span> : null}
           {translate("saved")} {formatTimestamp({ iso: state.row.updatedAt }, { timeZone: "local" })} <CredentialHint hint={state.row.tokenHint} />
         </span>
         <span className="access-tokens-row-summary-expand">
-          {translate("Replace token")}
+          {translate(state.row.scope === "project" && !state.row.usedByThisSite ? "Details" : "Replace token")}
           <DisclosureChevronIcon />
         </span>
       </summary>
-      <ExistingTokenFields state={state} controller={controller} info={info} onRemoveClick={() => dialogRef.current?.showModal()} t={translate} />
+      {state.row.scope === "project" && !state.row.usedByThisSite ? (
+        <div className="access-tokens-row-actions">
+          <p className="field-hint">{translate("Use on this site to replace this key.")}</p>
+          <button type="button" className="btn-danger" onClick={() => dialogRef.current?.showModal()} aria-label={`${translate("Remove from Tovu")} — ${state.name}`}>
+            {translate("Remove from Tovu")}
+          </button>
+        </div>
+      ) : <ExistingTokenFields state={state} controller={controller} info={info} onRemoveClick={() => dialogRef.current?.showModal()} t={translate} />}
       <RemoveConfirmDialog ref={dialogRef} row={state.row} info={info} controller={controller} isLastForProvider={groupRowCount === 1} t={translate} />
     </details>
   );
+}
+
+/** Storage and attachment facts for custom keys. Summary actions preserve the disclosure state,
+ * matching the existing default-token action; the controller owns all I/O and failures.
+ */
+function CustomKeyUsage({ state, controller }: { state: AccessTokenExistingRowState; controller: AccessTokensController }) {
+  if (state.row.kind !== "custom") return null;
+  const translate = controller.t;
+  if (state.row.scope !== "project") return <span className="status status-neutral">{translate("This site only")}</span>;
+  const sites = state.row.usedBy ?? [];
+  const action = state.row.usedByThisSite ? "Stop using on this site" : "Use on this site";
+  return <>
+    <span className="status status-neutral">
+      {sites.length ? <>{translate("Project — used by:")} <span translate="no">{sites.join(", ")}</span></> : translate("Project — not used by any site yet")}
+    </span>
+    <button type="button" className="link-button" disabled={controller.customKeyBusy[state.row.id]?.saving}
+      aria-label={`${translate(action)} — ${state.name}`}
+      onClick={event => {
+        event.preventDefault();
+        event.stopPropagation();
+        void controller.setCustomKeyUse({ row: state.row, use: !state.row.usedByThisSite });
+      }}
+      {...agentHandle({ handle: `security-access-tokens-use-${agentHandleSegment({ value: state.row.id })}` }, { role: "button", label: `${action} — ${state.name}` })}
+    >{translate(action)}</button>
+    {controller.customKeyBusy[state.row.id]?.error ? <span className="save-error" role="alert">{controller.customKeyBusy[state.row.id].error}</span> : null}
+  </>;
 }
 
 /** The `isDefault` indicator + `Make default` link — only shown once a provider has 2+ saved
@@ -874,6 +908,21 @@ function AdditionalHostsField({ value, onChange, translate }: { value: string; o
   );
 }
 
+/** Explicit storage choice; hosts without a project store can truthfully offer site-only saving. */
+function CustomKeyStorageChoice({ controller }: { controller: AccessTokensController }) {
+  const translate = controller.t;
+  if (!controller.projectKeysAvailable) return <p className="field-hint">{translate("This site only")}</p>;
+  return (
+    <fieldset className="access-tokens-key-scope" disabled={controller.customAddForm.saving}>
+      <legend className="field-label">{translate("Save key to")}</legend>
+      <label><input type="radio" name="custom-key-scope" value="project" checked={(controller.customAddForm.scope ?? "project") === "project"}
+        onChange={() => controller.setCustomAddField({ scope: "project" })} /> {translate("Save to project (pick sites later)")}</label>
+      <label><input type="radio" name="custom-key-scope" value="site" checked={controller.customAddForm.scope === "site"}
+        onChange={() => controller.setCustomAddField({ scope: "site" })} /> {translate("This site only")}</label>
+    </fieldset>
+  );
+}
+
 /**
  * The "Add custom provider" form (`AccessTokensCategoryFilter`'s own button opens it) — a
  * standalone native `<dialog>`, not a per-provider `AddTokenForm` (this file's own header on why a
@@ -983,6 +1032,7 @@ const AddCustomCredentialDialog = forwardRef<HTMLDialogElement, { controller: Ac
             ))}
           </select>
         </div>
+        <CustomKeyStorageChoice controller={controller} />
         <WorksForField value={form.worksFor} options={controller.worksForOptions} onChange={worksFor => controller.setCustomAddField({ worksFor })} t={translate} />
         {form.error ? (
           <p className="save-error" role="alert">

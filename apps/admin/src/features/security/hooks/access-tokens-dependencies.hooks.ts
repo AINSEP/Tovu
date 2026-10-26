@@ -28,6 +28,7 @@ export const defaultAccessTokensPort: AccessTokensPort = {
   },
   custom: {
     list: () => api.listCustomCredentials(),
+    useKey: input => api.useProjectKey(input),
     create: (input) => api.createCustomCredential(input).then((res) => res.credential),
     update: (id, input) => api.updateCustomCredential(id, input).then((res) => res.credential),
     remove: (id) => api.deleteCustomCredential(id),
@@ -64,11 +65,13 @@ function fakeSourceControlPort(overrides: Partial<AccessTokensPort["sourceContro
  *  @complexity O(1). */
 function fakeCustomPort(overrides: Partial<AccessTokensPort["custom"]> | undefined): AccessTokensPort["custom"] {
   const emptySnapshot: AdminCustomCredentialsSnapshot = { credentials: [] };
+  const custom = overrides ?? {};
   return {
-    list: overrides?.list ?? (() => Promise.resolve(emptySnapshot)),
-    create: overrides?.create ?? (() => Promise.reject(new Error("custom.create not stubbed for this test"))),
-    update: overrides?.update ?? (() => Promise.reject(new Error("custom.update not stubbed for this test"))),
-    remove: overrides?.remove ?? (() => Promise.resolve()),
+    useKey: custom.useKey ?? (() => Promise.reject(new Error("custom.useKey not stubbed for this test"))),
+    list: custom.list ?? (() => Promise.resolve(emptySnapshot)),
+    create: custom.create ?? (() => Promise.reject(new Error("custom.create not stubbed for this test"))),
+    update: custom.update ?? (() => Promise.reject(new Error("custom.update not stubbed for this test"))),
+    remove: custom.remove ?? (() => Promise.resolve()),
   };
 }
 
