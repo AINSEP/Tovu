@@ -17,7 +17,7 @@ import { SiteShareRegistry } from "../share-registry.js";
 import type { ShareDelivery } from "../share-service.js";
 import { createPeerShareDelivery, createRuntimeShareDelivery, resolveShareDelivery } from "../share-hosting.js";
 
-const TOKEN = "a".repeat(64);
+const TOKEN = "a".repeat(16);
 const KEY = `_share/${TOKEN}/site.tovu.zip`;
 const ORIGIN = "https://share.example.test";
 const PEER_BASE = "https://live.example.test";
@@ -53,7 +53,8 @@ function runtime(t: TestContext, options: { site?: string; publicOrigin?: string
 // ---- artifact key gate (shared by every store operation) ----
 
 for (const key of [
-  `share/${TOKEN}/site.tovu.zip`, `_share/${"A".repeat(64)}/site.tovu.zip`, `_share/${"a".repeat(63)}/site.tovu.zip`, `_share/${TOKEN}/-site.tovu.zip`,
+  `share/${TOKEN}/site.tovu.zip`, `_share/${"0f".repeat(32)}/site.tovu.zip`, `_share/${"a".repeat(64)}/site.tovu.zip`, `_share/${"a".repeat(15)}/site.tovu.zip`,
+  `_share/${"a".repeat(17)}/site.tovu.zip`, `_share/${"a".repeat(15)}7/site.tovu.zip`, `_share/${"a".repeat(15)}\u00e9/site.tovu.zip`, `_share/${TOKEN}/-site.tovu.zip`,
   `_share/${TOKEN}/Site.tovu.zip`, `_share/${TOKEN}/site.zip`, `_share/${TOKEN}/${"s".repeat(81)}.tovu.zip`, `_share/${TOKEN}/a/b.tovu.zip`, `${KEY}\n`,
 ]) {
   test(`an invalid artifact key is refused before any I/O (${JSON.stringify(key.replace(TOKEN, "<token>")).slice(0, 48)})`, async t => {

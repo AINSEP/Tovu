@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { request } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -7,7 +7,8 @@ import test from "node:test";
 
 import express from "express";
 
-import { SiteShareRegistry, type SiteShareRecord } from "#src/features/site-backup/share-registry";
+import { SiteShareRegistry, newShareIdentity, type SiteShareRecord } from "#src/features/site-backup/share-registry";
+import { receiveSiteShareArtifact, revokeSiteShare } from "#src/features/site-backup/share-service";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerPublicShareRoutes } from "../site-share.js";
 
@@ -21,7 +22,7 @@ const SHARE_ID = "00000000-0000-4000-8000-000000000001";
 
 function record(overrides: Partial<SiteShareRecord> = {}): SiteShareRecord {
   return {
-    shareId: SHARE_ID, token: "a".repeat(64), site: "main", file: "main.tovu.zip", bytes: 3, sha256: "0".repeat(64),
+    shareId: SHARE_ID, token: "a".repeat(16), site: "main", file: "main.tovu.zip", bytes: 3, sha256: "0".repeat(64),
     url: null, status: "active", createdAt: "2026-10-21T00:00:00.000Z", revokedAt: null, ...overrides,
   };
 }
@@ -43,7 +44,7 @@ async function serve(t: import("node:test").TestContext, registry?: SiteShareReg
   return startTestServer(app, t);
 }
 
-const DOWNLOAD = `/_share/${"a".repeat(64)}/main.tovu.zip`;
+const DOWNLOAD = `/_share/${"a".repeat(16)}/main.tovu.zip`;
 
 test("a found share streams its archive as a no-store attachment", async (t) => {
   const dir = shareDir(t);
@@ -97,11 +98,43 @@ test("a client that aborts mid-download leaves the server serving the next reque
 test("any other path under /_share is a no-store 404 that never reaches the registry", async (t) => {
   let asked = 0;
   const base = await serve(t, new AnsweringRegistry(shareDir(t), async () => { asked += 1; return record(); }));
-  for (const tail of ["", "/only-a-token", `/${"a".repeat(64)}/main.tovu.zip/extra`]) {
+  for (const tail of ["", "/only-a-token", `/${"a".repeat(16)}/main.tovu.zip/extra`]) {
     const res = await fetch(`${base}/_share${tail}`);
     assert.equal(res.status, 404, tail);
     assert.equal(res.headers.get("cache-control"), "no-store", tail);
     assert.equal(res.headers.get("x-content-type-options"), "nosniff", tail);
   }
   assert.equal(asked, 0);
+});
+
+test("a real registry serves a minted 16-letter link and 404s a 64-hex link even when its files remain", async (t) => {
+  const dir = shareDir(t);
+  const registry = new SiteShareRegistry({ directory: dir });
+  const { token } = newShareIdentity({});
+  await receiveSiteShareArtifact({ registry, site: "main", token, file: "main.tovu.zip", archive: Buffer.from("PK\u0003\u0004zip") });
+  const old = "0f".repeat(32);
+  writeFileSync(path.join(dir, `${old}.token`), SHARE_ID);
+  writeFileSync(path.join(dir, `${SHARE_ID}.json`), JSON.stringify(record({ token: old })));
+  writeFileSync(path.join(dir, `${SHARE_ID}.tovu.zip`), "zip");
+  const base = await serve(t, registry);
+  assert.equal((await fetch(`${base}/_share/${token}/main.tovu.zip`)).status, 200);
+  const legacy = await fetch(`${base}/_share/${old}/main.tovu.zip`);
+  assert.equal(legacy.status, 404);
+  assert.equal(legacy.headers.get("cache-control"), "no-store");
+});
+
+test("an old 64-hex share still revokes cleanly and deletes its ZIP, and its link stays a 404", async (t) => {
+  // Owner 2026-10-25: no 64-hex SERVING, but rows minted before the switch must still be cleanable.
+  const dir = shareDir(t);
+  const registry = new SiteShareRegistry({ directory: dir });
+  const old = "0f".repeat(32);
+  writeFileSync(path.join(dir, `${old}.token`), SHARE_ID);
+  writeFileSync(path.join(dir, `${SHARE_ID}.json`), JSON.stringify(record({ token: old })));
+  writeFileSync(path.join(dir, `${SHARE_ID}.tovu.zip`), "zip");
+  const revoked = await revokeSiteShare({ registry, site: "main", shareId: SHARE_ID });
+  assert.equal(revoked.status, "revoked");
+  assert.equal((await registry.get({ shareId: SHARE_ID }))?.status, "revoked");
+  assert.equal(existsSync(path.join(dir, `${SHARE_ID}.tovu.zip`)), false);
+  const base = await serve(t, registry);
+  assert.equal((await fetch(`${base}/_share/${old}/main.tovu.zip`)).status, 404);
 });

@@ -9,22 +9,53 @@ import type { LoadedObjectStoreRegistry } from "./registry.js";
  * hand out a single-object artifact store (today the bundled `s3_compatible`), instead of one
  * hard-coded deploy target id. The site's media choice wins when it qualifies, so media and shares
  * use one provider (and one saved connection); otherwise the first qualifying one in registry order.
+ * A provider qualifies only once its saved connection resolves, so an installed but unconnected
+ * store never hides a connected one behind it. Revoke names the share's saved provider and resolves
+ * only that one, so a store connected later can never take over (or block) another store's delete.
  */
 
 /** A provider's artifact capability as the share path calls it (the deploy-target module ABI). */
 export interface ArtifactStoreCapable {
-  createArtifactStore(required: { readonly credential: DeployTargetCredential; readonly config: Record<string, never>; readonly kit: unknown }): ArtifactStorePort;
+  createArtifactStore(required: { readonly credential: DeployTargetCredential; readonly config: Record<string, never>; readonly kit: unknown }): ArtifactStorePort & {
+    /** Non-secret identity of the backing store, when the provider knows it better than the host does. */
+    readonly binding?: string;
+  };
 }
 
 /**
- * @returns The chosen provider id and its artifact capability, or `undefined` when none qualifies.
- * @complexity O(n) registered providers.
+ * @param required.resolveCredential The provider's saved connection, or `undefined` when it has none.
+ * @param optional.savedProvider A share's recorded provider (its hyphenated connection id): only that
+ *   provider is considered.
+ * @returns The first capable provider (preferred first, then registry order) whose connection
+ *   resolves, with that credential; `undefined` when none qualifies.
+ * @complexity O(n) registered providers, one credential lookup per capable provider until a hit.
  */
-export function selectArtifactStoreProvider(
-  required: { readonly loaded: LoadedObjectStoreRegistry; readonly preferredId: string },
-  _optional: Record<string, never> = {}
-): { readonly id: string; readonly provider: ArtifactStoreCapable } | undefined {
-  const capable = required.loaded.registry.list().filter((entry) => typeof (entry.provider as Partial<ArtifactStoreCapable>).createArtifactStore === "function");
-  const chosen = capable.find((entry) => entry.id === required.preferredId) ?? capable[0];
-  return chosen ? { id: chosen.id, provider: chosen.provider as unknown as ArtifactStoreCapable } : undefined;
+export async function selectArtifactStoreProvider<C>(
+  required: { readonly loaded: LoadedObjectStoreRegistry; readonly preferredId: string; readonly resolveCredential: (required: { readonly id: string }) => Promise<C | undefined> },
+  optional: { readonly savedProvider?: string } = {}
+): Promise<{ readonly id: string; readonly provider: ArtifactStoreCapable; readonly credential: C } | undefined> {
+  const capable = required.loaded.registry.list().filter((entry) => typeof (entry.provider as Partial<ArtifactStoreCapable>).createArtifactStore === "function"
+    && (optional.savedProvider === undefined || artifactStoreTarget(entry.id) === optional.savedProvider));
+  const ordered = [...capable.filter((entry) => entry.id === required.preferredId), ...capable.filter((entry) => entry.id !== required.preferredId)];
+  for (const entry of ordered) {
+    const credential = await required.resolveCredential({ id: entry.id });
+    if (credential !== undefined) return { id: entry.id, provider: entry.provider as unknown as ArtifactStoreCapable, credential };
+  }
+  return undefined;
+}
+
+/** Provider ids use underscores; the saved connection (and a share's recorded provider) is the hyphenated target id. */
+export function artifactStoreTarget(id: string): string {
+  return id.replace(/_/g, "-");
+}
+
+/**
+ * What revoke must match before deleting: a new default connection must never turn revocation into
+ * deletion in another bucket. Non-secret storage coordinates bind, so credentials may rotate for the
+ * same store; a provider that names its own store (e.g. a token-scoped one) supplies that instead.
+ * @complexity O(1).
+ */
+export function artifactStoreBinding(required: { readonly store: { readonly binding?: string }; readonly credential: Readonly<Record<string, unknown>> }): string {
+  const { store, credential } = required;
+  return store.binding ?? JSON.stringify([credential.bucket, credential.region, credential.endpoint ?? "", credential.publicUrl]);
 }

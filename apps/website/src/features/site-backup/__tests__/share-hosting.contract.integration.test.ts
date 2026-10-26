@@ -11,7 +11,7 @@ import { SHARE_DOWNLOAD_HEADERS, createSiteShare, revokeSiteShare } from "../sha
 import { createRuntimeShareDelivery } from "../share-hosting.js";
 import { registerPublicShareRoutes } from "#src/server/inbound/public-http/routes/site-share";
 
-const key = `_share/${"a".repeat(64)}/site.tovu.zip`;
+const key = `_share/${"a".repeat(16)}/site.tovu.zip`;
 const bytes = Buffer.from("PK artifact contract");
 
 async function runtime(t: TestContext): Promise<ArtifactStorePort> {

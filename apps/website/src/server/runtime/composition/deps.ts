@@ -218,7 +218,7 @@ import {
   purgeMedia,
   SharpImageTransformer,
 } from "#src/features/media/index";
-import { readBundledObjectStoreEnvDeclarations, createMediaBlobStore, ensureMediaObjectStoreSetting, loadBundledObjectStoreRegistry, loadObjectStoreRegistry, readMediaObjectStoreSetting, selectArtifactStoreProvider, type MediaObjectStorePorts } from "#src/features/object-storage/index";
+import { readBundledObjectStoreEnvDeclarations, createMediaBlobStore, ensureMediaObjectStoreSetting, loadBundledObjectStoreRegistry, loadObjectStoreRegistry, readMediaObjectStoreSetting, artifactStoreBinding, artifactStoreTarget, selectArtifactStoreProvider, type MediaObjectStorePorts } from "#src/features/object-storage/index";
 import { ensureCoreMediaTransform } from "#src/features/media/bootstrap";
 import { createSqliteIdentityRouteDeps, resolveOwnerCredentials, type IdentityRouteDepsSlice } from "#src/features/identity/wiring";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
@@ -2880,23 +2880,23 @@ async function composeSiteRouteDeps(
             objectStore: async () => {
               // Any object-store provider that can deliver artifacts (not one hard-coded deploy target);
               // the site's media choice wins so media and shares share one provider and connection.
-              const chosen = selectArtifactStoreProvider({ loaded: await mediaStorePorts().loadSiteRegistry(), preferredId: await readMediaObjectStoreSetting({ settingsRepo, workspaceId }) });
+              // Revoke passes the share's saved provider, so only that store may delete it.
+              const chosen = await selectArtifactStoreProvider({ loaded: await mediaStorePorts().loadSiteRegistry(), preferredId: await readMediaObjectStoreSetting({ settingsRepo, workspaceId }),
+                resolveCredential: async ({ id }) => { const resolved = await credentials.resolve({ workspaceId, target: artifactStoreTarget(id) }); return resolved.ok ? resolved : undefined; } },
+              selection.provider === undefined ? {} : { savedProvider: selection.provider });
               if (!chosen) return undefined;
-              // Provider ids use underscores; the saved connection is keyed by the hyphenated target id.
-              const target = chosen.id.replace(/_/g, "-");
-              const resolved = await credentials.resolve({ workspaceId, target });
-              if (!resolved.ok) return undefined;
-              // A new default connection must never turn revocation into deletion in another bucket.
-              // Bind non-secret storage coordinates, allowing credentials to rotate for the same store.
-              const storageBinding = JSON.stringify([resolved.bucket, resolved.region, resolved.endpoint ?? "", resolved.publicUrl]);
+              const target = artifactStoreTarget(chosen.id), resolved = chosen.credential;
               // Reuse the plugin's signing/PUT/DELETE owner; pin only the anonymous verification hop.
               // A normal publish's kit remains unchanged, including its observability.
               const kit = createDeployHostKit({});
               const shareKit = { ...kit, fetch: async (url: string, init: RequestInit, options: { timeoutMs: number }) => {
+                // A provider whose own upload/delete API goes through kit.fetch (not SigV4) keeps it.
+                if (init.method !== "HEAD") return kit.fetch(url, init, options);
                 const response = await guardedOutboundHttpClient.send({ request: { method: "HEAD", url, headers: {}, idleTimeoutMs: options.timeoutMs, totalDeadlineMs: options.timeoutMs, maxResponseBytes: 1024, signal: init.signal ?? undefined } }, { redirect: "error" });
                 return new Response(null, { status: response.status, headers: response.headers });
               } };
-              return { provider: target, binding: storageBinding, store: chosen.provider.createArtifactStore({ credential: toDeployTargetCredential(resolved), config: {}, kit: shareKit }) };
+              const store = chosen.provider.createArtifactStore({ credential: toDeployTargetCredential(resolved), config: {}, kit: shareKit });
+              return { provider: target, binding: artifactStoreBinding({ store, credential: resolved }), store };
             },
           }, selection),
         });
