@@ -11,7 +11,7 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import { atomicCreateSiteKeyFile, mintSiteKeyHex } from "#src/features/webhooks/site-key-ensure";
 import { closeSqliteConnection, openNativeSqlite, sqliteKernel } from "#src/platform/db/kernel/drivers/sqlite";
 import { migrateProjectDatabase } from "#src/platform/db/migrations/index";
-import { relocateProjectDb, type ProjectFiles, type RelocateOptions } from "./project-store-relocate.js";
+import { openProjectDb, relocateProjectDb, type ProjectDbOpener, type ProjectFiles, type RelocateOptions } from "./project-store-relocate.js";
 import { createVaultProviderConfigSource, type ProviderConfigSource } from "./provider-config-source.js";
 
 /**
@@ -61,13 +61,16 @@ export function legacyProjectFiles({ home, sitesHome }: { home: string; sitesHom
   return { dbPath: path.join(sitesHome, PROJECT_DB_FILENAME), keyFile: path.join(home, ".tovu", PROJECT_KEY_FILENAME) };
 }
 
+/** The project's own pair: `~/.tovu/projects/<projectId>/{project.db, project-key.hex}`. */
+const projectFiles = (required: { home: string; projectId: string }): ProjectFiles =>
+  ({ dbPath: projectDbPath(required), keyFile: projectKeyFilePath(required) });
+
 /**
  * The database + key this start uses: the project's own folder, after moving a first-layout file
  * there (`relocateProjectDb`; the old pair only for a run where another process still holds it open).
  */
 export function resolveProjectFiles(required: { home: string; sitesHome: string; projectId: string }, optional: RelocateOptions = {}): ProjectFiles {
-  return relocateProjectDb({ from: legacyProjectFiles(required),
-    to: { dbPath: projectDbPath(required), keyFile: projectKeyFilePath(required) } }, optional);
+  return relocateProjectDb({ from: legacyProjectFiles(required), to: projectFiles(required) }, optional);
 }
 
 const KEY_HEX = /^[0-9a-f]{64}$/;
@@ -107,6 +110,27 @@ export function projectIdFor({ sitesHome }: { sitesHome: string }, _optional: Re
   return `project-${createHash("sha256").update(path.resolve(sitesHome)).digest("hex").slice(0, 16)}`;
 }
 
+type NativeDb = ReturnType<typeof openNativeSqlite>;
+
+/** Opens a project.db with the same pragmas every site database opener sets; an old-place file only if it exists. */
+const sqliteOpener: ProjectDbOpener<NativeDb> = {
+  open({ files, mustExist }) {
+    const db = openNativeSqlite(files.dbPath, { fileMustExist: mustExist });
+    try {
+      // The same pragmas every site database opener sets (`chat-db.ts`, `content-db.ts`): web and desktop
+      // hold this file open together, so WAL readers never block on a writer, and a briefly held lock is
+      // retried rather than thrown.
+      db.pragma("busy_timeout = 5000");
+      db.pragma("journal_mode = WAL");
+    } catch (error) {
+      closeSqliteConnection(db);
+      throw error;
+    }
+    return db;
+  },
+  close: (db) => closeSqliteConnection(db),
+};
+
 export interface ProjectStore {
   readonly projectId: string;
   readonly config: ProviderConfigSource;
@@ -127,17 +151,12 @@ export async function openProjectStore(
   optional: { clock?: { nowMs(): number }; relocate?: RelocateOptions } = {},
 ): Promise<ProjectStore> {
   const projectId = projectIdFor({ sitesHome: required.sitesHome });
-  const { dbPath, keyFile } = resolveProjectFiles({ home: required.home, sitesHome: required.sitesHome, projectId }, optional.relocate);
-  const hex = ensureProjectKey({ keyFile });
-  fs.mkdirSync(path.dirname(dbPath), { recursive: true, mode: 0o700 });
-  const db = openNativeSqlite(dbPath, {});
-  // The same pragmas every site database opener sets (`chat-db.ts`, `content-db.ts`): web and desktop
-  // hold this file open together, so WAL readers never block on a writer, and a briefly held lock is
-  // retried rather than thrown.
-  db.pragma("journal_mode = WAL");
-  db.pragma("busy_timeout = 5000");
+  const { files: { dbPath, keyFile }, db } = openProjectDb({ from: legacyProjectFiles(required),
+    to: projectFiles({ home: required.home, projectId }), opener: sqliteOpener }, optional.relocate);
   const kernel = sqliteKernel<SecretsVaultDatabase>(db);
+  let hex: string;
   try {
+    hex = ensureProjectKey({ keyFile });
     await migrateProjectDatabase(kernel as unknown as StorageKernel<unknown>);
   } catch (error) {
     closeSqliteConnection(db);

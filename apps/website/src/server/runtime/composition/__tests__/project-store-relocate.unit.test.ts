@@ -9,6 +9,7 @@ import test, { type TestContext } from "node:test";
 import Database from "better-sqlite3";
 
 import { legacyProjectFiles, openProjectStore, projectDbPath, projectIdFor, projectKeyFilePath, resolveProjectFiles } from "../project-store.js";
+import { openProjectDb } from "../project-store-relocate.js";
 
 /**
  * @file Moving a `project.db` left at the old place (`<sites root>/project.db`, sealed with the single
@@ -139,4 +140,117 @@ test("a fresh install (nothing at the old place) touches nothing there and copie
   assert.deepEqual(resolveProjectFiles({ home: d.home, sitesHome: d.sitesHome, projectId: d.projectId }), d.next);
   assert.equal(fs.existsSync(d.next.keyFile), false);
   assert.equal(fs.existsSync(d.sitesHome), false);
+});
+
+// --- Two starts at once (web + desktop): the relocation lock and the old-path open --------------
+
+interface FakeHandle { readonly dbPath: string }
+
+/** A db opener that records every open/close and behaves like SQLite's `fileMustExist` on a missing file. */
+function recordingOpener(hooks: { beforeOpen?: (dbPath: string) => void } = {}) {
+  const opens: Array<{ dbPath: string; mustExist: boolean }> = [];
+  const closes: string[] = [];
+  return {
+    opens, closes,
+    open({ files, mustExist }: { files: { dbPath: string }; mustExist: boolean }): FakeHandle {
+      hooks.beforeOpen?.(files.dbPath);
+      if (mustExist && !fs.existsSync(files.dbPath)) throw Object.assign(new Error("unable to open database file"), { code: "SQLITE_CANTOPEN" });
+      opens.push({ dbPath: files.dbPath, mustExist });
+      return { dbPath: files.dbPath };
+    },
+    close(handle: FakeHandle) { closes.push(handle.dbPath); },
+  };
+}
+
+/** What the OTHER start does once it holds the lock: link + unlink the old file and publish the key. */
+function otherStartMoves(d: ReturnType<typeof dirs>): void {
+  fs.mkdirSync(path.dirname(d.next.dbPath), { recursive: true });
+  if (!fs.existsSync(d.next.keyFile)) fs.copyFileSync(d.legacy.keyFile, d.next.keyFile);
+  fs.linkSync(d.legacy.dbPath, d.next.dbPath);
+  fs.rmSync(d.legacy.dbPath);
+}
+
+const lockFileOf = (d: ReturnType<typeof dirs>) => path.join(path.dirname(d.next.dbPath), "relocate.lock");
+
+function holdLock(d: ReturnType<typeof dirs>, holder: { pid: number; atMs: number }): void {
+  fs.mkdirSync(path.dirname(d.next.dbPath), { recursive: true });
+  fs.writeFileSync(lockFileOf(d), JSON.stringify(holder));
+}
+
+test("a second start waits on the first start's move, then opens the moved file: never a fresh one in the sites root", async (t) => {
+  const d = dirs(t);
+  await seedLegacy(d);
+  holdLock(d, { pid: process.pid, atMs: Date.now() });
+  const opener = recordingOpener();
+  let slept = 0;
+  const sleep = () => { if (slept++ === 0) { otherStartMoves(d); fs.rmSync(lockFileOf(d)); } };
+  const opened = openProjectDb({ from: d.legacy, to: d.next, opener }, { lock: { sleep } });
+  assert.deepEqual(opened.files, d.next);
+  assert.deepEqual(opener.opens, [{ dbPath: d.next.dbPath, mustExist: false }]);
+  assert.equal(fs.existsSync(d.legacy.dbPath), false, "no empty project.db created in the synced sites root");
+  assert.ok(slept >= 1, "it waited for the lock");
+});
+
+test("the lock is never held by two starts: this start moves only once it holds it, and lets it go after", async (t) => {
+  const d = dirs(t);
+  await seedLegacy(d);
+  const opener = recordingOpener({ beforeOpen: () => assert.ok(fs.existsSync(lockFileOf(d)), "the open happens under the lock") });
+  const opened = openProjectDb({ from: d.legacy, to: d.next, opener });
+  assert.deepEqual(opened.files, d.next);
+  assert.equal(fs.existsSync(d.legacy.dbPath), false);
+  assert.equal(fs.existsSync(lockFileOf(d)), false, "released");
+});
+
+test("a lock left by a start that died (its pid is gone) is taken over, and the move proceeds", async (t) => {
+  const d = dirs(t);
+  await seedLegacy(d);
+  holdLock(d, { pid: 2_147_000_000, atMs: Date.now() });
+  const opener = recordingOpener();
+  const opened = openProjectDb({ from: d.legacy, to: d.next, opener }, { lock: { isAlive: () => false, sleep: () => assert.fail("no wait on a dead holder") } });
+  assert.deepEqual(opened.files, d.next);
+  assert.equal(fs.existsSync(d.legacy.dbPath), false);
+  assert.equal(fs.existsSync(lockFileOf(d)), false);
+});
+
+test("a lock too old to be live (a reused pid, or a half-written lock file) is taken over", async (t) => {
+  const d = dirs(t);
+  await seedLegacy(d);
+  holdLock(d, { pid: process.pid, atMs: 0 });
+  const opener = recordingOpener();
+  assert.deepEqual(openProjectDb({ from: d.legacy, to: d.next, opener }, { lock: { sleep: () => assert.fail("no wait on a stale lock") } }).files, d.next);
+  fs.writeFileSync(lockFileOf(d), "");
+  const old = new Date(Date.now() - 10 * 60_000);
+  fs.utimesSync(lockFileOf(d), old, old);
+  fs.rmSync(d.next.dbPath);
+  await seedLegacy(d);
+  assert.deepEqual(openProjectDb({ from: d.legacy, to: d.next, opener }, { lock: { sleep: () => assert.fail("no wait on a stale lock") } }).files, d.next);
+});
+
+test("when the lock wait runs out, the old file is opened only if it still exists (never created) and dropped for the new one if a move landed meanwhile", async (t) => {
+  const d = dirs(t);
+  await seedLegacy(d);
+  holdLock(d, { pid: process.pid, atMs: Date.now() });
+  // The other start finishes its move right after this one opened the old file.
+  let moved = false;
+  const opener = recordingOpener({ beforeOpen: () => undefined });
+  const racing = { ...opener, open(input: { files: { dbPath: string }; mustExist: boolean }) {
+    const handle = opener.open(input);
+    if (!moved && input.files.dbPath === d.legacy.dbPath) { moved = true; otherStartMoves(d); }
+    return handle;
+  } };
+  const opened = openProjectDb({ from: d.legacy, to: d.next, opener: racing }, { lock: { waitMs: 0 } });
+  assert.deepEqual(opened.files, d.next);
+  assert.deepEqual(opener.opens, [{ dbPath: d.legacy.dbPath, mustExist: true }, { dbPath: d.next.dbPath, mustExist: false }]);
+  assert.deepEqual(opener.closes, [d.legacy.dbPath], "the old-path handle is closed before the new one is used");
+});
+
+test("when the lock wait runs out and the old file vanishes before it opens, the moved file is opened instead", async (t) => {
+  const d = dirs(t);
+  await seedLegacy(d);
+  holdLock(d, { pid: process.pid, atMs: Date.now() });
+  const opener = recordingOpener({ beforeOpen: (dbPath) => { if (dbPath === d.legacy.dbPath) otherStartMoves(d); } });
+  const opened = openProjectDb({ from: d.legacy, to: d.next, opener }, { lock: { waitMs: 0 } });
+  assert.deepEqual(opened.files, d.next);
+  assert.deepEqual(opener.opens, [{ dbPath: d.next.dbPath, mustExist: false }]);
+  assert.equal(fs.existsSync(d.legacy.dbPath), false, "nothing was created at the old place");
 });
