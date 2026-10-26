@@ -1,6 +1,6 @@
 import { VaultError, type VaultRecord, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import { byVaultLabel, parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
-import type { CustomCredentialCategoryId, CustomCredentialSetRecord, CustomCredentialSetRepoPort } from "./types.js";
+import type { CustomCredentialCategoryId, CustomCredentialProjectScope, CustomCredentialSetRecord, CustomCredentialSetRepoPort } from "./types.js";
 
 export function customVaultScope({ workspaceId, id, kind = "vendor" }: { workspaceId: string; id?: string; kind?: "vendor" | "custom" }, _options = {}) {
   return { workspaceId, kind, ownerKey: "tovu", principalId: null, binding: null,
@@ -32,7 +32,12 @@ export function customVaultRecord({ row, expectedRevision }: { row: VaultRecord;
 /** Fixed owner/provider scope keeps custom labels unique across the workspace in both adapters. */
 export class CustomCredentialVaultRepo implements CustomCredentialSetRepoPort {
   readonly vault: VaultRepoPort;
-  constructor({ vault }: { vault: VaultRepoPort }, _options = {}) { this.vault = vault; }
+  readonly project?: CustomCredentialProjectScope;
+  /** @param optional.project The project store this site's rows fall back to (`types.ts`). */
+  constructor({ vault }: { vault: VaultRepoPort }, optional: { project?: CustomCredentialProjectScope } = {}) {
+    this.vault = vault;
+    if (optional.project) this.project = optional.project;
+  }
   async findById(input: { workspaceId: string; id: string }): Promise<CustomCredentialSetRecord | null> {
     const row = await this.vault.find(input);
     if (!row || !isCustomCredentialRow({ row })) return null;

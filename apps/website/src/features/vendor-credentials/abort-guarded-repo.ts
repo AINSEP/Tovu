@@ -17,8 +17,12 @@ export function abortGuardedCredentialRepo<T extends { readonly vault?: VaultRep
       return value.apply(target, args);
     };
   } });
+  // A store's project half (`custom-credentials/types.ts`'s `repo.project`) writes too: guarded alike.
+  const project = (store as { readonly project?: { readonly repo: { readonly vault?: VaultRepoPort } } }).project;
+  const guardedProject = project && { ...project, repo: abortGuardedCredentialRepo({ store: project.repo, signal }) };
   return new Proxy(store, { get(target, key) {
     if (key === 'vault') return vault;
+    if (key === 'project') return guardedProject;
     const value = Reflect.get(target, key);
     if (typeof value !== 'function') return value;
     return (...args: unknown[]) => {
