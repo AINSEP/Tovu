@@ -136,7 +136,7 @@ describe("custom project-key attachments", () => {
     act(() => result.current.setCustomAddField({ name: "Fresh key", baseUrl: "https://api.example.test", token, scope: selected }));
     await act(() => result.current.createCustomCredential());
     expect(create).toHaveBeenCalledWith({ scope: expected, label: "Fresh key", worksFor: [], category: "general",
-      baseUrl: "https://api.example.test", additionalHosts: [], connection: { token } });
+      baseUrl: "https://api.example.test", additionalHosts: undefined, connection: { token } });
     expect(result.current.projectKeysAvailable).toBe(available);
   });
 
