@@ -53,29 +53,22 @@ describe("resolveSitesTabId", () => {
 });
 
 describe("resolveSitesTabs", () => {
-  it("is exactly four tabs, All sites first, then Export Site and Import Site", () => {
+  it("is exactly two tabs, All sites first — Export Site and Import Site moved to Import & Export", () => {
     // The shape the owner asked for in words, twice. A pass that reduced this to one entry is what
     // led to the bar being deleted, so the LENGTH is asserted, not just the presence of each id.
-    // Export Site / Import Site joined on 2026-10-18 (owner).
+    // Export Site / Import Site joined on 2026-10-18 and moved to Import & Export on 2026-10-25 (owner).
     const tabs = resolveSitesTabs({ t: fakeT, listedCount: 0 });
-    expect(tabs).toHaveLength(4);
-    expect(tabs.map((tab) => tab.id)).toEqual(["all", "new", "export", "import"]);
-    expect(tabs.map((tab) => tab.label)).toEqual(["All sites", "New site", "Export Site", "Import Site"]);
-    expect(tabs.map((tab) => tab.handle)).toEqual(["sites-tab-all", "sites-tab-new", "sites-tab-export", "sites-tab-import"]);
-  });
-
-  it("tags only Export Site and Import Site SOON, keeping them enabled, and names them coming soon for agents", () => {
-    const tabs = resolveSitesTabs({ t: fakeT, listedCount: 0 });
-    expect(tabs.map((tab) => tab.tag)).toEqual([undefined, undefined, "Soon", "Soon"]);
-    expect(tabs.map((tab) => tab.disabled)).toEqual([undefined, undefined, undefined, undefined]);
-    expect(tabs.slice(2).every((tab) => tab.handleLabel?.endsWith("(coming soon)"))).toBe(true);
-    expect(resolveSitesTabs({ t: fakeT, listedCount: 0 }, { transferTabsSoon: false }).map((tab) => tab.tag)).toEqual([undefined, undefined, undefined, undefined]);
+    expect(tabs).toHaveLength(2);
+    expect(tabs.map((tab) => tab.id)).toEqual(["all", "new"]);
+    expect(tabs.map((tab) => tab.label)).toEqual(["All sites", "New site"]);
+    expect(tabs.map((tab) => tab.handle)).toEqual(["sites-tab-all", "sites-tab-new"]);
+    expect(tabs.map((tab) => tab.tag)).toEqual([undefined, undefined]);
   });
 
   it("counts the listed sites on All sites, and puts no count on an action tab", () => {
     const tabs = resolveSitesTabs({ t: fakeT, listedCount: 3 });
     expect(tabs[0].count).toBe(3);
-    expect(tabs.slice(1).map((tab) => tab.count)).toEqual([undefined, undefined, undefined]);
+    expect(tabs.slice(1).map((tab) => tab.count)).toEqual([undefined]);
   });
 });
 
@@ -246,6 +239,6 @@ describe("resolveSiteRegistrationBadge", () => {
 
 it("offers a counted Trash tab only to local-management hosts", () => {
   const tabs = resolveSitesTabs({ t: fakeT, listedCount: 2 }, { localManagementEnabled: true, trashCount: 4 });
-  expect(tabs.map((tab) => tab.id)).toEqual(["all", "new", "export", "import", "trash"]);
-  expect(tabs[4].label).toBe("Trash"); expect(tabs[4].count).toBe(4);
+  expect(tabs.map((tab) => tab.id)).toEqual(["all", "new", "trash"]);
+  expect(tabs[2].label).toBe("Trash"); expect(tabs[2].count).toBe(4);
 });

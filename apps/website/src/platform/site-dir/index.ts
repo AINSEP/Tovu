@@ -58,6 +58,7 @@ export {
   includeServingSite,
   listSitesForBinding,
   switcherBaseForBinding,
+  siteCreationBaseForBinding,
   SITE_NAME_PATTERN,
   type SiteBinding,
   type SiteListEntry,

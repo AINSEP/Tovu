@@ -9,6 +9,8 @@ import { readSiteDir } from "./read-site-dir.js";
 import { resolveSiteRoot, SITE_SELECTION_PINNED_ENV, type ResolveSiteRootOptional } from "./site-root.js";
 import { createSitesWorkspace, type SitesWorkspace } from "./sites-home.js";
 import { readSiteRunning } from "./site-running.js";
+import { isSiteSwitcherEnabled } from "./site-switcher-enabled.js";
+import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 
 /**
  * @file Admin "Sites" screen backend, list + create half (2026-09-04 sites-switcher decision,
@@ -479,6 +481,25 @@ export function describeSiteBinding(optional: ListSitesOptional = {}): SiteBindi
  */
 export function switcherBaseForBinding(binding: SiteBinding): string | null {
   return binding.switcherCompatible ? binding.switcherBase ?? path.dirname(path.dirname(binding.dir)) : null;
+}
+
+/**
+ * The base a NEW sibling site (an import) is created from, or `null` when this process must not
+ * create local sites. Absorbs {@link switcherBaseForBinding}: an enabled switcher keeps its base.
+ * A pinned boot (desktop's `tovu serve <home>/<name>`) whose site already lives in the shared sites
+ * home also qualifies — creating a sibling there never switches what this process serves, so the
+ * switcher flag (which also gates Activate) is not the right question. Production never qualifies.
+ * @complexity O(n) registered sites, one workspace resolution.
+ */
+export function siteCreationBaseForBinding(required: { binding: SiteBinding }, optional: ListSitesOptional = {}): string | null {
+  const { binding } = required;
+  const env = optional.env ?? process.env;
+  // NODE_ENV is the image's own signal; TOVU_RUNTIME_MODE also covers a hand-run `npm start` server.
+  if (env.NODE_ENV === "production" || resolveRuntimeMode({ env }) === "production") return null;
+  const switcherBase = isSiteSwitcherEnabled(env) ? switcherBaseForBinding(binding) : null;
+  if (switcherBase !== null) return switcherBase;
+  const cwd = binding.switcherBase ?? optional.cwd ?? process.cwd();
+  return isInSitesWorkspace({ dir: binding.dir, workspace: createSitesWorkspace({}, { ...optional, env, cwd }) }) ? cwd : null;
 }
 
 /** The served install dir as a one-row listing when `tovu serve` would accept it, else nothing.

@@ -21,9 +21,10 @@
           "category": "hosting",
           "intro": "Connect Vercel to publish this site as a production deployment.",
           "usedFor": [
-            "Publishes and updates your live website on Vercel"
+            "Publishes and updates your live website on Vercel",
+            "Optional: shares site exports as download links from your Vercel Blob store"
           ],
-          "keyHint": "Create an access token for the personal account or team that owns the project, with permission to create projects and production deployments. Select that team as the token scope when publishing to a team.",
+          "keyHint": "Create an access token for the personal account or team that owns the project, with permission to create projects and production deployments. Select that team as the token scope when publishing to a team. For share links, also add the read-write token of a Vercel Blob store (optional).",
           "saveKind": "publish-host",
           "helpUrl": "https://vercel.com/account/tokens",
           "helpLabel": "Create a token",

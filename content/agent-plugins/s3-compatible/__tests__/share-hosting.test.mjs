@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createDeployHostKit } from "../../../../apps/website/src/features/deployments/deploy-targets/host-kit.ts";
 import { SHARE_DOWNLOAD_HEADERS } from "../../../../apps/website/src/features/site-backup/share-service.ts";
-const key = `_share/${"a".repeat(64)}/site.tovu.zip`;
+const key = `_share/${"a".repeat(16)}/site.tovu.zip`;
 const bytes = Buffer.from("PK artifact contract");
 async function s3() {
   const objects = new Map();

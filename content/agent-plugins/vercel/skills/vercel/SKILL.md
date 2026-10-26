@@ -18,6 +18,11 @@ publishes once the person confirms. `ok: "partial"` means not reachable yet: nev
 This file is what is particular to Vercel.
 
 - **Token:** an access token from https://vercel.com/account/tokens. Save it with the plugin card above.
+- **Share links (optional):** to share a site export as a download link with no S3, the person adds a
+  Vercel Blob store's read-write token (Vercel > Storage > Blob store > `BLOB_READ_WRITE_TOKEN`) in the
+  card's optional **Blob read-write token** field. They type it into the card, never into the chat.
+  Without it, a share is a private download only. A revoked link can keep serving for up to a minute
+  (Blob's edge cache); if revoke says deletion is not verified yet, retry it after a minute.
 - **Team (optional):** the publish config's `teamId` puts the project under a Vercel team instead of the
   personal account. Leave it out for a personal account; a blank one is refused.
 - **Project name:** the project name, lowercased with hyphens (up to 80 characters). Publishing again

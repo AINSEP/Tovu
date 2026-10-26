@@ -52,6 +52,16 @@ test("baseline: the fieldset option-label rule that sets display keeps the [hidd
   assert.ok(FORM_BASELINE_STYLE.includes(":where(fieldset.widget-form-field label:not([hidden])){display:flex;"));
 });
 
+test("baseline: a single-line select draws its own currentColor chevron with end padding, mirrored in RTL, native under forced colors", () => {
+  const select = "select:where(.tovu-form select:not([multiple],[size])){";
+  const body = ruleBody(FORM_BASELINE_STYLE, select);
+  for (const declaration of ["appearance:none;", "padding-inline-end:40px;", "currentColor", "background-repeat:no-repeat;"]) {
+    assert.ok(body.includes(declaration), `select rule must carry '${declaration}': ${body}`);
+  }
+  assert.match(ruleBody(FORM_BASELINE_STYLE, "select:where(.tovu-form select:not([multiple],[size]):dir(rtl)){"), /background-position:15px 50%,21px 50%/);
+  assert.ok(FORM_BASELINE_STYLE.includes(`@media (forced-colors:active){${select}-webkit-appearance:auto;appearance:auto;background-image:none;}}`));
+});
+
 test("tovu-theme: both copies agree, skip range/file in the boxed rule, and style the switch after the checkbox size rule", () => {
   const copies = THEME_COPIES.map((file) => fs.readFileSync(REPO_ROOT + file, "utf8"));
   assert.equal(copies[1], copies[0]);

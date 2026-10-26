@@ -54,7 +54,7 @@ function renderExport(port: SiteTransferPort, clipboard?: Pick<Clipboard, "write
 function renderImport(port: SiteTransferPort) {
   render(
     <FetchQueryProvider>
-      <SiteImportTab t={t} useImport={({ t: tr }) => useSiteImport({ port, t: tr })} />
+      <SiteImportTab t={t} useImport={({ t: tr }) => useSiteImport({ port, t: tr })} showNewSiteLink />
     </FetchQueryProvider>,
   );
 }
@@ -331,7 +331,7 @@ describe("transfer tab presentation contracts", () => {
 
   it("publishes source forms, accessible fields, assistant guidance, and prevents browser submission", async () => {
     const controller = importController({ canImport: true, liveAddressValid: true, liveAddress: "https://live.example", link: "https://share.example" });
-    const { container } = render(<SiteImportTab t={t} useImport={() => controller} />);
+    const { container } = render(<SiteImportTab t={t} useImport={() => controller} showNewSiteLink />);
     expect(screen.getByRole("region", { name: "Import Site" })).toBeTruthy();
     for (const text of ["Bring in a site from a Tovu export or a live website.", "From a Tovu share link or zip", "Makes a new site. This site stays as it is.", "From a live website", "Imports into this site. To keep this site as it is, make a new site first.", "The assistant opens with the request written. Press Send to start.", "or", "Up to 300 MB", "Drop a .tovu.zip here, or click to browse"]) expect(screen.getByText(text)).toBeTruthy();
     expect(screen.getByRole("button", { name: "About importing" })).toBeTruthy();
@@ -362,6 +362,13 @@ describe("transfer tab presentation contracts", () => {
     expect(prevented).toEqual([true, true]);
     expect(controller.startImport).toHaveBeenCalledExactlyOnceWith();
     expect(controller.startLiveImport).toHaveBeenCalledExactlyOnceWith();
+  });
+
+  it("drops the New site link where there is no Sites section, keeping the sentence (owner, 2026-10-25)", () => {
+    render(<SiteImportTab t={t} useImport={() => importController({})} />);
+    expect(screen.queryByRole("link", { name: "New site" })).toBeNull();
+    expect(screen.getByText("Imports into this site. To keep this site as it is, make a new site first.").textContent)
+      .toBe("Imports into this site. To keep this site as it is, make a new site first.");
   });
 
   it("shows a chosen file, can remove it, and locks archive inputs during import", async () => {
