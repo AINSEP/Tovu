@@ -1,0 +1,79 @@
+name: Memory Soak
+on:
+  schedule:
+    - cron: "23 8 * * *"
+    - cron: "53 8 * * 0"
+  workflow_dispatch:
+    inputs:
+      suite:
+        type: choice
+        options: [both, server, desktop]
+        default: both
+      record_only:
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: memory-soak-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  TOVU_SOAK_LIMIT_PCT: "15"
+  TOVU_SOAK_RECORD_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.record_only && '1' || '0' }}
+# Enable this repository variable only after the devops helper release is locked here and the
+# locked desktop-host is verified to use fixed capture partitions; calibrate each platform first.
+jobs:
+  server:
+    if: >-
+      (vars.JINI_MEMORY_SOAK_RELEASED == '1' && github.event.schedule == '23 8 * * *') ||
+      (github.event_name == 'workflow_dispatch' && (inputs.suite == 'both' || inputs.suite == 'server'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            apps/admin/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix apps/admin
+      - run: npm run build
+      - run: npm run admin:build
+      - run: npm run test:soak:server
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: memory-soak-server-${{ github.run_id }}-${{ github.run_attempt }}
+          path: development/test-results/memory-soak/
+          retention-days: 14
+  desktop:
+    if: >-
+      (vars.JINI_MEMORY_SOAK_RELEASED == '1' && github.event.schedule == '53 8 * * 0') ||
+      (github.event_name == 'workflow_dispatch' && (inputs.suite == 'both' || inputs.suite == 'desktop'))
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            apps/admin/package-lock.json
+            apps/desktop/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix apps/admin
+      - run: npm ci --prefix apps/desktop
+      - run: npm run build
+      - run: npm run admin:build
+      - run: npm run test:soak:desktop
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: memory-soak-desktop-${{ github.run_id }}-${{ github.run_attempt }}
+          path: development/test-results/memory-soak/
+          retention-days: 14
