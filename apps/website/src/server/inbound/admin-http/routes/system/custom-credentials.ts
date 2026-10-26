@@ -10,6 +10,7 @@ import {
   CustomCredentialValidationError,
   deleteCustomCredential,
   listCustomCredentials,
+  shareCustomCredentialWithProject,
   updateCustomCredential,
   type CustomCredentialSummary,
   type UpdateCustomCredentialInput,
@@ -154,6 +155,8 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
         connection: body.connection,
         ...(body.additionalHosts !== undefined ? { additionalHosts: body.additionalHosts } : {}),
         ...(body.worksFor !== undefined ? { worksFor: body.worksFor } : {}),
+        // "site" = only for this site; omitted = the project store when one is attached (store.ts).
+        ...(body.scope !== undefined ? { scope: body.scope } : {}),
       });
       if (registry && deps.publishCredentialVerificationCache) invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, after: credential });
       res.status(201).json({ credential });
@@ -170,6 +173,18 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
       const before = await describeCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
       const credential = await updateCustomCredential(writeDeps, buildUpdateCredentialInput(deps.workspaceId, req.params.id, body));
       if (before && body.worksFor !== undefined && registry && deps.publishCredentialVerificationCache) invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, before, after: credential });
+      res.status(200).json({ credential });
+    } catch (err) {
+      sendStoreError(res, err);
+    }
+  });
+
+  // "Share with all sites": moves one of this site's own keys into the project store (store.ts's
+  // `shareCustomCredentialWithProject`: copied, verified, then the site copy removed).
+  app.post(`${BASE_PATH}/:id/share`, async (req, res) => {
+    if (await rejectUnlessAuthorized(req, res)) return;
+    try {
+      const credential = await shareCustomCredentialWithProject(writeDeps, { workspaceId: deps.workspaceId, id: req.params.id });
       res.status(200).json({ credential });
     } catch (err) {
       sendStoreError(res, err);

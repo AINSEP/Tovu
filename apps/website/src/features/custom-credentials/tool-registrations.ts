@@ -56,6 +56,7 @@ import {
 import { cleanCardToken } from "./card-token.js";
 import { applyPluginCredentialCard, loadPluginCredentialCardsSafely, findPluginCredentialCard, buildPluginCredentialForm, readPluginCredentialValues, type LoadPluginCredentialCards } from "./plugin-credential-card.js";
 import { buildCreateForm, buildCreateOutcome, type CreateCredentialPrefill } from "./custom-credential-create-ui.js";
+import { siteOnlyScope, withSiteOnlyField } from "./site-only-field.js";
 import { setTokenForm, setTokenOutcome } from "./custom-credential-set-token-ui.js";
 import { describeDeleteRequestApproval, MAKE_CREDENTIALED_REQUEST_TOOL_ID } from "./delete-request-confirmation-ui.js";
 import type { FileWritePlan, SourceControlProvider } from "../source-control/provider-module.js";
@@ -725,6 +726,8 @@ interface CreateCredentialSubmission {
   readonly category: string;
   readonly username: string | undefined;
   readonly token: string;
+  /** `"site"` = saved "only for this site"; omitted = the project store when one is attached. */
+  readonly scope?: "site";
   /** A blank `label` still needs a human-readable name for the outcome surface's own "Label" detail
    *  row — `store.ts`'s own validation error (surfaced via {@link mapCreateCredentialError}) is what
    *  actually refuses the submission; this is display-only. */
@@ -845,6 +848,7 @@ async function saveCreateCard(
       category: submission.category,
       baseUrl: submission.baseUrl,
       ...(submission.additionalHosts === undefined ? {} : { additionalHosts: submission.additionalHosts }),
+      ...(submission.scope ? { scope: submission.scope } : {}),
       connection: { token: cleanCardToken({ token: submission.token }), ...(submission.username !== undefined ? { username: submission.username } : {}) },
     }
   );
@@ -874,9 +878,11 @@ async function openCreateCard(required: {
   const card = defineSecretCardTool<Record<string, never>, CustomCredentialSummary, CreateCredentialResult>({
     toolId: CREDENTIAL_SAVE_TOOL_ID,
     prepare: async () => ({}),
-    form,
+    // Project-first (owner 2026-10-25): the box opts this one key out, for this site only.
+    form: () => withSiteOnlyField({ form: form(), shared: Boolean(routeDeps.customCredentialSetRepo.project) }),
     save: ({ values, signal }) => {
-      const submission = submissionOf(values);
+      const scope = siteOnlyScope({ values });
+      const submission = { ...submissionOf(values), ...(scope ? { scope } : {}) };
       displayLabel = redactSecrets({ input: submission.displayLabel }, { exactSecrets: [submission.token] });
       return saveCreateCard({ submission, routeDeps, signal });
     },
