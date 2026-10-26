@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 
 import type { CanvasEmbedPlaceholderDescriptor, InteractiveHtmlEditorHandle, RequestEditHtml } from "@jini-ai/ui/html-editor";
 
-import type { AdminPost, ThemeTier } from "@/lib/api";
+import type { AdminPagePluginEmbed, AdminPost, ThemeTier } from "@/lib/api";
 import {
   useDevicePreviewDevice,
   usePreviewPaneWidth,
@@ -664,11 +664,21 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
    * mount-once contract as `html`/`canvasStyling`), so this identity changing on a locale switch is
    * harmless — the NEXT mount (a fresh Interactive-tab visit) picks up the new translator.
    */
-  const embedPlaceholderDescriber = useMemo(() => createEmbedPlaceholderDescriber(boundT), [boundT]);
+  // The canvas captures its describer at mount; a ref supplies the latest server readiness.
+  const pluginEmbeds = useRef<readonly AdminPagePluginEmbed[]>([]);
+  const embedPlaceholderDescriber = useMemo(() => createEmbedPlaceholderDescriber({ t: boundT }, { pluginEmbeds: () => pluginEmbeds.current }), [boundT]);
   const pageKey = useMemo(() => ["pages", "detail", routeSlug] as const, [routeSlug]);
-  const fetchPage = useCallback(() => port.getPage(routeSlug === HOME_PAGE_HANDLE ? "/" : routeSlug), [port, routeSlug]);
+  const fetchPage = useCallback(async () => {
+    const result = await port.getPage(routeSlug === HOME_PAGE_HANDLE ? "/" : routeSlug);
+    pluginEmbeds.current = result.pluginEmbeds ?? [];
+    return result;
+  }, [port, routeSlug]);
   const pageLoader = useCachedLoader({ key: pageKey, fetch: fetchPage }, { staleTime: 0 });
-  const readPage = useCallback((id: string) => pageLoader.load({ key: ["pages", "detail", id], fetch: () => port.getPage(id) }), [port, pageLoader]);
+  const readPage = useCallback((id: string) => pageLoader.load({ key: ["pages", "detail", id], fetch: async () => {
+    const result = await port.getPage(id);
+    pluginEmbeds.current = result.pluginEmbeds ?? [];
+    return result;
+  } }), [port, pageLoader]);
   const invalidate = useInvalidate();
   const fetchInitial = useCallback(async () => {
     // Loaded together: an empty template picker must not flash while presentation lags the page.

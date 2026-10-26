@@ -2,6 +2,7 @@ import { hasAttributeOnAnyNodeShape, type CanvasEmbedPlaceholderDescriptor } fro
 import { embedMarkerTarget, parseEmbedMarkerConfig, type EmbedMarkerTarget } from "@jini-ai/cms/widgets/markers";
 
 import type { Translate } from "@jini-ai/ui/panel-kit";
+import type { AdminPagePluginEmbed } from "@/lib/api";
 
 /**
  * @file Bug A (2026-09-23 interactive-bugs plan, Slice A2): the Tovu-specific adapter
@@ -112,10 +113,10 @@ function targetIdentityLabel(type: string, config: Readonly<Record<string, unkno
  * label is always more informative than a resolved reference, matching Jini's own adapter's identical
  * precedence.
  *
- * @complexity O(1) per call — one attribute read, one bounded JSON parse, one small table lookup, one
- * `targetIdentityLabel` call.
+ * @complexity O(rows) for plugin readiness, otherwise O(1) — one attribute read, one bounded JSON
+ * parse, one small table lookup, one `targetIdentityLabel` call.
  */
-export function createEmbedPlaceholderDescriber(t: Translate): (el: Element) => CanvasEmbedPlaceholderDescriptor | undefined {
+export function createEmbedPlaceholderDescriber({ t }: { t: Translate }, options: { pluginEmbeds?: () => readonly AdminPagePluginEmbed[] } = {}): (el: Element) => CanvasEmbedPlaceholderDescriptor | undefined {
   return (el: Element): CanvasEmbedPlaceholderDescriptor | undefined => {
     const raw = el.getAttribute("data-embed-config");
     const fallback = (): CanvasEmbedPlaceholderDescriptor | undefined => isProtectedEmbedElement(el)
@@ -127,12 +128,39 @@ export function createEmbedPlaceholderDescriber(t: Translate): (el: Element) => 
 
     const { config } = result;
     const type = (config.type as string).toLowerCase();
-    const kindLabelKey = EMBED_KIND_LABEL_KEYS[type];
-    const kindLabel = kindLabelKey !== undefined ? t(kindLabelKey) : titleCase(type);
-
-    const name = typeof config.name === "string" && config.name.length > 0 ? config.name : undefined;
-    const identityLabel = name ?? targetIdentityLabel(type, config, t);
-
-    return { kindLabel, identityLabel };
+    if (type === "plugin") return pluginPlaceholder({ config, t, rows: options.pluginEmbeds?.() ?? [] });
+    return standardPlaceholder({ type, config, t });
   };
+}
+
+/** Preserve the existing name-first labels for non-plugin markers. O(1), no side effects. */
+function standardPlaceholder({ type, config, t }: { type: string; config: Readonly<Record<string, unknown>>; t: Translate }, _options = {}): CanvasEmbedPlaceholderDescriptor {
+  const kindLabelKey = EMBED_KIND_LABEL_KEYS[type];
+  const kindLabel = kindLabelKey !== undefined ? t(kindLabelKey) : titleCase(type);
+  const name = typeof config.name === "string" && config.name.length > 0 ? config.name : undefined;
+  return { kindLabel, identityLabel: name ?? targetIdentityLabel(type, config, t) };
+}
+
+/** Readiness is injected from T1, never inferred from authored stamps or props. Canvas cards
+ * stay inert; Preview owns the real keyboard-operable button. O(rows), no I/O or HTML injection.
+ */
+function pluginPlaceholder(required: { config: Readonly<Record<string, unknown>>; t: Translate; rows: readonly AdminPagePluginEmbed[] }, _options = {}): CanvasEmbedPlaceholderDescriptor {
+  const { config, t } = required;
+  const plugin = typeof config.plugin === "string" ? config.plugin : t("Unknown plugin");
+  const component = typeof config.component === "string" ? config.component : t("Unknown component");
+  const label = plugin === "tovu/google-login" ? "Google Login" : truncateTargetValue(plugin);
+  const row = required.rows.find(item => item.plugin === plugin && item.component === component);
+  const status = pluginAvailabilityLabel({ availability: row?.availability, t });
+  return { kindLabel: label, identityLabel: `${truncateTargetValue(component)} — ${status}`,
+    guidanceLabel: t("Preview shows the current button or your fallback. Static exports always use your fallback.") };
+}
+
+/** Fixed diagnostic copy; no raw host errors or marker values become executable markup. O(1). */
+function pluginAvailabilityLabel(required: { availability: string | undefined; t: Translate }, _options = {}): string {
+  const { availability, t } = required;
+  if (availability === "PLUGIN_DISABLED") return t("plugin off: visitors see your fallback");
+  if (availability === "host-unavailable") return t("sign-in not configured: visitors see your fallback");
+  if (availability === "ready" || availability === "props-required") return t("configured: check Preview");
+  if (availability === undefined) return t("check Preview for availability");
+  return t("plugin unavailable: visitors see your fallback");
 }

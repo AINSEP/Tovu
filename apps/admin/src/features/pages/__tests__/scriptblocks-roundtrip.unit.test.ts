@@ -6,7 +6,7 @@ import landing from "./fixtures/landing-scriptblocks.html?raw";
 
 // Real GrapesJS model/parser without iframe render: existing rendered GrapesJS mounts hang under
 // jsdom. Browser follow-up must verify RTE isolation, drag/drop, bounded cards and textarea scroll.
-const options = { isProtectedElement: isProtectedEmbedElement, describeHostElement: createEmbedPlaceholderDescriber(key => key) };
+const options = { isProtectedElement: isProtectedEmbedElement, describeHostElement: createEmbedPlaceholderDescriber({ t: key => key }) };
 const editors: Editor[] = [];
 function mount() {
   const sourcePlan = prepareEditorSource({ html: landing }, options);
