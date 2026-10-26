@@ -34,9 +34,9 @@ export interface ProviderSettingsCardPorts {
 
 type SavedView = Awaited<ReturnType<ProviderSettingsCardPorts["readSettings"]>>;
 type Prep = { pluginId: string; card?: PluginCredentialCard; fields: readonly PluginProviderSettingField[]; saved: SavedView; usage?: ProviderKeyUsage };
-type Saved = { configured?: boolean; store: "project" | "site"; keyId?: string; usedByThisSite?: boolean; usedBy?: readonly string[]; appliesAt?: "now" | "restart" };
+type Saved = { configured?: boolean; store: "project" | "site"; keyId?: string; usedByThisSite?: boolean; usedBy?: readonly string[]; appliesAt?: "now" | "restart" | "failed"; message?: string };
 export type ProviderSettingsSaveResult =
-  | { saved: true; pluginId: string; store: "project" | "site"; configured?: boolean; appliesAt: "now" | "restart"; keyId?: string; usedByThisSite?: boolean; usedBy?: readonly string[]; ask?: string }
+  | { saved: true; pluginId: string; store: "project" | "site"; configured?: boolean; appliesAt: "now" | "restart" | "failed"; message?: string; keyId?: string; usedByThisSite?: boolean; usedBy?: readonly string[]; ask?: string }
   | { saved: false; reason: string; message?: string };
 
 /** The select option that reveals a field's free-text twin (`allowCustom`). */
@@ -127,6 +127,7 @@ function resultOf({ run, pluginId }: { run: { status: string; saved?: Saved; saf
 
 /** A committed save can need browser reload or provider startup without becoming a failed save. */
 function savedMessage({ result }: { result: Extract<ProviderSettingsSaveResult, { saved: true }> }, _optional = {}): string {
+  if (result.appliesAt === "failed") return result.message ?? "Saved, but the provider could not start. Check the plugin settings and save again.";
   const location = result.store === "site" ? "Saved for this site." : result.usedBy?.length
     ? `Saved. Used by ${result.usedBy.join(", ")}. Other sites pick it up within 30 seconds.`
     : "Saved to your project — not used by any site yet.";
@@ -136,7 +137,7 @@ function savedMessage({ result }: { result: Extract<ProviderSettingsSaveResult, 
 
 function outcomeOf({ result, title }: { result: ProviderSettingsSaveResult; title: string }): SurfaceOutcomeSpec | undefined {
   if (!result.saved && result.message === undefined) return undefined;
-  return { title, state: result.saved ? "success" : "failure", app: { appName: "tovu-provider-settings-outcome", appVersion: "1" },
+  return { title, state: result.saved && result.appliesAt !== "failed" ? "success" : "failure", app: { appName: "tovu-provider-settings-outcome", appVersion: "1" },
     message: result.saved ? savedMessage({ result }) : result.message! };
 }
 

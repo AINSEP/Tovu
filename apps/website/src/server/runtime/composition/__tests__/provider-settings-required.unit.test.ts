@@ -127,3 +127,32 @@ test("Grafana Cloud requires an instance ID on save, boot and status; a kept tok
     assert.deepEqual((await providerSettingsStatus({ config: fixture({ settings: { auth }, secrets: auth === "bearer" ? { token: "fixture-token" } : {} }).config, pluginId, fields: cloudFields })).missing, []);
   }
 });
+
+
+test('a committed provider startup failure carries safe guidance instead of a restart promise', async () => {
+  const f = fixture();
+  const result = await saveProviderSettings({ config: f.config, pluginId, fields, values: { endpoint, token: 'fixture-only' },
+    reapply: async () => ({ appliesAt: 'failed', reason: 'The exporter could not initialize.', action: 'Change the endpoint and save again.' }) });
+  assert.deepEqual(result, { saved: true, configured: true, store: 'project', usedByThisSite: true, usedBy: [], appliesAt: 'failed',
+    message: 'Saved, but the provider could not start. The exporter could not initialize. Change the endpoint and save again.' });
+  assert.equal(f.writes(), 1);
+  assert.doesNotMatch(JSON.stringify(result), /fixture-only|restart|reload/i);
+});
+
+test('save refuses non-auth headers before writing; declared auth headers allow tokenless boot and status', async () => {
+  const declared: readonly PluginProviderSettingField[] = [...fields.slice(0, 2),
+    { ...fields[2]!, requiredUnless: { field: 'auth', equals: 'none', orPresent: 'headers', headerNames: ['Authorization', 'x-api-key'] } },
+    { name: 'headers', label: 'Extra headers', secret: true }];
+  for (const auth of ['bearer', 'grafana-cloud']) for (const headers of ['X-Scope-OrgID=1', 'authorization=Bearer fixture', 'X-API-Key=fixture']) {
+    const f = fixture();
+    const result = await saveProviderSettings({ config: f.config, pluginId, fields: declared, values: { endpoint, auth, headers } });
+    if (headers.startsWith('X-Scope')) {
+      assert.deepEqual(result, { refusal: { code: 'PROVIDER_SETTINGS_REQUIRED', error: `Token is required. ${hint}` } });
+      assert.equal(f.writes(), 0);
+    } else {
+      assert.equal('saved' in result && result.configured, true);
+      assert.ok(providerInputOf({ declaration: { ...declaration, settings: declared }, saved: f.saved() }));
+      assert.deepEqual((await providerSettingsStatus({ config: f.config, pluginId, fields: declared })).missing, []);
+    }
+  }
+});

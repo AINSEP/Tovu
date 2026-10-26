@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Composer, useComposer } from "@jini-ai/chat/react";
 import { useComposerCapabilities } from "../hooks/AssistantDock.hooks";
 import { useComposerDiscoveryDraft } from "../hooks/composer-skills.hooks";
+import { SKILLS_CHANGED_EVENT } from "@/features/skills/api";
 
 /** The current GET DTO, including management metadata. Keep fetch, projection, ranking and
  * Jini's actual slash filtering connected: a synthetic capability skips the failing seam. */
@@ -35,7 +36,7 @@ function Harness() {
   </div>;
 }
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("installed skills from GET through the real composer slash popup", () => {
   it.each(["sk", "ui", "ux"])("preserves both enabled skills in projection and relevant labeled rows for /%s", async query => {
@@ -65,6 +66,7 @@ describe("installed skills from GET through the real composer slash popup", () =
   });
 
   it("reloads after focus so a newly installed skill reaches an already open popup", async () => {
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(Response.json({ skills: [] }))
       .mockImplementation(async () => Response.json(skillsResponse));
@@ -81,7 +83,7 @@ describe("installed skills from GET through the real composer slash popup", () =
     ]));
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
-  it("re-reads installed skills every 10 seconds while the tab is visible, so a skill installed elsewhere appears unprompted", async () => {
+  it("keeps installed skills idle until an explicit change event refreshes the real composer", async () => {
     vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
     try {
       const fetchMock = vi.fn()
@@ -91,7 +93,9 @@ describe("installed skills from GET through the real composer slash popup", () =
       render(<Harness />);
       await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
       expect(JSON.parse(screen.getByTestId("installed-ids").textContent!)).toEqual([]);
-      await act(async () => { vi.advanceTimersByTime(10_000); });
+      await act(async () => { vi.advanceTimersByTime(600_000); });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      await act(async () => window.dispatchEvent(new Event(SKILLS_CHANGED_EVENT)));
       await waitFor(() => expect(JSON.parse(screen.getByTestId("installed-ids").textContent!)).toEqual([
         "installed-skill:skill_incident_response", "installed-skill:skill_ui_ux_design",
       ]));

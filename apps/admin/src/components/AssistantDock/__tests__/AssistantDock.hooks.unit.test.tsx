@@ -26,6 +26,8 @@ import {
   useRuntimeAccess,
 } from "../hooks/AssistantDock.hooks";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
+import { SKILLS_CHANGED_EVENT } from "@/features/skills/api";
+import { publishAssistantDockState, resetAssistantDockBus } from "@/lib/assistant-dock-bus";
 import {
   createBundledComposerCapabilitySource,
   emptyComposerCapabilityProjection,
@@ -47,9 +49,63 @@ import {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  resetAssistantDockBus();
 });
 
 describe("useComposerCapabilities", () => {
+  it("refreshes on open/focus/visible/explicit changes, has no idle poll and cleans up listeners", async () => {
+    vi.useFakeTimers();
+    const focus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ skills: [] }) });
+    vi.stubGlobal("fetch", fetchMock);
+    const { unmount } = renderHook(() => useComposerCapabilities());
+    const flush = () => act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    try {
+      await flush();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      await act(async () => { await vi.advanceTimersByTimeAsync(600_000); });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      act(() => window.dispatchEvent(new Event("focus")));
+      await flush();
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      focus.mockReturnValue(false);
+      act(() => document.dispatchEvent(new Event("visibilitychange")));
+      await flush();
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      focus.mockReturnValue(true);
+      visibility.mockReturnValue("hidden");
+      act(() => document.dispatchEvent(new Event("visibilitychange")));
+      await flush();
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      visibility.mockReturnValue("visible");
+      act(() => document.dispatchEvent(new Event("visibilitychange")));
+      await flush();
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      act(() => window.dispatchEvent(new Event(SKILLS_CHANGED_EVENT)));
+      await flush();
+      expect(fetchMock).toHaveBeenCalledTimes(4);
+      act(() => publishAssistantDockState(true));
+      await flush();
+      expect(fetchMock).toHaveBeenCalledTimes(5);
+      act(() => publishAssistantDockState(false));
+      await flush();
+      expect(fetchMock).toHaveBeenCalledTimes(5);
+      unmount();
+      publishAssistantDockState(true);
+      window.dispatchEvent(new Event("focus"));
+      window.dispatchEvent(new Event(SKILLS_CHANGED_EVENT));
+      document.dispatchEvent(new Event("visibilitychange"));
+      await flush();
+      expect(fetchMock).toHaveBeenCalledTimes(5);
+    } finally {
+      unmount();
+      focus.mockRestore();
+      visibility.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
   it("loads installed skills alongside bundled groups without exposing the raw tool catalog", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

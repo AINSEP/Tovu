@@ -11,9 +11,12 @@ import { RenderServiceError } from '@jini-ai/desktop-host';
 export function desktopCaptureWindowFactory({ createWindow }: { createWindow: (options: BrowserWindowConstructorOptions) => BrowserWindow }, _options = {}): ElectronBrowserWindowFactory {
   return (_required, options = {}) => {
     const window = createWindow({ ...options, webPreferences: { ...options.webPreferences } });
+    const denyDownload = (event: Electron.Event) => event.preventDefault();
+    let removeDownloadListener = () => {};
     try {
       const page = window.webContents;
       const captureSession = page.session;
+      removeDownloadListener = () => captureSession.removeListener('will-download', denyDownload);
       page.setWindowOpenHandler(() => ({ action: 'deny' }));
       page.setWebRTCIPHandlingPolicy('disable_non_proxied_udp');
       page.session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
@@ -22,14 +25,21 @@ export function desktopCaptureWindowFactory({ createWindow }: { createWindow: (o
       captureSession.setCertificateVerifyProc((request, callback) => {
         callback(['127.0.0.1', 'localhost', '::1', '[::1]'].includes(request.hostname) ? 0 : -3);
       });
-      page.session.on('will-download', event => event.preventDefault());
+      captureSession.on('will-download', denyDownload);
+      page.once('destroyed', removeDownloadListener);
       // No preload, Electron APIs, popups, saved credentials or the operator's cookie jar.
       page.on('will-attach-webview', event => event.preventDefault());
       return {
         webContents: {
-          session: { webRequest: { onBeforeRequest: ({ listener }) => page.session.webRequest.onBeforeRequest(
-            listener === null ? null : (details, callback) => listener({ details, callback }),
-          ) } },
+          session: {
+            clearStorageData: () => captureSession.clearStorageData(),
+            clearCache: () => captureSession.clearCache(),
+            clearAuthCache: () => captureSession.clearAuthCache(),
+            closeAllConnections: () => captureSession.closeAllConnections(),
+            webRequest: { onBeforeRequest: ({ listener }) => captureSession.webRequest.onBeforeRequest(
+              listener === null ? null : (details, callback) => listener({ details, callback }),
+            ) },
+          },
           loadURL: ({ url }) => page.loadURL(url),
           once: (({ event, listener }: { event: string; listener: (args?: unknown) => void }) => {
             if (event === 'did-fail-load') page.once(event, (event, errorCode, errorDescription) => listener({ event, errorCode, errorDescription }));
@@ -47,13 +57,13 @@ export function desktopCaptureWindowFactory({ createWindow }: { createWindow: (o
         close: () => window.close(), isDestroyed: () => window.isDestroyed(),
         destroy: () => {
           window.destroy();
-          // The partition is memory-only and unique per call; discard even its in-memory cookies.
-          void captureSession.clearStorageData().catch(() => {});
+          removeDownloadListener();
         },
         on: ({ listener }) => { window.on('closed', listener); },
       };
     } catch (error) {
       // The render lifetime cannot dispose a window until this factory returns it.
+      removeDownloadListener();
       window.destroy();
       throw error;
     }

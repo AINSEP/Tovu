@@ -90,6 +90,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  */
 export type AdminPublishCredentialsDeps = Pick<
   RouteDeps,
+  | "projectKeys"
   | "workspaceId"
   | "authorize"
   | "clock"
@@ -287,6 +288,7 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
         // "site" = only for this site; omitted = the project store when one is attached.
         scope: body.scope,
       });
+      if (credential.scope === "project") await deps.projectKeys?.use({ keyId: credential.id, use: true });
       invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, after: credential });
       // Only when `connection` was actually supplied — matches `updatePublishCredential`'s own
       // "connection omitted => nothing changed to verify" reasoning below. `createPublishCredential`

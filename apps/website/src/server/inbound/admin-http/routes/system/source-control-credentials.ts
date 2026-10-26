@@ -44,7 +44,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  */
 export type AdminSourceControlCredentialsDeps = Pick<
   RouteDeps,
-  "workspaceId" | "authorize" | "clock" | "idGen" | "sourceControlCredentialSetRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring" | "loadSourceControlProviders" | "observability"
+  "projectKeys" | "workspaceId" | "authorize" | "clock" | "idGen" | "sourceControlCredentialSetRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring" | "loadSourceControlProviders" | "observability"
 >;
 
 const PERMISSION = "source-control.credentials.write";
@@ -167,6 +167,7 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
         // "site" = only for this site; omitted = the project store when one is attached.
         scope: body.scope,
       } });
+      if (credential.scope === "project") await deps.projectKeys?.use({ keyId: credential.id, use: true });
       res.status(201).json({ credential });
     } catch (err) {
       sendStoreError(res, err);

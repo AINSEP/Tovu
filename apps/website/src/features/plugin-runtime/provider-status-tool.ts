@@ -23,7 +23,7 @@ export interface ProviderStatusRow {
   readonly configured: boolean;
   readonly missing: readonly string[];
   readonly store: "project" | "site";
-  readonly appliesAt: "now" | "restart";
+  readonly appliesAt: "now" | "restart" | "failed";
   readonly keyId?: string;
   readonly usedByThisSite: boolean;
   readonly usedBy: readonly string[];

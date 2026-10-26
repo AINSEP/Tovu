@@ -44,6 +44,7 @@ import { collectProcessTreePids, listProcessSnapshots, stopProcesses } from "@ji
 
 import { devSitesHome } from "./dev-sites-home.mjs";
 import { apiWatchArgs } from "./dev-api-watch.mjs";
+import { pruneTsxCache } from "./prune-tsx-cache.mjs";
 import { loadRepoRootEnvFile } from "./load-repo-root-env.mjs";
 import { localDevPluginInstallEnv } from "./local-dev-plugin-install.mjs";
 import { listenersOn } from "./port-listeners.mjs";
@@ -730,6 +731,7 @@ async function main() {
     return;
   }
   preflight();
+  await pruneTsxCache({});
 
   const tlsActive = resolveDevTlsActive({
     certPath: CERT_PATH,

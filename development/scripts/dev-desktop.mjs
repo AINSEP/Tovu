@@ -87,6 +87,7 @@ import { pickFreePort } from "./free-port.mjs";
 import { loadRepoRootEnvFile } from "./load-repo-root-env.mjs";
 import { localDevPluginInstallEnv } from "./local-dev-plugin-install.mjs";
 import { listenersOn } from "./port-listeners.mjs";
+import { pruneTsxCache } from "./prune-tsx-cache.mjs";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const DESKTOP_DIR = path.join(REPO_ROOT, "apps/desktop");
@@ -548,6 +549,7 @@ function startDesktopAdminVite(port, adminViteGone) {
 }
 
 async function main() {
+  await pruneTsxCache({});
   // Preload has no watch step here, so build it once up front — covers a first run with no dist/
   // yet, and any preload edit made since the last build.
   runToCompletion("building preload", "build:preload");

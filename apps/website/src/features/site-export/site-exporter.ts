@@ -472,8 +472,7 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
   // (`baseUrl`), so restricting the bind to `127.0.0.1` costs nothing and closes a brief
   // LAN-reachable window.
     // The global `fetch` read per call, so a test that swaps it is still honored.
-    // Asset discovery/fetch/output-layout is entirely basePath-agnostic (see writeContentRoute's own
-    // comment) — no rewrite is applied here, by design, not by omission.
+    // Responses upgrade media URLs before crawling; Jini applies basePath only to URL positions in output.
 
 export interface ExportSiteRouteDeps extends RouteManifestDeps, ExportMediaUrlDeps {
   readonly settingsRepo?: SettingsRepoPort;

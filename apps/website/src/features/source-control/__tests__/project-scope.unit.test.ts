@@ -1,3 +1,7 @@
+import express from "express";
+import { createProjectKeys } from "#src/features/project-keys/service";
+import { registerAdminSourceControlCredentialsRoutes, type AdminSourceControlCredentialsDeps } from "#src/server/inbound/admin-http/routes/system/source-control-credentials";
+import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import assert from "node:assert/strict";
@@ -9,7 +13,7 @@ import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import type { CredentialProjectHalf } from "../../vendor-credentials/project-scope.js";
 import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
 import type { SourceControlCredentialSetRepoPort } from "../types.js";
-import { exampleProviders } from "./fixtures/example-provider.js";
+import { exampleProviders, exampleProvidersWithoutProbe } from "./fixtures/example-provider.js";
 import {
   createSourceControlCredential,
   deleteSourceControlCredential,
@@ -147,4 +151,37 @@ test('a sole attached nondefault opens through the vault; multiple attached nond
   assert.equal((await resolveDefaultForSourceControl(a, input))?.id, first.id);
   await save(a, SITE_A, 'site-override', secret('own'), { scope: 'site' });
   assert.equal((await resolveDefaultForSourceControl(a, input))?.connection.token, secret('own'));
+});
+
+
+test('a Source control-page save is visible after reload on this site only; site-only keys acquire no project attachment', async () => {
+  const project = projectHalf();
+  const attachments = fakeAttachments();
+  const raw = project.repo.vault!;
+  const forSite = (siteId: string) => site({ ...project, repo: new InMemorySourceControlCredentialSetRepo({ vault: attachedOnlyVault({ vault: raw, siteId, attachments }) }) });
+  const a = forSite(SITE_A), b = forSite(SITE_B);
+  const keys = createProjectKeys({ vault: raw, attachments, siteId: SITE_A, siteName: 'A', transaction: async ({ run }) => run(),
+    providerUsage: async () => ({ store: 'project', usedByThisSite: false, usedBy: [] }), reapply: async () => 'now' });
+  const app = express();
+  registerAdminSourceControlCredentialsRoutes(app, {
+    workspaceId: SITE_A, authorize: async () => ({ allowed: true, reason: 'test' }), clock: a.clock, idGen: a.idGen,
+    sourceControlCredentialSetRepo: a.repo, siteAssistantSecretSealer: a.sealer, siteAssistantSecretKeyring: a.keyring,
+    loadSourceControlProviders: exampleProvidersWithoutProbe, projectKeys: keys,
+  } as AdminSourceControlCredentialsDeps);
+  const path = '/api/admin/v1/workspaces/:workspaceId/system/source-control/credentials';
+  const { res, capture } = createCapturingResponse(); res.locals.principal = { id: 'owner' };
+  await extractRouteHandler(app, 'post', path)({ params: { workspaceId: SITE_A }, body: { label: 'Git', connection: { providerId: 'example-git', token: secret('git') } } }, res);
+  assert.equal(capture.statusCode, 201);
+  const id = (capture.jsonBody as { credential: { id: string } }).credential.id;
+  const reload = createCapturingResponse(); reload.res.locals.principal = { id: 'owner' };
+  await extractRouteHandler(app, 'get', path)({ params: { workspaceId: SITE_A } }, reload.res);
+  assert.deepEqual((reload.capture.jsonBody as { credentials: { id: string }[] }).credentials.map(row => row.id), [id]);
+  assert.deepEqual(await listSourceControlCredentials(b, { workspaceId: SITE_B }), []);
+  assert.equal(await resolveDefaultForSourceControl(b, { workspaceId: SITE_B, providerId: 'example-git' }), null);
+  assert.equal(await attachments.isAttached({ siteId: SITE_A, keyId: id }), true);
+  assert.equal(await attachments.isAttached({ siteId: SITE_B, keyId: id }), false);
+  const own = createCapturingResponse(); own.res.locals.principal = { id: 'owner' };
+  await extractRouteHandler(app, 'post', path)({ params: { workspaceId: SITE_A }, body: { scope: 'site', label: 'Only A', connection: { providerId: 'example-git', token: secret('own') } } }, own.res);
+  assert.equal(own.capture.statusCode, 201);
+  assert.equal(await attachments.isAttached({ siteId: SITE_A, keyId: (own.capture.jsonBody as { credential: { id: string } }).credential.id }), false);
 });

@@ -320,3 +320,17 @@ it("labels an existing site key as site-only when a project store is available",
   expect(await screen.findByText("Saved for this site only")).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Use the saved key for this site" })).toBeNull();
 });
+
+
+it('keeps a committed startup failure visible with the shared safe reason and correction', async () => {
+  const port = createFakePluginsPort({ providerSettings: { 'observability-opentelemetry': card() } });
+  const message = 'Saved, but the provider could not start. Exporter unavailable. Correct the endpoint and save again.';
+  port.saveProviderSettings = async () => card({ appliesAt: 'failed', message });
+  const saved = vi.fn();
+  dialogWith(port, { onSaved: saved });
+  await findControl(/OTLP endpoint/);
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+  expect((await screen.findByRole('alert')).textContent).toBe(message);
+  expect(saved).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy();
+});

@@ -2225,7 +2225,7 @@ export interface AdminPluginProviderSettingField {
   allowCustom?: true;
   secret: boolean;
   required: boolean;
-  requiredUnless?: { readonly field: string; readonly equals: string; readonly orPresent?: string };
+  requiredUnless?: { readonly field: string; readonly equals: string; readonly orPresent?: string; readonly headerNames?: readonly string[] };
   requiredWhen?: { readonly field: string; readonly in: readonly string[] };
   saved: boolean;
   value?: string;
@@ -2236,7 +2236,7 @@ export interface AdminPluginProviderSettings {
   pluginId: string;
   /** Where this key lives; project keys are visible to attached sites only. */
   store: "project" | "site";
-  appliesAt: "now" | "restart";
+  appliesAt: "now" | "restart" | "failed"; message?: string;
   keyId?: string;
   usedByThisSite: boolean;
   usedBy: string[];
@@ -4073,7 +4073,7 @@ export const api = {
       method: "PUT", body: JSON.stringify({ values }),
     }),
   useProjectKey: ({ keyId, use }: { keyId: string; use: boolean }, _optional = {}) =>
-    request<{ keyId: string; usedByThisSite: boolean; usedBy: string[]; appliesAt: "now" | "restart" }>(`/workspaces/${WORKSPACE_ID}/project-keys/${encodeURIComponent(keyId)}/use`, { method: "PUT", body: JSON.stringify({ use }) }),
+    request<{ keyId: string; usedByThisSite: boolean; usedBy: string[]; appliesAt: "now" | "restart" | "failed"; message?: string }>(`/workspaces/${WORKSPACE_ID}/project-keys/${encodeURIComponent(keyId)}/use`, { method: "PUT", body: JSON.stringify({ use }) }),
   setPluginEnabled: (pluginId: string, { enabled }: { enabled: boolean }) =>
     request<{ plugin: { id: string; version: string; enabled: boolean; updatedAt: string }; changeSetId: string }>(
       `/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}`,

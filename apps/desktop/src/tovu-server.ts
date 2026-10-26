@@ -22,6 +22,7 @@ import { createRedactedOutputSink } from "../../website/src/platform/server-logs
 import { spawn as nodeSpawn, execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 import { omitEnvironmentKeys } from "@jini-ai/platform/child-environment";
 import type { SpawnOptions } from "node:child_process";
 import type { Readable, Writable } from "node:stream";
@@ -886,6 +887,12 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
   });
 
   const serveEnv = buildServeEnv({ repoRoot: input.repoRoot, siteDir: input.siteDir, baseEnv: input.baseEnv, desktopCredential: input.desktopCredential, adminDevProxyUrl: input.adminDevProxyUrl, nodeToolchainEnv: input.nodeToolchainEnv });
+  if (input.cliMode === "source") {
+    try {
+      const { pruneTsxCache } = await import(pathToFileURL(path.join(input.repoRoot, "development/scripts/prune-tsx-cache.mjs")).href);
+      await pruneTsxCache({ env: serveEnv });
+    } catch { console.warn("tovu dev: tsx cache pruning unavailable; continuing."); }
+  }
   // Windows has no SIGTERM to send: Stop closes this stdin pipe instead (see `stopChild`).
   const win32 = (input.platform ?? process.platform) === "win32";
   const child = spawnFn(
