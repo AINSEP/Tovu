@@ -50,7 +50,7 @@ export interface SourceControlCredentialSummary {
   /** See `SourceControlCredentialSetRecord.accountLabel`'s own doc — carried through unchanged. */
   readonly accountLabel: string | null;
   /** Where the row lives — present only where a project store is attached (local web + desktop):
-   *  `"project"` is shared by every site of the project, `"site"` is this site's own (an override). */
+   *  `"project"` is visible to attached sites only, `"site"` is this site's own (an override). */
   readonly scope?: "site" | "project";
   readonly createdAt: ISODateTime;
   readonly updatedAt: ISODateTime;
@@ -70,7 +70,7 @@ export interface SourceControlCredentialSummary {
 export interface SourceControlCredentialSetRepoPort {
   readonly vault?: VaultRepoPort;
   /** The project store this site's rows fall back to (`store.ts`'s scope rule, shared in
-   *  `vendor-credentials/project-scope.ts`: site first, then project; new rows go to the project
+   *  `vendor-credentials/project-scope.ts`: site first, then attached project rows; new rows go to the project
    *  unless saved "only for this site"). Absent = site only (Fly/production). */
   readonly project?: CredentialProjectHalf<SourceControlCredentialSetRepoPort>;
   insert(record: SourceControlCredentialSetRecord): Promise<void>;

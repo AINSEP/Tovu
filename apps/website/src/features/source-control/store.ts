@@ -5,7 +5,7 @@ import { isUniqueViolation } from "../../platform/db/kernel/dialect.js";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import { VaultError, type VaultSummary } from "@jini-ai/platform/secrets/credential-sets";
 import { credentialVault, credentialScope, credentialHint } from "../vendor-credentials/vault-adapter.js";
-import { credentialCreateTarget, credentialScopes, type CredentialScope, type ScopedCredentialDeps } from "../vendor-credentials/project-scope.js";
+import { credentialDeletionRepo, credentialCreateTarget, credentialScopes, type CredentialScope, type ScopedCredentialDeps } from "../vendor-credentials/project-scope.js";
 import { buildSourceControlProvider, type LoadSourceControlProviders, type SourceControlProviderRegistry, type SourceControlProviderDescriptor } from "./provider-registry.js";
 import type {
   SourceControlConnectionInput,
@@ -322,8 +322,8 @@ export interface CreateSourceControlCredentialInput {
   /** `true` makes this the provider's default connection. Omitted/`false` still auto-defaults if
    *  this turns out to be the provider's FIRST saved connection; Jini owns atomic auto-defaulting. */
   isDefault?: unknown;
-  /** `"site"` = "Only for this site". Omitted (or `"project"`) = the project store when one is
-   *  attached, so every site of the project can use it; this site's vault otherwise. */
+  /** `"site"` = a site-owned key. Omitted (or `"project"`) = the project store when one is
+   *  attached, visible to attached sites only; this site's vault otherwise. */
   scope?: unknown;
 }
 
@@ -367,7 +367,7 @@ async function saveConnection({ deps, input }: { deps: SourceControlCredentialWr
     const duplicate = isUniqueLabelViolation(error) || error instanceof VaultError && error.code === "conflict" &&
       (await deps.repo.listByProvider({ workspaceId: input.workspaceId, providerId: input.provider as SourceControlProviderId }))
         .some(row => row.id !== input.id && row.label === input.label);
-    if (duplicate) throw new SourceControlCredentialDuplicateLabelError(`a '${input.provider}' credential labeled '${input.label}' already exists in this workspace`);
+    if (duplicate) throw new SourceControlCredentialDuplicateLabelError(input.workspaceId === 'project' ? `Your project already has a key named '${input.label}'. Use it here, or pick another name.` : `a '${input.provider}' credential labeled '${input.label}' already exists in this workspace`);
     throw error;
   }
 }
@@ -409,7 +409,7 @@ export async function updateSourceControlCredential(
   { deps, input }: { deps: SourceControlCredentialWriteDeps; input: UpdateSourceControlCredentialInput },
   _options = {},
 ): Promise<SourceControlCredentialSummary> {
-  // Changed where it lives: this site's own row, else the project's (shared by every site).
+  // Changed where it lives: this site's own row, else the project's attached row.
   const located = await locateById(deps, input);
   if (!located) throw new SourceControlCredentialNotFoundError(`no source control credential '${input.id}' in this workspace`);
   const { scoped, record: existing } = located;
@@ -445,8 +445,8 @@ export async function updateSourceControlCredential(
  *   group).
  */
 export async function deleteSourceControlCredential(deps: SourceControlCredentialReadDeps, input: { workspaceId: UUID; id: UUID }): Promise<void> {
-  // A project row is removed for every site of the project, as its summary's `scope` says.
-  const located = await locateById(deps, input);
+  // A project row is removed only when no other site uses it, with its attachments.
+  const located = await locateById({ ...deps, repo: credentialDeletionRepo({ repo: deps.repo }) }, input);
   if (located) await located.scoped.deps.repo.delete({ workspaceId: located.scoped.workspaceId, id: input.id });
 }
 

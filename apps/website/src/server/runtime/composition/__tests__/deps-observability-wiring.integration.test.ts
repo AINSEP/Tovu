@@ -44,7 +44,7 @@ test("a configured provider selection: content and chat kernels are decorated wi
     return { ...tracker, end: (outcome) => { if (outcome.table) tables.add(outcome.table); tracker.end(outcome); } };
   } };
   let disposed = 0;
-  const deps = await siteDeps(t, { bootProviderPlugins: async () => ({ observability: port, productAnalytics: { capture() {}, identify() {} }, aiTraceSink: undefined, dispose: async () => { disposed += 1; } }) });
+  const deps = await siteDeps(t, { bootProviderPlugins: async () => ({ observability: port, productAnalytics: { capture() {}, identify() {} }, aiTraceSink: undefined, reapply: async () => "now", appliesAt: () => "now", dispose: async () => { disposed += 1; } }) });
 
   assert.equal(deps.observability, port);
   assert.equal(isNoopObservabilityPort(deps.observability), false);

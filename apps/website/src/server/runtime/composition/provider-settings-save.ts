@@ -1,7 +1,7 @@
 import type { PluginProviderSettingField } from "@jini-ai/plugins/host";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 
-import { ProviderConfigUnreadableError, ProviderStoreUnavailableError, type ProviderConfigSource } from "./provider-config-source.js";
+import { providerKeyUsage, ProviderConfigUnreadableError, ProviderStoreUnavailableError, type ProviderConfigSource, type ProviderKeyUsage } from "./provider-config-source.js";
 import { providerInputOf } from "./provider-plugins.js";
 
 /**
@@ -9,7 +9,7 @@ import { providerInputOf } from "./provider-plugins.js";
  * card (`routes/plugins/provider-settings.ts`) and the assistant's key card (a `provider-settings`
  * credential card an agent plugin declares, `features/custom-credentials/provider-settings-card.ts`).
  * Same declared fields, same validation, same secret re-entry rule, same `ProviderConfigSource`
- * (project store first), so a key saved from chat and one saved from Settings are the same row.
+ * (site first, then attached project rows), so a key saved from chat and one saved from Settings are the same row.
  */
 
 type SavedConfig = { settings: Readonly<Record<string, string>>; secrets: Readonly<Record<string, string>> };
@@ -76,9 +76,9 @@ export async function currentProviderConfig({ config, pluginId }: { config: Prov
  * project store could not open this run (`ProviderStoreUnavailableError`), so both cards show why.
  * @complexity O(f) plus one read and one write of the config row.
  */
-export async function saveProviderSettings({ config, pluginId, fields, values }: {
-  config: ProviderConfigSource; pluginId: string; fields: readonly PluginProviderSettingField[]; values: unknown;
-}): Promise<{ saved: true } | { refusal: ProviderSettingsRefusal }> {
+export async function saveProviderSettings({ config, pluginId, fields, values, reapply }: {
+  config: ProviderConfigSource; pluginId: string; fields: readonly PluginProviderSettingField[]; values: unknown; reapply?: (input: { pluginId: string }) => Promise<"now" | "restart">;
+}, _optional = {}): Promise<({ saved: true; configured: boolean; appliesAt: "now" | "restart" } & ProviderKeyUsage) | { refusal: ProviderSettingsRefusal }> {
   const next = nextProviderConfig({ values, fields, current: await currentProviderConfig({ config, pluginId }) });
   if ("refusal" in next) return next;
   try {
@@ -87,14 +87,17 @@ export async function saveProviderSettings({ config, pluginId, fields, values }:
     if (error instanceof ProviderStoreUnavailableError) return { refusal: { code: error.code, error: error.message } };
     throw error;
   }
-  return { saved: true };
+  const usage = await providerKeyUsage({ config, pluginId });
+  const appliesAt = reapply ? await reapply({ pluginId }) : "restart";
+  const configured = usage.usedByThisSite && providerInputOf({ declaration: { contract: "", id: pluginId, contractVersion: 1, settings: fields }, saved: next.config }) !== undefined;
+  return { saved: true, configured, ...usage, appliesAt };
 }
 
 /** What the assistant may know about a provider plugin's settings: presence only, never a value. */
-export interface ProviderSettingsStatus {
+export interface ProviderSettingsStatus extends ProviderKeyUsage {
   readonly configured: boolean;
   readonly store: ProviderConfigSource["scope"];
-  readonly appliesAt: "next-start";
+  readonly appliesAt: "now" | "restart";
   /** Labels of required fields still without a value (a declared default counts as a value). */
   readonly missing: readonly string[];
   readonly unreadable?: true;
@@ -111,7 +114,8 @@ export async function providerSettingsStatus({ config, pluginId, fields }: { con
   // Nothing saved still counts declared defaults, so `missing` names only what the person must enter.
   const input = providerInputOf({ declaration: { contract: "", id: pluginId, contractVersion: 1, settings: fields.map((field) => ({ ...field, required: false })) }, saved: saved ?? { settings: {}, secrets: {} } }) ?? {};
   const missing = fields.filter((field) => field.required && !input[field.name]).map((field) => field.label);
-  return { configured: missing.length === 0 && saved !== null, store: config.scope, appliesAt: "next-start", missing, ...(view?.unreadable ? { unreadable: true as const } : {}) };
+  const usage = await providerKeyUsage({ config, pluginId });
+  return { configured: missing.length === 0 && saved !== null && usage.usedByThisSite, ...usage, appliesAt: "now", missing, ...(view?.unreadable ? { unreadable: true as const } : {}) };
 }
 
 /**
@@ -119,10 +123,11 @@ export async function providerSettingsStatus({ config, pluginId, fields }: { con
  * to this module's rule and the same `ProviderConfigSource` the admin route uses.
  * @complexity O(p + f) per call: one discovery read plus one config read/write.
  */
-export function bindProviderSettingsCardPorts({ config, discoverPlugins }: { config: ProviderConfigSource; discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]> }) {
+export function bindProviderSettingsCardPorts({ config, discoverPlugins, reapply }: { config: ProviderConfigSource; discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>; reapply?: (input: { pluginId: string }) => Promise<"now" | "restart"> }) {
   const fields = async ({ pluginId }: { pluginId: string }) => declaredProviderSettingFields({ records: await discoverPlugins(), pluginId });
   return {
     fields,
+    usage: ({ pluginId }: { pluginId: string }) => providerKeyUsage({ config, pluginId }),
     readSettings: async ({ pluginId }: { pluginId: string }) => {
       const view = await config.readSettings({ pluginId });
       return view && !view.unreadable ? view : null;
@@ -130,8 +135,8 @@ export function bindProviderSettingsCardPorts({ config, discoverPlugins }: { con
     save: async ({ pluginId, values }: { pluginId: string; values: Readonly<Record<string, string>> }) => {
       const declared = await fields({ pluginId });
       if (!declared) return { refusal: "This plugin declares no provider settings." };
-      const saved = await saveProviderSettings({ config, pluginId, fields: declared, values });
-      return "refusal" in saved ? { refusal: saved.refusal.error } : { store: config.scope };
+      const saved = await saveProviderSettings({ config, pluginId, fields: declared, values, reapply });
+      return "refusal" in saved ? { refusal: saved.refusal.error } : { ...saved };
     },
   };
 }
@@ -141,7 +146,8 @@ export function bindProviderSettingsCardPorts({ config, discoverPlugins }: { con
  * flag and quarantine reason (activation record) and `providerSettingsStatus`. Presence only.
  * @complexity O(p) plugins, one activation read and one settings read per provider plugin.
  */
-export async function listProviderStatuses({ config, discoverPlugins, activation }: {
+export async function listProviderStatuses({ config, discoverPlugins, activation, appliesAt }: {
+  appliesAt?: (input: { pluginId: string }) => "now" | "restart";
   config: ProviderConfigSource; discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
   activation: (required: { pluginId: string }) => Promise<{ enabled: boolean; quarantineReason?: string } | null>;
 }) {
@@ -152,6 +158,7 @@ export async function listProviderStatuses({ config, discoverPlugins, activation
     if (!fields) continue;
     const state = await activation({ pluginId });
     rows.push({ pluginId, enabled: state?.enabled === true, ...(await providerSettingsStatus({ config, pluginId, fields })),
+      ...(appliesAt ? { appliesAt: appliesAt({ pluginId }) } : {}),
       ...(state?.quarantineReason ? { quarantine: state.quarantineReason } : {}) });
   }
   return rows;

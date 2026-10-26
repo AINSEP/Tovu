@@ -90,7 +90,7 @@ export interface PluginsController {
   onCloseSettings: () => void;
   /** The settings card saved: closes it and sets {@link PluginsController.settingsNotice}. */
   onSettingsSaved: () => void;
-  /** "<Name> settings saved — applies next time Tovu starts", shown as a toast until dismissed or timed out. */
+  /** "<Name> settings saved", shown as a toast until dismissed or timed out. */
   settingsNotice: string | null;
   dismissSettingsNotice: () => void;
   /** The plugin waiting on `PluginRemoveConfirmDialog`, looked up fresh from `plugins` by id (same as
@@ -231,7 +231,7 @@ export function usePlugins({ port, locale, t, installPort = defaultPluginInstall
     onSettingsSaved: () => {
       const name = findPluginById({ plugins, id: settingsPluginId })?.name ?? settingsPluginId ?? "";
       setSettingsPluginId(null);
-      setSettingsNotice(interpolate({ template: t("{name} settings saved — applies next time Tovu starts"), vars: { name } }));
+      setSettingsNotice(interpolate({ template: t("{name} settings saved"), vars: { name } }));
     },
     settingsNotice,
     dismissSettingsNotice: () => setSettingsNotice(null),

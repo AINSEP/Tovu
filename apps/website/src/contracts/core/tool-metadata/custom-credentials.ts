@@ -3,6 +3,9 @@ import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-
 
 /** custom-credentials registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
+  project_keys_list: { search: { keywords: "project keys saved credentials used sites attach" }, approval: { class: "read", confirmation: "direct" } },
+  project_key_use: { search: { keywords: "apply use attach detach project saved key stop using site" }, approval: { class: "edit", confirmation: "direct" } },
+  site_restart: { search: { keywords: "restart site provider settings apply" }, approval: { class: "edit", confirmation: "plan", input: "human-form" }, mcpUi: { redeemable: true, exchangeOnly: true } },
   "credential_copy_from_project": {
     search: {
       keywords: "copy import reuse keys credentials tokens local project site source overwrite",

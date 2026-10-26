@@ -20,7 +20,10 @@ export interface ProviderStatusRow {
   readonly configured: boolean;
   readonly missing: readonly string[];
   readonly store: "project" | "site";
-  readonly appliesAt: "next-start";
+  readonly appliesAt: "now" | "restart";
+  readonly keyId?: string;
+  readonly usedByThisSite: boolean;
+  readonly usedBy: readonly string[];
   readonly unreadable?: true;
   readonly quarantine?: string;
 }
@@ -33,7 +36,7 @@ export interface ProviderStatusPorts {
 
 export const providerStatusAgentToolCatalog: AgentToolDefinition[] = [{
   name: PROVIDER_STATUS_TOOL_ID,
-  description: "Read-only status of provider plugins (product analytics, error tracking, observability/tracing): for each, pluginId, enabled, configured (every required setting has a value), missing (labels of required settings without one), store (project = shared by every site of this project, or site), appliesAt (next-start: a saved change takes effect when the site next starts), unreadable (saved but cannot be opened on this machine; enter it again) and quarantine (the host's reason, when it switched the plugin off). Never returns a setting value or secret. Pass pluginId for one plugin. To set one up, open its agent plugin's key card with credential_save {kind:\"plugin-provider\",target:<card target>}. Requires admin.plugins.read.",
+  description: "Read-only status of provider plugins (product analytics, error tracking, observability/tracing): for each, pluginId, enabled, configured (every required setting has a value), missing (labels of required settings without one), store (site = this site's own key; project = a key saved in your project), usedByThisSite (false = saved but not used here; ask before project_key_use), keyId, usedBy, appliesAt (now, or restart when the provider cannot re-start live), unreadable (saved but cannot be opened on this machine; enter it again) and quarantine (the host's reason, when it switched the plugin off). Never returns a setting value or secret. Pass pluginId for one plugin. To set one up, open its agent plugin's key card with credential_save {kind:\"plugin-provider\",target:<card target>}. Requires admin.plugins.read.",
   sideEffects: "none",
   authorization: { permission: "admin.plugins.read" },
   inputSchema: { type: "object", additionalProperties: false, properties: { pluginId: { type: "string", minLength: 1, description: "Optional provider plugin id, e.g. from plugins_list." } } },

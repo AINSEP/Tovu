@@ -1,3 +1,5 @@
+import { buildProjectKeyRegistrations, projectKeysRisk } from "#src/features/project-keys/tools";
+import { devRestartPortFromEnv } from "#src/platform/dev-supervisor/dev-restart";
 import { readBundledDeployConfigCandidatePaths } from "#src/features/deployments/index";
 import { findCandidateDestination } from "#src/features/publish-trust/connect";
 import { resolveCommittedConfigRoot, nodeProvisioningFileIo } from "#src/features/publish-trust/provisioning.node-io";
@@ -541,24 +543,32 @@ export function installFirstPartyToolContributors(
           pluginProvider: api.pluginProvider,
           // A provider plugin's settings, saved through the admin Settings card's rule and store.
           ...(originalDeps.providerConfig ? { providerSettings: buildProviderSettingsCredentialHandler({ surfaces, loadCards: () => loadCards(originalDeps.workspaceId), ports: {
-            ...bindProviderSettingsCardPorts({ config: originalDeps.providerConfig, discoverPlugins: originalDeps.discoverPlugins }),
+            ...bindProviderSettingsCardPorts({ config: originalDeps.providerConfig, discoverPlugins: originalDeps.discoverPlugins, reapply: originalDeps.reapplyProvider }),
             authorize: ctx => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: originalDeps.authorize }), workspaceId: originalDeps.workspaceId, principalId: ctx.principal.id, permission: 'admin.plugins.enable' }, { entityType: 'plugin' }),
           } }) } : {}),
         } satisfies import("#src/features/custom-credentials/credential-save-tool").CredentialSaveAdapters;
       };
       return buildCredentialSaveRegistrations({
         adapters: adaptersFor(loadPluginCredentialCards),
+        savedResult: originalDeps.projectKeys ? input => originalDeps.projectKeys!.savedResult(input) : undefined,
         loadPluginCredentialCards: () => loadPluginCredentialCards(originalDeps.workspaceId),
         authorizePluginProvider: ctx => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: originalDeps.authorize }), workspaceId: originalDeps.workspaceId, principalId: ctx.principal.id, permission: 'custom-credentials.write' }, { entityType: 'custom-credentials' }),
         adaptersForCards: ({ cards }) => adaptersFor(async () => cards),
       });
     },
   } });
+  contributions.contributors.register({ contribution: {
+    domain: "project-keys", risk: projectKeysRisk,
+    build: (deps, surfaces) => buildProjectKeyRegistrations({ keys: deps.projectKeys, surfaces, restart: devRestartPortFromEnv(),
+      loadCards: () => createPluginCredentialCardsLoader({ agentPluginLayout: deps.agentPluginLayout, loadMailCards: deps.loadPluginCredentialCards ?? (async () => []) })(deps.workspaceId),
+      authorize: ({ ctx, permission }) => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission }, { entityType: "project-key" }),
+    }),
+  } });
   // `provider_status`: presence-only status of provider plugins (analytics, error tracking, tracing).
   contributions.contributors.register({ contribution: {
     domain: "provider-status", risk: providerStatusDerivedRisk,
     build: (deps) => buildProviderStatusRegistrations({ ports: {
-      list: async () => !deps.providerConfig ? [] : listProviderStatuses({ config: deps.providerConfig, discoverPlugins: deps.discoverPlugins,
+      list: async () => !deps.providerConfig ? [] : listProviderStatuses({ config: deps.providerConfig, discoverPlugins: deps.discoverPlugins, appliesAt: deps.providerAppliesAt,
         activation: ({ pluginId }) => deps.pluginActivationRepo.getActivation({ workspaceId: deps.workspaceId, pluginId }) }),
       authorize: ctx => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: 'admin.plugins.read' }, { entityType: 'plugin' }),
     } }),

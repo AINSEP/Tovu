@@ -1241,7 +1241,7 @@ test("propose-credential replaces its form with the saved hint and not-tested ou
   assert.equal(JSON.stringify(emitted).includes(submitted), false);
   assert.equal(JSON.stringify(result).includes(submitted), false);
   assert.deepEqual(result, {
-    saved: true, providerId: "unverified-host", connected: false, connection: "saved",
+    saved: true, credentialId: (await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId }))[0]!.id, providerId: "unverified-host", connected: false, connection: "saved",
     tokenHint: { length: 18, last4: "1234" }, message: "…1234, 18 chars. Saved, not tested.",
   });
   assert.equal(probes, 0);
@@ -1300,13 +1300,13 @@ test("propose-credential works for any host with a credential spec: a netlify fo
   assert.doesNotMatch(html, /id="mcpui-field-siteId"/, "the netlify module never reads a site id, so the form does not ask for one");
 
   surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { token: "nfp_realtoken9876" } }, { toolId: "credential_save" });
-  assert.deepEqual(await pending, { saved: true, providerId: "netlify", connected: false, connection: "auth", tokenHint: { length: 17, last4: "9876" }, message: "…9876, 17 chars. The server rejected this token." });
+  assert.deepEqual(await pending, { saved: true, credentialId: (await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId }))[0]!.id, providerId: "netlify", connected: false, connection: "auth", tokenHint: { length: 17, last4: "9876" }, message: "…9876, 17 chars. The server rejected this token." });
   const rows = (await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId })).filter((r) => r.vendorId === "netlify");
   assert.equal(rows.length, 1);
   assert.equal(rows[0]!.tokenTail, "9876");
 });
 
-test("propose-credential with a project store: a new connection saves for every site unless 'Only for this site' is ticked", async () => {
+test("propose-credential with a project store: cards have no site-only checkbox; forged opt-out values do not change the save target", async () => {
   const { deps } = fakeDeps();
   const projectKeyring = new InMemoryKeyring();
   const project = { workspaceId: "project", repo: new InMemoryVendorCredentialSetRepo({}), sealer: new AesGcmSecretSealer(projectKeyring), keyring: projectKeyring };
@@ -1316,7 +1316,7 @@ test("propose-credential with a project store: a new connection saves for every 
   const token = `nfp_${"s".repeat(12)}9876`;
 
   const shared = await raiseCredentialForm(proposeTool, { target: "netlify" });
-  assert.match(shared.html, /id="mcpui-field-onlyThisSite"/);
+  assert.doesNotMatch(shared.html, /onlyThisSite/);
   surfaceExchanges.deliver({ exchangeId: shared.exchangeId, principalId: PRINCIPAL_ID, params: { token } }, { toolId: "credential_save" });
   assert.equal((await shared.pending as { saved: boolean }).saved, true);
   assert.equal((await project.repo.listByWorkspace({ workspaceId: "project" })).length, 1);
@@ -1325,7 +1325,8 @@ test("propose-credential with a project store: a new connection saves for every 
   const own = await raiseCredentialForm(proposeTool, { target: "vercel" });
   surfaceExchanges.deliver({ exchangeId: own.exchangeId, principalId: PRINCIPAL_ID, params: { token, onlyThisSite: true } }, { toolId: "credential_save" });
   assert.equal((await own.pending as { saved: boolean }).saved, true);
-  assert.deepEqual((await repo.listByWorkspace({ workspaceId: deps.workspaceId })).map(row => row.vendorId), ["vercel"]);
+  assert.deepEqual((await repo.listByWorkspace({ workspaceId: deps.workspaceId })).map(row => row.vendorId), []);
+  assert.deepEqual((await project.repo.listByWorkspace({ workspaceId: "project" })).map(row => row.vendorId).sort(), ["netlify", "vercel"]);
 
   // An update changes the saved row where it lives: no box.
   const update = await raiseCredentialForm(proposeTool, { target: "netlify" });
@@ -1386,7 +1387,7 @@ test("submit: a first-time save creates exactly one s3-compatible row, auto-defa
   assert.deepEqual(delivered, { ok: true });
 
   const result = await pending;
-  assert.deepEqual(result, { saved: true, providerId: "s3-compatible", connected: false, connection: "auth", tokenHint: { length: 6, last4: null }, message: "6 chars. The server rejected this token." });
+  assert.deepEqual(result, { saved: true, credentialId: (await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId }))[0]!.id, providerId: "s3-compatible", connected: false, connection: "auth", tokenHint: { length: 6, last4: null }, message: "6 chars. The server rejected this token." });
   assert.doesNotMatch(JSON.stringify(result), /s3cr3t|AKIAEXAMPLE/, "the secret/access key must never appear in the tool's own return value");
 
   const rows = await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId });
@@ -1416,7 +1417,7 @@ test("submit: a SECOND save updates the existing row rather than creating a dupl
   const second = await raiseCredentialForm(tool(buildRegistrations(deps, surfaceExchanges), "credential_save"));
   surfaceExchanges.deliver({ exchangeId: second.exchangeId, principalId: PRINCIPAL_ID, params: { ...VALID_FORM_SUBMISSION, bucket: "renamed-bucket", secretAccessKey: "rotated-secret" } }, { toolId: "credential_save" });
   const result = await second.pending;
-  assert.deepEqual(result, { saved: true, providerId: "s3-compatible", connected: true, connection: "connected", tokenHint: { length: 14, last4: "cret" }, message: "…cret, 14 chars. Connected." });
+  assert.deepEqual(result, { saved: true, credentialId: (await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId }))[0]!.id, providerId: "s3-compatible", connected: true, connection: "connected", tokenHint: { length: 14, last4: "cret" }, message: "…cret, 14 chars. Connected." });
 
   const rows = (await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId })).filter((r) => r.vendorId === "s3-compatible");
   assert.equal(rows.length, 1, "a second save must UPDATE the existing row, never create a second one");

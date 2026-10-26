@@ -2206,9 +2206,13 @@ export interface AdminPluginProviderSettingField {
 /** `GET|PUT /workspaces/:id/plugins/:pluginId/provider-settings` (2026-10-26). */
 export interface AdminPluginProviderSettings {
   pluginId: string;
-  /** Where saves go: the project shared by this machine's sites, or this site only. */
+  /** Where this key lives; project keys are visible to attached sites only. */
   store: "project" | "site";
-  appliesAt: "next-start";
+  appliesAt: "now" | "restart";
+  keyId?: string;
+  usedByThisSite: boolean;
+  usedBy: string[];
+  projectAvailable?: boolean;
   /** A key was saved the retired way (wave 2's `plugin:<id>` API credential) and nothing yet the new way. */
   legacyCredential?: true;
   /** Settings are saved but this machine can't open them (the store's key was lost or re-minted):
@@ -4035,11 +4039,13 @@ export const api = {
   /** PLUGIN_PROVIDER_SETTINGS (2026-10-26) — a provider plugin's declared settings card. */
   getPluginProviderSettings: (pluginId: string) =>
     request<AdminPluginProviderSettings>(`/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}/provider-settings`),
-  /** Saves card values; a blank secret keeps the saved one. Takes effect at the next start. */
+  /** Saves and reapplies card values; a blank secret keeps the saved one. */
   savePluginProviderSettings: (pluginId: string, values: Record<string, string>) =>
     request<AdminPluginProviderSettings>(`/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}/provider-settings`, {
       method: "PUT", body: JSON.stringify({ values }),
     }),
+  useProjectKey: ({ keyId, use }: { keyId: string; use: boolean }, _optional = {}) =>
+    request<{ keyId: string; usedByThisSite: boolean; usedBy: string[]; appliesAt: "now" | "restart" }>(`/workspaces/${WORKSPACE_ID}/project-keys/${encodeURIComponent(keyId)}/use`, { method: "PUT", body: JSON.stringify({ use }) }),
   setPluginEnabled: (pluginId: string, { enabled }: { enabled: boolean }) =>
     request<{ plugin: { id: string; version: string; enabled: boolean; updatedAt: string }; changeSetId: string }>(
       `/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}`,

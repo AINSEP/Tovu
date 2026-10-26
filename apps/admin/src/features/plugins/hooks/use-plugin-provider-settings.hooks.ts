@@ -25,6 +25,7 @@ export interface PluginProviderSettingsController {
   setValue: (name: string, value: string) => void;
   /** Resolves `true` once the server has the values (the dialog then closes with a notice), `false` on a refusal. */
   save: () => Promise<boolean>;
+  useSavedKey: () => Promise<boolean>;
   saving: boolean;
   /** A load or save failure, in the screen's words. */
   error: string | null;
@@ -36,7 +37,7 @@ function initialValues(card: AdminPluginProviderSettings): Record<string, string
   return Object.fromEntries(card.fields.map((field) => [field.name, field.secret ? "" : field.value || field.default || ""]));
 }
 
-export function usePluginProviderSettings({ pluginId, port, t }: { pluginId: string; port: Pick<PluginsPort, "getProviderSettings" | "saveProviderSettings">; t: Translate }): PluginProviderSettingsController {
+export function usePluginProviderSettings({ pluginId, port, t }: { pluginId: string; port: Pick<PluginsPort, "getProviderSettings" | "saveProviderSettings" | "useProjectKey">; t: Translate }): PluginProviderSettingsController {
   const [card, setCard] = useState<AdminPluginProviderSettings | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +65,20 @@ export function usePluginProviderSettings({ pluginId, port, t }: { pluginId: str
       setSaving(false);
     }
   };
-  return { card, values, setValue: (name, value) => setValues((current) => ({ ...current, [name]: value })), save, saving, error, t };
+  const useSavedKey = async () => {
+    if (!card?.keyId || !port.useProjectKey) return false;
+    setSaving(true);
+    setError(null);
+    try {
+      const usage = await port.useProjectKey({ keyId: card.keyId, use: true });
+      const next = await port.getProviderSettings(pluginId);
+      setCard({ ...next, ...usage });
+      setValues(initialValues(next));
+      return true;
+    } catch (failure) { setError(describeApiError(failure, t("failed to save plugin settings"))); return false; }
+    finally { setSaving(false); }
+  };
+  return { card, values, setValue: (name, value) => setValues((current) => ({ ...current, [name]: value })), save, useSavedKey, saving, error, t };
 }
 
 /** Binds the real `/api/.../plugins/:id/provider-settings` client and the admin locale's translator. */

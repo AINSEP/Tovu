@@ -27,6 +27,7 @@ import { dropUnusedDeploymentTables } from "./0004_drop_unused_deployment_tables
 import { chatBaseline } from "./chat/0000_chat_baseline.js";
 import { sqliteChatTables } from "./chat/0001_sqlite_chat_tables.js";
 import { durableRunAttempts } from "./chat/0002_durable_run_attempts.js";
+import { siteKeyAttachments } from "./project/0002_site_key_attachments.js";
 import { projectVault } from "./project/0000_project_vault.js";
 import { projectCredentialKinds } from "./project/0001_project_credential_kinds.js";
 import { mediaCreatedBy } from "./0005_media_createdby.js";
@@ -113,11 +114,12 @@ export const PROJECT_LEDGER_TABLE = "tovu_project_migrations";
 export const PROJECT_MIGRATIONS: readonly MigrationStep[] = [
   projectVault(pinned("project/0000_project_vault")),
   projectCredentialKinds(pinned("project/0001_project_credential_kinds")),
+  siteKeyAttachments({ checksum: pinned("project/0002_site_key_attachments") }),
 ];
 
 /** Brings a project database (`project.db`, SQLite; see `project-store.ts`) to head. */
 export function migrateProjectDatabase(kernel: StorageKernel<unknown>): Promise<MigrationReport> {
-  return runMigrations(kernel, PROJECT_MIGRATIONS, { ledgerTable: PROJECT_LEDGER_TABLE });
+  return runMigrations(kernel, PROJECT_MIGRATIONS, { ledgerTable: PROJECT_LEDGER_TABLE, allowUnknownApplied: true });
 }
 
 /** Brings a content database (any dialect) to head. See `runner.ts`. */

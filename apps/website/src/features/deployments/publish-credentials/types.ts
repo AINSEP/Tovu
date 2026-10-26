@@ -79,7 +79,7 @@ export interface PublishCredentialSummary {
    *  (`healAccountLabel`) populates it. */
   readonly accountLabel: string | null;
   /** Where the row lives — present only where a project store is attached (local web + desktop):
-   *  `"project"` is shared by every site of the project, `"site"` is this site's own (an override). */
+   *  `"project"` is visible to attached sites only, `"site"` is this site's own (an override). */
   readonly scope?: PublishCredentialScope;
   readonly createdAt: ISODateTime;
   readonly updatedAt: ISODateTime;
