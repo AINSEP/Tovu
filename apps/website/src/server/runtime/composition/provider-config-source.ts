@@ -49,7 +49,7 @@ export interface ProviderConfigSource {
 
 /**
  * A plugin's settings row exists but cannot be opened on this machine: the store's key was lost or
- * re-minted (e.g. `project.db` synced to another machine without `~/.tovu/project-key.hex`). Boot
+ * re-minted (e.g. `project.db` copied to another machine without its `project-key.hex`). Boot
  * treats it as unconfigured (noop); the card asks for the settings again; a save overwrites the row.
  */
 export class ProviderConfigUnreadableError extends Error {
