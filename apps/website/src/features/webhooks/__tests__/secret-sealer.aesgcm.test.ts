@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "../secret-sealer.aesgcm.js";
+import { FixedSiteKeyKeyring } from "../keyring.env.js";
+import { AesGcmSecretSealer, SECRET_OPEN_FAILED } from "../secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../keyring.memory.js";
 
 /**
@@ -167,4 +169,30 @@ test("ciphertext shorter than a complete authentication tag is rejected", async 
     () => sealer.open({ sealed: { ...sealed, ciphertext: Buffer.alloc(15).toString("base64") } }),
     /ciphertext too short to contain an auth tag/
   );
+});
+
+test("every failure to open the sealed value itself carries SECRET_OPEN_FAILED (wrong key, tampered, damaged, unknown alg); its message is kept", async () => {
+  // Two real, different project keys, built at runtime: the runtime's own wording (OpenSSL in Node,
+  // BoringSSL in Electron) never decides how a wrong key is classified, the code does.
+  const sealedBy = new AesGcmSecretSealer(new FixedSiteKeyKeyring(randomBytes(32).toString("hex")));
+  const openedBy = new AesGcmSecretSealer(new FixedSiteKeyKeyring(randomBytes(32).toString("hex")));
+  const keyring = new InMemoryKeyring();
+  const sealed = await sealedBy.seal({ plaintext: "fixture-value", key: await keyring.activeKey() });
+  const wrongKey = await openedBy.open({ sealed }).catch((caught: unknown) => caught);
+  assert.ok(wrongKey instanceof Error);
+  assert.equal((wrongKey as { code?: unknown }).code, SECRET_OPEN_FAILED);
+  assert.ok((wrongKey as Error).cause instanceof Error, "the runtime's own error is kept as the cause");
+  assert.equal((wrongKey as Error).message, ((wrongKey as Error).cause as Error).message);
+  for (const damaged of [{ ...sealed, ciphertext: Buffer.from("short").toString("base64") }, { ...sealed, alg: "aes-128-cbc" },
+    { ...sealed, ciphertext: Buffer.from(Buffer.from(sealed.ciphertext, "base64").map((byte, index) => index === 0 ? byte ^ 1 : byte)).toString("base64") }]) {
+    await assert.rejects(sealedBy.open({ sealed: damaged }), (caught: unknown) => (caught as { code?: unknown }).code === SECRET_OPEN_FAILED);
+  }
+});
+
+test("a keyring that can't derive (no key, an unusable key) is NOT an open failure: its error passes through as itself", async () => {
+  const failure = new Error("no site key: none of the configured sources resolved");
+  const keyring = new InMemoryKeyring();
+  const sealed = await new AesGcmSecretSealer(keyring).seal({ plaintext: "fixture-value", key: await keyring.activeKey() });
+  const broken = Object.assign(Object.create(keyring) as InMemoryKeyring, { derive: async () => { throw failure; } });
+  await assert.rejects(new AesGcmSecretSealer(broken).open({ sealed }), (caught) => caught === failure);
 });
