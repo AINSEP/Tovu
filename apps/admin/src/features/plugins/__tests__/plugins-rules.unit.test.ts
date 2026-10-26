@@ -5,7 +5,6 @@ import {
   pluginRowFacts,
   buildPluginRemoveConfirmCopy,
   describeApiError,
-  filterInstalledPlugins,
   pluginRemoveAriaLabel,
   pluginSubline,
   pluginToggleControl,
@@ -45,21 +44,6 @@ function makePlugin(overrides: Partial<AdminPlugin> = {}): AdminPlugin {
 describe("pluginSubline", () => {
   it("joins source · tier · status verbatim, untranslated", () => {
     expect(pluginSubline(makePlugin({ source: "built-in", tier: "tier-1", status: "invalid" }))).toBe("built-in · tier-1 · invalid");
-  });
-});
-
-describe("filterInstalledPlugins", () => {
-  it("keeps only enabled: true rows, preserving order", () => {
-    const plugins = [makePlugin({ id: "a", enabled: true }), makePlugin({ id: "b", enabled: false }), makePlugin({ id: "c", enabled: true })];
-    expect(filterInstalledPlugins(plugins)!.map((p) => p.id)).toEqual(["a", "c"]);
-  });
-
-  it("passes null through — a load that hasn't settled is not the same fact as 'loaded, none enabled'", () => {
-    expect(filterInstalledPlugins(null)).toBeNull();
-  });
-
-  it("returns an empty array, not null, for a settled load with zero enabled rows", () => {
-    expect(filterInstalledPlugins([makePlugin({ enabled: false })])).toEqual([]);
   });
 });
 

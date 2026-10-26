@@ -641,7 +641,7 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
   {
     id: "plugins",
     anyOfPermissions: ["admin.plugins.read"],
-    render: (ctx) => <Plugins tabId={ctx.query.get("tab")} />,
+    render: (ctx) => <Plugins tabId={ctx.query.get("tab")} focusPluginId={ctx.query.get("plugin")} />,
     nav: {
       // SPEC-005 REQ-17/AC-25: the plugin system now ships (SPEC-045's Option A — finish SPEC-005,
       // then add this thin admin UI), so this entry links to the real `Plugins` screen instead of

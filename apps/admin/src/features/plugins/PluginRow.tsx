@@ -7,6 +7,7 @@ import { EyeIcon } from "./agent-plugins-visuals";
 import { PluginMetadataLabel } from "@/components/status-labels";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import { pluginRowDetailView, pluginRowFacts } from "./rules";
+import { usePluginRowFocus } from "./hooks/use-plugin-row-focus.hooks";
 
 /**
  * @file One `.tovu-plugin` plugin, as a ROW — the shared shell both the Installed and Downloaded
@@ -51,6 +52,8 @@ export interface PluginRowProps {
   readonly onInspect: () => void;
   /** Present only for a provider plugin that declares settings: opens its settings card. */
   readonly onSettings?: () => void;
+  /** The row the page's `?plugin=` deep link names: scrolled to, focused and highlighted. */
+  readonly focused?: boolean;
 }
 
 /** The facts every row has (`rules.ts`'s `pluginRowFacts`) — always rendered, so a healthy
@@ -109,12 +112,13 @@ function PluginRowProblems({ plugin, t }: { plugin: AdminPlugin; t: Translate })
   );
 }
 
-export function PluginRow({ plugin, t, expanded, onToggleExpanded, agentHandleBase, action, onInspect, onSettings }: PluginRowProps) {
+export function PluginRow({ plugin, t, expanded, onToggleExpanded, agentHandleBase, action, onInspect, onSettings, focused = false }: PluginRowProps) {
   const detailId = useId();
   const headingId = useId();
+  const rowRef = usePluginRowFocus({ focused });
 
   return (
-    <li className="plugin-row" data-enabled={plugin.enabled} aria-label={plugin.name}>
+    <li ref={rowRef} className="plugin-row" data-enabled={plugin.enabled} data-focused={focused || undefined} aria-label={plugin.name}>
       <div className="plugin-row-main">
         <button
           type="button"

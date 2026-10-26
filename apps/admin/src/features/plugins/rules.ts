@@ -271,25 +271,6 @@ export function pluginToggleAriaLabel(plugin: AdminPlugin, locale: string): stri
 }
 
 /**
- * The Installed tab's own scope (2026-09-09 tab split) — plugins this workspace has actually
- * turned on. Downloaded (every plugin `PLUGINS_LIST` returns, unfiltered) and Installed read the
- * exact same underlying list; this filter is the one line of difference between them, kept as its
- * own named, independently testable function rather than an inline `.filter()` repeated in a
- * `.tsx` panel.
- *
- * `null` in, `null` out: a `null` `plugins` means the initial load hasn't settled yet, a fact about
- * the LOAD rather than about which rows are enabled — collapsing it to `[]` here would make
- * `Plugins.tsx` unable to tell "still loading" from "loaded, and none are enabled".
- *
- * @complexity Time O(n) in `plugins.length`; space O(k) for the k enabled rows kept.
- */
-export function filterInstalledPlugins(plugins: AdminPlugin[]): AdminPlugin[];
-export function filterInstalledPlugins(plugins: AdminPlugin[] | null): AdminPlugin[] | null;
-export function filterInstalledPlugins(plugins: AdminPlugin[] | null): AdminPlugin[] | null {
-  return plugins ? plugins.filter((plugin) => plugin.enabled) : null;
-}
-
-/**
  * The row's one-line subline, shown under its name/version heading and repeated inside its
  * expander's own quarantine/errors context: `source · tier · status` (e.g. `"site · tier-3 ·
  * valid"`). `AdminPlugin` has no free-text description field (unlike `AdminAgentPlugin`), so this

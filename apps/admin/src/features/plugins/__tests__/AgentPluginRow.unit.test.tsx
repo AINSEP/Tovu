@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 
 import { AgentPluginRow } from "../AgentPluginRow";
+import { LINKED_PLUGIN_TIP } from "../AgentPluginLinkedLock";
 
 it.each([
   ["site-compliance", "Site Compliance", "M12 3.2 19 5.9v5.6c0 4.2-2.8 7.4-7 9.3-4.2-1.9-7-5.1-7-9.3V5.9z"],
@@ -147,4 +148,72 @@ it("keeps the Skills and MCP servers chips when they say something the plugin's 
   expect(within(row).getByText("MCP servers")).toBeVisible();
   expect(within(row).getByText("theme-api")).toBeVisible();
   expect(within(row).queryByText("Portable components")).toBeNull();
+});
+
+// A provider plugin's assistant face (owner 2026-10-25): a red padlock instead of a dead switch.
+function renderLinkedRow(enabled: boolean) {
+  const stateControl = { kind: "toggle" as const, onToggleEnabled: vi.fn() };
+  render(<ul><AgentPluginRow
+    plugin={{ pluginId: "opentelemetry", providerPlugin: "observability-opentelemetry", version: "0.1.0", description: null, enabled, keywords: [], skills: [], mcpServerIds: [] }}
+    t={(key) => key}
+    locale="en"
+    expanded={false}
+    busy={false}
+    onToggleExpanded={vi.fn()}
+    stateControl={stateControl}
+    onInspect={vi.fn()}
+    uninstallNoteId="uninstall-note"
+    agentHandleBase="row-opentelemetry"
+  /></ul>);
+  const row = screen.getByRole("listitem", { name: "Opentelemetry" });
+  return { row, lock: within(row).getByRole("button", { name: LINKED_PLUGIN_TIP }), stateControl };
+}
+
+const linkedPluginsPage = () => `${window.location.pathname.replace(/^.*(\/addons\/plugins)$/, "$1")}${window.location.search}`;
+
+afterEach(() => window.history.replaceState(null, "", "/"));
+
+it.each([[true, "Enabled"], [false, "Disabled"]] as const)("a linked row (enabled: %s) shows its state word and a padlock, no switch, and reads as disabled", (enabled, word) => {
+  const { row, lock } = renderLinkedRow(enabled);
+
+  expect(within(row).queryByRole("switch")).toBeNull();
+  expect(within(row).getByText(word)).toBeVisible();
+  expect(lock.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+  expect(row).toHaveAttribute("data-linked", "true");
+  expect(within(row).queryByText("Turns on and off in Plugins")).toBeNull();
+});
+
+it("hover or focus explains the padlock with the shared tooltip", () => {
+  const { lock } = renderLinkedRow(false);
+
+  fireEvent.mouseEnter(lock);
+  expect(screen.getByText(LINKED_PLUGIN_TIP, { selector: ".info-tip-bubble, .info-tip-bubble *" })).toBeInTheDocument();
+  fireEvent.mouseLeave(lock);
+  fireEvent.focus(lock);
+  expect(screen.getByText(LINKED_PLUGIN_TIP, { selector: ".info-tip-bubble, .info-tip-bubble *" })).toBeInTheDocument();
+});
+
+it("a click, or Enter, on the padlock opens the Plugins page at that provider plugin, and never toggles the row", () => {
+  const { lock, stateControl } = renderLinkedRow(false);
+
+  fireEvent.click(lock);
+  expect(linkedPluginsPage()).toBe("/addons/plugins?tab=installed&plugin=observability-opentelemetry");
+
+  window.history.replaceState(null, "", "/");
+  fireEvent.keyDown(lock, { key: "Enter" });
+  expect(linkedPluginsPage()).toBe("/addons/plugins?tab=installed&plugin=observability-opentelemetry");
+  expect(stateControl.onToggleEnabled).not.toHaveBeenCalled();
+});
+
+it("on touch, the first tap pins the explanation and the second tap opens the Plugins page", () => {
+  const { lock } = renderLinkedRow(false);
+
+  fireEvent.pointerDown(lock, { pointerType: "touch" });
+  fireEvent.click(lock);
+  expect(window.location.search).toBe("");
+  expect(lock).toHaveAttribute("aria-expanded", "true");
+
+  fireEvent.pointerDown(lock, { pointerType: "touch" });
+  fireEvent.click(lock);
+  expect(linkedPluginsPage()).toBe("/addons/plugins?tab=installed&plugin=observability-opentelemetry");
 });
