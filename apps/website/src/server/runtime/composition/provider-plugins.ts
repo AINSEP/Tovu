@@ -17,7 +17,7 @@ import type { ProviderConfigSource, ProviderPluginConfig } from "./provider-conf
  * admin (Plugins → the plugin → Settings), and they are saved sealed through `ProviderConfigSource`
  * (`provider-config-source.ts`: the project store when one is configured, else the site vault). A
  * provider is "configured" when every required declared field has a value; its saved values are its
- * factory's required args, plus host identity (`serviceName`). Never env, files, logs or chat. Tovu
+ * factory's required args, plus host identity (`serviceName`) and site attribution (`attributionFor`). Never env, files, logs or chat. Tovu
  * holds no per-vendor mapping: everything it needs to know comes from the manifest.
  *
  * Order: initialized (awaited, each bounded by the provider host's timeout) before the composition
@@ -27,6 +27,29 @@ import type { ProviderConfigSource, ProviderPluginConfig } from "./provider-conf
  */
 
 export type ProviderContract = "observability" | "product_analytics" | "ai_trace";
+
+/** Which site sends every signal (owner 2026-10-25): sites of one project can share one backend. */
+export interface SiteIdentity {
+  readonly siteId: string;
+  readonly siteSlug: string;
+  readonly environment: "local" | "desktop" | "fly";
+  readonly projectId: string;
+}
+
+/**
+ * The neutral `attribution` factory input (`@jini-ai/provider-plugins`) for one contract: Tovu names
+ * the keys per contract, never per vendor — observability uses OpenTelemetry's resource conventions
+ * (`deployment.environment` + `tovu.*`), product analytics event properties plus a `site` group, AI
+ * traces metadata plus a `site:<slug>` tag.
+ * @complexity O(1).
+ */
+export function attributionFor({ contract, site }: { contract: ProviderContract; site: SiteIdentity }): Readonly<Record<string, unknown>> {
+  if (contract === "observability") {
+    return { attributes: { "tovu.site.id": site.siteId, "tovu.site.slug": site.siteSlug, "deployment.environment": site.environment, "tovu.project.id": site.projectId } };
+  }
+  const attributes = { site_id: site.siteId, site_slug: site.siteSlug, environment: site.environment, project_id: site.projectId };
+  return contract === "product_analytics" ? { attributes, groups: { site: site.siteId } } : { attributes, tags: [`site:${site.siteSlug}`] };
+}
 
 /** One installed + enabled plugin's provider declarations, read from its manifest (no code runs). */
 export interface ProviderPluginDeclarations {
@@ -81,6 +104,8 @@ export interface BootProviderPluginsRequired {
   /** Saved settings per plugin. Read failures are treated as "not configured". */
   readonly config: ProviderConfigSource;
   readonly serviceName: string;
+  /** Carried by every signal as the factory's `attribution` input. */
+  readonly site: SiteIdentity;
   readonly consent: ProductAnalyticsConsent;
   readonly consentRevision: ProductAnalyticsConsentRevision;
 }
@@ -169,7 +194,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
   });
   const leases = new Map<ProviderContract, unknown[]>();
   for (const provider of configured.filter(({ pluginId }) => loaded.has(pluginId))) {
-    const lease: PluginProviderLease | undefined = await host.initialize({ contract: provider.contract, id: provider.id, input: { ...provider.input, serviceName: required.serviceName } })
+    const lease: PluginProviderLease | undefined = await host.initialize({ contract: provider.contract, id: provider.id, input: { ...provider.input, serviceName: required.serviceName, attribution: attributionFor({ contract: provider.contract, site: required.site }) } })
       // Class only: an SDK's construction error can quote the endpoint or DSN it was given.
       .catch((error: unknown) => { warn(`provider plugin '${provider.pluginId}' did not initialize: ${error instanceof Error ? error.name : typeof error}`); return undefined; });
     if (lease) leases.set(provider.contract, [...(leases.get(provider.contract) ?? []), gatedPort({ lease, contract: provider.contract })]);

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { StorageKernel } from "@jini-ai/db/kernel";
@@ -63,7 +64,13 @@ export function ensureProjectKey({ home }: { home: string }, optional: { mint?: 
   return hex;
 }
 
+/** A stable id for the project at this sites root: the same for web and desktop (same root), opaque. */
+export function projectIdFor({ sitesHome }: { sitesHome: string }, _optional: Record<string, never> = {}): string {
+  return `project-${createHash("sha256").update(path.resolve(sitesHome)).digest("hex").slice(0, 16)}`;
+}
+
 export interface ProjectStore {
+  readonly projectId: string;
   readonly config: ProviderConfigSource;
   readonly dbPath: string;
   close(required: Record<string, never>, optional?: Record<string, never>): void;
@@ -92,5 +99,5 @@ export async function openProjectStore(required: { sitesHome: string; home: stri
     clock: optional.clock ?? { nowMs: () => Date.now() }, workspaceId: PROJECT_WORKSPACE_ID });
   const config = createVaultProviderConfigSource({ workspaceId: PROJECT_WORKSPACE_ID, scope: "project",
     state: createAgentPluginStateStore({ vault, workspaceId: PROJECT_WORKSPACE_ID }) });
-  return { config, dbPath, close: () => closeSqliteConnection(db) };
+  return { projectId: projectIdFor({ sitesHome: required.sitesHome }), config, dbPath, close: () => closeSqliteConnection(db) };
 }

@@ -64,7 +64,7 @@ import { dirname, join, resolve, sep } from "node:path";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { instrumentStorageKernel, trackFetch } from "#src/platform/observability/index";
-import { bootProviderPlugins } from "./provider-plugins.js";
+import { bootProviderPlugins, type SiteIdentity } from "./provider-plugins.js";
 import { createVaultProviderConfigSource, withProjectPrecedence } from "./provider-config-source.js";
 import { openProjectStore, type ProjectStore } from "./project-store.js";
 import { createAgentPluginStateStore } from "#src/features/api-connections/plugin-state";
@@ -1110,6 +1110,16 @@ function providerPluginBoot({ overrides }: { overrides: Partial<CreateSiteRouteD
 }
 
 /**
+ * Which site sends every provider signal. v1: one workspace per content.db, so the site id is the
+ * workspace id (the same reuse `databaseLedgerRepo`'s `siteId` makes); the slug is the site folder's
+ * name; Fly (production) has no project store, so its project is the site itself.
+ */
+export function siteIdentityFor({ workspaceId, binding, runtimeMode, projectId }: { workspaceId: string; binding: { name: string }; runtimeMode: RuntimeMode; projectId: string | undefined }, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): SiteIdentity {
+  const environment = runtimeMode === "production" ? "fly" : resolveApiConnectionRuntime({ env }) === "desktop" ? "desktop" : "local";
+  return { siteId: workspaceId, siteSlug: binding.name, environment, projectId: projectId ?? workspaceId };
+}
+
+/**
  * The project store both local apps share (`project-store.ts`); production (Fly, single site) has
  * none — the project is the site there. A store that cannot open (unreadable key, damaged file) is
  * reported and the site vault answers alone, so a project-level fault never stops a site booting.
@@ -2029,6 +2039,7 @@ async function composeSiteRouteDeps(
     runtime: pluginRuntime,
     config: providerConfigSource,
     serviceName: "tovu",
+    site: siteIdentityFor({ workspaceId, binding: resolvedSiteBinding, runtimeMode, projectId: projectStore?.projectId }),
     ...createTelemetryConsent({ settingsRepo, workspaceId }),
   });
   onStoreClose(() => providerPlugins.dispose({}));
