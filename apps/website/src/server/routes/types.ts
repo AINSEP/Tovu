@@ -964,7 +964,7 @@ export interface ObservabilityDeps {
    * plugin behind `withProductAnalyticsGuards` (operator consent `core.privacy.telemetry.metrics`
    * first), else the shared noop. Optional: hermetic roots and fixtures omit it, meaning "off". */
   productAnalytics?: import("@jini-ai/analytics/product").ProductAnalyticsPort;
-  /** AI-trace sink of the configured provider plugins; absent means AI tracing is off. */
+  /** AI-trace sink of trace providers and optional analytics generation hooks; absent means off. */
   aiTraceSink?: import("@jini-ai/agent-runtime/ai-trace").AiTraceSink;
   /** Saved provider-plugin settings (project store, else site vault); the admin settings card reads/writes it. */
   providerConfig?: import("#src/server/runtime/composition/provider-config-source").ProviderConfigSource;

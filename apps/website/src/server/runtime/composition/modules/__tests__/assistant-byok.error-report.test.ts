@@ -7,6 +7,7 @@ import test from "node:test";
 
 import express from "express";
 import { createNoopObservabilityPort, type ErrorReport, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import { createAiGenerationSink, withProductAnalyticsGuards, type ProductAiGeneration } from "@jini-ai/analytics/product";
 
 import { createRouteDeps } from "../../app.js";
 import { createByokToolSurface } from "#src/assistant/index";
@@ -27,7 +28,9 @@ test("a failed BYOK turn (provider connection dropped) is reported once as assis
   t.after(() => provider.close());
   const reports: ErrorReport[] = [];
   const observability: ObservabilityPort = { ...createNoopObservabilityPort({}), reportError: (report) => { reports.push(report); } };
-  const deps = { ...createRouteDeps(), observability };
+  const generations: ProductAiGeneration[] = [];
+  const analytics = withProductAnalyticsGuards({ inner: { capture() {}, identify() {}, captureAiGeneration: (event) => { generations.push(event); } }, consent: () => true });
+  const deps = { ...createRouteDeps(), observability, aiTraceSink: createAiGenerationSink({ analytics, userId: "site:fixture" })! };
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, deps);
@@ -44,4 +47,9 @@ test("a failed BYOK turn (provider connection dropped) is reported once as assis
   const error = reports[0]!.error as Error;
   const sent = JSON.stringify({ context: reports[0]!.context, message: error.message, stack: error.stack });
   assert.ok(!sent.includes(secret) && !sent.includes("private question"));
+  assert.equal(generations.length, 1);
+  assert.equal(generations[0]!.properties.isError, true);
+  assert.equal(generations[0]!.properties.provider, "anthropic");
+  assert.ok(!JSON.stringify(generations).includes(secret));
+  assert.ok(!JSON.stringify(generations).includes("private question"));
 });

@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { createNoopObservabilityPort, isNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 import { isNoopProductAnalytics, type ProductAnalyticsPort } from "@jini-ai/analytics/product";
+import { createAiTraceRecorder } from "@jini-ai/agent-runtime/ai-trace";
 import { createPluginContributionRegistry, type PluginProviderFactory, type PluginProviderSettingField } from "@jini-ai/plugins/host";
 
 import { attributionFor, bootProviderPlugins, legacyProviderCredentialCheck, PROVIDER_CONTRACTS, providerInputOf, type SiteIdentity } from "../provider-plugins.js";
@@ -317,4 +318,61 @@ test("legacyProviderCredentialCheck: matches only the retired `plugin:<id>` labe
   assert.equal(await check({ pluginId: "observability-opentelemetry" }), true);
   assert.equal(await check({ pluginId: "analytics-posthog" }), false);
   assert.equal(await check({ pluginId: "observability" }), false, "a prefix is not a match");
+});
+
+test("analytics-only AI capability records generations, reuses consent revocation and goes inert on disable", async () => {
+  const events: unknown[] = [];
+  const port: ProductAnalyticsPort = { capture() {}, identify() {}, includeAiContent: true, captureAiGeneration: (event) => { events.push(event); } };
+  const { runtime } = fakeRuntime({ installed: ["analytics-posthog"], factories: { "analytics-posthog": { contract: "product_analytics", id: "posthog", factory: fakeFactory({ calls: { inputs: [], disposed: 0 }, port }) } } });
+  let revision = 0;
+  let approve!: (allowed: boolean) => void;
+  const ports = await bootProviderPlugins({ runtime, config: configOf(CONFIGS), serviceName: "tovu", site: SITE,
+    consent: () => new Promise<boolean>((resolve) => { approve = resolve; }), consentRevision: () => revision }, { warn: quiet });
+  assert.equal(ports.aiTraceSink?.capture, "full");
+  const run = (runId: string) => {
+    const recorder = createAiTraceRecorder({ sink: ports.aiTraceSink!, runId, agentId: "fixture" }, { provider: "fixture", model: "fixture-model" });
+    recorder.start({ input: "Hello" });
+    recorder.observe({ type: "usage", usage: { input_tokens: 3, output_tokens: 1 } });
+    recorder.finish({ outcome: "succeeded" });
+  };
+  run("stale"); revision++; approve(true);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(events, []);
+  run("allowed"); approve(true);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(events.length, 1);
+  assert.equal((events[0] as { userId: string }).userId, "site:site-123");
+  run("detached");
+  runtime.providerContributions.detach({ pluginId: "analytics-posthog" });
+  approve(true);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(events.length, 1, "an approval resolving after disable cannot reach the vendor");
+  await ports.dispose({});
+  run("disposed");
+  assert.equal(events.length, 1);
+});
+
+test("analytics providers have independent content policies and one failure cannot block another generation destination", async () => {
+  const received: unknown[] = [];
+  const makePort = (includeAiContent: boolean): ProductAnalyticsPort => ({ capture() {}, identify() {}, includeAiContent, captureAiGeneration: (event) => { received.push(event); } });
+  const { runtime } = fakeRuntime({ installed: ["full", "broken", "metadata"], factories: {
+    full: { contract: "product_analytics", id: "full", factory: () => ({ port: makePort(true), dispose() {} }) },
+    broken: { contract: "product_analytics", id: "broken", factory: () => ({ port: { ...makePort(false), captureAiGeneration() { throw new Error("offline"); } }, dispose() {} }) },
+    metadata: { contract: "product_analytics", id: "metadata", factory: () => ({ port: makePort(false), dispose() {} }) },
+  } });
+  const config = configOf(Object.fromEntries(["full", "broken", "metadata"].map((id) => [id, { settings: {}, secrets: { apiKey: "fixture" } }])));
+  const ports = await bootProviderPlugins({ runtime, config, serviceName: "tovu", site: SITE, ...consentAlways }, { warn: quiet });
+  ports.productAnalytics.captureAiGeneration!({ userId: "s", properties: { traceId: "r" }, input: "Hello", output: "Welcome" });
+  assert.deepEqual(received, [
+    { userId: "s", properties: { traceId: "r" }, input: "Hello", output: "Welcome" },
+    { userId: "s", properties: { traceId: "r" } },
+  ]);
+  await ports.dispose({});
+});
+
+test("optional AI capability validation rejects malformed hooks and content policies", () => {
+  const contract = PROVIDER_CONTRACTS.find((entry) => entry.contract === "product_analytics")!;
+  for (const extra of [{ captureAiGeneration: "wrong" }, { includeAiContent: "true" }]) {
+    assert.equal(contract.validate({ provider: { capture() {}, identify() {}, ...extra } }), "not a ProductAnalyticsPort");
+  }
 });

@@ -63,3 +63,18 @@ test("without a warn sink, a non-Error sink failure is reported to the console b
   await served.finish({ runId: run.id, ...success });
   dispose();
 });
+
+test("a sink's explicit full-capture policy records the late-bound daemon prompt on its first generation", async () => {
+  const recording = createRecordingAiTraceSink();
+  const sink = { ...recording, capture: "full" as const };
+  const { lifecycle: served, noteRunInput, dispose } = traceRunLifecycle({ lifecycle: lifecycle(), sink });
+  const { run } = await served.start({ contextRef: "chat-1" }, { agentId: "claude" });
+  noteRunInput({ runId: run.id, input: "Hello" });
+  await served.emit({ runId: run.id, input: { event: "agent", data: { type: "text_delta", delta: "Welcome" } } });
+  await served.finish({ runId: run.id, ...success });
+  for (let i = 0; i < 20 && recording.events.at(-1)?.kind !== "run_finished"; i += 1) await new Promise((resolve) => setImmediate(resolve));
+  const turn = recording.events.find((event) => event.kind === "model_turn");
+  assert.equal(turn?.input?.text, "Hello");
+  assert.equal(turn?.output?.text, "Welcome");
+  dispose();
+});
