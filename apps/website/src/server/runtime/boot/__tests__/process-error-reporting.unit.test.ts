@@ -79,3 +79,67 @@ test("a rejected fatal drain still exits and a failing logger cannot skip the dr
     assert.deepEqual(steps, ["flush", "exit:1"]);
   } finally { uninstall(); }
 });
+
+test('without flush: retain rejection + monitor listeners exactly, with no fatal handler, log or exit', () => {
+  for (const processRole of ['server', 'daemon', 'desktop-main'] as const) {
+    const { port, reports } = recording();
+    const target = new EventEmitter();
+    const sentinel = () => {};
+    target.on('uncaughtExceptionMonitor', sentinel);
+    const uninstall = installProcessErrorReporting({ tracker: createTracker({ observability: port }), processRole }, {
+      target, log() { assert.fail('Node owns logging without flush'); }, exit() { assert.fail('Node owns exit without flush'); },
+    });
+    assert.deepEqual(target.eventNames().sort(), ['uncaughtExceptionMonitor', 'unhandledRejection']);
+    assert.equal(target.listenerCount('uncaughtException'), 0);
+    assert.equal(target.listenerCount('uncaughtExceptionMonitor'), 2);
+    target.emit('unhandledRejection', new Error('fake rejection'));
+    target.emit('uncaughtExceptionMonitor', new Error('fake fatal'));
+    assert.deepEqual(reports.map(report => report.context), [
+      { operation: 'process.unhandled_rejection', attributes: { process: processRole } },
+      { operation: 'process.uncaught_exception', attributes: { process: processRole } },
+    ]);
+    uninstall();
+    assert.deepEqual(target.listeners('uncaughtExceptionMonitor'), [sentinel]);
+    assert.equal(target.listenerCount('unhandledRejection'), 0);
+  }
+});
+
+test('fatal path logs, reports, awaits flush and exits 1 in that order', async () => {
+  const steps: string[] = [];
+  const target = new EventEmitter();
+  const error = new Error('fake fatal');
+  const { port } = recording();
+  port.reportError = () => { steps.push('report'); };
+  let release!: () => void;
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  const uninstall = installProcessErrorReporting({ tracker: createTracker({ observability: port }), processRole: 'server' }, {
+    target, log(_message, logged) { assert.equal(logged, error); steps.push('log'); },
+    flush: async () => { steps.push('flush'); await pending; }, exit: code => { steps.push(`exit:${code}`); },
+  });
+  try {
+    assert.equal(target.listenerCount('uncaughtExceptionMonitor'), 0);
+    target.emit('uncaughtException', error);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(steps, ['log', 'report', 'flush']);
+    release();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(steps, ['log', 'report', 'flush', 'exit:1']);
+  } finally { uninstall(); }
+});
+
+test('fatal flush is bounded to 2000ms even if a caller requests a longer deadline', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const target = new EventEmitter(), exits: number[] = [];
+  let flushed = false;
+  const uninstall = installProcessErrorReporting({ tracker: createTracker({}), processRole: 'daemon' }, {
+    target, log() {}, timeoutMs: 5_000, flush: () => { flushed = true; return new Promise(() => {}); },
+    exit: code => { exits.push(code); },
+  });
+  try {
+    target.emit('uncaughtException', new Error('fake fatal'));
+    await Promise.resolve();
+    assert.equal(flushed, true);
+    t.mock.timers.tick(1_999); assert.deepEqual(exits, []);
+    t.mock.timers.tick(1); assert.deepEqual(exits, [1]);
+  } finally { uninstall(); t.mock.timers.reset(); }
+});

@@ -1,4 +1,6 @@
 import { navAvailability } from './nav-availability.js';
+import { reportShellTelemetry } from './product-telemetry.js';
+import { useProductScreen } from './use-product-screen.hooks.js';
 import { useTabStrip } from './use-tab-strip.hooks.js';
 import { findSection, visibleSections, type RunnerSection, type RunnerSectionId } from '../contracts/sections.js';
 import { GearIcon, MenuIcon, NavIcon, SectionIcon } from './icons.js';
@@ -155,6 +157,7 @@ export function App({
 
   const runningCount = countRunningSites(projects);
   const active = findSection(activeId);
+  useProductScreen({ screen: appearanceOpen ? 'appearance' : showSitesHome ? (isCreating ? 'create_website' : activeId) : null });
 
   return (
     <ResourcesMonitor projects={projects} onSiteUpdated={applySiteRecord}>
@@ -198,8 +201,8 @@ export function App({
           projectsLoading={projectsLoading}
           loadError={loadError}
           projects={projects}
-          onCreateWebsite={openCreateWebsite}
-          onOpenProject={openProjectTab}
+          onCreateWebsite={() => { reportShellTelemetry({ payload: { kind: 'action', id: 'create_website' } }); openCreateWebsite(); }}
+          onOpenProject={(id) => { reportShellTelemetry({ payload: { kind: 'action', id: 'open_admin' } }); openProjectTab(id); }}
           onDeleteProject={handleDelete}
           onSiteUpdated={applySiteRecord}
           onRescan={rescan}
@@ -476,7 +479,7 @@ function SettingsControl({
         ref={triggerRef}
         type="button"
         className={`topnav__link ${open ? 'is-active' : ''}`}
-        onClick={toggleOpen}
+        onClick={() => { reportShellTelemetry({ payload: { kind: 'action', id: 'open_settings' } }); toggleOpen(); }}
         aria-expanded={open}
         aria-haspopup="true"
         {...navAvailability({ label: "Settings", disabled: false })}
@@ -501,7 +504,7 @@ function SettingsControl({
           </button>
           {/* Stays open reading "Checking…" until main shows its answer, then closes. */}
           {updateCheck.available && (
-            <button type="button" role="menuitem" className="settings__item" aria-disabled={updateCheck.checking} onClick={() => { void updateCheck.checkForUpdates(); }}>
+            <button type="button" role="menuitem" className="settings__item" aria-disabled={updateCheck.checking} onClick={() => { reportShellTelemetry({ payload: { kind: 'action', id: 'check_updates' } }); void updateCheck.checkForUpdates(); }}>
               <MenuIcon kind="update" />
               <span className="settings__label">{updateCheck.checking ? 'Checking…' : 'Check for updates…'}</span>
             </button>
@@ -750,7 +753,7 @@ function SiteWorkspace({
               type="button"
               key={option}
               className={`workspace__view ${option === workspace.surface ? 'is-on' : ''}`}
-              onClick={() => workspace.selectView(option)}
+              onClick={() => { reportShellTelemetry({ payload: { kind: 'action', id: option === 'admin' ? 'open_admin' : 'open_preview' } }); workspace.selectView(option); }}
               aria-pressed={option === workspace.surface}
             >
               {option === 'admin' ? 'Admin' : 'Site'}
@@ -763,7 +766,7 @@ function SiteWorkspace({
         <button
           type="button"
           className="workspace__act"
-          onClick={workspace.openInBrowser}
+          onClick={() => { reportShellTelemetry({ payload: { kind: 'action', id: workspace.surface === 'admin' ? 'open_admin' : 'open_preview' } }); workspace.openInBrowser(); }}
           disabled={!running}
           title="Open the current view in your default browser"
         >
@@ -1133,7 +1136,7 @@ function MainHeader({
               the owner's call, so it no longer reads as quiet as Rescan does; it stays distinct
               from "Create website", the only button here that makes a NEW site, by wearing the
               neutral high-contrast fill rather than `--primary`. */}
-          <button type="button" className="button button--contrast" onClick={() => void onAddSite()} disabled={adding} title="Add an existing Tovu site. Its files stay where they are.">
+          <button type="button" className="button button--contrast" onClick={() => { reportShellTelemetry({ payload: { kind: 'action', id: 'add_existing_website' } }); void onAddSite(); }} disabled={adding} title="Add an existing Tovu site. Its files stay where they are.">
             {adding ? 'Adding…' : 'Add Tovu Website'}
           </button>
           {/* Quiet like Rescan: it opens a site's own Import & Export > Import tab, where the import lives. */}

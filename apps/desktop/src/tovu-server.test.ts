@@ -73,6 +73,34 @@ function silentMirror() {
   return { stdout: new PassThrough(), stderr: new PassThrough() };
 }
 
+test('Phase 3 active product config reaches actual darwin/win32 spawn env; inactive launches strip inherited product keys', async () => {
+  const repoRoot = makeTempRepo();
+  try {
+    for (const platform of ['darwin', 'win32'] as const) {
+      for (const active of [false, true]) {
+        const child = fakeChild(), mirror = silentMirror();
+        let env: NodeJS.ProcessEnv | undefined;
+        const productTelemetry = { configPath: platform === 'win32' ? 'C:\\fake\\product.json' : '/fake/product.json',
+          preferencePath: platform === 'win32' ? 'C:\\fake\\prefs.json' : '/fake/prefs.json', release: 'tovu-desktop@0.0.0-test' };
+        const starting = startTovuServer({ repoRoot, siteDir: '/fake/site', port: 4321, platform, mirror,
+          baseEnv: { TOVU_PRODUCT_TELEMETRY_CONFIG: 'FAKE_INHERITED', TOVU_PRODUCT_TELEMETRY_PREFS: 'FAKE_INHERITED', TOVU_PRODUCT_RELEASE: 'FAKE_INHERITED' },
+          productTelemetry: active ? productTelemetry : undefined,
+          spawnFn: (_command, _args, options) => { env = options.env; return child; },
+        });
+        child.stdout.write('tovu serve: dir=/fake/site port=4321 schemaVersion=58 workspaceId=fake\n');
+        await starting;
+        assert.ok(env);
+        const actual = Object.fromEntries(Object.entries(env).filter(([key]) => key.startsWith('TOVU_PRODUCT_')));
+        assert.deepEqual(actual, active ? { TOVU_PRODUCT_TELEMETRY_CONFIG: productTelemetry.configPath,
+          TOVU_PRODUCT_TELEMETRY_PREFS: productTelemetry.preferencePath, TOVU_PRODUCT_RELEASE: productTelemetry.release } : {});
+        assert.equal(env.TOVU_STOP_ON_STDIN_EOF, platform === 'win32' ? '1' : undefined);
+        child.exitCode = 0; child.emit('exit', 0, null);
+        child.stdout.destroy(); child.stderr.destroy(); mirror.stdout.destroy(); mirror.stderr.destroy();
+      }
+    }
+  } finally { fs.rmSync(repoRoot, { recursive: true, force: true }); }
+});
+
 /** One `startTovuServer`-shaped `spawnFn` call, captured for later assertion. */
 interface RecordedSpawnCall {
   command: string;

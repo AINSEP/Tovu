@@ -22,6 +22,17 @@ import { closeHost, act, dom, openFirstSite, renderApp, settle, site } from './a
 // jsdom's visual clock keeps the process alive after the last test unless the window is closed.
 after(closeHost);
 
+test('Phase 3 actual shell screens and Create website button send only catalog IDs', async t => {
+  const previous = window.tovuTelemetry;
+  const payloads: unknown[] = [];
+  window.tovuTelemetry = { report: payload => { payloads.push(payload); } };
+  t.after(() => { window.tovuTelemetry = previous; });
+  const app = await renderApp(t);
+  assert.deepEqual(payloads, [{ kind: 'screen', id: 'projects' }]);
+  await app.click(app.all('button').find(button => button.textContent?.includes('Create website')));
+  assert.deepEqual(payloads, [{ kind: 'screen', id: 'projects' }, { kind: 'action', id: 'create_website' }, { kind: 'screen', id: 'create_website' }]);
+});
+
 test('App: the header chip and running card display the same resource snapshot', async (t) => {
   const metrics = { rssBytes: 250_000_000, cpuPercent: null, memoryWarning: false, cpuWarning: false };
   const app = await renderApp(t, {

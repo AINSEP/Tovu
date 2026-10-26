@@ -7,6 +7,7 @@ import { createFanOutAiTraceSink, type AiTraceSink } from "@jini-ai/agent-runtim
 import { createPluginProviderHost, isProviderSettingRequired, type PluginContributionRegistry, type PluginProviderContract, type PluginProviderDeclaration, type PluginProviderLease } from "@jini-ai/plugins/host";
 
 import type { ProviderConfigSource, ProviderPluginConfig } from "./provider-config-source.js";
+import { bootProductTelemetryFromEnv, type ProductTelemetry, type ProductTelemetryOptions } from './product-telemetry.js';
 
 /**
  * @file Provider plugins at boot (provider wave 2, 2026-10-25): observability, product analytics and
@@ -135,6 +136,7 @@ export interface ProviderPluginPorts {
 }
 
 export interface BootProviderPluginsRequired {
+  readonly processRole?: 'server' | 'daemon';
   readonly runtime: ProviderPluginRuntime;
   /** Saved settings per plugin. Read failures are treated as "not configured". */
   readonly config: ProviderConfigSource;
@@ -146,6 +148,8 @@ export interface BootProviderPluginsRequired {
 }
 
 export interface BootProviderPluginsOptional {
+  readonly env?: NodeJS.ProcessEnv;
+  readonly productTelemetry?: ProductTelemetryOptions;
   readonly initializeTimeoutMs?: number;
   readonly warn?: (message: string) => void;
   readonly info?: (message: string) => void;
@@ -222,7 +226,7 @@ function gatedPort({ slot, contract, testProbe }: { slot: ProviderSlot; contract
 
 /** Composes guarded analytics, trace destinations and independent observability without vendor knowledge.
  * @complexity O(p + s) at boot for p analytics providers and s trace sinks; no external I/O. */
-function composePorts({ leases, consent, consentRevision, site, warn }: { warn: (message: string) => void; leases: ReadonlyMap<ProviderContract, unknown[]>; consent: ProductAnalyticsConsent; consentRevision: ProductAnalyticsConsentRevision; site: SiteIdentity }) {
+function composePorts({ leases, consent, consentRevision, site, warn, product }: { warn: (message: string) => void; leases: ReadonlyMap<ProviderContract, unknown[]>; consent: ProductAnalyticsConsent; consentRevision: ProductAnalyticsConsentRevision; site: SiteIdentity; product?: ProductTelemetry }) {
   const analytics = (leases.get("product_analytics") ?? []) as ProductAnalyticsPort[];
   const sinks = [...(leases.get("ai_trace") ?? [])] as AiTraceSink[];
   const failed = createTrackerWarning({}, { warn });
@@ -236,7 +240,11 @@ function composePorts({ leases, consent, consentRevision, site, warn }: { warn: 
   // identity or prompt-derived id is needed. The plugin attaches the same site group as other events.
   const generations = createAiGenerationSink({ analytics: productAnalytics, userId: `site:${site.siteId}` });
   if (generations) sinks.push({ ...generations, get capture() { return productAnalytics.includeAiContent === true ? "full" : "metadata"; } });
-  const observability = combineObservabilityPorts({ ports: (leases.get("observability") ?? []) as ObservabilityPort[] }, { onFailure: failed });
+  const siteObservability = combineObservabilityPorts({ ports: (leases.get("observability") ?? []) as ObservabilityPort[] }, { onFailure: failed });
+  // Product consent is install-level, outside the site's guard. Browser SDKs, visitor activity
+  // and AI generations retain only the site branch; product never accepts their content/identity.
+  const observability = product ? combineObservabilityPorts({ ports: [siteObservability, product.observability] }, { onFailure: failed }) : siteObservability;
+  const trackerAnalytics = product ? fanOutProductAnalytics({ ports: [productAnalytics, product.productAnalytics] }, { onFailure: failed }) : productAnalytics;
   const browserCache = new Map<string, { inputs: readonly BrowserAnalyticsContribution[]; output: readonly BrowserAnalyticsContribution[] }>();
   return {
     observability,
@@ -256,9 +264,9 @@ function composePorts({ leases, consent, consentRevision, site, warn }: { warn: 
       browserCache.set(required.surface, { inputs: contributions, output });
       return output;
     },
-    tracker: createTracker({ observability, productAnalytics }, { warn }),
+    tracker: createTracker({ observability, productAnalytics: trackerAnalytics }, { warn }),
     // Public callers own visitor proof checks; the owner's admin preference cannot veto them.
-    visitorTracker: createTracker({ observability, productAnalytics: withProductAnalyticsGuards({ inner, consent: () => true }) }, { warn }),
+    visitorTracker: createTracker({ observability: siteObservability, productAnalytics: withProductAnalyticsGuards({ inner, consent: () => true }) }, { warn }),
     shutdownGenerations: () => generations?.shutdown?.(),
     aiTraceSink: sinks.length === 0 ? undefined : {
       ...createFanOutAiTraceSink({ sinks }),
@@ -384,15 +392,24 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
     leases.set(slot.contract, [...(leases.get(slot.contract) ?? []), gatedPort({ slot, contract: slot.contract, testProbe })]);
   }
   await Promise.all([...new Set(slots.map(slot => slot.pluginId))].map(pluginId => reapply({ pluginId })));
-  const { shutdownGenerations, ...ports } = composePorts({ leases, consent: required.consent, consentRevision: required.consentRevision, site: required.site, warn });
+  const product = await bootProductTelemetryFromEnv({ env: optional.env ?? process.env, processRole: required.processRole ?? 'server' }, { warn, ...optional.productTelemetry });
+  const { shutdownGenerations, ...ports } = composePorts({ leases, consent: required.consent, consentRevision: required.consentRevision, site: required.site, warn, product });
   tracker = ports.tracker;
   // Boot settles before a tracker exists. Flush only through the healthy, consenting facade;
   // local diagnostics remain authoritative when analytics itself failed to initialize.
   for (const event of initializations) tracker.capture(event);
   initializations.length = 0;
+  let disposal: Promise<void> | undefined;
   return { ...ports, telemetryStatus: delivery.read,
     observabilityEnabled: () => slots.some(slot => slot.contract === "observability" && slot.lease?.isCurrent({}) === true),
     sendTelemetryTest: ({ error }) => testProbe.send({ tracker: ports.tracker, error, userId: `site:${required.site.siteId}` }),
     reapply, appliesAt: ({ pluginId }) => applied.get(pluginId) ?? "now",
-    async dispose() { closed = true; await Promise.all(queues.values()); await shutdownGenerations(); await host.dispose({}); } };
+    async dispose() {
+      closed = true;
+      // A concurrent fatal flush must await the same drain already started by store teardown.
+      disposal ??= Promise.all(queues.values()).then(async () => {
+        await Promise.all([shutdownGenerations(), host.dispose({}), product?.dispose()]);
+      });
+      await disposal;
+    } };
 }

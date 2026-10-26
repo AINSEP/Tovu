@@ -2113,6 +2113,7 @@ async function composeSiteRouteDeps(
   // after the project store (owner 2026-10-25).
   const customCredentialSetRepo = new SqliteCustomCredentialSetRepo(kernel, credentialProject(projectVault, vault => new CustomCredentialVaultRepo({ vault })));
   const providerPlugins = await providerPluginBoot({ overrides })({
+    processRole: overrides.storeRole === 'client' ? 'daemon' : 'server',
     runtime: pluginRuntime,
     config: providerConfigSource,
     serviceName: "tovu",
