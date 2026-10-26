@@ -26,6 +26,8 @@ import { isNonArrayRecord } from "@jini-ai/core/records";
 import { escapeHtml } from "#src/platform/html/escape";
 import { formValidationMessages, formDocumentLocale } from "./form-validation-message.js";
 import { FORM_ATTEMPT_FIELD } from "@jini-ai/cms/forms/submission-attempts";
+import type { FieldDescriptor } from "@jini-ai/cms/forms";
+import { fieldMaxChars } from "#src/features/forms/field-length-caps";
 
 const FORM_CLASS = "tovu-form";
 const FORM_SUCCESS_CLASS = "tovu-form-success";
@@ -619,6 +621,28 @@ export function injectFormAttemptTokens(html: string, { newToken }: { newToken: 
     FORM_OPENING_TAG,
     (openTag) => `${openTag}<input type="hidden" name="${FORM_ATTEMPT_FIELD}" value="${escapeHtml(newToken())}">`,
   );
+}
+
+/** One visible text control's `maxlength`: an author's own attribute stays; otherwise the cap the
+ *  submit route enforces (`features/forms/field-length-caps.ts`). Hidden inputs have nothing to show. */
+function stampControlMaxLength(tag: string, caps: ReadonlyMap<string, number>): string {
+  const max = caps.get(/\sname="([^"]*)"/i.exec(tag)?.[1] ?? "");
+  if (max === undefined || /\smaxlength\s*=/i.test(tag) || /\stype="hidden"/i.test(tag)) return tag;
+  const selfClosing = /\/>$/.test(tag);
+  return `${tag.slice(0, tag.length - (selfClosing ? 2 : 1)).replace(/\s+$/, "")} maxlength="${max}"${selfClosing ? "/>" : ">"}`;
+}
+
+/** Adds `maxlength` to every text input/textarea of a rendered public form (Builder or HTML mode) so
+ *  the browser stops typing at the same cap the server refuses past. Browsers count UTF-16 units here
+ *  while the server counts code points, so the browser is never the looser of the two.
+ *  @complexity O(html.length + fields). */
+export function stampFormFieldMaxLengths(html: string, fields: readonly FieldDescriptor[]): string {
+  const caps = new Map<string, number>();
+  for (const field of fields) {
+    const max = typeof field === "object" && field !== null ? fieldMaxChars({ field }) : undefined;
+    if (max !== undefined) caps.set(field.id, max);
+  }
+  return html.replace(/<(?:input|textarea)\b[^>]*>/gi, (tag) => stampControlMaxLength(tag, caps));
 }
 
 // ---------------------------------------------------------------------------
