@@ -1,7 +1,7 @@
 import { combineObservabilityPorts, createNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 import { createNoopProductAnalytics, withProductAnalyticsGuards, type ProductAnalyticsConsent, type ProductAnalyticsConsentRevision, type ProductAnalyticsPort } from "@jini-ai/analytics/product";
 import { createFanOutAiTraceSink, type AiTraceSink } from "@jini-ai/agent-runtime/ai-trace";
-import { createPluginProviderHost, type PluginContributionRegistry, type PluginProviderContract, type PluginProviderDeclaration, type PluginProviderLease } from "@jini-ai/plugins/host";
+import { createPluginProviderHost, isProviderSettingRequired, type PluginContributionRegistry, type PluginProviderContract, type PluginProviderDeclaration, type PluginProviderLease } from "@jini-ai/plugins/host";
 
 import type { ProviderConfigSource, ProviderPluginConfig } from "./provider-config-source.js";
 
@@ -76,13 +76,13 @@ export function legacyProviderCredentialCheck(
  * A blank public field takes the plugin's declared `default` (e.g. its vendor's cloud host).
  * @complexity O(f) declared fields.
  */
-export function providerInputOf({ declaration, saved }: { declaration: PluginProviderDeclaration; saved: ProviderPluginConfig | null }): Readonly<Record<string, string>> | undefined {
+export function providerInputOf({ declaration, saved }: { declaration: PluginProviderDeclaration; saved: ProviderPluginConfig | null }, _optional = {}): Readonly<Record<string, string>> | undefined {
   const fields = declaration.settings ?? [];
   if (!saved || fields.length === 0) return undefined;
   const defaults = Object.fromEntries(fields.filter((field) => !field.secret && field.default).map((field) => [field.name, field.default!]));
   const values: Record<string, string | undefined> = { ...defaults, ...Object.fromEntries(Object.entries(saved.settings).filter(([, value]) => value.trim() !== "")), ...saved.secrets };
   const present = (name: string) => (values[name] ?? "").trim() !== "";
-  if (fields.some((field) => field.required && !present(field.name))) return undefined;
+  if (fields.some((field) => isProviderSettingRequired({ field, values }) && !present(field.name))) return undefined;
   return Object.fromEntries(fields.filter((field) => present(field.name)).map((field) => [field.name, values[field.name]!]));
 }
 
