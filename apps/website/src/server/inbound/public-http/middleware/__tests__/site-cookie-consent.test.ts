@@ -15,7 +15,7 @@ import type { SiteConsentSource } from '#src/features/consent/cookie-consent';
 import { createRouteDeps } from '#src/server/runtime/composition/app';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
 import { bindCookieConsentAnalyticsGate } from '#src/server/runtime/composition/site-cookie-consent';
-import { applySiteCookieConsent, cookieConsentPreviewGate, type ConsentPluginHttp } from '../site-cookie-consent.js';
+import { applySiteCookieConsent, cookieConsentPreviewGate, readSiteVisitorConsent, type ConsentPluginHttp } from '../site-cookie-consent.js';
 import { CONSENT_RECEIPTS_DIR_NAME, CONSENT_SAVE_PROFILE } from '../site-consent.js';
 
 const CLIENT = { src: '/_consent/client-0123456789ab.min.js', body: Buffer.from('/* injected consent client */') };
@@ -231,6 +231,9 @@ for (const config of [{ bannerMode: 'off' as const }, { enabled: false }]) {
       assert.equal(doc.querySelector('[data-consent-open]'), null);
     } finally { dom.window.close(); }
     assert.equal(regions, 0, 'off must not resolve a visitor region');
+    const state = await readSiteVisitorConsent({ deps: f.deps, req: { get: () => undefined } as unknown as import('express').Request });
+    assert.equal(state.allowed.analytics, false, 'public permissions must not authorize full analytics');
+    assert.equal(state.analyticsLevel, 'anonymous');
     const send = (headers = {}) => fetch(f.base + PLUGIN_PATH + '/collect', { method: 'POST', headers: { origin: f.base, ...headers }, body: 'event' });
     const anonymous = await send();
     assert.equal(anonymous.status, 200);
