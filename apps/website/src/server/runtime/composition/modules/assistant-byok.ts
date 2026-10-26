@@ -1,4 +1,5 @@
 import { createAutomaticPluginRuns } from "#src/assistant/automatic-agent-plugins";
+import { createAiTraceRecorder } from "@jini-ai/agent-runtime/ai-trace";
 import { readChatAgentPluginState } from "@jini-ai/agent-plugins/lifecycle";
 import { resolveAgentPluginRefs } from "#src/features/agent-plugins/lifecycle";
 import { PERMANENT_DELETE_GUIDANCE } from "#src/contracts/headless/assistant-permanent-deletes-policy";
@@ -586,6 +587,11 @@ export function createAssistantByokModule(
     // One agent-run span per turn (its own trace root); the turn runs inside it, so its tool calls'
     // DB and outbound spans nest under the run rather than the long-lived request.
     const runTracker = routeDeps.observability.trackAgentRun({ runId: run.id }, { agentName: credential.protocol });
+    // BYOK bypasses the daemon lifecycle, but publishes the same normalized model/tool events.
+    // Reuse its recorder so both execution modes report generations with the same semantics.
+    const aiTrace = routeDeps.aiTraceSink ? createAiTraceRecorder({ sink: routeDeps.aiTraceSink, runId: run.id, agentId: credential.protocol },
+      { provider: credential.protocol, model: credential.model, exactSecrets: [credential.apiKey] }) : undefined;
+    aiTrace?.start(routeDeps.aiTraceSink?.capture === "full" ? { input: messages.at(-1)?.content ?? null } : {});
     let reportedError = false;
     // A failed turn (a provider error event or a throw, not an owner's cancel) is an incident for
     // the error tracker too: the protocol and run id only, the key blanked even without a known shape.
@@ -619,11 +625,14 @@ export function createAssistantByokModule(
         // rendering an unrecognized `ext` event. Everything else rides `agent` unchanged, reusing
         // `translateRunAgentPayload`'s existing switch on the client with zero new cases.
         onEvent: (event: ByokTurnEvent) => {
+          aiTrace?.observe(event as unknown as Record<string, unknown>);
           if (event.type === "error") { reportedError = true; reportRunFailure(new Error(event.message)); }
           sse(res, event.type === "error" ? "error" : "agent", stampUsage(event));
         },
       }));
     } catch (error) {
+      aiTrace?.observe({ type: "error", message: error instanceof Error ? error.message : String(error) });
+      aiTrace?.finish({ outcome: abort.signal.aborted ? "cancelled" : "failed" });
       runTracker.end(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }, { thrown: { error } }));
       if (!abort.signal.aborted) reportRunFailure(error);
       sse(res, "error", { type: "error", message: error instanceof Error ? error.message : String(error) });
@@ -633,6 +642,7 @@ export function createAssistantByokModule(
     }
 
     runTracker.end(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }));
+    aiTrace?.finish({ outcome: abort.signal.aborted ? "cancelled" : reportedError ? "failed" : "succeeded" });
     sse(res, "end", { reason: result.stopReason ?? "stop" });
     res.end();
   }

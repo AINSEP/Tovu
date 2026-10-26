@@ -1,5 +1,5 @@
 import { combineObservabilityPorts, createNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
-import { createNoopProductAnalytics, withProductAnalyticsGuards, type ProductAnalyticsConsent, type ProductAnalyticsConsentRevision, type ProductAnalyticsPort } from "@jini-ai/analytics/product";
+import { createAiGenerationSink, createNoopProductAnalytics, withProductAnalyticsGuards, type ProductAnalyticsConsent, type ProductAnalyticsConsentRevision, type ProductAnalyticsPort } from "@jini-ai/analytics/product";
 import { createFanOutAiTraceSink, type AiTraceSink } from "@jini-ai/agent-runtime/ai-trace";
 import { createPluginProviderHost, type PluginContributionRegistry, type PluginProviderContract, type PluginProviderDeclaration, type PluginProviderLease } from "@jini-ai/plugins/host";
 
@@ -92,9 +92,17 @@ const hasMethods = ({ value, names }: { value: unknown; names: readonly string[]
 /** Domain-owned port checks; a plugin never supplies or replaces these validators. */
 export const PROVIDER_CONTRACTS: readonly PluginProviderContract[] = [
   { contract: "observability", validate: ({ provider }) => hasMethods({ value: provider, names: ["trackRequest", "trackDbQuery", "trackOutboundCall", "trackAgentRun", "trackOperation", "reportError"] }) ? undefined : "not an ObservabilityPort" },
-  { contract: "product_analytics", validate: ({ provider }) => hasMethods({ value: provider, names: ["capture", "identify"] }) ? undefined : "not a ProductAnalyticsPort" },
+  { contract: "product_analytics", validate: ({ provider }) => hasMethods({ value: provider, names: ["capture", "identify"] }) && validAiCapability({ provider }) ? undefined : "not a ProductAnalyticsPort" },
   { contract: "ai_trace", validate: ({ provider }) => hasMethods({ value: provider, names: ["record"] }) ? undefined : "not an AiTraceSink" },
 ];
+
+/** Optional capabilities remain optional; malformed declarations are refused before composition.
+ * @complexity O(1). */
+function validAiCapability({ provider }: { provider: unknown }): boolean {
+  const port = provider as ProductAnalyticsPort;
+  return (port.captureAiGeneration === undefined || typeof port.captureAiGeneration === "function")
+    && (port.includeAiContent === undefined || typeof port.includeAiContent === "boolean");
+}
 
 export interface ProviderPluginRuntime {
   readonly providerContributions: PluginContributionRegistry;
@@ -108,7 +116,7 @@ export interface ProviderPluginPorts {
   readonly observability: ObservabilityPort;
   /** Already behind `withProductAnalyticsGuards` (consent first); the shared noop when unconfigured. */
   readonly productAnalytics: ProductAnalyticsPort;
-  /** Undefined when no AI-trace provider is configured: hosts then skip `withAiTracing` entirely. */
+  /** Undefined without a trace provider or analytics AI capability: hosts then skip recording. */
   readonly aiTraceSink: AiTraceSink | undefined;
   /** Idempotent; bounded per resource by the provider host. */
   dispose(required: Record<string, never>, optional?: Record<string, never>): Promise<void>;
@@ -149,12 +157,23 @@ async function configuredProviders({ runtime, config, warn }: { runtime: Provide
   return configured;
 }
 
-/** Fans product events out to every configured analytics port (normally one). */
+/** Fans product events out to every configured analytics port (normally one), isolating failures
+ * and each provider's content opt-in. @complexity O(p) per event for p configured providers. */
 function fanOutProductAnalytics({ ports }: { ports: readonly ProductAnalyticsPort[] }): ProductAnalyticsPort {
   const [only, ...rest] = ports;
   if (only && rest.length === 0) return only;
   const each = (send: (port: ProductAnalyticsPort) => void) => { for (const port of ports) { try { send(port); } catch { /* one vendor never blocks another */ } } };
-  return { capture: (event) => each((port) => port.capture(event)), identify: (identity) => each((port) => port.identify(identity)) };
+  return {
+    capture: (event) => each((port) => port.capture(event)), identify: (identity) => each((port) => port.identify(identity)),
+    ...(ports.some((port) => port.captureAiGeneration) ? {
+      includeAiContent: ports.some((port) => port.captureAiGeneration && port.includeAiContent === true),
+      captureAiGeneration: (event: Parameters<NonNullable<ProductAnalyticsPort["captureAiGeneration"]>>[0]) => each((port) => {
+        // Each provider owns its opt-in, even when another provider requests content.
+        const { input: _input, output: _output, ...metadata } = event;
+        port.captureAiGeneration?.(port.includeAiContent === true ? event : metadata);
+      }),
+    } : {}),
+  };
 }
 
 /** Each contract's inert behavior, used once a lease is retired. */
@@ -169,23 +188,36 @@ const NOOP_PORTS: Readonly<Record<ProviderContract, () => object>> = {
  * boot: every call re-checks `isCurrent()` first so a retired lease admits no new work (Jini's lease
  * contract) and the call takes the contract's noop path instead. Methods the port lacks (e.g. an AI
  * trace sink without `flush`) take the noop path too.
+ * @complexity O(m) at boot for m contract methods; O(1) per gated call.
  */
 function gatedPort({ lease, contract }: { lease: PluginProviderLease; contract: ProviderContract }): unknown {
   const noop = NOOP_PORTS[contract]() as Record<string, (...args: unknown[]) => unknown>;
   const port = lease.port as Record<string, unknown>;
-  return Object.fromEntries(Object.keys(noop).map((name) => [name, (...args: unknown[]) => {
+  const names = Object.keys(noop);
+  if (contract === "product_analytics" && typeof port.captureAiGeneration === "function") names.push("captureAiGeneration");
+  const gated = Object.fromEntries(names.map((name) => [name, (...args: unknown[]) => {
     const live = port[name];
-    return lease.isCurrent({}) && typeof live === "function" ? live.apply(port, args) : noop[name]!(...args);
+    return lease.isCurrent({}) && typeof live === "function" ? live.apply(port, args) : noop[name]?.(...args);
   }]));
+  if (contract === "product_analytics") Object.defineProperty(gated, "includeAiContent", { get: () => lease.isCurrent({}) && port.includeAiContent === true });
+  return gated;
 }
 
-function composePorts({ leases, consent, consentRevision }: { leases: ReadonlyMap<ProviderContract, unknown[]>; consent: ProductAnalyticsConsent; consentRevision: ProductAnalyticsConsentRevision }) {
+/** Composes guarded analytics, trace destinations and independent observability without vendor knowledge.
+ * @complexity O(p + s) at boot for p analytics providers and s trace sinks; no external I/O. */
+function composePorts({ leases, consent, consentRevision, site }: { leases: ReadonlyMap<ProviderContract, unknown[]>; consent: ProductAnalyticsConsent; consentRevision: ProductAnalyticsConsentRevision; site: SiteIdentity }) {
   const analytics = (leases.get("product_analytics") ?? []) as ProductAnalyticsPort[];
-  const sinks = (leases.get("ai_trace") ?? []) as AiTraceSink[];
+  const sinks = [...(leases.get("ai_trace") ?? [])] as AiTraceSink[];
+  const productAnalytics = analytics.length === 0 ? createNoopProductAnalytics({})
+    : withProductAnalyticsGuards({ inner: fanOutProductAnalytics({ ports: analytics }), consent }, { consentRevision });
+  // Site-scoped operator activity: consent is the site's telemetry setting; no synthetic person
+  // identity or prompt-derived id is needed. The plugin attaches the same site group as other events.
+  const generations = createAiGenerationSink({ analytics: productAnalytics, userId: `site:${site.siteId}` });
+  if (generations) sinks.push(generations);
   return {
     observability: combineObservabilityPorts({ ports: (leases.get("observability") ?? []) as ObservabilityPort[] }),
-    productAnalytics: analytics.length === 0 ? createNoopProductAnalytics({})
-      : withProductAnalyticsGuards({ inner: fanOutProductAnalytics({ ports: analytics }), consent }, { consentRevision }),
+    productAnalytics,
+    shutdownGenerations: () => generations?.shutdown?.(),
     aiTraceSink: sinks.length === 0 ? undefined : createFanOutAiTraceSink({ sinks }),
   };
 }
@@ -214,5 +246,6 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
       .catch((error: unknown) => { warn(`provider plugin '${provider.pluginId}' did not initialize: ${error instanceof Error ? error.name : typeof error}`); return undefined; });
     if (lease) leases.set(provider.contract, [...(leases.get(provider.contract) ?? []), gatedPort({ lease, contract: provider.contract })]);
   }
-  return { ...composePorts({ leases, consent: required.consent, consentRevision: required.consentRevision }), dispose: () => host.dispose({}) };
+  const { shutdownGenerations, ...ports } = composePorts({ leases, consent: required.consent, consentRevision: required.consentRevision, site: required.site });
+  return { ...ports, dispose: async () => { await shutdownGenerations(); await host.dispose({}); } };
 }
