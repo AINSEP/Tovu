@@ -4803,30 +4803,9 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   max-width: min(100%, 16rem);
 }
 
-/* Privacy — `od-settings-privacy.png`: the two disclosure items read as
-   plain title+description pairs, not an indented definition list; the two
-   consent buttons sit side by side, the primary one filled; the granular
-   toggles (once a decision exists — see `hasMadeConsentDecision`) are real
-   switches, not unstyled `<button>`s. */
-.settings-ui-section .jini-settings-privacy-disclosure { margin: 0; display: flex; flex-direction: column; gap: 10px; }
-.settings-ui-section .jini-settings-privacy-disclosure > div { display: flex; flex-direction: column; gap: 2px; }
-.settings-ui-section .jini-settings-privacy-disclosure dt { margin: 0; font-size: 13px; font-weight: 600; color: var(--jini-text-strong); }
-.settings-ui-section .jini-settings-privacy-disclosure dd { margin: 0; font-size: 12px; color: var(--jini-text-muted); }
-.settings-ui-section .jini-privacy-consent-actions { display: flex; gap: 10px; }
-.settings-ui-section .jini-privacy-consent-action {
-  flex: 1 1 0; padding: 9px 16px; font: inherit; font-size: 13px; font-weight: 600;
-  color: var(--jini-text); background: var(--jini-bg-panel);
-  border: 1px solid var(--jini-border-strong); border-radius: var(--jini-radius-sm);
-  cursor: pointer;
-}
-.settings-ui-section .jini-privacy-consent-action:hover { border-color: var(--jini-text-muted); }
-.settings-ui-section .jini-privacy-consent-action--primary {
-  color: var(--jini-control-solid-ink); background: var(--jini-accent); border-color: var(--jini-accent);
-}
-.settings-ui-section .jini-privacy-consent-action--primary:hover,
-.settings-ui-section .jini-privacy-consent-action--primary.is-active {
-  background: var(--jini-accent-hover); border-color: var(--jini-accent-hover);
-}
+/* Privacy — the two choices show once, as real switches, not unstyled
+   `<button>`s (the disclosure list and share/decline buttons that repeated
+   them were removed 2026-10-26). */
 .settings-ui-section .jini-settings-privacy-toggles { display: flex; flex-direction: column; gap: 8px; }
 .settings-ui-section .jini-toggle-row {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
