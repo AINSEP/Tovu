@@ -5,6 +5,7 @@ import { registerPluginFilesRoute } from "#src/server/inbound/admin-http/routes/
 import { registerPluginPreviewRoute } from "#src/server/inbound/admin-http/routes/plugins/preview";
 import { registerPluginUninstallRoute } from "#src/server/inbound/admin-http/routes/plugins/uninstall";
 import { registerPluginInstallRoutes } from "#src/server/inbound/admin-http/routes/plugins/install";
+import { registerPluginProviderSettingsRoutes } from "#src/server/inbound/admin-http/routes/plugins/provider-settings";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
 
@@ -36,6 +37,7 @@ export function createPluginsModule(deps: RouteDeps): ServerModuleHandle {
       registerPluginSetEnabledRoute(app, deps);
       registerPluginUninstallRoute(app, deps);
       registerPluginFilesRoute(app, deps);
+      registerPluginProviderSettingsRoutes(app, deps);
       registerPluginInstallRoutes(app, deps);
       // After the install routes: `.../plugins/:pluginId/preview` also matches
       // `.../plugins/install/preview`, and Express runs the first registered match.
