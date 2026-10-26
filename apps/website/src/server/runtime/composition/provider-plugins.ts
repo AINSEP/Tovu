@@ -58,6 +58,19 @@ export interface ProviderPluginDeclarations {
 }
 
 /**
+ * Whether a provider key was saved the retired way: wave 2 stored it as an API credential labelled
+ * `plugin:<plugin id>`, which boot no longer reads. Matched by label on the non-decrypting listing,
+ * so no secret is ever opened; the admin settings card turns a match into a re-entry notice.
+ * @complexity O(n) in the workspace's (small) credential count.
+ */
+export function legacyProviderCredentialCheck(
+  required: { listLabels: () => Promise<readonly { label: string }[]> },
+  _optional: Record<string, never> = {},
+): (input: { pluginId: string }) => Promise<boolean> {
+  return async ({ pluginId }) => (await required.listLabels()).some((row) => row.label === `plugin:${pluginId}`);
+}
+
+/**
  * The factory input a provider's saved settings make, or undefined when it is not configured: no row
  * saved, no declared settings, or a required declared field without a value. Only declared names pass.
  * @complexity O(f) declared fields.

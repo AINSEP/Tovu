@@ -101,3 +101,22 @@ test("refusals: other workspace 404, plugin without declared settings 404, no se
   assert.equal((await failing.call("GET", `${WS}/plugins/obs/provider-settings`)).status, 500);
   assert.equal((await failing.call("PUT", `${WS}/plugins/obs/provider-settings`, { values: {} })).status, 500);
 });
+
+test("a key saved the retired way (API credential `plugin:<id>`) shows a re-entry notice until new settings are saved (Codex fix-lane MED)", async (t) => {
+  const asked: string[] = [];
+  const { call } = await serve(t, { legacyProviderCredential: async ({ pluginId }) => { asked.push(pluginId); return pluginId === "obs"; } });
+  const before = await call("GET", `${WS}/plugins/obs/provider-settings`);
+  assert.equal(before.json.legacyCredential, true);
+  assert.deepEqual(asked, ["obs"]);
+  await call("PUT", `${WS}/plugins/obs/provider-settings`, { values: { endpoint: "https://otlp.example.test" } });
+  const after = await call("GET", `${WS}/plugins/obs/provider-settings`);
+  assert.equal("legacyCredential" in after.json, false, "once settings are saved the notice is gone");
+  assert.deepEqual(asked, ["obs"], "the retired row is only checked while nothing is saved");
+});
+
+test("the retired-key check failing never breaks the card", async (t) => {
+  const { call } = await serve(t, { legacyProviderCredential: async () => { throw new Error("db down"); } });
+  const { status, json } = await call("GET", `${WS}/plugins/obs/provider-settings`);
+  assert.equal(status, 200);
+  assert.equal("legacyCredential" in json, false);
+});

@@ -968,6 +968,8 @@ export interface ObservabilityDeps {
   aiTraceSink?: import("@jini-ai/agent-runtime/ai-trace").AiTraceSink;
   /** Saved provider-plugin settings (project store, else site vault); the admin settings card reads/writes it. */
   providerConfig?: import("#src/server/runtime/composition/provider-config-source").ProviderConfigSource;
+  /** Whether a provider key was saved the retired way (API credential `plugin:<id>`); label lookup only, never decrypted. */
+  legacyProviderCredential?: (required: { pluginId: string }) => Promise<boolean>;
   /**
    * `features/tool-audit`'s durable agent tool-attempt sink, BUILT BY THE COMPOSITION ROOT and
    * injected — not resolved by whichever module happens to want one. `server/deps.ts` builds

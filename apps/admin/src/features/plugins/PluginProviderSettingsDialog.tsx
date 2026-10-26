@@ -47,6 +47,7 @@ export function PluginProviderSettingsDialog({ plugin, agentHandleBase, onClose,
         {card ? (
           <p>{card.store === "project" ? t("Saved for every site in this project. Takes effect the next time Tovu starts.") : t("Saved for this site. Takes effect the next time Tovu starts.")}</p>
         ) : null}
+        {card?.legacyCredential ? <p role="note">{t("A key for this plugin was saved in an older format that Tovu no longer reads. Enter it again here and save.")}</p> : null}
         {error ? <p className="save-error" role="alert">{error}</p> : null}
         {saved ? <p role="status">{t("Settings saved.")}</p> : null}
         <form onSubmit={(event) => { event.preventDefault(); void save(); }}>

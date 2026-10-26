@@ -21,6 +21,9 @@ import type { PluginsRouteDeps } from "./deps.js";
 
 export interface ProviderSettingsRouteDeps extends Pick<PluginsRouteDeps, "workspaceId" | "authorize" | "discoverPlugins"> {
   providerConfig?: ProviderConfigSource;
+  /** Whether a key was saved the retired way (an API credential labelled `plugin:<id>`), read by label
+   *  only, never decrypted. */
+  legacyProviderCredential?: (required: { pluginId: string }) => Promise<boolean>;
 }
 
 const PATH = "/api/admin/v1/workspaces/:workspaceId/plugins/:pluginId/provider-settings";
@@ -33,10 +36,22 @@ async function declaredFields({ deps, pluginId }: { deps: ProviderSettingsRouteD
   return fields.size === 0 ? undefined : [...fields.values()];
 }
 
-async function cardOf({ config, pluginId, fields }: { config: ProviderConfigSource; pluginId: string; fields: readonly PluginProviderSettingField[] }) {
+/**
+ * Wave 2 saved provider keys as API credentials labelled `plugin:<id>`; boot no longer reads them
+ * (Codex fix-lane MED). Mapping them into the declared fields would need per-vendor knowledge in Tovu,
+ * which the manifest-driven boot removed, so the card asks for the key again instead: shown while
+ * nothing is saved the new way, gone after the first save. A failing check never breaks the card.
+ */
+async function hasLegacyCredential({ deps, pluginId, saved }: { deps: ProviderSettingsRouteDeps; pluginId: string; saved: unknown }): Promise<boolean> {
+  if (saved || !deps.legacyProviderCredential) return false;
+  return deps.legacyProviderCredential({ pluginId }).catch(() => false);
+}
+
+async function cardOf({ deps, config, pluginId, fields }: { deps: ProviderSettingsRouteDeps; config: ProviderConfigSource; pluginId: string; fields: readonly PluginProviderSettingField[] }) {
   const saved = await config.readSettings({ pluginId });
   return {
     pluginId, store: config.scope, appliesAt: "next-start" as const,
+    ...((await hasLegacyCredential({ deps, pluginId, saved })) ? { legacyCredential: true as const } : {}),
     fields: fields.map((field) => {
       const secret = field.secret === true;
       const value = secret ? undefined : saved?.settings[field.name];
@@ -71,7 +86,7 @@ async function resolveCard({ req, res, deps, permission }: { req: Request; res: 
   const fields = await declaredFields({ deps, pluginId });
   if (!fields) { res.status(404).json({ error: "this plugin declares no provider settings", code: "PLUGIN_NOT_FOUND" }); return undefined; }
   if (!deps.providerConfig) { res.status(503).json({ error: "provider settings are not available here", code: "PROVIDER_SETTINGS_UNAVAILABLE" }); return undefined; }
-  return { pluginId, fields, config: deps.providerConfig };
+  return { deps, pluginId, fields, config: deps.providerConfig };
 }
 
 const internalError = (res: Response) => res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });

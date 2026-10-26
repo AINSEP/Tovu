@@ -2203,6 +2203,8 @@ export interface AdminPluginProviderSettings {
   /** Where saves go: the project shared by this machine's sites, or this site only. */
   store: "project" | "site";
   appliesAt: "next-start";
+  /** A key was saved the retired way (wave 2's `plugin:<id>` API credential) and nothing yet the new way. */
+  legacyCredential?: true;
   fields: AdminPluginProviderSettingField[];
 }
 

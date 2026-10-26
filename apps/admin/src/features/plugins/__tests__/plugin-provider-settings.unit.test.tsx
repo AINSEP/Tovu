@@ -14,6 +14,7 @@ import { usePluginProviderSettings } from "../hooks/use-plugin-provider-settings
  */
 
 const t = (key: string) => key;
+const LEGACY_NOTICE = "A key for this plugin was saved in an older format that Tovu no longer reads. Enter it again here and save.";
 
 function card(overrides: Partial<AdminPluginProviderSettings> = {}): AdminPluginProviderSettings {
   return { pluginId: "observability-opentelemetry", store: "project", appliesAt: "next-start", fields: [
@@ -37,6 +38,22 @@ describe("PluginProviderSettingsDialog", () => {
     expect(headers.value).toBe("");
     expect(headers.placeholder).toBe("Saved — leave blank to keep");
     expect(screen.getByText("Saved for every site in this project. Takes effect the next time Tovu starts.")).toBeTruthy();
+  });
+
+  it("a key saved the retired way asks to be entered again; saving clears the notice", async () => {
+    const providerSettings = { "observability-opentelemetry": card({ legacyCredential: true }) };
+    dialogWith(createFakePluginsPort({ providerSettings }));
+    const notice = await screen.findByText(LEGACY_NOTICE);
+    expect(notice.getAttribute("role")).toBe("note");
+    fireEvent.change(screen.getByLabelText(/OTLP endpoint/), { target: { value: "https://new.example.test" } });
+    fireEvent.submit(screen.getByRole("button", { name: "Save" }).closest("form")!);
+    await waitFor(() => expect(screen.queryByText(LEGACY_NOTICE)).toBeNull());
+  });
+
+  it("no notice when nothing was saved the retired way", async () => {
+    dialogWith(createFakePluginsPort({ providerSettings: { "observability-opentelemetry": card() } }));
+    await screen.findByLabelText(/OTLP endpoint/);
+    expect(screen.queryByText(LEGACY_NOTICE)).toBeNull();
   });
 
   it("saves edits; a blank secret keeps the saved one; the form resets secrets to blank", async () => {

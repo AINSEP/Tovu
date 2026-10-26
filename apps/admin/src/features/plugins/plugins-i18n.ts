@@ -15,6 +15,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Saved for every site in this project. Takes effect the next time Tovu starts.": "Se guarda para todos los sitios de este proyecto. Se aplica la próxima vez que se inicie Tovu.",
     "Saved for this site. Takes effect the next time Tovu starts.": "Se guarda para este sitio. Se aplica la próxima vez que se inicie Tovu.",
     "Settings saved.": "Ajustes guardados.",
+    "A key for this plugin was saved in an older format that Tovu no longer reads. Enter it again here and save.": "Una clave de este plugin se guardó en un formato antiguo que Tovu ya no lee. Vuelve a introducirla aquí y guarda.",
     "Saved — leave blank to keep": "Guardado: déjalo en blanco para conservarlo",
     "failed to load plugin settings": "no se pudieron cargar los ajustes del plugin",
     "failed to save plugin settings": "no se pudieron guardar los ajustes del plugin",

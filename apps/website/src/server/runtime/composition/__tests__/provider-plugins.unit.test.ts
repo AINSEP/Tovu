@@ -5,7 +5,7 @@ import { createNoopObservabilityPort, isNoopObservabilityPort, type Observabilit
 import { isNoopProductAnalytics, type ProductAnalyticsPort } from "@jini-ai/analytics/product";
 import { createPluginContributionRegistry, type PluginProviderFactory, type PluginProviderSettingField } from "@jini-ai/plugins/host";
 
-import { attributionFor, bootProviderPlugins, PROVIDER_CONTRACTS, providerInputOf, type SiteIdentity } from "../provider-plugins.js";
+import { attributionFor, bootProviderPlugins, legacyProviderCredentialCheck, PROVIDER_CONTRACTS, providerInputOf, type SiteIdentity } from "../provider-plugins.js";
 import type { ProviderConfigSource, ProviderPluginConfig } from "../provider-config-source.js";
 
 /**
@@ -301,4 +301,11 @@ test("site attribution: each contract's factory receives the site in that contra
   const attributes = { site_id: "site-123", site_slug: "blog", environment: "local", project_id: "project-abc" };
   assert.deepEqual(attributionFor({ contract: "product_analytics", site: SITE }), { attributes, groups: { site: "site-123" } });
   assert.deepEqual(attributionFor({ contract: "ai_trace", site: SITE }), { attributes, tags: ["site:blog"] });
+});
+
+test("legacyProviderCredentialCheck: matches only the retired `plugin:<id>` label, from the non-decrypting listing", async () => {
+  const check = legacyProviderCredentialCheck({ listLabels: async () => [{ label: "plugin:observability-opentelemetry" }, { label: "Stripe" }] });
+  assert.equal(await check({ pluginId: "observability-opentelemetry" }), true);
+  assert.equal(await check({ pluginId: "analytics-posthog" }), false);
+  assert.equal(await check({ pluginId: "observability" }), false, "a prefix is not a match");
 });

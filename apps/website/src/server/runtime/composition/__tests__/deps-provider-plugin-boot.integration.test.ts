@@ -71,6 +71,8 @@ test("installed + enabled + configured provider plugin boots through the real co
   const first = await createSiteRouteDeps(dbPath, { siteBinding, onStoreOpened: (store) => { closeFirst = () => store.close(); } });
   await first.identityReady;
   await sqlitePluginActivationRepoFor({ store: first.contentKernel! }).save({ workspaceId: first.workspaceId, pluginId: PLUGIN_ID, version, enabled: true, updatedAt: "2026-10-26" });
+  // The retired-key check runs over the real credential listing (nothing saved the old way here).
+  assert.equal(await first.legacyProviderCredential!({ pluginId: PLUGIN_ID }), false);
   // Saved through the same port the admin settings card writes: sealed rows in this site's vault.
   await first.providerConfig!.write({ pluginId: PLUGIN_ID, config: { settings: { endpoint: "https://collector.example.test" }, secrets: { token: "sealed-token" } } });
   assert.deepEqual(await first.providerConfig!.readSettings({ pluginId: PLUGIN_ID }), { settings: { endpoint: "https://collector.example.test" }, secretNames: ["token"] });
