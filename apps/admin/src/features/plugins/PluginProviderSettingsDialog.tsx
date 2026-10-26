@@ -20,6 +20,11 @@ export interface PluginProviderSettingsDialogProps {
   readonly useSettings?: typeof useWiredPluginProviderSettings;
 }
 
+/** Field names are manifest keys (`apiKey`); agent handles allow only lowercase words joined by hyphens. */
+function handleWords(name: string): string {
+  return name.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
 /** One declared field: a password input for a secret (never showing a saved value), text otherwise. */
 function ProviderSettingInput({ field, id, value, onChange, handle, pluginName, t }: {
   field: AdminPluginProviderSettingField; id: string; value: string; onChange: (value: string) => void; handle: string; pluginName: string; t: (key: string) => string;
@@ -54,7 +59,7 @@ export function PluginProviderSettingsDialog({ plugin, agentHandleBase, onClose,
         <form onSubmit={(event) => { event.preventDefault(); void save(); }}>
           {(card?.fields ?? []).map((field) => (
             <ProviderSettingInput key={field.name} field={field} id={`${fieldId}-${field.name}`} value={values[field.name] ?? ""}
-              onChange={(value) => setValue(field.name, value)} handle={`${agentHandleBase}-setting-${field.name}`} pluginName={plugin.name} t={t} />
+              onChange={(value) => setValue(field.name, value)} handle={`${agentHandleBase}-setting-${handleWords(field.name)}`} pluginName={plugin.name} t={t} />
           ))}
           <span className="editor-actions">
             <button type="button" className="btn-secondary" onClick={onClose}

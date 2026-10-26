@@ -63,6 +63,18 @@ describe("PluginProviderSettingsDialog", () => {
     await waitFor(() => expect(screen.queryByText(UNREADABLE_NOTICE)).toBeNull());
   });
 
+  it("a camelCase field name still gets a valid agent handle (lowercase words joined by hyphens)", async () => {
+    const posthog = card({ pluginId: "analytics-posthog", fields: [
+      { name: "host", label: "PostHog host", secret: false, required: true, saved: false },
+      { name: "apiKey", label: "Project API key", secret: true, required: true, saved: false },
+    ] });
+    const port = createFakePluginsPort({ providerSettings: { "analytics-posthog": posthog } });
+    const useSettings = (pluginId: string) => usePluginProviderSettings({ pluginId, port, t });
+    render(<PluginProviderSettingsDialog plugin={{ id: "analytics-posthog", name: "PostHog" }} agentHandleBase="plugins-row-analytics-posthog" onClose={() => {}} useSettings={useSettings} />);
+    const apiKey = await screen.findByLabelText(/Project API key/);
+    expect(apiKey.getAttribute("data-agent-element")).toBe("plugins-row-analytics-posthog-setting-api-key");
+  });
+
   it("no notice when nothing was saved the retired way", async () => {
     dialogWith(createFakePluginsPort({ providerSettings: { "observability-opentelemetry": card() } }));
     await screen.findByLabelText(/OTLP endpoint/);
