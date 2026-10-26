@@ -855,6 +855,11 @@ export interface SettingsDeps {
   consentStore?: import('#src/features/consent/revisions').SiteConsentStore;
   siteConsent?: import('#src/features/consent/service').SiteConsentService;
   consentTrustedRegionHeader?: string;
+  /** THE consent-engine switch (TOVU_CONSENT_ENGINE=cookie-consent): present = `@jini-ai/cookie-consent`
+   * serves public pages, absent = the old cms engine. TODO(P4): delete the old engine and this switch. */
+  cookieConsent?: import('#src/server/inbound/public-http/middleware/site-cookie-consent').SiteCookieConsentDeps;
+  /** Cookie-consent adapters of the analytics plugins attached to this site (none when no plugin is). */
+  consentAdapters?: (required: { base: string }) => readonly import('#src/server/inbound/public-http/middleware/site-cookie-consent').ConsentPluginContribution[];
   /** `POST /hooks/mail/:providerId` (provider bounce/complaint webhooks); omitted by hermetic callers. */
   mailFeedbackRoute?: import('#src/features/mail/index').MailFeedbackRoute;
   /**

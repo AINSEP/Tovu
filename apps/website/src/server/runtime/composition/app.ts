@@ -283,6 +283,7 @@ import { applySiteServingGate } from "../../inbound/public-http/middleware/site-
 import { applyPublicPageSecurityHeaders } from "../../inbound/public-http/middleware/public-page-security-headers.js";
 import { applyPublishedWebMcp } from '../../inbound/public-http/middleware/published-webmcp.js';
 import { applySiteConsent } from '../../inbound/public-http/middleware/site-consent.js';
+import { applySiteCookieConsent } from '../../inbound/public-http/middleware/site-cookie-consent.js';
 import { applyAdminBrowserAnalytics } from './browser-analytics.js';
 import { applyBrowserAnalyticsHttp } from './browser-analytics-http.js';
 import { applyCanonicalSiteHostRedirect } from '../../inbound/public-http/middleware/canonical-site-host.js';
@@ -1948,7 +1949,11 @@ function applyPublicMiddleware(
   // Visitor cookie consent (`site-consent.ts`): after WebMCP so its injected script is gated too,
   // before every public renderer. The region header is trusted only when the operator names it,
   // and only behind an edge that strips visitor-supplied copies.
-  if (!options.consentAudit) applySiteConsent({ app, deps: routeDeps }, { trustedRegionHeader: routeDeps.consentTrustedRegionHeader });
+  // THE consent-engine switch (`deps.cookieConsent`, see composition/site-cookie-consent.ts). The audit
+  // app renders the bare page, which the admin preview then shows with the banner. TODO(P4): drop the else.
+  if (options.consentAudit) { /* no consent on the audit render */ }
+  else if (routeDeps.cookieConsent) applySiteCookieConsent({ app, deps: routeDeps, consent: routeDeps.cookieConsent });
+  else applySiteConsent({ app, deps: routeDeps }, { trustedRegionHeader: routeDeps.consentTrustedRegionHeader });
 
   applyBrowserAnalyticsHttp({ app, deps: routeDeps });
 

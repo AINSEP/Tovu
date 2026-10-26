@@ -10,6 +10,7 @@ import type { AnalyticsIngestRouteDeps } from "#src/features/analytics/jini-adap
 import type { HttpClientPort } from "#src/platform/http/ports";
 import type { RouteDeps } from "#src/server/routes/types";
 import { createSiteConsentPorts } from "../../inbound/public-http/middleware/site-consent.js";
+import { readSiteVisitorConsent } from "../../inbound/public-http/middleware/site-cookie-consent.js";
 
 /**
  * @file Composition glue for analytics vendor forwarding (`.cloud-coord/analytics-DESIGN.md`):
@@ -78,8 +79,9 @@ export function analyticsProviderRouteDeps(
       workspaceId: routeDeps.workspaceId,
       config: routeDeps.analyticsConfig,
       loadProviders: providers.load,
-      consentAllowsAnalytics: async ({ request }) =>
-        Boolean(await readRequestAnalyticsProof({ ports: consentPorts, request: request as Request })),
+      consentAllowsAnalytics: async ({ request }) => routeDeps.cookieConsent
+        ? (await readSiteVisitorConsent({ deps: routeDeps, req: request as Request })).allowed.analytics
+        : Boolean(await readRequestAnalyticsProof({ ports: consentPorts, request: request as Request })),
       resolveCredential: providers.resolveCredential,
       httpClient: providers.httpClient,
     }),
