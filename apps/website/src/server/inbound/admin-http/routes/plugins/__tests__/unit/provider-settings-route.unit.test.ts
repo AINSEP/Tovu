@@ -143,7 +143,7 @@ test("refusals: other workspace 404, plugin without declared settings 404, no se
 
 test("a project store that could not open this run: a save is refused 503 with the cause, never a bare internal error", async (t) => {
   const { call } = await serve(t, { providerConfig: withUnavailableProject({ site: memoryConfig(), reason: "EACCES: permission denied" }) });
-  const response = await call("PUT", `${WS}/plugins/obs/provider-settings`, { values: {} });
+  const response = await call("PUT", `${WS}/plugins/obs/provider-settings`, { values: { endpoint: "https://otlp.example.test" } });
   assert.equal(response.status, 503);
   assert.deepEqual(response.json, { code: "PROVIDER_SETTINGS_UNAVAILABLE", error: "Project settings can't be saved right now: EACCES: permission denied" });
 });
@@ -165,6 +165,23 @@ test("the retired-key check failing never breaks the card", async (t) => {
   const { status, json } = await call("GET", `${WS}/plugins/obs/provider-settings`);
   assert.equal(status, 200);
   assert.equal("legacyCredential" in json, false);
+});
+
+test("the route carries requiredUnless to the card and enforces token or explicit local auth on save", async (t) => {
+  const fields = [
+    { name: "auth", label: "Authentication", required: true, default: "token", options: [{ value: "token", label: "Token" }, { value: "none", label: "No authentication (local collector, advanced)" }] },
+    { name: "token", label: "Token", secret: true, required: true, requiredUnless: { field: "auth", equals: "none" }, hint: 'Choose "No authentication" only for a local collector.' },
+  ];
+  const { call, config } = await serve(t, { discoverPlugins: async () => [{ ...RECORDS[0]!, manifest: { ...MANIFEST, contributes: { providers: [{ contract: "observability", id: "opentelemetry", contractVersion: 1, settings: fields }] } } } as unknown as PluginDiscoveryRecord] });
+  const read = await call("GET", `${WS}/plugins/obs/provider-settings`);
+  assert.equal(read.status, 200);
+  assert.deepEqual((read.json.fields as Record<string, unknown>[])[1]!.requiredUnless, { field: "auth", equals: "none" });
+  const refused = await call("PUT", `${WS}/plugins/obs/provider-settings`, { values: {} });
+  assert.equal(refused.status, 400);
+  assert.deepEqual(refused.json, { code: "PROVIDER_SETTINGS_REQUIRED", error: 'Token is required. Choose "No authentication" only for a local collector.' });
+  assert.equal(config.saved.size, 0);
+  assert.equal((await call("PUT", `${WS}/plugins/obs/provider-settings`, { values: { auth: "none", token: "" } })).status, 200);
+  assert.deepEqual(config.saved.get("obs"), { settings: { auth: "none" }, secrets: {} });
 });
 
 test("saved settings this machine can't open (lost or re-minted store key): the card reads as not configured with a notice, and a save overwrites them", async (t) => {

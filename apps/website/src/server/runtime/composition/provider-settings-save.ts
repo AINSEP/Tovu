@@ -1,4 +1,4 @@
-import type { PluginProviderSettingField } from "@jini-ai/plugins/host";
+import { isProviderSettingRequired, type PluginProviderSettingField } from "@jini-ai/plugins/host";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 
 import { ProviderConfigUnreadableError, ProviderStoreUnavailableError, type ProviderConfigSource } from "./provider-config-source.js";
@@ -70,17 +70,28 @@ export async function currentProviderConfig({ config, pluginId }: { config: Prov
   });
 }
 
+/** Refuse the first missing requirement using effective defaults and kept secrets; no values escape.
+ * @complexity O(f) time and space in declared fields. */
+function requiredSettingsRefusal({ fields, config }: { fields: readonly PluginProviderSettingField[]; config: SavedConfig }, _optional = {}): ProviderSettingsRefusal | undefined {
+  const values = Object.fromEntries(fields.map((field) => [field.name, (field.secret ? config.secrets[field.name] : config.settings[field.name])?.trim() || field.default || ""]));
+  const missing = fields.find((field) => isProviderSettingRequired({ field, values }) && !values[field.name]);
+  if (!missing) return undefined;
+  return { code: "PROVIDER_SETTINGS_REQUIRED", error: `${missing.label} is required.${missing.hint ? ` ${missing.hint}` : ""}` };
+}
+
 /**
  * Validates and writes one save through `config`. Returns the refusal instead of writing when the
- * values are malformed or a kept secret would follow a changed public field, and as a refusal when the
+ * values are malformed, a required field is missing or a kept secret would follow a changed public field, and as a refusal when the
  * project store could not open this run (`ProviderStoreUnavailableError`), so both cards show why.
  * @complexity O(f) plus one read and one write of the config row.
  */
 export async function saveProviderSettings({ config, pluginId, fields, values }: {
   config: ProviderConfigSource; pluginId: string; fields: readonly PluginProviderSettingField[]; values: unknown;
-}): Promise<{ saved: true } | { refusal: ProviderSettingsRefusal }> {
+}, _optional = {}): Promise<{ saved: true } | { refusal: ProviderSettingsRefusal }> {
   const next = nextProviderConfig({ values, fields, current: await currentProviderConfig({ config, pluginId }) });
   if ("refusal" in next) return next;
+  const refusal = requiredSettingsRefusal({ fields, config: next.config });
+  if (refusal) return { refusal };
   try {
     await config.write({ pluginId, config: next.config });
   } catch (error) {
@@ -105,12 +116,12 @@ export interface ProviderSettingsStatus {
  * (`providerInputOf`, the boot rule). Reads names and presence only; no secret value is returned.
  * @complexity O(f) plus one config read.
  */
-export async function providerSettingsStatus({ config, pluginId, fields }: { config: ProviderConfigSource; pluginId: string; fields: readonly PluginProviderSettingField[] }): Promise<ProviderSettingsStatus> {
+export async function providerSettingsStatus({ config, pluginId, fields }: { config: ProviderConfigSource; pluginId: string; fields: readonly PluginProviderSettingField[] }, _optional = {}): Promise<ProviderSettingsStatus> {
   const view = await config.readSettings({ pluginId });
   const saved = view && !view.unreadable ? { settings: view.settings, secrets: Object.fromEntries(view.secretNames.map((name) => [name, "saved"])) } : null;
   // Nothing saved still counts declared defaults, so `missing` names only what the person must enter.
   const input = providerInputOf({ declaration: { contract: "", id: pluginId, contractVersion: 1, settings: fields.map((field) => ({ ...field, required: false })) }, saved: saved ?? { settings: {}, secrets: {} } }) ?? {};
-  const missing = fields.filter((field) => field.required && !input[field.name]).map((field) => field.label);
+  const missing = fields.filter((field) => isProviderSettingRequired({ field, values: input }) && !input[field.name]).map((field) => field.label);
   return { configured: missing.length === 0 && saved !== null, store: config.scope, appliesAt: "next-start", missing, ...(view?.unreadable ? { unreadable: true as const } : {}) };
 }
 
