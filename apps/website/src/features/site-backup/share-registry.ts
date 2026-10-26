@@ -57,10 +57,15 @@ export class SiteShareRegistry {
   }
   async put(required: { record: SiteShareRecord }, _optional: Record<string, never> = {}): Promise<void> {
     await this.reserveToken(required.record);
+    await this.writeRecord(required.record);
+  }
+  /** Atomic metadata write with no token-shape check, so `disable` can still tombstone a row minted
+   * before the 16-letter switch (its token was reserved when it was created). */
+  private async writeRecord(record: SiteShareRecord): Promise<void> {
     const temp = path.join(this.directory, `.${randomUUID()}.tmp`);
     try {
-      await writeFile(temp, JSON.stringify(required.record), { flag: "wx", mode: 0o600 });
-      await rename(temp, this.meta(required.record.shareId));
+      await writeFile(temp, JSON.stringify(record), { flag: "wx", mode: 0o600 });
+      await rename(temp, this.meta(record.shareId));
     } finally { await unlink(temp).catch(error => { if (error.code !== "ENOENT") throw error; }); }
   }
   async get(required: { shareId: string; site?: string }, _optional: Record<string, never> = {}): Promise<SiteShareRecord | null> {
@@ -101,7 +106,7 @@ export class SiteShareRegistry {
     try { await writeFile(path.join(this.directory, `${row.shareId}.revoked`), revokedAt, { flag: "wx", mode: 0o600 }); }
     catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
     const revoked = { ...row, status: "revoked" as const, revokedAt };
-    await this.put({ record: revoked });
+    await this.writeRecord(revoked);
     return revoked;
   }
   async writeArtifact(required: { shareId: string; bytes: Buffer }, _optional: Record<string, never> = {}): Promise<void> {

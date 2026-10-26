@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { request } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -8,7 +8,7 @@ import test from "node:test";
 import express from "express";
 
 import { SiteShareRegistry, newShareIdentity, type SiteShareRecord } from "#src/features/site-backup/share-registry";
-import { receiveSiteShareArtifact } from "#src/features/site-backup/share-service";
+import { receiveSiteShareArtifact, revokeSiteShare } from "#src/features/site-backup/share-service";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerPublicShareRoutes } from "../site-share.js";
 
@@ -121,4 +121,20 @@ test("a real registry serves a minted 16-letter link and 404s a 64-hex link even
   const legacy = await fetch(`${base}/_share/${old}/main.tovu.zip`);
   assert.equal(legacy.status, 404);
   assert.equal(legacy.headers.get("cache-control"), "no-store");
+});
+
+test("an old 64-hex share still revokes cleanly and deletes its ZIP, and its link stays a 404", async (t) => {
+  // Owner 2026-10-25: no 64-hex SERVING, but rows minted before the switch must still be cleanable.
+  const dir = shareDir(t);
+  const registry = new SiteShareRegistry({ directory: dir });
+  const old = "0f".repeat(32);
+  writeFileSync(path.join(dir, `${old}.token`), SHARE_ID);
+  writeFileSync(path.join(dir, `${SHARE_ID}.json`), JSON.stringify(record({ token: old })));
+  writeFileSync(path.join(dir, `${SHARE_ID}.tovu.zip`), "zip");
+  const revoked = await revokeSiteShare({ registry, site: "main", shareId: SHARE_ID });
+  assert.equal(revoked.status, "revoked");
+  assert.equal((await registry.get({ shareId: SHARE_ID }))?.status, "revoked");
+  assert.equal(existsSync(path.join(dir, `${SHARE_ID}.tovu.zip`)), false);
+  const base = await serve(t, registry);
+  assert.equal((await fetch(`${base}/_share/${old}/main.tovu.zip`)).status, 404);
 });
