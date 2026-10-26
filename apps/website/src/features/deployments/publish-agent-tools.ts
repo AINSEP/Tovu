@@ -2,6 +2,7 @@ import type { LoadInstalledDeployTargets, InstalledDeployTarget } from "./deploy
 import { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-repo.js";
 export { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-repo.js";
 import { applyPluginCredentialCard, findPluginCredentialCard, type LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
+import { siteOnlyScope, withSiteOnlyField } from "../custom-credentials/site-only-field.js";
 import { deploymentRefusal, type SiteConsentService } from '#src/features/consent/service';
 import { toolMetadata } from '../../contracts/core/tool-metadata/deployments.js';
 import { inspectStaticPublish } from './static-publish/inspection.js';
@@ -807,6 +808,8 @@ async function saveProposedCredential(required: {
   values: Readonly<Record<string, unknown>>; signal: AbortSignal;
 }, _optional = {}): Promise<{ credentialId: string; tokenHint: CredentialTokenHint | null }> {
   const { deps, targetId, credential, values, signal } = required;
+  // "Only for this site" (shown on a new connection only): else the project store when one is attached.
+  const scope = siteOnlyScope({ values });
   const connection: Record<string, unknown> = { providerId: targetId };
   for (const field of credential.fields) {
     if (typeof values[field.name] === "string") connection[field.name] = values[field.name];
@@ -828,7 +831,7 @@ async function saveProposedCredential(required: {
   signal.throwIfAborted();
   const stored = existing
     ? await updatePublishCredential(writeDeps, { workspaceId: deps.workspaceId, id: existing.id, connection })
-    : await createPublishCredential(writeDeps, { workspaceId: deps.workspaceId, label: CUSTOM_PROVIDER_CREDENTIAL_ROW_LABEL, connection });
+    : await createPublishCredential(writeDeps, { workspaceId: deps.workspaceId, label: CUSTOM_PROVIDER_CREDENTIAL_ROW_LABEL, connection, ...(scope ? { scope } : {}) });
   return { credentialId: stored.id, tokenHint: stored.tokenHint ?? null };
 }
 
@@ -951,7 +954,10 @@ export function buildPublishHostCredentialHandler({ deps, surfaces }: { deps: St
       }>({
         toolId: CREDENTIAL_SAVE_TOOL_ID,
         prepare: async () => ({ descriptor, credential, prefill, updating, locale }),
-        form: ({ prep }) => applyPluginCredentialCard({ card: pluginCard, form: buildProposeCredentialForm(prep) }),
+        // Project-first (owner 2026-10-25): a new connection may opt out, for this site only; an update
+        // changes the saved row where it lives.
+        form: ({ prep }) => withSiteOnlyField({ form: applyPluginCredentialCard({ card: pluginCard, form: buildProposeCredentialForm(prep) }),
+          shared: !prep.updating && Boolean(deps.vendorCredentialSetRepo.project) }),
         save: ({ values, prep, signal }) => saveProposeCredential({ deps, targetId: prep.descriptor.id, credential: prep.credential, values, signal, locale: prep.locale }),
         result: ({ prep, run }) => {
           if (run.status === 'saved') return run.saved;

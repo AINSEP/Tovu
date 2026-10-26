@@ -18,6 +18,10 @@ import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore
 // Seeds vendor rows the way another feature (the vendor store) writes them.
 import { createPublishCredential, resolveForPublish } from "../publish-credentials/store.js";
 import { InMemoryVendorCredentialSetRepo } from "../publish-credentials/repo.memory.js";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { VendorCredentialSetVaultRepo } from "#src/features/vendor-credentials/vault-adapter";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { createCustomCredential } from "#src/features/custom-credentials/store";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
 
@@ -1300,6 +1304,34 @@ test("propose-credential works for any host with a credential spec: a netlify fo
   const rows = (await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId })).filter((r) => r.vendorId === "netlify");
   assert.equal(rows.length, 1);
   assert.equal(rows[0]!.tokenTail, "9876");
+});
+
+test("propose-credential with a project store: a new connection saves for every site unless 'Only for this site' is ticked", async () => {
+  const { deps } = fakeDeps();
+  const projectKeyring = new InMemoryKeyring();
+  const project = { workspaceId: "project", repo: new InMemoryVendorCredentialSetRepo({}), sealer: new AesGcmSecretSealer(projectKeyring), keyring: projectKeyring };
+  const repo = new VendorCredentialSetVaultRepo({ vault: new InMemoryVaultRepo({}), kind: "vendor", vendor: true }, { project });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const proposeTool = tool(buildRegistrations({ ...deps, vendorCredentialSetRepo: repo }, surfaceExchanges), "credential_save");
+  const token = `nfp_${"s".repeat(12)}9876`;
+
+  const shared = await raiseCredentialForm(proposeTool, { target: "netlify" });
+  assert.match(shared.html, /id="mcpui-field-onlyThisSite"/);
+  surfaceExchanges.deliver({ exchangeId: shared.exchangeId, principalId: PRINCIPAL_ID, params: { token } }, { toolId: "credential_save" });
+  assert.equal((await shared.pending as { saved: boolean }).saved, true);
+  assert.equal((await project.repo.listByWorkspace({ workspaceId: "project" })).length, 1);
+  assert.equal((await repo.listByWorkspace({ workspaceId: deps.workspaceId })).length, 0);
+
+  const own = await raiseCredentialForm(proposeTool, { target: "vercel" });
+  surfaceExchanges.deliver({ exchangeId: own.exchangeId, principalId: PRINCIPAL_ID, params: { token, onlyThisSite: true } }, { toolId: "credential_save" });
+  assert.equal((await own.pending as { saved: boolean }).saved, true);
+  assert.deepEqual((await repo.listByWorkspace({ workspaceId: deps.workspaceId })).map(row => row.vendorId), ["vercel"]);
+
+  // An update changes the saved row where it lives: no box.
+  const update = await raiseCredentialForm(proposeTool, { target: "netlify" });
+  assert.doesNotMatch(update.html, /onlyThisSite/);
+  surfaceExchanges.deliver({ exchangeId: update.exchangeId, principalId: PRINCIPAL_ID, params: { token: "" } }, { toolId: "credential_save" });
+  await update.pending;
 });
 
 test("with no emitSurface, the credential form is refused outright — no exchange is ever opened, nothing saved", async () => {
