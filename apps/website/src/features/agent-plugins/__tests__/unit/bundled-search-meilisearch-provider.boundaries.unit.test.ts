@@ -108,9 +108,11 @@ test("timeout wording: 'timeout', 'time out' and 'timed out' are all timeouts; o
   }
 });
 
-test("HTTP 300 is outside 2xx: unexpected_response, not a success", async () => {
-  const error = errorOf(await awaitTask.call(provider, ctxWith(scripted(json(300, { uid: 1, status: "succeeded" }))), { taskId: "1" }));
-  assert.deepEqual([error.status, error.code, error.message], ["unknown", "unexpected_response", "Meilisearch answered HTTP 300"]);
+test("HTTP 199 and 300 are outside 2xx: unexpected_response, not a success", async () => {
+  for (const status of [199, 300]) {
+    const error = errorOf(await awaitTask.call(provider, ctxWith(scripted(json(status, { uid: 1, status: "succeeded" }))), { taskId: "1" }));
+    assert.deepEqual([error.status, error.code, error.message], ["unknown", "unexpected_response", `Meilisearch answered HTTP ${status}`]);
+  }
 });
 
 test("a 2xx body that is not JSON is unexpected_response naming that, on every read path", async () => {
