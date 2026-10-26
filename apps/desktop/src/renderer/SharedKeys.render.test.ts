@@ -45,7 +45,7 @@ test('new vendor save is unattached, clears its password input and never renders
   const secret = ['fixture', 'private', String(123)].join('-'); field('token').value = secret;
   act(() => { form.dispatchEvent(new dom.Event('submit', { bubbles: true, cancelable: true })); });
   assert.equal(field('token').value, ''); await settle();
-  assert.deepEqual(saved, { entry: { kind: 'vendor', label: 'Deployment key', provider: 'hosting', expectedRevision: null,
+  assert.deepEqual(saved, { store: 'project', entry: { kind: 'vendor', label: 'Deployment key', provider: 'hosting', expectedRevision: null,
     meta: { credentialType: 'vendor', worksFor: ['hosting'] }, payload: { vendorId: 'hosting', token: secret } } });
   assert.equal(host.innerHTML.includes(secret), false);
   assert.ok(host.textContent!.includes('Saved — site usage unavailable'));

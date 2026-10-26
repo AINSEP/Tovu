@@ -27,7 +27,7 @@ export interface OwnerStorePutEntry {
 
 /** CLI fields exclude userDataDir: main supplies Electron's resolved profile on every call. */
 export interface OwnerStoreCliFields {
-  status: {}; list: {}; put: { entry: OwnerStorePutEntry };
+  status: {}; list: { store?: 'project' }; put: { entry: OwnerStorePutEntry; store?: 'project' };
   delete: { entryId: string; expectedRevision: number };
   grant: { entryId: string; consumerId: string }; revoke: { entryId: string }; sync: {};
   export: { filePath: string; passphrase: string }; restore: { filePath: string; passphrase: string };
@@ -49,7 +49,7 @@ export type OwnerStoreReply<A extends OwnerStoreAction = OwnerStoreAction> =
 
 /** Renderer selects tracked IDs and supplies secrets; main alone chooses filesystem paths. */
 export interface OwnerStoreInput {
-  status: {}; list: {}; put: OwnerStoreCliFields['put']; delete: OwnerStoreCliFields['delete'];
+  status: {}; list: OwnerStoreCliFields['list']; put: OwnerStoreCliFields['put']; delete: OwnerStoreCliFields['delete'];
   grant: { entryId: string; siteId: string }; revoke: { entryId: string; siteId: string };
   sync: { siteId: string }; export: { passphrase: string }; restore: { passphrase: string };
 }

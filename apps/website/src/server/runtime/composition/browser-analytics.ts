@@ -11,6 +11,12 @@ import type { RouteDeps } from '#src/server/routes/types';
  * consent. Read per response so a later admin page observes a changed owner setting. O(HTML bytes).
  */
 export function applyAdminBrowserAnalytics({ app, deps }: { app: Express; deps: RouteDeps }, _optional = {}): void {
+  // Public metadata only: never send the contribution's source, key or endpoint here.
+  app.get('/_jini/browser-analytics', (req, res) => {
+    const surface = req.query.surface === 'admin' ? 'admin' : 'site';
+    res.setHeader('Cache-Control', 'no-store');
+    res.json((deps.browserAnalytics?.({ surface }) ?? []).flatMap(item => item.configuration ? [item.configuration.revision] : []));
+  });
   app.use(['/admin', '/admin/*'], (_req, res, next) => {
     if (!deps.browserAnalytics) { next(); return; }
     captureConsentHtml({ response: res, transform: async ({ body }) => {

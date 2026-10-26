@@ -19,6 +19,8 @@ import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
 import { childProcessCoverageEnv } from "#src/contracts/core/__tests__/helpers/child-process-coverage-env";
 import { runOwnerStoreCommand, type OwnerStoreAction, type OwnerStoreEntry } from "../../commands/owner-store.js";
+import { openProjectStore } from '#src/server/runtime/composition/project-store';
+import { createProjectKeys } from '#src/features/project-keys/service';
 
 /** S2 boundary integration: real migrated vault tables and different site keys. Tests are
  * deliberately scoped to the CLI adapter; Jini owns crypto, transaction and migration tests.
@@ -77,6 +79,34 @@ const entry = ({ value, id, expectedRevision = null }: { value: string; id?: str
 });
 const scope = ({ site, id }: { site: { id: string }; id: string }) => ({ workspaceId: site.id, id,
   kind: "vendor" as const, ownerKey: "tovu", principalId: null, binding: null });
+
+test('desktop project saves and inventory share project_keys_list without opening owner.db or attaching', async () => {
+  const f = await fixture();
+  const value = ['fixture', 'project', String(314)].join('-');
+  try {
+    const saved = await f.invoke({ action: 'put', request: { store: 'project', entry: entry({ value }) } });
+    assert.equal(saved.ok, true);
+    if (!saved.ok) return;
+    const metadata = saved.data.entry as OwnerStoreEntry;
+    const listed = await f.invoke({ action: 'list', request: { store: 'project' } });
+    assert.deepEqual(listed, { version: 1, ok: true, action: 'list', data: { entries: [metadata], grants: [] } });
+    assert.equal(fs.existsSync(path.join(f.userDataDir, 'owner.db')), false);
+    assert.equal(fs.existsSync(path.join(f.userDataDir, 'owner.key')), false);
+    const workspace = createSitesWorkspace({}, { homeDir: f.home, cwd: f.home, env: {}, sourceRoots: [], appDataDir: f.userDataDir });
+    const project = await openProjectStore({ sitesHome: workspace.home({}), home: f.home });
+    try {
+      const keys = createProjectKeys({ vault: project.vault.repo, attachments: project.attachments, transaction: project.transaction,
+        siteId: 'first', siteName: 'First', reapply: async () => 'now' });
+      assert.deepEqual(await keys.list({}), [{ keyId: metadata.id, name: 'Deployment key', kind: 'vendor', usedByThisSite: false, usedBy: [] }]);
+      assert.deepEqual(await project.attachments.usersOf({ keyId: metadata.id }), []);
+      await keys.use({ keyId: metadata.id, use: true });
+      const replacement = await f.invoke({ action: 'put', request: { store: 'project', entry: entry({ value: `${value}-replacement`, id: metadata.id, expectedRevision: metadata.revision }) } });
+      assert.equal(replacement.ok, true);
+      assert.deepEqual(await project.attachments.usersOf({ keyId: metadata.id }), [{ siteId: 'first', siteName: 'First' }]);
+    } finally { project.close({}); }
+    assert.equal(f.output.join('').includes(value), false);
+  } finally { await f.close(); }
+});
 
 test("two sites receive a vendor key, replacement overwrites copies, revoke removes only the chosen copy", async () => {
   const f = await fixture();

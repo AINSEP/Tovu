@@ -32,6 +32,14 @@ function fixture(current: ProviderPluginConfig | null = null) {
   return { config, saved: () => saved, writes: () => writes };
 }
 
+test('a rejected adapter configuration produces fixed plain card feedback without submitted values', async () => {
+  const f = fixture();
+  const token = ['private', 'fixture', String(456)].join('-');
+  const result = await saveProviderSettings({ config: f.config, pluginId, fields, values: { endpoint, token }, reapply: async () => 'restart' });
+  assert.deepEqual(result, { refusal: { code: 'PROVIDER_SETTINGS_NOT_APPLIED', error: 'Settings were saved but could not be applied live. Check the key type and host URL, then restart if required.' } });
+  assert.equal(JSON.stringify(result).includes(token), false);
+});
+
 test("save refuses absent, blank and whitespace tokens unless the explicit local mode is selected", async () => {
   for (const values of [{ endpoint }, { endpoint, token: "" }, { endpoint, auth: "token", token: "  " }, { endpoint, auth: "unknown" }]) {
     const f = fixture();

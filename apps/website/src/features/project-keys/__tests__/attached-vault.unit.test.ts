@@ -6,6 +6,22 @@ import { protectProjectKeyDeletes } from "../protected-vault.js";
 import { fakeAttachments, vaultRow } from "./helpers.js";
 
 const query = { workspaceId: "project", kind: "vendor" as const, ownerKey: "tovu", principalId: null, provider: "host" };
+test("attached inventory includes nondefaults while the vault default remains the stored default", async () => {
+  const vault = new InMemoryVaultRepo({}); const attachments = fakeAttachments();
+  await vault.put({ record: vaultRow(), expectedRevision: null });
+  await vault.put({ record: { ...vaultRow({ id: "key-b" }), label: "B", isDefault: false }, expectedRevision: null });
+  await attachments.attach({ siteId: "site-a", siteName: "A", keyId: "key-b" });
+  const view = attachedOnlyVault({ vault, attachments, siteId: "site-a" });
+  assert.deepEqual((await view.list(query)).map(row => row.id), ['key-b']);
+  assert.equal(await view.findDefault!(query), null);
+  assert.equal((await vault.findDefault(query))?.id, "key-a", "selection never mutates project defaults");
+  await vault.put({ record: { ...vaultRow({ id: "key-c" }), label: "C", isDefault: false }, expectedRevision: null });
+  await attachments.attach({ siteId: "site-a", siteName: "A", keyId: "key-c" });
+  assert.deepEqual((await view.list(query)).map(row => row.id), ['key-b', 'key-c']);
+  assert.equal(await view.findDefault!(query), null);
+  await attachments.attach({ siteId: "site-a", siteName: "A", keyId: "key-a" });
+  assert.equal((await view.findDefault!(query))?.id, "key-a");
+});
 test("unattached writes stay hidden; attachment, isolation and detach apply to every read immediately", async () => {
   const vault = new InMemoryVaultRepo({});
   const attachments = fakeAttachments();

@@ -51,7 +51,7 @@ export function useSharedKeys({ bridge = ownerStoreBridge({}) }: { bridge?: Owne
   /** Metadata refresh errors withdraw the inventory so stale revisions cannot be replaced. */
   const read = useCallback(async () => {
     if (!bridge) return;
-    const reply = await bridge.list({}, {});
+    const reply = await bridge.list({ store: 'project' }, {});
     if (!mounted.current) return;
     if (!reply.ok) {
       setEntries([]); setLoaded(false); setError(failureText({ code: reply.error.code })); return;

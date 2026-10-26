@@ -83,7 +83,7 @@ function KeyForm({ bridge, state, entry }: { bridge: OwnerStoreBridge; state: St
     const form = event.currentTarget;
     const fields = new FormData(form);
     const provider = String(fields.get('provider')).trim();
-    const input = { entry: {
+    const input = { store: 'project' as const, entry: {
       ...(entry ? { id: entry.id } : {}), kind: 'vendor' as const,
       label: String(fields.get('label')).trim(), provider,
       expectedRevision: entry?.revision ?? null,
@@ -96,7 +96,7 @@ function KeyForm({ bridge, state, entry }: { bridge: OwnerStoreBridge; state: St
   return <form className="shared-keys__form" onSubmit={submit}>
     <h3>{entry ? 'Replace saved key' : 'Save a key'}</h3>
     <p>For credentials with one API key or token.</p>
-    {entry && <p>Replacing writes a single-token credential and resets other credential fields. It also updates any existing site copies.</p>}
+    {entry && <p>Replacing writes a single-token credential and resets other credential fields. Sites using this project key use the replacement.</p>}
     <fieldset disabled={state.busy || !state.loaded}>
       <label className="create-field"><span>Key name</span>
         <input name="label" required maxLength={200} defaultValue={entry?.label} readOnly={!!entry} />
@@ -126,8 +126,8 @@ function BackupForm({ action, bridge, state }: { action: 'export' | 'restore'; b
     void state.run({ action: () => bridge[action]({ passphrase }, {}) });
   };
   return <form className="shared-keys__form" onSubmit={submit}>
-    <h3>{restore ? 'Restore encrypted backup' : 'Export encrypted backup'}</h3>
-    <p>{restore ? 'Restore requires an empty owner store.' : 'Keep the passphrase safe. This backup is separate from site backups.'}</p>
+    <h3>{restore ? 'Restore legacy owner backup' : 'Export legacy owner backup'}</h3>
+    <p>{restore ? 'Restore requires an empty owner store. It does not restore project keys.' : 'Keep the passphrase safe. This legacy backup does not include project keys or site backups.'}</p>
     <fieldset disabled={state.busy || !state.loaded || blocked}>
       <label className="create-field"><span>Backup passphrase</span>
         <input name="passphrase" type="password" required maxLength={8000} autoComplete="off" spellCheck={false} />

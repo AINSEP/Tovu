@@ -1,4 +1,5 @@
 import { createTracker, createTrackerWarning, createTelemetryTestProbe } from "@jini-ai/diagnostics/observability/node";
+import { createHash } from 'node:crypto';
 import { createTelemetryDeliveryMonitor, describeTelemetryFailure, type Tracker, type ProviderTelemetryReport, type TelemetryTestResult } from "@jini-ai/diagnostics/observability";
 import { combineObservabilityPorts, createNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 import { createAiGenerationSink, createNoopProductAnalytics, fanOutProductAnalytics, withProductAnalyticsGuards, type ProductAnalyticsConsent, type ProductAnalyticsConsentRevision, type ProductAnalyticsPort, type BrowserAnalyticsContribution } from "@jini-ai/analytics/product";
@@ -153,6 +154,20 @@ function unchangedSlot({ slot, signature }: { slot: ProviderSlot; signature: str
   if (signature !== slot.input) return false;
   return signature === undefined || slot.lease?.isCurrent({}) === true;
 }
+
+/** Legacy browser contributors cannot promise retirement of downloaded SDKs on a live change. */
+function browserNeedsRestart({ slot, saved }: { slot: ProviderSlot; saved: ProviderPluginConfig | null }, _optional = {}): boolean {
+  if (slot.contract !== 'product_analytics' || !slot.lease) return false;
+  const input = providerInputOf({ declaration: slot.declaration, saved });
+  if (unchangedSlot({ slot, signature: input === undefined ? undefined : JSON.stringify(input) })) return false;
+  const port = slot.lease.port as ProductAnalyticsPort;
+  try {
+    return (['site', 'admin'] as const).some(surface => {
+      const browser = port.browserAnalytics?.({ surface });
+      return browser !== undefined && browser.supportsLiveConsent !== true;
+    });
+  } catch { return true; }
+}
 const KNOWN_CONTRACTS = new Set<string>(["observability", "product_analytics", "ai_trace"]);
 
 /** Each contract's inert behavior, used once a lease is retired. */
@@ -211,10 +226,17 @@ function composePorts({ leases, consent, consentRevision, site, warn }: { warn: 
   const observability = combineObservabilityPorts({ ports: (leases.get("observability") ?? []) as ObservabilityPort[] }, { onFailure: failed });
   return {
     observability,
-    browserAnalytics: (required: { surface: 'site' | 'admin' }): readonly BrowserAnalyticsContribution[] => analytics.flatMap(port => {
-      try { const contribution = port.browserAnalytics?.(required); return contribution ? [contribution] : []; }
-      catch { failed(); return []; }
-    }),
+    browserAnalytics: (required: { surface: 'site' | 'admin' }): readonly BrowserAnalyticsContribution[] => {
+      const contributions = analytics.flatMap(port => {
+        try { const contribution = port.browserAnalytics?.(required); return contribution ? [contribution] : []; }
+        catch { failed(); return []; }
+      });
+      // One revision for the complete inventory: retiring any provider invalidates every old SDK.
+      const revision = createHash('sha256').update(JSON.stringify(contributions)).digest('hex');
+      return contributions.map(contribution => ({ ...contribution, configuration: {
+        url: `/_jini/browser-analytics?surface=${required.surface}`, revision,
+      } }));
+    },
     tracker: createTracker({ observability, productAnalytics }, { warn: failed }),
     shutdownGenerations: () => generations?.shutdown?.(),
     aiTraceSink: sinks.length === 0 ? undefined : {
@@ -293,6 +315,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
     const reached = new Set<ProviderSlot>();
     try {
       const saved = await required.config.read({ pluginId });
+      const restartBrowser = selected.some(slot => browserNeedsRestart({ slot, saved }));
       const configured = selected.some(slot => providerInputOf({ declaration: slot.declaration, saved }));
       if (configured && (!loaded.has(pluginId) || !required.runtime.providerContributions.list({}).some(snapshot => snapshot.pluginId === pluginId))) {
         const admitted = await required.runtime.loadProviderPlugins({ pluginIds: [pluginId] }, { timeoutMs });
@@ -300,7 +323,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
         loaded.add(pluginId);
       }
       for (const slot of selected) { reached.add(slot); await replaceSlot(slot, saved); }
-      return "now";
+      return restartBrowser ? 'restart' : 'now';
     } catch (error) {
       for (const slot of selected) if (!reached.has(slot)) initialization({ slot, outcome: 'failure', reasonClass: 'initialization_failed' });
       const retired = selected.map(slot => { const lease = slot.lease; slot.lease = undefined; slot.input = undefined; return lease; });

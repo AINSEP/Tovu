@@ -27,10 +27,11 @@ export interface OwnerStoreController {
  */
 function requestInput({ action, input }: { action: OwnerStoreAction; input: unknown }, _options = {}): Record<string, unknown> {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Invalid shared-key request.');
-  const fields: Record<OwnerStoreAction, readonly string[]> = { status: [], list: [], put: ['entry'],
+  const fields: Record<OwnerStoreAction, readonly string[]> = { status: [], list: ['store'], put: ['entry', 'store'],
     delete: ['entryId', 'expectedRevision'], grant: ['entryId', 'siteId'], revoke: ['entryId', 'siteId'],
     sync: ['siteId'], export: ['passphrase'], restore: ['passphrase'] };
   if (Object.keys(input).some(field => !fields[action].includes(field))) throw new Error('Invalid shared-key request.');
+  if ('store' in input && input.store !== 'project') throw new Error('Invalid shared-key request.');
   if (Buffer.byteLength(JSON.stringify(input)) > 64 * 1024) throw new Error('Invalid shared-key request.');
   return input as Record<string, unknown>;
 }
@@ -72,6 +73,8 @@ async function syncConsumers({ consumerIds, ports }: {
 async function putAndSync({ request, ports }: {
   request: Record<string, unknown>; ports: OwnerStorePorts;
 }, _options = {}): Promise<OwnerStoreReply<'put'>> {
+  // Project attachments reference the original row; they must never create legacy site copies.
+  if (request.store === 'project') return ports.run({ action: 'put', fields: { store: 'project', entry: request.entry as OwnerStoreCliFields['put']['entry'] } });
   const reply = await ports.run({ action: 'put', fields: { entry: request.entry as OwnerStoreCliFields['put']['entry'] } });
   if (!reply.ok) return reply;
   const inventory = await safeRun({ ports, input: { action: 'list', fields: {} } });
@@ -133,7 +136,7 @@ async function executeRequest({ action, input, ports, serialize }: {
   // A total Record keeps the exhaustiveness check without a ten-way switch.
   const handlers: Record<OwnerStoreAction, () => Promise<OwnerStoreReply>> = {
     status: () => ports.run({ action: 'status', fields: {} }),
-    list: () => ports.run({ action: 'list', fields: {} }),
+    list: () => ports.run({ action: 'list', fields: request.store === 'project' ? { store: 'project' } : {} }),
     put: () => putAndSync({ request, ports }),
     delete: () => ports.run({ action: 'delete', fields: { entryId: requiredString({ value: request.entryId }), expectedRevision: request.expectedRevision as number } }),
     grant: () => targetRequest({ action: 'grant', request, ports }),

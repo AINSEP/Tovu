@@ -127,3 +127,24 @@ test("git-host defaults, descriptions and lists only expose attached project row
   await attachments.detach({ siteId: SITE_A, keyId: saved.id });
   assert.equal(await resolveDefaultForSourceControl(a, input), null);
 });
+
+test('a sole attached nondefault opens through the vault; multiple attached nondefaults refuse ambiguity', async () => {
+  const project = projectHalf(); const attachments = fakeAttachments();
+  const writer = site(project);
+  const first = await save(writer, SITE_A, 'unattached-default', secret('first'));
+  const second = await save(writer, SITE_A, 'attached', secret('second'));
+  const third = await save(writer, SITE_A, 'another', secret('third'));
+  const raw = project.repo.vault!;
+  const a = site({ ...project, repo: new InMemorySourceControlCredentialSetRepo({ vault: attachedOnlyVault({ vault: raw, siteId: SITE_A, attachments }) }) });
+  const input = { workspaceId: SITE_A, providerId: 'example-git' };
+  await attachments.attach({ siteId: SITE_A, siteName: 'A', keyId: second.id });
+  assert.deepEqual(await resolveDefaultForSourceControl(a, input), { id: second.id, label: 'attached', connection: { providerId: 'example-git', token: secret('second') } });
+  assert.equal((await findDefaultSourceControlCredential(a, input))?.id, second.id);
+  assert.equal((await raw.find({ workspaceId: 'project', id: second.id }))?.isDefault, false);
+  await attachments.attach({ siteId: SITE_A, siteName: 'A', keyId: third.id });
+  assert.equal(await resolveDefaultForSourceControl(a, input), null);
+  await attachments.attach({ siteId: SITE_A, siteName: 'A', keyId: first.id });
+  assert.equal((await resolveDefaultForSourceControl(a, input))?.id, first.id);
+  await save(a, SITE_A, 'site-override', secret('own'), { scope: 'site' });
+  assert.equal((await resolveDefaultForSourceControl(a, input))?.connection.token, secret('own'));
+});

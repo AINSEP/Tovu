@@ -102,6 +102,8 @@ export async function saveProviderSettings({ config, pluginId, fields, values, r
   }
   const usage = await providerKeyUsage({ config, pluginId });
   const appliesAt = reapply ? await reapply({ pluginId }) : "restart";
+  if (reapply && appliesAt === 'restart') return { refusal: { code: 'PROVIDER_SETTINGS_NOT_APPLIED',
+    error: 'Settings were saved but could not be applied live. Check the key type and host URL, then restart if required.' } };
   for (const contract of new Set(telemetry?.contracts ?? [])) telemetry?.tracker.capture({ name: 'provider_configured', userId: telemetry.userId,
     properties: { contract, pluginId, action: 'save' } });
   const configured = usage.usedByThisSite && providerInputOf({ declaration: { contract: "", id: pluginId, contractVersion: 1, settings: fields }, saved: next.config }) !== undefined;

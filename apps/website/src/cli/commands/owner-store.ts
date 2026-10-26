@@ -20,6 +20,7 @@ import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases"
 import { resolveSiteStorage } from "#src/platform/site-dir/site-storage";
 import { resolveWorkspace } from "#src/platform/site-dir/resolve-workspace";
 import { assertTestHomeIsolation, createSitesWorkspace, type SitesWorkspace } from "#src/platform/site-dir/sites-home";
+import { openProjectStore } from '#src/server/runtime/composition/project-store';
 
 /** @file Desktop-to-CLI boundary: only this payload process opens owner.db. Jini owns the
  * store, grants, copies, key creation and encrypted backups. Requests never travel in argv/env.
@@ -36,8 +37,8 @@ export type OwnerStoreAction = typeof OWNER_STORE_ACTIONS[number];
  */
 export type OwnerStoreRequestByAction = {
   status: { userDataDir: string };
-  list: { userDataDir: string };
-  put: { userDataDir: string; entry: Pick<OwnerPutInput, "id" | "expectedRevision" | "label" | "meta"> & { kind?: VaultKind; provider: string; payload: VaultMeta } };
+  list: { userDataDir: string; store?: 'project' };
+  put: { userDataDir: string; store?: 'project'; entry: Pick<OwnerPutInput, "id" | "expectedRevision" | "label" | "meta"> & { kind?: VaultKind; provider: string; payload: VaultMeta } };
   delete: { userDataDir: string; entryId: string; expectedRevision: number };
   grant: { userDataDir: string; entryId: string; consumerId: string };
   revoke: { userDataDir: string; entryId: string };
@@ -80,14 +81,10 @@ export async function runOwnerStoreCommand(required: { action: OwnerStoreAction;
     // The desktop owns OS profile selection: accepting its resolved directory avoids a second
     // platform policy (especially LocalAppData vs Roaming) and keeps owner files outside sites.
     assertTestHomeIsolation({ homeDir: optional.home ?? homedir() }, { paths: [userDataDir] });
-    mkdirSync(userDataDir, { recursive: true, mode: 0o700 });
-    const registry = vaultRegistry({ owner: true });
-    const store = await (optional.openStore ?? openOwnerStore)({ filePath: join(userDataDir, "owner.db"),
-      keyFilePath: join(userDataDir, "owner.key"), open: openNativeSqlite }, { metaParsers: registry.metaParsers });
-    try {
-      const data = await executeRequest({ ...required, request, store: store.service }, { ...optional, appDataDir: userDataDir });
-      reply = { version: 1, ok: true, action: required.action, data };
-    } finally { await store.close(); }
+    const data = request.store === 'project'
+      ? await projectRequest({ action: required.action, request, userDataDir }, optional)
+      : await ownerRequest({ ...required, request, userDataDir }, optional);
+    reply = { version: 1, ok: true, action: required.action, data };
   } catch (error) {
     reply = { version: 1, ok: false, action: required.action, error: safeError({ error }) };
   }
@@ -96,6 +93,41 @@ export async function runOwnerStoreCommand(required: { action: OwnerStoreAction;
   (optional.output ?? ((line) => { process.stdout.write(line); }))(`${JSON.stringify(reply)}\n`);
   if (!reply.ok) (optional.setExitCode ?? ((code) => { process.exitCode = code; }))(1);
   return reply;
+}
+
+/** Legacy grants and encrypted backups retain their owner.db lifecycle and key format. */
+async function ownerRequest({ userDataDir, ...input }: {
+  action: OwnerStoreAction; site?: string; request: Record<string, unknown>; userDataDir: string;
+}, optional: Parameters<typeof runOwnerStoreCommand>[1] = {}): Promise<Record<string, unknown>> {
+  mkdirSync(userDataDir, { recursive: true, mode: 0o700 });
+  const registry = vaultRegistry({ owner: true });
+  const store = await (optional.openStore ?? openOwnerStore)({ filePath: join(userDataDir, 'owner.db'),
+    keyFilePath: join(userDataDir, 'owner.key'), open: openNativeSqlite }, { metaParsers: registry.metaParsers });
+  try { return await executeRequest({ ...input, store: store.service }, { ...optional, appDataDir: userDataDir }); }
+  finally { await store.close(); }
+}
+
+/** Shared Keys uses the same project identity, encryption and vault mutation owner as site tools.
+ * Saving never attaches a row or creates a legacy copy. O(inventory) metadata, no payload reads.
+ */
+async function projectRequest({ action, request, userDataDir }: {
+  action: OwnerStoreAction; request: Record<string, unknown>; userDataDir: string;
+}, optional: Parameters<typeof runOwnerStoreCommand>[1] = {}): Promise<Record<string, unknown>> {
+  if (action !== 'list' && action !== 'put') throw new OwnerStoreInputError();
+  const home = optional.home ?? homedir();
+  const workspace = optional.workspace ?? createSitesWorkspace({}, { homeDir: home, appDataDir: userDataDir });
+  const store = await openProjectStore({ sitesHome: workspace.home({}), home });
+  try {
+    const scope = store.vault;
+    const vault = new SecretsVaultService({ repo: scope.repo, keyring: scope.keyring, sealer: scope.sealer,
+      metaParsers: vaultRegistry({ owner: false }).metaParsers, now: () => new Date().toISOString(), newId: () => randomUUID(),
+      authorize: async ({ context }) => {
+        if (context.workspaceId !== scope.workspaceId || context.ownerKey !== 'tovu' || context.principalId !== null || !isCopyableKind[context.kind]) throw new VaultError({ code: 'context' });
+      } });
+    if (action === 'put') return { entry: entryView({ row: await vault.put({ ...putInput({ request }), workspaceId: scope.workspaceId, principalId: null }) }) };
+    const rows = (await Promise.all(VAULT_KINDS.filter(kind => isCopyableKind[kind]).map(kind => vault.list({ workspaceId: scope.workspaceId, kind, ownerKey: 'tovu', principalId: null })))).flat();
+    return { entries: rows.filter(row => row.kind !== 'vendor' || row.meta.credentialType === 'vendor').map(row => entryView({ row })), grants: [] };
+  } finally { store.close({}); }
 }
 
 /** Parse bounded JSON without allowing parser diagnostics (which can quote secrets) to escape. */
@@ -110,10 +142,11 @@ function requestObject({ text }: { text: string | null }, _options = {}): Record
  * accidental future option. These are the per-action additions to the shared userDataDir field.
  */
 function assertRequestFields({ action, request }: { action: OwnerStoreAction; request: Record<string, unknown> }, _options = {}): void {
-  const fields: Record<OwnerStoreAction, readonly string[]> = { status: [], list: [], put: ["entry"],
+  const fields: Record<OwnerStoreAction, readonly string[]> = { status: [], list: ['store'], put: ["entry", 'store'],
     delete: ["entryId", "expectedRevision"], grant: ["entryId", "consumerId"], revoke: ["entryId"],
     sync: [], export: ["filePath", "passphrase"], restore: ["filePath", "passphrase"] };
   assertFields({ record: request, fields: ["userDataDir", ...fields[action]] });
+  if (request.store !== undefined && request.store !== 'project') throw new OwnerStoreInputError();
 }
 
 function assertFields({ record, fields }: { record: Record<string, unknown>; fields: readonly string[] }, _options = {}): void {
