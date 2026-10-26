@@ -73,7 +73,7 @@ test('D-24: Add feedback stays on the websites view when switching to a site tab
     useTheme: () => ['light', noop], useSiteRescan: () => ({}), useApplySiteRecord: () => noop,
     useAddSite: () => ({ adding: false, addError: message, addSite: noop }),
     appPresentation, deriveSitesHomeView, chromeVisibility, countRunningSites, findSection: () => ({}),
-    useFindInPage: () => ({}), useZoom: () => ({}), useRunnerNavigation: noop,
+    useFindInPage: () => ({}), useZoom: () => ({}), useRunnerNavigation: noop, useProductScreen: noop,
     useProjectMutations: () => ({}), FindBar: () => null, TopNav: () => null, TabStrip: () => null,
     ResourcesMonitor: ({ children }: any) => children,
     MainArea: (props: any) => { areaProps = props; return null; },

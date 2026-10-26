@@ -20,6 +20,7 @@
  * never an answer of its own about a site.
  */
 import { useCallback, useState } from 'react';
+import { reportShellTelemetry } from './product-telemetry.js';
 
 import { runnerInventoryBridge } from './runner-api.js';
 import type { SiteLifecycleStatus, SiteRecord } from '../contracts/project.js';
@@ -204,6 +205,7 @@ export async function runPowerToggle(
   { action, id, bridge }: { action: SitePowerAction; id: string; bridge: Parameters<typeof performPowerAction>[2] },
   { onSiteUpdated, onStarted }: SitePowerCallbacks = {},
 ): Promise<string | null> {
+  reportShellTelemetry({ payload: { kind: 'action', id: action === 'start' ? 'start_site' : 'stop_site' } });
   const result = await performPowerAction(action, id, bridge);
   if (result.error !== undefined) return result.error;
   onSiteUpdated?.(result.record);
