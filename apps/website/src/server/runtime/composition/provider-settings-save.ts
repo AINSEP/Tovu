@@ -102,7 +102,51 @@ export interface ProviderSettingsStatus {
 export async function providerSettingsStatus({ config, pluginId, fields }: { config: ProviderConfigSource; pluginId: string; fields: readonly PluginProviderSettingField[] }): Promise<ProviderSettingsStatus> {
   const view = await config.readSettings({ pluginId });
   const saved = view && !view.unreadable ? { settings: view.settings, secrets: Object.fromEntries(view.secretNames.map((name) => [name, "saved"])) } : null;
-  const input = providerInputOf({ declaration: { contract: "", id: pluginId, contractVersion: 1, settings: fields }, saved }) ?? {};
+  // Nothing saved still counts declared defaults, so `missing` names only what the person must enter.
+  const input = providerInputOf({ declaration: { contract: "", id: pluginId, contractVersion: 1, settings: fields.map((field) => ({ ...field, required: false })) }, saved: saved ?? { settings: {}, secrets: {} } }) ?? {};
   const missing = fields.filter((field) => field.required && !input[field.name]).map((field) => field.label);
   return { configured: missing.length === 0 && saved !== null, store: config.scope, appliesAt: "next-start", missing, ...(view?.unreadable ? { unreadable: true as const } : {}) };
+}
+
+/**
+ * The assistant key card's host ports (`features/custom-credentials/provider-settings-card.ts`), bound
+ * to this module's rule and the same `ProviderConfigSource` the admin route uses.
+ * @complexity O(p + f) per call: one discovery read plus one config read/write.
+ */
+export function bindProviderSettingsCardPorts({ config, discoverPlugins }: { config: ProviderConfigSource; discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]> }) {
+  const fields = async ({ pluginId }: { pluginId: string }) => declaredProviderSettingFields({ records: await discoverPlugins(), pluginId });
+  return {
+    fields,
+    readSettings: async ({ pluginId }: { pluginId: string }) => {
+      const view = await config.readSettings({ pluginId });
+      return view && !view.unreadable ? view : null;
+    },
+    save: async ({ pluginId, values }: { pluginId: string; values: Readonly<Record<string, string>> }) => {
+      const declared = await fields({ pluginId });
+      if (!declared) return { refusal: "This plugin declares no provider settings." };
+      const saved = await saveProviderSettings({ config, pluginId, fields: declared, values });
+      return "refusal" in saved ? { refusal: saved.refusal.error } : { store: config.scope };
+    },
+  };
+}
+
+/**
+ * `provider_status` rows: every discovered plugin that declares provider settings, with its enabled
+ * flag and quarantine reason (activation record) and `providerSettingsStatus`. Presence only.
+ * @complexity O(p) plugins, one activation read and one settings read per provider plugin.
+ */
+export async function listProviderStatuses({ config, discoverPlugins, activation }: {
+  config: ProviderConfigSource; discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
+  activation: (required: { pluginId: string }) => Promise<{ enabled: boolean; quarantineReason?: string } | null>;
+}) {
+  const records = await discoverPlugins();
+  const rows = [];
+  for (const { id: pluginId } of records) {
+    const fields = declaredProviderSettingFields({ records, pluginId });
+    if (!fields) continue;
+    const state = await activation({ pluginId });
+    rows.push({ pluginId, enabled: state?.enabled === true, ...(await providerSettingsStatus({ config, pluginId, fields })),
+      ...(state?.quarantineReason ? { quarantine: state.quarantineReason } : {}) });
+  }
+  return rows;
 }

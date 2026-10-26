@@ -13,6 +13,9 @@ import { contributeSiteGuideTools } from "./site-guide-tools.js";
 import { contributeSiteSearchTools } from "./site-search-tools.js";
 import { contributeAssistantHistoryTools } from "./assistant-history-tools.js";
 import { buildCredentialSaveRegistrations, credentialSaveDerivedRisk } from "#src/features/custom-credentials/credential-save-tool";
+import { buildProviderSettingsCredentialHandler } from "#src/features/custom-credentials/provider-settings-card";
+import { bindProviderSettingsCardPorts, listProviderStatuses } from "./provider-settings-save.js";
+import { buildProviderStatusRegistrations, providerStatusDerivedRisk } from "#src/features/plugin-runtime/provider-status-tool";
 import { buildCredentialCopyRegistrations, credentialCopyDerivedRisk } from "#src/features/custom-credentials/credential-copy-tool";
 import { saveAgentPluginToken } from "#src/features/agent-plugins/access-token-tool";
 import { contributeAgentPluginsInstallTools } from "#src/features/agent-plugins/install-tool";
@@ -536,6 +539,11 @@ export function installFirstPartyToolContributors(
           publishHost: buildPublishHostCredentialHandler({ deps: routeDeps, surfaces }),
           agentPluginToken: (ctx, optional = {}) => saveAgentPluginToken({ ctx, routeDeps, surfaces }, optional),
           pluginProvider: api.pluginProvider,
+          // A provider plugin's settings, saved through the admin Settings card's rule and store.
+          ...(originalDeps.providerConfig ? { providerSettings: buildProviderSettingsCredentialHandler({ surfaces, loadCards: () => loadCards(originalDeps.workspaceId), ports: {
+            ...bindProviderSettingsCardPorts({ config: originalDeps.providerConfig, discoverPlugins: originalDeps.discoverPlugins }),
+            authorize: ctx => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: originalDeps.authorize }), workspaceId: originalDeps.workspaceId, principalId: ctx.principal.id, permission: 'admin.plugins.enable' }, { entityType: 'plugin' }),
+          } }) } : {}),
         } satisfies import("#src/features/custom-credentials/credential-save-tool").CredentialSaveAdapters;
       };
       return buildCredentialSaveRegistrations({
@@ -545,6 +553,15 @@ export function installFirstPartyToolContributors(
         adaptersForCards: ({ cards }) => adaptersFor(async () => cards),
       });
     },
+  } });
+  // `provider_status`: presence-only status of provider plugins (analytics, error tracking, tracing).
+  contributions.contributors.register({ contribution: {
+    domain: "provider-status", risk: providerStatusDerivedRisk,
+    build: (deps) => buildProviderStatusRegistrations({ ports: {
+      list: async () => !deps.providerConfig ? [] : listProviderStatuses({ config: deps.providerConfig, discoverPlugins: deps.discoverPlugins,
+        activation: ({ pluginId }) => deps.pluginActivationRepo.getActivation({ workspaceId: deps.workspaceId, pluginId }) }),
+      authorize: ctx => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: 'admin.plugins.read' }, { entityType: 'plugin' }),
+    } }),
   } });
   contributions.contributors.register({ contribution: contributeTaxonomyTools() });
   contributions.contributors.register({ contribution: contributeThemesTools() });

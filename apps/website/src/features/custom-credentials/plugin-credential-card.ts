@@ -43,8 +43,9 @@ export interface PluginCredentialCard {
   /** Optional read-only GET before sealing; absolute HTTPS on the declared baseUrl origin. */
   readonly probeUrl?: string;
   readonly additionalHosts?: readonly string[];
-  /** Absent preserves the original mail/API save path. */
-  readonly saveKind?: "api" | "publish-host" | "source-control" | "agent-plugin-token" | "oauth";
+  /** Absent preserves the original mail/API save path. `provider-settings` saves a provider plugin's
+   *  declared settings (saveTarget = that plugin's id; see provider-settings-card.ts). */
+  readonly saveKind?: "api" | "publish-host" | "source-control" | "agent-plugin-token" | "oauth" | "provider-settings";
   readonly saveTarget?: string;
   /** Permissions explained on a hosted sign-in card; never grants authority itself. */
   readonly permissions?: string;

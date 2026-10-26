@@ -51,6 +51,7 @@ import {
 } from "../../features/content-types/index.js";
 import { customCredentialsAgentToolCatalog } from "../../features/custom-credentials/agent-tools.js";
 import { credentialSaveCatalog } from "../../features/custom-credentials/credential-save-tool.js";
+import { providerStatusAgentToolCatalog } from "../../features/plugin-runtime/provider-status-tool.js";
 import { catalog as credentialCopyCatalog } from "../../features/custom-credentials/credential-copy-tool.js";
 import { catalog as siteGuideCatalog } from "../../server/runtime/composition/site-guide-tools.js";
 import { assistantHistoryToolCatalog } from "@jini-ai/chat/store/runtime";
@@ -265,6 +266,7 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   "custom-credentials": customCredentialsAgentToolCatalog as unknown as AgentToolDefinition[],
   "credential-save": credentialSaveCatalog as unknown as AgentToolDefinition[],
   "credential-copy": credentialCopyCatalog,
+  "provider-status": providerStatusAgentToolCatalog,
   "site-guide": [...siteGuideCatalog.values()] as unknown as AgentToolDefinition[],
   "assistant-history": [...assistantHistoryToolCatalog.values()],
   "media-generation": mediaGenerationAgentToolCatalog as unknown as AgentToolDefinition[],
