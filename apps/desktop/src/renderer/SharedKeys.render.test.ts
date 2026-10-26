@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { act, createElement } from 'react';
+import React, { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { SharedKeys } from './SharedKeys.js';
 import { installDom, settle } from './dom-hook-harness.js';
 import type { OwnerStoreBridge, OwnerStoreEntry, OwnerStoreInput } from '../contracts/owner-store.js';
+
+// The direct tsx test command uses classic JSX; Vite supplies the automatic runtime in production.
+Object.assign(globalThis, { React });
 
 const entry: OwnerStoreEntry = { id: 'saved-a', kind: 'vendor', label: 'Deployment key', provider: 'hosting',
   configured: true, revision: 7, isDefault: false, worksFor: ['hosting'] };
