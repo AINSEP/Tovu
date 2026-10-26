@@ -61,6 +61,7 @@ import { createFormAuthoring, htmlSubmissionDefinition } from "@jini-ai/cms/form
 import { processOutbox } from "../../contracts/core/events/index.js";
 import { toSlug } from "../../platform/html/slug.js";
 import { MAX_SUFFIX_ATTEMPTS } from "../content-duplication/derive-available-name.js";
+import { capSubmissionFieldLengths } from "./field-length-caps.js";
 
 export { FORMS_SUBMIT_PROFILE } from "./rate-limit-profile.js";
 
@@ -173,7 +174,10 @@ export function submitForm(
       ...event.payload, deliveryMode: "live", ...(analyticsProvenance ? { analyticsProvenance } : {}),
     } }) },
     transaction: (work) => deps.submissionRepo.transaction!(work), dispatcher: { dispatch }, logger,
-  }, input }, { definitionView: htmlSubmissionDefinition, validateEmails: true, dispatch, attempts });
+  }, input }, {
+    definitionView: (view) => capSubmissionFieldLengths({ definition: htmlSubmissionDefinition(view), body: view.body }),
+    validateEmails: true, dispatch, attempts,
+  });
 }
 
 // Form destinations (a static host that stores submissions): the manifest a publish hands the host,

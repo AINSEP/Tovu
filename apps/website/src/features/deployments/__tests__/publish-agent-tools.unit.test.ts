@@ -1348,6 +1348,31 @@ test("propose-credential: an optional secret the person leaves blank (Vercel's B
   assert.equal((await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId })).filter((r) => r.vendorId === "vercel").length, 1);
 });
 
+test("the secure card keeps a blank Blob token until Remove is explicitly selected, preserving the publishing token", async () => {
+  const { deps } = fakeDeps();
+  const surfaces = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const proposeTool = tool(buildRegistrations(deps, surfaces), "credential_save");
+  const token = ["publishing", "fixture"].join("-");
+  const blobToken = ["vercel_blob_rw_", "Store123", "_", "x".repeat(20)].join("");
+  const first = await raiseCredentialForm(proposeTool, { target: "vercel" });
+  assert.doesNotMatch(first.html, /mcpui-field-clear-blobToken/);
+  surfaces.deliver({ exchangeId: first.exchangeId, principalId: PRINCIPAL_ID, params: { token, blobToken } }, { toolId: "credential_save" });
+  assert.equal((await first.pending as { saved: boolean }).saved, true);
+  const [row] = (await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId })).filter(row => row.vendorId === "vercel");
+  for (const clear of [false, true]) {
+    const edit = await raiseCredentialForm(proposeTool, { target: "vercel" });
+    assert.match(edit.html, /Remove Blob read-write token/);
+    assert.match(edit.html.match(/<input[^>]*id="mcpui-field-clear-blobToken"[^>]*>/)?.[0] ?? "", /type="checkbox"/);
+    assert.doesNotMatch(edit.html, /mcpui-field-clear-token["\s]/);
+    surfaces.deliver({ exchangeId: edit.exchangeId, principalId: PRINCIPAL_ID,
+      params: { token: "", blobToken: clear ? blobToken : "", "clear-blobToken": clear } }, { toolId: "credential_save" });
+    assert.equal((await edit.pending as { saved: boolean }).saved, true);
+    const resolved = await resolveForPublish({ repo: deps.vendorCredentialSetRepo, loadDeployTargets: deps.loadDeployTargets!, sealer: deps.siteAssistantSecretSealer },
+      { workspaceId: deps.workspaceId, id: row!.id });
+    assert.deepEqual(resolved?.connection, { providerId: "vercel", token, ...(clear ? {} : { blobToken }) });
+  }
+});
+
 test("with no emitSurface, the credential form is refused outright — no exchange is ever opened, nothing saved", async () => {
   const { deps } = fakeDeps();
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });

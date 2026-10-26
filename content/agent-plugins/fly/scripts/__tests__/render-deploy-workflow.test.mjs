@@ -25,6 +25,8 @@ test("the render keeps the production deploy contract and adds no step the workf
   assert.match(contents, /^      - run: flyctl deploy --remote-only --config fly.toml --build-arg TOVU_BUILD_SHA=\$\{\{ github\.sha \}\}$/m);
   assert.match(contents, /^    needs: jini-published-typecheck$/m);
   assert.match(contents, /^  group: fly-deploy-tovu-ai-cms$/m);
+  assert.ok(contents.includes("  TOVU_SITE_ID: ${{ vars.TOVU_SITE_ID }}\n"));
+  assert.ok(contents.includes("              TOVU_SITE_ID: env.TOVU_SITE_ID,\n"));
   assert.doesNotMatch(contents, /volumes snapshots create/, "no volume-snapshot step");
 });
 

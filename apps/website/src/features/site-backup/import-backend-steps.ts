@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import type { HttpClientPort } from "#src/platform/http/index";
-import { reconcileSiteCreation } from "#src/platform/site-dir/site-registry";
+import { assertPortableSiteName, reconcileSiteCreation } from "#src/platform/site-dir/site-registry";
 import type { SitesWorkspace } from "#src/platform/site-dir/sites-home";
 import type { SiteImportRegistry, SiteImportRecord } from "./import-registry.js";
 import { SHARE_LIMITS, SiteShareRefusal } from "./share-policy.js";
@@ -112,9 +112,15 @@ export async function reconcileInterruptedImports(required: { registry: SiteImpo
   }
 }
 
-/** A folder-safe site name from the display name; non-Latin names fall back to `imported-site`. */
-export function importSiteSlug(required: { displayName: string }): string {
-  return required.displayName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80) || "imported-site";
+/** A folder-safe site name from the display name; non-Latin names fall back to `imported-site`.
+ * @throws {ValidationError} Windows device names or trailing dots/spaces, before or after slugification.
+ * @complexity O(display name length), no I/O.
+ */
+export function importSiteSlug(required: { displayName: string }, _optional = {}): string {
+  assertPortableSiteName({ name: required.displayName });
+  const slug = required.displayName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80) || "imported-site";
+  assertPortableSiteName({ name: slug });
+  return slug;
 }
 
 /** The owner-setup gate: only a pending import, and never without a new password. */

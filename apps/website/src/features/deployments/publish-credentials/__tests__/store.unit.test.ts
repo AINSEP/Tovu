@@ -1014,6 +1014,20 @@ for (const token of [undefined, "", "new-value", "   "]) {
   });
 }
 
+test("explicit null clears only an optional secret; blank retains it and required-token removal refuses without writing", async () => {
+  const deps = makeDeps();
+  const token = ["publishing", "fixture"].join("-");
+  const blobToken = ["vercel_blob_rw_", "Store123", "_", "x".repeat(20)].join("");
+  const saved = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Vercel", connection: { providerId: "vercel", token, blobToken } });
+  await updatePublishCredential(deps, { workspaceId: WORKSPACE, id: saved.id, connection: { providerId: "vercel", token: "", blobToken: "" } });
+  assert.deepEqual((await resolveForPublish(deps, { workspaceId: WORKSPACE, id: saved.id }))?.connection, { providerId: "vercel", token, blobToken });
+  await updatePublishCredential(deps, { workspaceId: WORKSPACE, id: saved.id, connection: { providerId: "vercel", token: "", blobToken: null } });
+  assert.deepEqual((await resolveForPublish(deps, { workspaceId: WORKSPACE, id: saved.id }))?.connection, { providerId: "vercel", token });
+  const before = await deps.repo.vault!.find({ workspaceId: WORKSPACE, id: saved.id });
+  await assert.rejects(updatePublishCredential(deps, { workspaceId: WORKSPACE, id: saved.id, connection: { providerId: "vercel", token: null } }), PublishCredentialValidationError);
+  assert.deepEqual(await deps.repo.vault!.find({ workspaceId: WORKSPACE, id: saved.id }), before);
+});
+
 for (const connection of [null, [], "invalid", { providerId: 3 }, { providerId: "unknown" }, { providerId: "vercel", token: "   " }]) {
   test(`L106 invalid update ${JSON.stringify(connection)} preserves all stored state`, async () => {
     const deps = makeDeps();

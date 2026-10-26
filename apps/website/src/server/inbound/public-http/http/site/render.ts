@@ -41,7 +41,7 @@ import { mediaPublicPath, mediaUrlKey } from "#src/features/media/public-path";
 import { safeAspectRatio, safeTextAlign } from "#src/platform/html/style-values";
 import { renderHandlebarsInSandbox } from "./handlebars-sandbox.js";
 import { renderLiquidInSandbox } from "./liquid-sandbox.js";
-import { FORM_BASELINE_STYLE, FORM_CLASS, FORM_RANGE_READOUT_SCRIPT, renderFormSuccessSlot, renderFormErrorSlot } from "./form-render.js";
+import { FORM_BASELINE_STYLE, FORM_CLASS, FORM_RANGE_READOUT_SCRIPT, renderFormSuccessSlot, renderFormErrorSlot, stampFormFieldMaxLengths } from "./form-render.js";
 import {
   decodeFormSubmissionResultFromQuery,
   encodeFormSubmissionResultQuery,
@@ -2551,19 +2551,20 @@ function renderWidgetContactForm(props: JsonObject): string {
   // `tovu-form` hook let the active theme's form rules apply, and author CSS still wins over both.
   // The slider value readout ships only with forms that have a range field.
   const rangeReadout = arr(props.fields).some(field => typeof field === "object" && field !== null && !Array.isArray(field) && field.type === "range") ? FORM_RANGE_READOUT_SCRIPT : "";
-  if (props.mode === "html") return FORM_BASELINE_STYLE + renderHtmlForm({
+  const fieldDescriptors = arr(props.fields) as unknown as import("@jini-ai/cms/forms").FieldDescriptor[];
+  // Both modes show the length caps the submit route enforces (owner 2026-10-25, spam protection).
+  if (props.mode === "html") return FORM_BASELINE_STYLE + stampFormFieldMaxLengths(renderHtmlForm({
     slug, action: `/forms/${encodeURIComponent(slug)}/submit`,
     hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-tovu-form-success", error: "data-tovu-form-error" },
-    fields: arr(props.fields) as unknown as import("@jini-ai/cms/forms").FieldDescriptor[],
+    fields: fieldDescriptors,
   }, {
     ...(typeof props.html === "string" ? { html: props.html } : {}),
     successMessage: str(props.successMessage) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE,
     className: FORM_CLASS,
-  }) + rangeReadout;
+  }), fieldDescriptors) + rangeReadout;
   const escapedSlug = escapeHtml(slug);
-  const fieldDescriptors = arr(props.fields) as unknown as import("@jini-ai/cms/forms").FieldDescriptor[];
   const fieldOptions = { submitLabel: "Send", idPrefix: "widget-contact", fieldClass: "widget-form-field", errorClass: "widget-form-field-error" };
-  const fields = renderHtmlFormBody({ fields: fieldDescriptors, hooks: { field: "data-tovu-field" } }, fieldOptions);
+  const fields = stampFormFieldMaxLengths(renderHtmlFormBody({ fields: fieldDescriptors, hooks: { field: "data-tovu-field" } }, fieldOptions), fieldDescriptors);
   const successMessage = escapeHtml(str(props.successMessage) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE);
   const legacyAttrs = `data-contact-form-slug="${escapedSlug}"`;
   const successSlot = renderFormSuccessSlot({ slug: escapedSlug, message: successMessage, extraClasses: "widget-contact-form-success", extraAttrs: legacyAttrs });
