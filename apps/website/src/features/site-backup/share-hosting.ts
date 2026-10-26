@@ -4,12 +4,14 @@ import type { HttpClientPort, HttpResponse } from "@jini-ai/core/primitives";
 import { callPeer, type PeerCallDeps } from "../publish-content/peer-transport.js";
 import { peerUrl } from "../publish-content/peer-url.js";
 import { SiteShareRefusal } from "./share-policy.js";
-import type { SiteShareRegistry } from "./share-registry.js";
+import { SHARE_TOKEN_PATTERN, type SiteShareRegistry } from "./share-registry.js";
 import { receiveSiteShareArtifact, type ShareDelivery } from "./share-service.js";
+
+const ARTIFACT_KEY = new RegExp(`^_share/(${SHARE_TOKEN_PATTERN})/([a-z0-9][a-z0-9-]{0,79}\\.tovu\\.zip)$`);
 
 /** Validates a share artifact key and returns its token and file; refuses INVALID_INPUT otherwise. O(key). */
 function parseArtifactKey(key: string): { token: string; file: string } {
-  const match = /^_share\/([0-9a-f]{64})\/([a-z0-9][a-z0-9-]{0,79}\.tovu\.zip)$/.exec(key);
+  const match = ARTIFACT_KEY.exec(key);
   if (!match) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Invalid share artifact key." });
   return { token: match[1]!, file: match[2]! };
 }

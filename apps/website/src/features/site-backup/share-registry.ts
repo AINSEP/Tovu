@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 import { mkdir, readFile, readdir, rename, statfs, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { SHARE_LIMITS, SiteShareRefusal } from "./share-policy.js";
@@ -17,7 +17,13 @@ export interface SiteShareRecord {
   readonly storage?: { readonly provider: string; readonly key: string; readonly url?: string; readonly binding?: string };
 }
 const ID = /^[0-9a-f-]{36}$/;
-export const SHARE_TOKEN = /^[0-9a-f]{64}$/;
+/** Owner decision 2026-10-25: share tokens are 16 ASCII letters (~91 bits), short enough to read
+ * aloud yet unguessable. No digits, and no other shape is accepted: old 64-hex links are dead.
+ * The one source of the token shape; route and object-store key checks build on SHARE_TOKEN_PATTERN. */
+export const SHARE_TOKEN_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+export const SHARE_TOKEN_LENGTH = 16;
+export const SHARE_TOKEN_PATTERN = `[A-Za-z]{${SHARE_TOKEN_LENGTH}}`;
+export const SHARE_TOKEN = new RegExp(`^${SHARE_TOKEN_PATTERN}$`);
 export const SHARE_FILE = /^[a-z0-9][a-z0-9-]{0,79}\.tovu\.zip$/;
 
 /**
@@ -110,6 +116,12 @@ export class SiteShareRegistry {
   }
 }
 
+/**
+ * A fresh share id and public token. `randomInt` draws from the CSPRNG and rejection-samples, so each
+ * of the 52 letters is equally likely (no modulo bias): 16 draws give log2(52^16) ≈ 91 bits.
+ * @complexity O(SHARE_TOKEN_LENGTH).
+ */
 export function newShareIdentity(_required: Record<string, never>, _optional: Record<string, never> = {}): { shareId: string; token: string } {
-  return { shareId: randomUUID(), token: randomBytes(32).toString("hex") };
+  const token = Array.from({ length: SHARE_TOKEN_LENGTH }, () => SHARE_TOKEN_ALPHABET[randomInt(SHARE_TOKEN_ALPHABET.length)]).join("");
+  return { shareId: randomUUID(), token };
 }

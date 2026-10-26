@@ -476,7 +476,7 @@ test("createArtifactStore() delegates to the publish target's share capability w
   assert.deepEqual(Object.keys(store).sort(), Object.keys(direct).sort());
   assert.deepEqual(signer[0], { accessKeyId: "id", secretAccessKey: "secret", service: "s3", region: "us-east-1" });
 
-  const key = `_share/${"a".repeat(64)}/site.tovu.zip`;
+  const key = `_share/${"a".repeat(16)}/site.tovu.zip`;
   await store.delete({ key });
   assert.deepEqual(sent.map(({ url, init }) => [init.method, url]), [["DELETE", `https://s3.us-east-1.amazonaws.com/share-bucket/${key}`]]);
   await assert.rejects(() => store.delete({ key: "not-a-share" }), { message: "Invalid share artifact key." });

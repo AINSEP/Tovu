@@ -16,6 +16,6 @@ behaviours generically; the vendor detail lives here.
   resolves the saved Vercel connection. It needs the optional `blobToken` credential field (a Blob
   store's read-write token); without it the share falls back to download-only. Wire format mirrors
   `@vercel/blob` `put()`/`del()` (API version 11) and has not been exercised against live Vercel yet.
-  No random suffix: the `_share/<64-hex>/` key is the unguessable part and `delete` only gets the key.
+  No random suffix: the `_share/<16-letter token>/` key is the unguessable part and `delete` only gets the key.
   Verify is an anonymous HEAD of `<store>.public.blob.vercel-storage.com/<key>?download=1` checking
   exact size and `application/zip`.

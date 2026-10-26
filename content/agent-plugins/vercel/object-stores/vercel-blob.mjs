@@ -8,7 +8,7 @@
  * Blob store's read-write token. Every request goes through `kit.fetch` with the redirect guard, so
  * the token is never forwarded to another host.
  *
- * Unguessable without a random suffix: the key already carries the share's 64-hex token
+ * Unguessable without a random suffix: the key already carries the share's 16-letter (~91-bit) token
  * (`_share/<token>/<name>.tovu.zip`) and anonymous readers cannot list a Blob store. A suffix would
  * also make the URL underivable from the key, and `delete` (revoke) receives only the key.
  *
@@ -19,7 +19,8 @@ const BLOB_API = "https://vercel.com/api/blob";
 const BLOB_API_VERSION = "11";
 /** The smallest edge cache Blob allows, so a revoked link stops serving within about a minute. */
 const BLOB_CACHE_MAX_AGE_SECONDS = "60";
-const SHARE_KEY = /^_share\/[0-9a-f]{64}\/[a-z0-9][a-z0-9-]{0,79}\.tovu\.zip$/;
+/** The token is 16 ASCII letters, the shape core's `SHARE_TOKEN` mints (a plugin cannot import core). */
+const SHARE_KEY = /^_share\/[A-Za-z]{16}\/[a-z0-9][a-z0-9-]{0,79}\.tovu\.zip$/;
 /** `vercel_blob_rw_<storeId>_<secret>`: the store id names the public host, as `@vercel/blob` reads it. */
 const BLOB_TOKEN = /^vercel_blob_rw_([A-Za-z0-9]+)_[A-Za-z0-9]+$/;
 
