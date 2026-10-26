@@ -104,7 +104,7 @@ test("two sites of one project: settings saved from site A land in project.db an
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-provider-project-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const sitesHome = path.join(root, "Tovu");
-  // Both apps resolve the same sites root, so both open <sites root>/project.db.
+  // Both apps resolve the same sites root, so both open ~/.tovu/projects/<projectId>/project.db.
   const projectStore = () => openProjectStore({ sitesHome, home: path.join(root, "home") });
   const boot = async (name: string, { install = true }: { install?: boolean } = {}) => {
     const siteDir = path.join(sitesHome, name);

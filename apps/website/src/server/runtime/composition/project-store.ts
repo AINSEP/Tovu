@@ -11,6 +11,7 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import { atomicCreateSiteKeyFile, mintSiteKeyHex } from "#src/features/webhooks/site-key-ensure";
 import { closeSqliteConnection, openNativeSqlite, sqliteKernel } from "#src/platform/db/kernel/drivers/sqlite";
 import { migrateProjectDatabase } from "#src/platform/db/migrations/index";
+import { relocateProjectDb, type ProjectFiles, type RelocateOptions } from "./project-store-relocate.js";
 import { createVaultProviderConfigSource, type ProviderConfigSource } from "./provider-config-source.js";
 
 /**
@@ -19,27 +20,54 @@ import { createVaultProviderConfigSource, type ProviderConfigSource } from "./pr
  * run this same server composition, and both find their sites through the same shared sites root
  * (`platform/site-dir/sites-home.ts`'s `resolveSitesHome`: `TOVU_SITES_HOME`, else the saved
  * `~/.tovu/sites-home.json`, else `~/Documents/Tovu`; desktop's child process shares its profile via
- * `TOVU_DESKTOP_USER_DATA_DIR`), so `<sites root>/project.db` is the SAME file whichever starts.
- * Never desktop app-data.
+ * `TOVU_DESKTOP_USER_DATA_DIR`). The project id is a hash of that root, so
+ * `~/.tovu/projects/<projectId>/project.db` is the SAME file whichever starts. Never desktop
+ * app-data, and (owner, 8:05 PM) never the sites root itself: that is often iCloud-synced
+ * `~/Documents`, and a live SQLite file with its -wal must not sync. A file left in the sites root by
+ * the first layout is moved here on the next start (`project-store-relocate.ts`).
  *
  * Rows: the same `secrets_vault` shape as a site's (workspace `'project'`, no FK to site tables), own
  * migration ledger (`tovu_project_migrations`, `migrations/project/`), sealed with the project key
- * `~/.tovu/project-key.hex`, minted here like the site key (32 random bytes, hex, file mode 0600,
- * never exported, never inside a site folder). Fly / single-site production has no project store:
- * there the project IS the site and the site vault answers (`provider-config-source.ts`).
+ * `project-key.hex` in the same folder, minted here like the site key (32 random bytes, hex, file
+ * mode 0600, never exported, never inside a site folder). One key per project rather than the first
+ * layout's single `~/.tovu/project-key.hex`: a project folder then holds its database and the key that
+ * opens it together (removed, backed up or restored as one), and one project's key never opens
+ * another's rows. Fly / single-site production has no project store: there the project IS the site
+ * and the site vault answers (`provider-config-source.ts`).
  */
 
 export const PROJECT_WORKSPACE_ID = "project";
 export const PROJECT_DB_FILENAME = "project.db";
 
-/** `<sites root>/project.db`. */
-export function projectDbPath({ sitesHome }: { sitesHome: string }, _optional: Record<string, never> = {}): string {
-  return path.join(sitesHome, PROJECT_DB_FILENAME);
+const PROJECT_KEY_FILENAME = "project-key.hex";
+
+/** `~/.tovu/projects/<projectId>/` — the project's database and its key, outside every site folder. */
+function projectDir({ home, projectId }: { home: string; projectId: string }): string {
+  return path.join(home, ".tovu", "projects", projectId);
 }
 
-/** `~/.tovu/project-key.hex` — beside the site keys, outside every site folder. */
-export function projectKeyFilePath({ home }: { home: string }, _optional: Record<string, never> = {}): string {
-  return path.join(home, ".tovu", "project-key.hex");
+/** `~/.tovu/projects/<projectId>/project.db`. */
+export function projectDbPath(required: { home: string; projectId: string }, _optional: Record<string, never> = {}): string {
+  return path.join(projectDir(required), PROJECT_DB_FILENAME);
+}
+
+/** `~/.tovu/projects/<projectId>/project-key.hex`, beside the database it seals. */
+export function projectKeyFilePath(required: { home: string; projectId: string }, _optional: Record<string, never> = {}): string {
+  return path.join(projectDir(required), PROJECT_KEY_FILENAME);
+}
+
+/** The first layout's pair: `<sites root>/project.db` sealed with the single `~/.tovu/project-key.hex`. */
+export function legacyProjectFiles({ home, sitesHome }: { home: string; sitesHome: string }, _optional: Record<string, never> = {}): ProjectFiles {
+  return { dbPath: path.join(sitesHome, PROJECT_DB_FILENAME), keyFile: path.join(home, ".tovu", PROJECT_KEY_FILENAME) };
+}
+
+/**
+ * The database + key this start uses: the project's own folder, after moving a first-layout file
+ * there (`relocateProjectDb`; the old pair only for a run where another process still holds it open).
+ */
+export function resolveProjectFiles(required: { home: string; sitesHome: string; projectId: string }, optional: RelocateOptions = {}): ProjectFiles {
+  return relocateProjectDb({ from: legacyProjectFiles(required),
+    to: { dbPath: projectDbPath(required), keyFile: projectKeyFilePath(required) } }, optional);
 }
 
 const KEY_HEX = /^[0-9a-f]{64}$/;
@@ -66,8 +94,7 @@ function checkKeyFile(file: string, uid: (() => number) | undefined): void {
  *   with the old key would become unreadable), is not a regular file, or belongs to another user.
  * @complexity O(1) file I/O.
  */
-export function ensureProjectKey({ home }: { home: string }, optional: { mint?: () => string; uid?: () => number } = {}): string {
-  const file = projectKeyFilePath({ home });
+export function ensureProjectKey({ keyFile: file }: { keyFile: string }, optional: { mint?: () => string; uid?: () => number } = {}): string {
   if (!fs.existsSync(file)) atomicCreateSiteKeyFile(file, (optional.mint ?? mintSiteKeyHex)());
   checkKeyFile(file, optional.uid ?? process.getuid);
   const hex = fs.readFileSync(file, "utf8").trim();
@@ -90,13 +117,19 @@ export interface ProjectStore {
 /**
  * Opens (creating when absent) and migrates `project.db`, and returns its provider-settings adapter.
  * @param required.sitesHome The shared sites root (`resolveSitesHome`).
- * @param required.home The OS user's home (where `~/.tovu/project-key.hex` lives).
- * @complexity O(m) pending migrations.
+ * @param required.home The OS user's home (`os.homedir()`: HOME, or USERPROFILE on Windows), where
+ *   `~/.tovu/projects/<projectId>/` lives.
+ * @param optional.relocate Seams for moving a first-layout file (`project-store-relocate.ts`).
+ * @complexity O(m) pending migrations; O(file size) once, when a first-layout file is moved.
  */
-export async function openProjectStore(required: { sitesHome: string; home: string }, optional: { clock?: { nowMs(): number } } = {}): Promise<ProjectStore> {
-  const hex = ensureProjectKey({ home: required.home });
-  const dbPath = projectDbPath({ sitesHome: required.sitesHome });
-  fs.mkdirSync(required.sitesHome, { recursive: true });
+export async function openProjectStore(
+  required: { sitesHome: string; home: string },
+  optional: { clock?: { nowMs(): number }; relocate?: RelocateOptions } = {},
+): Promise<ProjectStore> {
+  const projectId = projectIdFor({ sitesHome: required.sitesHome });
+  const { dbPath, keyFile } = resolveProjectFiles({ home: required.home, sitesHome: required.sitesHome, projectId }, optional.relocate);
+  const hex = ensureProjectKey({ keyFile });
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true, mode: 0o700 });
   const db = openNativeSqlite(dbPath, {});
   // The same pragmas every site database opener sets (`chat-db.ts`, `content-db.ts`): web and desktop
   // hold this file open together, so WAL readers never block on a writer, and a briefly held lock is
@@ -115,5 +148,5 @@ export async function openProjectStore(required: { sitesHome: string; home: stri
     clock: optional.clock ?? { nowMs: () => Date.now() }, workspaceId: PROJECT_WORKSPACE_ID });
   const config = createVaultProviderConfigSource({ workspaceId: PROJECT_WORKSPACE_ID, scope: "project",
     state: createAgentPluginStateStore({ vault, workspaceId: PROJECT_WORKSPACE_ID }) });
-  return { projectId: projectIdFor({ sitesHome: required.sitesHome }), config, dbPath, close: () => closeSqliteConnection(db) };
+  return { projectId, config, dbPath, close: () => closeSqliteConnection(db) };
 }
