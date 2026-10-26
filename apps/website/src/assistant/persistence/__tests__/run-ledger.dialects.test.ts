@@ -88,7 +88,7 @@ const settlement = (content: string, overrides: Partial<RunRef> = {}) => ({
   endedAt: T0 + 5_000,
 });
 
-describeEachChatDialect("ChatRunLedger", (kernel) => ({ kernel, ledger: createChatRunLedger(kernel) }), (make) => {
+describeEachChatDialect("ChatRunLedger", (kernel) => ({ kernel, ledger: createChatRunLedger({ store: kernel }) }), (make) => {
   test("checkpoint persists repeated Claude tool IDs once and retains saved tool progress", async () => {
     const { kernel, ledger } = make();
     const call = { kind: "tool_use", id: "claude-1", name: "search_tools", input: { query: "family" } } as const;

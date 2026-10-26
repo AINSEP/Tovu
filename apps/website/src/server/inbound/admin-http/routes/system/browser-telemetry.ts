@@ -7,8 +7,8 @@ import type { RouteDeps } from "#src/server/routes/types";
 
 /**
  * @file `POST /api/admin/v1/telemetry` — the admin browser's errors and page views, relayed to the
- * same neutral ports server code uses, so no vendor SDK or third-party script ever loads in the
- * admin. Errors go to `observability.reportError` (whichever observability provider plugins are
+ * same neutral ports server code uses. The optional browser analytics contribution independently
+ * follows metrics consent. Errors go to `observability.reportError` (whichever observability provider plugins are
  * installed + enabled + configured, else the no-op); page views go to `tracker.capture`
  * as `admin_pageview`, which `withProductAnalyticsGuards` drops unless the operator's telemetry
  * consent is on. Site attribution is added by the provider host, not here.

@@ -1,3 +1,4 @@
+import type { Tracker } from "@jini-ai/diagnostics/observability";
 import { trashMember } from "./trash-member.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/members.js';
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
@@ -57,6 +58,7 @@ export interface MagicLinkRateLimiter {
  * `MembersRouteDeps` object; nothing there changes.
  */
 export interface MembersToolDeps {
+  tracker?: Tracker;
   removeMember?: import("@jini-ai/cms/trash").RemoveEntity;
   authorize: AuthorizeFn;
   workspaceId: string;
@@ -192,7 +194,11 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
     members_create: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "member.manage" }, { entityType: "member" });
-      const { member } = await createMember({ deps: toMembersWriteServiceDeps(deps), input: { workspaceId: deps.workspaceId, email: requireString({ input, key: "email" }) } }, { name: optionalString({ input, key: "name" }) });
+      const { member } = await createMember({ deps: { ...toMembersWriteServiceDeps(deps), onMemberCreated: ({ workspaceId, memberId, creationSource, initialState }) => {
+        deps.tracker?.capture({ name: "member_registered", userId: ctx.principal.id, properties: {
+          eventId: `member-registered:${workspaceId}:${memberId}`, creationSource, initialState,
+        } });
+      } }, input: { workspaceId: deps.workspaceId, email: requireString({ input, key: "email" }) } }, { name: optionalString({ input, key: "name" }) });
       return { member: toMemberToolView(member) };
     },
     /** Changes the public profile only; operator notes and extension fields stay private. */

@@ -79,6 +79,58 @@ const OBS_ATTRIBUTION = attributionFor({ contract: "observability", site: SITE }
 const consentAlways = { consent: () => true, consentRevision: () => 0 };
 const quiet = () => {};
 
+test('browser contribution comes only from a configured current analytics lease', async () => {
+  const contribution = { source: 'function(){return function(mode){};}', origins: ['https://collector.example'], supportsStatic: false };
+  const port: ProductAnalyticsPort = { capture() {}, identify() {}, browserAnalytics: () => contribution };
+  const { runtime } = fakeRuntime({ installed: ['analytics-posthog'], factories: {
+    'analytics-posthog': { contract: 'product_analytics', id: 'posthog', factory: fakeFactory({ calls: { inputs: [], disposed: 0 }, port }) },
+  } });
+  const providers = await bootProviderPlugins({ runtime, config: configOf(CONFIGS), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet });
+  assert.deepEqual(providers.browserAnalytics?.({ surface: 'site' }), [contribution]);
+  runtime.providerContributions.detach({ pluginId: 'analytics-posthog' });
+  assert.deepEqual(providers.browserAnalytics?.({ surface: 'site' }), []);
+  await providers.dispose({});
+  const absent = await bootProviderPlugins({ runtime, config: configOf({}), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet });
+  assert.deepEqual(absent.browserAnalytics?.({ surface: 'admin' }), []);
+  await absent.dispose({});
+});
+
+test("provider reporter feeds delivery status and diagnostic receipts follow live leases and consent", async () => {
+  const warnings: string[] = [];
+  const seen: string[] = [];
+  let report!: (value: import("@jini-ai/diagnostics/observability").ProviderTelemetryReport) => void;
+  let allowed = false;
+  const { runtime } = fakeRuntime({ installed: ["observability-opentelemetry", "analytics-posthog"], factories: {
+    "observability-opentelemetry": { contract: "observability", id: "trace", factory: (_input, options = {}) => {
+      report = options.reportTelemetry as typeof report;
+      return { port: recordingObservability(seen), dispose() {} };
+    } },
+    "analytics-posthog": { contract: "product_analytics", id: "events", factory: () => ({ port: {
+      capture: (event: { name: string }) => { seen.push(`event:${event.name}`); }, identify() {},
+    }, dispose() {} }) },
+  } });
+  const providers = await bootProviderPlugins({ runtime, config: configOf(CONFIGS), serviceName: "tovu", site: SITE,
+    consent: () => allowed, consentRevision: () => 0 }, { warn: message => { warnings.push(message); }, info: quiet });
+  assert.deepEqual(providers.telemetryStatus({}), [{ providerId: "observability-opentelemetry/trace", lastExport: null, lastShutdown: null }]);
+  report({ phase: "export", outcome: "failed", host: "collector.test", errorClass: "Error", statusCode: 401 });
+  report({ phase: "export", outcome: "failed", host: "collector.test", errorClass: "Error", statusCode: 401 });
+  assert.deepEqual(warnings, ["observability: observability-opentelemetry/trace export failed (Error, HTTP 401, host collector.test)"]);
+  assert.equal(providers.telemetryStatus({})[0]!.lastExport!.outcome, "failed");
+  assert.ok(providers.telemetryStatus({})[0]!.lastExport!.at);
+  report({ phase: "export", outcome: "ok", host: "collector.test" });
+  assert.equal(providers.telemetryStatus({})[0]!.lastExport!.outcome, "ok");
+  const send = () => providers.sendTelemetryTest({ error: new Error("Tovu test error — safe to ignore") });
+  assert.deepEqual(await send(), { providers: [{ providerId: "observability-opentelemetry/trace", signals: ["span", "error"] }] });
+  allowed = true;
+  assert.deepEqual(await send(), { providers: [
+    { providerId: "observability-opentelemetry/trace", signals: ["span", "error"] },
+    { providerId: "analytics-posthog/events", signals: ["analytics"] },
+  ] });
+  assert.deepEqual(seen, ["op:telemetry.test", "error:telemetry.test", "op:telemetry.test", "error:telemetry.test", "event:telemetry_test"]);
+  await providers.dispose({});
+  assert.deepEqual(await send(), { providers: [] });
+});
+
 test("nothing configured: nothing is loaded, every contract is the shared noop, and AI tracing is off", async () => {
   const { runtime, requested } = fakeRuntime({ factories: {}, installed: [] });
   const ports = await bootProviderPlugins({ runtime, config: configOf({}), serviceName: "tovu", site: SITE, ...consentAlways }, { warn: quiet });
@@ -238,7 +290,7 @@ test("two product-analytics providers both receive each allowed event", async ()
   const ports = await bootProviderPlugins({ runtime, config: configOf({ a: { settings: {}, secrets: { apiKey: "k" } }, b: { settings: {}, secrets: { apiKey: "k" } } }), serviceName: "tovu", site: SITE, ...consentAlways }, { warn: quiet });
   ports.tracker.capture({ name: "theme_changed", userId: "p-2" });
   // Identity fan-out is covered at its new owner, analytics/product-fanout.test.ts.
-  assert.deepEqual(seen, ["a:theme_changed"]);
+  assert.deepEqual(seen, ["a:provider_initialized", "a:provider_initialized", "a:theme_changed"]);
 });
 
 const HOSTILE = [undefined, null, [], {}, 0, Number.NaN, "", "  ", true, "port", () => {}];
@@ -290,7 +342,7 @@ test("a retired lease is never called again: after disable every contract's comp
   ports.observability.trackOperation({ name: "before" }).end({ outcome: "ok" });
   ports.tracker.capture({ name: "before", userId: "p-1" });
   ports.aiTraceSink!.record(event);
-  assert.deepEqual(seen, ["op:before", "capture:before"]);
+  assert.deepEqual(seen, ["capture:provider_initialized", "capture:provider_initialized", "capture:provider_initialized", "op:before", "capture:before"]);
   assert.equal(sinkEvents.length, 1);
   for (const pluginId of ["observability-sentry", "analytics-posthog", "ai-trace-langfuse"]) runtime.providerContributions.detach({ pluginId });
   // Synchronously after detach — before the host's queued disposal — the lease is already not current.
@@ -299,7 +351,7 @@ test("a retired lease is never called again: after disable every contract's comp
   ports.tracker.capture({ name: "after", userId: "p-1" });
   ports.aiTraceSink!.record(event);
   await ports.aiTraceSink!.flush?.();
-  assert.deepEqual(seen, ["op:before", "capture:before"]);
+  assert.deepEqual(seen, ["capture:provider_initialized", "capture:provider_initialized", "capture:provider_initialized", "op:before", "capture:before"]);
   assert.equal(sinkEvents.length, 1);
   await ports.dispose({});
 });
@@ -398,22 +450,22 @@ test("an unconfigured slot becomes live without replacing captured ports; rotati
   captured.capture(event); assert.deepEqual(seen, []);
   saved = { settings: { host: "https://collector.example.test" }, secrets: { apiKey: ["fake", "first"].join("_") } };
   assert.equal(await ports.reapply({ pluginId: "analytics-posthog" }), "now");
-  captured.capture(event); assert.deepEqual(seen, [saved.secrets.apiKey]);
+  captured.capture(event); assert.deepEqual(seen, [saved.secrets.apiKey, saved.secrets.apiKey]);
   assert.equal(await ports.reapply({ pluginId: "analytics-posthog" }), "now");
   assert.equal(disposed, 0, "unchanged settings do not reinitialize");
   saved = { ...saved, secrets: { apiKey: ["fake", "second"].join("_") } };
   await ports.reapply({ pluginId: "analytics-posthog" });
-  captured.capture(event); assert.equal(seen[1], saved.secrets.apiKey); assert.equal(disposed, 1);
+  captured.capture(event); assert.equal(seen[2], saved.secrets.apiKey); assert.equal(seen[3], saved.secrets.apiKey); assert.equal(disposed, 1);
   saved = null; await ports.reapply({ pluginId: "analytics-posthog" });
-  captured.capture(event); assert.equal(seen.length, 2); assert.equal(disposed, 2);
+  captured.capture(event); assert.equal(seen.length, 4); assert.equal(disposed, 2);
   saved = { settings: { host: "https://collector.example.test" }, secrets: { apiKey: "refuse" } };
   assert.equal(await ports.reapply({ pluginId: "analytics-posthog" }), "restart");
   assert.equal(ports.appliesAt({ pluginId: "analytics-posthog" }), "restart");
-  captured.capture(event); assert.equal(seen.length, 2);
+  captured.capture(event); assert.equal(seen.length, 4);
   assert.deepEqual(warnings, ["provider plugin 'analytics-posthog' did not initialize: TypeError"]);
   saved = { ...saved, secrets: { apiKey: ["fake", "recovered"].join("_") } };
   assert.equal(await ports.reapply({ pluginId: "analytics-posthog" }), "now");
-  captured.capture(event); assert.equal(seen[2], saved.secrets.apiKey);
+  captured.capture(event); assert.equal(seen[4], saved.secrets.apiKey); assert.equal(seen[5], saved.secrets.apiKey);
   await ports.dispose({}); assert.equal(disposed, 3);
 });
 

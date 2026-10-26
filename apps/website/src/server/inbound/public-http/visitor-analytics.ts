@@ -1,0 +1,52 @@
+import type { Request } from "express";
+import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { ConsentAnalyticsProof } from "@jini-ai/cms/consent/express";
+
+/** Composition-bound public analytics ports. Missing consent or identity generation denies capture. */
+export interface VisitorAnalyticsDeps {
+  tracker?: Tracker;
+  idGen?: { newId(): string };
+  visitorAnalyticsConsent?: (required: { request: Request }) => Promise<boolean>;
+  visitorAnalyticsProof?: (required: { request: Request }) => Promise<ConsentAnalyticsProof | undefined>;
+  visitorAnalyticsDeliveryAllowed?: (required: { proof: ConsentAnalyticsProof }) => Promise<boolean>;
+}
+
+/** Durable, minimal evidence carried beside a committed CMS event; never derived from form fields. */
+export interface VisitorAnalyticsProvenance {
+  granted: true;
+  subjectId: string;
+  consentProof?: ConsentAnalyticsProof;
+}
+
+/** Resolve the site's existing consent decision and create a request-local anonymous subject.
+ * Consent failures suppress analytics and cannot alter the public operation. @complexity O(1). */
+export async function visitorAnalyticsProvenance(
+  { deps, request }: { deps: VisitorAnalyticsDeps; request: Request },
+  _optional: Record<string, never> = {},
+): Promise<VisitorAnalyticsProvenance | undefined> {
+  if (!deps.tracker || !deps.idGen) return undefined;
+  try {
+    if (deps.visitorAnalyticsProof) {
+      const consentProof = await deps.visitorAnalyticsProof({ request });
+      return consentProof ? { granted: true, subjectId: `visitor:${deps.idGen.newId()}`, consentProof } : undefined;
+    }
+    if (!await deps.visitorAnalyticsConsent?.({ request })) return undefined;
+    return { granted: true, subjectId: `visitor:${deps.idGen.newId()}` };
+  } catch { return undefined; }
+}
+
+/** Capture a bounded public outcome after consent, with an optional site-scoped authenticated subject.
+ * Telemetry failure never changes a committed operation's response. @complexity O(1). */
+export async function captureVisitorEvent(
+  required: { deps: VisitorAnalyticsDeps; request: Request; name: string; properties?: Readonly<Record<string, string | number | boolean>> },
+  optional: { subjectId?: string } = {},
+): Promise<void> {
+  const { deps, request, name, properties } = required;
+  const provenance = await visitorAnalyticsProvenance({ deps, request });
+  if (!provenance) return;
+  try {
+    if (provenance.consentProof && !await deps.visitorAnalyticsDeliveryAllowed?.({ proof: provenance.consentProof })) return;
+    deps.tracker!.capture({ name, userId: optional.subjectId ?? provenance.subjectId, properties });
+  }
+  catch { /* Product analytics cannot turn a committed public operation into a failure. */ }
+}

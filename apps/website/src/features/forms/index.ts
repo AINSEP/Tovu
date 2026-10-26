@@ -136,11 +136,18 @@ export interface SubmitFormDeps extends Omit<PackageSubmitDeps, "dispatcher" | "
   bus: EventBusPort;
   files?: FormFileStorage;
 }
+/** Trusted request-bound evidence; never supplied by public form answers. */
+export interface FormAnalyticsProvenance { granted: true; subjectId: string; consentProof?: import('@jini-ai/cms/consent').ConsentAnalyticsProof; }
 export interface SubmitFormRequired { deps: SubmitFormDeps; input: SubmitFormInput; }
 
 /** One attempt store per submission store: the same process-lifetime scope the store has. */
 const attemptsByStore = new WeakMap<SubmitFormDeps["submissionRepo"], SubmissionAttempts>();
-function attemptsFor(store: SubmitFormDeps["submissionRepo"]): SubmissionAttempts {
+/** Return the existing repo-scoped Jini owner so composition can share issuance and submission.
+ * No durable effects; the host supplies the hash implementation. @complexity O(1). */
+export function formSubmissionAttemptsFor(
+  { submissionRepo: store }: Pick<SubmitFormDeps, "submissionRepo">,
+  _optional: Record<string, never> = {},
+): SubmissionAttempts {
   let attempts = attemptsByStore.get(store);
   if (!attempts) {
     attempts = createSubmissionAttempts({ hash: (input) => createHash("sha256").update(input).digest("hex") }, {});
@@ -152,14 +159,20 @@ function attemptsFor(store: SubmitFormDeps["submissionRepo"]): SubmissionAttempt
 /** Bind HTML/email validation, same-store persistence and background outbox delivery. */
 export function submitForm(
   { deps, input }: SubmitFormRequired,
-  { logger = { warn: ({ message }, { error } = {}) => console.warn(message, error) }, attempts = attemptsFor(deps.submissionRepo) }:
-    { logger?: Pick<Logger, "warn">; attempts?: SubmissionAttempts } = {},
+  { logger = { warn: ({ message }, { error } = {}) => console.warn(message, error) }, attempts = formSubmissionAttemptsFor({ submissionRepo: deps.submissionRepo }), analyticsProvenance }:
+    { logger?: Pick<Logger, "warn">; attempts?: SubmissionAttempts; analyticsProvenance?: FormAnalyticsProvenance } = {},
 ) {
   // INV-05/REQ-16: Jini invokes this dispatcher without awaiting delivery. The await here
   // belongs inside the background task; submitForm must never wait for mail subscribers.
   const dispatch = async () => { await processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock }); };
   return submitPackageForm({ deps: {
-    ...deps, transaction: (work) => deps.submissionRepo.transaction!(work), dispatcher: { dispatch }, logger,
+    ...deps,
+    // The shared owner still commits the row and event together. Only its actual enqueue receives
+    // provenance: duplicate/honeypot responses never enqueue and therefore cannot count.
+    outbox: { enqueue: (event) => deps.outbox.enqueue({ ...event, payload: {
+      ...event.payload, deliveryMode: "live", ...(analyticsProvenance ? { analyticsProvenance } : {}),
+    } }) },
+    transaction: (work) => deps.submissionRepo.transaction!(work), dispatcher: { dispatch }, logger,
   }, input }, { definitionView: htmlSubmissionDefinition, validateEmails: true, dispatch, attempts });
 }
 

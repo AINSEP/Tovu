@@ -45,7 +45,13 @@ test("a configured provider selection: content and chat kernels are decorated wi
     return { ...tracker, end: (outcome) => { if (outcome.table) tables.add(outcome.table); tracker.end(outcome); } };
   } };
   let disposed = 0;
-  const deps = await siteDeps(t, { bootProviderPlugins: async () => ({ observability: port, tracker: createTracker({ observability: port }), aiTraceSink: undefined, reapply: async () => "now", appliesAt: () => "now", dispose: async () => { disposed += 1; } }) });
+  const diagnostics: Error[] = [];
+  const deps = await siteDeps(t, { bootProviderPlugins: async () => ({ observability: port, tracker: createTracker({ observability: port }),
+    telemetryStatus: () => [], sendTelemetryTest: async ({ error }) => { diagnostics.push(error); return { providers: [] }; },
+    aiTraceSink: undefined, reapply: async () => "now", appliesAt: () => "now", dispose: async () => { disposed += 1; } }) });
+
+  assert.deepEqual(await deps.sendTelemetryTest?.({}), { providers: [] });
+  assert.equal(diagnostics[0]?.message, "Tovu test error — safe to ignore");
 
   assert.equal(deps.observability, port);
   assert.equal(isNoopObservabilityPort(deps.observability), false);

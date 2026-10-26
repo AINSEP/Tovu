@@ -1,3 +1,4 @@
+import { captureVisitorEvent } from "../../visitor-analytics.js";
 import type { Express } from "express";
 
 import { consumeConfirmationToken } from "#src/features/newsletter/confirmation";
@@ -19,10 +20,13 @@ export function registerPublicNewsletterConfirmRoute(app: Express, deps: Newslet
     const token = typeof req.query.token === "string" ? req.query.token : "";
 
     try {
-      await consumeConfirmationToken({
+      const result = await consumeConfirmationToken({
         deps: toPublicConfirmationDeps(deps),
         input: { workspaceId: deps.workspaceId, rawToken: token },
       });
+      if (result.changed) void captureVisitorEvent({ deps, request: req, name: "newsletter_subscribed", properties: {
+        listId: result.subscription.listId, method: "double_opt_in", eventId: result.eventId,
+      } });
       res.status(200).type("html").send(renderPage("Subscription confirmed", "Your subscription is confirmed. You're all set."));
     } catch (err) {
       if (err instanceof NewsletterConfirmTokenInvalidError) {

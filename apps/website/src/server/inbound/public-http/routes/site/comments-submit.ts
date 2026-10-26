@@ -1,3 +1,5 @@
+import { captureVisitorEvent } from "../../visitor-analytics.js";
+import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
 import { urlencoded, type Express, type RequestHandler } from "express";
 import type { CommentsProviderRegistry } from '@jini-ai/capability-providers/comments';
 import type { CommentIngressPolicy } from "@jini-ai/cms/comments";
@@ -19,7 +21,7 @@ import { resolveProtocol, resolvePublicOrigin } from "../oauth/public-origin.js"
  * `COMMENTS_IP_SALT` itself and fall back to a public `"dev-only-insecure-salt"` constant —
  * see that resolver's header for why the fallback is now derived from the site key instead.
  */
-export interface CommentsSubmitDeps {
+export interface CommentsSubmitDeps extends VisitorAnalyticsDeps {
   ingressPolicy: CommentIngressPolicy;
   workspaceId: string;
   /** A separate HTTP budget; the ingress policy retains its own submission limiter. */
@@ -80,8 +82,15 @@ export function registerCommentsSubmitRoute(app: Express, deps: CommentsSubmitDe
   if (typeof deps.ipHashSalt?.then !== "function") {
     throw new TypeError("registerCommentsSubmitRoute requires deps.ipHashSalt (a Promise<string> from resolveCommentsIpHashSalt at the composition root)");
   }
-  const handler = deps.ipHashSalt.then((ipHashSalt) => createCommentSubmitHandler({
-    ingressPolicy: deps.providers ? providerIngress({ providers: deps.providers, siteId: deps.workspaceId }) : deps.ingressPolicy,
+  const handler = deps.ipHashSalt.then((ipHashSalt) => (request: Parameters<RequestHandler>[0]) => createCommentSubmitHandler({
+    ingressPolicy: { submit: async submission => {
+      const owner = deps.providers ? providerIngress({ providers: deps.providers, siteId: deps.workspaceId }) : deps.ingressPolicy;
+      const result = await owner.submit(submission);
+      if (result.ok) void captureVisitorEvent({ deps, request, name: "comment_submitted", properties: {
+        entryId: submission.entryId, moderationState: ["pending", "approved", "spam"].includes(result.comment.status) ? result.comment.status : "other",
+      } });
+      return result;
+    } },
     workspaceId: deps.workspaceId,
     ipHashSalt,
     rateLimiter: deps.rateLimiter,
@@ -98,7 +107,7 @@ export function registerCommentsSubmitRoute(app: Express, deps: CommentsSubmitDe
     }
     let built: RequestHandler;
     try {
-      built = await handler;
+      built = (await handler)(request);
     } catch (error) {
       next(error);
       return;

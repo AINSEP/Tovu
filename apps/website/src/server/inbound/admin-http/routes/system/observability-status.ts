@@ -17,7 +17,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * that decision through the same workspace-id-404 -> authorize -> 403 shape every sibling route in
  * this directory uses (`module-status.ts`, `deployment-overview.ts`).
  */
-export type AdminObservabilityStatusDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "observability">;
+export type AdminObservabilityStatusDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "observability" | "telemetryStatus" | "sendTelemetryTest" | "tracker">;
 
 export function registerAdminObservabilityStatusRoute(app: Express, deps: AdminObservabilityStatusDeps): void {
   app.get("/api/admin/v1/workspaces/:workspaceId/system/observability-status", async (req, res) => {
@@ -47,9 +47,30 @@ export function registerAdminObservabilityStatusRoute(app: Express, deps: AdminO
       // reports under. Never the collector endpoint, DSN or any credential: those live only in the
       // provider plugins' sealed key cards and must not be disclosed by this status route.
       const enabled = !isNoopObservabilityPort(deps.observability);
-      res.status(200).json({ enabled, serviceName: enabled ? "tovu" : null });
+      const testAccess = deps.sendTelemetryTest ? await deps.authorize({ principalId: principal.id,
+        permission: "system.write", workspaceId: deps.workspaceId, entityType: "observability" }) : undefined;
+      res.status(200).json({ enabled, serviceName: enabled ? "tovu" : null,
+        ...(deps.telemetryStatus ? { providers: deps.telemetryStatus({}) } : {}),
+        ...(testAccess ? { canSendTestError: testAccess.allowed } : {}) });
     } catch (err) {
       console.error("[system/observability-status] unexpected error", err);
+      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    }
+  });
+  app.post("/api/admin/v1/workspaces/:workspaceId/system/observability/test-error", async (req, res) => {
+    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+      res.status(404).json({ error: "workspace was not found" }); return;
+    }
+    try {
+      const principal = getAuthedPrincipal(res);
+      const access = await deps.authorize({ principalId: principal.id, permission: "system.write",
+        workspaceId: deps.workspaceId, entityType: "observability" });
+      if (!access.allowed) { res.status(403).json({ error: "not authorized to send a test error", code: "FORBIDDEN" }); return; }
+      if (!deps.sendTelemetryTest) { res.status(503).json({ error: "telemetry test is unavailable" }); return; }
+      // No submitted error text: only the fixed diagnostic bound by the composition root is sent.
+      res.status(200).json(await deps.sendTelemetryTest({}));
+    } catch (error) {
+      deps.tracker.error(error instanceof Error ? error : new Error("telemetry test failed"), { operation: "telemetry.test_action" });
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }
   });

@@ -30,7 +30,7 @@ function deferred() {
 for (const missing of ["run-id", "durable-store"] as const) {
   test(`serving boot cancels a row with no ${missing} once and keeps its saved answer`, async () => {
     const db = openChatDb(":memory:");
-    const ledger = createChatRunLedger(db);
+    const ledger = createChatRunLedger({ store: db });
     const store = createChatStoreFactory(db)(principal);
     const events = [{ kind: "text" as const, text: "Saved partial" }];
     try {
@@ -57,7 +57,7 @@ for (const missing of ["run-id", "durable-store"] as const) {
 
 test("a missing daemon attempt without durable recovery settles canceled instead of stranding its row", async () => {
   const db = openChatDb(":memory:");
-  const ledger = createChatRunLedger(db);
+  const ledger = createChatRunLedger({ store: db });
   const store = createChatStoreFactory(db)(principal);
   try {
     await store.create({ id: "c1" });
@@ -84,7 +84,7 @@ for (const [reason, expectedLaunches] of [["HTTP 400: invalid_request_error", 0]
     try {
       await store.create({ id: "c1" });
       await store.appendMessage({ conversationId: "c1", message: stub });
-      const finalizer = createAssistantRunFinalizer({ ledger: createChatRunLedger(db), reconnectDelayMs: 0,
+      const finalizer = createAssistantRunFinalizer({ ledger: createChatRunLedger({ store: db }), reconnectDelayMs: 0,
         daemon: {
           openEvents: async ({ runId }) => new Response(runId === "run-1"
             ? frame("agent", { type: "text_delta", delta: "Partial" }) + frame("error", { message: reason }) + frame("end", { status: "failed", code: 1 })
@@ -113,7 +113,7 @@ test("a buffered completed run settles despite a pending checkpoint, and stays s
   const terminalSaved = deferred();
   let terminalWritten = false;
   let checkpointCalls = 0;
-  const ledger = createChatRunLedger(db);
+  const ledger = createChatRunLedger({ store: db });
   const store = createChatStoreFactory(db)(principal);
   await store.create({ id: "c1" });
   await store.appendMessage({ conversationId: "c1", message: stub });
@@ -172,7 +172,7 @@ test("a buffered completed run settles despite a pending checkpoint, and stays s
     await checkpointFinished.promise;
     db.close();
     db = openChatDb(path);
-    assert.equal(await createChatRunLedger(db).reconcileInterrupted({ now: 3000 }), 0);
+    assert.equal(await createChatRunLedger({ store: db }).reconcileInterrupted({ now: 3000 }), 0);
     const reopened = (await createChatStoreFactory(db)(principal).messages({ conversationId: "c1" }))[0]!;
     assert.equal(reopened.runStatus, "succeeded");
     assert.equal(reopened.content, "Finished answer");
@@ -197,7 +197,7 @@ test("an authentication failure keeps its partial answer and never launches a co
   await store.appendMessage({ conversationId: "c1", message: stub });
   let launches = 0;
   const finalizer = createAssistantRunFinalizer({
-    ledger: createChatRunLedger(db), reconnectDelayMs: 0,
+    ledger: createChatRunLedger({ store: db }), reconnectDelayMs: 0,
     daemon: {
       openEvents: async () => new Response(frame("agent", { type: "text_delta", delta: "Partial" }) +
         frame("error", { message: "Not logged in" }) + frame("end", { code: 1, status: "failed" })),
@@ -219,7 +219,7 @@ test("an authentication failure keeps its partial answer and never launches a co
 test("a request-bound run retains its ordinary browser terminal status", async () => {
   const db = openChatDb(":memory:");
   const store = createChatStoreFactory(db)(principal);
-  const ledger = createChatRunLedger(db);
+  const ledger = createChatRunLedger({ store: db });
   const byokStub = { ...stub, runId: "byok:run-1" };
   try {
     await store.create({ id: "c1" });
@@ -241,7 +241,7 @@ test("a request-bound run retains its ordinary browser terminal status", async (
 test("a browser-first restart save of a daemon run stays running, and the finalizer's proof settles it canceled, never failed", async () => {
   const db = openChatDb(":memory:");
   const store = createChatStoreFactory(db)(principal);
-  const ledger = createChatRunLedger(db);
+  const ledger = createChatRunLedger({ store: db });
   try {
     await store.create({ id: "c1" });
     await store.appendMessage({ conversationId: "c1", message: stub });

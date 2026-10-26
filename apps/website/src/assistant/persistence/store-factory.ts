@@ -22,7 +22,7 @@ import { createTenantScopedChatStore, type ChatStoreFactory } from "./tenant-sco
  */
 export function createChatStoreFactory(store: ChatKernel | SqliteConnectionSource): ChatStoreFactory {
   const kernel = chatKernel(store);
-  const ledger = createChatRunLedger(kernel);
+  const ledger = createChatRunLedger({ store: kernel });
   return (principal) => createTenantScopedChatStore(kernel, principal, ledger);
 }
 
@@ -55,12 +55,12 @@ export function createInMemoryChatHistory(): { chatHistory: ChatStoreFactory; ch
   // One kernel per connection (memoized), so building a ledger per use costs nothing and keeps the
   // database lazy.
   const chatRunLedger: ChatRunLedger = {
-    get durable() { return createChatRunLedger(open()).durable; },
-    unlessSettled: (run, write) => createChatRunLedger(open()).unlessSettled(run, write),
-    settle: (settlement) => createChatRunLedger(open()).settle(settlement),
-    checkpoint: (progress) => createChatRunLedger(open()).checkpoint(progress),
+    get durable() { return createChatRunLedger({ store: open() }).durable; },
+    unlessSettled: (run, write) => createChatRunLedger({ store: open() }).unlessSettled(run, write),
+    settle: (settlement) => createChatRunLedger({ store: open() }).settle(settlement),
+    checkpoint: (progress) => createChatRunLedger({ store: open() }).checkpoint(progress),
     // A database nobody has opened yet holds no stuck rows, so boot-time reconcile does not open it.
-    reconcileInterrupted: async (required, optional) => (db ? createChatRunLedger(db).reconcileInterrupted(required, optional) : 0),
+    reconcileInterrupted: async (required, optional) => (db ? createChatRunLedger({ store: db }).reconcileInterrupted(required, optional) : 0),
   };
   return {
     chatHistory: (principal) => createTenantScopedChatStore(open(), principal, chatRunLedger),

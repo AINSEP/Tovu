@@ -592,6 +592,7 @@ export function createAssistantByokModule(
       const aiTrace = routeDeps.aiTraceSink ? createAiTraceRecorder({ sink: routeDeps.aiTraceSink, runId: run.id, agentId: credential.protocol },
         { provider: credential.protocol, model: credential.model, exactSecrets: [credential.apiKey] }) : undefined;
       aiTrace?.start(routeDeps.aiTraceSink?.capture === "full" ? { input: messages.at(-1)?.content ?? null } : {});
+      routeDeps.tracker.capture({ name: "assistant_run_started", userId: principal.id, properties: { chatSurface: "admin", logicalRunId: run.id, eventId: `assistant-start:${run.id}` } });
       let reportedError = false;
       // A failed turn (a provider error event or a throw, not an owner's cancel) is an incident for
       // the error tracker too: the protocol and run id only, the key blanked even without a known shape.
@@ -633,6 +634,7 @@ export function createAssistantByokModule(
       } catch (error) {
         aiTrace?.observe({ type: "error", message: error instanceof Error ? error.message : String(error) });
         aiTrace?.finish({ outcome: abort.signal.aborted ? "cancelled" : "failed" });
+        routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id, properties: { chatSurface: "admin", logicalRunId: run.id, outcome: abort.signal.aborted ? "cancelled" : "failed", eventId: `assistant-finish:${run.id}` } });
         span.setOutcome(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }, { thrown: { error } }));
         if (!abort.signal.aborted) reportRunFailure(error);
         sse(res, "error", { type: "error", message: error instanceof Error ? error.message : String(error) });
@@ -643,6 +645,7 @@ export function createAssistantByokModule(
 
       span.setOutcome(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }));
       aiTrace?.finish({ outcome: abort.signal.aborted ? "cancelled" : reportedError ? "failed" : "succeeded" });
+      routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id, properties: { chatSurface: "admin", logicalRunId: run.id, outcome: abort.signal.aborted ? "cancelled" : reportedError ? "failed" : "succeeded", eventId: `assistant-finish:${run.id}` } });
       sse(res, "end", { reason: result.stopReason ?? "stop" });
       res.end();
     }, { agent: { runId: run.id, agentName: credential.protocol } });

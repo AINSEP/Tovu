@@ -1,3 +1,4 @@
+import { captureMemberSignedIn, observeMemberSignInFailure } from "./analytics.js";
 import type { Express, Response } from "express";
 import { completeSignIn, MemberAuthError, MemberReauthenticationRequiredError, MemberValidationError, type MemberSignInInput } from "#src/features/members/index";
 import { toPublicMemberResponse } from "../../http/members.js";
@@ -75,14 +76,16 @@ function completionCredential({ body, workspaceId }: { body: unknown; workspaceI
 /** Complete a purpose-bound link/code challenge and set only the member session cookie. O(1) I/O. */
 export function registerPublicMemberCompleteSignInRoute(app: Express, deps: MemberPublicRouteDeps): void {
   app.post("/api/members/v1/workspaces/:workspaceId/sign-in/complete", async (req, res) => {
+    observeMemberSignInFailure({ deps: deps, request: req, response: res, method: "challenge" });
     try {
       if (!checkMemberPost({ req, res, deps })) return;
       const credential = completionCredential({ body: req.body, workspaceId: deps.workspaceId });
       if (!credential) { res.status(400).json({ error: "expected token or challengeId and six-digit code strings" }); return; }
       if (!await checkMemberRequestLimits({ req, res, deps, ipLimiter: deps.magicLinkCompleteAttemptLimiter })) return;
-      const result = await completeSignIn({ deps: toPublicMembersWriteServiceDeps(deps),
+      const result = await completeSignIn({ deps: toPublicMembersWriteServiceDeps(deps, { request: req }),
         input: { ...credential, userAgent: req.get("user-agent"), ip: resolveClientIp(req) } });
       setMemberSessionCookie({ res, rawToken: result.rawSessionToken, expiresAtIso: result.session.expiresAt });
+      captureMemberSignedIn({ deps: deps, request: req, result: result, method: "challenge", workspaceId: deps.workspaceId });
       res.json({ member: toPublicMemberResponse(result.member) });
     } catch (error) { sendMemberAuthError({ res, error }); }
   });

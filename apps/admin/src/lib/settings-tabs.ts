@@ -300,7 +300,13 @@ export async function savePrivacy(
       changed: nextDecisionAt !== previousDecisionAt,
     },
   ];
-  return saveChangedEntries(PRIVACY_NAMESPACE, WORKSPACE_SCOPE, candidates);
+  // Metrics is the first durable write. Signal it before later preference writes can fail.
+  const metrics = await saveChangedEntries(PRIVACY_NAMESPACE, WORKSPACE_SCOPE, candidates.filter(candidate => candidate.key === PRIVACY_KEYS.metrics));
+  if (metrics.includes(PRIVACY_KEYS.metrics) && typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('jini:metrics-consent-changed', { detail: nextMetrics }));
+  }
+  const remaining = await saveChangedEntries(PRIVACY_NAMESPACE, WORKSPACE_SCOPE, candidates.filter(candidate => candidate.key !== PRIVACY_KEYS.metrics));
+  return [...metrics, ...remaining];
 }
 
 // --- User Interface -------------------------------------------------------

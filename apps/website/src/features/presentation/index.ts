@@ -9,7 +9,6 @@
 export {
   ALLOWED_THEME_IDS,
   getPresentationSettings,
-  setActiveTheme,
   PresentationSettingsNotFoundError,
   PresentationSettingsValidationError,
   type GetPresentationSettingsRequired,
@@ -17,7 +16,6 @@ export {
   type PresentationSettingsRecord,
   type PresentationSettingsRepoPort,
   type SetActiveThemeDeps,
-  type SetActiveThemeRequired,
   type ThemeId,
   InMemoryPresentationSettingsRepo,
 } from "@jini-ai/cms/presentation";
@@ -25,3 +23,5 @@ export {
 export { SqlitePresentationSettingsRepo } from "./repo.sqlite.js";
 
 export { resolveActiveThemeId, type ActiveThemeIdResolutionDeps } from "./active-theme-id.js";
+
+export { setActiveTheme, type SetActiveThemeRequired } from "./set-active-theme.js";

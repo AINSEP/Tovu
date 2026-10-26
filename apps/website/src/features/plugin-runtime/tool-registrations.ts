@@ -1,3 +1,4 @@
+import type { Tracker } from "@jini-ai/diagnostics/observability";
 import type { PluginExportRuntime, PluginExportCatalogRow } from "../agent-plugins/exports/runtime.js";
 import { AGENT_PLUGIN_CONTRACT_VERSION, AgentPluginHostIncompatibleError, AgentPluginUpdateError, checkAgentPluginCompatibility } from "@jini-ai/agent-plugins/lifecycle";
 import { toolMetadata } from '../../contracts/core/tool-metadata/plugin-runtime.js';
@@ -171,6 +172,7 @@ async function listAgentPluginsForResponse(routeDeps: PluginsToolDeps): Promise<
  * passing its existing `RouteDeps` object; nothing there changes.
  */
 export interface PluginsToolDeps extends OperatorLocaleDeps {
+  readonly tracker?: Tracker;
   readonly pluginExports?: PluginExportRuntime;
   readonly pluginSource?: import('@jini-ai/plugins/host/node').PluginSourcePort;
   readonly pluginSourcePolicy?: import('@jini-ai/plugins/host').PluginSourcePolicyPort;
@@ -717,6 +719,7 @@ async function applySiteRuntimeDecision(routeDeps: PluginsToolDeps, principalId:
 
   const record = discovery.find((r) => r.id === pluginId);
   if (!record) throw new ToolInputError({ message: `plugin '${pluginId}' was not found in the current discovery snapshot` });
+  if (((priorActivation as PluginActivationRecord | null)?.enabled ?? false) !== result.activation.enabled) routeDeps.tracker?.capture({ name: "plugin_toggled", userId: principalId, properties: { pluginId: record.id, pluginKind: "cms", enabled: result.activation.enabled, source: "assistant" } });
   return {
     changed: true,
     cancelled: false,

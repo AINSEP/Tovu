@@ -3,6 +3,7 @@ import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 
 import { providerKeyUsage, ProviderConfigUnreadableError, ProviderStoreUnavailableError, type ProviderConfigSource, type ProviderKeyUsage } from "./provider-config-source.js";
 import { providerInputOf } from "./provider-plugins.js";
+import type { Tracker } from '@jini-ai/diagnostics/observability';
 
 /**
  * @file The one save rule for a provider plugin's settings (2026-10-25), shared by the admin settings
@@ -85,8 +86,9 @@ function requiredSettingsRefusal({ fields, config }: { fields: readonly PluginPr
  * project store could not open this run (`ProviderStoreUnavailableError`), so both cards show why.
  * @complexity O(f) plus one read and one write of the config row.
  */
-export async function saveProviderSettings({ config, pluginId, fields, values, reapply }: {
+export async function saveProviderSettings({ config, pluginId, fields, values, reapply, telemetry }: {
   config: ProviderConfigSource; pluginId: string; fields: readonly PluginProviderSettingField[]; values: unknown; reapply?: (input: { pluginId: string }) => Promise<"now" | "restart">;
+  telemetry?: { tracker: Tracker; contracts: readonly string[]; userId: string };
 }, _optional = {}): Promise<({ saved: true; configured: boolean; appliesAt: "now" | "restart" } & ProviderKeyUsage) | { refusal: ProviderSettingsRefusal }> {
   const next = nextProviderConfig({ values, fields, current: await currentProviderConfig({ config, pluginId }) });
   if ("refusal" in next) return next;
@@ -100,6 +102,8 @@ export async function saveProviderSettings({ config, pluginId, fields, values, r
   }
   const usage = await providerKeyUsage({ config, pluginId });
   const appliesAt = reapply ? await reapply({ pluginId }) : "restart";
+  for (const contract of new Set(telemetry?.contracts ?? [])) telemetry?.tracker.capture({ name: 'provider_configured', userId: telemetry.userId,
+    properties: { contract, pluginId, action: 'save' } });
   const configured = usage.usedByThisSite && providerInputOf({ declaration: { contract: "", id: pluginId, contractVersion: 1, settings: fields }, saved: next.config }) !== undefined;
   return { saved: true, configured, ...usage, appliesAt };
 }
@@ -134,7 +138,7 @@ export async function providerSettingsStatus({ config, pluginId, fields }: { con
  * to this module's rule and the same `ProviderConfigSource` the admin route uses.
  * @complexity O(p + f) per call: one discovery read plus one config read/write.
  */
-export function bindProviderSettingsCardPorts({ config, discoverPlugins, reapply }: { config: ProviderConfigSource; discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>; reapply?: (input: { pluginId: string }) => Promise<"now" | "restart"> }) {
+export function bindProviderSettingsCardPorts({ config, discoverPlugins, reapply, tracker, userId }: { config: ProviderConfigSource; discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>; reapply?: (input: { pluginId: string }) => Promise<"now" | "restart">; tracker?: Tracker; userId?: string }) {
   const fields = async ({ pluginId }: { pluginId: string }) => declaredProviderSettingFields({ records: await discoverPlugins(), pluginId });
   return {
     fields,
@@ -144,9 +148,12 @@ export function bindProviderSettingsCardPorts({ config, discoverPlugins, reapply
       return view && !view.unreadable ? view : null;
     },
     save: async ({ pluginId, values }: { pluginId: string; values: Readonly<Record<string, string>> }) => {
-      const declared = await fields({ pluginId });
+      const records = await discoverPlugins();
+      const declared = declaredProviderSettingFields({ records, pluginId });
       if (!declared) return { refusal: "This plugin declares no provider settings." };
-      const saved = await saveProviderSettings({ config, pluginId, fields: declared, values, reapply });
+      const contracts = (records.find(record => record.id === pluginId)?.manifest?.contributes?.providers ?? []).map(provider => provider.contract);
+      const saved = await saveProviderSettings({ config, pluginId, fields: declared, values, reapply,
+        ...(tracker && userId ? { telemetry: { tracker, userId, contracts } } : {}) });
       return "refusal" in saved ? { refusal: saved.refusal.error } : { ...saved };
     },
   };

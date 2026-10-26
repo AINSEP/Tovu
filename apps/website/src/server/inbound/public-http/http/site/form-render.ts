@@ -26,6 +26,7 @@ import { isNonArrayRecord } from "@jini-ai/core/records";
 import { escapeHtml } from "#src/platform/html/escape";
 import { formValidationMessages, formDocumentLocale } from "./form-validation-message.js";
 import { FORM_ATTEMPT_FIELD } from "@jini-ai/cms/forms/submission-attempts";
+import { FORM_SUBMISSION_TOO_FAST_MESSAGE } from "@jini-ai/cms/forms";
 
 const FORM_CLASS = "tovu-form";
 const FORM_SUCCESS_CLASS = "tovu-form-success";
@@ -267,6 +268,7 @@ export type FormSubmissionRedirectResult =
       values?: Readonly<Record<string, string>>;
     }
   | { kind: "rate-limited"; slug: string; retryAfterSeconds: number }
+  | { kind: "too-fast"; slug: string; values?: Readonly<Record<string, string>> }
   | { kind: "error"; slug: string };
 
 /** Query param names shared by {@link encodeFormSubmissionResultQuery} (write side, forms-submit.ts
@@ -373,6 +375,7 @@ export function decodeFormSubmissionResultFromQuery(query: Record<string, unknow
   if (!slug || !status) return undefined;
   if (status === "success") return { kind: "success", slug };
   if (status === "error") return { kind: "error", slug };
+  if (status === "too-fast") return { kind: "too-fast", slug };
   if (status === "rate_limited") {
     const retryAfterSeconds = Number.parseInt(queryStringValue(query[FORM_RESULT_QUERY_KEYS.retryAfter]), 10);
     return { kind: "rate-limited", slug, retryAfterSeconds: Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0 ? retryAfterSeconds : 0 };
@@ -541,6 +544,7 @@ function updateFormForResult(
 ): string {
   if (result.kind === "success") return hideFormElement(originalForm);
   if (result.kind === "validation") return showValidationResult({ html, originalForm, slugPattern, result });
+  if (result.kind === "too-fast") return showFormErrorSummary(showFieldValues(originalForm, result.values), slugPattern, FORM_SUBMISSION_TOO_FAST_MESSAGE);
   if (result.kind === "rate-limited") {
     const plural = result.retryAfterSeconds === 1 ? "" : "s";
     return showFormErrorSummary(originalForm, slugPattern, `Too many submissions — please try again in ${result.retryAfterSeconds} second${plural}.`);
@@ -586,7 +590,7 @@ export function injectFormSubmissionResultIntoHtml(html: string, result: FormSub
 }
 
 /** Every public form's opening tag: both renderers (Builder and HTML mode) stamp `${FORM_SLUG_ATTR}`. */
-const FORM_OPENING_TAG = new RegExp(`<form\\b[^>]*\\b${FORM_SLUG_ATTR}="[^"]*"[^>]*>`, "gi");
+const FORM_OPENING_TAG = new RegExp(`<form\\b[^>]*\\b${FORM_SLUG_ATTR}="([^"]*)"[^>]*>`, "gi");
 
 /**
  * Puts a fresh hidden `_attempt` token first inside every public form on a page being served, so the
@@ -596,12 +600,17 @@ const FORM_OPENING_TAG = new RegExp(`<form\\b[^>]*\\b${FORM_SLUG_ATTR}="[^"]*"[^
  * Applied per response, after rendering, because neither form renderer has a request in scope and
  * a rendered body must stay identical for every visitor up to this point. A page a shared cache
  * replays repeats its token; that only falls back to the old same-IP-and-body comparison.
+ * `newToken` receives the form slug so composition can register server issuance while generating
+ * the token. Generation errors propagate; no client timestamp or extra control is introduced.
  * @complexity O(html.length) — one regex pass; one `newToken()` call per form.
  */
-export function injectFormAttemptTokens(html: string, { newToken }: { newToken: () => string }): string {
+export function injectFormAttemptTokens(
+  { html, newToken }: { html: string; newToken: (required: { slug: string }, optional?: Record<string, never>) => string },
+  _optional: Record<string, never> = {},
+): string {
   return html.replace(
     FORM_OPENING_TAG,
-    (openTag) => `${openTag}<input type="hidden" name="${FORM_ATTEMPT_FIELD}" value="${escapeHtml(newToken())}">`,
+    (openTag, slug: string) => `${openTag}<input type="hidden" name="${FORM_ATTEMPT_FIELD}" value="${escapeHtml(newToken({ slug }, {}))}">`,
   );
 }
 
@@ -730,6 +739,8 @@ export function mergeFormFlashIntoResult(
   result: FormSubmissionRedirectResult | undefined,
   flash: FormFlashPayload | undefined
 ): FormSubmissionRedirectResult | undefined {
-  if (!result || result.kind !== "validation" || !flash || flash.slug !== result.slug) return result;
+  // Timing retries use the same read-once text recovery; successful/rate/internal outcomes do not.
+  if (!result || !flash || flash.slug !== result.slug) return result;
+  if (result.kind !== "validation" && result.kind !== "too-fast") return result;
   return { ...result, values: flash.values };
 }

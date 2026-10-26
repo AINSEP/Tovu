@@ -1,7 +1,7 @@
-import { useCallback as useQueryFetchCallback } from "react";
+import { useCallback as useQueryFetchCallback, useState } from "react";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 
-import { describeApiError, type AdminObservabilityStatus } from "@/lib/api";
+import { describeApiError, type AdminObservabilityStatus, type AdminTelemetryTestResult } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translateObservability } from "../observability-i18n";
 import { defaultObservabilityStatusPort } from "./observability-status-dependencies.hooks";
@@ -32,12 +32,16 @@ export interface ObservabilityStatusController {
    *  through to `I18nProvider`'s own `initialLocale`, not because anything here needs it beyond
    *  `t`. Same reasoning as `AgentPluginsController.locale`. */
   locale: string;
+  sendTestError?: () => Promise<void>;
+  sendingTestError?: boolean;
+  testResult?: AdminTelemetryTestResult | null;
+  testError?: string | null;
+  refresh?: () => void;
 }
 
 /**
- * Loads the real, current OpenTelemetry status for this install once on mount — a single GET, no
- * polling and no mutation, since this tab only reports what `platform/observability/config.ts`
- * already decided from the server process's own environment.
+ * Loads provider configuration and delivery evidence on mount and explicit refresh. The diagnostic
+ * action uses the same authorized endpoint as the assistant tool and never submits error text.
  *
  * @complexity One GET on mount.
  */
@@ -49,8 +53,17 @@ export function useObservabilityStatus({ port, locale, t }: ObservabilityStatusD
   const query = useFetchQuery({ key: ["observability", "status"], fetch: queryFetch }, { staleTime: 0 });
   const status = query.data ?? null;
   const error = query.error?.message ?? null;
-
-  return { status, error, t, locale };
+  const [sendingTestError, setSendingTestError] = useState(false);
+  const [testResult, setTestResult] = useState<AdminTelemetryTestResult | null>(null);
+  const [testError, setTestError] = useState<string | null>(null);
+  const sendTestError = async (): Promise<void> => {
+    if (sendingTestError || !port.sendTestError) return;
+    setSendingTestError(true); setTestResult(null); setTestError(null);
+    try { setTestResult(await port.sendTestError()); query.refetch(); }
+    catch (failure) { setTestError(describeApiError(failure, t("Failed to send test error"))); }
+    finally { setSendingTestError(false); }
+  };
+  return { status, error, t, locale, sendingTestError, testResult, testError, sendTestError, refresh: query.refetch };
 }
 
 /**

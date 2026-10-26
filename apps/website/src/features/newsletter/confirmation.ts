@@ -131,7 +131,7 @@ export async function issueConfirmationToken(required: {
 export async function consumeConfirmationToken(required: {
   deps: ConfirmationDeps;
   input: { workspaceId: UUID; rawToken: string };
-}): Promise<{ subscription: SubscriptionRow }> {
+}): Promise<{ subscription: SubscriptionRow; changed: boolean; eventId: string }> {
   const { deps, input } = required;
   const tokenHash = hashToken(input.rawToken);
   const token = await deps.tokenRepo.findByTokenHash({ workspaceId: input.workspaceId, tokenHash });
@@ -183,5 +183,5 @@ export async function consumeConfirmationToken(required: {
     updatedAt: now,
   };
   await deps.subscriptionRepo.save(updated);
-  return { subscription: updated };
+  return { subscription: updated, changed: subscription.status !== "subscribed", eventId: `newsletter-subscribed:${token.id}` };
 }

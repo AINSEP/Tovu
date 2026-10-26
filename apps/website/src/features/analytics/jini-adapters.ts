@@ -1,3 +1,4 @@
+import type { VisitorAnalyticsDeps } from "#src/server/inbound/public-http/visitor-analytics";
 /** Tovu ports/presets around the shared ingestion engine; no normalization or buffer logic lives here. */
 import {
   createFanOutAnalyticsSink,
@@ -35,7 +36,7 @@ export const analyticsSaltContext: AnalyticsSaltContext = {
 };
 
 /** Existing HTTP dependencies retain the host clock, IDs and plugin hook ABI. */
-export interface AnalyticsIngestRouteDeps extends IngestDeps {
+export interface AnalyticsIngestRouteDeps extends IngestDeps, VisitorAnalyticsDeps {
   resolveWorkspaceForHost: (host: string) => Promise<string | null> | string | null;
   analyticsSeed: string;
   /**

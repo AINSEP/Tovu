@@ -1,3 +1,5 @@
+import { captureVisitorEvent } from "../../visitor-analytics.js";
+import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
 import type { Express, Request, Response } from "express";
 import type { SearchQuery, SearchServiceResult } from "@jini-ai/search";
 
@@ -32,8 +34,9 @@ const COLLECTION = /^[a-z][a-z0-9_]{0,63}$/;
 const LIMIT = /^\d{1,3}$/;
 
 /** The narrow deps this route needs. Absent `siteSearch` = this composition has no search. */
-export interface SiteSearchRouteDeps {
+export interface SiteSearchRouteDeps extends VisitorAnalyticsDeps {
   readonly siteSearch?: SiteSearchRuntime;
+  readonly clock?: { nowMs(): number };
 }
 
 type Parsed = { readonly query: Omit<SearchQuery, "audiences"> } | { readonly error: string };
@@ -143,11 +146,24 @@ export function registerSiteSearchRoute(app: Pick<Express, "get">, deps: SiteSea
       const sessionToken = readRequestCookie({ request: req, name: MEMBER_SESSION_COOKIE });
       const audiences = await runtime.audiencesForSession(sessionToken === undefined ? {} : { sessionToken });
       const { siteId, workspaceId } = runtime;
-      send(res, await runtime.service.query({ siteId, workspaceId, query: parsed.query }, { audiences }));
+      const startedAt = deps.clock?.nowMs();
+      const result = await runtime.service.query({ siteId, workspaceId, query: parsed.query }, { audiences });
+      if (result.status === "ok") void captureVisitorEvent({ deps, request: req, name: "site_search_performed", properties: {
+        resultCountBucket: result.page.hits.length === 0 ? "0" : result.page.hits.length <= 10 ? "1-10" : "11-50",
+        ...(startedAt === undefined ? {} : { durationBucket: searchDurationBucket({ elapsedMs: deps.clock!.nowMs() - startedAt }) }),
+      } });
+      send(res, result);
     } catch (error) {
       // Express 4 does not catch a rejected async handler; answer instead of hanging the caller.
       console.error("[site-search] GET /api/search failed:", error);
       res.status(500).json({ error: "internal error" });
     }
   });
+}
+
+/** Coarse latency only; query terms and exact timing never enter the event. @complexity O(1). */
+function searchDurationBucket({ elapsedMs }: { elapsedMs: number }, _optional = {}): string {
+  if (elapsedMs < 100) return "<100ms";
+  if (elapsedMs < 1000) return "100ms-1s";
+  return ">=1s";
 }

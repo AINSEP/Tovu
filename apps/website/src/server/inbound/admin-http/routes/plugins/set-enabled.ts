@@ -172,8 +172,8 @@ export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = (app, deps) 
       // `setPluginEnabled` throws `PluginNotFoundError` for an id absent from this same `discovery`
       // snapshot, so reaching this line means the record is in it.
       const record = discovery.find((r) => r.id === pluginId) as PluginDiscoveryRecord;
-      // Owner-action product event (consent-gated port): which way, never which plugin or by name.
-      deps.tracker.capture({ name: "plugin_toggled", userId: principal.id, properties: { enabled } });
+      // The gateway has committed; retries that keep the same state do not count.
+      if (((priorActivation as PluginActivationRecord | null)?.enabled ?? false) !== result.activation.enabled) deps.tracker.capture({ name: "plugin_toggled", userId: principal.id, properties: { pluginId: record.id, pluginKind: "cms", enabled: result.activation.enabled, source: "admin" } });
       res.json({
         plugin: toAdminPluginResponse(record, result.activation),
         changeSetId,

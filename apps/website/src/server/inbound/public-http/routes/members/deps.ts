@@ -1,3 +1,5 @@
+import { captureVisitorEvent } from "../../visitor-analytics.js";
+import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
 /**
  * @file Deps bundle for the new PUBLIC (unauthenticated) `members` route family
  * (ADR-PIPE-013 Decision §2-3).
@@ -40,7 +42,7 @@ import { rejectOversizedJsonBody } from "../../../shared/body-size-limit.js";
  * is the SAME instance the admin `request-magic-link.ts` route also
  * consults, so the two surfaces share one counter per email, not two.
  */
-export interface MemberPublicRouteDeps {
+export interface MemberPublicRouteDeps extends VisitorAnalyticsDeps {
   credentialLifecycle?: MembersWriteServiceDeps["credentialLifecycle"];
   workspaceId: UUID;
   memberRepo: MemberRepoPort;
@@ -70,8 +72,13 @@ export interface MemberPublicRouteDeps {
 }
 
 /** Assemble the `MembersWriteServiceDeps` bundle from `MemberPublicRouteDeps`. */
-export function toPublicMembersWriteServiceDeps(deps: MemberPublicRouteDeps): MembersWriteServiceDeps {
+export function toPublicMembersWriteServiceDeps(deps: MemberPublicRouteDeps, optional: { request?: Request } = {}): MembersWriteServiceDeps {
   return {
+    onMemberCreated: optional.request ? ({ workspaceId, memberId, creationSource, initialState }) => {
+      void captureVisitorEvent({ deps, request: optional.request!, name: "member_registered", properties: {
+        eventId: `member-registered:${workspaceId}:${memberId}`, creationSource, initialState,
+      } }, { subjectId: `member:${workspaceId}:${memberId}` });
+    } : undefined,
     credentialLifecycle: deps.credentialLifecycle,
     passwordHasher: deps.passwordHasher,
     clock: deps.clock,

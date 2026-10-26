@@ -13,7 +13,7 @@ const RUN = { conversationId: "c", messageId: "m", runId: "r" };
 
 describeEachChatDialect("package adapter composition", kernel => ({
   kernel, history: createChatHistoryStore(kernel, SCOPE, () => 1_790_000_000_000),
-  sessions: createSqliteAgentSessionStore(kernel), ledger: createChatRunLedger(kernel),
+  sessions: createSqliteAgentSessionStore(kernel), ledger: createChatRunLedger({ store: kernel }),
 }), make => {
   test("bounded reads use the adopted history adapter and retain owner isolation", async () => {
     const { kernel, history } = make();
@@ -70,7 +70,7 @@ test("negative control: independent kernels do not participate in the ledger rol
   try {
     const history = createChatHistoryStore(independentKernel, SCOPE);
     await history.create({ id: "c" });
-    const ledger = createChatRunLedger(ledgerKernel);
+    const ledger = createChatRunLedger({ store: ledgerKernel });
     await assert.rejects(ledger.unlessSettled(RUN, async () => {
       await history.appendMessage({ conversationId: "c", message: { id: "m", role: "assistant", content: "escaped rollback" } });
       throw new Error("independent write");

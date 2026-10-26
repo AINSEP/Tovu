@@ -99,3 +99,42 @@ test("observability-status: an authorization failure answers a generic 500", asy
   assert.equal(res.status, 500);
   assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
 });
+
+test("telemetry test: owner invokes the fixed action once and submitted text is ignored", async (t) => {
+  const calls: unknown[] = [];
+  const result = { providers: [{ providerId: "test/errors", signals: ["error" as const, "span" as const] }] };
+  const deps = { ...createRouteDeps(), sendTelemetryTest: async (input: Record<string, never>) => { calls.push(input); return result; } };
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+  const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/observability/test-error`, {
+    method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ error: "do not send this" }),
+  });
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), result);
+  assert.deepEqual(calls, [{}]);
+});
+
+test("telemetry test: unauthenticated, unprivileged and wrong-workspace callers cannot dispatch", async (t) => {
+  let calls = 0;
+  const deps = { ...createRouteDeps(), sendTelemetryTest: async () => { calls++; return { providers: [] }; } };
+  const { baseUrl } = await bootAuthenticated(createApp(deps), t);
+  const endpoint = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/observability/test-error`;
+  const anonymous = await fetch(endpoint, { method: "POST" });
+  assert.equal(anonymous.status, 401);
+  const cookie = await loginAsBarePrincipal(deps, baseUrl);
+  const forbidden = await fetch(endpoint, { method: "POST", headers: { cookie } });
+  assert.equal(forbidden.status, 403);
+  assert.deepEqual(await forbidden.json(), { error: "not authorized to send a test error", code: "FORBIDDEN" });
+  const missing = await fetch(`${baseUrl}/api/admin/v1/workspaces/missing/system/observability/test-error`, { method: "POST", headers: { cookie } });
+  assert.equal(missing.status, 404);
+  assert.equal(calls, 0);
+});
+
+test("observability status includes delivery evidence and test permission without destinations", async (t) => {
+  const providers = [{ providerId: "trace", lastExport: { phase: "export" as const, outcome: "failed" as const,
+    host: "collector.test", errorClass: "Error", statusCode: 401, at: "2026-10-26T01:00:00.000Z" }, lastShutdown: null }];
+  const deps = { ...createRouteDeps(), telemetryStatus: () => providers, sendTelemetryTest: async () => ({ providers: [] }) };
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+  const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/observability-status`, { headers: { cookie } });
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { enabled: false, serviceName: null, canSendTestError: true, providers });
+});

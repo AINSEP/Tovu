@@ -107,11 +107,11 @@ async function resolveOrCreateSignInMember(required: {
   workspaceId: string;
   email: string;
   nowIso: string;
-}, optional: { name?: string; memberId?: string } = {}): Promise<MemberRecord | null> {
+}, optional: { name?: string; memberId?: string; creationSource?: "operator" | "verified_signup"; deferCreatedNotification?: boolean } = {}): Promise<{ member: MemberRecord | null; isNewMember: boolean }> {
   const { deps, workspaceId, email, nowIso } = required;
   const existing = await deps.members.findByEmail({ workspaceId, email });
   if (existing) {
-    return existing.status === "disabled" || existing.status === "trash" ? null : existing;
+    return { member: existing.status === "disabled" || existing.status === "trash" ? null : existing, isNewMember: false };
   }
 
   const member: MemberRecord = {
@@ -137,7 +137,8 @@ async function resolveOrCreateSignInMember(required: {
     createdAt: nowIso,
   });
   await deps.members.save(member);
-  return member;
+  if (!optional.deferCreatedNotification) notifyMemberCreated({ deps, member, creationSource: optional.creationSource ?? "operator", initialState: "pending" });
+  return { member, isNewMember: true };
 }
 
 /**
@@ -153,7 +154,7 @@ async function resolveOrCreateSignInMember(required: {
 export async function createMember(required: {
   deps: MembersWriteServiceDeps;
   input: { workspaceId: string; email: string };
-}, optional: { name?: string } = {}): Promise<{ member: MemberRecord }> {
+}, optional: { name?: string; deferCreatedNotification?: boolean } = {}): Promise<{ member: MemberRecord }> {
   const { deps, input } = required;
   const email = assertValidEmail(input.email);
   const name = optional.name?.trim();
@@ -165,7 +166,7 @@ export async function createMember(required: {
   if (existing) {
     throw new MemberConflictError(`member with email '${email}' already exists`);
   }
-  const member = await resolveOrCreateSignInMember({ deps, workspaceId: input.workspaceId, email, nowIso: clockNowIso({ clock: deps.clock }) }, { name });
+  const { member } = await resolveOrCreateSignInMember({ deps, workspaceId: input.workspaceId, email, nowIso: clockNowIso({ clock: deps.clock }) }, { name, deferCreatedNotification: optional.deferCreatedNotification });
   if (!member) throw new MemberConflictError(`member with email '${email}' already exists`);
   return { member };
 }
@@ -386,18 +387,18 @@ export async function consumeMemberChallenge(required: {
  */
 async function resolveConsumedSignInMember(required: {
   deps: MembersWriteServiceDeps; tokenRecord: MagicLinkTokenRecord; nowIso: string;
-}, _options: Record<string, never> = {}): Promise<MemberRecord> {
+}, _options: Record<string, never> = {}): Promise<{ member: MemberRecord; isNewMember: boolean }> {
   const { deps, tokenRecord, nowIso } = required;
   if (tokenRecord.email !== undefined) {
-    const member = await resolveOrCreateSignInMember({
+    const resolved = await resolveOrCreateSignInMember({
       deps, workspaceId: tokenRecord.workspaceId, email: tokenRecord.email, nowIso,
-    }, { memberId: tokenRecord.memberId });
-    if (!member) throw new MemberAuthError("sign-in credential is invalid");
-    return member;
+    }, { memberId: tokenRecord.memberId, creationSource: "verified_signup" });
+    if (!resolved.member) throw new MemberAuthError("sign-in credential is invalid");
+    return { member: resolved.member, isNewMember: resolved.isNewMember };
   }
   const member = await deps.members.findById({ workspaceId: tokenRecord.workspaceId, id: tokenRecord.memberId });
   if (!member) throw new MemberAuthError("sign-in credential is invalid");
-  return member;
+  return { member, isNewMember: false };
 }
 
 /**
@@ -415,7 +416,7 @@ async function completeSignIn(required: {
   const nowIso = clockNowIso({ clock: deps.clock });
   const tokenRecord = await consumeMemberChallenge({ deps, input, purpose: "signin", nowIso });
 
-  const existingMember = await resolveConsumedSignInMember({ deps, tokenRecord, nowIso });
+  const { member: existingMember, isNewMember } = await resolveConsumedSignInMember({ deps, tokenRecord, nowIso });
   if (existingMember.status === "disabled" || existingMember.status === "trash") {
     throw new MemberAuthError("sign-in credential is invalid");
   }
@@ -434,7 +435,7 @@ async function completeSignIn(required: {
   };
   await deps.members.save(member);
 
-  return issueMemberSession({ deps, member, nowIso }, { userAgent: input.userAgent, ip: input.ip });
+  return { ...await issueMemberSession({ deps, member, nowIso }, { userAgent: input.userAgent, ip: input.ip }), isNewMember };
 }
 
 /**
@@ -658,3 +659,14 @@ export {
   compSubscription,
   setSubscriptionStatus,
 };
+
+/** Notify only an actually written member. Observers cannot change durable identity or auth outcomes.
+ * @complexity O(1). */
+export function notifyMemberCreated(
+  { deps, member, creationSource, initialState }: { deps: MembersWriteServiceDeps; member: MemberRecord;
+    creationSource: "operator" | "verified_signup" | "oidc_signup"; initialState: "pending" | "active" },
+  _optional: Record<string, never> = {},
+): void {
+  try { deps.onMemberCreated?.({ workspaceId: member.workspaceId, memberId: member.id, creationSource, initialState }); }
+  catch { /* Optional product analytics cannot alter a committed member. */ }
+}

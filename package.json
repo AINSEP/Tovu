@@ -23,7 +23,7 @@
     "sites:move-home": "node --import tsx development/scripts/sites-move-home.ts",
     "desktop": "node development/scripts/dev-desktop.mjs",
     "seed:site": "node --import tsx development/scripts/seed-site.mjs",
-    "dev:server": "tsx watch apps/website/src/index.ts",
+    "dev:server": "node development/scripts/dev-server.mjs",
     "prestart": "node development/scripts/prepare-start.mjs",
     "start": "node development/scripts/start.mjs",
     "export": "tsx apps/website/src/cli/main.ts export",

@@ -158,7 +158,7 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
           })
           .then((conversation) => {
             // Owner-action product event (consent-gated port): a chat was started; never its text.
-            deps.tracker.capture({ name: "assistant_chat_started", userId: getAuthedPrincipal(res).id });
+            deps.tracker.capture({ name: "assistant_chat_started", userId: getAuthedPrincipal(res).id, properties: { chatSurface: "admin", conversationId: conversation.id, source: "admin", eventId: `assistant-chat:${conversation.id}` } });
             res.status(201).json({ conversation });
           })
           .catch(next);
@@ -236,6 +236,8 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
               res.status(404).json({ error: "not found" });
               return;
             }
+            if (saved.role === "user") deps.tracker.capture({ name: "assistant_message_sent", userId: getAuthedPrincipal(res).id,
+              properties: { chatSurface: "admin", conversationId: id, inputKind: "text", eventId: `assistant-message:${saved.id}` } });
             await maybeNameFromFirstUserMessage(store, id, message, body);
             // The in-flight stub of a daemon run is the one moment the server learns which row a
             // run belongs to. From here the server saves the finished turn itself, so it no longer

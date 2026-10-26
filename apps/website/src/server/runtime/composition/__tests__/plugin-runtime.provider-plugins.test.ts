@@ -22,10 +22,13 @@ const PROVIDER_MANIFEST = { ...WORD_COUNT_MANIFEST, id: "obs-fake", tier: "tier-
 
 function fixture({ enabled = true, setupThrows = false, setupGate }: { enabled?: boolean; setupThrows?: boolean; setupGate?: Promise<void> } = {}) {
   const events: string[] = [];
+  let markSetupStarted!: () => void;
+  const setupStarted = new Promise<void>(resolve => { markSetupStarted = resolve; });
   const repo = new InMemoryPluginActivationRepo();
   const source: PluginRuntimeSource = { source: "built-in", entryPath: "/unused/index.mjs", manifest: PROVIDER_MANIFEST,
     importModule: async () => ({ default: definePlugin({ async setup(sdk) {
       events.push("setup");
+      markSetupStarted();
       if (setupThrows) throw new Error("setup failed");
       if (setupGate) await setupGate;
       sdk.providers.register({ contract: "observability", id: "fake", contractVersion: 1, factory: (required) => {
@@ -35,7 +38,7 @@ function fixture({ enabled = true, setupThrows = false, setupGate }: { enabled?:
     } }) }) };
   const runtime = composePluginRuntime({ workspaceId: "ws", clock, activationRepo: repo, sources: [source] });
   const ready = repo.save({ workspaceId: "ws", pluginId: "obs-fake", version: PROVIDER_MANIFEST.version, enabled, updatedAt: "2026-10-25" });
-  return { events, repo, runtime, ready };
+  return { events, repo, runtime, ready, setupStarted };
 }
 
 const boot = (runtime: ReturnType<typeof composePluginRuntime>, configured = true) => bootProviderPlugins({
@@ -68,6 +71,25 @@ test("not configured: the plugin's code is never imported and the port is the no
   const ports = await boot(runtime, false);
   assert.equal(isNoopObservabilityPort(ports.observability), true);
   assert.deepEqual(events, []);
+});
+
+test("runtime disposal drains an in-flight plugin setup and rejects later attachments", async () => {
+  let release!: () => void;
+  const setupGate = new Promise<void>(resolve => { release = resolve; });
+  const { events, runtime, ready, setupStarted } = fixture({ setupGate });
+  await ready;
+  const loading = runtime.loadProviderPlugins({ pluginIds: ["obs-fake"] });
+  // setup must actually be in flight when shutdown begins; no wall-clock timing assumption.
+  await setupStarted;
+  let disposed = false;
+  const disposal = runtime.dispose({}).then(() => { disposed = true; });
+  await Promise.resolve();
+  assert.equal(disposed, false);
+  release();
+  await Promise.all([loading, disposal]);
+  assert.equal(disposed, true);
+  assert.deepEqual(await runtime.loadProviderPlugins({ pluginIds: ["obs-fake"] }), []);
+  assert.equal(events.filter(event => event === "setup").length, 1);
 });
 
 test("configured but disabled: never imported; the noop stays", async () => {

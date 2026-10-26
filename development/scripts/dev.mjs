@@ -39,6 +39,7 @@ import { parseEnv } from "node:util";
 import { omitEnvironmentKeys } from "@jini-ai/platform";
 
 import { devSitesHome } from "./dev-sites-home.mjs";
+import { apiWatchArgs } from "./dev-api-watch.mjs";
 import { loadRepoRootEnvFile } from "./load-repo-root-env.mjs";
 import { localDevPluginInstallEnv } from "./local-dev-plugin-install.mjs";
 import { listenersOn } from "./port-listeners.mjs";
@@ -602,7 +603,7 @@ async function main() {
   apiEnv[DEV_RESTART_REQUEST_FILE_ENV] = restartRequestFile;
   apiEnv.TOVU_DEV_SITE_PINNED = SHELL_TOVU_SITE === undefined ? "0" : "1";
   const apiRestarter = createApiRestarter({
-    startApi: (env) => start("api server", "npx", ["tsx", "watch", "apps/website/src/index.ts"], env),
+    startApi: (env) => start("api server", "npx", apiWatchArgs({ sitesHome: process.env.TOVU_SITES_HOME ?? path.dirname(selectedSite.dir) }), env),
     stopChild: (child) => stopChildGroup(child),
     markPlanned: (child) => plannedExits.add(child),
     waitForPortsFree: () => waitForPortsFree([API_PORT, DAEMON_PORT]),

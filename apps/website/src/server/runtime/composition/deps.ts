@@ -15,6 +15,12 @@ import { createCommentTargetLookup } from '#src/features/comments/comment-target
 import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
 import { createSiteConsentStore } from '#src/features/consent/revisions.repo';
 import { bindSiteConsentService, ensureSiteConsentPrivacy } from './site-consent.js';
+import { readRequestConsentChoices } from '@jini-ai/cms/consent/express';
+import { createSiteConsentPorts } from '../../inbound/public-http/middleware/site-consent.js';
+import { readRequestAnalyticsProof, allowsAnalyticsProof } from '@jini-ai/cms/consent/express';
+import { findExclusionReason } from '@jini-ai/analytics';
+import { resolveClientIp } from '#src/contracts/core/rate-limit/rate-limit';
+import { registerContentAnalytics } from './content-events.js';
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { createSiteShareBackend } from "#src/features/site-backup/share-backend";
 import { createSiteImportBackend } from "#src/features/site-backup/import-backend";
@@ -250,6 +256,7 @@ import type { IdentityRepos } from "@jini-ai/user-management";
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "#src/features/forms/repo.sqlite";
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
+import { formSubmissionAttemptsFor } from "#src/features/forms/index";
 import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
 import type { RouteDeps, SiteStoragePaths } from "../../routes/types.js";
 import { resolveChatAttachmentUploadDirectory } from "../../inbound/assistant/chat-attachment-directory.js";
@@ -1202,6 +1209,11 @@ async function composeSiteRouteDeps(
   overrides: Partial<CreateSiteRouteDepsOverrides> = {}
 ): Promise<NewsletterRouteDeps & ByokToolSurfaceDeps> {
   const { store, onStoreClose } = opened;
+  // Plugin recovery may commit a quarantine while providers are still booting. Keep these small
+  // lifecycle summaries until the consenting facade exists, rather than reading an uninitialized
+  // tracker or sending around its guards. The queue is drained once after provider composition.
+  const pendingLifecycleEvents: Array<Parameters<RouteDeps['tracker']['capture']>[0]> = [];
+  let lifecycleTracker: Pick<RouteDeps['tracker'], 'capture'> = { capture: event => { pendingLifecycleEvents.push(event); } };
   const assistantAgentInventory = createAssistantAgentInventory({ runtime: createNativeAgentRuntime({ env: process.env }) });
   onStoreClose(() => assistantAgentInventory.dispose({}));
 
@@ -1217,6 +1229,7 @@ async function composeSiteRouteDeps(
   const resolvedSiteBinding = resolveSiteBindingOverride(overrides);
   const agentPluginLayout = resolveAgentPluginLayout({ siteDir: resolvedSiteBinding.dir });
   const agentPluginLifecycle = createTovuAgentPluginLifecycle({ layout: agentPluginLayout }, {
+    productTracker: () => lifecycleTracker,
     identityAdmission: ({ id, localId, run }) => routeDeps.pluginHost!.withInstallIdentity({ candidate: { id, localId, family: "agent-plugin" }, run }),
     // Boot recovery re-provisions a restored revision's MCP servers through the same store; read
     // lazily because that store is composed below.
@@ -1330,6 +1343,7 @@ async function composeSiteRouteDeps(
   // answer is "no host yet" (the SDK then omits its `plugins` lookup facade).
   let routeDepsBuiltForPluginHost: { readonly pluginHost?: RouteDeps["pluginHost"] } | undefined;
   const pluginRuntime = composePluginRuntime({
+    productTracker: () => lifecycleTracker,
     getPluginHost: () => routeDepsBuiltForPluginHost?.pluginHost,
     workspaceId,
     clock,
@@ -1906,6 +1920,7 @@ async function composeSiteRouteDeps(
   const widgetBindingRepo = new SqliteWidgetRegionBindingRepo(kernel);
   const entryRefsRepo = new SqliteEntryRefsRepo(kernel);
   const formDefinitionRepo = new SqliteFormDefinitionRepo(kernel);
+  const formSubmissionRepo = new SqliteFormSubmissionRepo(kernel);
   // Collections plan R1 — hoisted above `wireCoreResolvers` (was constructed later, inline, only for
   // the `ContentTaxonomyDeps` object below). Both `SqliteContentTypeRepo` instances would read the
   // same `content.db` either way (it is a stateless adapter over `db`), but one shared instance
@@ -2104,13 +2119,20 @@ async function composeSiteRouteDeps(
     site: siteIdentityFor({ workspaceId, binding: resolvedSiteBinding, runtimeMode, projectId }),
     ...createTelemetryConsent({ settingsRepo, workspaceId }),
   });
-  onStoreClose(() => providerPlugins.dispose({}));
+  onStoreClose(async () => {
+    // Provider disposal may perform late imports from its retained graph. Release copies only
+    // after those users have stopped; a failed teardown leaves them for a later dead-owner reap.
+    await providerPlugins.dispose({});
+    await pluginRuntime.dispose({});
+  });
   const projectSiteId = acceptedSiteId(readSiteMetaId(resolvedSiteBinding.dir), "site meta") ?? "";
   const projectKeys = projectStore ? createProjectKeys({ vault: projectStore.vault.repo, attachments: projectStore.attachments,
     siteId: projectSiteId, siteName: resolvedSiteBinding.name, reapply: input => providerPlugins.reapply(input),
     transaction: input => projectStore.transaction(input) }) : undefined;
   if (projectStore) onStoreClose(watchProviderRevisions({ read: () => projectStore.providerRevisions({ siteId: projectSiteId }), reapply: input => providerPlugins.reapply(input) }));
   const { observability, tracker, aiTraceSink } = providerPlugins;
+  lifecycleTracker = tracker;
+  for (const event of pendingLifecycleEvents.splice(0)) tracker.capture(event);
   instrumentStorageKernel({ kernel, observability });
   instrumentStorageKernel({ kernel: chat, observability });
   // `runtimeMode` itself is now resolved further up (see `newsletterKeyring`'s own hoisting
@@ -2427,7 +2449,7 @@ async function composeSiteRouteDeps(
     // ADS-memory/reports/2026-09-05-db-split-scoping.md §6). None of these stores opens a database
     // itself.
     chatHistory: createChatStoreFactory(chat),
-    chatRunLedger: createChatRunLedger(chat),
+    chatRunLedger: createChatRunLedger({ store: chat }, { tracker }),
     // Migration `0051`'s table, over the same sidecar handle immediately above — see
     // `RouteDeps.agentSessions`'s own doc for why this is not principal-scoped like `chatHistory`.
     agentSessions: createSqliteAgentSessionStore(chat),
@@ -2558,6 +2580,9 @@ async function composeSiteRouteDeps(
     // From provider plugins (see `providerPlugins` above for the rule-of-two it follows).
     observability,
     tracker,
+    browserAnalytics: providerPlugins.browserAnalytics,
+    telemetryStatus: providerPlugins.telemetryStatus,
+    sendTelemetryTest: () => providerPlugins.sendTelemetryTest({ error: new Error("Tovu test error — safe to ignore") }),
     aiTraceSink,
     providerConfig: providerConfigSource,
     reapplyProvider: input => providerPlugins.reapply(input),
@@ -2687,7 +2712,8 @@ async function composeSiteRouteDeps(
     // ship one). `formsRateLimiter` is one process-lifetime counter store, matching
     // `server/app.ts`'s hermetic-test composition's identical construction.
     formDefinitionRepo,
-    formSubmissionRepo: new SqliteFormSubmissionRepo(kernel),
+    formSubmissionRepo,
+    formSubmissionAttempts: formSubmissionAttemptsFor({ submissionRepo: formSubmissionRepo }),
     removeFormSubmission: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
       trash: trash,
       entityType: "form_submission"
@@ -3068,7 +3094,7 @@ async function composeSiteRouteDeps(
       // Import payloads live in app-data, outside every served/source tree, including app-data DBs.
       const registry = new SiteImportRegistry({ directory: join(workspace.config({}).appData, "site-imports", workspaceId) });
       const importHttp = createDefaultHttpClient(SITE_IMPORT_EGRESS_POLICY, { observability });
-      routeDeps.siteImportBackend = createSiteImportBackend({ registry, workspace, reader: createShareArchiveReader({ yauzl: importYauzl }), http: importHttp, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion(),
+      routeDeps.siteImportBackend = createSiteImportBackend({ registry, workspace, tracker, reader: createShareArchiveReader({ yauzl: importYauzl }), http: importHttp, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion(),
         // Wait for the new site to answer, so the import's "Open" link never points at a port still booting.
         startSite: input => startLocalSiteWhenRunning({ supervisor: importSupervisor, name: input.name }),
         setupBase: "/api/admin/v1/workspaces/" + encodeURIComponent(workspaceId) + "/site-imports",
@@ -3076,6 +3102,19 @@ async function composeSiteRouteDeps(
     }
   }
   routeDeps.siteConsent = bindSiteConsentService({ deps: routeDeps });
+  const visitorConsentPorts = createSiteConsentPorts({ deps: routeDeps }, { trustedRegionHeader: routeDeps.consentTrustedRegionHeader });
+  routeDeps.visitorAnalyticsConsent = async ({ request }) => (await readRequestConsentChoices({ ports: visitorConsentPorts, request })).analytics;
+  routeDeps.visitorAnalyticsProof = async ({ request }) => {
+    try {
+      const config = await routeDeps.analyticsConfig.get({ workspaceId });
+      const beacon = { host: request.hostname, path: request.path, kind: 'pageview' as const, referrer: null,
+        dnt: request.get('dnt') === '1', gpc: request.get('sec-gpc') === '1' };
+      if (!config.enabled || findExclusionReason({ beacon, ip: resolveClientIp(request), config })) return undefined;
+      return readRequestAnalyticsProof({ ports: visitorConsentPorts, request });
+    } catch { return undefined; }
+  };
+  routeDeps.visitorAnalyticsDeliveryAllowed = ({ proof }) => allowsAnalyticsProof({ ports: visitorConsentPorts, proof });
+  await registerContentAnalytics({ deps: { bus, tracker, workspaceId } });
   return routeDeps;
 }
 

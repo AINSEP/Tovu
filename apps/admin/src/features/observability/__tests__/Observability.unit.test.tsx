@@ -31,6 +31,23 @@ function renderObservability(overrides: Partial<ObservabilityStatusController> =
   return render(<Observability useObservabilityStatusHook={useFakeObservabilityStatus} useQueriesTabHook={() => ({ visible: false, readOnly: true })} />);
 }
 
+it("shows delivery evidence and an authorized diagnostic button without claiming remote success", async () => {
+  let sent = 0;
+  renderObservability({ status: { enabled: true, serviceName: "tovu", canSendTestError: true, providers: [{
+    providerId: "trace", lastExport: { phase: "export", outcome: "failed", host: "collector.test", at: "2026-10-26T01:00:00.000Z", errorClass: "Error", statusCode: 401 }, lastShutdown: null,
+  }] }, sendTestError: async () => { sent++; }, testResult: { providers: [{ providerId: "errors", signals: ["error"] }] } });
+  expect(screen.getByText("Last export failed")).toBeInTheDocument();
+  expect(screen.getByText("2026-10-26T01:00:00.000Z")).toHaveAttribute("dateTime", "2026-10-26T01:00:00.000Z");
+  expect(screen.getByText(/Remote delivery is confirmed by export status and your provider/)).toBeInTheDocument();
+  await userEvent.setup().click(screen.getByRole("button", { name: "Send test error" }));
+  expect(sent).toBe(1);
+});
+
+it("hides the diagnostic button from read-only admins", () => {
+  renderObservability({ status: { enabled: true, serviceName: "tovu", canSendTestError: false }, sendTestError: async () => {} });
+  expect(screen.queryByRole("button", { name: "Send test error" })).not.toBeInTheDocument();
+});
+
 describe("Observability — Overview tab", () => {
   it("renders Overview as the first tab, explaining OpenTelemetry and a provider in plain language", () => {
     renderObservability();

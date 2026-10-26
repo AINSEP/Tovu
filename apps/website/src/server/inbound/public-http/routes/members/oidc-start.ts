@@ -1,3 +1,5 @@
+import { observeMemberSignInFailure } from "./analytics.js";
+import { captureVisitorEvent } from "../../visitor-analytics.js";
 import type { Express } from "express";
 import { beginOidcLogin, memberLoginCallbackUrl, MemberLoginError } from "#src/features/member-login/index";
 import { checkMemberRequestLimits, checkMemberWorkspace } from "./deps.js";
@@ -25,6 +27,7 @@ export function registerMemberLoginProvidersRoute({ app, deps }: { app: Express;
 export function registerMemberOidcStartRoute({ app, deps }: { app: Express; deps: MemberOidcRouteDeps }, _options = {}): void {
   app.get(`${MEMBER_OIDC_PATH}/start`, async (req, res) => {
     memberOidcHeaders({ res });
+    observeMemberSignInFailure({ deps: deps.members, request: req, response: res, method: "oidc" });
     try {
       if (!checkMemberWorkspace({ req, res, deps: deps.members })) return;
       if (!await checkMemberRequestLimits({ req, res, deps: deps.members, ipLimiter: deps.members.passwordSignInPerIpLimiter })) return;
@@ -36,7 +39,8 @@ export function registerMemberOidcStartRoute({ app, deps }: { app: Express; deps
       const callbackUrl = await memberLoginCallbackUrl({ origin: deps.protocol.origin, ...input });
       const result = await beginOidcLogin({ deps: deps.protocol, input });
       memberOidcCookie({ res, callbackUrl, kind: "callback", binding: result.browserBinding });
+      void captureVisitorEvent({ deps: deps.members, request: req, name: "member_sign_in_requested", properties: { method: "oidc", realm: "member" } });
       res.redirect(303, result.authorizationUrl);
-    } catch (error) { redirectMemberOidcError({ res, error }); }
+    } catch (error) { void captureVisitorEvent({ deps: deps.members, request: req, name: "member_sign_in_failed", properties: { method: "oidc", realm: "member", reasonClass: "authentication_failed" } }); redirectMemberOidcError({ res, error }); }
   });
 }

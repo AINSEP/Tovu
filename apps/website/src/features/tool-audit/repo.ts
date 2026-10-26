@@ -87,6 +87,13 @@ export class SqlToolAttemptAuditSink implements ToolAttemptAuditSink {
    * @overallScore 100
    */
   async append(event: ToolAttemptEvent, optional: Pick<ToolAttemptEvent, "detail"> = {}): Promise<void> {
+    await this.appendCommitted(event, optional);
+  }
+
+  /** Same non-throwing audit write, returning insertion evidence for product observers.
+   * A later retention failure cannot undo an inserted attempt. @complexity Same as append. */
+  async appendCommitted(event: ToolAttemptEvent, optional: Pick<ToolAttemptEvent, "detail"> = {}): Promise<boolean> {
+    let committed = false;
     try {
       await this.kernel.run((db) =>
         db
@@ -106,6 +113,7 @@ export class SqlToolAttemptAuditSink implements ToolAttemptAuditSink {
           .execute()
       );
 
+      committed = true;
       const visitor = event.principalId === "anonymous-visitor";
       const bucketKey = JSON.stringify([event.workspaceId, visitor]);
       const appends = (this.appendsSincePruneCheck.get(bucketKey) ?? 0) + 1;
@@ -117,6 +125,7 @@ export class SqlToolAttemptAuditSink implements ToolAttemptAuditSink {
     } catch (error) {
       this.onError(error);
     }
+    return committed;
   }
 
   /**

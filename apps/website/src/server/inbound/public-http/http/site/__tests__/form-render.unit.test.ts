@@ -10,6 +10,7 @@ import {
   encodeFormFlashCookieValue,
   encodeFormSubmissionResultQuery,
   injectFormSubmissionResultIntoHtml,
+  mergeFormFlashIntoResult,
   renderFormErrorSlot,
   renderFormSuccessSlot,
 } from "../form-render.js";
@@ -41,6 +42,19 @@ test("clearFormSubmissionResultQueryParams removes all four form_* keys and keep
 
 test("encode: success writes exactly the slug and status, no errors or retry key", () => {
   assert.equal(encodeFormSubmissionResultQuery({ kind: "success", slug: "contact" }).toString(), "form=contact&form_status=success");
+});
+
+test("timing retry round-trips without answers in the URL and restores eligible text with fixed copy", () => {
+  const query = encodeFormSubmissionResultQuery({ kind: "too-fast", slug: "contact", values: { name: "Ada" } });
+  assert.equal(query.toString(), "form=contact&form_status=too-fast");
+  const result = decodeFormSubmissionResultFromQuery(Object.fromEntries(query));
+  assert.deepEqual(result, { kind: "too-fast", slug: "contact" });
+  assert.deepEqual(mergeFormFlashIntoResult(result, { slug: "other", values: { name: "wrong" } }), result);
+  const merged = mergeFormFlashIntoResult(result, { slug: "contact", values: { name: "Ada <safe>" } });
+  const html = '<form data-form-slug="contact"><div class="tovu-form-error" data-form-slug="contact" hidden></div><input name="name"><input type="file" name="photo"></form>';
+  assert.equal(injectFormSubmissionResultIntoHtml(html, merged), '<form data-form-slug="contact"><div class="tovu-form-error" data-form-slug="contact">Please wait a moment, then submit again.</div><input name="name" value="Ada &lt;safe&gt;"><input type="file" name="photo"></form>');
+  const authored = '<form data-tovu-form data-form-slug="contact"><div data-tovu-form-error data-form-slug="contact" hidden></div><input name="name"></form>';
+  assert.equal(injectFormSubmissionResultIntoHtml(authored, result), '<form data-tovu-form data-form-slug="contact"><div data-tovu-form-error data-form-slug="contact">Please wait a moment, then submit again.</div><input name="name"></form>');
 });
 
 test("encode: validation writes at most 20 field errors — the first 20, in order", () => {

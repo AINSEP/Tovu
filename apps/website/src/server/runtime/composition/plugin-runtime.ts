@@ -1,8 +1,9 @@
+import type { Tracker } from "@jini-ai/diagnostics/observability";
 import { createPluginLookupFacade } from "@jini-ai/core/plugin-directory";
 import { createPluginModuleImporter, type PluginBeforeSavePreview, pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 import { lstat } from "node:fs/promises";
 import path from "node:path";
-import { assertPluginInstallIdle, createPluginSourceService, installSitePlugin, previewSitePluginInstall, pruneSitePluginVersions, type PluginInstallerPort, type PluginSourcePort } from "@jini-ai/plugins/host/node";
+import { assertPluginInstallIdle, createPluginModuleSnapshotLifecycle, createPluginSourceService, installSitePlugin, PluginSnapshotLifecycleError, previewSitePluginInstall, pruneSitePluginVersions, type PluginInstallerPort, type PluginSourcePort } from "@jini-ai/plugins/host/node";
 import { addedPluginCapabilities, createPluginContributionCapture, createPluginContributionRegistry, initializeBundledPlugins, pluginCapabilitySet, type AdmittedBrowserProvider, type BundledBrowserProviderApproval, type PluginContributionRegistry, type PluginSdk, setPluginEnabled, type PluginSourcePolicyPort } from '@jini-ai/plugins/host';
 import { createSitePluginPolicy } from '#src/features/plugin-runtime/install';
 
@@ -158,6 +159,7 @@ function resolvePackageLocation(params: {
 }
 
 export interface ComposePluginRuntimeRequired {
+  readonly productTracker?: () => Pick<Tracker, 'capture'>;
   /** Review pins and first-boot defaults supplied only by the product composition roots. */
   readonly browserProviderApprovals?: readonly BundledBrowserProviderApproval[];
   readonly bundledEnabledIds?: readonly string[];
@@ -189,6 +191,8 @@ export interface ComposePluginRuntimeRequired {
 }
 
 export interface PluginRuntimeBindings {
+  /** Call after provider teardown and stopped hook users; drains copies and releases owned graphs. */
+  readonly dispose: (required: Record<string, never>, optional?: Record<string, never>) => Promise<void>;
   /** Successfully attached, admitted providers only; disable/quarantine retires their assets. */
   readonly browserProviders: (input: Record<string, never>, options?: Record<string, never>) => { generation: number; providers: readonly AdmittedBrowserProvider[] };
   readonly pluginSource?: PluginSourcePort;
@@ -258,6 +262,12 @@ function declaresProviders({ manifest }: { manifest: PluginManifest | undefined 
  */
 export function composePluginRuntime(required: ComposePluginRuntimeRequired, _optional: Record<string, never> = {}): PluginRuntimeBindings {
   const { activationRepo, clock, sources, installDir } = required;
+  const quarantineDeps = { clock, repo: activationRepo, onQuarantined: ({ pluginId }: { pluginId: string; workspaceId: string }) =>
+    required.productTracker?.().capture({ name: "plugin_quarantined", userId: "system", properties: { pluginId, pluginKind: "cms", reasonClass: "lifecycle" } }) };
+  // The install directory owns versions; its sibling runtime directory owns executable graphs.
+  const snapshots = installDir === undefined ? undefined : createPluginModuleSnapshotLifecycle({ runtimeRoot: path.resolve(installDir) + "-runtime" });
+  const pendingAttachments = new Set<Promise<void>>();
+  let closing = false;
   const pluginSourcePolicy = required.pluginSourcePolicy ?? createSitePluginPolicy({ env: process.env });
   const loadedVersions = new Map<string, string>();
   const browserProviders = new Map<string, readonly AdmittedBrowserProvider[]>();
@@ -272,7 +282,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     ...(required.failureThreshold === undefined ? {} : { failureThreshold: required.failureThreshold }),
     onQuarantine: async (input) => {
       onPluginDisabled(input.pluginId);
-      await quarantinePlugin({ deps: { clock, repo: activationRepo }, input });
+      await quarantinePlugin({ deps: quarantineDeps, input });
     },
   });
   // Reachability fix (previously always omitted `installDir`, so a plugin placed on disk was
@@ -344,7 +354,16 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
    * with boot, which clears every enabled plugin in ONE pass instead (see
    * `attachEnabledPluginsAtBoot`: per-plugin "candidate last" ordering would refuse the older
    * winner of a boot-time pair as well as the newer one). */
-  async function attachPlugin(pluginId: string, record: PluginDiscoveryRecord): Promise<void> {
+  function attachPlugin(pluginId: string, record: PluginDiscoveryRecord): Promise<void> {
+    if (closing) return Promise.reject(new PluginSnapshotLifecycleError({ code: "SNAPSHOTS_CLOSED" }));
+    const attachment = performPluginAttachment(pluginId, record);
+    pendingAttachments.add(attachment);
+    void attachment.then(() => pendingAttachments.delete(attachment), () => pendingAttachments.delete(attachment));
+    return attachment;
+  }
+
+  /** Keep import and setup in the same shutdown drain: setup may make late graph imports too. */
+  async function performPluginAttachment(pluginId: string, record: PluginDiscoveryRecord): Promise<void> {
     const epoch = (loadEpochs.get(pluginId) ?? 0) + 1;
     loadEpochs.set(pluginId, epoch);
     const target = resolveLoadTarget({ pluginId, sources, record, installDir });
@@ -405,6 +424,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
       ? createTier2ImportSeam({ ...pluginHostBinding, manifest: target.manifest, runCall: tier2CallRunner })
       : createPluginModuleImporter({ manifest: target.manifest, source: record.source }, {
           ...(target.importModule === undefined ? {} : { importModule: target.importModule }),
+          ...(snapshots === undefined ? {} : { snapshots }),
         });
   }
 
@@ -470,7 +490,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     for (const [pluginId, pluginConflicts] of conflicts) {
       if (!enabledIds.has(pluginId)) continue;
       const reason = describeBootConflictQuarantine({ conflicts: pluginConflicts });
-      await quarantinePlugin({ deps: { clock, repo: activationRepo }, input: { pluginId, workspaceId: required.workspaceId, consecutiveFailures: 0, reason } });
+      await quarantinePlugin({ deps: quarantineDeps, input: { pluginId, workspaceId: required.workspaceId, consecutiveFailures: 0, reason } });
       onPluginDisabled(pluginId);
       // eslint-disable-next-line no-console
       console.warn(`[plugin-runtime] '${pluginId}' quarantined at boot: ${reason}`);
@@ -493,6 +513,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
   }
 
   async function attachEnabledPluginsAtBoot(): Promise<void> {
+    await snapshots?.ready;
     const initialized = await initializeBootDefaults({}, {});
     const records = await activationRepo.listAll();
     const enabledHere = records.filter(
@@ -664,7 +685,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     catch (rollbackError) {
       console.warn(`[plugin-runtime] Plugin '${id}' restored-version reload failed`, rollbackError);
       onPluginDisabled(id);
-      await quarantinePlugin({ deps: { clock, repo: activationRepo }, input: { pluginId: id, workspaceId, consecutiveFailures: 0, reason: 'Source reload and restored-version reload failed; fix the draft or use plugin_source_rollback.' } });
+      await quarantinePlugin({ deps: quarantineDeps, input: { pluginId: id, workspaceId, consecutiveFailures: 0, reason: 'Source reload and restored-version reload failed; fix the draft or use plugin_source_rollback.' } });
     }
   }
 
@@ -704,6 +725,11 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
   }
 
   return {
+    dispose: async (input, options = {}) => {
+      closing = true;
+      await Promise.allSettled([...pendingAttachments]);
+      await snapshots?.dispose(input, options);
+    },
     browserProviders: () => ({ generation: browserGeneration, providers: [...browserProviders.values()].flat() }),
     ...(pluginInstaller === undefined ? {} : { pluginInstaller }),
     ...(pluginSource === undefined ? {} : { pluginSource }),

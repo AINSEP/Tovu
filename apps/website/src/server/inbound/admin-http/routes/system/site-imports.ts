@@ -52,7 +52,6 @@ export function registerAdminSiteImportRoutes(
       const input = parseSiteImportInput({ input: req.body });
       const principalId = getAuthedPrincipal(res).id;
       const imported = await deps.siteImportBackend!.importBackup({ ...input, principalId }, { signal: requestSignal(req, res) });
-      deps.tracker.capture({ name: "site_imported", userId: principalId });
       res.json(imported);
     } catch (error) { fail(res, error); }
   });

@@ -1,3 +1,4 @@
+import { captureVisitorEvent } from "../../visitor-analytics.js";
 import { renderCommentsMarkers } from '#src/features/comments/public-markers';
 import { renderPluginWidgetPartials } from "#src/features/plugin-runtime/widget-partials";
 import type { SiteChatSelection } from "../../http/site/site-chat-markup.js";
@@ -2234,11 +2235,13 @@ export async function handlePostNotFoundOnSlugRoute(
       staticMenus,
     });
     if (staticHtml) {
+      void captureVisitorEvent({ deps, request: req, name: "site_not_found", properties: { routeTemplate: "/:slug" } });
       res.status(404).type("html").send(staticHtml);
       return;
     }
   }
 
+  void captureVisitorEvent({ deps, request: req, name: "site_not_found", properties: { routeTemplate: "/:slug" } });
   res.status(404).type("html").send("<h1>404 — page not found</h1><p><a href='/'>Home</a></p>");
 }
 
@@ -2643,7 +2646,13 @@ async function finalizePublicPageHtml(req: Request, html: string, formResult: Fo
   // Member sign-in needs this server's API, which an exported file never has: its header keeps the
   // theme's plain "Sign in" link.
   if (isStaticExportRequest(req)) return finished;
-  return injectMemberAuthScript({ html: injectFormAttemptTokens(finished, { newToken: randomUUID }), workspaceId: deps.workspaceId });
+  return injectMemberAuthScript({ html: injectFormAttemptTokens({ html: finished, newToken: ({ slug }) => {
+    const attemptToken = randomUUID();
+    // The composition supplies this same process-lifetime owner to submission. Static exports
+    // returned above never issue tokens; rendering observes time without claiming a submission.
+    deps.formSubmissionAttempts?.issue({ workspaceId: deps.workspaceId, slug, attemptToken, issuedAtMs: deps.clock.nowMs() }, {});
+    return attemptToken;
+  } }, {}), workspaceId: deps.workspaceId });
 }
 
 /**

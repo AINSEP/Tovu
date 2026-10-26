@@ -112,7 +112,7 @@ function buildDuplicateThemeHandlers(routeDeps: DuplicateThemeToolDeps): Record<
       });
       requestThemePreviewRefresh({ themesDir: routeDeps.themesDir });
 
-      const activation = activate ? await applyActiveTheme({ routeDeps, themeId: result.id }) : undefined;
+      const activation = activate ? await applyActiveTheme({ routeDeps, themeId: result.id, actorId: ctx.principal.id }) : undefined;
       return {
         themeId: result.id,
         name: result.name,

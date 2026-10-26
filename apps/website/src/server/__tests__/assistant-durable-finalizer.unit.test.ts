@@ -9,7 +9,7 @@ import { EXHAUSTED_NOTICE } from "#src/assistant/durable-runs/recover";
 
 test("serving recovery absorbs a daemon lost during restart and finalizes one continued incident message without a browser", async () => {
   const db = openChatDb(":memory:");
-  const ledger = createChatRunLedger(db);
+  const ledger = createChatRunLedger({ store: db });
   const history = createChatStoreFactory(db)({ kind: "user", workspaceId: "ws", userId: "admin" });
   const time = 1_790_000_000_000;
   await history.create({ id: "chat" });
@@ -51,7 +51,7 @@ for (const status of ["failed", "succeeded", "canceled"] as const) {
   test(`the server alone persists a durable ${status} answer with saved work and terminal diagnostics`, async () => {
     const db = openChatDb(":memory:");
     try {
-      const ledger = createChatRunLedger(db);
+      const ledger = createChatRunLedger({ store: db });
       const history = createChatStoreFactory(db)({ kind: "user", workspaceId: "ws", userId: "admin" });
       const time = 1_790_000_000_000;
       await history.create({ id: "chat" });

@@ -94,7 +94,7 @@ export type ChatStoreFactory = (principal: ChatPrincipal) => ChatHistoryStore;
 export function createTenantScopedChatStore(
   db: ChatKernel | SqliteConnectionSource,
   principal: ChatPrincipal,
-  ledger: ChatRunLedger = createChatRunLedger(db),
+  ledger: ChatRunLedger = createChatRunLedger({ store: db }),
 ): ChatHistoryStore {
   return createRunGuardedChatStore({
     isDaemonRunId: ({ runId }) => isDaemonRunId(runId),

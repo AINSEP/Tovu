@@ -1,3 +1,4 @@
+import type { FormAnalyticsProvenance } from "./index.js";
 import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
 import { validateSubmissionPayload, type FieldError, type FormAnswer, type FormDefinitionRecord, type FormDefinitionRepoPort, type FormOutboxPort, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
 import type { FormPullRefusal } from "@jini-ai/cms/forms";
@@ -34,6 +35,8 @@ export interface ImportRemoteSubmissionsDeps {
   readonly outbox: FormOutboxPort;
   readonly clock: Clock;
   readonly idGen: IdGenerator;
+  /** Trusted destination adapter's consent evidence; never infer analytics consent from answers. */
+  readonly readAnalyticsProvenance?: (required: { item: RemoteSubmissionInput }) => FormAnalyticsProvenance | undefined;
 }
 
 export interface RemoteImportResult {
@@ -108,13 +111,14 @@ async function importOne(
   const definition = htmlSubmissionDefinition({ definition: required.definition, body: { ...item.answers } });
   const validation = validateSubmissionPayload({ definition, body: { ...item.answers } });
   const data = validation.valid ? validation.data : declaredAnswers({ definition, answers: item.answers });
+  const analyticsProvenance = deps.readAnalyticsProvenance?.({ item });
   const now = new Date(deps.clock.nowMs()).toISOString();
   const submissionId = deps.idGen.newId();
   const write = async (): Promise<boolean> => {
     if (!await deps.receipts.claim({ workspaceId, destinationKey, remoteId: item.id, submissionId, importedAt: now })) return false;
     await deps.submissionRepo.create({ id: submissionId, workspaceId, formDefinitionId: definition.id, data, sourceIp: item.ip, submittedAt: submittedAt({ value: item.submittedAt, now }) });
     await deps.outbox.enqueue({ id: deps.idGen.newId(), name: "form.submission.received", occurredAt: now, workspaceId, aggregateId: submissionId,
-      payload: { workspaceId, formDefinitionId: definition.id, submissionId } });
+      payload: { workspaceId, formDefinitionId: definition.id, submissionId, deliveryMode: "remote_import", ...(analyticsProvenance ? { analyticsProvenance } : {}) } });
     return true;
   };
   // Called as a method, never detached: the SQL store's `transaction` reads `this.kernel`.

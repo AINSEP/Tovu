@@ -1,3 +1,4 @@
+import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
 /**
  * @file Deps bundle for the 2 PUBLIC (unauthenticated) newsletter routes — `newsletter-confirm.ts`/
  * `newsletter-unsubscribe.ts` (api.spec.md §1a). Mirrors `routes/members/deps.ts`'s
@@ -22,7 +23,7 @@ import type {
 } from "#src/features/newsletter/index";
 import type { UnsubscribeDeps } from "#src/features/newsletter/unsubscribe";
 
-export interface NewsletterPublicRouteDeps {
+export interface NewsletterPublicRouteDeps extends VisitorAnalyticsDeps {
   workspaceId: UUID;
   newsletterReady: Promise<void>;
   newsletterConfirmationTokenRepo: NewsletterConfirmationTokenRepoPort;

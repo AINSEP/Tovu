@@ -3,7 +3,7 @@ import { nowIso } from "@jini-ai/core/primitives";
 import { isUniqueViolation } from "../../platform/db/kernel/dialect.js";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { MemberExternalIdentityRepoPort, MemberSignInResult, MembersWriteServiceDeps } from "../members/ports.js";
-import { completeSignIn, createMember, issueMemberSession, requestSignInLink } from "../members/write-service.js";
+import { completeSignIn, createMember, issueMemberSession, requestSignInLink, notifyMemberCreated } from "../members/write-service.js";
 import type { MemberExternalIdentityRecord, MemberRecord } from "../members/types.js";
 import { decideMemberLogin } from "./link-policy.js";
 import { MemberLoginError, type VerifiedLoginIdentity } from "./types.js";
@@ -30,6 +30,8 @@ export interface MemberLoginLinkInput {
 
 export type MemberLoginLinkResult = { kind: "signed_in"; result: MemberSignInResult }
   | { kind: "email_verification_required"; email: string; providerId: string };
+
+type InboxProof = MemberRecord & { isNewMember?: boolean };
 
 interface LoginTarget {
   subject: MemberExternalIdentityRecord | null;
@@ -58,13 +60,13 @@ function assertEligible(member: MemberRecord | null, input: MemberLoginLinkInput
   if (member?.credentialsRevokedAt && member.credentialsRevokedAt >= input.startedAt) throw new MemberLoginError({ code: "LOGIN_BLOCKED" });
 }
 
-function proofMatchesTarget(target: LoginTarget, input: MemberLoginLinkInput, proof: MemberRecord | null) {
+function proofMatchesTarget(target: LoginTarget, input: MemberLoginLinkInput, proof: InboxProof | null) {
   if (!proof) return;
   if (proof.email !== (target.member?.email ?? input.identity.email)) throw new MemberLoginError({ code: "LOGIN_INVALID" });
   if (target.member && proof.id !== target.member.id) throw new MemberLoginError({ code: "LOGIN_INVALID" });
 }
 
-function decisionFor(target: LoginTarget, input: MemberLoginLinkInput, proof: MemberRecord | null) {
+function decisionFor(target: LoginTarget, input: MemberLoginLinkInput, proof: InboxProof | null) {
   return decideMemberLogin({ identity: input.identity, member: target.member, subjectLinked: Boolean(target.subject && !target.subject.unlinkedAt),
     emailProofVerified: proof !== null, unlinked: Boolean(target.pair?.unlinkedAt), connectMemberId: input.connectMemberId });
 }
@@ -76,11 +78,11 @@ async function verifyInbox(deps: MemberLoginLinkDeps, input: MemberLoginLinkInpu
   const proof = await completeSignIn({ deps, input: { workspaceId: input.workspaceId, ...input.emailProof } });
   // The existing owner also mints a session; it is never exposed and must not remain usable.
   await deps.sessions.revoke({ workspaceId: input.workspaceId, id: proof.session.id, revokedAt: nowIso({ clock: deps.clock }) });
-  return proof.member;
+  return { ...proof.member, isNewMember: proof.isNewMember };
 }
 
 async function activateAndLink(deps: MemberLoginLinkDeps, input: MemberLoginLinkInput,
-  member: MemberRecord, pair: MemberExternalIdentityRecord | null, now: string, proof: MemberRecord | null): Promise<MemberRecord> {
+  member: MemberRecord, pair: MemberExternalIdentityRecord | null, now: string, proof: InboxProof | null): Promise<MemberRecord> {
   // Only a verified match on the member's own address (or its emailed code) proves that inbox; a
   // connect with a different Google address links the subject without verifying the member email.
   const inbox = proof !== null || member.email === input.identity.email
@@ -96,7 +98,7 @@ async function activateAndLink(deps: MemberLoginLinkDeps, input: MemberLoginLink
   return active;
 }
 
-async function linkInTransaction(deps: MemberLoginLinkDeps, input: MemberLoginLinkInput, proof: MemberRecord | null): Promise<MemberLoginLinkResult> {
+async function linkInTransaction(deps: MemberLoginLinkDeps, input: MemberLoginLinkInput, proof: InboxProof | null): Promise<MemberLoginLinkResult> {
   // One workspace key serializes new-email and subject races. The member lifecycle lock also
   // fences Trash/restore; S3 unlink must take these same locks in this order.
   await deps.lockKey(`members:external-identities:${input.workspaceId}`);
@@ -114,13 +116,13 @@ async function linkInTransaction(deps: MemberLoginLinkDeps, input: MemberLoginLi
 }
 
 async function finishLogin(deps: MemberLoginLinkDeps, input: MemberLoginLinkInput,
-  { target, proof }: { target: LoginTarget; proof: MemberRecord | null }, subjectLinked: boolean): Promise<MemberLoginLinkResult> {
+  { target, proof }: { target: LoginTarget; proof: InboxProof | null }, subjectLinked: boolean): Promise<MemberLoginLinkResult> {
   const now = nowIso({ clock: deps.clock });
   let member = target.member;
-  if (!member) member = (await createMember({ deps, input: { workspaceId: input.workspaceId, email: input.identity.email } })).member;
+  if (!member) member = (await createMember({ deps, input: { workspaceId: input.workspaceId, email: input.identity.email } }, { deferCreatedNotification: true })).member;
   if (!subjectLinked || member.status === "pending") member = await activateAndLink(deps, input, member, target.pair, now, proof);
   const result = await issueMemberSession({ deps, member, nowIso: now }, { userAgent: input.userAgent, ip: input.ip });
-  return { kind: "signed_in", result };
+  return { kind: "signed_in", result: { ...result, isNewMember: !target.member || proof?.isNewMember === true } };
 }
 
 /** Resolve/link/activate and mint the member session in one kernel transaction. A uniqueness
@@ -135,14 +137,18 @@ export async function resolveFederatedIdentity(required: {
   const { deps, input } = required;
   try {
     const proof = await verifyInbox(deps, input);
-    return await retryLink(deps, input, proof);
+    const linked = await retryLink(deps, input, proof);
+    if (linked.kind === "signed_in" && linked.result.isNewMember && !proof?.isNewMember) {
+      notifyMemberCreated({ deps, member: linked.result.member, creationSource: "oidc_signup", initialState: "active" });
+    }
+    return linked;
   } catch (error) {
     if (error instanceof MemberLoginError) throw error;
     throw new MemberLoginError({ code: "LOGIN_INVALID" });
   }
 }
 
-async function retryLink(deps: MemberLoginLinkDeps, input: MemberLoginLinkInput, proof: MemberRecord | null) {
+async function retryLink(deps: MemberLoginLinkDeps, input: MemberLoginLinkInput, proof: InboxProof | null) {
   try {
     return await deps.transaction(async () => linkInTransaction(deps, input, proof));
   } catch (error) {

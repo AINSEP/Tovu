@@ -223,6 +223,9 @@ export interface MemberAccessResolver {
  * principal in the same revision ledger.
  */
 export interface MembersWriteServiceDeps {
+  /** Post-commit creation notification. Transactional callers defer it until their outer commit. */
+  onMemberCreated?: (required: { workspaceId: string; memberId: string;
+    creationSource: "operator" | "verified_signup" | "oidc_signup"; initialState: "pending" | "active" }, optional?: Record<string, never>) => void;
   /** Password writes require the SAME kernel as members/sessions. No non-atomic fallback.
    * Optional for compositions that only use the other member workflows.
    */
@@ -267,6 +270,8 @@ export type MemberSignInInput = { workspaceId: UUID; userAgent?: string; ip?: st
 );
 
 export interface MemberSignInResult {
+  /** Set only by the durable creation owner; never inferred from timestamps. */
+  isNewMember?: boolean;
   member: MemberRecord;
   session: MemberSessionRecord;
   /** Cookie bearer; never persisted or included in a member profile. */

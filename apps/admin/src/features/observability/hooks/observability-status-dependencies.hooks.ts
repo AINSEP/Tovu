@@ -11,6 +11,7 @@ import type { ObservabilityStatusPort } from "./observability-status-port.hooks"
 /** The live implementation, as a module-level singleton — matches `defaultAgentPluginsPort`. */
 export const defaultObservabilityStatusPort: ObservabilityStatusPort = {
   getObservabilityStatus: () => api.getObservabilityStatus(),
+  sendTestError: () => api.sendObservabilityTestError(),
 };
 
 /** Seed state for {@link createFakeObservabilityStatusPort}. */

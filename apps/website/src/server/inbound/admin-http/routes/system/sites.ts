@@ -122,6 +122,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * (`composition/pending-agent-plugin-tokens.ts`). Leaving it out creates the site exactly as before.
  */
 export type AdminSitesDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "siteBinding"> & {
+  tracker?: RouteDeps["tracker"];
   sitesWorkspace?: SitesWorkspace;
   localSiteSupervisor?: LocalSitesRouteDeps["localSiteSupervisor"];
   siteTrash?: LocalSitesRouteDeps["siteTrash"];
@@ -270,18 +271,20 @@ function listingManagement({ deps, localSiteSupervisor, switcherBase, devRestart
 
 /** Forward raw create fields to their feature owner; validation and errors stay there.
  * @complexity O(1) adapter overhead; creation/token costs belong to createSiteForOwner. */
-function createSiteFromRequest({ body, deps, switcherBase, name }: {
-  body: unknown; deps: AdminSitesDeps; switcherBase: string; name: string;
+function createSiteFromRequest({ body, deps, switcherBase, name, actorId }: {
+  body: unknown; deps: AdminSitesDeps; switcherBase: string; name: string; actorId: string;
 }, _options = {}) {
   return createSiteForOwner(
     {
       workspaceId: deps.workspaceId,
+      actorId, source: "admin",
       switcherBase,
       name,
       adminPassword: (body as Record<string, unknown> | null | undefined)?.adminPassword,
       agentPluginTokens: (body as Record<string, unknown> | null | undefined)?.agentPluginTokens,
     },
     {
+      tracker: deps.tracker,
       createSite: deps.createSite,
       customCredentialsHttpClient: deps.customCredentialsHttpClient,
       checkAgentPluginAccessToken: deps.checkAgentPluginAccessToken,
@@ -385,7 +388,7 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
         return;
       }
 
-      const created = await createSiteFromRequest({ body: req.body, deps, switcherBase: gate.switcherBase, name: parsed.name });
+      const created = await createSiteFromRequest({ body: req.body, deps, switcherBase: gate.switcherBase, name: parsed.name, actorId: principal.id });
       if (!created.ok) {
         sendRefusal(res, created);
         return;

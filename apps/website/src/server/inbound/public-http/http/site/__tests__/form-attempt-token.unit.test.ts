@@ -22,25 +22,35 @@ const builderForm = () => renderWidgetIr({ componentId: "contact-form", props: {
 const htmlModeForm = () => renderHtmlForm({ slug: "signup", action: "/forms/signup/submit", fields: [{ id: "email", label: "Email", type: "email", required: true }] , hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-tovu-form-success", error: "data-tovu-form-error" } });
 
 test("injectFormAttemptTokens: a Builder form and an HTML-mode form each get their own hidden token as their first child", () => {
-  const html = injectFormAttemptTokens(`<main>${builderForm()}${htmlModeForm()}</main>`, { newToken: counter() });
+  const slugs: string[] = [];
+  const next = counter();
+  const html = injectFormAttemptTokens({ html: `<main>${builderForm()}${htmlModeForm()}</main>`, newToken: ({ slug }) => {
+    slugs.push(slug);
+    return next();
+  } }, {});
 
   const forms = [...html.matchAll(/<form\b[^>]*>([\s\S]*?)<\/form>/g)].map((match) => match[0]);
   assert.equal(forms.length, 2);
+  assert.deepEqual(slugs, ["contact", "signup"]);
   assert.match(forms[0]!, /data-form-slug="contact"[^>]*><input type="hidden" name="_attempt" value="tok-1">/);
   assert.match(forms[1]!, /data-form-slug="signup"[^>]*><input type="hidden" name="_attempt" value="tok-2">/);
+  for (const form of forms) {
+    assert.equal(form.match(/name="_hp"/g)?.length, 1);
+    assert.match(form, /<div hidden aria-hidden="true"><input type="text" name="_hp" tabindex="-1" autocomplete="off"/);
+  }
 });
 
 test("injectFormAttemptTokens: a form without the public form hook, and a page without forms, come back unchanged", () => {
   const html = `<p>no forms</p><form action="/search" method="get"><input name="q"></form>`;
-  assert.equal(injectFormAttemptTokens(html, { newToken: () => assert.fail("no token for a non-public form") }), html);
+  assert.equal(injectFormAttemptTokens({ html, newToken: () => assert.fail("no token for a non-public form") }, {}), html);
 });
 
 test("injectFormAttemptTokens: the token is HTML-escaped", () => {
-  const html = injectFormAttemptTokens(builderForm(), { newToken: () => `"><script>` });
+  const html = injectFormAttemptTokens({ html: builderForm(), newToken: () => `"><script>` }, {});
   assert.match(html, /name="_attempt" value="&quot;&gt;&lt;script&gt;"/);
 });
 
 test("injectFormAttemptTokens: composes with a success result splice (the form is hidden, the token still inside it)", () => {
-  const html = injectFormAttemptTokens(injectFormSubmissionResultIntoHtml(builderForm(), { kind: "success", slug: "contact" }), { newToken: counter() });
+  const html = injectFormAttemptTokens({ html: injectFormSubmissionResultIntoHtml(builderForm(), { kind: "success", slug: "contact" }), newToken: counter() }, {});
   assert.match(html, /<form hidden [^>]*><input type="hidden" name="_attempt" value="tok-1">/);
 });

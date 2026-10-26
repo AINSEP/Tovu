@@ -1,7 +1,7 @@
-import { createTracker, createTrackerWarning } from "@jini-ai/diagnostics/observability/node";
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import { createTracker, createTrackerWarning, createTelemetryTestProbe } from "@jini-ai/diagnostics/observability/node";
+import { createTelemetryDeliveryMonitor, describeTelemetryFailure, type Tracker, type ProviderTelemetryReport, type TelemetryTestResult } from "@jini-ai/diagnostics/observability";
 import { combineObservabilityPorts, createNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
-import { createAiGenerationSink, createNoopProductAnalytics, fanOutProductAnalytics, withProductAnalyticsGuards, type ProductAnalyticsConsent, type ProductAnalyticsConsentRevision, type ProductAnalyticsPort } from "@jini-ai/analytics/product";
+import { createAiGenerationSink, createNoopProductAnalytics, fanOutProductAnalytics, withProductAnalyticsGuards, type ProductAnalyticsConsent, type ProductAnalyticsConsentRevision, type ProductAnalyticsPort, type BrowserAnalyticsContribution } from "@jini-ai/analytics/product";
 import { createFanOutAiTraceSink, type AiTraceSink } from "@jini-ai/agent-runtime/ai-trace";
 import { createPluginProviderHost, isProviderSettingRequired, type PluginContributionRegistry, type PluginProviderContract, type PluginProviderDeclaration, type PluginProviderLease } from "@jini-ai/plugins/host";
 
@@ -103,6 +103,7 @@ export const PROVIDER_CONTRACTS: readonly PluginProviderContract[] = [
 function validAiCapability({ provider }: { provider: unknown }): boolean {
   const port = provider as ProductAnalyticsPort;
   return (port.captureAiGeneration === undefined || typeof port.captureAiGeneration === "function")
+    && (port.browserAnalytics === undefined || typeof port.browserAnalytics === 'function')
     && (port.includeAiContent === undefined || typeof port.includeAiContent === "boolean");
 }
 
@@ -115,8 +116,11 @@ export interface ProviderPluginRuntime {
 }
 
 export interface ProviderPluginPorts {
+  readonly browserAnalytics?: (required: { surface: 'site' | 'admin' }) => readonly BrowserAnalyticsContribution[];
   readonly observability: ObservabilityPort;
   readonly tracker: Tracker;
+  telemetryStatus: ReturnType<typeof createTelemetryDeliveryMonitor>["read"];
+  sendTelemetryTest(required: { error: Error }, optional?: Record<string, never>): Promise<TelemetryTestResult>;
   /** Undefined when neither a trace nor analytics provider is declared; slots can activate live. */
   readonly aiTraceSink: AiTraceSink | undefined;
   appliesAt(required: { pluginId: string }, optional?: Record<string, never>): "now" | "restart";
@@ -139,10 +143,11 @@ export interface BootProviderPluginsRequired {
 export interface BootProviderPluginsOptional {
   readonly initializeTimeoutMs?: number;
   readonly warn?: (message: string) => void;
+  readonly info?: (message: string) => void;
 }
 
 type ProviderSlot = { pluginId: string; contract: ProviderContract; id: string;
-  declaration: PluginProviderDeclaration; lease?: PluginProviderLease; input?: string };
+  declaration: PluginProviderDeclaration; lease?: PluginProviderLease; input?: string; initializationObserved?: boolean };
 /** An absent input is already inert; a configured input must also retain a current generation. */
 function unchangedSlot({ slot, signature }: { slot: ProviderSlot; signature: string | undefined }, _optional = {}): boolean {
   if (signature !== slot.input) return false;
@@ -164,16 +169,19 @@ const NOOP_PORTS: Readonly<Record<ProviderContract, () => object>> = {
  * trace sink without `flush`) take the noop path too.
  * @complexity O(m) at boot for m contract methods; O(1) per gated call.
  */
-function gatedPort({ slot, contract }: { slot: ProviderSlot; contract: ProviderContract }): unknown {
+function gatedPort({ slot, contract, testProbe }: { slot: ProviderSlot; contract: ProviderContract; testProbe: ReturnType<typeof createTelemetryTestProbe> }): unknown {
   const noop = NOOP_PORTS[contract]() as Record<string, (...args: unknown[]) => unknown>;
   const names = Object.keys(noop);
   // Keep the optional hook available before attachment; every call follows the current slot.
-  if (contract === "product_analytics") names.push("captureAiGeneration");
+  if (contract === "product_analytics") names.push("captureAiGeneration", "browserAnalytics");
   const gated = Object.fromEntries(names.map((name) => [name, (...args: unknown[]) => {
     const lease = slot.lease;
     const port = lease?.port as Record<string, unknown> | undefined;
     const live = port?.[name];
-    return lease?.isCurrent({}) && typeof live === "function" ? live.apply(port, args) : noop[name]?.(...args);
+    if (!lease?.isCurrent({}) || typeof live !== "function") return noop[name]?.(...args);
+    const result = live.apply(port, args);
+    testProbe.accepted({ providerId: `${slot.pluginId}/${slot.id}`, method: name, input: args[0] });
+    return result;
   }]));
   if (contract === "product_analytics") Object.defineProperty(gated, "includeAiContent", {
     get: () => slot.lease?.isCurrent({}) === true && (slot.lease.port as ProductAnalyticsPort).includeAiContent === true,
@@ -203,6 +211,10 @@ function composePorts({ leases, consent, consentRevision, site, warn }: { warn: 
   const observability = combineObservabilityPorts({ ports: (leases.get("observability") ?? []) as ObservabilityPort[] }, { onFailure: failed });
   return {
     observability,
+    browserAnalytics: (required: { surface: 'site' | 'admin' }): readonly BrowserAnalyticsContribution[] => analytics.flatMap(port => {
+      try { const contribution = port.browserAnalytics?.(required); return contribution ? [contribution] : []; }
+      catch { failed(); return []; }
+    }),
     tracker: createTracker({ observability, productAnalytics }, { warn: failed }),
     shutdownGenerations: () => generations?.shutdown?.(),
     aiTraceSink: sinks.length === 0 ? undefined : {
@@ -222,6 +234,8 @@ function composePorts({ leases, consent, consentRevision, site, warn }: { warn: 
  */
 export async function bootProviderPlugins(required: BootProviderPluginsRequired, optional: BootProviderPluginsOptional = {}): Promise<ProviderPluginPorts> {
   const warn = optional.warn ?? ((message: string) => console.warn(`[provider-plugins] ${message}`));
+  const delivery = createTelemetryDeliveryMonitor({ warn });
+  const testProbe = createTelemetryTestProbe({});
   const timeoutMs = optional.initializeTimeoutMs ?? 10_000;
   const slots: ProviderSlot[] = (await required.runtime.listProviderPlugins({})).flatMap(({ pluginId, providers }) =>
     providers.filter(declaration => KNOWN_CONTRACTS.has(declaration.contract)).map(declaration => ({ pluginId,
@@ -233,22 +247,42 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
   });
   const queues = new Map<string, Promise<"now" | "restart">>();
   const applied = new Map<string, "now" | "restart">();
+  let tracker: Tracker | undefined;
+  const initializations: import('@jini-ai/analytics/product').ProductEvent[] = [];
+  function initialization({ slot, outcome, reasonClass }: { slot: ProviderSlot; outcome: 'success' | 'failure' | 'noop'; reasonClass: 'ready' | 'not_configured' | 'initialization_failed' }): void {
+    slot.initializationObserved = true;
+    const event = { name: 'provider_initialized', userId: `site:${required.site.siteId}`,
+      properties: { contract: slot.contract, providerId: slot.id, outcome, reasonClass } };
+    if (tracker) tracker.capture(event);
+    else initializations.push(event);
+  }
   let closed = false;
   async function replaceSlot(slot: ProviderSlot, saved: ProviderPluginConfig | null): Promise<void> {
     const input = providerInputOf({ declaration: slot.declaration, saved });
     const signature = input === undefined ? undefined : JSON.stringify(input);
-    if (unchangedSlot({ slot, signature })) return;
+    if (unchangedSlot({ slot, signature })) {
+      if (!slot.initializationObserved) initialization({ slot, outcome: 'noop', reasonClass: 'not_configured' });
+      return;
+    }
     const old = slot.lease;
     try {
       const lease = input ? await host.initialize({ contract: slot.contract, id: slot.id,
-        input: { ...input, serviceName: required.serviceName, attribution: attributionFor({ contract: slot.contract, site: required.site }) } }) : undefined;
+        input: { ...input, serviceName: required.serviceName, attribution: attributionFor({ contract: slot.contract, site: required.site }) } }, {
+        factoryOptions: {
+          reportTelemetry: (report: ProviderTelemetryReport) => delivery.report({ providerId: `${slot.pluginId}/${slot.id}`, report }),
+          info: optional.info ?? ((message: string) => console.info(message)),
+        },
+      }) : undefined;
       if (input && !lease) throw new Error("ProviderUnavailable");
       slot.lease = lease;
       slot.input = signature;
+      if (lease) initialization({ slot, outcome: 'success', reasonClass: 'ready' });
+      else initialization({ slot, outcome: 'noop', reasonClass: 'not_configured' });
     } catch (error) {
       // A removed or changed key must never keep sending through the previous lease.
       slot.lease = undefined;
       slot.input = undefined;
+      initialization({ slot, outcome: 'failure', reasonClass: 'initialization_failed' });
       throw error;
     } finally { await old?.dispose({}); }
   }
@@ -256,6 +290,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
     if (closed) return "restart";
     const selected = slots.filter(slot => slot.pluginId === pluginId);
     if (selected.length === 0) return "restart";
+    const reached = new Set<ProviderSlot>();
     try {
       const saved = await required.config.read({ pluginId });
       const configured = selected.some(slot => providerInputOf({ declaration: slot.declaration, saved }));
@@ -264,13 +299,15 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
         if (!admitted.includes(pluginId)) throw new Error("ProviderUnavailable");
         loaded.add(pluginId);
       }
-      for (const slot of selected) await replaceSlot(slot, saved);
+      for (const slot of selected) { reached.add(slot); await replaceSlot(slot, saved); }
       return "now";
     } catch (error) {
+      for (const slot of selected) if (!reached.has(slot)) initialization({ slot, outcome: 'failure', reasonClass: 'initialization_failed' });
       const retired = selected.map(slot => { const lease = slot.lease; slot.lease = undefined; slot.input = undefined; return lease; });
       await Promise.all(retired.map(lease => lease?.dispose({})));
       // Class only: an SDK's construction error can quote the endpoint or DSN it was given.
-      warn(`provider plugin '${pluginId}' did not initialize: ${error instanceof Error ? error.name : typeof error}`);
+      // Names are allowlisted too: custom Error.name values can themselves contain credentials.
+      warn(`provider plugin '${pluginId}' did not initialize: ${error instanceof Error ? describeTelemetryFailure({ error }).errorClass : typeof error}`);
       return "restart";
     }
   }
@@ -281,9 +318,19 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
     return recorded;
   }
   const leases = new Map<ProviderContract, unknown[]>();
-  for (const slot of slots) leases.set(slot.contract, [...(leases.get(slot.contract) ?? []), gatedPort({ slot, contract: slot.contract })]);
+  for (const slot of slots) {
+    if (slot.contract === "observability") delivery.register({ providerId: `${slot.pluginId}/${slot.id}` });
+    leases.set(slot.contract, [...(leases.get(slot.contract) ?? []), gatedPort({ slot, contract: slot.contract, testProbe })]);
+  }
   await Promise.all([...new Set(slots.map(slot => slot.pluginId))].map(pluginId => reapply({ pluginId })));
   const { shutdownGenerations, ...ports } = composePorts({ leases, consent: required.consent, consentRevision: required.consentRevision, site: required.site, warn });
-  return { ...ports, reapply, appliesAt: ({ pluginId }) => applied.get(pluginId) ?? "now",
+  tracker = ports.tracker;
+  // Boot settles before a tracker exists. Flush only through the healthy, consenting facade;
+  // local diagnostics remain authoritative when analytics itself failed to initialize.
+  for (const event of initializations) tracker.capture(event);
+  initializations.length = 0;
+  return { ...ports, telemetryStatus: delivery.read,
+    sendTelemetryTest: ({ error }) => testProbe.send({ tracker: ports.tracker, error, userId: `site:${required.site.siteId}` }),
+    reapply, appliesAt: ({ pluginId }) => applied.get(pluginId) ?? "now",
     async dispose() { closed = true; await Promise.all(queues.values()); await shutdownGenerations(); await host.dispose({}); } };
 }

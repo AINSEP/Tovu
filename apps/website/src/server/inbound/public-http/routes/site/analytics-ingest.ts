@@ -1,3 +1,4 @@
+import { captureVisitorEvent } from "../../visitor-analytics.js";
 import type { Express, Request } from "express";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
@@ -97,7 +98,10 @@ export function registerAnalyticsIngestRoute(app: Express, deps: AnalyticsIngest
       // Never throws (fails toward no vendor); resolved before ingest because consent is per request.
       const forwarders = deps.forwarders ? await deps.forwarders({ request: req }) : [];
       const binding = createAnalyticsIngestBinding({ deps }, { forwarders, limiter });
-      await ingestHit({ input: { beacon, context }, deps: binding.deps }, binding.optional);
+      const outcome = await ingestHit({ input: { beacon, context }, deps: binding.deps }, binding.optional);
+      if (outcome.accepted && beacon.kind === "pageview" && !/^\/(admin|_preview|preview)(\/|$)/.test(beacon.path)) {
+        void captureVisitorEvent({ deps, request: req, name: "site_pageview", properties: { routeTemplate: "/:path" } });
+      }
     } catch {
       // Never let an ingest-side failure surface to the public beacon caller — see file header.
     }

@@ -1,3 +1,5 @@
+import { captureMediaUploaded } from "./analytics.js";
+import type { Tracker } from "@jini-ai/diagnostics/observability";
 import { requireInputRecord, requireString, ToolInputError, type ToolRegistration } from '@jini-ai/core';
 import { adaptLegacyAuthorize, requireToolPermission } from '@jini-ai/cms/core';
 import { MediaValidationError, uploadMedia, documentContentType, documentDisplayFilename, type MediaToolDeps, type DocumentArchiveReaderPort } from '@jini-ai/cms/media';
@@ -7,7 +9,7 @@ import { resolveChatAttachmentBytes, type ChatAttachmentLookup } from './promote
 /** Manual promotion uses the existing attachment resolver and media upload lifecycle. The refs
  * binding is server-owned: a model cannot nominate a stale upload, path, or another message's ref. */
 export function buildLibrarySaveAttachmentTool(required: {
-  deps: MediaToolDeps;
+  deps: MediaToolDeps & { tracker?: Tracker };
   getStore: () => ChatAttachmentLookup | undefined;
   getMessageAttachmentRefs: (required: { runId: string }, optional: Record<string, never>) => readonly string[] | Promise<readonly string[]>;
   readFile: (path: string) => Promise<Uint8Array>;
@@ -40,6 +42,7 @@ export function buildLibrarySaveAttachmentTool(required: {
         if (error instanceof MediaValidationError) throw new ToolInputError({ message: error.message });
         throw error;
       });
+      captureMediaUploaded({ tracker: deps.tracker, actorId: ctx.principal.id, byteLength: bytes.byteLength, kind: "document", source: "assistant" });
       return { document: { id: media.id, title: media.title, filename: documentDisplayFilename(media), originalFilename: media.originalFilename,
         contentType: documentContentType({ filename: name }), byteSize: bytes.byteLength, createdAt: media.createdAt,
         createdBy: media.createdBy ?? null, publicUrl: null } };

@@ -739,6 +739,8 @@ export interface FormsDeps {
   executeCommand: typeof import("@jini-ai/cms/core").executeCommand;
   formDefinitionRepo: FormDefinitionRepoPort;
   formSubmissionRepo: FormSubmissionRepoPort;
+  /** One app-scoped Jini store shared by live issuance and submission. Legacy hosts may omit timing. */
+  formSubmissionAttempts?: import("@jini-ai/cms/forms").SubmissionAttempts;
   /** Moves a submission to the Trash — `bindRemoveEntity(trash, "form_submission")` at composition. */
   removeFormSubmission: RemoveFormSubmissionFn;
   /** Pulls submissions a published static site stored at its host (`composeFormSubmissions`). Optional:
@@ -959,6 +961,12 @@ export interface EventBusDeps {
  * (`server/runtime/composition/provider-plugins.ts`: installed + enabled + configured, else noop).
  */
 export interface ObservabilityDeps {
+  /** Enabled analytics plugins supply trusted browser code; core never names the vendor. */
+  browserAnalytics?: (required: { surface: 'site' | 'admin' }) => readonly import('@jini-ai/analytics/product').BrowserAnalyticsContribution[];
+  /** Existing visitor receipt/GPC decision; absent means public event capture is disabled. */
+  visitorAnalyticsConsent?: (required: { request: import('express').Request }) => Promise<boolean>;
+  visitorAnalyticsProof?: import('#src/server/inbound/public-http/visitor-analytics').VisitorAnalyticsDeps['visitorAnalyticsProof'];
+  visitorAnalyticsDeliveryAllowed?: import('#src/server/inbound/public-http/visitor-analytics').VisitorAnalyticsDeps['visitorAnalyticsDeliveryAllowed'];
   /** Infrastructure integration only; request, error and feature signals use the facade below. */
   observability: ObservabilityPort;
   /** One facade for product events, redacted/deduplicated errors and scoped tracing.
@@ -966,6 +974,8 @@ export interface ObservabilityDeps {
    * plugin behind `withProductAnalyticsGuards` (operator consent `core.privacy.telemetry.metrics`
    * first), else the shared noop. Hermetic roots supply the no-provider facade. */
   tracker: import("@jini-ai/diagnostics/observability").Tracker;
+  telemetryStatus?: ReturnType<typeof import("@jini-ai/diagnostics/observability").createTelemetryDeliveryMonitor>["read"];
+  sendTelemetryTest?: (required: Record<string, never>, optional?: Record<string, never>) => Promise<import("@jini-ai/diagnostics/observability").TelemetryTestResult>;
   /** AI-trace sink of trace providers and optional analytics generation hooks; absent means off. */
   aiTraceSink?: import("@jini-ai/agent-runtime/ai-trace").AiTraceSink;
   /** Saved provider-plugin settings (project store, else site vault); the admin settings card reads/writes it. */

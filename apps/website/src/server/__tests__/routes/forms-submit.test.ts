@@ -10,6 +10,9 @@ import express from "express";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
+import { formSubmissionAttemptsFor } from "#src/features/forms/index";
+import { injectFormAttemptTokens } from "../../inbound/public-http/http/site/form-render.js";
+import type { VisitorAnalyticsDeps } from "../../inbound/public-http/visitor-analytics.js";
 import type { HtmlFormDefinitionRecord as FormDefinitionRecord, FieldDescriptor, FormDefinitionRepoPort } from "@jini-ai/cms/forms";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { ProductAnalyticsPort, ProductEvent } from "@jini-ai/analytics/product";
@@ -42,17 +45,23 @@ function makeDefinition(overrides: Partial<FormDefinitionRecord> = {}): FormDefi
   };
 }
 
-async function startTestApp(overrides: { definitionRepo?: FormDefinitionRepoPort; submissionRepo?: InMemoryFormSubmissionRepo; upstreamCookie?: boolean; productAnalytics?: ProductAnalyticsPort } = {}) {
+async function startTestApp(overrides: { definitionRepo?: FormDefinitionRepoPort; submissionRepo?: InMemoryFormSubmissionRepo; upstreamCookie?: boolean; productAnalytics?: ProductAnalyticsPort; nowMs?: () => number; visitorAnalyticsConsent?: VisitorAnalyticsDeps["visitorAnalyticsConsent"] } = {}) {
   const definitionRepo = overrides.definitionRepo ?? new InMemoryFormDefinitionRepo();
   const submissionRepo = overrides.submissionRepo ?? new InMemoryFormSubmissionRepo();
-  const clock = { nowMs: () => Date.parse(NOW), nowIso: () => NOW };
+  const clock = { nowMs: overrides.nowMs ?? (() => Date.parse(NOW)), nowIso: () => NOW };
   let counter = 0;
   const idGen = { newId: () => `id-${++counter}` };
 
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();
+  const tracker = createTracker({ productAnalytics: overrides.productAnalytics });
+  const visitorAnalyticsProof: VisitorAnalyticsDeps['visitorAnalyticsProof'] = overrides.visitorAnalyticsConsent ? async ({ request }) =>
+    await overrides.visitorAnalyticsConsent!({ request }) ? { receiptId: ['fake', 'consent', 'receipt'].join('_'), policyVersion: '1' } : undefined : undefined;
+  const visitorAnalyticsDeliveryAllowed = async () => true;
+  const formSubmissionAttempts = formSubmissionAttemptsFor({ submissionRepo });
   createFormsModule({ bus, formDefinitionRepo: definitionRepo, formSubmissionRepo: submissionRepo,
-    tracker: createTracker({ productAnalytics: overrides.productAnalytics }),
+    visitorAnalyticsDeliveryAllowed,
+    tracker,
     mailer: {
       capabilities: () => ({ driver: "memory", supportsIdempotencyKey: false, supportsWebhookFeedback: false, maxBatchSize: 1, supportsAttachments: false }),
       send: async () => { throw new Error("notifications are disabled in this test"); },
@@ -64,6 +73,12 @@ async function startTestApp(overrides: { definitionRepo?: FormDefinitionRepoPort
   if (overrides.upstreamCookie) app.use((_req, res, next) => { res.cookie("upstream", "kept", { path: "/" }); next(); });
   registerFormsSubmitRoute(app, {
     workspaceId: WORKSPACE_ID,
+    formSubmissionAttempts,
+    tracker,
+    idGen,
+    visitorAnalyticsConsent: overrides.visitorAnalyticsConsent,
+    visitorAnalyticsProof,
+    visitorAnalyticsDeliveryAllowed,
     submitForm: {
       definitionRepo,
       submissionRepo,
@@ -79,7 +94,7 @@ async function startTestApp(overrides: { definitionRepo?: FormDefinitionRepoPort
   server.listen(0);
   await once(server, "listening");
   const address = server.address() as AddressInfo;
-  return { server, app, baseUrl: `http://127.0.0.1:${address.port}`, definitionRepo, submissionRepo, outbox, bus };
+  return { server, app, baseUrl: `http://127.0.0.1:${address.port}`, definitionRepo, submissionRepo, outbox, bus, formSubmissionAttempts };
 }
 
 /** Stands in for a repo/DB failure none of `submitForm`'s three typed error classes model (e.g. the
@@ -111,6 +126,103 @@ test("POST /forms/:slug/submit: AC-07/REQ-05 — no Authorization header require
   assert.equal(res.status, 201);
   const body = (await res.json()) as { status: string };
   assert.equal(body.status, "accepted");
+});
+
+for (const encoding of ["json", "urlencoded", "multipart"] as const) {
+  test(`live timing: ${encoding} refuses at 999 ms, accepts the same token at 1000 ms and dedupes retries`, async (t) => {
+    let nowMs = Date.parse(NOW);
+    const { server, baseUrl, definitionRepo, submissionRepo, outbox, formSubmissionAttempts } = await startTestApp({ nowMs: () => nowMs });
+    t.after(() => new Promise<void>((resolve) => { server.closeAllConnections(); server.close(() => resolve()); }));
+    await definitionRepo.create(makeDefinition());
+    // Exercise the render callback's real slug and the same repo-scoped owner used by submission.
+    const html = injectFormAttemptTokens({ html: '<form data-form-slug="contact"></form>', newToken: ({ slug }) => {
+      formSubmissionAttempts.issue({ workspaceId: WORKSPACE_ID, slug, attemptToken: "live-issued", issuedAtMs: nowMs });
+      return "live-issued";
+    } });
+    assert.equal(html, '<form data-form-slug="contact"><input type="hidden" name="_attempt" value="live-issued"></form>');
+    const post = () => {
+      if (encoding === "json") return fetch(`${baseUrl}/forms/contact/submit`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "Ada", _attempt: "live-issued" }),
+      });
+      if (encoding === "urlencoded") return fetch(`${baseUrl}/forms/contact/submit`, {
+        method: "POST", body: new URLSearchParams({ name: "Ada", _attempt: "live-issued" }),
+      });
+      const body = new FormData();
+      body.set("name", "Ada");
+      body.set("_attempt", "live-issued");
+      return fetch(`${baseUrl}/forms/contact/submit`, { method: "POST", body });
+    };
+    nowMs += 999;
+    const refused = await post();
+    assert.equal(refused.status, 422);
+    assert.deepEqual(await refused.json(), { error: "Please wait a moment, then submit again.", code: "FORMS_SUBMISSION_TOO_FAST" });
+    assert.equal(refused.headers.get("set-cookie"), null);
+    assert.deepEqual((await submissionRepo.listByDefinition({ workspaceId: WORKSPACE_ID, formDefinitionId: "def-1", limit: 10 })).items, []);
+    assert.deepEqual(await outbox.claimPending({ batchSize: 20, nowIso: NOW }), []);
+    nowMs += 1;
+    for (let i = 0; i < 2; i++) {
+      const response = await post();
+      assert.equal(response.status, 201);
+      assert.deepEqual(await response.json(), { status: "accepted" });
+    }
+    const rows = await submissionRepo.listByDefinition({ workspaceId: WORKSPACE_ID, formDefinitionId: "def-1", limit: 10 });
+    assert.deepEqual(rows.items.map((row) => row.data), [{ name: "Ada" }]);
+  });
+}
+
+test("live timing: native POST redirects with plain retry copy and restores eligible text without flashing its token", async (t) => {
+  const { server, baseUrl, definitionRepo, submissionRepo, formSubmissionAttempts } = await startTestApp();
+  t.after(() => new Promise<void>((resolve) => { server.closeAllConnections(); server.close(() => resolve()); }));
+  await definitionRepo.create(makeDefinition());
+  formSubmissionAttempts.issue({ workspaceId: WORKSPACE_ID, slug: "contact", attemptToken: "live-issued", issuedAtMs: Date.parse(NOW) });
+  const response = await fetch(`${baseUrl}/forms/contact/submit`, {
+    method: "POST", redirect: "manual", headers: { accept: "text/html", referer: `${baseUrl}/contact-page?keep=1` },
+    body: new URLSearchParams({ name: "Ada <safe>", _hp: "", _attempt: "live-issued" }),
+  });
+  assert.equal(response.status, 303);
+  assert.equal(response.headers.get("location"), "/contact-page?keep=1&form=contact&form_status=too-fast");
+  const flash = parseFlashCookieHeader(response.headers.get("set-cookie")!);
+  assert.ok(flash);
+  assert.deepEqual(decodeFormFlashCookieValue(flash.raw), { slug: "contact", values: { name: "Ada <safe>" } });
+  assert.deepEqual((await submissionRepo.listByDefinition({ workspaceId: WORKSPACE_ID, formDefinitionId: "def-1", limit: 10 })).items, []);
+});
+
+test("live timing: a consented fast refusal emits no analytics; its persisted retry counts once", { timeout: 5000 }, async (t) => {
+  let nowMs = Date.parse(NOW);
+  const events: ProductEvent[] = [];
+  let onConversion!: () => void;
+  const conversion = new Promise<void>(resolve => { onConversion = resolve; });
+  const { server, baseUrl, definitionRepo, submissionRepo, outbox, bus, formSubmissionAttempts } = await startTestApp({
+    nowMs: () => nowMs,
+    visitorAnalyticsConsent: async () => true,
+    productAnalytics: { capture: event => { events.push(event); onConversion(); }, identify: () => {} },
+  });
+  t.after(() => new Promise<void>(resolve => { server.closeAllConnections(); server.close(() => resolve()); }));
+  await definitionRepo.create(makeDefinition());
+  formSubmissionAttempts.issue({ workspaceId: WORKSPACE_ID, slug: "contact", attemptToken: "live-issued", issuedAtMs: nowMs });
+  const post = () => fetch(`${baseUrl}/forms/contact/submit`, { method: "POST",
+    headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "Ada", _attempt: "live-issued" }),
+  });
+  nowMs += 999;
+  const refused = await post();
+  assert.equal(refused.status, 422);
+  assert.deepEqual(await refused.json(), { error: "Please wait a moment, then submit again.", code: "FORMS_SUBMISSION_TOO_FAST" });
+  await processOutbox({ outbox, bus, clock: { nowMs: () => nowMs } });
+  assert.deepEqual(events, []);
+
+  nowMs += 1;
+  const accepted = await post();
+  assert.equal(accepted.status, 201);
+  assert.deepEqual(await accepted.json(), { status: "accepted" });
+  await conversion;
+  const duplicate = await post();
+  assert.equal(duplicate.status, 201);
+  assert.deepEqual(await duplicate.json(), { status: "accepted" });
+  await processOutbox({ outbox, bus, clock: { nowMs: () => nowMs } });
+  assert.deepEqual((await submissionRepo.listByDefinition({ workspaceId: WORKSPACE_ID, formDefinitionId: "def-1", limit: 10 })).items.map(row => row.data), [{ name: "Ada" }]);
+  assert.deepEqual(events, [{ name: "form_submitted", userId: "visitor:id-2", properties: {
+    eventId: "id-4", formId: "def-1", deliveryMode: "live",
+  } }]);
 });
 
 test("POST /forms/:slug/submit: AC-11/REQ-07 — a nonexistent slug returns 404 FORMS_DEFINITION_NOT_FOUND", async (t) => {
@@ -923,7 +1035,7 @@ test("form analytics captures only a committed submission, never honeypots or du
   const delivered = new Promise<void>(resolve => { captured = resolve; });
   const { server, baseUrl, definitionRepo, submissionRepo, outbox, bus } = await startTestApp({ productAnalytics: {
     capture: event => { events.push(event); captured(); }, identify: () => {},
-  } });
+  }, visitorAnalyticsConsent: async () => true });
   t.after(() => new Promise<void>(resolve => server.close(() => resolve())));
   await definitionRepo.create(makeDefinition());
   const post = (body: object) => fetch(`${baseUrl}/forms/contact/submit`, {
@@ -942,5 +1054,9 @@ test("form analytics captures only a committed submission, never honeypots or du
   // Delivery is deliberately asynchronous at the public boundary; drain any pending event before asserting.
   await processOutbox({ outbox, bus, clock: { nowIso: () => NOW, nowMs: () => Date.parse(NOW) } });
   assert.equal((await submissionRepo.listByDefinition({ workspaceId: WORKSPACE_ID, formDefinitionId: "def-1", limit: 10 })).items.length, 1);
-  assert.deepEqual(events, [{ name: "form_submitted", userId: "site-visitor", properties: { formSlug: "contact" } }]);
+  // The discarded request allocated only a request subject. The committed row/event then use
+  // id-3/id-4; a duplicate's fresh provenance must never create a second conversion.
+  assert.deepEqual(events, [{ name: "form_submitted", userId: "visitor:id-2", properties: {
+    eventId: "id-4", formId: "def-1", deliveryMode: "live",
+  } }]);
 });

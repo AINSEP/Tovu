@@ -232,6 +232,7 @@ export const registerAdminPostUpdateRoute: ContentRouteRegistrar = (app, deps) =
                     input: { workspaceId: deps.workspaceId, featuredMediaId: body.featuredMediaId },
                   }),
                   actorId: principal.id,
+                  analyticsSource: "admin",
                 },
               });
             },
@@ -259,8 +260,6 @@ export const registerAdminPostUpdateRoute: ContentRouteRegistrar = (app, deps) =
         await processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock });
 
         // Owner-action product event on the draft → published transition only (consent-gated port).
-        const wasPublished = (priorPost as PostRecord | null)?.status === "published";
-        if (!wasPublished && result.post.status === "published") deps.tracker.capture({ name: "post_published", userId: principal.id });
         res.json(toAdminPostResponse(result.post));
       } catch (err) {
         sendPostUpdateError(res, err);

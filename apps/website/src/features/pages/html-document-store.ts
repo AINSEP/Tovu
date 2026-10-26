@@ -465,7 +465,13 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
    * @complexity O(1) — one outbox insert.
    */
   private async emitUpdated(required: { status: string; version: number; occurredAt: string }): Promise<void> {
-    if (!this.deps.outbox || required.status !== "published") return;
+    if (!this.deps.outbox) return;
+    await this.deps.outbox.enqueue({
+      id: `${this.scope.postId}-content.saved-${required.version}`, name: "content.saved",
+      occurredAt: required.occurredAt, aggregateId: this.scope.postId, workspaceId: this.scope.workspaceId,
+      payload: { entryId: this.scope.postId, contentType: "page", actorId: this.scope.actorId, source: "service" },
+    });
+    if (required.status !== "published") return;
     await this.deps.outbox.enqueue({
       id: `${this.scope.postId}-entry.updated-${required.version}`,
       name: "entry.updated",
