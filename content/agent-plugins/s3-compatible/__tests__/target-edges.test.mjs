@@ -63,7 +63,7 @@ test("manifest-write refusals with an empty body carry only the status; a 4xx ot
   }
 });
 
-const SHARE_KEY = `_share/${"a".repeat(64)}/site.tovu.zip`;
+const SHARE_KEY = `_share/${"a".repeat(16)}/site.tovu.zip`;
 
 test("share upload honors the caller's abort signal before sending anything, and works without one", async () => {
   const { kit, sent } = kitWith(() => new Response(null, { status: 200 }));

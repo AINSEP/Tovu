@@ -168,14 +168,14 @@ function plan(): SiteSharePlanContent {
 
 test("receiver rejects unsafe filenames before reserving a token", async t => {
   const r = await shareRegistry(t);
-  await assert.rejects(receiveSiteShareArtifact({ registry: r, site: "ws", token: "a".repeat(64), file: "../site.zip", archive }), { code: "INVALID_INPUT" });
+  await assert.rejects(receiveSiteShareArtifact({ registry: r, site: "ws", token: "a".repeat(16), file: "../site.zip", archive }), { code: "INVALID_INPUT" });
   assert.deepEqual(fs.readdirSync(r.directory), []);
 });
 for (const operation of ["writeArtifact", "put"] as const) {
   test(`receiver compensates ${operation} failure without making a token public`, async t => {
     const r = await shareRegistry(t), failure = new Error(operation + " failed");
     t.mock.method(r, operation, async () => { throw failure; });
-    const token = "a".repeat(64);
+    const token = "a".repeat(16);
     await assert.rejects(receiveSiteShareArtifact({ registry: r, site: "ws", token, file: "site.tovu.zip", archive }), error => error === failure);
     assert.equal(await r.findToken({ token, file: "site.tovu.zip" }), null);
     assert.deepEqual(fs.readdirSync(r.directory), [token + ".token"]);
@@ -258,8 +258,8 @@ test("registry validates identifiers, preserves immutable claims, scopes history
   assert.throws(() => r.artifactPath({ shareId: "../outside" }), { code: "INVALID_INPUT" });
   await assert.rejects(r.reserveToken({ token: "bad", shareId: newShareIdentity({}).shareId }), { code: "INVALID_INPUT" });
   assert.equal(await r.findToken({ token: "bad", file: "site.tovu.zip" }), null);
-  assert.equal(await r.findToken({ token: "a".repeat(64), file: "bad" }), null);
-  assert.equal(await r.findToken({ token: "a".repeat(64), file: "site.tovu.zip" }), null);
+  assert.equal(await r.findToken({ token: "a".repeat(16), file: "bad" }), null);
+  assert.equal(await r.findToken({ token: "a".repeat(16), file: "site.tovu.zip" }), null);
   assert.equal(await r.get({ shareId: newShareIdentity({}).shareId }), null);
   assert.equal(await r.disable({ shareId: newShareIdentity({}).shareId, site: "ws" }), null);
   const first = await createSiteShare({ registry: r, ...input, name: " 中文 " });
@@ -349,7 +349,7 @@ for (const publicOrigin of ["http://public.example", "https://user@public.exampl
   });
 }
 test("runtime adapter rejects key/URL tampering and verifies every anonymous download header", async t => {
-  const r = await shareRegistry(t), key = `_share/${"a".repeat(64)}/site.tovu.zip`;
+  const r = await shareRegistry(t), key = `_share/${"a".repeat(16)}/site.tovu.zip`;
   let status = 200, headers: Record<string, string> = { "content-length": "3", "cache-control": "no-store", "x-content-type-options": "nosniff", "x-robots-tag": "noindex, nofollow", "content-disposition": 'attachment; filename="site.tovu.zip"' };
   const calls: unknown[] = [];
   const runtime = createRuntimeShareDelivery({ registry: r, site: "ws", publicOrigin: "https://public.example", http: { send: async (input, options) => { calls.push({ input, options }); return { status, headers, bodyText: "" }; } } });
@@ -379,9 +379,9 @@ test("runtime adapter rejects key/URL tampering and verifies every anonymous dow
   await assert.rejects(store.upload({ key, bytes: Buffer.from("different"), headers: {} }), { code: "ARTIFACT_CHANGED" });
   const alien = createRuntimeShareDelivery({ registry: r, site: "other", publicOrigin: "https://public.example", http: { send: async () => assert.fail() } });
   await assert.rejects(alien.store.upload({ key, bytes: Buffer.from("zip"), headers: {} }), { code: "ARTIFACT_CHANGED" });
-  await store.delete({ key: `_share/${"b".repeat(64)}/site.tovu.zip` });
+  await store.delete({ key: `_share/${"b".repeat(16)}/site.tovu.zip` });
   await store.delete({ key });
-  assert.equal(await r.findToken({ token: "a".repeat(64), file: "site.tovu.zip" }), null);
+  assert.equal(await r.findToken({ token: "a".repeat(16), file: "site.tovu.zip" }), null);
 });
 
 test("ordinary file cap applies independently of total expanded bytes", () => {

@@ -62,7 +62,7 @@ export function registerAdminSiteShareRoutes(required: { app: Express; deps: Rou
   }, express.raw({ type: "application/zip", limit: SHARE_LIMITS.maxArchiveBytes }), async (req, res) => {
     try {
       const token = String(req.params.token), file = String(req.params.file);
-      if (!SHARE_TOKEN.test(token) || !SHARE_FILE.test(file) || !Buffer.isBuffer(req.body) || req.body.length < 4 || req.body.readUInt32LE(0) !== 0x04034b50) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Expected a .tovu.zip artifact with a 256-bit token and application/zip body." });
+      if (!SHARE_TOKEN.test(token) || !SHARE_FILE.test(file) || !Buffer.isBuffer(req.body) || req.body.length < 4 || req.body.readUInt32LE(0) !== 0x04034b50) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Expected a .tovu.zip artifact with a 16-letter token and application/zip body." });
       const registry = deps.siteShareBackend!.registry;
       // Tokens are never reused, including revoked uploads. A replay may not resurrect access.
       const row = await receiveSiteShareArtifact({ registry, site: deps.workspaceId, token, file, archive: req.body });

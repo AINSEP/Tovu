@@ -22,7 +22,7 @@ import provider from "../object-stores/vercel-blob.mjs";
 // Built at runtime: gitleaks runs on main and must never see a token-shaped literal.
 const blobToken = ["vercel_blob_rw_", "StoreAbc123", "_", "x".repeat(20)].join("");
 const STORE_ORIGIN = "https://storeabc123.public.blob.vercel-storage.com";
-const shareToken = "a".repeat(64);
+const shareToken = "a".repeat(16);
 const key = `_share/${shareToken}/site.tovu.zip`;
 const bytes = Buffer.from("PK vercel blob artifact");
 
@@ -139,7 +139,7 @@ test("create, then revoke deletes the blob and verifies it is gone", async () =>
     const registry = new SiteShareRegistry({ directory });
     const delivery = { provider: "vercel", binding: "vercel-binding", store: fake.store() };
     const row = await createSiteShare({ registry, site: "site", name: "My Site", archive: bytes }, { delivery });
-    assert.match(row.url ?? "", /^https:\/\/storeabc123\.public\.blob\.vercel-storage\.com\/_share\/[0-9a-f]{64}\/my-site\.tovu\.zip\?download=1$/);
+    assert.match(row.url ?? "", /^https:\/\/storeabc123\.public\.blob\.vercel-storage\.com\/_share\/[A-Za-z]{16}\/my-site\.tovu\.zip\?download=1$/);
     assert.equal(fake.blobs.size, 1);
     await revokeSiteShare({ registry, site: "site", shareId: row.shareId }, { delivery });
     assert.equal(fake.blobs.size, 0);
