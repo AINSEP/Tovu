@@ -5,7 +5,7 @@ import type { RegionResolver } from '@jini-ai/cookie-consent';
 import type { LoadPluginContributions } from '#src/features/agent-plugins/lifecycle';
 import { loadSiteRegionResolvers } from '#src/features/consent/region-plugins';
 import type { RouteDeps } from '#src/server/routes/types';
-import { readSiteAnalyticsProof, readSiteConsentPolicyVersion, type SiteCookieConsentDeps } from '../../inbound/public-http/middleware/site-cookie-consent.js';
+import { readSiteAnalyticsProof, siteReceiptAllowsAnalytics, type SiteCookieConsentDeps } from '../../inbound/public-http/middleware/site-cookie-consent.js';
 
 /** Region readers are re-read at most once a minute, so switching a host plugin on or off applies
  * without a restart and a page view never waits on the plugin directory. */
@@ -46,9 +46,10 @@ export function bindCookieConsentAnalyticsGate(
     try { return await isExcluded({ request }) ? undefined : await readSiteAnalyticsProof({ deps, req: request }); }
     catch { return undefined; }
   };
-  // A proof from before the latest publication no longer counts: visitors are asked again.
+  // Rechecked at delivery: a withdrawn (retired) or forged receipt, or one from before the latest
+  // publication, no longer counts.
   deps.visitorAnalyticsDeliveryAllowed = async ({ proof }) => {
-    try { return proof.policyVersion === await readSiteConsentPolicyVersion({ deps }); }
+    try { return await siteReceiptAllowsAnalytics({ deps, proof }); }
     catch { return false; }
   };
 }

@@ -195,15 +195,13 @@ function gatedPort({ slot, contract, testProbe }: { slot: ProviderSlot; contract
   const noop = NOOP_PORTS[contract]() as Record<string, (...args: unknown[]) => unknown>;
   const names = Object.keys(noop);
   // Keep the optional hook available before attachment; every call follows the current slot.
-  if (contract === "product_analytics") names.push("captureAiGeneration", "browserAnalytics", "consentAdapter");
+  if (contract === "product_analytics") names.push("captureAiGeneration", "browserAnalytics");
   const browserCache = new Map<string, { lease: unknown; contribution: unknown }>();
   const gated = Object.fromEntries(names.map((name) => [name, (...args: unknown[]) => {
     const lease = slot.lease;
     const port = lease?.port as Record<string, unknown> | undefined;
     const live = port?.[name];
     if (!lease?.isCurrent({}) || typeof live !== "function") return noop[name]?.(...args);
-    // Each plugin's cookie-consent assets live under its own id, so two plugins never collide.
-    if (name === 'consentAdapter') return live.call(port, { path: `${(args[0] as { base: string }).base}/${slot.pluginId}` });
     if (name === 'browserAnalytics') {
       const surface = (args[0] as { surface: string }).surface;
       const cached = browserCache.get(surface);
@@ -216,6 +214,7 @@ function gatedPort({ slot, contract, testProbe }: { slot: ProviderSlot; contract
     testProbe.accepted({ providerId: `${slot.pluginId}/${slot.id}`, method: name, input: args[0] });
     return result;
   }]));
+  if (contract === "product_analytics") Object.assign(gated, { consentAdapter: gatedConsentAdapter({ slot }) });
   if (contract === "product_analytics") Object.defineProperty(gated, "includeAiContent", {
     get: () => slot.lease?.isCurrent({}) === true && (slot.lease.port as ProductAnalyticsPort).includeAiContent === true,
   });
@@ -223,6 +222,15 @@ function gatedPort({ slot, contract, testProbe }: { slot: ProviderSlot; contract
     get: () => slot.lease?.isCurrent({}) ? (slot.lease.port as AiTraceSink).capture : "metadata",
   });
   return gated;
+}
+
+/** The current plugin's cookie-consent contribution. Each plugin's assets live under its own id, so two
+ * plugins never collide; a detached slot or a plugin without the hook contributes nothing. @complexity O(1). */
+function gatedConsentAdapter({ slot }: { slot: ProviderSlot }, _optional = {}): (required: { base: string }) => unknown {
+  return ({ base }) => {
+    const port = slot.lease?.isCurrent({}) ? slot.lease.port as { consentAdapter?: (required: { path: string }) => unknown } : undefined;
+    return typeof port?.consentAdapter === 'function' ? port.consentAdapter({ path: `${base}/${slot.pluginId}` }) : undefined;
+  };
 }
 
 /** Composes guarded analytics, trace destinations and independent observability without vendor knowledge.
