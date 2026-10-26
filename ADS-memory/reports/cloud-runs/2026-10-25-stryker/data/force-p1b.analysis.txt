@@ -1,0 +1,68 @@
+TOTAL {'Ignored': 410, 'Killed': 2341, 'static': 716, 'Survived': 234, 'staticSurvived': 71, 'Timeout': 7, 'KilledCollection': 48} score 90.94 strict 90.67
+src/lifecycle/persistent-state.ts                            n=  31 K=  19(vto 0, coll 0) T=  0 S= 10 NC= 0 RE=0 CE=0 static=20/4S  65.52%
+src/lifecycle/package-paths.ts                               n=  82 K=  49(vto 0, coll 3) T=  4 S= 15 NC= 0 RE=0 CE=0 static=59/12S  77.94%
+src/lifecycle/skill-file-reader.ts                           n= 227 K= 147(vto 0, coll 0) T=  2 S= 36 NC= 0 RE=0 CE=0 static=2/0S  80.54%
+src/lifecycle/node.ts                                        n=  41 K=  31(vto 0, coll 2) T=  0 S=  7 NC= 0 RE=0 CE=0 static=12/1S  81.58%
+src/lifecycle/installed-package-roots.ts                     n=  69 K=  54(vto 0, coll 0) T=  0 S= 10 NC= 0 RE=0 CE=0 static=46/4S  84.38%
+src/lifecycle/install.ts                                     n= 315 K= 218(vto 0, coll 6) T=  1 S= 37 NC= 0 RE=0 CE=0 static=172/19S  85.55%
+src/lifecycle/installed-package-index.ts                     n= 114 K=  83(vto 0, coll 1) T=  0 S= 13 NC= 0 RE=0 CE=0 static=65/7S  86.46%
+src/lifecycle/seed-bundled.ts                                n=  85 K=  69(vto 0, coll 5) T=  0 S= 10 NC= 0 RE=0 CE=0 static=7/1S  87.34%
+src/lifecycle/yauzl-archive-reader.ts                        n=  42 K=  34(vto 0, coll 0) T=  0 S=  4 NC= 0 RE=0 CE=0 static=2/0S  89.47%
+src/lifecycle/set-enabled.ts                                 n=  57 K=  49(vto 0, coll 5) T=  0 S=  5 NC= 0 RE=0 CE=0 static=7/1S  90.74%
+src/lifecycle/uninstall.ts                                   n= 189 K= 149(vto 0, coll 5) T=  0 S= 13 NC= 0 RE=0 CE=0 static=8/1S  91.98%
+src/lifecycle/search.ts                                      n= 162 K= 128(vto 0, coll 5) T=  0 S= 11 NC= 0 RE=0 CE=0 static=7/1S  92.09%
+src/lifecycle/resolve-agent-plugin-refs.ts                   n= 144 K= 113(vto 0, coll 6) T=  0 S=  7 NC= 0 RE=0 CE=0 static=8/1S  94.17%
+src/lifecycle/trusted-plugin-files.ts                        n=  61 K=  49(vto 0, coll 5) T=  0 S=  3 NC= 0 RE=0 CE=0 static=7/1S  94.23%
+src/lifecycle/update-plan.ts                                 n=  42 K=  33(vto 0, coll 0) T=  0 S=  2 NC= 0 RE=0 CE=0 static=0/0S  94.29%
+src/lifecycle/update.ts                                      n= 285 K= 229(vto 0, coll 0) T=  0 S= 13 NC= 0 RE=0 CE=0 static=7/0S  94.63%
+src/lifecycle/layout.ts                                      n=  49 K=  38(vto 0, coll 0) T=  0 S=  2 NC= 0 RE=0 CE=0 static=39/2S  95.00%
+src/lifecycle/update-store.ts                                n= 191 K= 158(vto 0, coll 0) T=  0 S=  8 NC= 0 RE=0 CE=0 static=43/3S  95.18%
+src/lifecycle/manifest.ts                                    n= 523 K= 450(vto 0, coll 0) T=  0 S= 21 NC= 0 RE=0 CE=0 static=140/10S  95.54%
+src/lifecycle/provider-contribution.ts                       n=  61 K=  50(vto 0, coll 0) T=  0 S=  2 NC= 0 RE=0 CE=0 static=0/0S  96.15%
+src/lifecycle/index.ts                                       n=  73 K=  67(vto 0, coll 0) T=  0 S=  2 NC= 0 RE=0 CE=0 static=56/2S  97.10%
+src/lifecycle/retire-bundled.ts                              n= 124 K= 102(vto 0, coll 5) T=  0 S=  3 NC= 0 RE=0 CE=0 static=7/1S  97.14%
+src/lifecycle/install-errors.ts                              n=   2 K=   1(vto 0, coll 0) T=  0 S=  0 NC= 0 RE=0 CE=0 static=0/0S  100.00%
+src/lifecycle/install-from-url.ts                            n=  14 K=  12(vto 0, coll 0) T=  0 S=  0 NC= 0 RE=0 CE=0 static=2/0S  100.00%
+src/lifecycle/mcp-provisioning.ts                            n=   9 K=   9(vto 0, coll 0) T=  0 S=  0 NC= 0 RE=0 CE=0 static=0/0S  100.00%
+COLLECTION-ERROR KILLS 48
+  ('src/lifecycle/install.ts', 162, 'BlockStatement', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot destructure property 'maxAgentPluginInstallArchi")
+  ('src/lifecycle/install.ts', 173, 'ObjectLiteral', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/__tests__/unit/search.unit.test.ts: Cannot read properties of undefined (reading 'filesystem')")
+  ('src/lifecycle/install.ts', 592, 'BooleanLiteral', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot destructure property 'maxAgentPluginInstallArchi")
+  ('src/lifecycle/install.ts', 590, 'BlockStatement', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot destructure property 'maxAgentPluginInstallArchi")
+  ('src/lifecycle/install.ts', 592, 'ConditionalExpression', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot destructure property 'maxAgentPluginInstallArchi")
+  ('src/lifecycle/install.ts', 592, 'BlockStatement', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot destructure property 'maxAgentPluginInstallArchi")
+  ('src/lifecycle/installed-package-index.ts', 17, 'BlockStatement', "STRYKER-FORCE-COLLECTION-ERROR src/admin-surfaces/__tests__/admin-surfaces.characterization.test.ts: Cannot destructure property 'indexInstalledRoot' of 'create")
+  ('src/lifecycle/node.ts', 14, 'BlockStatement', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/__tests__/unit/install-edges.unit.test.ts: Cannot read properties of undefined (reading 'mkdir')")
+  ('src/lifecycle/node.ts', 16, 'LogicalOperator', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot read properties of undefined (reading 'mkdir')")
+  ('src/lifecycle/package-paths.ts', 30, 'BlockStatement', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/__tests__/unit/lifecycle-reconciliation.unit.test.ts: Cannot destructure property 'assertContainedOnDisk' of 'creat")
+  ('src/lifecycle/package-paths.ts', 141, 'BlockStatement', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/__tests__/unit/lifecycle-reconciliation.unit.test.ts: Cannot destructure property 'assertContainedOnDisk' of 'creat")
+  ('src/lifecycle/package-paths.ts', 143, 'ConditionalExpression', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/__tests__/unit/lifecycle-reconciliation.unit.test.ts: Cannot destructure property 'assertContainedOnDisk' of 'creat")
+  ('src/lifecycle/resolve-agent-plugin-refs.ts', 92, 'BlockStatement', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot destructure property 'resolveAgentPluginRefs' of")
+  ('src/lifecycle/resolve-agent-plugin-refs.ts', 98, 'ObjectLiteral', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot read properties of undefined (reading 'filesyste")
+  ('src/lifecycle/resolve-agent-plugin-refs.ts', 339, 'BlockStatement', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot destructure property 'resolveAgentPluginRefs' of")
+  ('src/lifecycle/resolve-agent-plugin-refs.ts', 341, 'BooleanLiteral', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot destructure property 'resolveAgentPluginRefs' of")
+  ('src/lifecycle/resolve-agent-plugin-refs.ts', 341, 'ConditionalExpression', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot destructure property 'resolveAgentPluginRefs' of")
+  ('src/lifecycle/resolve-agent-plugin-refs.ts', 341, 'BlockStatement', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot destructure property 'resolveAgentPluginRefs' of")
+  ('src/lifecycle/retire-bundled.ts', 106, 'BlockStatement', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot destructure property 'retireBundledAgentPlugins'")
+  ('src/lifecycle/retire-bundled.ts', 224, 'BlockStatement', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot destructure property 'retireBundledAgentPlugins'")
+  ('src/lifecycle/retire-bundled.ts', 226, 'BooleanLiteral', "STRYKER-FORCE-COLLECTION-ERROR src/admin-surfaces/__tests__/admin-surfaces.characterization.test.ts: Cannot destructure property 'retireBundledAgentPlugins' of ")
+  ('src/lifecycle/retire-bundled.ts', 226, 'ConditionalExpression', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot destructure property 'retireBundledAgentPlugins'")
+  ('src/lifecycle/retire-bundled.ts', 226, 'BlockStatement', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot destructure property 'retireBundledAgentPlugins'")
+  ('src/lifecycle/search.ts', 132, 'BlockStatement', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot destructure property 'rankInstalledAgentPlugins'")
+  ('src/lifecycle/search.ts', 219, 'BlockStatement', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot destructure property 'rankInstalledAgentPlugins'")
+  ('src/lifecycle/search.ts', 221, 'BooleanLiteral', "STRYKER-FORCE-COLLECTION-ERROR src/admin-surfaces/__tests__/admin-surfaces.characterization.test.ts: Cannot destructure property 'rankInstalledAgentPlugins' of ")
+  ('src/lifecycle/search.ts', 221, 'ConditionalExpression', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot destructure property 'rankInstalledAgentPlugins'")
+  ('src/lifecycle/search.ts', 221, 'BlockStatement', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot destructure property 'rankInstalledAgentPlugins'")
+  ('src/lifecycle/seed-bundled.ts', 137, 'BlockStatement', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot destructure property 'seedBundledAgentPlugins' o")
+  ('src/lifecycle/seed-bundled.ts', 321, 'BlockStatement', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot destructure property 'seedBundledAgentPlugins' o")
+  ('src/lifecycle/seed-bundled.ts', 323, 'BooleanLiteral', "STRYKER-FORCE-COLLECTION-ERROR src/admin-surfaces/__tests__/admin-surfaces.characterization.test.ts: Cannot destructure property 'seedBundledAgentPlugins' of 'c")
+  ('src/lifecycle/seed-bundled.ts', 323, 'ConditionalExpression', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot destructure property 'seedBundledAgentPlugins' o")
+  ('src/lifecycle/seed-bundled.ts', 323, 'BlockStatement', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot destructure property 'seedBundledAgentPlugins' o")
+  ('src/lifecycle/set-enabled.ts', 39, 'BlockStatement', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot destructure property 'setAgentPluginEnabled' of ")
+  ('src/lifecycle/set-enabled.ts', 110, 'BlockStatement', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot destructure property 'setAgentPluginEnabled' of ")
+  ('src/lifecycle/set-enabled.ts', 112, 'BooleanLiteral', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot destructure property 'setAgentPluginEnabled' of ")
+  ('src/lifecycle/set-enabled.ts', 112, 'ConditionalExpression', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot destructure property 'setAgentPluginEnabled' of ")
+  ('src/lifecycle/set-enabled.ts', 112, 'BlockStatement', "STRYKER-FORCE-COLLECTION-ERROR src/lifecycle/tools/__tests__/capabilities.characterization.unit.test.ts: Cannot destructure property 'setAgentPluginEnabled' of ")
+  ('src/lifecycle/trusted-plugin-files.ts', 70, 'BlockStatement', "STRYKER-FORCE-COLLECTION-ERROR src/admin-surfaces/__tests__/admin-surfaces.characterization.test.ts: Cannot destructure property 'findTrustedPluginPackages' of ")
+  ('src/lifecycle/trusted-plugin-files.ts', 155, 'BlockStatement', "STRYKER-FORCE-COLLECTION-ERROR src/admin-surfaces/__tests__/admin-surfaces.characterization.test.ts: Cannot destructure property 'findTrustedPluginPackages' of ")
+VITEST-TIMEOUT KILLS 0
