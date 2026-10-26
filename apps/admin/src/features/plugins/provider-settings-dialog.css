@@ -1,0 +1,37 @@
+/* `PluginProviderSettingsDialog.tsx` (2026-10-25 redesign). Built on the shared native domain
+   dialog (`styles/native-domain-dialogs.css`) and the `.field` primitives (`styles.css`); only
+   what those leave open lives here. Colors are admin theme tokens, so light and dark follow. */
+.provider-settings-dialog { --admin-dialog-width: 34rem; }
+.provider-settings-dialog .jini-dialog-title { overflow-wrap: anywhere; }
+.provider-settings-dialog > .provider-settings-subtitle { margin: -0.5rem 0 0; color: var(--muted); font-size: var(--text-sm); }
+.provider-settings-dialog .jini-dialog-body { gap: var(--space-4); }
+
+/* Field labels read as sentences here (vendor terms such as "OTLP endpoint", "DSN"), not the
+   uppercase micro-labels other forms use for short nouns. */
+.provider-settings-field .field-label { font-size: var(--text-sm); letter-spacing: 0; text-transform: none; color: var(--fg); }
+.provider-settings-required { color: var(--danger); }
+.provider-settings-field p.field-hint { margin: 0; color: var(--muted); font-size: var(--text-xs); line-height: 1.45; overflow-wrap: anywhere; }
+.provider-settings-custom { margin-top: var(--space-2); }
+
+.provider-settings-dialog p.provider-settings-notice {
+  padding: var(--space-3); border-radius: var(--r-md); background: var(--warning-bg); color: var(--fg); font-size: var(--text-sm);
+}
+.provider-settings-dialog p.provider-settings-saved { color: var(--ok); font-size: var(--text-sm); }
+.provider-settings-dialog p.save-error { color: var(--danger); font-size: var(--text-sm); }
+
+/* Footer: the "takes effect" note on the left, Cancel + Save on the right; the note wraps above the
+   buttons on a narrow screen. */
+.provider-settings-dialog .jini-dialog-footer { flex-wrap: wrap; align-items: center; }
+.provider-settings-dialog p.provider-settings-applies { margin: 0 auto 0 0; color: var(--muted); font-size: var(--text-xs); flex: 1 1 12rem; }
+
+/* Eye toggle for masked fields — the same rules the shared `components/SecretInput` brings to
+   `styles.css`; scoped here until that lands on this branch (merge keeps one copy). */
+.provider-settings-dialog .jini-secret { position: relative; display: flex; flex-direction: column; min-width: 0; }
+.provider-settings-dialog .jini-secret input { width: 100%; padding-right: 2.75rem; }
+.provider-settings-dialog .jini-secret-toggle {
+  position: absolute; top: 50%; right: 0; width: 40px; height: 40px; min-height: 0; margin: -20px 0 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: 0; box-shadow: none; padding: 0; border-radius: var(--r-sm); color: var(--muted); cursor: pointer;
+}
+.provider-settings-dialog .jini-secret-toggle:hover, .provider-settings-dialog .jini-secret-toggle:focus-visible { color: var(--accent-text); background: none; opacity: 1; }
+.provider-settings-dialog .jini-secret-toggle:focus-visible { outline-offset: -5px; }

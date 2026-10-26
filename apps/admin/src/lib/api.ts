@@ -2191,6 +2191,12 @@ export interface AdminPluginProviderSettingField {
   name: string;
   label: string;
   hint?: string;
+  /** Public fields: the plugin's declared value while none is saved (prefilled on the card). */
+  default?: string;
+  /** Public fields: the plugin's declared choices, shown as a select. */
+  options?: { value: string; label: string }[];
+  /** With `options`: a "Custom…" choice opens free text. */
+  allowCustom?: true;
   secret: boolean;
   required: boolean;
   saved: boolean;

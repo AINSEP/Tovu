@@ -32,9 +32,9 @@ export interface PluginProviderSettingsController {
   t: Translate;
 }
 
-/** Public fields start from their saved value; secrets always start blank. */
+/** Public fields start from their saved value, else the plugin's declared default; secrets always start blank. */
 function initialValues(card: AdminPluginProviderSettings): Record<string, string> {
-  return Object.fromEntries(card.fields.map((field) => [field.name, field.secret ? "" : field.value ?? ""]));
+  return Object.fromEntries(card.fields.map((field) => [field.name, field.secret ? "" : field.value || field.default || ""]));
 }
 
 export function usePluginProviderSettings({ pluginId, port, t }: { pluginId: string; port: Pick<PluginsPort, "getProviderSettings" | "saveProviderSettings">; t: Translate }): PluginProviderSettingsController {
