@@ -17,17 +17,20 @@ function excludedRuntimeSharePath({ path, parts }: { path: string; parts: string
     parts.some(part => part.startsWith(".env") || /^chat\.db(?:$|[.-])/.test(part));
 }
 
-function suspiciousSharePart({ part }: { part: string }, _options = {}): boolean {
+/** A name that only hints at a secret; the file's bytes decide (see excludedSharePath). */
+const CREDENTIAL_NAME = /(?:credential|vault|keyring|site-key|private[-_]?key)/;
+
+function suspiciousSharePart({ part }: { part: string }, { packageContent = false } = {}): boolean {
   const names = [".git", "node_modules", ".publish-staging", ".publish-previous", ".storage-secret.json", ".ds_store", "_share", "mcp.json", ".npmrc", ".netrc", ".fs-custom-root.json"];
   const prefixes = [".share-", "restore-point-", "superseded-"];
   const patterns = [
-    /(?:credential|vault|keyring|site-key|private[-_]?key)/,
     /^id_(?:rsa|dsa|ecdsa|ed25519)(?:\.|$)/,
     /\.(?:pem|key|p12|pfx)(?:[.-]|$)/,
     /\.(?:db|sqlite|sqlite3)(?:$|[.-])/,
     /^\.mcp(?:\..*)?\.json$/,
   ];
-  return names.includes(part) || prefixes.some(prefix => part.startsWith(prefix)) || patterns.some(pattern => pattern.test(part));
+  return names.includes(part) || prefixes.some(prefix => part.startsWith(prefix)) || patterns.some(pattern => pattern.test(part)) ||
+    (!packageContent && CREDENTIAL_NAME.test(part));
 }
 
 /** Exclude known private locations only; suspicious required content must refuse, not disappear. O(depth). */
@@ -37,9 +40,15 @@ export function excludedSharePath(required: { path: string }, _optional: Record<
   if (excludedRuntimeSharePath({ path: p, parts })) return true;
   // Installed packages ship MCP declarations and credential schemas as content, not runtime secrets.
   // Exempt only those names below the seven-segment package root; their bytes still get secret-scanned.
+  // Below that root the name-only credential hint is dropped too: bundled plugins ship files such as
+  // __tests__/credential-card.test.mjs, the bytes are integrity-hashed at install, and
+  // requireShareSecretFree still refuses provider keys, PEM and JWT inside them. Every other name rule stays.
   const packageContent = PACKAGE_CONTENT_ROOT.test(p);
-  const suspiciousParts = parts.filter((part, index) => !(packageContent && index >= 7 && ["mcp.json", "tovu-credential-schemes.json"].includes(part)));
-  if (suspiciousParts.some(part => suspiciousSharePart({ part }))) {
+  const suspicious = (part: string, index: number): boolean => {
+    const inPackage = packageContent && index >= 7;
+    return !(inPackage && part === "mcp.json") && suspiciousSharePart({ part }, { packageContent: inPackage });
+  };
+  if (parts.some(suspicious)) {
     throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: `Share refuses suspicious required path '${required.path}'. Remove it before sharing.` });
   }
   return false;

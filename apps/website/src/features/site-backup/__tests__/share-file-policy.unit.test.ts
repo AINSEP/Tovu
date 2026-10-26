@@ -48,6 +48,44 @@ test("other suspicious names below a package root still refuse", () => {
   assert.throws(() => excludedSharePath({ path }), suspicious(path));
 });
 
+for (const name of ["__tests__/credential-card.test.mjs", "src/vault.js", "docs/keyring.md", "docs/private-key-setup.md"]) {
+  test(`a credential-like name below an installed package root is package content (${name})`, () => {
+    assert.equal(excludedSharePath({ path: `${PACKAGE_ROOT}/${name}` }), false);
+  });
+}
+
+for (const path of [
+  "plugins/p/__tests__/credential-card.test.mjs", "agent-plugins/ws/w/p/__tests__/credential-card.test.mjs",
+  `agent-plugins/ws/w/credential/package/sha256/${HEX}/x`, `agent-plugins/ws/w/p/package/sha256/${"a".repeat(63)}/credential-card.test.mjs`,
+]) {
+  test(`a credential-like name outside an installed package root still refuses (${path})`, () => {
+    assert.throws(() => excludedSharePath({ path }), suspicious(path));
+  });
+}
+
+for (const name of ["certs/tls.pem", "keys/deploy.key", ".git/config", "node_modules/x/index.js", "data.db", "id_rsa", ".mcp.json"]) {
+  test(`every other suspicious-name rule still refuses below a package root (${name})`, () => {
+    const path = `${PACKAGE_ROOT}/${name}`;
+    assert.throws(() => excludedSharePath({ path }), suspicious(path));
+  });
+}
+
+test("a .env file below a package root is still a private location and is excluded", () => {
+  assert.equal(excludedSharePath({ path: `${PACKAGE_ROOT}/.env` }), true);
+});
+
+test("the content scan still refuses a PEM private key inside an exempted package file", () => {
+  const path = `${PACKAGE_ROOT}/__tests__/credential-card.test.mjs`;
+  const label = ["PRIVATE", "KEY"].join(" ");
+  const pem = `-----BEGIN ${label}-----\n${"A".repeat(64)}\n-----END ${label}-----`;
+  assert.throws(() => requireShareSecretFree({ path, bytes: Buffer.from(`const fixture = \`${pem}\`;`) }), secret(path));
+});
+
+test("the content scan still refuses a provider key inside an exempted package file", () => {
+  const path = `${PACKAGE_ROOT}/__tests__/credential-card.test.mjs`;
+  assert.throws(() => requireShareSecretFree({ path, bytes: Buffer.from(`const token = "${providerKey()}";`) }), secret(path));
+});
+
 test("the package exemption covers only segments below the seven-segment root", () => {
   const path = `agent-plugins/ws/w/mcp.json/package/sha256/${HEX}/x`;
   assert.throws(() => excludedSharePath({ path }), suspicious(path));
