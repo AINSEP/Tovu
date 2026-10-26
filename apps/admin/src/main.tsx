@@ -9,6 +9,7 @@ import { createCommentsQueueScope } from "./integrations/jini-admin/comments-por
 import { ServerRestartingBanner } from "./components/ServerRestartingBanner/ServerRestartingBanner";
 import { FetchQueryProvider } from "./lib/fetch-query/provider";
 import { redirectLegacyHashUrl } from "./lib/router";
+import { adminTelemetry, installBrowserErrorListeners, reactRootErrorOptions } from "./lib/browser-telemetry";
 import remixiconCss from "@jini-ai/ui/remixicon.css?inline";
 import "./styles.css";
 import "./styles/forms.css";
@@ -45,6 +46,10 @@ remixiconStyle.setAttribute("data-jini-remixicon", "");
 remixiconStyle.textContent = remixiconCss;
 document.head.appendChild(remixiconStyle);
 
+// The admin's own errors go to the server's telemetry route (no vendor code here): window-level
+// errors and rejections, plus every error a React boundary caught or none did (root options below).
+installBrowserErrorListeners({ target: window, telemetry: adminTelemetry });
+
 // Before the first render, so `App` never parses a URL that is about to change under it: an
 // existing `/admin/#/section/settings` bookmark becomes `/admin/settings` in place.
 redirectLegacyHashUrl();
@@ -61,7 +66,7 @@ function SessionApp() {
   </CommentQueueScopeProvider>;
 }
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+ReactDOM.createRoot(document.getElementById("root")!, reactRootErrorOptions({ telemetry: adminTelemetry })).render(
   <React.StrictMode>
     {/* Server-state cache for every section that reads through `fetch-query`.
         Sections not yet migrated are unaffected — they still call `api.*`

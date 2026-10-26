@@ -29,6 +29,7 @@ import { useWiredAdminLocale } from "./hooks/use-admin-locale.hooks";
 import { resolveAdminLayoutClassName, useInterfacePreferences } from "./hooks/use-interface-preferences.hooks";
 import { useDrawerActiveItemCentring } from "./hooks/use-drawer-active-item-centring.hooks";
 import { useAgentScreenRoute } from "./hooks/use-agent-screen-context.hooks";
+import { useAdminTelemetry } from "./hooks/use-admin-telemetry.hooks";
 import { useSidebarEmptyClickToggle } from "./hooks/use-sidebar-empty-click-toggle.hooks";
 import { AssistantDock } from "./components/AssistantDock/AssistantDock";
 import { DockHeaderTip } from "./components/AssistantDock/DockHeaderTip";
@@ -584,6 +585,8 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
   const route = useMemo(() => parseRoute(routePath), [routePath]);
   // Tells the assistant which screen each message is sent from; an editor adds its open entry.
   useAgentScreenRoute({ path: routePath, section: agentPageId(route), view: route.view });
+  // The admin's own page views (route template only) and errors, relayed by the server.
+  useAdminTelemetry({ signedIn: Boolean(user), routePath, params: route.params });
 
   const { sidebarOpen, setSidebarOpen } = useDrawer({ routePath });
   // The phone drawer opens with the current page's item in its vertical middle (owner, 2026-10-07).
