@@ -282,6 +282,8 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
         connection: body.connection,
         isDefault: body.isDefault,
         worksFor: body.worksFor,
+        // "site" = only for this site; omitted = the project store when one is attached.
+        scope: body.scope,
       });
       invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, after: credential });
       // Only when `connection` was actually supplied — matches `updatePublishCredential`'s own

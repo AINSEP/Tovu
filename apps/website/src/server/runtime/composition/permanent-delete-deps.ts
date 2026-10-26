@@ -5,8 +5,8 @@ import { identityServiceDepsFrom } from "#src/server/inbound/admin-http/routes/u
 import { isDeepStrictEqual } from "node:util";
 import { ToolInputError } from "@jini-ai/core";
 import { purgeMedia, MediaNotFoundError, MediaStillReferencedError } from "#src/features/media/index";
-import { deleteCustomCredential } from "#src/features/custom-credentials/index";
-import { deletePublishCredential } from "#src/features/deployments/publish-credentials/index";
+import { deleteCustomCredential, describeCredential as describeCustomCredential } from "#src/features/custom-credentials/index";
+import { deletePublishCredential, findPublishCredentialRecord } from "#src/features/deployments/publish-credentials/index";
 import { deleteSourceControlCredential } from "#src/features/source-control/index";
 import { deleteExternalMcpServer } from "#src/assistant/index";
 import { mayActOnEntityType } from "#src/features/trash/index";
@@ -230,12 +230,13 @@ export function buildPermanentDeleteDeps(deps: Deps): PermanentDeleteToolDeps {
           });
         }
         case "custom_credential_delete":
-          return recordPlan({ toolId, id, load: () => deps.customCredentialSetRepo.findById(key), label: credential => credential.label,
+          // This site's own key, else the project's (shared by every site; deleted for all of them).
+          return recordPlan({ toolId, id, load: () => describeCustomCredential({ repo: deps.customCredentialSetRepo }, key), label: credential => credential.label,
             warning: "Deletes the saved custom credential. The token is not revoked at its provider.",
             remove: async () => { await deleteCustomCredential({ repo: deps.customCredentialSetRepo }, key); return { removed: true, id }; } });
         case "deployment_delete_provider_credential":
           return recordPlan({ toolId, id, load: async () => {
-            const record = await deps.vendorCredentialSetRepo.findById(key);
+            const record = await findPublishCredentialRecord({ repo: deps.vendorCredentialSetRepo }, key);
             if (!record) return null;
             const hosts = (await deps.loadDeployTargets(deps.workspaceId)).list().filter(host => host.descriptor.credential?.vendorId === record.vendorId).map(host => host.descriptor.id);
             return { ...record, affectedHosts: hosts };

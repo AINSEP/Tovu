@@ -2,7 +2,7 @@ import { SecretsVaultService, VaultError, type VaultRepoPort, type VaultRecord, 
 import type { Clock } from "@jini-ai/core/primitives";
 import type { KeyringPort, SecretSealerPort, SealedSecret } from "../webhooks/index.js";
 import type { SourceControlCredentialSetRecord } from "../source-control/types.js";
-import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "./types.js";
+import type { VendorCredentialProjectScope, VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "./types.js";
 import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
 
 type Record = SourceControlCredentialSetRecord | VendorCredentialSetRecord;
@@ -141,6 +141,12 @@ export function credentialHint({ record }: { record: Pick<VaultSummary, "tokenLe
 
 /** Vendor DTO mapping; default selection/promotion and persistence belong to Jini's vault. */
 export class VendorCredentialSetVaultRepo extends TovuCredentialSetVaultAdapter<VendorCredentialSetRecord> implements VendorCredentialSetRepoPort {
+  readonly project?: VendorCredentialProjectScope;
+  /** @param optional.project The project store this site's rows fall back to (`types.ts`). */
+  constructor(required: { vault: VaultRepoPort; kind: Kind; vendor?: boolean }, optional: { project?: VendorCredentialProjectScope } = {}) {
+    super(required);
+    if (optional.project) this.project = optional.project;
+  }
   async findDefaultByVendor(input: { workspaceId: string; vendorId: string }, _options = {}) {
     return this.findDefaultByProvider({ workspaceId: input.workspaceId, providerId: input.vendorId });
   }

@@ -195,8 +195,8 @@ import {
 } from "#src/features/newsletter/repo.sqlite";
 import { DefaultMemberAccessResolver, MembersSubscriberDirectory } from "#src/features/members/index";
 import { listCustomCredentials, resolveCustomCredentialByLabel } from "#src/features/custom-credentials/index";
-import type { CustomCredentialProjectScope } from "#src/features/custom-credentials/types";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
+import { VendorCredentialSetVaultRepo } from "#src/features/vendor-credentials/vault-adapter";
 import { ensureSearchProviderSetting } from "#src/features/site-search/settings";
 import { bindSiteSearchPorts, createSiteSearchRuntime } from "./modules/site-search.js";
 import {
@@ -1129,16 +1129,17 @@ async function composeProviderConfig({ overrides, runtimeMode, onStoreClose, sit
 }
 
 /**
- * The project half of the custom-credential store (owner 2026-10-25: keys save to the project by
- * default; `features/custom-credentials/store.ts`'s scope rule). Absent where no project store opened
- * — production, or a project store that failed to open: credentials then stay site-only, which is
- * safe because a site row always wins over a project row (unlike provider settings, whose saves are
- * refused then).
+ * The project half of a credential store (owner 2026-10-25: keys save to the project by default;
+ * `features/custom-credentials/store.ts`'s and `features/deployments/publish-credentials/store.ts`'s
+ * scope rule): `repo` builds that store's own repo over the project's vault. Absent where no project
+ * store opened — production, or a project store that failed to open: credentials then stay site-only,
+ * which is safe because a site row always wins over a project row (unlike provider settings, whose
+ * saves are refused then).
  */
-function customCredentialProject(projectVault: ProjectVaultScope | undefined): { project?: CustomCredentialProjectScope } {
+function credentialProject<R>(projectVault: ProjectVaultScope | undefined, repo: (vault: ProjectVaultScope["repo"]) => R): { project?: { workspaceId: string; repo: R; sealer: ProjectVaultScope["sealer"]; keyring: ProjectVaultScope["keyring"] } } {
   if (!projectVault) return {};
-  const { workspaceId, repo, sealer, keyring } = projectVault;
-  return { project: { workspaceId, repo: new CustomCredentialVaultRepo({ vault: repo }), sealer, keyring } };
+  const { workspaceId, sealer, keyring } = projectVault;
+  return { project: { workspaceId, repo: repo(projectVault.repo), sealer, keyring } };
 }
 
 /** A site id from `source`, or undefined (warned) when it is not a short token. */
@@ -2085,7 +2086,7 @@ async function composeSiteRouteDeps(
   // third `EnvOrFileKeyring` instance).
   // Its rows: this site's own, then the project's (shared by every site of the project), opened
   // after the project store (owner 2026-10-25).
-  const customCredentialSetRepo = new SqliteCustomCredentialSetRepo(kernel, customCredentialProject(projectVault));
+  const customCredentialSetRepo = new SqliteCustomCredentialSetRepo(kernel, credentialProject(projectVault, vault => new CustomCredentialVaultRepo({ vault })));
   const providerPlugins = await providerPluginBoot({ overrides })({
     runtime: pluginRuntime,
     config: providerConfigSource,
@@ -2862,8 +2863,8 @@ async function composeSiteRouteDeps(
     sourceControlExportRootDir: resolveSourceControlExportRootDir({ siteDir: resolvedSiteBinding.dir }),
     // 2026-08-16 (Phase 3) — see `routes/types.ts`'s `vendorCredentialSetRepo` doc. Sealed via the
     // same shared sealer/keyring the two legacy credential repos above already reuse (no third
-    // `EnvOrFileKeyring` instance).
-    vendorCredentialSetRepo: new SqliteVendorCredentialSetRepo(kernel),
+    // `EnvOrFileKeyring` instance). Its rows: this site's own, then the project's (owner 2026-10-25).
+    vendorCredentialSetRepo: new SqliteVendorCredentialSetRepo(kernel, credentialProject(projectVault, vault => new VendorCredentialSetVaultRepo({ vault, kind: "vendor", vendor: true }))),
     // 2026-08-17 — see `routes/types.ts`'s `customCredentialSetRepo` doc. Sealed via the same
     // shared sealer/keyring the credential repos above already reuse (no third `EnvOrFileKeyring`
     // instance). Same instance `resolvedMailer` above was built from — not a second repo.

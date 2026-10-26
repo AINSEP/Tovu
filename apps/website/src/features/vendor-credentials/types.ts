@@ -18,6 +18,7 @@
 // validation/sealing boundary, with memory and SQLite repositories under ADR-006/ADR-007.
 import type { VaultRepoPort, VendorCredentialSetRecord as JiniVendorRecord, VendorCredentialSetRepoPort as JiniVendorRepo } from "@jini-ai/platform/secrets/credential-sets";
 import type { CredentialTokenHint } from "../../contracts/core/credential-token.js";
+import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 export type { VendorCredentialSetSummary } from "@jini-ai/platform/secrets/credential-sets";
 export interface VendorCredentialSetRecord extends JiniVendorRecord { readonly tokenHint?: CredentialTokenHint | null }
 /** Workspace-scoped persistence for {@link VendorCredentialSetRecord} (ADR-007 §1).
@@ -36,4 +37,22 @@ export interface VendorCredentialSetRecord extends JiniVendorRecord { readonly t
  * `tokenTail`, or `updatedAt` (a verify is a read of the provider, not a change to the credential).
  * No-op for a missing row: the human-gated verify route has no reason to treat a row that vanished
  * mid-request as anything but "nothing to heal". */
-export interface VendorCredentialSetRepoPort extends JiniVendorRepo { readonly vault?: VaultRepoPort }
+export interface VendorCredentialSetRepoPort extends JiniVendorRepo {
+  readonly vault?: VaultRepoPort;
+  /** The project store this site's rows fall back to (`publish-credentials/store.ts`'s scope rule: site
+   *  first, then project; new rows go to the project unless saved "only for this site"). Absent = site only. */
+  readonly project?: VendorCredentialProjectScope;
+}
+
+/**
+ * The project store's half of the vendor-credential store (owner 2026-10-25: keys save to the project
+ * by default). The same repo shape over the project's own `secrets_vault`, opened with the project's
+ * keyring and sealer, under the project's workspace id. Attached by the composition root only where a
+ * project store opened; Fly/production has none (the project is the site there).
+ */
+export interface VendorCredentialProjectScope {
+  readonly workspaceId: string;
+  readonly repo: VendorCredentialSetRepoPort;
+  readonly sealer: SecretSealerPort;
+  readonly keyring: KeyringPort;
+}
