@@ -1,5 +1,5 @@
 import { ApiError, api, authenticatedAdminRequest, WORKSPACE_ID, type AdminPlugin, type AdminPluginFiles, type AdminPluginProviderSettings } from "@/lib/api";
-import { isProviderSettingRequired } from "@jini-ai/plugins/host";
+import { providerSettingRequiredHere } from "../rules";
 import type { PluginsPort } from "./plugins-port.hooks";
 
 /**
@@ -122,7 +122,7 @@ export function createFakePluginsPort(options: FakePluginsPortOptions = {}): Plu
       }
       const effectiveValues = Object.fromEntries(card.fields.map((field) => [field.name, field.secret
         ? values[field.name]?.trim() || (field.saved ? "saved" : "") : effective(field, values[field.name]?.trim() ?? field.value)]));
-      const missing = card.fields.find((field) => isProviderSettingRequired({ field, values: effectiveValues }) && !effectiveValues[field.name]);
+      const missing = card.fields.find((field) => providerSettingRequiredHere({ field, fields: card.fields, entered: values, values: effectiveValues }) && !effectiveValues[field.name]);
       if (missing) throw new ApiError(`${missing.label} is required.${missing.hint ? ` ${missing.hint}` : ""}`, 400, "PROVIDER_SETTINGS_REQUIRED");
       const fields = card.fields.map((field) => {
         const value = values[field.name]?.trim();
