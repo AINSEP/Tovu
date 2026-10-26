@@ -559,3 +559,22 @@ test('an active browser contribution owns PostHog pageviews; the local analytics
   assert.equal(sink.all().length, 2);
   assert.deepEqual(events, [{ name: 'site_pageview', userId: 'visitor:request-id', properties: { routeTemplate: '/:path' } }]);
 });
+
+for (const header of ['DNT', 'Sec-GPC']) test(`analytics-ingest: ${header}: 1 denies even when body and configurable policy allow analytics`, async t => {
+  const base = createRouteDeps();
+  let forwarderReads = 0;
+  const { app, sink } = buildApp(undefined, {
+    config: { get: async input => ({ ...await base.analyticsConfig.get(input), honorDoNotTrack: false, honorGlobalPrivacyControl: false }) },
+    forwarders: async () => { forwarderReads++; return []; },
+  });
+  const url = await startTestServer(app, t);
+  const send = (value: string) => fetch(url + '/_analytics/e', { method: 'POST',
+    headers: { 'content-type': 'application/json', [header]: value },
+    body: JSON.stringify({ host: 'example.com', path: '/privacy', dnt: false, gpc: false }),
+  });
+  assert.equal((await send('1')).status, 204);
+  assert.deepEqual(sink.all(), [], 'a request header opt-out must prevent local ingestion');
+  assert.equal(forwarderReads, 0, 'header opt-outs stop before vendor resolution');
+  assert.equal((await send('0')).status, 204);
+  assert.equal(sink.all().length, 1, 'control request proves header opt-out caused the denial');
+});

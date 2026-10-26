@@ -81,6 +81,12 @@ function buildContext(req: Request, receivedAt: string): IngestContext {
   };
 }
 
+/** The browser contribution owns vendor pageviews when present; private routes never emit them.
+ * @complexity O(1), no mutation or network. */
+function shouldCaptureVisitorPageview({ deps, beacon }: { deps: AnalyticsIngestRouteDeps; beacon: IngestBeacon }, _optional = {}): boolean {
+  return !(deps.browserAnalytics?.({ surface: 'site' }) ?? []).length && beacon.kind === "pageview" && !/^\/(admin|_preview|preview)(\/|$)/.test(beacon.path);
+}
+
 /**
  * Registers the public analytics beacon route with host clock, configuration and sink ports.
  * The binding adapter supplies Jini's required policy/salt context and converts port/hook arguments.
@@ -90,6 +96,8 @@ export function registerAnalyticsIngestRoute(app: Express, deps: AnalyticsIngest
   // One cap per route for every request's vendor calls: a beacon flood sheds vendor calls, never local hits.
   const limiter = createAnalyticsForwardLimiter();
   app.post("/_analytics/e", async (req, res) => {
+    // Browser headers are authoritative even if the body omits or contradicts its privacy signal.
+    if (req.get("dnt") === "1" || req.get("sec-gpc") === "1") { res.status(204).end(); return; }
     const receivedAt = new Date(deps.clock.nowMs()).toISOString();
     const beacon = parseBeacon(req.body, req.hostname ?? "");
     const context = buildContext(req, receivedAt);
@@ -99,7 +107,7 @@ export function registerAnalyticsIngestRoute(app: Express, deps: AnalyticsIngest
       const forwarders = deps.forwarders ? await deps.forwarders({ request: req }) : [];
       const binding = createAnalyticsIngestBinding({ deps }, { forwarders, limiter });
       const outcome = await ingestHit({ input: { beacon, context }, deps: binding.deps }, binding.optional);
-      if (outcome.accepted && !(deps.browserAnalytics?.({ surface: 'site' }) ?? []).length && beacon.kind === "pageview" && !/^\/(admin|_preview|preview)(\/|$)/.test(beacon.path)) {
+      if (outcome.accepted && shouldCaptureVisitorPageview({ deps, beacon })) {
         void captureVisitorEvent({ deps, request: req, name: "site_pageview", properties: { routeTemplate: "/:path" } });
       }
     } catch {

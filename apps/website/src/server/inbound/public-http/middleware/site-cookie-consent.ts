@@ -225,7 +225,8 @@ async function collectorDecision(
   if (req.get('origin') !== resolveSiteConsentOrigin({ request: req })) return denied;
   const category: Optional = (OPTIONAL as readonly unknown[]).includes(adapter.category) ? adapter.category as Optional : 'marketing';
   const state = await readSiteVisitorConsent({ deps, req });
-  if (!state.allowed[category] || (state.analyticsLevel === 'anonymous' && adapter.supportsAnonymous !== true)) return denied;
+  const allowed = category === 'analytics' && state.analyticsLevel === 'anonymous' ? adapter.supportsAnonymous === true : state.allowed[category];
+  if (!allowed) return denied;
   return { status: (await limiter.check({ key: resolveClientIp(req) })).allowed ? null : 429, analyticsLevel: state.analyticsLevel };
 }
 
