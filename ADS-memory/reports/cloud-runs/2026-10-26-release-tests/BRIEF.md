@@ -17,7 +17,7 @@ Read ADS-memory/reports/cloud-runs/RUN-PROTOCOL.md first (run log + push-every-s
 ## What to run (lists in this folder)
 1. Jini `jini-tests.txt` (315 files): group by package, `cd /root/Jini/packages/<pkg> && timeout 600 npx vitest run --maxWorkers=2 <files…>` (packages using node:test: run with `--test-concurrency=1`).
 2. Tovu `tovu-tests.txt` (308 files): website node:test files: `TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --test --test-concurrency=1 --experimental-test-module-mocks <files…>` in batches of ~30; website vitest files (check the file's imports) with vitest `--maxWorkers=2`; apps/admin: `cd apps/admin && npx vitest run --maxWorkers=2 <files…>` (no --minWorkers); apps/desktop per its package.json test runner; development/scripts with node --test.
-3. Server memory soak (after the lists): `npm run build && npm run admin:build && JINI_MEMORY_SOAK_RECORD_ONLY=1 npm run test:soak:server` — record the floor numbers from development/test-results/memory-soak/. Skip the desktop soak (needs a display; runs on the owner's Mac).
+3. Server memory soak (after the lists): `npm run build && npm run admin:build && TOVU_SOAK_RECORD_ONLY=1 npm run test:soak:server` — record the floor numbers from development/test-results/memory-soak/. Skip the desktop soak (needs a display; runs on the owner's Mac).
 - Never more than 3 heavy test processes at once. Use `timeout`. Log to /tmp/<step>.log; tail/grep, never cat whole logs. Kill by pid only.
 - Files deleted on the branch (listed but missing) → note as MISSING, skip.
 
