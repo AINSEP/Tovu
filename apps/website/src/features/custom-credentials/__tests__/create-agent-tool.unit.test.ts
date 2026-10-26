@@ -12,6 +12,8 @@ import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import type { SecretSealerPort } from "../../webhooks/index.js";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
+import { CustomCredentialVaultRepo } from "../vault-repo.js";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { customCredentialsAgentToolCatalog } from "../agent-tools.js";
 import { createCustomCredential, resolveCustomCredentialByLabel, type CustomCredentialWriteDeps } from "../store.js";
 import { buildApiCredentialSaveHandlers, buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "../tool-registrations.js";
@@ -705,3 +707,21 @@ for (const mode of ["missing", "empty", "populated", "unavailable", "partial"] a
     assert.equal((await pending as { created: boolean }).created, false);
   });
 }
+
+test("submit with a project store: the key saves for every site of the project unless 'Only for this site' is ticked", { timeout: 5_000 }, async (t) => {
+  const { deps, sealer } = fakeRouteDeps();
+  const projectKeyring = new InMemoryKeyring();
+  const project = { workspaceId: "project", repo: new InMemoryCustomCredentialSetRepo(), sealer: new AesGcmSecretSealer(projectKeyring), keyring: projectKeyring };
+  const repo = new CustomCredentialVaultRepo({ vault: new InMemoryVaultRepo({}) }, { project });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const createTool = tool(buildRegistrations({ ...deps, customCredentialSetRepo: repo }, surfaceExchanges), TOOL_ID);
+  const first = await raiseForm(createTool, {}, { signal: t.signal });
+  const box = formControl(first.ui, "Only for this site");
+  surfaceExchanges.deliver({ exchangeId: first.exchangeId, principalId: PRINCIPAL_ID, params: { label: "shared", baseUrl: "https://api.example.com", category: "ops", token: "shared-token" } }, { toolId: TOOL_ID });
+  assert.equal((await first.pending as { credential: { scope?: string } }).credential.scope, "project");
+  const second = await raiseForm(createTool, {}, { signal: t.signal });
+  surfaceExchanges.deliver({ exchangeId: second.exchangeId, principalId: PRINCIPAL_ID, params: { label: "mine", baseUrl: "https://api.example.com", category: "ops", token: "site-token", [box.name]: true } }, { toolId: TOOL_ID });
+  assert.equal((await second.pending as { credential: { scope?: string } }).credential.scope, "site");
+  assert.deepEqual((await repo.listByWorkspace({ workspaceId: WORKSPACE_ID })).map((row) => row.label), ["mine"]);
+  assert.equal((await resolveCustomCredentialByLabel({ repo, sealer }, { workspaceId: WORKSPACE_ID, label: "shared" }))?.connection.token, "shared-token");
+});

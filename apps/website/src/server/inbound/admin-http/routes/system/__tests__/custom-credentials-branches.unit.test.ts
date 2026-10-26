@@ -7,6 +7,11 @@ import express from "express";
 import { createCapturingResponse, extractRouteHandler, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { registerAdminCustomCredentialsRoutes } from "../custom-credentials.js";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
+import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 
 /**
  * @file Branches of the custom-credentials routes that `custom-credentials-route.test.ts` (which runs
@@ -108,4 +113,31 @@ test("custom-credentials: an unexpected store failure on list or delete is a fix
     assert.deepEqual(await send(method, suffix), { status: 500, json: { error: "internal error", code: "INTERNAL_ERROR" } });
   }
   assert.deepEqual(logged.mock.calls.map((c) => c.arguments), [["[custom-credentials] unexpected store error"], ["[custom-credentials] unexpected store error"]]);
+});
+
+test("custom-credentials: with a project store, keys save to the project unless scope is site; Share moves a site key to the project", async (t) => {
+  const { app, deps } = setup({ withTargets: false });
+  const keyring = new InMemoryKeyring();
+  const project = { workspaceId: "project", repo: new InMemoryCustomCredentialSetRepo(), sealer: new AesGcmSecretSealer(keyring), keyring };
+  const shared = { ...deps, customCredentialSetRepo: new CustomCredentialVaultRepo({ vault: new InMemoryVaultRepo({}) }, { project }) };
+  const projectApp = express();
+  projectApp.use(express.json());
+  projectApp.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
+  registerAdminCustomCredentialsRoutes(projectApp, shared);
+  const send = await client(t, projectApp, deps.workspaceId);
+  const everywhere = await send("POST", "", CREATE);
+  assert.equal(everywhere.json.credential.scope, "project", JSON.stringify(everywhere.json));
+  const own = await send("POST", "", { ...CREATE, label: "Site token", scope: "site" });
+  assert.equal(own.json.credential.scope, "site");
+  const moved = await send("POST", `/${own.json.credential.id}/share`);
+  assert.equal(moved.status, 200, JSON.stringify(moved.json));
+  assert.deepEqual([moved.json.credential.id, moved.json.credential.scope], [own.json.credential.id, "project"]);
+  assert.equal(JSON.stringify(moved.json).includes(CREATE.connection.token), false);
+  assert.equal((await send("POST", `/${own.json.credential.id}/share`)).status, 404, "no longer a site-only key");
+  assert.equal((await send("POST", "", { ...CREATE, label: "x", scope: "nowhere" })).status, 400);
+  // A server without a project store (Fly) has nothing to share with.
+  const siteOnly = await client(t, app, deps.workspaceId);
+  const plain = await siteOnly("POST", "", CREATE);
+  assert.equal("scope" in plain.json.credential, false);
+  assert.equal((await siteOnly("POST", `/${plain.json.credential.id}/share`)).status, 400);
 });
