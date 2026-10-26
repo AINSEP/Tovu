@@ -29,7 +29,8 @@ const { JSDOM } = createRequire(import.meta.url)('jsdom');
 export const dom = new JSDOM('<!doctype html><body></body>', { url: 'http://localhost/', pretendToBeVisual: true });
 const resizeCallbacks = new Set<() => void>();
 class RecordingResizeObserver {
-  constructor(private readonly callback: () => void) {}
+  private readonly callback: () => void;
+  constructor(callback: () => void) { this.callback = callback; }
   observe() { resizeCallbacks.add(this.callback); }
   disconnect() { resizeCallbacks.delete(this.callback); }
 }

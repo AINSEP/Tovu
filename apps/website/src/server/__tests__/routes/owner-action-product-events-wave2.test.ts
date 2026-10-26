@@ -18,6 +18,7 @@ import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
 import { createSitePluginPolicy } from "#src/features/plugin-runtime/install";
 import type { SiteImportBackend } from "#src/features/site-backup/import-backend";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
+import { registerContentAnalytics } from "../../runtime/composition/content-events.js";
 import { withToolUseEvents } from "../../runtime/composition/tool-use-events.js";
 import { registerPluginInstallRoutes } from "../../inbound/admin-http/routes/plugins/install.js";
 import { registerAdminSiteImportRoutes } from "../../inbound/admin-http/routes/system/site-imports.js";
@@ -49,6 +50,7 @@ async function bootApp(t: TestContext, extra: Partial<ReturnType<typeof createRo
   const { port, events } = recording();
   const base = createRouteDeps();
   const deps = { ...base, tracker: createTracker({ productAnalytics: port }), ...extra };
+  await registerContentAnalytics({ deps });
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   const principalId = (await (await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } })).json() as { user: { id: string } }).user.id;
   return { deps, events, baseUrl, cookie, principalId, ws: `/api/admin/v1/workspaces/${deps.workspaceId}` };
@@ -71,7 +73,11 @@ test("page_created, then page_published once on the draft → published transiti
   const published = await publish(version);
   assert.equal(published.status, 200, await published.clone().text());
   assert.equal((await publish((await published.json() as { post: { version: number } }).post.version)).status, 200);
-  assert.deepEqual(events, [{ name: "page_created", userId: principalId }, { name: "page_published", userId: principalId }]);
+  assert.deepEqual(events, [
+    { name: "page_created", userId: principalId, properties: { eventId: `${id}-content.created-${version}`, resourceKind: "page", resourceId: id, source: "admin", initialStatus: "draft" } },
+    { name: "content_saved", userId: principalId, properties: { eventId: `${id}-content.saved-${version + 1}`, resourceKind: "page", resourceId: id, source: "admin", initialStatus: "published" } },
+    { name: "page_published", userId: principalId, properties: { eventId: `${id}-entry.published-${version + 1}`, resourceKind: "page", resourceId: id, source: "admin" } },
+  ]);
   assertNoSecret(events);
 });
 
@@ -80,7 +86,7 @@ test("media_uploaded carries the media family and a size bucket, never the name 
   const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
   const response = await adminFetch(baseUrl, cookie, `${ws}/media`, { method: "POST", body: { filename: `${secret}.png`, contentType: "image/png", dataBase64: png, alt: secret } });
   assert.equal(response.status, 201, await response.clone().text());
-  assert.deepEqual(events, [{ name: "media_uploaded", userId: principalId, properties: { kind: "image", bytesBucket: "<100KB" } }]);
+  assert.deepEqual(events, [{ name: "media_uploaded", userId: principalId, properties: { kind: "image", bytesBucket: "<100KB", source: "admin" } }]);
   assertNoSecret(events);
 });
 
@@ -90,7 +96,7 @@ test("theme_changed carries the newly active theme id", async (t) => {
   const themeId = availableThemeIds[0]!;
   const response = await adminFetch(baseUrl, cookie, `${ws}/presentation`, { method: "PATCH", body: { activeThemeId: themeId } });
   assert.equal(response.status, 200, await response.clone().text());
-  assert.deepEqual(events, [{ name: "theme_changed", userId: principalId, properties: { themeId } }]);
+  assert.deepEqual(events, [{ name: "theme_changed", userId: principalId, properties: { themeId, source: "admin" } }]);
   assertNoSecret(events);
 });
 
@@ -121,7 +127,7 @@ test("deploy_finished once the publish run settles, with its target and outcome"
   assert.ok(["completed", "errored"].includes(String(events[1]!.properties?.outcome)));
 });
 
-test("form_submitted on a public submission: the form slug only, under one fixed visitor id", async (t) => {
+test("form_submitted on a consented public submission: committed ids under a request-local visitor id", async (t) => {
   const { port, events } = recording();
   const definitionRepo = new InMemoryFormDefinitionRepo();
   const now = "2026-10-25T00:00:00.000Z";
@@ -133,18 +139,24 @@ test("form_submitted on a public submission: the form slug only, under one fixed
   app.use(express.json());
   const bus = new InMemoryEventBus();
   const submissionRepo = new InMemoryFormSubmissionRepo();
-  createFormsModule({ bus, tracker: createTracker({ productAnalytics: port }), formDefinitionRepo: definitionRepo,
+  const tracker = createTracker({ productAnalytics: port });
+  const consentProof = { receiptId: "receipt-1", policyVersion: "policy-1" };
+  const visitorAnalyticsDeliveryAllowed = async ({ proof }: { proof: typeof consentProof }) => { assert.deepEqual(proof, consentProof); return true; };
+  createFormsModule({ bus, tracker, visitorAnalyticsDeliveryAllowed, formDefinitionRepo: definitionRepo,
     formSubmissionRepo: submissionRepo, mailer: { capabilities: () => ({ driver: "memory", supportsIdempotencyKey: false,
       supportsWebhookFeedback: false, maxBatchSize: 1, supportsAttachments: false }), send: async () => { throw new Error("notifications disabled"); }, sendBatch: async () => { throw new Error("notifications disabled"); } },
   }).start?.();
-  registerFormsSubmitRoute(app, { workspaceId: "ws", submitForm: {
+  registerFormsSubmitRoute(app, { workspaceId: "ws", tracker, idGen: { newId: () => "request-1" },
+    visitorAnalyticsProof: async () => consentProof, visitorAnalyticsDeliveryAllowed, submitForm: {
     definitionRepo, submissionRepo, outbox: new InMemoryOutbox(), bus, clock,
     idGen: { newId: () => `id-${++counter}` }, rateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
   } });
   const baseUrl = await startTestServer(app, t);
   const response = await fetch(`${baseUrl}/forms/contact/submit`, { method: "POST", headers: { "content-type": "application/json", cookie: `session=${secret}` }, body: JSON.stringify({ name: secret }) });
   assert.equal(response.status, 201);
-  assert.deepEqual(events, [{ name: "form_submitted", userId: "site-visitor", properties: { formSlug: "contact" } }]);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(events, [{ name: "form_submitted", userId: "visitor:request-1", properties: { eventId: "id-2", formId: "def-1", deliveryMode: "live" } }]);
+  assertNoSecret(events);
 });
 
 test("plugin_installed on an install (never a preview), with the plugin id", async (t) => {
@@ -164,10 +176,10 @@ test("plugin_installed on an install (never a preview), with the plugin id", asy
   const post = (suffix: string, body: unknown) => fetch(`${baseUrl}/api/admin/v1/workspaces/ws/plugins/install${suffix}`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${secret}` }, body: JSON.stringify(body) });
   assert.equal((await post("/preview", { source: { kind: "folder", path: `/srv/${secret}` } })).status, 200);
   assert.equal((await post("", { source: { kind: "folder", path: `/srv/${secret}` }, expectedDigest: digest })).status, 201);
-  assert.deepEqual(events, [{ name: "plugin_installed", userId: "owner-1", properties: { pluginId: "acme-forms" } }]);
+  assert.deepEqual(events, [{ name: "plugin_installed", userId: "owner-1", properties: { pluginId: "acme-forms", pluginKind: "cms", source: "admin" } }]);
 });
 
-test("site_imported after a backup import, carrying nothing about the source", async (t) => {
+test("staging a backup that needs an owner emits no site_imported event before the site commits", async (t) => {
   const { port, events } = recording();
   const view = { importId: "00000000-0000-4000-8000-000000000001", source: { url: `https://share.example/site.zip?token=${secret}` }, newSiteId: null, newSiteName: null, state: "needs-owner" as const, status: "needs-owner" as const, createdAt: "2026-10-25", instructions: "Choose an owner password" };
   const backend = { importBackup: async () => view } as unknown as SiteImportBackend;
@@ -178,20 +190,25 @@ test("site_imported after a backup import, carrying nothing about the source", a
   const origin = await startTestServer(app, t);
   const response = await fetch(`${origin}/api/admin/v1/workspaces/ws/site-imports`, { method: "POST", headers: { origin, "content-type": "application/json" }, body: JSON.stringify(view.source) });
   assert.equal(response.status, 200, await response.clone().text());
-  assert.deepEqual(events, [{ name: "site_imported", userId: "recipient" }]);
+  // The shared import backend owns capture after completeOwner commits; the route cannot announce staging.
+  assert.deepEqual(await response.json(), view);
+  assert.deepEqual(events, []);
 });
 
 test("assistant_tool_used once per settled tool attempt: tool id and outcome only; an invented tool is 'unknown'", async () => {
   const { port, events } = recording();
   const appended: string[] = [];
-  const sink = withToolUseEvents({ tracker: createTracker({ productAnalytics: port }), sink: { append: async (required) => { appended.push(required.phase); } } });
+  const sink = withToolUseEvents({ tracker: createTracker({ productAnalytics: port }), sink: {
+    append: async (required) => { appended.push(required.phase); },
+    appendCommitted: async (required) => { appended.push(required.phase); return true; },
+  } });
   const attempt = { attemptId: "a", executionId: null, workspaceId: "ws", runId: "r", principalId: "owner-1", at: "2026-10-25T00:00:00.000Z" };
   await sink.append({ ...attempt, toolId: "posts_create", phase: "requested" });
   await sink.append({ ...attempt, toolId: "posts_create", phase: "completed" }, { detail: `keys:${secret}` });
-  await sink.append({ ...attempt, toolId: `made_up_${secret}`, phase: "unknown-tool" });
+  await sink.append({ ...attempt, attemptId: "unknown-attempt", toolId: `made_up_${secret}`, phase: "unknown-tool" });
   assert.deepEqual(appended, ["requested", "completed", "unknown-tool"], "the audit trail itself is unchanged");
   assert.deepEqual(events, [
-    { name: "assistant_tool_used", userId: "owner-1", properties: { toolId: "posts_create", outcome: "completed" } },
-    { name: "assistant_tool_used", userId: "owner-1", properties: { toolId: "unknown", outcome: "unknown-tool" } },
+    { name: "assistant_tool_used", userId: "owner-1", properties: { toolId: "posts_create", outcome: "completed", chatSurface: "admin", attemptId: "a", eventId: "assistant-tool:a" } },
+    { name: "assistant_tool_used", userId: "owner-1", properties: { toolId: "unknown", outcome: "unknown-tool", chatSurface: "admin", attemptId: "unknown-attempt", eventId: "assistant-tool:unknown-attempt" } },
   ]);
 });

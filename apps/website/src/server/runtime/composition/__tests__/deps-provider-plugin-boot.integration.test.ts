@@ -21,7 +21,7 @@ import { ProviderStoreUnavailableError } from "#src/server/runtime/composition/p
  * and the plugin SDK's construction asks for the plugin host — a lookup that used to read `routeDeps`
  * in its temporal dead zone (ReferenceError → noop). Here a fake provider plugin (no vendor) is
  * installed on disk in the site's plugin directory, enabled in content.db, and its declared settings saved
- * through the real settings port (sealed in the site vault); the second boot must hand its port (not the
+ * through the real settings port (sealed in the project vault and explicitly attached); the second boot must hand its port (not the
  * noop) to RouteDeps, and its factory must have received the saved values.
  */
 
@@ -64,6 +64,7 @@ test("installed + enabled + configured provider plugin boots through the real co
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const siteDir = path.join(root, "site");
   fs.mkdirSync(siteDir);
+  fs.writeFileSync(path.join(siteDir, ".site-meta.json"), JSON.stringify({ siteId: "uuid-provider-boot" }));
   const dbPath = path.join(siteDir, "content.db");
   const version = await installFakeProvider({ siteDir });
 
@@ -74,8 +75,10 @@ test("installed + enabled + configured provider plugin boots through the real co
   await sqlitePluginActivationRepoFor({ store: first.contentKernel! }).save({ workspaceId: first.workspaceId, pluginId: PLUGIN_ID, version, enabled: true, updatedAt: "2026-10-26" });
   // The retired-key check runs over the real credential listing (nothing saved the old way here).
   assert.equal(await first.legacyProviderCredential!({ pluginId: PLUGIN_ID }), false);
-  // Saved through the same port the admin settings card writes: sealed rows in this site's vault.
+  // Saved through the same port the admin settings card writes: sealed project rows need explicit attachment.
   await first.providerConfig!.write({ pluginId: PLUGIN_ID, config: { settings: { endpoint: "https://collector.example.test" }, secrets: { token: "sealed-token" } } });
+  assert.equal(await first.providerConfig!.readSettings({ pluginId: PLUGIN_ID }), null, "saving a key does not attach it");
+  await first.projectKeys!.use({ keyId: `plugin-state:${PLUGIN_ID}:provider.config`, use: true });
   assert.deepEqual(await first.providerConfig!.readSettings({ pluginId: PLUGIN_ID }), { settings: { endpoint: "https://collector.example.test" }, secretNames: ["token"] });
   await first.pluginRuntimeReady;
   await closeFirst();

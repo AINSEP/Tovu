@@ -214,7 +214,7 @@ test("both active-theme settings writers signal a new preview revision", async (
   assert.deepEqual(body.settings, {
     workspaceId: "ws",
     activeThemeId: "none",
-    updatedAt: "2026-10-06T00:00:00.000Z",
+    updatedAt: "2026-10-05T00:00:00.000Z",
   });
   assert.notEqual(readThemePreviewRefresh({ themesDir })?.revision, first.revision);
 });

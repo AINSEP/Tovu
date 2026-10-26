@@ -142,10 +142,10 @@ test("content_read.menu publishes optional canonical id and documents its legacy
   const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions });
   const menu = registrations.find((registration) => registration.descriptor.id === "content_read.menu");
   assert.ok(menu);
-  const schema = menu.descriptor.inputSchema as { required: string[]; properties: Record<string, { description?: string }> };
+  const schema = menu.descriptor.inputSchema as { required?: string[]; properties: Record<string, { description?: string }> };
   assert.ok(Object.hasOwn(schema.properties, "id"));
   assert.ok(!Object.hasOwn(schema.properties, "menuId"));
-  assert.ok(!schema.required.includes("id"));
+  assert.ok(!schema.required?.includes("id"));
   assert.match(schema.properties.id?.description ?? "", /Omit to list instead of fetching a single item\.$/);
   assert.ok(menu.descriptor.description?.split(KEYWORD_MARKER)[0]?.includes("legacy 'menuId' (accepted for 90 days from release)"));
 });
@@ -170,7 +170,7 @@ test("the execution gate accepts canonical and legacy menu selectors and rejects
     const result = await execute({ id: "m-1", menuId });
     assert.equal(result.status, "failed");
     assert.equal(result.errorKind, "validation");
-    assert.match(result.error ?? "", /Conflicting inputs 'menuId' and 'id'/);
+    assert.equal(result.error, "Conflicting inputs 'id' and 'menuId' both name 'id'. Send only 'id'.");
   }
   assert.equal(inputs.length, 2);
 });

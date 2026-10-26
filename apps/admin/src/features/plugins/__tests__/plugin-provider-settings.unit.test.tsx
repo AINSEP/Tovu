@@ -127,7 +127,7 @@ describe("PluginProviderSettingsDialog", () => {
     let saved = 0;
     dialogWith(createFakePluginsPort({ providerSettings }), { onSaved: () => { saved += 1; } });
     const endpoint = await findControl(/OTLP endpoint/);
-    expect(screen.getByText("Saved for this site")).toBeTruthy();
+    expect(screen.getByText("Saved for this site only")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(saved).toBe(1));
     expect(providerSettings["observability-opentelemetry"].fields[1]!.saved).toBe(true);

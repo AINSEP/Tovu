@@ -46,7 +46,7 @@ async function client(t: import("node:test").TestContext, app: express.Express, 
   const url = `${await startTestServer(app, t)}/api/admin/v1/workspaces/${workspaceId}/system/custom/credentials`;
   const send = async (method: string, suffix: string, body?: unknown) => {
     const res = await fetch(url + suffix, { method, headers: { "content-type": "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
-    return { status: res.status, json: res.status === 204 ? null : await res.json() };
+    return { status: res.status, json: res.headers.get("content-type")?.includes("application/json") ? await res.json() : null };
   };
   return send;
 }

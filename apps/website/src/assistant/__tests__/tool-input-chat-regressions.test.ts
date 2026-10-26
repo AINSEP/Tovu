@@ -125,7 +125,7 @@ test('raw page writers leave slug resolution to the shared host adapter', async 
     pagesHtmlStore: () => { reads++; throw new Error('no store should open'); },
   });
   for (const registration of registrations.filter(tool => tool.descriptor.id !== 'pages_read_html')) {
-    const result = await executeRegisteredTool({ registration, input: { slug: '/' } });
+    const result = await executeRegisteredTool({ registration, input: { slug: '/', regionId: 'hero' } });
     assert.equal(result.errorKind, 'validation');
     assert.match(result.error!, /Unknown input 'slug'.*Declared inputs:.*id/);
   }

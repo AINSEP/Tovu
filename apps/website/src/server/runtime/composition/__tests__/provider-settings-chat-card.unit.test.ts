@@ -144,7 +144,8 @@ test('the chat save refuses a missing conditional token with exact guidance and 
   assert.deepEqual(refused.result, { saved: false, reason: "error", message: 'Token is required. Choose "No authentication" only for a local collector.' });
   assert.equal(refused.project.rows.size, 0);
   const local = await fixture({ records: [conditional], submit: { auth: "none", token: "" } });
-  assert.deepEqual(local.result, { saved: true, pluginId: PLUGIN, store: "project", appliesAt: "next-start" });
+  assert.deepEqual(local.result, { saved: true, pluginId: PLUGIN, configured: false,
+    keyId: `plugin-state:${PLUGIN}:provider.config`, store: "project", usedByThisSite: false, usedBy: [], appliesAt: "restart" });
   assert.deepEqual(local.project.rows.get(`project/${PLUGIN}/provider.config`), { settings: { auth: "none" }, secrets: {} });
 });
 

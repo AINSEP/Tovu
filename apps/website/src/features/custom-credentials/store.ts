@@ -362,7 +362,12 @@ export async function createCustomCredential(deps: CustomCredentialWriteDeps, in
   const record = customVaultRecord({ row: prepared, expectedRevision: null });
   try { await target.deps.repo.insert(record); }
   catch (err) {
-    if (isUniqueLabelViolation(err)) throw target.scope === "project" ? new CustomCredentialDuplicateLabelError(`Your project already has a key named '${label}'. Use it here, or pick another name.`) : duplicateLabel(label);
+    // Unattached project rows are hidden from the normal reader. Check metadata only to distinguish
+    // a duplicate label from a CAS conflict; never attach or open the existing credential.
+    const inventory = credentialDeletionRepo({ repo: deps.repo }).project;
+    const hiddenDuplicate = target.scope === "project" && err instanceof VaultError && err.code === "conflict"
+      && (await inventory!.repo.listByWorkspace({ workspaceId: target.workspaceId })).some(row => row.label === label);
+    if (isUniqueLabelViolation(err) || hiddenDuplicate) throw target.scope === "project" ? new CustomCredentialDuplicateLabelError(`Your project already has a key named '${label}'. Use it here, or pick another name.`) : duplicateLabel(label);
     throw err;
   }
   return toSummary(record, reportedScope(deps, target));

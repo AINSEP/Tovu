@@ -133,7 +133,7 @@ test("formatGateFailure prints an Error's message or a non-Error value, bounded"
 });
 
 test("the real entry with no --platform-dir prints the refusal and exits 1", () => {
-  const child = spawnSync(process.execPath, [SCRIPT], { encoding: "utf8", timeout: 60_000 });
+  const child = spawnSync(process.execPath, ["--disable-warning=ExperimentalWarning", SCRIPT], { encoding: "utf8", timeout: 60_000 });
   assert.equal(child.status, 1);
   assert.equal(child.stderr, "smoke-native: --platform-dir <dir> is required\n");
 });

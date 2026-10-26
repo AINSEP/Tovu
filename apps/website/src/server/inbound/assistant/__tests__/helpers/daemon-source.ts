@@ -25,6 +25,7 @@ import { durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPromp
 import { ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, resolveAssistantDisallowedTools, resolveAssistantRunSettings } from "../../assistant-system-overlay.js";
 import { resolveAssistantRuntimeLaunch } from "../../assistant-runtime-guidance.js";
 import { getAgentDef } from "@jini-ai/agent-runtime";
+import { createTracker } from "@jini-ai/diagnostics/observability/node";
 
 export const daemonSource = ts.createSourceFile(
   "agent-daemon-server.ts",
@@ -112,7 +113,7 @@ export async function captureDaemonRun(
     agentExecutor: { run: async (required: AgentExecutorRunInput, optional: Partial<AgentExecutorRunInput> = {}) => resolve({ ...required, ...optional }) },
     ...options.bindings,
     // Partial fixture ports still need the site directory used by every CLI launch.
-    routeDeps: { workspaceId: "ws-daemon-test", siteBinding: { dir: tmpdir() }, ...fixtureDeps },
+    routeDeps: { workspaceId: "ws-daemon-test", tracker: createTracker({}), siteBinding: { dir: tmpdir() }, ...fixtureDeps },
   };
   try {
     if (!options.bindings?.routeDeps) assert.equal(context.conversationId, undefined, "session I/O requires explicit fixture ports");

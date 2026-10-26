@@ -11,6 +11,7 @@ import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import type { ProductAnalyticsPort, ProductEvent } from "@jini-ai/analytics/product";
 
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
+import { registerContentAnalytics } from "../../runtime/composition/content-events.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerPluginSetEnabledRoute } from "../../inbound/admin-http/routes/plugins/set-enabled.js";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
@@ -34,19 +35,24 @@ async function adminFetch(baseUrl: string, cookie: string, url: string, init: { 
 test("post_created, then post_published once on the draft → published transition only", async (t) => {
   const { port, events } = recording();
   const deps = { ...createRouteDeps(), tracker: createTracker({ productAnalytics: port }) };
+  await registerContentAnalytics({ deps });
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   const principalId = (await (await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } })).json() as { user: { id: string } }).user.id;
   const base = `/api/admin/v1/workspaces/${deps.workspaceId}/posts`;
   const created = await adminFetch(baseUrl, cookie, base, { method: "POST", body: { title: "Hello" } });
   assert.equal(created.status, 201);
   const { post: { id, version } } = await created.json() as { post: { id: string; version: number } };
-  assert.deepEqual(events, [{ name: "post_created", userId: principalId }]);
+  assert.deepEqual(events, [{ name: "post_created", userId: principalId, properties: {
+    eventId: `${id}-content.created-${version}`, resourceKind: "post", resourceId: id, source: "admin", initialStatus: "draft",
+  } }]);
   const published = await adminFetch(baseUrl, cookie, `${base}/${id}`, { method: "PUT", body: { title: "Hello", slug: "hello", bodyJson: { type: "doc", content: [] }, status: "published", expectedVersion: version } });
   assert.equal(published.status, 200, await published.clone().text());
   const again = await adminFetch(baseUrl, cookie, `${base}/${id}`, { method: "PUT", body: { title: "Hello again", slug: "hello", bodyJson: { type: "doc", content: [] }, status: "published", expectedVersion: (await published.json() as { post: { version: number } }).post.version } });
   assert.equal(again.status, 200, await again.clone().text());
-  assert.deepEqual(events.map((event) => event.name), ["post_created", "post_published"]);
-  assert.deepEqual(events[1], { name: "post_published", userId: principalId });
+  assert.deepEqual(events.map((event) => event.name), ["post_created", "content_saved", "post_published", "content_saved"]);
+  assert.deepEqual(events[2], { name: "post_published", userId: principalId, properties: {
+    eventId: `${id}-entry.published-${version + 1}`, resourceKind: "post", resourceId: id, source: "admin",
+  } });
 });
 
 test("assistant_chat_started on a new chat, carrying no chat text", async (t) => {
@@ -56,7 +62,8 @@ test("assistant_chat_started on a new chat, carrying no chat text", async (t) =>
   const response = await adminFetch(baseUrl, cookie, "/api/assistant/chats", { method: "POST", body: { firstMessage: "my private question" } });
   assert.equal(response.status, 201);
   assert.deepEqual(events.map(({ name }) => name), ["assistant_chat_started"]);
-  assert.equal(events[0]!.properties, undefined);
+  const { conversation } = await response.json() as { conversation: { id: string } };
+  assert.deepEqual(events[0]!.properties, { chatSurface: "admin", conversationId: conversation.id, source: "admin", eventId: `assistant-chat:${conversation.id}` });
   assert.ok(!JSON.stringify(events).includes("private"));
 });
 
@@ -79,7 +86,7 @@ test("site_publish_started when an owner starts a publish run", async (t) => {
   }
 });
 
-test("plugin_toggled with only the direction, never the plugin id", async (t) => {
+test("plugin_toggled identifies the plugin family and direction without settings", async (t) => {
   const { port, events } = recording();
   const baseDeps = createRouteDeps();
   const app = express();
@@ -99,6 +106,8 @@ test("plugin_toggled with only the direction, never the plugin id", async (t) =>
     const response = await adminFetch(baseUrl, cookie, `/api/admin/v1/workspaces/${baseDeps.workspaceId}/plugins/word-count`, { method: "PATCH", body: { enabled } });
     assert.equal(response.status, 200, await response.clone().text());
   }
-  assert.deepEqual(events.map(({ name, properties }) => [name, properties]), [["plugin_toggled", { enabled: true }], ["plugin_toggled", { enabled: false }]]);
-  assert.ok(!JSON.stringify(events).includes("word-count"));
+  assert.deepEqual(events.map(({ name, properties }) => [name, properties]), [
+    ["plugin_toggled", { enabled: true, pluginId: "word-count", pluginKind: "cms", source: "admin" }],
+    ["plugin_toggled", { enabled: false, pluginId: "word-count", pluginKind: "cms", source: "admin" }],
+  ]);
 });
