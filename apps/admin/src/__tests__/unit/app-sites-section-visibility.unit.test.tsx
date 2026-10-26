@@ -182,7 +182,7 @@ function stubDesktopShell() {
 }
 
 describe("Import & Export inside the desktop shell (owner, 2026-10-25, option A)", () => {
-  it("is reachable, opens on Export, and keeps the Publish button", async () => {
+  it("is reachable and opens on Export, with no Publish button (owner removed it, 2026-10-25)", async () => {
     stubDesktopShell();
     vi.stubGlobal("fetch", stubFetch(true));
     const container = await renderAt("/admin/import-export");
@@ -194,7 +194,18 @@ describe("Import & Export inside the desktop shell (owner, 2026-10-25, option A)
     const main = container.querySelector("main")!;
     await waitFor(() => expect(within(main).getByRole("tab", { name: /Export/ })).toHaveAttribute("aria-selected", "true"));
     expect(within(main).getByRole("button", { name: "Export this site" })).toBeTruthy();
-    expect(within(main).getByRole("button", { name: "Publish" })).toBeTruthy();
+    expect(within(main).queryByRole("button", { name: "Publish" })).toBeNull();
+  });
+
+  it("still reaches publishing from the dashboard's Publish All and the Deployment row", async () => {
+    stubDesktopShell();
+    vi.stubGlobal("fetch", stubFetch(true));
+    const container = await renderAt("/admin/");
+
+    const main = container.querySelector("main")!;
+    await waitFor(() => expect(main).toHaveAttribute("data-agent-page", "dashboard"));
+    expect(within(main).getByRole("button", { name: "Publish All" })).toBeTruthy();
+    expect(container.querySelector('a[href="/admin/deployment"]')).not.toBeNull();
   });
 
   it("renders Import, without the New site link the shell has no route for", async () => {

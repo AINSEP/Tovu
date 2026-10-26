@@ -291,7 +291,8 @@ function sitesTabPanel(tab: SitesTabId, controller: ReturnType<typeof useWiredSi
   if (tab === "new") return <CreateSiteOnboarding controller={controller} onCancel={goToSiteList} />;
   // Export Site / Import Site (and the Publish button beside "Export this site", owner 2026-10-18)
   // moved to Operations → Import & Export as tabs (owner, 2026-10-25), so they work on hosts with no
-  // Sites section; old `?tab=export|import` links redirect there (`App.tsx` `parseRoute`).
+  // Sites section; old `?tab=export|import` links redirect there (`App.tsx` `parseRoute`). The owner
+  // then removed that Publish button the same day (see `ImportExport.tsx` `TransferTab`).
   return (
     <AllSitesTab
       sites={controller.sites}

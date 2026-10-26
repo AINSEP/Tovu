@@ -17,7 +17,8 @@ export interface SiteExportTabProps {
   t: Translate;
   /** Test seam, same convention as `SitesProps.useSitesHook`. */
   useExport?: typeof useWiredSiteExport;
-  /** Sits beside "Export this site" (owner, 2026-10-18); the Import & Export page passes the Publish button. */
+  /** Sits beside "Export this site" (owner, 2026-10-18). The Import & Export page passed the Publish
+   *  button here until the owner removed it on 2026-10-25; nothing passes one now. */
   publish?: ReactNode;
 }
 

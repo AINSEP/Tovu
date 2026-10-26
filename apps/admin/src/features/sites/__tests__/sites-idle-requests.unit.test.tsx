@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useInvalidate } from "@jini-ai/ui/fetch-query";
@@ -27,9 +27,6 @@ describe("Sites request lifecycle", () => {
       if (path.endsWith("/settings/effective")) return Response.json({ data: [] });
       if (path.endsWith("/site-shares")) return Response.json({ shares: [] });
       if (path.endsWith("/auth/me")) return Response.json({ effectivePermissions: [] });
-      if (path.endsWith("/publish/destinations")) return Response.json([]);
-      if (path.endsWith("/publish-targets")) return Response.json({ targets: [] });
-      if (path.endsWith("/system/publish")) return Response.json({ status: "idle", startedAtIso: null, finishedAtIso: null, target: null });
       throw new Error(`Unexpected read: ${path}`);
     });
     function RefreshList() {
@@ -37,18 +34,15 @@ describe("Sites request lifecycle", () => {
       return <button onClick={() => invalidate({ key: KEYS.list })}>Refresh site list</button>;
     }
     const view = render(<FetchQueryProvider>
-      {/* Export (with Publish) moved to Import & Export (owner, 2026-10-25); both screens mount
-          side by side here so a site-list refresh is still shown not to re-read them. */}
+      {/* Export moved to Import & Export (owner, 2026-10-25), and its Publish button was removed
+          the same day; both screens mount side by side here so a site-list refresh is still shown
+          not to re-read them. */}
       <Sites useSitesHook={() => useSites(port, t)} tabId="all" />
       <ImportExport tabId="export" useTranslate={() => t} useTransferTranslate={() => t} useSitesAvailable={() => true} />
       <RefreshList />
     </FetchQueryProvider>);
     try {
       await screen.findByText("No exports yet.");
-      fireEvent.click(screen.getByRole("button", { name: "Publish" }));
-      const panel = await screen.findByRole("region", { name: "Publish destinations" });
-      await within(panel).findByText(/Nothing published yet/);
-      await waitFor(() => expect([...reads.keys()].some(path => path.endsWith("/auth/me"))).toBe(true));
       const initialReads = new Map(reads);
       expect(sites).toHaveBeenCalledTimes(1);
       for (const count of reads.values()) expect(count).toBe(1);

@@ -2,7 +2,7 @@ import { agentHandle } from "@jini-ai/agentic";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import { navigate } from "../../lib/router";
-import { SiteExportTab, SiteImportTab, SitePublishButton } from "../sites";
+import { SiteExportTab, SiteImportTab } from "../sites";
 import { IMPORT_EXPORT_LINKS, type ImportExportLink } from "./import-export-links";
 import { resolveImportExportTabId, resolveImportExportTabs, type ImportExportTabId } from "./import-export-tabs";
 import { useImportExportTranslate, useSitesSectionAvailable, useSiteTransferTranslate } from "./hooks/use-import-export.hooks";
@@ -73,9 +73,12 @@ function TransferTab({ tab, useTransferTranslate, useSitesAvailable }: {
 }) {
   const t = useTransferTranslate();
   const sitesAvailable = useSitesAvailable();
-  // Publish sits beside "Export this site" (owner, 2026-10-18) — and stays on every host, desktop
-  // included (owner, 2026-10-25: "i should be able to publish media, posts, pages, etc").
-  if (tab === "export") return <SiteExportTab t={t} publish={<SitePublishButton t={t} />} />;
+  // No Publish button beside "Export this site" any more. It sat here from 2026-10-18 and was kept
+  // on every host earlier on 2026-10-25 ("i should be able to publish media, posts, pages, etc"),
+  // then removed the same day (owner: "lets remove it") because it republishes the WHOLE site and
+  // read as publishing the zip. Publishing stays on the dashboard's "Publish All" and Deployment,
+  // both present on desktop too. `SitePublishButton` is kept, unmounted, for reuse.
+  if (tab === "export") return <SiteExportTab t={t} />;
   return <SiteImportTab t={t} showNewSiteLink={sitesAvailable} />;
 }
 
