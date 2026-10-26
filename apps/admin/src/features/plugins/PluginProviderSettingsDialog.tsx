@@ -1,7 +1,7 @@
 import { agentHandle } from "@jini-ai/agentic";
 import { useId } from "react";
 
-import type { AdminPlugin } from "@/lib/api";
+import type { AdminPlugin, AdminPluginProviderSettingField } from "@/lib/api";
 import { useWiredPluginProviderSettings } from "./hooks/use-plugin-provider-settings.hooks";
 
 /**
@@ -20,6 +20,22 @@ export interface PluginProviderSettingsDialogProps {
   readonly useSettings?: typeof useWiredPluginProviderSettings;
 }
 
+/** One declared field: a password input for a secret (never showing a saved value), text otherwise. */
+function ProviderSettingInput({ field, id, value, onChange, handle, pluginName, t }: {
+  field: AdminPluginProviderSettingField; id: string; value: string; onChange: (value: string) => void; handle: string; pluginName: string; t: (key: string) => string;
+}) {
+  const placeholder = field.secret && field.saved ? t("Saved — leave blank to keep") : field.hint ?? "";
+  return (
+    <label htmlFor={id} className="form-field">
+      <span>{field.required ? `${field.label} *` : field.label}</span>
+      <input id={id} type={field.secret ? "password" : "text"} autoComplete="off" value={value} placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+        {...agentHandle({ handle }, { role: "field", label: `${pluginName} setting: ${field.label}` })} />
+      {field.hint && !field.secret ? <small>{field.hint}</small> : null}
+    </label>
+  );
+}
+
 export function PluginProviderSettingsDialog({ plugin, agentHandleBase, onClose, useSettings = useWiredPluginProviderSettings }: PluginProviderSettingsDialogProps) {
   const { card, values, setValue, save, saving, error, saved, t } = useSettings(plugin.id);
   const titleId = useId();
@@ -35,19 +51,8 @@ export function PluginProviderSettingsDialog({ plugin, agentHandleBase, onClose,
         {saved ? <p role="status">{t("Settings saved.")}</p> : null}
         <form onSubmit={(event) => { event.preventDefault(); void save(); }}>
           {(card?.fields ?? []).map((field) => (
-            <label key={field.name} htmlFor={`${fieldId}-${field.name}`} className="form-field">
-              <span>{field.label}{field.required ? " *" : ""}</span>
-              <input
-                id={`${fieldId}-${field.name}`}
-                type={field.secret ? "password" : "text"}
-                autoComplete="off"
-                value={values[field.name] ?? ""}
-                placeholder={field.secret && field.saved ? t("Saved — leave blank to keep") : field.hint ?? ""}
-                onChange={(event) => setValue(field.name, event.target.value)}
-                {...agentHandle({ handle: `${agentHandleBase}-setting-${field.name}` }, { role: "field", label: `${plugin.name} setting: ${field.label}` })}
-              />
-              {field.hint && !field.secret ? <small>{field.hint}</small> : null}
-            </label>
+            <ProviderSettingInput key={field.name} field={field} id={`${fieldId}-${field.name}`} value={values[field.name] ?? ""}
+              onChange={(value) => setValue(field.name, value)} handle={`${agentHandleBase}-setting-${field.name}`} pluginName={plugin.name} t={t} />
           ))}
           <span className="editor-actions">
             <button type="button" className="btn-secondary" onClick={onClose}
