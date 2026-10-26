@@ -1022,9 +1022,10 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     // are Database, Recovery, and Integrations — not the design surface (Studio) and not this
     // site's own configuration (Administration). It is also the one section that is as much about
     // getting data OUT as in, which is an operational guarantee rather than an authoring feature.
-    // A hub of links to the screens that already move a site (Sites → Export/Import, Deployment →
-    // Static Site), not a second copy of any of them.
-    render: () => <ImportExport />,
+    // Export and Import are its own tabs (owner, 2026-10-25, option A: moved from Sites, which the
+    // desktop app and a hosted install do not have); Other links to Deployment → Static Site rather
+    // than copying it. `?tab=export|import|other` picks the tab, as on every other tabbed screen.
+    render: (ctx) => <ImportExport tabId={ctx.query.get("tab")} />,
     nav: {
       label: "Import & Export",
       group: "Operations",

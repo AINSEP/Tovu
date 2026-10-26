@@ -1,7 +1,4 @@
 import { SiteTrashTab } from "./SiteTrashTab";
-import { SiteExportTab } from "./SiteExportTab";
-import { SiteImportTab } from "./SiteImportTab";
-import { SitePublishButton } from "./SitePublishButton";
 import { LocalSiteConfirmDialog } from "./LocalSiteConfirmDialog";
 import { agentHandle } from "@jini-ai/agentic";
 
@@ -292,9 +289,9 @@ function resolveSitesHook(override: typeof useWiredSites | undefined): typeof us
 function sitesTabPanel(tab: SitesTabId, controller: ReturnType<typeof useWiredSites>, snapshot: AdminSitesSnapshot) {
   if (tab === "trash") return <SiteTrashTab snapshot={snapshot} controller={controller.localSites} t={controller.t} />;
   if (tab === "new") return <CreateSiteOnboarding controller={controller} onCancel={goToSiteList} />;
-  // Owner 2026-10-18: Publish shows on the Export tab only, beside "Export this site".
-  if (tab === "export") return <SiteExportTab t={controller.t} publish={<SitePublishButton t={controller.t} />} />;
-  if (tab === "import") return <SiteImportTab t={controller.t} />;
+  // Export Site / Import Site (and the Publish button beside "Export this site", owner 2026-10-18)
+  // moved to Operations → Import & Export as tabs (owner, 2026-10-25), so they work on hosts with no
+  // Sites section; old `?tab=export|import` links redirect there (`App.tsx` `parseRoute`).
   return (
     <AllSitesTab
       sites={controller.sites}
@@ -349,7 +346,6 @@ export function Sites(props: SitesProps = {}) {
   const tab = resolveSitesTabId(props.tabId);
 
   return (
-    // `sites-page` scopes the greyed "Soon" tab labels (`styles.css`) to this screen's tab strip.
     <div className="page sites-page">
       <div className="page-header">
         <div className="page-header-text">

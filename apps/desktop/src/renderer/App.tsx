@@ -44,7 +44,7 @@ const THEMES: readonly ThemePreference[] = ['light', 'system', 'dark'];
 // Admin first because that is where a workspace opens. See `SiteWorkspace` for why.
 const SITE_SURFACES: readonly SiteSurface[] = ['admin', 'site'];
 
-// "Import site" opens a site's own admin on its Sites > Import tab; hidden when there is no site.
+// "Import site" opens a site's own admin on its Import & Export > Import tab; hidden when there is no site.
 function createImportSiteAction(
   { projects, openProjectTab }: {
     projects: readonly SiteRecord[];
@@ -1130,7 +1130,7 @@ function MainHeader({
           <button type="button" className="button button--contrast" onClick={() => void onAddSite()} disabled={adding} title="Add an existing Tovu site. Its files stay where they are.">
             {adding ? 'Adding…' : 'Add Tovu Website'}
           </button>
-          {/* Quiet like Rescan: it opens a site's own Sites > Import tab, where the import lives. */}
+          {/* Quiet like Rescan: it opens a site's own Import & Export > Import tab, where the import lives. */}
           {onImportSite && (
             <button type="button" className="button button--quiet" onClick={onImportSite}>
               Import site

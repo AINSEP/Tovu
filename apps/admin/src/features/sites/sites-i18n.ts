@@ -2,7 +2,6 @@ import { t as settingsTranslator } from "./sites-settings-i18n";
 import { t as transferTranslator } from "./site-transfer-i18n";
 import { t as publishTranslator } from "./site-publish-i18n";
 import { COMMON_I18N } from "../../lib/i18n-common";
-import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
 import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 /**
@@ -306,12 +305,6 @@ for (const [locale, detail] of Object.entries(publishTranslator.dictionary)) {
 
 for (const [locale, detail] of Object.entries(settingsTranslator.dictionary)) {
   Object.assign(Reflect.get(SITES_DICT, locale), detail);
-}
-
-// The "Soon" tag on the Export Site / Import Site tabs is the admin sidebar's own translated word,
-// so the tab and the sidebar badge read the same in every locale (as Plugins' tab tags do).
-for (const [locale, detail] of Object.entries(SITES_DICT)) {
-  detail.Soon = translateAdminNavLabel({ locale: locale, key: "Soon" });
 }
 
 export const t = createDictionaryTranslator({ featureDictionary: SITES_DICT }, { commonDictionary: COMMON_I18N });
