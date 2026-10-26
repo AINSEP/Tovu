@@ -9,8 +9,14 @@ import type { AgentPluginStateStore } from "#src/features/api-connections/plugin
  *
  * Both adapters reuse the existing plugin-state rows (`plugin-state:<pluginId>:<key>` in a
  * `secrets_vault` table, sealed with that store's key — `features/api-connections/plugin-state.ts`),
- * so no new table and no new vault kind. Public values and secrets are separate rows so a reader of
- * the public half (the admin card) never opens a secret envelope. Never env, files, logs or manifests.
+ * so no new table and no new vault kind. Never env, files, logs or manifests.
+ *
+ * Why ONE row holds both halves (Codex fix-lane HIGH): an endpoint and the credential sent to it are
+ * one unit. As two rows, a save that failed between them, or a boot reading between another site's
+ * two commits, could pair the old endpoint with the new secret and send it to the wrong backend. One
+ * row is one revision-checked vault write and one read, so a save lands whole or not at all and every
+ * read is one saved snapshot. The cost: the admin card's public read opens that envelope too; it
+ * returns secret names only, never a value.
  */
 
 /** Saved values for one provider plugin; keys are the plugin's declared setting names. */
@@ -29,8 +35,7 @@ export interface ProviderConfigSource {
   write(required: { pluginId: string; config: ProviderPluginConfig }, optional?: Record<string, never>): Promise<void>;
 }
 
-const SETTINGS_KEY = "provider.settings";
-const SECRETS_KEY = "provider.secrets";
+const CONFIG_KEY = "provider.config";
 
 const stringRecord = (value: unknown): Record<string, string> | null => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -39,7 +44,6 @@ const stringRecord = (value: unknown): Record<string, string> | null => {
 
 /**
  * The provider config adapter over one plugin-state store (a site's or the project's vault).
- * The public row also lists which secret fields hold a value, so `readSettings` opens no secret row.
  * @param required.state The plugin-state store; `workspaceId` is the scope that store serves.
  * @param required.scope Reported to the admin card.
  * @complexity O(1) vault reads/writes per call.
@@ -49,26 +53,21 @@ export function createVaultProviderConfigSource(
   _optional: Record<string, never> = {},
 ): ProviderConfigSource {
   const store = ({ pluginId }: { pluginId: string }) => required.state.forPlugin({ workspaceId: required.workspaceId, pluginId });
-  async function readSettings({ pluginId }: { pluginId: string }) {
-    const row = (await store({ pluginId }).get({ key: SETTINGS_KEY })) as { settings?: unknown; secretNames?: unknown } | null;
+  async function read({ pluginId }: { pluginId: string }): Promise<ProviderPluginConfig | null> {
+    const row = (await store({ pluginId }).get({ key: CONFIG_KEY })) as { settings?: unknown; secrets?: unknown } | null;
     if (!row || typeof row !== "object") return null;
-    const secretNames = Array.isArray(row.secretNames) ? row.secretNames.filter((name): name is string => typeof name === "string") : [];
-    return { settings: stringRecord(row.settings) ?? {}, secretNames };
+    return { settings: stringRecord(row.settings) ?? {}, secrets: stringRecord(row.secrets) ?? {} };
   }
   return {
     scope: required.scope,
-    readSettings,
-    async read({ pluginId }) {
-      const found = await readSettings({ pluginId });
+    read,
+    async readSettings({ pluginId }) {
+      const found = await read({ pluginId });
       if (!found) return null;
-      return { settings: found.settings, secrets: stringRecord(await store({ pluginId }).get({ key: SECRETS_KEY })) ?? {} };
+      return { settings: found.settings, secretNames: Object.keys(found.secrets).filter((name) => found.secrets[name] !== "") };
     },
     async write({ pluginId, config }) {
-      const state = store({ pluginId });
-      // Secrets first: a public row never names a secret that was not saved.
-      await state.set({ key: SECRETS_KEY, value: { ...config.secrets } });
-      const secretNames = Object.keys(config.secrets).filter((name) => config.secrets[name] !== "");
-      await state.set({ key: SETTINGS_KEY, value: { settings: { ...config.settings }, secretNames } });
+      await store({ pluginId }).set({ key: CONFIG_KEY, value: { settings: { ...config.settings }, secrets: { ...config.secrets } } });
     },
   };
 }
