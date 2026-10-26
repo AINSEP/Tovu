@@ -3,6 +3,7 @@ import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import { API_UNREACHABLE_CODE, ApiError, describeApiError } from "@/lib/api";
 import { requestAssistantPrompt } from "@/lib/assistant-prompt-bus";
+import { SHARE_LIMITS } from "../../../../../website/src/features/site-backup/share-policy";
 import {
   defaultSiteTransferPort,
   type SiteImport,
@@ -184,9 +185,9 @@ function passwordProblemFor({ password, confirm, t }: { password: string; confir
   return null;
 }
 
-/** The upload route's v1 cap (`SHARE_LIMITS.maxArchiveBytes`), checked here because the server
- *  refuses an oversized body before reading it and the dropped connection hides its reason. */
-const MAX_IMPORT_ZIP_BYTES = 300 * 1024 * 1024;
+/** The upload route's own v1 cap, checked here because the server refuses an oversized body
+ *  before reading it and the dropped connection hides its reason. */
+const MAX_IMPORT_ZIP_BYTES = SHARE_LIMITS.maxArchiveBytes;
 
 /** The server's own reason when it answered that import is unavailable here (503), else null. */
 function unavailableReason(error: unknown): string | null {

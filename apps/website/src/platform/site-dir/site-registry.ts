@@ -10,6 +10,7 @@ import { resolveSiteRoot, SITE_SELECTION_PINNED_ENV, type ResolveSiteRootOptiona
 import { createSitesWorkspace, type SitesWorkspace } from "./sites-home.js";
 import { readSiteRunning } from "./site-running.js";
 import { isSiteSwitcherEnabled } from "./site-switcher-enabled.js";
+import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 
 /**
  * @file Admin "Sites" screen backend, list + create half (2026-09-04 sites-switcher decision,
@@ -493,7 +494,8 @@ export function switcherBaseForBinding(binding: SiteBinding): string | null {
 export function siteCreationBaseForBinding(required: { binding: SiteBinding }, optional: ListSitesOptional = {}): string | null {
   const { binding } = required;
   const env = optional.env ?? process.env;
-  if (env.NODE_ENV === "production") return null;
+  // NODE_ENV is the image's own signal; TOVU_RUNTIME_MODE also covers a hand-run `npm start` server.
+  if (env.NODE_ENV === "production" || resolveRuntimeMode({ env }) === "production") return null;
   const switcherBase = isSiteSwitcherEnabled(env) ? switcherBaseForBinding(binding) : null;
   if (switcherBase !== null) return switcherBase;
   const cwd = binding.switcherBase ?? optional.cwd ?? process.cwd();

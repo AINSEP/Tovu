@@ -206,6 +206,8 @@ test("import: a pinned boot inside the sites home can create sibling sites witho
     assert.equal(siteCreationBaseForBinding({ binding: pinned }, options), cwd);
     assert.equal(siteCreationBaseForBinding({ binding: { ...pinned, switcherBase: path.join(root, "repo") } }, options), path.join(root, "repo"));
     assert.equal(siteCreationBaseForBinding({ binding: pinned }, { ...options, env: { ...options.env, NODE_ENV: "production" } }), null);
+    // A hand-run production server (`npm start` with the shipped TOVU_RUNTIME_MODE, no NODE_ENV) is production too.
+    assert.equal(siteCreationBaseForBinding({ binding: pinned }, { ...options, env: { ...options.env, TOVU_RUNTIME_MODE: "production" } }), null);
     assert.equal(siteCreationBaseForBinding({ binding: { ...pinned, dir: outside, name: "beta" } }, options), null);
     // The switcher's own base still wins when it is enabled for a switchable binding.
     const switchable = { ...pinned, switcherCompatible: true, switcherBase: path.join(root, "repo") };
