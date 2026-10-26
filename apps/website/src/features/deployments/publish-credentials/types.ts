@@ -78,6 +78,12 @@ export interface PublishCredentialSummary {
    *  Create, a connection rotation or a vendor move reset it; only the verify heal
    *  (`healAccountLabel`) populates it. */
   readonly accountLabel: string | null;
+  /** Where the row lives — present only where a project store is attached (local web + desktop):
+   *  `"project"` is shared by every site of the project, `"site"` is this site's own (an override). */
+  readonly scope?: PublishCredentialScope;
   readonly createdAt: ISODateTime;
   readonly updatedAt: ISODateTime;
 }
+
+/** This site's own vault, or the project store every site of the project shares (`project.db`). */
+export type PublishCredentialScope = "site" | "project";

@@ -3,6 +3,7 @@
  */
 export type {
   PublishConnectionInput,
+  PublishCredentialScope,
   PublishCredentialSummary,
   PublishProviderId,
 } from "./types.js";
@@ -12,6 +13,7 @@ export {
   invalidatePublishCredentialCompatibility,
   deletePublishCredential,
   describeCredential,
+  findPublishCredentialRecord,
   hasDefaultForPublish,
   healAccountLabel,
   isUniqueLabelViolation,

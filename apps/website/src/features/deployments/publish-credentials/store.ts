@@ -9,7 +9,7 @@ import { VaultError, matchingCredentialProviderIds, selectCredentialForProvider,
 import { credentialVault, credentialScope, credentialHint } from "../../vendor-credentials/vault-adapter.js";
 import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "../../vendor-credentials/types.js";
 import type { DeployTargetCredentialSpec, DeployTargetFieldSpec, DeployTargetRegistry } from "../deploy-targets/types.js";
-import type { PublishConnectionInput, PublishCredentialSummary, PublishProviderId } from "./types.js";
+import type { PublishConnectionInput, PublishCredentialScope, PublishCredentialSummary, PublishProviderId } from "./types.js";
 
 /** Publish credentials map deploy hosts to vendor accounts. Feature validation and human-gated
  * verification remain here; Jini's vault owns sealing, defaults and persistence. Create/update
@@ -57,11 +57,19 @@ function moduleAcceptsCredential({ credential, registry, targetId }: {
   return accepts({ worksFor });
 }
 
+/** An explicit id is found in either store. Otherwise the first store (in `inventory` order: this
+ * site's, then the project's) holding any compatible row decides alone (owner 2026-10-25: a site row
+ * overrides), so an ambiguous site stays ambiguous instead of silently using a project key.
+ * @complexity O(rows × compatibility IDs).
+ */
 function selectPublishCredential({ registry, credentials, provider, id }: {
   registry: DeployTargetRegistry; credentials: readonly VaultSummary[];
   provider: NonNullable<ReturnType<typeof providerContract>>; id?: string;
 }, _options = {}): VaultSummary | null {
-  return selectCredentialForProvider({ credentials: credentials.filter(credential => moduleAcceptsCredential({ credential, registry, targetId: provider.id })), provider, id });
+  const eligible = credentials.filter(credential => moduleAcceptsCredential({ credential, registry, targetId: provider.id }));
+  if (id !== undefined) return selectCredentialForProvider({ credentials: eligible, provider, id });
+  const decides = eligible.find(row => selectCredentialForProvider({ credentials: [row], provider, id: row.id }));
+  return selectCredentialForProvider({ credentials: eligible.filter(row => row.workspaceId === decides?.workspaceId), provider });
 }
 /** Compatibility edits invalidate only hosts whose eligibility changed, through the existing cache
  * port. Catalog adaptation and custom token shape rules are shared with runtime matching.
@@ -104,11 +112,63 @@ export interface PublishCredentialReadDeps {
   loadDeployTargets(workspaceId: string): Promise<DeployTargetRegistry>;
 }
 
-/** One authorized, metadata-only inventory for both subtypes. No secret is opened, and an injected
- * port cannot widen the workspace/owner/binding. Jini parses every canonical row before matching.
- * @complexity O(rows + metadata); two scoped reads during rollout, no per-row queries.
+/** One store a site reads publish credentials from, with the deps (repo, sealer, keyring) that open its rows. */
+interface Scoped<D> { readonly deps: D; readonly workspaceId: string; readonly scope: PublishCredentialScope }
+
+/**
+ * The stores a site reads, in precedence order — the same rule as `custom-credentials/store.ts`'s
+ * `scopesOf` (owner 2026-10-25): its own vault first (an existing row, or one saved "only for this
+ * site", overrides), then the project store every site of the project shares, when the composition
+ * root attached one (`vendor-credentials/types.ts`'s `repo.project`). The project half carries its own
+ * sealer and keyring: Jini derives the sealing key from the store's key and the row's AAD binds its
+ * workspace, so a project row opens only with the project's.
+ * @complexity O(1).
+ */
+function scopesOf<D extends PublishCredentialReadDeps>(deps: D, workspaceId: string): Scoped<D>[] {
+  const site: Scoped<D> = { deps, workspaceId, scope: "site" };
+  const project = deps.repo.project;
+  if (!project) return [site];
+  return [site, { deps: { ...deps, repo: project.repo, sealer: project.sealer, keyring: project.keyring } as D, workspaceId: project.workspaceId, scope: "project" }];
+}
+
+/** The store a listed row came from: rows carry their own store's workspace id. */
+function scopeOfRow<D extends PublishCredentialReadDeps>(deps: D, input: { workspaceId: string; row: { workspaceId: string } }): Scoped<D> {
+  const scopes = scopesOf(deps, input.workspaceId);
+  return scopes.find(scoped => scoped.workspaceId === input.row.workspaceId) ?? scopes[0]!;
+}
+
+/** The vendor row with this id, from the first store holding it (ids are unique across both). @complexity O(scopes). */
+async function locateById<D extends PublishCredentialReadDeps>(deps: D, input: { workspaceId: string; id: string }): Promise<{ scoped: Scoped<D>; existing: VendorCredentialSetRecord } | null> {
+  for (const scoped of scopesOf(deps, input.workspaceId)) {
+    const existing = await scoped.deps.repo.findById({ workspaceId: scoped.workspaceId, id: input.id });
+    if (existing) return { scoped, existing };
+  }
+  return null;
+}
+
+/** A site row overrides the project row it would collide with: custom keys share one label space,
+ *  vendor keys one per vendor (the vault's own unique-label scopes). */
+const labelKey = (row: VaultSummary): string => row.meta.credentialType === "custom" ? `custom\0${row.label}` : `vendor\0${row.provider}\0${row.label}`;
+
+/** Every row this site can publish with: its own, then the project's whose label no site row claims.
+ * @complexity O(rows); one inventory per store, no row is opened.
  */
 async function inventory({ deps, workspaceId }: { deps: PublishCredentialReadDeps; workspaceId: string }, _options = {}): Promise<VaultSummary[]> {
+  const rows: VaultSummary[] = [];
+  const claimed = new Set<string>();
+  for (const scoped of scopesOf(deps, workspaceId)) {
+    const own = await storeInventory({ deps: scoped.deps, workspaceId: scoped.workspaceId });
+    rows.push(...own.filter(row => !claimed.has(labelKey(row))));
+    for (const row of own) claimed.add(labelKey(row));
+  }
+  return rows;
+}
+
+/** One authorized, metadata-only inventory of one store for both subtypes. No secret is opened, and an
+ * injected port cannot widen the workspace/owner/binding. Jini parses every canonical row before matching.
+ * @complexity O(rows + metadata); two scoped reads during rollout, no per-row queries.
+ */
+async function storeInventory({ deps, workspaceId }: { deps: PublishCredentialReadDeps; workspaceId: string }, _options = {}): Promise<VaultSummary[]> {
   const service = vault(deps);
   const unified = await service.list(credentialScope({ workspaceId, kind: "vendor" }));
   const legacy = await service.list(credentialScope({ workspaceId, kind: "custom" }));
@@ -137,8 +197,13 @@ export async function listPublishCredentials(deps: PublishCredentialReadDeps, in
     if (providerId === undefined) return [];
     const defaultFor = [...defaults].filter(([, id]) => id === row.id).map(([host]) => host);
     const summary = vaultSummary({ summary: row, providerId, publishHosts, defaultFor });
-    return [{ ...summary, vendorId: row.provider ?? registry.get(providerId)!.descriptor.credential!.vendorId }];
+    return [{ ...summary, vendorId: row.provider ?? registry.get(providerId)!.descriptor.credential!.vendorId, ...reportedScope({ deps, workspaceId: input.workspaceId, row }) }];
   });
+}
+
+/** The summary's `scope`, only where a project store is attached (a site-only server's output is unchanged). */
+function reportedScope({ deps, workspaceId, row }: { deps: PublishCredentialReadDeps; workspaceId: string; row: VaultSummary }, _options = {}): { scope?: PublishCredentialScope } {
+  return deps.repo.project ? { scope: scopeOfRow(deps, { workspaceId, row }).scope } : {};
 }
 
 /** Metadata-only ID projection; custom keys keep their existing custom edit/permission boundary. */
@@ -317,6 +382,34 @@ export interface CreatePublishCredentialInput {
    *  out to be the vendor's FIRST saved connection; Jini owns atomic auto-defaulting. */
   isDefault?: unknown;
   worksFor?: unknown;
+  /** `"site"` = "Only for this site". Omitted (or `"project"`) = the project store when one is
+   *  attached, so every site of the project can use it; this site's vault otherwise. */
+  scope?: unknown;
+}
+
+/**
+ * Where a new row is written: the project store by default when one is attached, this site's vault
+ * when asked ("only for this site") or when there is no project store (Fly/production).
+ * @throws {PublishCredentialValidationError} `scope` is neither omitted, `"site"` nor `"project"`.
+ */
+function createTarget<D extends PublishCredentialReadDeps>(deps: D, input: { workspaceId: string; scope?: unknown }): Scoped<D> {
+  if (input.scope !== undefined && input.scope !== "site" && input.scope !== "project") {
+    throw new PublishCredentialValidationError('scope must be "site" or "project"');
+  }
+  const [site, project] = scopesOf(deps, input.workspaceId);
+  return input.scope === "site" || !project ? site! : project;
+}
+
+/**
+ * A project row whose vendor and label this site already uses would be hidden here by the site row
+ * (site rows override), so the save would look lost: refused as the same duplicate as within one store.
+ */
+async function assertLabelFreeOnSite({ deps, target, workspaceId, vendorId, label, providerId }: { deps: PublishCredentialReadDeps;
+  target: Scoped<unknown>; workspaceId: string; vendorId: string; label: string; providerId: string }, _options = {}): Promise<void> {
+  if (target.scope !== "project") return;
+  if ((await deps.repo.listByVendor({ workspaceId, vendorId })).some(row => row.label === label)) {
+    throw new PublishCredentialDuplicateLabelError(`a '${providerId}' credential labeled '${label}' already exists in this workspace`);
+  }
 }
 
 /** Label conflicts keep the feature's error contract; stale CAS failures stay conflicts. */
@@ -338,8 +431,10 @@ export async function createPublishCredential(deps: PublishCredentialWriteDeps, 
   const validated = validateConnection(input.connection, registry);
   const isDefault = optionalBoolean(input.isDefault, "isDefault") === true;
   const { providerId, ...fields } = validated.connection;
-  const summary = await saveConnection({ deps, providerId, input: {
-    ...credentialScope({ workspaceId: input.workspaceId, kind: "vendor" }), id: deps.idGen.newId(), expectedRevision: null,
+  const target = createTarget(deps, input);
+  await assertLabelFreeOnSite({ deps, target, workspaceId: input.workspaceId, vendorId: validated.spec.vendorId, label, providerId });
+  const summary = await saveConnection({ deps: target.deps, providerId, input: {
+    ...credentialScope({ workspaceId: target.workspaceId, kind: "vendor" }), id: deps.idGen.newId(), expectedRevision: null,
     provider: validated.spec.vendorId, label, meta: { credentialType: "vendor", worksFor: validatedWorksFor({ value: input.worksFor === undefined ? registry.get(providerId)?.module.defaultCredentialWorksFor ?? [validated.spec.vendorId] : input.worksFor }), accountLabel: null }, payload: { vendorId: validated.spec.vendorId, ...fields },
     hintToken: fields[validated.spec.tokenField], isDefault,
   } });
@@ -414,16 +509,18 @@ async function updatedConnection({ deps, input, existing, registry, host }: { de
  * Provider moves retarget the old compatibility IDs unless the caller supplies worksFor.
  */
 export async function updatePublishCredential(deps: PublishCredentialWriteDeps, input: UpdatePublishCredentialInput): Promise<PublishCredentialSummary> {
-  const existing = await deps.repo.findById(input);
+  // Changed where it lives: this site's own row, else the project's (shared by every site).
+  const located = await locateById(deps, input);
   const registry = await deps.loadDeployTargets(input.workspaceId);
-  const host = existing ? registry.list().find(target => target.descriptor.credential?.vendorId === existing.vendorId)?.descriptor.id : undefined;
-  if (!existing || host === undefined) throw new PublishCredentialNotFoundError(`no publish credential '${input.id}' in this workspace`);
+  const host = located ? registry.list().find(target => target.descriptor.credential?.vendorId === located.existing.vendorId)?.descriptor.id : undefined;
+  if (!located || host === undefined) throw new PublishCredentialNotFoundError(`no publish credential '${input.id}' in this workspace`);
+  const { scoped, existing } = located;
   const label = input.label !== undefined ? validateLabel(input.label) : existing.label;
   const requestedDefault = optionalBoolean(input.isDefault, "isDefault");
-  const row = await deps.repo.vault!.find(input);
+  const row = await scoped.deps.repo.vault!.find({ workspaceId: scoped.workspaceId, id: input.id });
   if (!row) throw new PublishCredentialNotFoundError(`no publish credential '${input.id}' in this workspace`);
-  const { providerId, accountLabel, ...changes } = await connectionChanges({ deps, input, existing, registry, host, row });
-  const summary = await saveConnection({ deps, providerId, input: { ...credentialScope({ ...input, kind: "vendor" }), id: input.id,
+  const { providerId, accountLabel, ...changes } = await connectionChanges({ deps: scoped.deps, input, existing, registry, host, row });
+  const summary = await saveConnection({ deps: scoped.deps, providerId, input: { ...credentialScope({ workspaceId: scoped.workspaceId, kind: "vendor" }), id: input.id,
     expectedRevision: row.revision, label, ...changes,
     meta: { ...row.meta, worksFor: updatedWorksFor({ value: input.worksFor, row, provider: changes.provider, host }), accountLabel },
     ...(requestedDefault === true ? { isDefault: true } : {}) } });
@@ -447,12 +544,29 @@ async function connectionChanges({ deps, input, existing, registry, host, row }:
   return { providerId, provider, accountLabel: provider === existing.vendorId ? row.meta.accountLabel : null };
 }
 
-/** Legacy rows were folded by 0012. Delete only the vault row; reboot has no source to recopy. */
+/** The store holding vendor row `id`: this site's, else the project's when one is attached (ids are
+ *  unique across both). Never opens a row. @complexity At most one lookup. */
+async function ownerOf<R extends Pick<VendorCredentialSetRepoPort, "findById" | "project">>(repo: R, input: { workspaceId: string; id: string }): Promise<{ repo: R | VendorCredentialSetRepoPort; workspaceId: string }> {
+  const project = repo.project;
+  if (!project || await repo.findById(input)) return { repo, workspaceId: input.workspaceId };
+  return { repo: project.repo, workspaceId: project.workspaceId };
+}
+
+/** The vendor row with this id from whichever store holds it — this site's or the project's. */
+export async function findPublishCredentialRecord(deps: { repo: Pick<VendorCredentialSetRepoPort, "findById" | "project"> },
+  input: { workspaceId: UUID; id: UUID }): Promise<VendorCredentialSetRecord | null> {
+  const owner = await ownerOf(deps.repo, input);
+  return owner.repo.findById({ workspaceId: owner.workspaceId, id: input.id });
+}
+
+/** Legacy rows were folded by 0012. Delete only the vault row; reboot has no source to recopy.
+ *  A project row is removed for every site of the project, as its summary's `scope` says. */
 export async function deletePublishCredential(deps: {
-  repo: Pick<VendorCredentialSetRepoPort, "delete">;
+  repo: Pick<VendorCredentialSetRepoPort, "delete" | "findById" | "project">;
   transaction?: Pick<StorageKernel<unknown>, "transaction">;
 }, input: { workspaceId: UUID; id: UUID }): Promise<void> {
-  await deps.repo.delete(input);
+  const owner = await ownerOf(deps.repo, input);
+  await owner.repo.delete({ workspaceId: owner.workspaceId, id: input.id });
 }
 
 /** Jini checks exact ownership before opening. Keep the typed error used by HTTP and daemon
@@ -517,7 +631,9 @@ function selectedCandidateProviderId({ explicitId, candidate, registry }: {
 async function openPublishVaultRecord({ deps, input, candidate }: {
   deps: PublishCredentialResolveDeps; input: { workspaceId: UUID; id: UUID }; candidate: VaultSummary;
 }, _options = {}) {
-  try { return await vault(deps).get({ ...credentialScope({ workspaceId: input.workspaceId, kind: candidate.kind === "custom" ? "custom" : "vendor" }), id: input.id }); }
+  // Opened with the store that sealed it: this site's, or the project's (`scopesOf`).
+  const scoped = scopeOfRow(deps, { workspaceId: input.workspaceId, row: candidate });
+  try { return await vault(scoped.deps).get({ ...credentialScope({ workspaceId: scoped.workspaceId, kind: candidate.kind === "custom" ? "custom" : "vendor" }), id: input.id }); }
   catch { throw new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage); }
 }
 
@@ -559,8 +675,11 @@ export async function resolveDefaultForPublish(deps: PublishCredentialResolveDep
  * A targeted single-column write ({@link VendorCredentialSetRepoPort.updateAccountLabel}), not a
  * full-row replace — never touches `sealed`, `isDefault`, or `updatedAt`.
  *
- * @complexity O(1) — one repo write (a no-op, not an error, if the row vanished meanwhile).
+ * Written where the row lives: this site's vault, else the project's.
+ *
+ * @complexity O(1) — one lookup and one repo write (a no-op, not an error, if the row vanished meanwhile).
  */
 export async function healAccountLabel(deps: { repo: VendorCredentialSetRepoPort }, input: { workspaceId: UUID; id: UUID; accountLabel: string }): Promise<void> {
-  await deps.repo.updateAccountLabel(input);
+  const owner = await ownerOf(deps.repo, input);
+  await owner.repo.updateAccountLabel({ ...input, workspaceId: owner.workspaceId });
 }
