@@ -15,8 +15,8 @@ import { createInstalledSkillsComposerCapabilitySource } from "../installed-skil
 
  */
 
-function jsonResponse(body: unknown, init: { ok?: boolean; status?: number } = {}): Response {
-  return new Response(JSON.stringify(body), { status: init.status ?? (init.ok === false ? 500 : 200) });
+function jsonResponse(body: unknown, init: { ok?: boolean; status?: number; headers?: HeadersInit } = {}): Response {
+  return new Response(JSON.stringify(body), { status: init.status ?? (init.ok === false ? 500 : 200), ...(init.headers ? { headers: init.headers } : {}) });
 }
 
 afterEach(() => {
@@ -25,6 +25,63 @@ afterEach(() => {
 });
 
 describe("createInstalledSkillsComposerCapabilitySource", () => {
+  it("caches reads, preserves identity on 304 and an equal ETag, and replaces a changed 200", async () => {
+    const skill = { toolId: "skill_one", name: "one", description: "First" };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ skills: [skill, { ...skill, toolId: "skill_disabled", enabled: false }] }, { headers: { ETag: 'W/"one"' } }))
+      .mockResolvedValueOnce(new Response(null, { status: 304 }))
+      .mockResolvedValueOnce(jsonResponse({ skills: [{ ...skill, description: "Changed" }] }, { headers: { ETag: 'W/"two"' } }))
+      .mockResolvedValueOnce(jsonResponse({ skills: [{ ...skill, description: "Changed" }] }, { headers: { ETag: 'W/"two"' } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const source = createInstalledSkillsComposerCapabilitySource();
+    const first = await source.list();
+    expect(first).toHaveLength(1);
+    expect(await source.list()).toBe(first);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(await source.reload()).toBe(first);
+    expect(fetchMock.mock.calls[1]?.[1].headers["If-None-Match"]).toBe('W/"one"');
+    const changed = await source.reload();
+    expect(changed).not.toBe(first);
+    expect(changed[0]?.item.description).toBe("Changed");
+    expect(await source.reload()).toBe(changed);
+    expect(fetchMock.mock.calls[3]?.[1].headers["If-None-Match"]).toBe('W/"two"');
+  });
+
+  it("never caches malformed or failed initial responses, including an unbacked 304", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(null, { status: 304 }))
+      .mockResolvedValueOnce(jsonResponse({ notSkills: [] }))
+      .mockResolvedValueOnce(jsonResponse({ error: "unavailable" }, { status: 500 }))
+      .mockResolvedValueOnce(jsonResponse({ skills: [{ toolId: "skill_recovered", name: "Recovered", description: "Ready" }] }));
+    vi.stubGlobal("fetch", fetchMock);
+    const source = createInstalledSkillsComposerCapabilitySource();
+    for (let attempt = 0; attempt < 3; attempt++) expect(await source.list()).toEqual([]);
+    expect((await source.list())[0]?.item.id).toBe("installed-skill:skill_recovered");
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
+  it("deduplicates pending reads and lets force supersede an older response with its validator", async () => {
+    let release!: (response: Response) => void;
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ skills: [] }, { headers: { ETag: 'W/"initial"' } }))
+      .mockImplementationOnce(() => new Promise<Response>(resolve => { release = resolve; }))
+      .mockResolvedValueOnce(jsonResponse({ skills: [{ toolId: "skill_new", name: "New", description: "Current" }] }, { headers: { ETag: 'W/"new"' } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const source = createInstalledSkillsComposerCapabilitySource();
+    const initial = source.list();
+    expect(source.list()).toBe(initial);
+    await initial;
+    const older = source.reload();
+    expect(source.reload()).toBe(older);
+    const forced = await source.reload({}, { force: true });
+    expect(fetchMock.mock.calls[2]?.[1].headers["If-None-Match"]).toBe('W/"initial"');
+    release(jsonResponse({ skills: [] }, { headers: { ETag: 'W/"old"' } }));
+    await older;
+    expect(await source.list()).toBe(forced);
+    expect(forced[0]?.item.id).toBe("installed-skill:skill_new");
+  });
+
   it("silently degrades when navigation cancels installed-skills enumeration", async () => {
     const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
     const cancellation = new DOMException("request cancelled: the page is unloading", "AbortError");
@@ -32,7 +89,9 @@ describe("createInstalledSkillsComposerCapabilitySource", () => {
     const source = createInstalledSkillsComposerCapabilitySource({}, { request });
 
     await expect(source.list()).resolves.toEqual([]);
-    expect(request).toHaveBeenCalledExactlyOnceWith({ path: "/workspaces/workspace-local/skills", method: "GET" });
+    expect(request).toHaveBeenCalledExactlyOnceWith({ path: "/workspaces/workspace-local/skills", method: "GET" }, {
+      headers: {}, onOk: expect.any(Function),
+    });
     expect(errorLog).not.toHaveBeenCalled();
   });
 

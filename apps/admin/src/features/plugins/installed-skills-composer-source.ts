@@ -1,8 +1,8 @@
-import { authenticatedAdminRequest, WORKSPACE_ID } from "../../lib/api";
+import { ApiError, authenticatedAdminRequest, WORKSPACE_ID } from "../../lib/api";
 import { isAbortError } from "@jini-ai/ui/panel-kit";
 import type { ComposerCapabilitySource, TovuComposerCapability } from "./composer-capabilities";
 
-/** Installed standalone skills are read fresh from the site's workspace skills directory.
+/** Installed standalone skills use a conditional snapshot scoped to this source's lifetime.
  * Selection pins guidance behind a removable composer chip; dispatch adds it to the run prompt. */
 
 /** The three wire fields C-002 (`server/http/admin/skills.ts`) projects — never `markdown` or
@@ -25,6 +25,31 @@ const INSTALLED_SKILLS_GROUP_LABEL = "Installed Skills";
 /** See this file's own module doc: the one prefix guaranteed not to collide with the bundled
  *  catalog's `skill:` entries. */
 const INSTALLED_SKILL_ID_PREFIX = "installed-skill:";
+
+type SkillsSnapshot = { etag: string | undefined; capabilities: readonly TovuComposerCapability[] };
+
+/** Reuse authenticated transport and translate only its 304 error into the exact cached snapshot.
+ * Invalid bodies and failures throw, so they never become successful cache entries.
+ * @complexity O(n) time/space for n summaries; one request, no guidance bodies cached.
+ */
+async function readSkillsSnapshot(
+  { request, cached }: { request: typeof authenticatedAdminRequest; cached: SkillsSnapshot | undefined },
+  _options = {},
+): Promise<SkillsSnapshot> {
+  let etag: string | undefined;
+  try {
+    const body = await request<InstalledSkillsResponse>({ path: INSTALLED_SKILLS_PATH, method: "GET" }, {
+      headers: cached?.etag ? { "If-None-Match": cached.etag } : {},
+      onOk: response => { etag = response.headers?.get("ETag") ?? undefined; },
+    });
+    if (!Array.isArray(body.skills)) throw new TypeError("Installed skills response must contain a skills array");
+    if (cached?.etag && etag === cached.etag) return cached;
+    return { etag, capabilities: body.skills.filter(isInstalledSkillSummary).filter(s => s.enabled !== false).map(toCapability) };
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 304 && cached) return cached;
+    throw error;
+  }
+}
 
 function isInstalledSkillSummary(value: unknown): value is InstalledSkillSummary {
   return (
@@ -73,34 +98,39 @@ function toCapability(summary: InstalledSkillSummary): TovuComposerCapability {
  *
  * @param _input - No required inputs; defaults preserve the existing no-argument callers.
  * @param options.request - Authenticated request port, replaceable for direct failure-path tests.
- * @returns A source whose list resolves to capabilities or an empty fallback; cancellations are silent.
+ * @returns A source whose list uses its cache; reload conditionally revalidates. Force supersedes
+ * pending work but still sends the validator. Failures resolve to an empty fallback; aborts are silent.
  * @example createInstalledSkillsComposerCapabilitySource().list();
- * @complexity O(1) network round trip; O(n) to map n installed skills.
+ * @complexity Cached reads O(1); revalidation O(n) time/space for n installed skills, one request.
  */
 export function createInstalledSkillsComposerCapabilitySource(
   _input: Record<string, never> = {},
   { request = authenticatedAdminRequest }: { request?: typeof authenticatedAdminRequest } = {},
-): ComposerCapabilitySource {
+): ComposerCapabilitySource & { reload: (_input?: Record<string, never>, options?: { force?: boolean }) => Promise<readonly TovuComposerCapability[]> } {
+  let cached: SkillsSnapshot | undefined;
+  let pending: Promise<readonly TovuComposerCapability[]> | undefined;
+  let generation = 0;
+  /** Revalidate once per pending request; force prevents pre-event work from publishing a cache. */
+  const reload = (_required: Record<string, never> = {}, { force = false } = {}) => {
+    if (pending && !force) return pending;
+    const current = ++generation;
+    pending = readSkillsSnapshot({ request, cached }).then(snapshot => {
+      if (current === generation) cached = snapshot;
+      return snapshot.capabilities;
+    }).catch(error => {
+      // Leaving the page cancels the shared transport; it does not mean skill enumeration failed.
+      // Every failure costs this capability alone: Promise.all must retain the bundled catalog.
+      if (!isAbortError({ error })) console.error(
+        "[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only",
+        error,
+      );
+      return [];
+    }).finally(() => { if (current === generation) pending = undefined; });
+    return pending;
+  };
   return {
     id: "installed-skills",
-    list: async () => {
-      try {
-        const body = await request<InstalledSkillsResponse>({ path: INSTALLED_SKILLS_PATH, method: "GET" });
-        if (!Array.isArray(body.skills)) return [];
-
-        return body.skills.filter(isInstalledSkillSummary).filter(s => s.enabled !== false).map(toCapability);
-      } catch (error) {
-        // Leaving the page cancels the shared transport; it does not mean skill enumeration failed.
-        if (isAbortError({ error })) return [];
-        // Network failure, an unreachable server, a malformed body — every case degrades to
-        // "nothing to add" rather than breaking the composer. See this function's own doc for
-        // why that is required, not merely nice to have.
-        console.error(
-          "[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only",
-          error,
-        );
-        return [];
-      }
-    },
+    list: () => cached ? Promise.resolve(cached.capabilities) : reload(),
+    reload,
   };
 }

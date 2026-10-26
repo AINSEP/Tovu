@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import * as fs from "node:fs/promises";
 import path from "node:path";
 import express, { type Express, type Request } from "express";
-import { registerConsentHttp, type ConsentHttpPorts } from "@jini-ai/cms/consent/express";
+import { isPublicPage, registerConsentHttp, type ConsentHttpPorts } from "@jini-ai/cms/consent/express";
 import { consentRateLimitKey, createConsentFileRecords, createNodeConsentFiles, type ConsentAtomicWriter } from "@jini-ai/cms/consent/node";
 
 import { createRateLimiter, type RateLimitProfile } from "#src/contracts/core/rate-limit/rate-limit";
@@ -132,7 +132,7 @@ export function applySiteConsent({ app, deps }: { app: Express; deps: RouteDeps 
       return;
     }
     // Pages only: assets (/x.css, /x.png) keep their 304s and skip the policy read.
-    if ((req.method === "GET" || req.method === "HEAD") && !/\.(?!html?$)[a-z0-9]+$/i.test(req.path)) {
+    if (isPublicPage({ request: req }) && !/\.(?!html?$)[a-z0-9]+$/i.test(req.path)) {
       let enabled = true;
       try { enabled = (await ports.config.get({})).enabled; }
       catch { /* A failed policy read must not permit reuse of ungated HTML. */ }

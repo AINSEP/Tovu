@@ -27,6 +27,8 @@ import {
 } from "../hooks/AssistantDock.hooks";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { SKILLS_CHANGED_EVENT } from "@/features/skills/api";
+import { AdminBootScopeContext } from "@/lib/admin-boot-scope";
+import type { ReactNode } from "react";
 import { publishAssistantDockState, resetAssistantDockBus } from "@/lib/assistant-dock-bus";
 import {
   createBundledComposerCapabilitySource,
@@ -53,7 +55,7 @@ afterEach(() => {
 });
 
 describe("useComposerCapabilities", () => {
-  it("refreshes on open/focus/visible/explicit changes, has no idle poll and cleans up listeners", async () => {
+  it("polls only while open and visible, including unfocused windows, and cleans up timers/listeners", async () => {
     vi.useFakeTimers();
     const focus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
     const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
@@ -64,6 +66,7 @@ describe("useComposerCapabilities", () => {
     try {
       await flush();
       expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(vi.getTimerCount()).toBe(0);
       await act(async () => { await vi.advanceTimersByTimeAsync(600_000); });
       expect(fetchMock).toHaveBeenCalledTimes(1);
       act(() => window.dispatchEvent(new Event("focus")));
@@ -72,38 +75,99 @@ describe("useComposerCapabilities", () => {
       focus.mockReturnValue(false);
       act(() => document.dispatchEvent(new Event("visibilitychange")));
       await flush();
-      expect(fetchMock).toHaveBeenCalledTimes(2);
-      focus.mockReturnValue(true);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
       visibility.mockReturnValue("hidden");
       act(() => document.dispatchEvent(new Event("visibilitychange")));
       await flush();
-      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      act(() => publishAssistantDockState(true));
+      expect(vi.getTimerCount()).toBe(0);
+      await act(async () => { await vi.advanceTimersByTimeAsync(120_000); });
+      expect(fetchMock).toHaveBeenCalledTimes(3);
       visibility.mockReturnValue("visible");
       act(() => document.dispatchEvent(new Event("visibilitychange")));
       await flush();
-      expect(fetchMock).toHaveBeenCalledTimes(3);
+      expect(fetchMock).toHaveBeenCalledTimes(4);
+      expect(vi.getTimerCount()).toBe(1);
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+      expect(fetchMock).toHaveBeenCalledTimes(5);
       act(() => window.dispatchEvent(new Event(SKILLS_CHANGED_EVENT)));
       await flush();
-      expect(fetchMock).toHaveBeenCalledTimes(4);
+      expect(fetchMock).toHaveBeenCalledTimes(6);
+      act(() => publishAssistantDockState(false));
+      expect(vi.getTimerCount()).toBe(0);
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+      expect(fetchMock).toHaveBeenCalledTimes(6);
       act(() => publishAssistantDockState(true));
       await flush();
-      expect(fetchMock).toHaveBeenCalledTimes(5);
-      act(() => publishAssistantDockState(false));
-      await flush();
-      expect(fetchMock).toHaveBeenCalledTimes(5);
+      expect(fetchMock).toHaveBeenCalledTimes(7);
+      expect(vi.getTimerCount()).toBe(1);
       unmount();
+      expect(vi.getTimerCount()).toBe(0);
       publishAssistantDockState(true);
       window.dispatchEvent(new Event("focus"));
       window.dispatchEvent(new Event(SKILLS_CHANGED_EVENT));
       document.dispatchEvent(new Event("visibilitychange"));
       await flush();
-      expect(fetchMock).toHaveBeenCalledTimes(5);
+      expect(fetchMock).toHaveBeenCalledTimes(7);
     } finally {
       unmount();
       focus.mockRestore();
       visibility.mockRestore();
       vi.useRealTimers();
     }
+  });
+
+  it("keeps the projection identity when a visible poll returns 304", async () => {
+    vi.useFakeTimers();
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ skills: [] }), { headers: { ETag: 'W/"skills"' } }))
+      .mockResolvedValueOnce(new Response(null, { status: 304 }));
+    vi.stubGlobal("fetch", fetchMock);
+    publishAssistantDockState(true);
+    const { result, unmount } = renderHook(() => useComposerCapabilities());
+    try {
+      await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+      const initial = result.current.composerCapabilities;
+      expect(initial.groups.length).toBeGreaterThan(0);
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+      expect(fetchMock.mock.calls[1]?.[1].headers["If-None-Match"]).toBe('W/"skills"');
+      expect(result.current.composerCapabilities).toBe(initial);
+    } finally { unmount(); visibility.mockRestore(); vi.useRealTimers(); }
+  });
+
+  it("forces an explicit skills event past a pending read and ignores its late projection", async () => {
+    let release!: (response: Response) => void;
+    const fetchMock = vi.fn()
+      .mockImplementationOnce(() => new Promise<Response>(resolve => { release = resolve; }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ skills: [{ toolId: "skill_new", name: "New", description: "Current" }] })));
+    vi.stubGlobal("fetch", fetchMock);
+    const { result, unmount } = renderHook(() => useComposerCapabilities());
+    try {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      act(() => window.dispatchEvent(new Event(SKILLS_CHANGED_EVENT)));
+      await waitFor(() => expect(result.current.composerCapabilities.byItemId.has("installed-skill:skill_new")).toBe(true));
+      await act(async () => { release(new Response(JSON.stringify({ skills: [] }))); });
+      expect(result.current.composerCapabilities.byItemId.has("installed-skill:skill_new")).toBe(true);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally { release(new Response(JSON.stringify({ skills: [] }))); unmount(); }
+  });
+
+  it("discards the previous principal's snapshot and validator on a scope change", async () => {
+    let principalId = "first";
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ skills: [{ toolId: "skill_private", name: "Private", description: "First user" }] }), { headers: { ETag: 'W/"first"' } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ skills: [] }), { headers: { ETag: 'W/"second"' } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const wrapper = ({ children }: { children: ReactNode }) => <AdminBootScopeContext.Provider value={{ principalId, checking: false }}>{children}</AdminBootScopeContext.Provider>;
+    const { result, rerender } = renderHook(() => useComposerCapabilities(), { wrapper });
+    await waitFor(() => expect(result.current.composerCapabilities.byItemId.has("installed-skill:skill_private")).toBe(true));
+    principalId = "second";
+    rerender();
+    expect(result.current.composerCapabilities.byItemId.has("installed-skill:skill_private")).toBe(false);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock.mock.calls[1]?.[1].headers["If-None-Match"]).toBeUndefined();
   });
 
   it("loads installed skills alongside bundled groups without exposing the raw tool catalog", async () => {
