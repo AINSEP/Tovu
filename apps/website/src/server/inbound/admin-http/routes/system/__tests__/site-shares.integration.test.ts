@@ -49,6 +49,7 @@ test("share routes validate sources and authorize before effects, preserve downl
   assert.equal(download.status, 200); assert.deepEqual(Buffer.from(await download.arrayBuffer()), Buffer.from("PK ZIP artifact"));
   assert.equal(download.headers.get("content-disposition"), 'attachment; filename="site.tovu.zip"');
   assert.equal(download.headers.get("cache-control"), "no-store");
+  assert.equal(download.headers.get("x-robots-tag"), "noindex, nofollow");
   assert.equal((await fetch(root + "/" + randomUUID() + "/download")).status, 404);
   const missing = await createSiteShare({ registry, site: "ws", name: "missing", archive: Buffer.from("PK zip") }); await registry.deleteArtifact(missing);
   assert.equal((await fetch(root + "/" + missing.shareId + "/download")).status, 404);

@@ -354,7 +354,8 @@ export interface UpdatePublishCredentialInput {
   /** Omitted = leave the stored connection (and its vendor) untouched — this route's own
    *  "connection omitted => keep the stored secret untouched" contract. Supplying a NEW connection
    *  may change the host and vendor. A provider-only move between token-only hosts retains the
-   *  envelope: vault AAD binds the stable identity, not the vendor. Explicit secrets rotate. */
+   *  envelope: vault AAD binds the stable identity, not the vendor. Explicit secrets rotate.
+   *  On same-vendor updates, null removes an optional secret; blank keeps it. */
   connection?: unknown;
   /** `true` makes this the default connection for its (possibly new — see `connection` above)
    *  vendor, clearing any previous default in the same repo call. Omitted/`false` preserves a
@@ -396,7 +397,10 @@ function isProviderOnlyMove({ values, spec }: {
     (values[spec.tokenField] === undefined || values[spec.tokenField] === "");
 }
 
-/** Blank secret fields keep their stored value; non-secret companion fields still update. */
+/** Blank secret fields keep their stored value; null explicitly removes an optional secret.
+ * Required secrets remain required, and non-secret companion fields still update.
+ * @complexity O(fields + sealed payload bytes), at most one existing connection open.
+ */
 async function updatedConnection({ deps, input, existing, registry, host }: { deps: PublishCredentialWriteDeps; input: UpdatePublishCredentialInput;
   existing: VendorCredentialSetRecord; registry: DeployTargetRegistry; host: PublishProviderId }, _options = {}): Promise<ValidatedConnection> {
   const raw = input.connection;
@@ -405,10 +409,12 @@ async function updatedConnection({ deps, input, existing, registry, host }: { de
   const { spec } = connectionCredentialSpec({ value: values, registry });
   if (spec.vendorId !== existing.vendorId) return validateConnection(raw, registry);
   const blankSecrets = spec.fields.filter(field => isSecretField({ field, spec }) && (values[field.name] === "" || values[field.name] === undefined));
-  if (blankSecrets.length === 0) return validateConnection(raw, registry);
+  const clearedSecrets = spec.fields.filter(field => isSecretField({ field, spec }) && !field.required && field.name !== spec.tokenField && values[field.name] === null);
+  if (blankSecrets.length === 0 && clearedSecrets.length === 0) return validateConnection(raw, registry);
   const stored = await decryptRecord(deps, existing, host);
   const merged = { ...stored, ...values };
   for (const field of blankSecrets) merged[field.name] = stored[field.name];
+  for (const field of clearedSecrets) delete merged[field.name];
   return validateConnection(merged, registry);
 }
 

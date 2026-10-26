@@ -756,14 +756,19 @@ function buildProposeCredentialForm(required: {
     title: `Connect ${descriptor.label}`,
     ...(credential.help !== undefined ? { description: credential.help } : {}),
     submitLabel: "Save connection",
-    fields: credential.fields.map((field): SecretCardField => {
+    fields: credential.fields.flatMap((field): SecretCardField[] => {
       const base = { kind: "string" as const, name: field.name, label: field.label,
         ...(field.help !== undefined ? { hint: field.help } : {}), required: field.required };
       if (field.secret === true || field.name === credential.tokenField) {
         // The store keeps exact blank secrets on update; the form must permit that submission too.
-        return { ...base, secret: true, required: updating ? false : field.required, allowBlank: updating || !field.required };
+        const secret: SecretCardField = { ...base, secret: true, required: updating ? false : field.required, allowBlank: updating || !field.required };
+        if (updating && !field.required && field.name !== credential.tokenField) {
+          return [secret, { kind: "boolean", name: `clear-${field.name}`, label: `Remove ${field.label}`, value: false,
+            hint: "Remove the saved value when this connection is saved. Leave unchecked to keep or replace it." }];
+        }
+        return [secret];
       }
-      return { ...base, ...(prefill[field.name] !== undefined ? { value: prefill[field.name] } : {}) };
+      return [{ ...base, ...(prefill[field.name] !== undefined ? { value: prefill[field.name] } : {}) }];
     }),
     app: { appName: "tovu-deployment-propose-custom-provider-credential", appVersion: "1" },
     preferredFrameSize: ["100%", "560px"],
@@ -789,7 +794,9 @@ async function saveProposedCredential(required: {
     // The form submits a blank optional secret as ""; omitted, the store reads it as not provided
     // on create and keeps the stored one on update.
     const blankOptionalSecret = values[field.name] === "" && field.secret === true && !field.required;
-    if (typeof values[field.name] === "string" && !blankOptionalSecret) connection[field.name] = values[field.name];
+    // The explicit remove choice wins over typed text; blank alone still keeps the saved secret.
+    if (values[`clear-${field.name}`] === true) connection[field.name] = null;
+    else if (typeof values[field.name] === "string" && !blankOptionalSecret) connection[field.name] = values[field.name];
   }
   const repo = abortGuardedCredentialRepo({ store: deps.vendorCredentialSetRepo, signal });
   const writeDeps: PublishCredentialWriteDeps = {

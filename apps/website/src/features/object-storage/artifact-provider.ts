@@ -9,13 +9,16 @@ import type { LoadedObjectStoreRegistry } from "./registry.js";
  * hand out a single-object artifact store (today the bundled `s3_compatible`), instead of one
  * hard-coded deploy target id. The site's media choice wins when it qualifies, so media and shares
  * use one provider (and one saved connection); otherwise the first qualifying one in registry order.
- * A provider qualifies only once its saved connection resolves, so an installed but unconnected
+ * A provider qualifies only once its saved connection resolves and passes its optional artifact
+ * credential check, so an installed but unconnected
  * store never hides a connected one behind it. Revoke names the share's saved provider and resolves
  * only that one, so a store connected later can never take over (or block) another store's delete.
  */
 
 /** A provider's artifact capability as the share path calls it (the deploy-target module ABI). */
 export interface ArtifactStoreCapable {
+  /** Optional provider-owned readiness check for artifact-specific companion credentials. */
+  acceptsArtifactCredential?(required: { readonly credential: unknown }, optional?: Record<string, never>): boolean;
   createArtifactStore(required: { readonly credential: DeployTargetCredential; readonly config: Record<string, never>; readonly kit: unknown }): ArtifactStorePort & {
     /** Non-secret identity of the backing store, when the provider knows it better than the host does. */
     readonly binding?: string;
@@ -27,7 +30,7 @@ export interface ArtifactStoreCapable {
  * @param optional.savedProvider A share's recorded provider (its hyphenated connection id): only that
  *   provider is considered.
  * @returns The first capable provider (preferred first, then registry order) whose connection
- *   resolves, with that credential; `undefined` when none qualifies.
+ *   resolves and passes the provider's artifact check, with that credential; `undefined` when none qualifies.
  * @complexity O(n) registered providers, one credential lookup per capable provider until a hit.
  */
 export async function selectArtifactStoreProvider<C>(
@@ -39,7 +42,10 @@ export async function selectArtifactStoreProvider<C>(
   const ordered = [...capable.filter((entry) => entry.id === required.preferredId), ...capable.filter((entry) => entry.id !== required.preferredId)];
   for (const entry of ordered) {
     const credential = await required.resolveCredential({ id: entry.id });
-    if (credential !== undefined) return { id: entry.id, provider: entry.provider as unknown as ArtifactStoreCapable, credential };
+    if (credential === undefined) continue;
+    const provider = entry.provider as unknown as ArtifactStoreCapable;
+    if (provider.acceptsArtifactCredential?.({ credential }) === false) continue;
+    return { id: entry.id, provider, credential };
   }
   return undefined;
 }

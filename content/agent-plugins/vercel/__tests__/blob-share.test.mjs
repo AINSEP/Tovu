@@ -20,7 +20,7 @@ import { createSiteShare, revokeSiteShare, SHARE_DOWNLOAD_HEADERS } from "../../
 import provider from "../object-stores/vercel-blob.mjs";
 
 // Built at runtime: gitleaks runs on main and must never see a token-shaped literal.
-const blobToken = ["vercel_blob_rw_", "StoreAbc123", "_", "x".repeat(20)].join("");
+const blobToken = ["vercel_blob_rw_", "StoreAbc123", "_", "x".repeat(10), "_", "x".repeat(10)].join("");
 const STORE_ORIGIN = "https://storeabc123.public.blob.vercel-storage.com";
 const shareToken = "a".repeat(16);
 const key = `_share/${shareToken}/site.tovu.zip`;
@@ -169,6 +169,16 @@ test("the store's binding is its Blob origin, so two Blob stores never share one
   const binding = (token) => provider.createArtifactStore({ credential: { token: "vercel-api-token-unused", blobToken: token }, config: {}, kit }).binding;
   assert.equal(binding(blobToken), STORE_ORIGIN);
   assert.equal(binding(otherToken), "https://otherstore9.public.blob.vercel-storage.com");
+});
+
+test("a Vercel publishing token without a usable Blob token never qualifies for sharing", async () => {
+  const registry = createObjectStoreRegistry({}, { seed: [{ id: "vercel", label: "Vercel Blob", provider }] });
+  for (const credential of [undefined, { token: "publishing-only" }, { token: "publishing-only", blobToken: "" }, { token: "publishing-only", blobToken: "invalid" }]) {
+    assert.equal(await selectArtifactStoreProvider({ loaded: { registry, refusals: [] }, preferredId: "vercel", resolveCredential: async () => credential }), undefined);
+  }
+  assert.equal(provider.acceptsArtifactCredential({ credential: { blobToken } }), true);
+  assert.equal(provider.acceptsArtifactCredential({ credential: undefined }), false);
+  assert.equal(provider.acceptsArtifactCredential({ credential: { blobToken: 7 } }), false);
 });
 
 test("put and delete send the headers @vercel/blob 2.8.2 sends: API version 13 and public access", async () => {
