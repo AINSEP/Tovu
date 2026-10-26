@@ -1,9 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { useState } from "react";
-import { render, renderHook, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { SecretInput } from "../SecretInput/SecretInput";
-import { useSecretReveal } from "../SecretInput/SecretInput.hooks";
+import { SecretInput, secretToggleLabels } from "../SecretInput/SecretInput";
 
 /**
  * @file The shared eye toggle every admin password/token/key field uses: hidden by default, flips
@@ -85,7 +84,8 @@ describe("SecretInput", () => {
   });
 
   it("translates the toggle name for the active locale", () => {
-    const { result } = renderHook(() => useSecretReveal({ label: "Clé API", value: "x" }, { locale: "fr" }));
-    expect(result.current.toggleLabel).toBe("Afficher : Clé API");
+    expect(secretToggleLabels({ label: "Clé API" }, { locale: "fr" }).show).toBe("Afficher : Clé API");
+    render(<SecretInput label="Clé API" locale="fr" />);
+    expect(screen.getByRole("button", { name: "Afficher : Clé API" })).toBeInTheDocument();
   });
 });
