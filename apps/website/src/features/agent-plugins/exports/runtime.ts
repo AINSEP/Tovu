@@ -11,6 +11,7 @@ export interface PluginExportRenderSession extends PluginExportsPort {
   headHtml(required: Record<string, never>, options?: Record<string, never>): string;
 }
 export interface PluginExportCatalogRow {
+  readonly plugin: string;
   readonly component: string;
   readonly version: number;
   readonly minVersion: number;
@@ -125,7 +126,7 @@ async function catalogRows(required: { packages: readonly PluginExportPackage[];
       const selection = selectPluginExport({ packages: required.packages, config });
       const selected = { owner, component, definition };
       const availability = await catalogAvailability({ selection, selected, config, providers, deps: required.deps });
-      exports.push({ component, version: definition.version, minVersion: definition.minVersion ?? 1, props: definition.props,
+      exports.push({ plugin: owner.id, component, version: definition.version, minVersion: definition.minVersion ?? 1, props: definition.props,
         consent: definition.consent, availability, snippet: availability === "ready" ? embedMarkerSnippetFromConfig({ config }) : null });
     }
     rows.set(owner.plugin.pluginId, exports);
@@ -139,8 +140,8 @@ async function catalogAvailability(required: {
   providers: Promise<readonly LoginProvider[]>; deps: RuntimeDeps;
 }, _options = {}): Promise<string> {
   if ("diagnostic" in required.selection) return required.selection.diagnostic.code;
-  if (checkPluginExportConfig({ selected: required.selected, config: required.config })) return "props-required";
-  return await publicHost(required) ? "ready" : "host-unavailable";
+  if (!await publicHost(required)) return "host-unavailable";
+  return checkPluginExportConfig({ selected: required.selected, config: required.config }) ? "props-required" : "ready";
 }
 
 /** Bind to one site. Request-local memoization shares catalog/readiness across occurrences; a new

@@ -1,4 +1,4 @@
-import type { AdminPost, ThemeTier } from "@/lib/api";
+import type { AdminPagePluginEmbed, AdminPost, ThemeTier } from "@/lib/api";
 import type { StandingDraftAutosavePort } from "@/hooks/use-standing-draft-autosave.hooks";
 
 /**
@@ -28,7 +28,7 @@ import type { StandingDraftAutosavePort } from "@/hooks/use-standing-draft-autos
  * own header for why the hook itself stays ignorant of both features either way.
  */
 export interface PageEditorPort extends StandingDraftAutosavePort {
-  getPage(routeSlug: string): Promise<{ post: AdminPost }>;
+  getPage(routeSlug: string): Promise<{ post: AdminPost; pluginEmbeds?: readonly AdminPagePluginEmbed[] }>;
   getPresentation(): Promise<{
     activeThemeTemplates: string[];
     /** `PresentationSettings.activeThemeId` — feeds the Interactive tab's canvas stylesheet and

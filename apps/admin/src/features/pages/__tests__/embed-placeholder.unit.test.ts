@@ -14,6 +14,37 @@ import { createEmbedPlaceholderDescriber, isProtectedEmbedElement } from "../lib
 
 const t = (key: string) => key;
 
+describe("plugin export cards", () => {
+  const config = { type: "plugin", plugin: "tovu/google-login", component: "sign-in-button", version: 1, props: { variant: "light" } };
+
+  it.each([
+    ["PLUGIN_DISABLED", "plugin off: visitors see your fallback"],
+    ["host-unavailable", "sign-in not configured: visitors see your fallback"],
+    ["ready", "configured: check Preview"],
+    ["props-required", "configured: check Preview"],
+    ["PLUGIN_UNAVAILABLE", "plugin unavailable: visitors see your fallback"],
+  ])("shows host availability %s without trusting authored stamps", (availability, status) => {
+    const describe_ = createEmbedPlaceholderDescriber({ t }, { pluginEmbeds: () => [{ plugin: config.plugin, component: config.component, availability }] });
+    const el = markerElement(config);
+    el.setAttribute("data-plugin", "forged");
+    expect(describe_(el)).toEqual({ kindLabel: "Google Login", identityLabel: `sign-in-button — ${status}`,
+      guidanceLabel: "Preview shows the current button or your fallback. Static exports always use your fallback." });
+    expect(isProtectedEmbedElement(el)).toBe(true);
+  });
+
+  it("never claims readiness for a newly authored marker with no host result", () => {
+    expect(createEmbedPlaceholderDescriber({ t })(markerElement(config))?.identityLabel).toBe("sign-in-button — check Preview for availability");
+  });
+
+  it("reads current injected readiness even when the canvas captures its callback once", () => {
+    const row = { plugin: config.plugin, component: config.component, availability: "ready" };
+    const describe_ = createEmbedPlaceholderDescriber({ t }, { pluginEmbeds: () => [row] });
+    expect(describe_(markerElement(config))?.identityLabel).toBe("sign-in-button — configured: check Preview");
+    row.availability = "PLUGIN_DISABLED";
+    expect(describe_(markerElement(config))?.identityLabel).toBe("sign-in-button — plugin off: visitors see your fallback");
+  });
+});
+
 function markerElement(config: unknown): Element {
   const el = document.createElement("div");
   el.setAttribute("data-embed-config", typeof config === "string" ? config : JSON.stringify(config));
@@ -21,7 +52,7 @@ function markerElement(config: unknown): Element {
 }
 
 describe("createEmbedPlaceholderDescriber", () => {
-  const describe_ = createEmbedPlaceholderDescriber(t);
+  const describe_ = createEmbedPlaceholderDescriber({ t });
 
   it("returns undefined for an element with no data-embed-config at all", () => {
     const el = document.createElement("div");
