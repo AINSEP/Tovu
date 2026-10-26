@@ -52,6 +52,20 @@ test('unreadable bytes refuse writes and restore both menu choices without chang
   assert.equal(fs.readFileSync(f.preferencePath, 'utf8'), '{damaged');
 });
 
+test('a failed save restores the pre-click state even when the dialog refreshed the checkbox after the menu was built', t => {
+  const f = fixture(t);
+  fs.writeFileSync(f.preferencePath, '{damaged');
+  let errors = 0;
+  // Built while both were off; the first-run dialog later checked them in place (refreshProductMenu).
+  const menu = productTelemetryMenu({ preference: OFF, save: f.save, changed: () => assert.fail('nothing persisted'), onError: () => { errors++; } });
+  for (const entry of menu) {
+    const item = { checked: false }; // Electron already toggled true -> false before click.
+    entry.click(item);
+    assert.equal(item.checked, true);
+  }
+  assert.equal(errors, 2);
+});
+
 test('menu persists the requested switch before applying live behavior; the other switch is preserved', t => {
   const f = fixture(t);
   const observed: unknown[] = [];

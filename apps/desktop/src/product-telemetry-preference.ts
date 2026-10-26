@@ -13,14 +13,18 @@ function preferenceSettings({ value }: { value: unknown }, _options = {}): Recor
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
-/** Missing, unreadable and malformed consent never grants permission. O(1) fields, O(n) file read. */
-export function readProductTelemetryPreference({ preferencePath }: { preferencePath: string }, _options = {}): ProductTelemetryPreference {
-  const read = readJsonFile(preferencePath);
-  if (read.state !== 'ok') return { ...OFF };
-  const value = (read.value as { productTelemetry?: Partial<ProductTelemetryPreference> } | null)?.productTelemetry;
+/** Malformed consent never grants permission. O(1) fields, no effects. */
+function preferenceOf({ settings }: { settings: Record<string, unknown> }, _options = {}): ProductTelemetryPreference {
+  const value = settings.productTelemetry as Partial<ProductTelemetryPreference> | null | undefined;
   return { crashes: value?.crashes === true, usage: value?.usage === true,
     installationId: typeof value?.installationId === 'string' ? value.installationId : null,
     decidedAt: typeof value?.decidedAt === 'string' ? value.decidedAt : null };
+}
+
+/** Missing, unreadable and malformed consent never grants permission. O(1) fields, O(n) file read. */
+export function readProductTelemetryPreference({ preferencePath }: { preferencePath: string }, _options = {}): ProductTelemetryPreference {
+  const read = readJsonFile(preferencePath);
+  return read.state === 'ok' ? preferenceOf({ settings: preferenceSettings({ value: read.value }) }) : { ...OFF };
 }
 
 /** Locked read/modify/write preserves sibling settings and the other instance's latest switch.
@@ -34,7 +38,7 @@ export function writeProductTelemetryPreference({ preferencePath, patch }: {
     const read = readJsonFile(preferencePath);
     if (read.state === 'unreadable') throw new Error('DESKTOP_PREFERENCES_UNREADABLE');
     const settings = preferenceSettings({ value: read.state === 'ok' ? read.value : undefined });
-    const current = readProductTelemetryPreference({ preferencePath });
+    const current = preferenceOf({ settings });
     const crashes = patch.crashes ?? current.crashes;
     const usage = patch.usage ?? current.usage;
     const next = { crashes, usage, installationId: crashes || usage ? current.installationId ?? uuid() : null, decidedAt: now() };
@@ -68,6 +72,8 @@ export async function offerProductTelemetryConsent({ active, preference, show, s
 }
 
 /** Persist first, then apply. Failed persistence restores the checkbox and leaves effects alone.
+ * Electron toggles `checked` before click, so the pre-click state is `!item.checked`; no cached
+ * copy that a first-run dialog refresh could leave stale.
  * @returns Two native checkbox descriptors. @complexity O(1), effects supplied by the caller.
  */
 export function productTelemetryMenu({ preference, save, changed, onError }: {
@@ -76,17 +82,14 @@ export function productTelemetryMenu({ preference, save, changed, onError }: {
   changed: (preference: ProductTelemetryPreference) => void;
   onError: () => void;
 }, _options = {}): ConsentMenuItem[] {
-  return (['crashes', 'usage'] as const).map(key => {
-    let checked = preference[key];
-    return { type: 'checkbox' as const, label: key === 'crashes' ? 'Send crash reports to Tovu' : 'Send usage statistics to Tovu',
-      checked, toolTip: 'Already queued events may send for up to 10 seconds. Native crash collection starts after restart.',
-      click(item: { checked: boolean }) {
-        let saved: ProductTelemetryPreference;
-        try { saved = save({ [key]: item.checked }); }
-        catch { item.checked = checked; onError(); return; }
-        checked = saved[key];
-        item.checked = checked;
-        changed(saved);
-      } };
-  });
+  return (['crashes', 'usage'] as const).map(key => ({
+    type: 'checkbox' as const, label: key === 'crashes' ? 'Send crash reports to Tovu' : 'Send usage statistics to Tovu',
+    checked: preference[key], toolTip: 'Already queued events may send for up to 10 seconds. Native crash collection starts after restart.',
+    click(item: { checked: boolean }) {
+      let saved: ProductTelemetryPreference;
+      try { saved = save({ [key]: item.checked }); }
+      catch { item.checked = !item.checked; onError(); return; }
+      item.checked = saved[key];
+      changed(saved);
+    } }));
 }

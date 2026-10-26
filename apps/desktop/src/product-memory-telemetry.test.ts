@@ -51,32 +51,37 @@ test('consent off sends nothing and does not request an OS sample; usage and dia
   f.consent({ crashes: false, usage: true, installationId: 'FAKE_INSTALL' });
   await f.memory.tick(); assert.equal(f.events.length, 1); assert.deepEqual(f.errors, []);
   f.consent({ crashes: true, usage: false, installationId: 'FAKE_INSTALL' });
-  f.at(5 * MINUTE); await f.memory.tick();
+  for (const minute of [5, 10, 15]) { f.at(minute * MINUTE); await f.memory.tick(); }
+  assert.deepEqual(f.errors, [], 'high readings shorter than the fifteen-minute floor span do not warn');
+  f.at(20 * MINUTE); await f.memory.tick();
   assert.equal(f.events.length, 1); assert.equal(f.errors.length, 1);
   assert.equal(f.errors[0]!.context!.level, 'warning');
-  assert.deepEqual(f.errors[0]!.context!.attributes, { process: 'renderer', code: 'rss-limit', rss_0_mb: 2400, elapsed_0_min: 0 });
+  assert.deepEqual(f.errors[0]!.context!.attributes, { process: 'renderer', code: 'rss-limit',
+    rss_0_mb: 2400, elapsed_0_min: 0, rss_1_mb: 2400, elapsed_1_min: 5, rss_2_mb: 2400, elapsed_2_min: 10, rss_3_mb: 2400, elapsed_3_min: 15 });
   f.memory.dispose();
 });
 
 test('fake clock: slope is quiet before 60 minutes, then warns once/process/day even across consent toggles', async () => {
   const f = fixture();
   for (let index = 0; index < 12; index++) {
-    f.at(index * 5 * MINUTE); f.rss(1000 + index * 25); await f.memory.tick();
+    f.at(index * 5 * MINUTE); f.rss(1000 + index * 34); await f.memory.tick();
   }
   assert.deepEqual(f.errors, []);
-  f.at(60 * MINUTE); f.rss(1300); await f.memory.tick();
+  f.at(60 * MINUTE); f.rss(1408); await f.memory.tick();
   assert.equal(f.errors.length, 1);
   assert.equal(f.errors[0]!.context!.attributes!.code, 'sustained-growth');
   assert.equal(f.errors[0]!.context!.attributes!.rss_0_mb, 1000);
-  assert.equal(f.errors[0]!.context!.attributes!.rss_12_mb, 1300);
+  assert.equal(f.errors[0]!.context!.attributes!.rss_12_mb, 1408);
   assert.equal(f.errors[0]!.context!.attributes!.elapsed_12_min, 60);
   f.at(65 * MINUTE); f.rss(2400); await f.memory.tick(); assert.equal(f.errors.length, 1);
   f.consent({ crashes: false, usage: false, installationId: null }); await f.memory.tick();
   f.consent({ crashes: true, usage: false, installationId: 'FAKE_NEW_INSTALL' });
   f.at(70 * MINUTE); await f.memory.tick(); assert.equal(f.errors.length, 1);
   f.at(60 * MINUTE + DAY - 1); await f.memory.tick(); assert.equal(f.errors.length, 1);
-  // Advance beyond the monitor's minute cache as well as the detector's daily deadline.
-  f.at(60 * MINUTE + DAY + MINUTE); await f.memory.tick(); assert.equal(f.errors.length, 2);
+  // Past the daily deadline the high floor must again span fifteen minutes (ticks also clear the monitor's minute cache).
+  for (const minute of [5, 10]) { f.at(60 * MINUTE + DAY + minute * MINUTE); await f.memory.tick(); }
+  assert.equal(f.errors.length, 1);
+  f.at(75 * MINUTE + DAY); await f.memory.tick(); assert.equal(f.errors.length, 2);
   f.memory.dispose();
 });
 
@@ -105,21 +110,26 @@ test('an in-flight measurement cannot send after consent withdrawal or disposal;
 test('withdrawal or disposal while usage capture settles also prevents a late diagnostic warning', async () => {
   const f = fixture(); f.rss(2400);
   const snapshot = await f.monitor.get({ panelOpen: false });
-  for (const change of ['withdraw', 'dispose']) {
-    let completeCapture!: () => void, entered!: () => void;
-    let consent = { crashes: true, usage: true, installationId: 'FAKE_INSTALL' };
+  for (const change of ['none', 'withdraw', 'dispose']) {
+    let completeCapture!: () => void, entered!: () => void, at = 0;
+    let consent = { crashes: true, usage: false, installationId: 'FAKE_INSTALL' };
     const errors: unknown[] = [];
     const capturing = new Promise<void>(done => { entered = done; });
     const memory = startProductMemoryTelemetry({ desktopPid: 1, monitor: { get: async () => snapshot },
       readConsent: () => consent, rendererPids: () => new Set([2, 3]), heapUsedBytes: () => 0, uptime: () => 0,
       tracker: { ...createNoopTracker({}), capture: () => { entered(); return new Promise<void>(done => { completeCapture = done; }); },
         error: error => { errors.push(error); } },
-    }, { schedule: () => () => {} });
+    }, { now: () => at, schedule: () => () => {} });
+    // Three crash-only samples build the fifteen-minute high floor, so the fourth sample would warn.
+    for (const minute of [0, 5, 10]) { at = minute * MINUTE; await memory.tick(); }
+    assert.deepEqual(errors, []);
+    consent = { crashes: true, usage: true, installationId: 'FAKE_INSTALL' };
+    at = 15 * MINUTE;
     const pending = memory.tick(); await capturing;
     if (change === 'withdraw') consent = { crashes: false, usage: false, installationId: 'FAKE_INSTALL' };
-    else memory.dispose();
+    if (change === 'dispose') memory.dispose();
     completeCapture(); await pending;
-    assert.deepEqual(errors, []);
+    assert.equal(errors.length, change === 'none' ? 1 : 0, change);
     memory.dispose();
   }
   f.memory.dispose();
