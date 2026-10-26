@@ -238,6 +238,7 @@ concurrency:
   # would boot an empty `tovu-dev/` next to it. To rename the live folder too, stop the machine,
   # `mv /workspace/Tovu/sites/tovu-com /workspace/Tovu/sites/tovu-dev` on the volume, then drop this TOVU_SITE value.
 #|   TOVU_SITE: tovu-com
+#|   TOVU_SITE_ID: ${{ vars.TOVU_SITE_ID }}
   # This deployment's public origin. NOT a secret (it is the URL crawlers already see), so it
   # belongs in this workflow's env block rather than in `fly secrets set`.
   #
@@ -365,6 +366,7 @@ jobs:
 #|               TOVU_RUNTIME_MODE: env.TOVU_RUNTIME_MODE,
 #|               PORT: env.PORT,
 #|               TOVU_SITE: env.TOVU_SITE,
+#|               TOVU_SITE_ID: env.TOVU_SITE_ID,
 #|               TOVU_PUBLIC_URL: env.TOVU_PUBLIC_URL,
 #|             },
 #|             buildArgs: { TOVU_INSTALL_BROWSER: env.TOVU_INSTALL_BROWSER },

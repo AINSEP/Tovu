@@ -53,8 +53,14 @@ function englishPhrase(label: string): string {
   return label;
 }
 
+/** A too-long answer names the control's own numeric `maxlength` (the cap the server enforced). */
+function tooLongTemplate(copy: Copy, control: Element | undefined): string {
+  const max = control && attribute(control, "maxlength");
+  return max && /^\d+$/.test(max) ? copy[5].replace("{max}", max) : copy[2];
+}
+
 function messageTemplate(copy: Copy, reason: string, control: Element | undefined): string {
-  if (reason === "too_long") return copy[2];
+  if (reason === "too_long") return tooLongTemplate(copy, control);
   if (reason !== "required") return copy[3];
   const checkbox = control !== undefined && attribute(control, "type")?.toLowerCase() === "checkbox";
   return checkbox ? copy[1] : copy[0];

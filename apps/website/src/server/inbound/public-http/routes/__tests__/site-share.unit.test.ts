@@ -54,6 +54,7 @@ test("a found share streams its archive as a no-store attachment", async (t) => 
   assert.equal(res.status, 200);
   assert.equal(res.headers.get("content-disposition"), 'attachment; filename="main.tovu.zip"');
   assert.equal(res.headers.get("cache-control"), "no-store");
+  assert.equal(res.headers.get("x-robots-tag"), "noindex, nofollow");
   assert.equal(await res.text(), "zip");
 });
 
@@ -65,6 +66,7 @@ test("no registry, an unknown token, or a share hosted by another provider are a
     assert.equal(res.status, 404);
     assert.equal(res.headers.get("content-disposition"), null);
     assert.equal(res.headers.get("cache-control"), "no-store");
+    assert.equal(res.headers.get("x-robots-tag"), "noindex, nofollow");
   }
 });
 

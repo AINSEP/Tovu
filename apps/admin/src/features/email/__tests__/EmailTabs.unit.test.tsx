@@ -37,8 +37,8 @@ describe("Email tab components", () => {
       message: "Set the site's sender address first; its domain is the one that needs mail DNS records.",
     } };
     render(<EmailSenderTab controller={controller} locale={locale} />);
-    expect(screen.getAllByText(t({ locale, key: "Set a From address first." }))).toHaveLength(1);
-    expect(screen.queryByText(/Set the site's sender address first/)).toBeNull();
+    expect(screen.getAllByText("Set the site's sender address first; its domain is the one that needs mail DNS records.")).toHaveLength(1);
+    expect(screen.queryByText(t({ locale, key: "Set a From address first." }))).toBeNull();
   });
 
   it("renders only declared key fields, hides secrets, saves without switching and disables an unselectable provider", async () => {
@@ -148,9 +148,9 @@ describe("Email tab components", () => {
   });
 
   it.each([
-    ["no_sender", "Set a From address first."],
-    ["requirements_failed", "The provider answered with an error. 502 from the provider"],
-  ] as const)("says the %s DNS state once, adding the server's detail only when the line lacks it", async (state, text) => {
+    ["no_sender", "Set the site's sender address first."],
+    ["requirements_failed", "502 from the provider"],
+  ] as const)("shows the server's safe message for the %s DNS state", async (state, text) => {
     const api = createEmailFake();
     api.readDns.mockResolvedValue({ ...DNS, state, dns: undefined, message: state === "no_sender" ? "Set the site's sender address first." : "502 from the provider" });
     function Harness() { return <EmailSenderTab controller={useEmailSender({ api })} locale="en" part="dns" />; }

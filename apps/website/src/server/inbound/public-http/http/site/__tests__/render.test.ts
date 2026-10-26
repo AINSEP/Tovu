@@ -1940,7 +1940,7 @@ test("builder field instructions use document language and honor a form language
 });
 
 test("builder fields translate length and invalid reasons into label-based instructions", () => {
-  for (const [reason, message] of [["too_long", "Please shorten your email."], ["invalid", "Please check your email."]]) {
+  for (const [reason, message] of [["too_long", "Please keep your email to 100 characters or fewer."], ["invalid", "Please check your email."]]) {
     const updated = injectFormSubmissionResultIntoHtml(contactFormPageHtml(), {
       kind: "validation", slug: "contact", fieldErrors: [{ field: "email", reason }],
     });

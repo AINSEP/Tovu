@@ -147,12 +147,23 @@ function routeName({ basename, siteId }: { basename: string; siteId: string }, {
 
 /** Folder-name validation (distinct from `initSite`'s own `--name` display-name rule — see
  *  {@link SITE_NAME_PATTERN}'s doc for why format matters here and not there). */
-function validateSiteName(name: string): string {
+function validateSiteName({ name }: { name: string }, _optional = {}): string {
+  assertPortableSiteName({ name });
   const trimmed = name.trim();
   if (trimmed.length === 0 || trimmed.length > MAX_SITE_NAME_LENGTH || !SITE_NAME_PATTERN.test(trimmed)) {
     throw new ValidationError(`createSite: name must be 1..${MAX_SITE_NAME_LENGTH} lowercase letters, digits, and dashes`);
   }
   return trimmed;
+}
+
+/** Refuse site names Windows treats as devices or cannot create, even when this host is Unix.
+ * @throws {ValidationError} A device name (including extensions), trailing dot or space.
+ * @complexity O(name length), no I/O.
+ */
+export function assertPortableSiteName({ name }: { name: string }, _optional = {}): void {
+  if (/^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(name.trimStart()) || /[. ]$/.test(name)) {
+    throw new ValidationError("Site names must not use Windows device names or end with a dot or space.");
+  }
 }
 
 export interface CreateSiteRequired {
@@ -182,7 +193,7 @@ export interface CreateSiteResult extends InitSiteResult {
  *   name selection is bounded to 10,000 candidates under a shared home lock.
  */
 export async function createSite(required: CreateSiteRequired, optional: ListSitesOptional & { initSite?: typeof initSite; workspace?: SitesWorkspace; verifiedRestore?: InitSiteRestorePort; collisionSafe?: boolean; onAllocated?: (required: SiteCreationAllocation) => void; beforeRegister?: (required: CreateSiteResult) => void } = {}): Promise<CreateSiteResult> {
-  const name = validateSiteName(required.name);
+  const name = validateSiteName({ name: required.name });
   const workspace = optional.workspace ?? createSitesWorkspace({}, optional);
   const home = workspace.home({});
   if (!workspace.homeAvailable({})) throw new ValidationError(`Sites home volume is unavailable: ${home}. Mount it or choose a local folder in Sites settings.`);
@@ -447,9 +458,15 @@ function isUnderSwitcherSitesRoot(dir: string, optional: ListSitesOptional): boo
   return path.dirname(dir) === path.resolve(cwd, "sites") || isInSitesWorkspace({ dir, workspace: createSitesWorkspace({}, optional) });
 }
 
-/** One workspace answers both questions: directly under the shared home, or a catalog-registered folder. */
-function isInSitesWorkspace({ dir, workspace }: { dir: string; workspace: Pick<SitesWorkspace, "home" | "registry"> }): boolean {
-  return path.dirname(dir) === workspace.home({}) || workspace.registry({}).list({}).some((entry) => entry.path === dir);
+/** One workspace answers both questions: directly under the shared home, or a catalog-registered folder.
+ * Windows compares resolved paths without case/separator differences. No filesystem probes.
+ * @complexity O(n × path length) for n catalog entries.
+ */
+export function isInSitesWorkspace({ dir, workspace }: { dir: string; workspace: Pick<SitesWorkspace, "home" | "registry"> }, { platform = process.platform }: { platform?: NodeJS.Platform } = {}): boolean {
+  const paths = platform === "win32" ? path.win32 : path.posix;
+  const canonical = (value: string) => platform === "win32" ? paths.resolve(value).toLowerCase() : paths.resolve(value);
+  return canonical(paths.dirname(paths.resolve(dir))) === canonical(workspace.home({})) ||
+    workspace.registry({}).list({}).some((entry) => canonical(entry.path) === canonical(dir));
 }
 
 export function describeSiteBinding(optional: ListSitesOptional = {}): SiteBinding {

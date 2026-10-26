@@ -72,3 +72,12 @@ test("a store that names its own binding keeps it; otherwise the non-secret stor
   assert.equal(artifactStoreBinding({ store: {}, credential }), JSON.stringify(["b", "r", "", "https://cdn.example"]));
   assert.equal(artifactStoreBinding({ store: {}, credential: { ...credential, endpoint: "https://s3.example" } }), JSON.stringify(["b", "r", "https://s3.example", "https://cdn.example"]));
 });
+
+test("a provider's artifact credential refusal skips it and still honors the saved-provider boundary", async () => {
+  const preferred = { ...capable("preferred"), acceptsArtifactCredential: ({ credential }: { credential: unknown }) => credential === "ready" };
+  const entries: Array<[string, TovuObjectStoreProvider]> = [["preferred", preferred], ["fallback", capable("fallback")]];
+  const required = { loaded: loaded(entries), preferredId: "preferred", resolveCredential: async () => "not-ready" };
+  assert.equal((await selectArtifactStoreProvider(required))?.id, "fallback");
+  assert.equal(await selectArtifactStoreProvider(required, { savedProvider: "preferred" }), undefined);
+  assert.equal((await selectArtifactStoreProvider({ ...required, resolveCredential: async () => "ready" }))?.id, "preferred");
+});
