@@ -384,14 +384,14 @@ function buildSiteRecord(row: SiteRow, deps: SiteRecordDeps) {
 
 /** Import catalog discovery without transferring local origin or deletion authority. O(n) rows. */
 export function importSharedSiteDiscovery(
-  { projectsPath, sharedSites }: Pick<ProjectIpcDeps, "projectsPath" | "sharedSites">, _options = {},
+  { projectsPath, sharedSites, readSiteName }: Pick<ProjectIpcDeps, "projectsPath" | "sharedSites" | "readSiteName">, _options = {},
 ): void {
   if (!sharedSites) return;
   try {
     // The shared catalog supplies discovery, never the local origin/deletion authority.
     const rows = readTrackedSites(projectsPath);
     if (rows.length) shareSiteDirectories({ workspace: sharedSites, dirs: rows.map((row) => row.siteDir), createdBy: "desktop-legacy", migration: `projects:${projectsPath}` });
-    adoptDiscoveredSites(projectsPath, sharedSites.registry({}).list({}).map((entry) => entry.path));
+    adoptWithUniqueNames({ deps: { projectsPath, readSiteName }, siteDirs: sharedSites.registry({}).list({}).map((entry) => entry.path) });
   } catch { console.warn("tovu desktop: shared discovery is unavailable; showing local website cards."); }
 }
 
@@ -410,7 +410,7 @@ function handleList(
   deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites"> &
     Partial<Pick<ProjectIpcDeps, "siteScanRoots" | "siteFolders" | "classifySiteDir" | "externalSites">> & { relocationGate?: RelocationGate },
 ) {
-  importSharedSiteDiscovery({ projectsPath: deps.projectsPath, sharedSites: deps.sharedSites });
+  importSharedSiteDiscovery({ projectsPath: deps.projectsPath, sharedSites: deps.sharedSites, readSiteName: deps.readSiteName });
   const file = readProjectsFile(deps.projectsPath);
   if (deps.relocationGate && !deps.relocationGate.shouldRun(file)) return recordsWithRememberedNames({ rows: file.rows, deps });
   try {
@@ -520,6 +520,22 @@ function rememberSiteAlias({ projectsPath, siteDir, displayNameAlias }: {
     rows: current.rows.map((row) => row.siteDir === siteDir ? { ...row, displayNameAlias } : row),
     dismissed: current.dismissed,
   }));
+}
+
+/**
+ * Track discovered sites the way Add existing tracks a picked one: each NEWLY adopted card whose
+ * name collides gets a shell alias ("Name 2"), never a config rewrite. Rows already tracked keep
+ * their names — only this call's adoptions are named, one at a time so they also differ from each
+ * other. O(a·n) for a adoptions over n tracked rows.
+ */
+function adoptWithUniqueNames({ deps, siteDirs }: {
+  deps: Pick<ProjectIpcDeps, "projectsPath" | "readSiteName">; siteDirs: string[];
+}, _optional = {}): void {
+  for (const siteDir of adoptDiscoveredSites(deps.projectsPath, siteDirs)) {
+    const originalName = deps.readSiteName(siteDir);
+    const displayName = uniqueSiteName({ name: originalName, names: otherSiteNames({ deps, siteDir }) });
+    if (displayName !== originalName) rememberSiteAlias({ projectsPath: deps.projectsPath, siteDir, displayNameAlias: displayName });
+  }
 }
 
 /** Plan a new Tovu site without creating folders or reserving the destination.
@@ -1259,7 +1275,7 @@ async function rescanSites(deps: Pick<ProjectIpcDeps, "siteScanRoots" | "recentS
     knownDirs: deps.recentSiteDirs(),
     classifySiteDir: deps.classifySiteDir,
   }, { homeDir: deps.sharedSites?.homeDir, sitesHome: deps.sharedSites?.home({}) });
-  adoptDiscoveredSites(deps.projectsPath, found);
+  adoptWithUniqueNames({ deps, siteDirs: found });
   return handleList(deps);
 }
 
