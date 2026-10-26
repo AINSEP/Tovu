@@ -1,0 +1,23 @@
+.shared-keys {
+  width: min(42rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+}
+.shared-keys::backdrop { background: rgb(0 0 0 / 0.5); }
+.shared-keys__head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.shared-keys h2, .shared-keys h3 { margin: 0; }
+.shared-keys p { font-size: 0.875rem; overflow-wrap: anywhere; }
+.shared-keys__note { color: var(--muted); }
+.shared-keys [role="alert"] { color: var(--danger); }
+.shared-keys__row, .shared-keys__form { margin-top: 1rem; padding: 1rem; border: 1px solid var(--border); border-radius: 0.5rem; }
+.shared-keys fieldset { display: grid; gap: 0.875rem; border: 0; padding: 1rem 0 0; margin: 0; min-width: 0; }
+.shared-keys input { width: 100%; box-sizing: border-box; }
+.shared-keys .button { justify-self: start; }
+.shared-keys :focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }

@@ -9,13 +9,16 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import { formatGateFailure, runSmokeNativeGate } from "../scripts/smoke-native.ts";
+import { formatGateFailure, runSmokeNativeGate, runPackagedOwnerStoreStatus } from "../scripts/smoke-native.ts";
 import type { SmokeNativePorts } from "../scripts/smoke-native.ts";
+import type { OwnerStoreReply } from "./contracts/owner-store.ts";
+import type { OwnerStoreCliOptions } from "./owner-store-cli.ts";
 
 const SCRIPT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "scripts", "smoke-native.ts");
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const NATIVE_OK = JSON.stringify({ betterSqlite3: { ok: true }, sharp: { ok: true }, argon2: { ok: true } });
 const ENTRIES_OK = JSON.stringify({ ok: true, unresolved: [] });
+const OWNER_OK: OwnerStoreReply<'status'> = { version: 1, ok: true, action: 'status', data: { ready: true, entries: 0, grants: 0 } };
 
 type Run = { status?: number | null; signal?: NodeJS.Signals | null; stdout?: string; stderr?: string; error?: Error };
 
@@ -34,6 +37,7 @@ function ports(runs: Run[] = [{ stdout: NATIVE_OK }, { stdout: ENTRIES_OK }], ov
       return { status: 0, signal: null, stdout: "", stderr: "", pid: 1, output: [], ...run };
     }) as unknown as SmokeNativePorts["spawn"],
     isolate: async ({ targets, run }) => run(targets, "/isolated"),
+    ownerStatus: async () => OWNER_OK,
     out: (text) => out.push(text),
     err: (text) => err.push(text),
     env: { PATH: "/bin", NODE_PATH: "/leaky" },
@@ -57,7 +61,8 @@ test("a healthy package passes both checks, run as Node with no inherited NODE_P
     assert.equal(run.cwd, path.dirname(exe));
   }
   assert.ok(fixture.out.some((line) => line.includes("better-sqlite3, sharp, and argon2 all round-tripped")));
-  assert.ok(fixture.out.at(-1)!.includes("every static import of the shell and server entries resolves"));
+  assert.ok(fixture.out.some(line => line.includes("every static import of the shell and server entries resolves")));
+  assert.equal(fixture.out.at(-1), "smoke-native: OK — packaged owner-store status ready in an empty temporary profile\n");
   assert.deepEqual(fixture.err, []);
 });
 
@@ -131,4 +136,50 @@ test("the real entry with no --platform-dir prints the refusal and exits 1", () 
   const child = spawnSync(process.execPath, [SCRIPT], { encoding: "utf8", timeout: 60_000 });
   assert.equal(child.status, 1);
   assert.equal(child.stderr, "smoke-native: --platform-dir <dir> is required\n");
+});
+
+test('owner-store check receives the isolated Windows payload and cleanup runs on failure', async () => {
+  let cleaned = false;
+  const directory = path.resolve('isolated profile');
+  const targets = { executablePath: path.join(directory, 'win-unpacked', 'Tovu.exe'),
+    nodeModulesDir: path.join(directory, 'win-unpacked', 'resources', 'tovu', 'node_modules') };
+  const fixture = ports(undefined, {
+    readDirectory: () => ['win-unpacked'],
+    isolate: async ({ run }) => { try { await run(targets, directory); } finally { cleaned = true; } },
+    ownerStatus: async input => {
+      assert.deepEqual(input, { targets, directory });
+      return { version: 1, ok: false, action: 'status', error: { code: 'operation-failed', message: 'not echoed' } };
+    },
+  });
+  await assert.rejects(runSmokeNativeGate({ argv }, fixture.ports), {
+    message: 'smoke-native: packaged owner-store status failed or profile was not empty',
+  });
+  assert.equal(cleaned, true);
+  assert.equal(fixture.out.join('').includes('not echoed'), false);
+});
+
+test('owner-store adapter reuses the CLI transport and substitutes the shipped executable', async () => {
+  const directory = path.resolve('isolated gate');
+  const targets = { executablePath: path.join(directory, 'Tovu.exe'), nodeModulesDir: path.join(directory, 'resources', 'tovu', 'node_modules') };
+  const fakeSecret = ['fixture', 'not-in-child-env', String(123)].join('-');
+  let inputSeen: unknown;
+  let optionsSeen: OwnerStoreCliOptions | undefined;
+  let spawnSeen: unknown;
+  const reply = await runPackagedOwnerStoreStatus({ targets, directory }, {
+    env: { PATH: '/os-bin', NODE_PATH: '/checkout/node_modules', TOVU_CONTENT_DB: '/real/content.db', API_KEY: fakeSecret },
+    runCli: async (input, options) => { inputSeen = input; optionsSeen = options; return OWNER_OK; },
+    spawnFn: ((command, args, options) => { spawnSeen = { command, args, options }; return {} as never; }),
+  });
+  assert.deepEqual(reply, OWNER_OK);
+  assert.deepEqual(inputSeen, { repoRoot: path.dirname(targets.nodeModulesDir), userDataDir: path.join(directory, 'owner-profile'), action: 'status', fields: {} });
+  assert.equal(optionsSeen!.cliMode, 'compiled');
+  assert.equal(optionsSeen!.baseEnv!.HOME, directory);
+  assert.equal(optionsSeen!.baseEnv!.APPDATA, directory);
+  assert.equal(optionsSeen!.baseEnv!.NODE_PATH, '');
+  assert.equal(optionsSeen!.baseEnv!.TOVU_CONTENT_DB, undefined);
+  assert.equal(JSON.stringify(optionsSeen!.baseEnv).includes(fakeSecret), false);
+  const args = ['payload/cli.js', 'owner-store', 'status', '--json'];
+  optionsSeen!.spawnFn!('runner-node', args, { stdio: ['pipe', 'pipe', 'pipe'], env: optionsSeen!.baseEnv });
+  assert.deepEqual(spawnSeen, { command: targets.executablePath, args,
+    options: { stdio: ['pipe', 'pipe', 'pipe'], env: optionsSeen!.baseEnv, cwd: directory } });
 });

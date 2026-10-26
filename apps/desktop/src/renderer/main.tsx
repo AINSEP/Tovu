@@ -11,6 +11,7 @@ import { mountRenderer } from './mount-renderer.js';
 // `SitesFolders.tsx` so that module stays loadable (and testable) outside Vite.
 import '@jini-ai/ui/tabbed-dialog.css';
 import './app.css';
+import './SharedKeys.css';
 
 mountRenderer({
   document,
