@@ -131,10 +131,12 @@ test("a new branch: no base_tree, no parents, ref CREATED; a 422 on create is a 
   const result = await createSiteCommitter(created.kit)({ ...INPUT, branch: "fresh" });
   assert.equal(result.ok, true);
   assert.equal(result.branchCreated, true);
+  assert.deepEqual([result.filesDeleted, result.divergedPaths], [0, []]);
   assert.equal("base_tree" in treeBody(created.calls), false);
   assert.deepEqual(JSON.parse(created.calls.find((c) => c.url === `${API}/git/commits`).body).parents, []);
   const refCall = created.calls.find((c) => c.url.startsWith(`${API}/git/refs`));
   assert.deepEqual([refCall.method, refCall.url, JSON.parse(refCall.body)], ["POST", `${API}/git/refs`, { ref: "refs/heads/fresh", sha: "c1" }]);
+  assert.equal(refCall.headers["Content-Type"], "application/json");
 
   const refused = kitWith({ ref: json(404, {}), refWrite: json(422, { message: "Reference already exists" }) });
   assert.deepEqual(await createSiteCommitter(refused.kit)({ ...INPUT, branch: "fresh" }), { ok: false, code: "provider-error", message: "Reference already exists" });
@@ -147,4 +149,15 @@ test("an update: 422 is 'diverged'; any other failure (500) is a provider error"
   assert.deepEqual([refCall.method, refCall.url, JSON.parse(refCall.body)], ["PATCH", `${API}/git/refs/heads/main`, { sha: "c1" }]);
   const broken = kitWith({ refWrite: json(500, {}) });
   assert.deepEqual(await createSiteCommitter(broken.kit)(INPUT), { ok: false, code: "provider-error", message: "GitHub branch update failed (500)." });
+});
+
+test("a non-string sha in a blob or parent-tree answer is refused, never carried into the commit", async () => {
+  const blobKit = kitWith({ ref: json(404, {}) });
+  const realFetch = blobKit.kit.fetch;
+  blobKit.kit.fetch = async (url, init) => (url === `${API}/git/blobs` ? json(201, { sha: 5 }) : realFetch(url, init));
+  assert.deepEqual(await createSiteCommitter(blobKit.kit)({ ...INPUT, branch: "fresh" }), { ok: false, code: "provider-error", message: "GitHub blob creation response did not include a sha" });
+  const treeKit = kitWith({});
+  const treeFetch = treeKit.kit.fetch;
+  treeKit.kit.fetch = async (url, init) => (url.startsWith(`${API}/git/commits/`) ? json(200, { tree: { sha: 5 } }) : treeFetch(url, init));
+  assert.deepEqual(await createSiteCommitter(treeKit.kit)(INPUT), { ok: false, code: "provider-error", message: "GitHub parent-commit response did not include a tree sha" });
 });
