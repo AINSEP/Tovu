@@ -8,6 +8,8 @@ description: Connect the site to PostHog product analytics. Use when the person 
 Tovu sends product analytics through its PostHog provider plugin, `analytics-posthog`. This plugin
 only knows how to set it up; it holds no key and runs no code.
 
+It is part of `analytics-posthog` and turns on and off with it: there is no separate switch for this plugin.
+
 ## Set it up
 
 1. Check status: `provider_status {pluginId:"analytics-posthog"}`.

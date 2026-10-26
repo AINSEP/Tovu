@@ -8,6 +8,8 @@ description: Connect the site's error tracking to Sentry. Use when the person sa
 Tovu reports errors through its Sentry provider plugin, `observability-sentry`. This plugin only
 knows how to set it up; it holds no key and runs no code.
 
+It is part of `observability-sentry` and turns on and off with it: there is no separate switch for this plugin.
+
 ## Set it up
 
 1. Check status: `provider_status {pluginId:"observability-sentry"}`.

@@ -37,6 +37,8 @@
  */
 
 import { createTovuAgentPluginLifecycle } from "./lifecycle.js";
+import { AgentPluginLinkedError, bindProviderFacePorts, linkedProviderOf, type ProviderFacePorts } from "./provider-plugin-link.js";
+export { AgentPluginLinkedError } from "./provider-plugin-link.js";
 import type { SetAgentPluginEnabledResult } from "@jini-ai/agent-plugins/lifecycle";
 export { AgentPluginNotInstalledError } from "@jini-ai/agent-plugins/lifecycle";
 export type { SetAgentPluginEnabledResult } from "@jini-ai/agent-plugins/lifecycle";
@@ -46,6 +48,7 @@ export type { SetAgentPluginEnabledInput } from '../../contracts/headless/plugin
 /**
  * Records an operator's enable/disable decision for one installed Agent Plugin.
  *
+ * @throws {AgentPluginLinkedError} The id is a provider plugin's face; that plugin's switch decides.
  * @throws {AgentPluginNotInstalledError} The id is not installed in this workspace. Nothing is
  * written, so no activation record can exist for a package that does not.
  * @throws {Error} If `pluginId` does not match the Agent Plugins name grammar (re-asserted
@@ -56,7 +59,11 @@ export type { SetAgentPluginEnabledInput } from '../../contracts/headless/plugin
 // A stable owner context per booted layout preserves its queues without selecting a site again.
 const lifecycles = new WeakMap<import("./layout.js").AgentPluginLayout, ReturnType<typeof createTovuAgentPluginLifecycle>>();
 
-export function setAgentPluginEnabled(input: SetAgentPluginEnabledInput, _options: Record<string, never> = {}): Promise<SetAgentPluginEnabledResult> {
+export async function setAgentPluginEnabled(input: SetAgentPluginEnabledInput, options: { readonly links?: Pick<ProviderFacePorts, "links"> } = {}): Promise<SetAgentPluginEnabledResult> {
+  // A provider plugin's assistant face has no switch of its own (`provider-plugin-link.ts`).
+  const links = options.links ?? bindProviderFacePorts({ workspaceRoot: () => input.agentPluginLayout.forWorkspace(input.workspaceId).root });
+  const providerPluginId = await linkedProviderOf({ ports: links, pluginId: input.pluginId });
+  if (providerPluginId !== undefined) throw new AgentPluginLinkedError({ pluginId: input.pluginId, providerPluginId });
   let lifecycle = lifecycles.get(input.agentPluginLayout);
   if (!lifecycle) {
     lifecycle = createTovuAgentPluginLifecycle({ layout: input.agentPluginLayout });

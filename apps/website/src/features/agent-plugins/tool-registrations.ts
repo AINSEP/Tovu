@@ -850,7 +850,7 @@ export const agentPluginSearchAgentToolCatalog: AgentToolDefinition[] = [
 /** A search candidate whose identity was read from the installed `plugin.json`: `readPluginIdentity`
  *  always yields an `id` and a `provides` list, so this loader's callers never need a fallback for
  *  either (the shared `AgentPluginSearchCandidate` type leaves both optional for other producers). */
-export type IdentifiedAgentPluginSearchCandidate = AgentPluginSearchCandidate & { readonly id: string; readonly provides: readonly string[]; readonly maturity?: PluginMaturity };
+export type IdentifiedAgentPluginSearchCandidate = AgentPluginSearchCandidate & { readonly id: string; readonly provides: readonly string[]; readonly maturity?: PluginMaturity; readonly providerPlugin?: string };
 
 export async function loadAgentPluginSearchCandidates(ctx: { readonly workspaceId: string; readonly agentPluginLayout: AgentPluginLayout }, _optional = {}): Promise<readonly IdentifiedAgentPluginSearchCandidate[]> {
   const workspaceLayout = ctx.agentPluginLayout.forWorkspace(ctx.workspaceId);
@@ -1065,6 +1065,7 @@ async function buildSearchCandidate(
     ...(plugin.description !== undefined ? { description: plugin.description } : {}),
     id: identity.id,
     ...(identity.maturity ? { maturity: identity.maturity } : {}),
+    ...(identity.providerPlugin ? { providerPlugin: identity.providerPlugin } : {}),
     provides: identity.provides,
     keywords: identity.keywords,
     enabled: isAgentPluginActive({ activations: activations, pluginId: plugin.pluginId }),

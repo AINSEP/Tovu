@@ -10,6 +10,7 @@
       "displayName": "OpenTelemetry",
       "summary": "Sends your site's traces to Grafana Cloud, Honeycomb or any OpenTelemetry backend.",
       "id": "tovu/opentelemetry",
+      "providerPlugin": "observability-opentelemetry",
       "provides": [
         "observability",
         "tracing"

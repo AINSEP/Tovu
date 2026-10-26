@@ -4,6 +4,7 @@ import { reconcileInterruptedMigrationOnBoot } from "#src/features/database/boot
 import { seedBundledAgentPlugins } from "../../../features/agent-plugins/lifecycle.js";
 import { importAgentPluginAccessToken, importAgentPluginAccessTokensFromEnv } from "#src/features/agent-plugins/import-access-token";
 import { applyAgentPluginToolRenames } from "#src/features/agent-plugins/apply-tool-renames";
+import { bindProviderFacePorts, syncProviderFaces } from "#src/features/agent-plugins/provider-plugin-link";
 import { notifyExternalMcpRosterChanged } from "#src/assistant/index";
 import type { BootModule, BootResult } from "../lifecycle/boot-lifecycle.js";
 import { bundledAgentPluginsDir } from "../composition/deps.js";
@@ -30,6 +31,21 @@ const noop = async (): Promise<void> => {};
 /* eslint-disable no-console */
 const tokenImportLog = { info: (message: string) => console.info(message), warn: (message: string) => console.warn(message) };
 /* eslint-enable no-console */
+
+/** One vendor, one switch (`provider-plugin-link.ts`): after seeding, each agent plugin that is a
+ *  provider plugin's face follows that plugin's switch — so a face seeded inactive, or one whose mirror
+ *  write failed, is right from this start. A failure is logged; the provider plugins still load. */
+async function syncProviderFacesAtBoot(deps: NewsletterRouteDeps): Promise<void> {
+  try {
+    await syncProviderFaces({
+      ports: bindProviderFacePorts({ workspaceRoot: () => deps.agentPluginLayout.forWorkspace(deps.workspaceId).root }),
+      providerEnabled: async ({ pluginId }) => (await deps.pluginActivationRepo.getActivation({ workspaceId: deps.workspaceId, pluginId }))?.enabled === true,
+    });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.warn(`[bundled-agent-plugins] provider plugin faces could not be synced; the next start retries: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
 
 /** The three steps of {@link importAgentPluginTokensAtBoot}, injectable for tests. */
 export interface AgentPluginTokenBootSteps {
@@ -238,6 +254,7 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
           console.warn(`[bundled-agent-plugins] the bundled-digest ledger could not be written: ${result.ledgerFailure}`);
         }
         logBundledPluginRetirements({ retirements: result.retirements });
+        await syncProviderFacesAtBoot(deps);
         await importAgentPluginTokensAtBoot(deps, options);
         // A vendor's tool rename (`tovuRenamedTools` in a plugin's `mcp.json`) follows onto the rows
         // that plugin provisioned, so a saved selection never names a tool the server stopped offering.

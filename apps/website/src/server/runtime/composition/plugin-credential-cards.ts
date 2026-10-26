@@ -4,6 +4,7 @@ import { parseDeployTargetsFile } from '#src/features/deployments/deploy-targets
 import { parseSourceControlProvidersFile } from '#src/features/source-control/provider-registry';
 import { parseMailAdaptersFile } from '#src/features/agent-plugins/mail-adapter-registry';
 import type { AgentPluginLayout } from '#src/features/agent-plugins/layout';
+import { readProviderPluginLink } from '#src/features/agent-plugins/identity';
 import type { LoadPluginCredentialCards, PluginCredentialCard } from '#src/features/custom-credentials/plugin-credential-card';
 
 type ReadFile = (required: { plugin: TrustedPluginPackage; filename: string }, optional?: Record<string, never>) => Promise<string>;
@@ -12,6 +13,8 @@ type ReadFile = (required: { plugin: TrustedPluginPackage; filename: string }, o
  * Cross-plugin label conflicts are refused by the existing merge. O(descriptors); no modules execute.
  */
 async function ownsDestination({ plugin, card, readFile }: { plugin: TrustedPluginPackage; card: PluginCredentialCard; readFile: ReadFile }, _options = {}): Promise<boolean> {
+  // A provider settings card writes only the provider plugin this agent plugin declares itself the face of.
+  if (card.saveKind === 'provider-settings') return card.saveTarget !== undefined && card.saveTarget === await linkedProviderOf({ plugin, readFile });
   const identities = await readOwnedIdentities({ plugin, readFile });
   if (card.saveTarget !== undefined && !identities.has(card.saveTarget)) return false;
   if ((card.saveKind === undefined || card.saveKind === 'api') && card.ownedApiLabel === card.label) return true;
@@ -43,6 +46,13 @@ export function createPluginCredentialCardsLoader({ agentPluginLayout, loadMailC
       return mailCards;
     }
   };
+}
+
+/** The provider plugin this agent plugin declares itself the face of (`identity.ts`), or undefined.
+ *  An unreadable manifest grants nothing. */
+async function linkedProviderOf({ plugin, readFile }: { plugin: TrustedPluginPackage; readFile: ReadFile }, _options = {}): Promise<string | undefined> {
+  try { return readProviderPluginLink({ manifest: JSON.parse(await readFile({ plugin, filename: 'plugin.json' })) }); }
+  catch { return undefined; }
 }
 
 /** Actual descriptors grant identity ownership; display text alone never does. O(descriptors). */

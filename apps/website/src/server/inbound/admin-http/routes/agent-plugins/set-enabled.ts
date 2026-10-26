@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 
 import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginHostIncompatibleError, AgentPluginUpdateError } from "@jini-ai/agent-plugins/lifecycle";
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from "#src/features/agent-plugins/federate-mcp";
-import { AgentPluginNotInstalledError, setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
+import { AgentPluginLinkedError, AgentPluginNotInstalledError, setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
 import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/tool-registrations";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -186,6 +186,11 @@ function sendSetEnabledError(res: Response, pluginId: string, error: unknown): v
   // (PLUGIN_UPDATE_PENDING): both conflicts with the installed state, never a 500.
   if (error instanceof AgentPluginHostIncompatibleError || error instanceof AgentPluginUpdateError) {
     res.status(409).json({ code: error.code, error: error.message });
+    return;
+  }
+  // A provider plugin's assistant face: its provider plugin's switch decides; nothing was written.
+  if (error instanceof AgentPluginLinkedError) {
+    res.status(409).json({ code: error.code, error: error.message, providerPluginId: error.providerPluginId });
     return;
   }
   if (error instanceof AgentPluginNotInstalledError) {

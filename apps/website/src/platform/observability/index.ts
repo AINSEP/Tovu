@@ -14,7 +14,7 @@ export { createNoopObservabilityPort };
  * @file Tovu's observability surface: Jini's vendor-neutral port, its no-op and its decorators.
  * Selection moved to provider plugins (provider wave 2, 2026-10-25): the real root
  * (`server/runtime/composition/deps.ts`) takes `observability` from
- * `server/runtime/composition/provider-plugins.ts` (installed + enabled + configured OTel/Sentry
+ * `server/runtime/composition/provider-plugins.ts` (installed + enabled + configured observability
  * plugins, fanned out; otherwise this no-op), so Tovu core loads no vendor SDK at all.
  *
  * The `observability` port (Constitution Article VIII) — now owned by Jini diagnostics.

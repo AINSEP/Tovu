@@ -693,3 +693,22 @@ test("AGENT_PLUGIN_SET_ENABLED: `req.params.pluginId ?? \"\"` fallback, forced v
     assert.deepEqual(Object.keys(persisted.plugins), [], "the empty id mints no activation record");
   });
 });
+
+test("AGENT_PLUGIN_SET_ENABLED: a provider plugin's assistant face has no switch of its own (409, nothing written)", async (t) => {
+  await withAgentPluginsDir(async () => {
+    await installReal("metrics", "seed-linked-face", { version: "1.0.0", extensions: { tovu: { id: "tovu/metrics", providerPlugin: "metrics-provider" } } });
+    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    await setAgentPluginActivation({ workspaceRoot, pluginId: "metrics", enabled: true, actor: "system:provider-plugin" });
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp().app, t);
+    for (const enabled of [false, true]) {
+      const response = await patch(baseUrl, cookie, "metrics", { enabled });
+      assert.equal(response.status, 409);
+      const body = await response.json();
+      assert.equal(body.code, "AGENT_PLUGIN_LINKED");
+      assert.equal(body.providerPluginId, "metrics-provider");
+      assert.match(body.error, /'metrics' is part of the 'metrics-provider' plugin/);
+    }
+    const record = (await readAgentPluginActivations({ workspaceRoot })).plugins.metrics;
+    assert.deepEqual([record?.enabled, record?.updatedBy], [true, "system:provider-plugin"], "the face still follows its provider plugin");
+  });
+});
