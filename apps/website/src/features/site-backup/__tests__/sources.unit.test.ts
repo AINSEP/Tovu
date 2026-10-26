@@ -393,7 +393,7 @@ test("a host that declares no per-file limit gets no per-file check, only this t
 });
 
 test("a disk file over the host's per-file limit is left out and named in skipped with its size; exactly the limit stays", () => {
-  const file = (filePath: string, bytes: number) => ({ path: filePath, root: "/site", absPath: `/site/${filePath}`, bytes, mtimeMs: 1, identity: null, scope: "media" as const });
+  const file = (filePath: string, bytes: number) => ({ path: filePath, root: "/site", absPath: `/site/${filePath}`, bytes, mtimeMs: 1, identity: null, nlink: 1, scope: "media" as const });
   const result = skipOversizedFiles([file("uploads/a.png", 10), file("uploads/movie.mp4", GITHUB_HOST.maxFileBytes + 1), file("uploads/b.png", GITHUB_HOST.maxFileBytes)], GITHUB_HOST);
   assert.deepEqual(result.files.map((f) => f.path), ["uploads/a.png", "uploads/b.png"]);
   assert.deepEqual(result.skipped, [{ path: "uploads/movie.mp4", reason: "100 MiB, over GitHub's 100 MiB per-file limit" }]);
@@ -516,8 +516,8 @@ function fixtureReadFileSystem(handle: SiteBackupReadHandle, overrides: Partial<
   };
 }
 
-function fixtureEntry(entry: { ino: bigint; link?: boolean; directory?: boolean }) {
-  return { isDirectory: () => entry.directory ?? true, isSymbolicLink: () => entry.link ?? false, dev: 1n, ino: entry.ino };
+function fixtureEntry(entry: { ino: bigint; link?: boolean; directory?: boolean; nlink?: bigint }) {
+  return { isDirectory: () => entry.directory ?? true, isSymbolicLink: () => entry.link ?? false, dev: 1n, ino: entry.ino, nlink: entry.nlink ?? 1n };
 }
 
 /** A handle's overloaded `stat`: plain numbers for size/mtime, bigint `dev`/`ino` when asked. */
@@ -533,7 +533,7 @@ function fixtureHandle(stat: { ino: bigint }, log: string[] = []): SiteBackupRea
   };
 }
 
-const fixtureFile = (absPath: string, root = "/fixture", identity: string | null = "1:7") => ({ path: "themes/index.html", root, absPath, scope: "themes" as const, bytes: 6, mtimeMs: 12, identity });
+const fixtureFile = (absPath: string, root = "/fixture", identity: string | null = "1:7") => ({ path: "themes/index.html", root, absPath, scope: "themes" as const, bytes: 6, mtimeMs: 12, identity, nlink: 1 });
 const FIXTURE_PATH = path.join("/fixture", "a", "index.html");
 const STALE_FIXTURE = { ok: false, message: "'themes/index.html' changed since the plan was made. Call site_backup_plan again." };
 
@@ -544,10 +544,10 @@ test("an unchanged file under real folders reads through the fake filesystem", a
   assert.deepEqual(log, ["read", "closed"]);
 });
 
-test("a planned file is opened read-only, without following a last-name link, and non-blocking", { skip: process.platform === "win32" && "Windows has neither flag" }, async () => {
+test("a planned file is opened read-only, without following a last-name link, non-blocking, and never as a controlling terminal", { skip: process.platform === "win32" && "Windows has none of these flags" }, async () => {
   const fileSystem = fixtureReadFileSystem(fixtureHandle({ ino: 7n }));
   await readPlannedFile(fixtureFile(FIXTURE_PATH), { fileSystem });
-  assert.deepEqual(fileSystem.flags, [fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW | fsConstants.O_NONBLOCK]);
+  assert.deepEqual(fileSystem.flags, [fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW | fsConstants.O_NONBLOCK | fsConstants.O_NOCTTY]);
 });
 
 test("a planned file that is now not a regular file (a FIFO, a device) is refused before any read", async () => {
@@ -613,6 +613,29 @@ test("a folder that vanishes during the post-open walk fails closed", async () =
   const fileSystem = fixtureReadFileSystem(fixtureHandle({ ino: 7n }, log), {
     lstat: async () => { throw Object.assign(new Error("gone"), { code: "ENOENT" }); },
   });
+  assert.deepEqual(await readPlannedFile(fixtureFile(FIXTURE_PATH), { fileSystem }), STALE_FIXTURE);
+  assert.deepEqual(log, ["closed"]);
+});
+
+test("an opened file that matches the plan's identity but is not the file the walk reaches is refused", async () => {
+  // A plan that raced an ancestor swap holds an outside file's identity (1:99). The read opens that file
+  // through a link, then the ancestor flips back: the walk reaches the site's own single-named file (1:7).
+  const log: string[] = [];
+  const fileSystem = fixtureReadFileSystem(fixtureHandle({ ino: 99n }, log));
+  assert.deepEqual(await readPlannedFile(fixtureFile(FIXTURE_PATH, "/fixture", "1:99"), { fileSystem }), STALE_FIXTURE);
+  assert.deepEqual(log, ["closed"]);
+});
+
+test("a file already hardlinked at plan time (a backup may hold one) still reads while it has no new name", async () => {
+  const log: string[] = [];
+  const fileSystem = fixtureReadFileSystem(fixtureHandle({ ino: 7n }, log), { lstat: async () => fixtureEntry({ ino: 7n, nlink: 2n }) });
+  assert.deepEqual(await readPlannedFile({ ...fixtureFile(FIXTURE_PATH), nlink: 2 }, { fileSystem }), { ok: true, bytes: Buffer.from("<html>") });
+  assert.deepEqual(log, ["read", "closed"]);
+});
+
+test("a planned file that gained a name since the plan is refused and nothing is read", async () => {
+  const log: string[] = [];
+  const fileSystem = fixtureReadFileSystem(fixtureHandle({ ino: 7n }, log), { lstat: async () => fixtureEntry({ ino: 7n, nlink: 2n }) });
   assert.deepEqual(await readPlannedFile(fixtureFile(FIXTURE_PATH), { fileSystem }), STALE_FIXTURE);
   assert.deepEqual(log, ["closed"]);
 });
@@ -827,6 +850,25 @@ test("a scope root renamed away and replaced by a look-alike folder after the pl
   renameSync(site.sources.themesDir, `${site.sources.themesDir}-moved`);
   write(planned.absPath, "SECRET");
   utimesSync(planned.absPath, at, at);
+  assert.deepEqual(await readPlannedFile(planned), { ok: false, message: `'${planned.path}' changed since the plan was made. Call site_backup_plan again.` });
+});
+
+test("a plan that raced an ancestor swap and recorded an outside file's identity still cannot read it through a hardlink", async (t) => {
+  // The plan's lstat went through an ancestor flipped to a link for that instant, so the plan holds the
+  // outside file's own identity, size and mtime. After the plan a hardlink of it sits at the planned
+  // path under real folders: identity, size, mtime and the path walk all match. Only its extra name shows.
+  const site = makeSite();
+  const outside = mkdtempSync(path.join(tmpdir(), "backup-raced-plan-"));
+  t.after(() => { site.cleanup(); rmSync(outside, { recursive: true, force: true }); });
+  const target = path.join(site.sources.themesDir, "static", "demo", "index.html");
+  const secret = path.join(outside, "index.html");
+  writeFileSync(secret, "SECRET");
+  const raced = { ...walkFileSystem, lstat: (file: string) => lstat(file === target ? secret : file), lstatBigInt: (file: string) => lstat(file === target ? secret : file, { bigint: true }) };
+  const { files } = await collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, themes: true } }, { fileSystem: raced });
+  const planned = files.find((file) => file.path === "themes/static/demo/index.html");
+  assert.ok(planned);
+  unlinkSync(target);
+  linkSync(secret, target);
   assert.deepEqual(await readPlannedFile(planned), { ok: false, message: `'${planned.path}' changed since the plan was made. Call site_backup_plan again.` });
 });
 

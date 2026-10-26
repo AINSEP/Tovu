@@ -104,6 +104,9 @@ export interface PlannedDiskFile {
   /** The planned file's {@link fileIdentity}: the opened handle must be this very file. `null` when
    *  the filesystem reports no inode number, and then only the path checks prove it. */
   readonly identity: string | null;
+  /** The planned file's link count. At push time the file reached may have gained no other name: an
+   *  outside file reached through a hardlink in the site always has one more name than the plan saw. */
+  readonly nlink: number;
 }
 
 export interface SkippedSiteBackupFile {
@@ -203,7 +206,7 @@ async function addFile(sink: WalkSink, input: { root: string; absPath: string; r
   }
   const ids = await unlessMissing(sink.fileSystem.lstatBigInt(input.absPath));
   if (ids === null) return;
-  sink.files.push({ path: input.relPath, bytes: info.size, scope: input.scope, root: input.root, absPath: input.absPath, mtimeMs: info.mtimeMs, identity: fileIdentity(ids) });
+  sink.files.push({ path: input.relPath, bytes: info.size, scope: input.scope, root: input.root, absPath: input.absPath, mtimeMs: info.mtimeMs, identity: fileIdentity(ids), nlink: info.nlink });
 }
 
 /**
@@ -545,16 +548,17 @@ export interface SiteBackupReadHandle {
 /** The filesystem calls a push-time read makes; injectable so the swap races can be staged. */
 export interface SiteBackupReadFileSystem {
   readonly open: (file: string, flags: number) => Promise<SiteBackupReadHandle>;
-  readonly lstat: (file: string) => Promise<Pick<BigIntStats, "isDirectory" | "isSymbolicLink" | "dev" | "ino">>;
+  readonly lstat: (file: string) => Promise<Pick<BigIntStats, "isDirectory" | "isSymbolicLink" | "dev" | "ino" | "nlink">>;
   readonly realpath: (file: string) => Promise<string>;
 }
 
 const READ_FILE_SYSTEM: SiteBackupReadFileSystem = { open, lstat: (file) => lstat(file, { bigint: true }), realpath };
 
-/** `O_NOFOLLOW` and `O_NONBLOCK` where the platform has them (Windows has neither). `O_NONBLOCK` so a
- *  FIFO swapped in after the plan opens at once instead of hanging the push waiting for a writer; it
- *  then fails the regular-file check. Regular files ignore it. */
-const READ_FLAGS = fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0) | (fsConstants.O_NONBLOCK ?? 0);
+/** `O_NOFOLLOW`, `O_NONBLOCK` and `O_NOCTTY` where the platform has them (Windows has none). `O_NONBLOCK`
+ *  so a FIFO swapped in after the plan opens at once instead of hanging the push waiting for a writer;
+ *  it then fails the regular-file check. `O_NOCTTY` so a terminal reached through a swapped ancestor
+ *  never becomes the server's controlling terminal. Regular files ignore both. */
+const READ_FLAGS = fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0) | (fsConstants.O_NONBLOCK ?? 0) | (fsConstants.O_NOCTTY ?? 0);
 
 /**
  * Reads a planned file at push time, refusing it if it is no longer the file the human reviewed.
@@ -565,9 +569,11 @@ const READ_FLAGS = fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0) | (fsCon
  * ancestor (or the root) being swapped for a link and back around the open. What closes every such
  * swap, and a hardlink to another file put in the planned file's place, is identity: the opened handle
  * must be the very device+inode the plan recorded ({@link PlannedDiskFile.identity}). After the open,
- * {@link walkPlannedPath} also proves the path still runs through real folders to that same file; on a
- * filesystem with no inode numbers that walk is the only proof left. Anything that cannot be proven
- * fails closed as stale.
+ * {@link walkPlannedPath} also proves the path still runs through real folders to that same file, and
+ * that the file gained no name since the plan: a plan whose own lstat raced an ancestor swap can hold an
+ * outside file's identity, and that file can only sit under real site folders through an extra
+ * hardlink. On a filesystem with no inode numbers the walk is the only proof left. Anything that cannot
+ * be proven fails closed as stale.
  *
  * @complexity O(file size + path depth) — one open, two fstats, one walk of O(depth) `lstat`s and two
  *   `realpath`s, one read.
@@ -592,7 +598,8 @@ export async function readPlannedFile(file: PlannedDiskFile, optional: { fileSys
 
 /**
  * The handle is a regular file with the plan's size and mtime, it is the planned file itself (when the
- * plan has an identity), and a walk after the open reaches this same file through real folders.
+ * plan has an identity), and a walk after the open reaches this same file, with no new name, through
+ * real folders.
  *
  * @complexity O(path depth) — see {@link walkPlannedPath}.
  */
@@ -604,10 +611,10 @@ async function openedIsPlanned(required: { file: PlannedDiskFile; fileSystem: Si
   if (file.identity !== null && opened !== file.identity) return false;
   const reached = await walkPlannedPath({ file, fileSystem: required.fileSystem });
   // Both `null` only on a filesystem with no inode numbers: the walk's path proof is all there is.
-  return reached !== null && reached.leaf === opened;
+  return reached !== null && reached.leaf === opened && reached.nlink <= file.nlink;
 }
 
-type PlannedPathProof = { leaf: string | null };
+type PlannedPathProof = { leaf: string | null; nlink: number };
 
 /**
  * Proves `file.absPath` is still a plain path below `file.root`: every folder in between is a real
@@ -626,16 +633,16 @@ async function walkPlannedPath(required: { file: PlannedDiskFile; fileSystem: Si
     const leaf = await lstatEachName({ root: file.root, names: relative.split(path.sep), fileSystem });
     if (leaf === null) return null;
     const realPath = path.join(await fileSystem.realpath(file.root), relative);
-    return (await fileSystem.realpath(file.absPath)) === realPath ? { leaf: fileIdentity(leaf) } : null;
+    return (await fileSystem.realpath(file.absPath)) === realPath ? { leaf: fileIdentity(leaf), nlink: Number(leaf.nlink) } : null;
   } catch {
     return null;
   }
 }
 
 /** The last name's `lstat` once no name is a link and every earlier one is a directory; else `null`. O(names). */
-async function lstatEachName(required: { root: string; names: readonly string[]; fileSystem: SiteBackupReadFileSystem }): Promise<Pick<BigIntStats, "dev" | "ino"> | null> {
+async function lstatEachName(required: { root: string; names: readonly string[]; fileSystem: SiteBackupReadFileSystem }): Promise<Pick<BigIntStats, "dev" | "ino" | "nlink"> | null> {
   let current = required.root;
-  let info: Pick<BigIntStats, "dev" | "ino"> | null = null;
+  let info: Pick<BigIntStats, "dev" | "ino" | "nlink"> | null = null;
   for (const [index, name] of required.names.entries()) {
     current = path.join(current, name);
     const entry = await required.fileSystem.lstat(current);

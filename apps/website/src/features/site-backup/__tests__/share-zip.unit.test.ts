@@ -46,7 +46,7 @@ function diskFile(t: TestContext, relative: string, content: string): PlannedDis
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const absPath = path.join(dir, "file");
   fs.writeFileSync(absPath, content);
-  return { path: relative, bytes: Buffer.byteLength(content), scope: "themes", root: dir, absPath, mtimeMs: fs.statSync(absPath).mtimeMs, identity: fileIdentity(fs.statSync(absPath, { bigint: true })) };
+  return { path: relative, bytes: Buffer.byteLength(content), scope: "themes", root: dir, absPath, mtimeMs: fs.statSync(absPath).mtimeMs, identity: fileIdentity(fs.statSync(absPath, { bigint: true })), nlink: 1 };
 }
 const sha = (bytes: Buffer): string => createHash("sha256").update(bytes).digest("hex");
 const relativePaths = (args: ZipArgs): string[] => args.files.map(file => (file as File & { webkitRelativePath?: string }).webkitRelativePath ?? `(none) ${file.name}`);
