@@ -245,3 +245,33 @@ test("a resolved saved credential maps to a card; no row means not configured", 
   assert.deepEqual(providerPluginCredentialOf({ resolved: { baseUrl: "https://c", connection: { token: "t" } } }), { baseUrl: "https://c", token: "t" });
   assert.deepEqual(providerPluginCredentialOf({ resolved: { baseUrl: "https://c", connection: { token: "t", username: "u" } } }), { baseUrl: "https://c", token: "t", username: "u" });
 });
+
+test("a retired lease is never called again: after disable every contract's composed port is inert (noop)", async () => {
+  const seen: string[] = [];
+  const calls: Calls = { inputs: [], disposed: 0 };
+  const sinkEvents: unknown[] = [];
+  const analytics: ProductAnalyticsPort = { capture: (event) => { seen.push(`capture:${event.name}`); }, identify: () => { seen.push("identify"); } };
+  const { runtime } = fakeRuntime({ installed: ["observability-sentry", "analytics-posthog", "ai-trace-langfuse"], factories: {
+    "observability-sentry": { contract: "observability", id: "sentry", factory: fakeFactory({ calls, port: recordingObservability(seen) }) },
+    "analytics-posthog": { contract: "product_analytics", id: "posthog", factory: fakeFactory({ calls, port: analytics }) },
+    "ai-trace-langfuse": { contract: "ai_trace", id: "langfuse", factory: fakeFactory({ calls, port: { record: (event: unknown) => { sinkEvents.push(event); } } }) },
+  } });
+  const ports = await bootProviderPlugins({ runtime, readCredential: readCards(CARDS), serviceName: "tovu", ...consentAlways }, { warn: quiet });
+  const event = { kind: "run_finished", traceId: "t", at: 0, outcome: "succeeded", error: null, totals: { turns: 0, toolCalls: 0, toolErrors: 0, inputTokens: null, outputTokens: null, costUsd: null } } as const;
+  ports.observability.trackOperation({ name: "before" }).end({ outcome: "ok" });
+  ports.productAnalytics.capture({ name: "before", userId: "p-1" });
+  ports.aiTraceSink!.record(event);
+  assert.deepEqual(seen, ["op:before", "capture:before"]);
+  assert.equal(sinkEvents.length, 1);
+  for (const pluginId of ["observability-sentry", "analytics-posthog", "ai-trace-langfuse"]) runtime.providerContributions.detach({ pluginId });
+  // Synchronously after detach — before the host's queued disposal — the lease is already not current.
+  ports.observability.trackOperation({ name: "after" }).end({ outcome: "ok" });
+  ports.observability.reportError({ error: new Error("x"), context: { operation: "after" } } as never);
+  ports.productAnalytics.capture({ name: "after", userId: "p-1" });
+  ports.productAnalytics.identify({ userId: "p-1" });
+  ports.aiTraceSink!.record(event);
+  await ports.aiTraceSink!.flush?.();
+  assert.deepEqual(seen, ["op:before", "capture:before"]);
+  assert.equal(sinkEvents.length, 1);
+  await ports.dispose({});
+});

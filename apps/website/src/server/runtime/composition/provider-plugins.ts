@@ -1,4 +1,4 @@
-import { combineObservabilityPorts, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import { combineObservabilityPorts, createNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 import { createNoopProductAnalytics, withProductAnalyticsGuards, type ProductAnalyticsConsent, type ProductAnalyticsConsentRevision, type ProductAnalyticsPort } from "@jini-ai/analytics/product";
 import { createFanOutAiTraceSink, type AiTraceSink } from "@jini-ai/agent-runtime/ai-trace";
 import { createPluginProviderHost, type PluginContributionRegistry, type PluginProviderContract, type PluginProviderLease } from "@jini-ai/plugins/host";
@@ -18,7 +18,7 @@ import { createPluginProviderHost, type PluginContributionRegistry, type PluginP
  * Order: initialized (awaited, each bounded by the provider host's timeout) before the composition
  * root decorates kernels and HTTP clients, so application work never starts on a half-built port.
  * Disposed with the site store. Disabling or quarantining a provider plugin retires its contribution
- * generation, which disposes its resources; its port then goes inert until the next boot.
+ * generation, which disposes its resources; its port then goes inert (`gatedPort`) until the next boot.
  */
 
 /** One saved secure-card credential, as the custom credentials store resolves it. */
@@ -127,6 +127,28 @@ function fanOutProductAnalytics({ ports }: { ports: readonly ProductAnalyticsPor
   return { capture: (event) => each((port) => port.capture(event)), identify: (identity) => each((port) => port.identify(identity)) };
 }
 
+/** Each contract's inert behavior, used once a lease is retired. */
+const NOOP_PORTS: Readonly<Record<ProviderContract, () => object>> = {
+  observability: () => createNoopObservabilityPort({}),
+  product_analytics: () => createNoopProductAnalytics({}),
+  ai_trace: (): AiTraceSink => ({ record() {}, flush: async () => {}, shutdown: async () => {} }),
+};
+
+/**
+ * Disable/quarantine retires a lease and disposes its resources, but composed ports were built at
+ * boot: every call re-checks `isCurrent()` first so a retired lease admits no new work (Jini's lease
+ * contract) and the call takes the contract's noop path instead. Methods the port lacks (e.g. an AI
+ * trace sink without `flush`) take the noop path too.
+ */
+function gatedPort({ lease, contract }: { lease: PluginProviderLease; contract: ProviderContract }): unknown {
+  const noop = NOOP_PORTS[contract]() as Record<string, (...args: unknown[]) => unknown>;
+  const port = lease.port as Record<string, unknown>;
+  return Object.fromEntries(Object.keys(noop).map((name) => [name, (...args: unknown[]) => {
+    const live = port[name];
+    return lease.isCurrent({}) && typeof live === "function" ? live.apply(port, args) : noop[name]!(...args);
+  }]));
+}
+
 function composePorts({ leases, consent, consentRevision }: { leases: ReadonlyMap<ProviderContract, unknown[]>; consent: ProductAnalyticsConsent; consentRevision: ProductAnalyticsConsentRevision }) {
   const analytics = (leases.get("product_analytics") ?? []) as ProductAnalyticsPort[];
   const sinks = (leases.get("ai_trace") ?? []) as AiTraceSink[];
@@ -159,7 +181,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
     const lease: PluginProviderLease | undefined = await host.initialize({ contract: binding.contract, id: binding.id, input: binding.input({ credential, serviceName: required.serviceName }) })
       // Class only: an SDK's construction error can quote the endpoint or DSN it was given.
       .catch((error: unknown) => { warn(`provider plugin '${binding.pluginId}' did not initialize: ${error instanceof Error ? error.name : typeof error}`); return undefined; });
-    if (lease) leases.set(binding.contract, [...(leases.get(binding.contract) ?? []), lease.port]);
+    if (lease) leases.set(binding.contract, [...(leases.get(binding.contract) ?? []), gatedPort({ lease, contract: binding.contract })]);
   }
   return { ...composePorts({ leases, consent: required.consent, consentRevision: required.consentRevision }), dispose: () => host.dispose({}) };
 }
