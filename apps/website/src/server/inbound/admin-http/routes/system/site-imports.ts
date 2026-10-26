@@ -5,7 +5,7 @@ import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-gua
 import { parseSiteImportInput } from "#src/features/site-backup/import-backend";
 import { SHARE_LIMITS, SiteShareRefusal } from "#src/features/site-backup/share-policy";
 
-type Deps = Pick<RouteDeps, "workspaceId" | "authorize" | "siteImportBackend">;
+type Deps = Pick<RouteDeps, "workspaceId" | "authorize" | "siteImportBackend" | "productAnalytics">;
 
 /** Upload stall limits: a whole-upload deadline and a per-socket idle timeout, either of which
  * destroys the request so a stalled client cannot hold the single upload lane. */
@@ -50,7 +50,10 @@ export function registerAdminSiteImportRoutes(
     try {
       if (!await gate(req, res, "system.write")) return;
       const input = parseSiteImportInput({ input: req.body });
-      res.json(await deps.siteImportBackend!.importBackup({ ...input, principalId: getAuthedPrincipal(res).id }, { signal: requestSignal(req, res) }));
+      const principalId = getAuthedPrincipal(res).id;
+      const imported = await deps.siteImportBackend!.importBackup({ ...input, principalId }, { signal: requestSignal(req, res) });
+      deps.productAnalytics?.capture({ name: "site_imported", userId: principalId });
+      res.json(imported);
     } catch (error) { fail(res, error); }
   });
   app.post(root + "/uploads", async (req, res, next) => {

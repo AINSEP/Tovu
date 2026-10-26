@@ -196,6 +196,7 @@ export function getExportRunSnapshot(): ExportRunSnapshot {
  * @param required.clean - Forwarded to `runExportSite`; wipes `outputDir` first when `true`.
  * @param optional.basePath - Forwarded to `runExportSite`; see `ExportSiteOptions.basePath`'s own doc
  * (`site-exporter.ts`).
+ * @param optional.onSettled - Told the run's final status once it settles (the route's product event).
  * @returns The new "running" snapshot (not a promise — the export's own completion is observed
  * later via {@link getExportRunSnapshot}).
  * @complexity O(1) synchronously; the awaited export itself is O(routes + assets) over HTTP, per
@@ -203,7 +204,7 @@ export function getExportRunSnapshot(): ExportRunSnapshot {
  */
 export function startExportRun<TRouteDeps extends { clock: Clock; exportOutputRootDir: string }>(
   required: { routeDeps: TRouteDeps; runExportSite: ExportEngine<TRouteDeps>; clean: boolean },
-  optional?: { basePath?: string },
+  optional?: { basePath?: string; onSettled?: (settled: { status: "completed" | "errored" }) => void },
 ): ExportRunSnapshot {
   const { routeDeps, runExportSite, clean } = required;
   const outputDir = routeDeps.exportOutputRootDir;
@@ -232,7 +233,8 @@ export function startExportRun<TRouteDeps extends { clock: Clock; exportOutputRo
         outputDir,
         error: err instanceof Error ? err.message : String(err),
       };
-    });
+    })
+    .finally(() => optional?.onSettled?.({ status: currentRun.status === "completed" ? "completed" : "errored" }));
 
   return currentRun;
 }

@@ -301,7 +301,8 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
           ...credentialChoice({ value: parsed.credentialId }),
         },
         deps.clock,
-        deps.publishHistoryStore
+        deps.publishHistoryStore,
+        { onSettled: ({ status }) => deps.productAnalytics?.capture({ name: "deploy_finished", userId: principal.id, properties: { target: read.config.target, outcome: status } }) },
       );
 
       // Owner-action product event (consent-gated port): a publish was started.

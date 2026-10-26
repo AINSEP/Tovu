@@ -140,7 +140,8 @@ export function registerAdminExportSiteRoutes(app: Express, deps: AdminExportSit
         return;
       }
 
-      const snapshot = startExportRun({ routeDeps: deps, runExportSite: deps.runExportSite, clean: parsedBody.clean }, { basePath: parsedBody.basePath });
+      const snapshot = startExportRun({ routeDeps: deps, runExportSite: deps.runExportSite, clean: parsedBody.clean }, { basePath: parsedBody.basePath,
+        onSettled: ({ status }) => deps.productAnalytics?.capture({ name: "site_exported", userId: principal.id, properties: { outcome: status } }) });
       res.status(202).json(snapshot);
     } catch (err) {
       // `startExportRun` itself is not awaited (the run continues in the background, polled via
