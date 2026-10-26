@@ -26,8 +26,8 @@ export interface ProviderSettingsRouteDeps extends Pick<PluginsRouteDeps, "works
   tracker?: import('@jini-ai/diagnostics/observability').Tracker;
   providerConfig?: ProviderConfigSource;
   projectKeys?: import("#src/features/project-keys/service").ProjectKeysPort;
-  providerAppliesAt?: (input: { pluginId: string }) => "now" | "restart";
-  reapplyProvider?: (input: { pluginId: string }) => Promise<"now" | "restart">;
+  providerAppliesAt?: (input: { pluginId: string }) => "now" | "restart" | "failed";
+  reapplyProvider?: (input: { pluginId: string }) => Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult>;
   /** Whether a key was saved the retired way (an API credential labelled `plugin:<id>`), read by label
    *  only, never decrypted. */
   legacyProviderCredential?: (required: { pluginId: string }) => Promise<boolean>;
@@ -98,7 +98,7 @@ export function registerPluginProviderSettingsRoutes(app: Express, deps: Provide
       if (!card) return;
       const saved = await saveProviderSettings({ ...card, reapply: deps.reapplyProvider, values: (req.body as { values?: unknown } | null)?.values });
       if ("refusal" in saved) { res.status(saved.refusal.code === "PROVIDER_SETTINGS_UNAVAILABLE" ? 503 : 400).json(saved.refusal); return; }
-      res.json({ ...(await cardOf(card)), appliesAt: saved.appliesAt });
+      res.json({ ...(await cardOf(card)), appliesAt: saved.appliesAt, ...(saved.message ? { message: saved.message } : {}) });
     } catch { internalError(res); }
   });
   registerProjectKeyUseRoute(app, deps);

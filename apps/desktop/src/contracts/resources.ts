@@ -8,7 +8,8 @@ export interface ResourcesRequest {
 
 /** CPU percent uses one core as 100%; null means there is no comparable previous sample. */
 export interface ResourceMetrics {
-  /** Summed RSS is approximate because shared pages may be counted more than once. */
+  /** Memory estimate: Electron private bytes where available, otherwise its resident working
+   * set; OS RSS for non-Electron children. Historical field name retained for IPC compatibility. */
   rssBytes: number | null;
   cpuPercent: number | null;
   memoryWarning: boolean;
@@ -40,7 +41,7 @@ export interface ResourcesSnapshot {
   /** Main's cadence for this request; use it for the next visible-renderer poll. */
   pollIntervalMs: number;
   totalMemoryBytes: number;
-  /** UI labels summed RSS as “about”; the boolean makes that requirement explicit. */
+  /** UI labels mixed memory estimates as “about”; includes uncollected heap. */
   approximate: true;
   total: ResourceMetrics;
   app: ResourceGroup;

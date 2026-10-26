@@ -9,7 +9,7 @@ import type { AgentPluginStateStore } from "#src/features/api-connections/plugin
 
 import { SECRET_OPEN_FAILED } from "#src/features/webhooks/secret-sealer.aesgcm";
 
-import { ProviderConfigUnreadableError, ProviderStoreUnavailableError, createVaultProviderConfigSource, withAttachedProject, withUnavailableProject, type ProviderConfigSource } from "../provider-config-source.js";
+import { ProviderConfigUnreadableError, ProviderStoreUnavailableError, createVaultProviderConfigSource, withAttachedProject, withUnavailableProject, withProviderSettingsMigrations, type ProviderConfigSource } from "../provider-config-source.js";
 import { providerSettingsStatus, saveProviderSettings } from "../provider-settings-save.js";
 
 /**
@@ -223,9 +223,16 @@ const OTEL_FIELDS: readonly PluginProviderSettingField[] = [
   { name: "endpoint", label: "Endpoint", required: true },
   { name: "auth", label: "Authentication", required: true, default: "grafana-cloud" },
   { name: "username", label: "Instance ID", requiredWhen: { field: "auth", in: ["grafana-cloud"] } },
-  { name: "token", label: "Token", secret: true, required: true, requiredUnless: { field: "auth", equals: "none", orPresent: "headers" } },
+  { name: "token", label: "Token", secret: true, required: true, requiredUnless: { field: "auth", equals: "none", orPresent: "headers", headerNames: ["Authorization", "x-api-key"] } },
   { name: "headers", label: "Extra headers", secret: true },
 ];
+
+const migrationProvider = { contract: "observability", id: "opentelemetry", contractVersion: 1 as const, settings: OTEL_FIELDS,
+  settingsMigrations: [
+    { when: { field: "auth", in: ["token"], orAbsent: true }, whenPresent: "username", set: { auth: "grafana-cloud" } },
+    { when: { field: "auth", in: ["token"], orAbsent: true }, set: { auth: "bearer" } },
+  ] };
+const migrated = (source: ProviderConfigSource) => withProviderSettingsMigrations({ source, providers: async ({ pluginId }) => pluginId === "observability-opentelemetry" ? [migrationProvider] : [] });
 
 test("OTel's old auth choice is normalized in both vault scopes, without writing or mutating the saved snapshot", async () => {
   const pluginId = "observability-opentelemetry";
@@ -243,7 +250,10 @@ test("OTel's old auth choice is normalized in both vault scopes, without writing
     const original = { settings: { endpoint: "https://collector.example.test", ...settings }, secrets: { token: "fixture-only" } };
     const snapshot = structuredClone(original);
     rows.set(`ws/${pluginId}/provider.config`, original);
-    const source = createVaultProviderConfigSource({ state, workspaceId: "ws", scope });
+    const raw = createVaultProviderConfigSource({ state, workspaceId: "ws", scope });
+    const source = migrated(raw);
+    assert.deepEqual(await raw.read({ pluginId }), snapshot, "vault owns storage only; no vendor normalization");
+    gets.length = 0;
     const expected = { settings: { ...original.settings, auth }, secrets: original.secrets };
     assert.deepEqual(await source.read({ pluginId }), expected);
     assert.deepEqual(await source.readSettings({ pluginId }), { settings: expected.settings, secretNames: ["token"] });
@@ -264,7 +274,7 @@ test("an attached project's migrated OTel choice feeds boot, both cards and the 
   const settings = { endpoint: "https://collector.example.test", auth: "token", username: "123456" };
   const secrets = { token: "fixture-only" };
   rows.set(`project/${pluginId}/provider.config`, { settings, secrets });
-  const source = withAttachedProject({ site }, { project, attachments, siteId: "a" });
+  const source = migrated(withAttachedProject({ site }, { project, attachments, siteId: "a" }));
   assert.equal(await source.read({ pluginId }), null);
   await attachments.attach({ siteId: "a", siteName: "A", keyId });
   const expected = { settings: { ...settings, auth: "grafana-cloud" }, secrets };
@@ -280,7 +290,7 @@ test("an attached project's migrated OTel choice feeds boot, both cards and the 
 test("legacy header-only OTel rows survive boot/status/save, and changing their destination still requires re-entry", async () => {
   const pluginId = "observability-opentelemetry";
   const { state, rows } = fakeState();
-  const source = createVaultProviderConfigSource({ state, workspaceId: "ws", scope: "site" });
+  const source = migrated(createVaultProviderConfigSource({ state, workspaceId: "ws", scope: "site" }));
   const endpoint = "https://collector.example.test";
   const headers = "authorization=Custom fixture-only,X-Extra=kept";
   rows.set(`ws/${pluginId}/provider.config`, { settings: { endpoint }, secrets: { headers } });
@@ -296,4 +306,18 @@ test("legacy header-only OTel rows survive boot/status/save, and changing their 
   assert.deepEqual(await saveProviderSettings({ config: source, pluginId, fields: OTEL_FIELDS, values: { endpoint: "https://other.example.test" } }), {
     refusal: { code: "PROVIDER_SETTINGS_SECRET_REENTRY", error: "Changing Endpoint needs Extra headers entered again." },
   });
+});
+
+
+test("core applies another plugin's declared migrations and leaves the same raw row unchanged without that hook", async () => {
+  const { state, rows } = fakeState();
+  const original = { settings: { mode: 'retired' }, secrets: { credential: 'fixture-only' } };
+  rows.set('ws/unrelated/provider.config', original);
+  const raw = createVaultProviderConfigSource({ state, workspaceId: 'ws', scope: 'site' });
+  const source = withProviderSettingsMigrations({ source: raw, providers: async () => [{ contract: 'custom', id: 'unrelated', contractVersion: 1,
+    settingsMigrations: [{ when: { field: 'mode', in: ['retired'] }, set: { mode: 'current' } }] }] });
+  assert.deepEqual(await source.read({ pluginId: 'unrelated' }), { settings: { mode: 'current' }, secrets: original.secrets });
+  assert.deepEqual(await source.readSettings({ pluginId: 'unrelated' }), { settings: { mode: 'current' }, secretNames: ['credential'] });
+  assert.deepEqual(await raw.read({ pluginId: 'unrelated' }), original);
+  assert.deepEqual(rows.get('ws/unrelated/provider.config'), original);
 });

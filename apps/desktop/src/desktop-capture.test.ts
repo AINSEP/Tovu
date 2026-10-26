@@ -5,19 +5,25 @@ import { EventEmitter } from 'node:events';
 import type { BrowserWindow } from 'electron';
 import { desktopCaptureWindowFactory, startDesktopCaptureBridge } from './desktop-capture.ts';
 
-test('capture bindings deny popups/permissions/downloads and clear the private session on destroy', async () => {
+test('capture bindings deny popups/permissions/downloads and expose awaited session cleanup', async () => {
   let popup!: () => unknown;
   let permission!: (contents: unknown, permission: string, callback: (allowed: boolean) => void) => void;
   let check!: () => boolean;
   let verifyCertificate!: (request: { hostname: string }, callback: (result: number) => void) => void;
   let webRtc = '';
   let cleared = 0;
+  let caches = 0;
+  let auth = 0;
+  let connections = 0;
   let destroyed = false;
   const nativeSession = Object.assign(new EventEmitter(), {
     setPermissionRequestHandler: (handler: typeof permission) => { permission = handler; },
     setPermissionCheckHandler: (handler: typeof check) => { check = handler; },
     setCertificateVerifyProc: (handler: typeof verifyCertificate) => { verifyCertificate = handler; },
     clearStorageData: async () => { cleared++; },
+    clearCache: async () => { caches++; },
+    clearAuthCache: async () => { auth++; },
+    closeAllConnections: async () => { connections++; },
     webRequest: { onBeforeRequest: () => {} },
   });
   const page = Object.assign(new EventEmitter(), {
@@ -48,10 +54,24 @@ test('capture bindings deny popups/permissions/downloads and clear the private s
   nativeSession.emit('will-download', { preventDefault: () => { prevented++; } });
   page.emit('will-attach-webview', { preventDefault: () => { prevented++; } });
   assert.equal(prevented, 2);
+  page.emit('destroyed');
+  assert.equal(nativeSession.listenerCount('will-download'), 0);
+  await bound.webContents.session.clearStorageData!();
+  await bound.webContents.session.clearCache!();
+  await bound.webContents.session.clearAuthCache!();
+  await bound.webContents.session.closeAllConnections!();
   bound.destroy();
+  // Cleanup runs after destruction; reading page.session at that point is invalid in Electron.
+  Object.defineProperty(page, 'session', { get() { throw new Error('webContents destroyed'); } });
+  bound.webContents.session.webRequest.onBeforeRequest({ listener: null });
+  await bound.webContents.session.clearCache!();
   await Promise.resolve();
   assert.equal(destroyed, true);
   assert.equal(cleared, 1);
+  assert.equal(caches, 2);
+  assert.equal(auth, 1);
+  assert.equal(connections, 1);
+  assert.equal(nativeSession.listenerCount('will-download'), 0);
 });
 
 test('capture factory destroys the hidden window and rethrows when native setup fails', () => {
@@ -64,6 +84,7 @@ test('capture factory destroys the hidden window and rethrows when native setup 
       setPermissionCheckHandler: () => setup('permission-check'),
       setCertificateVerifyProc: () => setup('certificate'),
       on: () => setup('download'),
+      removeListener: () => {},
     };
     const native = {
       webContents: {
@@ -71,6 +92,7 @@ test('capture factory destroys the hidden window and rethrows when native setup 
         setWindowOpenHandler: () => setup('popup'),
         setWebRTCIPHandlingPolicy: () => setup('webrtc'),
         on: () => setup('webview'),
+        once: () => {},
       },
       destroy: () => { destroyed++; },
     } as unknown as BrowserWindow;
@@ -158,8 +180,9 @@ test('the returned window adapts every Jini call onto the native window and page
     ['show'], ['hide'], ['focus'], ['close'],
   ]);
 
-  // A session that cannot be cleared (already torn down) must not surface an unhandled rejection.
+  // Cleanup failures propagate to Jini, which must finish cleanup before reusing the partition.
   clearFailure = true;
+  await assert.rejects(contents.session.clearStorageData!(), /session already gone/);
   bound.destroy();
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(calls.at(-1), ['destroy']);

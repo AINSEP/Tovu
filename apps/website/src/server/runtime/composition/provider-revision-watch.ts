@@ -27,7 +27,7 @@ function revisionSnapshot({ project, site }: {
 export function watchProviderRevisions({ read, readSite = async () => [], reapply }: {
   read: () => Promise<readonly { id: string; revision: number; attached_at: string }[]>;
   readSite?: () => Promise<readonly { id: string; revision: number }[]>;
-  reapply: (input: { pluginId: string }) => Promise<"now" | "restart">;
+  reapply: (input: { pluginId: string }) => Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult>;
 }, optional: { schedule?: (check: () => Promise<void>, intervalMs: number) => () => void } = {}): () => void {
   let previous = new Map<string, string>();
   let running = false;

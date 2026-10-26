@@ -71,7 +71,7 @@ test("browser restart after a committed attached save produces a success card wi
 });
 
 /** credential_save with only the provider-settings adapter real; the human answer is the only other fake. */
-async function fixture({ submit, saved, records = [record], reapply, direct = false }: { submit: Record<string, string>; saved?: { settings: Record<string, string>; secrets: Record<string, string> }; records?: PluginDiscoveryRecord[]; reapply?: () => Promise<"now" | "restart">; direct?: boolean }) {
+async function fixture({ submit, saved, records = [record], reapply, direct = false }: { submit: Record<string, string>; saved?: { settings: Record<string, string>; secrets: Record<string, string> }; records?: PluginDiscoveryRecord[]; reapply?: () => Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult>; direct?: boolean }) {
   const site = fakeState();
   const project = fakeState();
   const attachments = fakeAttachments();
@@ -218,4 +218,17 @@ test("the provider_status settings command opens the manifest card without an ag
   assert.match(f.transcript, /EU Cloud/);
   assert.equal(f.transcript.includes(secret), false);
   assert.equal(JSON.stringify(f.result).includes(secret), false);
+});
+
+
+test('assistant reports saved settings with the plugin startup reason and correction, never restart guidance', async () => {
+  const f = await fixture({ saved: { settings: { host: 'https://eu.i.posthog.com' }, secrets: { apiKey: secret } },
+    submit: { host: 'https://eu.i.posthog.com', apiKey: '' },
+    reapply: async () => ({ appliesAt: 'failed', reason: 'The plugin could not initialize.', action: 'Change the host and save again.' }) });
+  assert.equal(f.result.saved, true);
+  assert.equal(f.result.appliesAt, 'failed');
+  assert.match(f.transcript, /Saved, but the provider could not start/);
+  assert.match(f.transcript, /Change the host and save again/);
+  assert.doesNotMatch(f.transcript, /Reload open pages or restart/);
+  assert.equal(f.transcript.includes(secret), false);
 });

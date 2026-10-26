@@ -1,3 +1,4 @@
+import { migrateProviderSettings, type PluginProviderDeclaration } from "@jini-ai/plugins/host";
 import { providerKeyId, type ProviderKeyUsage, type ProviderWriteResult } from "#src/features/project-keys/service";
 export type { ProviderKeyUsage, ProviderWriteResult } from "#src/features/project-keys/service";
 import type { KeyAttachments, ProjectKeyTransaction } from "#src/features/project-keys/attachments";
@@ -81,17 +82,6 @@ const UNREADABLE_VIEW: ProviderSettingsView = Object.freeze({ settings: Object.f
 
 const CONFIG_KEY = "provider.config";
 
-/** Normalize Tovu's former OTel auth choice at the snapshot boundary shared by boot and both cards.
- * Reads never rewrite a row; a later save persists the effective choice with its original secrets.
- * @complexity O(f + u) for public fields and username text; no store writes.
- */
-function savedProviderConfig({ pluginId, config }: { pluginId: string; config: ProviderPluginConfig }, _optional = {}): ProviderPluginConfig {
-  if (pluginId !== "observability-opentelemetry") return config;
-  const auth = config.settings.auth;
-  if (auth !== "token" && auth !== undefined) return config;
-  return { ...config, settings: { ...config.settings, auth: config.settings.username?.trim() ? "grafana-cloud" : "bearer" } };
-}
-
 const stringRecord = (value: unknown): Record<string, string> | null => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === "string"));
@@ -139,7 +129,7 @@ export function createVaultProviderConfigSource(
   async function read({ pluginId }: { pluginId: string }): Promise<ProviderPluginConfig | null> {
     const row = (await store({ pluginId }).get({ key: CONFIG_KEY }).catch((error: unknown) => unreadableOr({ pluginId, error }))) as { settings?: unknown; secrets?: unknown } | null;
     if (!row || typeof row !== "object") return null;
-    return savedProviderConfig({ pluginId, config: { settings: stringRecord(row.settings) ?? {}, secrets: stringRecord(row.secrets) ?? {} } });
+    return { settings: stringRecord(row.settings) ?? {}, secrets: stringRecord(row.secrets) ?? {} };
   }
   return {
     scope: required.scope,
@@ -212,5 +202,24 @@ export function withUnavailableProject(
     read: (input) => site.read(input),
     readSettings: (input) => site.readSettings(input),
     write: () => Promise.reject(new ProviderStoreUnavailableError({ reason })),
+  };
+}
+
+
+/** Apply manifest-owned migrations after scope selection. Reads never write back to either vault. */
+export function withProviderSettingsMigrations({ source, providers }: {
+  source: ProviderConfigSource; providers: (input: { pluginId: string }) => Promise<readonly PluginProviderDeclaration[]>;
+}, _optional = {}): ProviderConfigSource {
+  const settings = async ({ pluginId, settings }: { pluginId: string; settings: Readonly<Record<string, string>> }) =>
+    migrateProviderSettings({ providers: await providers({ pluginId }), settings });
+  return { ...source,
+    read: async input => {
+      const saved = await source.read(input);
+      return saved && { ...saved, settings: await settings({ ...input, settings: saved.settings }) };
+    },
+    readSettings: async input => {
+      const saved = await source.readSettings(input);
+      return saved && !saved.unreadable ? { ...saved, settings: await settings({ ...input, settings: saved.settings }) } : saved;
+    },
   };
 }

@@ -38,6 +38,7 @@ test('one snapshot drives the chip and site figure, warnings and panel-open cade
   assert.equal(memoryText({ bytes: 0 }), '~0MB');
   assert.equal(memoryText({ bytes: null }), 'Memory unavailable');
   assert.equal(memoryText({ bytes: 1_500_000_000 }), '~1.5GB');
+  assert.equal(memoryText({ bytes: 1_100_000_000 }), '~1.1GB');
   assert.equal(resourceWarnings({ metrics }), 'High memory use · Sustained high CPU use');
   assert.equal(resourceWarnings({ metrics: null }), '');
 });

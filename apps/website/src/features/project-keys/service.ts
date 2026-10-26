@@ -17,7 +17,7 @@ export interface ProjectKeyRow { keyId: string; name: string; kind: string; used
 export interface ProjectKeysPort {
   list(required: { cards?: readonly PluginCredentialCard[] }, optional?: Record<string, never>): Promise<ProjectKeyRow[]>;
   permissionFor(required: { keyId: string }, optional?: Record<string, never>): Promise<string>;
-  use(required: { keyId: string; use: boolean }, optional?: Record<string, never>): Promise<{ keyId: string; usedByThisSite: boolean; usedBy: readonly string[]; appliesAt: "now" | "restart" }>;
+  use(required: { keyId: string; use: boolean }, optional?: Record<string, never>): Promise<{ keyId: string; usedByThisSite: boolean; usedBy: readonly string[]; appliesAt: "now" | "restart" | "failed"; message?: string }>;
   savedResult(required: { result: unknown; label?: string }, optional?: Record<string, never>): Promise<unknown>;
 }
 
@@ -34,7 +34,7 @@ export function projectKeyPermission({ row }: { row: VaultRecord }, _optional = 
 export function createProjectKeys({ vault, attachments, siteId, siteName, reapply, transaction, providerUsage }: {
   vault: VaultRepoPort; attachments: KeyAttachments; siteId: string; siteName: string;
   providerUsage: (input: { pluginId: string }) => Promise<ProviderKeyUsage>;
-  reapply: (input: { pluginId: string }) => Promise<"now" | "restart">;
+  reapply: (input: { pluginId: string }) => Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult>;
   transaction: ProjectKeyTransaction;
 }, _optional = {}): ProjectKeysPort {
   const find = async ({ keyId }: { keyId: string }) => {
@@ -68,8 +68,9 @@ export function createProjectKeys({ vault, attachments, siteId, siteName, reappl
         else await attachments.detach({ siteId, keyId: input.keyId });
       } });
       const pluginId = providerPluginOf(input);
-      const appliesAt = pluginId ? await reapply({ pluginId }) : "now";
-      return { ...(await usage(input)), appliesAt };
+      const result = pluginId ? await reapply({ pluginId }) : "now";
+      return { ...(await usage(input)), appliesAt: typeof result === "string" ? result : result.appliesAt,
+        ...(typeof result === "string" ? {} : { message: `${result.reason} ${result.action}` }) };
     },
     async savedResult({ result, label }) {
       const identity = savedKeyIdentity({ result });

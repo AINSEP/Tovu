@@ -76,7 +76,7 @@ import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { instrumentStorageKernel, trackFetch } from "#src/platform/observability/index";
 import { bootProviderPlugins, legacyProviderCredentialCheck, type SiteIdentity } from "./provider-plugins.js";
 import { withToolUseEvents } from "./tool-use-events.js";
-import { createVaultProviderConfigSource, withAttachedProject, withUnavailableProject, type ProviderConfigSource } from "./provider-config-source.js";
+import { createVaultProviderConfigSource, withAttachedProject, withUnavailableProject, withProviderSettingsMigrations, type ProviderConfigSource } from "./provider-config-source.js";
 import { openProjectStore, type ProjectStore, type ProjectVaultScope } from "./project-store.js";
 import { createAgentPluginStateStore } from "#src/features/api-connections/plugin-state";
 import { createApiConnectionVault } from "#src/features/api-connections/vault-stores";
@@ -2101,9 +2101,11 @@ async function composeSiteRouteDeps(
   // its exact objects). See `provider-plugins.ts`.
   // Saved provider settings: the project store when one is open, else sealed plugin-state rows in this
   // site's vault (see provider-config-source.ts and project-store.ts).
-  const { providerConfigSource, projectId, projectVault, projectStore, siteId: projectSiteId } = await composeProviderConfig({ overrides, runtimeMode, onStoreClose, binding: resolvedSiteBinding,
+  const { providerConfigSource: savedProviderConfig, projectId, projectVault, projectStore, siteId: projectSiteId } = await composeProviderConfig({ overrides, runtimeMode, onStoreClose, binding: resolvedSiteBinding,
     site: createVaultProviderConfigSource({ workspaceId, scope: "site", state: createAgentPluginStateStore({ workspaceId,
       vault: createApiConnectionVault({ repo: new SqlSecretsVaultRepo({ kernel: kernel as unknown as StorageKernel<SecretsVaultDatabase> }), keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, workspaceId }) }) }) });
+  const providerConfigSource = withProviderSettingsMigrations({ source: savedProviderConfig, providers: async ({ pluginId }) =>
+    (await pluginRuntime.discoverPlugins()).find(record => record.id === pluginId)?.manifest?.contributes?.providers ?? [] });
   // 2026-08-31 (mail rule-of-two build): resolved once here, ahead of the `RouteDeps` object
   // literal below, because `mailer:` (built from it) is an earlier property than
   // `customCredentialSetRepo:` — see `resolve-mailer.ts`'s own header for the full design. Sealed

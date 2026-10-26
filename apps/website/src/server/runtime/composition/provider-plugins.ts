@@ -4,7 +4,7 @@ import { createTelemetryDeliveryMonitor, describeTelemetryFailure, type Tracker,
 import { combineObservabilityPorts, createNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 import { createAiGenerationSink, createNoopProductAnalytics, fanOutProductAnalytics, withProductAnalyticsGuards, type ProductAnalyticsConsent, type ProductAnalyticsConsentRevision, type ProductAnalyticsPort, type BrowserAnalyticsContribution } from "@jini-ai/analytics/product";
 import { createFanOutAiTraceSink, type AiTraceSink } from "@jini-ai/agent-runtime/ai-trace";
-import { createPluginProviderHost, isProviderSettingRequired, type PluginContributionRegistry, type PluginProviderContract, type PluginProviderDeclaration, type PluginProviderLease } from "@jini-ai/plugins/host";
+import { createPluginProviderHost, PluginProviderStartupError, isProviderSettingRequired, type PluginContributionRegistry, type PluginProviderContract, type PluginProviderDeclaration, type PluginProviderLease } from "@jini-ai/plugins/host";
 
 import type { ProviderConfigSource, ProviderPluginConfig } from "./provider-config-source.js";
 
@@ -128,8 +128,8 @@ export interface ProviderPluginPorts {
   sendTelemetryTest(required: { error: Error }, optional?: Record<string, never>): Promise<TelemetryTestResult>;
   /** Undefined when neither a trace nor analytics provider is declared; slots can activate live. */
   readonly aiTraceSink: AiTraceSink | undefined;
-  appliesAt(required: { pluginId: string }, optional?: Record<string, never>): "now" | "restart";
-  reapply(required: { pluginId: string }, optional?: Record<string, never>): Promise<"now" | "restart">;
+  appliesAt(required: { pluginId: string }, optional?: Record<string, never>): "now" | "restart" | "failed";
+  reapply(required: { pluginId: string }, optional?: Record<string, never>): Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult>;
   /** Idempotent; bounded per resource by the provider host. */
   dispose(required: Record<string, never>, optional?: Record<string, never>): Promise<void>;
 }
@@ -288,8 +288,8 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
     initializeTimeoutMs: timeoutMs,
     onError: ({ pluginId, phase }) => warn(`provider plugin '${pluginId}' ${phase} failed`),
   });
-  const queues = new Map<string, Promise<"now" | "restart">>();
-  const applied = new Map<string, "now" | "restart">();
+  const queues = new Map<string, Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult>>();
+  const applied = new Map<string, "now" | "restart" | "failed">();
   let tracker: Tracker | undefined;
   const initializations: import('@jini-ai/analytics/product').ProductEvent[] = [];
   function initialization({ slot, outcome, reasonClass }: { slot: ProviderSlot; outcome: 'success' | 'failure' | 'noop'; reasonClass: 'ready' | 'not_configured' | 'initialization_failed' }): void {
@@ -349,10 +349,10 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
     loaded.add(pluginId);
   }
   /** Apply one saved snapshot, retiring every selected lease on failure and logging only its class.
-   * @returns Live-apply timing; missing slots, closed hosts and failed admission require restart.
+   * @returns Live-apply timing; missing slots and closed hosts require restart; initialization/admission failures carry safe guidance.
    * @complexity O(s * f + r) slot settings/registrations plus bounded provider load and initialization.
    */
-  async function apply({ pluginId }: { pluginId: string }, _optional = {}): Promise<"now" | "restart"> {
+  async function apply({ pluginId }: { pluginId: string }, _optional = {}): Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult> {
     if (closed) return "restart";
     const selected = slots.filter(slot => slot.pluginId === pluginId);
     if (selected.length === 0) return "restart";
@@ -369,12 +369,14 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
       // Class only: an SDK's construction error can quote the endpoint or DSN it was given.
       // Names are allowlisted too: custom Error.name values can themselves contain credentials.
       warn(`provider plugin '${pluginId}' did not initialize: ${error instanceof Error ? describeTelemetryFailure({ error }).errorClass : typeof error}`);
-      return "restart";
+      return error instanceof PluginProviderStartupError
+        ? { appliesAt: "failed", reason: error.reason, action: error.action }
+        : { appliesAt: "failed", reason: "The provider could not initialize.", action: "Check the plugin settings and installation, then save again." };
     }
   }
-  function reapply(input: { pluginId: string }): Promise<"now" | "restart"> {
+  function reapply(input: { pluginId: string }): Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult> {
     const next = (queues.get(input.pluginId) ?? Promise.resolve("now" as const)).then(() => apply(input));
-    const recorded = next.then(result => { applied.set(input.pluginId, result); return result; });
+    const recorded = next.then(result => { applied.set(input.pluginId, typeof result === "string" ? result : result.appliesAt); return result; });
     queues.set(input.pluginId, recorded);
     return recorded;
   }

@@ -1,3 +1,4 @@
+import { exportUrlLocations } from "@jini-ai/devops/static-export";
 import type { MediaRepoPort } from "@jini-ai/cms/media";
 import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
 import { findMediaByIdOrSlug } from "@jini-ai/cms/media";
@@ -20,8 +21,8 @@ function sameOrigin({ url, origin }: { url: string; origin: string }): boolean {
 
 /** Local paths need no origin lookup; absolute references must belong to the configured site.
  * With no verified origin, absolute references stay as written: a link must never fail the export. */
-async function localOriginalPaths({ body, deps }: { body: string; deps: ExportMediaUrlDeps }): Promise<Map<string, { prefix: string; key: string }>> {
-  const matches = [...body.matchAll(ORIGINAL_URL)];
+async function localOriginalPaths({ body, deps, contentType }: { body: string; deps: ExportMediaUrlDeps; contentType: string }, _optional = {}): Promise<Map<string, { prefix: string; key: string }>> {
+  const matches = exportUrlLocations({ body, contentType }).flatMap(({ start, end }) => [...body.slice(start, end).matchAll(ORIGINAL_URL)]);
   const paths = new Map<string, { prefix: string; key: string }>();
   let origin: string | null | undefined;
   for (const match of matches) {
@@ -39,13 +40,13 @@ async function localOriginalPaths({ body, deps }: { body: string; deps: ExportMe
 }
 
 /** Upgrade stored URLs using the same lookup and read-path type backfill as the media library.
- * O(text length + distinct media keys) work, one batched type lookup; legacy bytes read only
+ * O(text length + URL positions log URL positions + distinct media keys) work, one batched type lookup; legacy bytes read only
  * when their type was never recorded. Missing/private documents retain their existing URLs.
  */
 export async function rewriteMediaOriginalUrls(
-  { body, deps }: { body: string; deps: ExportMediaUrlDeps }, _options = {},
+  { body, deps }: { body: string; deps: ExportMediaUrlDeps }, { contentType = "text/html" }: { contentType?: string } = {},
 ): Promise<string> {
-  const paths = await localOriginalPaths({ body, deps });
+  const paths = await localOriginalPaths({ body, deps, contentType });
   if (paths.size === 0) return body;
   const records = new Map<string, NonNullable<Awaited<ReturnType<typeof findMediaByIdOrSlug>>>>();
   for (const [url, { key }] of paths) {
@@ -59,7 +60,15 @@ export async function rewriteMediaOriginalUrls(
     const { prefix, key } = paths.get(url)!;
     if (contentType) replacements.set(url, prefix + mediaPublicPath(key, { kind: "original", contentType }));
   }
-  return body.replace(ORIGINAL_URL, url => replacements.get(url) ?? url);
+  const output: string[] = [];
+  let offset = 0;
+  for (const { start, end } of exportUrlLocations({ body, contentType })) {
+    const value = body.slice(start, end).replace(ORIGINAL_URL, url => replacements.get(url) ?? url);
+    output.push(body.slice(offset, start), value);
+    offset = end;
+  }
+  output.push(body.slice(offset));
+  return output.join('');
 }
 
 /** Rewrite textual responses before the existing exporter writes AND crawls them. Binary responses
@@ -70,8 +79,8 @@ export async function rewriteExportMediaResponse(
   { response, deps }: { response: Response; deps: ExportMediaUrlDeps }, _options = {},
 ): Promise<Response> {
   if (response.body === null) return response;
-  if (!/^(?:text\/(?:html|css|plain)|application\/(?:[\w.+-]*\+)?(?:json|xml))\b/i.test(response.headers.get("content-type") ?? "")) return response;
-  const body = await rewriteMediaOriginalUrls({ body: await response.text(), deps });
+  if (!/^(?:text\/(?:html|css)|application\/(?:[\w.+-]*\+)?(?:json|xml))\b/i.test(response.headers.get("content-type") ?? "")) return response;
+  const body = await rewriteMediaOriginalUrls({ body: await response.text(), deps }, { contentType: response.headers.get("content-type") ?? "" });
   const headers = new Headers(response.headers);
   headers.delete("content-length");
   headers.delete("content-encoding");

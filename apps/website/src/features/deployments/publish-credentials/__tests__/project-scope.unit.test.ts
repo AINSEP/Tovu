@@ -1,3 +1,8 @@
+import express from "express";
+import { createProjectKeys } from "#src/features/project-keys/service";
+import { registerAdminPublishCredentialsRoutes, type AdminPublishCredentialsDeps } from "#src/server/inbound/admin-http/routes/system/publish-credentials";
+import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
+import { InMemoryPublishCredentialVerificationCache } from "#src/features/deployments/static-publish/verify";
 import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import assert from "node:assert/strict";
@@ -182,4 +187,40 @@ test("deploy inventory and default selection see attached keys only; create retu
   assert.deepEqual(await listPublishCredentials(b.deps, { workspaceId: SITE_B }), []);
   await attachments.detach({ siteId: SITE_A, keyId: saved.id });
   assert.deepEqual(await listPublishCredentials(a.deps, { workspaceId: SITE_A }), []);
+});
+
+
+test('a Deployments-page save attaches its project key to this site and survives a list reload, without attaching another site', async t => {
+  t.mock.method(globalThis, 'fetch', async () => new Response('{}', { status: 401 }));
+  const project = projectStore();
+  const attachments = fakeAttachments();
+  const a = site({ ...project, vault: attachedOnlyVault({ vault: project.vault, siteId: SITE_A, attachments }) });
+  const b = site({ ...project, vault: attachedOnlyVault({ vault: project.vault, siteId: SITE_B, attachments }) });
+  const keys = createProjectKeys({ vault: project.vault, attachments, siteId: SITE_A, siteName: 'A', transaction: async ({ run }) => run(),
+    providerUsage: async () => ({ store: 'project', usedByThisSite: false, usedBy: [] }), reapply: async () => 'now' });
+  const app = express();
+  registerAdminPublishCredentialsRoutes(app, {
+    workspaceId: SITE_A, authorize: async () => ({ allowed: true, reason: 'test' }), clock: a.deps.clock, idGen: a.deps.idGen,
+    vendorCredentialSetRepo: a.deps.repo, siteAssistantSecretSealer: a.deps.sealer, siteAssistantSecretKeyring: a.deps.keyring,
+    loadDeployTargets: loadBundledDeployTargets, publishCredentialVerificationCache: new InMemoryPublishCredentialVerificationCache(),
+    projectKeys: keys,
+  } as AdminPublishCredentialsDeps);
+  const path = '/api/admin/v1/workspaces/:workspaceId/system/publish/credentials';
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: 'owner' };
+  await extractRouteHandler(app, 'post', path)({ params: { workspaceId: SITE_A }, body: { label: 'Production', connection: { providerId: 'vercel', token: secret('publish') } } }, res);
+  assert.equal(capture.statusCode, 201);
+  const id = (capture.jsonBody as { credential: { id: string } }).credential.id;
+  const reload = createCapturingResponse(); reload.res.locals.principal = { id: 'owner' };
+  await extractRouteHandler(app, 'get', path)({ params: { workspaceId: SITE_A } }, reload.res);
+  assert.deepEqual((reload.capture.jsonBody as { credentials: { id: string }[] }).credentials.map(row => row.id), [id]);
+  assert.equal(await attachments.isAttached({ siteId: SITE_A, keyId: id }), true);
+  assert.equal(await attachments.isAttached({ siteId: SITE_B, keyId: id }), false);
+  assert.deepEqual(await listPublishCredentials(b.deps, { workspaceId: SITE_B }), []);
+  assert.doesNotMatch(JSON.stringify(reload.capture.jsonBody), new RegExp(secret('publish')));
+  const own = createCapturingResponse(); own.res.locals.principal = { id: 'owner' };
+  await extractRouteHandler(app, 'post', path)({ params: { workspaceId: SITE_A }, body: { scope: 'site', label: 'Only A', connection: { providerId: 'vercel', token: secret('own') } } }, own.res);
+  assert.equal(own.capture.statusCode, 201);
+  const ownId = (own.capture.jsonBody as { credential: { id: string } }).credential.id;
+  assert.equal(await attachments.isAttached({ siteId: SITE_A, keyId: ownId }), false);
 });

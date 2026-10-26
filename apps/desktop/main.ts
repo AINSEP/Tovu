@@ -1882,6 +1882,7 @@ app
         allowed: (url) => url === pathToFileURL(SITES_RENDERER_PATH).href,
         monitor: createDesktopResources({ desktopPid: process.pid, platform: process.platform,
           listUsage: () => listProcessUsage(), now: Date.now, totalMem: totalmem,
+          listElectronMetrics: () => app.getAppMetrics(),
           // External handles belong to another launcher; the monitor covers only this desktop.
           openSites: () => [...openSites.values()].filter((entry) => !entry.server.external)
             .map((entry) => ({ id: entry.siteDir, pid: entry.server.pid })),

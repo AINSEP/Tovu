@@ -57,6 +57,10 @@ export function usePluginProviderSettings({ pluginId, port, t }: { pluginId: str
       const next = await port.saveProviderSettings(pluginId, values);
       setCard(next);
       setValues(initialValues(next));
+      if (next.appliesAt === "failed") {
+        setError(next.message ?? t("Saved, but the provider could not start. Check the plugin settings and save again."));
+        return false;
+      }
       return true;
     } catch (failure) {
       setError(describeApiError(failure, t("failed to save plugin settings")));
@@ -72,8 +76,13 @@ export function usePluginProviderSettings({ pluginId, port, t }: { pluginId: str
     try {
       const usage = await port.useProjectKey({ keyId: card.keyId, use: true });
       const next = await port.getProviderSettings(pluginId);
-      setCard({ ...next, ...usage });
+      const applied = { ...next, ...usage };
+      setCard(applied);
       setValues(initialValues(next));
+      if (applied.appliesAt === "failed") {
+        setError(applied.message ?? t("Saved, but the provider could not start. Check the plugin settings and save again."));
+        return false;
+      }
       return true;
     } catch (failure) { setError(describeApiError(failure, t("failed to save plugin settings"))); return false; }
     finally { setSaving(false); }

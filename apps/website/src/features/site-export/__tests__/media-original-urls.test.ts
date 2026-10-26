@@ -31,11 +31,16 @@ test("export rewrites legacy original URLs in HTML, inline CSS, XML and JSON, pr
     `<link rel="icon" href="${old}"><image:loc>${origin}${old}</image:loc>{"src":"${old}"}` +
     `<img src="https://foreign.invalid${old}"><img src="${old}.svg"><img src="${old}-other">`;
   const expected = `<header><img src="${canonical}?v=1#mark"></header><footer style="background:url(${canonical})"></footer>` +
-    `<link rel="icon" href="${canonical}"><image:loc>${origin}${canonical}</image:loc>{"src":"${canonical}"}` +
+    `<link rel="icon" href="${canonical}"><image:loc>${origin}${old}</image:loc>{"src":"${old}"}` +
     `<img src="https://foreign.invalid${old}"><img src="${old}.svg"><img src="${old}-other">`;
   assert.equal(await rewriteMediaOriginalUrls({ body, deps }), expected);
   assert.equal((await deps.mediaContentTypeStore.getMany({ workspaceId: deps.workspaceId, sha256s: [media.source.sha256] })).get(media.source.sha256), "image/svg+xml");
   assert.equal(await rewriteMediaOriginalUrls({ body: expected, deps }), expected);
+  for (const [contentType, body, expected] of [
+    ['application/xml', `<urlset><image:loc>${origin}${old}</image:loc></urlset>`, `<urlset><image:loc>${origin}${canonical}</image:loc></urlset>`],
+    ['application/manifest+json', `{"icons":[{"src":"${old}"}],"description":"${old}"}`, `{"icons":[{"src":"${canonical}"}],"description":"${old}"}`],
+    ['text/css', `body{background:url(${old})}`, `body{background:url(${canonical})}`],
+  ] as const) assert.equal(await rewriteMediaOriginalUrls({ body, deps }, { contentType }), expected);
 });
 
 test("without a verified origin, absolute and malformed references stay as written and the export continues", async () => {
@@ -112,3 +117,13 @@ for (const basePath of [undefined, "/preview"]) {
     } finally { rmSync(outputDir, { recursive: true, force: true }); }
   });
 }
+
+
+test('export never rewrites media URLs in article text, code, scripts or non-URL metadata', async () => {
+  const { deps, old, canonical } = await fixture();
+  const inert = `<article><code>background:url(${old})</code><pre>src="${old}" {"src":"${old}"}</pre><p>${old}</p></article><!-- <img src="${old}"> --><script>const url="${old}";</script><meta name="description" content="${old}">`;
+  const body = inert + `<img src="${old}"><style>.x{background:url(${old})}</style><meta property="og:image" content="${old}">`;
+  assert.equal(await rewriteMediaOriginalUrls({ body, deps }), inert + `<img src="${canonical}"><style>.x{background:url(${canonical})}</style><meta property="og:image" content="${canonical}">`);
+  const response = new Response(old, { headers: { 'content-type': 'text/plain' } });
+  assert.equal(await rewriteExportMediaResponse({ response, deps }), response);
+});

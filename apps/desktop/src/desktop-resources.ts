@@ -1,5 +1,6 @@
 /** Tovu policy over Jini's bounded OS sampler and process-tree owner. Monitor only. */
 import { collectProcessTreePids, type ProcessUsage } from '@jini-ai/platform/process';
+import { applyElectronMemoryReadings, type ElectronProcessMemory } from '@jini-ai/desktop-host/electron';
 import type { ResourceGroup, ResourceMetrics, ResourceProcess, ResourcesRequest, ResourcesSnapshot } from './contracts/resources.ts';
 
 /** Review specifies GB (decimal), inclusive edges, and CPU sustained across two measured intervals. */
@@ -15,6 +16,8 @@ export interface DesktopResourcesPorts {
   desktopPid: number;
   platform: NodeJS.Platform;
   listUsage: () => Promise<readonly ProcessUsage[]>;
+  /** Native Electron PIDs only; Electron-as-node children stay in the OS sample. */
+  listElectronMetrics?: () => readonly ElectronProcessMemory[];
   now: () => number;
   totalMem: () => number;
   openSites: () => readonly OpenResourceSite[];
@@ -117,7 +120,10 @@ export function createDesktopResources(ports: DesktopResourcesPorts, _options = 
   /** Sampler failures intentionally use the same unavailable outcome as Jini's empty result. */
   async function sample({ pollIntervalMs }: { pollIntervalMs: number }, _sampleOptions = {}): Promise<ResourcesSnapshot> {
     let usages: readonly ProcessUsage[];
-    try { usages = await ports.listUsage(); } catch { usages = []; }
+    try {
+      const sampled = await ports.listUsage();
+      usages = applyElectronMemoryReadings({ processes: sampled, electronMetrics: ports.listElectronMetrics?.() ?? [] });
+    } catch { usages = []; }
     const result = groupSample({ usages, sites: ports.openSites(), desktopPid: ports.desktopPid,
       previous, at: ports.now(), totalMemoryBytes: ports.totalMem(), pollIntervalMs });
     previous = result.history;

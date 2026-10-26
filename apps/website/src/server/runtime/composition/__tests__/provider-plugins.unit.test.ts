@@ -5,7 +5,7 @@ import test from "node:test";
 import { createNoopObservabilityPort, createNoopTracker, isNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 import type { ProductAnalyticsPort } from "@jini-ai/analytics/product";
 import { createAiTraceRecorder } from "@jini-ai/agent-runtime/ai-trace";
-import { createPluginContributionRegistry, type PluginProviderFactory, type PluginProviderSettingField } from "@jini-ai/plugins/host";
+import { createPluginContributionRegistry, PluginProviderStartupError, type PluginProviderFactory, type PluginProviderSettingField } from "@jini-ai/plugins/host";
 
 import { attributionFor, bootProviderPlugins, legacyProviderCredentialCheck, PROVIDER_CONTRACTS, providerInputOf, type SiteIdentity } from "../provider-plugins.js";
 import type { ProviderConfigSource, ProviderPluginConfig } from "../provider-config-source.js";
@@ -494,8 +494,8 @@ test("an unconfigured slot becomes live without replacing captured ports; rotati
   saved = null; await ports.reapply({ pluginId: "analytics-posthog" });
   captured.capture(event); assert.equal(seen.length, 4); assert.equal(disposed, 2);
   saved = { settings: { host: "https://collector.example.test" }, secrets: { apiKey: "refuse" } };
-  assert.equal(await ports.reapply({ pluginId: "analytics-posthog" }), "restart");
-  assert.equal(ports.appliesAt({ pluginId: "analytics-posthog" }), "restart");
+  assert.equal((await ports.reapply({ pluginId: "analytics-posthog" }) as { appliesAt: string }).appliesAt, "failed");
+  assert.equal(ports.appliesAt({ pluginId: "analytics-posthog" }), "failed");
   captured.capture(event); assert.equal(seen.length, 4);
   assert.deepEqual(warnings, ["provider plugin 'analytics-posthog' did not initialize: TypeError"]);
   saved = { ...saved, secrets: { apiKey: ["fake", "recovered"].join("_") } };
@@ -638,7 +638,7 @@ test("provider loading reuses current registrations, reloads retired ones and re
     assert.equal(calls.inputs.length, 1);
     runtime.providerContributions.detach({ pluginId: "observability-sentry" });
     admitted = false;
-    assert.equal(await ports.reapply({ pluginId: "observability-sentry" }), "restart");
+    assert.equal((await ports.reapply({ pluginId: "observability-sentry" }) as { appliesAt: string }).appliesAt, "failed");
     assert.equal(ports.observabilityEnabled!(), false);
     assert.equal(calls.disposed, 1);
     assert.deepEqual(warnings, ["provider plugin 'observability-sentry' did not initialize: Error"]);
@@ -651,4 +651,20 @@ test("provider loading reuses current registrations, reloads retired ones and re
   } finally { await ports.dispose({}); }
   assert.equal(calls.disposed, 2);
   assert.equal(await ports.reapply({ pluginId: "observability-sentry" }), "restart");
+});
+
+
+test('runtime returns explicit plugin-safe guidance while keeping SDK errors and retired ports private', async () => {
+  const cause = new Error('https://credential@private.example/sdk');
+  const { runtime } = fakeRuntime({ installed: ['observability-sentry'], factories: {
+    'observability-sentry': { contract: 'observability', id: 'sentry', factory: () => { throw new PluginProviderStartupError({
+      reason: 'The exporter could not start.', action: 'Correct the endpoint and save again.', cause }); } },
+  } });
+  const ports = await bootProviderPlugins({ runtime, config: configOf(CONFIGS), serviceName: 'test', site: SITE, ...consentAlways }, { warn: () => {} });
+  try {
+    const result = await ports.reapply({ pluginId: 'observability-sentry' });
+    assert.deepEqual(result, { appliesAt: 'failed', reason: 'The exporter could not start.', action: 'Correct the endpoint and save again.' });
+    assert.doesNotMatch(JSON.stringify(result), /credential|private/);
+    assert.equal(ports.observabilityEnabled!(), false);
+  } finally { await ports.dispose({}); }
 });

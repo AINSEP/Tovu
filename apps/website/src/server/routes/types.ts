@@ -983,8 +983,8 @@ export interface ObservabilityDeps {
   aiTraceSink?: import("@jini-ai/agent-runtime/ai-trace").AiTraceSink;
   /** Saved provider-plugin settings (project store, else site vault); the admin settings card reads/writes it. */
   projectKeys?: import("#src/features/project-keys/service").ProjectKeysPort;
-  providerAppliesAt?: (required: { pluginId: string }) => "now" | "restart";
-  reapplyProvider?: (required: { pluginId: string }) => Promise<"now" | "restart">;
+  providerAppliesAt?: (required: { pluginId: string }) => "now" | "restart" | "failed";
+  reapplyProvider?: (required: { pluginId: string }) => Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult>;
   providerConfig?: import("#src/server/runtime/composition/provider-config-source").ProviderConfigSource;
   /** Whether a provider key was saved the retired way (API credential `plugin:<id>`); label lookup only, never decrypted. */
   legacyProviderCredential?: (required: { pluginId: string }) => Promise<boolean>;

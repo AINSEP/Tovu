@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ProcessUsage } from '@jini-ai/platform/process';
 import { createDesktopResources } from './desktop-resources.ts';
+import type { ElectronProcessMemory } from '@jini-ai/desktop-host/electron';
 
 function usage(pid: number, ppid: number, rssBytes = 100, cpuSeconds = 0, name = 'node'): ProcessUsage {
   return { pid, ppid, rssBytes, cpuSeconds, name };
@@ -13,13 +14,44 @@ function fixture({ platform = 'darwin' as NodeJS.Platform, totalMem = 10_000_000
   let rows = [usage(1, 0)];
   let sites: { id: string; pid: number }[] = [];
   let reads = 0;
+  let electronMetrics: readonly ElectronProcessMemory[] = [];
   const monitor = createDesktopResources({
     desktopPid: 1, platform, now: () => at, totalMem: () => totalMem,
     listUsage: async () => { reads++; return rows; }, openSites: () => sites,
+    listElectronMetrics: () => electronMetrics,
   });
   return { monitor, advance: (ms: number) => { at += ms; }, rows: (next: ProcessUsage[]) => { rows = next; },
-    sites: (next: typeof sites) => { sites = next; }, reads: () => reads };
+    sites: (next: typeof sites) => { sites = next; }, reads: () => reads,
+    electronMetrics: (next: readonly ElectronProcessMemory[]) => { electronMetrics = next; } };
 }
+
+test('native Electron memory replaces RSS once per PID; packaged serve/daemon keep RSS', async () => {
+  const f = fixture({ platform: 'win32' });
+  f.sites([{ id: 'C:\\sites\\one', pid: 10 }]);
+  f.rows([usage(1, 0, 900_000, 0, 'Tovu.exe'), usage(2, 1, 800_000, 0, 'Tovu.exe'),
+    usage(10, 1, 300_000, 0, 'Tovu.exe'), usage(11, 10, 200_000, 0, 'Tovu.exe')]);
+  f.electronMetrics([
+    { pid: 1, memory: { privateBytes: 100, workingSetSize: 900 } },
+    { pid: 2, memory: { privateBytes: 200, workingSetSize: 800 } },
+    { pid: 99, memory: { privateBytes: 999_999, workingSetSize: 999_999 } },
+  ]);
+  const result = await f.monitor.get({ panelOpen: true });
+  assert.equal(result.app.rssBytes, 300 * 1024);
+  assert.equal(result.sites[0]!.rssBytes, 500_000);
+  assert.equal(result.total.rssBytes, 300 * 1024 + 500_000);
+  assert.equal(result.approximate, true);
+});
+
+test('native metric failure reports unavailable instead of silently reverting to inflated RSS', async () => {
+  const monitor = createDesktopResources({ desktopPid: 1, platform: 'win32', now: () => 100_000,
+    totalMem: () => 1000, openSites: () => [], listUsage: async () => [usage(1, 0)],
+    listElectronMetrics: () => { throw new Error('private native diagnostic'); },
+  });
+  const result = await monitor.get({ panelOpen: true });
+  assert.equal(result.status, 'unavailable');
+  assert.equal(result.total.rssBytes, null);
+  assert.ok(!JSON.stringify(result).includes('private native diagnostic'));
+});
 
 test('S2 groups owned server/daemon/agent trees and Electron helpers; excludes other desktops', async () => {
   const f = fixture();

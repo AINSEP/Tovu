@@ -4,7 +4,7 @@ import type { SelectedComposerSkill } from "@/features/plugins/selected-skills";
 import { captureSkillDrop } from "@/features/skills/skill-drop";
 import { createInstalledSkillsComposerCapabilitySource } from "@/features/plugins/installed-skills-composer-source";
 import { SKILLS_CHANGED_EVENT } from "@/features/skills/api";
-import { startVisibleInterval } from "@/lib/visible-interval";
+import { getAssistantDockOpen, subscribeToAssistantDock } from "@/lib/assistant-dock-bus";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import {
   createDaemonAttachmentUploader,
@@ -678,7 +678,7 @@ export interface UseComposerCapabilities {
 
 /**
  * Projects the composer's discovery catalog (debate 2, "Composer slash commands") from the bundled,
- * compile-time source and installed skills, refreshed on changes, focus and every ten seconds. Split out of
+ * compile-time source and installed skills, refreshed on open, changes, focus and visibility. Split out of
  * `AssistantDock` (2026-08-14 DI migration pass) for the same reason the three hooks above it were:
  * per `INFO.md`'s Components rule 3, any hook doing DOM/IO work gets an injectable seam on
  * `AssistantDockProps`, defaulted to this real implementation — see `AssistantDock.tsx` for the
@@ -698,7 +698,7 @@ export interface UseComposerCapabilities {
  * @example
  * const { composerCapabilities } = useComposerCapabilities();
  */
-export function useComposerCapabilities(): UseComposerCapabilities {
+export function useComposerCapabilities(_input: Record<string, never> = {}, _options = {}): UseComposerCapabilities {
   const [composerCapabilities, setComposerCapabilities] = useState<ComposerCapabilityProjection>(
     emptyComposerCapabilityProjection,
   );
@@ -717,15 +717,21 @@ export function useComposerCapabilities(): UseComposerCapabilities {
       });
     };
     void reload();
-    // Visible-only: an idle, hidden admin must not keep fetching skills (check-idle-motion.ts).
-    const stopPolling = startVisibleInterval(() => void reload(), 10_000);
+    const refreshVisible = () => {
+      if (document.visibilityState !== "hidden" && document.hasFocus()) void reload();
+    };
+    const stopDockSubscription = subscribeToAssistantDock(() => {
+      if (getAssistantDockOpen()) void reload();
+    });
     window.addEventListener(SKILLS_CHANGED_EVENT, reload);
-    window.addEventListener("focus", reload);
+    window.addEventListener("focus", refreshVisible);
+    document.addEventListener("visibilitychange", refreshVisible);
     return () => {
       cancelled = true;
-      stopPolling();
+      stopDockSubscription();
       window.removeEventListener(SKILLS_CHANGED_EVENT, reload);
-      window.removeEventListener("focus", reload);
+      window.removeEventListener("focus", refreshVisible);
+      document.removeEventListener("visibilitychange", refreshVisible);
     };
   }, []);
 

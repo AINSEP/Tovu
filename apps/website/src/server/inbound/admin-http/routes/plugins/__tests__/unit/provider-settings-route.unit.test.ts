@@ -271,3 +271,34 @@ test("project key use denies base readers before looking up any existing or miss
     assert.equal(response.json.code, "FORBIDDEN");
   }
 });
+
+
+test('admin save preserves committed settings but returns the safe plugin startup failure', async t => {
+  const { call, config } = await serve(t, { reapplyProvider: async () => ({ appliesAt: 'failed', reason: 'The exporter did not start.', action: 'Correct the endpoint and save again.' }) });
+  const result = await call('PUT', `${WS}/plugins/obs/provider-settings`, { values: { endpoint: 'https://collector.example.test', headers: 'Authorization=fixture-only' } });
+  assert.equal(result.status, 200);
+  assert.equal(result.json.appliesAt, 'failed');
+  assert.equal(result.json.message, 'Saved, but the provider could not start. The exporter did not start. Correct the endpoint and save again.');
+  assert.ok(config.saved.has('obs'));
+  assert.doesNotMatch(result.text, /fixture-only|restart|reload/i);
+});
+
+
+test('admin rejects non-auth headers before persistence and permits only declared auth alternatives', async t => {
+  const record = { ...RECORDS[0]!, manifest: { contributes: { providers: [{ contract: 'observability', id: 'custom', contractVersion: 1, settings: [
+    { name: 'auth', label: 'Authentication', required: true },
+    { name: 'token', label: 'Token', secret: true, required: true, requiredUnless: { field: 'auth', equals: 'none', orPresent: 'headers', headerNames: ['Authorization', 'x-api-key'] } },
+    { name: 'headers', label: 'Headers', secret: true },
+  ] }] } } } as unknown as PluginDiscoveryRecord;
+  for (const auth of ['bearer', 'grafana-cloud']) {
+    const { call, config } = await serve(t, { discoverPlugins: async () => [record] });
+    const refused = await call('PUT', `${WS}/plugins/obs/provider-settings`, { values: { auth, headers: 'X-Scope-OrgID=1' } });
+    assert.equal(refused.status, 400);
+    assert.equal(refused.json.code, 'PROVIDER_SETTINGS_REQUIRED');
+    assert.equal(config.saved.size, 0);
+    const accepted = await call('PUT', `${WS}/plugins/obs/provider-settings`, { values: { auth, headers: 'x-api-key=fixture-only' } });
+    assert.equal(accepted.status, 200);
+    assert.equal(config.saved.size, 1);
+    assert.equal(accepted.text.includes('fixture-only'), false);
+  }
+});

@@ -15,6 +15,7 @@ import type { Tracker } from '@jini-ai/diagnostics/observability';
 
 type SavedConfig = { settings: Readonly<Record<string, string>>; secrets: Readonly<Record<string, string>> };
 export type ProviderSettingsRefusal = { code: string; error: string };
+type SavedProviderSettings = { saved: true; configured: boolean; appliesAt: "now" | "restart" | "failed"; message?: string } & ProviderKeyUsage;
 type NextConfig = { config: SavedConfig } | { refusal: ProviderSettingsRefusal };
 
 const INVALID = { refusal: { code: "PROVIDER_SETTINGS_INVALID", error: "values must map declared setting names to text" } };
@@ -87,9 +88,9 @@ function requiredSettingsRefusal({ fields, config }: { fields: readonly PluginPr
  * @complexity O(f) plus one read and one write of the config row.
  */
 export async function saveProviderSettings({ config, pluginId, fields, values, reapply, telemetry }: {
-  config: ProviderConfigSource; pluginId: string; fields: readonly PluginProviderSettingField[]; values: unknown; reapply?: (input: { pluginId: string }) => Promise<"now" | "restart">;
+  config: ProviderConfigSource; pluginId: string; fields: readonly PluginProviderSettingField[]; values: unknown; reapply?: (input: { pluginId: string }) => Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult>;
   telemetry?: { tracker: Tracker; contracts: readonly string[]; userId: string };
-}, _optional = {}): Promise<({ saved: true; configured: boolean; appliesAt: "now" | "restart" } & ProviderKeyUsage) | { refusal: ProviderSettingsRefusal }> {
+}, _optional = {}): Promise<SavedProviderSettings | { refusal: ProviderSettingsRefusal }> {
   const next = nextProviderConfig({ values, fields, current: await currentProviderConfig({ config, pluginId }) });
   if ("refusal" in next) return next;
   const refusal = requiredSettingsRefusal({ fields, config: next.config });
@@ -100,19 +101,28 @@ export async function saveProviderSettings({ config, pluginId, fields, values, r
     if (error instanceof ProviderStoreUnavailableError) return { refusal: { code: error.code, error: error.message } };
     throw error;
   }
+  return savedProviderSettingsResult({ config, pluginId, fields, saved: next.config }, { ...(reapply ? { reapply } : {}), ...(telemetry ? { telemetry } : {}) });
+}
+
+/** Report a committed save independently from startup; both cards receive the same safe guidance. */
+async function savedProviderSettingsResult({ config, pluginId, fields, saved }: {
+  config: ProviderConfigSource; pluginId: string; fields: readonly PluginProviderSettingField[]; saved: SavedConfig;
+}, { reapply, telemetry }: Pick<Parameters<typeof saveProviderSettings>[0], "reapply" | "telemetry"> = {}): Promise<SavedProviderSettings> {
   const usage = await config.usage({ pluginId });
-  const appliesAt = reapply ? await reapply({ pluginId }) : "restart";
+  const applied = reapply ? await reapply({ pluginId }) : "restart";
+  const appliesAt = typeof applied === "string" ? applied : applied.appliesAt;
+  const message = typeof applied === "string" ? undefined : `Saved, but the provider could not start. ${applied.reason} ${applied.action}`;
   for (const contract of new Set(telemetry?.contracts ?? [])) telemetry?.tracker.capture({ name: 'provider_configured', userId: telemetry.userId,
     properties: { contract, pluginId, action: 'save' } });
-  const configured = usage.usedByThisSite && providerInputOf({ declaration: { contract: "", id: pluginId, contractVersion: 1, settings: fields }, saved: next.config }) !== undefined;
-  return { saved: true, configured, ...usage, appliesAt };
+  const configured = usage.usedByThisSite && providerInputOf({ declaration: { contract: "", id: pluginId, contractVersion: 1, settings: fields }, saved }) !== undefined;
+  return { saved: true as const, configured, ...usage, appliesAt, ...(message ? { message } : {}) };
 }
 
 /** What the assistant may know about a provider plugin's settings: presence only, never a value. */
 export interface ProviderSettingsStatus extends ProviderKeyUsage {
   readonly configured: boolean;
   readonly store: ProviderConfigSource["scope"];
-  readonly appliesAt: "now" | "restart";
+  readonly appliesAt: "now" | "restart" | "failed";
   /** Labels of required fields still without a value (a declared default counts as a value). */
   readonly missing: readonly string[];
   readonly unreadable?: true;
@@ -120,12 +130,12 @@ export interface ProviderSettingsStatus extends ProviderKeyUsage {
 
 /**
  * Configured means boot would start the provider: every required declared field has a value
- * (`providerInputOf`, the boot rule). Reads names and presence only; no secret value is returned.
+ * (`providerInputOf`, the boot rule). Reads effective settings to validate header alternatives; returns labels and presence only.
  * @complexity O(f) plus one config read.
  */
 export async function providerSettingsStatus({ config, pluginId, fields }: { config: ProviderConfigSource; pluginId: string; fields: readonly PluginProviderSettingField[] }, _optional = {}): Promise<ProviderSettingsStatus> {
   const view = await config.readSettings({ pluginId });
-  const saved = view && !view.unreadable ? { settings: view.settings, secrets: Object.fromEntries(view.secretNames.map((name) => [name, "saved"])) } : null;
+  const saved = view && !view.unreadable ? await currentProviderConfig({ config, pluginId }) : null;
   // Nothing saved still counts declared defaults, so `missing` names only what the person must enter.
   const input = providerInputOf({ declaration: { contract: "", id: pluginId, contractVersion: 1, settings: fields.map(({ requiredWhen: _when, ...field }) => ({ ...field, required: false })) }, saved: saved ?? { settings: {}, secrets: {} } }) ?? {};
   const missing = fields.filter((field) => isProviderSettingRequired({ field, values: input }) && !input[field.name]).map((field) => field.label);
@@ -138,7 +148,7 @@ export async function providerSettingsStatus({ config, pluginId, fields }: { con
  * to this module's rule and the same `ProviderConfigSource` the admin route uses.
  * @complexity O(p + f) per call: one discovery read plus one config read/write.
  */
-export function bindProviderSettingsCardPorts({ config, discoverPlugins, reapply, tracker, userId }: { config: ProviderConfigSource; discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>; reapply?: (input: { pluginId: string }) => Promise<"now" | "restart">; tracker?: Tracker; userId?: string }) {
+export function bindProviderSettingsCardPorts({ config, discoverPlugins, reapply, tracker, userId }: { config: ProviderConfigSource; discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>; reapply?: (input: { pluginId: string }) => Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult>; tracker?: Tracker; userId?: string }) {
   const fields = async ({ pluginId }: { pluginId: string }) => declaredProviderSettingFields({ records: await discoverPlugins(), pluginId });
   return {
     fields,
@@ -165,7 +175,7 @@ export function bindProviderSettingsCardPorts({ config, discoverPlugins, reapply
  * @complexity O(p) plugins, one activation read and one settings read per provider plugin.
  */
 export async function listProviderStatuses({ config, discoverPlugins, activation, appliesAt }: {
-  appliesAt?: (input: { pluginId: string }) => "now" | "restart";
+  appliesAt?: (input: { pluginId: string }) => "now" | "restart" | "failed";
   config: ProviderConfigSource; discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
   activation: (required: { pluginId: string }) => Promise<{ enabled: boolean; quarantineReason?: string } | null>;
 }) {
