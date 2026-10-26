@@ -450,7 +450,7 @@ const routeDeps = await createAgentDaemonRouteDeps({ env: process.env }, { onSto
 if (routeDeps.legacyPublishCredentialsReady) daemonBootWork.push(routeDeps.legacyPublishCredentialsReady);
 // This process boots its own provider plugins (the same `createSiteRouteDeps` composition), so its
 // unhandled rejections/exceptions reach the error tracker, labelled `process: daemon`.
-installProcessErrorReporting({ observability: routeDeps.observability, processRole: "daemon" });
+installProcessErrorReporting({ tracker: routeDeps.tracker, processRole: "daemon" });
 
 /**
  * Root directory the chat composer's staged image/file uploads land in before a run claims them

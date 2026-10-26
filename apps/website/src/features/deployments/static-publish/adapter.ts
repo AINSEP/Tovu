@@ -8,7 +8,8 @@ import { DeployError, type DeployFile, type DeployPublishInput, type DeployPubli
 import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
 import type { ObservabilityPort } from "#src/platform/observability/index";
-import { trackAsyncOperation } from "#src/platform/observability/operation";
+import { createNoopTracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/diagnostics/observability";
 import type { DeployHostKit, DeployTargetCredential, DeployTargetRegistry, HostDeployTarget, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
 // Leaf modules, not the category barrel: this file is on an eagerly loaded graph (see below), and
 // the barrel would add the plugin loader and the credential vault to it.
@@ -227,6 +228,7 @@ export interface StaticPublishDeps {
   readonly hostKit?: DeployHostKit;
   /** `RouteDeps.observability`: the default kit traces the plugin's egress through it. */
   readonly observability?: ObservabilityPort;
+  readonly tracker?: Tracker;
   /** The site's form submissions destination. Absent: publishing carries no forms (the old behavior). */
   readonly formDestination?: StaticPublishFormDestinationPort;
 }
@@ -476,9 +478,12 @@ async function publishAndMapOutcome(
 export async function publishStaticSite(deps: StaticPublishDeps, input: StaticPublishInput): Promise<StaticPublishOutcome> {
   // Publish/deploy chokepoint: one `site.publish` operation per run (target id only; the outcome
   // is `published` or the failure code), with its export and host egress as child spans.
-  return trackAsyncOperation({ observability: deps.observability, name: "site.publish", work: () => publishStaticSiteSteps(deps, input),
-    outcomeOf: (outcome) => outcome.ok ? { outcome: "published", failed: false } : { outcome: outcome.code, failed: true } },
-  { attributes: { "publish.target": input.config.target } });
+  const tracker = deps.tracker ?? createNoopTracker({});
+  return tracker.span("site.publish", async (span) => {
+    const outcome = await publishStaticSiteSteps(deps, input);
+    span.setOutcome(outcome.ok ? { outcome: "published", failed: false } : { outcome: outcome.code, failed: true });
+    return outcome;
+  }, { attributes: { "publish.target": input.config.target } });
 }
 
 /** {@link publishStaticSite}'s steps, inside its operation. */

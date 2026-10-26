@@ -53,7 +53,7 @@ export interface AgentPluginsRouteDeps {
   readonly adminSurfaceSource?: import("#src/features/agent-plugins/admin-surfaces/surfaces").AdminSurfaceSource;
   readonly adminSurfaceHost?: import("#src/features/agent-plugins/admin-surfaces/surfaces").AdminSurfaceHost;
   /** `agent_plugin_enabled` (consent-gated port; the plugin id only). */
-  readonly productAnalytics?: RouteDeps["productAnalytics"];
+  readonly tracker: RouteDeps["tracker"];
 }
 
 export type AgentPluginsRouteRegistrar = (app: Express, deps: AgentPluginsRouteDeps) => void;

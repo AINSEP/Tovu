@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createNoopObservabilityPort, isNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
-import { isNoopProductAnalytics, type ProductAnalyticsPort } from "@jini-ai/analytics/product";
+import { createNoopObservabilityPort, createNoopTracker, isNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import type { ProductAnalyticsPort } from "@jini-ai/analytics/product";
 import { createAiTraceRecorder } from "@jini-ai/agent-runtime/ai-trace";
 import { createPluginContributionRegistry, type PluginProviderFactory, type PluginProviderSettingField } from "@jini-ai/plugins/host";
 
@@ -84,7 +84,7 @@ test("nothing configured: nothing is loaded, every contract is the shared noop, 
   const ports = await bootProviderPlugins({ runtime, config: configOf({}), serviceName: "tovu", site: SITE, ...consentAlways }, { warn: quiet });
   assert.deepEqual(requested, []);
   assert.equal(isNoopObservabilityPort(ports.observability), true);
-  assert.equal(isNoopProductAnalytics(ports.productAnalytics), true);
+  assert.equal(ports.tracker, createNoopTracker({}));
   assert.equal(ports.aiTraceSink, undefined);
   await ports.dispose({});
 });
@@ -171,7 +171,7 @@ test("a throwing factory, an invalid port and a hung initialization each leave o
   assert.ok(!warnings.join("\n").includes("secret@"), "an SDK error message never reaches the log");
   ports.observability.trackOperation({ name: "still-works" }).end({ outcome: "completed", failed: false });
   assert.deepEqual(seen, ["op:still-works"]);
-  assert.equal(isNoopProductAnalytics(ports.productAnalytics), false, "the stable wrapper can become active later");
+  assert.notEqual(ports.tracker, createNoopTracker({}), "the stable wrapper can become active later");
   assert.notEqual(ports.aiTraceSink, undefined, "a declared trace slot can become active later");
   assert.deepEqual(warnings, [
     "provider plugin 'observability-opentelemetry' did not initialize: Error",
@@ -190,16 +190,16 @@ test("product analytics: consent first; a revoke that lands while consent is bei
   let answer: (allowed: boolean) => void = () => {};
   const ports = await bootProviderPlugins({ runtime, config: configOf(CONFIGS), serviceName: "tovu", site: SITE,
     consent: () => new Promise<boolean>((resolve) => { answer = resolve; }), consentRevision: () => revision }, { warn: quiet });
-  ports.productAnalytics.capture({ name: "post_published", userId: "p-1" });
+  ports.tracker.capture({ name: "post_published", userId: "p-1" });
   revision += 1; // the operator revoked consent while the read was in flight
   answer(true);
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(captured, []);
-  ports.productAnalytics.capture({ name: "post_published", userId: "p-1" });
+  ports.tracker.capture({ name: "post_published", userId: "p-1" });
   answer(true);
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(captured, ["post_published:p-1"]);
-  ports.productAnalytics.capture({ name: "post_published", userId: "p-1", properties: { email: "x" } });
+  ports.tracker.capture({ name: "post_published", userId: "p-1", properties: { email: "x" } });
   answer(true);
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(captured, ["post_published:p-1"], "PII-shaped properties are refused by the guard");
@@ -236,9 +236,9 @@ test("two product-analytics providers both receive each allowed event", async ()
     b: { contract: "product_analytics", id: "b", factory: () => ({ port: { capture: () => { throw new Error("down"); }, identify: () => { throw new Error("down"); } }, dispose: () => {} }) },
   } });
   const ports = await bootProviderPlugins({ runtime, config: configOf({ a: { settings: {}, secrets: { apiKey: "k" } }, b: { settings: {}, secrets: { apiKey: "k" } } }), serviceName: "tovu", site: SITE, ...consentAlways }, { warn: quiet });
-  ports.productAnalytics.capture({ name: "theme_changed", userId: "p-2" });
-  ports.productAnalytics.identify({ userId: "p-2" });
-  assert.deepEqual(seen, ["a:theme_changed", "a:id:p-2"]);
+  ports.tracker.capture({ name: "theme_changed", userId: "p-2" });
+  // Identity fan-out is covered at its new owner, analytics/product-fanout.test.ts.
+  assert.deepEqual(seen, ["a:theme_changed"]);
 });
 
 const HOSTILE = [undefined, null, [], {}, 0, Number.NaN, "", "  ", true, "port", () => {}];
@@ -288,7 +288,7 @@ test("a retired lease is never called again: after disable every contract's comp
   const ports = await bootProviderPlugins({ runtime, config: configOf(CONFIGS), serviceName: "tovu", site: SITE, ...consentAlways }, { warn: quiet });
   const event = { kind: "run_finished", traceId: "t", at: 0, outcome: "succeeded", error: null, totals: { turns: 0, toolCalls: 0, toolErrors: 0, inputTokens: null, outputTokens: null, costUsd: null } } as const;
   ports.observability.trackOperation({ name: "before" }).end({ outcome: "ok" });
-  ports.productAnalytics.capture({ name: "before", userId: "p-1" });
+  ports.tracker.capture({ name: "before", userId: "p-1" });
   ports.aiTraceSink!.record(event);
   assert.deepEqual(seen, ["op:before", "capture:before"]);
   assert.equal(sinkEvents.length, 1);
@@ -296,8 +296,7 @@ test("a retired lease is never called again: after disable every contract's comp
   // Synchronously after detach — before the host's queued disposal — the lease is already not current.
   ports.observability.trackOperation({ name: "after" }).end({ outcome: "ok" });
   ports.observability.reportError({ error: new Error("x"), context: { operation: "after" } } as never);
-  ports.productAnalytics.capture({ name: "after", userId: "p-1" });
-  ports.productAnalytics.identify({ userId: "p-1" });
+  ports.tracker.capture({ name: "after", userId: "p-1" });
   ports.aiTraceSink!.record(event);
   await ports.aiTraceSink!.flush?.();
   assert.deepEqual(seen, ["op:before", "capture:before"]);
@@ -362,10 +361,16 @@ test("analytics providers have independent content policies and one failure cann
   } });
   const config = configOf(Object.fromEntries(["full", "broken", "metadata"].map((id) => [id, { settings: {}, secrets: { apiKey: "fixture" } }])));
   const ports = await bootProviderPlugins({ runtime, config, serviceName: "tovu", site: SITE, ...consentAlways }, { warn: quiet });
-  ports.productAnalytics.captureAiGeneration!({ userId: "s", properties: { traceId: "r" }, input: "Hello", output: "Welcome" });
-  assert.deepEqual(received, [
-    { userId: "s", properties: { traceId: "r" }, input: "Hello", output: "Welcome" },
-    { userId: "s", properties: { traceId: "r" } },
+  const recorder = createAiTraceRecorder({ sink: ports.aiTraceSink!, runId: "r", agentId: "fixture" });
+  recorder.start({ input: "Hello" });
+  recorder.observe({ type: "text_delta", delta: "Welcome" });
+  recorder.finish({ outcome: "succeeded" });
+  assert.deepEqual(received.map((event) => {
+    const generation = event as { userId: string; input?: string; output?: string };
+    return { userId: generation.userId, input: generation.input, output: generation.output };
+  }), [
+    { userId: "site:site-123", input: "Hello", output: "Welcome" },
+    { userId: "site:site-123", input: undefined, output: undefined },
   ]);
   await ports.dispose({});
 });
@@ -388,7 +393,7 @@ test("an unconfigured slot becomes live without replacing captured ports; rotati
   const { runtime } = fakeRuntime({ installed: ["analytics-posthog"], factories: { "analytics-posthog": { contract: "product_analytics", id: "posthog", factory } } });
   const warnings: string[] = [];
   const ports = await bootProviderPlugins({ runtime, config: { ...configOf({}), read: async () => saved }, serviceName: "test", site: SITE, ...consentAlways }, { warn: message => warnings.push(message) });
-  const captured = ports.productAnalytics;
+  const captured = ports.tracker;
   const event = { name: "probe", userId: "owner" };
   captured.capture(event); assert.deepEqual(seen, []);
   saved = { settings: { host: "https://collector.example.test" }, secrets: { apiKey: ["fake", "first"].join("_") } };

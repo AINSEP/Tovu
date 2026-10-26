@@ -1,4 +1,5 @@
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import { ALL_CHAT_DELETE_TOOLS } from "../../assistant/permanent-delete-tool-gate.js";
 import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_KEY } from "../../contracts/headless/assistant-permanent-deletes-policy.js";
 import { set as setSiteSetting } from "../../features/settings/index.js";
@@ -1188,6 +1189,7 @@ async function bootTraced(t: import("node:test").TestContext) {
   const { exporter, port } = createInMemoryOtel();
   const deps = createRouteDeps();
   deps.observability = port;
+  deps.tracker = createTracker({ observability: port });
   const { baseUrl } = await bootAuthenticated(createApp(deps), t);
   const cookie = await loginWithPermissions(deps, baseUrl, ["workspace.manage"]);
   const agentRunSpan = async () => {

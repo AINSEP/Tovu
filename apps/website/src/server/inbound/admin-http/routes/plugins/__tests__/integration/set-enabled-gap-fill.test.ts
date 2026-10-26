@@ -1,4 +1,5 @@
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -43,6 +44,7 @@ function buildTestApp(overrides: Partial<PluginsRouteDeps> = {}): { app: express
   const onEnabledCalls: string[] = [];
   const onDisabledCalls: string[] = [];
   const pluginDeps: PluginsRouteDeps = {
+    tracker: createNoopTracker({}),
     workspaceId: baseDeps.workspaceId,
     authorize: baseDeps.authorize,
     clock: baseDeps.clock,

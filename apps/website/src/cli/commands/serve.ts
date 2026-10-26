@@ -307,7 +307,7 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
   });
   if (deps.legacyPublishCredentialsReady) owned.bootWork.push(deps.legacyPublishCredentialsReady);
   // Unhandled rejections/exceptions reach the error tracker too, now that its port exists.
-  installProcessErrorReporting({ observability: deps.observability, processRole: "server" });
+  installProcessErrorReporting({ tracker: deps.tracker, processRole: "server" });
 
   // 2026-09-05 dispatch (boot-path parity): this command never ran `runBootLifecycle` at all —
   // only `src/index.ts`'s `main()` did (ADR-046 Phase 3/SPEC-031). Two concrete gaps that opened:

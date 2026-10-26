@@ -10,7 +10,7 @@ import type { ClockDeps, MediaDeps, RouteDeps } from "#src/server/routes/types";
  * `server/routes/types.ts` for the group boundary.
  */
 export type MediaRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "removeMedia" | "forgetRemovedMedia"> &
-  Partial<Pick<RouteDeps, "productAnalytics">> &
+  Pick<RouteDeps, "tracker"> &
   ClockDeps &
   MediaDeps;
 

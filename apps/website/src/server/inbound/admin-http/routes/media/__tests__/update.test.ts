@@ -1,4 +1,5 @@
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -27,6 +28,7 @@ const WORKSPACE_ID = "workspace-local";
 function buildApp(depsOverrides: Partial<MediaRouteDeps> = {}): express.Express {
   const base = createRouteDeps();
   const deps: MediaRouteDeps = {
+    tracker: createNoopTracker({}),
     workspaceId: base.workspaceId,
     authorize: async () => ({ allowed: true, reason: "matched" }),
     removeMedia: base.removeMedia,

@@ -1,4 +1,6 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { createFormsModule } from "../../runtime/composition/modules/forms.js";
+import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from "node:assert/strict";
 import { rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -46,7 +48,7 @@ function adminFetch(baseUrl: string, cookie: string, url: string, init: { method
 async function bootApp(t: TestContext, extra: Partial<ReturnType<typeof createRouteDeps>> = {}) {
   const { port, events } = recording();
   const base = createRouteDeps();
-  const deps = { ...base, productAnalytics: port, ...extra };
+  const deps = { ...base, tracker: createTracker({ productAnalytics: port }), ...extra };
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   const principalId = (await (await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } })).json() as { user: { id: string } }).user.id;
   return { deps, events, baseUrl, cookie, principalId, ws: `/api/admin/v1/workspaces/${deps.workspaceId}` };
@@ -129,8 +131,14 @@ test("form_submitted on a public submission: the form slug only, under one fixed
   let counter = 0;
   const app = express();
   app.use(express.json());
-  registerFormsSubmitRoute(app, { workspaceId: "ws", productAnalytics: port, submitForm: {
-    definitionRepo, submissionRepo: new InMemoryFormSubmissionRepo(), outbox: new InMemoryOutbox(), bus: new InMemoryEventBus(), clock,
+  const bus = new InMemoryEventBus();
+  const submissionRepo = new InMemoryFormSubmissionRepo();
+  createFormsModule({ bus, tracker: createTracker({ productAnalytics: port }), formDefinitionRepo: definitionRepo,
+    formSubmissionRepo: submissionRepo, mailer: { capabilities: () => ({ driver: "memory", supportsIdempotencyKey: false,
+      supportsWebhookFeedback: false, maxBatchSize: 1, supportsAttachments: false }), send: async () => { throw new Error("notifications disabled"); }, sendBatch: async () => { throw new Error("notifications disabled"); } },
+  }).start?.();
+  registerFormsSubmitRoute(app, { workspaceId: "ws", submitForm: {
+    definitionRepo, submissionRepo, outbox: new InMemoryOutbox(), bus, clock,
     idGen: { newId: () => `id-${++counter}` }, rateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
   } });
   const baseUrl = await startTestServer(app, t);
@@ -149,7 +157,7 @@ test("plugin_installed on an install (never a preview), with the plugin id", asy
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner-1" }; next(); });
   app.use(express.json());
-  registerPluginInstallRoutes(app, { workspaceId: "ws", productAnalytics: port, authorize: async () => ({ allowed: true, reason: "ok" }),
+  registerPluginInstallRoutes(app, { workspaceId: "ws", tracker: createTracker({ productAnalytics: port }), authorize: async () => ({ allowed: true, reason: "ok" }),
     pluginSourcePolicy: createSitePluginPolicy({ env: { NODE_ENV: "production", TOVU_PLUGIN_LOCAL_INSTALL: "1" } }),
     pluginInstaller: { preview: async () => plugin, install: async () => plugin } });
   const baseUrl = await startTestServer(app, t);
@@ -166,7 +174,7 @@ test("site_imported after a backup import, carrying nothing about the source", a
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "recipient" }; res.locals.authCredentialKind = "session"; next(); });
-  registerAdminSiteImportRoutes({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }), siteImportBackend: backend, productAnalytics: port } });
+  registerAdminSiteImportRoutes({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }), siteImportBackend: backend, tracker: createTracker({ productAnalytics: port }) } });
   const origin = await startTestServer(app, t);
   const response = await fetch(`${origin}/api/admin/v1/workspaces/ws/site-imports`, { method: "POST", headers: { origin, "content-type": "application/json" }, body: JSON.stringify(view.source) });
   assert.equal(response.status, 200, await response.clone().text());
@@ -176,7 +184,7 @@ test("site_imported after a backup import, carrying nothing about the source", a
 test("assistant_tool_used once per settled tool attempt: tool id and outcome only; an invented tool is 'unknown'", async () => {
   const { port, events } = recording();
   const appended: string[] = [];
-  const sink = withToolUseEvents({ productAnalytics: port, sink: { append: async (required) => { appended.push(required.phase); } } });
+  const sink = withToolUseEvents({ tracker: createTracker({ productAnalytics: port }), sink: { append: async (required) => { appended.push(required.phase); } } });
   const attempt = { attemptId: "a", executionId: null, workspaceId: "ws", runId: "r", principalId: "owner-1", at: "2026-10-25T00:00:00.000Z" };
   await sink.append({ ...attempt, toolId: "posts_create", phase: "requested" });
   await sink.append({ ...attempt, toolId: "posts_create", phase: "completed" }, { detail: `keys:${secret}` });

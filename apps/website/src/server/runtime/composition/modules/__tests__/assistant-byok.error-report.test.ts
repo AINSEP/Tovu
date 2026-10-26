@@ -1,4 +1,5 @@
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
+import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer } from "node:http";
@@ -30,7 +31,7 @@ test("a failed BYOK turn (provider connection dropped) is reported once as assis
   const observability: ObservabilityPort = { ...createNoopObservabilityPort({}), reportError: (report) => { reports.push(report); } };
   const generations: ProductAiGeneration[] = [];
   const analytics = withProductAnalyticsGuards({ inner: { capture() {}, identify() {}, captureAiGeneration: (event) => { generations.push(event); } }, consent: () => true });
-  const deps = { ...createRouteDeps(), observability, aiTraceSink: createAiGenerationSink({ analytics, userId: "site:fixture" })! };
+  const deps = { ...createRouteDeps(), tracker: createTracker({ observability }), observability, aiTraceSink: createAiGenerationSink({ analytics, userId: "site:fixture" })! };
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, deps);

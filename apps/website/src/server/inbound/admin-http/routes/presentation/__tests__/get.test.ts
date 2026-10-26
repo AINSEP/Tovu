@@ -1,4 +1,5 @@
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -34,6 +35,7 @@ const PATH = `/api/admin/v1/workspaces/${WORKSPACE_ID}/presentation`;
 function buildApp(depsOverrides: Partial<ContentRouteDeps> = {}): express.Express {
   const base = createRouteDeps();
   const deps: ContentRouteDeps = {
+    tracker: createNoopTracker({}),
     userRepo: base.userRepo,
     workspaceId: base.workspaceId,
     authorize: async () => ({ allowed: true, reason: "matched" }),

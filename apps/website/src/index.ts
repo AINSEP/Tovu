@@ -246,7 +246,7 @@ async function main(): Promise<void> {
     ? createRouteDeps(process.env.TOVU_PLUGINS_DIR ? { installDir: resolvePath(process.env.TOVU_PLUGINS_DIR) } : {})
     : await createSiteRouteDeps(defaultContentDbPath(), { onStoreOpened: (store) => (siteStore = store) });
   // Unhandled rejections/exceptions reach the error tracker too, now that its port exists.
-  installProcessErrorReporting({ observability: deps.observability, processRole: "server" });
+  installProcessErrorReporting({ tracker: deps.tracker, processRole: "server" });
   if (!useMemory) await completeDevSiteMetaOrWarn(siteDir());
   // Boot passes the composition starts and never awaits, which read the store: the legacy
   // publish-credential tail here, `createServingApp`'s BYOK pass below. The store close waits for

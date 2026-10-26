@@ -1,3 +1,4 @@
+import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import http, { createServer } from "node:http";
@@ -51,7 +52,7 @@ async function startTestApp(overrides: { definitionRepo?: FormDefinitionRepoPort
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();
   createFormsModule({ bus, formDefinitionRepo: definitionRepo, formSubmissionRepo: submissionRepo,
-    productAnalytics: overrides.productAnalytics,
+    tracker: createTracker({ productAnalytics: overrides.productAnalytics }),
     mailer: {
       capabilities: () => ({ driver: "memory", supportsIdempotencyKey: false, supportsWebhookFeedback: false, maxBatchSize: 1, supportsAttachments: false }),
       send: async () => { throw new Error("notifications are disabled in this test"); },

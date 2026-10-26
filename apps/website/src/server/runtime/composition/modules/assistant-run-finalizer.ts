@@ -1,3 +1,5 @@
+import { createNoopTracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/diagnostics/observability";
 /**
  * @file Saves an admin-chat turn when its agent run ends — whether or not a browser is still watching.
  *
@@ -103,6 +105,8 @@ export interface AssistantRunFinalizerOptions {
    * Default: the no-op port.
    */
   readonly observability?: ObservabilityPort;
+  /** Agent-run spans use the facade; the raw port above only decorates the default HTTP client. */
+  readonly tracker?: Tracker;
   readonly verifyChildDead?: (required: { pid: number; startedAt: string }, optional: {}) => Promise<boolean>;
   readonly supportsNativeResume?: (required: { agentId: string }, optional: {}) => boolean;
 }
@@ -278,6 +282,7 @@ type StreamResult = { kind: "ended"; status: RunSettlement["status"] } | { kind:
  */
 export function createAssistantRunFinalizer(options: AssistantRunFinalizerOptions, _optional = {}): AssistantRunFinalizer {
   const observability = options.observability ?? createNoopObservabilityPort({});
+  const tracker = options.tracker ?? createNoopTracker({});
   const daemon = options.daemon ?? createHttpRunDaemonClient({ observability });
   const now = options.now ?? Date.now;
   const { reconnectDelayMs, maxReconnects, resolutionTimeoutMs, statusTimeoutMs, checkpointIntervalMs, largeCheckpointBytes, largeCheckpointIntervalMs } = recoverySettings({ options });
@@ -614,16 +619,15 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
 
   function startWatch(watch: Watch) {
       const { runId, conversationId } = watch;
-      const tracker = observability.trackAgentRun({ runId }, { conversationId });
       // Inside the run's scope, so the ledger writes the loop makes are recorded under the run.
-      const done = tracker
-        .run(() => follow(watch))
-        .then((status) => tracker.end({ status }))
-        .catch((error: unknown) => {
+      const done = tracker.span("assistant.run", async (span) => {
+        try { span.setOutcome({ status: await follow(watch) }); }
+        catch (error) {
           // A watch that threw proved nothing about the run itself; the error says why it stopped.
-          tracker.end({ status: "abandoned", error });
+          span.setOutcome({ status: "abandoned", error });
           console.error(`[assistant-run-finalizer] watching run ${runId} failed`, error);
-        })
+        }
+      }, { agent: { runId, conversationId } })
         .finally(() => {
           watch.abortStream.abort();
           clearTimeout(watch.trailing);

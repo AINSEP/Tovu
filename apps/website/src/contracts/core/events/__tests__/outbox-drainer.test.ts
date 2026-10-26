@@ -1,3 +1,4 @@
+import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -293,7 +294,7 @@ test("observability: each background delivery is one outbox.deliver operation na
   let fail = true;
   await bus.subscribe({ eventName: "entry.updated", handler: async () => { if (fail) { fail = false; throw new Error("handler down"); } } });
   const { port, log } = recordingPort();
-  const drainer = startOutboxDrainer({ outbox, bus, clock }, { intervalMs: 10, observability: port });
+  const drainer = startOutboxDrainer({ outbox, bus, clock }, { intervalMs: 10, tracker: createTracker({ observability: port }) });
   t.after(() => drainer.stop());
   await outbox.enqueue({ ...makeEvent("traced-1"), payload: { secret: "never-a-label" } });
   assert.ok(await waitFor(() => log.includes("end:outbox.deliver:error:true")), log.join("\n"));
@@ -306,7 +307,7 @@ test("observability: the noop port leaves delivery untraced and unchanged", asyn
   const bus = new InMemoryEventBus();
   const received: string[] = [];
   await bus.subscribe({ eventName: "entry.updated", handler: async (event) => { received.push(event.id); } });
-  const drainer = startOutboxDrainer({ outbox, bus, clock }, { intervalMs: 10, observability: createNoopObservabilityPort({}) });
+  const drainer = startOutboxDrainer({ outbox, bus, clock }, { intervalMs: 10, tracker: createTracker({}) });
   t.after(() => drainer.stop());
   await outbox.enqueue(makeEvent("plain-1"));
   assert.ok(await waitFor(() => received.length === 1));
@@ -317,7 +318,7 @@ test("observability: a successful delivery ends as delivered", async (t) => {
   const bus = new InMemoryEventBus();
   await bus.subscribe({ eventName: "entry.updated", handler: async () => {} });
   const { port, log } = recordingPort();
-  const drainer = startOutboxDrainer({ outbox, bus, clock }, { intervalMs: 10, observability: port });
+  const drainer = startOutboxDrainer({ outbox, bus, clock }, { intervalMs: 10, tracker: createTracker({ observability: port }) });
   t.after(() => drainer.stop());
   await outbox.enqueue(makeEvent("ok-1"));
   assert.ok(await waitFor(() => log.includes("end:outbox.deliver:delivered:false")), log.join("\n"));

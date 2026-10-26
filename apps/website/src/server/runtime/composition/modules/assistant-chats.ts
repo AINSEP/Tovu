@@ -91,7 +91,7 @@ export interface AssistantChatsModuleOptions {
 
 export function createAssistantChatsModule(deps: RouteDeps, options: AssistantChatsModuleOptions = {}): ServerModuleHandle {
   const finalizer = options.finalizer ?? assistantRunFinalizerFor({
-    ledger: deps.chatRunLedger, observability: deps.observability,
+    ledger: deps.chatRunLedger, tracker: deps.tracker, observability: deps.observability,
     ...(options.recoverInterrupted && deps.siteBinding?.dir ? {
       recoveryDaemon: createHttpRunDaemonClient({ observability: deps.observability ?? createNoopObservabilityPort({}) }, {
         previousDaemon: () => readPreviousAssistantDaemon({ siteDir: deps.siteBinding.dir }, {}),
@@ -158,7 +158,7 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
           })
           .then((conversation) => {
             // Owner-action product event (consent-gated port): a chat was started; never its text.
-            deps.productAnalytics?.capture({ name: "assistant_chat_started", userId: getAuthedPrincipal(res).id });
+            deps.tracker.capture({ name: "assistant_chat_started", userId: getAuthedPrincipal(res).id });
             res.status(201).json({ conversation });
           })
           .catch(next);

@@ -2,9 +2,9 @@ import type { ErrorRequestHandler, Express, NextFunction, Request, Response } fr
 
 import type { Logger } from "@jini-ai/core/primitives";
 import { logCompletedRequest } from "@jini-ai/http-kit/observability";
-import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/diagnostics/observability";
 
-import { reportErrorOnce, runWithErrorReportScope, type ErrorReportScope } from "../../../platform/observability/report-error.js";
+import { runWithErrorReportScope, type ErrorReportScope } from "../../../platform/observability/report-error.js";
 import { REQUEST_ID_HEADER, resolveRequestId } from "./request-id.js";
 
 /**
@@ -65,7 +65,7 @@ import { REQUEST_ID_HEADER, resolveRequestId } from "./request-id.js";
  * @complexity O(1) time and auxiliary space per request beyond routing and injected adapters.
  */
 export function applyRequestTracking(app: Express, deps: {
-  observability: ObservabilityPort;
+  tracker: Tracker;
   logger?: Pick<Logger, "info">;
   env?: Pick<NodeJS.ProcessEnv, "TOVU_LOG_REQUESTS" | "TOVU_LOG_SLOW_REQUESTS">;
 }): void {
@@ -80,37 +80,39 @@ export function applyRequestTracking(app: Express, deps: {
     const requestId = resolveRequestId({ header: req.headers[REQUEST_ID_HEADER] });
     res.setHeader(REQUEST_ID_HEADER, requestId);
     res.locals.requestId = requestId;
-    const tracker = deps.observability.trackRequest({ method: req.method, path: req.path }, { requestId });
     const scope: ErrorReportScope = { reported: false };
-
-    res.on("finish", () => {
-      const durationMs = performance.now() - startedAt;
-      // After an error reaches the app's final handler Express has already reset `req.baseUrl`
-      // (undefined at the top level), so it is read defensively.
-      const routePattern = req.route ? `${req.baseUrl ?? ""}${req.route.path}` : "unmatched";
-      reportServerError({ observability: deps.observability, req, res, scope, routePattern });
-      tracker.end({ statusCode: res.statusCode, routePattern });
-      logCompletedRequest({
-        requestId, method: req.method, routePattern, statusCode: res.statusCode, durationMs,
-      }, { logger: deps.logger, logRequests, slowRequestMs });
-    });
-
-    // Routing and the handler run inside the request's scope, so a DB query or outbound call they
-    // make is recorded as this request's child. A tracker from an adapter without scoping lacks run().
-    runWithErrorReportScope({ scope, work: () => (tracker.run ? tracker.run(next) : next()) });
+    void deps.tracker.span("http.request", (span) => new Promise<void>((resolve) => {
+      res.once("finish", () => {
+        const durationMs = performance.now() - startedAt;
+        // After an error reaches the app's final handler Express has already reset `req.baseUrl`
+        // (undefined at the top level), so it is read defensively.
+        const routePattern = req.route ? `${req.baseUrl ?? ""}${req.route.path}` : "unmatched";
+        reportServerError({ tracker: deps.tracker, req, res, scope, routePattern });
+        span.setOutcome({ statusCode: res.statusCode, routePattern });
+        logCompletedRequest({
+          requestId, method: req.method, routePattern, statusCode: res.statusCode, durationMs,
+        }, { logger: deps.logger, logRequests, slowRequestMs });
+        resolve();
+      });
+      // A disconnected response may never finish; settle its span without retaining the request.
+      res.once("close", () => { span.setOutcome({ statusCode: res.statusCode, routePattern: req.route ? `${req.baseUrl ?? ""}${req.route.path}` : "unmatched" }); resolve(); });
+      // Routing and the handler run inside the request's scope, so a DB query or outbound call they
+      // make is recorded as this request's child. The facade contains adapters without scoping.
+      runWithErrorReportScope({ scope, work: next });
+    }), { request: { method: req.method, path: req.path, requestId } }).catch(next);
   });
 }
 
 /** Reports a finished 5xx response once, unless the request's own work already reported. */
-function reportServerError({ observability, req, res, scope, routePattern }: {
-  observability: ObservabilityPort; req: Request; res: Response; scope: ErrorReportScope; routePattern: string;
+function reportServerError({ tracker, req, res, scope, routePattern }: {
+  tracker: Tracker; req: Request; res: Response; scope: ErrorReportScope; routePattern: string;
 }): void {
   if (res.statusCode < 500 || scope.reported) return;
   const marker = new Error(`HTTP ${res.statusCode} from ${req.method} ${routePattern}`);
   marker.name = "ServerErrorResponse";
   marker.stack = `${marker.name}: ${marker.message}`;
   const principalId = (res.locals.principal as { id?: unknown } | undefined)?.id;
-  reportErrorOnce({ observability, error: res.locals.routeError ?? marker, operation: "http.request" }, { attributes: {
+  tracker.error(res.locals.routeError ?? marker, { operation: "http.request", attributes: {
     route: routePattern, method: req.method, status: res.statusCode, requestId: String(res.locals.requestId),
     ...(typeof principalId === "string" ? { principalId } : {}),
   } });

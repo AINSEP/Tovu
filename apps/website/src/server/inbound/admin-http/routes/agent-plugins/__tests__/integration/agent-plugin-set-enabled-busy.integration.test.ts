@@ -1,4 +1,5 @@
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import { testSiteLayoutContext, deferredTestAgentPluginLayout } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -106,6 +107,7 @@ async function installReal(pluginId: string, archiveSeed: string) {
 function buildTestApp(): { app: express.Express } {
   const baseDeps = createRouteDeps();
   const routeDeps: AgentPluginsRouteDeps = testSiteLayoutContext({
+    tracker: createNoopTracker({}),
     workspaceId: baseDeps.workspaceId,
     authorize: baseDeps.authorize,
     clock: baseDeps.clock,

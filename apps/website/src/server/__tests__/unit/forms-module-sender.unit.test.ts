@@ -1,3 +1,4 @@
+import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -36,7 +37,7 @@ async function fireSubmission(required: { mailer: MailerPort }, optional: { send
     notify: { enabled: true, recipients: ["ops@example.com"] }, status: "active", version: 1, createdAt: NOW, updatedAt: NOW,
   });
   await formSubmissionRepo.create({ id: "submission-1", workspaceId: WS, formDefinitionId: "form-1", data: { name: "Ada" }, sourceIp: "127.0.0.1", submittedAt: NOW });
-  createFormsModule({ bus, mailer: required.mailer, formDefinitionRepo, formSubmissionRepo, ...optional }).start?.();
+  createFormsModule({ tracker: createTracker({}), bus, mailer: required.mailer, formDefinitionRepo, formSubmissionRepo, ...optional }).start?.();
   // `start()` subscribes asynchronously; let the subscription land before publishing.
   await new Promise<void>((resolve) => setImmediate(resolve));
   await bus.publish({ id: "event-1", name: "form.submission.received", workspaceId: WS, occurredAt: NOW, payload: { workspaceId: WS, formDefinitionId: "form-1", submissionId: "submission-1" } });

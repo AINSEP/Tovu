@@ -11,7 +11,7 @@ const REVIEWED_DIGEST = /^sha256-[a-f0-9]{64}$/;
 const INPUT_INVALID = "PLUGIN_INSTALL_INPUT_INVALID";
 
 /** The deps the install routes read. */
-export type PluginInstallRouteDeps = Pick<PluginsRouteDeps, "workspaceId" | "authorize" | "productAnalytics"> & LocalInstallerDeps;
+export type PluginInstallRouteDeps = Pick<PluginsRouteDeps, "workspaceId" | "authorize" | "tracker"> & LocalInstallerDeps;
 
 /** Which of the four install endpoints a request hit: ZIP upload or folder source, preview or install. */
 interface InstallRoute { readonly zip: boolean; readonly preview: boolean }
@@ -91,7 +91,7 @@ async function handleInstall(req: Request, res: Response, context: InstallContex
   const result = route.preview
     ? await installer.preview(read.input)
     : await installer.install({ ...read.input, expectedDigest: read.expectedDigest as string });
-  if (!route.preview) deps.productAnalytics?.capture({ name: "plugin_installed", userId: principal.id, properties: { pluginId: result.id } });
+  if (!route.preview) deps.tracker.capture({ name: "plugin_installed", userId: principal.id, properties: { pluginId: result.id } });
   res.status(route.preview ? 200 : 201).json({ plugin: result });
 }
 

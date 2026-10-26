@@ -200,7 +200,7 @@ async function httpPublishPreview(required: {
   const plan = planStaticPublish(registry, config);
   const credential = await credentialSource.isConfigured({ workspaceId: deps.workspaceId, target: config.target });
   const inspected = plan.ok && credential.configured ? await inspectStaticPublish({
-    deps: { credentialSource, loadDeployTargets: deps.loadDeployTargets, observability: deps.observability, formDestination: deps.formDestination },
+    deps: { credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, formDestination: deps.formDestination },
     input: { workspaceId: deps.workspaceId, config, projectName: typeof query.projectName === "string" ? query.projectName : "", ...credentialChoice({ value: query.credentialId }) },
   }) : {};
   return { target: config.target, valid: plan.ok, validationError: plan.ok ? null : plan.message,
@@ -287,7 +287,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
       // settles, so a poller can never observe a stale "running" snapshot after the promise has
       // actually settled.
       const snapshot = startPublishRun(
-        { credentialSource, loadDeployTargets: deps.loadDeployTargets, observability: deps.observability, formDestination: deps.formDestination },
+        { credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, formDestination: deps.formDestination },
         {
           workspaceId: deps.workspaceId,
           publishOutputRootDir: deps.publishOutputRootDir,
@@ -302,11 +302,11 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
         },
         deps.clock,
         deps.publishHistoryStore,
-        { onSettled: ({ status }) => deps.productAnalytics?.capture({ name: "deploy_finished", userId: principal.id, properties: { target: read.config.target, outcome: status } }) },
+        { onSettled: ({ status }) => deps.tracker.capture({ name: "deploy_finished", userId: principal.id, properties: { target: read.config.target, outcome: status } }) },
       );
 
       // Owner-action product event (consent-gated port): a publish was started.
-      deps.productAnalytics?.capture({ name: "site_publish_started", userId: principal.id });
+      deps.tracker.capture({ name: "site_publish_started", userId: principal.id });
       res.status(202).json(snapshot);
     } catch (err) {
       // Everything above `startPublishRun` (auth check, snapshot read, body parsing) runs

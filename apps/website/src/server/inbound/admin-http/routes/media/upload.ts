@@ -201,7 +201,7 @@ export const registerAdminMediaUploadRoute: MediaRouteRegistrar = (app, deps) =>
         contentType: verifiedContentType,
       });
 
-      deps.productAnalytics?.capture({ name: "media_uploaded", userId: principal.id, properties: {
+      deps.tracker.capture({ name: "media_uploaded", userId: principal.id, properties: {
         kind: kind === "media" ? verifiedContentType.split("/")[0]! : "document", bytesBucket: bytesBucket(bytes.byteLength) } });
       res.status(201).json(await toStoredMediaResponse({ deps, media, contentType: verifiedContentType, byteLength: bytes.byteLength }));
     } catch (error) {

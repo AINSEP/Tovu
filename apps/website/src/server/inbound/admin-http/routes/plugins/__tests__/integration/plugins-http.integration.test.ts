@@ -1,4 +1,5 @@
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -58,6 +59,7 @@ const AC11_DISCOVERY: readonly PluginDiscoveryRecord[] = [
 function buildTestApp(): { app: express.Express; pluginDeps: PluginsRouteDeps; baseDeps: ReturnType<typeof createRouteDeps> } {
   const baseDeps = createRouteDeps();
   const pluginDeps: PluginsRouteDeps = {
+    tracker: createNoopTracker({}),
     workspaceId: baseDeps.workspaceId,
     authorize: baseDeps.authorize,
     clock: baseDeps.clock,

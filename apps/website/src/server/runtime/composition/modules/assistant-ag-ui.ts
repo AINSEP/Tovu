@@ -1,3 +1,4 @@
+import type { TrackerSpan, AgentRunTrackingOutcome } from "@jini-ai/diagnostics/observability";
 /**
  * @file ADR-059 — the admin assistant's AG-UI canary transport (Agent-User Interaction Protocol,
  * https://ag-ui.com). Additive only: the existing Local CLI (`assistant.ts`) and BYOK
@@ -54,8 +55,8 @@ import { parseUsageEvent } from "@jini-ai/chat/core/run-events";
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 import { cancelDaemonRunBestEffort, fetchAgentDaemon, fetchAgentDaemonEventStream, type DaemonCallOptions } from "./assistant-daemon-client.js";
-import { createNoopObservabilityPort, type AgentRunStatus, type ObservabilityPort } from "#src/platform/observability/index";
-import { reportErrorOnce } from "#src/platform/observability/report-error";
+import type { AgentRunStatus } from "#src/platform/observability/index";
+import { redactedError } from "#src/platform/observability/report-error";
 import type { ServerModuleHandle } from "./types.js";
 
 export const AG_UI_RUN_PATH = "/api/admin/v1/assistant/ag-ui-run";
@@ -683,9 +684,9 @@ async function drainAgUiStream(reader: ReadableStreamDefaultReader<Uint8Array>, 
 
 /** Stands in for the run's tracker until the daemon run exists, so `runTracker` is never null. Never
  *  ended: the close handler only ends a tracker once a daemon run exists. */
-const UNSTARTED_RUN = createNoopObservabilityPort({}).trackAgentRun({ runId: "" });
+const UNSTARTED_RUN: TrackerSpan<AgentRunTrackingOutcome> = { setOutcome() {} };
 
-async function handleAgUiRun(req: Request, res: Response, observability: ObservabilityPort): Promise<void> {
+async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, "tracker" | "observability">): Promise<void> {
   const body = (req.body ?? {}) as { threadId?: unknown; runId?: unknown; messages?: unknown; forwardedProps?: unknown };
   const run = resolveAgUiRunRequest(body);
   if (!run) {
@@ -716,7 +717,7 @@ async function handleAgUiRun(req: Request, res: Response, observability: Observa
   // frame, natural stream close, or a read error that already unwound the daemon side), synchronously
   // before this function returns and therefore strictly before the async `"close"` event can fire —
   // so an ordinary successful run still issues zero cancel calls, per this fix's own regression test.
-  const daemon: DaemonCallOptions = { observability };
+  const daemon: DaemonCallOptions = { observability: deps.observability };
   let daemonRunId: string | null = null;
   // One agent-run span per daemon run (its own trace root, like the finalizer's), ended exactly once:
   // canceled by the close handler, failed if the subscribe fails, else the drain's own outcome.
@@ -728,7 +729,7 @@ async function handleAgUiRun(req: Request, res: Response, observability: Observa
     reader?.cancel().catch(() => undefined);
     if (runFinished) return;
     if (daemonRunId) {
-      runTracker.end({ status: "canceled" });
+      runTracker.setOutcome({ status: "canceled" });
       cancelDaemonRunBestEffort(req, res, daemonRunId, daemon);
     } else closedEarly = true;
   });
@@ -740,27 +741,29 @@ async function handleAgUiRun(req: Request, res: Response, observability: Observa
   const started = await startDaemonRun(req, res, run, principal.id, daemon);
   if (!started.ok) return;
   daemonRunId = started.daemonRunId;
-  runTracker = observability.trackAgentRun({ runId: daemonRunId }, { conversationId: run.threadId, agentName: run.agentId });
-  if (closedEarly) {
-    runTracker.end({ status: "canceled" });
-    cancelDaemonRunBestEffort(req, res, daemonRunId, daemon);
-    return;
-  }
+  return deps.tracker.span("assistant.run", async (span) => {
+    runTracker = span;
+    if (closedEarly) {
+      runTracker.setOutcome({ status: "canceled" });
+      cancelDaemonRunBestEffort(req, res, started.daemonRunId, daemon);
+      return;
+    }
 
-  const subscribedReader = await subscribeToDaemonEvents(req, res, started.daemonRunId, daemon);
-  if (!subscribedReader) {
-    runTracker.end({ status: "failed" });
-    return;
-  }
-  reader = subscribedReader;
+    const subscribedReader = await subscribeToDaemonEvents(req, res, started.daemonRunId, daemon);
+    if (!subscribedReader) {
+      runTracker.setOutcome({ status: "failed" });
+      return;
+    }
+    reader = subscribedReader;
 
-  beginAgUiStream(req, res, run.requestId);
-  writeAgUiEvent(res, { type: EventType.RUN_STARTED, threadId: run.threadId, runId: run.runId });
+    beginAgUiStream(req, res, run.requestId);
+    writeAgUiEvent(res, { type: EventType.RUN_STARTED, threadId: run.threadId, runId: run.runId });
 
-  const state = createAgUiTranslationState();
-  const outcome = await drainAgUiStream(subscribedReader, { res, threadId: run.threadId, runId: run.runId, state });
-  runFinished = true;
-  runTracker.end(outcome);
+    const state = createAgUiTranslationState();
+    const outcome = await drainAgUiStream(subscribedReader, { res, threadId: run.threadId, runId: run.runId, state });
+    runFinished = true;
+    runTracker.setOutcome(outcome);
+  }, { agent: { runId: daemonRunId, conversationId: run.threadId, agentName: run.agentId } });
 }
 
 export function createAssistantAgUiModule(routeDeps: RouteDeps): ServerModuleHandle {
@@ -769,9 +772,9 @@ export function createAssistantAgUiModule(routeDeps: RouteDeps): ServerModuleHan
     registerRoutes: (app: Express) => {
       app.use(AG_UI_RUN_PATH, requireAdminSession(routeDeps));
       app.post(AG_UI_RUN_PATH, (req: Request, res: Response, next: NextFunction) => {
-        void handleAgUiRun(req, res, routeDeps.observability).catch((error: unknown) => {
+        void handleAgUiRun(req, res, routeDeps).catch((error: unknown) => {
           console.error("[assistant-ag-ui] unhandled error", error);
-          reportErrorOnce({ observability: routeDeps.observability, error, operation: "assistant.run" });
+          routeDeps.tracker.error(error instanceof Error ? error : redactedError({ error }), { operation: "assistant.run" });
           if (res.headersSent) {
             writeAgUiEvent(res, { type: EventType.RUN_ERROR, message: "assistant failed" });
             res.end();

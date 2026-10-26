@@ -9,7 +9,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * @file `POST /api/admin/v1/telemetry` — the admin browser's errors and page views, relayed to the
  * same neutral ports server code uses, so no vendor SDK or third-party script ever loads in the
  * admin. Errors go to `observability.reportError` (whichever observability provider plugins are
- * installed + enabled + configured, else the no-op); page views go to `productAnalytics.capture`
+ * installed + enabled + configured, else the no-op); page views go to `tracker.capture`
  * as `admin_pageview`, which `withProductAnalyticsGuards` drops unless the operator's telemetry
  * consent is on. Site attribution is added by the provider host, not here.
  *
@@ -19,7 +19,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * Browser sessions only: a machine credential has no browser to report from.
  */
 
-export type AdminBrowserTelemetryDeps = Pick<RouteDeps, "clock" | "observability"> & Partial<Pick<RouteDeps, "productAnalytics">>;
+export type AdminBrowserTelemetryDeps = Pick<RouteDeps, "clock" | "tracker">;
 
 export type BrowserTelemetryEvent =
   | { type: "error"; message: string; stack: string; componentStack?: string; route: string }
@@ -103,11 +103,11 @@ function toReportedError(event: Extract<BrowserTelemetryEvent, { type: "error" }
 /** Hands one sanitized event to its port. Ports never throw by contract; this never awaits them. */
 export function forwardBrowserTelemetry(deps: AdminBrowserTelemetryDeps, { event, principalId }: { event: BrowserTelemetryEvent; principalId: string }): void {
   if (event.type === "pageview") {
-    deps.productAnalytics?.capture({ name: "admin_pageview", userId: principalId, properties: { route: event.route } });
+    deps.tracker.capture({ name: "admin_pageview", userId: principalId, properties: { route: event.route } });
     return;
   }
   const attributes = { source: "admin-browser", route: event.route, ...(event.componentStack ? { componentStack: event.componentStack } : {}) };
-  deps.observability.reportError({ error: toReportedError(event), context: { operation: "admin.browser.error", attributes } });
+  deps.tracker.error(toReportedError(event), { operation: "admin.browser.error", attributes });
 }
 
 /** This route's own per-principal budget (a browser with a render loop must not flood a vendor). */

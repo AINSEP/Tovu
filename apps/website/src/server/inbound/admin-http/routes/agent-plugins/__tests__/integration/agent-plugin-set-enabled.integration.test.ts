@@ -1,4 +1,6 @@
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { createNoopTracker } from "@jini-ai/diagnostics/observability";
+import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
@@ -109,12 +111,13 @@ async function installReal(
  *  federation tests below read `baseDeps.externalMcpServerRepo` directly to assert on what the
  *  route actually wrote, the same way this file's other tests re-read `readAgentPluginActivations`
  *  rather than trusting the response body alone. */
-function buildTestApp(overrides: Pick<AgentPluginsRouteDeps, "setAgentPluginEnabled" | "productAnalytics"> = {}): { app: express.Express; baseDeps: ReturnType<typeof createRouteDeps> } {
+function buildTestApp(overrides: Partial<Pick<AgentPluginsRouteDeps, "setAgentPluginEnabled" | "tracker">> = {}): { app: express.Express; baseDeps: ReturnType<typeof createRouteDeps> } {
   // ONE `createRouteDeps()` call for both the auth stack and the route's deps — a second call
   // stands up a separate identity/policy store and the owner login would 403 against it. Same
   // reason `agent-plugins-http.integration.test.ts` threads `baseDeps.authorize` through.
   const baseDeps = createRouteDeps();
   const routeDeps: AgentPluginsRouteDeps = testSiteLayoutContext({
+    tracker: createNoopTracker({}),
     // Pin the port so failure injection and the request use the same layout object.
     agentPluginLayout: resolveAgentPluginLayout(),
     workspaceId: baseDeps.workspaceId,
@@ -192,7 +195,7 @@ test("AGENT_PLUGIN_SET_ENABLED: enabling captures one agent_plugin_enabled produ
   await withAgentPluginsDir(async () => {
     await installReal("site-compliance", "seed-set-enabled-events");
     const events: unknown[] = [];
-    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp({ productAnalytics: { capture: (event) => { events.push(event); }, identify: () => {} } }).app, t);
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp({ tracker: createTracker({ productAnalytics: { capture: (event) => { events.push(event); }, identify: () => {} } }) }).app, t);
     assert.equal((await patch(baseUrl, cookie, "site-compliance", { enabled: false })).status, 200);
     assert.equal((await patch(baseUrl, cookie, "site-compliance", { enabled: true })).status, 200);
     assert.equal(events.length, 1);

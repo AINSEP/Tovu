@@ -260,7 +260,7 @@ export const registerAdminPostUpdateRoute: ContentRouteRegistrar = (app, deps) =
 
         // Owner-action product event on the draft → published transition only (consent-gated port).
         const wasPublished = (priorPost as PostRecord | null)?.status === "published";
-        if (!wasPublished && result.post.status === "published") deps.productAnalytics?.capture({ name: "post_published", userId: principal.id });
+        if (!wasPublished && result.post.status === "published") deps.tracker.capture({ name: "post_published", userId: principal.id });
         res.json(toAdminPostResponse(result.post));
       } catch (err) {
         sendPostUpdateError(res, err);

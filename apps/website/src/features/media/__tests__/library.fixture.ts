@@ -1,3 +1,4 @@
+import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import { InMemoryVersionedMediaRepo, InMemoryMediaContentTypeStore } from '../index.js';
 import { InMemoryBlobStore, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryTransformDefinitionRepo, InMemoryImageTransformer } from '@jini-ai/cms/media';
 import type { MediaRouteDeps } from '#src/server/inbound/admin-http/routes/media/deps';
@@ -8,6 +9,7 @@ export function libraryFixture() {
   let id = 0; let denied = false;
   const mediaRepo = new InMemoryVersionedMediaRepo();
   const deps: MediaRouteDeps = {
+    tracker: createNoopTracker({}),
     workspaceId: 'site-a', authorize: async () => ({ allowed: !denied, reason: denied ? 'denied' : 'matched' }),
     clock: { nowMs: () => Date.parse('2026-10-18T00:00:00Z'), nowIso: () => '2026-10-18T00:00:00.000Z' }, idGen: { newId: () => `id-${++id}` },
     mediaRepo, assetBlobRepo: new InMemoryAssetBlobRepo({}), assetRenditionRepo: new InMemoryAssetRenditionRepo({}), blobStore: new InMemoryBlobStore(),
