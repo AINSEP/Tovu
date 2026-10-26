@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import type { AdminPlugin } from "@/lib/api";
 import { describeApiError, PLUGINS_RESOURCE } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { type Translate } from "@jini-ai/ui/panel-kit";
+import { interpolate, type Translate } from "@jini-ai/ui/panel-kit";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { t as translate } from "../plugins-i18n";
 import { defaultPluginsPort } from "./plugins-dependencies.hooks";
@@ -88,6 +88,11 @@ export interface PluginsController {
   /** Opens a provider plugin's settings card (a row's Settings button, when it declares settings). */
   onOpenSettings: (id: string) => void;
   onCloseSettings: () => void;
+  /** The settings card saved: closes it and sets {@link PluginsController.settingsNotice}. */
+  onSettingsSaved: () => void;
+  /** "<Name> settings saved — applies next time Tovu starts", shown as a toast until dismissed or timed out. */
+  settingsNotice: string | null;
+  dismissSettingsNotice: () => void;
   /** The plugin waiting on `PluginRemoveConfirmDialog`, looked up fresh from `plugins` by id (same as
    *  `inspectedPlugin`), so the confirmed row is always the current one; `null` while it's closed. */
   pendingRemovePlugin: AdminPlugin | null;
@@ -152,6 +157,7 @@ export function usePlugins({ port, locale, t, installPort = defaultPluginInstall
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(new Set());
   const [inspectedPluginId, setInspectedPluginId] = useState<string | null>(null);
   const [settingsPluginId, setSettingsPluginId] = useState<string | null>(null);
+  const [settingsNotice, setSettingsNotice] = useState<string | null>(null);
   const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
@@ -222,6 +228,13 @@ export function usePlugins({ port, locale, t, installPort = defaultPluginInstall
     settingsPlugin: findPluginById({ plugins, id: settingsPluginId }),
     onOpenSettings: setSettingsPluginId,
     onCloseSettings: () => setSettingsPluginId(null),
+    onSettingsSaved: () => {
+      const name = findPluginById({ plugins, id: settingsPluginId })?.name ?? settingsPluginId ?? "";
+      setSettingsPluginId(null);
+      setSettingsNotice(interpolate({ template: t("{name} settings saved — applies next time Tovu starts"), vars: { name } }));
+    },
+    settingsNotice,
+    dismissSettingsNotice: () => setSettingsNotice(null),
     pendingRemovePlugin: findPluginById({ plugins, id: pendingRemoveId }),
     onRequestRemove: (plugin: AdminPlugin) => setPendingRemoveId(plugin.id),
     onConfirmRemove: (plugin: AdminPlugin) => {

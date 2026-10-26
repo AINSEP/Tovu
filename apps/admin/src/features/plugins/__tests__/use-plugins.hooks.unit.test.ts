@@ -534,3 +534,22 @@ describe("usePlugins — expanders, single-flight toggles and failed refreshes",
     }
   });
 });
+
+describe("usePlugins — provider settings card", () => {
+  it("a saved card closes and leaves a '<Name> settings saved' notice until dismissed", async () => {
+    const port = createFakePluginsPort({
+      plugins: [{ id: "analytics-posthog", name: "PostHog", version: "1.0.0", source: "site", tier: "tier-3", status: "valid", enabled: true, quarantine: null, errors: [], providerSettings: true }],
+    });
+    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.plugins).toHaveLength(1));
+    act(() => result.current.onOpenSettings("analytics-posthog"));
+    expect(result.current.settingsPlugin?.id).toBe("analytics-posthog");
+
+    act(() => result.current.onSettingsSaved());
+    expect(result.current.settingsPlugin).toBeNull();
+    expect(result.current.settingsNotice).toBe("PostHog settings saved — applies next time Tovu starts");
+
+    act(() => result.current.dismissSettingsNotice());
+    expect(result.current.settingsNotice).toBeNull();
+  });
+});

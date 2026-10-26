@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 
 import type { AdminPlugin } from "@/lib/api";
 import { buildAgentListHandles } from "@jini-ai/agentic";
+import { Toast } from "@jini-ai/ui";
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
 import { navigate } from "../../lib/router";
@@ -381,8 +382,10 @@ function LoadedPlugins({ plugins, controller, activeTabId }: { plugins: AdminPlu
       {inspectedPlugin ? <PluginPackageFilesModal plugin={inspectedPlugin} onClose={controller.onCloseInspector} /> : null}
 
       {settingsPlugin ? (
-        <PluginProviderSettingsDialog plugin={settingsPlugin} agentHandleBase={rowHandleById.get(settingsPlugin.id)!} onClose={controller.onCloseSettings} />
+        <PluginProviderSettingsDialog plugin={settingsPlugin} agentHandleBase={rowHandleById.get(settingsPlugin.id)!} onClose={controller.onCloseSettings} onSaved={controller.onSettingsSaved} />
       ) : null}
+      {/* A toast, like Themes' and Library's: it confirms what the owner just did and clears itself. */}
+      {controller.settingsNotice ? <Toast message={controller.settingsNotice} role="status" tone="success" ttlMs={6000} onDismiss={controller.dismissSettingsNotice} /> : null}
 
       {pendingRemovePlugin ? (
         <PluginRemoveConfirmDialog

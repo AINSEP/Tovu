@@ -75,23 +75,32 @@ function ChoiceControl({ field, id, value, onChange, t, controlAttrs }: Omit<Pro
   );
 }
 
-export function ProviderSettingField({ field, id, value, onChange, handle, pluginName, t }: ProviderSettingFieldProps) {
-  const hintId = `${id}-hint`;
-  const controlAttrs = {
+/** The control's shared attributes: hint link, required (a saved secret may stay blank), agent handle. */
+function controlAttrsOf({ field, hintId, handle, pluginName }: { field: AdminPluginProviderSettingField; hintId: string; handle: string; pluginName: string }) {
+  return {
     "aria-describedby": field.hint ? hintId : undefined,
     "aria-required": field.required && !(field.secret && field.saved) ? true : undefined,
     ...agentHandle({ handle }, { role: "field", label: `${pluginName} setting: ${field.label}` }),
   };
+}
+
+/** Whatever the plugin declared: a select of its options, a masked secret, or plain text. */
+function FieldControl({ field, id, value, onChange, t, controlAttrs }: Omit<ProviderSettingFieldProps, "handle" | "pluginName"> & { controlAttrs: Record<string, unknown> }) {
+  if (field.options?.length) return <ChoiceControl field={field} id={id} value={value} onChange={onChange} t={t} controlAttrs={controlAttrs} />;
   const textProps = { id, value, autoComplete: "off", onChange: (event: { target: { value: string } }) => onChange(event.target.value), ...controlAttrs };
+  if (field.secret) return <SecretControl {...textProps} label={field.label} t={t} placeholder={field.saved ? t("Saved — leave blank to keep") : ""} />;
+  return <input type="text" {...textProps} />;
+}
+
+export function ProviderSettingField({ field, id, value, onChange, handle, pluginName, t }: ProviderSettingFieldProps) {
+  const hintId = `${id}-hint`;
   return (
     <div className="field provider-settings-field">
       <label className="field-label" htmlFor={id}>
         {field.label}
         {field.required ? <span className="provider-settings-required" aria-hidden="true"> *</span> : null}
       </label>
-      {field.options?.length ? <ChoiceControl field={field} id={id} value={value} onChange={onChange} t={t} controlAttrs={controlAttrs} />
-        : field.secret ? <SecretControl {...textProps} label={field.label} t={t} placeholder={field.saved ? t("Saved — leave blank to keep") : ""} />
-          : <input type="text" {...textProps} />}
+      <FieldControl field={field} id={id} value={value} onChange={onChange} t={t} controlAttrs={controlAttrsOf({ field, hintId, handle, pluginName })} />
       {field.hint ? <p className="field-hint" id={hintId}>{field.hint}</p> : null}
     </div>
   );
