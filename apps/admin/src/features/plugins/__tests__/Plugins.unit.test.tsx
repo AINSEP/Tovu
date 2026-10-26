@@ -711,6 +711,9 @@ function fakePluginsController(overrides: Partial<PluginsController> = {}): Plug
     settingsPlugin: null,
     onOpenSettings: () => {},
     onCloseSettings: () => {},
+    onSettingsSaved: () => {},
+    settingsNotice: null,
+    dismissSettingsNotice: () => {},
     pendingRemovePlugin: null,
     onRequestRemove: () => {},
     onConfirmRemove: () => {},
@@ -735,6 +738,16 @@ describe("X1: a refresh failure after load keeps the tabs and rows", () => {
     expect(screen.getByRole("tablist")).toBeInTheDocument();
     expect(screen.getByRole("listitem", { name: "Word Count" })).toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent("failed to load plugins");
+  });
+});
+
+describe("provider settings saved notice (injected controller)", () => {
+  it("shows the controller's notice as a status toast; its X dismisses it", () => {
+    const dismissSettingsNotice = vi.fn();
+    renderPluginsWithController({ settingsNotice: "PostHog settings saved — applies next time Tovu starts", dismissSettingsNotice });
+    expect(screen.getByRole("status")).toHaveTextContent("PostHog settings saved — applies next time Tovu starts");
+    fireEvent.click(screen.getByRole("button", { name: /dismiss/i }));
+    expect(dismissSettingsNotice).toHaveBeenCalled();
   });
 });
 

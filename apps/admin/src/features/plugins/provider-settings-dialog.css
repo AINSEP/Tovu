@@ -16,7 +16,6 @@
 .provider-settings-dialog p.provider-settings-notice {
   padding: var(--space-3); border-radius: var(--r-md); background: var(--warning-bg); color: var(--fg); font-size: var(--text-sm);
 }
-.provider-settings-dialog p.provider-settings-saved { color: var(--ok); font-size: var(--text-sm); }
 .provider-settings-dialog p.save-error { color: var(--danger); font-size: var(--text-sm); }
 
 /* Footer: the "takes effect" note on the left, Cancel + Save on the right; the note wraps above the
@@ -35,3 +34,12 @@
 }
 .provider-settings-dialog .jini-secret-toggle:hover, .provider-settings-dialog .jini-secret-toggle:focus-visible { color: var(--accent-text); background: none; opacity: 1; }
 .provider-settings-dialog .jini-secret-toggle:focus-visible { outline-offset: -5px; }
+
+/* Save while the request is out: disabled (`pending`) with a small ring beside "Saving…". */
+.provider-settings-dialog .provider-settings-save { display: inline-flex; align-items: center; gap: var(--space-2); }
+.provider-settings-spinner {
+  width: 0.9em; height: 0.9em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%;
+  animation: provider-settings-spin 0.8s linear infinite;
+}
+@keyframes provider-settings-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .provider-settings-spinner { animation-duration: 2.4s; } }

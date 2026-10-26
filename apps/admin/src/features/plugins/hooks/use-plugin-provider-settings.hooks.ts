@@ -23,12 +23,11 @@ export interface PluginProviderSettingsController {
   /** The form's current text per field name. */
   values: Readonly<Record<string, string>>;
   setValue: (name: string, value: string) => void;
-  save: () => Promise<void>;
+  /** Resolves `true` once the server has the values (the dialog then closes with a notice), `false` on a refusal. */
+  save: () => Promise<boolean>;
   saving: boolean;
   /** A load or save failure, in the screen's words. */
   error: string | null;
-  /** Set after a successful save. */
-  saved: boolean;
   t: Translate;
 }
 
@@ -42,7 +41,6 @@ export function usePluginProviderSettings({ pluginId, port, t }: { pluginId: str
   const [values, setValues] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   useEffect(() => {
     let live = true;
     port.getProviderSettings(pluginId).then(
@@ -54,19 +52,19 @@ export function usePluginProviderSettings({ pluginId, port, t }: { pluginId: str
   const save = async () => {
     setSaving(true);
     setError(null);
-    setSaved(false);
     try {
       const next = await port.saveProviderSettings(pluginId, values);
       setCard(next);
       setValues(initialValues(next));
-      setSaved(true);
+      return true;
     } catch (failure) {
       setError(describeApiError(failure, t("failed to save plugin settings")));
+      return false;
     } finally {
       setSaving(false);
     }
   };
-  return { card, values, setValue: (name, value) => setValues((current) => ({ ...current, [name]: value })), save, saving, error, saved, t };
+  return { card, values, setValue: (name, value) => setValues((current) => ({ ...current, [name]: value })), save, saving, error, t };
 }
 
 /** Binds the real `/api/.../plugins/:id/provider-settings` client and the admin locale's translator. */
