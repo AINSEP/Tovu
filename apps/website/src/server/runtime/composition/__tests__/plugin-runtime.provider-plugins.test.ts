@@ -21,13 +21,14 @@ const PROVIDER_MANIFEST = { ...WORD_COUNT_MANIFEST, id: "obs-fake", tier: "tier-
   hooks: [], fields: [], capabilities: ["providers.register"], contributes: { providers: [{ contract: "observability", id: "fake", contractVersion: 1 as const }] } };
 const BINDING: ProviderPluginBinding = { pluginId: "obs-fake", contract: "observability", id: "fake", input: ({ credential }) => ({ endpoint: credential.baseUrl }) };
 
-function fixture({ enabled = true, setupThrows = false }: { enabled?: boolean; setupThrows?: boolean } = {}) {
+function fixture({ enabled = true, setupThrows = false, setupGate }: { enabled?: boolean; setupThrows?: boolean; setupGate?: Promise<void> } = {}) {
   const events: string[] = [];
   const repo = new InMemoryPluginActivationRepo();
   const source: PluginRuntimeSource = { source: "built-in", entryPath: "/unused/index.mjs", manifest: PROVIDER_MANIFEST,
-    importModule: async () => ({ default: definePlugin({ setup(sdk) {
+    importModule: async () => ({ default: definePlugin({ async setup(sdk) {
       events.push("setup");
       if (setupThrows) throw new Error("setup failed");
+      if (setupGate) await setupGate;
       sdk.providers.register({ contract: "observability", id: "fake", contractVersion: 1, factory: (required) => {
         events.push(`factory:${String(required.endpoint)}`);
         return { port: { ...createNoopObservabilityPort({}) }, dispose: () => { events.push("dispose"); } };
@@ -93,4 +94,18 @@ test("loadProviderPlugins ignores ids it was not asked for and plugins that decl
   assert.deepEqual(await runtime.loadProviderPlugins({ pluginIds: [] }), []);
   assert.deepEqual(await runtime.loadProviderPlugins({ pluginIds: ["other"] }), []);
   assert.deepEqual(events, []);
+});
+
+test("a provider plugin whose import/setup stalls is bounded: boot continues, and its late setup can never publish a provider", async (t) => {
+  const warn = t.mock.method(console, "warn", () => {});
+  let release!: () => void;
+  const { events, runtime, ready } = fixture({ setupGate: new Promise<void>((resolve) => { release = resolve; }) });
+  await ready;
+  assert.deepEqual(await runtime.loadProviderPlugins({ pluginIds: ["obs-fake"] }, { timeoutMs: 20 }), []);
+  assert.match(String(warn.mock.calls[0]?.arguments[0]), /^\[plugin-runtime\] provider plugin 'obs-fake' failed to load; its contract stays on the noop: .*timed out/);
+  release();
+  for (let i = 0; i < 20; i += 1) await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(events, ["setup"]);
+  assert.deepEqual(runtime.providerContributions.list({}), [], "the revoked selection admits nothing after the deadline");
+  assert.equal(runtime.pluginLoadedVersion({ id: "obs-fake" }), undefined);
 });

@@ -208,7 +208,7 @@ export interface PluginRuntimeBindings {
    * one takes effect at the next boot, disabling or quarantining one retires it immediately.
    * @returns The ids actually loaded. Per-plugin failures are logged and skipped, never thrown.
    */
-  readonly loadProviderPlugins: (required: { pluginIds: readonly string[] }, optional?: Record<string, never>) => Promise<readonly string[]>;
+  readonly loadProviderPlugins: (required: { pluginIds: readonly string[] }, optional?: { timeoutMs?: number }) => Promise<readonly string[]>;
   readonly discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
   readonly onPluginEnabled: (pluginId: string) => Promise<void>;
   readonly onPluginDisabled: (pluginId: string) => void;
@@ -540,7 +540,20 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     }
   }
 
-  async function loadProviderPlugins({ pluginIds }: { pluginIds: readonly string[] }, _options = {}): Promise<readonly string[]> {
+  /** Import + setup of one selected provider plugin, bounded: boot never waits on a stalled plugin. On the
+   *  deadline the caller revokes the selection (`onPluginDisabled`), so a late setup cannot publish. */
+  async function attachProviderWithin({ record, timeoutMs }: { record: PluginDiscoveryRecord; timeoutMs: number }): Promise<void> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`provider plugin load timed out after ${timeoutMs} ms`)), timeoutMs);
+    });
+    const attached = attachPlugin(record.id, record);
+    // Observed even after the deadline wins, so a late failure is never an unhandled rejection.
+    attached.catch(() => {});
+    try { await Promise.race([attached, deadline]); } finally { clearTimeout(timer); }
+  }
+
+  async function loadProviderPlugins({ pluginIds }: { pluginIds: readonly string[] }, options: { timeoutMs?: number } = {}): Promise<readonly string[]> {
     const wanted = new Set(pluginIds);
     if (wanted.size === 0) return [];
     const enabled = new Set((await activationRepo.listAll())
@@ -550,7 +563,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
       if (!wanted.has(record.id) || !enabled.has(record.id) || !declaresProviders({ manifest: record.manifest })) continue;
       selectedProviders.add(record.id);
       try {
-        await attachPlugin(record.id, record);
+        await attachProviderWithin({ record, timeoutMs: options.timeoutMs ?? 10_000 });
         loaded.push(record.id);
       } catch (error) {
         onPluginDisabled(record.id);
