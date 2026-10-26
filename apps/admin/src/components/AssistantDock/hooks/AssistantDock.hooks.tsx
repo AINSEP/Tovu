@@ -678,7 +678,8 @@ export interface UseComposerCapabilities {
 
 /**
  * Projects the composer's discovery catalog (debate 2, "Composer slash commands") from the bundled,
- * compile-time source and installed skills, refreshed on open, changes, focus and visibility. Split out of
+ * compile-time source and installed skills, refreshed on open, changes, focus and visibility,
+ * plus a conditional check every 60 seconds while the dock is open and the document visible. Split out of
  * `AssistantDock` (2026-08-14 DI migration pass) for the same reason the three hooks above it were:
  * per `INFO.md`'s Components rule 3, any hook doing DOM/IO work gets an injectable seam on
  * `AssistantDockProps`, defaulted to this real implementation — see `AssistantDock.tsx` for the
@@ -695,28 +696,34 @@ export interface UseComposerCapabilities {
  * failures leave bundled commands available. The raw tool catalog is intentionally excluded.
  *
  * @returns `composerCapabilities` — the resolved projection, or the empty one before it settles.
+ * @complexity O(n) time/space per refresh for n capabilities; at most one pending ordinary check.
  * @example
  * const { composerCapabilities } = useComposerCapabilities();
  */
 export function useComposerCapabilities(_input: Record<string, never> = {}, _options = {}): UseComposerCapabilities {
-  const [composerCapabilities, setComposerCapabilities] = useState<ComposerCapabilityProjection>(
-    emptyComposerCapabilityProjection,
-  );
+  const { queryScope, checking } = useAdminBootScope();
+  const [catalog, setCatalog] = useState(() => ({ scope: queryScope, projection: emptyComposerCapabilityProjection() }));
 
   useEffect(() => {
+    if (checking) return;
+    // One source per authenticated boot scope and document (same-origin site/API, fixed workspace).
+    // No module singleton can retain another user's installed capabilities.
+    const installed = createInstalledSkillsComposerCapabilitySource();
     let cancelled = false;
     let generation = 0;
     let shown = "";
-    const reload = () => {
+    let timer: ReturnType<typeof setInterval> | undefined;
+    /** Reproject only current work; an unchanged catalog retains its React state identity. */
+    const reload = (_required = {}, { force = false } = {}) => {
       const current = ++generation;
-      return projectComposerCapabilities([createBundledComposerCapabilitySource(), createInstalledSkillsComposerCapabilitySource()])
+      return projectComposerCapabilities([createBundledComposerCapabilitySource(), { id: installed.id, list: () => installed.reload({}, { force }) }])
       .then((projection) => {
         // An unchanged catalog keeps its state, so refreshes do not re-render the dock. JSON drops
         // `resolve`; every source's binding is derived from the serialized fields (item id).
         const next = JSON.stringify([...projection.byItemId.values()]);
         if (cancelled || current !== generation || next === shown) return;
         shown = next;
-        setComposerCapabilities(projection);
+        setCatalog({ scope: queryScope, projection });
       })
       .catch((error: unknown) => {
         console.error("[AssistantDock] composer capability projection failed", error);
@@ -724,24 +731,37 @@ export function useComposerCapabilities(_input: Record<string, never> = {}, _opt
     };
     void reload();
     const refreshVisible = () => {
-      if (document.visibilityState !== "hidden" && document.hasFocus()) void reload();
+      if (document.visibilityState !== "hidden") void reload();
     };
+    // Polling belongs to the dock's visible lifetime, including an unfocused visible window.
+    const syncPolling = (_required = {}, _options = {}) => {
+      clearInterval(timer);
+      timer = undefined;
+      if (getAssistantDockOpen() && document.visibilityState !== "hidden") {
+        timer = setInterval(() => { void reload(); }, 60_000);
+      }
+    };
+    const visibilityChanged = () => { syncPolling(); refreshVisible(); };
+    const skillsChanged = () => { void reload({}, { force: true }); };
     const stopDockSubscription = subscribeToAssistantDock(() => {
-      if (getAssistantDockOpen()) void reload();
+      syncPolling();
+      if (getAssistantDockOpen()) refreshVisible();
     });
-    window.addEventListener(SKILLS_CHANGED_EVENT, reload);
+    syncPolling();
+    window.addEventListener(SKILLS_CHANGED_EVENT, skillsChanged);
     window.addEventListener("focus", refreshVisible);
-    document.addEventListener("visibilitychange", refreshVisible);
+    document.addEventListener("visibilitychange", visibilityChanged);
     return () => {
       cancelled = true;
+      clearInterval(timer);
       stopDockSubscription();
-      window.removeEventListener(SKILLS_CHANGED_EVENT, reload);
+      window.removeEventListener(SKILLS_CHANGED_EVENT, skillsChanged);
       window.removeEventListener("focus", refreshVisible);
-      document.removeEventListener("visibilitychange", refreshVisible);
+      document.removeEventListener("visibilitychange", visibilityChanged);
     };
-  }, []);
+  }, [queryScope, checking]);
 
-  return { composerCapabilities };
+  return { composerCapabilities: catalog.scope === queryScope && !checking ? catalog.projection : emptyComposerCapabilityProjection() };
 }
 
 /**

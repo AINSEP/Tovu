@@ -39,6 +39,9 @@ export const registerSkillsListRoute: SkillsRouteRegistrar = (app, deps) => {
         return;
 
       const skills = await listManagedSkills(deps);
+      // Express generates the weak ETag and applies req.fresh after authorization and enumeration.
+      res.set("Cache-Control", "private, no-cache");
+      res.vary("Cookie");
       res.json({ skills });
     } catch (error) {
       // Verbatim surfacing is the contract (C-001) — see this file's header for why this diverges

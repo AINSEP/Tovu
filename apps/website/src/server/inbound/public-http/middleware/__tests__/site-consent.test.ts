@@ -184,6 +184,22 @@ test('live conditional requests cannot reuse ungated HTML unless consent is off'
   }
 });
 
+test('admin and API requests retain both conditional headers while public pages remain protected', async t => {
+  const f = await publicFixture({ t });
+  const app = express(); applySiteConsent({ app, deps: f.deps });
+  app.get(['/admin/settings', '/api/admin/v1/workspaces/workspace-local/skills', '/public-page'], (req, res) => {
+    res.json({ etag: req.get('if-none-match') ?? null, modified: req.get('if-modified-since') ?? null });
+  });
+  const base = await startTestServer(app, t);
+  const headers = { 'If-None-Match': 'W/"skills"', 'If-Modified-Since': 'Wed, 21 Oct 2026 12:00:00 GMT' };
+  for (const route of ['/admin/settings', '/api/admin/v1/workspaces/workspace-local/skills']) {
+    const response = await fetch(base + route, { headers, cache: 'no-cache' });
+    assert.deepEqual(await response.json(), { etag: headers['If-None-Match'], modified: headers['If-Modified-Since'] });
+  }
+  const page = await fetch(`${base}/public-page`, { headers, cache: 'no-cache' });
+  assert.deepEqual(await page.json(), { etag: null, modified: null });
+});
+
 test('bootstrap or policy-store failure never returns ungated active HTML', async t => {
   const f = await publicFixture({ t });
   const failing = { ...f.store, read: async () => { throw new Error('sensitive persisted location'); } };
