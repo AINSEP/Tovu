@@ -347,7 +347,8 @@
     "visitor_tool_configure": "visitor public assistant tools enable disable auto ask off mode limits rate budget",
     "visitor_tool_save": "visitor tool create update saved request api endpoint",
     "visitor_tool_delete": "visitor tool delete remove saved request permanently",
-    "members_delete": "member delete remove trash revoke sessions restore"
+    "members_delete": "member delete remove trash revoke sessions restore",
+    "provider_status": "provider plugin status configured set up analytics product analytics error tracking errors observability tracing traces telemetry monitoring connected key saved"
   },
   "queries": {
     "media_replace_file": [
@@ -2013,6 +2014,11 @@
     ],
     "visitor_tool_delete": [
       "Delete a created visitor tool."
+    ],
+    "provider_status": [
+      "Is analytics set up on my site?",
+      "Is error tracking configured?",
+      "Did my observability settings save?"
     ]
   },
   "approvals": {
@@ -3591,6 +3597,10 @@
     "members_delete": {
       "class": "trash",
       "confirmation": "policy"
+    },
+    "provider_status": {
+      "class": "read",
+      "confirmation": "direct"
     }
   },
   "policyConfirmationIds": [

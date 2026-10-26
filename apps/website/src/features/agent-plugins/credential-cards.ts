@@ -6,7 +6,7 @@ import { CUSTOM_CREDENTIAL_CATEGORIES } from '../custom-credentials/types.js';
 type RecordValue = Record<string, unknown>;
 const recordOf = ({ value }: { value: unknown }, _options = {}): RecordValue | undefined =>
   typeof value === 'object' && value !== null && !Array.isArray(value) ? value as RecordValue : undefined;
-const saveKinds = ['api', 'publish-host', 'source-control', 'agent-plugin-token', 'oauth'];
+const saveKinds = ['api', 'publish-host', 'source-control', 'agent-plugin-token', 'oauth', 'provider-settings'];
 
 /** Bounded display text, never a submitted value. @complexity O(1). */
 function text({ value, name, required = false, maxLength = 2000 }: { value: unknown; name: string; required?: boolean; maxLength?: number }, _options = {}): string | undefined {
@@ -190,6 +190,8 @@ function cardIdentity({ value }: { value: RecordValue }, _options = {}): { targe
 /** API public inputs have corresponding store slots; domain-owned forms retain their own fields. */
 function validateCardFields({ value, fields = [], baseUrl }: { value: RecordValue; fields?: readonly PluginCredentialField[]; baseUrl?: string }, _options = {}): void {
   if (!isApiCard({ value }) && fields.length) throw new Error('Only API cards may declare fields; domain forms own their inputs');
+  // A provider-settings card's fields and destinations are the provider plugin's declared settings.
+  if (value.saveKind === 'provider-settings') { if (value.saveTarget === undefined || baseUrl) throw new Error('provider-settings cards need a saveTarget and no baseUrl'); return; }
   if (!baseUrl && !fields.some(field => field.name === 'baseUrl' && field.required)) throw new Error('baseUrl or a required baseUrl field is required');
   if (isApiCard({ value }) && fields.some(field => !['username', 'baseUrl'].includes(field.name))) throw new Error('API cards support only username and baseUrl public fields');
 }

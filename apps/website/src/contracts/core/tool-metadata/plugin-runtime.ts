@@ -31,6 +31,18 @@ export const toolMetadata = {
     },
     approval: { class: 'read', confirmation: 'direct' },
   },
+  // Vendor-neutral on purpose (no-vendor-in-core): vendor names ship in each provider's agent plugin.
+  "provider_status": {
+    search: {
+      keywords: "provider plugin status configured set up analytics product analytics error tracking errors observability tracing traces telemetry monitoring connected key saved",
+      queries: [
+        "Is analytics set up on my site?",
+        "Is error tracking configured?",
+        "Did my observability settings save?",
+      ],
+    },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
   // --- plugins -------------------------------------------------------------------------------------------
   // Enable vocabulary covers both site and Agent Plugins; finding a plugin is a separate action.
   "plugins_set_enabled": {

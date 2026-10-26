@@ -15,6 +15,8 @@ export interface CredentialSaveAdapters {
   readonly publishHost: ToolHandler;
   readonly agentPluginToken: ToolHandler;
   readonly pluginProvider: ToolHandler;
+  /** A provider plugin's settings card (`saveKind: "provider-settings"`); absent where no settings store is wired. */
+  readonly providerSettings?: ToolHandler;
 }
 
 const KINDS = ['api', 'media-provider', 'source-control', 'publish-host', 'agent-plugin-token', 'plugin-provider'] as const;
@@ -148,6 +150,10 @@ function routePluginCard({ card, selected, adapters }: { card?: PluginCredential
     case 'publish-host': return { handler: adapters.publishHost, input: { target } };
     case 'source-control': return { handler: adapters.sourceControl, input: { provider: target } };
     case 'agent-plugin-token': return { handler: adapters.agentPluginToken, input: { pluginId: target } };
+    case 'provider-settings': {
+      if (!adapters.providerSettings) throw new ToolInputError({ message: 'Provider settings are not available here.' });
+      return { handler: adapters.providerSettings, input: { pluginId: target } };
+    }
     case 'oauth': throw new ToolInputError({ message: 'This plugin connects by browser sign-in. Use agent_plugin_connect with its pluginId.' });
     default: return selected;
   }
