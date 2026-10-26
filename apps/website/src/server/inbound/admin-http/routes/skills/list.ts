@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { listManagedSkills } from "#src/features/skills/install-service";
@@ -38,11 +39,17 @@ export const registerSkillsListRoute: SkillsRouteRegistrar = (app, deps) => {
       )
         return;
 
-      const skills = await listManagedSkills(deps);
-      // Express generates the weak ETag and applies req.fresh after authorization and enumeration.
-      res.set("Cache-Control", "private, no-cache");
+      const body = JSON.stringify({ skills: await listManagedSkills(deps) });
+      const etag = `W/"${createHash("sha256").update(body).digest("base64url")}"`;
+      res.set({ "Cache-Control": "private, no-cache", ETag: etag });
       res.vary("Cookie");
-      res.json({ skills });
+      // Not Express's req.fresh: fetch adds `Cache-Control: no-cache` to any request that carries
+      // If-None-Match (Fetch spec), and `fresh` reads that as a reload, so it would never send 304.
+      if (req.get("If-None-Match")?.split(",").some(tag => tag.trim() === etag)) {
+        res.status(304).end();
+        return;
+      }
+      res.type("json").send(body);
     } catch (error) {
       // Verbatim surfacing is the contract (C-001) — see this file's header for why this diverges
       // from the generic "internal error" string `plugins/list.ts`'s own catch block uses.

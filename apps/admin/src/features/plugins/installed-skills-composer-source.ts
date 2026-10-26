@@ -99,7 +99,7 @@ function toCapability(summary: InstalledSkillSummary): TovuComposerCapability {
  * @param _input - No required inputs; defaults preserve the existing no-argument callers.
  * @param options.request - Authenticated request port, replaceable for direct failure-path tests.
  * @returns A source whose list uses its cache; reload conditionally revalidates. Force supersedes
- * pending work but still sends the validator. Failures resolve to an empty fallback; aborts are silent.
+ * pending work but still sends the validator. Failures resolve to the last good list (else empty); aborts are silent.
  * @example createInstalledSkillsComposerCapabilitySource().list();
  * @complexity Cached reads O(1); revalidation O(n) time/space for n installed skills, one request.
  */
@@ -120,11 +120,12 @@ export function createInstalledSkillsComposerCapabilitySource(
     }).catch(error => {
       // Leaving the page cancels the shared transport; it does not mean skill enumeration failed.
       // Every failure costs this capability alone: Promise.all must retain the bundled catalog.
+      // A failed 60 s revalidation keeps the last good list rather than blanking typed skills.
       if (!isAbortError({ error })) console.error(
         "[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only",
         error,
       );
-      return [];
+      return cached?.capabilities ?? [];
     }).finally(() => { if (current === generation) pending = undefined; });
     return pending;
   };
