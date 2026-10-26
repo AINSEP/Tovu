@@ -16,7 +16,7 @@ const ResourcesContext = createContext<{
 /** Decimal units match main's GB thresholds; unknown RSS is never formatted as zero. O(1). */
 export function memoryText({ bytes }: { bytes: number | null | undefined }, _options = {}): string {
   if (bytes == null) return 'Memory unavailable';
-  return bytes >= 1_000_000_000 ? `about ${(bytes / 1_000_000_000).toFixed(1)} GB` : `about ${Math.round(bytes / 1_000_000)} MB`;
+  return bytes >= 1_000_000_000 ? `~${(bytes / 1_000_000_000).toFixed(1)}GB` : `~${Math.round(bytes / 1_000_000)}MB`;
 }
 
 /** Main owns warning thresholds and sustained CPU history. This adapter only supplies copy. O(1). */

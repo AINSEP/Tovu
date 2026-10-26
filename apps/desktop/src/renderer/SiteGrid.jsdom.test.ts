@@ -170,7 +170,7 @@ test('running cards join resource figures by site id even when names match; stop
     children: createElement(SiteGrid, { projects: records, onOpen() {}, onDelete: async () => {}, ...fakeHooks().hooks }),
   })));
   const figures = [...host.querySelectorAll('.card__resources')];
-  assert.deepEqual(figures.map((figure) => figure.textContent), ['about 120 MB', 'about 1.5 GB · High memory use']);
+  assert.deepEqual(figures.map((figure) => figure.textContent), ['~120MB', '~1.5GB · High memory use']);
   assert.ok(figures[1]!.classList.contains('is-warning'));
 });
 
