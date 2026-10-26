@@ -144,6 +144,8 @@ function blankAddFormEntry(): AddFormEntry {
  *  (used by the seven catalog providers' per-provider add forms) since it carries `category`/
  *  `baseUrl`, which nothing else in this hook's state shapes have. */
 interface CustomDraftFields {
+  /** Omitted selects the server's project-first default. */
+  readonly scope?: "project" | "site";
   readonly name: string;
   readonly category: AccessTokenRowCategoryId;
   readonly baseUrl: string;
@@ -244,6 +246,7 @@ export interface AccessTokenProviderGroupState {
  *  custom row is created with no existing provider group to attach the form to (this file's own
  *  header on why `"custom"` rows have no catalog entry at all). */
 export interface AccessTokenCustomAddFormState {
+  readonly scope?: "project" | "site";
   readonly name: string;
   readonly category: AccessTokenRowCategoryId;
   readonly baseUrl: string;
@@ -297,6 +300,9 @@ export interface AccessTokensController {
    *  {@link RemoveConfirmDialog} already draws between this hook's state and DOM visibility). */
   resetCustomAddForm: () => void;
   createCustomCredential: () => Promise<boolean>;
+  projectKeysAvailable?: boolean;
+  customKeyBusy: Readonly<Record<string, BusyState>>;
+  setCustomKeyUse: (required: { row: AccessTokenRow; use: boolean }, optional?: Record<string, never>) => Promise<void>;
 
   t: Translate;
 }
@@ -524,6 +530,27 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
   const [addForms, setAddForms] = useState<Record<string, AddFormEntry>>({});
   const [customAddDraft, setCustomAddDraft] = useState<CustomDraftFields>(blankCustomDraft());
   const [customAddBusy, setCustomAddBusy] = useState<BusyState>(IDLE);
+  const [customKeyBusy, setCustomKeyBusy] = useState<Record<string, BusyState>>({});
+  const customKeyPending = useRef(new Set<string>());
+
+  /** Applies explicit site opt-in through the shared attachment owner, then refreshes metadata.
+   * Per-key pending guards prevent duplicate clicks; failures leave usage unchanged and visible.
+   * @complexity O(n log n) refresh time and O(n) space for n saved keys; no per-key HTTP requests.
+   */
+  async function setCustomKeyUse({ row, use }: { row: AccessTokenRow; use: boolean }, _optional = {}): Promise<void> {
+    if (row.scope !== "project" || customKeyPending.current.has(row.id)) return;
+    customKeyPending.current.add(row.id);
+    setCustomKeyBusy(prev => ({ ...prev, [row.id]: { saving: true, error: null } }));
+    try {
+      await port.custom.useKey({ keyId: row.id, use });
+      await reloadAllStores();
+      setCustomKeyBusy(prev => ({ ...prev, [row.id]: IDLE }));
+    } catch (err) {
+      setCustomKeyBusy(prev => ({ ...prev, [row.id]: { saving: false, error: describeApiError(err, t("unknown error")) } }));
+    } finally {
+      customKeyPending.current.delete(row.id);
+    }
+  }
 
   function mergeCredential(kind: AccessTokenKind, result: AdminPublishCredentialSummary | AdminSourceControlCredentialSummary, isNew: boolean): void {
     if (kind === "publish") {
@@ -572,7 +599,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     const error = credentialDraftError({ value: fields.token }, { locale });
     if (error) { setExistingBusy(prev => ({ ...prev, [row.id]: { saving: false, error } })); return; }
     if (!accessTokenExistingRowReadyToSave(fields, row, accessTokenRowProviderInfo(providers, row))) return;
-    if (customCredentialNameTaken(rows ?? [], fields.name, row.id)) {
+    if (customCredentialNameTaken((rows ?? []).filter(candidate => candidate.scope === row.scope), fields.name, row.id)) {
       setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenDuplicateNameMessage(locale, fields.name.trim(), t("this workspace")) } }));
       return;
     }
@@ -581,7 +608,9 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     const hasToken = fields.token.trim() !== "";
     try {
       const result = await port.custom.update(row.id, buildCustomCredentialUpdatePatch(fields, nameChanged, hasToken, row.username, { currentWorksFor: row.worksFor }));
-      setCustomCredentials((prev) => mergeRaw(prev ?? [], result, false));
+      // PUT returns credential metadata; retain the latest attachment snapshot from the inventory.
+      setCustomCredentials(prev => (prev ?? []).map(item => item.id === result.id
+        ? { ...result, usedBy: item.usedBy, usedByThisSite: item.usedByThisSite } : item));
       // Reset to `result.username`, not `fields.username` or blank — `result` is the server's own
       // post-write state, so it is correct whether the operator typed a new username, left it blank
       // to PRESERVE the one already saved (`buildCustomProviderConnectionInput` omits a blank
@@ -794,16 +823,18 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
    *  {@link RemoveConfirmDialog} already draws). */
   async function createCustomCredential(): Promise<boolean> {
     const fields: CustomCredentialFormFields = customAddDraft;
+    const scope = customQuery.data?.projectKeysAvailable ? customAddDraft.scope ?? "project" : "site";
     const error = credentialDraftError({ value: fields.token }, { locale, required: true });
     if (error) { setCustomAddBusy({ saving: false, error }); return false; }
     if (!customCredentialReadyToSave(fields)) return false;
-    if (customCredentialNameTaken(rows ?? [], fields.name)) {
+    if (customCredentialNameTaken((rows ?? []).filter(row => (row.scope ?? "site") === scope), fields.name)) {
       setCustomAddBusy({ saving: false, error: accessTokenDuplicateNameMessage(locale, fields.name.trim(), t("this workspace")) });
       return false;
     }
     setCustomAddBusy({ saving: true, error: null });
     try {
       const result = await port.custom.create({
+        scope,
         label: fields.name.trim(),
         worksFor: fields.worksFor,
         category: fields.category,
@@ -842,6 +873,9 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     setCustomAddField,
     resetCustomAddForm,
     createCustomCredential,
+    projectKeysAvailable: customQuery.data?.projectKeysAvailable === true,
+    customKeyBusy,
+    setCustomKeyUse,
     t,
   };
 }

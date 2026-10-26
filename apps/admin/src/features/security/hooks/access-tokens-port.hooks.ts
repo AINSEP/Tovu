@@ -59,7 +59,10 @@ export interface AccessTokensPort {
    *  carry `category`/`baseUrl`, which neither sibling group has at all. */
   readonly custom: {
     list(): Promise<AdminCustomCredentialsSnapshot>;
+    /** Uses the same attachment owner and permission as project_key_use. */
+    useKey(required: { keyId: string; use: boolean }, optional?: Record<string, never>): Promise<unknown>;
     create(input: {
+      scope?: "project" | "site";
       worksFor?: string[];
       label: string;
       category: AdminCustomCredentialCategoryId;

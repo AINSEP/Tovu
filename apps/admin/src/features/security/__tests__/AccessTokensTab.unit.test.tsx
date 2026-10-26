@@ -61,6 +61,8 @@ function makeAccessTokens(overrides: Partial<AccessTokensController> = {}): Acce
     setCustomAddField: () => {},
     resetCustomAddForm: () => {},
     createCustomCredential: async () => false,
+    customKeyBusy: {},
+    setCustomKeyUse: async () => {},
     t: (key: string) => key,
     ...overrides,
   };

@@ -226,7 +226,8 @@ export function buildSitesRegistrations(routeDeps: SitesToolDeps): ToolRegistrat
       return withSchemaOnRejection({ toolId: "sites_switch_site", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
         const { ok: _ok, ...activated } = orThrowRefusal(activateSite(
           { switcherBase, name, restartNow, dirOverridden: routeDeps.siteBinding.dirOverridden },
-          { listSites: routeDeps.listSites, persistActiveSite: routeDeps.persistActiveSite, devRestart: routeDeps.devRestart },
+          { listSites: routeDeps.listSites, persistActiveSite: routeDeps.persistActiveSite, devRestart: routeDeps.devRestart,
+            readSiteRunning: routeDeps.readSiteRunning, workspace: routeDeps.sitesWorkspace },
         ));
         return activated;
       } });

@@ -27,7 +27,8 @@
  * server writes a request file (`TOVU_DEV_RESTART_REQUEST_FILE`, see `createApiRestarter` below and
  * `apps/website/src/platform/dev-supervisor/dev-restart.ts`), and this script restarts ONLY the API
  * child onto the newly persisted `TOVU_SITE`; admin Vite keeps running. The server still never kills
- * itself. A crash is still a crash: an exit nobody asked for tears everything down exactly as before.
+ * itself. A requested switch that fails to boot restores the previous site. After a successful boot,
+ * an exit nobody asked for still tears everything down exactly as before.
  */
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, unlinkSync, unwatchFile, watchFile } from "node:fs";
@@ -37,6 +38,9 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseEnv } from "node:util";
 import { omitEnvironmentKeys } from "@jini-ai/platform";
+import { createNodeAtomicFilesystem, upsertEnvLine, writeFileAtomic } from "@jini-ai/platform/fs";
+import { createCommandInvocation } from "@jini-ai/platform/command";
+import { collectProcessTreePids, listProcessSnapshots, stopProcesses } from "@jini-ai/platform/process";
 
 import { devSitesHome } from "./dev-sites-home.mjs";
 import { apiWatchArgs } from "./dev-api-watch.mjs";
@@ -262,14 +266,20 @@ export function buildDevChildEnv({ parent, env }, { warn = console.warn } = {}) 
 }
 
 function start(name, command, args, env) {
-  const child = spawn(command, args, {
+  const childEnv = buildDevChildEnv({ parent: process.env, env });
+  const executable = process.platform === "win32" ? `${command}.cmd` : command;
+  const invocation = createCommandInvocation({ command: executable, args, env: childEnv });
+  const child = spawn(invocation.command, invocation.args, {
     cwd: REPO_ROOT,
     stdio: "inherit",
     detached: true, // own process group — required for killGroup to reap grandchildren
-    env: buildDevChildEnv({ parent: process.env, env }),
+    env: childEnv,
+    windowsVerbatimArguments: invocation.windowsVerbatimArguments,
+    windowsHide: true,
   });
   child.on("error", (error) => {
     console.error(`\ntovu dev: failed to start ${name}:`, error.message);
+    if (plannedExits.has(child)) return; // The requested boot is owned by restart recovery.
     shutdown(1);
   });
   child.on("exit", (code, signal) => {
@@ -320,40 +330,94 @@ export function siteEnvForRestart({ shellSite, envFileText }) {
  * `restart()` marks the running child as a PLANNED exit (so `start()`'s exit handler does not treat
  * it as a crash and tear the stack down), stops it, waits for its ports to free up (the API's own
  * SIGTERM handler shuts its agent daemon down; starting before :4319 is free would collide), then
- * starts a fresh child with `envForRestart()`. Concurrent requests share one restart. A Ctrl-C that
+ * starts a fresh child with `envForRestart()`. A target precheck runs BEFORE stopping anything.
+ * Until the new API listens its exit is planned too: tsx may exit, or keep watching after its API
+ * refused the lease. Either case restores the previous selection and boots the old site once.
+ * Concurrent requests share one restart. A Ctrl-C that
  * lands mid-restart wins: nothing new is started once `isShuttingDown()` is true.
  *
  * @param {{
  *   startApi: (env: Record<string, string>) => any,
  *   stopChild: (child: any) => Promise<void>,
  *   markPlanned: (child: any) => void,
+ *   markRunning: (child: any) => void,
  *   waitForPortsFree: () => Promise<unknown>,
+ *   waitForReady: (input: {child: any}) => Promise<boolean>,
  *   envForRestart: () => Record<string, string>,
+ *   checkTarget: (input: {env: Record<string, string>}) => string | null,
+ *   restoreSite: (input: {env: Record<string, string>}) => void,
  *   isShuttingDown: () => boolean,
  *   log: (message: string) => void,
  * }} deps
  */
-export function createApiRestarter(deps) {
+export function createApiRestarter(deps, _options = {}) {
   let child = null;
   let inFlight = null;
-  async function run(reason) {
-    deps.log(`\ntovu dev: restarting the API (${reason}) — admin Vite keeps running…\n`);
+  let currentEnv = {};
+  /** Persistence failure must not prevent restoring the live API. Never log env/error payloads. */
+  function restoreChoice() {
+    try { deps.restoreSite({ env: currentEnv }); }
+    catch { deps.log("tovu dev: could not restore TOVU_SITE in .env; keeping the previous site for this session."); }
+  }
+  /** Drain the entire watcher tree and its ports before either target or rollback boot. */
+  async function stopCurrent() {
     if (child) {
       deps.markPlanned(child);
       await deps.stopChild(child);
     }
-    await deps.waitForPortsFree();
+    if (await deps.waitForPortsFree() === false) throw new Error("API ports are still busy");
+  }
+  /** A requested boot is provisional until the API listens; a watch wrapper alone is not ready. */
+  async function boot(env) {
     if (deps.isShuttingDown()) return false;
-    child = deps.startApi(deps.envForRestart());
+    child = deps.startApi(env);
+    deps.markPlanned(child);
+    if (!await deps.waitForReady({ child }) || deps.isShuttingDown()) return false;
+    deps.markRunning(child);
+    currentEnv = { ...env };
     return true;
+  }
+  /** Bounded recovery: restore selection, stop the refused watcher, then boot the last site once. */
+  async function recover() {
+    restoreChoice();
+    if (deps.isShuttingDown()) return false;
+    deps.log("tovu dev: site switch did not boot; restoring the previous site.");
+    try {
+      await stopCurrent();
+      if (await boot(currentEnv)) return false;
+    } catch { /* Report recovery failure without disclosing environment or child error payloads. */ }
+    if (!deps.isShuttingDown()) deps.log("tovu dev: the previous site could not restart; inspect the API startup output.");
+    return false;
+  }
+  async function run(reason) {
+    let nextEnv;
+    try {
+      nextEnv = deps.envForRestart();
+      const refusal = deps.checkTarget({ env: nextEnv });
+      if (refusal) { deps.log(refusal); restoreChoice(); return false; }
+    } catch {
+      deps.log("tovu dev: could not verify the target site; the current API is still running.");
+      restoreChoice();
+      return false;
+    }
+    if (deps.isShuttingDown()) return false;
+    deps.log(`\ntovu dev: restarting the API (${reason}) — admin Vite keeps running…\n`);
+    try {
+      await stopCurrent();
+      if (await boot(nextEnv)) return true;
+    } catch {
+      deps.log("tovu dev: requested API boot failed.");
+    }
+    return recover();
   }
   return {
     start(env) {
+      currentEnv = { ...env };
       child = deps.startApi(env);
       return child;
     },
     current: () => child,
-    /** @returns {Promise<boolean>} whether a new child was started. */
+    /** @returns {Promise<boolean>} whether the requested site booted; false includes rollback. */
     restart(reason) {
       if (!inFlight) inFlight = run(reason).finally(() => (inFlight = null));
       return inFlight;
@@ -361,9 +425,20 @@ export function createApiRestarter(deps) {
   };
 }
 
-/** Resolves once `child` has exited; SIGTERMs its group, then SIGKILLs it after `graceMs`. */
-function stopChildGroup(child, graceMs = 8000) {
-  if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve();
+/** Stop the watcher tree before releasing ports. Windows has no negative-pid group signals,
+ * so reuse platform's process snapshots/tree collection and termination owner there.
+ * @returns A promise resolved after termination; errors propagate to switch recovery.
+ * @complexity O(processes) on Windows, one group signal plus bounded grace on POSIX.
+ */
+export async function stopChildGroup({ child }, { graceMs = 8000, platform = process.platform,
+  snapshots = listProcessSnapshots, stop = stopProcesses } = {}) {
+  if (!child.pid || child.exitCode !== null || child.signalCode !== null) return;
+  if (platform === "win32") {
+    const pids = collectProcessTreePids(await snapshots(), [child.pid]);
+    const result = await stop(pids);
+    if (result.remainingPids.length) throw new Error("API watcher processes are still running");
+    return;
+  }
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
       try {
@@ -380,14 +455,17 @@ function stopChildGroup(child, graceMs = 8000) {
   });
 }
 
-/** Resolves once nothing listens on any of `ports`, or after `timeoutMs` (then starts anyway). */
+/** Resolves once nothing listens on any API/daemon port, or false at the bounded deadline.
+ * TCP probes also work on Windows, where lsof is unavailable. Never start over a busy port.
+ */
 async function waitForPortsFree(ports, timeoutMs = 15_000) {
   const deadline = Date.now() + timeoutMs;
-  while (ports.some((port) => listenersOn(port).length > 0)) {
+  while (true) {
+    const listening = await Promise.all(ports.map((port) => waitForPort(port, 0)));
+    if (!listening.some(Boolean)) return true;
     if (Date.now() > deadline) return false;
     await new Promise((resolve) => setTimeout(resolve, 300));
   }
-  return true;
 }
 
 /** Reads the repo-root `.env`, or `null` when there is none. */
@@ -397,6 +475,32 @@ function readRepoEnvFile() {
   } catch {
     return null;
   }
+}
+
+/** Refuse a live target before terminating the current API; the shared workspace owns selection
+ * and lease liveness. Unreadable records throw and the restarter keeps the existing child.
+ * @returns A refusal with the existing URL, or null for an idle target. @complexity O(sites).
+ */
+export function devRestartRefusal({ repoRoot, env }, { select = devSitesHome } = {}) {
+  const target = select({ repoRoot }, { env });
+  if (!target.running) return null;
+  const { app, port, scheme } = target.running;
+  if (port > 0) return `tovu dev: switch refused; site is open in ${app} at ${scheme}://localhost:${port}/admin/. The current API is still running.`;
+  return `tovu dev: switch refused; site is starting in ${app}. The current API is still running.`;
+}
+
+/** Restore only TOVU_SITE, preserving other settings through Jini's env transform and atomic
+ * write owner (including file permissions and Windows replacement). Never log the file content.
+ * @throws Read/write errors; the restarter still restores the previous live API.
+ * @complexity O(env file size) time/space; one atomic replacement.
+ */
+export function restoreDevSiteSelection({ repoRoot, name }, { readText = readFileSync,
+  writeText = (input) => writeFileAtomic({ ...input, fs: createNodeAtomicFilesystem({}) }) } = {}) {
+  const filePath = path.join(repoRoot, ".env");
+  let source = "";
+  try { source = readText(filePath, "utf8"); }
+  catch (error) { if (error.code !== "ENOENT") throw error; }
+  writeText({ filePath, content: upsertEnvLine({ source, key: "TOVU_SITE", value: name }) });
 }
 
 /**
@@ -592,6 +696,8 @@ async function main() {
   );
 
   const apiEnv = buildApiEnv({ scheme, apiPort: API_PORT, vitePort: VITE_PORT, supervisorPid: process.pid });
+  // Snapshot the actual boot selection, including the implicit default, before .env can change.
+  apiEnv.TOVU_SITE = process.env.TOVU_SITE ?? "tovu-dev";
   if (extraCaCerts) apiEnv.NODE_EXTRA_CA_CERTS = extraCaCerts;
   // Per-supervisor request file (OD-S1): two `npm run dev`s on different ports never cross.
   const restartRequestFile = path.join(os.tmpdir(), `tovu-dev-restart-${process.pid}.json`);
@@ -604,9 +710,13 @@ async function main() {
   apiEnv.TOVU_DEV_SITE_PINNED = SHELL_TOVU_SITE === undefined ? "0" : "1";
   const apiRestarter = createApiRestarter({
     startApi: (env) => start("api server", "npx", apiWatchArgs({ sitesHome: process.env.TOVU_SITES_HOME ?? path.dirname(selectedSite.dir) }), env),
-    stopChild: (child) => stopChildGroup(child),
+    stopChild: (child) => stopChildGroup({ child }),
     markPlanned: (child) => plannedExits.add(child),
+    markRunning: (child) => plannedExits.delete(child),
     waitForPortsFree: () => waitForPortsFree([API_PORT, DAEMON_PORT]),
+    waitForReady: () => waitForPort(API_PORT),
+    checkTarget: ({ env }) => devRestartRefusal({ repoRoot: REPO_ROOT, env: { ...process.env, ...env } }),
+    restoreSite: ({ env }) => restoreDevSiteSelection({ repoRoot: REPO_ROOT, name: env.TOVU_SITE }),
     envForRestart: () => {
       const site = siteEnvForRestart({ shellSite: SHELL_TOVU_SITE, envFileText: readRepoEnvFile() });
       if (site.warning) console.warn(site.warning);

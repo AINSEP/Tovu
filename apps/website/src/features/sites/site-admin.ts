@@ -7,6 +7,8 @@ import {
   InitDirNotEmptyError,
   ValidationError,
   resolveNewSiteAdminPassword,
+  readSiteRunning as readSiteRunningReal,
+  runningSiteUrl,
   type SiteBinding,
   type SiteListEntry,
 } from "#src/platform/site-dir/index";
@@ -60,6 +62,7 @@ export type SiteAdminRefusalCode =
   | "VALIDATION_ERROR"
   | "SITE_ALREADY_EXISTS"
   | "SITE_NOT_FOUND"
+  | "SITE_ALREADY_RUNNING"
   | "AGENT_PLUGIN_TOKEN_INVALID"
   | "AGENT_PLUGIN_TOKEN_REFUSED"
   | "AGENT_PLUGIN_TOKEN_UNSUPPORTED";
@@ -70,6 +73,8 @@ export interface SiteAdminRefusal {
   error: string;
   /** Set only on an `AGENT_PLUGIN_TOKEN_*` refusal: which plugin's token was refused. */
   pluginId?: string;
+  /** Existing owner's admin URL, when its listener is ready. Never includes the lease token. */
+  url?: string;
 }
 
 /** The refusal for a deployment with the site-switcher flag OFF (desktop, hosted). */
@@ -239,6 +244,9 @@ export interface ActivateSiteRequired {
 
 export interface ActivateSitePorts {
   listSites?: (optional?: { cwd?: string }) => readonly SiteListEntry[];
+  /** Fresh lease read before any write; list snapshots can be stale. */
+  readSiteRunning?: typeof readSiteRunningReal;
+  workspace?: NonNullable<Parameters<typeof readSiteRunningReal>[1]>["workspace"];
   persistActiveSite?: typeof persistActiveSiteReal;
   /** Present only under `npm run dev` (`platform/dev-supervisor`). `null`/absent = no supervisor. */
   devRestart?: DevRestartPort | null;
@@ -263,6 +271,19 @@ function restartDecision(required: ActivateSiteRequired, devRestart: DevRestartP
   return devRestart ? { restart: true } : { restart: false };
 }
 
+/** Observe the boot lease before changing selection; unreadable records propagate fail closed.
+ * @returns A plain refusal with the owner's URL, or null for an idle target.
+ * @complexity O(1) lease I/O and liveness check.
+ */
+function runningSiteRefusal({ dir, name }: { dir: string; name: string }, ports: ActivateSitePorts = {}): SiteAdminRefusal | null {
+  const running = (ports.readSiteRunning ?? readSiteRunningReal)({ dir }, { workspace: ports.workspace });
+  if (!running) return null;
+  const url = runningSiteUrl({ record: running });
+  const location = url ? `open in ${running.app} at ${url}` : `starting in ${running.app}. Wait for it to finish starting`;
+  return { ok: false, code: "SITE_ALREADY_RUNNING", ...(url ? { url } : {}),
+    error: `Site '${name}' is ${location}. Switch refused; the current site is still running.` };
+}
+
 /**
  * Makes `name` the site the NEXT dev-server start serves (`TOVU_SITE=<name>` in the switcher tree's
  * `.env`). Looks the name up with the strict `listSites()` — an `unregistered` served folder is not
@@ -270,7 +291,10 @@ function restartDecision(required: ActivateSiteRequired, devRestart: DevRestartP
  *
  * With `restartNow` and a dev supervisor (`ports.devRestart`, only under `npm run dev`), it also asks
  * the supervisor to restart the API child onto the new site. Still never kills this process itself.
- * @complexity O(sites) for the lookup plus one `.env` rewrite; cyclomatic 4.
+ * Refuses a live target before writing `.env` or requesting a restart. Boot's atomic claim remains
+ * authoritative if another process starts after this check; the supervisor restores the old site.
+ * @throws Lease read failures; undecidable ownership must never permit a switch.
+ * @complexity O(sites) for the lookup, one lease read, and at most one `.env` rewrite.
  */
 export function activateSite(
   required: ActivateSiteRequired,
@@ -279,6 +303,8 @@ export function activateSite(
   const { switcherBase, name } = required;
   const match = (ports.listSites ?? listSitesReal)({ cwd: switcherBase }).find((site) => site.name === name);
   if (!match) return { ok: false, code: "SITE_NOT_FOUND", error: `site '${name}' was not found` };
+  const refusal = runningSiteRefusal({ dir: match.dir, name }, ports);
+  if (refusal) return refusal;
   (ports.persistActiveSite ?? persistActiveSiteReal)({ name }, { cwd: switcherBase });
   const base = { ok: true as const, activeSiteName: name, restartRequired: true as const };
   if (!required.restartNow) return { ...base, restartInstructions: SITE_SWITCH_RESTART_INSTRUCTIONS };

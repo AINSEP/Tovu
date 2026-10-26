@@ -81,6 +81,8 @@ function makeAccessTokens(overrides: Partial<AccessTokensController> = {}): Acce
     setCustomAddField: vi.fn(),
     resetCustomAddForm: vi.fn(),
     createCustomCredential: vi.fn().mockResolvedValue(false),
+    customKeyBusy: {},
+    setCustomKeyUse: vi.fn().mockResolvedValue(undefined),
     t: (key: string) => key,
     ...overrides,
   };
@@ -841,6 +843,63 @@ describe("AccessTokensTab — AddCustomCredentialDialog", () => {
   it("shows 'Saving…' and disables Save while a save is in flight", () => {
     openDialog({ customAddForm: { name: "example-host.io", category: "general", baseUrl: "https://api.example-host.io", additionalHosts: "", token: "tok", username: "", worksFor: [], saving: true, error: null } });
     expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
+  });
+});
+
+describe("custom project-key usage", () => {
+  it.each([
+    { usedBy: [], usedByThisSite: false, badge: "Project — not used by any site yet", action: "Use on this site", use: true },
+    { usedBy: ["Shop", "Docs"], usedByThisSite: false, badge: "Project — used by: Shop, Docs", action: "Use on this site", use: true },
+    { usedBy: ["Shop", "Docs"], usedByThisSite: true, badge: "Project — used by: Shop, Docs", action: "Stop using on this site", use: false },
+  ])("renders $badge and dispatches $action without toggling the row", ({ usedBy, usedByThisSite, badge, action, use }) => {
+    const saved = row({ kind: "custom", id: "project-key", scope: "project", usedBy, usedByThisSite, category: "general" });
+    const setCustomKeyUse = vi.fn().mockResolvedValue(undefined);
+    renderTab({ groups: [groupFor("custom", saved.providerId, [rowState({ row: saved })])], setCustomKeyUse });
+    expect(screen.getByText((_text, element) => element?.className === "status status-neutral" && element.textContent === badge)).toBeInTheDocument();
+    const button = screen.getByRole("button", { name: `${action} — Production` });
+    const details = button.closest("details")!;
+    expect(details).not.toHaveAttribute("open");
+    fireEvent.click(button);
+    expect(setCustomKeyUse).toHaveBeenCalledWith({ row: saved, use });
+    expect(details).not.toHaveAttribute("open");
+    if (!usedByThisSite) expect(screen.queryByLabelText(/^Access token/)).not.toBeInTheDocument();
+  });
+
+  it("labels a site-only key without offering an attachment action", () => {
+    const saved = row({ kind: "custom", scope: "site", category: "general" });
+    renderTab({ groups: [groupFor("custom", saved.providerId, [rowState({ row: saved })])] });
+    expect(screen.getAllByText("This site only").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: /Use on this site/ })).not.toBeInTheDocument();
+  });
+
+  it("disables a pending attachment and shows its failure in the visible summary", () => {
+    const saved = row({ kind: "custom", id: "project-key", scope: "project", category: "general" });
+    renderTab({ groups: [groupFor("custom", saved.providerId, [rowState({ row: saved })])],
+      customKeyBusy: { "project-key": { saving: true, error: "Could not change site usage." } } });
+    expect(screen.getByRole("button", { name: "Use on this site — Production" })).toBeDisabled();
+    expect(screen.getByRole("alert").closest("summary")).not.toBeNull();
+    expect(screen.getByRole("alert")).toHaveTextContent("Could not change site usage.");
+  });
+
+  it.each([
+    { initial: undefined, selected: "site", label: "This site only" },
+    { initial: "site" as const, selected: "project", label: "Save to project (pick sites later)" },
+  ])("offers both storage choices and forwards $selected", ({ initial, selected, label }) => {
+    const setCustomAddField = vi.fn();
+    renderTab({ projectKeysAvailable: true, setCustomAddField, customAddForm: { ...makeAccessTokens().customAddForm, scope: initial } });
+    fireEvent.click(screen.getByRole("button", { name: "+ Add custom provider" }));
+    const project = screen.getByRole("radio", { name: "Save to project (pick sites later)" });
+    expect(project).toHaveProperty("checked", initial !== "site");
+    expect(screen.getByRole("radio", { name: "This site only" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: label }));
+    expect(setCustomAddField).toHaveBeenLastCalledWith({ scope: selected });
+  });
+
+  it("offers only site storage when no project store is available", () => {
+    renderTab({ projectKeysAvailable: false });
+    fireEvent.click(screen.getByRole("button", { name: "+ Add custom provider" }));
+    expect(screen.getByText("This site only")).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "Save to project (pick sites later)" })).not.toBeInTheDocument();
   });
 });
 

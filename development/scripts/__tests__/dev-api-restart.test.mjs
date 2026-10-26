@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import path from "node:path";
 
-import { classifyChildExit, createApiRestarter, siteEnvForRestart } from "../dev.mjs";
+import { classifyChildExit, createApiRestarter, devRestartRefusal, restoreDevSiteSelection, siteEnvForRestart, stopChildGroup } from "../dev.mjs";
 
 /**
  * @file `dev.mjs` restart-on-request (owner decision OD-S1, 2026-10-05): the API-child restart state
@@ -22,6 +23,10 @@ function fakeDeps(overrides = {}) {
     markPlanned: (child) => void events.push(["planned", child.id]),
     waitForPortsFree: async () => void events.push(["ports-free"]),
     envForRestart: () => ({ TOVU_SITE: "beta" }),
+    checkTarget: () => null,
+    restoreSite: () => {},
+    waitForReady: async () => true,
+    markRunning: () => {},
     isShuttingDown: () => false,
     log: () => {},
     ...overrides,
@@ -40,6 +45,7 @@ test("restart marks the old child planned, stops it, waits for its ports, then s
     ["stop", 1],
     ["ports-free"],
     ["start", 2, { TOVU_SITE: "beta" }],
+    ["planned", 2],
   ]);
   assert.equal(restarter.current().id, 2);
 });
@@ -83,4 +89,161 @@ test("a shell-exported TOVU_SITE wins and the warning says the switch is inert",
   const result = siteEnvForRestart({ shellSite: "alpha", envFileText: "TOVU_SITE=beta\n" });
   assert.deepEqual(result.env, {});
   assert.match(result.warning, /TOVU_SITE=alpha is exported in your shell/);
+});
+
+test("an occupied target keeps the old child and restores the persisted choice before stopping anything", async () => {
+  const messages = [];
+  const { deps, events } = fakeDeps({
+    checkTarget: () => "Site is open in Desktop at https://localhost:53775/admin/.",
+    restoreSite: ({ env }) => events.push(["restore", env.TOVU_SITE]),
+    log: (message) => messages.push(message),
+  });
+  const restarter = createApiRestarter(deps);
+  const original = restarter.start({ TOVU_SITE: "alpha" });
+  assert.equal(await restarter.restart("switch"), false);
+  assert.equal(restarter.current(), original);
+  assert.deepEqual(events, [["start", 1, { TOVU_SITE: "alpha" }], ["restore", "alpha"]]);
+  assert.ok(messages.includes("Site is open in Desktop at https://localhost:53775/admin/."));
+});
+
+test("a refused boot inside a live watcher restores the previous site and its persisted selection", async () => {
+  const { deps, events } = fakeDeps({
+    waitForReady: async ({ child }) => child.env.TOVU_SITE === "alpha",
+    restoreSite: ({ env }) => events.push(["restore", env.TOVU_SITE]),
+    markRunning: (child) => events.push(["running", child.id]),
+  });
+  const restarter = createApiRestarter(deps);
+  restarter.start({ TOVU_SITE: "alpha" });
+  assert.equal(await restarter.restart("switch"), false);
+  assert.deepEqual(events, [
+    ["start", 1, { TOVU_SITE: "alpha" }], ["planned", 1], ["stop", 1], ["ports-free"],
+    ["start", 2, { TOVU_SITE: "beta" }], ["planned", 2],
+    ["restore", "alpha"], ["planned", 2], ["stop", 2], ["ports-free"],
+    ["start", 3, { TOVU_SITE: "alpha" }], ["planned", 3], ["running", 3],
+  ]);
+  assert.equal(restarter.current().env.TOVU_SITE, "alpha");
+});
+
+test("the rollback baseline advances only after a successful boot", async () => {
+  let target = "beta";
+  const restored = [];
+  const { deps } = fakeDeps({
+    envForRestart: () => ({ TOVU_SITE: target }),
+    waitForReady: async ({ child }) => child.env.TOVU_SITE !== "gamma",
+    restoreSite: ({ env }) => restored.push(env.TOVU_SITE),
+  });
+  const restarter = createApiRestarter(deps);
+  restarter.start({ TOVU_SITE: "alpha" });
+  assert.equal(await restarter.restart("first"), true);
+  target = "gamma";
+  assert.equal(await restarter.restart("second"), false);
+  assert.deepEqual(restored, ["beta"]);
+  assert.equal(restarter.current().env.TOVU_SITE, "beta");
+});
+
+test("shutdown after a refused boot prevents rollback from starting another child", async () => {
+  let stopped = false;
+  const { deps, events } = fakeDeps({
+    waitForReady: async () => { stopped = true; return false; },
+    isShuttingDown: () => stopped,
+  });
+  const restarter = createApiRestarter(deps);
+  restarter.start({ TOVU_SITE: "alpha" });
+  assert.equal(await restarter.restart("switch"), false);
+  assert.equal(events.filter(([kind]) => kind === "start").length, 2);
+});
+
+test("a rollback persistence failure still restores the previous running API", async () => {
+  const { deps } = fakeDeps({
+    waitForReady: async ({ child }) => child.env.TOVU_SITE === "alpha",
+    restoreSite: () => { throw new Error("disk unavailable"); },
+  });
+  const restarter = createApiRestarter(deps);
+  restarter.start({ TOVU_SITE: "alpha" });
+  assert.equal(await restarter.restart("switch"), false);
+  assert.equal(restarter.current().env.TOVU_SITE, "alpha");
+});
+
+test("an unreadable target leaves the old API running", async () => {
+  const { deps, events } = fakeDeps({ checkTarget: () => { throw new Error("invalid running lock"); } });
+  const restarter = createApiRestarter(deps);
+  const original = restarter.start({ TOVU_SITE: "alpha" });
+  assert.equal(await restarter.restart("switch"), false);
+  assert.equal(restarter.current(), original);
+  assert.equal(events.length, 1);
+});
+
+test("dev preflight observes the newly selected site and gives the existing Desktop URL", () => {
+  const env = { TOVU_SITE: "beta" };
+  assert.equal(devRestartRefusal({ repoRoot: "/repo", env }, { select: (input, options) => {
+    assert.deepEqual(input, { repoRoot: "/repo" });
+    assert.equal(options.env, env);
+    return { running: { app: "Desktop", scheme: "https", port: 53775 } };
+  } }), "tovu dev: switch refused; site is open in Desktop at https://localhost:53775/admin/. The current API is still running.");
+  assert.equal(devRestartRefusal({ repoRoot: "/repo", env }, { select: () => ({ running: null }) }), null);
+  assert.equal(devRestartRefusal({ repoRoot: "/repo", env }, { select: () => ({ running: { app: "Desktop", port: 0 } }) }),
+    "tovu dev: switch refused; site is starting in Desktop. The current API is still running.");
+});
+
+test("rollback rewrites only the site selection using the current file, including on Windows", () => {
+  const writes = [];
+  const repoRoot = "C:\\work\\Tovu";
+  const untouched = `OTHER=${["runtime", "fixture"].join("-")}\r\n`;
+  restoreDevSiteSelection({ repoRoot, name: "alpha" }, {
+    readText: () => `${untouched}TOVU_SITE=beta\r\n`,
+    writeText: (input) => writes.push(input),
+  });
+  assert.deepEqual(writes, [{ filePath: path.join(repoRoot, ".env"), content: `${untouched}TOVU_SITE=alpha\n` }]);
+});
+
+test("rollback never treats an unreadable env file as empty", () => {
+  assert.throws(() => restoreDevSiteSelection({ repoRoot: "/repo", name: "alpha" }, {
+    readText: () => { throw Object.assign(new Error("unreadable"), { code: "EACCES" }); },
+    writeText: () => assert.fail("must not overwrite unreadable settings"),
+  }), { message: "unreadable" });
+});
+
+test("Windows restart stops the watcher and every descendant through the platform owner", async () => {
+  const child = { pid: 10, exitCode: null, signalCode: null };
+  let stopped = [];
+  await stopChildGroup({ child }, { platform: "win32",
+    snapshots: async () => [
+      { pid: 10, ppid: 1, command: "launcher" }, { pid: 11, ppid: 10, command: "watcher" },
+      { pid: 12, ppid: 11, command: "API" }, { pid: 99, ppid: 1, command: "unrelated" },
+    ],
+    stop: async (pids) => { stopped = pids; return { remainingPids: [] }; },
+  });
+  assert.deepEqual([...stopped].sort((a, b) => a - b), [10, 11, 12]);
+});
+
+test("a synchronous target spawn failure still boots the previous site", async () => {
+  const started = [];
+  const { deps } = fakeDeps({ startApi: (env) => {
+    if (env.TOVU_SITE === "beta") throw new Error("spawn failed");
+    started.push(env.TOVU_SITE);
+    return { env };
+  } });
+  const restarter = createApiRestarter(deps);
+  restarter.start({ TOVU_SITE: "alpha" });
+  assert.equal(await restarter.restart("switch"), false);
+  assert.deepEqual(started, ["alpha", "alpha"]);
+  assert.equal(restarter.current().env.TOVU_SITE, "alpha");
+});
+
+test("a failed rollback is bounded to one attempt and reports the failure", async () => {
+  const messages = [];
+  const { deps, events } = fakeDeps({ waitForReady: async () => false, log: (message) => messages.push(message) });
+  const restarter = createApiRestarter(deps);
+  restarter.start({ TOVU_SITE: "alpha" });
+  assert.equal(await restarter.restart("switch"), false);
+  assert.equal(events.filter(([kind]) => kind === "start").length, 3);
+  assert.ok(messages.includes("tovu dev: the previous site could not restart; inspect the API startup output."));
+});
+
+test("a busy API port never starts a second writing child", async () => {
+  const { deps, events } = fakeDeps({ waitForPortsFree: async () => false });
+  const restarter = createApiRestarter(deps);
+  restarter.start({ TOVU_SITE: "alpha" });
+  assert.equal(await restarter.restart("switch"), false);
+  assert.equal(events.filter(([kind]) => kind === "start").length, 1);
 });

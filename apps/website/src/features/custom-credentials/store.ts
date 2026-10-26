@@ -132,8 +132,8 @@ export async function describeCredentialByLabel(deps: CustomCredentialReadDeps, 
 }
 
 /**
- * The read model for EVERY credential set a workspace has saved — what
- * `GET .../custom/credentials` returns. Same "never decrypts" contract as {@link describeCredential}.
+ * The effective credential sets this workspace uses. The admin inventory has its own unfiltered
+ * read model below. Same "never decrypts" contract as {@link describeCredential}.
  *
  * @complexity O(n) in the workspace's own (small) credential-set count. One repo read, one array
  *   map, no per-row I/O.
@@ -141,6 +141,25 @@ export async function describeCredentialByLabel(deps: CustomCredentialReadDeps, 
 export async function listCustomCredentials(deps: CustomCredentialInventoryDeps, input: { workspaceId: UUID }): Promise<CustomCredentialSummary[]> {
   const located = await listEffective(deps, input.workspaceId);
   return Promise.all(located.map(({ scoped, record }) => toSummary(record, reportedScope(deps, scoped))));
+}
+
+/** Admin inventory includes unattached project keys and same-label site overrides. The existing
+ * guarded metadata repo exposes those rows without changing runtime credential resolution.
+ * @param required Metadata repositories and the current site's workspace id.
+ * @returns Safe summaries only; never opens an envelope.
+ * @throws Repository or metadata-validation errors propagate to the admin adapter.
+ * @complexity O(n log n) time and O(n) space for n saved keys; at most two store reads, no per-key I/O.
+ * @example await listCustomCredentialInventory({ deps, workspaceId });
+ */
+export async function listCustomCredentialInventory({ deps, workspaceId }: {
+  deps: CustomCredentialInventoryDeps; workspaceId: UUID;
+}, _optional = {}): Promise<CustomCredentialSummary[]> {
+  const inventoryDeps = { ...deps, repo: credentialDeletionRepo({ repo: deps.repo }) };
+  const stores = await Promise.all(credentialScopes(inventoryDeps, workspaceId).map(async scoped => {
+    const records = await scoped.deps.repo.listByWorkspace({ workspaceId: scoped.workspaceId });
+    return Promise.all(records.map(record => toSummary(record, reportedScope(deps, scoped))));
+  }));
+  return stores.flat().sort((a, b) => a.label.localeCompare(b.label));
 }
 
 export interface CustomCredentialWriteDeps extends CustomCredentialReadDeps {

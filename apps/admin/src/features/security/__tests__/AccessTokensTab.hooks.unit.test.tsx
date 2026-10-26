@@ -44,6 +44,8 @@ function makeAccessTokens(groups: readonly AccessTokenProviderGroupState[] | und
     setCustomAddField: () => {},
     resetCustomAddForm: () => {},
     createCustomCredential: async () => false,
+    customKeyBusy: {},
+    setCustomKeyUse: async () => {},
     t: (key: string) => key,
   };
 }

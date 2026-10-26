@@ -411,6 +411,9 @@ export interface RawCredentialSummary {
  *  `rawLabel` is kept alongside it so a genuine uniqueness check can compare against what the server
  *  actually has stored rather than only against display names. */
 export interface AccessTokenRow {
+  readonly scope?: "project" | "site";
+  readonly usedBy?: readonly string[];
+  readonly usedByThisSite?: boolean;
   readonly credentialType?: "vendor" | "custom";
   readonly worksFor?: string[];
   readonly tokenHint?: CredentialTokenHint | null;
@@ -469,6 +472,9 @@ export function buildAccessTokenRows(
  *  structural subset (like {@link RawCredentialSummary}) so this file's pure functions stay
  *  independently testable without importing the API client's own type for its own sake. */
 export interface RawCustomCredentialSummary {
+  readonly scope?: "project" | "site";
+  readonly usedBy?: readonly string[];
+  readonly usedByThisSite?: boolean;
   readonly credentialType?: "vendor" | "custom";
   readonly worksFor?: string[];
   readonly tokenHint?: CredentialTokenHint | null;
@@ -494,6 +500,9 @@ export interface RawCustomCredentialSummary {
  */
 export function buildCustomCredentialRows(raws: readonly RawCustomCredentialSummary[]): AccessTokenRow[] {
   return raws.map((raw) => ({
+    scope: raw.scope,
+    usedBy: raw.usedBy,
+    usedByThisSite: raw.usedByThisSite,
     kind: "custom",
     ...(raw.credentialType ? { credentialType: raw.credentialType } : {}),
     ...(raw.worksFor ? { worksFor: raw.worksFor } : {}),

@@ -97,3 +97,5 @@ export { runtimeSchemaVersion, type RuntimeSchemaVersion } from "./schema-guard.
  * into `ensureSiteKey`.
  */
 export { findSiteKeyDependentData } from "./site-key-dependent-data.js";
+/** Activation observes the same lease owner as server boot, through this domain's public door. */
+export { readSiteRunning, runningSiteUrl } from "./site-running.js";

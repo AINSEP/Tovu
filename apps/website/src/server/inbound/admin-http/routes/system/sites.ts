@@ -17,6 +17,7 @@ import {
   persistActiveSite as persistActiveSiteReal,
   readPersistedActiveSite as readPersistedActiveSiteReal,
   resolveNewSiteAdminPassword,
+  type readSiteRunning,
   type ServingSiteListEntry,
   type SiteListEntry,
   isSiteSwitcherEnabled as isSiteSwitcherEnabledReal,
@@ -140,6 +141,7 @@ export type AdminSitesDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "site
   listSites?: (optional?: Parameters<typeof listSitesReal>[0]) => readonly SiteListEntry[];
   createSite?: typeof createSiteReal;
   persistActiveSite?: typeof persistActiveSiteReal;
+  readSiteRunning?: typeof readSiteRunning;
   isSiteSwitcherEnabled?: typeof isSiteSwitcherEnabledReal;
   readPersistedActiveSite?: typeof readPersistedActiveSiteReal;
   /** The `npm run dev` restart channel for Activate's `restartNow`. Defaults to
@@ -156,6 +158,7 @@ const REFUSAL_STATUS: Record<SiteAdminRefusalCode, number> = {
   VALIDATION_ERROR: 400,
   SITE_ALREADY_EXISTS: 409,
   SITE_NOT_FOUND: 404,
+  SITE_ALREADY_RUNNING: 409,
   AGENT_PLUGIN_TOKEN_INVALID: 400,
   AGENT_PLUGIN_TOKEN_REFUSED: 400,
   AGENT_PLUGIN_TOKEN_UNSUPPORTED: 400,
@@ -427,7 +430,7 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
       const restartNow = (req.body as Record<string, unknown> | null | undefined)?.restartNow === true;
       const activated = activateSite(
         { switcherBase: gate.switcherBase, name: String(req.params.name ?? ""), restartNow, dirOverridden: deps.siteBinding.dirOverridden },
-        { listSites, persistActiveSite: deps.persistActiveSite, devRestart },
+        { listSites, persistActiveSite: deps.persistActiveSite, devRestart, readSiteRunning: deps.readSiteRunning, workspace: sitesWorkspace },
       );
       if (!activated.ok) {
         sendRefusal(res, activated);

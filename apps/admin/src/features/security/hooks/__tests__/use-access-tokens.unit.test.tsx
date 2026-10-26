@@ -122,6 +122,92 @@ function findGroup(groups: readonly AccessTokenProviderGroupState[] | undefined,
   return (groups ?? []).find((g) => g.info.kind === kind && g.info.providerId === providerId);
 }
 
+describe("custom project-key attachments", () => {
+  it.each([
+    { available: true, selected: undefined, expected: "project" },
+    { available: true, selected: "site" as const, expected: "site" },
+    { available: false, selected: "project" as const, expected: "site" },
+  ])("creates a $expected key when project storage is $available and selection is $selected", async ({ available, selected, expected }) => {
+    const create = vi.fn(async () => customCredential());
+    const port = fakePort({ custom: { list: async () => ({ credentials: [], projectKeysAvailable: available }), create } });
+    const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    const token = ["synthetic", expected, "value"].join("-");
+    act(() => result.current.setCustomAddField({ name: "Fresh key", baseUrl: "https://api.example.test", token, scope: selected }));
+    await act(() => result.current.createCustomCredential());
+    expect(create).toHaveBeenCalledWith({ scope: expected, label: "Fresh key", worksFor: [], category: "general",
+      baseUrl: "https://api.example.test", additionalHosts: [], connection: { token } });
+    expect(result.current.projectKeysAvailable).toBe(available);
+  });
+
+  it("refreshes usage after attaching and detaching, retaining the key and other sites; duplicate clicks write once", async () => {
+    let release!: () => void;
+    const pending = new Promise<void>(resolve => { release = resolve; });
+    let attached = false;
+    const useKey = vi.fn(async ({ use }: { keyId: string; use: boolean }) => { await pending; attached = use; });
+    const list = vi.fn(async () => ({ projectKeysAvailable: true, credentials: [customCredential({
+      scope: "project", usedByThisSite: attached, usedBy: attached ? ["Docs", "Shop"] : ["Docs"],
+    })] }));
+    const port = fakePort({ custom: { list, useKey } });
+    const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    const saved = findRow(result.current.groups, "custom-1")!.row;
+    let first!: Promise<void>;
+    act(() => { first = result.current.setCustomKeyUse({ row: saved, use: true }); });
+    await act(() => result.current.setCustomKeyUse({ row: saved, use: true }));
+    expect(result.current.customKeyBusy[saved.id]).toEqual({ saving: true, error: null });
+    expect(useKey).toHaveBeenCalledTimes(1);
+    expect(useKey).toHaveBeenLastCalledWith({ keyId: saved.id, use: true });
+    await act(async () => { release(); await first; });
+    expect(findRow(result.current.groups, saved.id)!.row).toMatchObject({ usedByThisSite: true, usedBy: ["Docs", "Shop"] });
+    await act(() => result.current.setCustomKeyUse({ row: findRow(result.current.groups, saved.id)!.row, use: false }));
+    expect(useKey).toHaveBeenLastCalledWith({ keyId: saved.id, use: false });
+    expect(findRow(result.current.groups, saved.id)!.row).toMatchObject({ usedByThisSite: false, usedBy: ["Docs"] });
+    expect(result.current.customKeyBusy[saved.id]).toEqual({ saving: false, error: null });
+    expect(list).toHaveBeenCalledTimes(3);
+  });
+
+  it("keeps the usage facts on a failed write and permits a retry", async () => {
+    const useKey = vi.fn(async () => { throw new Error("Could not change site usage."); });
+    const saved = customCredential({ scope: "project", usedByThisSite: false, usedBy: ["Docs"] });
+    const port = fakePort({ custom: { list: async () => ({ credentials: [saved], projectKeysAvailable: true }), useKey } });
+    const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    const target = findRow(result.current.groups, saved.id)!.row;
+    await act(() => result.current.setCustomKeyUse({ row: target, use: true }));
+    expect(result.current.customKeyBusy[saved.id]).toEqual({ saving: false, error: "Could not change site usage." });
+    expect(findRow(result.current.groups, saved.id)!.row).toMatchObject({ usedByThisSite: false, usedBy: ["Docs"] });
+    await act(() => result.current.setCustomKeyUse({ row: target, use: true }));
+    expect(useKey).toHaveBeenCalledTimes(2);
+    await act(() => result.current.setCustomKeyUse({ row: { ...target, scope: "site" }, use: true }));
+    expect(useKey).toHaveBeenCalledTimes(2);
+  });
+
+  it("reports a failed metadata refresh after the attachment was saved", async () => {
+    const saved = customCredential({ scope: "project", usedByThisSite: false, usedBy: [] });
+    const port = fakePort({ custom: { list: async () => ({ credentials: [saved], projectKeysAvailable: true }), useKey: async () => ({}) } });
+    const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    port.custom.list = async () => { throw new Error("Usage refresh failed."); };
+    await act(() => result.current.setCustomKeyUse({ row: findRow(result.current.groups, saved.id)!.row, use: true }));
+    expect(result.current.loadError).toBe("Couldn't load saved access tokens: Usage refresh failed.");
+    expect(result.current.customKeyBusy[saved.id].saving).toBe(false);
+  });
+
+  it("retains attachment facts when a metadata-only update omits them", async () => {
+    const saved = customCredential({ scope: "project", usedByThisSite: true, usedBy: ["Docs", "Shop"] });
+    const port = fakePort({ custom: { list: async () => ({ credentials: [saved], projectKeysAvailable: true }),
+      update: async () => customCredential({ scope: "project", label: "Renamed key" }),
+    } });
+    const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    const target = findRow(result.current.groups, saved.id)!.row;
+    act(() => result.current.setExistingField(saved.id, { name: "Renamed key" }));
+    await act(() => result.current.replaceToken(target));
+    expect(findRow(result.current.groups, saved.id)!.row).toMatchObject({ name: "Renamed key", scope: "project", usedByThisSite: true, usedBy: ["Docs", "Shop"] });
+  });
+});
+
 describe("Works for metadata", () => {
   it.each(["publish", "custom"] as const)("sends the explicit selection when creating a %s credential", async kind => {
     const saved = kind === "publish" ? publishCredential({ worksFor: ["github", "netlify"] }) : customCredential({ worksFor: ["github", "netlify"] });
@@ -1374,6 +1460,7 @@ describe("useAccessTokens: createCustomCredential", () => {
 
     expect(create).toHaveBeenCalledExactlyOnceWith({
       label: "New host",
+      scope: "site",
       worksFor: [],
       category: "hosting",
       baseUrl: "https://api.example.com",

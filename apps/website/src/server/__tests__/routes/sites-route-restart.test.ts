@@ -28,6 +28,7 @@ function setup() {
     isSiteSwitcherEnabled: () => true,
     siteBinding: { dir: "/repo/sites/served", name: "served", dirOverridden: false, switcherCompatible: true },
     listSites: () => [SITE],
+    readSiteRunning: () => null,
     persistActiveSite: () => {},
     devRestart: { requestRestart: (required) => void requests.push(required) },
   };
@@ -58,6 +59,20 @@ test("Activate with restartNow asks the dev supervisor to restart", async (t) =>
   assert.equal(res.status, 200);
   assert.deepEqual(res.body, { ok: true, activeSiteName: "alpha", restartRequired: true, restartInstructions: SITE_SWITCH_RESTARTING_NOTICE, restarting: true });
   assert.deepEqual(env.requests, [{ reason: "switch site to 'alpha'" }]);
+});
+
+test("Activate refuses a live Desktop target with 409 and its URL before saving or restarting", async (t) => {
+  const env = setup();
+  env.deps.readSiteRunning = ({ dir }) => {
+    assert.equal(dir, SITE.dir);
+    return { pid: 42, port: 53775, app: "Desktop", scheme: "http", started: "2026-10-26T00:00:00Z", token: ["test", "lease"].join("-") };
+  };
+  env.deps.persistActiveSite = () => assert.fail("occupied target must not persist");
+  const res = await activate(env.deps, t, { restartNow: true });
+  assert.equal(res.status, 409);
+  assert.deepEqual(res.body, { code: "SITE_ALREADY_RUNNING", url: "http://localhost:53775/admin/",
+    error: "Site 'alpha' is open in Desktop at http://localhost:53775/admin/. Switch refused; the current site is still running." });
+  assert.deepEqual(env.requests, []);
 });
 
 test("the admin default remains switchable and writes its restart request without the chat delay", async (t) => {

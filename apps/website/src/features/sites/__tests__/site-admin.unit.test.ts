@@ -18,6 +18,33 @@ const SWITCHER_BINDING: SiteBinding = { dir: "/repo/sites/served", name: "served
 const INSTALL_DIR_BINDING: SiteBinding = { dir: "/some/site", name: "some-site", dirOverridden: true, switcherCompatible: false };
 const SITE: SiteListEntry = { name: "alpha", dir: "/repo/sites/alpha", displayName: "Alpha", createdAt: "2026-10-05T00:00:00.000Z", active: false };
 
+for (const port of [53775, 0]) {
+  test(`activateSite: a live Desktop target (${port}) refuses before persistence or restart`, () => {
+    const url = port > 0 ? "https://localhost:53775/admin/" : null;
+    const result = activateSite({ switcherBase: "/repo", name: "alpha", restartNow: true }, {
+      listSites: () => [SITE],
+      readSiteRunning: ({ dir }) => {
+        assert.equal(dir, SITE.dir);
+        return { pid: 42, port, app: "Desktop", scheme: "https", started: "2026-10-26T00:00:00Z", token: ["test", "lease"].join("-") };
+      },
+      persistActiveSite: () => assert.fail("occupied target must not be persisted"),
+      devRestart: { requestRestart: () => assert.fail("occupied target must not restart") },
+    });
+    assert.deepEqual(result, { ok: false, code: "SITE_ALREADY_RUNNING", error: url
+      ? "Site 'alpha' is open in Desktop at https://localhost:53775/admin/. Switch refused; the current site is still running."
+      : "Site 'alpha' is starting in Desktop. Wait for it to finish starting. Switch refused; the current site is still running.",
+      ...(url ? { url } : {}),
+    });
+  });
+}
+
+test("activateSite: an unreadable running lock fails closed before persistence", () => {
+  assert.throws(() => activateSite({ switcherBase: "/repo", name: "alpha" }, {
+    listSites: () => [SITE], readSiteRunning: () => { throw new Error("running lock unreadable"); },
+    persistActiveSite: () => assert.fail("undecidable ownership must not persist"),
+  }), { message: "running lock unreadable" });
+});
+
 test("resolveSiteSwitchBase: flag off refuses first, even on an install-dir boot", () => {
   const gate = resolveSiteSwitchBase({ binding: INSTALL_DIR_BINDING, switchingEnabled: false });
   assert.deepEqual(gate, { ok: false, code: "SITE_SWITCHING_DISABLED", error: "site switching is disabled on this deployment" });

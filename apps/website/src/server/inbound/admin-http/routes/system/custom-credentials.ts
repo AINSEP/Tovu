@@ -11,9 +11,8 @@ import {
   CustomCredentialSecretStoreUnconfiguredError,
   CustomCredentialValidationError,
   deleteCustomCredential,
-  listCustomCredentials,
+  listCustomCredentialInventory,
   updateCustomCredential,
-  type CustomCredentialSummary,
   type UpdateCustomCredentialInput,
 } from "#src/features/custom-credentials/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -40,7 +39,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 export type AdminCustomCredentialsDeps = Pick<
   RouteDeps,
   "workspaceId" | "authorize" | "clock" | "idGen" | "customCredentialSetRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring"
-> & Partial<Pick<RouteDeps, "loadDeployTargets" | "publishCredentialVerificationCache">>;
+> & Partial<Pick<RouteDeps, "loadDeployTargets" | "publishCredentialVerificationCache" | "projectKeys">>;
 
 const PERMISSION = "custom-credentials.write";
 const ENTITY_TYPE = "custom-credentials";
@@ -141,8 +140,17 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
   app.get(BASE_PATH, async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     try {
-      const credentials: CustomCredentialSummary[] = await listCustomCredentials(readDeps, { workspaceId: deps.workspaceId });
-      res.status(200).json({ credentials });
+      const [inventory, keys] = await Promise.all([
+        listCustomCredentialInventory({ deps: readDeps, workspaceId: deps.workspaceId }),
+        deps.projectKeys?.list({}) ?? Promise.resolve([]),
+      ]);
+      const usage = new Map(keys.map(key => [key.keyId, key]));
+      const credentials = inventory.map(credential => {
+        if (credential.scope !== "project") return credential;
+        const key = usage.get(credential.id);
+        return { ...credential, usedBy: key?.usedBy ?? [], usedByThisSite: key?.usedByThisSite ?? false };
+      });
+      res.status(200).json({ credentials, ...(deps.projectKeys ? { projectKeysAvailable: true } : {}) });
     } catch (err) {
       sendStoreError(res, err);
     }

@@ -43,6 +43,7 @@ function fake(options: { allow?: boolean; switcherEnabled?: boolean; switcherCom
     authorize: async () => (state.authorizeCalls++, { allowed: options.allow ?? true, reason: options.allow === false ? "denied" : "matched" }),
     isSiteSwitcherEnabled: () => options.switcherEnabled ?? true,
     listSites: () => [SITE],
+    readSiteRunning: () => null,
     createSite: async (required, optional) => (state.creates.push([required, optional]), { name: required.name, dir: `/repo/sites/${required.name}`, siteId: "new-id" } as never),
     persistActiveSite: (required, optional) => void state.persists.push([required, optional]),
     siteBinding: options.switcherCompatible === false
@@ -137,4 +138,18 @@ test("sites_switch_site: an install-dir boot refuses SITE_BINDING_NOT_SWITCHABLE
   );
   assert.equal(env.authorizeCalls, 0);
   assert.equal(env.persists.length, 0);
+});
+
+test("sites_switch_site: an occupied Desktop target returns its URL without saving or restarting", async () => {
+  const env = fake();
+  env.deps.readSiteRunning = ({ dir }) => {
+    assert.equal(dir, SITE.dir);
+    return { pid: 42, port: 53775, app: "Desktop", scheme: "https", started: "2026-10-26T00:00:00Z", token: ["test", "lease"].join("-") };
+  };
+  env.deps.devRestart = { requestRestart: () => assert.fail("occupied target must not restart") };
+  await assert.rejects(() => handlerFor(env.deps, "sites_switch_site")(ctxFor({ name: "alpha" })), {
+    message: "Site 'alpha' is open in Desktop at https://localhost:53775/admin/. Switch refused; the current site is still running.",
+    code: "SITE_ALREADY_RUNNING",
+  });
+  assert.deepEqual(env.persists, []);
 });

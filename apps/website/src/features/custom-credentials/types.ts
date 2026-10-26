@@ -79,7 +79,7 @@ export interface CustomCredentialSummary {
   readonly username?: string;
   readonly configured: true;
   /** Where the row lives — present only where a project store is attached (local web + desktop):
-   *  `"project"` is shared by every site of the project, `"site"` is this site's own (an override). */
+   *  `"project"` is available for explicit site attachment, `"site"` is this site's own (an override). */
   readonly scope?: CustomCredentialScope;
   readonly createdAt: ISODateTime;
   readonly updatedAt: ISODateTime;
@@ -97,7 +97,8 @@ export type CustomCredentialScope = "site" | "project";
 export interface CustomCredentialProjectScope {
   readonly workspaceId: UUID;
   readonly repo: CustomCredentialSetRepoPort;
-  /** Explicit deletion metadata only, over the raw project vault with its usage guard. */
+  /** Admin metadata inventory and explicit deletion, over the raw project vault with its usage guard.
+   * Runtime credential resolution must continue to use the attachment-filtered `repo`. */
   readonly deletionRepo?: CustomCredentialSetRepoPort;
   readonly sealer: SecretSealerPort;
   readonly keyring: KeyringPort;

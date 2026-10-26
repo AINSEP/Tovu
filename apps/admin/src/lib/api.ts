@@ -1080,6 +1080,9 @@ export type AdminCustomCredentialCategoryId = "source-control" | "hosting" | "me
  * custom row without decrypting it (see `src/platform/db/schema.sqlite.ts`'s `customCredentialSets` doc).
  */
 export interface AdminCustomCredentialSummary {
+  readonly scope?: "project" | "site";
+  readonly usedBy?: readonly string[];
+  readonly usedByThisSite?: boolean;
   readonly credentialType: "vendor" | "custom";
   readonly worksFor: string[];
   readonly tokenHint?: CredentialTokenHint | null;
@@ -1113,6 +1116,7 @@ export interface AdminCustomConnectionInput {
 /** Mirrors `GET .../system/custom/credentials`'s response shape. */
 export interface AdminCustomCredentialsSnapshot {
   credentials: AdminCustomCredentialSummary[];
+  projectKeysAvailable?: boolean;
 }
 
 
@@ -4418,6 +4422,7 @@ export const api = {
   /** Creates one custom-provider credential. `409 DUPLICATE_LABEL` (surfaced as a thrown `ApiError`
    *  with that `code`) if this workspace already has one with the same `label`. */
   createCustomCredential: (input: {
+    scope?: "project" | "site";
     worksFor?: string[];
     label: string;
     category: AdminCustomCredentialCategoryId;

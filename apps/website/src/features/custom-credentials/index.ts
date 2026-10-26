@@ -26,6 +26,7 @@ export {
   describeCredentialByLabel,
   isUniqueLabelViolation,
   listCustomCredentials,
+  listCustomCredentialInventory,
   resolveCustomCredentialByLabel,
   shareCustomCredentialWithProject,
   updateCustomCredential,
