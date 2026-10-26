@@ -75,7 +75,8 @@ test("deleteArtifact rethrows a non-ENOENT failure and ignores a missing artifac
   const registry = new SiteShareRegistry({ directory });
   await registry.deleteArtifact({ shareId: SHARE_ID });
   await mkdir(path.join(directory, `${SHARE_ID}.tovu.zip`));
-  await assert.rejects(registry.deleteArtifact({ shareId: SHARE_ID }), { code: "EISDIR" });
+  // unlink(2) on a directory: Linux answers EISDIR, macOS EPERM. Either is the non-ENOENT failure.
+  await assert.rejects(registry.deleteArtifact({ shareId: SHARE_ID }), (error: NodeJS.ErrnoException) => ["EISDIR", "EPERM"].includes(error.code ?? ""));
 });
 
 // ---- token shape (owner 2026-10-25: 16 ASCII letters, no 64-hex compatibility) ----
@@ -107,4 +108,16 @@ test("an old 64-hex token is never found, even with its token index and record s
   await writeFile(path.join(directory, `${SHARE_ID}.json`), JSON.stringify(record(old)));
   assert.equal(await new SiteShareRegistry({ directory }).findToken({ token: old, file: "site.tovu.zip" }), null);
   await assert.rejects(new SiteShareRegistry({ directory }).reserveToken({ token: old, shareId: SHARE_ID }), { code: "INVALID_INPUT" });
+});
+
+test("a token differing only in letter case never resolves, even where the disk folds case", async t => {
+  // macOS volumes are case-insensitive: `abc….token` opens `AbC….token`. Simulate that fold on any OS by
+  // writing the variant's index file; only the exact minted token may resolve.
+  const directory = await tempDir(t);
+  const minted = "AbCdEfGhIjKlMnOp", variant = minted.toLowerCase();
+  const registry = new SiteShareRegistry({ directory });
+  await registry.put({ record: record(minted) });
+  await writeFile(path.join(directory, `${variant}.token`), SHARE_ID);
+  assert.equal((await registry.findToken({ token: minted, file: "site.tovu.zip" }))?.shareId, SHARE_ID);
+  assert.equal(await registry.findToken({ token: variant, file: "site.tovu.zip" }), null);
 });
