@@ -68,6 +68,24 @@ const stringRecord = (value: unknown): Record<string, string> | null => {
   return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === "string"));
 };
 
+/** The sealer's open failures (Jini `AesGcmSecretSealer`): Node's AES-GCM auth-tag failure (a wrong,
+ *  lost or re-minted key, or a tampered row) and the sealer's own damaged-envelope errors. They carry
+ *  no code, so their messages are the only stable tell. */
+const OPEN_FAILURE_MESSAGES = [/^Unsupported state or unable to authenticate data$/, /^AesGcmSecretSealer[: ]/];
+
+/**
+ * True only for a failure to OPEN a sealed row (above), or the vault's `invalid-record` (the row
+ * opened but its payload is not a record). A driver/DB error (SQLITE_BUSY, a dropped connection) or
+ * any other vault code is the store failing and is false.
+ * @complexity O(1).
+ */
+function isOpenFailure(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  // By name + code, not `instanceof`: Jini's VaultError can load as more than one module copy.
+  if (error.name === "VaultError") return (error as { code?: unknown }).code === "invalid-record";
+  return OPEN_FAILURE_MESSAGES.some((pattern) => pattern.test(error.message));
+}
+
 /**
  * The provider config adapter over one plugin-state store (a site's or the project's vault).
  * @param required.state The plugin-state store; `workspaceId` is the scope that store serves.
@@ -80,11 +98,14 @@ export function createVaultProviderConfigSource(
 ): ProviderConfigSource {
   const store = ({ pluginId }: { pluginId: string }) => required.state.forPlugin({ workspaceId: required.workspaceId, pluginId });
   /**
-   * Classifies a failed row read: the row is listed (the listing opens no envelope) but could not be
-   * opened → unreadable on this machine; otherwise the store itself is failing → the original error.
+   * Classifies a failed row read: the row is listed (the listing opens no envelope) and the failure
+   * is one of OPENING it ({@link isOpenFailure}) → unreadable on this machine; otherwise the store
+   * itself is failing → the original error. Narrow on purpose: a transient SQLITE_BUSY read as
+   * "unreadable" would show "not configured", and a public-only save would then write secrets {}
+   * over a valid key.
    */
   async function unreadableOr({ pluginId, error }: { pluginId: string; error: unknown }): Promise<never> {
-    const listed = await required.state.describe({ workspaceId: required.workspaceId, pluginId })
+    const listed = isOpenFailure(error) && await required.state.describe({ workspaceId: required.workspaceId, pluginId })
       .then(({ keys }) => keys.some((entry) => entry.key === CONFIG_KEY), () => false);
     throw listed ? new ProviderConfigUnreadableError({ pluginId, cause: error }) : error;
   }
