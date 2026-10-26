@@ -109,7 +109,7 @@ test('startup sync: an inventory failure keeps its code; a throwing CLI is opera
   assert.deepEqual(await throwing.controller.syncOnStart({ siteDir: site.siteDir }), ownerStoreFailure({ action: 'sync', code: 'operation-failed' }));
   const granted = fixture({ run: async input => (input.action === 'list'
     ? { version: 1, ok: true, action: 'list', data: { entries: [], grants: [{ entry_id: 'k', consumer_id: site.siteDir, created_at: 'x' }] } }
-    : { version: 1, ok: true, action: input.action, data: { consumerId: site.siteDir, results: [] } }) as OwnerStoreReply<typeof input.action> });
+    : { version: 1, ok: true, action: input.action, data: { consumerId: site.siteDir, results: [] } }) as unknown as OwnerStoreReply<typeof input.action> });
   assert.equal((await granted.controller.syncOnStart({ siteDir: site.siteDir }))?.ok, true);
   assert.deepEqual(granted.calls.map(call => [call.action, call.siteDir]), [['list', undefined], ['sync', site.siteDir]]);
 });
