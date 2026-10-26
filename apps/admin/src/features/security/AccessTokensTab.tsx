@@ -11,7 +11,7 @@ import { formatTimestamp } from "@jini-ai/ui/panel-kit";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import type { AdminPublishTargetField } from "../../lib/api";
 import { fieldHelpText } from "../deployment/rules";
-import { removeDialogBody, removeDialogLastRowNote, removeDialogTitle } from "./security-i18n";
+import { removeDialogBody, removeDialogLastRowNote, removeDialogTitle, sharedKeyReplaceWarning } from "./security-i18n";
 import {
   ACCESS_TOKEN_CATEGORIES,
   accessTokenExtraFieldIdSuffix,
@@ -712,6 +712,7 @@ function ExistingTokenFields({
         t={translate}
       />
       {info.kind !== "source-control" ? <WorksForField value={state.worksFor} options={controller.worksForOptions} onChange={worksFor => controller.setExistingField(state.row.id, { worksFor })} t={translate} /> : null}
+      <SharedKeyReplaceNote row={state.row} t={translate} />
       <div className="access-tokens-row-actions">
         <button
           type="button"
@@ -749,6 +750,12 @@ function ExistingTokenFields({
       </div>
     </>
   );
+}
+
+/** Warns, before Save, that a shared project key's other sites switch to the new token too. */
+function SharedKeyReplaceNote({ row, t: translate }: { row: AccessTokenExistingRowState["row"]; t: Translate }) {
+  const warning = row.scope === "project" ? sharedKeyReplaceWarning({ usedBy: row.usedBy, usedByThisSite: row.usedByThisSite, t: translate }) : null;
+  return warning ? <p className="save-warning">{warning}</p> : null;
 }
 
 function AddTokenForm({ info, state, controller, t: translate }: { info: AccessTokenProviderInfo; state: AccessTokenAddFormState; controller: AccessTokensController; t: Translate }) {
@@ -916,7 +923,7 @@ function CustomKeyStorageChoice({ controller }: { controller: AccessTokensContro
     <fieldset className="access-tokens-key-scope" disabled={controller.customAddForm.saving}>
       <legend className="field-label">{translate("Save key to")}</legend>
       <label><input type="radio" name="custom-key-scope" value="project" checked={(controller.customAddForm.scope ?? "project") === "project"}
-        onChange={() => controller.setCustomAddField({ scope: "project" })} /> {translate("Save to project (pick sites later)")}</label>
+        onChange={() => controller.setCustomAddField({ scope: "project" })} /> {translate("Save to project and use on this site")}</label>
       <label><input type="radio" name="custom-key-scope" value="site" checked={controller.customAddForm.scope === "site"}
         onChange={() => controller.setCustomAddField({ scope: "site" })} /> {translate("This site only")}</label>
     </fieldset>
