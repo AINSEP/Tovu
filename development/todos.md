@@ -22,6 +22,9 @@ before building the eventual agent tool catalog. See
 
 ---
 
+## ⭐ HIGH PRIORITY, NOT NOW (owner 2026-10-25): fast site switching on localhost:3000
+Switching which site is active on the local web app (localhost:3000) is slow today. It needs an app restructuring so a switch is quick: e.g. per-site runtimes kept warm / swapped without a full server restart, instead of tearing down and rebooting. Plan first (measure today's switch time + what restarts), then build. Not now — owner will say when.
+
 ## 🎬 CREDIT-BURN BACKLOG — pick from here when the owner has no tasks (owner 2026-10-24 ~10 PM)
 Owner: "when I don't have anything off the top of my head to do for Claude, I want to make motion graphics, videos, stuff that I can use to market this… maybe tomorrow we just do a bunch of videos." Use spare weekly credits on these, in this order:
 1. **Marketing videos + motion graphics (MAIN).** Make better Tovu demo videos, then cut them into short clips (~30 s, no dead time; voice clearly over music — measure the mix). Motion-graphics intros/explainers per feature (site chat, Pages, plugins, sign-in, deploy). Look-checks via Claude in Chrome; heavy renders in the cloud, never an unthrottled ffmpeg on the Mac.
