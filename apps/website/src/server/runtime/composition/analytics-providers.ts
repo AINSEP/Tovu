@@ -80,7 +80,8 @@ export function analyticsProviderRouteDeps(
       config: routeDeps.analyticsConfig,
       loadProviders: providers.load,
       consentAllowsAnalytics: async ({ request }) => routeDeps.cookieConsent
-        ? (await readSiteVisitorConsent({ deps: routeDeps, req: request as Request })).allowed.analytics
+        // These general forwarders have no anonymous-level contract; only full analytics may use them.
+        ? (await readSiteVisitorConsent({ deps: routeDeps, req: request as Request })).analyticsLevel === 'full'
         : Boolean(await readRequestAnalyticsProof({ ports: consentPorts, request: request as Request })),
       resolveCredential: providers.resolveCredential,
       httpClient: providers.httpClient,

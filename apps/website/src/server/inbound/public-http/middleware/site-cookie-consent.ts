@@ -16,13 +16,13 @@ import * as fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import express, { type Express, type Request, type Response } from 'express';
-import { CONSENT_COOKIE, OPTIONAL, REGION_COOKIE, type Optional, type RawContribution, type RegionResolver } from '@jini-ai/cookie-consent';
+import { CONSENT_COOKIE, OPTIONAL, REGION_COOKIE, type BannerMode, type ConsentState, type Optional, type RawContribution, type RegionResolver } from '@jini-ai/cookie-consent';
 import { DEFAULT_MAX_AGE_MS, parseStored } from '@jini-ai/cookie-consent/policy';
 import { renderBanner, type RenderedBanner } from '@jini-ai/cookie-consent/render';
 import { handleReceipt, readConsent, resolveRegion, type ConsentRecord } from '@jini-ai/cookie-consent/server';
 import { consentRateLimitKey, createConsentFileRecords, createNodeConsentFiles } from '@jini-ai/cookie-consent/node';
 import { createRateLimiter, resolveClientIp } from '#src/contracts/core/rate-limit/rate-limit';
-import { renderSiteConsentPreview, toSiteCookieConsent, type SiteConsentSource } from '#src/features/consent/cookie-consent';
+import { renderSiteConsentPreview, siteBannerMode, toSiteCookieConsent, type SiteConsentSource } from '#src/features/consent/cookie-consent';
 import type { ConsentDryRunGate } from '#src/features/consent/readiness';
 import { withSiteConsentSettingsLink } from '#src/features/consent/settings-link';
 import { writeJsonFileAtomic } from '#src/platform/site-dir/atomic-write';
@@ -39,9 +39,10 @@ export interface SiteCookieConsentDeps {
 /** A same-origin plugin handler (the PostHog adapter's SDK, adapter module and collector). */
 export interface ConsentPluginHttp {
   path: string;
-  handle(required: { method: string; path: string; body: Uint8Array; contentType: string }): Promise<{ status: number; body: string | Uint8Array; contentType?: string; cacheControl?: string }>;
+  handle(required: { method: string; path: string; body: Uint8Array; contentType: string; analyticsLevel?: ConsentState['analyticsLevel'] }): Promise<{ status: number; body: string | Uint8Array; contentType?: string; cacheControl?: string }>;
 }
 export interface ConsentPluginContribution { adapter: RawContribution; http?: ConsentPluginHttp }
+type SiteRenderedBanner = RenderedBanner & { mode?: BannerMode };
 
 export const CONSENT_ENDPOINT = '/_consent';
 const PLUGIN_BASE = `${CONSENT_ENDPOINT}/p`;
@@ -59,7 +60,7 @@ function loadClient(_required = {}, { resolve = createRequire(import.meta.url).r
 /** Express → web Request on the site's PUBLIC origin, so handleReceipt's origin check is meaningful. */
 function toWebRequest({ req, body }: { req: Request; body: Buffer }, _optional = {}): globalThis.Request {
   const headers = new Headers();
-  for (const name of ['origin', 'content-type', 'content-length', 'cookie', 'sec-gpc']) {
+  for (const name of ['origin', 'content-type', 'content-length', 'cookie', 'sec-gpc', 'dnt']) {
     const value = req.get(name);
     if (value !== undefined) headers.set(name, value);
   }
@@ -74,21 +75,21 @@ export function siteConsentPlugins({ deps }: { deps: RouteDeps }, _optional = {}
 
 /** One page's banner. Exports get local evidence and no plugins (no server to store or collect).
  * @complexity O(copy + CSS length). */
-export async function renderSiteBanner({ deps, request, clientSrc }: { deps: RouteDeps; request: Request; clientSrc: string }, _optional = {}): Promise<RenderedBanner> {
+export async function renderSiteBanner({ deps, request, clientSrc }: { deps: RouteDeps; request: Request; clientSrc: string }, _optional = {}): Promise<SiteRenderedBanner> {
   const config = await readSiteConsentPolicy({ deps }, { cssBlocks: false });
   const live = !isStaticExportRequest(request);
   const plugins = live ? siteConsentPlugins({ deps }).map(item => item.adapter) : [];
   const { banner, options } = toSiteCookieConsent({ config, policy: config.policyVersion }, { plugins });
-  return renderBanner(banner, { ...options, clientSrc, evidence: live ? { mode: 'durable', endpoint: CONSENT_ENDPOINT } : { mode: 'local' } });
+  return { ...renderBanner(banner, { ...options, clientSrc, evidence: live ? { mode: 'durable', endpoint: CONSENT_ENDPOINT } : { mode: 'local' } }), mode: banner.mode };
 }
 
 /** Insert head/body before the first `</head>` / `</body>` that is real markup (not inside a comment),
  * then Tovu's footer "Cookie settings" link. A page without them gets nothing. @complexity O(HTML bytes). */
-export function insertBanner({ html, rendered }: { html: string; rendered: RenderedBanner }, _optional = {}): string {
+export function insertBanner({ html, rendered }: { html: string; rendered: SiteRenderedBanner }, _optional = {}): string {
   if (!rendered.head && !rendered.body) return html;
   const withHead = insertBeforeUncommentedTag(html, /<\/head>/gi, rendered.head);
   const withBody = insertBeforeUncommentedTag(withHead, /<\/body>/gi, rendered.body);
-  return withSiteConsentSettingsLink({ html: withBody }, { engine: 'cookie-consent' });
+  return rendered.mode === 'off' ? withBody : withSiteConsentSettingsLink({ html: withBody }, { engine: 'cookie-consent' });
 }
 
 /** The admin preview/readiness gate for this engine: the rendered page with the scriptless preview
@@ -140,8 +141,15 @@ export function captureHtml({ res, transform }: { res: Response; transform: (req
 
 /** Set or clear `jini_region` from this site's trusted readers, only when it changes. Pages only, so
  * assets keep their caching. A throw, timeout or no reader = strict (cookie cleared). @complexity O(resolvers). */
-async function applyRegionCookie({ req, res, resolvers }: { req: Request; res: Response; resolvers: readonly RegionResolver[] }, _optional = {}): Promise<void> {
+async function applyRegionCookie({ req, res, resolvers, deps }: { req: Request; res: Response; resolvers: readonly RegionResolver[]; deps: RouteDeps }, _optional = {}): Promise<void> {
+  // Anonymous delivery neither geolocates a visitor nor writes the cross-page region cookie.
+  if (siteBannerMode({ config: await readSiteConsentPolicy({ deps }, { cssBlocks: false }) }) === 'off') return;
   const hint = await resolveRegion({ resolvers, request: { header: name => req.get(name) ?? null, ip: req.ip ?? null } });
+  setRegionCookie({ req, res, hint });
+}
+
+/** Region persistence is only reached for an enabled consent banner, never anonymous analytics. */
+function setRegionCookie({ req, res, hint }: { req: Request; res: Response; hint: 'us' | 'strict' }, _optional = {}): void {
   const current = req.get('cookie')?.match(new RegExp(`(?:^|;\\s*)${REGION_COOKIE}=([^;]*)`))?.[1];
   const secure = req.secure || resolveSiteConsentOrigin({ request: req }).startsWith('https:');
   if (hint === 'us' && current !== 'us') res.cookie(REGION_COOKIE, 'us', { path: '/', sameSite: 'lax', secure, maxAge: 86_400_000 });
@@ -184,15 +192,20 @@ function mountPluginHttp({ app, deps }: { app: Express; deps: RouteDeps }, _opti
     const plugin = pluginFor({ deps, full });
     if (!plugin) { next(); return; }
     try {
-      const refused = req.method === 'GET' ? null : await collectorRefusal({ req, deps, adapter: plugin.adapter, limiter });
-      if (refused) { res.status(refused).end(); return; }
-      const result = await plugin.http.handle({ method: req.method, path: full.slice(plugin.http.path.length),
-        body: Buffer.isBuffer(req.body) ? req.body : new Uint8Array(), contentType: req.get('content-type') ?? 'application/octet-stream' });
+      const decision = req.method === 'GET' ? undefined : await collectorDecision({ req, deps, adapter: plugin.adapter, limiter });
+      if (decision?.status) { res.status(decision.status).end(); return; }
+      const result = await plugin.http.handle({ ...pluginRequest({ req, full, plugin }), ...(decision && { analyticsLevel: decision.analyticsLevel }) });
       if (result.contentType) res.setHeader('Content-Type', result.contentType);
       res.setHeader('Cache-Control', req.method === 'GET' && result.cacheControl ? result.cacheControl : 'private, no-store');
       res.status(result.status).end(result.body);
     } catch { res.status(502).end(); }
   });
+}
+
+/** Normalize the host request without forwarding visitor headers or trusting its identity. */
+function pluginRequest({ req, full, plugin }: { req: Request; full: string; plugin: { http: ConsentPluginHttp } }, _optional = {}): Parameters<ConsentPluginHttp['handle']>[0] {
+  return { method: req.method, path: full.slice(plugin.http.path.length),
+    body: Buffer.isBuffer(req.body) ? req.body : new Uint8Array(), contentType: req.get('content-type') ?? 'application/octet-stream' };
 }
 
 /** The active plugin mounted over this path; none for a path with a dot segment or encoded separator. */
@@ -201,24 +214,29 @@ function pluginFor({ deps, full }: { deps: RouteDeps; full: string }, _optional 
   return siteConsentPlugins({ deps }).find((item): item is ConsentPluginContribution & { http: ConsentPluginHttp } => Boolean(item.http && full.startsWith(item.http.path + '/')));
 }
 
-/** The status refusing a collector write, or null: it must come from this site, while the visitor's choice
- * allows the adapter's category, within the rate limit. A category that is not optional (even 'necessary')
- * is read as marketing, the strictest. @complexity O(cookie header) plus one policy read. */
-async function collectorRefusal(
+/** Same-origin/category/rate decision plus the server-owned analytics level. Anonymous delivery needs
+ * an adapter declaring support. A category that is not optional (even 'necessary') is read as marketing,
+ * the strictest. @complexity O(cookie header) plus one policy read. */
+async function collectorDecision(
   { req, deps, adapter, limiter }: { req: Request; deps: RouteDeps; adapter: RawContribution; limiter: ReturnType<typeof createRateLimiter> },
   _optional = {},
-): Promise<403 | 429 | null> {
+): Promise<{ status: 403 | 429 | null; analyticsLevel: ConsentState['analyticsLevel'] }> {
+  const denied = { status: 403, analyticsLevel: 'none' } as const;
+  if (req.get('origin') !== resolveSiteConsentOrigin({ request: req })) return denied;
   const category: Optional = (OPTIONAL as readonly unknown[]).includes(adapter.category) ? adapter.category as Optional : 'marketing';
-  if (req.get('origin') !== resolveSiteConsentOrigin({ request: req }) || !(await readSiteVisitorConsent({ deps, req })).allowed[category]) return 403;
-  return (await limiter.check({ key: resolveClientIp(req) })).allowed ? null : 429;
+  const state = await readSiteVisitorConsent({ deps, req });
+  if (!state.allowed[category] || (state.analyticsLevel === 'anonymous' && adapter.supportsAnonymous !== true)) return denied;
+  return { status: (await limiter.check({ key: resolveClientIp(req) })).allowed ? null : 429, analyticsLevel: state.analyticsLevel };
 }
 
-/** The server gate: what this visitor's stored choice allows right now (GPC applied, durable rule: an
+/** The server gate: what this visitor may run right now (GPC/DNT applied, durable rule: an
  * unconfirmed grant is not allowed). A failed policy read allows nothing. @complexity O(cookie header). */
 export async function readSiteVisitorConsent({ deps, req }: { deps: RouteDeps; req: Request }, _optional = {}) {
   try {
     const config = await readSiteConsentPolicy({ deps }, { cssBlocks: false });
-    return readConsent({ cookieHeader: req.get('cookie'), policy: config.policyVersion, regionMode: config.regionMode === 'opt-in' ? 'opt-in' : 'auto' }, { secGpc: req.get('sec-gpc') ?? null, nowMs: deps.clock.nowMs() });
+    return readConsent({ cookieHeader: req.get('cookie'), policy: config.policyVersion, regionMode: config.regionMode === 'opt-in' ? 'opt-in' : 'auto' }, {
+      secGpc: req.get('sec-gpc') ?? null, dnt: req.get('dnt') ?? null, nowMs: deps.clock.nowMs(), anonymous: siteBannerMode({ config }) === 'off',
+    });
   } catch {
     return readConsent({ cookieHeader: '', policy: '', regionMode: 'opt-in' });
   }
@@ -251,7 +269,7 @@ export async function readSiteAnalyticsProof({ deps, req }: { deps: RouteDeps; r
   const raw = req.get('cookie')?.match(new RegExp(`(?:^|;\\s*)${CONSENT_COOKIE}=([^;]*)`))?.[1];
   let receiptId: string | undefined;
   try { receiptId = parseStored({ raw: raw === undefined ? null : decodeURIComponent(raw) })?.r; } catch { receiptId = undefined; }
-  return state.allowed.analytics && receiptId ? { receiptId, policyVersion: state.policy } : undefined;
+  return state.analyticsLevel === 'full' && receiptId ? { receiptId, policyVersion: state.policy } : undefined;
 }
 
 /** Register the cookie-consent routes and the page slot on the public app. @complexity O(1) setup;
@@ -267,7 +285,7 @@ export function applySiteCookieConsent({ app, deps, consent }: { app: Express; d
     delete req.headers['if-none-match'];
     delete req.headers['if-modified-since'];
     if (!isStaticExportRequest(req)) {
-      try { await applyRegionCookie({ req, res, resolvers: await consent.regionResolvers() }); }
+      try { await applyRegionCookie({ req, res, deps, resolvers: await consent.regionResolvers() }); }
       catch { console.error('[consent] region check failed'); }
     }
     captureHtml({ res, transform: async ({ html }) => {
