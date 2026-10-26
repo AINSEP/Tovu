@@ -1,9 +1,18 @@
+import { createHash } from "node:crypto";
 import { checkTreePath } from "../publish-content/file-tree-policy.js";
 import { SiteShareRefusal, SHARE_LIMITS } from "./share-policy.js";
 import { redactSecretShapes } from "#src/contracts/core/secret-redaction";
 
 /** The seven-segment root of an installed plugin package payload (matched against the lowercased path). */
 const PACKAGE_CONTENT_ROOT = /^agent-plugins\/ws\/[^/]+\/[^/]+\/package\/sha256\/[a-f0-9]{64}\//;
+/** The same root, capturing its archive digest and the package-relative path below it. */
+const PACKAGE_FILE = /^agent-plugins\/ws\/[^/]+\/[^/]+\/package\/sha256\/([a-f0-9]{64})\/(.+)$/i;
+/** Names an installed package ships as content (MCP declarations, credential schemes), never runtime secrets. */
+const PACKAGE_MANIFEST_NAMES = ["mcp.json", "tovu-credential-schemes.json"];
+
+/** Archive digest -> (package-relative path -> SHA-256 of the bytes) for every package THIS build
+ *  ships (`package-file-inventory.ts`). The only proof a package-shaped path is the installer's. */
+export type PackageFileInventory = ReadonlyMap<string, ReadonlyMap<string, string>>;
 
 function excludedRuntimeSharePath({ path, parts }: { path: string; parts: string[] }, _options = {}): boolean {
   // Plugin runtime data/memory have fixed roots. A package's src/data or docs/notes is content.
@@ -17,7 +26,7 @@ function excludedRuntimeSharePath({ path, parts }: { path: string; parts: string
     parts.some(part => part.startsWith(".env") || /^chat\.db(?:$|[.-])/.test(part));
 }
 
-/** A name that only hints at a secret; the file's bytes decide (see excludedSharePath). */
+/** A name that only hints at a secret; below a package root the file's bytes decide (see requireShareSecretFree). */
 const CREDENTIAL_NAME = /(?:credential|vault|keyring|site-key|private[-_]?key)/;
 
 function suspiciousSharePart({ part }: { part: string }, { packageContent = false } = {}): boolean {
@@ -33,25 +42,45 @@ function suspiciousSharePart({ part }: { part: string }, { packageContent = fals
     (!packageContent && CREDENTIAL_NAME.test(part));
 }
 
-/** Exclude known private locations only; suspicious required content must refuse, not disappear. O(depth). */
+/** Exclude known private locations only; suspicious required content must refuse, not disappear. O(depth).
+ * Names only: below a package root a credential-like name is provisional, and
+ * {@link requireShareSecretFree}, which has the bytes, keeps it only for a verified package file. */
 export function excludedSharePath(required: { path: string }, _optional: Record<string, never> = {}): boolean {
   const p = required.path.toLowerCase();
-  const parts = p.split("/");
-  if (excludedRuntimeSharePath({ path: p, parts })) return true;
-  // Installed packages ship MCP declarations and credential schemas as content, not runtime secrets.
-  // Exempt only those names below the seven-segment package root; their bytes still get secret-scanned.
-  // Below that root the name-only credential hint is dropped too: bundled plugins ship files such as
-  // __tests__/credential-card.test.mjs, the bytes are integrity-hashed at install, and
-  // requireShareSecretFree still refuses provider keys, PEM and JWT inside them. Every other name rule stays.
+  if (excludedRuntimeSharePath({ path: p, parts: p.split("/") })) return true;
+  refuseSuspiciousSharePath(required, { credentialNameAllowed: true });
+  return false;
+}
+
+/** Refuses a suspicious segment. {@link PACKAGE_MANIFEST_NAMES} pass below the seven-segment package
+ *  root, their bytes still scanned; a credential-like name passes there only when `credentialNameAllowed`.
+ *  Every other name rule (.git, node_modules, .pem/.key, .db, id_rsa, .mcp*.json, .npmrc) always applies. */
+function refuseSuspiciousSharePath(required: { path: string }, { credentialNameAllowed }: { credentialNameAllowed: boolean }): void {
+  const p = required.path.toLowerCase();
   const packageContent = PACKAGE_CONTENT_ROOT.test(p);
   const suspicious = (part: string, index: number): boolean => {
     const inPackage = packageContent && index >= 7;
-    return !(inPackage && part === "mcp.json") && suspiciousSharePart({ part }, { packageContent: inPackage });
+    return !(inPackage && PACKAGE_MANIFEST_NAMES.includes(part)) && suspiciousSharePart({ part }, { packageContent: inPackage && credentialNameAllowed });
   };
-  if (parts.some(suspicious)) {
+  if (p.split("/").some(suspicious)) {
     throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: `Share refuses suspicious required path '${required.path}'. Remove it before sharing.` });
   }
-  return false;
+}
+
+/**
+ * True only when this build ships these exact bytes at this package-relative path under this digest.
+ * Anyone who can write into the site folder can create a package-SHAPED path, and install records
+ * live in that same folder, so the shape, the folder name and the ledger prove nothing; the build's
+ * own bundled sources do. An operator-installed package, a superseded digest, an unlisted file under a
+ * verified root, or a tampered file all get the ordinary rules. O(bytes).
+ */
+function verifiedPackageFile(required: { path: string; bytes: Uint8Array }, optional: { packageFiles?: PackageFileInventory | undefined }): boolean {
+  const match = PACKAGE_FILE.exec(required.path);
+  if (!match) return false;
+  // The root: a digest this build ships. The file: listed below that root, with the same bytes.
+  const shipped = optional.packageFiles?.get(match[1]!.toLowerCase());
+  const expected = shipped?.get(match[2]!);
+  return expected !== undefined && createHash("sha256").update(required.bytes).digest("hex") === expected;
 }
 
 /** True for a spelling some supported recipient filesystem rejects, rewrites or aliases. O(path). */
@@ -75,14 +104,18 @@ export function validateSharePath(required: { path: string }, _optional: Record<
 }
 
 /** Scan the complete bytes, including binary content; a required file is refused, never damaged. O(bytes). */
-export function requireShareSecretFree(required: { path: string; bytes: Uint8Array }, _optional: Record<string, never> = {}): void {
+export function requireShareSecretFree(required: { path: string; bytes: Uint8Array }, optional: { packageFiles?: PackageFileInventory | undefined } = {}): void {
   const text = Buffer.from(required.bytes).toString("latin1");
   // Only code can contain credential references; content/settings retain strict secret detection.
   const codeAware = /\.(?:js|mjs|cjs|ts|tsx|jsx)$/i.test(required.path);
-  // Package payloads are content-addressed installs of public plugin code, docs and manifests: their
-  // translated labels ("API token": "Token de API") and doc placeholders (`Authorization: Bearer <API_KEY>`)
-  // are not owner secrets, so only provider key formats, PEM and JWT shapes refuse them.
-  const vendorOnly = PACKAGE_CONTENT_ROOT.test(required.path.toLowerCase());
+  // A verified package file is public plugin code, docs and manifests this build ships: its translated
+  // labels ("API token": "Token de API"), doc placeholders (`Authorization: Bearer <API_KEY>`) and test
+  // names (__tests__/credential-card.test.mjs) are not owner secrets, so only provider key formats, PEM
+  // and JWT shapes refuse it. Any other package-shaped file gets every name rule and the full scan. The
+  // scanner does not decode compressed or encoded bytes (credentials.gz), so for those the name refusal
+  // is the guard; a verified one is the build's own bytes, so nothing is hidden in it.
+  const vendorOnly = verifiedPackageFile(required, optional);
+  if (!vendorOnly && PACKAGE_CONTENT_ROOT.test(required.path.toLowerCase())) refuseSuspiciousSharePath(required, { credentialNameAllowed: false });
   if (redactSecretShapes({ text }, { codeAware, vendorOnly }).redactions > 0) throw new SiteShareRefusal({ code: "SECRET_IN_CONTENT", message: `Share refused: '${required.path}' contains credential-shaped content. Remove the secret before sharing.` });
 }
 
