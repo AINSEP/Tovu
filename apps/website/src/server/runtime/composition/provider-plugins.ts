@@ -1,7 +1,9 @@
 import { combineObservabilityPorts, createNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 import { createNoopProductAnalytics, withProductAnalyticsGuards, type ProductAnalyticsConsent, type ProductAnalyticsConsentRevision, type ProductAnalyticsPort } from "@jini-ai/analytics/product";
 import { createFanOutAiTraceSink, type AiTraceSink } from "@jini-ai/agent-runtime/ai-trace";
-import { createPluginProviderHost, type PluginContributionRegistry, type PluginProviderContract, type PluginProviderLease } from "@jini-ai/plugins/host";
+import { createPluginProviderHost, type PluginContributionRegistry, type PluginProviderContract, type PluginProviderDeclaration, type PluginProviderLease } from "@jini-ai/plugins/host";
+
+import type { ProviderConfigSource, ProviderPluginConfig } from "./provider-config-source.js";
 
 /**
  * @file Provider plugins at boot (provider wave 2, 2026-10-25): observability, product analytics and
@@ -10,10 +12,13 @@ import { createPluginProviderHost, type PluginContributionRegistry, type PluginP
  * `platform/observability`: an install pays for an SDK only when the provider plugin is INSTALLED +
  * ENABLED + CONFIGURED, and every other contract keeps its existing noop.
  *
- * Configuration lives only in the plugin's secure key card: a saved API credential labelled
- * `plugin:<plugin id>` (custom credentials store, sealed with the site key). Never env, never chat.
- * The mapping below turns that one generic card row (`baseUrl`, `token`, optional `username`) into the
- * plugin's factory input; it names the plugins Tovu knows how to configure, not any vendor SDK.
+ * Configuration: each provider plugin DECLARES its settings in its manifest (public + secret fields;
+ * `PluginProviderDeclaration.settings`), the owner fills them on the plugin's settings card in the
+ * admin (Plugins → the plugin → Settings), and they are saved sealed through `ProviderConfigSource`
+ * (`provider-config-source.ts`: the project store when one is configured, else the site vault). A
+ * provider is "configured" when every required declared field has a value; its saved values are its
+ * factory's required args, plus host identity (`serviceName`). Never env, files, logs or chat. Tovu
+ * holds no per-vendor mapping: everything it needs to know comes from the manifest.
  *
  * Order: initialized (awaited, each bounded by the provider host's timeout) before the composition
  * root decorates kernels and HTTP clients, so application work never starts on a half-built port.
@@ -21,49 +26,27 @@ import { createPluginProviderHost, type PluginContributionRegistry, type PluginP
  * generation, which disposes its resources; its port then goes inert (`gatedPort`) until the next boot.
  */
 
-/** One saved secure-card credential, as the custom credentials store resolves it. */
-export interface ProviderPluginCredential {
-  readonly baseUrl: string;
-  readonly token: string;
-  readonly username?: string;
-}
-
 export type ProviderContract = "observability" | "product_analytics" | "ai_trace";
 
-/** How Tovu configures one provider plugin from its card. */
-export interface ProviderPluginBinding {
+/** One installed + enabled plugin's provider declarations, read from its manifest (no code runs). */
+export interface ProviderPluginDeclarations {
   readonly pluginId: string;
-  readonly contract: ProviderContract;
-  readonly id: string;
-  readonly input: (required: { credential: ProviderPluginCredential; serviceName: string }) => Readonly<Record<string, unknown>>;
+  readonly providers: readonly PluginProviderDeclaration[];
 }
 
-/** The secure card row a provider plugin reads: one label per plugin id. */
-export function providerPluginCredentialLabel({ pluginId }: { pluginId: string }): string {
-  return `plugin:${pluginId}`;
+/**
+ * The factory input a provider's saved settings make, or undefined when it is not configured: no row
+ * saved, no declared settings, or a required declared field without a value. Only declared names pass.
+ * @complexity O(f) declared fields.
+ */
+export function providerInputOf({ declaration, saved }: { declaration: PluginProviderDeclaration; saved: ProviderPluginConfig | null }): Readonly<Record<string, string>> | undefined {
+  const fields = declaration.settings ?? [];
+  if (!saved || fields.length === 0) return undefined;
+  const values: Record<string, string | undefined> = { ...saved.settings, ...saved.secrets };
+  const present = (name: string) => (values[name] ?? "").trim() !== "";
+  if (fields.some((field) => field.required && !present(field.name))) return undefined;
+  return Object.fromEntries(fields.filter((field) => present(field.name)).map((field) => [field.name, values[field.name]!]));
 }
-
-/** Maps a resolved saved credential (the custom credentials store's shape) to a card, or null. */
-export function providerPluginCredentialOf({ resolved }: { resolved: { baseUrl: string; connection: { token: string; username?: string } } | null }): ProviderPluginCredential | null {
-  if (!resolved) return null;
-  const { token, username } = resolved.connection;
-  return { baseUrl: resolved.baseUrl, token, ...(username ? { username } : {}) };
-}
-
-/** Generic OTLP auth: a username makes HTTP Basic (`user:token`), otherwise a bearer token. */
-export function otlpAuthorization({ credential }: { credential: ProviderPluginCredential }): Record<string, string> {
-  if (credential.username) return { authorization: `Basic ${Buffer.from(`${credential.username}:${credential.token}`).toString("base64")}` };
-  return { authorization: `Bearer ${credential.token}` };
-}
-
-export const PROVIDER_PLUGIN_BINDINGS: readonly ProviderPluginBinding[] = [
-  { pluginId: "observability-opentelemetry", contract: "observability", id: "opentelemetry",
-    input: ({ credential, serviceName }) => ({ serviceName, tracerName: "tovu.observability", endpoint: credential.baseUrl, headers: otlpAuthorization({ credential }) }) },
-  { pluginId: "observability-sentry", contract: "observability", id: "sentry", input: ({ credential }) => ({ dsn: credential.token }) },
-  { pluginId: "analytics-posthog", contract: "product_analytics", id: "posthog", input: ({ credential }) => ({ apiKey: credential.token, host: credential.baseUrl }) },
-  { pluginId: "ai-trace-langfuse", contract: "ai_trace", id: "langfuse",
-    input: ({ credential }) => ({ publicKey: credential.username, secretKey: credential.token, baseUrl: credential.baseUrl }) },
-];
 
 const hasMethods = ({ value, names }: { value: unknown; names: readonly string[] }): boolean =>
   typeof value === "object" && value !== null && names.every((name) => typeof (value as Record<string, unknown>)[name] === "function");
@@ -77,6 +60,8 @@ export const PROVIDER_CONTRACTS: readonly PluginProviderContract[] = [
 
 export interface ProviderPluginRuntime {
   readonly providerContributions: PluginContributionRegistry;
+  /** Installed + enabled plugins that declare providers, from their manifests; no plugin code runs. */
+  listProviderPlugins(required: Record<string, never>, optional?: Record<string, never>): Promise<readonly ProviderPluginDeclarations[]>;
   /** `timeoutMs` bounds each plugin's import + setup; a plugin past it is revoked and left on the noop. */
   loadProviderPlugins(required: { pluginIds: readonly string[] }, optional?: { timeoutMs?: number }): Promise<readonly string[]>;
 }
@@ -93,29 +78,33 @@ export interface ProviderPluginPorts {
 
 export interface BootProviderPluginsRequired {
   readonly runtime: ProviderPluginRuntime;
-  /** Resolves a saved card by label; null when absent. Read failures are treated as "not configured". */
-  readonly readCredential: (required: { label: string }) => Promise<ProviderPluginCredential | null>;
+  /** Saved settings per plugin. Read failures are treated as "not configured". */
+  readonly config: ProviderConfigSource;
   readonly serviceName: string;
   readonly consent: ProductAnalyticsConsent;
   readonly consentRevision: ProductAnalyticsConsentRevision;
 }
 
 export interface BootProviderPluginsOptional {
-  readonly bindings?: readonly ProviderPluginBinding[];
   readonly initializeTimeoutMs?: number;
   readonly warn?: (message: string) => void;
 }
 
-type Configured = { binding: ProviderPluginBinding; credential: ProviderPluginCredential };
+type Configured = { pluginId: string; contract: ProviderContract; id: string; input: Readonly<Record<string, string>> };
 
-async function configuredBindings({ bindings, readCredential, warn }: { bindings: readonly ProviderPluginBinding[]; readCredential: BootProviderPluginsRequired["readCredential"]; warn: (message: string) => void }): Promise<Configured[]> {
+const KNOWN_CONTRACTS = new Set<string>(["observability", "product_analytics", "ai_trace"]);
+
+async function configuredProviders({ runtime, config, warn }: { runtime: ProviderPluginRuntime; config: ProviderConfigSource; warn: (message: string) => void }): Promise<Configured[]> {
   const configured: Configured[] = [];
-  for (const binding of bindings) {
-    const credential = await readCredential({ label: providerPluginCredentialLabel(binding) }).catch(() => {
-      warn(`provider plugin '${binding.pluginId}': its key card could not be read; left on the noop`);
+  for (const { pluginId, providers } of await runtime.listProviderPlugins({})) {
+    const saved = await config.read({ pluginId }).catch(() => {
+      warn(`provider plugin '${pluginId}': its settings could not be read; left on the noop`);
       return null;
     });
-    if (credential) configured.push({ binding, credential });
+    for (const declaration of providers.filter((candidate) => KNOWN_CONTRACTS.has(candidate.contract))) {
+      const input = providerInputOf({ declaration, saved });
+      if (input) configured.push({ pluginId, contract: declaration.contract as ProviderContract, id: declaration.id, input });
+    }
   }
   return configured;
 }
@@ -163,27 +152,27 @@ function composePorts({ leases, consent, consentRevision }: { leases: ReadonlyMa
 
 /**
  * Selects, loads and initializes provider plugins, then composes one port per contract.
- * @param required Plugin runtime, card reader, service identity and the operator's telemetry consent.
- * @param optional Binding table (tests), initialization bound, warning sink.
+ * @param required Plugin runtime, saved-settings source, service identity and the operator's telemetry consent.
+ * @param optional Initialization bound (also bounds each plugin's import + setup), warning sink.
  * @returns Ports (noop where nothing is configured) and the shared teardown. Never throws for a
  *   provider failure: that contract stays on its noop and the reason is logged.
- * @complexity O(b) card reads plus one load and one bounded initialization per configured plugin.
+ * @complexity O(p) settings reads plus one load and one bounded initialization per configured provider.
  */
 export async function bootProviderPlugins(required: BootProviderPluginsRequired, optional: BootProviderPluginsOptional = {}): Promise<ProviderPluginPorts> {
   const warn = optional.warn ?? ((message: string) => console.warn(`[provider-plugins] ${message}`));
-  const configured = await configuredBindings({ bindings: optional.bindings ?? PROVIDER_PLUGIN_BINDINGS, readCredential: required.readCredential, warn });
+  const configured = await configuredProviders({ runtime: required.runtime, config: required.config, warn });
   const timeoutMs = optional.initializeTimeoutMs ?? 10_000;
-  const loaded = new Set(await required.runtime.loadProviderPlugins({ pluginIds: configured.map(({ binding }) => binding.pluginId) }, { timeoutMs }));
+  const loaded = new Set(await required.runtime.loadProviderPlugins({ pluginIds: [...new Set(configured.map(({ pluginId }) => pluginId))] }, { timeoutMs }));
   const host = createPluginProviderHost({ contributions: required.runtime.providerContributions, contracts: PROVIDER_CONTRACTS }, {
     initializeTimeoutMs: timeoutMs,
     onError: ({ pluginId, phase }) => warn(`provider plugin '${pluginId}' ${phase} failed`),
   });
   const leases = new Map<ProviderContract, unknown[]>();
-  for (const { binding, credential } of configured.filter(({ binding }) => loaded.has(binding.pluginId))) {
-    const lease: PluginProviderLease | undefined = await host.initialize({ contract: binding.contract, id: binding.id, input: binding.input({ credential, serviceName: required.serviceName }) })
+  for (const provider of configured.filter(({ pluginId }) => loaded.has(pluginId))) {
+    const lease: PluginProviderLease | undefined = await host.initialize({ contract: provider.contract, id: provider.id, input: { ...provider.input, serviceName: required.serviceName } })
       // Class only: an SDK's construction error can quote the endpoint or DSN it was given.
-      .catch((error: unknown) => { warn(`provider plugin '${binding.pluginId}' did not initialize: ${error instanceof Error ? error.name : typeof error}`); return undefined; });
-    if (lease) leases.set(binding.contract, [...(leases.get(binding.contract) ?? []), gatedPort({ lease, contract: binding.contract })]);
+      .catch((error: unknown) => { warn(`provider plugin '${provider.pluginId}' did not initialize: ${error instanceof Error ? error.name : typeof error}`); return undefined; });
+    if (lease) leases.set(provider.contract, [...(leases.get(provider.contract) ?? []), gatedPort({ lease, contract: provider.contract })]);
   }
   return { ...composePorts({ leases, consent: required.consent, consentRevision: required.consentRevision }), dispose: () => host.dispose({}) };
 }
