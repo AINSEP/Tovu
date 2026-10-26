@@ -16,7 +16,8 @@ import type { PluginsRouteDeps } from "./deps.js";
  *
  * Read needs `admin.plugins.read`; save needs `admin.plugins.enable` (configuring a provider decides
  * where this site's telemetry goes, the same trust as turning the plugin on). A blank secret keeps
- * the saved one, so re-saving the public fields never requires re-entering a key.
+ * the saved one while the public fields are unchanged; changing one (an endpoint, a host) needs the
+ * saved secrets entered again, so a saved key can never be redirected to another server.
  */
 
 export interface ProviderSettingsRouteDeps extends Pick<PluginsRouteDeps, "workspaceId" | "authorize" | "discoverPlugins"> {
@@ -61,20 +62,42 @@ async function cardOf({ deps, config, pluginId, fields }: { deps: ProviderSettin
   };
 }
 
-/** Request values → the next saved config; blank secrets keep the saved one. Undefined on a malformed body. */
-function nextConfig({ body, fields, current }: { body: unknown; fields: readonly PluginProviderSettingField[]; current: { settings: Readonly<Record<string, string>>; secrets: Readonly<Record<string, string>> } | null }) {
+type SavedConfig = { settings: Readonly<Record<string, string>>; secrets: Readonly<Record<string, string>> };
+type NextConfig = { config: SavedConfig } | { refusal: { code: string; error: string } };
+
+const INVALID = { refusal: { code: "PROVIDER_SETTINGS_INVALID", error: "values must map declared setting names to text" } };
+
+/** The body's `values` as `[declared name, text]` pairs; undefined when malformed or naming an undeclared field. */
+function requestValues({ body, fields }: { body: unknown; fields: ReadonlyMap<string, PluginProviderSettingField> }): [string, string][] | undefined {
   const values = (body as { values?: unknown } | null)?.values;
   if (!values || typeof values !== "object" || Array.isArray(values)) return undefined;
-  const byName = new Map(fields.map((field) => [field.name, field]));
   const entries = Object.entries(values as Record<string, unknown>);
-  if (entries.some(([name, value]) => !byName.has(name) || typeof value !== "string")) return undefined;
+  return entries.every(([name, value]) => fields.has(name) && typeof value === "string") ? (entries as [string, string][]) : undefined;
+}
+
+/** Labels of the fields `pick` selects, joined for a message. */
+const labelsOf = (fields: readonly PluginProviderSettingField[], pick: (field: PluginProviderSettingField) => boolean) =>
+  fields.filter(pick).map((field) => field.label).join(", ");
+
+/**
+ * Request values → the next saved config. A blank secret keeps the saved one, but only while every
+ * public field is unchanged: an endpoint or host decides where the secret is sent, so changing one
+ * with a kept secret would let an admin redirect a key they never saw to their own server. Then the
+ * kept secrets must be entered again, and the save is refused with a message naming them.
+ */
+function nextConfig({ body, fields, current }: { body: unknown; fields: readonly PluginProviderSettingField[]; current: SavedConfig | null }): NextConfig {
+  const entries = requestValues({ body, fields: new Map(fields.map((field) => [field.name, field])) });
+  if (!entries) return INVALID;
+  const secretNames = new Set(fields.filter((field) => field.secret).map((field) => field.name));
   const settings: Record<string, string> = { ...current?.settings };
+  const entered: Record<string, string> = {};
+  for (const [name, value] of entries) (secretNames.has(name) ? entered : settings)[name] = value.trim();
   const secrets: Record<string, string> = { ...current?.secrets };
-  for (const [name, value] of entries as [string, string][]) {
-    if (!byName.get(name)!.secret) settings[name] = value.trim();
-    else if (value.trim() !== "") secrets[name] = value.trim();
-  }
-  return { settings, secrets };
+  for (const [name, value] of Object.entries(entered)) if (value !== "") secrets[name] = value;
+  const changed = labelsOf(fields, (field) => !field.secret && (settings[field.name] ?? "") !== (current?.settings[field.name] ?? ""));
+  const kept = labelsOf(fields, (field) => !entered[field.name] && Boolean(current?.secrets[field.name]));
+  if (changed && kept) return { refusal: { code: "PROVIDER_SETTINGS_SECRET_REENTRY", error: `Changing ${changed} needs ${kept} entered again.` } };
+  return { config: { settings, secrets } };
 }
 
 /** Shared guard: workspace, principal permission, plugin with declared settings, a configured store. */
@@ -102,9 +125,9 @@ export function registerPluginProviderSettingsRoutes(app: Express, deps: Provide
     try {
       const card = await resolveCard({ req, res, deps, permission: "admin.plugins.enable" });
       if (!card) return;
-      const config = nextConfig({ body: req.body, fields: card.fields, current: await card.config.read({ pluginId: card.pluginId }) });
-      if (!config) { res.status(400).json({ error: "values must map declared setting names to text", code: "PROVIDER_SETTINGS_INVALID" }); return; }
-      await card.config.write({ pluginId: card.pluginId, config });
+      const next = nextConfig({ body: req.body, fields: card.fields, current: await card.config.read({ pluginId: card.pluginId }) });
+      if ("refusal" in next) { res.status(400).json(next.refusal); return; }
+      await card.config.write({ pluginId: card.pluginId, config: next.config });
       res.json(await cardOf(card));
     } catch { internalError(res); }
   });

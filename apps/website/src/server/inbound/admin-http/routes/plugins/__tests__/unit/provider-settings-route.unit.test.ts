@@ -71,11 +71,29 @@ test("PUT saves public values and secrets; responses never carry a secret; a bla
   assert.equal(first.status, 200);
   assert.ok(!first.text.includes("c2VjcmV0"), "the secret never comes back");
   assert.deepEqual((first.json.fields as { saved: boolean; value?: string }[]).map(({ saved, value }) => [saved, value]), [[true, "https://otlp.example.test/otlp"], [true, undefined]]);
-  await call("PUT", `${WS}/plugins/obs/provider-settings`, { values: { endpoint: "https://other.test", headers: "  " } });
-  assert.deepEqual(config.saved.get("obs"), { settings: { endpoint: "https://other.test" }, secrets: { headers: "Authorization=Basic c2VjcmV0" } });
+  await call("PUT", `${WS}/plugins/obs/provider-settings`, { values: { endpoint: " https://otlp.example.test/otlp", headers: "  " } });
+  assert.deepEqual(config.saved.get("obs"), { settings: { endpoint: "https://otlp.example.test/otlp" }, secrets: { headers: "Authorization=Basic c2VjcmV0" } });
   const read = await call("GET", `${WS}/plugins/obs/provider-settings`);
   assert.ok(!read.text.includes("c2VjcmV0"));
   assert.deepEqual(permissions, ["admin.plugins.enable", "admin.plugins.enable", "admin.plugins.read"]);
+});
+
+test("a changed public field never keeps a saved secret: it must be entered again, so a saved key can't be redirected to another server", async (t) => {
+  const { call, config } = await serve(t);
+  const secret = ["Authorization=Basic", Buffer.from("owner-key").toString("base64")].join(" ");
+  await call("PUT", `${WS}/plugins/obs/provider-settings`, { values: { endpoint: "https://otlp.example.test", headers: secret } });
+  for (const values of [{ endpoint: "https://attacker.example.test", headers: "" }, { endpoint: "https://attacker.example.test" }, { endpoint: "" }]) {
+    const { status, json, text } = await call("PUT", `${WS}/plugins/obs/provider-settings`, { values });
+    assert.equal(status, 400, JSON.stringify(values));
+    assert.equal(json.code, "PROVIDER_SETTINGS_SECRET_REENTRY");
+    assert.equal(json.error, "Changing OTLP endpoint needs OTLP headers entered again.");
+    assert.ok(!text.includes("owner-key") && !text.includes(Buffer.from("owner-key").toString("base64")));
+  }
+  assert.deepEqual(config.saved.get("obs"), { settings: { endpoint: "https://otlp.example.test" }, secrets: { headers: secret } }, "nothing was saved");
+  // Re-entering the secret with the new endpoint saves both.
+  const other = "Authorization=Bearer x";
+  assert.equal((await call("PUT", `${WS}/plugins/obs/provider-settings`, { values: { endpoint: "https://new.example.test", headers: other } })).status, 200);
+  assert.deepEqual(config.saved.get("obs"), { settings: { endpoint: "https://new.example.test" }, secrets: { headers: other } });
 });
 
 test("PUT refuses undeclared names, non-text values and a malformed body", async (t) => {
