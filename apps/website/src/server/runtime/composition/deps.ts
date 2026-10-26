@@ -65,6 +65,7 @@ import { dirname, join, resolve, sep } from "node:path";
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { instrumentStorageKernel, trackFetch } from "#src/platform/observability/index";
 import { bootProviderPlugins, legacyProviderCredentialCheck, type SiteIdentity } from "./provider-plugins.js";
+import { withToolUseEvents } from "./tool-use-events.js";
 import { createVaultProviderConfigSource, withProjectPrecedence, withUnavailableProject, type ProviderConfigSource } from "./provider-config-source.js";
 import { openProjectStore, type ProjectStore, type ProjectVaultScope } from "./project-store.js";
 import { createAgentPluginStateStore } from "#src/features/api-connections/plugin-state";
@@ -2711,9 +2712,10 @@ async function composeSiteRouteDeps(
     // consumes it — see `RouteDeps.toolAttemptAuditSink`'s own doc. Deliberately not a second
     // `openContentDb(dbPath)`: that call migrates unconditionally, and this root has already opened
     // (and migrated) the one file both handles would point at.
-    toolAttemptAuditSink: new SqliteToolAttemptAuditSink(kernel, {
+    // Also the `assistant_tool_used` product event (tool id + outcome only): see `tool-use-events.ts`.
+    toolAttemptAuditSink: withToolUseEvents({ productAnalytics, sink: new SqliteToolAttemptAuditSink(kernel, {
       onError: error => { reportToolAuditError({ code: "tool_audit", diagnostic: error }); },
-    }),
+    }) }),
     toolGaps: createToolGapReader({ kernel }, {}),
     siteStatusRepo: new InMemorySiteStatusRepo(),
     migrationRunsRepo,

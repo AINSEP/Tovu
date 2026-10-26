@@ -220,10 +220,12 @@ function settleWithError(startedAtIso: string, target: StaticPublishTargetId, er
  * @param historyStore - See this file's header ("Publish history") — REQUIRED, no module-level
  *   default; real callers pass `RouteDeps.publishHistoryStore`, tests pass an
  *   `InMemoryPublishHistoryStore`.
+ * @param optional.onSettled - Told the run's final status once it settles (the route's product event).
  * @complexity O(1) synchronously; the awaited publish itself is bounded by `publishStaticSite`'s own
  *   complexity note (one export pass plus one provider's fixed poll budget).
  */
-export function startPublishRun(deps: StaticPublishDeps, input: StaticPublishInput, clock: { nowIso(): string }, historyStore: PublishHistoryStore): PublishRunSnapshot {
+export function startPublishRun(deps: StaticPublishDeps, input: StaticPublishInput, clock: { nowIso(): string }, historyStore: PublishHistoryStore,
+  optional: { onSettled?: (settled: { status: "completed" | "errored" }) => void } = {}): PublishRunSnapshot {
   const startedAtIso = beginRun(input.config.target, clock);
 
   void publishStaticSite(deps, input)
@@ -232,7 +234,8 @@ export function startPublishRun(deps: StaticPublishDeps, input: StaticPublishInp
       await recordHistoryIfPublished(deps, historyStore, input, outcome, clock, "admin_ui");
       settleWithOutcome(startedAtIso, input.config.target, outcome, clock);
     })
-    .catch((err: unknown) => settleWithError(startedAtIso, input.config.target, err, clock));
+    .catch((err: unknown) => settleWithError(startedAtIso, input.config.target, err, clock))
+    .finally(() => optional.onSettled?.({ status: currentRun.status === "completed" ? "completed" : "errored" }));
 
   return currentRun;
 }

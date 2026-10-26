@@ -109,7 +109,7 @@ async function installReal(
  *  federation tests below read `baseDeps.externalMcpServerRepo` directly to assert on what the
  *  route actually wrote, the same way this file's other tests re-read `readAgentPluginActivations`
  *  rather than trusting the response body alone. */
-function buildTestApp(overrides: Pick<AgentPluginsRouteDeps, "setAgentPluginEnabled"> = {}): { app: express.Express; baseDeps: ReturnType<typeof createRouteDeps> } {
+function buildTestApp(overrides: Pick<AgentPluginsRouteDeps, "setAgentPluginEnabled" | "productAnalytics"> = {}): { app: express.Express; baseDeps: ReturnType<typeof createRouteDeps> } {
   // ONE `createRouteDeps()` call for both the auth stack and the route's deps — a second call
   // stands up a separate identity/policy store and the owner login would 403 against it. Same
   // reason `agent-plugins-http.integration.test.ts` threads `baseDeps.authorize` through.
@@ -185,6 +185,19 @@ test("AGENT_PLUGIN_SET_ENABLED: enabling writes a real activation record and ret
 
     const persisted = await readAgentPluginActivations({ workspaceRoot: workspaceRoot });
     assert.equal(persisted.plugins["site-compliance"]?.enabled, true, "the decision survives on disk");
+  });
+});
+
+test("AGENT_PLUGIN_SET_ENABLED: enabling captures one agent_plugin_enabled product event with the plugin id only; disabling captures none", async (t) => {
+  await withAgentPluginsDir(async () => {
+    await installReal("site-compliance", "seed-set-enabled-events");
+    const events: unknown[] = [];
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp({ productAnalytics: { capture: (event) => { events.push(event); }, identify: () => {} } }).app, t);
+    assert.equal((await patch(baseUrl, cookie, "site-compliance", { enabled: false })).status, 200);
+    assert.equal((await patch(baseUrl, cookie, "site-compliance", { enabled: true })).status, 200);
+    assert.equal(events.length, 1);
+    assert.deepEqual((events[0] as { name: string; properties: unknown }).properties, { pluginId: "site-compliance" });
+    assert.equal((events[0] as { name: string }).name, "agent_plugin_enabled");
   });
 });
 

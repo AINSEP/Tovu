@@ -115,6 +115,13 @@ function decodeUploadPayload(
   return { bytes, contentType: verified };
 }
 
+/** A coarse size label for the upload product event: the exact byte count is never sent. */
+function bytesBucket(bytes: number): string {
+  if (bytes < 100_000) return "<100KB";
+  if (bytes < 1_000_000) return "<1MB";
+  return bytes < 10_000_000 ? "<10MB" : "10MB+";
+}
+
 /** Slug allocation is a courtesy lookup before save. Concurrent uploads can choose the same free
  *  slug; the durable repo enforces uniqueness with `MediaConflictError` (409). Otherwise a validation
  *  failure is 400 and anything else a private 500.
@@ -194,6 +201,8 @@ export const registerAdminMediaUploadRoute: MediaRouteRegistrar = (app, deps) =>
         contentType: verifiedContentType,
       });
 
+      deps.productAnalytics?.capture({ name: "media_uploaded", userId: principal.id, properties: {
+        kind: kind === "media" ? verifiedContentType.split("/")[0]! : "document", bytesBucket: bytesBucket(bytes.byteLength) } });
       res.status(201).json(await toStoredMediaResponse({ deps, media, contentType: verifiedContentType, byteLength: bytes.byteLength }));
     } catch (error) {
       sendUploadFailure({ res, error });

@@ -2468,6 +2468,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // precede the site `/:slug` catch-all, same reasoning as the routes immediately above.
   registerFormsSubmitRoute(app, {
     workspaceId: routeDeps.workspaceId,
+    productAnalytics: routeDeps.productAnalytics,
     submitForm: {
       definitionRepo: routeDeps.formDefinitionRepo,
       submissionRepo: routeDeps.formSubmissionRepo,

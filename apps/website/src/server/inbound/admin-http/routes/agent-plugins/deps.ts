@@ -52,6 +52,8 @@ export interface AgentPluginsRouteDeps {
   agentPluginLifecycle: Pick<RouteDeps["agentPluginLifecycle"], "loadPluginContributions" | "readTrustedPluginFile">;
   readonly adminSurfaceSource?: import("#src/features/agent-plugins/admin-surfaces/surfaces").AdminSurfaceSource;
   readonly adminSurfaceHost?: import("#src/features/agent-plugins/admin-surfaces/surfaces").AdminSurfaceHost;
+  /** `agent_plugin_enabled` (consent-gated port; the plugin id only). */
+  readonly productAnalytics?: RouteDeps["productAnalytics"];
 }
 
 export type AgentPluginsRouteRegistrar = (app: Express, deps: AgentPluginsRouteDeps) => void;
