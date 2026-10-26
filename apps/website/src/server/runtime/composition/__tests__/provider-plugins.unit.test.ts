@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
 import { createHash } from 'node:crypto';
+import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import test from "node:test";
 
 import { createNoopObservabilityPort, createNoopTracker, isNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
-import type { ProductAnalyticsPort } from "@jini-ai/analytics/product";
+import type { ProductAnalyticsPort, ProductEvent } from "@jini-ai/analytics/product";
+import type { ProductConsent, ProductProviderInput, ProductTelemetry } from '../product-telemetry.js';
 import { createAiTraceRecorder } from "@jini-ai/agent-runtime/ai-trace";
 import { createPluginContributionRegistry, type PluginProviderFactory, type PluginProviderSettingField } from "@jini-ai/plugins/host";
 
@@ -669,4 +673,109 @@ test('runtime returns explicit plugin-safe guidance while keeping SDK errors and
     assert.doesNotMatch(JSON.stringify(result), /credential|private/);
     assert.equal(ports.observabilityEnabled!(), false);
   } finally { await ports.dispose({}); }
+});
+
+test('env unset: site tracker/visitor/error/browser/AI behavior matches the existing port snapshot and product loader is untouched', async () => {
+  const siteEvents: ProductEvent[] = [], operations: string[] = [];
+  let productLoads = 0;
+  const browser = { source: 'function(){return function(){};}', origins: [], supportsStatic: false };
+  const { runtime } = fakeRuntime({ installed: ['site-events', 'site-errors'], factories: {
+    'site-events': { contract: 'product_analytics', id: 'events', factory: () => ({ port: {
+      capture: (event: ProductEvent) => { siteEvents.push(event); }, identify() {}, browserAnalytics: () => browser,
+    }, dispose() {} }) },
+    'site-errors': { contract: 'observability', id: 'errors', factory: () => ({ port: recordingObservability(operations), dispose() {} }) },
+  } });
+  const configs = configOf({ 'site-events': { settings: {}, secrets: { apiKey: 'FAKE_SITE_EVENTS_KEY' } }, 'site-errors': { settings: {}, secrets: { apiKey: 'FAKE_SITE_ERRORS_KEY' } } });
+  const ports = await bootProviderPlugins({ runtime, config: configs, serviceName: 'tovu', site: SITE, ...consentAlways }, {
+    env: {}, warn: quiet, productTelemetry: { loadProviders: async () => { productLoads++; throw new Error('unexpected product load'); } },
+  });
+  try {
+    siteEvents.length = 0;
+    await ports.tracker.capture({ name: 'unknown_site_event', userId: 'owner', properties: { route: '/admin/pages/site-slug' } });
+    await ports.visitorTracker!.capture({ name: 'form_submitted', userId: 'visitor' });
+    ports.tracker.error(new Error('fake error'), { operation: 'fake.error' });
+    const work = await ports.tracker.span('fake.work', async () => 42);
+    assert.deepEqual({ siteEvents, operations, work, aiTraceSink: ports.aiTraceSink, enabled: ports.observabilityEnabled!(), productLoads }, {
+      siteEvents: [
+        { name: 'unknown_site_event', userId: 'owner', properties: { route: '/admin/pages/site-slug' } },
+        { name: 'form_submitted', userId: 'visitor' },
+      ], operations: ['error:fake.error', 'op:fake.work'], work: 42, aiTraceSink: undefined, enabled: true, productLoads: 0,
+    });
+    assert.deepEqual(ports.browserAnalytics!({ surface: 'admin' }), [{ ...browser, configuration: {
+      url: '/_jini/browser-analytics?surface=admin', revision: createHash('sha256').update(JSON.stringify([browser])).digest('hex'),
+    } }]);
+  } finally { await ports.dispose({}); }
+});
+
+test('env configured: product catalog projection is independent from site consent; browser/AI/visitor stay site-only and both resources dispose', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'tovu-compose-product-'));
+  const configPath = path.join(root, 'fake-config.json');
+  await writeFile(configPath, JSON.stringify({ observability: { plugin: 'fake-errors', input: { key: 'FAKE_ERROR_KEY' } }, productAnalytics: { plugin: 'fake-usage', input: { apiKey: 'FAKE_PRODUCT_KEY' } } }));
+  const install = '00000000-0000-4000-8000-000000000001';
+  let siteAllowed = true, productConsent: ProductConsent = { crashes: false, usage: false, installationId: null };
+  const siteEvents: ProductEvent[] = [], productEvents: ProductEvent[] = [], generations: unknown[] = [], productInputs: ProductProviderInput[] = [];
+  const siteErrors: string[] = [], productErrors: unknown[] = [];
+  let siteDisposed = 0, productDisposed = 0;
+  const { runtime } = fakeRuntime({ installed: ['site-events', 'site-errors'], factories: {
+    'site-events': { contract: 'product_analytics', id: 'events', factory: () => ({ port: {
+      capture: (event: ProductEvent) => { siteEvents.push(event); }, identify() {}, includeAiContent: true,
+      captureAiGeneration: (event: unknown) => { generations.push(event); },
+    }, dispose() { siteDisposed++; } }) },
+    'site-errors': { contract: 'observability', id: 'errors', factory: () => ({ port: recordingObservability(siteErrors), dispose() { siteDisposed++; } }) },
+  } });
+  const configs = configOf({ 'site-events': { settings: {}, secrets: { apiKey: 'FAKE_SITE_KEY' } }, 'site-errors': { settings: {}, secrets: { apiKey: 'FAKE_SITE_ERROR_KEY' } } });
+  const raw: ProductTelemetry = { observability: { ...createNoopObservabilityPort({}), reportError: report => { productErrors.push(report); } },
+    productAnalytics: { capture: event => { productEvents.push(event); }, identify() { assert.fail('no product identify'); },
+      captureAiGeneration() { assert.fail('no product AI content'); }, browserAnalytics() { assert.fail('no product browser contribution'); } },
+    async dispose() { productDisposed++; } };
+  const ports = await bootProviderPlugins({ runtime, config: configs, serviceName: 'tovu', site: SITE, processRole: 'daemon',
+    consent: () => siteAllowed, consentRevision: () => 0 }, {
+    env: { TOVU_PRODUCT_TELEMETRY_CONFIG: configPath, TOVU_PRODUCT_TELEMETRY_PREFS: path.join(root, 'unused-prefs.json'), TOVU_PRODUCT_RELEASE: 'tovu-desktop@0.0.0-test' },
+    warn: quiet, productTelemetry: { readConsent: () => productConsent, loadProviders: async input => { productInputs.push(input); return raw; } },
+  });
+  try {
+    siteEvents.length = 0;
+    const event: ProductEvent = { name: 'site_created', userId: 'principal', properties: { templateKind: 'default', targetSiteId: 'private-site', source: 'admin' } };
+    await ports.tracker.capture(event);
+    ports.tracker.error(new Error('site error'), { operation: 'site.error' });
+    assert.deepEqual(siteEvents, [event]); assert.deepEqual(productEvents, []);
+    assert.deepEqual(siteErrors, ['error:site.error']); assert.deepEqual(productErrors, []);
+    siteAllowed = false; productConsent = { crashes: true, usage: true, installationId: install };
+    await ports.tracker.capture(event);
+    ports.tracker.error(new Error('product error'), { operation: 'product.error' });
+    assert.deepEqual(siteEvents, [event]);
+    assert.deepEqual(productEvents, [{ name: 'site_created', userId: install, properties: { templateKind: 'default', source: 'admin' } }]);
+    assert.equal(productErrors.length, 1);
+    assert.deepEqual(siteErrors, ['error:site.error', 'error:product.error'], 'site observability remains independent of site analytics consent');
+    assert.equal(productInputs[0]!.attribution.attributes.process, 'daemon');
+    siteAllowed = true;
+    const catalogAndRejected: ProductEvent[] = [event,
+      { name: 'not_cataloged', userId: 'principal', properties: { arbitrary: 'private text' } },
+      { name: 'form_submitted', userId: 'visitor', properties: { formId: 'private-form' } },
+      { name: 'site_created', userId: 'principal', properties: { templateKind: 'private free text' } },
+    ];
+    siteEvents.length = 0; productEvents.length = 0;
+    for (const item of catalogAndRejected) await ports.tracker.capture(item);
+    assert.deepEqual(siteEvents, catalogAndRejected, 'site gets every original event, identity and property');
+    assert.deepEqual(productEvents, [{ name: 'site_created', userId: install, properties: { templateKind: 'default', source: 'admin' } }]);
+    await ports.tracker.capture({ name: 'admin_pageview', userId: 'principal', properties: { route: '/admin/pages/about-us' } });
+    assert.deepEqual(productEvents[1], { name: 'admin_screen_viewed', userId: install, properties: { screen: '/admin/pages' } });
+    assert.deepEqual(siteEvents.at(-1), { name: 'admin_pageview', userId: 'principal', properties: { route: '/admin/pages/about-us' } });
+    assert.deepEqual(ports.browserAnalytics!({ surface: 'admin' }), []);
+    const recorder = createAiTraceRecorder({ sink: ports.aiTraceSink!, runId: 'private-run', agentId: 'fixture' }, { provider: 'fixture', model: 'fixture-model' });
+    recorder.start({ input: 'private prompt' });
+    recorder.observe({ type: 'usage', usage: { input_tokens: 3, output_tokens: 1 } });
+    recorder.finish({ outcome: 'succeeded' });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.ok(generations.length > 0);
+    assert.equal(productEvents.length, 2);
+    await ports.visitorTracker!.capture({ name: 'assistant_message_sent', userId: 'visitor', properties: { chatSurface: 'public', inputKind: 'text' } });
+    assert.equal(productEvents.length, 2, 'visitor consent cannot authorize install product events');
+    const productErrorCount = productErrors.length;
+    await ports.sendTelemetryTest!({ error: new Error('Tovu test error — safe to ignore') });
+    assert.equal(siteErrors.at(-1), 'error:telemetry.test');
+    assert.equal(productErrors.length, productErrorCount, "a site's telemetry test never reaches the product branch");
+    await ports.dispose({}); await ports.dispose({});
+    assert.deepEqual({ siteDisposed, productDisposed }, { siteDisposed: 2, productDisposed: 1 });
+  } finally { await ports.dispose({}); await rm(root, { recursive: true, force: true }); }
 });

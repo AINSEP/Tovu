@@ -96,7 +96,7 @@ test("the compiled preload exposes every current source bridge method regardless
   });
   await import("./preload.mts");
   const expected = new Map(exposed);
-  assert.deepEqual([...expected.keys()].sort(), ["tovuOwnerStore", "tovuRunner", "tovuVoice"]);
+  assert.deepEqual([...expected.keys()].sort(), ["tovuOwnerStore", "tovuRunner", "tovuTelemetry", "tovuVoice"]);
   exposed.clear();
   await import(pathToFileURL(builtPath).href);
   assert.deepEqual([...exposed.keys()].sort(), [...expected.keys()].sort());

@@ -7,12 +7,14 @@ import { createRoot } from 'react-dom/client';
 import { TooltipLayer } from '@jini-ai/ui';
 import { App } from './App.js';
 import { mountRenderer } from './mount-renderer.js';
+import { installShellErrorReporting } from './product-telemetry.js';
 // Before `app.css`, whose `.sites-settings-dialog` rules override it. Imported here rather than in
 // `SitesFolders.tsx` so that module stays loadable (and testable) outside Vite.
 import '@jini-ai/ui/tabbed-dialog.css';
 import './app.css';
 import './SharedKeys.css';
 
+installShellErrorReporting({ target: window });
 mountRenderer({
   document,
   createRoot,

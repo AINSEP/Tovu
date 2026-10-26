@@ -104,7 +104,7 @@ import { createSitesWorkspace, rememberSharedSiteOpen, attachRunningSite } from 
  */
 import fs from "node:fs";
 import path from "node:path";
-import { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session, screen } from "electron";
+import { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session, screen, crashReporter, webContents } from "electron";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 
 import { startTovuServer, DEFAULT_STOP_GRACE_MS } from "./src/tovu-server.ts";
@@ -141,6 +141,12 @@ import { registerFindInPageIpc, relayFindResults } from "./src/find-in-page-ipc.
 import { registerRunnerIpcStubs } from "./src/runner-ipc-stubs.ts";
 import { registerAppVersionIpc } from "./src/app-version-ipc.ts";
 import { createDesktopResources } from "./src/desktop-resources.ts";
+import { createNoopTracker } from '@jini-ai/diagnostics/observability';
+import { installProcessErrorReporting, installUnhandledRejectionGuard } from '../website/src/server/runtime/boot/process-error-guards.ts';
+import { bootDesktopProductTelemetry, desktopProductLaunch, reportDesktopProcessGone, reportDesktopServerExit } from './src/product-telemetry.ts';
+import { createProductConsentReader, readProductTelemetryPreference, writeProductTelemetryPreference, offerProductTelemetryConsent, productTelemetryMenu } from './src/product-telemetry-preference.ts';
+import { registerProductTelemetryIpc } from './src/product-telemetry-ipc.ts';
+import { startProductMemoryTelemetry } from './src/product-memory-telemetry.ts';
 import { registerResourcesIpc } from "./src/resources-ipc.ts";
 import { runOwnerStoreCli } from "./src/owner-store-cli.ts";
 import { createOwnerStoreController, registerOwnerStoreIpc } from "./src/owner-store-ipc.ts";
@@ -393,6 +399,7 @@ const ownerStore = createOwnerStoreController({
  */
 const openSites = createSiteSupervisor<OpenSite>({
   onUnexpectedExit: (siteDir, exit, entry) => {
+    reportDesktopServerExit({ tracker: desktopProduct.tracker, code: exit.code, signal: exit.signal });
     sitePreviewScheduler.cancel({ siteDir }, {});
     siteThemePreviews.stop({ siteDir }, {});
     // The row exists to let the NEXT launch reap a child this process left running. This one is
@@ -403,6 +410,79 @@ const openSites = createSiteSupervisor<OpenSite>({
     console.warn(`tovu desktop: ${siteDir}'s server exited on its own (code ${exit.code ?? "none"}, signal ${exit.signal ?? "none"}). Its tab will show as stopped; Start will spawn a fresh one.`);
   },
 });
+
+let desktopProduct: Awaited<ReturnType<typeof bootDesktopProductTelemetry>> = {
+  tracker: createNoopTracker({}), launch: undefined, consentChanged() {}, async dispose() {},
+};
+const productDisposers: (() => void)[] = [];
+// One cache/sampler serves the chip, Resources panel and product observations in every boot mode.
+const desktopResources = createDesktopResources({ desktopPid: process.pid, platform: process.platform,
+  listUsage: () => listProcessUsage(), now: Date.now, totalMem: totalmem,
+  listElectronMetrics: () => app.getAppMetrics(),
+  // External handles belong to another launcher; the monitor covers only this desktop.
+  openSites: () => [...openSites.values()].filter(entry => !entry.server.external)
+    .map(entry => ({ id: entry.siteDir, pid: entry.server.pid })),
+});
+
+/** Bind the approved product ports before a window or child can send a signal. */
+async function initializeDesktopProductTelemetry(): Promise<void> {
+  const preferencePath = desktopPreferencesPath();
+  const readConsent = createProductConsentReader({ preferencePath });
+  const launch = desktopProductLaunch({ isPackaged: app.isPackaged, resourcesPath: process.resourcesPath,
+    preferencePath, version: app.getVersion(), env: process.env });
+  desktopProduct = await bootDesktopProductTelemetry({ launch, readConsent, crashReporter,
+    launchMode: process.argv.some(arg => arg === '--squirrel-updated' || arg === '--updated') ? 'update' : 'fresh' });
+  // The reporter's rejection listener alone would silence Electron's own rejection warning; the
+  // guard keeps every rejection in the main log for the process's whole life (never disposed).
+  installUnhandledRejectionGuard();
+  productDisposers.push(installProcessErrorReporting({ tracker: desktopProduct.tracker, processRole: 'desktop-main' }));
+  // Speech's shared predicate also admits supervised admin origins; product IPC is shell-only.
+  productDisposers.push(registerProductTelemetryIpc({ ipcMain,
+    isShellPage: url => isShellPage(url) && url.startsWith('file:'), tracker: desktopProduct.tracker }));
+  app.on('render-process-gone', (_event, _contents, details) => reportDesktopProcessGone({ tracker: desktopProduct.tracker, type: 'renderer', reason: details.reason }));
+  app.on('child-process-gone', (_event, details) => reportDesktopProcessGone({ tracker: desktopProduct.tracker, type: details.type, reason: details.reason }));
+  if (!desktopProduct.launch) return;
+  const memory = startProductMemoryTelemetry({ monitor: desktopResources, tracker: desktopProduct.tracker, readConsent,
+    desktopPid: process.pid, rendererPids: () => new Set(webContents.getAllWebContents().map(contents => contents.getOSProcessId())),
+    heapUsedBytes: () => process.memoryUsage().heapUsed, uptime: () => process.uptime(),
+  });
+  productDisposers.push(memory.dispose);
+  armFirstProductConsent();
+}
+
+/** Native consent follows the first visible window, including own-server/attach modes. */
+function armFirstProductConsent(): void {
+  let offered = false;
+  const onWindow = (_event: unknown, window: BrowserWindow) => {
+    const offer = () => {
+      if (offered || !window.isVisible()) return;
+      offered = true;
+      app.off('browser-window-created', onWindow);
+      void offerProductTelemetryConsent({ active: Boolean(desktopProduct.launch),
+        preference: readProductTelemetryPreference({ preferencePath: desktopPreferencesPath() }),
+        show: options => dialog.showMessageBox(window, options),
+        save: patch => {
+          const saved = writeProductTelemetryPreference({ preferencePath: desktopPreferencesPath(), patch });
+          desktopProduct.consentChanged(saved);
+          refreshProductMenu();
+        },
+      }).catch(() => dialog.showErrorBox('Tovu', 'Your sharing choice could not be saved. No choice was changed.'));
+    };
+    window.once('show', offer);
+    window.webContents.once('did-finish-load', offer);
+  };
+  app.on('browser-window-created', onWindow);
+}
+
+/** Refresh checkbox state after the dialog without rebuilding other menus. */
+function refreshProductMenu(): void {
+  const preference = readProductTelemetryPreference({ preferencePath: desktopPreferencesPath() });
+  const items = Menu.getApplicationMenu()?.items.flatMap(item => item.submenu?.items ?? []) ?? [];
+  for (const item of items) {
+    if (item.label === 'Send crash reports to Tovu') item.checked = preference.crashes;
+    if (item.label === 'Send usage statistics to Tovu') item.checked = preference.usage;
+  }
+}
 
 /** Main owns the authenticated transport; tabs hold disposable claims, never credentials. */
 const siteThemePreviews = createSiteThemePreviewSubscriptions({ ports: {
@@ -757,6 +837,7 @@ async function startSiteBackend(siteDir: string, ctx: SiteOpenCtx, options: Site
   const captureBridge = await startDesktopCaptureBridge({ createWindow: options => new BrowserWindow(options) });
   let server: TovuServerHandle;
   try { server = await startTovuServer({
+    productTelemetry: desktopProduct.launch,
     repoRoot: PAYLOAD_ROOT,
     siteDir,
     cliMode: ctx.cliMode,
@@ -1594,13 +1675,20 @@ function setAutomaticUpdates({ enabled }: { enabled: boolean }): void {
 }
 
 function desktopUpdateSettingsMenu(): MenuItemConstructorOptions {
-  return automaticUpdatesMenu({
+  const settings = automaticUpdatesMenu({
     locale: app.getLocale(),
     enabled: readAutomaticUpdates({ preferencePath: desktopPreferencesPath() }),
     setEnabled: setAutomaticUpdates,
     onError: ({ error }) => dialog.showErrorBox(desktopCopy({ locale: app.getLocale() }).saveUpdateError,
       error instanceof Error ? error.message : String(error)),
   });
+  if (desktopProduct.launch) settings.submenu.push(...productTelemetryMenu({
+    preference: readProductTelemetryPreference({ preferencePath: desktopPreferencesPath() }),
+    save: patch => writeProductTelemetryPreference({ preferencePath: desktopPreferencesPath(), patch }),
+    changed: preference => desktopProduct.consentChanged(preference),
+    onError: () => dialog.showErrorBox('Tovu', 'Your sharing choice could not be saved. No choice was changed.'),
+  }));
+  return settings;
 }
 
 /** The "Update ready" prompt, as a sheet on the focused window. Resolves `true` for Restart. */
@@ -1700,6 +1788,7 @@ app
       forceExit: () => app.exit(1),
       deadlineMs: QUIT_DEADLINE_MS,
     });
+    await initializeDesktopProductTelemetry();
 
     // Before the updater and any site server: a successful move quits this process at once.
     // Owner 2026-10-06: DMG window already shows drag-to-Applications; prompt redundant.
@@ -1880,13 +1969,7 @@ app
       registerAppVersionIpc({ ipcMain, app }, { repoRoot: REPO_ROOT });
       registerResourcesIpc({ ipcMain,
         allowed: (url) => url === pathToFileURL(SITES_RENDERER_PATH).href,
-        monitor: createDesktopResources({ desktopPid: process.pid, platform: process.platform,
-          listUsage: () => listProcessUsage(), now: Date.now, totalMem: totalmem,
-          listElectronMetrics: () => app.getAppMetrics(),
-          // External handles belong to another launcher; the monitor covers only this desktop.
-          openSites: () => [...openSites.values()].filter((entry) => !entry.server.external)
-            .map((entry) => ({ id: entry.siteDir, pid: entry.server.pid })),
-        }),
+        monitor: desktopResources,
       });
       registerOwnerStoreIpc({ ipcMain,
         allowed: (url) => url === pathToFileURL(SITES_RENDERER_PATH).href,
@@ -1946,6 +2029,8 @@ app.on("before-quit", (event) => {
   // Discovery can still be in flight even with no open sites; include its disposal in the same
   // awaited drain. Repeated quit attempts must not start another disposal while that drain runs.
   if (quitPhase === "idle") {
+    for (const dispose of productDisposers) dispose();
+    pendingTeardowns.track({ promise: desktopProduct.dispose() });
     pendingTeardowns.track({ promise: desktopAgentRuntime.dispose({}) });
   }
   // `pendingTeardowns` as well as `openSites` (D-09). A window's `closed` handler removes its entry

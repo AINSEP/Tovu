@@ -18,6 +18,7 @@
  * menu item that has already closed, so there is no surface left to throw at.
  */
 import { runnerInventoryBridge } from './runner-api.js';
+import { reportShellTelemetry } from './product-telemetry.js';
 
 export interface SiteActions {
   /** Open a running site's PUBLIC surface in the default browser. */
@@ -46,6 +47,9 @@ export function useSiteActions(): SiteActions {
     // `view: 'site'` — the PUBLIC site, not the admin. The workspace bar's own "Open in browser"
     // sends whichever surface that tab is showing, which is right there and wrong here: a card has
     // no current surface, and "open in browser" from a card means the website.
-    openInBrowser: (id) => call((bridge) => bridge.openSiteExternal({ siteId: id, view: 'site' })),
+    openInBrowser: (id) => {
+      reportShellTelemetry({ payload: { kind: 'action', id: 'open_preview' } });
+      return call((bridge) => bridge.openSiteExternal({ siteId: id, view: 'site' }));
+    },
   };
 }
