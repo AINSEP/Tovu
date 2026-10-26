@@ -343,6 +343,8 @@ test("the observability validator refuses a port missing any single signal", () 
     const port = { ...createNoopObservabilityPort({}), [name]: undefined };
     assert.equal(observability.validate({ provider: port }), "not an ObservabilityPort", name);
   }
+  // A contract v1 provider written before metrics still loads; its metric calls take the noop path.
+  assert.equal(observability.validate({ provider: { ...createNoopObservabilityPort({}), metric: undefined } }), undefined);
 });
 
 test("without a warn sink, a provider failure (even a non-Error rejection) goes to the console", async (t) => {
