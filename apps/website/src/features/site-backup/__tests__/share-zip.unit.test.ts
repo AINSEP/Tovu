@@ -13,7 +13,7 @@ import type { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { buildShareZip } from "../share-zip.js";
 import { SHARE_LIMITS } from "../share-policy.js";
 import type { SiteSharePlanContent } from "../plan-store.js";
-import type { PlannedDiskFile } from "../sources.js";
+import { fileIdentity, type PlannedDiskFile } from "../sources.js";
 
 type ZipArgs = Parameters<typeof zipFolderFiles>[0];
 const ZIP_BYTES = Buffer.from("encoded zip");
@@ -46,7 +46,7 @@ function diskFile(t: TestContext, relative: string, content: string): PlannedDis
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const absPath = path.join(dir, "file");
   fs.writeFileSync(absPath, content);
-  return { path: relative, bytes: Buffer.byteLength(content), scope: "themes", root: dir, absPath, mtimeMs: fs.statSync(absPath).mtimeMs };
+  return { path: relative, bytes: Buffer.byteLength(content), scope: "themes", root: dir, absPath, mtimeMs: fs.statSync(absPath).mtimeMs, identity: fileIdentity(fs.statSync(absPath, { bigint: true })) };
 }
 const sha = (bytes: Buffer): string => createHash("sha256").update(bytes).digest("hex");
 const relativePaths = (args: ZipArgs): string[] => args.files.map(file => (file as File & { webkitRelativePath?: string }).webkitRelativePath ?? `(none) ${file.name}`);

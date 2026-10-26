@@ -21,6 +21,7 @@ import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { createSiteShareBackend } from "../share-backend.js";
 import { resolveShareDelivery, createRuntimeShareDelivery } from "../share-hosting.js";
 import { buildShareZip } from "../share-zip.js";
+import { fileIdentity } from "../sources.js";
 import { SHARE_LIMITS, checkShareLimits } from "../share-policy.js";
 import type { SiteSharePlanContent } from "../plan-store.js";
 import { claimSharePath, excludedSharePath, requireShareSecretFree, validateSharePath } from "../share-file-policy.js";
@@ -393,7 +394,7 @@ test("zip surfaces encoding failures, translates size refusals, detects stale fi
   await assert.rejects(buildShareZip({ plan: plan(), zip: async () => { throw failure; } }), error => error === failure);
   await assert.rejects(buildShareZip({ plan: plan(), zip: async () => { throw new Error("too large"); } }), { code: "LIMIT_EXCEEDED" });
   const disk = path.join(r.directory, "page.html"); fs.writeFileSync(disk, "page"); const info = fs.statSync(disk);
-  const content = { ...plan(), files: [{ path: "themes/page.html", root: r.directory, absPath: disk, bytes: 4, mtimeMs: info.mtimeMs, scope: "themes" as const }] };
+  const content = { ...plan(), files: [{ path: "themes/page.html", root: r.directory, absPath: disk, bytes: 4, mtimeMs: info.mtimeMs, identity: fileIdentity(fs.statSync(disk, { bigint: true })), scope: "themes" as const }] };
   const progress = { filesDone: 0, filesTotal: 3, bytesDone: 0, bytesTotal: 21 };
   let encoded = 0;
   await buildShareZip({ plan: content, zip: async args => { encoded++; assert.equal(args.files.length, 3); return zipFolderFiles(args); } }, { progress });

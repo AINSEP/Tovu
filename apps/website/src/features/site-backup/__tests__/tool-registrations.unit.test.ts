@@ -18,7 +18,7 @@ import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 import { SiteBackupPlanStore, type SiteBackupPlan } from "../plan-store.js";
-import type { PlannedDiskFile, SiteBackupSources } from "../sources.js";
+import { fileIdentity, type PlannedDiskFile, type SiteBackupSources } from "../sources.js";
 import { initialPushProgress, uploadPlannedContent, CANCELLED, type PushFailure } from "../push-engine.js";
 import { buildSourceControlProviderForApi } from "../../source-control/provider-registry.js";
 import { SiteBackupPushJobs } from "../push-jobs.js";
@@ -1360,7 +1360,7 @@ async function uploadFixture(t: TestContext) {
   function file(name: string, bytes: Uint8Array): PlannedDiskFile {
     const absPath = path.join(h.site.root, name);
     writeFileSync(absPath, bytes);
-    return { path: name, root: h.site.root, absPath, bytes: bytes.byteLength, mtimeMs: statSync(absPath).mtimeMs, scope: "settings" };
+    return { path: name, root: h.site.root, absPath, bytes: bytes.byteLength, mtimeMs: statSync(absPath).mtimeMs, identity: fileIdentity(statSync(absPath, { bigint: true })), scope: "settings" };
   }
   return { h, plan, provider: built.provider, target, controller, toRefusal, file };
 }

@@ -1,6 +1,6 @@
 import { excludedSharePath, validateSharePath } from "./share-file-policy.js";
 import { checkShareLimits, SiteShareRefusal } from "./share-policy.js";
-import { constants as fsConstants, type Dirent, type Stats } from "node:fs";
+import { constants as fsConstants, type BigIntStats, type Dirent, type Stats } from "node:fs";
 import { lstat, open, readdir, readFile, realpath, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 
@@ -90,8 +90,8 @@ export interface SiteBackupSources {
   readonly tovuVersion: string;
 }
 
-/** One file on disk a backup will upload. `bytes` and `mtimeMs` are what {@link readPlannedFile}
- *  compares against at push time. */
+/** One file on disk a backup will upload. `bytes`, `mtimeMs` and `identity` are what
+ *  {@link readPlannedFile} compares against at push time. */
 export interface PlannedDiskFile {
   /** Relative to the backup folder, `/`-separated. */
   readonly path: string;
@@ -101,6 +101,9 @@ export interface PlannedDiskFile {
   readonly root: string;
   readonly absPath: string;
   readonly mtimeMs: number;
+  /** The planned file's {@link fileIdentity}: the opened handle must be this very file. `null` when
+   *  the filesystem reports no inode number, and then only the path checks prove it. */
+  readonly identity: string | null;
 }
 
 export interface SkippedSiteBackupFile {
@@ -134,16 +137,34 @@ interface WalkSink {
 /** The filesystem reads used by backup collection, including files removed during the walk. */
 export interface SiteBackupWalkFileSystem {
   readonly lstat: (file: string) => Promise<Stats>;
+  /** `lstat` with bigint numbers, for {@link fileIdentity}: a 64-bit Windows file id overflows a JS number. */
+  readonly lstatBigInt: (file: string) => Promise<Pick<BigIntStats, "dev" | "ino">>;
   readonly readdir: (dir: string) => Promise<Dirent[]>;
 }
 
 const WALK_FILE_SYSTEM: SiteBackupWalkFileSystem = {
   lstat,
+  lstatBigInt: (file) => lstat(file, { bigint: true }),
   readdir: (dir) => readdir(dir, { withFileTypes: true }),
 };
 
+/**
+ * `<dev>:<ino>` from bigint stats: the same string means the same file. `null` when the filesystem
+ * reports inode 0 (no file id, e.g. some Windows network or FAT volumes), where identity is unprovable.
+ *
+ * @complexity O(1).
+ */
+export function fileIdentity(info: Pick<BigIntStats, "dev" | "ino">): string | null {
+  return info.ino === 0n ? null : `${info.dev}:${info.ino}`;
+}
+
 function isMissing(err: unknown): boolean {
   return typeof err === "object" && err !== null && (err as { code?: unknown }).code === "ENOENT";
+}
+
+/** `null` when the read fails because the path is gone (removed during the walk); any other failure rejects. */
+function unlessMissing<T>(read: Promise<T>): Promise<T | null> {
+  return read.catch((err: unknown) => (isMissing(err) ? null : Promise.reject(err)));
 }
 
 /** `readdir` that treats a folder that doesn't exist as empty: a site with no themes folder yet has
@@ -159,19 +180,14 @@ async function readdirOrEmpty(dir: string, fileSystem: SiteBackupWalkFileSystem)
 
 /**
  * Adds one regular file to the sink, or records why it was left out. `lstat`, never `stat`: a
- * symlink's own metadata, never its target's.
+ * symlink's own metadata, never its target's. A file removed before either `lstat` is left out.
  *
- * @complexity O(1) — one `lstat`.
+ * @complexity O(1) — two `lstat`s (the second for {@link fileIdentity}).
  */
 async function addFile(sink: WalkSink, input: { root: string; absPath: string; relPath: string; scope: SiteBackupScope }): Promise<void> {
   if (sink.profile === "share" && excludedSharePath({ path: input.relPath })) return;
-  let info;
-  try {
-    info = await sink.fileSystem.lstat(input.absPath);
-  } catch (err) {
-    if (isMissing(err)) return;
-    throw err;
-  }
+  const info = await unlessMissing(sink.fileSystem.lstat(input.absPath));
+  if (info === null) return;
   if (info.isSymbolicLink()) {
     sink.skipped.push({ path: input.relPath, reason: SYMLINK_REASON });
     return;
@@ -185,7 +201,9 @@ async function addFile(sink: WalkSink, input: { root: string; absPath: string; r
     if (info.nlink > 1) throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: `Share refuses hardlinked file '${input.relPath}'.` });
     checkShareLimits({ files: [...sink.files, { path: input.relPath, bytes: info.size }] });
   }
-  sink.files.push({ path: input.relPath, bytes: info.size, scope: input.scope, root: input.root, absPath: input.absPath, mtimeMs: info.mtimeMs });
+  const ids = await unlessMissing(sink.fileSystem.lstatBigInt(input.absPath));
+  if (ids === null) return;
+  sink.files.push({ path: input.relPath, bytes: info.size, scope: input.scope, root: input.root, absPath: input.absPath, mtimeMs: info.mtimeMs, identity: fileIdentity(ids) });
 }
 
 /**
@@ -515,9 +533,11 @@ export function checkSiteBackupLimits(
 
 export type ReadPlannedFileResult = { ok: true; bytes: Buffer } | { ok: false; message: string };
 
-/** The opened file's metadata and bytes must come from the same handle. */
+/** The opened file's metadata, identity and bytes must all come from the same handle. */
 export interface SiteBackupReadHandle {
-  stat(): Promise<Pick<Stats, "isFile" | "size" | "mtimeMs" | "dev" | "ino">>;
+  stat(): Promise<Pick<Stats, "isFile" | "size" | "mtimeMs">>;
+  /** Bigint, for {@link fileIdentity}: a 64-bit Windows file id overflows a JS number. */
+  stat(options: { bigint: true }): Promise<Pick<BigIntStats, "dev" | "ino">>;
   readFile(): Promise<Buffer>;
   close(): Promise<void>;
 }
@@ -525,39 +545,44 @@ export interface SiteBackupReadHandle {
 /** The filesystem calls a push-time read makes; injectable so the swap races can be staged. */
 export interface SiteBackupReadFileSystem {
   readonly open: (file: string, flags: number) => Promise<SiteBackupReadHandle>;
-  readonly lstat: (file: string) => Promise<Pick<Stats, "isDirectory" | "isSymbolicLink" | "dev" | "ino">>;
+  readonly lstat: (file: string) => Promise<Pick<BigIntStats, "isDirectory" | "isSymbolicLink" | "dev" | "ino">>;
   readonly realpath: (file: string) => Promise<string>;
 }
 
-const READ_FILE_SYSTEM: SiteBackupReadFileSystem = { open, lstat, realpath };
+const READ_FILE_SYSTEM: SiteBackupReadFileSystem = { open, lstat: (file) => lstat(file, { bigint: true }), realpath };
+
+/** `O_NOFOLLOW` and `O_NONBLOCK` where the platform has them (Windows has neither). `O_NONBLOCK` so a
+ *  FIFO swapped in after the plan opens at once instead of hanging the push waiting for a writer; it
+ *  then fails the regular-file check. Regular files ignore it. */
+const READ_FLAGS = fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0) | (fsConstants.O_NONBLOCK ?? 0);
 
 /**
  * Reads a planned file at push time, refusing it if it is no longer the file the human reviewed.
  *
- * Opened with `O_NOFOLLOW` (where the platform has it; Windows does not) and checked through the SAME
- * handle it is read from, so a file swapped for a symlink after the plan cannot be followed, and the
- * size/mtime compared are the bytes actually read. `O_NOFOLLOW` guards only the last name, and Node
- * has no `openat`, so the folders between the plan's root and the file are checked by
- * {@link walkPlannedPath} right before and right after the open, and the opened handle must be the
- * very file that second walk reached (same device and inode): an ancestor swapped for a link and back
- * around the open is still caught. Anything that cannot be proven fails closed as stale.
+ * Opened with `O_NOFOLLOW` and checked through the SAME handle it is read from, so a file swapped for
+ * a symlink after the plan cannot be followed, and the size/mtime compared are the bytes actually
+ * read. `O_NOFOLLOW` guards only the last name and Node has no `openat`, so no path check can stop an
+ * ancestor (or the root) being swapped for a link and back around the open. What closes every such
+ * swap, and a hardlink to another file put in the planned file's place, is identity: the opened handle
+ * must be the very device+inode the plan recorded ({@link PlannedDiskFile.identity}). After the open,
+ * {@link walkPlannedPath} also proves the path still runs through real folders to that same file; on a
+ * filesystem with no inode numbers that walk is the only proof left. Anything that cannot be proven
+ * fails closed as stale.
  *
- * @complexity O(file size + path depth) — two walks of O(depth) `lstat`s and two `realpath`s each,
- *   one open, one fstat, one read.
+ * @complexity O(file size + path depth) — one open, two fstats, one walk of O(depth) `lstat`s and two
+ *   `realpath`s, one read.
  */
 export async function readPlannedFile(file: PlannedDiskFile, optional: { fileSystem?: SiteBackupReadFileSystem } = {}): Promise<ReadPlannedFileResult> {
   const fileSystem = optional.fileSystem ?? READ_FILE_SYSTEM;
   const stale: ReadPlannedFileResult = { ok: false, message: `'${file.path}' changed since the plan was made. Call site_backup_plan again.` };
-  const before = await walkPlannedPath({ file, fileSystem });
-  if (before === null) return stale;
   let handle;
   try {
-    handle = await fileSystem.open(file.absPath, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0));
+    handle = await fileSystem.open(file.absPath, READ_FLAGS);
   } catch {
     return stale;
   }
   try {
-    if (!(await openedIsPlanned({ file, fileSystem, handle, before }))) return stale;
+    if (!(await openedIsPlanned({ file, fileSystem, handle }))) return stale;
     const bytes = await handle.readFile();
     return bytes.length === file.bytes ? { ok: true, bytes } : stale;
   } finally {
@@ -565,22 +590,31 @@ export async function readPlannedFile(file: PlannedDiskFile, optional: { fileSys
   }
 }
 
-/** The handle's own metadata matches the plan, and a second walk reaches this same file at the same real path. */
-async function openedIsPlanned(required: { file: PlannedDiskFile; fileSystem: SiteBackupReadFileSystem; handle: SiteBackupReadHandle; before: PlannedPathProof }): Promise<boolean> {
-  const { file, before } = required;
-  const info = await required.handle.stat();
+/**
+ * The handle is a regular file with the plan's size and mtime, it is the planned file itself (when the
+ * plan has an identity), and a walk after the open reaches this same file through real folders.
+ *
+ * @complexity O(path depth) — see {@link walkPlannedPath}.
+ */
+async function openedIsPlanned(required: { file: PlannedDiskFile; fileSystem: SiteBackupReadFileSystem; handle: SiteBackupReadHandle }): Promise<boolean> {
+  const { file, handle } = required;
+  const info = await handle.stat();
   if (!info.isFile() || info.size !== file.bytes || info.mtimeMs !== file.mtimeMs) return false;
-  const after = await walkPlannedPath({ file, fileSystem: required.fileSystem });
-  return after !== null && after.realPath === before.realPath && after.leaf.dev === info.dev && after.leaf.ino === info.ino;
+  const opened = fileIdentity(await handle.stat({ bigint: true }));
+  if (file.identity !== null && opened !== file.identity) return false;
+  const reached = await walkPlannedPath({ file, fileSystem: required.fileSystem });
+  // Both `null` only on a filesystem with no inode numbers: the walk's path proof is all there is.
+  return reached !== null && reached.leaf === opened;
 }
 
-type PlannedPathProof = { realPath: string; leaf: Pick<Stats, "dev" | "ino"> };
+type PlannedPathProof = { leaf: string | null };
 
 /**
  * Proves `file.absPath` is still a plain path below `file.root`: every folder in between is a real
  * directory (`lstat`, so a symlink or Windows junction is seen as a link), the file itself is no link,
  * and its real path is the root's real path plus those same names. `null` when any of that fails or
- * the filesystem errors. The root itself is the scope folder the plan walked from and is trusted.
+ * the filesystem errors. The root itself is the scope folder the plan walked from; a swapped root is
+ * caught by the planned identity, not here.
  *
  * @complexity O(depth) `lstat`s and two `realpath`s.
  */
@@ -592,16 +626,16 @@ async function walkPlannedPath(required: { file: PlannedDiskFile; fileSystem: Si
     const leaf = await lstatEachName({ root: file.root, names: relative.split(path.sep), fileSystem });
     if (leaf === null) return null;
     const realPath = path.join(await fileSystem.realpath(file.root), relative);
-    return (await fileSystem.realpath(file.absPath)) === realPath ? { realPath, leaf } : null;
+    return (await fileSystem.realpath(file.absPath)) === realPath ? { leaf: fileIdentity(leaf) } : null;
   } catch {
     return null;
   }
 }
 
 /** The last name's `lstat` once no name is a link and every earlier one is a directory; else `null`. O(names). */
-async function lstatEachName(required: { root: string; names: readonly string[]; fileSystem: SiteBackupReadFileSystem }): Promise<Pick<Stats, "dev" | "ino"> | null> {
+async function lstatEachName(required: { root: string; names: readonly string[]; fileSystem: SiteBackupReadFileSystem }): Promise<Pick<BigIntStats, "dev" | "ino"> | null> {
   let current = required.root;
-  let info: Pick<Stats, "dev" | "ino"> | null = null;
+  let info: Pick<BigIntStats, "dev" | "ino"> | null = null;
   for (const [index, name] of required.names.entries()) {
     current = path.join(current, name);
     const entry = await required.fileSystem.lstat(current);
