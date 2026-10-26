@@ -15,6 +15,7 @@
  * `scripts/verify-package.ts` stays outside `asar-verify.ts`.
  */
 import path from "node:path";
+import type { OwnerStoreReply } from "./contracts/owner-store.ts";
 import { redactLocalText } from "../../website/src/platform/server-logs/redact-local-text.ts";
 import { sanitizeUntrustedText } from "@jini-ai/core/text";
 
@@ -270,6 +271,18 @@ export function parseEntryLoadOutput(stdout: string): { ok: boolean; unresolved:
   }
   const unresolved = Array.isArray(parsed.unresolved) ? parsed.unresolved.slice(0, 20).map(value => sanitizeUntrustedText({ text: redactLocalText({ text: String(value) }) }, { maxLength: 2_000 })) : ["malformed entry-load output"];
   return { ok: parsed.ok === true && unresolved.length === 0, unresolved };
+}
+
+/** Require a ready, empty store: nonzero counts indicate the smoke touched a real profile.
+ * The existing owner-store transport validates protocol shape and discards raw diagnostics.
+ * @throws A fixed error on CLI failure, recovery, or unexpected inventory; no reply is echoed.
+ * @complexity O(1); pure, no key-file reads.
+ * @example assertPackagedOwnerStoreStatus({ reply });
+ */
+export function assertPackagedOwnerStoreStatus({ reply }: { reply: OwnerStoreReply<'status'> }, _options = {}): void {
+  if (!reply.ok || !reply.data.ready || reply.data.entries !== 0 || reply.data.grants !== 0) {
+    throw new Error('smoke-native: packaged owner-store status failed or profile was not empty');
+  }
 }
 
 export type { SmokeCheckOutcome, SmokeCheckResult, SmokeNativeTargets };

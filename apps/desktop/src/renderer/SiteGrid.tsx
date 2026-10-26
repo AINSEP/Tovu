@@ -53,6 +53,7 @@ import type { SiteRenameState } from './use-site-rename.hooks.js';
 import type { SiteActions } from './use-site-actions.hooks.js';
 import type { SitePower } from './use-site-power.hooks.js';
 import type { SiteLocate } from './use-site-locate.hooks.js';
+import { ResourceSiteFigure } from './ResourcesPanel.js';
 
 /**
  * `useDeleteState` is the delete-confirm hook itself, defaulted to the real one — the function,
@@ -260,6 +261,7 @@ function SiteCard({
               than an overlay: nothing is pending, the card is still openable, and the failure is one
               fact about it rather than a question to answer. */}
           {powerError && <p className="card__actionerror">{powerError}</p>}
+          <ResourceSiteFigure project={project} />
           <MissingFolderNotice project={project} locate={locate} />
         </div>
         <CardActions

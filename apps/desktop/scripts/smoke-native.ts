@@ -7,7 +7,8 @@
  * release build. `verify-package.ts` (S2) already proves the shipped BYTES are correct; this proves
  * the shipped NATIVE ADDONS actually load and run, which byte comparison alone cannot show.
  * It then proves every static import of the shell and server entries resolves inside the shipped
- * tree (`buildEntryLoadScript`), which the byte check cannot show either.
+ * tree (`buildEntryLoadScript`), which the byte check cannot show either. Finally it runs the
+ * existing owner-store CLI transport against the packaged binary and a disposable empty profile.
  *
  * All path-resolution and result-parsing logic lives in `../src/smoke-native.ts`, so it is
  * unit-tested under the normal `npm test` glob without ever spawning a real process (see that
@@ -16,7 +17,7 @@
  *
  * Usage: node scripts/smoke-native.ts --platform-dir <dir-containing-mac-or-win-unpacked-output>
  * Exit codes: 0 = better-sqlite3, sharp, and argon2 all round-tripped inside the packaged binary,
- *                 and every static entry import resolved.
+ *                 every static entry import resolved, and owner-store status returned ready.
  *             1 = any check failed, the executable/node_modules could not be located or spawned,
  *                 or the child's output could not be parsed.
  */
@@ -25,11 +26,13 @@ import { redactLocalText } from "../../website/src/platform/server-logs/redact-l
 import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import type { SpawnSyncOptionsWithStringEncoding, SpawnSyncReturns } from "node:child_process";
 
-import { buildEntryLoadScript, buildSmokeScript, parseEntryLoadOutput, parseSmokeOutput, resolveSmokeTargets } from "../src/smoke-native.ts";
+import { assertPackagedOwnerStoreStatus, buildEntryLoadScript, buildSmokeScript, parseEntryLoadOutput, parseSmokeOutput, resolveSmokeTargets } from "../src/smoke-native.ts";
 import { withIsolatedSmokeTargets } from "../src/packaged-gate-isolation.ts";
+import { runOwnerStoreCli, type OwnerStoreCliInput, type OwnerStoreCliOptions } from "../src/owner-store-cli.ts";
+import type { OwnerStoreReply } from "../src/contracts/owner-store.ts";
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -43,6 +46,8 @@ interface SmokeNativePorts {
   spawn: (command: string, args: string[], options: SpawnSyncOptionsWithStringEncoding) => SpawnSyncReturns<string>;
   /** Copies the packaged app into an isolated temp dir and runs the gate there. */
   isolate: typeof withIsolatedSmokeTargets;
+  /** Reuse the desktop transport; only the executable and profile belong to this release gate. */
+  ownerStatus: typeof runPackagedOwnerStoreStatus;
   out: (text: string) => void;
   err: (text: string) => void;
   env: NodeJS.ProcessEnv;
@@ -107,7 +112,8 @@ function spawnSmoke(targets: SmokeTargets, ports: SmokeNativePorts): string {
   return spawned.stdout ?? "";
 }
 
-function runGate(targets: SmokeTargets, ports: SmokeNativePorts): void {
+/** Sequential packaged checks share the isolation lifetime; owner-store diagnostics stay private. */
+async function runGate({ targets, directory, ports }: { targets: SmokeTargets; directory: string; ports: SmokeNativePorts }, _options = {}): Promise<void> {
   const stdout = spawnSmoke(targets, ports);
 
   let result: ReturnType<typeof parseSmokeOutput>;
@@ -122,6 +128,32 @@ function runGate(targets: SmokeTargets, ports: SmokeNativePorts): void {
   }
   ports.out("smoke-native: OK — better-sqlite3, sharp, and argon2 all round-tripped\n");
   checkEntryImports(targets, ports);
+  const reply = await ports.ownerStatus({ targets, directory });
+  assertPackagedOwnerStoreStatus({ reply });
+  ports.out("smoke-native: OK — packaged owner-store status ready in an empty temporary profile\n");
+}
+
+/** Exercise S3's real CLI transport under the shipped Electron binary, never the runner's Node.
+ * The isolation owner removes directory (including owner.db/key) even when this check fails.
+ * @param input Isolated packaged targets and disposable parent directory from the existing gate.
+ * @param options Injectable CLI/spawn for tests; only OS process essentials enter the child env.
+ * @returns Metadata-only status; the transport owns stdin, timeout and diagnostic suppression.
+ * @complexity O(1) orchestration; one bounded CLI request, no owner data in the shell process.
+ * @example await runPackagedOwnerStoreStatus({ targets, directory });
+ */
+async function runPackagedOwnerStoreStatus({ targets, directory }: { targets: SmokeTargets; directory: string }, {
+  runCli = runOwnerStoreCli, spawnFn = spawn, env = process.env,
+}: { runCli?: (input: OwnerStoreCliInput<'status'>, options?: OwnerStoreCliOptions) => Promise<OwnerStoreReply<'status'>>;
+  spawnFn?: OwnerStoreCliOptions['spawnFn']; env?: NodeJS.ProcessEnv } = {}): Promise<OwnerStoreReply<'status'>> {
+  return runCli({ repoRoot: path.dirname(targets.nodeModulesDir), userDataDir: path.join(directory, 'owner-profile'),
+    action: 'status', fields: {} }, {
+    cliMode: 'compiled', baseEnv: { PATH: env.PATH, SystemRoot: env.SystemRoot, WINDIR: env.WINDIR,
+      TMP: directory, TEMP: directory, HOME: directory, USERPROFILE: directory,
+      APPDATA: directory, LOCALAPPDATA: directory, NODE_PATH: '' },
+    spawnFn: (_command, args, options) => spawnFn(targets.executablePath, args, {
+      ...options, cwd: path.dirname(targets.executablePath),
+    }),
+  });
 }
 
 /** Runs {@link buildEntryLoadScript} in the packaged binary: every static import of the shell and
@@ -156,13 +188,14 @@ function spawnEntryLoad(targets: SmokeTargets, ports: SmokeNativePorts): string 
 
 /**
  * The release gate: the packaged binary loads every native module and resolves every static import
- * of its entries, run from an isolated copy of the package.
+ * of its entries, then verifies owner-store status with an empty disposable profile.
+ * All three checks run from an isolated copy of the package.
  * @throws {Error} with the specific reason on any failure; the isolated copy is cleaned up first.
- * @complexity O(1) beyond the two packaged child runs.
+ * @complexity O(1) beyond the three packaged child runs.
  */
 async function runSmokeNativeGate({ argv }: { argv: readonly string[] }, ports: SmokeNativePorts): Promise<void> {
   await ports.isolate({
-    targets: locateTargets(platformDirFromArgv(argv), ports), run: (targets) => runGate(targets, ports),
+    targets: locateTargets(platformDirFromArgv(argv), ports), run: (targets, directory) => runGate({ targets, directory, ports }),
   });
 }
 
@@ -176,6 +209,7 @@ function formatGateFailure(error: unknown): string {
 if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   runSmokeNativeGate({ argv: process.argv.slice(2) }, {
     readDirectory: readdirSync, exists: existsSync, spawn: spawnSync, isolate: withIsolatedSmokeTargets,
+    ownerStatus: runPackagedOwnerStoreStatus,
     out: process.stdout.write.bind(process.stdout), err: process.stderr.write.bind(process.stderr), env: process.env,
   }).catch((error: unknown) => {
     process.stderr.write(formatGateFailure(error));
@@ -183,5 +217,5 @@ if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLTo
   });
 }
 
-export { formatGateFailure, runSmokeNativeGate };
+export { formatGateFailure, runSmokeNativeGate, runPackagedOwnerStoreStatus };
 export type { SmokeNativePorts };

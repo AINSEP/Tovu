@@ -92,6 +92,7 @@ test('the nav renders the loaded version beneath Tovu in the same brand block', 
     useAppVersion: () => ({ version: '7.9.3', error: null } satisfies AppVersionState),
     visibleSections: () => [],
     SettingsControl: () => null,
+    ResourcesChip: () => null,
   });
   const nodes = elements(topNav({ activeId: 'projects', onSitesHome: true, runningCount: 0, theme: 'system' }));
   const brand = nodes.find((node) => node.props.className === 'topnav__brand');
@@ -109,6 +110,7 @@ test('the nav exposes the real loading error on the brand without displaying a f
     useAppVersion: () => ({ version: null, error: 'Version IPC unavailable' } satisfies AppVersionState),
     visibleSections: () => [],
     SettingsControl: () => null,
+    ResourcesChip: () => null,
   });
   const nodes = elements(topNav({ activeId: 'projects', onSitesHome: true, runningCount: 0, theme: 'system' }));
   assert.equal(nodes.find((node) => node.props.className === 'topnav__brand')?.props.title, 'Version IPC unavailable');
