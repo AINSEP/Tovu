@@ -1,6 +1,6 @@
 import type { Tracker } from "@jini-ai/diagnostics/observability";
 
-import { redactedError } from "../../../platform/observability/report-error.js";
+import { redactedError } from "@jini-ai/diagnostics/observability/node";
 
 /**
  * @file Process-level safety net for an unhandled promise rejection escaping every route/middleware
@@ -33,7 +33,8 @@ import { redactedError } from "../../../platform/observability/report-error.js";
  * synchronous exception is unsafe (the process may be in a corrupted state in a way an unhandled
  * promise rejection is not), and the concrete bug this file fixes is specifically the async-rejection
  * shape (Express 4 swallowing nothing, propagating a rejected promise nowhere). Node's fatal
- * behavior (log to stderr, exit) is retained, with a bounded telemetry drain before exiting.
+ * behavior (log to stderr, exit) is retained, with a bounded telemetry drain before exiting
+ * when the caller supplies a flush port. Without one, a monitor leaves Node's listeners intact.
  *
  * Architectural role:
  * Boot-time process wiring, `src/server/boot/` sibling to `registerPluginSdkResolver()` (see that
@@ -90,13 +91,13 @@ export function installUnhandledRejectionGuard(options: InstallUnhandledRejectio
  * (`index.ts`, `tovu serve`) and the agent daemon — because the port is only built there. Only add
  * this beside the guard: a rejection listener on its own would also suppress Node's default crash.
  * A fatal exception must never resume service: the deadline forces exit even if a provider hangs.
- * @param required The port and which process this is (`server` or `daemon`), sent as an attribute.
- * @param optional Test seam for the event source; defaults to `process`.
+ * @param required The port and which process this is, sent as an attribute.
+ * @param optional Event source and optional fatal flush; without flush the monitor only reports.
  * @returns An uninstall function removing exactly these two listeners.
  * @complexity O(1) to install; O(n) per report in the error's text length.
  */
 export function installProcessErrorReporting(
-  required: { tracker: Tracker; processRole: "server" | "daemon" },
+  required: { tracker: Tracker; processRole: "server" | "daemon" | "desktop-main" },
   optional: { target?: Pick<NodeJS.EventEmitter, "on" | "off">; flush?: () => Promise<void>;
     exit?: (code: number) => void; timeoutMs?: number; log?: (message: string, error: Error) => void } = {},
 ): () => void {
@@ -112,17 +113,24 @@ export function installProcessErrorReporting(
     crashing = true;
     let exited = false;
     const finish = (): void => { if (exited) return; exited = true; clearTimeout(deadline); exit(1); };
-    const deadline = setTimeout(finish, optional.timeoutMs ?? 2_000);
+    const deadline = setTimeout(finish, Math.min(optional.timeoutMs ?? 2_000, 2_000));
+    try {
+      (optional.log ?? ((_message, failure) => console.error(failure)))("[uncaughtException] fatal; exiting after telemetry flush:", error instanceof Error ? error : redactedError({ error }));
+    } catch { /* A broken stderr must not skip the report, fatal drain and exit. */ }
     try {
       tracker.error(error instanceof Error ? error : redactedError({ error }), { operation: "process.uncaught_exception", attributes: { process: processRole } });
-      (optional.log ?? console.error)("[uncaughtException] fatal; exiting after telemetry flush:", redactedError({ error }));
     } catch { /* A broken diagnostic sink must not skip the fatal drain and exit. */ } finally {
       void Promise.resolve().then(() => optional.flush?.()).catch(() => {}).finally(finish);
     }
   };
+  const onMonitor = (error: unknown): void => {
+    tracker.error(error instanceof Error ? error : redactedError({ error }), { operation: "process.uncaught_exception", attributes: { process: processRole } });
+  };
+  const fatalEvent = optional.flush ? 'uncaughtException' : 'uncaughtExceptionMonitor';
+  const fatalHandler = optional.flush ? onUncaught : onMonitor;
   target.on("unhandledRejection", onRejection);
-  target.on("uncaughtException", onUncaught);
-  return () => { target.off("unhandledRejection", onRejection); target.off("uncaughtException", onUncaught); };
+  target.on(fatalEvent, fatalHandler);
+  return () => { target.off("unhandledRejection", onRejection); target.off(fatalEvent, fatalHandler); };
 }
 
 /** Report a rejected Tovu boot and terminate, including when stderr itself fails.

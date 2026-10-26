@@ -330,6 +330,7 @@ interface DesktopCredential {
 
 /** Input to {@link buildServeEnv}. */
 interface BuildServeEnvInput {
+  productTelemetry?: { configPath: string; preferencePath: string; release: string };
   repoRoot: string;
   siteDir?: string;
   baseEnv?: NodeJS.ProcessEnv;
@@ -434,6 +435,15 @@ interface BuildServeEnvInput {
 function buildServeEnv(input: BuildServeEnvInput, { warn = console.warn }: { warn?: (message: string) => void } = {}): NodeJS.ProcessEnv {
   const repoRoot = input.repoRoot;
   const env = buildCliEnv({ baseEnv: input.baseEnv, siteDir: input.siteDir }, { warn });
+  // Only main's successfully booted config authorizes child telemetry; inherited values cannot.
+  delete env.TOVU_PRODUCT_TELEMETRY_CONFIG;
+  delete env.TOVU_PRODUCT_TELEMETRY_PREFS;
+  delete env.TOVU_PRODUCT_RELEASE;
+  if (input.productTelemetry) {
+    env.TOVU_PRODUCT_TELEMETRY_CONFIG = input.productTelemetry.configPath;
+    env.TOVU_PRODUCT_TELEMETRY_PREFS = input.productTelemetry.preferencePath;
+    env.TOVU_PRODUCT_RELEASE = input.productTelemetry.release;
+  }
   delete env.TOVU_PUBLIC_URL;
   // Ownership comes from the host that registers this connection, never from its display name.
   env.TOVU_BUILT_IN_MCP_SERVER_IDS = JSON.stringify([SITES_MCP_SERVER_ID]);
@@ -791,6 +801,7 @@ interface MirrorStreams {
 
 /** Input to {@link startTovuServer}. */
 interface StartTovuServerInput {
+  productTelemetry?: BuildServeEnvInput['productTelemetry'];
   repoRoot: string;
   siteDir: string;
   port?: number;
@@ -885,7 +896,7 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
     ],
   });
 
-  const serveEnv = buildServeEnv({ repoRoot: input.repoRoot, siteDir: input.siteDir, baseEnv: input.baseEnv, desktopCredential: input.desktopCredential, adminDevProxyUrl: input.adminDevProxyUrl, nodeToolchainEnv: input.nodeToolchainEnv });
+  const serveEnv = buildServeEnv({ repoRoot: input.repoRoot, siteDir: input.siteDir, baseEnv: input.baseEnv, desktopCredential: input.desktopCredential, adminDevProxyUrl: input.adminDevProxyUrl, nodeToolchainEnv: input.nodeToolchainEnv, productTelemetry: input.productTelemetry });
   // Windows has no SIGTERM to send: Stop closes this stdin pipe instead (see `stopChild`).
   const win32 = (input.platform ?? process.platform) === "win32";
   const child = spawnFn(

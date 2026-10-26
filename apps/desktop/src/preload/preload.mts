@@ -60,6 +60,7 @@ import {
   type SaveConversationMessageInput,
 } from '../contracts/workspace-conversations.js';
 import type { RunnerSectionId } from '../contracts/sections.js';
+import { PRODUCT_TELEMETRY_CHANNEL, type ShellTelemetryPayload } from '../contracts/product-telemetry.js';
 
 /**
  * Subscribes to one main→renderer push channel and hands back the matching teardown.
@@ -89,6 +90,9 @@ const ownerStoreBridge: OwnerStoreBridge = {
   restore: (input, _options = {}) => ipcRenderer.invoke(OWNER_STORE_CHANNELS.restore, input),
 };
 contextBridge.exposeInMainWorld('tovuOwnerStore', Object.freeze(ownerStoreBridge));
+contextBridge.exposeInMainWorld('tovuTelemetry', Object.freeze({
+  report: (payload: ShellTelemetryPayload, _options = {}) => ipcRenderer.send(PRODUCT_TELEMETRY_CHANNEL, payload),
+}));
 
 contextBridge.exposeInMainWorld(
   'tovuRunner',

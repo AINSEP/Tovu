@@ -47,6 +47,7 @@ test("the ESM preload exposes shared keys, runner and voice and maps methods to 
   t.after(unregister);
   const exposed = new Map<string, Record<string, (...args: unknown[]) => unknown>>();
   const invokes: unknown[][] = [];
+  const sends: unknown[][] = [];
   const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
   const availability = { available: true };
   const transcription = { text: "hello", elapsedMs: 7 };
@@ -56,6 +57,7 @@ test("the ESM preload exposes shared keys, runner and voice and maps methods to 
     namedExports: {
       contextBridge: { exposeInMainWorld: (name: string, bridge: Record<string, (...args: unknown[]) => unknown>) => exposed.set(name, bridge) },
       ipcRenderer: {
+        send: (channel: string, payload: unknown) => { sends.push([channel, payload]); },
         on(channel: string, handler: (...args: unknown[]) => void) {
           if (!listeners.has(channel)) listeners.set(channel, new Set());
           listeners.get(channel)!.add(handler);
@@ -74,7 +76,12 @@ test("the ESM preload exposes shared keys, runner and voice and maps methods to 
     },
   });
   await import("./preload.mts");
-  assert.deepEqual([...exposed.keys()], ["tovuOwnerStore", "tovuRunner", "tovuVoice"]);
+  assert.deepEqual([...exposed.keys()], ["tovuOwnerStore", "tovuTelemetry", "tovuRunner", "tovuVoice"]);
+  const telemetry = exposed.get('tovuTelemetry')!;
+  assert.ok(Object.isFrozen(telemetry));
+  assert.deepEqual(Object.keys(telemetry), ['report']);
+  telemetry.report!({ kind: 'action', id: 'open_admin' });
+  assert.deepEqual(sends, [['tovu:product-telemetry', { kind: 'action', id: 'open_admin' }]]);
   const runner = exposed.get("tovuRunner")!;
   const bridgeSource = ts.createSourceFile("runner-api.ts", fs.readFileSync(path.join(__dirname, "../renderer/runner-api.ts"), "utf8"), ts.ScriptTarget.Latest, true);
   const declaration = bridgeSource.statements.find((node): node is ts.InterfaceDeclaration => ts.isInterfaceDeclaration(node) && node.name.text === "RunnerInventoryBridge");
