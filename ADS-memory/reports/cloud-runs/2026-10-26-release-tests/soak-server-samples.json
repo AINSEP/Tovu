@@ -1,0 +1,238 @@
+{
+  "commit": "ebc4ec7979f318582e8073b1514c5d19c047fd34",
+  "os": "linux",
+  "arch": "x64",
+  "node": "24.22.0",
+  "electron": null,
+  "limit": 0.15,
+  "warmup": 500,
+  "workload": 3000,
+  "recordOnly": true,
+  "status": "RECORD_ONLY wouldFail=false",
+  "raw": [
+    {
+      "completed": 0,
+      "readings": [
+        {
+          "rss": 641937408,
+          "heapTotal": 278794240,
+          "heapUsed": 128491104,
+          "external": 5215636,
+          "arrayBuffers": 1065951,
+          "pid": 22376,
+          "node": "24.22.0"
+        },
+        {
+          "rss": 641937408,
+          "heapTotal": 278794240,
+          "heapUsed": 127995848,
+          "external": 5215676,
+          "arrayBuffers": 1065951,
+          "pid": 22376,
+          "node": "24.22.0"
+        }
+      ]
+    },
+    {
+      "completed": 500,
+      "readings": [
+        {
+          "rss": 796192768,
+          "heapTotal": 279056384,
+          "heapUsed": 128962680,
+          "external": 5215683,
+          "arrayBuffers": 1065958,
+          "pid": 22376,
+          "node": "24.22.0"
+        },
+        {
+          "rss": 796192768,
+          "heapTotal": 279056384,
+          "heapUsed": 128658368,
+          "external": 5215683,
+          "arrayBuffers": 1065958,
+          "pid": 22376,
+          "node": "24.22.0"
+        }
+      ]
+    },
+    {
+      "completed": 1000,
+      "readings": [
+        {
+          "rss": 803344384,
+          "heapTotal": 279580672,
+          "heapUsed": 128523768,
+          "external": 5210832,
+          "arrayBuffers": 1065958,
+          "pid": 22376,
+          "node": "24.22.0"
+        },
+        {
+          "rss": 803344384,
+          "heapTotal": 279580672,
+          "heapUsed": 128263120,
+          "external": 5210832,
+          "arrayBuffers": 1065958,
+          "pid": 22376,
+          "node": "24.22.0"
+        }
+      ]
+    },
+    {
+      "completed": 1500,
+      "readings": [
+        {
+          "rss": 805421056,
+          "heapTotal": 279842816,
+          "heapUsed": 128317640,
+          "external": 5210254,
+          "arrayBuffers": 1065958,
+          "pid": 22376,
+          "node": "24.22.0"
+        },
+        {
+          "rss": 805421056,
+          "heapTotal": 279842816,
+          "heapUsed": 128025544,
+          "external": 5210254,
+          "arrayBuffers": 1065958,
+          "pid": 22376,
+          "node": "24.22.0"
+        }
+      ]
+    },
+    {
+      "completed": 2000,
+      "readings": [
+        {
+          "rss": 808947712,
+          "heapTotal": 280367104,
+          "heapUsed": 128384080,
+          "external": 5210188,
+          "arrayBuffers": 1065958,
+          "pid": 22376,
+          "node": "24.22.0"
+        },
+        {
+          "rss": 808947712,
+          "heapTotal": 280367104,
+          "heapUsed": 128101560,
+          "external": 5210188,
+          "arrayBuffers": 1065958,
+          "pid": 22376,
+          "node": "24.22.0"
+        }
+      ]
+    },
+    {
+      "completed": 2500,
+      "readings": [
+        {
+          "rss": 809635840,
+          "heapTotal": 280629248,
+          "heapUsed": 125538384,
+          "external": 5206977,
+          "arrayBuffers": 1065958,
+          "pid": 22376,
+          "node": "24.22.0"
+        },
+        {
+          "rss": 809635840,
+          "heapTotal": 280629248,
+          "heapUsed": 125255016,
+          "external": 5206977,
+          "arrayBuffers": 1065958,
+          "pid": 22376,
+          "node": "24.22.0"
+        }
+      ]
+    },
+    {
+      "completed": 3000,
+      "readings": [
+        {
+          "rss": 809349120,
+          "heapTotal": 279580672,
+          "heapUsed": 125584824,
+          "external": 5206977,
+          "arrayBuffers": 1065958,
+          "pid": 22376,
+          "node": "24.22.0"
+        },
+        {
+          "rss": 809349120,
+          "heapTotal": 279580672,
+          "heapUsed": 125309376,
+          "external": 5206977,
+          "arrayBuffers": 1065958,
+          "pid": 22376,
+          "node": "24.22.0"
+        }
+      ]
+    }
+  ],
+  "baselineSamples": [
+    128491104,
+    127995848
+  ],
+  "checkpoints": [
+    {
+      "completed": 500,
+      "samples": [
+        128962680,
+        128658368
+      ]
+    },
+    {
+      "completed": 1000,
+      "samples": [
+        128523768,
+        128263120
+      ]
+    },
+    {
+      "completed": 1500,
+      "samples": [
+        128317640,
+        128025544
+      ]
+    },
+    {
+      "completed": 2000,
+      "samples": [
+        128384080,
+        128101560
+      ]
+    },
+    {
+      "completed": 2500,
+      "samples": [
+        125538384,
+        125255016
+      ]
+    },
+    {
+      "completed": 3000,
+      "samples": [
+        125584824,
+        125309376
+      ]
+    }
+  ],
+  "verdict": {
+    "pass": true,
+    "baselineFloor": 127995848,
+    "floors": [
+      128658368,
+      128263120,
+      128025544,
+      128101560,
+      125255016,
+      125309376
+    ],
+    "growth": -0.02098874332236152,
+    "tailGrowth": 0,
+    "failures": []
+  }
+}

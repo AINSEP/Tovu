@@ -115,3 +115,28 @@ No file failed to LOAD in any package that exists.
 | packages/sdk sdk-public-api.unit :: SDK external type contracts are declared package dependencies | expected '^0.4.0 || ^0.5.0', actual '^0.6.10' | REGRESSION (stale test expectation vs package.json) |
 
 NOTE: because Jini is a *local linked checkout* (fe3f55a3), some mismatches (video ext, consent) could instead be Tovu/Jini version skew; I did not bisect (report-only).
+
+## 2026-10-26T23:32:32Z — DONE (all lists + server soak run; ~35 min wall clock)
+
+### Build of Tovu against linked Jini (needed for the soak) — FAILURES
+- `npm run build` / `admin:build` refuse to run while Jini is linked (check-no-linked-jini guard). Unlinking restores registry 0.6.12 copies that lack subpaths this branch imports, so I bypassed the guard: `npm run build:server` directly and `npx vite build` in apps/admin.
+- **`tsc -p tsconfig.json` (website) FAILS with ~13 type errors** against Jini fe3f55a3: e.g. `features/media*/tool-registrations.ts: Property 'createdByPrincipal' does not exist on type 'MediaRecord'` (media-generation:388, media-import:233, media:141); `server/inbound/assistant/agent-daemon-server.ts(1040,178) TS2322 '"failed"|"canceled"|"succeeded"|undefined' not assignable to 'string|number|boolean'`; `server/runtime/composition/tool-catalog-manifest.ts(547-573)`: properties `providerConfig`, `reapplyProvider`, `projectKeys`, `providerAppliesAt` do not exist on `AssistantToolRegistryDeps`. Class: **REGRESSION / version skew between Tovu cloud/release-1026 and Jini cloud/release-1026** (release build would fail `npm run build`). tsc still emitted dist/, but build-server.mjs aborted before emit-dist-package-json and stageServerRuntimeAssets; I ran those by hand (`emit-dist-package-json.mjs`, `build-server.mjs --assets-only`) so the soak could start. Admin vite build: OK.
+- Soak attempt 1 failed to start (no dist/package.json; attempt 2: missing dist/src/platform/db/drizzle journal) — both consequences of the aborted build above, not of the soak.
+
+### Server memory soak (record-only), attempt 3
+`RECORD_ONLY wouldFail=false server workload=3000 baselineMiB=122.1 endMiB=119.5 growth=-2.1% tailGrowth=0.0% limit=15%` — test passed (1.1m). Warm-up floor 122.1 MiB (heap), final floor 119.5 MiB, change -2.1%. Raw RSS in samples: 642 MB at 0 requests → 796 MB at 500 (warm-up); full data copied to soak-server-samples.json in this folder. Run used a tsc-error build (above) with linked Jini, so treat as indicative, not release-final.
+**Concern during soak:** the agent daemon crashed repeatedly: `Error: Multiple copies of chat.db exist for this site. Choose the authoritative database before starting it.` (from @jini-ai/platform directory-user-config.js:157), supervisor "gave up after 5 attempts in 60s" (10 occurrences in log). The HTTP soak still passed but the daemon never stayed up — class UNSURE (could be the isolated soak-site fixture, could be a real regression); worth a look before release.
+
+### Known pre-existing failures: confirmation
+Only the Sentry SpanStreaming and bad-DSN "Invalid URL" ones appeared (Jini provider-plugins). The Tovu ones (purpose-scoped-mailer call-sites, site-exporter never-store, mcp-ui-tool-calls ask-choice) did NOT show as failures in my runs — either those files are not in tovu-tests.txt or they passed; not confirmed further. Jini cms subpath-isolation was not in the list's failures either.
+
+### What this did NOT test
+- Desktop Electron memory soak (needs display); real PostHog/Sentry/Grafana delivery (all mocked); UI looks/e2e browser journeys (no Chromium); Postgres-backed tests (none were selected; no Postgres failures observed).
+- payments-stripe (12 files) and charts-recharts (10 files): packages absent from Jini branch → 22 listed files not run (MISSING).
+- 3 Tovu website observability unit files deleted on branch → MISSING.
+- No bisect of any failure; no baseline on the parent commit; failing-test classifications are from reading the assertion only.
+- Tovu run used a locally-linked Jini checkout (registry 0.6.12 lacks required exports), so skew vs published versions is possible.
+- Counts are TAP/vitest totals executed; Tovu TAP totals include suite-level entries.
+
+### Totals
+Jini: 280 files, 6852 passed, 14 failed (2 PRE-EXISTING Sentry). Tovu: ~3700 node:test + 1170 admin vitest + 272 desktop executed; ~20 failed (see tables), 1 flaky.
