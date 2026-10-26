@@ -966,6 +966,8 @@ export interface ObservabilityDeps {
   productAnalytics?: import("@jini-ai/analytics/product").ProductAnalyticsPort;
   /** AI-trace sink of the configured provider plugins; absent means AI tracing is off. */
   aiTraceSink?: import("@jini-ai/agent-runtime/ai-trace").AiTraceSink;
+  /** Saved provider-plugin settings (project store, else site vault); the admin settings card reads/writes it. */
+  providerConfig?: import("#src/server/runtime/composition/provider-config-source").ProviderConfigSource;
   /**
    * `features/tool-audit`'s durable agent tool-attempt sink, BUILT BY THE COMPOSITION ROOT and
    * injected — not resolved by whichever module happens to want one. `server/deps.ts` builds

@@ -7,7 +7,7 @@ import { definePlugin } from "@tovu/sdk";
 import { WORD_COUNT_MANIFEST } from "#src/features/plugin-runtime/built-ins/word-count/index";
 
 import { composePluginRuntime, type PluginRuntimeSource } from "../plugin-runtime.js";
-import { bootProviderPlugins, type ProviderPluginBinding } from "../provider-plugins.js";
+import { bootProviderPlugins } from "../provider-plugins.js";
 
 /**
  * @file Provider plugins through Tovu's REAL plugin runtime and Jini's real loader + provider host:
@@ -18,8 +18,7 @@ import { bootProviderPlugins, type ProviderPluginBinding } from "../provider-plu
 
 const clock = { nowMs: () => 0 };
 const PROVIDER_MANIFEST = { ...WORD_COUNT_MANIFEST, id: "obs-fake", tier: "tier-3" as const, extensions: { tovu: { id: "tovu/obs-fake", provides: [] } },
-  hooks: [], fields: [], capabilities: ["providers.register"], contributes: { providers: [{ contract: "observability", id: "fake", contractVersion: 1 as const }] } };
-const BINDING: ProviderPluginBinding = { pluginId: "obs-fake", contract: "observability", id: "fake", input: ({ credential }) => ({ endpoint: credential.baseUrl }) };
+  hooks: [], fields: [], capabilities: ["providers.register"], contributes: { providers: [{ contract: "observability", id: "fake", contractVersion: 1 as const, settings: [{ name: "endpoint", label: "Endpoint", required: true }] }] } };
 
 function fixture({ enabled = true, setupThrows = false, setupGate }: { enabled?: boolean; setupThrows?: boolean; setupGate?: Promise<void> } = {}) {
   const events: string[] = [];
@@ -40,9 +39,10 @@ function fixture({ enabled = true, setupThrows = false, setupGate }: { enabled?:
 }
 
 const boot = (runtime: ReturnType<typeof composePluginRuntime>, configured = true) => bootProviderPlugins({
-  runtime, readCredential: async () => configured ? { baseUrl: "https://collector.example.test", token: "t" } : null,
+  runtime, config: { scope: "site", readSettings: async () => null, write: async () => {},
+    read: async () => configured ? { settings: { endpoint: "https://collector.example.test" }, secrets: {} } : null },
   serviceName: "tovu", consent: () => false, consentRevision: () => 0,
-}, { bindings: [BINDING], warn: () => {} });
+}, { warn: () => {} });
 
 test("installed + enabled + configured: loaded once at boot, initialized, then retired by disable", async () => {
   const { events, runtime, ready } = fixture();
@@ -108,4 +108,13 @@ test("a provider plugin whose import/setup stalls is bounded: boot continues, an
   assert.deepEqual(events, ["setup"]);
   assert.deepEqual(runtime.providerContributions.list({}), [], "the revoked selection admits nothing after the deadline");
   assert.equal(runtime.pluginLoadedVersion({ id: "obs-fake" }), undefined);
+});
+
+test("listProviderPlugins: only enabled plugins here that declare providers, with their declarations (no code runs)", async () => {
+  const { events, runtime, ready, repo } = fixture();
+  await ready;
+  assert.deepEqual(await runtime.listProviderPlugins({}), [{ pluginId: "obs-fake", providers: PROVIDER_MANIFEST.contributes.providers }]);
+  await repo.save({ workspaceId: "ws", pluginId: "obs-fake", version: PROVIDER_MANIFEST.version, enabled: false, updatedAt: "2026-10-26" });
+  assert.deepEqual(await runtime.listProviderPlugins({}), []);
+  assert.deepEqual(events, []);
 });

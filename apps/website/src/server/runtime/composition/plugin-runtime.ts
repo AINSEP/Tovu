@@ -209,6 +209,8 @@ export interface PluginRuntimeBindings {
    * @returns The ids actually loaded. Per-plugin failures are logged and skipped, never thrown.
    */
   readonly loadProviderPlugins: (required: { pluginIds: readonly string[] }, optional?: { timeoutMs?: number }) => Promise<readonly string[]>;
+  /** Installed + enabled plugins here that declare providers, with their declarations (manifest only). */
+  readonly listProviderPlugins: (required: Record<string, never>, optional?: Record<string, never>) => Promise<readonly { pluginId: string; providers: NonNullable<NonNullable<PluginManifest["contributes"]>["providers"]> }[]>;
   readonly discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
   readonly onPluginEnabled: (pluginId: string) => Promise<void>;
   readonly onPluginDisabled: (pluginId: string) => void;
@@ -553,6 +555,14 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     try { await Promise.race([attached, deadline]); } finally { clearTimeout(timer); }
   }
 
+  async function listProviderPlugins(_required: Record<string, never>, _options = {}) {
+    const enabled = new Set((await activationRepo.listAll())
+      .filter((row) => row.workspaceId === required.workspaceId && row.enabled).map((row) => row.pluginId));
+    return (await discoverActivePlugins())
+      .filter((record) => enabled.has(record.id) && declaresProviders({ manifest: record.manifest }))
+      .map((record) => ({ pluginId: record.id, providers: record.manifest!.contributes!.providers! }));
+  }
+
   async function loadProviderPlugins({ pluginIds }: { pluginIds: readonly string[] }, options: { timeoutMs?: number } = {}): Promise<readonly string[]> {
     const wanted = new Set(pluginIds);
     if (wanted.size === 0) return [];
@@ -703,6 +713,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     pluginContributions,
     providerContributions,
     loadProviderPlugins,
+    listProviderPlugins,
     discoverPlugins,
     onPluginEnabled,
     onPluginDisabled,

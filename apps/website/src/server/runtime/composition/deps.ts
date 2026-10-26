@@ -64,7 +64,10 @@ import { dirname, join, resolve, sep } from "node:path";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { instrumentStorageKernel, trackFetch } from "#src/platform/observability/index";
-import { bootProviderPlugins, providerPluginCredentialOf } from "./provider-plugins.js";
+import { bootProviderPlugins } from "./provider-plugins.js";
+import { createVaultProviderConfigSource } from "./provider-config-source.js";
+import { createAgentPluginStateStore } from "#src/features/api-connections/plugin-state";
+import { createApiConnectionVault } from "#src/features/api-connections/vault-stores";
 import { createTelemetryConsent } from "./telemetry-consent.js";
 import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 // A plain static import, unlike `createApp`/`exportSite` below: `resolveStorefrontProducts` has no
@@ -1998,9 +2001,12 @@ async function composeSiteRouteDeps(
   // `ObservabilityDeps` doc for the rule-of-two this mirrors. The storage kernels and guarded HTTP
   // clients below are decorated with the port (identity for the no-op port, so a default boot keeps
   // its exact objects). See `provider-plugins.ts`.
+  // Saved provider settings: sealed plugin-state rows in this site's vault (see provider-config-source.ts).
+  const providerConfigSource = createVaultProviderConfigSource({ workspaceId, scope: "site", state: createAgentPluginStateStore({ workspaceId,
+    vault: createApiConnectionVault({ repo: new SqlSecretsVaultRepo({ kernel: kernel as unknown as StorageKernel<SecretsVaultDatabase> }), keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, workspaceId }) }) });
   const providerPlugins = await providerPluginBoot({ overrides })({
     runtime: pluginRuntime,
-    readCredential: async ({ label }) => providerPluginCredentialOf({ resolved: await resolveCustomCredentialByLabel({ repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer }, { workspaceId, label }) }),
+    config: providerConfigSource,
     serviceName: "tovu",
     ...createTelemetryConsent({ settingsRepo, workspaceId }),
   });
@@ -2454,6 +2460,7 @@ async function composeSiteRouteDeps(
     observability,
     productAnalytics,
     aiTraceSink,
+    providerConfig: providerConfigSource,
     // Built and probed in the prelude above, over the same content kernel that carries site content.
     publishTrustRevocations,
     clock,
