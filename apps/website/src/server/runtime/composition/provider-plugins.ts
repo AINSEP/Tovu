@@ -4,7 +4,7 @@ import { createTelemetryDeliveryMonitor, describeTelemetryFailure, type Tracker,
 import { combineObservabilityPorts, createNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 import { createAiGenerationSink, createNoopProductAnalytics, fanOutProductAnalytics, withProductAnalyticsGuards, type ProductAnalyticsConsent, type ProductAnalyticsConsentRevision, type ProductAnalyticsPort, type BrowserAnalyticsContribution } from "@jini-ai/analytics/product";
 import { createFanOutAiTraceSink, type AiTraceSink } from "@jini-ai/agent-runtime/ai-trace";
-import { createPluginProviderHost, PluginProviderStartupError, isProviderSettingRequired, type PluginContributionRegistry, type PluginProviderContract, type PluginProviderDeclaration, type PluginProviderLease } from "@jini-ai/plugins/host";
+import { createPluginProviderHost, pluginProviderStartupGuidance, isProviderSettingRequired, type PluginContributionRegistry, type PluginProviderContract, type PluginProviderDeclaration, type PluginProviderLease } from "@jini-ai/plugins/host";
 
 import type { ProviderConfigSource, ProviderPluginConfig } from "./provider-config-source.js";
 
@@ -369,9 +369,8 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
       // Class only: an SDK's construction error can quote the endpoint or DSN it was given.
       // Names are allowlisted too: custom Error.name values can themselves contain credentials.
       warn(`provider plugin '${pluginId}' did not initialize: ${error instanceof Error ? describeTelemetryFailure({ error }).errorClass : typeof error}`);
-      return error instanceof PluginProviderStartupError
-        ? { appliesAt: "failed", reason: error.reason, action: error.action }
-        : { appliesAt: "failed", reason: "The provider could not initialize.", action: "Check the plugin settings and installation, then save again." };
+      return { appliesAt: "failed", ...(pluginProviderStartupGuidance({ error })
+        ?? { reason: "The provider could not initialize.", action: "Check the plugin settings and installation, then save again." }) };
     }
   }
   function reapply(input: { pluginId: string }): Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult> {

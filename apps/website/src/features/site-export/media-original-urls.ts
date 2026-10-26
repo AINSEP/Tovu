@@ -21,8 +21,8 @@ function sameOrigin({ url, origin }: { url: string; origin: string }): boolean {
 
 /** Local paths need no origin lookup; absolute references must belong to the configured site.
  * With no verified origin, absolute references stay as written: a link must never fail the export. */
-async function localOriginalPaths({ body, deps, contentType }: { body: string; deps: ExportMediaUrlDeps; contentType: string }, _optional = {}): Promise<Map<string, { prefix: string; key: string }>> {
-  const matches = exportUrlLocations({ body, contentType }).flatMap(({ start, end }) => [...body.slice(start, end).matchAll(ORIGINAL_URL)]);
+async function localOriginalPaths({ body, deps, locations }: { body: string; deps: ExportMediaUrlDeps; locations: readonly { start: number; end: number }[] }, _optional = {}): Promise<Map<string, { prefix: string; key: string }>> {
+  const matches = locations.flatMap(({ start, end }) => [...body.slice(start, end).matchAll(ORIGINAL_URL)]);
   const paths = new Map<string, { prefix: string; key: string }>();
   let origin: string | null | undefined;
   for (const match of matches) {
@@ -46,7 +46,9 @@ async function localOriginalPaths({ body, deps, contentType }: { body: string; d
 export async function rewriteMediaOriginalUrls(
   { body, deps }: { body: string; deps: ExportMediaUrlDeps }, { contentType = "text/html" }: { contentType?: string } = {},
 ): Promise<string> {
-  const paths = await localOriginalPaths({ body, deps, contentType });
+  // Parsed once: the same URL positions are scanned for keys and then rewritten.
+  const locations = exportUrlLocations({ body, contentType });
+  const paths = await localOriginalPaths({ body, deps, locations });
   if (paths.size === 0) return body;
   const records = new Map<string, NonNullable<Awaited<ReturnType<typeof findMediaByIdOrSlug>>>>();
   for (const [url, { key }] of paths) {
@@ -56,13 +58,13 @@ export async function rewriteMediaOriginalUrls(
   const contentTypes = await resolveContentTypes(deps, [...records.values()]);
   const replacements = new Map<string, string>();
   for (const [url, record] of records) {
-    const contentType = contentTypes.get(record.source.sha256);
+    const type = contentTypes.get(record.source.sha256);
     const { prefix, key } = paths.get(url)!;
-    if (contentType) replacements.set(url, prefix + mediaPublicPath(key, { kind: "original", contentType }));
+    if (type) replacements.set(url, prefix + mediaPublicPath(key, { kind: "original", contentType: type }));
   }
   const output: string[] = [];
   let offset = 0;
-  for (const { start, end } of exportUrlLocations({ body, contentType })) {
+  for (const { start, end } of locations) {
     const value = body.slice(start, end).replace(ORIGINAL_URL, url => replacements.get(url) ?? url);
     output.push(body.slice(offset, start), value);
     offset = end;
