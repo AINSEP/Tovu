@@ -118,7 +118,6 @@ import {
   type MemoryConfigFlagKey,
   type MemoryEntrySummary,
   type MemoryExtractionRecord,
-  type MemoryTopTab,
   type NotificationsPreferences,
   type PrivacyConsentState,
   type SettingsDialogTab,

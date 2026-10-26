@@ -39,7 +39,6 @@ import {
   settle,
 } from "@/lib/__tests__/stored-credential-endpoint.test-helpers";
 import {
-  DEFAULT_APPEARANCE,
   DEFAULT_INSTRUCTIONS,
   DEFAULT_LOCALE,
   DEFAULT_NOTIFICATIONS,

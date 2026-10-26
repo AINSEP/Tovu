@@ -41,7 +41,9 @@ test("save refuses absent, blank and whitespace tokens unless the explicit local
     assert.equal(f.writes(), 0);
   }
   const f = fixture();
-  assert.deepEqual(await saveProviderSettings({ config: f.config, pluginId, fields, values: { endpoint, auth: "none", token: "" } }), { saved: true });
+  assert.deepEqual(await saveProviderSettings({ config: f.config, pluginId, fields, values: { endpoint, auth: "none", token: "" } }), {
+    saved: true, configured: true, store: "project", usedByThisSite: true, usedBy: [], appliesAt: "restart",
+  });
   assert.deepEqual(f.saved(), { settings: { endpoint, auth: "none" }, secrets: {} });
   assert.deepEqual(await saveProviderSettings({ config: fixture().config, pluginId, fields, values: { auth: "none" } }), {
     refusal: { code: "PROVIDER_SETTINGS_REQUIRED", error: "OTLP endpoint is required." },
@@ -52,7 +54,9 @@ test("a saved token without auth keeps working; changing a public field still re
   const token = ["token", String(Date.now()), "test"].join("-");
   const saved = { settings: { endpoint }, secrets: { token } };
   const f = fixture(saved);
-  assert.deepEqual(await saveProviderSettings({ config: f.config, pluginId, fields, values: { endpoint, auth: "token", token: "" } }), { saved: true });
+  assert.deepEqual(await saveProviderSettings({ config: f.config, pluginId, fields, values: { endpoint, auth: "token", token: "" } }), {
+    saved: true, configured: true, store: "project", usedByThisSite: true, usedBy: [], appliesAt: "restart",
+  });
   assert.equal(f.saved()?.secrets.token, token);
   const moved = await saveProviderSettings({ config: f.config, pluginId, fields, values: { endpoint: "http://other.example.test", token: "" } });
   assert.deepEqual(moved, { refusal: { code: "PROVIDER_SETTINGS_SECRET_REENTRY", error: "Changing OTLP endpoint needs Token entered again." } });

@@ -24,11 +24,11 @@ function fakeFaces(initial: Record<string, boolean>, links: Record<string, strin
     reconcileFace: async ({ pluginId, resolveEnabled }) => {
       const enabled = await resolveEnabled();
       if (await ports.isFaceActive({ pluginId }) === enabled) return false;
-      await ports.setFace({ pluginId, enabled });
+      faces.set(pluginId, enabled);
+      writes.push([pluginId, enabled]);
       return true;
     },
     isFaceActive: async ({ pluginId }) => faces.get(pluginId) ?? true,
-    setFace: async ({ pluginId, enabled }) => { faces.set(pluginId, enabled); writes.push([pluginId, enabled]); },
   };
   return { faces, writes, ports };
 }
@@ -61,8 +61,8 @@ test("every provider activation write in this workspace moves its face; other wo
 
 test("a face that cannot follow is logged, never fails the provider decision; a failed provider write moves nothing", async () => {
   const warnings: string[] = [];
-  const failing: ProviderFacePorts = { ...fakeFaces({}, { metrics: "metrics-provider" }).ports, setFace: async () => { throw new Error("disk full"); } };
-  const repo = followProviderActivations({ repo: new InMemoryPluginActivationRepo(), workspaceId: WS, ports: { ...failing, reconcileFace: async () => { throw new Error("disk full"); }, isFaceActive: async () => false } }, { warn: message => warnings.push(message) });
+  const failing: ProviderFacePorts = { ...fakeFaces({}, { metrics: "metrics-provider" }).ports, reconcileFace: async () => { throw new Error("disk full"); } };
+  const repo = followProviderActivations({ repo: new InMemoryPluginActivationRepo(), workspaceId: WS, ports: failing }, { warn: message => warnings.push(message) });
   await repo.save(row("metrics-provider", true));
   assert.equal((await repo.getActivation({ workspaceId: WS, pluginId: "metrics-provider" }))?.enabled, true);
   assert.equal(warnings.length, 1);

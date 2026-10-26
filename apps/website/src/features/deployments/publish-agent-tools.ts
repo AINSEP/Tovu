@@ -47,7 +47,7 @@ import type { VendorCredentialSetRepoPort } from "../vendor-credentials/index.js
 
 import type { ToolContributor } from "#src/assistant/index";
 
-import { askThenReport, SURFACE_DISMISSED_PARAM, type AssistantSurfaceDeps, type SurfaceExchange } from "@jini-ai/daemon/surface-exchanges";
+import { askThenReport, type AssistantSurfaceDeps, type SurfaceExchange } from "@jini-ai/daemon/surface-exchanges";
 // `SurfaceEmission` itself is `@jini-ai/core`'s own type (`@jini-ai/daemon/surface-exchanges` re-exports the
 // functions that use it, but not the type) — imported directly here so the extracted
 // `mapPublishOutcomeToToolResult`/`buildAlreadyRunningResult`/`handlePublishConfirmationAnswer`

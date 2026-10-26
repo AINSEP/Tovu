@@ -31,7 +31,6 @@ export interface ProviderFacePorts {
   /** Read canonical state and compare/write within the activation owner's serialized operation. */
   readonly reconcileFace: (required: { readonly pluginId: string; readonly resolveEnabled: () => Promise<boolean> }) => Promise<boolean>;
   readonly isFaceActive: (required: { readonly pluginId: string }) => Promise<boolean>;
-  readonly setFace: (required: { readonly pluginId: string; readonly enabled: boolean }) => Promise<void>;
 }
 
 /** A linked face was switched on its own. Nothing was written. */
@@ -125,8 +124,5 @@ export function bindProviderFacePorts({ workspaceRoot }: { workspaceRoot: () => 
       workspaceRoot: workspaceRoot(), pluginId, resolveEnabled, actor: PROVIDER_LINK_ACTOR }),
     isFaceActive: async ({ pluginId }) => agentPluginActivations.isAgentPluginActive({
       activations: await agentPluginActivations.readAgentPluginActivations({ workspaceRoot: workspaceRoot() }), pluginId }),
-    setFace: async ({ pluginId, enabled }) => {
-      await agentPluginActivations.setAgentPluginActivation({ workspaceRoot: workspaceRoot(), pluginId, enabled, actor: PROVIDER_LINK_ACTOR });
-    },
   };
 }
