@@ -27,6 +27,7 @@ import { dropUnusedDeploymentTables } from "./0004_drop_unused_deployment_tables
 import { chatBaseline } from "./chat/0000_chat_baseline.js";
 import { sqliteChatTables } from "./chat/0001_sqlite_chat_tables.js";
 import { durableRunAttempts } from "./chat/0002_durable_run_attempts.js";
+import { projectVault } from "./project/0000_project_vault.js";
 import { mediaCreatedBy } from "./0005_media_createdby.js";
 import { submissionIpRetentionMigration } from "./0006_submission_ip_retention.js";
 import { publishBackstop } from "./0007_publish_backstop.js";
@@ -105,6 +106,17 @@ export const CHAT_MIGRATIONS: readonly MigrationStep[] = [
   sqliteChatTables(pinned("chat/0001_sqlite_chat_tables")),
   durableRunAttempts({ checksum: pinned("chat/0002_durable_run_attempts") }, {}),
 ];
+
+/** `project.db`'s own history (files under `project/`, pinned as `project/NNNN_name`). */
+export const PROJECT_LEDGER_TABLE = "tovu_project_migrations";
+export const PROJECT_MIGRATIONS: readonly MigrationStep[] = [
+  projectVault(pinned("project/0000_project_vault")),
+];
+
+/** Brings a project database (`project.db`, SQLite; see `project-store.ts`) to head. */
+export function migrateProjectDatabase(kernel: StorageKernel<unknown>): Promise<MigrationReport> {
+  return runMigrations(kernel, PROJECT_MIGRATIONS, { ledgerTable: PROJECT_LEDGER_TABLE });
+}
 
 /** Brings a content database (any dialect) to head. See `runner.ts`. */
 export function migrateContentDatabase(kernel: StorageKernel<unknown>, optional: { backupPath?: string } = {}): Promise<MigrationReport> {

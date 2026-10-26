@@ -12,6 +12,7 @@ import { isNoopObservabilityPort } from "#src/platform/observability/index";
 import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 import { sqlitePluginActivationRepoFor } from "#src/features/plugin-runtime/repo.sqlite";
 import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
+import { openProjectStore } from "#src/server/runtime/composition/project-store";
 
 /**
  * @file Codex wave-2 HIGH #1: a configured provider plugin must really boot through the REAL composition
@@ -37,7 +38,7 @@ export default { definition: { setup(sdk) {
 `;
 
 async function installFakeProvider({ siteDir }: { siteDir: string }): Promise<string> {
-  const sourceDir = path.join(siteDir, "..", "fake-source");
+  const sourceDir = path.join(siteDir, "..", `fake-source-${path.basename(siteDir)}`);
   fs.mkdirSync(path.join(sourceDir, "server"), { recursive: true });
   fs.writeFileSync(path.join(sourceDir, "server/index.mjs"), ENTRY);
   const manifest = { id: PLUGIN_ID, name: "Boot fake", version: "1.0.0", sdkRange: "*", engine: 1, tier: "tier-3",
@@ -91,4 +92,39 @@ test("installed + enabled + configured provider plugin boots through the real co
     await closeSecond();
   }
   assert.equal((globalThis as { __providerBootFake?: string }).__providerBootFake, "disposed");
+});
+
+test("two sites of one project: settings saved from site A land in project.db and configure site B's provider", async (t) => {
+  const previousKey = process.env.TOVU_SITE_KEY;
+  process.env.TOVU_SITE_KEY = "cd".repeat(32);
+  t.after(() => { if (previousKey === undefined) delete process.env.TOVU_SITE_KEY; else process.env.TOVU_SITE_KEY = previousKey; });
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-provider-project-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const sitesHome = path.join(root, "Tovu");
+  // Both apps resolve the same sites root, so both open <sites root>/project.db.
+  const projectStore = () => openProjectStore({ sitesHome, home: path.join(root, "home") });
+  const boot = async (name: string, { install = true }: { install?: boolean } = {}) => {
+    const siteDir = path.join(sitesHome, name);
+    fs.mkdirSync(siteDir, { recursive: true });
+    const version = install ? await installFakeProvider({ siteDir }) : "1.0.0";
+    let close = async () => {};
+    const deps = await createSiteRouteDeps(path.join(siteDir, "content.db"), { openProjectStore: projectStore,
+      siteBinding: { dir: siteDir, name, dirOverridden: true, switcherCompatible: false }, onStoreOpened: (store) => { close = () => store.close(); } });
+    await deps.identityReady;
+    return { deps, version, close: () => close() };
+  };
+  const a = await boot("site-a");
+  await a.deps.providerConfig!.write({ pluginId: PLUGIN_ID, config: { settings: { endpoint: "https://project-collector.example.test" }, secrets: {} } });
+  await a.close();
+  const b1 = await boot("site-b");
+  assert.equal(isNoopObservabilityPort(b1.deps.observability), true, "site B has not enabled the plugin yet");
+  await sqlitePluginActivationRepoFor({ store: b1.deps.contentKernel! }).save({ workspaceId: b1.deps.workspaceId, pluginId: PLUGIN_ID, version: b1.version, enabled: true, updatedAt: "2026-10-26" });
+  await b1.deps.pluginRuntimeReady;
+  await b1.close();
+  const b2 = await boot("site-b", { install: false });
+  try {
+    assert.equal(isNoopObservabilityPort(b2.deps.observability), false);
+    assert.match(String((globalThis as { __providerBootFake?: string }).__providerBootFake), /^https:\/\/project-collector\.example\.test\|/);
+    await b2.deps.pluginRuntimeReady;
+  } finally { await b2.close(); }
 });

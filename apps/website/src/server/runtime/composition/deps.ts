@@ -65,7 +65,8 @@ import { dirname, join, resolve, sep } from "node:path";
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { instrumentStorageKernel, trackFetch } from "#src/platform/observability/index";
 import { bootProviderPlugins } from "./provider-plugins.js";
-import { createVaultProviderConfigSource } from "./provider-config-source.js";
+import { createVaultProviderConfigSource, withProjectPrecedence } from "./provider-config-source.js";
+import { openProjectStore, type ProjectStore } from "./project-store.js";
 import { createAgentPluginStateStore } from "#src/features/api-connections/plugin-state";
 import { createApiConnectionVault } from "#src/features/api-connections/vault-stores";
 import { createTelemetryConsent } from "./telemetry-consent.js";
@@ -348,7 +349,8 @@ import { toTaxonomyOutbox } from "#src/features/taxonomy/index";
 import { createTermPurgeFollowUp, createTaxonomyPurgeFollowUp } from "#src/features/taxonomy/taxonomy-trash-follow-ups";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "#src/features/recovery/repo.memory";
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "#src/contracts/core/gated-mutations/composition";
-import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
+import { resolveRuntimeMode, type RuntimeMode } from "#src/contracts/core/runtime-mode";
+import { resolveSitesHome } from "#src/platform/site-dir/sites-home";
 import { wrapMailerWithPurposeGate } from "#src/platform/mail/purpose-scoped-mailer";
 import { createExternalMcpOAuthService, resolvePublicAssistantAvailability } from "#src/assistant/index";
 import { createSqliteDeviceAuthorizationStore } from "#src/platform/db/sqlite/oauth-pending-store.sqlite";
@@ -654,6 +656,8 @@ export function defaultChatDbPath(contentDbPath: string = defaultContentDbPath()
 export interface CreateSiteRouteDepsOverrides {
   /** Test seam: replaces provider-plugin selection/initialization (fakes; never a vendor call). */
   bootProviderPlugins: typeof bootProviderPlugins;
+  /** Test seam: the project store (`project-store.ts`); resolving to undefined means "none". */
+  openProjectStore: () => Promise<ProjectStore | undefined>;
   sqliteOpen: ContentDbOpenOptions["open"];
   /** DB placement may differ from the site root or from content.db. */
   chatDbPath: string;
@@ -1103,6 +1107,19 @@ export async function createSiteRouteDeps(
 /** The provider-plugin boot to run: the test seam when supplied, else the real selection. */
 function providerPluginBoot({ overrides }: { overrides: Partial<CreateSiteRouteDepsOverrides> }): typeof bootProviderPlugins {
   return overrides.bootProviderPlugins ?? bootProviderPlugins;
+}
+
+/**
+ * The project store both local apps share (`project-store.ts`); production (Fly, single site) has
+ * none — the project is the site there. A store that cannot open (unreadable key, damaged file) is
+ * reported and the site vault answers alone, so a project-level fault never stops a site booting.
+ */
+async function projectStoreFor({ overrides, runtimeMode }: { overrides: Partial<CreateSiteRouteDepsOverrides>; runtimeMode: RuntimeMode }): Promise<ProjectStore | undefined> {
+  const open = overrides.openProjectStore ?? (async () => runtimeMode === "production" ? undefined : openProjectStore({ sitesHome: resolveSitesHome({}), home: homedir() }));
+  return open().catch((error: unknown) => {
+    console.warn(`[project-store] project settings are unavailable; using this site's own: ${error instanceof Error ? error.message : String(error)}`);
+    return undefined;
+  });
 }
 
 /**
@@ -2001,9 +2018,13 @@ async function composeSiteRouteDeps(
   // `ObservabilityDeps` doc for the rule-of-two this mirrors. The storage kernels and guarded HTTP
   // clients below are decorated with the port (identity for the no-op port, so a default boot keeps
   // its exact objects). See `provider-plugins.ts`.
-  // Saved provider settings: sealed plugin-state rows in this site's vault (see provider-config-source.ts).
-  const providerConfigSource = createVaultProviderConfigSource({ workspaceId, scope: "site", state: createAgentPluginStateStore({ workspaceId,
-    vault: createApiConnectionVault({ repo: new SqlSecretsVaultRepo({ kernel: kernel as unknown as StorageKernel<SecretsVaultDatabase> }), keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, workspaceId }) }) });
+  // Saved provider settings: the project store when one is open, else sealed plugin-state rows in this
+  // site's vault (see provider-config-source.ts and project-store.ts).
+  const projectStore = await projectStoreFor({ overrides, runtimeMode });
+  if (projectStore) onStoreClose(() => projectStore.close({}));
+  const providerConfigSource = withProjectPrecedence({ site: createVaultProviderConfigSource({ workspaceId, scope: "site", state: createAgentPluginStateStore({ workspaceId,
+    vault: createApiConnectionVault({ repo: new SqlSecretsVaultRepo({ kernel: kernel as unknown as StorageKernel<SecretsVaultDatabase> }), keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, workspaceId }) }) }) },
+  projectStore ? { project: projectStore.config } : {});
   const providerPlugins = await providerPluginBoot({ overrides })({
     runtime: pluginRuntime,
     config: providerConfigSource,
