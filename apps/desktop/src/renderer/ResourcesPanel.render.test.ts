@@ -35,9 +35,9 @@ const Shell: typeof SettingsDialogShell = ({ tabs, onClose }) => createElement('
   createElement('button', { onClick: onClose }, 'Close'));
 
 test('one snapshot drives the chip and site figure, warnings and panel-open cadence request', () => {
-  assert.equal(memoryText({ bytes: 0 }), 'about 0 MB');
+  assert.equal(memoryText({ bytes: 0 }), '~0MB');
   assert.equal(memoryText({ bytes: null }), 'Memory unavailable');
-  assert.equal(memoryText({ bytes: 1_500_000_000 }), 'about 1.5 GB');
+  assert.equal(memoryText({ bytes: 1_500_000_000 }), '~1.5GB');
   assert.equal(resourceWarnings({ metrics }), 'High memory use · Sustained high CPU use');
   assert.equal(resourceWarnings({ metrics: null }), '');
 });
@@ -52,8 +52,8 @@ test('chip is a focusable dialog trigger; all readers share data and close resto
     children: createElement(React.Fragment, null, createElement(ResourcesChip), createElement(ResourceSiteFigure, { project: SITE })),
   }));
   const chip = host.querySelector<HTMLButtonElement>('.resources-chip')!;
-  assert.equal(chip.textContent, 'Memory: about 1.5 GB · High memory use · Sustained high CPU use');
-  assert.equal(host.querySelector('.card__resources')!.textContent, 'about 1.5 GB · High memory use · Sustained high CPU use');
+  assert.equal(chip.textContent, 'Memory: ~1.5GB · High memory use · Sustained high CPU use');
+  assert.equal(host.querySelector('.card__resources')!.textContent, '~1.5GB · High memory use · Sustained high CPU use');
   assert.equal(chip.getAttribute('aria-haspopup'), 'dialog');
   chip.focus(); assert.equal(document.activeElement, chip);
   act(() => chip.click());
@@ -70,8 +70,8 @@ test('rows join by identity, exclude external/stopped sites and withdraw stale p
   const projects = [SITE, duplicateName, { ...SITE, id: '/external', externalUrl: 'http://localhost:4000' }, { ...SITE, id: '/stopped', status: 'stopped' as const }];
   const rows = resourceRows({ projects, snapshot: SNAPSHOT, statusOf: (site) => site.status });
   assert.deepEqual(rows.map((row) => row.id), [SITE.id, duplicateName.id, 'tovu-app']);
-  assert.equal(rows[0]!.metaLine, 'about 1.5 GB · CPU 81% of one core · High memory use · Sustained high CPU use');
-  assert.equal(rows[0]!.detailLine, 'Site server: node (PID 42), about 1.5 GB · CPU unavailable');
+  assert.equal(rows[0]!.metaLine, '~1.5GB · CPU 81% of one core · High memory use · Sustained high CPU use');
+  assert.equal(rows[0]!.detailLine, 'Site server: node (PID 42), ~1.5GB · CPU unavailable');
   assert.equal(rows[1]!.metaLine, 'Memory unavailable · CPU unavailable');
   assert.deepEqual(rows[2]!.actions, []);
   const unavailable = resourceRows({ projects: [SITE], snapshot: { ...SNAPSHOT, status: 'unavailable' }, statusOf: (site) => site.status });

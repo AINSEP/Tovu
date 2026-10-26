@@ -32,8 +32,8 @@ test('App: the header chip and running card display the same resource snapshot',
       sites: [{ ...metrics, siteId: 'a', processes: [] }],
     }),
   });
-  assert.equal(app.container.querySelector('.topnav__tools .resources-chip')?.textContent, 'Memory: about 250 MB');
-  assert.equal(app.container.querySelector('article.card .card__resources')?.textContent, 'about 250 MB');
+  assert.equal(app.container.querySelector('.topnav__tools .resources-chip')?.textContent, 'Memory: ~250MB');
+  assert.equal(app.container.querySelector('article.card .card__resources')?.textContent, '~250MB');
 });
 
 test('App: a stopped site\'s tab offers Start and shows the boot wait with the button disabled', async (t) => {

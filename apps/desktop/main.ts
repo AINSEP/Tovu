@@ -1877,7 +1877,7 @@ app
         // never correctness. See sweepSitePreviewsOnBoot's own doc.
         sweep: () => sweepSitePreviewsOnBoot(sitesCtx.projectsPath),
       });
-      registerAppVersionIpc({ ipcMain, app });
+      registerAppVersionIpc({ ipcMain, app }, { repoRoot: REPO_ROOT });
       registerResourcesIpc({ ipcMain,
         allowed: (url) => url === pathToFileURL(SITES_RENDERER_PATH).href,
         monitor: createDesktopResources({ desktopPid: process.pid, platform: process.platform,
