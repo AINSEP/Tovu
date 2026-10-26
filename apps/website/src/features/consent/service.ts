@@ -11,7 +11,7 @@ import { CONSENT_CATEGORIES, CONSENT_MAX_AGE_MS, CONSENT_MAX_CSS_LENGTH, CONSENT
 import { SITE_CONSENT_BANNER_MODES, SITE_CONSENT_DEFAULT_CSS, SITE_CONSENT_DEFAULTS, SITE_CONSENT_PLACEMENTS, SITE_CONSENT_TEXT_LIMITS, withSiteConsentDefaultCss } from './config.js';
 import { consentPagePath } from './request.js';
 import { consentDryRun, type ConsentDryRunGate } from './readiness.js';
-import { withSiteBannerMode } from './cookie-consent.js';
+import { renderSiteConsentPreview, withSiteBannerMode } from './cookie-consent.js';
 
 export interface ConsentServicePorts {
   workspaceId: string;
@@ -104,7 +104,8 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
     }
   };
   /** Render the real gated page into an inert iframe document for the separate admin UI.
-   * Returned HTML must only be used in a sandbox without scripts, forms or same-origin access. */
+   * Returned HTML must only be used in a sandbox without scripts, forms or same-origin access.
+   * The cookie-consent renderer also returns dropped-style warnings, separate from blockers. */
   const preview = async ({ principalId, path = '/', config: proposed }: { principalId: string; path?: string; config?: unknown }, _optional = {}) => {
     const state = await read({ principalId });
     const config = sampleConsentConfig({ state, proposed });
@@ -113,9 +114,10 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
     if (!isCompleteConsentPage({ page })) throw new ToolInputError({ message: 'Preview requires one complete rendered page of at most 1 MB.' });
     const result = consentDryRun({ html: page.html, config }, { gate: ports.consentGate });
     if (result.gatedHtml === null) throw new ToolInputError({ message: 'The consent engine could not safely render the preview.' });
-    return { html: result.gatedHtml, blockingProblems: [...await problems({ config }), ...result.problems], sandbox: '', revisionId: state.draft?.id ?? state.published?.id ?? null };
+    const diagnostics = ports.cookieConsent ? { warnings: renderSiteConsentPreview({ config, policy: config.policyVersion }).problems.map(problem => ({ ...problem, field: 'appearance' })) } : {};
+    return { html: result.gatedHtml, blockingProblems: [...await problems({ config }), ...result.problems], ...diagnostics, sandbox: '', revisionId: state.draft?.id ?? state.published?.id ?? null };
   };
-  /** Append an immutable draft; invalid CSS is saved for editing but cannot be published. */
+  /** Append an immutable draft; the legacy engine blocks invalid CSS, cookie-consent drops it. */
   const saveDraft = async ({ principalId, config: value, expectedDraftId }: { principalId: string; config: unknown; expectedDraftId: string | null }, _optional = {}) => {
     const store = await authorize({ principalId, write: true });
     const parsed = parseConsentConfig({ value });

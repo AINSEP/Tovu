@@ -15,6 +15,7 @@ const t = (key: string) => key;
 const useTranslate = () => ({ t, dictionary: {} });
 const delays = { autosaveMs: 0, previewMs: 0 };
 const withDraft = consentSnapshot({ draft: revision('d1'), published: revision('p1') });
+const cookieConsentSnapshot = consentSnapshot({ ...withDraft, editor: { ...withDraft.editor, bannerModes: ['jini', 'headless', 'off'] } });
 
 function renderPage(port: ConsentRevisionsPort, tabId: string | null = 'banner') {
   return render(<CookieConsent tabId={tabId} port={port} useTranslate={useTranslate} delays={delays} />);
@@ -208,6 +209,57 @@ describe('CookieConsent: draft first', () => {
   it('edits the draft config, not the live one', async () => {
     renderPage(fakeConsentPort({ get: () => Promise.resolve(consentSnapshot({ draft: revision('d1', { ...CONSENT_CONFIG, title: 'Draft title' }) })) }));
     expect(await screen.findByLabelText('Banner title')).toHaveValue('Draft title');
+  });
+});
+
+describe('CookieConsent: cookie-consent engine', () => {
+  it('autosaves each server-supplied banner mode and restores the saved choice on reload', async () => {
+    let config = { ...CONSENT_CONFIG };
+    const saveDraft = vi.fn<ConsentRevisionsPort['saveDraft']>(async ({ config: next }) => {
+      config = next;
+      return { revision: revision('d2', config), blockingProblems: [] };
+    });
+    const port = fakeConsentPort({
+      get: async () => ({ ...cookieConsentSnapshot, draft: revision('d1', config) }), saveDraft,
+    });
+    const view = renderPage(port);
+    expect(await screen.findByRole('radio', { name: 'Jini banner' })).toBeChecked();
+    for (const [label, mode] of [['My own', 'headless'], ['None', 'off'], ['Jini banner', 'jini'], ['My own', 'headless']]) {
+      fireEvent.click(screen.getByRole('radio', { name: label }));
+      await waitFor(() => expect(saveDraft).toHaveBeenLastCalledWith(expect.objectContaining({ config: expect.objectContaining({ bannerMode: mode, enabled: true }) })));
+    }
+    expect(screen.getByText('Your banner calls window.jiniConsent.set(...)')).toBeVisible();
+    view.unmount();
+    renderPage(port);
+    expect(await screen.findByRole('radio', { name: 'My own' })).toBeChecked();
+  });
+
+  it('keeps the old-engine Banner tab free of mode controls', async () => {
+    renderPage(fakeConsentPort());
+    await screen.findByRole('group', { name: 'Banner text' });
+    expect(screen.queryByRole('radio')).toBeNull();
+  });
+
+  it('shows CSS warnings beside the preview and still publishes the saved draft', async () => {
+    const publish = vi.fn<ConsentRevisionsPort['publish']>(async () => ({ published: true, revisionId: 'd2' }));
+    const warning = { field: 'appearance', code: 'selector', message: 'Selector was skipped.' };
+    renderPage(fakeConsentPort({
+      get: async () => cookieConsentSnapshot,
+      preview: async () => ({ html: '<p>preview</p>', blockingProblems: [], warnings: [warning], revisionId: 'd2' }),
+      saveDraft: async ({ config }) => ({ revision: revision('d2', config), blockingProblems: [] }), publish,
+    }), 'look');
+    fireEvent.change(await screen.findByLabelText('Custom CSS'), { target: { value: '#jini-consent [data-x] { color: #000; }' } });
+    expect(await screen.findByText('Some styles were skipped. You can still publish.')).toBeInTheDocument();
+    expect(screen.getByText('Selector was skipped.').closest('[role="status"]')).not.toBeNull();
+    await waitFor(() => expect(publishButton()).toBeEnabled());
+    fireEvent.click(publishButton());
+    await waitFor(() => expect(publish).toHaveBeenCalledWith({ draftId: 'd2', expectedPublishedId: 'p1' }));
+  });
+
+  it('does not show the new CSS warnings under the old engine', async () => {
+    renderPage(fakeConsentPort({ preview: async () => ({ html: '<p>preview</p>', blockingProblems: [], warnings: [{ message: 'New engine warning.' }], revisionId: null }) }), 'look');
+    await screen.findByTitle('Banner preview');
+    expect(screen.queryByText('New engine warning.')).toBeNull();
   });
 });
 
