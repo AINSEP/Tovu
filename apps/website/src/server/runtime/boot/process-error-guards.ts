@@ -105,7 +105,7 @@ export function installProcessErrorReporting(
   const exit = optional.exit ?? ((code: number) => process.exit(code));
   let crashing = false;
   const onRejection = (reason: unknown): void => {
-    tracker.error(reason instanceof Error ? reason : redactedError({ error: reason }), { operation: "process.unhandled_rejection", attributes: { process: processRole } });
+    tracker.error({ error: reason instanceof Error ? reason : redactedError({ error: reason }) }, { context: { operation: "process.unhandled_rejection", attributes: { process: processRole } } });
   };
   const onUncaught = (error: unknown): void => {
     if (crashing) return;
@@ -114,7 +114,7 @@ export function installProcessErrorReporting(
     const finish = (): void => { if (exited) return; exited = true; clearTimeout(deadline); exit(1); };
     const deadline = setTimeout(finish, optional.timeoutMs ?? 2_000);
     try {
-      tracker.error(error instanceof Error ? error : redactedError({ error }), { operation: "process.uncaught_exception", attributes: { process: processRole } });
+      tracker.error({ error: error instanceof Error ? error : redactedError({ error }) }, { context: { operation: "process.uncaught_exception", attributes: { process: processRole } } });
       (optional.log ?? console.error)("[uncaughtException] fatal; exiting after telemetry flush:", redactedError({ error }));
     } catch { /* A broken diagnostic sink must not skip the fatal drain and exit. */ } finally {
       void Promise.resolve().then(() => optional.flush?.()).catch(() => {}).finally(finish);

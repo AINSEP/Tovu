@@ -162,8 +162,7 @@ async function proxyAcceptedRun(
     const finalizer = assistantRunFinalizerFor({ ledger: deps.chatRunLedger, tracker: deps.tracker, observability: deps.observability }, {});
     const client = createHttpRunDaemonClient({ observability: deps.observability });
     const acceptance = createRunAcceptance({ store: durable, now: Date.now, mintRunId: randomUUID,
-      onAccepted: ({ run }) => deps.tracker.capture({ name: "assistant_run_started", userId: principal.id,
-        properties: { chatSurface: "admin", logicalRunId: run.messageId, eventId: `assistant-start:${run.messageId}` } }),
+      onAccepted: ({ run }) => deps.tracker.capture({ name: "assistant_run_started", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.messageId, eventId: `assistant-start:${run.messageId}` } }),
       launch: (required, optional) => client.launch!(required, optional),
       attach: (run) => finalizer.watch({ principalId: principal.id, conversationId: run.conversationId, message: run.message }),
     }, {});

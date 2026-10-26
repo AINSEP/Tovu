@@ -27,7 +27,7 @@ export function withToolUseEvents({ sink, tracker }: { sink: ToolAttemptAuditSin
     // Public attempts need a request-scoped visitor decision; operator consent cannot authorize them.
     if (!committed || required.phase === "requested" || required.principalId === "anonymous-visitor") return committed;
     const toolId = required.phase === "unknown-tool" ? "unknown" : required.toolId;
-    tracker.capture({ name: "assistant_tool_used", userId: required.principalId, properties: {
+    tracker.capture({ name: "assistant_tool_used", userId: required.principalId }, { properties: {
       toolId, outcome: required.phase, chatSurface: "admin", attemptId: required.attemptId,
       eventId: `assistant-tool:${required.attemptId}`,
     } });

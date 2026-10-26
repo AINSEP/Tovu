@@ -95,7 +95,7 @@ const hasMethods = ({ value, names }: { value: unknown; names: readonly string[]
 
 /** Domain-owned port checks; a plugin never supplies or replaces these validators. */
 export const PROVIDER_CONTRACTS: readonly PluginProviderContract[] = [
-  { contract: "observability", validate: ({ provider }) => hasMethods({ value: provider, names: ["trackRequest", "trackDbQuery", "trackOutboundCall", "trackAgentRun", "trackOperation", "reportError"] }) ? undefined : "not an ObservabilityPort" },
+  { contract: "observability", validate: ({ provider }) => hasMethods({ value: provider, names: ["trackRequest", "trackDbQuery", "trackOutboundCall", "trackAgentRun", "trackOperation", "reportError", "metric"] }) ? undefined : "not an ObservabilityPort" },
   { contract: "product_analytics", validate: ({ provider }) => hasMethods({ value: provider, names: ["capture", "identify"] }) && validAiCapability({ provider }) ? undefined : "not a ProductAnalyticsPort" },
   { contract: "ai_trace", validate: ({ provider }) => hasMethods({ value: provider, names: ["record"] }) ? undefined : "not an AiTraceSink" },
 ];
@@ -296,7 +296,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
     slot.initializationObserved = true;
     const event = { name: 'provider_initialized', userId: `site:${required.site.siteId}`,
       properties: { contract: slot.contract, providerId: slot.id, outcome, reasonClass } };
-    if (tracker) tracker.capture(event);
+    if (tracker) tracker.capture({ name: event.name, userId: event.userId }, { properties: event.properties });
     else initializations.push(event);
   }
   let closed = false;
@@ -388,7 +388,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
   tracker = ports.tracker;
   // Boot settles before a tracker exists. Flush only through the healthy, consenting facade;
   // local diagnostics remain authoritative when analytics itself failed to initialize.
-  for (const event of initializations) tracker.capture(event);
+  for (const event of initializations) tracker.capture({ name: event.name, userId: event.userId }, { properties: event.properties });
   initializations.length = 0;
   return { ...ports, telemetryStatus: delivery.read,
     observabilityEnabled: () => slots.some(slot => slot.contract === "observability" && slot.lease?.isCurrent({}) === true),

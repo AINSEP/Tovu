@@ -587,7 +587,7 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
     log: (entry) => {
       log(entry);
       const incident = siteAssistantIncident({ entry });
-      if (incident) deps.tracker.error(incident, { operation: "site_assistant.chat", attributes: { code: entry.code, errorId: entry.errorId } });
+      if (incident) deps.tracker.error({ error: incident }, { context: { operation: "site_assistant.chat", attributes: { code: entry.code, errorId: entry.errorId } } });
     },
   });
 
@@ -660,7 +660,7 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
         const logicalRunId = deps.idGen.newId();
         const capture = async (name: string, properties: Record<string, string | number | boolean>) => {
           if (!provenance?.consentProof || !await deps.visitorAnalyticsDeliveryAllowed?.({ proof: provenance.consentProof })) return;
-          (deps.visitorTracker ?? deps.tracker).capture({ name, userId: provenance.subjectId, properties: { chatSurface: "public", ...properties } });
+          (deps.visitorTracker ?? deps.tracker).capture({ name, userId: provenance.subjectId }, { properties: { chatSurface: "public", ...properties } });
         };
         const memberResolver = new DefaultMemberAccessResolver({
           sessions: deps.memberSessionRepo, subscriptions: deps.memberSubscriptionRepo, tiers: deps.memberTierRepo,

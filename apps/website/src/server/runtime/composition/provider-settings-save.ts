@@ -102,8 +102,7 @@ export async function saveProviderSettings({ config, pluginId, fields, values, r
   }
   const usage = await config.usage({ pluginId });
   const appliesAt = reapply ? await reapply({ pluginId }) : "restart";
-  for (const contract of new Set(telemetry?.contracts ?? [])) telemetry?.tracker.capture({ name: 'provider_configured', userId: telemetry.userId,
-    properties: { contract, pluginId, action: 'save' } });
+  for (const contract of new Set(telemetry?.contracts ?? [])) telemetry?.tracker.capture({ name: 'provider_configured', userId: telemetry.userId }, { properties: { contract, pluginId, action: 'save' } });
   const configured = usage.usedByThisSite && providerInputOf({ declaration: { contract: "", id: pluginId, contractVersion: 1, settings: fields }, saved: next.config }) !== undefined;
   return { saved: true, configured, ...usage, appliesAt };
 }

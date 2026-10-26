@@ -195,7 +195,7 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
       const input = requireInputRecord({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "member.manage" }, { entityType: "member" });
       const { member } = await createMember({ deps: { ...toMembersWriteServiceDeps(deps), onMemberCreated: ({ workspaceId, memberId, creationSource, initialState }) => {
-        deps.tracker?.capture({ name: "member_registered", userId: ctx.principal.id, properties: {
+        deps.tracker?.capture({ name: "member_registered", userId: ctx.principal.id }, { properties: {
           eventId: `member-registered:${workspaceId}:${memberId}`, creationSource, initialState,
         } });
       } }, input: { workspaceId: deps.workspaceId, email: requireString({ input, key: "email" }) } }, { name: optionalString({ input, key: "name" }) });

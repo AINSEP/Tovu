@@ -252,18 +252,18 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
         workspaceId: deps.workspaceId,
         entityType: "site-publish",
       });
-      if (!authorized) { deps.tracker.capture({ name: "site_publish_blocked", userId: principal.id, properties: { reasonClass: "auth", source: "admin" } }); return; }
+      if (!authorized) { deps.tracker.capture({ name: "site_publish_blocked", userId: principal.id }, { properties: { reasonClass: "auth", source: "admin" } }); return; }
 
       const parsed = parsePublishRequestBody(req.body);
       if (!parsed.ok) {
-        deps.tracker.capture({ name: "site_publish_blocked", userId: principal.id, properties: { reasonClass: "config", source: "admin" } });
+        deps.tracker.capture({ name: "site_publish_blocked", userId: principal.id }, { properties: { reasonClass: "config", source: "admin" } });
         res.status(400).json({ error: parsed.error });
         return;
       }
 
       const read = await readPublishTriggerConfig({ deps, targetId: parsed.targetId, raw: parsed.raw });
       if (!read.ok) {
-        deps.tracker.capture({ name: "site_publish_blocked", userId: principal.id, properties: { reasonClass: "config", source: "admin" } });
+        deps.tracker.capture({ name: "site_publish_blocked", userId: principal.id }, { properties: { reasonClass: "config", source: "admin" } });
         res.status(read.status).json(read.body);
         return;
       }
@@ -271,7 +271,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
       const consent = deps.siteConsent
         ? await deps.siteConsent.deploymentCheck({ principalId: principal.id, permission: 'system.publish' })
         : deploymentRefusal({ problems: [{ code: 'CONSENT_UNAVAILABLE', message: 'Cookie consent readiness is unavailable. No publish was started.' }] });
-      if (consent) { deps.tracker.capture({ name: "site_publish_blocked", userId: principal.id, properties: { reasonClass: "consent", source: "admin" } }); res.status(409).json(consent); return; }
+      if (consent) { deps.tracker.capture({ name: "site_publish_blocked", userId: principal.id }, { properties: { reasonClass: "consent", source: "admin" } }); res.status(409).json(consent); return; }
 
       // No `await` between this check and `startPublishRun` below — same single-synchronous-stretch
       // reasoning `export-site.ts`'s own trigger route documents, so two concurrent POSTs cannot both
@@ -280,7 +280,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
       // ONE shared slot in `static-publish/publish-run.ts`, so a concurrent trigger from either caller
       // is refused, not raced (Terra audit finding #1).
       if (getPublishRunSnapshot().status === "running") {
-        deps.tracker.capture({ name: "site_publish_blocked", userId: principal.id, properties: { reasonClass: "busy", source: "admin" } });
+        deps.tracker.capture({ name: "site_publish_blocked", userId: principal.id }, { properties: { reasonClass: "busy", source: "admin" } });
         res.status(409).json({ error: "a publish is already running", run: getPublishRunSnapshot() });
         return;
       }

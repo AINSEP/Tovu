@@ -741,7 +741,7 @@ async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, 
   const started = await startDaemonRun(req, res, run, principal.id, daemon);
   if (!started.ok) return;
   daemonRunId = started.daemonRunId;
-  return deps.tracker.trace("assistant.run", async (span) => {
+  return deps.tracker.trace({ name: "assistant.run", run: async (span) => {
     runTracker = span;
     if (closedEarly) {
       runTracker.setOutcome({ status: "canceled" });
@@ -763,7 +763,7 @@ async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, 
     const outcome = await drainAgUiStream(subscribedReader, { res, threadId: run.threadId, runId: run.runId, state });
     runFinished = true;
     runTracker.setOutcome(outcome);
-  }, { agent: { runId: daemonRunId, conversationId: run.threadId, agentName: run.agentId } });
+  } }, { agent: { runId: daemonRunId, conversationId: run.threadId, agentName: run.agentId } });
 }
 
 export function createAssistantAgUiModule(routeDeps: RouteDeps): ServerModuleHandle {
@@ -774,7 +774,7 @@ export function createAssistantAgUiModule(routeDeps: RouteDeps): ServerModuleHan
       app.post(AG_UI_RUN_PATH, (req: Request, res: Response, next: NextFunction) => {
         void handleAgUiRun(req, res, routeDeps).catch((error: unknown) => {
           console.error("[assistant-ag-ui] unhandled error", error);
-          routeDeps.tracker.error(error instanceof Error ? error : redactedError({ error }), { operation: "assistant.run" });
+          routeDeps.tracker.error({ error: error instanceof Error ? error : redactedError({ error }) }, { context: { operation: "assistant.run" } });
           if (res.headersSent) {
             writeAgUiEvent(res, { type: EventType.RUN_ERROR, message: "assistant failed" });
             res.end();

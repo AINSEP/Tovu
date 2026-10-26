@@ -81,7 +81,7 @@ export function applyRequestTracking(app: Express, deps: {
     res.setHeader(REQUEST_ID_HEADER, requestId);
     res.locals.requestId = requestId;
     const scope: ErrorReportScope = { reported: false };
-    void deps.tracker.trace("http.request", (span) => new Promise<void>((resolve) => {
+    void deps.tracker.trace({ name: "http.request", run: (span) => new Promise<void>((resolve) => {
       res.once("finish", () => {
         const durationMs = performance.now() - startedAt;
         // After an error reaches the app's final handler Express has already reset `req.baseUrl`
@@ -103,7 +103,7 @@ export function applyRequestTracking(app: Express, deps: {
       // Routing and the handler run inside the request's scope, so a DB query or outbound call they
       // make is recorded as this request's child. The facade contains adapters without scoping.
       runWithErrorReportScope({ scope, work: next });
-    }), { request: { method: req.method, path: req.path, requestId } }).catch(next);
+    }) }, { request: { method: req.method, path: req.path, requestId } }).catch(next);
   });
 }
 
@@ -116,10 +116,10 @@ function reportServerError({ tracker, req, res, scope, routePattern }: {
   marker.name = "ServerErrorResponse";
   marker.stack = `${marker.name}: ${marker.message}`;
   const principalId = (res.locals.principal as { id?: unknown } | undefined)?.id;
-  tracker.error(res.locals.routeError ?? marker, { operation: "http.request", attributes: {
+  tracker.error({ error: res.locals.routeError ?? marker }, { context: { operation: "http.request", attributes: {
     route: routePattern, method: req.method, status: res.statusCode, requestId: String(res.locals.requestId),
     ...(typeof principalId === "string" ? { principalId } : {}),
-  } });
+  } } });
 }
 
 /**

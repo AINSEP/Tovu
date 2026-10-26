@@ -263,7 +263,7 @@ function declaresProviders({ manifest }: { manifest: PluginManifest | undefined 
 export function composePluginRuntime(required: ComposePluginRuntimeRequired, _optional: Record<string, never> = {}): PluginRuntimeBindings {
   const { activationRepo, clock, sources, installDir } = required;
   const quarantineDeps = { clock, repo: activationRepo, onQuarantined: ({ pluginId }: { pluginId: string; workspaceId: string }) =>
-    required.productTracker?.().capture({ name: "plugin_quarantined", userId: "system", properties: { pluginId, pluginKind: "cms", reasonClass: "lifecycle" } }) };
+    required.productTracker?.().capture({ name: "plugin_quarantined", userId: "system" }, { properties: { pluginId, pluginKind: "cms", reasonClass: "lifecycle" } }) };
   // The install directory owns versions; its sibling runtime directory owns executable graphs.
   const snapshots = installDir === undefined ? undefined : createPluginModuleSnapshotLifecycle({ runtimeRoot: path.resolve(installDir) + "-runtime" });
   const pendingAttachments = new Set<Promise<void>>();
