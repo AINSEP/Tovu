@@ -34,6 +34,13 @@
             "required": true,
             "secret": true,
             "help": "Vercel: Account settings > Tokens."
+          },
+          {
+            "name": "blobToken",
+            "label": "Blob read-write token",
+            "secret": true,
+            "help": "Optional, only for site export share links. Vercel: Storage > your Blob store > .env.local, the BLOB_READ_WRITE_TOKEN value. Leave blank to only publish.",
+            "userHelp": "Optional. Only needed to share site exports as a download link. In Vercel, open Storage, pick (or create) a Blob store and copy its BLOB_READ_WRITE_TOKEN."
           }
         ]
       },

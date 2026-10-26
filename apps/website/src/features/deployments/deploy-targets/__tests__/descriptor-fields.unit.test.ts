@@ -220,7 +220,7 @@ test("the shipped hosting plugins declare the credential fields and vendors core
     return spec && { vendorId: spec.vendorId, tokenField: spec.tokenField, fields: spec.fields.map((field) => `${field.name}${field.required ? "*" : ""}${field.secret ? "!" : ""}`) };
   };
   assert.deepEqual(credential("github-pages"), { vendorId: "github", tokenField: "token", fields: ["token*!"] });
-  assert.deepEqual(credential("vercel"), { vendorId: "vercel", tokenField: "token", fields: ["token*!"] });
+  assert.deepEqual(credential("vercel"), { vendorId: "vercel", tokenField: "token", fields: ["token*!", "blobToken!"] });
   assert.deepEqual(credential("netlify"), { vendorId: "netlify", tokenField: "token", fields: ["token*!"] });
   assert.deepEqual(credential("cloudflare-pages"), { vendorId: "cloudflare", tokenField: "token", fields: ["token*!", "accountId*", "zoneId"] });
   assert.deepEqual(credential("s3-compatible"), {

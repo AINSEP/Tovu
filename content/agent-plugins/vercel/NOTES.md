@@ -11,3 +11,11 @@ behaviours generically; the vendor detail lives here.
 - **Deploy poll.** A publish blocks on Vercel's deployment poll (up to about a minute).
 - **Errors.** No code path puts `credential.token` into a `DeployError` message (verified when core's
   adapter boundary was written); core's message-only boundary holds regardless.
+- **Share links (Vercel Blob).** `object-stores/vercel-blob.mjs` is the plugin's artifact store for site
+  export share links, registered through `tovu-object-stores.json` as provider `vercel` so the share path
+  resolves the saved Vercel connection. It needs the optional `blobToken` credential field (a Blob
+  store's read-write token); without it the share falls back to download-only. Wire format mirrors
+  `@vercel/blob` `put()`/`del()` (API version 11) and has not been exercised against live Vercel yet.
+  No random suffix: the `_share/<64-hex>/` key is the unguessable part and `delete` only gets the key.
+  Verify is an anonymous HEAD of `<store>.public.blob.vercel-storage.com/<key>?download=1` checking
+  exact size and `application/zip`.
