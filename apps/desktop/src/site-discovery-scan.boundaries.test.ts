@@ -34,7 +34,8 @@ test('the real discovery scan refuses a broad root with the policy message inste
   assert.deepEqual(result, { error: 'Sites folder is too broad: /. Choose a specific folder containing your Tovu websites.' });
 });
 
-test('removeSiteTree with the real fs defaults removes a read-only tree, and never chmods through a symlink', async t => {
+// POSIX modes and an unprivileged symlink: not meaningful on Windows.
+test('removeSiteTree with the real fs defaults removes a read-only tree, and never chmods through a symlink', { skip: process.platform === 'win32' }, async t => {
   const base = tempRoot(t, 'tovu-remove-tree-');
   const outside = path.join(base, 'outside.txt');
   fs.writeFileSync(outside, 'keep');
