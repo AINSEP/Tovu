@@ -47,6 +47,7 @@ describe("PluginProviderSettingsDialog", () => {
     const notice = await screen.findByText(LEGACY_NOTICE);
     expect(notice.getAttribute("role")).toBe("note");
     fireEvent.change(screen.getByLabelText(/OTLP endpoint/), { target: { value: "https://new.example.test" } });
+    fireEvent.change(screen.getByLabelText(/OTLP headers/), { target: { value: "Authorization=Basic abc" } });
     fireEvent.submit(screen.getByRole("button", { name: "Save" }).closest("form")!);
     await waitFor(() => expect(screen.queryByText(LEGACY_NOTICE)).toBeNull());
   });
@@ -74,14 +75,18 @@ describe("PluginProviderSettingsDialog", () => {
     dialogWith(createFakePluginsPort({ providerSettings }));
     const endpoint = await screen.findByLabelText(/OTLP endpoint/);
     expect(screen.getByText("Saved for this site. Takes effect the next time Tovu starts.")).toBeTruthy();
-    fireEvent.change(endpoint, { target: { value: "https://new.example.test" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await screen.findByText("Settings saved.");
-    expect(providerSettings["observability-opentelemetry"].fields[0]!.value).toBe("https://new.example.test");
     expect(providerSettings["observability-opentelemetry"].fields[1]!.saved).toBe(true);
+    // A changed endpoint needs the saved secret entered again (it decides where the secret is sent).
+    fireEvent.change(endpoint, { target: { value: "https://new.example.test" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect((await screen.findByRole("alert")).textContent).toBe("Changing OTLP endpoint needs OTLP headers entered again.");
+    expect(providerSettings["observability-opentelemetry"].fields[0]!.value).toBe("https://old.example.test");
     fireEvent.change(screen.getByLabelText(/OTLP headers/), { target: { value: "Authorization=Basic abc" } });
     fireEvent.submit(screen.getByRole("button", { name: "Save" }).closest("form")!);
     await waitFor(() => expect((screen.getByLabelText(/OTLP headers/) as HTMLInputElement).value).toBe(""));
+    expect(providerSettings["observability-opentelemetry"].fields[0]!.value).toBe("https://new.example.test");
   });
 
   it("a load failure and a save failure are shown as alerts; Close and the backdrop close", async () => {
@@ -106,7 +111,8 @@ describe("fake port saves like the real route", () => {
     const port = createFakePluginsPort({ providerSettings: { p: card({ pluginId: "p" }) } });
     await expect(port.saveProviderSettings("p", { token: "x" })).rejects.toMatchObject({ code: "PROVIDER_SETTINGS_INVALID" });
     await expect(port.getProviderSettings("nope")).rejects.toMatchObject({ code: "PLUGIN_NOT_FOUND" });
-    const saved = await port.saveProviderSettings("p", { endpoint: " ", headers: "" });
+    await expect(port.saveProviderSettings("p", { endpoint: " ", headers: "" })).rejects.toMatchObject({ code: "PROVIDER_SETTINGS_SECRET_REENTRY" });
+    const saved = await port.saveProviderSettings("p", { endpoint: " ", headers: "a=b" });
     expect(saved.fields.map((field) => [field.saved, field.value])).toEqual([[false, ""], [true, undefined]]);
   });
 });

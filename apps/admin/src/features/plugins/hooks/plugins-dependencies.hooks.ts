@@ -102,6 +102,13 @@ export function createFakePluginsPort(options: FakePluginsPortOptions = {}): Plu
       if (Object.entries(values).some(([name]) => !card.fields.some((field) => field.name === name))) {
         throw new ApiError("values must map declared setting names to text", 400, "PROVIDER_SETTINGS_INVALID");
       }
+      // Like the server: a blank secret is kept only while every public field is unchanged.
+      const changed = card.fields.filter((field) => !field.secret && values[field.name] !== undefined && values[field.name]!.trim() !== (field.value ?? ""));
+      const kept = card.fields.filter((field) => field.secret && field.saved && !values[field.name]?.trim());
+      if (changed.length > 0 && kept.length > 0) {
+        const labels = (list: typeof kept) => list.map((field) => field.label).join(", ");
+        throw new ApiError(`Changing ${labels(changed)} needs ${labels(kept)} entered again.`, 400, "PROVIDER_SETTINGS_SECRET_REENTRY");
+      }
       const fields = card.fields.map((field) => {
         const value = values[field.name]?.trim();
         if (value === undefined) return field;
