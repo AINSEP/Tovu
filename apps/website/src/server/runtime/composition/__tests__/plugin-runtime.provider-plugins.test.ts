@@ -41,7 +41,7 @@ function fixture({ enabled = true, setupThrows = false, setupGate }: { enabled?:
 const boot = (runtime: ReturnType<typeof composePluginRuntime>, configured = true) => bootProviderPlugins({
   runtime, config: { scope: "site", readSettings: async () => null, write: async () => {},
     read: async () => configured ? { settings: { endpoint: "https://collector.example.test" }, secrets: {} } : null },
-  serviceName: "tovu", consent: () => false, consentRevision: () => 0,
+  serviceName: "tovu", site: { siteId: "ws", siteSlug: "s", environment: "local", projectId: "ws" }, consent: () => false, consentRevision: () => 0,
 }, { warn: () => {} });
 
 test("installed + enabled + configured: loaded once at boot, initialized, then retired by disable", async () => {

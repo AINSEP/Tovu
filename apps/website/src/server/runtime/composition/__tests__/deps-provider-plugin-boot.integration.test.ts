@@ -11,8 +11,8 @@ import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { isNoopObservabilityPort } from "#src/platform/observability/index";
 import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 import { sqlitePluginActivationRepoFor } from "#src/features/plugin-runtime/repo.sqlite";
-import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
-import { openProjectStore } from "#src/server/runtime/composition/project-store";
+import { openProjectStore, projectIdFor } from "#src/server/runtime/composition/project-store";
+import { createSiteRouteDeps, siteIdentityFor } from "#src/server/runtime/composition/deps";
 
 /**
  * @file Codex wave-2 HIGH #1: a configured provider plugin must really boot through the REAL composition
@@ -30,6 +30,7 @@ const noop = { end() {} };
 export default { definition: { setup(sdk) {
   sdk.providers.register({ contract: "observability", id: "boot_fake", contractVersion: 1, factory(required) {
     globalThis.__providerBootFake = required.endpoint + "|" + required.token + "|" + required.serviceName;
+    globalThis.__providerBootAttribution = required.attribution;
     const port = { trackRequest: () => noop, trackDbQuery: () => noop, trackOutboundCall: () => noop, trackAgentRun: () => noop,
       trackOperation: () => noop, reportError() {}, bootFake: true };
     return { port, dispose() { globalThis.__providerBootFake = "disposed"; } };
@@ -125,6 +126,16 @@ test("two sites of one project: settings saved from site A land in project.db an
   try {
     assert.equal(isNoopObservabilityPort(b2.deps.observability), false);
     assert.match(String((globalThis as { __providerBootFake?: string }).__providerBootFake), /^https:\/\/project-collector\.example\.test\|/);
+    // Site attribution reaches the provider factory: which site, which project, which environment.
+    assert.deepEqual((globalThis as { __providerBootAttribution?: unknown }).__providerBootAttribution, { attributes: {
+      "tovu.site.id": b2.deps.workspaceId, "tovu.site.slug": "site-b", "deployment.environment": "local", "tovu.project.id": projectIdFor({ sitesHome }) } });
     await b2.deps.pluginRuntimeReady;
   } finally { await b2.close(); }
+});
+
+test("siteIdentityFor: Fly (production) is its own project; desktop is detected from the Electron child env; else local", () => {
+  const base = { workspaceId: "ws-1", binding: { name: "blog" } };
+  assert.deepEqual(siteIdentityFor({ ...base, runtimeMode: "production", projectId: undefined }, { env: {} }), { siteId: "ws-1", siteSlug: "blog", environment: "fly", projectId: "ws-1" });
+  assert.deepEqual(siteIdentityFor({ ...base, runtimeMode: "local", projectId: "project-x" }, { env: { ELECTRON_RUN_AS_NODE: "1" } }), { siteId: "ws-1", siteSlug: "blog", environment: "desktop", projectId: "project-x" });
+  assert.equal(siteIdentityFor({ ...base, runtimeMode: "local", projectId: "project-x" }).environment, process.env.ELECTRON_RUN_AS_NODE === "1" ? "desktop" : "local");
 });
