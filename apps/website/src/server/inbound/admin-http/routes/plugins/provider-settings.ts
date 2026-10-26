@@ -3,7 +3,7 @@ import type { PluginProviderSettingField } from "@jini-ai/plugins/host";
 
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { ProviderConfigSource } from "#src/server/runtime/composition/provider-config-source";
+import { ProviderConfigUnreadableError, type ProviderConfigSource } from "#src/server/runtime/composition/provider-config-source";
 import type { PluginsRouteDeps } from "./deps.js";
 
 /**
@@ -53,6 +53,7 @@ async function cardOf({ deps, config, pluginId, fields }: { deps: ProviderSettin
   return {
     pluginId, store: config.scope, appliesAt: "next-start" as const,
     ...((await hasLegacyCredential({ deps, pluginId, saved })) ? { legacyCredential: true as const } : {}),
+    ...(saved?.unreadable ? { unreadable: true as const } : {}),
     fields: fields.map((field) => {
       const secret = field.secret === true;
       const value = secret ? undefined : saved?.settings[field.name];
@@ -100,6 +101,15 @@ function nextConfig({ body, fields, current }: { body: unknown; fields: readonly
   return { config: { settings, secrets } };
 }
 
+/** The saved config a save builds on. One this machine cannot open counts as nothing saved, so the save
+ *  overwrites it (the card has already asked for the settings again); any other failure surfaces. */
+async function currentConfig({ config, pluginId }: { config: ProviderConfigSource; pluginId: string }): Promise<SavedConfig | null> {
+  return config.read({ pluginId }).catch((error: unknown) => {
+    if (error instanceof ProviderConfigUnreadableError) return null;
+    throw error;
+  });
+}
+
 /** Shared guard: workspace, principal permission, plugin with declared settings, a configured store. */
 async function resolveCard({ req, res, deps, permission }: { req: Request; res: Response; deps: ProviderSettingsRouteDeps; permission: string }) {
   if (String(req.params.workspaceId ?? "") !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return undefined; }
@@ -125,7 +135,7 @@ export function registerPluginProviderSettingsRoutes(app: Express, deps: Provide
     try {
       const card = await resolveCard({ req, res, deps, permission: "admin.plugins.enable" });
       if (!card) return;
-      const next = nextConfig({ body: req.body, fields: card.fields, current: await card.config.read({ pluginId: card.pluginId }) });
+      const next = nextConfig({ body: req.body, fields: card.fields, current: await currentConfig(card) });
       if ("refusal" in next) { res.status(400).json(next.refusal); return; }
       await card.config.write({ pluginId: card.pluginId, config: next.config });
       res.json(await cardOf(card));

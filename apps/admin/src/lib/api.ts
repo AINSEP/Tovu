@@ -2205,6 +2205,9 @@ export interface AdminPluginProviderSettings {
   appliesAt: "next-start";
   /** A key was saved the retired way (wave 2's `plugin:<id>` API credential) and nothing yet the new way. */
   legacyCredential?: true;
+  /** Settings are saved but this machine can't open them (the store's key was lost or re-minted):
+   *  shown as not configured until they are entered again. */
+  unreadable?: true;
   fields: AdminPluginProviderSettingField[];
 }
 

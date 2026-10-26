@@ -108,8 +108,8 @@ export function createFakePluginsPort(options: FakePluginsPortOptions = {}): Plu
         if (field.secret) return { ...field, saved: field.saved || value !== "" };
         return { ...field, value, saved: value !== "" };
       });
-      // Like the server: once settings are saved the new way, the retired-key notice is gone.
-      const { legacyCredential: _retired, ...current } = card;
+      // Like the server: once settings are saved, the retired-key and can't-read notices are gone.
+      const { legacyCredential: _retired, unreadable: _unreadable, ...current } = card;
       options.providerSettings![id] = { ...current, fields };
       return options.providerSettings![id]!;
     },

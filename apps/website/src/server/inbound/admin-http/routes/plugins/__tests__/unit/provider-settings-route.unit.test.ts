@@ -4,7 +4,7 @@ import test, { type TestContext } from "node:test";
 import express from "express";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 
-import type { ProviderConfigSource, ProviderPluginConfig } from "#src/server/runtime/composition/provider-config-source";
+import { ProviderConfigUnreadableError, type ProviderConfigSource, type ProviderPluginConfig } from "#src/server/runtime/composition/provider-config-source";
 import { registerPluginProviderSettingsRoutes, type ProviderSettingsRouteDeps } from "../../provider-settings.js";
 
 /**
@@ -137,4 +137,26 @@ test("the retired-key check failing never breaks the card", async (t) => {
   const { status, json } = await call("GET", `${WS}/plugins/obs/provider-settings`);
   assert.equal(status, 200);
   assert.equal("legacyCredential" in json, false);
+});
+
+test("saved settings this machine can't open (lost or re-minted store key): the card reads as not configured with a notice, and a save overwrites them", async (t) => {
+  const { call, config } = await serve(t);
+  let unreadable = true;
+  const readSettings = config.readSettings;
+  const read = config.read;
+  config.readSettings = async (input) => (unreadable ? { settings: {}, secretNames: [], unreadable: true } : readSettings(input));
+  config.read = async (input) => { if (unreadable) throw new ProviderConfigUnreadableError({ pluginId: input.pluginId, cause: new Error("auth tag") }); return read(input); };
+  const before = await call("GET", `${WS}/plugins/obs/provider-settings`);
+  assert.equal(before.status, 200);
+  assert.equal(before.json.unreadable, true);
+  assert.deepEqual((before.json.fields as { saved: boolean }[]).map((field) => field.saved), [false, false]);
+  const saved = await call("PUT", `${WS}/plugins/obs/provider-settings`, { values: { endpoint: "https://otlp.example.test", headers: "a=b" } });
+  assert.equal(saved.status, 200);
+  assert.deepEqual(config.saved.get("obs"), { settings: { endpoint: "https://otlp.example.test" }, secrets: { headers: "a=b" } });
+  unreadable = false;
+  const after = await call("GET", `${WS}/plugins/obs/provider-settings`);
+  assert.equal("unreadable" in after.json, false);
+  // Any other read failure is still an error, never a silent overwrite.
+  config.read = async () => { throw new Error("db down"); };
+  assert.equal((await call("PUT", `${WS}/plugins/obs/provider-settings`, { values: { endpoint: "https://x.example.test" } })).status, 500);
 });

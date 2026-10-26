@@ -8,6 +8,7 @@ import test, { type TestContext } from "node:test";
 import Database from "better-sqlite3";
 
 import { ensureProjectKey, openProjectStore, projectDbPath, projectKeyFilePath } from "../project-store.js";
+import { ProviderConfigUnreadableError } from "../provider-config-source.js";
 
 /**
  * @file `project.db` on a real filesystem (temp dirs only): the project key is minted once (0600,
@@ -124,7 +125,12 @@ test("reopening keeps the data (own migration ledger, idempotent); a different p
   fs.writeFileSync(projectKeyFilePath({ home }), `${"ef".repeat(32)}\n`);
   const wrongKey = await openProjectStore({ sitesHome, home });
   t.after(() => wrongKey.close({}));
-  await assert.rejects(wrongKey.config.read({ pluginId: "analytics-posthog" }));
+  await assert.rejects(wrongKey.config.read({ pluginId: "analytics-posthog" }), ProviderConfigUnreadableError);
+  // The card reads it as not configured, with a notice, and a save overwrites the row (the user never fixes it by hand).
+  assert.deepEqual(await wrongKey.config.readSettings({ pluginId: "analytics-posthog" }), { settings: {}, secretNames: [], unreadable: true });
+  await wrongKey.config.write({ pluginId: "analytics-posthog", config: { settings: { host: "https://ph2.example.test" }, secrets: { apiKey: "phc2" } } });
+  assert.deepEqual(await wrongKey.config.read({ pluginId: "analytics-posthog" }), { settings: { host: "https://ph2.example.test" }, secrets: { apiKey: "phc2" } });
+  assert.deepEqual(await wrongKey.config.readSettings({ pluginId: "analytics-posthog" }), { settings: { host: "https://ph2.example.test" }, secretNames: ["apiKey"] });
 });
 
 test("a project.db that cannot be migrated is closed and the error surfaces", async (t) => {
