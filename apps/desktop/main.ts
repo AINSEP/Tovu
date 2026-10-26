@@ -142,7 +142,7 @@ import { registerRunnerIpcStubs } from "./src/runner-ipc-stubs.ts";
 import { registerAppVersionIpc } from "./src/app-version-ipc.ts";
 import { createDesktopResources } from "./src/desktop-resources.ts";
 import { createNoopTracker } from '@jini-ai/diagnostics/observability';
-import { installProcessErrorReporting } from '../website/src/server/runtime/boot/process-error-guards.ts';
+import { installProcessErrorReporting, installUnhandledRejectionGuard } from '../website/src/server/runtime/boot/process-error-guards.ts';
 import { bootDesktopProductTelemetry, desktopProductLaunch, reportDesktopProcessGone, reportDesktopServerExit } from './src/product-telemetry.ts';
 import { createProductConsentReader, readProductTelemetryPreference, writeProductTelemetryPreference, offerProductTelemetryConsent, productTelemetryMenu } from './src/product-telemetry-preference.ts';
 import { registerProductTelemetryIpc } from './src/product-telemetry-ipc.ts';
@@ -414,7 +414,6 @@ const openSites = createSiteSupervisor<OpenSite>({
 let desktopProduct: Awaited<ReturnType<typeof bootDesktopProductTelemetry>> = {
   tracker: createNoopTracker({}), launch: undefined, consentChanged() {}, async dispose() {},
 };
-let stopProductMemory: (() => void) | undefined;
 const productDisposers: (() => void)[] = [];
 // One cache/sampler serves the chip, Resources panel and product observations in every boot mode.
 const desktopResources = createDesktopResources({ desktopPid: process.pid, platform: process.platform,
@@ -432,6 +431,9 @@ async function initializeDesktopProductTelemetry(): Promise<void> {
     preferencePath, version: app.getVersion(), env: process.env });
   desktopProduct = await bootDesktopProductTelemetry({ launch, readConsent, crashReporter,
     launchMode: process.argv.some(arg => arg === '--squirrel-updated' || arg === '--updated') ? 'update' : 'fresh' });
+  // The reporter's rejection listener alone would silence Electron's own rejection warning; the
+  // guard keeps every rejection in the main log for the process's whole life (never disposed).
+  installUnhandledRejectionGuard();
   productDisposers.push(installProcessErrorReporting({ tracker: desktopProduct.tracker, processRole: 'desktop-main' }));
   // Speech's shared predicate also admits supervised admin origins; product IPC is shell-only.
   productDisposers.push(registerProductTelemetryIpc({ ipcMain,
@@ -443,17 +445,18 @@ async function initializeDesktopProductTelemetry(): Promise<void> {
     desktopPid: process.pid, rendererPids: () => new Set(webContents.getAllWebContents().map(contents => contents.getOSProcessId())),
     heapUsedBytes: () => process.memoryUsage().heapUsed, uptime: () => process.uptime(),
   });
-  stopProductMemory = memory.dispose;
+  productDisposers.push(memory.dispose);
   armFirstProductConsent();
 }
 
 /** Native consent follows the first visible window, including own-server/attach modes. */
 function armFirstProductConsent(): void {
   let offered = false;
-  app.on('browser-window-created', (_event, window) => {
+  const onWindow = (_event: unknown, window: BrowserWindow) => {
     const offer = () => {
       if (offered || !window.isVisible()) return;
       offered = true;
+      app.off('browser-window-created', onWindow);
       void offerProductTelemetryConsent({ active: Boolean(desktopProduct.launch),
         preference: readProductTelemetryPreference({ preferencePath: desktopPreferencesPath() }),
         show: options => dialog.showMessageBox(window, options),
@@ -466,7 +469,8 @@ function armFirstProductConsent(): void {
     };
     window.once('show', offer);
     window.webContents.once('did-finish-load', offer);
-  });
+  };
+  app.on('browser-window-created', onWindow);
 }
 
 /** Refresh checkbox state after the dialog without rebuilding other menus. */
@@ -2024,7 +2028,6 @@ app.on("before-quit", (event) => {
   // Discovery can still be in flight even with no open sites; include its disposal in the same
   // awaited drain. Repeated quit attempts must not start another disposal while that drain runs.
   if (quitPhase === "idle") {
-    stopProductMemory?.();
     for (const dispose of productDisposers) dispose();
     pendingTeardowns.track({ promise: desktopProduct.dispose() });
     pendingTeardowns.track({ promise: desktopAgentRuntime.dispose({}) });
