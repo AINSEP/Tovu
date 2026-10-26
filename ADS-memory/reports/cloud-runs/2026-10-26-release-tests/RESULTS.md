@@ -49,7 +49,7 @@ Tovu HEAD 9aa93fe4 on branch cloud/release-1026-results (from origin/cloud/relea
 MISSING (listed but absent on branch): packages/payments-stripe (12 files, whole package absent), packages/charts-recharts (10 files, whole package absent). Not run.
 No file failed to LOAD in any package that exists.
 
-### Jini failing tests (19 total)
+### Jini failing tests (14 failed tests total)
 | file :: test | first error line | class |
 |---|---|---|
 | provider-plugins observability-sentry :: release reaches the private client… | expected [] got [{name:'SpanStreaming'}] integrations | PRE-EXISTING (Sentry SpanStreaming) |
@@ -66,4 +66,52 @@ No file failed to LOAD in any package that exists.
 | ui LocalCliAgentCard :: reveals a CLI secret with the shared eye… | aria-pressed expected "true", got null | UNSURE, likely REGRESSION (component lacks aria-pressed) |
 | ui MediaProvidersTab :: toggles the API key field between masked and revealed | aria-pressed expected "false", got null | UNSURE, likely REGRESSION |
 | ui MediaProvidersTab :: renders every custom label when a full labels override is supplied | aria-pressed expected "false", got null | UNSURE, likely REGRESSION |
-(Count above lists 14 rows; remaining of the "19" earlier tally is not applicable — the exact failed totals per package are in the table.)
+
+## 2026-10-26T23:28:26Z — PROGRESS: Tovu lists done (soak next)
+
+### Tovu setup note
+- Tovu `apps/desktop` has its own node_modules with **registry** `@jini-ai/*` copies that lack the subpaths this branch imports (`@jini-ai/diagnostics/observability`, `@jini-ai/desktop-host/electron`). First desktop run: 4 files FAILED TO LOAD (desktop-resources, product-memory-telemetry, product-telemetry-ipc, product-telemetry, resources-ipc = 5 not-ok files). `npm run link:jini` does NOT cover apps/desktop. I symlinked apps/desktop/node_modules/@jini-ai/* to /root/Jini/packages/* (env fix only, nothing committed) and reran: all pass. Classification of first-run failure: ENV/SETUP (but note: desktop will fail to load these until a Jini version containing those subpaths is published / desktop is linked).
+- 3 website listed test files MISSING (deleted on branch): apps/website/src/platform/observability/__tests__/unit/{config,otel-default-pipeline,otel}.unit.test.ts.
+- Tovu `npm ci` fails on registry 404 for @jini-ai/cookie-consent (see above).
+
+### Tovu results (tests EXECUTED; TAP/vitest counts)
+| area | runner | passed | failed | skipped | load failures |
+|---|---|---|---|---|---|
+| apps/desktop (non-renderer, 17 files) | node:test | 208 (after link fix; first run 180 pass / 5 fail-to-load files) | 0 | 0 | 0 after fix |
+| apps/desktop renderer+contracts (9 files) | node:test | 64 | 0 | 0 | 0 |
+| apps/admin (43 files) | vitest | 1170 | 1 | 0 | 0 |
+| website+sdk+site-chat+content+dev-scripts batch nb-00 (30 files) | node:test | 527 | 0 | 3 | 0 |
+| batch nb-01 | node:test | 376 | 3 | 1 | 0 |
+| batch nb-02 | node:test | 687 | 4 | 1 | 0 |
+| batch nb-03 | node:test | 433 | 1 | 0 | 0 |
+| batch nb-04 | node:test | 296 | 2 | 0 | 0 |
+| batch nb-05 | node:test | 304 | 0 | 0 | 0 |
+| batch nb-06 | node:test | 669 | 5 | 0 | 0 |
+| batch nb-07 | node:test | 250 | 4 | 0 | 0 |
+(Counts are TAP "# pass/# fail" which include suite-level entries; batches nb-00..nb-07 cover the 236 non-vitest, non-admin, non-desktop files in order of tovu-tests.txt. No website file imports vitest.)
+
+### Tovu failing tests
+| file :: test | first error | class |
+|---|---|---|
+| apps/admin consent/consent-i18n.unit.test.tsx :: CONSENT_DICT translates every label… | expected ['About dynamic code'] to deeply equal [] (consent-i18n.unit.test.tsx:45) | REGRESSION (new Jini consent label has no Tovu translation) |
+| website agent-plugins/agent-plugin-search-discovery.integration :: negative control 'What plugins are installed…' still ranks content_read.plugin first | expected 'content_read.plugin', actual 'search_agent_plugin_local' | UNSURE, likely REGRESSION (ranking) |
+| website consent/service.test :: cookie-consent reports dropped CSS as preview warnings and still publishes… | deepEqual mismatch (expected/actual blank in TAP) | UNSURE (consent; not the known list) |
+| website consent/unit/cookie-consent.unit :: owner CSS reaches the preview; a bad rule is dropped alone | assertion fail, no detail in TAP | UNSURE (consent) |
+| website deployments/publish-agent-tools.unit :: publish cards can save distinct unattached project keys… | expected true, actual false | UNSURE |
+| website deployments/publish-agent-tools.unit :: submit: a first-time save creates exactly one s3-compatible row… | expected 'default', actual 'default-14735cdb-…' | UNSURE, likely REGRESSION |
+| website media-import/import-local-file.test :: imports video/mp4 by bytes… | deepEqual mismatch | UNSURE, likely REGRESSION (video ext) |
+| website media/resolve-media-public-urls.test :: mixed batch… | expected '…/original.mp4' actual '…/original.webm' | UNSURE, likely REGRESSION or Jini-version skew (video ext) |
+| website widgets/integration/mediawidget.integration :: audio shares player styling… | expected true actual false | UNSURE |
+| website server/routes/forms-submit.test :: live timing: a consented fast refusal emits no analytics… | deepEqual mismatch | UNSURE (**analytics**) |
+| website server/routes/forms-submit.test :: form analytics captures only a committed submission, never honeypots… | deepEqual mismatch | UNSURE (**analytics**) |
+| website public-http/http/site/render.test :: renderSite (video/embed)… | expected '<video src="/m/asset-1/original.mp4"…', actual '…original.webm…' | UNSURE, likely REGRESSION (same video-ext theme as above) |
+| website public-http/middleware/site-consent.test :: live HTML is gated and static export returns 409… | expected 409, actual 200 | UNSURE (**consent**) |
+| same file :: cached OFF cannot bypass consent after publishing ON when the next policy read fails | error 'Use automatic region mode for US opt-out. EU, UK and unknown regions must keep Reject.' | UNSURE (**consent**) |
+| same file :: a missing or malformed receipt in opt-out mode still denies optional categories | expected 409 actual 200 | UNSURE (**consent**) |
+| same file :: live defaults show consent; exports omit defaults, honor owner ON/OFF and block published ON | expected 409 actual 200 | UNSURE (**consent**) |
+| website runtime/composition/project-store.unit :: two processes opening a fresh project at the same moment… | child process SqliteError: database is locked (SQLITE_BUSY) at project-store.ts:154 | FLAKY/UNSURE: failed under 3 parallel streams, then 1 fail + 1 pass on two isolated reruns |
+| website runtime/composition/provider-plugins.unit :: env unset: site tracker/visitor/error/browser/AI behavior matches the existing port snapshot… | actual aiTraceSink is an object {capture,flush,record,shutdown}, expected undefined | UNSURE, likely REGRESSION (**observability/AI trace sink present when env unset**) |
+| same file :: env configured: product catalog projection is independent from site consent… | deepEqual mismatch | UNSURE (**observability**) |
+| packages/sdk sdk-public-api.unit :: SDK external type contracts are declared package dependencies | expected '^0.4.0 || ^0.5.0', actual '^0.6.10' | REGRESSION (stale test expectation vs package.json) |
+
+NOTE: because Jini is a *local linked checkout* (fe3f55a3), some mismatches (video ext, consent) could instead be Tovu/Jini version skew; I did not bisect (report-only).
