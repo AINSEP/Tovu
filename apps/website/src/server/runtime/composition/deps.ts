@@ -212,7 +212,7 @@ import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "#src/features/navi
 import { buildMenuTrashFollowUpHooks } from "#src/features/navigation/menu-trash-follow-ups";
 import { SqliteWebhookDeliveryRepo, SqliteWebhookSubscriptionRepo } from "#src/platform/db/sqlite/webhook-repo.sqlite";
 import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";
-import { readSiteMetaJson, resolveSiteKeyId, siteKeySources, siteKeyEnvOnlySources } from "#src/features/webhooks/site-key-sources";
+import { readSiteMetaId, resolveSiteKeyId, siteKeySources, siteKeyEnvOnlySources } from "#src/features/webhooks/site-key-sources";
 import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyring";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { SqliteSiteAssistantCredentialRepo } from "#src/platform/db/sqlite/site-credential-repo.sqlite";
@@ -1120,27 +1120,17 @@ async function composeProviderConfig({ overrides, runtimeMode, onStoreClose, sit
 }
 
 /**
- * This site's own id from its `.site-meta.json`: `siteId` (a randomUUID minted by init-site), else
- * the first-boot `siteKeyId` (the boot completes the file with `siteId` = that same id, so the name
- * holds across that first restart). Undefined when the file is missing or holds neither.
- * @complexity O(1), one small file read.
- */
-function siteMetaId(siteDir: string): string | undefined {
-  const meta = readSiteMetaJson(siteDir);
-  const id = typeof meta?.siteId === "string" && meta.siteId !== "" ? meta.siteId : meta?.siteKeyId;
-  return typeof id === "string" && id !== "" ? id : undefined;
-}
-
-/**
  * Which site sends every provider signal. NOT the workspace id: every starter-template site seeds the
  * same one (`workspace-local`), so two sites would report as one. The site's own `.site-meta.json` id
- * ({@link siteMetaId}) names it; the workspace id is only the last resort for a site with no readable
- * meta. The slug is the site folder's name; Fly (production) has no project store, so its project is
- * the site itself.
+ * (`readSiteMetaId`) names it. A deployed server usually has no meta (production never mints one), so
+ * next comes `TOVU_SITE_ID`, which `tovu deploy config` sets from the local site's meta: the deployed
+ * copy reports as the same site. The meta wins over the env so one env shared by several local sites
+ * can never merge them. The workspace id is only the last resort. The slug is the site folder's name;
+ * Fly (production) has no project store, so its project is the site itself.
  */
 export function siteIdentityFor({ workspaceId, binding, runtimeMode, projectId }: { workspaceId: string; binding: { name: string; dir: string }; runtimeMode: RuntimeMode; projectId: string | undefined }, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): SiteIdentity {
   const environment = runtimeMode === "production" ? "fly" : resolveApiConnectionRuntime({ env }) === "desktop" ? "desktop" : "local";
-  const siteId = siteMetaId(binding.dir) ?? workspaceId;
+  const siteId = readSiteMetaId(binding.dir) ?? (env.TOVU_SITE_ID || undefined) ?? workspaceId;
   return { siteId, siteSlug: binding.name, environment, projectId: projectId ?? siteId };
 }
 

@@ -9,7 +9,8 @@ import {
   type DeployConfigGeneratorRegistry,
   type RenderDeployConfigOptions,
 } from "../../features/deployments/index.js";
-import { resolveProductRoot, ValidationError } from "../../platform/site-dir/index.js";
+import { readSiteMetaId } from "../../features/webhooks/site-key-sources.js";
+import { resolveProductRoot, resolveSiteRoot, ValidationError } from "../../platform/site-dir/index.js";
 
 /**
  * @file `tovu deploy config --target <id> --region <region> [--out <file>]` — wires parsed argv to
@@ -94,6 +95,25 @@ async function loadGenerators(env: NodeJS.ProcessEnv, stderr: (message: string) 
 }
 
 /**
+ * The deployed server's site identity: `TOVU_SITE_ID` = the local site's own `.site-meta.json` id
+ * (the site this process serves: `TOVU_SITE_DIR`, else `TOVU_SITE`, else the default). Production
+ * never mints a meta of its own, so without this every deployed site reports as the shared starter
+ * workspace id (`deps.ts`'s `siteIdentityFor` reads it). A non-secret id, so it goes in the generated
+ * env block. Nothing is added for a site with no id yet, or when the site cannot be resolved (told on
+ * stderr): the config still renders.
+ * @complexity O(n) registered sites (`resolveSiteRoot`) plus one small file read.
+ */
+function siteIdentityEnv(env: NodeJS.ProcessEnv, stderr: (message: string) => void): Record<string, string> {
+  let siteId: string | undefined;
+  try {
+    siteId = readSiteMetaId(resolveSiteRoot({ env }));
+  } catch (error) {
+    stderr(`tovu deploy config: the site could not be resolved, so TOVU_SITE_ID is not set: ${error instanceof Error ? error.message : String(error)}\n`);
+  }
+  return siteId ? { TOVU_SITE_ID: siteId } : {};
+}
+
+/**
  * Run `tovu deploy config --target <t> --region <r> [--out <file>]`.
  *
  * @throws {ValidationError} an unknown `--target`, a missing/invalid `--region` (raised by the
@@ -115,7 +135,7 @@ export async function runDeployConfigCommand(input: RunDeployConfigCommandInput,
   }
 
   const descriptor = buildDeploymentDescriptor();
-  const options: RenderDeployConfigOptions = { region: input.region ?? "" };
+  const options: RenderDeployConfigOptions = { region: input.region ?? "", env: siteIdentityEnv(env, stderr) };
   const rendered = generator.module.render(descriptor, options, createDeployConfigKit());
 
   if (input.out !== undefined) {
