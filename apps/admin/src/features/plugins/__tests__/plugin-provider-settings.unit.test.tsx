@@ -51,6 +51,23 @@ function posthogDialog(providerSettings: Record<string, AdminPluginProviderSetti
 }
 
 describe("PluginProviderSettingsDialog", () => {
+  it('requires Token by default and updates the requirement only for the explicit local collector choice', async () => {
+    dialogWith(createFakePluginsPort({ providerSettings: { "observability-opentelemetry": card({ fields: [
+      { name: "auth", label: "Authentication", secret: false, required: true, saved: false, default: "token", options: [{ value: "token", label: "Token" }, { value: "none", label: "No authentication (local collector, advanced)" }] },
+      { name: "token", label: "Token", secret: true, required: true, saved: false, requiredUnless: { field: "auth", equals: "none" } },
+    ] }) } }));
+    const auth = await findControl(/^Authentication/);
+    const token = control(/^Token/);
+    expect(auth.value).toBe("token");
+    expect(token.getAttribute("aria-required")).toBe("true");
+    expect(token.value).toBe("");
+    fireEvent.change(auth, { target: { value: "none" } });
+    expect(token.hasAttribute("aria-required")).toBe(false);
+    expect(screen.getByLabelText(/^Token/, { selector: "input" }).closest(".provider-settings-field")!.querySelector(".provider-settings-required")).toBeNull();
+    fireEvent.change(auth, { target: { value: "token" } });
+    expect(token.getAttribute("aria-required")).toBe("true");
+  });
+
   it("renders the declared fields; a saved secret shows only that it is saved", async () => {
     dialogWith(createFakePluginsPort({ providerSettings: { "observability-opentelemetry": card() } }));
     const endpoint = await findControl(/OTLP endpoint/);
@@ -226,8 +243,9 @@ describe("fake port saves like the real route", () => {
     await expect(port.saveProviderSettings("p", { token: "x" })).rejects.toMatchObject({ code: "PROVIDER_SETTINGS_INVALID" });
     await expect(port.getProviderSettings("nope")).rejects.toMatchObject({ code: "PLUGIN_NOT_FOUND" });
     await expect(port.saveProviderSettings("p", { endpoint: " ", headers: "" })).rejects.toMatchObject({ code: "PROVIDER_SETTINGS_SECRET_REENTRY" });
-    const saved = await port.saveProviderSettings("p", { endpoint: " ", headers: "a=b" });
-    expect(saved.fields.map((field) => [field.saved, field.value])).toEqual([[false, ""], [true, undefined]]);
+    await expect(port.saveProviderSettings("p", { endpoint: " ", headers: "a=b" })).rejects.toMatchObject({ code: "PROVIDER_SETTINGS_REQUIRED" });
+    const saved = await port.saveProviderSettings("p", { endpoint: "https://old.example.test", headers: "a=b" });
+    expect(saved.fields.map((field) => [field.saved, field.value])).toEqual([[true, "https://old.example.test"], [true, undefined]]);
   });
 });
 

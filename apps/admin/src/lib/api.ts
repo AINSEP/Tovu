@@ -2199,6 +2199,7 @@ export interface AdminPluginProviderSettingField {
   allowCustom?: true;
   secret: boolean;
   required: boolean;
+  requiredUnless?: { readonly field: string; readonly equals: string };
   saved: boolean;
   value?: string;
 }

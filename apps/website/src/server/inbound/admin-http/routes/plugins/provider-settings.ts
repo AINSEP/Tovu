@@ -57,6 +57,7 @@ async function cardOf({ deps, config, pluginId, fields }: { deps: ProviderSettin
       const secret = field.secret === true;
       const value = secret ? undefined : saved?.settings[field.name];
       return { name: field.name, label: field.label, ...(field.hint ? { hint: field.hint } : {}), ...(secret ? {} : choicesOf(field)), secret, required: field.required === true,
+        ...(field.requiredUnless ? { requiredUnless: field.requiredUnless } : {}),
         saved: secret ? (saved?.secretNames.includes(field.name) ?? false) : value !== undefined && value !== "", ...(value === undefined ? {} : { value }) };
     }),
   };

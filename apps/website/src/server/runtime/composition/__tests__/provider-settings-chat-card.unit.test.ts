@@ -132,6 +132,20 @@ test("a provider plugin that is not installed opens no card", async () => {
   assert.equal(f.transcript, "");
 });
 
+test('the chat save refuses a missing conditional token with exact guidance and accepts explicit no auth', async () => {
+  const settings = [
+    { name: "auth", label: "Authentication", required: true, default: "token", options: [{ value: "token", label: "Token" }, { value: "none", label: "No authentication (local collector, advanced)" }] },
+    { name: "token", label: "Token", secret: true, required: true, requiredUnless: { field: "auth", equals: "none" }, hint: 'Choose "No authentication" only for a local collector.' },
+  ];
+  const conditional = { ...record, manifest: { contributes: { providers: [{ contract: "product_analytics", id: "posthog", contractVersion: 1, settings }] } } } as unknown as PluginDiscoveryRecord;
+  const refused = await fixture({ records: [conditional], submit: { auth: "token", token: "" } });
+  assert.deepEqual(refused.result, { saved: false, reason: "error", message: 'Token is required. Choose "No authentication" only for a local collector.' });
+  assert.equal(refused.project.rows.size, 0);
+  const local = await fixture({ records: [conditional], submit: { auth: "none", token: "" } });
+  assert.deepEqual(local.result, { saved: true, pluginId: PLUGIN, store: "project", appliesAt: "next-start" });
+  assert.deepEqual(local.project.rows.get(`project/${PLUGIN}/provider.config`), { settings: { auth: "none" }, secrets: {} });
+});
+
 test("provider_status reports presence only: configured, missing, store, never a value", async () => {
   const project = fakeState();
   const config = withProjectPrecedence({ site: createVaultProviderConfigSource({ state: fakeState().state, workspaceId: "ws", scope: "site" }) },
