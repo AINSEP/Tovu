@@ -13,7 +13,7 @@ type Ports = Parameters<typeof createOwnerStoreController>[0];
 const site = { id: 'tracked-a', siteDir: path.join(tmpdir(), 'canonical-a') };
 const backup = path.join(tmpdir(), 'shared.tovu-owner-backup');
 
-function fixture(options: { run?: Ports['run']; listSites?: Ports['listSites'] } = {}) {
+function fixture(options: { run?: Ports['run']; listSites?: Ports['listSites']; pickBackup?: Ports['pickBackup'] } = {}) {
   const calls: Parameters<Ports['run']>[0][] = [];
   let picks = 0;
   const run: Ports['run'] = async input => {
@@ -24,7 +24,7 @@ function fixture(options: { run?: Ports['run']; listSites?: Ports['listSites'] }
       export: { exported: true }, restore: { restored: 1 } } as Record<string, unknown>;
     return { version: 1, ok: true, action: input.action, data: data[input.action] } as OwnerStoreReply<typeof input.action>;
   };
-  const controller = createOwnerStoreController({ run, listSites: options.listSites ?? (() => [site]), pickBackup: async () => { picks++; return backup; } });
+  const controller = createOwnerStoreController({ run, listSites: options.listSites ?? (() => [site]), pickBackup: async input => { picks++; return options.pickBackup ? options.pickBackup(input) : backup; } });
   return { controller, calls, picks: () => picks };
 }
 const failed = (action: OwnerStoreAction) => ownerStoreFailure({ action, code: 'operation-failed' });
@@ -121,4 +121,20 @@ test('a grant whose post-write site listing throws reports the destination as si
   assert.equal(result.ok, true);
   assert.deepEqual(result.sync, [{ siteId: site.siteDir, reply: ownerStoreFailure({ action: 'sync', code: 'site-unavailable' }) }]);
   assert.deepEqual(f.calls.map(call => call.action), ['grant']);
+});
+
+test('a put syncs only the sites granted THIS entry; a cancelled backup picker never spawns', async () => {
+  const other = { id: 'tracked-b', siteDir: path.join(tmpdir(), 'canonical-b') };
+  const f = fixture({ listSites: () => [site, other], run: async input => {
+    const data: Record<string, unknown> = { put: { entry: { id: 'k' } }, sync: { consumerId: input.siteDir, results: [] },
+      list: { entries: [], grants: [{ entry_id: 'other-key', consumer_id: other.siteDir, created_at: 'x' }, { entry_id: 'k', consumer_id: site.siteDir, created_at: 'x' }] } };
+    return { version: 1, ok: true, action: input.action, data: data[input.action] } as OwnerStoreReply<typeof input.action>;
+  } });
+  await f.controller.execute({ action: 'put', input: { entry: { id: 'k' } } });
+  assert.deepEqual(f.calls.map(call => [call.action, call.siteDir]), [['put', undefined], ['list', undefined], ['sync', site.siteDir]]);
+  for (const action of ['export', 'restore'] as const) {
+    const cancelled = fixture({ pickBackup: async () => null });
+    assert.deepEqual(await cancelled.controller.execute({ action, input: { passphrase: 'pw' } }), ownerStoreFailure({ action, code: 'cancelled' }));
+    assert.deepEqual([cancelled.calls.length, cancelled.picks()], [0, 1]);
+  }
 });
