@@ -1,4 +1,5 @@
 import { CredentialHint } from "@/components/CredentialHint";
+import { SecretInput } from "@/components/SecretInput/SecretInput";
 import { forwardRef, useRef } from "react";
 import { OnboardingChipField } from "@jini-ai/ui";
 import { agentHandle, agentHandleSegment } from "@jini-ai/agentic";
@@ -512,9 +513,9 @@ function TokenInputFields({
             read as a login surface and the first text-like field (the search box) got the site's
             saved username. Fixing the search box's own attribute could not work: the search box was
             the symptom, these fields are the trigger. */}
-        <input
+        <SecretInput
+          label={info.tokenLabel ?? translate("Access token")}
           id={`${idPrefix}-token`}
-          type="password"
           autoComplete="new-password"
           value={token}
           onChange={(e) => onTokenChange(e.target.value)}
@@ -616,10 +617,11 @@ function ExtraFieldInput({
         {field.label}
         {field.required ? null : ` ${translate("(optional)")}`}
       </label>
-      <input
+      <SecretInput
+        label={field.label}
+        secret={field.secret === true}
         id={id}
-        type={field.secret ? "password" : "text"}
-        autoComplete={field.secret ? "new-password" : "off"}
+        autoComplete="new-password"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         {...agentHandle({ handle: id }, { role: "field", label: `This provider's ${field.label}` })}
@@ -887,7 +889,7 @@ function AdditionalHostsField({ value, onChange, translate }: { value: string; o
  */
 const AddCustomCredentialDialog = forwardRef<HTMLDialogElement, { controller: AccessTokensController; t: Translate }>(
   function AddCustomCredentialDialog({ controller, t: translate }, ref) {
-    const { showToken, toggleShowToken, readyToSave, baseUrlInvalid, close, save } = useAddCustomCredentialDialog(ref, controller);
+    const { readyToSave, baseUrlInvalid, close, save } = useAddCustomCredentialDialog(ref, controller);
     const form = controller.customAddForm;
     // Same `aria-labelledby` fix as `RemoveConfirmDialog` above — one instance of this dialog per
     // page, so a static id is fine (contrast the per-row `row.id`-scoped id there).
@@ -940,24 +942,15 @@ const AddCustomCredentialDialog = forwardRef<HTMLDialogElement, { controller: Ac
             {translate("Access token")}
             <RequiredFieldMarker />
           </label>
-          <div className="access-tokens-token-input-row">
-            <input
-              id="security-add-custom-token"
-              type={showToken ? "text" : "password"}
-              autoComplete="new-password"
-              value={form.token}
-              onChange={(e) => controller.setCustomAddField({ token: e.target.value })}
-              {...agentHandle({ handle: "security-access-tokens-add-custom-token" }, { role: "field", label: "This provider's access token" })}
-            />
-            <button
-              type="button"
-              className="access-tokens-token-toggle"
-              onClick={toggleShowToken}
-              {...agentHandle({ handle: "security-access-tokens-add-custom-token-toggle" }, { role: "button", label: showToken ? "Hide the access token" : "Show the access token" })}
-            >
-              {showToken ? translate("Hide") : translate("Show")}
-            </button>
-          </div>
+          <SecretInput
+            label={translate("Access token")}
+            id="security-add-custom-token"
+            autoComplete="new-password"
+            value={form.token}
+            onChange={(e) => controller.setCustomAddField({ token: e.target.value })}
+            {...agentHandle({ handle: "security-access-tokens-add-custom-token" }, { role: "field", label: "This provider's access token" })}
+            toggleAttrs={agentHandle({ handle: "security-access-tokens-add-custom-token-toggle" }, { role: "button", label: "Show or hide the access token" })}
+          />
           <p className="field-hint">{translate("This will not be shown again for security purposes.")}</p>
         </div>
         <div className="field">

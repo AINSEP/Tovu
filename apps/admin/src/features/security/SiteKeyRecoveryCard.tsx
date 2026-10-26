@@ -1,4 +1,5 @@
 import { AGENT_PRIVATE_ATTRIBUTE, agentHandle } from "@jini-ai/agentic";
+import { SecretInput } from "@/components/SecretInput/SecretInput";
 
 import { START_FRESH_CONFIRMATION, type SiteKeyRecoveryController } from "./hooks/use-site-key-recovery.hooks";
 
@@ -41,9 +42,9 @@ function SiteKeyUnlockForm({ recovery }: { recovery: SiteKeyRecoveryController }
     >
       <label htmlFor="site-key-recovery-key">{translate("Paste your old site key")}</label>
       <div className="site-key-recovery-row">
-        <input
+        <SecretInput
+          label={translate("Paste your old site key")}
           id="site-key-recovery-key"
-          type="password"
           // Chrome ignores "off" on a password field and offers a saved login password here; this is
           // a pasted secret, never a sign-in, so it uses "new-password" like every other secret field.
           autoComplete="new-password"

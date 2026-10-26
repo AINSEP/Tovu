@@ -1,4 +1,5 @@
 import { CredentialHint } from "@/components/CredentialHint";
+import { SecretInput } from "@/components/SecretInput/SecretInput";
 import { useState, type ReactNode } from "react";
 import { agentHandle } from "@jini-ai/agentic";
 
@@ -846,10 +847,11 @@ function CredentialFieldInput({
   return (
     <div className="field">
       <FieldLabel field={field} htmlFor={id} t={translate} />
-      <input
+      <SecretInput
+        label={field.label}
+        secret={field.secret === true}
         id={id}
-        type={field.secret ? "password" : "text"}
-        autoComplete={field.secret ? "new-password" : "off"}
+        autoComplete="new-password"
         value={row.values[field.name] ?? ""}
         onChange={(e) => controller.setField(row.providerId, field.name, e.target.value)}
         {...agentHandle({ handle: id }, {

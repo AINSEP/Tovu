@@ -770,10 +770,10 @@ describe("AccessTokensTab — AddCustomCredentialDialog", () => {
     const tokenInput = screen.getByLabelText(/^Access token/);
     expect(tokenInput).toHaveAttribute("type", "password");
 
-    fireEvent.click(screen.getByRole("button", { name: "Show" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show Access token" }));
     expect(tokenInput).toHaveAttribute("type", "text");
 
-    fireEvent.click(screen.getByRole("button", { name: "Hide" }));
+    fireEvent.click(screen.getByRole("button", { name: "Hide Access token" }));
     expect(tokenInput).toHaveAttribute("type", "password");
   });
 

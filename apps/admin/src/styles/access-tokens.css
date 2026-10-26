@@ -55,17 +55,6 @@
 }
 .access-tokens-add-custom-button:hover { opacity: 0.88; }
 
-/* The custom-provider form's Access token field — the one field on this page with a show/hide
-   toggle (`AccessTokensTab.tsx`'s own header on why this stays scoped to the custom form instead
-   of every catalog provider's shared `TokenInputFields`). */
-.access-tokens-token-input-row { display: flex; gap: var(--space-2); }
-.access-tokens-token-input-row input { flex: 1; }
-.access-tokens-token-toggle {
-  background: var(--surface-2); color: var(--fg-2); border: 1px solid var(--border-strong);
-  border-radius: var(--r-sm); padding: 0 0.75rem; cursor: pointer; font-size: var(--text-xs); font-weight: 600;
-}
-.access-tokens-token-toggle:hover { background: var(--surface-3, var(--surface-2)); }
-
 /* The "Add custom provider" dialog's required-field marker — Name/API base URL/Access token only
    (Username stays unmarked; Category always carries a value). Same `--danger` token `assistant.css`
    already uses for error/destructive states, with its own hardcoded fallback for parity. */

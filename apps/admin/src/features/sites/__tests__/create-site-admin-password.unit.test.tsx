@@ -85,9 +85,9 @@ describe("new-site admin credentials", () => {
     const custom = " chosen 🔑 ";
     await user.type(screen.getByLabelText("Folder name"), "custom-site");
     await user.type(password, custom);
-    await user.click(screen.getByRole("button", { name: "Show password" }));
+    await user.click(screen.getByRole("button", { name: "Show Set a different admin password" }));
     expect(password).toHaveAttribute("type", "text");
-    await user.click(screen.getByRole("button", { name: "Hide password" }));
+    await user.click(screen.getByRole("button", { name: "Hide Set a different admin password" }));
     expect(password).toHaveAttribute("type", "password");
     await user.click(screen.getByRole("button", { name: "Create site" }));
     await waitFor(() => expect(requests).toEqual([{ name: "custom-site", adminPassword: custom }]));

@@ -20,7 +20,8 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
  * (Composio key, create-site key): each was fixed one field at a time, and nothing stopped the next.
  *
  * Rules, checked over every non-test `.tsx` under `src/`:
- * 1. An `<input>`/`<Input>` whose `type` can be `password`, or whose id/name/label/placeholder names
+ * 1. An `<input>`/`<Input>` whose `type` can be `password` (and every `<SecretInput>`, the shared
+ *    eye-toggle field, which is a password input by definition), or whose id/name/label/placeholder names
  *    a credential (password, secret, token, API key, connection string, private key), carries an
  *    explicit `autoComplete`.
  * 2. A field whose `type` can be `password` never uses the literal `"off"`: Chrome ignores `off` on
@@ -99,8 +100,9 @@ function findCredentialInputs(file: string, source: string): InputFinding[] {
   const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const out: InputFinding[] = [];
   const visit = (node: ts.Node) => {
-    if ((ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) && /^(input|Input)$/.test(node.tagName.getText(sf))) {
-      let passwordType = false;
+    if ((ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) && /^(input|Input|SecretInput)$/.test(node.tagName.getText(sf))) {
+      // SecretInput renders type="password" itself (a `secret={false}` one forces "off" internally).
+      let passwordType = node.tagName.getText(sf) === "SecretInput";
       let credentialNamed = false;
       let autoComplete: string | null = null;
       let typeExpression: ts.Expression | undefined;
@@ -109,7 +111,7 @@ function findCredentialInputs(file: string, source: string): InputFinding[] {
         if (!ts.isJsxAttribute(prop)) continue;
         const name = prop.name.getText(sf);
         if (name === "type") {
-          passwordType = /password/.test(literalText(prop.initializer));
+          passwordType ||= /password/.test(literalText(prop.initializer));
           if (prop.initializer && ts.isJsxExpression(prop.initializer)) typeExpression = prop.initializer.expression;
         }
         else if (NAMING_ATTRS.has(name)) credentialNamed ||= CREDENTIAL.test(literalText(prop.initializer));
@@ -178,6 +180,12 @@ describe("findCredentialInputs: the detector", () => {
       expect(violations(findCredentialInputs("secret.tsx", `<input type="password" autoComplete=${value} />`))).toHaveLength(1);
     },
   );
+
+  it("treats every SecretInput as a password field", () => {
+    expect(violations(findCredentialInputs("secret.tsx", '<SecretInput label="Key" />'))).toEqual(["secret.tsx:1: credential input has no autoComplete"]);
+    expect(violations(findCredentialInputs("secret.tsx", '<SecretInput label="Key" autoComplete="off" />'))).toHaveLength(1);
+    expect(violations(findCredentialInputs("secret.tsx", '<SecretInput label="Key" autoComplete="new-password" />'))).toEqual([]);
+  });
 
   it("rejects sign-in autocomplete on a revealed API-key field", () => {
     expect(violations(findCredentialInputs("secret.tsx", '<input type="text" id="api-key" autoComplete="current-password" />'))).toHaveLength(1);

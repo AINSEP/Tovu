@@ -1,4 +1,5 @@
 import { CredentialHint } from "@/components/CredentialHint";
+import { SecretInput } from "@/components/SecretInput/SecretInput";
 import { agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
@@ -362,9 +363,9 @@ function SourceControlCredentialFields({
           <label className="field-label" htmlFor={`source-control-credentials-token-${row.providerId}`}>
             {info.tokenLabel !== undefined ? translate(info.tokenLabel) : translate("Access token")}
           </label>
-          <input
+          <SecretInput
+            label={info.tokenLabel !== undefined ? translate(info.tokenLabel) : translate("Access token")}
             id={`source-control-credentials-token-${row.providerId}`}
-            type="password"
             // `new-password`, not `off` — Chrome ignores `off` on credential-shaped fields by
             // design. See `security/AccessTokensTab.tsx`'s token input for the full reasoning.
             autoComplete="new-password"
@@ -411,10 +412,11 @@ function SourceControlCredentialFields({
             <label className="field-label" htmlFor={`source-control-credentials-${fieldNameHandleSegment(field.name)}-${row.providerId}`}>
               {translate(field.label)}
             </label>
-            <input
+            <SecretInput
+              label={translate(field.label)}
+              secret={field.secret === true}
               id={`source-control-credentials-${fieldNameHandleSegment(field.name)}-${row.providerId}`}
-              type={field.secret ? "password" : "text"}
-              autoComplete={field.secret ? "new-password" : "off"}
+              autoComplete="new-password"
               value={row.values[field.name] ?? ""}
               onChange={(e) => controller.setField(row.providerId, field.name, e.target.value)}
               {...agentHandle({ handle: `source-control-credentials-${fieldNameHandleSegment(field.name)}-${row.providerId}` }, {
