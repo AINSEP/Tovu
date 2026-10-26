@@ -222,11 +222,19 @@ for (const location of ["sibling", "override", "missing", "corrupt"] as const) {
     const content = new Database(join(h.dir, "content.db"));
     t.after(() => content.close());
     const tools = new Map(buildDatabaseTransferRegistrations({ ...h.deps, db: content }, { surfaceExchanges: h.surfaces }).map(tool => [tool.descriptor.id, tool]));
-    const chatTemps = async () => (await readdir(tmpdir())).filter(name => name.startsWith("tovu-transfer-chat-")).sort();
-    const tempsBefore = await chatTemps();
+    // FU-B (Codex on F6): a test-owned temp root (os.tmpdir() reads TMPDIR per call), so concurrent
+    // transfers elsewhere cannot fail this check, and a removed cleanup leaves nothing in the system temp.
+    const tempRoot = await mkdtemp(join(tmpdir(), "tovu-transfer-faults-"));
+    const previousTmp = process.env.TMPDIR;
+    process.env.TMPDIR = tempRoot;
+    t.after(async () => {
+      if (previousTmp === undefined) delete process.env.TMPDIR; else process.env.TMPDIR = previousTmp;
+      await rm(tempRoot, { recursive: true, force: true });
+    });
+    const chatTemps = async () => (await readdir(tempRoot)).filter(name => name.startsWith("tovu-transfer-chat-"));
     const result = await call(tools.get("database_transfer_plan")!, {}) as Record<string, unknown>;
     // F6 fix wave (L7 Stryker: the `finally` cleanup survived): success or failure, the backup's temp folder is removed.
-    assert.deepEqual(await chatTemps(), tempsBefore, "the chat backup's temporary folder is always removed");
+    assert.deepEqual(await chatTemps(), [], "the chat backup's temporary folder is always removed");
     if (location === "sibling" || location === "override") {
       assert.equal(result.planned, true, JSON.stringify(result));
       assert.equal(result.rowCount, 2);
