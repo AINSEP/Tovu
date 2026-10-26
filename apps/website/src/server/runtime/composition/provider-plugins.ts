@@ -77,7 +77,8 @@ export const PROVIDER_CONTRACTS: readonly PluginProviderContract[] = [
 
 export interface ProviderPluginRuntime {
   readonly providerContributions: PluginContributionRegistry;
-  loadProviderPlugins(required: { pluginIds: readonly string[] }, optional?: Record<string, never>): Promise<readonly string[]>;
+  /** `timeoutMs` bounds each plugin's import + setup; a plugin past it is revoked and left on the noop. */
+  loadProviderPlugins(required: { pluginIds: readonly string[] }, optional?: { timeoutMs?: number }): Promise<readonly string[]>;
 }
 
 export interface ProviderPluginPorts {
@@ -171,9 +172,10 @@ function composePorts({ leases, consent, consentRevision }: { leases: ReadonlyMa
 export async function bootProviderPlugins(required: BootProviderPluginsRequired, optional: BootProviderPluginsOptional = {}): Promise<ProviderPluginPorts> {
   const warn = optional.warn ?? ((message: string) => console.warn(`[provider-plugins] ${message}`));
   const configured = await configuredBindings({ bindings: optional.bindings ?? PROVIDER_PLUGIN_BINDINGS, readCredential: required.readCredential, warn });
-  const loaded = new Set(await required.runtime.loadProviderPlugins({ pluginIds: configured.map(({ binding }) => binding.pluginId) }));
+  const timeoutMs = optional.initializeTimeoutMs ?? 10_000;
+  const loaded = new Set(await required.runtime.loadProviderPlugins({ pluginIds: configured.map(({ binding }) => binding.pluginId) }, { timeoutMs }));
   const host = createPluginProviderHost({ contributions: required.runtime.providerContributions, contracts: PROVIDER_CONTRACTS }, {
-    initializeTimeoutMs: optional.initializeTimeoutMs ?? 10_000,
+    initializeTimeoutMs: timeoutMs,
     onError: ({ pluginId, phase }) => warn(`provider plugin '${pluginId}' ${phase} failed`),
   });
   const leases = new Map<ProviderContract, unknown[]>();
