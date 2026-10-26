@@ -23,7 +23,7 @@ import type { ProviderConfigSource, ProviderPluginConfig } from "./provider-conf
  * Order: initialized (awaited, each bounded by the provider host's timeout) before the composition
  * root decorates kernels and HTTP clients, so application work never starts on a half-built port.
  * Disposed with the site store. Disabling or quarantining a provider plugin retires its contribution
- * generation, which disposes its resources; its port then goes inert (`gatedPort`) until the next boot.
+ * generation, which disposes its resources; its port then goes inert (`gatedPort`) until it is reapplied.
  */
 
 export type ProviderContract = "observability" | "product_analytics" | "ai_trace";
@@ -114,10 +114,12 @@ export interface ProviderPluginRuntime {
 
 export interface ProviderPluginPorts {
   readonly observability: ObservabilityPort;
-  /** Already behind `withProductAnalyticsGuards` (consent first); the shared noop when unconfigured. */
+  /** Already behind `withProductAnalyticsGuards` (consent first); slots stay inert when unconfigured. */
   readonly productAnalytics: ProductAnalyticsPort;
-  /** Undefined without a trace provider or analytics AI capability: hosts then skip recording. */
+  /** Undefined when neither a trace nor analytics provider is declared; slots can activate live. */
   readonly aiTraceSink: AiTraceSink | undefined;
+  appliesAt(required: { pluginId: string }, optional?: Record<string, never>): "now" | "restart";
+  reapply(required: { pluginId: string }, optional?: Record<string, never>): Promise<"now" | "restart">;
   /** Idempotent; bounded per resource by the provider host. */
   dispose(required: Record<string, never>, optional?: Record<string, never>): Promise<void>;
 }
@@ -138,37 +140,26 @@ export interface BootProviderPluginsOptional {
   readonly warn?: (message: string) => void;
 }
 
-type Configured = { pluginId: string; contract: ProviderContract; id: string; input: Readonly<Record<string, string>> };
-
-const KNOWN_CONTRACTS = new Set<string>(["observability", "product_analytics", "ai_trace"]);
-
-async function configuredProviders({ runtime, config, warn }: { runtime: ProviderPluginRuntime; config: ProviderConfigSource; warn: (message: string) => void }): Promise<Configured[]> {
-  const configured: Configured[] = [];
-  for (const { pluginId, providers } of await runtime.listProviderPlugins({})) {
-    const saved = await config.read({ pluginId }).catch(() => {
-      warn(`provider plugin '${pluginId}': its settings could not be read; left on the noop`);
-      return null;
-    });
-    for (const declaration of providers.filter((candidate) => KNOWN_CONTRACTS.has(candidate.contract))) {
-      const input = providerInputOf({ declaration, saved });
-      if (input) configured.push({ pluginId, contract: declaration.contract as ProviderContract, id: declaration.id, input });
-    }
-  }
-  return configured;
+type ProviderSlot = { pluginId: string; contract: ProviderContract; id: string;
+  declaration: PluginProviderDeclaration; lease?: PluginProviderLease; input?: string };
+/** An absent input is already inert; a configured input must also retain a current generation. */
+function unchangedSlot({ slot, signature }: { slot: ProviderSlot; signature: string | undefined }, _optional = {}): boolean {
+  if (signature !== slot.input) return false;
+  return signature === undefined || slot.lease?.isCurrent({}) === true;
 }
+const KNOWN_CONTRACTS = new Set<string>(["observability", "product_analytics", "ai_trace"]);
 
 /** Fans product events out to every configured analytics port (normally one), isolating failures
  * and each provider's content opt-in. @complexity O(p) per event for p configured providers. */
 function fanOutProductAnalytics({ ports }: { ports: readonly ProductAnalyticsPort[] }): ProductAnalyticsPort {
-  const [only, ...rest] = ports;
-  if (only && rest.length === 0) return only;
   const each = (send: (port: ProductAnalyticsPort) => void) => { for (const port of ports) { try { send(port); } catch { /* one vendor never blocks another */ } } };
   return {
     capture: (event) => each((port) => port.capture(event)), identify: (identity) => each((port) => port.identify(identity)),
+    get includeAiContent() { return ports.some((port) => port.captureAiGeneration && port.includeAiContent === true); },
     ...(ports.some((port) => port.captureAiGeneration) ? {
-      includeAiContent: ports.some((port) => port.captureAiGeneration && port.includeAiContent === true),
       captureAiGeneration: (event: Parameters<NonNullable<ProductAnalyticsPort["captureAiGeneration"]>>[0]) => each((port) => {
         // Each provider owns its opt-in, even when another provider requests content.
+        // Recheck even a single provider: its policy can rotate during async consent.
         const { input: _input, output: _output, ...metadata } = event;
         port.captureAiGeneration?.(port.includeAiContent === true ? event : metadata);
       }),
@@ -190,16 +181,23 @@ const NOOP_PORTS: Readonly<Record<ProviderContract, () => object>> = {
  * trace sink without `flush`) take the noop path too.
  * @complexity O(m) at boot for m contract methods; O(1) per gated call.
  */
-function gatedPort({ lease, contract }: { lease: PluginProviderLease; contract: ProviderContract }): unknown {
+function gatedPort({ slot, contract }: { slot: ProviderSlot; contract: ProviderContract }): unknown {
   const noop = NOOP_PORTS[contract]() as Record<string, (...args: unknown[]) => unknown>;
-  const port = lease.port as Record<string, unknown>;
   const names = Object.keys(noop);
-  if (contract === "product_analytics" && typeof port.captureAiGeneration === "function") names.push("captureAiGeneration");
+  // Keep the optional hook available before attachment; every call follows the current slot.
+  if (contract === "product_analytics") names.push("captureAiGeneration");
   const gated = Object.fromEntries(names.map((name) => [name, (...args: unknown[]) => {
-    const live = port[name];
-    return lease.isCurrent({}) && typeof live === "function" ? live.apply(port, args) : noop[name]?.(...args);
+    const lease = slot.lease;
+    const port = lease?.port as Record<string, unknown> | undefined;
+    const live = port?.[name];
+    return lease?.isCurrent({}) && typeof live === "function" ? live.apply(port, args) : noop[name]?.(...args);
   }]));
-  if (contract === "product_analytics") Object.defineProperty(gated, "includeAiContent", { get: () => lease.isCurrent({}) && port.includeAiContent === true });
+  if (contract === "product_analytics") Object.defineProperty(gated, "includeAiContent", {
+    get: () => slot.lease?.isCurrent({}) === true && (slot.lease.port as ProductAnalyticsPort).includeAiContent === true,
+  });
+  if (contract === "ai_trace") Object.defineProperty(gated, "capture", {
+    get: () => slot.lease?.isCurrent({}) ? (slot.lease.port as AiTraceSink).capture : "metadata",
+  });
   return gated;
 }
 
@@ -208,17 +206,24 @@ function gatedPort({ lease, contract }: { lease: PluginProviderLease; contract: 
 function composePorts({ leases, consent, consentRevision, site }: { leases: ReadonlyMap<ProviderContract, unknown[]>; consent: ProductAnalyticsConsent; consentRevision: ProductAnalyticsConsentRevision; site: SiteIdentity }) {
   const analytics = (leases.get("product_analytics") ?? []) as ProductAnalyticsPort[];
   const sinks = [...(leases.get("ai_trace") ?? [])] as AiTraceSink[];
-  const productAnalytics = analytics.length === 0 ? createNoopProductAnalytics({})
-    : withProductAnalyticsGuards({ inner: fanOutProductAnalytics({ ports: analytics }), consent }, { consentRevision });
+  const inner = fanOutProductAnalytics({ ports: analytics });
+  // Jini snapshots capability flags at construction; the site wrappers must follow live opt-ins.
+  const productAnalytics = analytics.length === 0 ? createNoopProductAnalytics({}) : {
+    ...withProductAnalyticsGuards({ inner, consent }, { consentRevision }),
+    get includeAiContent() { return inner.includeAiContent === true; },
+  };
   // Site-scoped operator activity: consent is the site's telemetry setting; no synthetic person
   // identity or prompt-derived id is needed. The plugin attaches the same site group as other events.
   const generations = createAiGenerationSink({ analytics: productAnalytics, userId: `site:${site.siteId}` });
-  if (generations) sinks.push(generations);
+  if (generations) sinks.push({ ...generations, get capture() { return productAnalytics.includeAiContent === true ? "full" : "metadata"; } });
   return {
     observability: combineObservabilityPorts({ ports: (leases.get("observability") ?? []) as ObservabilityPort[] }),
     productAnalytics,
     shutdownGenerations: () => generations?.shutdown?.(),
-    aiTraceSink: sinks.length === 0 ? undefined : createFanOutAiTraceSink({ sinks }),
+    aiTraceSink: sinks.length === 0 ? undefined : {
+      ...createFanOutAiTraceSink({ sinks }),
+      get capture() { return sinks.some((sink) => sink.capture === "full") ? "full" as const : "metadata" as const; },
+    },
   };
 }
 
@@ -232,20 +237,68 @@ function composePorts({ leases, consent, consentRevision, site }: { leases: Read
  */
 export async function bootProviderPlugins(required: BootProviderPluginsRequired, optional: BootProviderPluginsOptional = {}): Promise<ProviderPluginPorts> {
   const warn = optional.warn ?? ((message: string) => console.warn(`[provider-plugins] ${message}`));
-  const configured = await configuredProviders({ runtime: required.runtime, config: required.config, warn });
   const timeoutMs = optional.initializeTimeoutMs ?? 10_000;
-  const loaded = new Set(await required.runtime.loadProviderPlugins({ pluginIds: [...new Set(configured.map(({ pluginId }) => pluginId))] }, { timeoutMs }));
+  const slots: ProviderSlot[] = (await required.runtime.listProviderPlugins({})).flatMap(({ pluginId, providers }) =>
+    providers.filter(declaration => KNOWN_CONTRACTS.has(declaration.contract)).map(declaration => ({ pluginId,
+      contract: declaration.contract as ProviderContract, id: declaration.id, declaration })));
+  const loaded = new Set<string>();
   const host = createPluginProviderHost({ contributions: required.runtime.providerContributions, contracts: PROVIDER_CONTRACTS }, {
     initializeTimeoutMs: timeoutMs,
     onError: ({ pluginId, phase }) => warn(`provider plugin '${pluginId}' ${phase} failed`),
   });
-  const leases = new Map<ProviderContract, unknown[]>();
-  for (const provider of configured.filter(({ pluginId }) => loaded.has(pluginId))) {
-    const lease: PluginProviderLease | undefined = await host.initialize({ contract: provider.contract, id: provider.id, input: { ...provider.input, serviceName: required.serviceName, attribution: attributionFor({ contract: provider.contract, site: required.site }) } })
-      // Class only: an SDK's construction error can quote the endpoint or DSN it was given.
-      .catch((error: unknown) => { warn(`provider plugin '${provider.pluginId}' did not initialize: ${error instanceof Error ? error.name : typeof error}`); return undefined; });
-    if (lease) leases.set(provider.contract, [...(leases.get(provider.contract) ?? []), gatedPort({ lease, contract: provider.contract })]);
+  const queues = new Map<string, Promise<"now" | "restart">>();
+  const applied = new Map<string, "now" | "restart">();
+  let closed = false;
+  async function replaceSlot(slot: ProviderSlot, saved: ProviderPluginConfig | null): Promise<void> {
+    const input = providerInputOf({ declaration: slot.declaration, saved });
+    const signature = input === undefined ? undefined : JSON.stringify(input);
+    if (unchangedSlot({ slot, signature })) return;
+    const old = slot.lease;
+    try {
+      const lease = input ? await host.initialize({ contract: slot.contract, id: slot.id,
+        input: { ...input, serviceName: required.serviceName, attribution: attributionFor({ contract: slot.contract, site: required.site }) } }) : undefined;
+      if (input && !lease) throw new Error("ProviderUnavailable");
+      slot.lease = lease;
+      slot.input = signature;
+    } catch (error) {
+      // A removed or changed key must never keep sending through the previous lease.
+      slot.lease = undefined;
+      slot.input = undefined;
+      throw error;
+    } finally { await old?.dispose({}); }
   }
+  async function apply({ pluginId }: { pluginId: string }): Promise<"now" | "restart"> {
+    if (closed) return "restart";
+    const selected = slots.filter(slot => slot.pluginId === pluginId);
+    if (selected.length === 0) return "restart";
+    try {
+      const saved = await required.config.read({ pluginId });
+      const configured = selected.some(slot => providerInputOf({ declaration: slot.declaration, saved }));
+      if (configured && (!loaded.has(pluginId) || !required.runtime.providerContributions.list({}).some(snapshot => snapshot.pluginId === pluginId))) {
+        const admitted = await required.runtime.loadProviderPlugins({ pluginIds: [pluginId] }, { timeoutMs });
+        if (!admitted.includes(pluginId)) throw new Error("ProviderUnavailable");
+        loaded.add(pluginId);
+      }
+      for (const slot of selected) await replaceSlot(slot, saved);
+      return "now";
+    } catch (error) {
+      const retired = selected.map(slot => { const lease = slot.lease; slot.lease = undefined; slot.input = undefined; return lease; });
+      await Promise.all(retired.map(lease => lease?.dispose({})));
+      // Class only: an SDK's construction error can quote the endpoint or DSN it was given.
+      warn(`provider plugin '${pluginId}' did not initialize: ${error instanceof Error ? error.name : typeof error}`);
+      return "restart";
+    }
+  }
+  function reapply(input: { pluginId: string }): Promise<"now" | "restart"> {
+    const next = (queues.get(input.pluginId) ?? Promise.resolve("now" as const)).then(() => apply(input));
+    const recorded = next.then(result => { applied.set(input.pluginId, result); return result; });
+    queues.set(input.pluginId, recorded);
+    return recorded;
+  }
+  const leases = new Map<ProviderContract, unknown[]>();
+  for (const slot of slots) leases.set(slot.contract, [...(leases.get(slot.contract) ?? []), gatedPort({ slot, contract: slot.contract })]);
+  await Promise.all([...new Set(slots.map(slot => slot.pluginId))].map(pluginId => reapply({ pluginId })));
   const { shutdownGenerations, ...ports } = composePorts({ leases, consent: required.consent, consentRevision: required.consentRevision, site: required.site });
-  return { ...ports, dispose: async () => { await shutdownGenerations(); await host.dispose({}); } };
+  return { ...ports, reapply, appliesAt: ({ pluginId }) => applied.get(pluginId) ?? "now",
+    async dispose() { closed = true; await Promise.all(queues.values()); await shutdownGenerations(); await host.dispose({}); } };
 }

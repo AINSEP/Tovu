@@ -278,3 +278,23 @@ test("a sites root that does not exist yet gets the id it will have once created
   assert.equal(projectIdFor({ sitesHome: viaLink }), before);
   assert.equal(projectIdFor({ sitesHome: path.join(root, "Documents", "Tovu") }), before);
 });
+
+
+test("0002 is recorded once; a pre-existing provider row is never auto-attached and two openers share references", async t => {
+  const { sitesHome, home } = dirs(t);
+  const first = await openProjectStore({ sitesHome, home });
+  const second = await openProjectStore({ sitesHome, home });
+  t.after(() => { second.close({}); first.close({}); });
+  const pluginId = "analytics-example";
+  await first.config.write({ pluginId, config: { settings: {}, secrets: { key: ["fake", "provider"].join("_") } } });
+  const keyId = `plugin-state:${pluginId}:provider.config`;
+  assert.deepEqual(await first.attachments.usersOf({ keyId }), []);
+  await first.attachments.attach({ siteId: "uuid-a", siteName: "A", keyId });
+  assert.equal(await second.attachments.isAttached({ siteId: "uuid-a", keyId }), true);
+  assert.equal(await second.attachments.isAttached({ siteId: "uuid-b", keyId }), false);
+  const rows = await second.providerRevisions({ siteId: "uuid-a" });
+  assert.deepEqual(rows.map(row => [row.id, row.revision]), [[keyId, 1]]);
+  const db = new Database(first.dbPath, { readonly: true });
+  try { assert.equal((db.prepare("SELECT count(*) AS n FROM tovu_project_migrations WHERE id='0002_site_key_attachments'").get() as { n: number }).n, 1); }
+  finally { db.close(); }
+});

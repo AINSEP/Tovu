@@ -1,3 +1,5 @@
+import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
+import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
@@ -43,7 +45,7 @@ function projectStore() {
   const keyring = new InMemoryKeyring();
   return { vault: new InMemoryVaultRepo({}), keyring, sealer: new AesGcmSecretSealer(keyring) };
 }
-type ProjectStoreFixture = ReturnType<typeof projectStore>;
+type ProjectStoreFixture = Omit<ReturnType<typeof projectStore>, "vault"> & { vault: import("@jini-ai/platform/secrets/credential-sets").VaultRepoPort };
 
 let ids = 0;
 /** One site: its own vault, with both credential stores' project halves over the same project vault
@@ -164,4 +166,20 @@ test("no project store (Fly): saves stay in the site vault and summaries carry n
   assert.deepEqual(await a.source.resolve({ workspaceId: SITE_A, target: "vercel" }), { ok: true, token, credentialId: saved.id });
   await deletePublishCredential(a.deps, { workspaceId: SITE_A, id: saved.id });
   assert.equal(await a.deps.repo.findById({ workspaceId: SITE_A, id: saved.id }), null);
+});
+
+
+test("deploy inventory and default selection see attached keys only; create returns its hidden saved row", async () => {
+  const project = projectStore(); const attachments = fakeAttachments();
+  const a = site({ ...project, vault: attachedOnlyVault({ vault: project.vault, siteId: SITE_A, attachments }) });
+  const saved = await saveVercel(a.deps, SITE_A, "attached-only", secret("publish"));
+  assert.equal(saved.scope, "project");
+  assert.equal(await findPublishCredentialRecord(a.deps, { workspaceId: SITE_A, id: saved.id }), null);
+  assert.equal(await resolveDefaultForPublish(a.deps, { workspaceId: SITE_A, providerId: "vercel" }), null);
+  await attachments.attach({ siteId: SITE_A, keyId: saved.id, siteName: "A" });
+  assert.equal((await resolveDefaultForPublish(a.deps, { workspaceId: SITE_A, providerId: "vercel" }))?.connection.token, secret("publish"));
+  const b = site({ ...project, vault: attachedOnlyVault({ vault: project.vault, siteId: SITE_B, attachments }) });
+  assert.deepEqual(await listPublishCredentials(b.deps, { workspaceId: SITE_B }), []);
+  await attachments.detach({ siteId: SITE_A, keyId: saved.id });
+  assert.deepEqual(await listPublishCredentials(a.deps, { workspaceId: SITE_A }), []);
 });

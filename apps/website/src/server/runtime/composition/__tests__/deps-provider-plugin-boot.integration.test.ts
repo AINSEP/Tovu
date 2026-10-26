@@ -121,6 +121,7 @@ test("two sites of one project: settings saved from site A land in project.db an
   };
   const a = await boot("site-a");
   await a.deps.providerConfig!.write({ pluginId: PLUGIN_ID, config: { settings: { endpoint: "https://project-collector.example.test" }, secrets: {} } });
+  assert.equal(await a.deps.providerConfig!.read({ pluginId: PLUGIN_ID }), null, "a new project row is not automatically used by its saving site");
   await a.close();
   const b1 = await boot("site-b");
   assert.equal(isNoopObservabilityPort(b1.deps.observability), true, "site B has not enabled the plugin yet");
@@ -129,6 +130,9 @@ test("two sites of one project: settings saved from site A land in project.db an
   await b1.close();
   const b2 = await boot("site-b", { install: false });
   try {
+    assert.equal(await b2.deps.providerConfig!.read({ pluginId: PLUGIN_ID }), null);
+    const attached = await b2.deps.projectKeys!.use({ keyId: `plugin-state:${PLUGIN_ID}:provider.config`, use: true });
+    assert.equal(attached.appliesAt, "now");
     assert.equal(isNoopObservabilityPort(b2.deps.observability), false);
     assert.match(String((globalThis as { __providerBootFake?: string }).__providerBootFake), /^https:\/\/project-collector\.example\.test\|/);
     // Site attribution reaches the provider factory: which site, which project, which environment.

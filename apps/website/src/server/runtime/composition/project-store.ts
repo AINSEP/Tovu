@@ -1,3 +1,5 @@
+import { sql } from "kysely";
+import { createKeyAttachments, type KeyAttachments, type ProjectKeyTransaction } from "#src/features/project-keys/attachments";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -165,12 +167,16 @@ function openProjectDb(dbPath: string): ReturnType<typeof openNativeSqlite> {
 export interface ProjectVaultScope {
   readonly workspaceId: string;
   readonly repo: VaultRepoPort;
+  readonly deletionRepo?: VaultRepoPort;
   readonly keyring: KeyringPort;
   readonly sealer: SecretSealerPort;
 }
 
 export interface ProjectStore {
   readonly projectId: string;
+  readonly attachments: KeyAttachments;
+  readonly transaction: ProjectKeyTransaction;
+  providerRevisions(required: { siteId: string }, optional?: Record<string, never>): Promise<readonly { id: string; revision: number; attached_at: string }[]>;
   readonly config: ProviderConfigSource;
   readonly vault: ProjectVaultScope;
   readonly dbPath: string;
@@ -210,5 +216,8 @@ export async function openProjectStore(
     clock: optional.clock ?? { nowMs: () => Date.now() }, workspaceId: PROJECT_WORKSPACE_ID });
   const config = createVaultProviderConfigSource({ workspaceId: PROJECT_WORKSPACE_ID, scope: "project",
     state: createAgentPluginStateStore({ vault, workspaceId: PROJECT_WORKSPACE_ID }) });
-  return { projectId, config, vault: scope, dbPath, close: () => closeSqliteConnection(db) };
+  return { projectId, config,
+    transaction: ({ run }) => kernel.transaction(run),
+    providerRevisions: ({ siteId }) => kernel.query<{ id: string; revision: number; attached_at: string }>(sql`SELECT v.id, v.revision, a.attached_at FROM site_key_attachments a JOIN secrets_vault v ON v.id=a.key_id AND v.workspace_id='project' WHERE a.site_id=${siteId} AND v.kind='api-connection' ORDER BY v.id`),
+    attachments: createKeyAttachments({ kernel: kernel as unknown as StorageKernel<unknown> }), vault: scope, dbPath, close: () => closeSqliteConnection(db) };
 }

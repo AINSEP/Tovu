@@ -11,6 +11,7 @@ import type { AdminPlugin, AdminPluginFiles, AdminPluginProviderSettings } from 
  * identical note).
  */
 export interface PluginsPort {
+  useProjectKey?(required: { keyId: string; use: boolean }, optional?: Record<string, never>): Promise<{ keyId: string; usedByThisSite: boolean; usedBy: string[]; appliesAt: "now" | "restart" }>;
   listPlugins(): Promise<{ plugins: AdminPlugin[]; installSources?: string[] }>;
   /** The route's own response is a partial patch echo (`id`/`version`/`enabled`/`updatedAt`) plus a
    *  `changeSetId`, not a full `AdminPlugin` — `use-plugins.hooks.ts` never reads it, always

@@ -1,3 +1,7 @@
+import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
+import { protectProjectKeyDeletes } from "#src/features/project-keys/protected-vault";
+import { createProjectKeys } from "#src/features/project-keys/service";
+import { watchProviderRevisions } from "./provider-revision-watch.js";
 import { defaultBundledSourceRoot } from "#src/features/agent-plugins/supersession";
 import { createReadyLoginProviderList } from "#src/features/member-login/ready-providers";
 import { createPluginExportRuntime } from "#src/features/agent-plugins/exports/runtime";
@@ -66,7 +70,7 @@ import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { instrumentStorageKernel, trackFetch } from "#src/platform/observability/index";
 import { bootProviderPlugins, legacyProviderCredentialCheck, type SiteIdentity } from "./provider-plugins.js";
 import { withToolUseEvents } from "./tool-use-events.js";
-import { createVaultProviderConfigSource, withProjectPrecedence, withUnavailableProject, type ProviderConfigSource } from "./provider-config-source.js";
+import { createVaultProviderConfigSource, withAttachedProject, withUnavailableProject, type ProviderConfigSource } from "./provider-config-source.js";
 import { openProjectStore, type ProjectStore, type ProjectVaultScope } from "./project-store.js";
 import { createAgentPluginStateStore } from "#src/features/api-connections/plugin-state";
 import { createApiConnectionVault } from "#src/features/api-connections/vault-stores";
@@ -1119,14 +1123,19 @@ function providerPluginBoot({ overrides }: { overrides: Partial<CreateSiteRouteD
  * when there is none (production); and when it is configured but fails to open, the site vault for
  * reads only, with saves refused (`withUnavailableProject`), never silently written to the site vault.
  */
-async function composeProviderConfig({ overrides, runtimeMode, onStoreClose, site }: {
-  overrides: Partial<CreateSiteRouteDepsOverrides>; runtimeMode: RuntimeMode; onStoreClose: (close: () => void) => void; site: ProviderConfigSource;
-}): Promise<{ providerConfigSource: ProviderConfigSource; projectId: string | undefined; projectVault?: ProjectVaultScope }> {
+async function composeProviderConfig({ overrides, runtimeMode, onStoreClose, site, binding }: {
+  overrides: Partial<CreateSiteRouteDepsOverrides>; runtimeMode: RuntimeMode; onStoreClose: (close: () => void) => void; site: ProviderConfigSource; binding: { dir: string; name: string };
+}): Promise<{ projectStore?: ProjectStore; providerConfigSource: ProviderConfigSource; projectId: string | undefined; projectVault?: ProjectVaultScope }> {
   const projectStore = await projectStoreFor({ overrides, runtimeMode });
   if (!projectStore) return { providerConfigSource: site, projectId: undefined };
   if ("unavailable" in projectStore) return { providerConfigSource: withUnavailableProject({ site, reason: projectStore.unavailable }), projectId: undefined };
   onStoreClose(() => projectStore.close({}));
-  return { providerConfigSource: withProjectPrecedence({ site }, { project: projectStore.config }), projectId: projectStore.projectId, projectVault: projectStore.vault };
+  const siteId = acceptedSiteId(readSiteMetaId(binding.dir), "site meta") ?? "";
+  if (siteId) await projectStore.attachments.renameSite({ siteId, siteName: binding.name });
+  const protectedVault = protectProjectKeyDeletes({ vault: projectStore.vault.repo, attachments: projectStore.attachments, siteId, transaction: input => projectStore.transaction(input) });
+  const repo = attachedOnlyVault({ vault: protectedVault, siteId, attachments: projectStore.attachments });
+  return { projectStore, providerConfigSource: withAttachedProject({ site }, { project: projectStore.config, attachments: projectStore.attachments, siteId, transaction: input => projectStore.transaction(input) }),
+    projectId: projectStore.projectId, projectVault: { ...projectStore.vault, repo, deletionRepo: protectedVault } };
 }
 
 /**
@@ -1137,10 +1146,10 @@ async function composeProviderConfig({ overrides, runtimeMode, onStoreClose, sit
  * which is safe because a site row always wins over a project row (unlike provider settings, whose
  * saves are refused then).
  */
-function credentialProject<R>(projectVault: ProjectVaultScope | undefined, repo: (vault: ProjectVaultScope["repo"]) => R): { project?: { workspaceId: string; repo: R; sealer: ProjectVaultScope["sealer"]; keyring: ProjectVaultScope["keyring"] } } {
+function credentialProject<R>(projectVault: ProjectVaultScope | undefined, repo: (vault: ProjectVaultScope["repo"]) => R): { project?: { workspaceId: string; repo: R; deletionRepo?: R; sealer: ProjectVaultScope["sealer"]; keyring: ProjectVaultScope["keyring"] } } {
   if (!projectVault) return {};
   const { workspaceId, sealer, keyring } = projectVault;
-  return { project: { workspaceId, repo: repo(projectVault.repo), sealer, keyring } };
+  return { project: { workspaceId, repo: repo(projectVault.repo), ...(projectVault.deletionRepo ? { deletionRepo: repo(projectVault.deletionRepo) } : {}), sealer, keyring } };
 }
 
 /** A site id from `source`, or undefined (warned) when it is not a short token. */
@@ -2077,7 +2086,7 @@ async function composeSiteRouteDeps(
   // its exact objects). See `provider-plugins.ts`.
   // Saved provider settings: the project store when one is open, else sealed plugin-state rows in this
   // site's vault (see provider-config-source.ts and project-store.ts).
-  const { providerConfigSource, projectId, projectVault } = await composeProviderConfig({ overrides, runtimeMode, onStoreClose,
+  const { providerConfigSource, projectId, projectVault, projectStore } = await composeProviderConfig({ overrides, runtimeMode, onStoreClose, binding: resolvedSiteBinding,
     site: createVaultProviderConfigSource({ workspaceId, scope: "site", state: createAgentPluginStateStore({ workspaceId,
       vault: createApiConnectionVault({ repo: new SqlSecretsVaultRepo({ kernel: kernel as unknown as StorageKernel<SecretsVaultDatabase> }), keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, workspaceId }) }) }) });
   // 2026-08-31 (mail rule-of-two build): resolved once here, ahead of the `RouteDeps` object
@@ -2085,7 +2094,7 @@ async function composeSiteRouteDeps(
   // `customCredentialSetRepo:` — see `resolve-mailer.ts`'s own header for the full design. Sealed
   // via the SAME shared sealer/keyring every other credential repo on this root already reuses (no
   // third `EnvOrFileKeyring` instance).
-  // Its rows: this site's own, then the project's (shared by every site of the project), opened
+  // Its rows: this site's own, then the project's attached keys only, opened
   // after the project store (owner 2026-10-25).
   const customCredentialSetRepo = new SqliteCustomCredentialSetRepo(kernel, credentialProject(projectVault, vault => new CustomCredentialVaultRepo({ vault })));
   const providerPlugins = await providerPluginBoot({ overrides })({
@@ -2096,6 +2105,11 @@ async function composeSiteRouteDeps(
     ...createTelemetryConsent({ settingsRepo, workspaceId }),
   });
   onStoreClose(() => providerPlugins.dispose({}));
+  const projectSiteId = acceptedSiteId(readSiteMetaId(resolvedSiteBinding.dir), "site meta") ?? "";
+  const projectKeys = projectStore ? createProjectKeys({ vault: projectStore.vault.repo, attachments: projectStore.attachments,
+    siteId: projectSiteId, siteName: resolvedSiteBinding.name, reapply: input => providerPlugins.reapply(input),
+    transaction: input => projectStore.transaction(input) }) : undefined;
+  if (projectStore) onStoreClose(watchProviderRevisions({ read: () => projectStore.providerRevisions({ siteId: projectSiteId }), reapply: input => providerPlugins.reapply(input) }));
   const { observability, productAnalytics, aiTraceSink } = providerPlugins;
   instrumentStorageKernel({ kernel, observability });
   instrumentStorageKernel({ kernel: chat, observability });
@@ -2546,6 +2560,9 @@ async function composeSiteRouteDeps(
     productAnalytics,
     aiTraceSink,
     providerConfig: providerConfigSource,
+    reapplyProvider: input => providerPlugins.reapply(input),
+    providerAppliesAt: input => providerPlugins.appliesAt(input),
+    projectKeys,
     // Wave 2's retired provider-key rows, found by label only (never decrypted): the settings card's re-entry notice.
     legacyProviderCredential: legacyProviderCredentialCheck({ listLabels: () => listCustomCredentials({ repo: customCredentialSetRepo }, { workspaceId }) }),
     // Built and probed in the prelude above, over the same content kernel that carries site content.

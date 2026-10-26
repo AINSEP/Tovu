@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "sentry",
   "version": "0.1.0",
-  "description": "Connects the site's error tracking to Sentry through Tovu's Sentry provider plugin (observability-sentry). Ships the know-how and a secure key card: the person pastes the project's DSN and an optional environment name; Tovu saves them for every site in the project. No Sentry code here; the provider plugin reports the errors.",
+  "description": "Connects the site's error tracking to Sentry through Tovu's Sentry provider plugin (observability-sentry). Ships the know-how and a secure key card: the person pastes the project's DSN and an optional environment name; Tovu saves it to your project, and you choose which sites use it. No Sentry code here; the provider plugin reports the errors.",
   "author": "Tovu",
   "license": "Apache-2.0",
   "extensions": {

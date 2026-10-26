@@ -1,3 +1,4 @@
+import type { ProviderKeyUsage } from "../project-keys/service.js";
 import { requireInputRecord, requireString, ToolInputError, type ToolExecutionContext, type ToolExecutionOptions, type ToolHandler } from "@jini-ai/core";
 import { askThenReport, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { isProviderSettingRequired, type PluginProviderSettingField } from "@jini-ai/plugins/host";
@@ -20,21 +21,22 @@ import type { PluginCredentialCard } from "./plugin-credential-card.js";
 
 /** Host ports, bound by the composition root to the shared save rule and `ProviderConfigSource`. */
 export interface ProviderSettingsCardPorts {
+  readonly usage?: (required: { pluginId: string }) => Promise<ProviderKeyUsage>;
   /** The provider plugin's declared settings; undefined when it is not installed or declares none. */
   readonly fields: (required: { pluginId: string }) => Promise<readonly PluginProviderSettingField[] | undefined>;
   /** Saved public values and the NAMES of saved secrets; null when nothing is saved or it is unreadable. */
   readonly readSettings: (required: { pluginId: string }) => Promise<{ settings: Readonly<Record<string, string>>; secretNames: readonly string[] } | null>;
   /** The shared save rule: writes, or returns the refusal text without writing. */
-  readonly save: (required: { pluginId: string; values: Readonly<Record<string, string>> }) => Promise<{ store: "project" | "site" } | { refusal: string }>;
+  readonly save: (required: { pluginId: string; values: Readonly<Record<string, string>> }) => Promise<Saved | { refusal: string }>;
   /** The admin Settings card's save permission (`admin.plugins.enable`). */
   readonly authorize: (ctx: ToolExecutionContext) => Promise<void>;
 }
 
 type SavedView = Awaited<ReturnType<ProviderSettingsCardPorts["readSettings"]>>;
-type Prep = { pluginId: string; card?: PluginCredentialCard; fields: readonly PluginProviderSettingField[]; saved: SavedView };
-type Saved = { store: "project" | "site" };
+type Prep = { pluginId: string; card?: PluginCredentialCard; fields: readonly PluginProviderSettingField[]; saved: SavedView; usage?: ProviderKeyUsage };
+type Saved = { configured?: boolean; store: "project" | "site"; keyId?: string; usedByThisSite?: boolean; usedBy?: readonly string[]; appliesAt?: "now" | "restart" };
 export type ProviderSettingsSaveResult =
-  | { saved: true; pluginId: string; store: "project" | "site"; appliesAt: "next-start" }
+  | { saved: true; pluginId: string; store: "project" | "site"; configured?: boolean; appliesAt: "now" | "restart"; keyId?: string; usedByThisSite?: boolean; usedBy?: readonly string[]; ask?: string }
   | { saved: false; reason: string; message?: string };
 
 /** The select option that reveals a field's free-text twin (`allowCustom`). */
@@ -72,14 +74,30 @@ function formFieldsOf({ field, saved }: { field: PluginProviderSettingField; sav
   return [{ kind: "string", name: field.name, label: field.label, required, ...(field.requiredUnless ? { requiredUnless: field.requiredUnless } : {}), ...(field.hint ? { hint: field.hint } : {}), ...(initial ? { value: initial } : {}) }];
 }
 
+/** The declared card's help, key-entry hint and purposes; values never come from saved settings. */
+function providerCardDetails({ card }: { card?: PluginCredentialCard }, _optional = {}) {
+  const details: { label: string; value: string }[] = [];
+  if (!card) return details;
+  if (card.helpUrl) details.push({ label: card.helpLabel ?? "Help", value: card.helpUrl });
+  if (card.keyHint) details.push({ label: "Where to find it", value: card.keyHint });
+  if (card.usedFor?.length) details.push({ label: "Used for", value: card.usedFor.join("; ") });
+  return details;
+}
+
+/** Explain a site-only replacement before the person enters a different project's key. */
+function otherSiteKeyNotice({ usage, label }: { usage?: ProviderKeyUsage; label: string }, _optional = {}): string {
+  if (!usage || usage.store !== "project" || usage.usedByThisSite || usage.usedBy.length === 0) return "";
+  return ` Your project's saved ${label} key is used by ${usage.usedBy.join(", ")}. A key entered here is used by this site only.`;
+}
+
 /** The card: plugin copy over the provider's declared fields. @complexity O(f) declared fields. */
 export function buildProviderSettingsForm({ prep }: { prep: Prep }, _optional = {}): SecretCardForm {
   const { card } = prep;
-  const help = card?.helpUrl ? [{ label: card.helpLabel ?? "Help", value: card.helpUrl }] : [];
+  const otherUse = otherSiteKeyNotice({ usage: prep.usage, label: card?.label ?? "provider" });
   return {
     title: card?.title ?? "Connect provider",
-    description: `${card?.intro ? `${card.intro} ` : ""}Keys are sealed on the server the moment you submit — the assistant never sees them. Takes effect the next time the site starts.`,
-    details: [...help, ...(card?.keyHint ? [{ label: "Where to find it", value: card.keyHint }] : []), ...(card?.usedFor?.length ? [{ label: "Used for", value: card.usedFor.join("; ") }] : [])],
+    description: `${card?.intro ? `${card.intro} ` : ""}Keys are sealed on the server the moment you submit — the assistant never sees them.${otherUse}`,
+    details: providerCardDetails({ card }),
     submitLabel: "Save",
     fields: prep.fields.flatMap((field) => formFieldsOf({ field, saved: prep.saved })),
     app: { appName: "tovu-provider-settings-card", appVersion: "1" },
@@ -98,7 +116,7 @@ export function readProviderSettingsValues({ fields, values }: { fields: readonl
 
 /** Model-facing projection: where it saved and when it applies, never a value. */
 function resultOf({ run, pluginId }: { run: { status: string; saved?: Saved; safeMessage?: string }; pluginId: string }): ProviderSettingsSaveResult {
-  if (run.status === "saved" && run.saved) return { saved: true, pluginId, store: run.saved.store, appliesAt: "next-start" };
+  if (run.status === "saved" && run.saved) return { saved: true, pluginId, ...run.saved, appliesAt: run.saved.appliesAt ?? "restart" };
   if (run.status === "failed") return { saved: false, reason: "error", message: run.safeMessage };
   if (run.status === "blank") return { saved: false, reason: "invalid", message: "A required key was left blank. Nothing was saved." };
   return { saved: false, reason: run.status };
@@ -107,7 +125,7 @@ function resultOf({ run, pluginId }: { run: { status: string; saved?: Saved; saf
 function outcomeOf({ result, title }: { result: ProviderSettingsSaveResult; title: string }): SurfaceOutcomeSpec | undefined {
   if (!result.saved && result.message === undefined) return undefined;
   return { title, state: result.saved ? "success" : "failure", app: { appName: "tovu-provider-settings-outcome", appVersion: "1" },
-    message: result.saved ? `Saved for ${result.store === "project" ? "every site in this project" : "this site"}. Takes effect the next time the site starts.` : result.message! };
+    message: result.saved ? `${result.store === "site" ? "Saved for this site." : result.usedBy?.length ? `Saved. Used by ${result.usedBy.join(", ")}. Other sites pick it up within 30 seconds.` : "Saved to your project — not used by any site yet."}${result.configured && result.appliesAt === "now" ? " Now sending." : ""}` : result.message! };
 }
 
 /** Thrown with fixed refusal text from the shared rule (names fields, never values). */
@@ -130,7 +148,7 @@ export function buildProviderSettingsCredentialHandler({ ports, surfaces, loadCa
         const fields = await ports.fields({ pluginId });
         if (!fields) throw new ToolInputError({ message: `The provider plugin '${pluginId}' is not installed or declares no settings. Install and enable it first (plugins_list, plugins_set_enabled).` });
         const declared = (await loadCards()).find((entry) => entry.saveKind === "provider-settings" && entry.saveTarget === pluginId);
-        return { pluginId, fields, saved: await ports.readSettings({ pluginId }), ...(declared ? { card: declared } : {}) };
+        return { pluginId, fields, usage: await ports.usage?.({ pluginId }), saved: await ports.readSettings({ pluginId }), ...(declared ? { card: declared } : {}) };
       },
       form: ({ prep }) => buildProviderSettingsForm({ prep }),
       save: async ({ values, prep }) => {

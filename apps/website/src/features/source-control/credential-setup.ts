@@ -1,5 +1,4 @@
 import { applyPluginCredentialCard, findPluginCredentialCard, type LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
-import { siteOnlyScope, withSiteOnlyField } from "../custom-credentials/site-only-field.js";
 import { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-repo.js";
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/secret-form-cards.js";
 import { assertCredentialFreeField, CREDENTIAL_MESSAGES, type CredentialTokenHint, type CredentialConnection } from '../../contracts/core/credential-token.js';
@@ -11,7 +10,7 @@ import { requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } from '@jini-ai/core';
 import { defineSecretCardTool, type SecretCardField, type SecretCardRun } from '@jini-ai/ui/mcp-ui/secret-card';
 import { askThenReport, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import { createSourceControlCredential, type SourceControlCredentialWriteDeps } from './store.js';
+import { SourceControlCredentialDuplicateLabelError, createSourceControlCredential, type SourceControlCredentialWriteDeps } from './store.js';
 import type { LoadSourceControlProviders, SourceControlProviderDescriptor } from './provider-registry.js';
 import type { AuthorizeFn } from '../../contracts/core/commands/index.js';
 
@@ -69,8 +68,8 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
   }, Awaited<ReturnType<typeof createSourceControlCredential>>, ProposalResult>({
     toolId: CREDENTIAL_SAVE_TOOL_ID,
     prepare: async () => ({ descriptor: ctx.signal.aborted ? undefined : descriptor, provider, label, locale }),
-    // Project-first (owner 2026-10-25): the box opts this one key out, for this site only.
-    form: ({ prep }) => withSiteOnlyField({ shared: Boolean(deps.sourceControlCredentialSetRepo.project), form: applyPluginCredentialCard({ card: pluginCard, form: {
+    // New project keys remain inert until the person accepts the attachment question.
+    form: ({ prep }) => applyPluginCredentialCard({ card: pluginCard, form: {
       title: `Connect ${prep.descriptor!.label}`,
       description: `${prep.descriptor!.credential!.help ?? 'Type the secret here. The assistant never sees it.'} ${BACKUP_REPOSITORY_RULES}`,
       submitLabel: 'Save credential',
@@ -80,7 +79,7 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
           return field.secret || field.name === prep.descriptor!.credential!.tokenField
             ? { ...base, secret: true, allowBlank: !field.required } : base;
         })],
-    } }) }),
+    } }),
     // Saves only provider-declared fields through the admin POST's existing store function.
     // Returns an explicit safe projection; errors may quote secrets and are never forwarded.
     save: ({ values, prep, signal }) => {
@@ -116,7 +115,7 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
         keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen,
         loadSourceControlProviders: deps.loadSourceControlProviders,
         ...(deps.fetchFn ? { fetchFn: deps.fetchFn } : {}), observability: deps.observability,
-      }, input: { workspaceId: deps.workspaceId, label: values.label, connection, ...(siteOnlyScope({ values }) ? { scope: "site" } : {}) } });
+      }, input: { workspaceId: deps.workspaceId, label: values.label, connection } });
     },
     result: ({ prep, run }): ProposalResult => {
       const declined = { saved: false, credentialId: null, provider: prep.provider, label: prep.label, cancelled: run.status === 'cancelled' };
@@ -141,6 +140,7 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
     uriHost: 'tovu',
     text: { noEmitter: 'source_control_propose_credential requires an interactive form channel. Nothing was saved.', saveFailure: PROPOSE_CREDENTIAL_SAVE_FAILED },
     safeError: err => {
+      if (err instanceof SourceControlCredentialDuplicateLabelError) return err.message;
       const id = Object.entries(CREDENTIAL_MESSAGES).find(([, text]) => err instanceof Error && text === err.message)?.[0];
       return id ? credentialText({ id: id as keyof typeof CREDENTIAL_MESSAGES, locale }) : undefined;
     },

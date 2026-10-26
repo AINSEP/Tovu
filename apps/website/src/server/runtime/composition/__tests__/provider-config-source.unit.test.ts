@@ -1,3 +1,4 @@
+import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -5,7 +6,7 @@ import type { AgentPluginStateStore } from "#src/features/api-connections/plugin
 
 import { SECRET_OPEN_FAILED } from "#src/features/webhooks/secret-sealer.aesgcm";
 
-import { ProviderConfigUnreadableError, ProviderStoreUnavailableError, createVaultProviderConfigSource, withProjectPrecedence, withUnavailableProject, type ProviderConfigSource } from "../provider-config-source.js";
+import { ProviderConfigUnreadableError, ProviderStoreUnavailableError, createVaultProviderConfigSource, withAttachedProject, withUnavailableProject, type ProviderConfigSource } from "../provider-config-source.js";
 import { saveProviderSettings } from "../provider-settings-save.js";
 
 /**
@@ -67,23 +68,31 @@ function memorySource(scope: ProviderConfigSource["scope"]): ProviderConfigSourc
 
 test("precedence: without a project store the site vault is the source", () => {
   const site = memorySource("site");
-  assert.equal(withProjectPrecedence({ site }), site);
+  assert.equal(site.scope, "site");
 });
 
-test("precedence: the project store answers first, the site vault per plugin otherwise; writes go to the project store", async () => {
-  const site = memorySource("site");
-  const project = memorySource("project");
-  await site.write({ pluginId: "a", config: { settings: { from: "site" }, secrets: {} } });
-  await site.write({ pluginId: "b", config: { settings: { from: "site" }, secrets: {} } });
-  await project.write({ pluginId: "b", config: { settings: { from: "project" }, secrets: { k: "v" } } });
-  const source = withProjectPrecedence({ site }, { project });
-  assert.equal(source.scope, "project");
-  assert.deepEqual(await source.read({ pluginId: "a" }), { settings: { from: "site" }, secrets: {} });
-  assert.deepEqual(await source.read({ pluginId: "b" }), { settings: { from: "project" }, secrets: { k: "v" } });
-  assert.deepEqual(await source.readSettings({ pluginId: "a" }), { settings: { from: "site" }, secretNames: [] });
-  assert.deepEqual(await source.readSettings({ pluginId: "b" }), { settings: { from: "project" }, secretNames: ["k"] });
-  await source.write({ pluginId: "c", config: { settings: {}, secrets: {} } });
-  assert.deepEqual([project.writes, site.writes], [["b", "c"], ["a", "b"]]);
+test("site values win; unattached project values stay hidden; a different key on B leaves A unchanged", async () => {
+  const project = memorySource("project"), site = memorySource("site"); const attachments = fakeAttachments();
+  const keyId = "plugin-state:obs:provider.config";
+  const a = withAttachedProject({ site }, { project, attachments, siteId: "a" });
+  const bSite = memorySource("site");
+  const b = withAttachedProject({ site: bSite }, { project, attachments, siteId: "b" });
+  const first = { settings: { endpoint: "https://a.example.test" }, secrets: { token: ["fake", "a"].join("_") } };
+  assert.deepEqual(await a.write({ pluginId: "obs", config: first }), { keyId, store: "project", usedByThisSite: false, usedBy: [] });
+  assert.equal(await a.read({ pluginId: "obs" }), null);
+  assert.equal(await b.readSettings({ pluginId: "obs" }), null);
+  await attachments.attach({ siteId: "a", keyId, siteName: "A" });
+  assert.deepEqual(await a.read({ pluginId: "obs" }), first);
+  const second = { settings: { endpoint: "https://b.example.test" }, secrets: { token: ["fake", "b"].join("_") } };
+  assert.deepEqual(await b.write({ pluginId: "obs", config: second }), { keyId, store: "site", usedByThisSite: true, usedBy: [] });
+  assert.deepEqual(await a.read({ pluginId: "obs" }), first);
+  assert.deepEqual(await b.read({ pluginId: "obs" }), second);
+  await attachments.attach({ siteId: "b", keyId, siteName: "B" });
+  assert.deepEqual(await b.read({ pluginId: "obs" }), second, "the site row wins even when a project row is attached");
+  await attachments.detach({ siteId: "a", keyId });
+  assert.equal(await a.read({ pluginId: "obs" }), null);
+  const missing = withAttachedProject({ site: memorySource("site") }, { project, attachments });
+  assert.equal(await missing.read({ pluginId: "obs" }), null);
 });
 
 test("a project store that failed to open: reads fall back to the site vault, a save is refused (never written to the site vault)", async () => {
@@ -173,10 +182,10 @@ test("vault adapter: a row this machine cannot open reads as unreadable (listed 
   await assert.rejects(missing.readSettings({ pluginId: "obs" }), (caught) => caught === sealed);
   const down = createVaultProviderConfigSource({ state: stateWith(new Error("db down")), workspaceId: "ws", scope: "project" });
   await assert.rejects(down.read({ pluginId: "obs" }), (caught) => caught === sealed);
-  // Precedence: an unreadable project row never falls back to the site's row.
+  // Site precedence also applies when the project row is unreadable.
   const site: ProviderConfigSource = { scope: "site", read: async () => ({ settings: { endpoint: "https://site" }, secrets: {} }),
     readSettings: async () => ({ settings: { endpoint: "https://site" }, secretNames: [] }), write: async () => {} };
-  const both = withProjectPrecedence({ site }, { project: unreadable });
-  await assert.rejects(both.read({ pluginId: "obs" }), ProviderConfigUnreadableError);
-  assert.deepEqual(await both.readSettings({ pluginId: "obs" }), { settings: {}, secretNames: [], unreadable: true });
+  const both = withAttachedProject({ site }, { project: unreadable, attachments: fakeAttachments(), siteId: "a" });
+  assert.deepEqual(await both.read({ pluginId: "obs" }), { settings: { endpoint: "https://site" }, secrets: {} });
+  assert.deepEqual(await both.readSettings({ pluginId: "obs" }), { settings: { endpoint: "https://site" }, secretNames: [] });
 });

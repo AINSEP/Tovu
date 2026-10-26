@@ -1,3 +1,4 @@
+import { ToolInputError } from "@jini-ai/core";
 import type { Express, Request, Response } from "express";
 
 import {
@@ -61,6 +62,7 @@ const PROVIDERS_PATH = "/api/admin/v1/workspaces/:workspaceId/system/source-cont
  *  an AST scan over every `app.<verb>()` handler in `src/server/routes/**`, which is also how this
  *  file's `GET`/`DELETE` were found with no `try`/`catch` at all). */
 function sendStoreError(res: Response, err: unknown): void {
+  if (err instanceof ToolInputError) { res.status(409).json({ error: "KEY_IN_USE", detail: err.message }); return; }
   if (err instanceof SourceControlCredentialValidationError) {
     res.status(400).json({ error: "VALIDATION", detail: err.message });
     return;

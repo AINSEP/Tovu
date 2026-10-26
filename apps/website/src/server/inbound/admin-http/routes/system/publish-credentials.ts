@@ -1,3 +1,4 @@
+import { ToolInputError } from "@jini-ai/core";
 import type { Express, Request, Response } from "express";
 
 import {
@@ -129,6 +130,7 @@ function credentialUpdateFields({ body }: { body: Record<string, unknown> }, _op
  *  typed ones above still escaped every one of those handlers too. Every caller below now gets a
  *  real response for an error this function does not recognize, instead of a hung request. */
 function sendStoreError({ res, err }: { res: Response; err: unknown }, _options = {}): void {
+  if (err instanceof ToolInputError) { res.status(409).json({ error: "KEY_IN_USE", detail: err.message }); return; }
   if (err instanceof PublishCredentialValidationError) {
     res.status(400).json({ error: "VALIDATION", detail: err.message });
     return;
