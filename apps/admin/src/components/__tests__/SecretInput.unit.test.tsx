@@ -6,8 +6,8 @@ import { SecretInput, secretToggleLabels } from "../SecretInput/SecretInput";
 
 /**
  * @file The shared eye toggle every admin password/token/key field uses: hidden by default, flips
- * the input type, names itself "Show/Hide <label>" with aria-pressed, never submits its form, and
- * re-hides once a save clears the value.
+ * the input type, names itself "Show/Hide <label>" (no aria-pressed on top: one signal), never
+ * submits its form, and re-hides once a save clears the value.
  */
 
 function SavingForm({ onSubmit }: { onSubmit: () => void }) {
@@ -33,11 +33,11 @@ describe("SecretInput", () => {
     await user.type(input, "sk-123");
     const toggle = screen.getByRole("button", { name: "Show API key" });
     expect(toggle).toHaveAttribute("type", "button");
-    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(toggle).not.toHaveAttribute("aria-pressed");
     await user.click(toggle);
     expect(input).toHaveAttribute("type", "text");
     expect(input).toHaveValue("sk-123");
-    expect(screen.getByRole("button", { name: "Hide API key" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Hide API key" })).not.toHaveAttribute("aria-pressed");
     await user.click(screen.getByRole("button", { name: "Hide API key" }));
     expect(input).toHaveAttribute("type", "password");
     expect(onSubmit).not.toHaveBeenCalled();
@@ -58,7 +58,7 @@ describe("SecretInput", () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(input).toHaveValue("");
     expect(input).toHaveAttribute("type", "password");
-    expect(screen.getByRole("button", { name: "Show API key" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Show API key" })).not.toHaveAttribute("aria-pressed");
   });
 
   it("can be revealed while still empty, so a paste is visible as it lands", async () => {

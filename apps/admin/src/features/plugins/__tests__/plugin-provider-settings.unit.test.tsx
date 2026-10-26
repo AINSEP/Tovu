@@ -265,17 +265,17 @@ describe("declared defaults, options and the secret eye", () => {
     const apiKey = await findControl(/Project API key/);
     const eye = screen.getByRole("button", { name: "Show Project API key" }) as HTMLButtonElement;
     expect(eye.type).toBe("button");
-    expect(eye.getAttribute("aria-pressed")).toBe("false");
+    expect(eye.getAttribute("aria-pressed")).toBeNull();
     expect(apiKey.type).toBe("password");
     fireEvent.change(apiKey, { target: { value: "phc_x" } });
     fireEvent.click(eye);
     expect(apiKey.type).toBe("text");
     expect(apiKey.getAttribute("spellcheck")).toBe("false");
     const hide = screen.getByRole("button", { name: "Hide Project API key" });
-    expect(hide.getAttribute("aria-pressed")).toBe("true");
+    expect(hide.getAttribute("aria-pressed")).toBeNull();
     fireEvent.change(apiKey, { target: { value: "" } });
     expect(apiKey.type).toBe("password");
-    expect(screen.getByRole("button", { name: "Show Project API key" }).getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getByRole("button", { name: "Show Project API key" }).getAttribute("aria-pressed")).toBeNull();
   });
 });
 
