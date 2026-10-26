@@ -65,7 +65,7 @@ import { dirname, join, resolve, sep } from "node:path";
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { instrumentStorageKernel, trackFetch } from "#src/platform/observability/index";
 import { bootProviderPlugins, type SiteIdentity } from "./provider-plugins.js";
-import { createVaultProviderConfigSource, withProjectPrecedence } from "./provider-config-source.js";
+import { createVaultProviderConfigSource, withProjectPrecedence, type ProviderConfigSource } from "./provider-config-source.js";
 import { openProjectStore, type ProjectStore } from "./project-store.js";
 import { createAgentPluginStateStore } from "#src/features/api-connections/plugin-state";
 import { createApiConnectionVault } from "#src/features/api-connections/vault-stores";
@@ -1109,6 +1109,16 @@ function providerPluginBoot({ overrides }: { overrides: Partial<CreateSiteRouteD
   return overrides.bootProviderPlugins ?? bootProviderPlugins;
 }
 
+/** Provider settings: the project store (closed with the site store) when one opens, else the site vault. */
+async function composeProviderConfig({ overrides, runtimeMode, onStoreClose, site }: {
+  overrides: Partial<CreateSiteRouteDepsOverrides>; runtimeMode: RuntimeMode; onStoreClose: (close: () => void) => void; site: ProviderConfigSource;
+}): Promise<{ providerConfigSource: ProviderConfigSource; projectId: string | undefined }> {
+  const projectStore = await projectStoreFor({ overrides, runtimeMode });
+  if (!projectStore) return { providerConfigSource: site, projectId: undefined };
+  onStoreClose(() => projectStore.close({}));
+  return { providerConfigSource: withProjectPrecedence({ site }, { project: projectStore.config }), projectId: projectStore.projectId };
+}
+
 /**
  * Which site sends every provider signal. v1: one workspace per content.db, so the site id is the
  * workspace id (the same reuse `databaseLedgerRepo`'s `siteId` makes); the slug is the site folder's
@@ -2030,16 +2040,14 @@ async function composeSiteRouteDeps(
   // its exact objects). See `provider-plugins.ts`.
   // Saved provider settings: the project store when one is open, else sealed plugin-state rows in this
   // site's vault (see provider-config-source.ts and project-store.ts).
-  const projectStore = await projectStoreFor({ overrides, runtimeMode });
-  if (projectStore) onStoreClose(() => projectStore.close({}));
-  const providerConfigSource = withProjectPrecedence({ site: createVaultProviderConfigSource({ workspaceId, scope: "site", state: createAgentPluginStateStore({ workspaceId,
-    vault: createApiConnectionVault({ repo: new SqlSecretsVaultRepo({ kernel: kernel as unknown as StorageKernel<SecretsVaultDatabase> }), keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, workspaceId }) }) }) },
-  projectStore ? { project: projectStore.config } : {});
+  const { providerConfigSource, projectId } = await composeProviderConfig({ overrides, runtimeMode, onStoreClose,
+    site: createVaultProviderConfigSource({ workspaceId, scope: "site", state: createAgentPluginStateStore({ workspaceId,
+      vault: createApiConnectionVault({ repo: new SqlSecretsVaultRepo({ kernel: kernel as unknown as StorageKernel<SecretsVaultDatabase> }), keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, workspaceId }) }) }) });
   const providerPlugins = await providerPluginBoot({ overrides })({
     runtime: pluginRuntime,
     config: providerConfigSource,
     serviceName: "tovu",
-    site: siteIdentityFor({ workspaceId, binding: resolvedSiteBinding, runtimeMode, projectId: projectStore?.projectId }),
+    site: siteIdentityFor({ workspaceId, binding: resolvedSiteBinding, runtimeMode, projectId }),
     ...createTelemetryConsent({ settingsRepo, workspaceId }),
   });
   onStoreClose(() => providerPlugins.dispose({}));
