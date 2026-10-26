@@ -54,26 +54,32 @@ async function pruneDirectory({ directory, nowMs, maxEntries }, { filesystem }) 
  * @returns {Promise<void>} Filesystem/logger errors are swallowed; at most one warning is emitted.
  * @complexity O(n log n) time/O(n) space in cache entries, with at most 256 operations per batch.
  */
-export async function pruneTsxCache({ env = process.env }, {
-  tmpDir, getuid = () => process.getuid?.(), now = Date.now,
-  filesystem = fs, warn = console.warn, maxEntries = 10_000,
-} = {}) {
+export async function pruneTsxCache({ env = process.env }, options = {}) {
+  if (env.TOVU_TSX_CACHE_PRUNE === "0") return;
+  const { warn = console.warn } = options;
   try {
-    if (env.TOVU_TSX_CACHE_PRUNE === "0") return;
-    const root = tmpDir ?? os.tmpdir();
-    const uid = getuid();
-    const entries = await filesystem.readdir(root, { withFileTypes: true });
-    const directories = entries.filter(entry => entry.isDirectory() && entry.name.startsWith("tsx-")
-      && (uid === undefined || entry.name === `tsx-${uid}`))
-      .map(entry => path.join(root, entry.name));
-    const nowMs = now();
-    await inBatches({ items: directories,
-      run: directory => pruneDirectory({ directory, nowMs, maxEntries }, { filesystem }),
-    }, { size: 1 });
+    await pruneCacheDirectories(options);
   } catch {
     try { warn("tovu dev: tsx cache pruning failed; continuing."); }
     catch { /* A broken logger must not prevent development startup either. */ }
   }
+}
+
+/** tsx names its cache `tsx-<euid>`; without a uid (Windows: `tsx-<username>`) every tsx-* directory
+ * in the per-user temp dir qualifies. Symlinked directories are skipped. */
+async function pruneCacheDirectories({
+  tmpDir = os.tmpdir(), getuid = () => process.geteuid?.(), now = Date.now,
+  filesystem = fs, maxEntries = 10_000,
+}) {
+  const uid = getuid();
+  const entries = await filesystem.readdir(tmpDir, { withFileTypes: true });
+  const directories = entries.filter(entry => entry.isDirectory() && entry.name.startsWith("tsx-")
+    && (uid === undefined || entry.name === `tsx-${uid}`))
+    .map(entry => path.join(tmpDir, entry.name));
+  const nowMs = now();
+  await inBatches({ items: directories,
+    run: directory => pruneDirectory({ directory, nowMs, maxEntries }, { filesystem }),
+  }, { size: 1 });
 }
 
 // The synchronous daemon supervisor uses this as a preload, before tsx reads its cache.

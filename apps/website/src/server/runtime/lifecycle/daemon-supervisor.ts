@@ -396,13 +396,12 @@ export function createRealDaemonProcessPorts(input: DaemonSpawnEnvInput, optiona
   const { registryPath, registry } = createAssistantDaemonRegistry({ siteDir: input.siteDir }, {});
   function createProcessAdapter() {
     const isCompiled = daemonPath.endsWith(".js");
-    // Preload awaits pruning before tsx starts; keep the supervisor's synchronous child contract.
-    const sourceArgs = isCompiled ? [] : ["--import",
-      new URL("../../../../../../development/scripts/prune-tsx-cache.mjs?prune", import.meta.url).href,
-      createRequire(import.meta.url).resolve("tsx/cli"), ...args];
     return createNodeDaemonProcessAdapter({
       command: process.execPath,
-      args: isCompiled ? args : sourceArgs,
+      // Preload awaits pruning before tsx starts; keep the supervisor's synchronous child contract.
+      args: isCompiled ? args : ["--import",
+        new URL("../../../../../../development/scripts/prune-tsx-cache.mjs?prune", import.meta.url).href,
+        createRequire(import.meta.url).resolve("tsx/cli"), ...args],
       cwd: process.cwd(),
       // Every respawn binds the same workspace and parent pid (D10/watchdog contract),
       // while refreshing process.env so repaired launch configuration can take effect.

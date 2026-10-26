@@ -16,8 +16,10 @@ let report: Promise<Record<string, unknown>>;
 // env/argv options. Substitute only the daemon script at the OS boundary, so this never
 // starts a dev server, invokes npx, or opens a real site's stores.
 const nativeSpawn: NonNullable<import("../daemon-supervisor.js").StartAssistantDaemonOptions["nativeSpawn"]> = ({ command, args, options }) => {
-  const daemonArgs = command === process.execPath ? args : args.slice(1);
-  assert.ok(daemonArgs[0]?.endsWith("agent-daemon-server.ts") || daemonArgs[0]?.endsWith("agent-daemon-server.js"));
+  // Source mode runs `--import <prune preload> <tsx/cli>` ahead of the script; compiled mode runs it directly.
+  assert.equal(command, process.execPath);
+  const daemonArgs = args.slice(args.findIndex(arg => /agent-daemon-server\.[jt]s$/.test(arg)));
+  assert.ok(/agent-daemon-server\.[jt]s$/.test(daemonArgs[0] ?? ""));
   assert.equal(options.env?.JINI_AGENT_DAEMON_PORT, getAgentDaemonPortForSpawnEnv());
   child = realSpawn(process.execPath, [...stubImports.flatMap(file => ["--import", file]), stubPath, ...daemonArgs.slice(1)], options);
   report = new Promise((resolve, reject) => {
