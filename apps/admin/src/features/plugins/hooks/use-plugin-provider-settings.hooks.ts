@@ -12,7 +12,8 @@ import type { PluginsPort } from "./plugins-port.hooks";
  * @file `PluginProviderSettingsDialog`'s data (2026-10-26): one provider plugin's settings card —
  * its manifest-declared fields, the saved public values, and for each secret only whether one is
  * saved. Secret inputs start empty and stay write-only: an empty secret on save keeps the saved one
- * (the server's rule), so editing the endpoint never needs the key re-entered.
+ * while the public fields are unchanged (the server's rule); changing one (an endpoint, a host) is
+ * refused until the saved secrets are entered again, and the server's message names them.
  *
  * `useX(dependencies)` / `useWiredX()` pair, same as `use-plugin-package-files.hooks.ts`.
  */
