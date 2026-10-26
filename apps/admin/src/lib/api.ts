@@ -2256,6 +2256,8 @@ export interface AdminPluginFiles {
 export interface AdminAgentPlugin {
   /** Tovu host maturity; absent means normal. */
   maturity?: "untested" | "soon";
+  /** The provider plugin (Plugins screen) whose switch this plugin follows; it has no switch of its own. */
+  providerPlugin?: string;
   provides?: string[];
   origin?: "bundled" | "operator-installed";
   hostOk?: boolean;

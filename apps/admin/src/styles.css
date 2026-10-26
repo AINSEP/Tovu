@@ -4070,6 +4070,8 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    until the server answers, and animating to the requested state first would show a position the
    server may refuse. */
 .agent-plugin-switch:disabled { cursor: progress; opacity: 0.55; }
+/* A provider plugin's assistant face: shown, not busy — it is switched on the Plugins screen. */
+.agent-plugin-switch:disabled:not([aria-busy]) { cursor: default; }
 
 .agent-plugin-icon-btn {
   flex: 0 0 auto;

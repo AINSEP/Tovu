@@ -19,6 +19,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Show {label}": "Mostrar {label}",
     "Hide {label}": "Ocultar {label}",
     "Settings": "Ajustes",
+    "Turns on and off in Plugins": "Se activa y desactiva en Plugins",
     "{name} settings": "Ajustes de {name}",
     "{name} settings saved — applies next time Tovu starts": "Ajustes de {name} guardados: se aplican la próxima vez que se inicie Tovu",
     "A key for this plugin was saved in an older format that Tovu no longer reads. Enter it again here and save.": "Una clave de este plugin se guardó en un formato antiguo que Tovu ya no lee. Vuelve a introducirla aquí y guarda.",
@@ -260,6 +261,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   id: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "Pengaturan",
+    "Turns on and off in Plugins": "Diaktifkan dan dinonaktifkan di Plugin",
     "Saved for every site in this project": "Disimpan untuk setiap situs di proyek ini",
     "Saved for this site": "Disimpan untuk situs ini",
     "Takes effect the next time Tovu starts.": "Berlaku saat Tovu dimulai berikutnya.",
@@ -478,6 +480,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   de: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "Einstellungen",
+    "Turns on and off in Plugins": "Wird unter Plugins ein- und ausgeschaltet",
     "Saved for every site in this project": "Gespeichert für jede Website in diesem Projekt",
     "Saved for this site": "Gespeichert für diese Website",
     "Takes effect the next time Tovu starts.": "Wird beim nächsten Start von Tovu wirksam.",
@@ -696,6 +699,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   "zh-CN": {
     // Provider plugin settings card (2026-10-26).
     "Settings": "设置",
+    "Turns on and off in Plugins": "在“插件”中开启和关闭",
     "Saved for every site in this project": "为此项目中的每个站点保存",
     "Saved for this site": "仅为此站点保存",
     "Takes effect the next time Tovu starts.": "下次启动 Tovu 时生效。",
@@ -914,6 +918,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   "zh-TW": {
     // Provider plugin settings card (2026-10-26).
     "Settings": "設定",
+    "Turns on and off in Plugins": "在「外掛程式」中開啟和關閉",
     "Saved for every site in this project": "為此專案中的每個網站儲存",
     "Saved for this site": "僅為此網站儲存",
     "Takes effect the next time Tovu starts.": "下次啟動 Tovu 時生效。",
@@ -1132,6 +1137,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   "pt-BR": {
     // Provider plugin settings card (2026-10-26).
     "Settings": "Configurações",
+    "Turns on and off in Plugins": "Liga e desliga em Plugins",
     "Saved for every site in this project": "Salvo para todos os sites deste projeto",
     "Saved for this site": "Salvo para este site",
     "Takes effect the next time Tovu starts.": "Entra em vigor na próxima vez que o Tovu iniciar.",
@@ -1350,6 +1356,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   ru: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "Настройки",
+    "Turns on and off in Plugins": "Включается и выключается в разделе «Плагины»",
     "Saved for every site in this project": "Сохраняется для всех сайтов этого проекта",
     "Saved for this site": "Сохраняется только для этого сайта",
     "Takes effect the next time Tovu starts.": "Вступает в силу при следующем запуске Tovu.",
@@ -1568,6 +1575,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   fa: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "تنظیمات",
+    "Turns on and off in Plugins": "در افزونه‌ها روشن و خاموش می‌شود",
     "Saved for every site in this project": "برای همهٔ سایت‌های این پروژه ذخیره می‌شود",
     "Saved for this site": "فقط برای این سایت ذخیره می‌شود",
     "Takes effect the next time Tovu starts.": "دفعهٔ بعد که Tovu اجرا شود اعمال می‌شود.",
@@ -1786,6 +1794,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   ar: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "الإعدادات",
+    "Turns on and off in Plugins": "يُشغَّل ويُوقَف من الإضافات",
     "Saved for every site in this project": "يُحفظ لكل المواقع في هذا المشروع",
     "Saved for this site": "يُحفظ لهذا الموقع فقط",
     "Takes effect the next time Tovu starts.": "يسري عند التشغيل التالي لـ Tovu.",
@@ -2004,6 +2013,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   ja: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "設定",
+    "Turns on and off in Plugins": "「プラグイン」でオン/オフします",
     "Saved for every site in this project": "このプロジェクトのすべてのサイトに保存",
     "Saved for this site": "このサイトにのみ保存",
     "Takes effect the next time Tovu starts.": "次回 Tovu の起動時に反映されます。",
@@ -2222,6 +2232,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   ko: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "설정",
+    "Turns on and off in Plugins": "플러그인에서 켜고 끕니다",
     "Saved for every site in this project": "이 프로젝트의 모든 사이트에 저장",
     "Saved for this site": "이 사이트에만 저장",
     "Takes effect the next time Tovu starts.": "다음에 Tovu를 시작할 때 적용됩니다.",
@@ -2440,6 +2451,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   pl: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "Ustawienia",
+    "Turns on and off in Plugins": "Włączana i wyłączana we Wtyczkach",
     "Saved for every site in this project": "Zapisywane dla każdej witryny w tym projekcie",
     "Saved for this site": "Zapisywane tylko dla tej witryny",
     "Takes effect the next time Tovu starts.": "Zacznie działać przy następnym uruchomieniu Tovu.",
@@ -2658,6 +2670,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   hu: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "Beállítások",
+    "Turns on and off in Plugins": "A Bővítményekben kapcsolható be és ki",
     "Saved for every site in this project": "A projekt minden webhelyéhez mentve",
     "Saved for this site": "Csak ehhez a webhelyhez mentve",
     "Takes effect the next time Tovu starts.": "A Tovu következő indításakor lép érvénybe.",
@@ -2876,6 +2889,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   fr: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "Paramètres",
+    "Turns on and off in Plugins": "S’active et se désactive dans Plugins",
     "Saved for every site in this project": "Enregistré pour tous les sites de ce projet",
     "Saved for this site": "Enregistré pour ce site uniquement",
     "Takes effect the next time Tovu starts.": "Prend effet au prochain démarrage de Tovu.",
@@ -3094,6 +3108,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   uk: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "Налаштування",
+    "Turns on and off in Plugins": "Вмикається й вимикається в розділі «Плагіни»",
     "Saved for every site in this project": "Зберігається для всіх сайтів цього проєкту",
     "Saved for this site": "Зберігається лише для цього сайту",
     "Takes effect the next time Tovu starts.": "Набуде чинності під час наступного запуску Tovu.",
@@ -3312,6 +3327,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   tr: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "Ayarlar",
+    "Turns on and off in Plugins": "Eklentiler'de açılır ve kapatılır",
     "Saved for every site in this project": "Bu projedeki her site için kaydedilir",
     "Saved for this site": "Yalnızca bu site için kaydedilir",
     "Takes effect the next time Tovu starts.": "Tovu bir sonraki başlatılışında geçerli olur.",
@@ -3530,6 +3546,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   th: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "การตั้งค่า",
+    "Turns on and off in Plugins": "เปิดและปิดได้ในปลั๊กอิน",
     "Saved for every site in this project": "บันทึกไว้สำหรับทุกไซต์ในโปรเจกต์นี้",
     "Saved for this site": "บันทึกไว้สำหรับไซต์นี้เท่านั้น",
     "Takes effect the next time Tovu starts.": "มีผลเมื่อเริ่ม Tovu ครั้งถัดไป",
@@ -3748,6 +3765,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   it: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "Impostazioni",
+    "Turns on and off in Plugins": "Si attiva e disattiva in Plugin",
     "Saved for every site in this project": "Salvato per tutti i siti di questo progetto",
     "Saved for this site": "Salvato solo per questo sito",
     "Takes effect the next time Tovu starts.": "Ha effetto al prossimo avvio di Tovu.",
@@ -3966,6 +3984,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   hi: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "सेटिंग्स",
+    "Turns on and off in Plugins": "प्लगइन्स में चालू और बंद होता है",
     "Saved for every site in this project": "इस प्रोजेक्ट की हर साइट के लिए सहेजा जाता है",
     "Saved for this site": "केवल इस साइट के लिए सहेजा जाता है",
     "Takes effect the next time Tovu starts.": "Tovu के अगली बार शुरू होने पर लागू होगा।",
@@ -4184,6 +4203,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   ur: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "ترتیبات",
+    "Turns on and off in Plugins": "پلگ انز میں آن اور آف ہوتا ہے",
     "Saved for every site in this project": "اس پروجیکٹ کی ہر سائٹ کے لیے محفوظ ہوتا ہے",
     "Saved for this site": "صرف اس سائٹ کے لیے محفوظ ہوتا ہے",
     "Takes effect the next time Tovu starts.": "Tovu کے اگلی بار شروع ہونے پر لاگو ہوگا۔",
@@ -4402,6 +4422,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   bn: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "সেটিংস",
+    "Turns on and off in Plugins": "প্লাগইনে চালু ও বন্ধ হয়",
     "Saved for every site in this project": "এই প্রজেক্টের প্রতিটি সাইটের জন্য সংরক্ষিত",
     "Saved for this site": "শুধু এই সাইটের জন্য সংরক্ষিত",
     "Takes effect the next time Tovu starts.": "পরের বার Tovu চালু হলে কার্যকর হবে।",

@@ -98,6 +98,7 @@ function AgentPluginRowStateArea({
   stateControl,
   agentHandleBase,
   displayName,
+  linkedNoteId,
 }: {
   plugin: AdminAgentPlugin;
   t: Translate;
@@ -106,7 +107,22 @@ function AgentPluginRowStateArea({
   stateControl: AgentPluginRowStateControl;
   agentHandleBase: string;
   displayName: string;
+  linkedNoteId: string;
 }) {
+  // One vendor, one switch (owner 2026-10-25): this plugin follows its provider plugin's switch on
+  // the Plugins screen, so its own switch shows the state but is honest-disabled on both tabs; the
+  // row's note says where it is switched.
+  if (plugin.providerPlugin) {
+    return (
+      <>
+        <span className="agent-plugin-state">{plugin.enabled ? t("Enabled") : t("Disabled")}</span>
+        <button type="button" role="switch" aria-checked={plugin.enabled} disabled aria-describedby={linkedNoteId}
+          aria-label={agentPluginToggleAriaLabel(plugin, locale)} className="agent-plugin-switch">
+          <span className="agent-plugin-switch-knob" aria-hidden="true" />
+        </button>
+      </>
+    );
+  }
   if (stateControl.kind === "toggle") {
     return (
       <>
@@ -188,6 +204,7 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
   const Glyph = AGENT_PLUGIN_GLYPHS[agentPluginGlyphKind(plugin)];
   const detailId = useId();
   const headingId = useId();
+  const linkedNoteId = useId();
 
   return (
     <li className="agent-plugin-row" data-enabled={plugin.enabled} aria-label={displayName}>
@@ -247,6 +264,9 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
             {agentPluginCompatibilityLines({ plugin, translate: t }).map((line) => (
               <span key={line} className="agent-plugin-row-desc">{line}</span>
             ))}
+            {plugin.providerPlugin ? (
+              <span className="agent-plugin-row-desc agent-plugin-row-linked" id={linkedNoteId}>{t("Turns on and off in Plugins")}</span>
+            ) : null}
             {blurb ? (
               <span className="agent-plugin-row-desc" title={blurb}>
                 {blurb}
@@ -269,6 +289,7 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
             stateControl={stateControl}
             agentHandleBase={agentHandleBase}
             displayName={displayName}
+            linkedNoteId={linkedNoteId}
           />
           <button
             type="button"
