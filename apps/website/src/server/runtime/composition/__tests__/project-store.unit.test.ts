@@ -1,8 +1,10 @@
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
+import { promisify } from "node:util";
 import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
@@ -131,6 +133,43 @@ test("web and desktop open the SAME project.db: a save through one is read by th
   assert.equal(bytes.includes("otlp.example.test"), false, "plugin-state values are sealed too");
 });
 
+/** One app (web or desktop) as its own process: waits for `go`, opens the store, saves `me`, then reads `other`'s save. */
+const OPENER = `
+import fs from "node:fs";
+const [moduleUrl, sitesHome, home, me, other, ready, go] = process.argv.slice(1);
+const { openProjectStore } = await import(moduleUrl);
+fs.writeFileSync(ready, "");
+while (!fs.existsSync(go)) await new Promise((r) => setTimeout(r, 2));
+const store = await openProjectStore({ sitesHome, home });
+await store.config.write({ pluginId: me, config: { settings: { by: me }, secrets: { token: me } } });
+let seen = null;
+for (let i = 0; i < 600 && !seen; i++) { seen = await store.config.read({ pluginId: other }); if (!seen) await new Promise((r) => setTimeout(r, 25)); }
+store.close({});
+process.stdout.write(JSON.stringify(seen));
+`;
+
+test("two processes opening a fresh project at the same moment create ONE key and read each other's saves", { timeout: 120_000 }, async (t) => {
+  const { home, sitesHome, keyFile } = dirs(t);
+  const sync = path.join(path.dirname(home), "sync");
+  fs.mkdirSync(sync);
+  const go = path.join(sync, "go");
+  const moduleUrl = new URL("../project-store.ts", import.meta.url).href;
+  const run = (me: string, other: string) => promisify(execFile)(process.execPath, ["--import", "tsx", "--input-type=module", "-e", OPENER,
+    moduleUrl, sitesHome, home, me, other, path.join(sync, `ready-${me}`), go], { timeout: 100_000 });
+  const children = Promise.all([run("web", "desktop"), run("desktop", "web")]);
+  // Both are loaded and waiting before either starts, so their first opens really overlap.
+  while (!["web", "desktop"].every((me) => fs.existsSync(path.join(sync, `ready-${me}`)))) await new Promise((r) => setTimeout(r, 10));
+  fs.writeFileSync(go, "");
+  const [web, desktop] = (await children).map(({ stdout }) => JSON.parse(stdout));
+  assert.deepEqual(web, { settings: { by: "desktop" }, secrets: { token: "desktop" } });
+  assert.deepEqual(desktop, { settings: { by: "web" }, secrets: { token: "web" } });
+  assert.deepEqual(fs.readdirSync(path.dirname(keyFile)).filter((name) => name.includes("key")), ["project-key.hex"], "one key, no temp file left");
+  assert.equal(fs.statSync(path.dirname(keyFile)).mode & 0o777, 0o700);
+  const after = await openProjectStore({ sitesHome, home });
+  t.after(() => after.close({}));
+  assert.deepEqual(await after.config.read({ pluginId: "web" }), { settings: { by: "web" }, secrets: { token: "web" } });
+});
+
 test("reopening keeps the data (own migration ledger, idempotent); a different project key cannot read the sealed rows", async (t) => {
   const { home, sitesHome, keyFile } = dirs(t);
   const first = await openProjectStore({ sitesHome, home }, { clock: { nowMs: () => 0 } });
@@ -159,7 +198,7 @@ test("a project.db that cannot be migrated is closed and the error surfaces", as
 
 // --- One project per sites root however it is spelled (web vs desktop, TOVU_SITES_HOME vs sites-home.json) ---
 
-/** The first layout's id: a hash of the root exactly as spelled (no realpath). */
+/** A hash of the root exactly as spelled (no realpath). */
 const spelledIdOf = (sitesHome: string) => `project-${createHash("sha256").update(path.resolve(sitesHome)).digest("hex").slice(0, 16)}`;
 
 /** A real (symlink-free) temp root: on macOS `os.tmpdir()` sits under the `/var` → `/private/var` symlink. */
@@ -181,7 +220,7 @@ test("a sites root reached through a symlink, or spelled in another case on a ca
   else assert.notEqual(projectIdFor({ sitesHome: otherCase }), projectIdFor({ sitesHome }), "case-sensitive disk: two folders, two projects");
 });
 
-test("an already-canonical sites root keeps the id it had (stores saved before this change are found as they are)", (t) => {
+test("an already-canonical sites root's id is the hash of the root as given (realpath changes nothing)", (t) => {
   const sitesHome = path.join(realRoot(t), "Documents", "Tovu");
   assert.equal(projectIdFor({ sitesHome }), spelledIdOf(sitesHome), "before the folder exists");
   fs.mkdirSync(sitesHome, { recursive: true });
@@ -196,25 +235,4 @@ test("a sites root that does not exist yet gets the id it will have once created
   fs.mkdirSync(viaLink, { recursive: true });
   assert.equal(projectIdFor({ sitesHome: viaLink }), before);
   assert.equal(projectIdFor({ sitesHome: path.join(root, "Documents", "Tovu") }), before);
-});
-
-test("a store saved under a non-canonical spelling's id is adopted on the next start: its settings and key are kept", async (t) => {
-  const root = realRoot(t);
-  const home = path.join(root, "home");
-  const sitesHome = path.join(root, "Documents", "Tovu");
-  fs.mkdirSync(sitesHome, { recursive: true });
-  fs.symlinkSync(path.join(root, "Documents"), path.join(root, "Docs"));
-  const spelled = path.join(root, "Docs", "Tovu");
-  const first = await openProjectStore({ sitesHome, home });
-  await first.config.write({ pluginId: "analytics-posthog", config: { settings: { host: "https://ph.example.test" }, secrets: { apiKey: ["phc", "spelled"].join("_") } } });
-  first.close({});
-  // Lay the store down where the first layout put it for the symlinked spelling.
-  const projects = path.join(home, ".tovu", "projects");
-  fs.renameSync(path.join(projects, first.projectId), path.join(projects, spelledIdOf(spelled)));
-  const store = await openProjectStore({ sitesHome: spelled, home });
-  t.after(() => store.close({}));
-  assert.equal(store.projectId, first.projectId);
-  assert.equal(store.dbPath, first.dbPath);
-  assert.equal((await store.config.read({ pluginId: "analytics-posthog" }))?.secrets.apiKey, ["phc", "spelled"].join("_"));
-  assert.deepEqual(fs.readdirSync(projects), [first.projectId], "moved, not copied");
 });

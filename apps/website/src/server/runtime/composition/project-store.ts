@@ -11,7 +11,6 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import { atomicCreateSiteKeyFile, mintSiteKeyHex } from "#src/features/webhooks/site-key-ensure";
 import { closeSqliteConnection, openNativeSqlite, sqliteKernel } from "#src/platform/db/kernel/drivers/sqlite";
 import { migrateProjectDatabase } from "#src/platform/db/migrations/index";
-import { openProjectDb, relocateProjectDb, type ProjectDbOpener, type ProjectFiles, type RelocateOptions } from "./project-store-relocate.js";
 import { createVaultProviderConfigSource, type ProviderConfigSource } from "./provider-config-source.js";
 
 /**
@@ -23,16 +22,15 @@ import { createVaultProviderConfigSource, type ProviderConfigSource } from "./pr
  * `TOVU_DESKTOP_USER_DATA_DIR`). The project id is a hash of that root, so
  * `~/.tovu/projects/<projectId>/project.db` is the SAME file whichever starts. Never desktop
  * app-data, and (owner, 8:05 PM) never the sites root itself: that is often iCloud-synced
- * `~/Documents`, and a live SQLite file with its -wal must not sync. A file left in the sites root by
- * the first layout is moved here on the next start (`project-store-relocate.ts`).
+ * `~/Documents`, and a live SQLite file with its -wal must not sync. Opened, or created when absent;
+ * nothing is moved in from an older layout (no build that wrote one ever shipped).
  *
  * Rows: the same `secrets_vault` shape as a site's (workspace `'project'`, no FK to site tables), own
  * migration ledger (`tovu_project_migrations`, `migrations/project/`), sealed with the project key
  * `project-key.hex` in the same folder, minted here like the site key (32 random bytes, hex, file
- * mode 0600, never exported, never inside a site folder). One key per project rather than the first
- * layout's single `~/.tovu/project-key.hex`: a project folder then holds its database and the key that
- * opens it together (removed, backed up or restored as one), and one project's key never opens
- * another's rows. Fly / single-site production has no project store: there the project IS the site
+ * mode 0600, never exported, never inside a site folder). One key per project, not one per machine:
+ * a project folder holds its database and the key that opens it together (removed, backed up or
+ * restored as one), and one project's key never opens another's rows. Fly / single-site production has no project store: there the project IS the site
  * and the site vault answers (`provider-config-source.ts`).
  */
 
@@ -56,23 +54,6 @@ export function projectKeyFilePath(required: { home: string; projectId: string }
   return path.join(projectDir(required), PROJECT_KEY_FILENAME);
 }
 
-/** The first layout's pair: `<sites root>/project.db` sealed with the single `~/.tovu/project-key.hex`. */
-export function legacyProjectFiles({ home, sitesHome }: { home: string; sitesHome: string }, _optional: Record<string, never> = {}): ProjectFiles {
-  return { dbPath: path.join(sitesHome, PROJECT_DB_FILENAME), keyFile: path.join(home, ".tovu", PROJECT_KEY_FILENAME) };
-}
-
-/** The project's own pair: `~/.tovu/projects/<projectId>/{project.db, project-key.hex}`. */
-const projectFiles = (required: { home: string; projectId: string }): ProjectFiles =>
-  ({ dbPath: projectDbPath(required), keyFile: projectKeyFilePath(required) });
-
-/**
- * The database + key this start uses: the project's own folder, after moving a first-layout file
- * there (`relocateProjectDb`; the old pair only for a run where another process still holds it open).
- */
-export function resolveProjectFiles(required: { home: string; sitesHome: string; projectId: string }, optional: RelocateOptions = {}): ProjectFiles {
-  return relocateProjectDb({ from: legacyProjectFiles(required), to: projectFiles(required) }, optional);
-}
-
 const KEY_HEX = /^[0-9a-f]{64}$/;
 
 /**
@@ -88,17 +69,36 @@ function checkKeyFile(file: string, uid: (() => number) | undefined): void {
 }
 
 /**
+ * Makes a folder's new entry (a just-linked key file) durable, so a power cut cannot keep rows sealed
+ * with a key whose name was lost. Windows can't open a folder for fsync (EISDIR/EPERM); NTFS journals
+ * the entry itself, so that is skipped.
+ */
+function fsyncDirectory(dir: string): void {
+  if (process.platform === "win32") return;
+  const fd = fs.openSync(dir, "r");
+  try {
+    fs.fsyncSync(fd);
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+/**
  * Reads the project key, minting it on first use through the site key's publisher
- * (`atomicCreateSiteKeyFile`: a private fsynced temp file linked into place), so a concurrent first
- * start (web and desktop together) converges on whichever key landed first, and an opener never
- * sees the final file before its bytes are in.
+ * (`atomicCreateSiteKeyFile`: a private fsynced temp file linked into place, never overwriting), so a
+ * concurrent first start (web and desktop together) converges on whichever key landed first, and an
+ * opener never sees the final file before its bytes are in. The folder is then fsynced so the key's
+ * name is as durable as its bytes before any row is sealed with it.
  * @param optional.uid This process's OS user (`process.getuid`; absent on Windows: no owner check).
  * @throws When the file exists but does not hold a 64-hex key (never silently replaced: rows sealed
  *   with the old key would become unreadable), is not a regular file, or belongs to another user.
  * @complexity O(1) file I/O.
  */
 export function ensureProjectKey({ keyFile: file }: { keyFile: string }, optional: { mint?: () => string; uid?: () => number } = {}): string {
-  if (!fs.existsSync(file)) atomicCreateSiteKeyFile(file, (optional.mint ?? mintSiteKeyHex)());
+  if (!fs.existsSync(file)) {
+    atomicCreateSiteKeyFile(file, (optional.mint ?? mintSiteKeyHex)());
+    fsyncDirectory(path.dirname(file));
+  }
   checkKeyFile(file, optional.uid ?? process.getuid);
   const hex = fs.readFileSync(file, "utf8").trim();
   if (!KEY_HEX.test(hex)) throw new Error(`the project key file at ${file} does not hold a 64-character hex key; restore it from a backup`);
@@ -129,59 +129,31 @@ function canonicalRoot(root: string): string {
  * A stable id for the project at this sites root: the same for web and desktop however each spells
  * the root (TOVU_SITES_HOME vs `sites-home.json`, a symlinked root, another case, a drive letter's
  * case), opaque. A hash of the canonical root ({@link canonicalRoot}), not of a stored id file: a file
- * in the sites root would sync (iCloud) and be copied with it, and a root that is already canonical
- * keeps exactly the id it had before (the hash input is unchanged), so no existing store moves.
+ * in the sites root would sync (iCloud) and be copied with it.
  */
 export function projectIdFor({ sitesHome }: { sitesHome: string }, _optional: Record<string, never> = {}): string {
   return idOfPath(canonicalRoot(path.resolve(sitesHome)));
 }
 
 /**
- * The id this start uses. A store saved under the first layout's id for this spelling (a hash of the
- * root as spelled) is renamed to the canonical id, so its settings and key are kept. When the rename
- * can't happen (Windows: a file inside is open), the old id is used for this run; when both ids
- * already hold a store, the canonical one wins and the other is named in a warning.
- * @complexity O(depth) stats plus one rename.
+ * Opens (creating when absent) a project.db. Two processes creating it at the same moment is safe:
+ * SQLite serializes the file's creation, and each migration step runs under `BEGIN IMMEDIATE` and
+ * re-checks the ledger first (Jini's runner), so the loser waits (busy_timeout) and then skips it.
  */
-function adoptSpelledProjectId(required: { home: string; sitesHome: string }): string {
-  const projectId = projectIdFor(required);
-  const spelledId = idOfPath(path.resolve(required.sitesHome));
-  const spelledDir = projectDir({ home: required.home, projectId: spelledId });
-  if (spelledId === projectId || !fs.existsSync(spelledDir)) return projectId;
-  const canonicalDir = projectDir({ home: required.home, projectId });
-  if (fs.existsSync(canonicalDir)) {
-    console.warn(`[project-store] two stores for one sites root; using ${canonicalDir}, ${spelledDir} is left as it is`);
-    return projectId;
-  }
+function openProjectDb(dbPath: string): ReturnType<typeof openNativeSqlite> {
+  const db = openNativeSqlite(dbPath, { fileMustExist: false });
   try {
-    fs.renameSync(spelledDir, canonicalDir);
-  } catch {
-    // Another start renamed it first (fine), or it can't move now: use it where it is this run.
-    if (!fs.existsSync(canonicalDir) && fs.existsSync(spelledDir)) return spelledId;
+    // The same pragmas every site database opener sets (`chat-db.ts`, `content-db.ts`): web and desktop
+    // hold this file open together, so WAL readers never block on a writer, and a briefly held lock is
+    // retried rather than thrown.
+    db.pragma("busy_timeout = 5000");
+    db.pragma("journal_mode = WAL");
+  } catch (error) {
+    closeSqliteConnection(db);
+    throw error;
   }
-  return projectId;
+  return db;
 }
-
-type NativeDb = ReturnType<typeof openNativeSqlite>;
-
-/** Opens a project.db with the same pragmas every site database opener sets; an old-place file only if it exists. */
-const sqliteOpener: ProjectDbOpener<NativeDb> = {
-  open({ files, mustExist }) {
-    const db = openNativeSqlite(files.dbPath, { fileMustExist: mustExist });
-    try {
-      // The same pragmas every site database opener sets (`chat-db.ts`, `content-db.ts`): web and desktop
-      // hold this file open together, so WAL readers never block on a writer, and a briefly held lock is
-      // retried rather than thrown.
-      db.pragma("busy_timeout = 5000");
-      db.pragma("journal_mode = WAL");
-    } catch (error) {
-      closeSqliteConnection(db);
-      throw error;
-    }
-    return db;
-  },
-  close: (db) => closeSqliteConnection(db),
-};
 
 export interface ProjectStore {
   readonly projectId: string;
@@ -195,20 +167,23 @@ export interface ProjectStore {
  * @param required.sitesHome The shared sites root (`resolveSitesHome`).
  * @param required.home The OS user's home (`os.homedir()`: HOME, or USERPROFILE on Windows), where
  *   `~/.tovu/projects/<projectId>/` lives.
- * @param optional.relocate Seams for moving a first-layout file (`project-store-relocate.ts`).
- * @complexity O(m) pending migrations; O(file size) once, when a first-layout file is moved.
+ * @throws When the folder can't be created (EACCES, ENOSPC), the key is refused, or the database can't
+ *   be opened or migrated. The caller must not fall back to another store for writes (`deps.ts`).
+ * @complexity O(m) pending migrations.
  */
 export async function openProjectStore(
   required: { sitesHome: string; home: string },
-  optional: { clock?: { nowMs(): number }; relocate?: RelocateOptions } = {},
+  optional: { clock?: { nowMs(): number } } = {},
 ): Promise<ProjectStore> {
-  const projectId = adoptSpelledProjectId(required);
-  const { files: { dbPath, keyFile }, db } = openProjectDb({ from: legacyProjectFiles(required),
-    to: projectFiles({ home: required.home, projectId }), opener: sqliteOpener }, optional.relocate);
+  const projectId = projectIdFor(required);
+  const dbPath = projectDbPath({ home: required.home, projectId });
+  // 0700: the folder holds the key; `recursive` applies the mode to every folder it creates.
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true, mode: 0o700 });
+  // The key first: no database is created beside a key that is refused.
+  const hex = ensureProjectKey({ keyFile: projectKeyFilePath({ home: required.home, projectId }) });
+  const db = openProjectDb(dbPath);
   const kernel = sqliteKernel<SecretsVaultDatabase>(db);
-  let hex: string;
   try {
-    hex = ensureProjectKey({ keyFile });
     await migrateProjectDatabase(kernel as unknown as StorageKernel<unknown>);
   } catch (error) {
     closeSqliteConnection(db);

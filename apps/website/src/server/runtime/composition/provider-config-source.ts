@@ -60,6 +60,19 @@ export class ProviderConfigUnreadableError extends Error {
   }
 }
 
+/**
+ * The project store is configured here but could not open this run (its folder can't be created:
+ * EACCES/ENOSPC; a refused key; a damaged file). A save is refused with this rather than written to the
+ * site vault: the next start that opens the project store would read its rows first and hide that save.
+ */
+export class ProviderStoreUnavailableError extends Error {
+  readonly code = "PROVIDER_SETTINGS_UNAVAILABLE";
+  constructor(required: { reason: string }, _optional: Record<string, never> = {}) {
+    super(`Project settings can't be saved right now: ${required.reason}`);
+    this.name = "ProviderStoreUnavailableError";
+  }
+}
+
 const UNREADABLE_VIEW: ProviderSettingsView = Object.freeze({ settings: Object.freeze({}), secretNames: Object.freeze([]), unreadable: true });
 
 const CONFIG_KEY = "provider.config";
@@ -149,5 +162,23 @@ export function withProjectPrecedence(
     read: async (input) => (await project.read(input)) ?? required.site.read(input),
     readSettings: async (input) => (await project.readSettings(input)) ?? required.site.readSettings(input),
     write: (input) => project.write(input),
+  };
+}
+
+/**
+ * For a run whose project store failed to open: reads fall back to the site vault (what boot would
+ * have read anyway for a plugin the project never saved), and every save is refused with
+ * {@link ProviderStoreUnavailableError} instead of landing in a scope a later start would hide.
+ */
+export function withUnavailableProject(
+  required: { site: ProviderConfigSource; reason: string },
+  _optional: Record<string, never> = {},
+): ProviderConfigSource {
+  const { site, reason } = required;
+  return {
+    scope: "project",
+    read: (input) => site.read(input),
+    readSettings: (input) => site.readSettings(input),
+    write: () => Promise.reject(new ProviderStoreUnavailableError({ reason })),
   };
 }

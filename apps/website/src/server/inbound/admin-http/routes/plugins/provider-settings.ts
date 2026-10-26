@@ -88,7 +88,7 @@ export function registerPluginProviderSettingsRoutes(app: Express, deps: Provide
       const card = await resolveCard({ req, res, deps, permission: "admin.plugins.enable" });
       if (!card) return;
       const saved = await saveProviderSettings({ ...card, values: (req.body as { values?: unknown } | null)?.values });
-      if ("refusal" in saved) { res.status(400).json(saved.refusal); return; }
+      if ("refusal" in saved) { res.status(saved.refusal.code === "PROVIDER_SETTINGS_UNAVAILABLE" ? 503 : 400).json(saved.refusal); return; }
       res.json(await cardOf(card));
     } catch { internalError(res); }
   });

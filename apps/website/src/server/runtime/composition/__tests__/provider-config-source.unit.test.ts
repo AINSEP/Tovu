@@ -5,7 +5,8 @@ import type { AgentPluginStateStore } from "#src/features/api-connections/plugin
 
 import { SECRET_OPEN_FAILED } from "#src/features/webhooks/secret-sealer.aesgcm";
 
-import { ProviderConfigUnreadableError, createVaultProviderConfigSource, withProjectPrecedence, type ProviderConfigSource } from "../provider-config-source.js";
+import { ProviderConfigUnreadableError, ProviderStoreUnavailableError, createVaultProviderConfigSource, withProjectPrecedence, withUnavailableProject, type ProviderConfigSource } from "../provider-config-source.js";
+import { saveProviderSettings } from "../provider-settings-save.js";
 
 /**
  * @file The provider-settings port with DI fakes: a Map-backed plugin-state store stands in for the
@@ -83,6 +84,20 @@ test("precedence: the project store answers first, the site vault per plugin oth
   assert.deepEqual(await source.readSettings({ pluginId: "b" }), { settings: { from: "project" }, secretNames: ["k"] });
   await source.write({ pluginId: "c", config: { settings: {}, secrets: {} } });
   assert.deepEqual([project.writes, site.writes], [["b", "c"], ["a", "b"]]);
+});
+
+test("a project store that failed to open: reads fall back to the site vault, a save is refused (never written to the site vault)", async () => {
+  const site = memorySource("site");
+  await site.write({ pluginId: "a", config: { settings: { from: "site" }, secrets: {} } });
+  const source = withUnavailableProject({ site, reason: "EACCES: permission denied" });
+  assert.equal(source.scope, "project");
+  assert.deepEqual(await source.read({ pluginId: "a" }), { settings: { from: "site" }, secrets: {} });
+  assert.deepEqual(await source.readSettings({ pluginId: "a" }), { settings: { from: "site" }, secretNames: [] });
+  await assert.rejects(source.write({ pluginId: "b", config: { settings: {}, secrets: {} } }), ProviderStoreUnavailableError);
+  // Both cards share this save rule: the refusal names the cause instead of a bare internal error.
+  const saved = await saveProviderSettings({ config: source, pluginId: "b", fields: [{ name: "host", label: "Host" }], values: { host: "https://h" } });
+  assert.deepEqual(saved, { refusal: { code: "PROVIDER_SETTINGS_UNAVAILABLE", error: "Project settings can't be saved right now: EACCES: permission denied" } });
+  assert.deepEqual(site.writes, ["a"], "nothing reached the site vault");
 });
 
 const PAIR_A = { settings: { endpoint: "https://old.example" }, secrets: { headers: "old=1" } };
