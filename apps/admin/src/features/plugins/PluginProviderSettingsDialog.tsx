@@ -2,6 +2,7 @@ import { agentHandle } from "@jini-ai/agentic";
 import { Button, Dialog } from "@jini-ai/ui-kit/react";
 import { interpolate } from "@jini-ai/ui/panel-kit";
 import { useEffect, useId } from "react";
+import { isProviderSettingRequired } from "@jini-ai/plugins/host";
 
 import type { AdminPlugin, AdminPluginProviderSettings } from "@/lib/api";
 import { useWiredPluginProviderSettings } from "./hooks/use-plugin-provider-settings.hooks";
@@ -78,7 +79,7 @@ export function PluginProviderSettingsDialog({ plugin, agentHandleBase, onClose,
         <div className="jini-dialog-body">
           <ReentryNotices card={card} t={t} />
           {(card?.fields ?? []).map((field) => (
-            <ProviderSettingField key={field.name} field={field} id={`${fieldId}-${field.name}`} value={values[field.name] ?? ""}
+            <ProviderSettingField key={field.name} field={{ ...field, required: isProviderSettingRequired({ field, values }) }} id={`${fieldId}-${field.name}`} value={values[field.name] ?? ""}
               onChange={(value) => setValue(field.name, value)} handle={`${agentHandleBase}-setting-${handleWords(field.name)}`} pluginName={plugin.name} t={t} />
           ))}
         </div>
