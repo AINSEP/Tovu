@@ -3,7 +3,7 @@ import { checkShareLimits, SHARE_LIMITS, type ShareDatabaseSanitizer } from "./s
 import { SITE_BACKUP_DATABASE_PATH } from "./sources.js";
 import { buildManifestInventory, checkArchiveMatchesInventory, parseShareManifest, readListedFiles, refuseArchive, scanArchiveMetadata } from "./import-verifier-inventory.js";
 import { applyShareProjection } from "./import-verifier-projection.js";
-import { readBundledPackageFiles } from "./package-file-inventory.js";
+import { packageFilesForPaths } from "./package-file-inventory.js";
 import type { PackageFileInventory } from "./share-file-policy.js";
 
 export interface VerifiedSiteImport {
@@ -27,7 +27,7 @@ export async function verifySiteImport(required: { archive: Buffer; reader: Agen
   const inventory = buildManifestInventory({ files: manifest.files });
   checkArchiveMatchesInventory({ inventory, fileAliases: scan.fileAliases, directories: scan.directories });
   // Package files are verified against THIS build's bundled sources, exactly as on export.
-  const packageFiles = optional.packageFiles ?? await readBundledPackageFiles();
+  const packageFiles = await packageFilesForPaths({ paths: inventory.keys() }, optional);
   const files = await readListedFiles({ archive, reader, inventory, manifestBytes: scan.manifestBytes }, { ...optional, packageFiles });
   const projection = await required.sanitize({ snapshot: files.get(SITE_BACKUP_DATABASE_PATH)! }, { signal: optional.signal });
   await applyShareProjection({ files, projection }, optional);

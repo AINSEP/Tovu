@@ -1,7 +1,7 @@
 import { excludedSharePath, validateSharePath } from "./share-file-policy.js";
 import { checkShareLimits, SiteShareRefusal } from "./share-policy.js";
 import { constants as fsConstants, type Dirent, type Stats } from "node:fs";
-import { lstat, open, readdir, readFile, stat, unlink } from "node:fs/promises";
+import { lstat, open, readdir, readFile, realpath, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
@@ -97,6 +97,8 @@ export interface PlannedDiskFile {
   readonly path: string;
   readonly bytes: number;
   readonly scope: SiteBackupScope;
+  /** The folder the plan's walk started from. {@link readPlannedFile} refuses a link anywhere below it. */
+  readonly root: string;
   readonly absPath: string;
   readonly mtimeMs: number;
 }
@@ -161,7 +163,7 @@ async function readdirOrEmpty(dir: string, fileSystem: SiteBackupWalkFileSystem)
  *
  * @complexity O(1) — one `lstat`.
  */
-async function addFile(sink: WalkSink, input: { absPath: string; relPath: string; scope: SiteBackupScope }): Promise<void> {
+async function addFile(sink: WalkSink, input: { root: string; absPath: string; relPath: string; scope: SiteBackupScope }): Promise<void> {
   if (sink.profile === "share" && excludedSharePath({ path: input.relPath })) return;
   let info;
   try {
@@ -183,22 +185,23 @@ async function addFile(sink: WalkSink, input: { absPath: string; relPath: string
     if (info.nlink > 1) throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: `Share refuses hardlinked file '${input.relPath}'.` });
     checkShareLimits({ files: [...sink.files, { path: input.relPath, bytes: info.size }] });
   }
-  sink.files.push({ path: input.relPath, bytes: info.size, scope: input.scope, absPath: input.absPath, mtimeMs: info.mtimeMs });
+  sink.files.push({ path: input.relPath, bytes: info.size, scope: input.scope, root: input.root, absPath: input.absPath, mtimeMs: info.mtimeMs });
 }
 
 /**
  * Recursively adds every regular file under `absDir`. Symlinks (to files or folders) are reported
  * and never entered; {@link IGNORED_NAMES} are dropped silently; `excludeTopLevel` names are dropped
- * at the first level only (`uploads/chat-attachments`).
+ * at the first level only (`uploads/chat-attachments`). Each file's `root` is `root`, else `absDir`.
  *
  * @complexity O(entries under `absDir`) filesystem calls; recursion depth is the folder depth.
  */
-async function walkTree(sink: WalkSink, input: { absDir: string; relDir: string; scope: SiteBackupScope; excludeTopLevel?: ReadonlySet<string> }): Promise<void> {
+async function walkTree(sink: WalkSink, input: { root?: string; absDir: string; relDir: string; scope: SiteBackupScope; excludeTopLevel?: ReadonlySet<string> }): Promise<void> {
   if (sink.profile === "share" && !(await enterShareDirectory({ sink, absDir: input.absDir, relDir: input.relDir }))) return;
   const entries = await readdirOrEmpty(input.absDir, sink.fileSystem);
+  const root = input.root ?? input.absDir;
   for (const entry of entries) {
     if (skippedWalkEntry({ sink, relDir: input.relDir, name: entry.name }, { excludeTopLevel: input.excludeTopLevel })) continue;
-    await walkEntry({ sink, entry, absDir: input.absDir, relDir: input.relDir, scope: input.scope });
+    await walkEntry({ sink, entry, root, absDir: input.absDir, relDir: input.relDir, scope: input.scope });
   }
 }
 
@@ -220,16 +223,16 @@ function skippedWalkEntry(required: { sink: WalkSink; relDir: string; name: stri
   return IGNORED_NAMES.has(name) || optional.excludeTopLevel?.has(name) === true;
 }
 
-async function walkEntry(required: { sink: WalkSink; entry: Dirent; absDir: string; relDir: string; scope: SiteBackupScope }): Promise<void> {
-  const { sink, entry, scope } = required;
+async function walkEntry(required: { sink: WalkSink; entry: Dirent; root: string; absDir: string; relDir: string; scope: SiteBackupScope }): Promise<void> {
+  const { sink, entry, root, scope } = required;
   const absPath = path.join(required.absDir, entry.name);
   const relPath = `${required.relDir}/${entry.name}`;
   if (entry.isSymbolicLink()) {
     sink.skipped.push({ path: relPath, reason: SYMLINK_REASON });
   } else if (entry.isDirectory()) {
-    await walkTree(sink, { absDir: absPath, relDir: relPath, scope });
+    await walkTree(sink, { root, absDir: absPath, relDir: relPath, scope });
   } else {
-    await addFile(sink, { absPath, relPath, scope });
+    await addFile(sink, { root, absPath, relPath, scope });
   }
 }
 
@@ -262,7 +265,7 @@ async function walkOwnedDir(sink: WalkSink, input: { layout: AgentPluginLayout; 
     }
     if (!info.isDirectory()) return;
   }
-  await walkTree(sink, { absDir: input.absDir, relDir: agentPluginsRelPath(input.layout, input.absDir), scope: "plugins" });
+  await walkTree(sink, { root: input.layout.workspacesDir, absDir: input.absDir, relDir: agentPluginsRelPath(input.layout, input.absDir), scope: "plugins" });
 }
 
 /**
@@ -312,7 +315,7 @@ async function walkPluginWorkspace(required: { sink: WalkSink; layout: AgentPlug
   const { sink, layout, workspace } = required;
   for (const name of PLUGIN_WORKSPACE_FILES) {
     const absPath = path.join(workspace.root, name);
-    await addFile(sink, { absPath, relPath: agentPluginsRelPath(layout, absPath), scope: "plugins" });
+    await addFile(sink, { root: layout.workspacesDir, absPath, relPath: agentPluginsRelPath(layout, absPath), scope: "plugins" });
   }
   await walkOwnedDir(sink, { layout, baseDir: workspace.root, absDir: workspace.packages });
   for (const pluginEntry of await readdirOrEmpty(workspace.root, sink.fileSystem)) await walkInstalledPlugin({ sink, layout, workspace, pluginEntry });
@@ -365,7 +368,7 @@ export async function collectSiteBackupFiles(input: { sources: SiteBackupSources
   if (sink.profile === "share") await collectShareOnlyTrees({ sink, sources, include });
   if (include.settings) {
     for (const name of ["config.json", ".site-meta.json"]) {
-      await addFile(sink, { absPath: path.join(sources.siteDir, name), relPath: `settings/${name}`, scope: "settings" });
+      await addFile(sink, { root: sources.siteDir, absPath: path.join(sources.siteDir, name), relPath: `settings/${name}`, scope: "settings" });
     }
   }
 
@@ -514,36 +517,98 @@ export type ReadPlannedFileResult = { ok: true; bytes: Buffer } | { ok: false; m
 
 /** The opened file's metadata and bytes must come from the same handle. */
 export interface SiteBackupReadHandle {
-  stat(): Promise<Pick<Stats, "isFile" | "size" | "mtimeMs">>;
+  stat(): Promise<Pick<Stats, "isFile" | "size" | "mtimeMs" | "dev" | "ino">>;
   readFile(): Promise<Buffer>;
   close(): Promise<void>;
 }
 
+/** The filesystem calls a push-time read makes; injectable so the swap races can be staged. */
+export interface SiteBackupReadFileSystem {
+  readonly open: (file: string, flags: number) => Promise<SiteBackupReadHandle>;
+  readonly lstat: (file: string) => Promise<Pick<Stats, "isDirectory" | "isSymbolicLink" | "dev" | "ino">>;
+  readonly realpath: (file: string) => Promise<string>;
+}
+
+const READ_FILE_SYSTEM: SiteBackupReadFileSystem = { open, lstat, realpath };
+
 /**
  * Reads a planned file at push time, refusing it if it is no longer the file the human reviewed.
  *
- * Opened with `O_NOFOLLOW` and checked through the SAME handle it is read from, so a file swapped
- * for a symlink after the plan cannot be followed, and the size/mtime compared are the bytes
- * actually read.
+ * Opened with `O_NOFOLLOW` (where the platform has it; Windows does not) and checked through the SAME
+ * handle it is read from, so a file swapped for a symlink after the plan cannot be followed, and the
+ * size/mtime compared are the bytes actually read. `O_NOFOLLOW` guards only the last name, and Node
+ * has no `openat`, so the folders between the plan's root and the file are checked by
+ * {@link walkPlannedPath} right before and right after the open, and the opened handle must be the
+ * very file that second walk reached (same device and inode): an ancestor swapped for a link and back
+ * around the open is still caught. Anything that cannot be proven fails closed as stale.
  *
- * @complexity O(file size) — one open, one fstat, one read.
+ * @complexity O(file size + path depth) — two walks of O(depth) `lstat`s and two `realpath`s each,
+ *   one open, one fstat, one read.
  */
-export async function readPlannedFile(file: PlannedDiskFile, optional: { openFile?: (file: string, flags: number) => Promise<SiteBackupReadHandle> } = {}): Promise<ReadPlannedFileResult> {
+export async function readPlannedFile(file: PlannedDiskFile, optional: { fileSystem?: SiteBackupReadFileSystem } = {}): Promise<ReadPlannedFileResult> {
+  const fileSystem = optional.fileSystem ?? READ_FILE_SYSTEM;
   const stale: ReadPlannedFileResult = { ok: false, message: `'${file.path}' changed since the plan was made. Call site_backup_plan again.` };
+  const before = await walkPlannedPath({ file, fileSystem });
+  if (before === null) return stale;
   let handle;
   try {
-    handle = await (optional.openFile ?? open)(file.absPath, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0));
+    handle = await fileSystem.open(file.absPath, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0));
   } catch {
     return stale;
   }
   try {
-    const info = await handle.stat();
-    if (!info.isFile() || info.size !== file.bytes || info.mtimeMs !== file.mtimeMs) return stale;
+    if (!(await openedIsPlanned({ file, fileSystem, handle, before }))) return stale;
     const bytes = await handle.readFile();
     return bytes.length === file.bytes ? { ok: true, bytes } : stale;
   } finally {
     await handle.close();
   }
+}
+
+/** The handle's own metadata matches the plan, and a second walk reaches this same file at the same real path. */
+async function openedIsPlanned(required: { file: PlannedDiskFile; fileSystem: SiteBackupReadFileSystem; handle: SiteBackupReadHandle; before: PlannedPathProof }): Promise<boolean> {
+  const { file, before } = required;
+  const info = await required.handle.stat();
+  if (!info.isFile() || info.size !== file.bytes || info.mtimeMs !== file.mtimeMs) return false;
+  const after = await walkPlannedPath({ file, fileSystem: required.fileSystem });
+  return after !== null && after.realPath === before.realPath && after.leaf.dev === info.dev && after.leaf.ino === info.ino;
+}
+
+type PlannedPathProof = { realPath: string; leaf: Pick<Stats, "dev" | "ino"> };
+
+/**
+ * Proves `file.absPath` is still a plain path below `file.root`: every folder in between is a real
+ * directory (`lstat`, so a symlink or Windows junction is seen as a link), the file itself is no link,
+ * and its real path is the root's real path plus those same names. `null` when any of that fails or
+ * the filesystem errors. The root itself is the scope folder the plan walked from and is trusted.
+ *
+ * @complexity O(depth) `lstat`s and two `realpath`s.
+ */
+async function walkPlannedPath(required: { file: PlannedDiskFile; fileSystem: SiteBackupReadFileSystem }): Promise<PlannedPathProof | null> {
+  const { file, fileSystem } = required;
+  const relative = path.relative(file.root, file.absPath);
+  if (relative === "" || path.isAbsolute(relative) || relative.split(path.sep)[0] === "..") return null;
+  try {
+    const leaf = await lstatEachName({ root: file.root, names: relative.split(path.sep), fileSystem });
+    if (leaf === null) return null;
+    const realPath = path.join(await fileSystem.realpath(file.root), relative);
+    return (await fileSystem.realpath(file.absPath)) === realPath ? { realPath, leaf } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The last name's `lstat` once no name is a link and every earlier one is a directory; else `null`. O(names). */
+async function lstatEachName(required: { root: string; names: readonly string[]; fileSystem: SiteBackupReadFileSystem }): Promise<Pick<Stats, "dev" | "ino"> | null> {
+  let current = required.root;
+  let info: Pick<Stats, "dev" | "ino"> | null = null;
+  for (const [index, name] of required.names.entries()) {
+    current = path.join(current, name);
+    const entry = await required.fileSystem.lstat(current);
+    if (entry.isSymbolicLink() || (index < required.names.length - 1 && !entry.isDirectory())) return null;
+    info = entry;
+  }
+  return info;
 }
 
 export interface SiteBackupManifestInput {

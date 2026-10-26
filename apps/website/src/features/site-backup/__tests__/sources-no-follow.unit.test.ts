@@ -12,9 +12,11 @@ mock.module("node:fs", { defaultExport: { ...fs, constants }, namedExports: { ..
 test("without O_NOFOLLOW a planned file is opened read-only", async () => {
   const { readPlannedFile } = await import("../sources.js");
   const flags: number[] = [];
-  const result = await readPlannedFile({ path: "themes/a", bytes: 1, scope: "themes", absPath: "/never/read", mtimeMs: 1 }, {
-    openFile: async (_file, openFlags) => { flags.push(openFlags); throw new Error("not opened"); },
-  });
+  const result = await readPlannedFile({ path: "themes/a", bytes: 1, scope: "themes", root: "/never", absPath: "/never/read", mtimeMs: 1 }, { fileSystem: {
+    open: async (_file, openFlags) => { flags.push(openFlags); throw new Error("not opened"); },
+    lstat: async () => ({ isDirectory: () => false, isSymbolicLink: () => false, dev: 1, ino: 1 }),
+    realpath: async (file) => file,
+  } });
   assert.deepEqual(flags, [fs.constants.O_RDONLY]);
   assert.deepEqual(result, { ok: false, message: "'themes/a' changed since the plan was made. Call site_backup_plan again." });
 });

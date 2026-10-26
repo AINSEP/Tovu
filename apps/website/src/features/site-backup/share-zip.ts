@@ -4,7 +4,7 @@ import { buildSiteBackupManifest, readPlannedFile, SITE_BACKUP_DATABASE_PATH, SI
 import type { SiteSharePlanContent } from "./plan-store.js";
 import { checkShareLimits, SHARE_LIMITS, SiteShareRefusal } from "./share-policy.js";
 import { requireShareSecretFree, claimSharePath, type PackageFileInventory } from "./share-file-policy.js";
-import { readBundledPackageFiles } from "./package-file-inventory.js";
+import { packageFilesForPaths } from "./package-file-inventory.js";
 import type { SiteBackupPushProgress } from "./push-engine.js";
 
 type ShareZipEntry = { readonly path: string; readonly content: Buffer };
@@ -80,7 +80,7 @@ export async function buildShareZip(required: { plan: SiteSharePlanContent; zip:
   const sizes = [...plan.files, ...memory.map(file => ({ path: file.path, bytes: file.content.length }))];
   checkShareLimits({ files: sizes, totalBytes: plan.totalBytes });
   claimArchivePaths({ entries: sizes });
-  const collected: CollectedShareEntries = { files: [], inventory: [], packageFiles: optional.packageFiles ?? await readBundledPackageFiles() };
+  const collected: CollectedShareEntries = { files: [], inventory: [], packageFiles: await packageFilesForPaths({ paths: sizes.map(file => file.path) }, optional) };
   for (const entry of memory) addEntry({ entry, collected }, optional);
   await addDiskFiles({ files: plan.files, collected }, optional);
   collected.files.push(buildManifestFile({ plan, inventory: collected.inventory }));

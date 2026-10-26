@@ -1,7 +1,7 @@
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import { lstat, readdir } from "node:fs/promises";
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, unlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, renameSync, rmSync, symlinkSync, unlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -18,6 +18,8 @@ import {
   SITE_BACKUP_LIMITS,
   skipOversizedFiles,
   type SiteBackupInclude,
+  type SiteBackupReadFileSystem,
+  type SiteBackupReadHandle,
   type SiteBackupSources,
 } from "../sources.js";
 
@@ -389,7 +391,7 @@ test("a host that declares no per-file limit gets no per-file check, only this t
 });
 
 test("a disk file over the host's per-file limit is left out and named in skipped with its size; exactly the limit stays", () => {
-  const file = (filePath: string, bytes: number) => ({ path: filePath, absPath: `/site/${filePath}`, bytes, mtimeMs: 1, scope: "media" as const });
+  const file = (filePath: string, bytes: number) => ({ path: filePath, root: "/site", absPath: `/site/${filePath}`, bytes, mtimeMs: 1, scope: "media" as const });
   const result = skipOversizedFiles([file("uploads/a.png", 10), file("uploads/movie.mp4", GITHUB_HOST.maxFileBytes + 1), file("uploads/b.png", GITHUB_HOST.maxFileBytes)], GITHUB_HOST);
   assert.deepEqual(result.files.map((f) => f.path), ["uploads/a.png", "uploads/b.png"]);
   assert.deepEqual(result.skipped, [{ path: "uploads/movie.mp4", reason: "100 MiB, over GitHub's 100 MiB per-file limit" }]);
@@ -464,6 +466,133 @@ test("a file replaced after planning by a symlink with matching size and mtime i
     site.cleanup();
     rmSync(outside, { recursive: true, force: true });
   }
+});
+
+test("a planned file whose ancestor folder is swapped for a symlink after the plan is refused", { skip: process.platform === "win32" && "creating symlinks needs admin on Windows CI" }, async (t) => {
+  const site = makeSite();
+  const outside = mkdtempSync(path.join(tmpdir(), "backup-swapped-ancestor-"));
+  t.after(() => { site.cleanup(); rmSync(outside, { recursive: true, force: true }); });
+  const at = new Date("2026-09-21T12:00:00Z");
+  const demo = path.join(site.root, "themes", "static", "demo");
+  utimesSync(path.join(demo, "index.html"), at, at);
+  const { files } = await collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, themes: true } });
+  const planned = files.find((file) => file.path === "themes/static/demo/index.html");
+  assert.ok(planned);
+  // Same name, size and mtime outside the site: only the swapped ancestor differs.
+  const secret = path.join(outside, "index.html");
+  writeFileSync(secret, "SECRET");
+  utimesSync(secret, at, at);
+  renameSync(demo, `${demo}-moved`);
+  symlinkSync(outside, demo, "dir");
+  assert.deepEqual(await readPlannedFile(planned), { ok: false, message: `'${planned.path}' changed since the plan was made. Call site_backup_plan again.` });
+});
+
+test("a planned file records the folder its scope walk started from", async (t) => {
+  const site = makeSite();
+  t.after(site.cleanup);
+  const { files } = await collectSiteBackupFiles({ sources: site.sources, include: ALL });
+  const rootOf = (filePath: string) => files.find((file) => file.path === filePath)?.root;
+  assert.equal(rootOf("themes/static/demo/index.html"), site.sources.themesDir);
+  assert.equal(rootOf("uploads/ws/workspace-local/blobs/ab/abcdef"), site.sources.mediaUploadsDir);
+  assert.equal(rootOf("settings/config.json"), site.sources.siteDir);
+  assert.equal(rootOf("skills/ws/workspace-local/incident-response/SKILL.md"), site.sources.skillsDir);
+  assert.equal(rootOf("agent-plugins/ws/workspace-local/activations.json"), site.sources.agentPlugins.workspacesDir);
+  assert.equal(rootOf("agent-plugins/ws/workspace-local/composio/package/sha256/d2/plugin.json"), site.sources.agentPlugins.workspacesDir);
+});
+
+/** `/fixture/<name>` where every folder is real and the file is inode 7, opened through `handle`. */
+function fixtureReadFileSystem(handle: SiteBackupReadHandle, overrides: Partial<SiteBackupReadFileSystem> = {}): SiteBackupReadFileSystem & { opened: string[] } {
+  const opened: string[] = [];
+  return {
+    opened,
+    open: async (file) => { opened.push(file); return handle; },
+    lstat: async () => ({ isDirectory: () => true, isSymbolicLink: () => false, dev: 1, ino: 7 }),
+    realpath: async (file) => file,
+    ...overrides,
+  };
+}
+
+function fixtureHandle(stat: { ino: number }, log: string[] = []): SiteBackupReadHandle {
+  return {
+    stat: async () => ({ isFile: () => true, size: 6, mtimeMs: 12, dev: 1, ino: stat.ino }),
+    readFile: async () => { log.push("read"); return Buffer.from("<html>"); },
+    close: async () => { log.push("closed"); },
+  };
+}
+
+const fixtureFile = (absPath: string, root = "/fixture") => ({ path: "themes/index.html", root, absPath, scope: "themes" as const, bytes: 6, mtimeMs: 12 });
+const STALE_FIXTURE = { ok: false, message: "'themes/index.html' changed since the plan was made. Call site_backup_plan again." };
+
+test("an unchanged file under real folders reads through the fake filesystem", async () => {
+  const log: string[] = [];
+  const fileSystem = fixtureReadFileSystem(fixtureHandle({ ino: 7 }, log));
+  assert.deepEqual(await readPlannedFile(fixtureFile(path.join("/fixture", "a", "index.html")), { fileSystem }), { ok: true, bytes: Buffer.from("<html>") });
+  assert.deepEqual(log, ["read", "closed"]);
+});
+
+test("a symlinked ancestor seen before the open is refused without opening anything", async () => {
+  const fileSystem = fixtureReadFileSystem(fixtureHandle({ ino: 7 }), {
+    lstat: async (file) => ({ isDirectory: () => true, isSymbolicLink: () => file === path.join("/fixture", "a"), dev: 1, ino: 7 }),
+  });
+  assert.deepEqual(await readPlannedFile(fixtureFile(path.join("/fixture", "a", "index.html")), { fileSystem }), STALE_FIXTURE);
+  assert.deepEqual(fileSystem.opened, []);
+});
+
+test("an ancestor that is a file, not a folder, is refused without opening", async () => {
+  const fileSystem = fixtureReadFileSystem(fixtureHandle({ ino: 7 }), {
+    lstat: async (file) => ({ isDirectory: () => file !== path.join("/fixture", "a"), isSymbolicLink: () => false, dev: 1, ino: 7 }),
+  });
+  assert.deepEqual(await readPlannedFile(fixtureFile(path.join("/fixture", "a", "index.html")), { fileSystem }), STALE_FIXTURE);
+  assert.deepEqual(fileSystem.opened, []);
+});
+
+test("a path whose real location is not under its root's real location is refused without opening", async () => {
+  const fileSystem = fixtureReadFileSystem(fixtureHandle({ ino: 7 }), {
+    realpath: async (file) => (file === "/fixture" ? "/fixture" : path.join("/elsewhere", path.basename(file))),
+  });
+  assert.deepEqual(await readPlannedFile(fixtureFile(path.join("/fixture", "a", "index.html")), { fileSystem }), STALE_FIXTURE);
+  assert.deepEqual(fileSystem.opened, []);
+});
+
+for (const [label, root, absPath] of [
+  ["outside its root", path.join("/fixture", "other"), path.join("/fixture", "index.html")],
+  ["equal to its root", "/fixture", "/fixture"],
+] as const) {
+  test(`a planned path ${label} is refused without opening`, async () => {
+    const fileSystem = fixtureReadFileSystem(fixtureHandle({ ino: 7 }));
+    assert.deepEqual(await readPlannedFile(fixtureFile(absPath, root), { fileSystem }), STALE_FIXTURE);
+    assert.deepEqual(fileSystem.opened, []);
+  });
+}
+
+test("an ancestor swapped for a link only during the open is caught by the opened inode, and nothing is read", async () => {
+  // The pre-open and post-open walks both see real folders; only the handle shows the open escaped.
+  const log: string[] = [];
+  const fileSystem = fixtureReadFileSystem(fixtureHandle({ ino: 99 }, log));
+  assert.deepEqual(await readPlannedFile(fixtureFile(path.join("/fixture", "a", "index.html")), { fileSystem }), STALE_FIXTURE);
+  assert.deepEqual(log, ["closed"]);
+});
+
+test("an ancestor swapped for a link right after the open is caught by the post-open walk", async () => {
+  const log: string[] = [];
+  let opened = false;
+  const fileSystem = fixtureReadFileSystem(fixtureHandle({ ino: 7 }, log), {
+    open: async () => { opened = true; return fixtureHandle({ ino: 7 }, log); },
+    lstat: async (file) => ({ isDirectory: () => true, isSymbolicLink: () => opened && file === path.join("/fixture", "a"), dev: 1, ino: 7 }),
+  });
+  assert.deepEqual(await readPlannedFile(fixtureFile(path.join("/fixture", "a", "index.html")), { fileSystem }), STALE_FIXTURE);
+  assert.deepEqual(log, ["closed"]);
+});
+
+test("a folder that vanishes during the post-open walk fails closed", async () => {
+  const log: string[] = [];
+  let opened = false;
+  const fileSystem = fixtureReadFileSystem(fixtureHandle({ ino: 7 }, log), {
+    open: async () => { opened = true; return fixtureHandle({ ino: 7 }, log); },
+    lstat: async () => { if (opened) throw Object.assign(new Error("gone"), { code: "ENOENT" }); return { isDirectory: () => true, isSymbolicLink: () => false, dev: 1, ino: 7 }; },
+  });
+  assert.deepEqual(await readPlannedFile(fixtureFile(path.join("/fixture", "a", "index.html")), { fileSystem }), STALE_FIXTURE);
+  assert.deepEqual(log, ["closed"]);
 });
 
 // ---------------------------------------------------------------------------
@@ -618,13 +747,13 @@ test("a planned file replaced by a directory is stale", async (t) => {
 });
 
 test("a file truncated after fstat is refused and its handle is closed", async () => {
-  const file = { path: "themes/index.html", absPath: "/fixture/index.html", scope: "themes" as const, bytes: 6, mtimeMs: 12 };
+  const file = fixtureFile(path.join("/fixture", "index.html"));
   let closed = false;
-  assert.deepEqual(await readPlannedFile(file, { openFile: async () => ({
-    stat: async () => ({ isFile: () => true, size: 6, mtimeMs: 12 }),
+  assert.deepEqual(await readPlannedFile(file, { fileSystem: fixtureReadFileSystem({
+    stat: async () => ({ isFile: () => true, size: 6, mtimeMs: 12, dev: 1, ino: 7 }),
     readFile: async () => Buffer.from("short"),
     close: async () => { closed = true; },
-  }) }), { ok: false, message: "'themes/index.html' changed since the plan was made. Call site_backup_plan again." });
+  }) }), STALE_FIXTURE);
   assert.equal(closed, true);
 });
 
@@ -632,9 +761,9 @@ for (const failingOperation of ["stat", "readFile"] as const) {
   test(`a handle ${failingOperation} failure propagates after closing the handle`, async () => {
     const failure = new Error(`${failingOperation} failed`);
     let closed = false;
-    const file = { path: "themes/index.html", absPath: "/fixture/index.html", scope: "themes" as const, bytes: 6, mtimeMs: 12 };
-    await assert.rejects(readPlannedFile(file, { openFile: async () => ({
-      stat: async () => { if (failingOperation === "stat") throw failure; return { isFile: () => true, size: 6, mtimeMs: 12 }; },
+    const file = fixtureFile(path.join("/fixture", "index.html"));
+    await assert.rejects(readPlannedFile(file, { fileSystem: fixtureReadFileSystem({
+      stat: async () => { if (failingOperation === "stat") throw failure; return { isFile: () => true, size: 6, mtimeMs: 12, dev: 1, ino: 7 }; },
       readFile: async () => { throw failure; },
       close: async () => { closed = true; },
     }) }), error => error === failure);

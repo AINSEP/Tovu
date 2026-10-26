@@ -14,6 +14,11 @@ const PACKAGE_MANIFEST_NAMES = ["mcp.json", "tovu-credential-schemes.json"];
  *  ships (`package-file-inventory.ts`). The only proof a package-shaped path is the installer's. */
 export type PackageFileInventory = ReadonlyMap<string, ReadonlyMap<string, string>>;
 
+/** True for the only path shape {@link PackageFileInventory} can ever verify. O(path). */
+export function isPackageFilePath(required: { path: string }, _optional: Record<string, never> = {}): boolean {
+  return PACKAGE_FILE.test(required.path);
+}
+
 function excludedRuntimeSharePath({ path, parts }: { path: string; parts: string[] }, _options = {}): boolean {
   // Plugin runtime data/memory have fixed roots. A package's src/data or docs/notes is content.
   const roots = [

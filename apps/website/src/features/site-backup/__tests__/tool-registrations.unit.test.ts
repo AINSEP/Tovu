@@ -1360,7 +1360,7 @@ async function uploadFixture(t: TestContext) {
   function file(name: string, bytes: Uint8Array): PlannedDiskFile {
     const absPath = path.join(h.site.root, name);
     writeFileSync(absPath, bytes);
-    return { path: name, absPath, bytes: bytes.byteLength, mtimeMs: statSync(absPath).mtimeMs, scope: "settings" };
+    return { path: name, root: h.site.root, absPath, bytes: bytes.byteLength, mtimeMs: statSync(absPath).mtimeMs, scope: "settings" };
   }
   return { h, plan, provider: built.provider, target, controller, toRefusal, file };
 }
