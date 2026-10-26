@@ -2,11 +2,11 @@ import { agentHandle } from "@jini-ai/agentic";
 import { Button, Dialog } from "@jini-ai/ui-kit/react";
 import { interpolate } from "@jini-ai/ui/panel-kit";
 import { useEffect, useId } from "react";
-import { isProviderSettingRequired } from "@jini-ai/plugins/host";
 
 import type { AdminPlugin, AdminPluginProviderSettings } from "@/lib/api";
 import { useWiredPluginProviderSettings } from "./hooks/use-plugin-provider-settings.hooks";
 import { ProviderSettingField } from "./PluginProviderSettingField";
+import { providerSettingRequiredHere } from "./rules";
 import "../../styles/native-domain-dialogs.css";
 import "./provider-settings-dialog.css";
 
@@ -68,8 +68,9 @@ function SettingsFooter({ shown, saving, pluginName, agentHandleBase, onClose, t
 export function PluginProviderSettingsDialog({ plugin, agentHandleBase, onClose, onSaved, useSettings = useWiredPluginProviderSettings }: PluginProviderSettingsDialogProps) {
   const { card, values, setValue, save, useSavedKey, saving, error, t } = useSettings(plugin.id);
   const fieldId = useId();
+  const fields = card?.fields ?? [];
   // Presence only: a saved alternate secret satisfies the same manifest rule as an entered value.
-  const effectiveValues = Object.fromEntries((card?.fields ?? []).map(field => [field.name,
+  const effectiveValues = Object.fromEntries(fields.map(field => [field.name,
     values[field.name]?.trim() || (field.secret && field.saved ? "saved" : field.default ?? "")]));
   // The native dialog focuses on open, before the card has loaded; once it has, start in its first field.
   const firstField = card?.fields[0]?.name;
@@ -84,8 +85,8 @@ export function PluginProviderSettingsDialog({ plugin, agentHandleBase, onClose,
             onPress={() => { void useSavedKey().then(accepted => { if (accepted) onSaved(); }); }}>
             {t("Use the saved key for this site")}
           </Button> : null}
-          {(card?.fields ?? []).map((field) => (
-            <ProviderSettingField key={field.name} field={{ ...field, required: isProviderSettingRequired({ field, values: effectiveValues }) }} id={`${fieldId}-${field.name}`} value={values[field.name] ?? ""}
+          {fields.map((field) => (
+            <ProviderSettingField key={field.name} field={{ ...field, required: providerSettingRequiredHere({ field, fields, entered: values, values: effectiveValues }) }} id={`${fieldId}-${field.name}`} value={values[field.name] ?? ""}
               onChange={(value) => setValue(field.name, value)} handle={`${agentHandleBase}-setting-${handleWords(field.name)}`} pluginName={plugin.name} t={t} />
           ))}
         </div>

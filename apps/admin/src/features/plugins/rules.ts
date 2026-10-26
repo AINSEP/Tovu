@@ -1,4 +1,5 @@
-import { ApiError, describeApiError as describeApiErrorDefault, type AdminAgentPlugin, type AdminPlugin, type AdminPluginConflict, type AdminPluginFiles, type AdminPluginPackageFile } from "../../lib/api";
+import { ApiError, describeApiError as describeApiErrorDefault, type AdminAgentPlugin, type AdminPlugin, type AdminPluginConflict, type AdminPluginFiles, type AdminPluginPackageFile, type AdminPluginProviderSettingField } from "../../lib/api";
+import { isProviderSettingRequired } from "@jini-ai/plugins/host";
 import { t } from "./plugins-i18n";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import type { AgentPluginGlyphKind } from "./agent-plugins-visuals";
@@ -580,6 +581,22 @@ export function agentPluginCompatibilityLines(required: { plugin: Pick<AdminAgen
 export function updatableAgentPluginDigest(required: { plugin: Pick<AdminAgentPlugin, "origin" | "archiveDigest"> }, _optional: Record<string, never> = {}): string | undefined {
   const { origin, archiveDigest } = required.plugin;
   return origin === "operator-installed" && typeof archiveDigest === "string" && archiveDigest.length > 0 ? archiveDigest : undefined;
+}
+
+/**
+ * Whether the settings card marks a provider field required. Like the chat form, a kept `orPresent`
+ * secret (saved, left blank) satisfies the field's `requiredUnless`: the card only knows it is
+ * saved, never its value, so it cannot run a `headerNames` check and the server decides on save
+ * (2026-10-26 O1: a legacy OTel row authenticated by a saved Authorization header).
+ * `values` are the effective values, with the `"saved"` sentinel for kept secrets.
+ * @complexity O(f + b) in field count and alternative text.
+ */
+export function providerSettingRequiredHere(required: { field: AdminPluginProviderSettingField; fields: readonly AdminPluginProviderSettingField[]; entered: Readonly<Record<string, string | undefined>>; values: Readonly<Record<string, string>> }, _optional: Record<string, never> = {}): boolean {
+  const { field, fields, entered, values } = required;
+  const name = field.requiredUnless?.orPresent;
+  const alternative = fields.find((other) => other.name === name);
+  if (alternative?.secret && alternative.saved && !entered[alternative.name]?.trim()) return false;
+  return isProviderSettingRequired({ field, values });
 }
 
 /**

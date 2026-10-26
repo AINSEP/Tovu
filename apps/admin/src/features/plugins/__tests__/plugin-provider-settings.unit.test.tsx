@@ -66,6 +66,32 @@ describe("PluginProviderSettingsDialog", () => {
     await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
   });
 
+  it('a kept saved header list waives a headerNames token requirement; the server decides on save (O1)', async () => {
+    const onSaved = vi.fn();
+    dialogWith(createFakePluginsPort({ providerSettings: { "observability-opentelemetry": card({ fields: [
+      { name: "auth", label: "Authentication", secret: false, required: true, saved: true, value: "bearer", options: [{ value: "bearer", label: "Bearer" }, { value: "none", label: "None" }] },
+      { name: "token", label: "Token", secret: true, required: true, saved: false, requiredUnless: { field: "auth", equals: "none", orPresent: "headers", headerNames: ["Authorization", "x-api-key"] } },
+      { name: "headers", label: "Headers", secret: true, required: false, saved: true },
+    ] }) } }), { onSaved });
+    await findControl(/^Authentication/);
+    const token = control(/^Token/);
+    expect(token.closest('.provider-settings-field')!.querySelector('.provider-settings-required')).toBeNull();
+    expect(token.hasAttribute('aria-required')).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+  });
+
+  it('an entered header list without a declared auth header still requires Token', async () => {
+    dialogWith(createFakePluginsPort({ providerSettings: { "observability-opentelemetry": card({ fields: [
+      { name: "auth", label: "Authentication", secret: false, required: true, saved: true, value: "bearer", options: [{ value: "bearer", label: "Bearer" }, { value: "none", label: "None" }] },
+      { name: "token", label: "Token", secret: true, required: true, saved: false, requiredUnless: { field: "auth", equals: "none", orPresent: "headers", headerNames: ["Authorization", "x-api-key"] } },
+      { name: "headers", label: "Headers", secret: true, required: false, saved: true },
+    ] }) } }));
+    await findControl(/^Authentication/);
+    fireEvent.change(control(/^Headers/), { target: { value: "X-Scope-OrgID=1" } });
+    expect(control(/^Token/).getAttribute('aria-required')).toBe('true');
+  });
+
   it('shows live required marks for Grafana instance ID and Token, including a kept saved token', async () => {
     dialogWith(createFakePluginsPort({ providerSettings: { "observability-opentelemetry": card({ fields: [
       { name: "auth", label: "Authentication", secret: false, required: true, saved: false, default: "grafana-cloud", options: [{ value: "grafana-cloud", label: "Grafana Cloud (instance ID + token)" }, { value: "bearer", label: "Token only (Bearer)" }, { value: "none", label: "No authentication (local collector, advanced)" }] },
