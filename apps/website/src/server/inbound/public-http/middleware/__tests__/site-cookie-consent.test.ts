@@ -38,7 +38,7 @@ async function publicFixture({ t }: { t: TestContext }, { config = {}, resolvers
   deps.clock = { nowMs: () => now, nowIso: () => new Date(now).toISOString() };
   const calls: Parameters<ConsentPluginHttp['handle']>[0][] = [];
   deps.consentAdapters = ({ base }) => [{
-    adapter: { id: 'fixture', kind: 'consent-adapter', category: 'analytics', src: `${base}/fixture/adapter.mjs` },
+    adapter: { id: 'fixture', kind: 'consent-adapter', category: 'analytics', supportsAnonymous: true, src: `${base}/fixture/adapter.mjs` },
     http: { path: `${base}/fixture`, handle: async input => { calls.push(input); return { status: 200, body: 'plugin response', contentType: 'text/plain', cacheControl: 'public, max-age=60' }; } },
   }];
   const app = express();
@@ -217,9 +217,31 @@ test('static export uses local evidence, omits plugins and never resolves or set
 });
 
 for (const config of [{ bannerMode: 'off' as const }, { enabled: false }]) {
-  test(`banner disabled by ${Object.keys(config)[0]} leaves public HTML untouched`, async t => {
-    const f = await publicFixture({ t }, { config });
-    assert.equal(await (await fetch(f.base)).text(), PAGE);
+  test(`banner disabled by ${Object.keys(config)[0]} boots anonymous analytics without UI or region cookies`, async t => {
+    let regions = 0;
+    const f = await publicFixture({ t }, { config, resolvers: [{ id: 'us', kind: 'region-resolver', resolve: () => { regions++; return 'us'; } }] });
+    const response = await fetch(f.base);
+    assert.equal(response.headers.get('set-cookie'), null);
+    const dom = new JSDOM(await response.text());
+    try {
+      const doc = dom.window.document;
+      assert.equal(JSON.parse(doc.querySelector('#jini-consent-config')!.textContent!).banner, 'off');
+      assert.ok(doc.querySelector(`script[src="${CLIENT.src}"]`));
+      assert.equal(doc.querySelector('#jini-consent'), null);
+      assert.equal(doc.querySelector('[data-consent-open]'), null);
+    } finally { dom.window.close(); }
+    assert.equal(regions, 0, 'off must not resolve a visitor region');
+    const send = (headers = {}) => fetch(f.base + PLUGIN_PATH + '/collect', { method: 'POST', headers: { origin: f.base, ...headers }, body: 'event' });
+    const anonymous = await send();
+    assert.equal(anonymous.status, 200);
+    await anonymous.text();
+    assert.equal(f.calls[0]!.analyticsLevel, 'anonymous');
+    for (const signal of [{ 'sec-gpc': '1' }, { dnt: '1' }]) {
+      const blocked = await send(signal);
+      assert.equal(blocked.status, 403);
+      await blocked.text();
+    }
+    assert.equal(f.calls.length, 1, 'privacy signals never reach the collector');
   });
 }
 
@@ -291,4 +313,29 @@ test('detached delivery rechecks the receipt: a forged, withdrawn or stale-polic
   assert.equal(withdrawn.status, 201);
   await withdrawn.text();
   assert.equal(await allowed({ receiptId: id, policyVersion: f.policy }), false);
+});
+
+test('US no-choice collectors allow analytics except under DNT; strict regions deny', async t => {
+  const f = await publicFixture({ t });
+  const send = (headers: Record<string, string>) => fetch(f.base + PLUGIN_PATH + '/collect', { method: 'POST', headers: { origin: f.base, ...headers }, body: 'event' });
+  for (const headers of [{ cookie: 'jini_region=us', dnt: '1' }, { cookie: 'jini_region=de' }, { cookie: 'jini_region=gb' }, {}]) {
+    const res = await send(headers);
+    assert.equal(res.status, 403);
+    await res.text();
+  }
+  assert.equal(f.calls.length, 0);
+  const us = await send({ cookie: 'jini_region=us' });
+  assert.equal(us.status, 200);
+  await us.text();
+  assert.equal(f.calls[0]!.analyticsLevel, 'full');
+});
+
+test('off refuses collectors whose adapter does not declare anonymous support', async t => {
+  const f = await publicFixture({ t }, { config: { enabled: false } });
+  const original = f.deps.consentAdapters!;
+  f.deps.consentAdapters = input => original(input).map(item => ({ ...item, adapter: { ...item.adapter, supportsAnonymous: undefined } }));
+  const res = await fetch(f.base + PLUGIN_PATH + '/collect', { method: 'POST', headers: { origin: f.base }, body: 'event' });
+  assert.equal(res.status, 403);
+  await res.text();
+  assert.equal(f.calls.length, 0);
 });

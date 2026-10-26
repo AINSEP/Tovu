@@ -88,7 +88,9 @@ test("analyticsProviderRouteDeps: requires an explicit receipt before forwarding
   const noRegion = analyticsProviderRouteDeps({ ...deps, consentTrustedRegionHeader: undefined } as never);
   assert.equal((await noRegion.forwarders!({ request })).length, 1);
   headers['sec-gpc'] = '1'; assert.deepEqual(await route.forwarders!({ request }), []);
-  delete headers['sec-gpc']; await ports.records.retire!({ id });
+  delete headers['sec-gpc'];
+  headers.dnt = '1'; assert.deepEqual(await route.forwarders!({ request }), [], 'old engine still denies DNT');
+  delete headers.dnt; await ports.records.retire!({ id });
   assert.deepEqual(await route.forwarders!({ request }), []);
 });
 
@@ -135,4 +137,44 @@ test("buildAnalyticsProviders: a late failure never evicts a newer cached creden
   await assert.rejects(stale, /late/);
   assert.equal(await providers.resolveCredential({ label: "GA4" }), fresh);
   assert.equal(calls, 2);
+});
+
+test('new engine forwarding: US no-choice may run, DNT/GPC and strict regions deny; off cannot grant full forwarding', async t => {
+  const base = createRouteDeps();
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'tovu-consent-r3-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const vendor: AnalyticsForwarderModule = { create: () => ({ forward: async () => ({ status: 'ok', value: undefined }) }) };
+  const deps = {
+    ...base, siteBinding: { ...base.siteBinding, dir: directory },
+    cookieConsent: { regionResolvers: async () => [] },
+    analyticsConfig: { get: async ({ workspaceId }: { workspaceId: string }) => ({ ...(await base.analyticsConfig.get({ workspaceId })), sink: 'fixture' }) },
+    analyticsProviders: { load: async () => ({ forwarders: createAnalyticsForwarderRegistry({}, { seed: [{ id: 'fixture', provider: vendor }] }), hooks: [], refusals: [] }), resolveCredential: async () => null, httpClient: { send: async () => { throw new Error('no network'); } } },
+  };
+  // Bind a published, enabled policy through the real consent fixture.
+  const { consentFixture } = await import('#src/features/consent/__tests__/fixture');
+  const f = consentFixture({ t });
+  const publish = async (config: typeof f.config, expectedPublishedId: string | null) => {
+    const saved = await f.service.saveDraft({ principalId: 'owner', config, expectedDraftId: expectedPublishedId });
+    await f.service.publish({ principalId: 'owner', draftId: saved.revision.id, expectedPublishedId });
+    return saved.revision.id;
+  };
+  const publishedId = await publish(f.config, null);
+  deps.consentStore = f.store;
+  deps.siteConsentReady = Promise.resolve();
+  const route = analyticsProviderRouteDeps(deps as never);
+  const headers: Record<string, string> = { cookie: 'jini_region=us', dnt: '1' };
+  const request = { get: (name: string) => headers[name], headers: {}, method: 'POST', path: '/_analytics/e' };
+  assert.deepEqual(await route.forwarders!({ request }), [], 'US no-choice plus DNT is denied');
+  delete headers.dnt;
+  assert.equal((await route.forwarders!({ request })).length, 1, 'US opt-out defaults still apply');
+  headers['sec-gpc'] = '1';
+  assert.deepEqual(await route.forwarders!({ request }), []);
+  delete headers['sec-gpc'];
+  for (const cookie of ['', 'jini_region=de', 'jini_region=gb']) {
+    headers.cookie = cookie;
+    assert.deepEqual(await route.forwarders!({ request }), []);
+  }
+  await publish({ ...f.config, enabled: false }, publishedId);
+  headers.cookie = 'jini_region=us';
+  assert.deepEqual(await route.forwarders!({ request }), [], 'a boolean full-event forwarder cannot enforce anonymous restrictions');
 });
