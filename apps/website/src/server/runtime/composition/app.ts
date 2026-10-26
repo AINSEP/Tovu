@@ -332,6 +332,7 @@ import {
 import { createAnalyticsModule } from "./modules/analytics.js";
 import { registerAdminModuleStatusRoute } from "../../inbound/admin-http/routes/system/module-status.js";
 import { registerAdminObservabilityStatusRoute } from "../../inbound/admin-http/routes/system/observability-status.js";
+import { registerAdminBrowserTelemetryRoute } from "../../inbound/admin-http/routes/system/browser-telemetry.js";
 import { registerAdminServerLogsRoute } from "../../inbound/admin-http/routes/system/server-logs.js";
 import { registerAdminMailStatusRoute } from "../../inbound/admin-http/routes/system/mail-status.js";
 import { registerAdminMailProviderRoutes } from "../../inbound/admin-http/routes/system/mail-providers.js";
@@ -2079,6 +2080,8 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // Observability admin page, Overview tab (`development/todos.md` 2026-09-09 owner ask) — same
   // `system.read`-gated shape as the module-status route just above.
   registerAdminObservabilityStatusRoute(app, routeDeps);
+  // The admin browser's own errors and page views, relayed to the same provider-plugin ports.
+  registerAdminBrowserTelemetryRoute(app, routeDeps);
   registerAdminToolGapsRoute(app, routeDeps);
   registerAdminServerLogsRoute(app, routeDeps);
   // Whether outbound mail really sends (not the console fallback) — the form editor greys out its

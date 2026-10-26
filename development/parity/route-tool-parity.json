@@ -211,6 +211,9 @@
         "taxonomy_unassign_terms"
       ]
     },
+    "POST /api/admin/v1/telemetry": {
+      "chatless": "intentional:the admin browser's own error and page-view telemetry, not an operator action"
+    },
     "GET /api/admin/v1/workspaces": {
       "tools": [
         "content_read.workspace"
