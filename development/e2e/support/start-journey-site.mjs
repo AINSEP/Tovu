@@ -1,5 +1,6 @@
 import { spawn, spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
+import { Writable } from "node:stream";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { journeyAdminBundle } from "./journey-admin-bundle.mjs";
@@ -7,7 +8,7 @@ import { journeyAdminBundle } from "./journey-admin-bundle.mjs";
 // Run inside Playwright's webServer process. Clear owner site/DB/daemon overrides BEFORE loading
 // any application code; retain HOME/PATH and Claude's authentication for the real Local CLI.
 const [manifestPath, target] = process.argv.slice(2);
-if (!manifestPath || !["api", "pin-api", "api-site-import", "api-with-site-chat", "admin", "packaged"].includes(target)) throw new Error("Expected boot.json and api|pin-api|api-site-import|admin|packaged");
+if (!manifestPath || !["api", "pin-api", "api-site-import", "api-with-site-chat", "admin", "packaged", "soak"].includes(target)) throw new Error("Expected boot.json and api|pin-api|api-site-import|admin|packaged|soak");
 // `outboundTestOrigins`: harness-written, read only by the `api-site-import` target below.
 const { site, env, apiCwd, outboundTestOrigins } = JSON.parse(readFileSync(manifestPath, "utf8"));
 // Capture the runner's shared build owner before clearing inherited site overrides below.
@@ -24,10 +25,12 @@ Object.assign(process.env, env);
 delete process.env.CLAUDECODE;
 delete process.env.CLAUDE_CODE_ENTRYPOINT;
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
-const adminDist = target === "packaged" ? undefined : await journeyAdminBundle({ runtimeDir: adminBuildOwner, repoRoot });
+const adminDist = ["packaged", "soak"].includes(target) ? undefined : await journeyAdminBundle({ runtimeDir: adminBuildOwner, repoRoot });
 if (adminDist) process.env.TOVU_ADMIN_DIST = adminDist;
-if (target !== "packaged") process.env.TOVU_SITE_CHAT_DIST = path.join(adminBuildOwner, "site-chat-dist");
-if (target === "packaged") {
+if (!["packaged", "soak"].includes(target)) process.env.TOVU_SITE_CHAT_DIST = path.join(adminBuildOwner, "site-chat-dist");
+if (target === "soak") {
+  await startSoakSite({ site, repoRoot });
+} else if (target === "packaged") {
   // The released app's own server: `init` then `serve`, from a cwd outside the repo like Finder's.
   const { executablePath, cliEntry } = site.packaged;
   const cwd = site.runtimeDir;
@@ -77,4 +80,45 @@ if (target === "packaged") {
   for (const signal of ["SIGTERM", "SIGINT"]) process.once(signal, () => {
     server.close(); server.closeAllConnections();
   });
+}
+
+/** Real compiled init/serve; only the serve child exposes a private inspector, never an HTTP GC hook.
+ * The existing server handle owns shutdown. Inspector data stays in the mode-0600 scratch file.
+ * @complexity O(1) harness work plus the existing CLI lifecycle.
+ */
+async function startSoakSite({ site, repoRoot }, _options = {}) {
+  const { initSiteDir } = await import("../../../apps/desktop/src/site-dir-store.ts");
+  const { startTovuServer } = await import("../../../apps/desktop/src/tovu-server.ts");
+  await initSiteDir({ repoRoot, dir: site.siteDir, cliMode: "compiled", baseEnv: process.env,
+    adminPassword: env.TOVU_ADMIN_PASSWORD,
+    spawnFn: (command, args, options) => spawn(command, [...args, "--with-sample-content"], { ...options, cwd: site.runtimeDir }),
+  });
+  let inspectorOutput = "";
+  let server;
+  try {
+    server = await startTovuServer({ repoRoot, siteDir: site.siteDir, port: site.ports.api,
+      cliMode: "compiled", baseEnv: process.env, readyTimeoutMs: 180_000,
+      desktopCredential: { username: env.TOVU_ADMIN_USER, password: env.TOVU_ADMIN_PASSWORD },
+      // Inspector stderr includes a capability URL; keep it out of Playwright/CI diagnostics.
+      mirror: { stdout: process.stdout, stderr: new Writable({ write(_chunk, _encoding, done) { done(); } }) },
+      spawnFn: (command, args, options) => {
+        const child = spawn(command, ["--expose-gc", "--inspect=127.0.0.1:0", ...args], { ...options, cwd: site.runtimeDir });
+        child.stderr.on("data", chunk => { inspectorOutput = (inspectorOutput + chunk.toString()).slice(-8192); });
+        return child;
+      },
+    });
+    const inspectorURL = inspectorOutput.match(/ws:\/\/127\.0\.0\.1:\d+\/[a-f0-9-]+/)?.[0];
+    if (!inspectorURL) throw new Error("Missing serve inspector");
+    writeFileSync(path.join(site.runtimeDir, "soak-server.json"), JSON.stringify({ pid: server.pid, inspectorURL, workspaceId: server.workspaceId }), { mode: 0o600 });
+  } catch {
+    await server?.stop();
+    throw new Error("Soak compiled init/serve instrumentation failed (private diagnostics withheld)");
+  }
+  let stopping = false;
+  for (const signal of ["SIGTERM", "SIGINT"]) process.once(signal, async () => {
+    stopping = true;
+    await server.stop();
+    process.exit(0);
+  });
+  server.onExit(() => { if (!stopping) process.exit(1); });
 }
