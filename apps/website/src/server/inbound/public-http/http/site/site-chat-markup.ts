@@ -12,7 +12,8 @@ export function renderLazySiteChatMarkup({ enabled, variant, assetsReady, mountI
   if (!assetsReady) return null;
   return {
     // Match site-chat-theme.css before the widget stylesheet loads, without changing host tokens.
-    head: `<style data-jini-chat-bubble>${BUBBLE_STYLE}\n.jini-chat-bubble[data-jini-chat-loader]{--jini-chat-accent:oklch(55.29% 0.1129 43.4);--jini-chat-accent-text:oklch(99% 0 0);--jini-embed-z-index:2147483000;box-shadow:0 4px 14px rgba(20,28,45,.07),0 2px 5px rgba(20,28,45,.05)}\n@media(max-width:480px){.jini-chat-bubble[data-jini-chat-loader]{right:12px;bottom:12px}}</style>`,
+    // Consent suspends either mounted renderer as well as the shared lazy bubble.
+    head: `<style data-jini-chat-bubble>#${mountId}{display:var(--jini-floating-ui-display,block)}${BUBBLE_STYLE}\n.jini-chat-bubble[data-jini-chat-loader]{--jini-chat-accent:oklch(55.29% 0.1129 43.4);--jini-chat-accent-text:oklch(99% 0 0);--jini-embed-z-index:2147483000;box-shadow:0 4px 14px rgba(20,28,45,.07),0 2px 5px rgba(20,28,45,.05)}\n@media(max-width:480px){.jini-chat-bubble[data-jini-chat-loader]{right:12px;bottom:12px}}</style>`,
     // The host’s own chat is necessary; its loader defers the widget until open intent.
     body: `<div id="${mountId}"></div><button type="button" class="jini-chat-bubble" data-jini-chat-loader data-widget="${variant}" aria-label="Chat with this site" aria-haspopup="dialog" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v12H9l-5 4V4z" fill="none" stroke="currentColor" stroke-width="2"/></svg></button><script defer src="/site-chat/site-assistant-loader.js"></script>`,
   };
