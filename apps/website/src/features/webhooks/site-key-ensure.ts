@@ -751,7 +751,8 @@ function findFirstPresentMaterial(sources: readonly SiteKeySource[], env: NodeJS
  * become the file. The loser's temp file is still removed; its `EEXIST` is swallowed, not
  * propagated. Both the winner and every loser then read `filePath` back and return THAT (never
  * their own `hex` argument), so two instances racing on the same `siteKeyId` always converge on
- * the one file that won, whichever process actually wrote it.
+ * the one file that won, whichever process actually wrote it. Also the project key's publisher
+ * (`server/runtime/composition/project-store.ts`), for the same race (web + desktop first start).
  *
  * @param filePath - the target `~/.tovu/site-keys/<id>.hex`. Its containing directory is created
  *   (`0700`) if missing.
@@ -760,7 +761,7 @@ function findFirstPresentMaterial(sources: readonly SiteKeySource[], env: NodeJS
  * @throws whatever `fs` throws other than `EEXIST` from the `linkSync` step.
  * @complexity O(1) — a fixed number of syscalls, independent of `hex`'s length.
  */
-function atomicCreateSiteKeyFile(filePath: string, hex: string): string {
+export function atomicCreateSiteKeyFile(filePath: string, hex: string): string {
   const dir = dirname(filePath);
   mkdirSync(dir, { recursive: true, mode: 0o700 });
   const tmpPath = join(dir, `.${basename(filePath)}.tmp-${process.pid}-${randomBytes(4).toString("hex")}`);

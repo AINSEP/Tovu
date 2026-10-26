@@ -8,7 +8,7 @@ import { createAgentPluginStateStore } from "#src/features/api-connections/plugi
 import { createApiConnectionVault } from "#src/features/api-connections/vault-stores";
 import { FixedSiteKeyKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { mintSiteKeyHex } from "#src/features/webhooks/site-key-ensure";
+import { atomicCreateSiteKeyFile, mintSiteKeyHex } from "#src/features/webhooks/site-key-ensure";
 import { closeSqliteConnection, openNativeSqlite, sqliteKernel } from "#src/platform/db/kernel/drivers/sqlite";
 import { migrateProjectDatabase } from "#src/platform/db/migrations/index";
 import { createVaultProviderConfigSource, type ProviderConfigSource } from "./provider-config-source.js";
@@ -45,20 +45,31 @@ export function projectKeyFilePath({ home }: { home: string }, _optional: Record
 const KEY_HEX = /^[0-9a-f]{64}$/;
 
 /**
- * Reads the project key, minting it on first use. `wx` makes a concurrent first start (web and
- * desktop together) converge on whichever file landed first instead of overwriting it.
+ * Holds an existing key file to the site key's own policy: a regular file (a symlink could point
+ * anywhere), owned by this OS user, and no broader than 0600. A wider mode (a key restored or copied
+ * as 0644) is narrowed rather than refused, since narrowing loses nothing; the other two are refused.
+ */
+function checkKeyFile(file: string, uid: (() => number) | undefined): void {
+  const stat = fs.lstatSync(file);
+  if (!stat.isFile()) throw new Error(`the project key at ${file} is not a regular file; replace it with the key file itself`);
+  if (uid && stat.uid !== uid()) throw new Error(`the project key at ${file} is owned by another user; restore your own copy`);
+  if ((stat.mode & 0o077) !== 0) fs.chmodSync(file, 0o600);
+}
+
+/**
+ * Reads the project key, minting it on first use through the site key's publisher
+ * (`atomicCreateSiteKeyFile`: a private fsynced temp file linked into place), so a concurrent first
+ * start (web and desktop together) converges on whichever key landed first, and an opener never
+ * sees the final file before its bytes are in.
+ * @param optional.uid This process's OS user (`process.getuid`; absent on Windows: no owner check).
  * @throws When the file exists but does not hold a 64-hex key (never silently replaced: rows sealed
- *   with the old key would become unreadable).
+ *   with the old key would become unreadable), is not a regular file, or belongs to another user.
  * @complexity O(1) file I/O.
  */
-export function ensureProjectKey({ home }: { home: string }, optional: { mint?: () => string } = {}): string {
+export function ensureProjectKey({ home }: { home: string }, optional: { mint?: () => string; uid?: () => number } = {}): string {
   const file = projectKeyFilePath({ home });
-  fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
-  try {
-    fs.writeFileSync(file, `${(optional.mint ?? mintSiteKeyHex)()}\n`, { flag: "wx", mode: 0o600 });
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-  }
+  if (!fs.existsSync(file)) atomicCreateSiteKeyFile(file, (optional.mint ?? mintSiteKeyHex)());
+  checkKeyFile(file, optional.uid ?? process.getuid);
   const hex = fs.readFileSync(file, "utf8").trim();
   if (!KEY_HEX.test(hex)) throw new Error(`the project key file at ${file} does not hold a 64-character hex key; restore it from a backup`);
   return hex;
@@ -87,6 +98,11 @@ export async function openProjectStore(required: { sitesHome: string; home: stri
   const dbPath = projectDbPath({ sitesHome: required.sitesHome });
   fs.mkdirSync(required.sitesHome, { recursive: true });
   const db = openNativeSqlite(dbPath, {});
+  // The same pragmas every site database opener sets (`chat-db.ts`, `content-db.ts`): web and desktop
+  // hold this file open together, so WAL readers never block on a writer, and a briefly held lock is
+  // retried rather than thrown.
+  db.pragma("journal_mode = WAL");
+  db.pragma("busy_timeout = 5000");
   const kernel = sqliteKernel<SecretsVaultDatabase>(db);
   try {
     await migrateProjectDatabase(kernel as unknown as StorageKernel<unknown>);
