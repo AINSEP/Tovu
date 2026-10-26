@@ -1,5 +1,6 @@
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import os from "node:os";
@@ -154,4 +155,66 @@ test("a project.db that cannot be migrated is closed and the error surfaces", as
   fs.mkdirSync(path.dirname(projectDbPath({ home, projectId })), { recursive: true });
   fs.writeFileSync(projectDbPath({ home, projectId }), "this is not a sqlite database, it is plain text padding ".repeat(20));
   await assert.rejects(openProjectStore({ sitesHome, home }));
+});
+
+// --- One project per sites root however it is spelled (web vs desktop, TOVU_SITES_HOME vs sites-home.json) ---
+
+/** The first layout's id: a hash of the root exactly as spelled (no realpath). */
+const spelledIdOf = (sitesHome: string) => `project-${createHash("sha256").update(path.resolve(sitesHome)).digest("hex").slice(0, 16)}`;
+
+/** A real (symlink-free) temp root: on macOS `os.tmpdir()` sits under the `/var` → `/private/var` symlink. */
+function realRoot(t: TestContext): string {
+  const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-project-id-")));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  return root;
+}
+
+test("a sites root reached through a symlink, or spelled in another case on a case-insensitive disk, is the same project", (t) => {
+  const root = realRoot(t);
+  const sitesHome = path.join(root, "Documents", "Tovu");
+  fs.mkdirSync(sitesHome, { recursive: true });
+  fs.symlinkSync(path.join(root, "Documents"), path.join(root, "Docs"));
+  assert.equal(projectIdFor({ sitesHome: path.join(root, "Docs", "Tovu") }), projectIdFor({ sitesHome }));
+  assert.equal(projectIdFor({ sitesHome: `${sitesHome}${path.sep}.${path.sep}` }), projectIdFor({ sitesHome }));
+  const otherCase = path.join(root, "documents", "TOVU");
+  if (fs.existsSync(otherCase)) assert.equal(projectIdFor({ sitesHome: otherCase }), projectIdFor({ sitesHome }), "case-insensitive disk");
+  else assert.notEqual(projectIdFor({ sitesHome: otherCase }), projectIdFor({ sitesHome }), "case-sensitive disk: two folders, two projects");
+});
+
+test("an already-canonical sites root keeps the id it had (stores saved before this change are found as they are)", (t) => {
+  const sitesHome = path.join(realRoot(t), "Documents", "Tovu");
+  assert.equal(projectIdFor({ sitesHome }), spelledIdOf(sitesHome), "before the folder exists");
+  fs.mkdirSync(sitesHome, { recursive: true });
+  assert.equal(projectIdFor({ sitesHome }), spelledIdOf(sitesHome), "after");
+});
+
+test("a sites root that does not exist yet gets the id it will have once created, even under a symlinked parent", (t) => {
+  const root = realRoot(t);
+  fs.symlinkSync(root, path.join(root, "link"));
+  const viaLink = path.join(root, "link", "Documents", "Tovu");
+  const before = projectIdFor({ sitesHome: viaLink });
+  fs.mkdirSync(viaLink, { recursive: true });
+  assert.equal(projectIdFor({ sitesHome: viaLink }), before);
+  assert.equal(projectIdFor({ sitesHome: path.join(root, "Documents", "Tovu") }), before);
+});
+
+test("a store saved under a non-canonical spelling's id is adopted on the next start: its settings and key are kept", async (t) => {
+  const root = realRoot(t);
+  const home = path.join(root, "home");
+  const sitesHome = path.join(root, "Documents", "Tovu");
+  fs.mkdirSync(sitesHome, { recursive: true });
+  fs.symlinkSync(path.join(root, "Documents"), path.join(root, "Docs"));
+  const spelled = path.join(root, "Docs", "Tovu");
+  const first = await openProjectStore({ sitesHome, home });
+  await first.config.write({ pluginId: "analytics-posthog", config: { settings: { host: "https://ph.example.test" }, secrets: { apiKey: ["phc", "spelled"].join("_") } } });
+  first.close({});
+  // Lay the store down where the first layout put it for the symlinked spelling.
+  const projects = path.join(home, ".tovu", "projects");
+  fs.renameSync(path.join(projects, first.projectId), path.join(projects, spelledIdOf(spelled)));
+  const store = await openProjectStore({ sitesHome: spelled, home });
+  t.after(() => store.close({}));
+  assert.equal(store.projectId, first.projectId);
+  assert.equal(store.dbPath, first.dbPath);
+  assert.equal((await store.config.read({ pluginId: "analytics-posthog" }))?.secrets.apiKey, ["phc", "spelled"].join("_"));
+  assert.deepEqual(fs.readdirSync(projects), [first.projectId], "moved, not copied");
 });

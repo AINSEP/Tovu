@@ -105,9 +105,61 @@ export function ensureProjectKey({ keyFile: file }: { keyFile: string }, optiona
   return hex;
 }
 
-/** A stable id for the project at this sites root: the same for web and desktop (same root), opaque. */
+const idOfPath = (root: string): string => `project-${createHash("sha256").update(root).digest("hex").slice(0, 16)}`;
+
+/**
+ * The root as the filesystem names it: `realpath` (native: symlinks resolved, and on macOS/Windows the
+ * on-disk case, drive letter included) of the nearest folder that exists, plus the rest as spelled.
+ * The filesystem decides what is "the same folder", so a case-sensitive disk keeps two cases apart.
+ * @complexity O(depth) stats.
+ */
+function canonicalRoot(root: string): string {
+  const rest: string[] = [];
+  for (let head = root; ; head = path.dirname(head)) {
+    try {
+      return path.join(fs.realpathSync.native(head), ...rest);
+    } catch {
+      if (path.dirname(head) === head) return root;
+      rest.unshift(path.basename(head));
+    }
+  }
+}
+
+/**
+ * A stable id for the project at this sites root: the same for web and desktop however each spells
+ * the root (TOVU_SITES_HOME vs `sites-home.json`, a symlinked root, another case, a drive letter's
+ * case), opaque. A hash of the canonical root ({@link canonicalRoot}), not of a stored id file: a file
+ * in the sites root would sync (iCloud) and be copied with it, and a root that is already canonical
+ * keeps exactly the id it had before (the hash input is unchanged), so no existing store moves.
+ */
 export function projectIdFor({ sitesHome }: { sitesHome: string }, _optional: Record<string, never> = {}): string {
-  return `project-${createHash("sha256").update(path.resolve(sitesHome)).digest("hex").slice(0, 16)}`;
+  return idOfPath(canonicalRoot(path.resolve(sitesHome)));
+}
+
+/**
+ * The id this start uses. A store saved under the first layout's id for this spelling (a hash of the
+ * root as spelled) is renamed to the canonical id, so its settings and key are kept. When the rename
+ * can't happen (Windows: a file inside is open), the old id is used for this run; when both ids
+ * already hold a store, the canonical one wins and the other is named in a warning.
+ * @complexity O(depth) stats plus one rename.
+ */
+function adoptSpelledProjectId(required: { home: string; sitesHome: string }): string {
+  const projectId = projectIdFor(required);
+  const spelledId = idOfPath(path.resolve(required.sitesHome));
+  const spelledDir = projectDir({ home: required.home, projectId: spelledId });
+  if (spelledId === projectId || !fs.existsSync(spelledDir)) return projectId;
+  const canonicalDir = projectDir({ home: required.home, projectId });
+  if (fs.existsSync(canonicalDir)) {
+    console.warn(`[project-store] two stores for one sites root; using ${canonicalDir}, ${spelledDir} is left as it is`);
+    return projectId;
+  }
+  try {
+    fs.renameSync(spelledDir, canonicalDir);
+  } catch {
+    // Another start renamed it first (fine), or it can't move now: use it where it is this run.
+    if (!fs.existsSync(canonicalDir) && fs.existsSync(spelledDir)) return spelledId;
+  }
+  return projectId;
 }
 
 type NativeDb = ReturnType<typeof openNativeSqlite>;
@@ -150,7 +202,7 @@ export async function openProjectStore(
   required: { sitesHome: string; home: string },
   optional: { clock?: { nowMs(): number }; relocate?: RelocateOptions } = {},
 ): Promise<ProjectStore> {
-  const projectId = projectIdFor({ sitesHome: required.sitesHome });
+  const projectId = adoptSpelledProjectId(required);
   const { files: { dbPath, keyFile }, db } = openProjectDb({ from: legacyProjectFiles(required),
     to: projectFiles({ home: required.home, projectId }), opener: sqliteOpener }, optional.relocate);
   const kernel = sqliteKernel<SecretsVaultDatabase>(db);
