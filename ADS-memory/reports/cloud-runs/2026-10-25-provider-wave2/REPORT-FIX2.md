@@ -61,7 +61,11 @@
 - **CCN (lizard, `-C 10`):** no function in a touched file is over 10. Highest: `cardOf` 8, `nextConfig` 8, `resolveCard` 7, `ensureProjectKey` 6. `composeSiteRouteDeps` is still at its pre-existing **14** (this run added one property line, no branches).
 - **Typecheck:** Tovu `tsc -p tsconfig.json --noEmit` 0; admin `tsc --noEmit` 0; Jini provider-plugins and diagnostics tsc 0.
 - **Jini `pnpm guard`:** 3 violations, the same 3 pre-existing ones (daemon `tool-recovery/observability.ts` "Tovu" comment; mcp `stdio-hosting.ts` HW2 ×2).
-- **Tovu wide regression:** see the run log below.
+- **Tovu wide regression** (`node --test --test-concurrency=1`, linked Jini; all `runtime/composition/__tests__`, `platform/db/migrations/__tests__`, admin-http `routes/plugins/__tests__`, `features/plugin-runtime`, `api-connections`, `webhooks`, `custom-credentials` tests): **2433 tests, 2411 pass, 19 fail, 3 skipped**. None of the failures comes from this run's changes:
+  - Postgres-only suites (no server in the container): `runner.postgres` ×4 + file, `create-site-route-deps.postgres` + file, `move-site-storage.postgres` ×5 + file, `open-site-store.postgres` + file, and `postgres-baseline` "matches schema.postgres.ts". All were listed as ENV/pre-existing by the previous fix lane.
+  - Listed as pre-existing by wave 2: `analytics-providers` "forwards to plausible", `commerce-data-retention` "commerce off", `plugin-host.integration` list/toggle.
+  - `preview.integration` "PLUGIN_PREVIEW: the built-in Content Analyzer analyzes a draft in a worker" failed in the wide run with `PLUGIN_SETUP_FAILED`. It passes in isolation on this run's HEAD (2/2) and on the base `35876719` (2/2), so it depends on load or test order, not on these changes. It is not in the previous lane's list, which had the PGlite `domain-bindings-step` crash instead (that suite is outside this run's scope).
+  - No test process left running (checked: 0).
 
 ## NOT done / concerns
 - Two-row provider settings saved by the previous fix lane (unmerged branch) are not read; re-save on the card.
@@ -72,7 +76,11 @@
 
 ## Commits
 Jini `cloud/prov-wave2-jini`: 51eddca1 · 843e889d · bcbfbea5.
-Tovu `cloud/prov-wave2-tovu`: 4cda7be1 · f6502def · 8a59eb36 (+ this report).
+Tovu `cloud/prov-wave2-tovu`: 4cda7be1 · f6502def · 8a59eb36 · 7d34ae90 (report draft) (+ this final report commit).
 
 ## Run log
 - 01:58Z STARTED. Tovu `w2fix2` @ origin/cloud/prov-wave2-tovu (35876719), Jini `w2fix2` @ origin/cloud/prov-wave2-jini (03cc91e0). Node 24.22.1; Jini install + build; Tovu `npm ci` + link.
+- 02:07Z item 2 pushed (Jini item 1 at 02:00Z). 02:10Z item 3. 02:12–02:13Z items 4, 5 (Jini). 02:20Z item 6. 02:21Z report draft; wide regression 02:21–02:38Z; preview failure checked on base and HEAD in isolation.
+- 02:41Z DONE.
+
+WAVE2-FIX2 DONE 2026-10-26T02:41Z. Wall about 43 m (01:58Z → 02:41Z); roughly 0.35M tokens.
