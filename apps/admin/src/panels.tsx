@@ -148,17 +148,32 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     // land here and read which site is live but cannot switch one.
   },
   {
+    id: "import-export",
+    // Ungrouped, directly under Sites and above AI Assistant (owner, 2026-10-25 — supersedes the
+    // earlier filing in "Operations" beside Database, Recovery, and Integrations as bulk data
+    // movement). On the desktop app, which hides Sites, this puts it directly above AI Assistant.
+    // Export and Import are its own tabs (owner, 2026-10-25, option A: moved from Sites, which the
+    // desktop app and a hosted install do not have); Other links to Deployment → Static Site rather
+    // than copying it. `?tab=export|import|other` picks the tab, as on every other tabbed screen.
+    render: (ctx) => <ImportExport tabId={ctx.query.get("tab")} />,
+    nav: {
+      label: "Import & Export",
+      icon: '<path d="M9 2.5v8M9 10.5L6 7.5M9 10.5l3-3"/><path d="M3 12v2.5h12V12"/>',
+    },
+  },
+  {
     id: "ai-assistant",
     // `?tab=<id>` picks the initially-active tab and stays in sync as the operator switches tabs
     // (see `AiAssistant`'s `tabId` prop) — same `?tab=` deep-linking convention as `settings`'s and
     // `deployment`'s own entries elsewhere in this file.
     render: (ctx) => <AiAssistant tabId={ctx.query.get("tab")} />,
     nav: {
-      // Third in the ungrouped top row, below Overview and Sites (owner moved Sites above this
-      // entry 2026-09-05 — see Sites' own comment above) — but still kept out of any group rather
-      // than filed in "Design & System" or "Marketing": the control it owns is an incident switch,
-      // and the operator reaching for it is dealing with a leak, a bad deploy, or runaway spend, so
-      // it should not have to scroll a grouped menu to find the off switch.
+      // Fourth in the ungrouped top row (third on desktop, which hides Sites), below Overview,
+      // Sites, and Import & Export (owner moved Sites above this entry 2026-09-05 — see Sites' own
+      // comment above; Import & Export joined the row above it 2026-10-25) — but still kept out of
+      // any group rather than filed in "Design & System" or "Marketing": the control it owns is an
+      // incident switch, and the operator reaching for it is dealing with a leak, a bad deploy, or
+      // runaway spend, so it should not have to scroll a grouped menu to find the off switch.
       label: "AI Assistant",
       icon: '<rect x="3" y="5" width="12" height="9" rx="2.5"/><path d="M9 5V2.5M6.5 9v.01M11.5 9v.01M7 12h4"/><path d="M1.5 8.5v2M16.5 8.5v2"/>',
     },
@@ -1015,22 +1030,6 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     },
     // Reachable via the default, same as every other panel here — nothing built here yet for an
     // agent to act on, but landing here to report so is itself a useful answer.
-  },
-  {
-    id: "import-export",
-    // Operations rather than Studio or Administration: this is bulk data movement, so its siblings
-    // are Database, Recovery, and Integrations — not the design surface (Studio) and not this
-    // site's own configuration (Administration). It is also the one section that is as much about
-    // getting data OUT as in, which is an operational guarantee rather than an authoring feature.
-    // Export and Import are its own tabs (owner, 2026-10-25, option A: moved from Sites, which the
-    // desktop app and a hosted install do not have); Other links to Deployment → Static Site rather
-    // than copying it. `?tab=export|import|other` picks the tab, as on every other tabbed screen.
-    render: (ctx) => <ImportExport tabId={ctx.query.get("tab")} />,
-    nav: {
-      label: "Import & Export",
-      group: "Operations",
-      icon: '<path d="M9 2.5v8M9 10.5L6 7.5M9 10.5l3-3"/><path d="M3 12v2.5h12V12"/>',
-    },
   },
 
   // --- Administration ---

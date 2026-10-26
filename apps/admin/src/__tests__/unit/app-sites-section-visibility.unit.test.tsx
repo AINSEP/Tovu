@@ -12,6 +12,7 @@ import {
 } from "../../App.hooks";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { api, ApiError, type AdminUser } from "../../lib/api";
+import { getNav } from "../../nav";
 
 /**
  * @file The Sites section exists only on a deployment that owns site switching from the admin.
@@ -267,6 +268,11 @@ describe("withoutSiteSection", () => {
     expect(filtered.map((group) => group.label)).toEqual([undefined, "Content"]);
     expect(filtered[0]?.items.map((item) => item.id)).toEqual(["dashboard", "ai-assistant"]);
     expect(filtered[1]?.items.map((item) => item.id)).toEqual(["posts"]);
+  });
+
+  it("puts Import & Export directly above AI Assistant in the real desktop nav (owner, 2026-10-25)", () => {
+    const [top] = withoutSiteSection(getNav(), "unavailable");
+    expect(top?.items.map((item) => item.id)).toEqual(["dashboard", "import-export", "ai-assistant"]);
   });
 });
 
