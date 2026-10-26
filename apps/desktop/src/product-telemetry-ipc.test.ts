@@ -12,7 +12,7 @@ function fixture() {
     on: (channel, handler) => { assert.equal(channel, PRODUCT_TELEMETRY_CHANNEL); listener = handler; },
     removeListener: (channel, handler) => { assert.equal(channel, PRODUCT_TELEMETRY_CHANNEL); assert.equal(handler, listener); removed++; },
   }, isShellPage: url => url === 'file:///fake-shell.html', tracker: {
-    ...createNoopTracker({}), error: (error, context) => { errors.push({ error, context }); }, capture: event => { events.push(event); },
+    ...createNoopTracker({}), error: ({ error }, { context } = {}) => { errors.push({ error, context }); }, capture: (input, options = {}) => { events.push({ ...input, ...options }); },
   } }, { now: () => at });
   const trusted = { sender: { getURL: () => 'file:///fake-shell.html' }, senderFrame: { url: 'file:///fake-shell.html', parent: null } };
   return { send: (input: unknown, event: Parameters<typeof listener>[0] = trusted) => listener(event, input), trusted, errors, events, dispose,
@@ -40,7 +40,7 @@ test('IPC permits bounded catalog payloads and only ten errors in a rolling minu
   assert.equal(f.errors.length, 10);
   f.send({ kind: 'action', id: 'open_admin' }); f.send({ kind: 'screen', id: 'projects' });
   assert.deepEqual(f.events, [
-    { name: 'desktop_action', properties: { action: 'open_admin' } }, { name: 'desktop_screen_viewed', properties: { screen: 'projects' } },
+    { name: 'desktop_action', userId: 'system', properties: { action: 'open_admin' } }, { name: 'desktop_screen_viewed', userId: 'system', properties: { screen: 'projects' } },
   ]);
   f.at(59_999); f.send(error); assert.equal(f.errors.length, 10);
   f.at(60_000); f.send(error); assert.equal(f.errors.length, 11);

@@ -1212,8 +1212,8 @@ async function composeSiteRouteDeps(
   // Plugin recovery may commit a quarantine while providers are still booting. Keep these small
   // lifecycle summaries until the consenting facade exists, rather than reading an uninitialized
   // tracker or sending around its guards. The queue is drained once after provider composition.
-  const pendingLifecycleEvents: Array<Parameters<RouteDeps['tracker']['capture']>[0]> = [];
-  let lifecycleTracker: Pick<RouteDeps['tracker'], 'capture'> = { capture: event => { pendingLifecycleEvents.push(event); } };
+  const pendingLifecycleEvents: Array<Parameters<RouteDeps['tracker']['capture']>> = [];
+  let lifecycleTracker: Pick<RouteDeps['tracker'], 'capture'> = { capture: (input, options = {}) => { pendingLifecycleEvents.push([input, options]); } };
   const assistantAgentInventory = createAssistantAgentInventory({ runtime: createNativeAgentRuntime({ env: process.env }) });
   onStoreClose(() => assistantAgentInventory.dispose({}));
 
@@ -2136,7 +2136,7 @@ async function composeSiteRouteDeps(
     reapply: input => providerPlugins.reapply(input) }));
   const { observability, tracker, aiTraceSink } = providerPlugins;
   lifecycleTracker = tracker;
-  for (const event of pendingLifecycleEvents.splice(0)) tracker.capture(event);
+  for (const [input, options] of pendingLifecycleEvents.splice(0)) tracker.capture(input, options);
   instrumentStorageKernel({ kernel, observability });
   instrumentStorageKernel({ kernel: chat, observability });
   // `runtimeMode` itself is now resolved further up (see `newsletterKeyring`'s own hoisting

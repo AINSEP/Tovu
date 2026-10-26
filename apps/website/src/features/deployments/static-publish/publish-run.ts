@@ -195,8 +195,7 @@ export function getPublishRunSnapshot(): PublishRunSnapshot {
 function publishEvent(required: { deps: StaticPublishDeps; input: StaticPublishInput; operationId: string; outcome?: "completed" | "errored" }, _optional = {}): void {
   const { deps, input, operationId, outcome } = required;
   if (!input.productEvent) return;
-  deps.tracker?.capture({ name: outcome ? "deploy_finished" : "site_publish_started", userId: input.productEvent.userId,
-    properties: { operationId, eventId: `publish:${operationId}:${outcome ?? "started"}`, target: input.config.target, source: input.productEvent.source, ...(outcome ? { outcome } : {}) } });
+  deps.tracker?.capture({ name: outcome ? "deploy_finished" : "site_publish_started", userId: input.productEvent.userId }, { properties: { operationId, eventId: `publish:${operationId}:${outcome ?? "started"}`, target: input.config.target, source: input.productEvent.source, ...(outcome ? { outcome } : {}) } });
 }
 
 function beginRun(target: StaticPublishTargetId, clock: { nowIso(): string }): string {

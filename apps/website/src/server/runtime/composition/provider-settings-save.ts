@@ -104,7 +104,9 @@ export async function saveProviderSettings({ config, pluginId, fields, values, r
   return savedProviderSettingsResult({ config, pluginId, fields, saved: next.config }, { ...(reapply ? { reapply } : {}), ...(telemetry ? { telemetry } : {}) });
 }
 
-/** Report a committed save independently from startup; both cards receive the same safe guidance. */
+/** Report a committed save independently from startup; both cards receive the same safe guidance.
+ * @returns Save status and safe startup guidance. @complexity O(c + f) contracts/fields plus usage/reapply I/O.
+ */
 async function savedProviderSettingsResult({ config, pluginId, fields, saved }: {
   config: ProviderConfigSource; pluginId: string; fields: readonly PluginProviderSettingField[]; saved: SavedConfig;
 }, { reapply, telemetry }: Pick<Parameters<typeof saveProviderSettings>[0], "reapply" | "telemetry"> = {}): Promise<SavedProviderSettings> {
@@ -112,8 +114,7 @@ async function savedProviderSettingsResult({ config, pluginId, fields, saved }: 
   const applied = reapply ? await reapply({ pluginId }) : "restart";
   const appliesAt = typeof applied === "string" ? applied : applied.appliesAt;
   const message = typeof applied === "string" ? undefined : `Saved, but the provider could not start. ${applied.reason} ${applied.action}`;
-  for (const contract of new Set(telemetry?.contracts ?? [])) telemetry?.tracker.capture({ name: 'provider_configured', userId: telemetry.userId,
-    properties: { contract, pluginId, action: 'save' } });
+  if (telemetry) for (const contract of new Set(telemetry.contracts)) telemetry.tracker.capture({ name: 'provider_configured', userId: telemetry.userId }, { properties: { contract, pluginId, action: 'save' } });
   const configured = usage.usedByThisSite && providerInputOf({ declaration: { contract: "", id: pluginId, contractVersion: 1, settings: fields }, saved }) !== undefined;
   return { saved: true as const, configured, ...usage, appliesAt, ...(message ? { message } : {}) };
 }

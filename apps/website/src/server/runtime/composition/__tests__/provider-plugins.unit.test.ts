@@ -25,7 +25,7 @@ type Calls = { inputs: Record<string, unknown>[]; disposed: number };
 /** An observability port that records which signals reached it. */
 function recordingObservability(seen: string[]): ObservabilityPort {
   const noop = createNoopObservabilityPort({});
-  return { ...noop, trackOperation: (input) => { seen.push(`op:${input.name}`); return noop.trackOperation(input); }, reportError: (report) => { seen.push(`error:${report.context.operation}`); } };
+  return { ...noop, supportsMetric: true, metric: (input) => { seen.push(`metric:${input.name}`); }, trackOperation: (input) => { seen.push(`op:${input.name}`); return noop.trackOperation(input); }, reportError: (report) => { seen.push(`error:${report.context.operation}`); } };
 }
 
 function fakeFactory({ calls, port }: { calls: Calls; port: unknown }): PluginProviderFactory {
@@ -159,13 +159,13 @@ test("provider reporter feeds delivery status and diagnostic receipts follow liv
   report({ phase: "export", outcome: "ok", host: "collector.test" });
   assert.equal(providers.telemetryStatus({})[0]!.lastExport!.outcome, "ok");
   const send = () => providers.sendTelemetryTest({ error: new Error("Tovu test error — safe to ignore") });
-  assert.deepEqual(await send(), { providers: [{ providerId: "observability-opentelemetry/trace", signals: ["span", "error"] }] });
+  assert.deepEqual(await send(), { providers: [{ providerId: "observability-opentelemetry/trace", signals: ["span", "metric", "error"] }] });
   allowed = true;
   assert.deepEqual(await send(), { providers: [
-    { providerId: "observability-opentelemetry/trace", signals: ["span", "error"] },
+    { providerId: "observability-opentelemetry/trace", signals: ["span", "metric", "error"] },
     { providerId: "analytics-posthog/events", signals: ["analytics"] },
   ] });
-  assert.deepEqual(seen, ["op:telemetry.test", "error:telemetry.test", "op:telemetry.test", "error:telemetry.test", "event:telemetry_test"]);
+  assert.deepEqual(seen, ["op:telemetry.test", "metric:telemetry.test", "error:telemetry.test", "op:telemetry.test", "metric:telemetry.test", "error:telemetry.test", "event:telemetry_test"]);
   await providers.dispose({});
   assert.deepEqual(await send(), { providers: [] });
 });
@@ -290,7 +290,7 @@ test("product analytics: consent first; a revoke that lands while consent is bei
   answer(true);
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(captured, ["post_published:p-1"]);
-  ports.tracker.capture({ name: "post_published", userId: "p-1", properties: { email: "x" } });
+  ports.tracker.capture({ name: "post_published", userId: "p-1" }, { properties: { email: "x" } });
   answer(true);
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(captured, ["post_published:p-1"], "PII-shaped properties are refused by the guard");
@@ -347,6 +347,8 @@ test("the observability validator refuses a port missing any single signal", () 
     const port = { ...createNoopObservabilityPort({}), [name]: undefined };
     assert.equal(observability.validate({ provider: port }), "not an ObservabilityPort", name);
   }
+  // Contract v1 providers without metrics remain valid; the gate supplies the noop.
+  assert.equal(observability.validate({ provider: { ...createNoopObservabilityPort({}), metric: undefined } }), undefined);
 });
 
 test("without a warn sink, a provider failure (even a non-Error rejection) goes to the console", async (t) => {
@@ -572,7 +574,7 @@ test('visitor events follow visitor proof and revocation even when owner admin t
     granted = true; await capture();
     current = false; await capture();
     assert.deepEqual(events, [{ name: 'site_pageview', userId: 'visitor:request' }]);
-    await providers.visitorTracker!.capture({ name: 'site_search_performed', userId: 'visitor:request', properties: { email: 'private' } });
+    await providers.visitorTracker!.capture({ name: 'site_search_performed', userId: 'visitor:request' }, { properties: { email: 'private' } });
     assert.equal(events.length, 1, 'visitor analytics retains the shared PII guard');
   } finally { await providers.dispose({}); }
 });
@@ -691,10 +693,10 @@ test('env unset: site tracker/visitor/error/browser/AI behavior matches the exis
   });
   try {
     siteEvents.length = 0;
-    await ports.tracker.capture({ name: 'unknown_site_event', userId: 'owner', properties: { route: '/admin/pages/site-slug' } });
+    await ports.tracker.capture({ name: 'unknown_site_event', userId: 'owner' }, { properties: { route: '/admin/pages/site-slug' } });
     await ports.visitorTracker!.capture({ name: 'form_submitted', userId: 'visitor' });
-    ports.tracker.error(new Error('fake error'), { operation: 'fake.error' });
-    const work = await ports.tracker.span('fake.work', async () => 42);
+    ports.tracker.error({ error: new Error('fake error') }, { context: { operation: 'fake.error' } });
+    const work = await ports.tracker.trace({ name: 'fake.work', run: async () => 42 });
     assert.deepEqual({ siteEvents, operations, work, aiTraceSink: ports.aiTraceSink, enabled: ports.observabilityEnabled!(), productLoads }, {
       siteEvents: [
         { name: 'unknown_site_event', userId: 'owner', properties: { route: '/admin/pages/site-slug' } },
@@ -736,13 +738,13 @@ test('env configured: product catalog projection is independent from site consen
   try {
     siteEvents.length = 0;
     const event: ProductEvent = { name: 'site_created', userId: 'principal', properties: { templateKind: 'default', targetSiteId: 'private-site', source: 'admin' } };
-    await ports.tracker.capture(event);
-    ports.tracker.error(new Error('site error'), { operation: 'site.error' });
+    await ports.tracker.capture({ name: event.name, userId: event.userId }, { properties: event.properties });
+    ports.tracker.error({ error: new Error('site error') }, { context: { operation: 'site.error' } });
     assert.deepEqual(siteEvents, [event]); assert.deepEqual(productEvents, []);
     assert.deepEqual(siteErrors, ['error:site.error']); assert.deepEqual(productErrors, []);
     siteAllowed = false; productConsent = { crashes: true, usage: true, installationId: install };
-    await ports.tracker.capture(event);
-    ports.tracker.error(new Error('product error'), { operation: 'product.error' });
+    await ports.tracker.capture({ name: event.name, userId: event.userId }, { properties: event.properties });
+    ports.tracker.error({ error: new Error('product error') }, { context: { operation: 'product.error' } });
     assert.deepEqual(siteEvents, [event]);
     assert.deepEqual(productEvents, [{ name: 'site_created', userId: install, properties: { templateKind: 'default', source: 'admin' } }]);
     assert.equal(productErrors.length, 1);
@@ -755,10 +757,10 @@ test('env configured: product catalog projection is independent from site consen
       { name: 'site_created', userId: 'principal', properties: { templateKind: 'private free text' } },
     ];
     siteEvents.length = 0; productEvents.length = 0;
-    for (const item of catalogAndRejected) await ports.tracker.capture(item);
+    for (const item of catalogAndRejected) await ports.tracker.capture({ name: item.name, userId: item.userId }, { properties: item.properties });
     assert.deepEqual(siteEvents, catalogAndRejected, 'site gets every original event, identity and property');
     assert.deepEqual(productEvents, [{ name: 'site_created', userId: install, properties: { templateKind: 'default', source: 'admin' } }]);
-    await ports.tracker.capture({ name: 'admin_pageview', userId: 'principal', properties: { route: '/admin/pages/about-us' } });
+    await ports.tracker.capture({ name: 'admin_pageview', userId: 'principal' }, { properties: { route: '/admin/pages/about-us' } });
     assert.deepEqual(productEvents[1], { name: 'admin_screen_viewed', userId: install, properties: { screen: '/admin/pages' } });
     assert.deepEqual(siteEvents.at(-1), { name: 'admin_pageview', userId: 'principal', properties: { route: '/admin/pages/about-us' } });
     assert.deepEqual(ports.browserAnalytics!({ surface: 'admin' }), []);
@@ -769,7 +771,7 @@ test('env configured: product catalog projection is independent from site consen
     await new Promise(resolve => setImmediate(resolve));
     assert.ok(generations.length > 0);
     assert.equal(productEvents.length, 2);
-    await ports.visitorTracker!.capture({ name: 'assistant_message_sent', userId: 'visitor', properties: { chatSurface: 'public', inputKind: 'text' } });
+    await ports.visitorTracker!.capture({ name: 'assistant_message_sent', userId: 'visitor' }, { properties: { chatSurface: 'public', inputKind: 'text' } });
     assert.equal(productEvents.length, 2, 'visitor consent cannot authorize install product events');
     const productErrorCount = productErrors.length;
     await ports.sendTelemetryTest!({ error: new Error('Tovu test error — safe to ignore') });
@@ -778,4 +780,26 @@ test('env configured: product catalog projection is independent from site consen
     await ports.dispose({}); await ports.dispose({});
     assert.deepEqual({ siteDisposed, productDisposed }, { siteDisposed: 2, productDisposed: 1 });
   } finally { await ports.dispose({}); await rm(root, { recursive: true, force: true }); }
+});
+
+test("diagnostic receipts exclude noop metrics from Sentry and PostHog while retaining OTel metrics", async () => {
+  const seen: string[] = [];
+  const { runtime } = fakeRuntime({ installed: ["observability-opentelemetry", "observability-sentry", "analytics-posthog"], factories: {
+    "observability-opentelemetry": { contract: "observability", id: "otel", factory: () => ({ port: recordingObservability(seen), dispose() {} }) },
+    "observability-sentry": { contract: "observability", id: "sentry", factory: () => ({ port: {
+      ...recordingObservability(seen), supportsMetric: false, metric() {},
+    }, dispose() {} }) },
+    "analytics-posthog": { contract: "product_analytics", id: "posthog", factory: () => ({ port: { capture() {}, identify() {}, metric() {} }, dispose() {} }) },
+  } });
+  const providers = await bootProviderPlugins({ runtime, config: configOf(CONFIGS), serviceName: "tovu", site: SITE, ...consentAlways }, { warn: quiet, info: quiet });
+  try {
+    assert.equal(providers.observability.supportsMetric, true);
+    const receipt = await providers.sendTelemetryTest({ error: new Error("diagnostic") });
+    assert.deepEqual(receipt.providers, [
+      { providerId: "observability-opentelemetry/otel", signals: ["span", "metric", "error"] },
+      { providerId: "observability-sentry/sentry", signals: ["span", "error"] },
+      { providerId: "analytics-posthog/posthog", signals: ["analytics"] },
+    ]);
+  } finally { await providers.dispose({}); }
+  assert.equal(providers.observability.supportsMetric, false);
 });

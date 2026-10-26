@@ -5,7 +5,7 @@ import test from "node:test";
 import { createNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 
 
-/** @file `tracker.span`: one named operation around async work, with fake ports only. */
+/** @file `tracker.trace`: one named operation around async work, with fake ports only. */
 
 function recording({ withRun }: { withRun: boolean }) {
   const log: string[] = [];
@@ -21,17 +21,17 @@ function recording({ withRun }: { withRun: boolean }) {
 }
 
 test("the no-provider facade runs work and preserves its result", async () => {
-  assert.equal(await createTracker({}).span("x", async () => 1), 1);
-  assert.equal(await createTracker({}).span("x", async () => 2), 2);
+  assert.equal(await createTracker({}).trace({ name: "x", run: async () => 1 }), 1);
+  assert.equal(await createTracker({}).trace({ name: "x", run: async () => 2 }), 2);
 });
 
 test("a settled result ends the operation with its mapped outcome, inside the tracker's run()", async () => {
   const { port, log } = recording({ withRun: true });
-  const result = await createTracker({ observability: port }).span("site.publish", async (span) => {
+  const result = await createTracker({ observability: port }).trace({ name: "site.publish", run: async (span) => {
     const result = { ok: false, code: "AUTH" };
     span.setOutcome({ outcome: result.code, failed: !result.ok });
     return result;
-  }, { attributes: { "publish.target": "pages" } });
+  } }, { attributes: { "publish.target": "pages" } });
   assert.deepEqual(result, { ok: false, code: "AUTH" });
   assert.deepEqual(log, ['start:site.publish:{"publish.target":"pages"}', "run", "end:AUTH:true"]);
 });
@@ -39,6 +39,6 @@ test("a settled result ends the operation with its mapped outcome, inside the tr
 test("a throw is reported, ends the operation as error and is rethrown unchanged (no run() on the tracker)", async () => {
   const { port, log } = recording({ withRun: false });
   const failure = new Error("boom");
-  await assert.rejects(createTracker({ observability: port }).span("outbox.deliver", async () => { throw failure; }), (error) => error === failure);
+  await assert.rejects(createTracker({ observability: port }).trace({ name: "outbox.deliver", run: async () => { throw failure; } }), (error) => error === failure);
   assert.deepEqual(log, ["start:outbox.deliver:null", "error:outbox.deliver:boom", "end:error:true"]);
 });

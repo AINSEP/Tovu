@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { createNoopObservabilityPort, isNoopObservabilityPort, type ErrorReport } from '@jini-ai/diagnostics/observability';
+import { createNoopObservabilityPort, isNoopObservabilityPort, type ErrorReport, type MetricInput, type MetricOptions } from '@jini-ai/diagnostics/observability';
 import { isNoopProductAnalytics, type ProductEvent } from '@jini-ai/analytics/product';
 import { bootProductTelemetry, bootProductTelemetryFromEnv, createProductConsentReader, type ProductConsent, type ProductProviderInput, type ProductTelemetry } from '../product-telemetry.js';
 import { PRODUCT_EVENTS, projectProductEvent } from '../product-events.js';
@@ -14,30 +14,51 @@ const CONFIG = { observability: { plugin: 'fake-errors', input: { key: 'FAKE_ERR
   productAnalytics: { plugin: 'fake-usage', input: { apiKey: 'FAKE_USAGE_KEY', personProfiles: 'never' } } };
 const granted: ProductConsent = { crashes: true, usage: true, installationId: INSTALL };
 
-test('Phase 3 memory events keep only numeric kind totals; warning series and severity survive the guarded product branch', async () => {
+test('memory gauges follow usage consent with fixed labels; warnings retain crash consent and severity', async () => {
   const f = await fixture();
   let consent = granted;
   try {
     const product = await bootProductTelemetry(f.required, { ...f.options, readConsent: () => consent });
-    await product.productAnalytics.capture({ name: 'app_memory_sample', properties: { rendererRssMb: 1300,
-      rendererCount: 2, mainHeapUsedMb: 45, uptimeSeconds: 3600, processCount: 4, siteId: 'private-site', path: '/private/site' } });
-    assert.deepEqual(f.events, [{ name: 'app_memory_sample', userId: INSTALL,
-      properties: { uptimeSeconds: 3600, processCount: 4, mainHeapUsedMb: 45, rendererRssMb: 1300, rendererCount: 2 } }]);
-    await product.productAnalytics.capture({ name: 'app_memory_sample', properties: { rendererRssMb: 'private text' } });
-    assert.equal(f.events.length, 1);
+    assert.equal(product.observability.supportsMetric, true);
+    const input = { name: 'process.memory.rss', value: 1_300_000_000 };
+    const options = { kind: 'gauge' as const, unit: 'By', attributes: { process: 'renderer', siteId: 'private-site', path: '/private/site' } };
+    await product.observability.metric(input, options);
+    assert.deepEqual(f.metrics, [{ input, options: { kind: 'gauge', unit: 'By', attributes: { process: 'renderer' } } }]);
+    for (const value of [NaN, Infinity, -1]) await product.observability.metric({ ...input, value }, options);
+    await product.observability.metric({ ...input, name: 'private-metric' }, options);
+    await product.observability.metric(input, { attributes: { process: 'private-site' } });
+    await product.observability.metric(input);
+    assert.equal(f.metrics.length, 1);
+    assert.deepEqual(f.events, []);
     const report = () => ({ error: new Error('process memory growth'), context: { operation: 'desktop.memory_growth', level: 'warning' as const,
       attributes: { process: 'renderer', code: 'sustained-growth', rss_0_mb: 1000, rss_1_mb: 1300, elapsed_0_min: 0, elapsed_1_min: 60,
         rss_64_mb: 9000, rss_2_mb: 'private text', elapsed_2_min: -1, siteId: 'private-site', series: '/private/site' } } });
     product.observability.reportError(report());
     assert.deepEqual(f.errors[0]!.context, { operation: 'desktop.memory_growth', level: 'warning', attributes: {
-      process: 'renderer', code: 'sustained-growth', rss_0_mb: 1000, rss_1_mb: 1300, elapsed_0_min: 0, elapsed_1_min: 60,
+      process: 'renderer', code: 'sustained-growth',
     } });
-    consent = { crashes: false, usage: false, installationId: null };
-    await product.productAnalytics.capture({ name: 'app_memory_sample', properties: { rendererRssMb: 2500 } });
+    consent = { crashes: false, usage: true, installationId: INSTALL };
+    await product.observability.metric(input, options);
+    assert.equal(product.observability.reportError(report()), false);
+    assert.deepEqual([f.metrics.length, f.errors.length], [2, 1]);
+    consent = { crashes: true, usage: false, installationId: INSTALL };
+    await product.observability.metric(input, options);
     product.observability.reportError(report());
-    assert.deepEqual([f.events.length, f.errors.length], [1, 1]);
-    assert.equal(JSON.stringify(f.events).includes('private'), false);
+    assert.deepEqual([f.metrics.length, f.errors.length], [2, 2]);
+    consent = { crashes: false, usage: false, installationId: null };
+    await product.observability.metric(input, options);
+    product.observability.reportError(report());
+    assert.deepEqual([f.metrics.length, f.errors.length], [2, 2]);
+    assert.equal(JSON.stringify(f.metrics).includes('private'), false);
     assert.equal(JSON.stringify(f.errors).includes('private'), false);
+    consent = granted;
+    Object.assign(f.raw.observability, { supportsMetric: false });
+    assert.equal(product.observability.supportsMetric, false);
+    f.raw.observability.reportError = () => false;
+    assert.equal(product.observability.reportError(report()), false);
+    const pendingAdmission = Promise.resolve(false);
+    f.raw.observability.reportError = () => pendingAdmission;
+    assert.equal(product.observability.reportError(report()), pendingAdmission);
   } finally { await f.close(); }
 });
 
@@ -47,9 +68,11 @@ async function fixture() {
   const configPath = path.join(root, 'config.json'), preferencePath = path.join(root, 'desktop-preferences.json');
   await writeFile(configPath, JSON.stringify(CONFIG));
   const events: ProductEvent[] = [], errors: ErrorReport[] = [], inputs: ProductProviderInput[] = [];
+  const metrics: { input: MetricInput; options?: MetricOptions }[] = [];
   let disposed = 0, tick = 0;
   const raw: ProductTelemetry = {
-    observability: { ...createNoopObservabilityPort({}), reportError: report => { errors.push(report); },
+    observability: { ...createNoopObservabilityPort({}), supportsMetric: true,
+      metric: (input, options) => { metrics.push({ input, options }); }, reportError: report => { errors.push(report); },
       trackRequest() { assert.fail('no product request tracking'); },
       trackDbQuery() { assert.fail('no product DB tracking'); },
       trackOutboundCall() { assert.fail('no product outbound tracking'); },
@@ -67,7 +90,7 @@ async function fixture() {
     const next = new Date(1_800_000_000_000 + ++tick * 10_000);
     await utimes(preferencePath, next, next);
   };
-  return { root, events, errors, inputs, raw, required, options, prefs, disposed: () => disposed,
+  return { root, events, errors, metrics, inputs, raw, required, options, prefs, disposed: () => disposed,
     close: () => rm(root, { recursive: true, force: true }) };
 }
 

@@ -1,5 +1,5 @@
 /** Tovu labels and consent policy over the existing Resources monitor and Jini growth owner. */
-import { aggregateProcessMemory, createMemoryGrowthDetector, type ProcessMemoryReading, type MemoryGrowthWarning } from '@jini-ai/diagnostics';
+import { aggregateProcessMemory, createMemoryGrowthDetector, type ProcessMemoryReading } from '@jini-ai/diagnostics';
 import type { Tracker } from '@jini-ai/diagnostics/observability';
 import type { ProductConsent } from '../../website/src/server/runtime/composition/product-telemetry.ts';
 import type { ResourcesSnapshot, ResourceProcess } from './contracts/resources.ts';
@@ -26,27 +26,18 @@ export function projectMemoryProcesses({ snapshot, desktopPid, rendererPids, hea
   }));
 }
 
-/** Numeric series survive the shared product diagnostic allowlist; no JSON/free-text loophole. */
-function warningAttributes({ warning }: { warning: MemoryGrowthWarning }, _options = {}): Record<string, string | number> {
-  const attributes: Record<string, string | number> = { process: warning.kind, code: warning.reason };
-  const start = warning.series[0]!.at;
-  warning.series.forEach((point, index) => {
-    attributes[`rss_${index}_mb`] = point.rssMb;
-    attributes[`elapsed_${index}_min`] = Math.round((point.at - start) / 60_000);
-  });
-  return attributes;
-}
-
-/** One compact usage event contains totals/counts by kind; release attribution carries app version. */
-function memoryProperties({ processes, uptimeSeconds }: { processes: readonly ProcessMemoryReading[]; uptimeSeconds: number }, _options = {}): Record<string, number> {
-  const properties: Record<string, number> = { uptimeSeconds: Math.round(uptimeSeconds), processCount: 0 };
+/** Jini owns grouping/deduplication and MB rounding; convert its summaries to byte gauges.
+ * Counts and uptime retain their own units. Only fixed process kinds leave the monitor.
+ * @returns Nothing; hands measurements to the tracker. @complexity O(p) monitored processes.
+ */
+function reportMemoryMetrics({ tracker, processes, uptimeSeconds }: { tracker: Tracker; processes: readonly ProcessMemoryReading[]; uptimeSeconds: number }, _options = {}): void {
   for (const group of aggregateProcessMemory({ processes })) {
-    properties.processCount! += group.count;
-    properties[`${group.kind}RssMb`] = group.rssMb;
-    properties[`${group.kind}Count`] = group.count;
-    if (group.heapUsedMb !== undefined) properties[`${group.kind}HeapUsedMb`] = group.heapUsedMb;
+    const attributes = { process: group.kind };
+    tracker.metric({ name: 'process.memory.rss', value: group.rssMb * 1_000_000 }, { kind: 'gauge', unit: 'By', attributes });
+    tracker.metric({ name: 'process.count', value: group.count }, { kind: 'gauge', unit: '{process}', attributes });
+    if (group.heapUsedMb !== undefined) tracker.metric({ name: 'process.memory.heap_used', value: group.heapUsedMb * 1_000_000 }, { kind: 'gauge', unit: 'By', attributes });
   }
-  return properties;
+  tracker.metric({ name: 'process.uptime', value: Math.round(uptimeSeconds) }, { kind: 'gauge', unit: 's', attributes: { process: 'main' } });
 }
 
 /** Reuses the exact monitor instance read by Resources IPC. Hidden windows still get a five-minute
@@ -75,11 +66,11 @@ export function startProductMemoryTelemetry({ monitor, tracker, readConsent, des
     if (disposed || snapshot.status !== 'available') return;
     const processes = projectMemoryProcesses({ snapshot, desktopPid, rendererPids: rendererPids(), heapUsedBytes: heapUsedBytes() });
     const consent = readConsent();
-    if (consent.usage) await tracker.capture({ name: 'app_memory_sample', properties: memoryProperties({ processes, uptimeSeconds: uptime() }) });
+    if (consent.usage) reportMemoryMetrics({ tracker, processes, uptimeSeconds: uptime() });
     if (disposed) return;
     if (!readConsent().crashes) { growth.reset({}, { keepRateLimits: true }); return; }
     for (const warning of growth.observe({ processes })) {
-      tracker.error(new Error('process memory growth'), { operation: 'desktop.memory_growth', level: 'warning', attributes: warningAttributes({ warning }) });
+      tracker.error({ error: new Error('process memory growth') }, { context: { operation: 'desktop.memory_growth', level: 'warning', attributes: { process: warning.kind, code: warning.reason } } });
     }
   }
   function tick(): Promise<void> {
