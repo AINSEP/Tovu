@@ -24,3 +24,13 @@ it("translates the Recent errors row controls", () => {
   expect(t({ locale: "de", key: "Copied" })).toBe("Kopiert");
   expect(t({ locale: "ja", key: "First seen" })).toBe("初回発生");
 });
+
+
+it("translates metric receipts in every supported observability locale", () => {
+  for (const locale of ["es", "id", "de", "zh-CN", "zh-TW", "pt-BR", "ru", "fa", "ar", "ja", "ko", "pl", "hu", "fr", "uk", "tr", "th", "it", "hi", "ur", "bn"]) {
+    expect(t({ locale, key: "metric" })).not.toBe("metric");
+  }
+  expect(t({ locale: "en", key: "metric" })).toBe("metric");
+  expect(t({ locale: "es", key: "metric" })).toBe("métrica");
+  expect(t({ locale: "ja", key: "metric" })).toBe("メトリクス");
+});
