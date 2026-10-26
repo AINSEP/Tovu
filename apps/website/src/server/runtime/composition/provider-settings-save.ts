@@ -1,7 +1,7 @@
 import type { PluginProviderSettingField } from "@jini-ai/plugins/host";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 
-import { ProviderConfigUnreadableError, type ProviderConfigSource } from "./provider-config-source.js";
+import { ProviderConfigUnreadableError, ProviderStoreUnavailableError, type ProviderConfigSource } from "./provider-config-source.js";
 import { providerInputOf } from "./provider-plugins.js";
 
 /**
@@ -72,7 +72,8 @@ export async function currentProviderConfig({ config, pluginId }: { config: Prov
 
 /**
  * Validates and writes one save through `config`. Returns the refusal instead of writing when the
- * values are malformed or a kept secret would follow a changed public field.
+ * values are malformed or a kept secret would follow a changed public field, and as a refusal when the
+ * project store could not open this run (`ProviderStoreUnavailableError`), so both cards show why.
  * @complexity O(f) plus one read and one write of the config row.
  */
 export async function saveProviderSettings({ config, pluginId, fields, values }: {
@@ -80,7 +81,12 @@ export async function saveProviderSettings({ config, pluginId, fields, values }:
 }): Promise<{ saved: true } | { refusal: ProviderSettingsRefusal }> {
   const next = nextProviderConfig({ values, fields, current: await currentProviderConfig({ config, pluginId }) });
   if ("refusal" in next) return next;
-  await config.write({ pluginId, config: next.config });
+  try {
+    await config.write({ pluginId, config: next.config });
+  } catch (error) {
+    if (error instanceof ProviderStoreUnavailableError) return { refusal: { code: error.code, error: error.message } };
+    throw error;
+  }
   return { saved: true };
 }
 

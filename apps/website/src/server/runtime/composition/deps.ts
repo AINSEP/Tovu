@@ -65,7 +65,7 @@ import { dirname, join, resolve, sep } from "node:path";
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { instrumentStorageKernel, trackFetch } from "#src/platform/observability/index";
 import { bootProviderPlugins, legacyProviderCredentialCheck, type SiteIdentity } from "./provider-plugins.js";
-import { createVaultProviderConfigSource, withProjectPrecedence, type ProviderConfigSource } from "./provider-config-source.js";
+import { createVaultProviderConfigSource, withProjectPrecedence, withUnavailableProject, type ProviderConfigSource } from "./provider-config-source.js";
 import { openProjectStore, type ProjectStore } from "./project-store.js";
 import { createAgentPluginStateStore } from "#src/features/api-connections/plugin-state";
 import { createApiConnectionVault } from "#src/features/api-connections/vault-stores";
@@ -1109,12 +1109,17 @@ function providerPluginBoot({ overrides }: { overrides: Partial<CreateSiteRouteD
   return overrides.bootProviderPlugins ?? bootProviderPlugins;
 }
 
-/** Provider settings: the project store (closed with the site store) when one opens, else the site vault. */
+/**
+ * Provider settings: the project store (closed with the site store) when one opens; the site vault
+ * when there is none (production); and when it is configured but fails to open, the site vault for
+ * reads only, with saves refused (`withUnavailableProject`), never silently written to the site vault.
+ */
 async function composeProviderConfig({ overrides, runtimeMode, onStoreClose, site }: {
   overrides: Partial<CreateSiteRouteDepsOverrides>; runtimeMode: RuntimeMode; onStoreClose: (close: () => void) => void; site: ProviderConfigSource;
 }): Promise<{ providerConfigSource: ProviderConfigSource; projectId: string | undefined }> {
   const projectStore = await projectStoreFor({ overrides, runtimeMode });
   if (!projectStore) return { providerConfigSource: site, projectId: undefined };
+  if ("unavailable" in projectStore) return { providerConfigSource: withUnavailableProject({ site, reason: projectStore.unavailable }), projectId: undefined };
   onStoreClose(() => projectStore.close({}));
   return { providerConfigSource: withProjectPrecedence({ site }, { project: projectStore.config }), projectId: projectStore.projectId };
 }
@@ -1145,14 +1150,16 @@ export function siteIdentityFor({ workspaceId, binding, runtimeMode, projectId }
 
 /**
  * The project store both local apps share (`project-store.ts`); production (Fly, single site) has
- * none — the project is the site there. A store that cannot open (unreadable key, damaged file) is
- * reported and the site vault answers alone, so a project-level fault never stops a site booting.
+ * none — the project is the site there. A store that cannot open (its folder can't be created, an
+ * unreadable key, a damaged file) is reported and returned as `unavailable`, so a project-level fault
+ * never stops a site booting, and its saves are refused rather than sent to the site vault.
  */
-async function projectStoreFor({ overrides, runtimeMode }: { overrides: Partial<CreateSiteRouteDepsOverrides>; runtimeMode: RuntimeMode }): Promise<ProjectStore | undefined> {
+async function projectStoreFor({ overrides, runtimeMode }: { overrides: Partial<CreateSiteRouteDepsOverrides>; runtimeMode: RuntimeMode }): Promise<ProjectStore | { unavailable: string } | undefined> {
   const open = overrides.openProjectStore ?? (async () => runtimeMode === "production" ? undefined : openProjectStore({ sitesHome: resolveSitesHome({}), home: homedir() }));
   return open().catch((error: unknown) => {
-    console.warn(`[project-store] project settings are unavailable; using this site's own: ${error instanceof Error ? error.message : String(error)}`);
-    return undefined;
+    const reason = error instanceof Error ? error.message : String(error);
+    console.warn(`[project-store] project settings can't open (${reason}); provider settings are read from this site's own and saving them is refused until it opens`);
+    return { unavailable: reason };
   });
 }
 

@@ -4,7 +4,7 @@ import test, { type TestContext } from "node:test";
 import express from "express";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 
-import { ProviderConfigUnreadableError, type ProviderConfigSource, type ProviderPluginConfig } from "#src/server/runtime/composition/provider-config-source";
+import { ProviderConfigUnreadableError, withUnavailableProject, type ProviderConfigSource, type ProviderPluginConfig } from "#src/server/runtime/composition/provider-config-source";
 import { registerPluginProviderSettingsRoutes, type ProviderSettingsRouteDeps } from "../../provider-settings.js";
 
 /**
@@ -139,6 +139,13 @@ test("refusals: other workspace 404, plugin without declared settings 404, no se
   const failing = await serve(t, { discoverPlugins: async () => { throw new Error("disk"); } });
   assert.equal((await failing.call("GET", `${WS}/plugins/obs/provider-settings`)).status, 500);
   assert.equal((await failing.call("PUT", `${WS}/plugins/obs/provider-settings`, { values: {} })).status, 500);
+});
+
+test("a project store that could not open this run: a save is refused 503 with the cause, never a bare internal error", async (t) => {
+  const { call } = await serve(t, { providerConfig: withUnavailableProject({ site: memoryConfig(), reason: "EACCES: permission denied" }) });
+  const response = await call("PUT", `${WS}/plugins/obs/provider-settings`, { values: {} });
+  assert.equal(response.status, 503);
+  assert.deepEqual(response.json, { code: "PROVIDER_SETTINGS_UNAVAILABLE", error: "Project settings can't be saved right now: EACCES: permission denied" });
 });
 
 test("a key saved the retired way (API credential `plugin:<id>`) shows a re-entry notice until new settings are saved (Codex fix-lane MED)", async (t) => {

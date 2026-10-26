@@ -13,6 +13,7 @@ import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 import { sqlitePluginActivationRepoFor } from "#src/features/plugin-runtime/repo.sqlite";
 import { openProjectStore, projectIdFor } from "#src/server/runtime/composition/project-store";
 import { createSiteRouteDeps, siteIdentityFor } from "#src/server/runtime/composition/deps";
+import { ProviderStoreUnavailableError } from "#src/server/runtime/composition/provider-config-source";
 
 /**
  * @file Codex wave-2 HIGH #1: a configured provider plugin must really boot through the REAL composition
@@ -135,6 +136,34 @@ test("two sites of one project: settings saved from site A land in project.db an
       "tovu.site.id": "uuid-of-site-b", "tovu.site.slug": "site-b", "deployment.environment": "local", "tovu.project.id": projectIdFor({ sitesHome }) } });
     await b2.deps.pluginRuntimeReady;
   } finally { await b2.close(); }
+});
+
+test("a project store that can't open (EACCES on its folder): the site boots, warns, and a settings save is refused, never sent to the site vault", async (t) => {
+  const previousKey = process.env.TOVU_SITE_KEY;
+  process.env.TOVU_SITE_KEY = "ef".repeat(32);
+  t.after(() => { if (previousKey === undefined) delete process.env.TOVU_SITE_KEY; else process.env.TOVU_SITE_KEY = previousKey; });
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-provider-unavailable-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const siteDir = path.join(root, "site");
+  fs.mkdirSync(siteDir);
+  const denied = Object.assign(new Error("EACCES: permission denied, mkdir '~/.tovu/projects/p'"), { code: "EACCES" });
+  const warnings: string[] = [];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => { warnings.push(args.join(" ")); };
+  let close = async () => {};
+  try {
+    const deps = await createSiteRouteDeps(path.join(siteDir, "content.db"), { openProjectStore: () => Promise.reject(denied),
+      siteBinding: { dir: siteDir, name: "site", dirOverridden: true, switcherCompatible: false }, onStoreOpened: (store) => { close = () => store.close(); } });
+    await deps.identityReady;
+    assert.ok(warnings.some((line) => line.includes("[project-store]") && line.includes("EACCES") && line.includes("refused")), warnings.join("\n"));
+    assert.equal(deps.providerConfig!.scope, "project");
+    await assert.rejects(deps.providerConfig!.write({ pluginId: PLUGIN_ID, config: { settings: { endpoint: "https://x.example.test" }, secrets: {} } }), ProviderStoreUnavailableError);
+    assert.equal(await deps.providerConfig!.read({ pluginId: PLUGIN_ID }), null, "nothing landed in the site vault");
+    await deps.pluginRuntimeReady;
+  } finally {
+    console.warn = originalWarn;
+    await close();
+  }
 });
 
 test("siteIdentityFor: Fly (production) is its own project; desktop is detected from the Electron child env; else local", () => {
