@@ -109,6 +109,8 @@ test("two sites of one project: settings saved from site A land in project.db an
   const boot = async (name: string, { install = true }: { install?: boolean } = {}) => {
     const siteDir = path.join(sitesHome, name);
     fs.mkdirSync(siteDir, { recursive: true });
+    // Each site's own id (init-site mints a randomUUID); both sites share the starter workspace id.
+    if (!fs.existsSync(path.join(siteDir, ".site-meta.json"))) fs.writeFileSync(path.join(siteDir, ".site-meta.json"), JSON.stringify({ siteId: `uuid-of-${name}` }));
     const version = install ? await installFakeProvider({ siteDir }) : "1.0.0";
     let close = async () => {};
     const deps = await createSiteRouteDeps(path.join(siteDir, "content.db"), { openProjectStore: projectStore,
@@ -130,14 +132,38 @@ test("two sites of one project: settings saved from site A land in project.db an
     assert.match(String((globalThis as { __providerBootFake?: string }).__providerBootFake), /^https:\/\/project-collector\.example\.test\|/);
     // Site attribution reaches the provider factory: which site, which project, which environment.
     assert.deepEqual((globalThis as { __providerBootAttribution?: unknown }).__providerBootAttribution, { attributes: {
-      "tovu.site.id": b2.deps.workspaceId, "tovu.site.slug": "site-b", "deployment.environment": "local", "tovu.project.id": projectIdFor({ sitesHome }) } });
+      "tovu.site.id": "uuid-of-site-b", "tovu.site.slug": "site-b", "deployment.environment": "local", "tovu.project.id": projectIdFor({ sitesHome }) } });
     await b2.deps.pluginRuntimeReady;
   } finally { await b2.close(); }
 });
 
 test("siteIdentityFor: Fly (production) is its own project; desktop is detected from the Electron child env; else local", () => {
-  const base = { workspaceId: "ws-1", binding: { name: "blog" } };
+  const base = { workspaceId: "ws-1", binding: { name: "blog", dir: path.join(os.tmpdir(), "tovu-no-such-site-dir") } };
   assert.deepEqual(siteIdentityFor({ ...base, runtimeMode: "production", projectId: undefined }, { env: {} }), { siteId: "ws-1", siteSlug: "blog", environment: "fly", projectId: "ws-1" });
   assert.deepEqual(siteIdentityFor({ ...base, runtimeMode: "local", projectId: "project-x" }, { env: { ELECTRON_RUN_AS_NODE: "1" } }), { siteId: "ws-1", siteSlug: "blog", environment: "desktop", projectId: "project-x" });
   assert.equal(siteIdentityFor({ ...base, runtimeMode: "local", projectId: "project-x" }).environment, process.env.ELECTRON_RUN_AS_NODE === "1" ? "desktop" : "local");
+});
+
+test("siteIdentityFor: each site is named by its own .site-meta.json siteId, not the shared starter workspace id", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-site-identity-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const siteWith = (name: string, meta: unknown) => {
+    const dir = path.join(root, name);
+    fs.mkdirSync(dir);
+    fs.writeFileSync(path.join(dir, ".site-meta.json"), typeof meta === "string" ? meta : JSON.stringify(meta));
+    return { name, dir };
+  };
+  // Every starter-template site seeds the same workspace id; two sites must still be told apart.
+  const shared = { workspaceId: "workspace-local", runtimeMode: "local" as const, projectId: "project-x" };
+  const a = siteIdentityFor({ ...shared, binding: siteWith("a", { siteId: "site-uuid-a", siteKeyId: "key-a" }) }, { env: {} });
+  const b = siteIdentityFor({ ...shared, binding: siteWith("b", { siteId: "site-uuid-b" }) }, { env: {} });
+  assert.equal(a.siteId, "site-uuid-a");
+  assert.equal(b.siteId, "site-uuid-b");
+  // A first-boot meta holds only the minted siteKeyId; it becomes the siteId once completed, so it names the site now.
+  assert.equal(siteIdentityFor({ ...shared, binding: siteWith("c", { siteKeyId: "key-c" }) }, { env: {} }).siteId, "key-c");
+  // Missing or unreadable meta: the workspace id is the last resort.
+  assert.equal(siteIdentityFor({ ...shared, binding: siteWith("d", "{not json") }, { env: {} }).siteId, "workspace-local");
+  // Fly has no project store: the project is the site itself, by its siteId (never the shared workspace id).
+  const fly = siteIdentityFor({ ...shared, runtimeMode: "production", projectId: undefined, binding: siteWith("e", { siteId: "site-uuid-e" }) }, { env: {} });
+  assert.deepEqual(fly, { siteId: "site-uuid-e", siteSlug: "e", environment: "fly", projectId: "site-uuid-e" });
 });
