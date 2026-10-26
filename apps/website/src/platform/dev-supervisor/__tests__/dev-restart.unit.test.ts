@@ -12,6 +12,63 @@ test("no supervisor env var means no port (tovu serve, npm start, desktop, hoste
   assert.equal(devRestartPortFromEnv({ env: {} }), null);
 });
 
+test("an acknowledged request returns the supervisor's decision, not a completed-restart claim", async () => {
+  for (const decision of [{ accepted: true }, { accepted: false, reason: "Site is open in Desktop." }]) {
+    const scheduled: Array<() => void> = [];
+    const writes: Array<[string, string]> = [];
+    const removed: string[] = [];
+    const requestId = "11111111-1111-4111-8111-111111111111";
+    const port = devRestartPortFromEnv({
+      env: { [DEV_RESTART_REQUEST_FILE_ENV]: "/tmp/request.json" }, newId: () => requestId,
+      writeFile: (file, data) => { writes.push([file, data]); },
+      schedule: (fn, ms) => { assert.equal(ms, 100); scheduled.push(fn); },
+      readFile: file => { assert.equal(file, `/tmp/request.json.${requestId}.result`); return JSON.stringify(decision); },
+      removeFile: file => { removed.push(file); },
+    })!;
+    const result = port.requestRestart({ reason: "provider-settings-live-apply" }, { awaitAcceptance: true });
+    assert.equal(writes.length, 1, 'the supervisor must precheck while the tool is still running');
+    assert.equal(writes[0]![0], "/tmp/request.json");
+    assert.equal(JSON.parse(writes[0]![1]).requestId, requestId);
+    assert.equal(JSON.parse(writes[0]![1]).reason, "provider-settings-live-apply");
+    scheduled.shift()!();
+    assert.deepEqual(await result, decision);
+    assert.deepEqual(removed, [`/tmp/request.json.${requestId}.result`]);
+  }
+});
+
+test("acknowledgements are bounded and fail closed on missing, malformed or unreadable replies", async () => {
+  const cases = [
+    { readFile: () => null, polls: 50, reason: "The dev supervisor did not confirm the restart request." },
+    { readFile: () => "{", polls: 1, reason: "Could not confirm the restart with the dev supervisor." },
+    { readFile: () => JSON.stringify({ accepted: "yes" }), polls: 1, reason: "Could not confirm the restart with the dev supervisor." },
+    { readFile: () => { throw new Error("unreadable"); }, polls: 1, reason: "Could not confirm the restart with the dev supervisor." },
+  ];
+  for (const scenario of cases) {
+    const scheduled: Array<() => void> = [];
+    let polls = 0;
+    const port = devRestartPortFromEnv({
+      env: { [DEV_RESTART_REQUEST_FILE_ENV]: "/tmp/request.json" }, newId: () => "11111111-1111-4111-8111-111111111111",
+      writeFile: () => {}, schedule: fn => { scheduled.push(fn); }, removeFile: () => {},
+      readFile: () => { polls++; return scenario.readFile(); },
+    })!;
+    const result = port.requestRestart({ reason: "restart" }, { awaitAcceptance: true });
+    while (scheduled.length) scheduled.shift()!();
+    assert.deepEqual(await result, { accepted: false, reason: scenario.reason });
+    assert.equal(polls, scenario.polls);
+  }
+});
+
+test("an acknowledgement request write failure returns a plain refusal without exposing error text", async () => {
+  const port = devRestartPortFromEnv({
+    env: { [DEV_RESTART_REQUEST_FILE_ENV]: "/tmp/request.json" },
+    writeFile: () => { throw new Error(["fixture", "private", String(123)].join('-')); },
+    schedule: () => assert.fail("failed writes must not poll"),
+  })!;
+  assert.deepEqual(await port.requestRestart({ reason: "restart" }, { awaitAcceptance: true }), {
+    accepted: false, reason: "Could not send the restart request to the dev supervisor.",
+  });
+});
+
 test("an explicit launcher site pin withdraws Switch now capability", () => {
   const env = { [DEV_RESTART_REQUEST_FILE_ENV]: "/tmp/req.json", TOVU_DEV_SITE_PINNED: "1" };
   assert.equal(devRestartPortFromEnv({ env })?.canSwitchSite, false);

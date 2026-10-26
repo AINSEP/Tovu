@@ -47,7 +47,11 @@ test("tool authorization precedes mutation, malformed input is refused and resta
 test("restart is fail-closed without a human channel, cancellation keeps the site running, and confirmation requests one supervisor restart", async () => {
   let restarts = 0; let exchanges = 0;
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => `restart-${++exchanges}` }, defaultChannel: "mcp-ui" });
-  const tools = buildProjectKeyRegistrations({ surfaces: { surfaceExchanges }, restart: { requestRestart() { restarts++; } }, loadCards: async () => [], authorize: async () => {} });
+  const tools = buildProjectKeyRegistrations({ surfaces: { surfaceExchanges }, restart: { async requestRestart(input, options) {
+    assert.deepEqual(input, { reason: "provider-settings-live-apply" });
+    assert.deepEqual(options, { awaitAcceptance: true });
+    restarts++; return { accepted: true };
+  } }, loadCards: async () => [], authorize: async () => {} });
   const tool = tools.find(tool => tool.descriptor.id === "site_restart")!;
   const ctx = { executionId: "restart", principal: { id: "owner" }, run: { id: "run" }, signal: new AbortController().signal, input: {} };
   await assert.rejects(tool.handler(ctx), /no interactive confirmation channel/);
@@ -58,9 +62,24 @@ test("restart is fail-closed without a human channel, cancellation keeps the sit
       assert.match(text, /Unsaved work and running chats will be lost/);
       surfaceExchanges.deliver({ exchangeId: `restart-${exchanges}`, principalId: "owner", params: { decision } }, { toolId: "site_restart" });
     } });
-    assert.equal((result as { restarted: boolean }).restarted, decision === "confirm");
+    if (decision === "confirm") assert.deepEqual(result, { restartRequested: true, message: "The dev supervisor accepted the restart request." });
+    else assert.equal((result as { restarted: boolean }).restarted, false);
   }
   assert.equal(restarts, 1);
+});
+
+test("site_restart returns the supervisor refusal and never claims an unacknowledged success", async () => {
+  let exchanges = 0;
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => `refused-${++exchanges}` }, defaultChannel: "mcp-ui" });
+  const reason = "Site is open in Desktop. The current API is still running.";
+  for (const decision of [{ accepted: false as const, reason }, undefined]) {
+    const tools = buildProjectKeyRegistrations({ surfaces: { surfaceExchanges }, restart: { requestRestart: async () => decision }, loadCards: async () => [], authorize: async () => {} });
+    const tool = tools.find(tool => tool.descriptor.id === "site_restart")!;
+    const result = await tool.handler({ executionId: "refused", principal: { id: "owner" }, run: { id: "run" }, signal: new AbortController().signal, input: {} }, {
+      emitSurface: async () => { surfaceExchanges.deliver({ exchangeId: `refused-${exchanges}`, principalId: "owner", params: { decision: "confirm" } }, { toolId: "site_restart" }); },
+    });
+    assert.deepEqual(result, { restarted: false, reason: decision?.reason ?? "The dev supervisor did not confirm the restart request." });
+  }
 });
 
 test("provider inventory uses manifest labels and live-apply fallback returns restart without losing the attachment", async () => {

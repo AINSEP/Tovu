@@ -54,7 +54,41 @@ test('new vendor save is unattached, clears its password input and never renders
   assert.ok(host.textContent!.includes('Saved — site usage unavailable'));
   assert.equal(host.textContent!.includes('used by every site'), false);
   const restore = host.querySelectorAll<HTMLFieldSetElement>('fieldset')[2]!;
-  assert.equal(restore.disabled, true, 'restore requires an empty store');
+  assert.equal(restore.disabled, false, 'project keys do not establish whether the owner store is empty');
+});
+
+test('legacy restore with project keys delegates the empty-owner-store check to the CLI', async t => {
+  const calls: unknown[] = [];
+  let ownerEmpty = true;
+  const bridge = {
+    list: async (input: unknown) => {
+      assert.deepEqual(input, { store: 'project' });
+      return { version: 1, ok: true, action: 'list', data: { entries: [entry], grants: [] } };
+    },
+    restore: async (input: OwnerStoreInput['restore'], options: unknown) => {
+      calls.push({ input, options });
+      return ownerEmpty
+        ? { version: 1, ok: true, action: 'restore', data: { restored: 1 } }
+        : { version: 1, ok: false, action: 'restore', error: { code: 'not-empty', message: 'unused' } };
+    },
+  } as unknown as OwnerStoreBridge;
+  const { host, dom } = mount(t, bridge); await settle();
+  const form = [...host.querySelectorAll<HTMLFormElement>('form')].find(form =>
+    form.querySelector('h3')?.textContent === 'Restore legacy owner backup')!;
+  const passphrase = ['fixture', 'restore', String(246)].join('-');
+  for (const empty of [true, false]) {
+    ownerEmpty = empty;
+    assert.equal(form.querySelector('fieldset')!.disabled, false);
+    (form.elements.namedItem('passphrase') as HTMLInputElement).value = passphrase;
+    act(() => { form.dispatchEvent(new dom.Event('submit', { bubbles: true, cancelable: true })); });
+    assert.equal((form.elements.namedItem('passphrase') as HTMLInputElement).value, '');
+    await settle();
+    assert.equal(host.innerHTML.includes(passphrase), false);
+    if (empty) assert.equal(host.querySelector('[role="status"]')!.textContent, 'Encrypted backup restored.');
+  }
+  assert.deepEqual(calls, [{ input: { passphrase }, options: {} }, { input: { passphrase }, options: {} }]);
+  assert.equal(host.querySelector('[role="status"]')!.textContent, '');
+  assert.equal(host.querySelector('[role="alert"]')!.textContent, 'Restore requires an empty owner store.');
 });
 
 test('replace carries the displayed revision and export/restore send only passphrases', async t => {
