@@ -151,6 +151,15 @@ export const ADMIN_SURFACE_FILES_PER_IP: RateLimitProfile = {
   burst: 60,
 };
 
+/** Admin browser errors + page views (`routes/system/browser-telemetry.ts`), keyed by principal id:
+ * each tab already caps itself well below this, so it only stops a stuck loop or several open tabs
+ * from flooding the configured vendor. */
+export const ADMIN_BROWSER_TELEMETRY_PER_PRINCIPAL: RateLimitProfile = {
+  windowSeconds: 60,
+  max: 60,
+  burst: 0,
+};
+
 /**
  * Build a fixed-window counter for `profile`, driven by `clock` instead of
  * `Date.now()` so tests can move time forward deterministically instead of
