@@ -107,20 +107,71 @@ test("across volumes (no hard link) the file is copied, verified, and only then 
   assert.deepEqual(await store.config.read({ pluginId: PLUGIN }), CONFIG);
 });
 
-test("a copy that does not match the original is discarded and the original kept", async (t) => {
+test("a copy that does not match the original is discarded and the original kept and used this run (no throw)", async (t) => {
   const d = dirs(t);
   await seedLegacy(d);
   const exdev = () => { throw Object.assign(new Error("cross-device link not permitted"), { code: "EXDEV" }); };
   const damagingCopy = (_from: string, to: string) => fs.writeFileSync(to, "truncated");
-  assert.throws(() => resolveProjectFiles({ home: d.home, sitesHome: d.sitesHome, projectId: d.projectId }, { link: exdev, copyFile: damagingCopy }),
-    /did not match/);
+  assert.deepEqual(resolveProjectFiles({ home: d.home, sitesHome: d.sitesHome, projectId: d.projectId }, { link: exdev, copyFile: damagingCopy }), d.legacy);
   assert.equal(fs.existsSync(d.next.dbPath), false);
   assert.deepEqual(fs.readdirSync(path.dirname(d.next.dbPath)), ["project-key.hex"], "the temp copy is removed");
+  const inPlace = await openProjectStore({ sitesHome: d.sitesHome, home: d.home }, { relocate: { link: exdev, copyFile: damagingCopy } });
+  assert.equal(inPlace.dbPath, d.legacy.dbPath, "the store opens on the old file, never throws into the site vault");
+  assert.deepEqual(await inPlace.config.read({ pluginId: PLUGIN }), CONFIG);
+  inPlace.close({});
   // The original is whole: the next start moves it and reads the saved settings.
   const store = await openProjectStore({ sitesHome: d.sitesHome, home: d.home });
   t.after(() => store.close({}));
   assert.equal(store.dbPath, d.next.dbPath);
   assert.deepEqual(await store.config.read({ pluginId: PLUGIN }), CONFIG);
+});
+
+test("a move that fails part-way (key copy refused, iCloud-evicted or damaged file) keeps the old file in use, never throws", async (t) => {
+  const d = dirs(t);
+  await seedLegacy(d);
+  const ioerr = () => { throw Object.assign(new Error("disk I/O error"), { code: "SQLITE_IOERR" }); };
+  assert.deepEqual(resolveProjectFiles({ home: d.home, sitesHome: d.sitesHome, projectId: d.projectId }, { link: ioerr, copyFile: ioerr }), d.legacy);
+  assert.ok(fs.existsSync(d.legacy.dbPath));
+  assert.equal(fs.existsSync(d.next.dbPath), false);
+  fs.writeFileSync(d.legacy.dbPath, "not a database");
+  assert.deepEqual(resolveProjectFiles({ home: d.home, sitesHome: d.sitesHome, projectId: d.projectId }), d.legacy);
+  assert.equal(fs.readFileSync(d.legacy.dbPath, "utf8"), "not a database", "kept exactly as it was");
+});
+
+test("a linked move whose old name can't be removed (EPERM/EBUSY: OneDrive, antivirus) still uses the new file; a later start removes the old name", async (t) => {
+  const d = dirs(t);
+  await seedLegacy(d);
+  const busy = () => { throw Object.assign(new Error("resource busy or locked"), { code: "EBUSY" }); };
+  assert.deepEqual(resolveProjectFiles({ home: d.home, sitesHome: d.sitesHome, projectId: d.projectId }, { rm: busy }), d.next);
+  assert.ok(fs.existsSync(d.legacy.dbPath), "fixture: the old name is still there");
+  const store = await openProjectStore({ sitesHome: d.sitesHome, home: d.home });
+  t.after(() => store.close({}));
+  assert.equal(store.dbPath, d.next.dbPath);
+  assert.equal(fs.existsSync(d.legacy.dbPath), false, "same file (same inode): the old name is removed");
+  assert.deepEqual(await store.config.read({ pluginId: PLUGIN }), CONFIG);
+});
+
+test("a cross-volume copy whose original can't be removed: a later start removes the original only while it is unchanged", async (t) => {
+  const d = dirs(t);
+  await seedLegacy(d);
+  const exdev = () => { throw Object.assign(new Error("cross-device link not permitted"), { code: "EXDEV" }); };
+  const eperm = () => { throw Object.assign(new Error("operation not permitted"), { code: "EPERM" }); };
+  const syncedDirs: Array<{ dir: string; originalPresent: boolean }> = [];
+  const fsyncDir = (dir: string) => { syncedDirs.push({ dir, originalPresent: fs.existsSync(d.legacy.dbPath) }); };
+  assert.deepEqual(resolveProjectFiles({ home: d.home, sitesHome: d.sitesHome, projectId: d.projectId }, { link: exdev, rm: eperm, fsyncDir }), d.next);
+  assert.deepEqual(syncedDirs, [{ dir: path.dirname(d.next.dbPath), originalPresent: true }], "the target folder is fsynced before the original goes");
+  // Unchanged original: removed on the next start, even though the moved copy has since been written to.
+  const store = await openProjectStore({ sitesHome: d.sitesHome, home: d.home });
+  store.close({});
+  assert.equal(fs.existsSync(d.legacy.dbPath), false);
+  assert.deepEqual(fs.readdirSync(path.dirname(d.next.dbPath)).filter((name) => !name.startsWith("project.db") && name !== "project-key.hex"), [], "no marker left");
+  // A changed original (an old build wrote to it) is never removed.
+  await seedLegacy(d);
+  fs.rmSync(d.next.dbPath);
+  assert.deepEqual(resolveProjectFiles({ home: d.home, sitesHome: d.sitesHome, projectId: d.projectId }, { link: exdev, rm: eperm }), d.next);
+  fs.appendFileSync(d.legacy.dbPath, "changed");
+  assert.deepEqual(resolveProjectFiles({ home: d.home, sitesHome: d.sitesHome, projectId: d.projectId }), d.next);
+  assert.ok(fs.existsSync(d.legacy.dbPath), "a changed original is kept");
 });
 
 test("when both places hold a project.db the new one wins and the old one is left untouched", async (t) => {
