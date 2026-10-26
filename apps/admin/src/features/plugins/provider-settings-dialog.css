@@ -25,18 +25,6 @@
 /* Phone width: the note takes its own row so Cancel and Save stay side by side under it. */
 @media (max-width: 36rem) { .provider-settings-dialog p.provider-settings-applies { flex-basis: 100%; } }
 
-/* Eye toggle for masked fields — the same rules the shared `components/SecretInput` brings to
-   `styles.css`; scoped here until that lands on this branch (merge keeps one copy). */
-.provider-settings-dialog .jini-secret { position: relative; display: flex; flex-direction: column; min-width: 0; }
-.provider-settings-dialog .jini-secret input { width: 100%; padding-right: 2.75rem; }
-.provider-settings-dialog .jini-secret-toggle {
-  position: absolute; top: 50%; right: 0; width: 40px; height: 40px; min-height: 0; margin: -20px 0 0;
-  display: inline-flex; align-items: center; justify-content: center;
-  background: none; border: 0; box-shadow: none; padding: 0; border-radius: var(--r-sm); color: var(--muted); cursor: pointer;
-}
-.provider-settings-dialog .jini-secret-toggle:hover, .provider-settings-dialog .jini-secret-toggle:focus-visible { color: var(--accent-text); background: none; opacity: 1; }
-.provider-settings-dialog .jini-secret-toggle:focus-visible { outline-offset: -5px; }
-
 /* Save while the request is out: disabled (`pending`) with a small ring beside "Saving…". */
 .provider-settings-dialog .provider-settings-save { display: inline-flex; align-items: center; gap: var(--space-2); }
 .provider-settings-spinner {

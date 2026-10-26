@@ -16,8 +16,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Takes effect the next time Tovu starts.": "Se aplica la próxima vez que se inicie Tovu.",
     "Custom…": "Personalizado…",
     "Custom {label}": "{label} personalizado",
-    "Show {label}": "Mostrar {label}",
-    "Hide {label}": "Ocultar {label}",
     "Settings": "Ajustes",
     "Turns on and off in Plugins": "Se activa y desactiva en Plugins",
     "{name} settings": "Ajustes de {name}",
@@ -274,8 +272,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to save plugin settings": "gagal menyimpan pengaturan plugin",
     "Custom…": "Kustom…",
     "Custom {label}": "{label} kustom",
-    "Show {label}": "Tampilkan {label}",
-    "Hide {label}": "Sembunyikan {label}",
     // Agent Plugin compatibility, dependents and explicit update (2026-10-21).
     "Not for this Tovu version": "Bukan untuk versi Tovu ini",
     "Needs {capabilities}": "Memerlukan {capabilities}",
@@ -493,8 +489,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to save plugin settings": "Plugin-Einstellungen konnten nicht gespeichert werden",
     "Custom…": "Benutzerdefiniert…",
     "Custom {label}": "{label} (benutzerdefiniert)",
-    "Show {label}": "{label} anzeigen",
-    "Hide {label}": "{label} ausblenden",
     // Agent Plugin compatibility, dependents and explicit update (2026-10-21).
     "Not for this Tovu version": "Nicht für diese Tovu-Version",
     "Needs {capabilities}": "Benötigt {capabilities}",
@@ -712,8 +706,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to save plugin settings": "无法保存插件设置",
     "Custom…": "自定义…",
     "Custom {label}": "自定义{label}",
-    "Show {label}": "显示{label}",
-    "Hide {label}": "隐藏{label}",
     // Agent Plugin compatibility, dependents and explicit update (2026-10-21).
     "Not for this Tovu version": "不适用于此 Tovu 版本",
     "Needs {capabilities}": "需要 {capabilities}",
@@ -931,8 +923,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to save plugin settings": "無法儲存外掛設定",
     "Custom…": "自訂…",
     "Custom {label}": "自訂{label}",
-    "Show {label}": "顯示{label}",
-    "Hide {label}": "隱藏{label}",
     // Agent Plugin compatibility, dependents and explicit update (2026-10-21).
     "Not for this Tovu version": "不適用於此 Tovu 版本",
     "Needs {capabilities}": "需要 {capabilities}",
@@ -1150,8 +1140,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to save plugin settings": "falha ao salvar as configurações do plugin",
     "Custom…": "Personalizado…",
     "Custom {label}": "{label} personalizado",
-    "Show {label}": "Mostrar {label}",
-    "Hide {label}": "Ocultar {label}",
     // Agent Plugin compatibility, dependents and explicit update (2026-10-21).
     "Not for this Tovu version": "Não é para esta versão do Tovu",
     "Needs {capabilities}": "Precisa de {capabilities}",
@@ -1369,8 +1357,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to save plugin settings": "не удалось сохранить настройки плагина",
     "Custom…": "Своё значение…",
     "Custom {label}": "{label}: своё значение",
-    "Show {label}": "Показать: {label}",
-    "Hide {label}": "Скрыть: {label}",
     // Agent Plugin compatibility, dependents and explicit update (2026-10-21).
     "Not for this Tovu version": "Не для этой версии Tovu",
     "Needs {capabilities}": "Нужно: {capabilities}",
@@ -1588,8 +1574,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to save plugin settings": "ذخیرهٔ تنظیمات افزونه ناموفق بود",
     "Custom…": "سفارشی…",
     "Custom {label}": "{label} سفارشی",
-    "Show {label}": "نمایش {label}",
-    "Hide {label}": "پنهان کردن {label}",
     // Agent Plugin compatibility, dependents and explicit update (2026-10-21).
     "Not for this Tovu version": "برای این نسخه از Tovu نیست",
     "Needs {capabilities}": "نیاز دارد به {capabilities}",
@@ -1807,8 +1791,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to save plugin settings": "تعذّر حفظ إعدادات الإضافة",
     "Custom…": "مخصص…",
     "Custom {label}": "{label} مخصص",
-    "Show {label}": "إظهار {label}",
-    "Hide {label}": "إخفاء {label}",
     // Agent Plugin compatibility, dependents and explicit update (2026-10-21).
     "Not for this Tovu version": "ليست لهذا الإصدار من Tovu",
     "Needs {capabilities}": "تحتاج إلى {capabilities}",
@@ -2026,8 +2008,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to save plugin settings": "プラグイン設定を保存できませんでした",
     "Custom…": "カスタム…",
     "Custom {label}": "カスタムの{label}",
-    "Show {label}": "{label}を表示",
-    "Hide {label}": "{label}を隠す",
     // Agent Plugin compatibility, dependents and explicit update (2026-10-21).
     "Not for this Tovu version": "この Tovu のバージョン向けではありません",
     "Needs {capabilities}": "{capabilities} が必要です",
@@ -2245,8 +2225,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to save plugin settings": "플러그인 설정을 저장하지 못했습니다",
     "Custom…": "사용자 지정…",
     "Custom {label}": "사용자 지정 {label}",
-    "Show {label}": "{label} 표시",
-    "Hide {label}": "{label} 숨기기",
     // Agent Plugin compatibility, dependents and explicit update (2026-10-21).
     "Not for this Tovu version": "이 Tovu 버전용이 아님",
     "Needs {capabilities}": "{capabilities} 필요",
@@ -2464,8 +2442,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to save plugin settings": "nie udało się zapisać ustawień wtyczki",
     "Custom…": "Własny…",
     "Custom {label}": "{label}: własna wartość",
-    "Show {label}": "Pokaż: {label}",
-    "Hide {label}": "Ukryj: {label}",
     // Agent Plugin compatibility, dependents and explicit update (2026-10-21).
     "Not for this Tovu version": "Nie dla tej wersji Tovu",
     "Needs {capabilities}": "Wymaga: {capabilities}",
@@ -2683,8 +2659,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to save plugin settings": "nem sikerült menteni a bővítmény beállításait",
     "Custom…": "Egyéni…",
     "Custom {label}": "Egyéni {label}",
-    "Show {label}": "{label} megjelenítése",
-    "Hide {label}": "{label} elrejtése",
     // Agent Plugin compatibility, dependents and explicit update (2026-10-21).
     "Not for this Tovu version": "Nem ehhez a Tovu-verzióhoz készült",
     "Needs {capabilities}": "Szükséges: {capabilities}",
@@ -2902,8 +2876,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to save plugin settings": "impossible d'enregistrer les paramètres du plugin",
     "Custom…": "Personnalisé…",
     "Custom {label}": "{label} personnalisé",
-    "Show {label}": "Afficher : {label}",
-    "Hide {label}": "Masquer : {label}",
     // Agent Plugin compatibility, dependents and explicit update (2026-10-21).
     "Not for this Tovu version": "Pas pour cette version de Tovu",
     "Needs {capabilities}": "Nécessite {capabilities}",
@@ -3121,8 +3093,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to save plugin settings": "не вдалося зберегти налаштування плагіна",
     "Custom…": "Власне значення…",
     "Custom {label}": "{label}: власне значення",
-    "Show {label}": "Показати: {label}",
-    "Hide {label}": "Приховати: {label}",
     // Agent Plugin compatibility, dependents and explicit update (2026-10-21).
     "Not for this Tovu version": "Не для цієї версії Tovu",
     "Needs {capabilities}": "Потрібно: {capabilities}",
@@ -3340,8 +3310,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to save plugin settings": "eklenti ayarları kaydedilemedi",
     "Custom…": "Özel…",
     "Custom {label}": "Özel {label}",
-    "Show {label}": "{label} göster",
-    "Hide {label}": "{label} gizle",
     // Agent Plugin compatibility, dependents and explicit update (2026-10-21).
     "Not for this Tovu version": "Bu Tovu sürümü için değil",
     "Needs {capabilities}": "Gerekli: {capabilities}",
@@ -3559,8 +3527,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to save plugin settings": "บันทึกการตั้งค่าปลั๊กอินไม่สำเร็จ",
     "Custom…": "กำหนดเอง…",
     "Custom {label}": "{label} แบบกำหนดเอง",
-    "Show {label}": "แสดง{label}",
-    "Hide {label}": "ซ่อน{label}",
     // Agent Plugin compatibility, dependents and explicit update (2026-10-21).
     "Not for this Tovu version": "ไม่ใช่สำหรับ Tovu เวอร์ชันนี้",
     "Needs {capabilities}": "ต้องใช้ {capabilities}",
@@ -3778,8 +3744,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to save plugin settings": "impossibile salvare le impostazioni del plugin",
     "Custom…": "Personalizzato…",
     "Custom {label}": "{label} personalizzato",
-    "Show {label}": "Mostra {label}",
-    "Hide {label}": "Nascondi {label}",
     // Agent Plugin compatibility, dependents and explicit update (2026-10-21).
     "Not for this Tovu version": "Non per questa versione di Tovu",
     "Needs {capabilities}": "Richiede {capabilities}",
@@ -3997,8 +3961,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to save plugin settings": "प्लगइन सेटिंग्स सहेजी नहीं जा सकीं",
     "Custom…": "कस्टम…",
     "Custom {label}": "कस्टम {label}",
-    "Show {label}": "{label} दिखाएँ",
-    "Hide {label}": "{label} छिपाएँ",
     // Agent Plugin compatibility, dependents and explicit update (2026-10-21).
     "Not for this Tovu version": "Tovu के इस संस्करण के लिए नहीं",
     "Needs {capabilities}": "{capabilities} चाहिए",
@@ -4216,8 +4178,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to save plugin settings": "پلگ اِن کی ترتیبات محفوظ نہیں ہو سکیں",
     "Custom…": "حسبِ ضرورت…",
     "Custom {label}": "حسبِ ضرورت {label}",
-    "Show {label}": "{label} دکھائیں",
-    "Hide {label}": "{label} چھپائیں",
     // Agent Plugin compatibility, dependents and explicit update (2026-10-21).
     "Not for this Tovu version": "Tovu کے اس ورژن کے لیے نہیں",
     "Needs {capabilities}": "{capabilities} درکار ہے",
@@ -4435,8 +4395,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to save plugin settings": "প্লাগইন সেটিংস সংরক্ষণ করা যায়নি",
     "Custom…": "কাস্টম…",
     "Custom {label}": "কাস্টম {label}",
-    "Show {label}": "{label} দেখান",
-    "Hide {label}": "{label} লুকান",
     // Agent Plugin compatibility, dependents and explicit update (2026-10-21).
     "Not for this Tovu version": "Tovu-এর এই সংস্করণের জন্য নয়",
     "Needs {capabilities}": "{capabilities} প্রয়োজন",
