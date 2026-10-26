@@ -2181,6 +2181,29 @@ export interface AdminPlugin {
    * earlier-enabled plugin already holds. Optional so a row from a server predating the field still
    * types; the current server always sends it (empty when clear). */
   conflicts?: AdminPluginConflict[];
+  /** (2026-10-26) True when the plugin declares provider settings (its row offers a Settings card). */
+  providerSettings?: true;
+}
+
+/** One field of a provider plugin's settings card (`PLUGIN_PROVIDER_SETTINGS`). A secret field never
+ *  carries its value back: `saved` says whether one is stored. */
+export interface AdminPluginProviderSettingField {
+  name: string;
+  label: string;
+  hint?: string;
+  secret: boolean;
+  required: boolean;
+  saved: boolean;
+  value?: string;
+}
+
+/** `GET|PUT /workspaces/:id/plugins/:pluginId/provider-settings` (2026-10-26). */
+export interface AdminPluginProviderSettings {
+  pluginId: string;
+  /** Where saves go: the project shared by this machine's sites, or this site only. */
+  store: "project" | "site";
+  appliesAt: "next-start";
+  fields: AdminPluginProviderSettingField[];
 }
 
 /** One entry of {@link AdminPlugin.conflicts} — `features/plugin-runtime/plugin-claims.ts`'s
@@ -3996,6 +4019,14 @@ export const api = {
   // SPEC-005 REQ-12..17 (1.1.0 UI amendment) — consumes REQ-10's PLUGINS_LIST/PLUGIN_SET_ENABLED
   // HTTP contract as a black box (ui.spec.md §3.1/§4.2).
   listPlugins: () => request<{ plugins: AdminPlugin[] }>(`/workspaces/${WORKSPACE_ID}/plugins`),
+  /** PLUGIN_PROVIDER_SETTINGS (2026-10-26) — a provider plugin's declared settings card. */
+  getPluginProviderSettings: (pluginId: string) =>
+    request<AdminPluginProviderSettings>(`/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}/provider-settings`),
+  /** Saves card values; a blank secret keeps the saved one. Takes effect at the next start. */
+  savePluginProviderSettings: (pluginId: string, values: Record<string, string>) =>
+    request<AdminPluginProviderSettings>(`/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}/provider-settings`, {
+      method: "PUT", body: JSON.stringify({ values }),
+    }),
   setPluginEnabled: (pluginId: string, { enabled }: { enabled: boolean }) =>
     request<{ plugin: { id: string; version: string; enabled: boolean; updatedAt: string }; changeSetId: string }>(
       `/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}`,

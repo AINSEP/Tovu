@@ -1,4 +1,4 @@
-import { ApiError, api, authenticatedAdminRequest, WORKSPACE_ID, type AdminPlugin, type AdminPluginFiles } from "@/lib/api";
+import { ApiError, api, authenticatedAdminRequest, WORKSPACE_ID, type AdminPlugin, type AdminPluginFiles, type AdminPluginProviderSettings } from "@/lib/api";
 import type { PluginsPort } from "./plugins-port.hooks";
 
 /**
@@ -13,6 +13,8 @@ export const defaultPluginsPort: PluginsPort = {
   setPluginEnabled: (id, patch) => api.setPluginEnabled(id, patch),
   uninstallPlugin: (id) => api.uninstallPlugin(id),
   getPluginFiles: (id) => api.getPluginFiles(id),
+  getProviderSettings: (id) => api.getPluginProviderSettings(id),
+  saveProviderSettings: (id, values) => api.savePluginProviderSettings(id, values),
 };
 
 /** Seed state for {@link createFakePluginsPort}. */
@@ -21,6 +23,8 @@ export interface FakePluginsPortOptions {
   plugins?: AdminPlugin[];
   /** `PLUGIN_FILES` responses by plugin id; an id with no entry rejects like the real route's 404. */
   packageFiles?: Record<string, AdminPluginFiles>;
+  /** Provider settings cards by plugin id; saves follow the real route's rules (blank secret = keep). */
+  providerSettings?: Record<string, AdminPluginProviderSettings>;
 }
 
 /**
@@ -85,6 +89,27 @@ export function createFakePluginsPort(options: FakePluginsPortOptions = {}): Plu
       const listing = options.packageFiles?.[id];
       if (!listing) throw new ApiError("plugin was not found", 404, "PLUGIN_NOT_FOUND");
       return listing;
+    },
+
+    async getProviderSettings(id) {
+      const card = options.providerSettings?.[id];
+      if (!card) throw new ApiError("this plugin declares no provider settings", 404, "PLUGIN_NOT_FOUND");
+      return card;
+    },
+
+    async saveProviderSettings(id, values) {
+      const card = await this.getProviderSettings(id);
+      if (Object.entries(values).some(([name]) => !card.fields.some((field) => field.name === name))) {
+        throw new ApiError("values must map declared setting names to text", 400, "PROVIDER_SETTINGS_INVALID");
+      }
+      const fields = card.fields.map((field) => {
+        const value = values[field.name]?.trim();
+        if (value === undefined) return field;
+        if (field.secret) return { ...field, saved: field.saved || value !== "" };
+        return { ...field, value, saved: value !== "" };
+      });
+      options.providerSettings![id] = { ...card, fields };
+      return options.providerSettings![id]!;
     },
   };
 }

@@ -49,6 +49,8 @@ export interface PluginRowProps {
   readonly action: ReactNode;
   /** Opens the read-only package-files viewer for this plugin (`PluginPackageFilesModal`). */
   readonly onInspect: () => void;
+  /** Present only for a provider plugin that declares settings: opens its settings card. */
+  readonly onSettings?: () => void;
 }
 
 /** The facts every row has (`rules.ts`'s `pluginRowFacts`) — always rendered, so a healthy
@@ -107,7 +109,7 @@ function PluginRowProblems({ plugin, t }: { plugin: AdminPlugin; t: Translate })
   );
 }
 
-export function PluginRow({ plugin, t, expanded, onToggleExpanded, agentHandleBase, action, onInspect }: PluginRowProps) {
+export function PluginRow({ plugin, t, expanded, onToggleExpanded, agentHandleBase, action, onInspect, onSettings }: PluginRowProps) {
   const detailId = useId();
   const headingId = useId();
 
@@ -143,6 +145,17 @@ export function PluginRow({ plugin, t, expanded, onToggleExpanded, agentHandleBa
           </span>
         </button>
         <div className="plugin-row-actions">
+          {onSettings ? (
+            <button
+              type="button"
+              className="plugin-settings-btn"
+              onClick={onSettings}
+              aria-label={`${t("Settings")} — ${plugin.name}`}
+              {...agentHandle({ handle: `${agentHandleBase}-settings` }, { role: "button", label: `Open the "${plugin.name}" settings` })}
+            >
+              {t("Settings")}
+            </button>
+          ) : null}
           <button
             type="button"
             className="plugin-icon-btn"
