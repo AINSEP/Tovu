@@ -30,7 +30,7 @@ describe('CONSENT_DICT', () => {
     const dictionary = CONSENT_DICT.de;
     const props = { value: { ...CONSENT_CONFIG, appearance: { backgroundColor: '#ffffff' } }, onChange: () => {}, dictionary };
     const { container } = render(<>
-      <ConsentBannerFields {...props} />
+      <ConsentBannerFields {...props} bannerModes={['jini', 'headless', 'off']} />
       <ConsentLookFields {...props} />
       <ConsentRulesFields {...props} />
       <ConsentPreviewFrame html="<p>page</p>" dictionary={dictionary} />

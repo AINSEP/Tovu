@@ -1,5 +1,5 @@
 import { agentHandle } from "@jini-ai/agentic";
-import { ConsentBannerFields, ConsentLookFields, ConsentPreviewFrame, ConsentRulesFields } from "@jini-ai/admin/consent/react";
+import { ConsentBannerFields, ConsentLookFields, ConsentPreviewFrame, ConsentRulesFields, type ConsentFieldProblem } from "@jini-ai/admin/consent/react";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import type { CSSProperties } from "react";
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
@@ -88,6 +88,15 @@ function ResetStyle({ page, t, disabled }: { page: ConsentPageController; t: Tra
   );
 }
 
+/** Preview-only diagnostics; publish eligibility uses the saved draft's blocking problems. */
+function CssWarnings({ warnings, enabled, t }: { warnings: ConsentFieldProblem[]; enabled: boolean; t: Translate }) {
+  if (!enabled || warnings.length === 0) return null;
+  return <div className="notice warning consent-css-warnings" role="status">
+    <p>{t("Some styles were skipped. You can still publish.")}</p>
+    <ul>{warnings.map((warning, index) => <li key={`${warning.code}:${index}`}>{warning.message}</li>)}</ul>
+  </div>;
+}
+
 function EditorTab({ tab, page, port, translation, delays }: { tab: Exclude<ConsentTabId, "overview">; page: ConsentPageController; port: ConsentRevisionsPort; translation: ConsentTranslation; delays: CookieConsentProps["delays"] }) {
   const preview = useConsentPreview({ port, config: tab === "rules" ? null : page.value, t: translation.t }, delays?.previewMs === undefined ? {} : { delayMs: delays.previewMs });
   const fit = useConsentPreviewScale();
@@ -111,11 +120,12 @@ function EditorTab({ tab, page, port, translation, delays }: { tab: Exclude<Cons
   return (
     <div className="consent-editor consent-editor-with-preview">
       <div className="card">
-        {tab === "banner" ? <ConsentBannerFields {...fields} /> : <ConsentLookFields {...fields} placements={page.editor?.placements} />}
+        {tab === "banner" ? <ConsentBannerFields {...fields} bannerModes={page.editor?.bannerModes} /> : <ConsentLookFields {...fields} placements={page.editor?.placements} />}
         {tab === "look" && <ResetStyle page={page} t={translation.t} disabled={fields.disabled} />}
       </div>
       <div className="card consent-preview-pane" ref={fit.ref} style={{ "--consent-preview-scale": fit.scale, "--consent-preview-desktop-width": `${CONSENT_PREVIEW_DESKTOP_WIDTH}px` } as CSSProperties}>
         {preview.error && <p className="notice error" role="alert">{preview.error}</p>}
+        <CssWarnings warnings={preview.warnings} enabled={Boolean(page.editor?.bannerModes)} t={translation.t} />
         <ConsentPreviewFrame html={preview.html} status={translation.t("Loading preview…")} dictionary={translation.dictionary} />
       </div>
     </div>
