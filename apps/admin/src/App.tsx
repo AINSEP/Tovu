@@ -120,8 +120,9 @@ export function parseRoute(routePath: string): Route {
     }
     // A known id resolves exactly like the modern bare-segment path. Anything past the id is
     // ignored, matching the single inline branch this replaces (`/section/settings/foo` never
-    // looked past `settings` either).
-    return parseRoute(`/${id}`);
+    // looked past `settings` either). The query is kept: `/section/sites?tab=import` must still
+    // reach the moved-tab resolver below, not the Sites gate.
+    return parseRoute(`/${id}${routePath.slice(rawPath.length)}`);
   }
 
   // Sites' old Export/Import tabs first: their new home is not under Add-ons, and the redirect has to

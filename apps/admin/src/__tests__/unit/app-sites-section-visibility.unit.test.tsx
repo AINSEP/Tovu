@@ -216,6 +216,16 @@ describe("Import & Export inside the desktop shell (owner, 2026-10-25, option A)
     expect(window.location.search).toBe(`?tab=${tab}`);
     await waitFor(() => expect(container.querySelector("main")).toHaveAttribute("data-agent-page", "import-export"));
   });
+
+  it.each(["export", "import"])("keeps the query on a legacy /section/sites?tab=%s link, so it reaches the new tab too", async (tab) => {
+    stubDesktopShell();
+    vi.stubGlobal("fetch", stubFetch(false));
+    const container = await renderAt(`/admin/section/sites?tab=${tab}`);
+
+    await waitFor(() => expect(window.location.pathname).toBe("/admin/import-export"));
+    expect(window.location.search).toBe(`?tab=${tab}`);
+    await waitFor(() => expect(container.querySelector("main")).toHaveAttribute("data-agent-page", "import-export"));
+  });
 });
 
 describe("resolveSiteSectionRouteGate", () => {

@@ -26,6 +26,19 @@ export function resolveImportExportTabId(tabId: string | null | undefined): Impo
  */
 export const SITE_TRANSFER_TABS_SOON = true;
 
+/** Other — three dots, the plain "more" mark: the remaining ways out (static HTML, Git backup).
+ *  Same 24px grid, 1.5 stroke and `aria-hidden` as `sites-visuals.tsx`, so it sits with the Export
+ *  and Import glyphs; without it Other was the one icon-less row in an admin of icon-led tab bars. */
+function OtherIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" aria-hidden>
+      <circle cx="6" cy="12" r="1" />
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="18" cy="12" r="1" />
+    </svg>
+  );
+}
+
 /**
  * The three tabs, in the shape `TabBar` takes. Actions, so no counts.
  * @complexity O(1) — a fixed array of three tabs.
@@ -56,6 +69,7 @@ export function resolveImportExportTabs(
     {
       id: "other",
       label: t("Other"),
+      icon: <OtherIcon />,
       handle: "import-export-tab-other",
       handleLabel: "Switch to the Other tab — static site export and Git backup",
     },

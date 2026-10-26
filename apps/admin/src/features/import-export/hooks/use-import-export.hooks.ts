@@ -26,6 +26,7 @@ export function useSiteTransferTranslate(): Translate {
  * never in the desktop shell, otherwise the server's `switchingEnabled` — over the same cached read
  * (the boot scope's principal key is the one App passes), so it costs no extra request. A read still
  * loading counts as no: a link that bounces to the dashboard is worse than one that shows a moment late.
+ * A failed refresh counts as no too, even over cached data, because the router then gates Sites off.
  * @complexity O(1) plus the shared, cached sites read; none in the desktop shell.
  */
 export function useSitesSectionAvailable(
@@ -33,5 +34,5 @@ export function useSitesSectionAvailable(
   { desktop = isDesktopAdmin({}) }: { desktop?: boolean } = {},
 ): boolean {
   const snapshot = useSitesSnapshot({ port: api }, { enabled: !desktop });
-  return !desktop && snapshot.data?.switchingEnabled === true;
+  return !desktop && !snapshot.error && snapshot.data?.switchingEnabled === true;
 }

@@ -1,4 +1,4 @@
-import { fireEvent, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ImportExport } from "../ImportExport";
 import { IMPORT_EXPORT_DICT, t } from "../import-export-i18n";
@@ -6,6 +6,8 @@ import { resolveImportExportTabId, resolveImportExportTabs } from "../import-exp
 import { createFakeGitBackupPort } from "../hooks/git-backup-port.hooks";
 import { useGitBackup } from "../hooks/use-git-backup.hooks";
 import { useSitesSectionAvailable } from "../hooks/use-import-export.hooks";
+import { publishContentRefresh } from "@/lib/content-refresh-bus";
+import { SITES_RESOURCE } from "@/features/sites/rules";
 
 /** The Git backup card on a fake port with no connection, so no test here reaches the network. */
 const useFakeGitBackup = ({ t: translate }: { t: (key: string) => string }) => useGitBackup({ port: createFakeGitBackupPort(), t: translate });
@@ -101,6 +103,20 @@ describe("useSitesSectionAvailable", () => {
     const { result } = renderHook(() => useSitesSectionAvailable({}, { desktop: false }));
     expect(result.current).toBe(false);
     await waitFor(() => expect(result.current).toBe(true));
+  });
+
+  it("drops the New site link when a refresh fails, as the router drops the Sites route", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(Response.json({ sites: [], switchingEnabled: true, currentSite: null, persistedSiteName: null }))
+        .mockResolvedValue(Response.json({ error: "boom" }, { status: 500 })),
+    );
+    const { result } = renderHook(() => useSitesSectionAvailable({}, { desktop: false }));
+    await waitFor(() => expect(result.current).toBe(true));
+    act(() => publishContentRefresh([SITES_RESOURCE]));
+    await waitFor(() => expect(result.current).toBe(false));
   });
 });
 
