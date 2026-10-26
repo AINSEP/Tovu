@@ -26,6 +26,23 @@ const PUBLIC_MESSAGES: Readonly<Record<string, string>> = {
 };
 const DEFAULT_PUBLIC_MESSAGE = "The assistant couldn't answer right now. Please try again.";
 
+/** Codes the visitor's own request causes (assistant off, bad or oversized input, rate limit). */
+const VISITOR_CAUSED_CODES: ReadonlySet<string> = new Set(["ASSISTANT_DISABLED", "VALIDATION", "TOO_LARGE", "PAYLOAD_TOO_LARGE", "RATE_LIMIT_EXCEEDED"]);
+
+/**
+ * The error a logged entry becomes for an error tracker, or undefined when the visitor caused it
+ * (those are answers, not incidents). Built from the entry's already-redacted diagnostic only: its
+ * first line is the message, the whole text the stack.
+ * @complexity O(n) in diagnostic length.
+ */
+export function siteAssistantIncident({ entry }: { entry: SiteAssistantErrorLogEntry }): Error | undefined {
+  if (VISITOR_CAUSED_CODES.has(entry.code)) return undefined;
+  const incident = new Error(entry.diagnostic.split("\n", 1)[0] || entry.code);
+  incident.name = "SiteAssistantError";
+  incident.stack = entry.diagnostic;
+  return incident;
+}
+
 /** Preserve the whole diagnostic/stack for operators; non-Error throws remain diagnosable.
  * @complexity O(n) in diagnostic size; no I/O. */
 function diagnosticText({ diagnostic }: { diagnostic: unknown }, _options = {}): string {

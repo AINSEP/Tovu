@@ -274,7 +274,7 @@ import { registerAdminDatabaseMigrateForwardRoutes } from "../../inbound/admin-h
 import { registerAdminRecoveryRestoreRoutes } from "../../inbound/admin-http/routes/recovery/restore.js";
 
 import { applyDevCors } from "../../inbound/shared/dev-cors.js";
-import { applyRequestTracking } from "../../inbound/shared/observability-middleware.js";
+import { applyRequestTracking, captureRouteError } from "../../inbound/shared/observability-middleware.js";
 import { parsePublicJsonBody, respondToOversizedBody } from "../../inbound/shared/json-body-parsers.js";
 import { applyTrustProxy } from "../../inbound/shared/trust-proxy.js";
 import { applySiteServingGate } from "../../inbound/public-http/middleware/site-serving-gate.js";
@@ -2500,6 +2500,8 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
 
   // Last, so it sees a body-parser 413 from any route and answers JSON instead of Express's HTML page.
   app.use(respondToOversizedBody);
+  // Last: hands the request's 5xx error report the error Express's default handler answers with.
+  app.use(captureRouteError);
 
   return app;
 }

@@ -158,7 +158,7 @@ import { buildAssistantRuntimeGuidance, createAssistantChromeProbe, resolveAssis
 import { registerFederationAdmissionsRoute } from "./federation-admissions-route.js";
 import { registerFederationReloadRoute } from "./federation-reload-route.js";
 import { createAgentDaemonRouteDeps, startPluginActivationPolling } from "../../runtime/composition/agent-daemon-deps.js";
-import { installUnhandledRejectionGuard } from "../../runtime/boot/process-error-guards.js";
+import { installProcessErrorReporting, installUnhandledRejectionGuard } from "../../runtime/boot/process-error-guards.js";
 import { attachServerLogFile, installServerLogCapture, serverLogFilePaths } from "../../../platform/server-logs/index.js";
 import { siteDir } from "../../runtime/composition/deps.js";
 import { registerInstalledExtensionTools } from "../../runtime/composition/installed-extension-tools.js";
@@ -448,6 +448,9 @@ function resolvePermissionMode(): "bypass" | "restricted" {
 const routeDeps = await createAgentDaemonRouteDeps({ env: process.env }, { onStoreOpened: (store) => { daemonStore = store; } });
 // The same boot tail `index.ts` waits for before its store closes.
 if (routeDeps.legacyPublishCredentialsReady) daemonBootWork.push(routeDeps.legacyPublishCredentialsReady);
+// This process boots its own provider plugins (the same `createSiteRouteDeps` composition), so its
+// unhandled rejections/exceptions reach the error tracker, labelled `process: daemon`.
+installProcessErrorReporting({ observability: routeDeps.observability, processRole: "daemon" });
 
 /**
  * Root directory the chat composer's staged image/file uploads land in before a run claims them

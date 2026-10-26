@@ -1,3 +1,7 @@
+import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
+
+import { reportErrorOnce } from "../../../platform/observability/report-error.js";
+
 /**
  * @file Process-level safety net for an unhandled promise rejection escaping every route/middleware
  * layer beneath it — the systemic half of a live-found crash (2026-08-16): an admin route that
@@ -77,6 +81,37 @@ export function installUnhandledRejectionGuard(options: InstallUnhandledRejectio
   };
   process.on("unhandledRejection", handler);
   return () => process.off("unhandledRejection", handler);
+}
+
+/**
+ * Forwards process-level failures to the observability port (provider wave 2, 2026-10-25): an
+ * unhandled rejection (`installUnhandledRejectionGuard` above still logs it and keeps the process
+ * up) and an uncaught exception (`uncaughtExceptionMonitor` observes without changing Node's
+ * log-and-exit default). Installed by each process once its `RouteDeps` exist — the serving process
+ * (`index.ts`, `tovu serve`) and the agent daemon — because the port is only built there. Only add
+ * this beside the guard: a rejection listener on its own would also suppress Node's default crash.
+ * A fatal exception's report is handed to the port synchronously; whether an adapter delivers it
+ * before the process exits is the adapter's own buffering.
+ * @param required The port and which process this is (`server` or `daemon`), sent as an attribute.
+ * @param optional Test seam for the event source; defaults to `process`.
+ * @returns An uninstall function removing exactly these two listeners.
+ * @complexity O(1) to install; O(n) per report in the error's text length.
+ */
+export function installProcessErrorReporting(
+  required: { observability: ObservabilityPort; processRole: "server" | "daemon" },
+  optional: { target?: Pick<NodeJS.EventEmitter, "on" | "off"> } = {},
+): () => void {
+  const { observability, processRole } = required;
+  const target = optional.target ?? process;
+  const onRejection = (reason: unknown): void => {
+    reportErrorOnce({ observability, error: reason, operation: "process.unhandled_rejection" }, { attributes: { process: processRole } });
+  };
+  const onUncaught = (error: unknown): void => {
+    reportErrorOnce({ observability, error, operation: "process.uncaught_exception" }, { attributes: { process: processRole } });
+  };
+  target.on("unhandledRejection", onRejection);
+  target.on("uncaughtExceptionMonitor", onUncaught);
+  return () => { target.off("unhandledRejection", onRejection); target.off("uncaughtExceptionMonitor", onUncaught); };
 }
 
 /** Report a rejected Tovu boot and terminate, including when stderr itself fails.

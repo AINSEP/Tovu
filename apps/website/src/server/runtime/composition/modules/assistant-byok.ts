@@ -78,6 +78,7 @@ import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/adm
 import type { RouteDeps } from "#src/server/routes/types";
 import { createTestOriginHttpClientFactory } from "#src/platform/http/test-origin-allowlist";
 import type { AgentRunStatus } from "#src/platform/observability/index";
+import { reportErrorOnce } from "#src/platform/observability/report-error";
 import { registerInstalledExtensionTools } from "../installed-extension-tools.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 import type { ServerModuleHandle } from "./types.js";
@@ -586,6 +587,10 @@ export function createAssistantByokModule(
     // DB and outbound spans nest under the run rather than the long-lived request.
     const runTracker = routeDeps.observability.trackAgentRun({ runId: run.id }, { agentName: credential.protocol });
     let reportedError = false;
+    // A failed turn (a provider error event or a throw, not an owner's cancel) is an incident for
+    // the error tracker too: the protocol and run id only, the key blanked even without a known shape.
+    const reportRunFailure = (error: unknown) => reportErrorOnce({ observability: routeDeps.observability, error, operation: "assistant.run" },
+      { attributes: { agent: credential.protocol, runId: run.id }, exactSecrets: [credential.apiKey] });
     const stampUsage = createByokUsageTimer({ startedAt: Date.now() });
     let result: ByokProviderTurnResult;
     try {
@@ -614,12 +619,13 @@ export function createAssistantByokModule(
         // rendering an unrecognized `ext` event. Everything else rides `agent` unchanged, reusing
         // `translateRunAgentPayload`'s existing switch on the client with zero new cases.
         onEvent: (event: ByokTurnEvent) => {
-          if (event.type === "error") reportedError = true;
+          if (event.type === "error") { reportedError = true; reportRunFailure(new Error(event.message)); }
           sse(res, event.type === "error" ? "error" : "agent", stampUsage(event));
         },
       }));
     } catch (error) {
       runTracker.end(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }, { thrown: { error } }));
+      if (!abort.signal.aborted) reportRunFailure(error);
       sse(res, "error", { type: "error", message: error instanceof Error ? error.message : String(error) });
       sse(res, "end", { reason: "error" });
       res.end();

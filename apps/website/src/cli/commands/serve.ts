@@ -18,7 +18,7 @@ import { runtimeSchemaVersion } from "../../platform/site-dir/schema-guard.js";
 import { PortInUseError } from "../errors.js";
 import { startAssistantDaemon, shutdownAssistantDaemon } from "../../server/inbound/assistant/index.js";
 import { ensureAgentDaemonPortResolved } from "../../server/runtime/lifecycle/agent-daemon-port.js";
-import { installUnhandledRejectionGuard } from "../../server/runtime/boot/process-error-guards.js";
+import { installProcessErrorReporting, installUnhandledRejectionGuard } from "../../server/runtime/boot/process-error-guards.js";
 import { attachServerLogFile, installServerLogCapture, serverLogFilePaths } from "../../platform/server-logs/index.js";
 import { registerPluginSdkResolver } from "../../server/runtime/boot/plugin-sdk-resolver.js";
 import { ensureAgentDaemonToken } from "../../assistant/index.js";
@@ -306,6 +306,8 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
     },
   });
   if (deps.legacyPublishCredentialsReady) owned.bootWork.push(deps.legacyPublishCredentialsReady);
+  // Unhandled rejections/exceptions reach the error tracker too, now that its port exists.
+  installProcessErrorReporting({ observability: deps.observability, processRole: "server" });
 
   // 2026-09-05 dispatch (boot-path parity): this command never ran `runBootLifecycle` at all —
   // only `src/index.ts`'s `main()` did (ADR-046 Phase 3/SPEC-031). Two concrete gaps that opened:

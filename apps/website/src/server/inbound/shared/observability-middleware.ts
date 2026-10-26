@@ -1,9 +1,10 @@
-import type { Express, NextFunction, Request, Response } from "express";
+import type { ErrorRequestHandler, Express, NextFunction, Request, Response } from "express";
 
 import type { Logger } from "@jini-ai/core/primitives";
 import { logCompletedRequest } from "@jini-ai/http-kit/observability";
 import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
 
+import { reportErrorOnce, runWithErrorReportScope, type ErrorReportScope } from "../../../platform/observability/report-error.js";
 import { REQUEST_ID_HEADER, resolveRequestId } from "./request-id.js";
 
 /**
@@ -42,6 +43,13 @@ import { REQUEST_ID_HEADER, resolveRequestId } from "./request-id.js";
  * 404 carries it too — exposed on `res.locals.requestId` for handlers, and handed to
  * `trackRequest` so the id a user reports matches the tracked request.
  *
+ * Also the request's error report (provider wave 2, 2026-10-25): a response that finishes 5xx is
+ * reported ONCE to `ObservabilityPort.reportError` — the thrown error when `captureRouteError` saw
+ * one, else a stackless "HTTP <status>" marker — unless something inside the request (a tracked
+ * operation, the site assistant) already reported. Its attributes are the route TEMPLATE, method,
+ * status, request id and the signed-in principal's id: never the raw path, query, headers, cookies
+ * or body.
+ *
  * Completed requests are silent unless TOVU_LOG_REQUESTS=1 or their duration exceeds an explicit
  * TOVU_LOG_SLOW_REQUESTS threshold in milliseconds. Error logging remains with existing handlers.
  * Jini keeps console output compact and structured sinks receive the
@@ -73,11 +81,15 @@ export function applyRequestTracking(app: Express, deps: {
     res.setHeader(REQUEST_ID_HEADER, requestId);
     res.locals.requestId = requestId;
     const tracker = deps.observability.trackRequest({ method: req.method, path: req.path }, { requestId });
+    const scope: ErrorReportScope = { reported: false };
 
     res.on("finish", () => {
       const durationMs = performance.now() - startedAt;
-      const routePattern = req.route ? `${req.baseUrl}${req.route.path}` : "unmatched";
+      // After an error reaches the app's final handler Express has already reset `req.baseUrl`
+      // (undefined at the top level), so it is read defensively.
+      const routePattern = req.route ? `${req.baseUrl ?? ""}${req.route.path}` : "unmatched";
       tracker.end({ statusCode: res.statusCode, routePattern });
+      reportServerError({ observability: deps.observability, req, res, scope, routePattern });
       logCompletedRequest({
         requestId, method: req.method, routePattern, statusCode: res.statusCode, durationMs,
       }, { logger: deps.logger, logRequests, slowRequestMs });
@@ -85,7 +97,31 @@ export function applyRequestTracking(app: Express, deps: {
 
     // Routing and the handler run inside the request's scope, so a DB query or outbound call they
     // make is recorded as this request's child. A tracker from an adapter without scoping lacks run().
-    if (tracker.run) tracker.run(next);
-    else next();
+    runWithErrorReportScope({ scope, work: () => (tracker.run ? tracker.run(next) : next()) });
   });
 }
+
+/** Reports a finished 5xx response once, unless the request's own work already reported. */
+function reportServerError({ observability, req, res, scope, routePattern }: {
+  observability: ObservabilityPort; req: Request; res: Response; scope: ErrorReportScope; routePattern: string;
+}): void {
+  if (res.statusCode < 500 || scope.reported) return;
+  const marker = new Error(`HTTP ${res.statusCode} from ${req.method} ${routePattern}`);
+  marker.name = "ServerErrorResponse";
+  marker.stack = `${marker.name}: ${marker.message}`;
+  const principalId = (res.locals.principal as { id?: unknown } | undefined)?.id;
+  reportErrorOnce({ observability, error: res.locals.routeError ?? marker, operation: "http.request" }, { attributes: {
+    route: routePattern, method: req.method, status: res.statusCode, requestId: String(res.locals.requestId),
+    ...(typeof principalId === "string" ? { principalId } : {}),
+  } });
+}
+
+/**
+ * Last error middleware in `createApp()`: remembers the error Express is about to answer with its
+ * default handler so the 5xx report above carries the real error, then passes it on unchanged.
+ * @complexity O(1).
+ */
+export const captureRouteError: ErrorRequestHandler = (error, _req, res, next) => {
+  res.locals.routeError = error;
+  next(error);
+};
