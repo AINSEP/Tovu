@@ -16,8 +16,8 @@ import type { AdminPlugin } from "@/lib/api";
  *  - `role="table"`/`"row"` -> `role="tablist"`/`"tab"` for the tab bar, `role="listitem"` for a
  *    plugin row (a `<ul>` of `PluginRow`, not a table) — same adaptation
  *    `AgentPlugins.unit.test.tsx` made for its own sibling redesign the same night.
- *  - The single unified list split into Installed (`enabled: true` only) and Downloaded
- *    (unfiltered) tabs. AC-18's "every record, in API order" now applies to Downloaded specifically
+ *  - The single unified list split into Installed (`enabled: true` only, until owner 2026-10-25:
+ *    now every installed plugin, on or off) and Downloaded (unfiltered) tabs. AC-18's "every record, in API order" now applies to Downloaded specifically
  *    — Installed's own scope is a NEW assertion, not a renamed old one.
  *  - Quarantine (`automatic plugin quarantine`) and per-row `errors[]` (AC-24) moved from
  *    always-visible `DataTable` columns into the row's own expander — those tests now expand the
@@ -33,6 +33,8 @@ import type { AdminPlugin } from "@/lib/api";
  *    redirected to the Disable direction, which IS still reachable (Installed's own toggle). This is
  *    a genuine screen-capability gap worth the owner's attention, not something silently patched
  *    around here — flagged in the handoff, not hidden by rewriting the scenario to look unchanged.
+ *    (2026-10-25: reachable again — Installed now lists switched-off rows with their Enable; see
+ *    "Installed tab scope" below.)
  *  - AC-21's "invisible toggle" branch (`pluginToggleControl`'s `visible: false` case, for an
  *    invalid+disabled plugin) is now unreachable via Installed-tab-only rendering (Installed
  *    pre-filters to `enabled: true`, which alone satisfies `pluginToggleControl`'s visibility
@@ -118,14 +120,35 @@ describe("tabs: Installed, Downloaded, Add a plugin, Marketplace, in that order,
   });
 });
 
-describe("Installed tab scope: plugin.enabled === true only", () => {
-  it("shows only the enabled row by default", async () => {
+describe("Installed tab scope: every installed plugin, on or off (owner 2026-10-25)", () => {
+  it("lists the switched-off rows too, each off-but-valid one with its own Enable", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
     render(<Plugins />);
 
     await screen.findByRole("tablist");
-    expect(screen.getAllByRole("listitem")).toHaveLength(1);
-    expect(screen.getByRole("listitem", { name: "Word Count" })).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem").map((row) => row.getAttribute("aria-label"))).toEqual(["Word Count", "Invalid Site Plugin", "Valid Site Plugin"]);
+    expect(within(screen.getByRole("listitem", { name: "Valid Site Plugin" })).getByRole("button", { name: "Enable Valid Site Plugin" })).toBeEnabled();
+    expect(within(screen.getByRole("listitem", { name: "Word Count" })).getByRole("button", { name: "Disable Word Count" })).toBeEnabled();
+  });
+
+  it("?plugin=<id> scrolls to that row, focuses its summary and highlights it; no other row", async () => {
+    // jsdom has no layout, so no `scrollIntoView`; stub it for this test only.
+    const original = Element.prototype.scrollIntoView;
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    try {
+      fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
+      render(<Plugins tabId="installed" focusPluginId="valid-site-plugin" />);
+
+      const row = await screen.findByRole("listitem", { name: "Valid Site Plugin" });
+      expect(row).toHaveAttribute("data-focused", "true");
+      expect(screen.getByRole("listitem", { name: "Word Count" })).not.toHaveAttribute("data-focused");
+      expect(scrollIntoView).toHaveBeenCalledTimes(1);
+      expect(scrollIntoView.mock.contexts[0]).toBe(row);
+      expect(document.activeElement).toBe(row.querySelector(".plugin-row-summary"));
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
   });
 });
 
@@ -260,19 +283,18 @@ describe("empty states", () => {
     expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
   });
 
-  it("Installed shows its own honest empty note when nothing is enabled", async () => {
-    const allDisabled = { plugins: AC11_PLUGINS_RESPONSE.plugins.map((p) => ({ ...p, enabled: false })) };
-    fetchMock.mockResolvedValueOnce(jsonResponse(allDisabled));
+  it("Installed shows its own honest empty note when no plugin is installed", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ plugins: [] }));
     render(<Plugins />);
 
-    expect(await screen.findByText(/no plugins are enabled for this site/i)).toBeInTheDocument();
+    expect(await screen.findByText(/no plugins installed/i)).toBeInTheDocument();
     expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
   });
 
-  it("Downloaded still lists every plugin while Installed has nothing enabled — the same fixture, two independent renders", async () => {
+  it("Installed still lists every plugin when none is switched on", async () => {
     const allDisabled = { plugins: AC11_PLUGINS_RESPONSE.plugins.map((p) => ({ ...p, enabled: false })) };
     fetchMock.mockResolvedValueOnce(jsonResponse(allDisabled));
-    render(<Plugins tabId="downloaded" />);
+    render(<Plugins />);
 
     expect(await screen.findAllByRole("listitem")).toHaveLength(3);
   });
@@ -418,8 +440,8 @@ describe("REQ-18/AC-26: row subline shows source · tier · status verbatim, not
   });
 });
 
-describe("REQ-13/AC-19/AC-20/EC-11: Installed's toggle interaction — redirected to the Disable direction (see this file's own header for why Enable is not reachable here)", () => {
-  it("activating Disable on Word Count PATCHes {enabled:false}, shows in-flight, re-fetches, and the row leaves Installed", async () => {
+describe("REQ-13/AC-19/AC-20/EC-11: Installed's toggle interaction — Disable direction (written when Installed listed only enabled rows; Enable is covered above)", () => {
+  it("activating Disable on Word Count PATCHes {enabled:false}, shows in-flight, re-fetches, and the row stays on Installed as off", async () => {
     const user = userEvent.setup();
     let resolvePatch!: (value: Response) => void;
     const patchPromise = new Promise<Response>((resolve) => { resolvePatch = resolve; });
@@ -463,8 +485,7 @@ describe("REQ-13/AC-19/AC-20/EC-11: Installed's toggle interaction — redirecte
     });
 
     await waitFor(() => {
-      expect(screen.queryByRole("listitem", { name: "Word Count" })).not.toBeInTheDocument();
-      expect(screen.getByText(/no plugins are enabled for this site/i)).toBeInTheDocument();
+      expect(within(screen.getByRole("listitem", { name: "Word Count" })).getByRole("button", { name: "Enable Word Count" })).toBeEnabled();
     });
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(String(fetchMock.mock.calls[2]![0])).toBe(listUrl);

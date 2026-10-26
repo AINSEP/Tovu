@@ -14,7 +14,7 @@ import { AddPluginPanel } from "./AddPluginPanel";
 import { UploadIcon } from "./agent-plugins-visuals";
 import { addPluginTabSoonTag, marketplaceTabSoonTag } from "./add-plugin-tab-soon";
 import { DownloadedTabIcon, InstalledTabIcon, MarketplaceTabIcon, PluginTrashIcon } from "./plugins-visuals";
-import { filterInstalledPlugins, pluginRemoveAriaLabel, pluginRemoveBlocker, pluginToggleAriaLabel, pluginToggleControl } from "./rules";
+import { pluginRemoveAriaLabel, pluginRemoveBlocker, pluginToggleAriaLabel, pluginToggleControl } from "./rules";
 import { useWiredPlugins, type PluginsController } from "./hooks/use-plugins.hooks";
 
 /**
@@ -34,17 +34,19 @@ import { useWiredPlugins, type PluginsController } from "./hooks/use-plugins.hoo
  *
  * Four tabs, Installed first (owner correction, applied identically to the sibling screen the same
  * night — Installed before Downloaded, not the other way round):
- *  - **Installed** — `plugin.enabled === true` only. Carries the Enable/Disable toggle unchanged
- *    from the pre-split table (`pluginToggleControl`/`onToggleEnabled`).
+ *  - **Installed** — every installed plugin, on or off (owner 2026-10-25, the same call Agent
+ *    Plugins' Installed got on 2026-09-13: a provider plugin that is installed but off was listed
+ *    only under Downloaded). Carries the Enable/Disable toggle unchanged from the pre-split table
+ *    (`pluginToggleControl`/`onToggleEnabled`). `?plugin=<id>` scrolls to, focuses and highlights
+ *    that row (`usePluginRowFocus`) — a linked agent plugin's padlock on Agent Plugins links here.
  *  - **Downloaded** — every plugin `PLUGINS_LIST` returns, unfiltered (this workspace's on-disk
  *    set). Every row carries Remove, which drives the REAL `PLUGIN_UNINSTALL` route: it deletes the
  *    plugin's on-disk artifact, gated behind `PluginRemoveConfirmDialog`. Remove is usable only
  *    where that route can succeed — a switched-off site plugin. On a built-in row, or a row that is
  *    still on, it is honestly disabled and points at a section note saying why
  *    (`pluginRemoveBlocker`; 2026-09-13 fix — before it, Remove showed ONLY on enabled rows, which
- *    the route always refuses). A disabled row also carries a direct, unconfirmed Enable — the only
- *    lever on this screen to re-activate a plugin once it's off, since Installed only ever lists
- *    enabled rows.
+ *    the route always refuses). A disabled row also carries a direct, unconfirmed Enable (written
+ *    when Installed listed only enabled rows; Installed's toggle now does the same).
  *  - **Add a plugin** — the shared `InstallTabCard` (`AddPluginPanel.tsx`): a server folder or one
  *    `.zip`, previewed before install. Replaced the header "Install plugin" popup (owner, 2026-10-06),
  *    so all three install screens (Skills, Agent Plugins, Plugins) share one tab and card. On a
@@ -62,6 +64,8 @@ import { useWiredPlugins, type PluginsController } from "./hooks/use-plugins.hoo
 export interface PluginsProps {
   /** The `?tab=` query value from `panels.tsx`'s `plugins` route. See {@link resolvePluginsTabId}. */
   tabId?: string | null;
+  /** The `?plugin=` query value: the row Installed scrolls to and highlights. */
+  focusPluginId?: string | null;
   /**
    * Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
    * for `useCustomSelect`. Defaulted to the real hook, so production callers (`panels.tsx`) pass
@@ -89,12 +93,14 @@ function InstalledPluginRows({
   expandedIds,
   onToggleExpanded,
   rowHandleById,
+  focusPluginId,
 }: {
   plugins: AdminPlugin[];
   controller: PluginsController;
   expandedIds: ReadonlySet<string>;
   onToggleExpanded: (id: string) => void;
   rowHandleById: Map<string, string>;
+  focusPluginId?: string | null | undefined;
 }) {
   const { t, locale, rowSavingId, onToggleEnabled } = controller;
   return (
@@ -111,6 +117,7 @@ function InstalledPluginRows({
             agentHandleBase={rowHandleById.get(plugin.id)!}
             onInspect={() => controller.onInspectPlugin(plugin.id)}
             {...(plugin.providerSettings ? { onSettings: () => controller.onOpenSettings(plugin.id) } : {})}
+            focused={plugin.id === focusPluginId}
             action={
               <button
                 type="button"
@@ -201,6 +208,7 @@ interface PluginsTabPanelProps {
   plugins: AdminPlugin[];
   controller: PluginsController;
   rowHandleById: Map<string, string>;
+  focusPluginId?: string | null | undefined;
 }
 
 /** The Downloaded tab's two Remove notes, by {@link pluginRemoveBlocker} reason — a disabled Remove
@@ -210,17 +218,14 @@ const PLUGINS_REMOVE_NOTE_IDS = {
   enabled: "plugins-remove-enabled-note",
 } as const;
 
-/** Installed: the enabled rows, or an honest empty note when none are. */
-function InstalledPanel({ plugins, controller, rowHandleById }: PluginsTabPanelProps) {
+/** Installed: every installed plugin, on or off, or an honest empty note when there are none. */
+function InstalledPanel({ plugins, controller, rowHandleById, focusPluginId }: PluginsTabPanelProps) {
   const { t } = controller;
-  // `plugins` is the loaded (non-null) list here, so `filterInstalledPlugins`' non-null overload
-  // applies — no `?? []` fallback for a null it can never return.
-  const installedPlugins = filterInstalledPlugins(plugins);
-  if (installedPlugins.length === 0) {
+  if (plugins.length === 0) {
     return (
       <div className="card">
         <div className="empty-state">
-          <p>{t("No plugins are enabled for this site.")}</p>
+          <p>{t("No plugins installed.")}</p>
           <p className="page-description">{t("Enabled plugins extend what this site can do.")}</p>
         </div>
       </div>
@@ -228,11 +233,12 @@ function InstalledPanel({ plugins, controller, rowHandleById }: PluginsTabPanelP
   }
   return (
     <InstalledPluginRows
-      plugins={installedPlugins}
+      plugins={plugins}
       controller={controller}
       expandedIds={controller.expandedIds}
       onToggleExpanded={controller.onToggleExpanded}
       rowHandleById={rowHandleById}
+      focusPluginId={focusPluginId}
     />
   );
 }
@@ -315,7 +321,7 @@ function navigateToPluginsTab(nextTabId: string) {
   navigate(`/addons/plugins?tab=${nextTabId}`, { replace: true });
 }
 
-export function Plugins({ tabId, usePluginsHook = useWiredPlugins }: PluginsProps = {}) {
+export function Plugins({ tabId, focusPluginId, usePluginsHook = useWiredPlugins }: PluginsProps = {}) {
   const controller = usePluginsHook();
   const { plugins, error, t } = controller;
 
@@ -325,12 +331,12 @@ export function Plugins({ tabId, usePluginsHook = useWiredPlugins }: PluginsProp
   // see `LoadedPlugins`'s own error notice below, and `use-plugins.hooks.ts`'s `reload()` header.
   if (error && !plugins) return <div className="notice error">{error}</div>;
   if (!plugins) return <div className="notice">{t("Loading plugins…")}</div>;
-  return <LoadedPlugins plugins={plugins} controller={controller} activeTabId={resolvePluginsTabId(tabId, controller.canInstallFolder === true)} />;
+  return <LoadedPlugins plugins={plugins} controller={controller} activeTabId={resolvePluginsTabId(tabId, controller.canInstallFolder === true)} focusPluginId={focusPluginId} />;
 }
 
 /** The screen once `PLUGINS_LIST` has settled: header, row error, tab bar, the active tab's panel,
  *  and the package-files viewer and Remove confirm dialog (both opened through the controller). */
-function LoadedPlugins({ plugins, controller, activeTabId }: { plugins: AdminPlugin[]; controller: PluginsController; activeTabId: PluginsTabId }) {
+function LoadedPlugins({ plugins, controller, activeTabId, focusPluginId }: { plugins: AdminPlugin[]; controller: PluginsController; activeTabId: PluginsTabId; focusPluginId?: string | null | undefined }) {
   const { error, rowError, t, locale, inspectedPlugin, pendingRemovePlugin, settingsPlugin } = controller;
 
   // Plugin ids are stable and unique, same per-row-handle derivation every other list on this
@@ -344,7 +350,7 @@ function LoadedPlugins({ plugins, controller, activeTabId }: { plugins: AdminPlu
   const canInstall = controller.canInstallFolder === true;
 
   const tabs: TabBarTab[] = [
-    { id: "installed", label: t("Installed"), icon: <InstalledTabIcon />, handle: "plugins-tab-installed", handleLabel: "Switch to the Installed tab — plugins this site has turned on" },
+    { id: "installed", label: t("Installed"), icon: <InstalledTabIcon />, handle: "plugins-tab-installed", handleLabel: "Switch to the Installed tab — every plugin installed for this site, on or off" },
     { id: "downloaded", label: t("Downloaded"), icon: <DownloadedTabIcon />, handle: "plugins-tab-downloaded", handleLabel: "Switch to the Downloaded tab — every plugin on disk for this site, regardless of whether it's turned on" },
     { id: "add", label: t("Add a plugin"), tag: addPluginTabSoonTag(locale, canInstall ? undefined : true), disabled: !canInstall, icon: <UploadIcon />, handle: "plugins-tab-add", handleLabel: "Switch to the Add a plugin tab — install a plugin from a folder on this server or a .zip" },
     { id: "marketplace", label: t("Marketplace"), tag: marketplaceTabSoonTag(locale), icon: <MarketplaceTabIcon />, handle: "plugins-tab-marketplace", handleLabel: "Switch to the Marketplace tab — a future place to discover plugins" },
@@ -377,7 +383,7 @@ function LoadedPlugins({ plugins, controller, activeTabId }: { plugins: AdminPlu
 
       <TabBar ariaLabel={t("Plugins")} tabs={tabs} activeId={activeTabId} onChange={navigateToPluginsTab} containerHandle="plugins-tab-bar" />
 
-      <ActivePanel plugins={plugins} controller={controller} rowHandleById={rowHandleById} />
+      <ActivePanel plugins={plugins} controller={controller} rowHandleById={rowHandleById} focusPluginId={focusPluginId} />
 
       {inspectedPlugin ? <PluginPackageFilesModal plugin={inspectedPlugin} onClose={controller.onCloseInspector} /> : null}
 

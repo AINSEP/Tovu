@@ -17,7 +17,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Custom…": "Personalizado…",
     "Custom {label}": "{label} personalizado",
     "Settings": "Ajustes",
-    "Turns on and off in Plugins": "Se activa y desactiva en Plugins",
+    "This is both an agent plugin and a regular plugin. It can only be turned on in the Plugins page.": "Es a la vez un plugin de agente y un plugin normal. Solo se puede activar en la página Plugins.",
     "{name} settings": "Ajustes de {name}",
     "{name} settings saved — applies next time Tovu starts": "Ajustes de {name} guardados: se aplican la próxima vez que se inicie Tovu",
     "A key for this plugin was saved in an older format that Tovu no longer reads. Enter it again here and save.": "Una clave de este plugin se guardó en un formato antiguo que Tovu ya no lee. Vuelve a introducirla aquí y guarda.",
@@ -219,7 +219,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     // new copy. "Installed"/"Downloaded"/"Marketplace"/"Nothing to browse yet" are reused verbatim
     // from the keys above (shared tab-label vocabulary across both screens in this dictionary).
     Remove: "Eliminar",
-    "No plugins are enabled for this site.": "No hay plugins activados en este sitio.",
     "Enabled plugins extend what this site can do.": "Los plugins activados amplían lo que este sitio puede hacer.",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.":
       "Los plugins integrados se incluyen con el propio Tovu y no tienen archivos en disco para eliminar.",
@@ -259,7 +258,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   id: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "Pengaturan",
-    "Turns on and off in Plugins": "Diaktifkan dan dinonaktifkan di Plugin",
+    "This is both an agent plugin and a regular plugin. It can only be turned on in the Plugins page.": "Ini adalah plugin agen sekaligus plugin biasa. Hanya dapat diaktifkan di halaman Plugin.",
     "Saved for every site in this project": "Disimpan untuk setiap situs di proyek ini",
     "Saved for this site": "Disimpan untuk situs ini",
     "Takes effect the next time Tovu starts.": "Berlaku saat Tovu dimulai berikutnya.",
@@ -461,7 +460,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "Marketplace direncanakan untuk rilis mendatang. Tovu belum mengambil, memasang, atau menampilkan paket marketplace.",
     "Read the package format": "Baca format paket",
     "Package format:": "Format paket:",
-    "No plugins are enabled for this site.": "Tidak ada plugin yang diaktifkan untuk situs ini.",
     "Enabled plugins extend what this site can do.": "Plugin yang diaktifkan memperluas kemampuan situs ini.",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "Plugin bawaan disertakan dengan Tovu sendiri dan tidak memiliki berkas di disk untuk dihapus.",
     "Turn a plugin off on Installed before removing it.": "Nonaktifkan plugin di Terpasang sebelum menghapusnya.",
@@ -476,7 +474,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   de: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "Einstellungen",
-    "Turns on and off in Plugins": "Wird unter Plugins ein- und ausgeschaltet",
+    "This is both an agent plugin and a regular plugin. It can only be turned on in the Plugins page.": "Dies ist sowohl ein Agenten-Plugin als auch ein normales Plugin. Es kann nur auf der Seite „Plugins“ eingeschaltet werden.",
     "Saved for every site in this project": "Gespeichert für jede Website in diesem Projekt",
     "Saved for this site": "Gespeichert für diese Website",
     "Takes effect the next time Tovu starts.": "Wird beim nächsten Start von Tovu wirksam.",
@@ -678,7 +676,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "Der Marktplatz ist für eine künftige Version geplant. Tovu ruft noch keine Marktplatzpakete ab, installiert oder listet sie.",
     "Read the package format": "Paketformat lesen",
     "Package format:": "Paketformat:",
-    "No plugins are enabled for this site.": "Für diese Website sind keine Plugins aktiviert.",
     "Enabled plugins extend what this site can do.": "Aktivierte Plugins erweitern, was diese Website kann.",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "Integrierte Plugins werden mit Tovu selbst ausgeliefert und haben keine Dateien auf dem Datenträger, die entfernt werden könnten.",
     "Turn a plugin off on Installed before removing it.": "Deaktivieren Sie ein Plugin unter „Installiert“, bevor Sie es entfernen.",
@@ -693,7 +690,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   "zh-CN": {
     // Provider plugin settings card (2026-10-26).
     "Settings": "设置",
-    "Turns on and off in Plugins": "在“插件”中开启和关闭",
+    "This is both an agent plugin and a regular plugin. It can only be turned on in the Plugins page.": "这既是智能体插件，也是普通插件。只能在“插件”页面中开启。",
     "Saved for every site in this project": "为此项目中的每个站点保存",
     "Saved for this site": "仅为此站点保存",
     "Takes effect the next time Tovu starts.": "下次启动 Tovu 时生效。",
@@ -895,7 +892,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "市场计划在未来版本中推出。Tovu 目前还不会获取、安装或列出市场中的软件包。",
     "Read the package format": "阅读软件包格式说明",
     "Package format:": "软件包格式：",
-    "No plugins are enabled for this site.": "此站点没有启用任何插件。",
     "Enabled plugins extend what this site can do.": "启用的插件可以扩展此站点的功能。",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "内置插件随 Tovu 本身提供，没有可删除的磁盘文件。",
     "Turn a plugin off on Installed before removing it.": "删除插件前，请先在“已安装”中将其关闭。",
@@ -910,7 +906,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   "zh-TW": {
     // Provider plugin settings card (2026-10-26).
     "Settings": "設定",
-    "Turns on and off in Plugins": "在「外掛程式」中開啟和關閉",
+    "This is both an agent plugin and a regular plugin. It can only be turned on in the Plugins page.": "這既是代理外掛，也是一般外掛程式。只能在「外掛程式」頁面中開啟。",
     "Saved for every site in this project": "為此專案中的每個網站儲存",
     "Saved for this site": "僅為此網站儲存",
     "Takes effect the next time Tovu starts.": "下次啟動 Tovu 時生效。",
@@ -1112,7 +1108,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "市集預計在未來版本推出。Tovu 目前還不會擷取、安裝或列出市集套件。",
     "Read the package format": "閱讀套件格式說明",
     "Package format:": "套件格式：",
-    "No plugins are enabled for this site.": "此網站沒有啟用任何外掛。",
     "Enabled plugins extend what this site can do.": "已啟用的外掛可擴充此網站的功能。",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "內建外掛隨 Tovu 本身提供，沒有可移除的磁碟檔案。",
     "Turn a plugin off on Installed before removing it.": "移除外掛前，請先在「已安裝」中將其關閉。",
@@ -1127,7 +1122,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   "pt-BR": {
     // Provider plugin settings card (2026-10-26).
     "Settings": "Configurações",
-    "Turns on and off in Plugins": "Liga e desliga em Plugins",
+    "This is both an agent plugin and a regular plugin. It can only be turned on in the Plugins page.": "Este é ao mesmo tempo um plugin de agente e um plugin comum. Só pode ser ligado na página Plugins.",
     "Saved for every site in this project": "Salvo para todos os sites deste projeto",
     "Saved for this site": "Salvo para este site",
     "Takes effect the next time Tovu starts.": "Entra em vigor na próxima vez que o Tovu iniciar.",
@@ -1329,7 +1324,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "O marketplace está planejado para uma versão futura. O Tovu ainda não busca, instala nem lista pacotes do marketplace.",
     "Read the package format": "Ler o formato do pacote",
     "Package format:": "Formato do pacote:",
-    "No plugins are enabled for this site.": "Nenhum plugin está ativado neste site.",
     "Enabled plugins extend what this site can do.": "Plugins ativados ampliam o que este site pode fazer.",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "Os plugins integrados acompanham o próprio Tovu e não têm arquivos em disco para remover.",
     "Turn a plugin off on Installed before removing it.": "Desative o plugin em Instalado antes de removê-lo.",
@@ -1344,7 +1338,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   ru: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "Настройки",
-    "Turns on and off in Plugins": "Включается и выключается в разделе «Плагины»",
+    "This is both an agent plugin and a regular plugin. It can only be turned on in the Plugins page.": "Это одновременно плагин агента и обычный плагин. Включить его можно только на странице «Плагины».",
     "Saved for every site in this project": "Сохраняется для всех сайтов этого проекта",
     "Saved for this site": "Сохраняется только для этого сайта",
     "Takes effect the next time Tovu starts.": "Вступает в силу при следующем запуске Tovu.",
@@ -1546,7 +1540,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "Маркетплейс запланирован в одном из будущих выпусков. Tovu пока не загружает, не устанавливает и не показывает пакеты маркетплейса.",
     "Read the package format": "Прочитать описание формата пакета",
     "Package format:": "Формат пакета:",
-    "No plugins are enabled for this site.": "Для этого сайта не включено ни одного плагина.",
     "Enabled plugins extend what this site can do.": "Включённые плагины расширяют возможности этого сайта.",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "Встроенные плагины поставляются вместе с Tovu и не имеют файлов на диске, которые можно удалить.",
     "Turn a plugin off on Installed before removing it.": "Перед удалением отключите плагин на вкладке «Установлено».",
@@ -1561,7 +1554,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   fa: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "تنظیمات",
-    "Turns on and off in Plugins": "در افزونه‌ها روشن و خاموش می‌شود",
+    "This is both an agent plugin and a regular plugin. It can only be turned on in the Plugins page.": "این هم افزونهٔ ایجنت است و هم افزونهٔ معمولی. فقط در صفحهٔ افزونه‌ها می‌توان آن را روشن کرد.",
     "Saved for every site in this project": "برای همهٔ سایت‌های این پروژه ذخیره می‌شود",
     "Saved for this site": "فقط برای این سایت ذخیره می‌شود",
     "Takes effect the next time Tovu starts.": "دفعهٔ بعد که Tovu اجرا شود اعمال می‌شود.",
@@ -1763,7 +1756,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "بازارچه برای نسخه‌ای در آینده برنامه‌ریزی شده است. Tovu هنوز بسته‌های بازارچه را دریافت، نصب یا فهرست نمی‌کند.",
     "Read the package format": "خواندن قالب بسته",
     "Package format:": "قالب بسته:",
-    "No plugins are enabled for this site.": "هیچ افزونه‌ای برای این سایت فعال نیست.",
     "Enabled plugins extend what this site can do.": "افزونه‌های فعال توانایی‌های این سایت را گسترش می‌دهند.",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "افزونه‌های داخلی همراه خود Tovu ارائه می‌شوند و فایلی روی دیسک برای حذف ندارند.",
     "Turn a plugin off on Installed before removing it.": "پیش از حذف یک افزونه، آن را در «نصب‌شده» خاموش کنید.",
@@ -1778,7 +1770,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   ar: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "الإعدادات",
-    "Turns on and off in Plugins": "يُشغَّل ويُوقَف من الإضافات",
+    "This is both an agent plugin and a regular plugin. It can only be turned on in the Plugins page.": "هذه إضافة وكيل وإضافة عادية في آنٍ واحد. لا يمكن تشغيلها إلا من صفحة الإضافات.",
     "Saved for every site in this project": "يُحفظ لكل المواقع في هذا المشروع",
     "Saved for this site": "يُحفظ لهذا الموقع فقط",
     "Takes effect the next time Tovu starts.": "يسري عند التشغيل التالي لـ Tovu.",
@@ -1980,7 +1972,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "المتجر مخطط له في إصدار مستقبلي. لا يجلب Tovu حزم المتجر ولا يثبّتها ولا يسردها بعد.",
     "Read the package format": "اقرأ تنسيق الحزمة",
     "Package format:": "تنسيق الحزمة:",
-    "No plugins are enabled for this site.": "لا توجد إضافات مفعّلة لهذا الموقع.",
     "Enabled plugins extend what this site can do.": "توسّع الإضافات المفعّلة ما يمكن لهذا الموقع فعله.",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "الإضافات المدمجة مضمّنة مع Tovu نفسه وليست لها ملفات على القرص لإزالتها.",
     "Turn a plugin off on Installed before removing it.": "عطّل الإضافة في «مثبَّت» قبل إزالتها.",
@@ -1995,7 +1986,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   ja: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "設定",
-    "Turns on and off in Plugins": "「プラグイン」でオン/オフします",
+    "This is both an agent plugin and a regular plugin. It can only be turned on in the Plugins page.": "これはエージェントプラグインであり、通常のプラグインでもあります。オンにできるのは「プラグイン」ページだけです。",
     "Saved for every site in this project": "このプロジェクトのすべてのサイトに保存",
     "Saved for this site": "このサイトにのみ保存",
     "Takes effect the next time Tovu starts.": "次回 Tovu の起動時に反映されます。",
@@ -2197,7 +2188,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "マーケットプレイスは今後のリリースで予定されています。Tovu はまだマーケットプレイスのパッケージを取得、インストール、一覧表示しません。",
     "Read the package format": "パッケージ形式を読む",
     "Package format:": "パッケージ形式:",
-    "No plugins are enabled for this site.": "このサイトで有効なプラグインはありません。",
     "Enabled plugins extend what this site can do.": "有効なプラグインは、このサイトでできることを広げます。",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "組み込みプラグインは Tovu 本体に同梱されており、削除できるディスク上のファイルはありません。",
     "Turn a plugin off on Installed before removing it.": "削除する前に、「インストール済み」でプラグインをオフにしてください。",
@@ -2212,7 +2202,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   ko: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "설정",
-    "Turns on and off in Plugins": "플러그인에서 켜고 끕니다",
+    "This is both an agent plugin and a regular plugin. It can only be turned on in the Plugins page.": "에이전트 플러그인이면서 일반 플러그인입니다. 플러그인 페이지에서만 켤 수 있습니다.",
     "Saved for every site in this project": "이 프로젝트의 모든 사이트에 저장",
     "Saved for this site": "이 사이트에만 저장",
     "Takes effect the next time Tovu starts.": "다음에 Tovu를 시작할 때 적용됩니다.",
@@ -2414,7 +2404,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "마켓플레이스는 향후 릴리스에서 제공될 예정입니다. Tovu는 아직 마켓플레이스 패키지를 가져오거나 설치하거나 나열하지 않습니다.",
     "Read the package format": "패키지 형식 읽기",
     "Package format:": "패키지 형식:",
-    "No plugins are enabled for this site.": "이 사이트에 활성화된 플러그인이 없습니다.",
     "Enabled plugins extend what this site can do.": "활성화된 플러그인은 이 사이트의 기능을 확장합니다.",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "기본 제공 플러그인은 Tovu 자체와 함께 제공되며 제거할 디스크 파일이 없습니다.",
     "Turn a plugin off on Installed before removing it.": "플러그인을 제거하기 전에 설치됨에서 끄세요.",
@@ -2429,7 +2418,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   pl: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "Ustawienia",
-    "Turns on and off in Plugins": "Włączana i wyłączana we Wtyczkach",
+    "This is both an agent plugin and a regular plugin. It can only be turned on in the Plugins page.": "To jednocześnie wtyczka agenta i zwykła wtyczka. Można ją włączyć tylko na stronie Wtyczki.",
     "Saved for every site in this project": "Zapisywane dla każdej witryny w tym projekcie",
     "Saved for this site": "Zapisywane tylko dla tej witryny",
     "Takes effect the next time Tovu starts.": "Zacznie działać przy następnym uruchomieniu Tovu.",
@@ -2631,7 +2620,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "Sklep jest planowany w przyszłej wersji. Tovu nie pobiera, nie instaluje ani nie wyświetla jeszcze pakietów ze sklepu.",
     "Read the package format": "Przeczytaj opis formatu pakietu",
     "Package format:": "Format pakietu:",
-    "No plugins are enabled for this site.": "W tej witrynie nie włączono żadnych wtyczek.",
     "Enabled plugins extend what this site can do.": "Włączone wtyczki rozszerzają możliwości tej witryny.",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "Wbudowane wtyczki są dostarczane z samym Tovu i nie mają plików na dysku do usunięcia.",
     "Turn a plugin off on Installed before removing it.": "Przed usunięciem wtyczki wyłącz ją na karcie Zainstalowane.",
@@ -2646,7 +2634,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   hu: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "Beállítások",
-    "Turns on and off in Plugins": "A Bővítményekben kapcsolható be és ki",
+    "This is both an agent plugin and a regular plugin. It can only be turned on in the Plugins page.": "Ez egyszerre ügynök-bővítmény és normál bővítmény. Csak a Bővítmények oldalon kapcsolható be.",
     "Saved for every site in this project": "A projekt minden webhelyéhez mentve",
     "Saved for this site": "Csak ehhez a webhelyhez mentve",
     "Takes effect the next time Tovu starts.": "A Tovu következő indításakor lép érvénybe.",
@@ -2848,7 +2836,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "A piactér egy jövőbeli kiadásban érkezik. A Tovu még nem tölt le, nem telepít és nem listáz piactéri csomagokat.",
     "Read the package format": "A csomagformátum leírása",
     "Package format:": "Csomagformátum:",
-    "No plugins are enabled for this site.": "Ezen a webhelyen nincs engedélyezett bővítmény.",
     "Enabled plugins extend what this site can do.": "Az engedélyezett bővítmények bővítik a webhely képességeit.",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "A beépített bővítmények magával a Tovuval érkeznek, és nincsenek eltávolítható fájljaik a lemezen.",
     "Turn a plugin off on Installed before removing it.": "Eltávolítás előtt kapcsold ki a bővítményt a Telepítve lapon.",
@@ -2863,7 +2850,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   fr: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "Paramètres",
-    "Turns on and off in Plugins": "S’active et se désactive dans Plugins",
+    "This is both an agent plugin and a regular plugin. It can only be turned on in the Plugins page.": "C’est à la fois une extension d’agent et un plugin classique. Il ne peut être activé que depuis la page Plugins.",
     "Saved for every site in this project": "Enregistré pour tous les sites de ce projet",
     "Saved for this site": "Enregistré pour ce site uniquement",
     "Takes effect the next time Tovu starts.": "Prend effet au prochain démarrage de Tovu.",
@@ -3065,7 +3052,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "La place de marché est prévue pour une version future. Tovu ne récupère, n'installe ni ne liste encore de paquets de la place de marché.",
     "Read the package format": "Lire le format des paquets",
     "Package format:": "Format des paquets :",
-    "No plugins are enabled for this site.": "Aucune extension n'est activée pour ce site.",
     "Enabled plugins extend what this site can do.": "Les extensions activées étendent ce que ce site peut faire.",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "Les extensions intégrées sont fournies avec Tovu lui-même et n'ont aucun fichier sur disque à supprimer.",
     "Turn a plugin off on Installed before removing it.": "Désactivez l'extension dans Installé avant de la supprimer.",
@@ -3080,7 +3066,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   uk: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "Налаштування",
-    "Turns on and off in Plugins": "Вмикається й вимикається в розділі «Плагіни»",
+    "This is both an agent plugin and a regular plugin. It can only be turned on in the Plugins page.": "Це водночас плагін агента і звичайний плагін. Увімкнути його можна лише на сторінці «Плагіни».",
     "Saved for every site in this project": "Зберігається для всіх сайтів цього проєкту",
     "Saved for this site": "Зберігається лише для цього сайту",
     "Takes effect the next time Tovu starts.": "Набуде чинності під час наступного запуску Tovu.",
@@ -3282,7 +3268,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "Маркетплейс заплановано в одному з майбутніх випусків. Tovu поки не завантажує, не встановлює і не показує пакети маркетплейсу.",
     "Read the package format": "Прочитати опис формату пакета",
     "Package format:": "Формат пакета:",
-    "No plugins are enabled for this site.": "Для цього сайту не ввімкнено жодного плагіна.",
     "Enabled plugins extend what this site can do.": "Увімкнені плагіни розширюють можливості цього сайту.",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "Вбудовані плагіни постачаються разом із Tovu і не мають файлів на диску, які можна видалити.",
     "Turn a plugin off on Installed before removing it.": "Перед видаленням вимкніть плагін на вкладці «Встановлено».",
@@ -3297,7 +3282,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   tr: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "Ayarlar",
-    "Turns on and off in Plugins": "Eklentiler'de açılır ve kapatılır",
+    "This is both an agent plugin and a regular plugin. It can only be turned on in the Plugins page.": "Bu hem bir ajan eklentisi hem de normal bir eklentidir. Yalnızca Eklentiler sayfasından açılabilir.",
     "Saved for every site in this project": "Bu projedeki her site için kaydedilir",
     "Saved for this site": "Yalnızca bu site için kaydedilir",
     "Takes effect the next time Tovu starts.": "Tovu bir sonraki başlatılışında geçerli olur.",
@@ -3499,7 +3484,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "Pazar yeri gelecekteki bir sürüm için planlanıyor. Tovu henüz pazar yeri paketlerini getirmiyor, yüklemiyor veya listelemiyor.",
     "Read the package format": "Paket biçimini okuyun",
     "Package format:": "Paket biçimi:",
-    "No plugins are enabled for this site.": "Bu site için etkin eklenti yok.",
     "Enabled plugins extend what this site can do.": "Etkin eklentiler bu sitenin yapabileceklerini genişletir.",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "Yerleşik eklentiler Tovu'nun kendisiyle birlikte gelir ve kaldırılacak disk dosyaları yoktur.",
     "Turn a plugin off on Installed before removing it.": "Kaldırmadan önce eklentiyi Yüklü sekmesinde kapatın.",
@@ -3514,7 +3498,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   th: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "การตั้งค่า",
-    "Turns on and off in Plugins": "เปิดและปิดได้ในปลั๊กอิน",
+    "This is both an agent plugin and a regular plugin. It can only be turned on in the Plugins page.": "นี่เป็นทั้งปลั๊กอินเอเจนต์และปลั๊กอินทั่วไป เปิดใช้ได้เฉพาะในหน้าปลั๊กอินเท่านั้น",
     "Saved for every site in this project": "บันทึกไว้สำหรับทุกไซต์ในโปรเจกต์นี้",
     "Saved for this site": "บันทึกไว้สำหรับไซต์นี้เท่านั้น",
     "Takes effect the next time Tovu starts.": "มีผลเมื่อเริ่ม Tovu ครั้งถัดไป",
@@ -3716,7 +3700,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "ตลาดกลางมีแผนจะเปิดในรุ่นถัดไป ขณะนี้ Tovu ยังไม่ดึง ติดตั้ง หรือแสดงรายการแพ็กเกจจากตลาดกลาง",
     "Read the package format": "อ่านรูปแบบแพ็กเกจ",
     "Package format:": "รูปแบบแพ็กเกจ:",
-    "No plugins are enabled for this site.": "ไม่มีปลั๊กอินที่เปิดใช้งานสำหรับเว็บไซต์นี้",
     "Enabled plugins extend what this site can do.": "ปลั๊กอินที่เปิดใช้งานช่วยขยายสิ่งที่เว็บไซต์นี้ทำได้",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "ปลั๊กอินในตัวมาพร้อมกับ Tovu และไม่มีไฟล์บนดิสก์ให้ลบ",
     "Turn a plugin off on Installed before removing it.": "ปิดปลั๊กอินในแท็บติดตั้งแล้วก่อนลบ",
@@ -3731,7 +3714,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   it: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "Impostazioni",
-    "Turns on and off in Plugins": "Si attiva e disattiva in Plugin",
+    "This is both an agent plugin and a regular plugin. It can only be turned on in the Plugins page.": "È sia un plugin dell’agente sia un plugin normale. Si può attivare solo nella pagina Plugin.",
     "Saved for every site in this project": "Salvato per tutti i siti di questo progetto",
     "Saved for this site": "Salvato solo per questo sito",
     "Takes effect the next time Tovu starts.": "Ha effetto al prossimo avvio di Tovu.",
@@ -3933,7 +3916,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "Il marketplace è previsto in una versione futura. Tovu non recupera, installa né elenca ancora pacchetti del marketplace.",
     "Read the package format": "Leggi il formato del pacchetto",
     "Package format:": "Formato del pacchetto:",
-    "No plugins are enabled for this site.": "Nessun plugin è attivato per questo sito.",
     "Enabled plugins extend what this site can do.": "I plugin attivati estendono ciò che questo sito può fare.",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "I plugin integrati sono forniti con Tovu stesso e non hanno file su disco da rimuovere.",
     "Turn a plugin off on Installed before removing it.": "Disattiva il plugin in Installato prima di rimuoverlo.",
@@ -3948,7 +3930,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   hi: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "सेटिंग्स",
-    "Turns on and off in Plugins": "प्लगइन्स में चालू और बंद होता है",
+    "This is both an agent plugin and a regular plugin. It can only be turned on in the Plugins page.": "यह एजेंट प्लगइन भी है और सामान्य प्लगइन भी। इसे केवल प्लगइन्स पेज में चालू किया जा सकता है।",
     "Saved for every site in this project": "इस प्रोजेक्ट की हर साइट के लिए सहेजा जाता है",
     "Saved for this site": "केवल इस साइट के लिए सहेजा जाता है",
     "Takes effect the next time Tovu starts.": "Tovu के अगली बार शुरू होने पर लागू होगा।",
@@ -4150,7 +4132,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "मार्केटप्लेस भविष्य की किसी रिलीज़ के लिए नियोजित है। Tovu अभी मार्केटप्लेस पैकेज न तो लाता है, न इंस्टॉल करता है और न ही सूचीबद्ध करता है।",
     "Read the package format": "पैकेज फ़ॉर्मैट पढ़ें",
     "Package format:": "पैकेज फ़ॉर्मैट:",
-    "No plugins are enabled for this site.": "इस साइट के लिए कोई प्लगिन सक्षम नहीं है।",
     "Enabled plugins extend what this site can do.": "सक्षम प्लगिन इस साइट की क्षमताओं को बढ़ाते हैं।",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "बिल्ट-इन प्लगिन स्वयं Tovu के साथ आते हैं और उनकी हटाने योग्य कोई डिस्क फ़ाइल नहीं होती।",
     "Turn a plugin off on Installed before removing it.": "हटाने से पहले इंस्टॉल किया गया टैब में प्लगिन बंद करें।",
@@ -4165,7 +4146,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   ur: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "ترتیبات",
-    "Turns on and off in Plugins": "پلگ انز میں آن اور آف ہوتا ہے",
+    "This is both an agent plugin and a regular plugin. It can only be turned on in the Plugins page.": "یہ ایجنٹ پلگ ان بھی ہے اور عام پلگ ان بھی۔ اسے صرف پلگ انز کے صفحے میں آن کیا جا سکتا ہے۔",
     "Saved for every site in this project": "اس پروجیکٹ کی ہر سائٹ کے لیے محفوظ ہوتا ہے",
     "Saved for this site": "صرف اس سائٹ کے لیے محفوظ ہوتا ہے",
     "Takes effect the next time Tovu starts.": "Tovu کے اگلی بار شروع ہونے پر لاگو ہوگا۔",
@@ -4367,7 +4348,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "مارکیٹ پلیس مستقبل کی کسی ریلیز کے لیے منصوبہ بند ہے۔ Tovu ابھی مارکیٹ پلیس پیکیجز نہ لاتا ہے، نہ انسٹال کرتا ہے اور نہ ہی فہرست بناتا ہے۔",
     "Read the package format": "پیکیج فارمیٹ پڑھیں",
     "Package format:": "پیکیج فارمیٹ:",
-    "No plugins are enabled for this site.": "اس سائٹ کے لیے کوئی پلگ اِن فعال نہیں ہے۔",
     "Enabled plugins extend what this site can do.": "فعال پلگ اِنز اس سائٹ کی صلاحیتوں کو بڑھاتے ہیں۔",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "بلٹ اِن پلگ اِنز خود Tovu کے ساتھ آتے ہیں اور ان کی ہٹانے کے لیے کوئی ڈسک فائلیں نہیں ہوتیں۔",
     "Turn a plugin off on Installed before removing it.": "ہٹانے سے پہلے انسٹال شدہ میں پلگ اِن بند کریں۔",
@@ -4382,7 +4362,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
   bn: {
     // Provider plugin settings card (2026-10-26).
     "Settings": "সেটিংস",
-    "Turns on and off in Plugins": "প্লাগইনে চালু ও বন্ধ হয়",
+    "This is both an agent plugin and a regular plugin. It can only be turned on in the Plugins page.": "এটি একই সঙ্গে এজেন্ট প্লাগইন এবং সাধারণ প্লাগইন। এটি শুধু প্লাগইন পেজে চালু করা যায়।",
     "Saved for every site in this project": "এই প্রজেক্টের প্রতিটি সাইটের জন্য সংরক্ষিত",
     "Saved for this site": "শুধু এই সাইটের জন্য সংরক্ষিত",
     "Takes effect the next time Tovu starts.": "পরের বার Tovu চালু হলে কার্যকর হবে।",
@@ -4584,7 +4564,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "মার্কেটপ্লেস ভবিষ্যতের একটি রিলিজে আসার পরিকল্পনা আছে। Tovu এখনও মার্কেটপ্লেসের প্যাকেজ আনে না, ইনস্টল করে না বা তালিকাভুক্ত করে না।",
     "Read the package format": "প্যাকেজ ফরম্যাট পড়ুন",
     "Package format:": "প্যাকেজ ফরম্যাট:",
-    "No plugins are enabled for this site.": "এই সাইটের জন্য কোনো প্লাগইন চালু নেই।",
     "Enabled plugins extend what this site can do.": "চালু থাকা প্লাগইন এই সাইটের সক্ষমতা বাড়ায়।",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "বিল্ট-ইন প্লাগইন Tovu-এর সাথেই আসে এবং মুছে ফেলার মতো কোনো ডিস্ক ফাইল নেই।",
     "Turn a plugin off on Installed before removing it.": "সরানোর আগে ইনস্টল করা ট্যাবে প্লাগইনটি বন্ধ করুন।",

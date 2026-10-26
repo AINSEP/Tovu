@@ -4079,8 +4079,16 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    until the server answers, and animating to the requested state first would show a position the
    server may refuse. */
 .agent-plugin-switch:disabled { cursor: progress; opacity: 0.55; }
-/* A provider plugin's assistant face: shown, not busy — it is switched on the Plugins screen. */
-.agent-plugin-switch:disabled:not([aria-busy]) { cursor: default; }
+/* A provider plugin's assistant face (`AgentPluginLinkedLock`, owner 2026-10-25): a red padlock in
+   the switch's column — it is switched on the Plugins page, which the padlock opens — and the row
+   reads as disabled. The padlock itself stays at full strength: it is the one live control. */
+.agent-plugin-linked-lock { flex: 0 0 auto; display: inline-flex; justify-content: center; width: 38px; }
+.agent-plugin-linked-lock .info-tip { margin-left: 0; }
+.agent-plugin-linked-lock .info-tip-icon--custom { width: 28px; height: 28px; border-radius: var(--r-sm); color: var(--danger); }
+.agent-plugin-linked-lock .info-tip:hover .info-tip-icon--custom,
+.agent-plugin-linked-lock .info-tip:focus-within .info-tip-icon--custom { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.agent-plugin-linked-lock .info-tip-icon--custom:focus-visible { border-radius: var(--r-sm); }
+.agent-plugin-row[data-linked="true"] :is(.agent-plugin-row-glyph, .agent-plugin-row-text, .agent-plugin-state) { opacity: 0.55; }
 
 .agent-plugin-icon-btn {
   flex: 0 0 auto;
@@ -6332,6 +6340,9 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
   overflow: hidden;
 }
 .plugin-row + .plugin-row { border-top: 1px solid var(--border); }
+/* The row `?plugin=` names (a linked agent plugin's padlock opened this page): an inset ring, so it
+   never shifts the list. */
+.plugin-row[data-focused="true"] { box-shadow: inset 0 0 0 2px var(--primary); background: color-mix(in srgb, var(--primary) 6%, transparent); }
 /* `flex-wrap` + the summary's `--row-text-min` basis are what decide whether the actions fit
    beside the text (owner, 2026-10-07): while the summary keeps at least that much width the actions
    stay on its line, right-aligned and vertically centred; once they don't fit they wrap under the
