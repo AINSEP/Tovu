@@ -484,7 +484,7 @@ stopPluginPolling = pluginPolling.stop;
 // 1000 runs are held), and the durable transcript is `ai_chat_messages.events_json`. Dropping a run's
 // events when the lifecycle evicts its record gives both the same lifetime (memory cause 2, 2026-10-21).
 const eventLog = createInMemoryEventLog({});
-// Assistant runs → AI trace when an AI-trace provider plugin is configured (`run-lifecycle-tracing.ts`).
+// Assistant runs → AI trace when a trace provider or analytics AI capability is configured.
 const tracing = traceRunLifecycle({ lifecycle: createRunLifecycle({ eventLog }, { dropEventsOnEviction: true }), sink: routeDeps.aiTraceSink });
 disposeAiTracing = tracing.dispose;
 const lifecycle = tracing.lifecycle;
@@ -1003,6 +1003,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     const decoded = parseRunStartContextRef(request.contextRef);
     coldStartContext = decoded.coldStartContext;
     prompt = decoded.prompt;
+    if (routeDeps.aiTraceSink?.capture === "full") tracing.noteRunInput({ runId: run.id, input: prompt });
     principal = { id: decoded.principalId };
     attachmentIds = decoded.attachmentIds;
     pluginRefIds = decoded.pluginRefIds;
