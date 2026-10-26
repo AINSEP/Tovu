@@ -56,3 +56,41 @@ Tovu member login and Google Workspace have separate credentials and activation.
 - Missing Tovu button: check plugin activation, the saved Client ID/Secret card and configured canonical address. Do not switch to Workspace credentials.
 - Browser/state failure: restart from `/signin` in the same browser; do not forward an authorization URL, bypass binding, weaken validation or add issuer aliases.
 - Google access denied: check Audience restrictions and the selected account; request only identity permissions. Never copy callback query strings, codes, state, verifier, tokens, claims or upstream error bodies into chat or logs. Report fixed outcome codes only.
+
+## Embed the sign-in button on a public page
+
+Use the existing `plugins_list` export contract for `tovu/google-login` → `sign-in-button`.
+The plugin must be enabled and its Google client configured. `host-unavailable` means finish
+setup first; `props-required` means the host is configured and the author must choose a variant.
+The required `variant` is `light`, `dark`, or `neutral`; no template defaults or logic are added.
+Use the marker owner to serialize config; do not construct a second JSON attribute escaper.
+
+```html
+<div data-embed-config='{"type":"plugin","plugin":"tovu/google-login","component":"sign-in-button","version":1,"props":{"variant":"light"}}'>
+  <p>Google sign-in is currently unavailable.</p>
+</div>
+```
+
+Keep a useful authored fallback. Disabled/unconfigured plugins render that fallback without a
+button. Static exports always render the fallback, while bundling the stylesheet and mark.
+The action is a native link to the host's same-origin start route; Tab focuses it and Enter
+starts sign-in, including with JavaScript off. Do not replace the host link or add OAuth JavaScript.
+The Interactive editor uses a protected card; Preview and the published page render the real UI.
+The card's availability is a page-load snapshot; reload after changing plugin/client setup.
+
+Theme hooks are `.plugin-google-login-sign-in-button`, its `__mark` and `__label` parts,
+and its `--light`, `--dark`, `--neutral` variant classes. Defaults live in `@layer plugin-exports`,
+so ordinary theme CSS wins. Set inherited custom properties on the authored wrapper or a theme:
+`--plugin-signin-bg`, `--plugin-signin-fg`, `--plugin-signin-border`, `--plugin-signin-radius`,
+`--plugin-signin-height`, `--plugin-signin-padding`, `--plugin-signin-gap`, `--plugin-signin-font`,
+`--plugin-signin-font-size`, `--plugin-signin-font-weight`, `--plugin-signin-line-height`,
+`--plugin-signin-letter-spacing`, `--plugin-signin-hover-shadow`, `--plugin-signin-active-shadow`,
+`--plugin-signin-focus-color`, `--plugin-signin-focus-width`, `--plugin-signin-focus-offset`.
+
+Keep Google's fixed sign-in wording, approved palette, spacing, visible focus, and full-color G.
+Do not stretch, recolor, filter or replace the mark. The mark stays on white in all variants.
+Prefer Google Sans Medium when the host theme supplies it; the offline fallback is Arial.
+Check the current [Google branding rules](https://developers.google.com/identity/branding-guidelines)
+before visual acceptance. The unchanged gradient SVG is bundled from
+[SVGL](https://github.com/pheralb/svgl/blob/main/static/library/google.svg)
+(Git blob `8ab1351b939a780aa05645d31e5bed3fcf5c5493`); Google's trademarks remain Google's.

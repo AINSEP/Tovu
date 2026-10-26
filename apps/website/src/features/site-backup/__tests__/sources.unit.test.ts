@@ -732,3 +732,20 @@ test("share collection refuses a regular file standing where a scope folder belo
   rmSync(site.sources.themesDir, { recursive: true }); write(site.sources.themesDir, "not a folder");
   await assert.rejects(collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, themes: true } }, { profile: "share" }), { code: "UNSAFE_FILE", message: "Share refuses linked or special directory 'themes'." });
 });
+
+test('site backup never walks the owner profile or root-level owner database, key and portable backup', async t => {
+  const site = makeSite(); t.after(site.cleanup);
+  const profile = mkdtempSync(path.join(tmpdir(), 'owner-backup-exclusion-'));
+  t.after(() => rmSync(profile, { recursive: true, force: true }));
+  const names = ['owner.db', 'owner.db-wal', 'owner.db-shm', 'owner.key', 'export.tovu-owner-backup'];
+  for (const name of names) {
+    // The real desktop profile is outside the site; even a portable backup saved at the site root
+    // is outside every backup scope. No owner key bytes or SQLite handle are needed for this proof.
+    write(path.join(profile, name), 'fixture');
+    write(path.join(site.root, name), 'fixture');
+  }
+  const result = await collectSiteBackupFiles({ sources: site.sources, include: ALL });
+  assert.ok(result.files.some(file => file.path === 'themes/static/demo/index.html'));
+  assert.deepEqual(result.files.filter(file => names.includes(path.basename(file.absPath))), []);
+  assert.equal(result.files.some(file => file.absPath.startsWith(profile + path.sep)), false);
+});

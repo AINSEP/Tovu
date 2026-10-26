@@ -3,6 +3,25 @@ import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
+import { markersOfType } from "@jini-ai/cms/widgets/markers";
+import type { PluginExportCatalogRow, PluginExportRuntime } from "#src/features/agent-plugins/exports/runtime";
+
+/** Only describe exports already authored on this page; catalog discovery still belongs to
+ * plugins_list. A failed catalog is unavailable, never a broken page editor or a ready button.
+ * @complexity O(markers + exports), one catalog load; no templates or secret values returned.
+ */
+async function pagePluginEmbeds(required: { html: string; workspaceId: string; runtime: PluginExportRuntime | undefined }, _options = {}) {
+  if (!required.runtime) return [];
+  const markers = markersOfType({ html: required.html, type: "plugin" });
+  if (!markers.length) return [];
+  const catalog = await required.runtime.catalog({ workspaceId: required.workspaceId }).catch(() => new Map<string, readonly PluginExportCatalogRow[]>());
+  const rows = new Map<string, PluginExportCatalogRow>([...catalog.values()].flat().map(row => [JSON.stringify([row.plugin, row.component]), row]));
+  return markers.map(({ config }) => {
+    const plugin = typeof config.plugin === "string" ? config.plugin : "";
+    const component = typeof config.component === "string" ? config.component : "";
+    return { plugin, component, availability: rows.get(JSON.stringify([plugin, component]))?.availability ?? "PLUGIN_UNAVAILABLE" };
+  });
+}
 
 /**
  * GET one page (SPEC-002 api.spec.md `PAGE_GET`) — `getAdminPostByIdOrSlug` (same
@@ -56,7 +75,9 @@ export const registerAdminPageGetRoute: ContentRouteRegistrar = (app, deps) => {
         return;
       }
 
-      res.json(toAdminPostResponse(result.post));
+      const response = toAdminPostResponse(result.post);
+      const pluginEmbeds = await pagePluginEmbeds({ html: result.post.bodyHtml ?? "", workspaceId: deps.workspaceId, runtime: deps.pluginExports });
+      res.json(pluginEmbeds.length ? { ...response, pluginEmbeds } : response);
     } catch (err) {
       if (err instanceof PostNotFoundError) {
         res.status(404).json({ error: err.message, code: "ENTRY_NOT_FOUND" });

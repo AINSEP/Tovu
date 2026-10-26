@@ -22,6 +22,7 @@ import { externalStopConfirm } from './use-site-power.hooks.js';
 import type { SiteRenameState } from './use-site-rename.hooks.js';
 import type { SitePower } from './use-site-power.hooks.js';
 import type { SiteLocate } from './use-site-locate.hooks.js';
+import { ResourcesMonitor } from './ResourcesPanel.js';
 
 type TestContext = { after: (fn: () => void) => void };
 type GridProps = Parameters<typeof SiteGrid>[0];
@@ -148,6 +149,29 @@ test('a stopped card opens on click and Enter, shows its details, and Start reac
   assert.equal(grid.opened.length, 2, 'action buttons never also open the card');
   act(() => { grid.button(card!, 'Start Bakery').dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); });
   assert.equal(grid.opened.length, 2, 'a key on an action button does not reach the card either');
+});
+
+test('running cards join resource figures by site id even when names match; stopped cards hide figures', (t) => {
+  const records = [site('/sites/a', { status: 'running' }), site('/sites/b', { status: 'running' }), site('/sites/c')];
+  const metrics = { rssBytes: 0, cpuPercent: null, memoryWarning: false, cpuWarning: false };
+  const host = document.body.appendChild(document.createElement('div'));
+  const root = createRoot(host);
+  t.after(() => { act(() => root.unmount()); host.remove(); });
+  act(() => root.render(createElement(ResourcesMonitor, {
+    projects: records, onSiteUpdated() {},
+    useReadings: () => ({
+      status: 'available', sampledAt: 1, pollIntervalMs: 60_000, totalMemoryBytes: 8_000_000_000, approximate: true,
+      total: metrics, app: { ...metrics, siteId: null, processes: [] },
+      sites: [
+        { ...metrics, rssBytes: 120_000_000, siteId: '/sites/a', processes: [] },
+        { ...metrics, rssBytes: 1_500_000_000, memoryWarning: true, siteId: '/sites/b', processes: [] },
+      ],
+    }),
+    children: createElement(SiteGrid, { projects: records, onOpen() {}, onDelete: async () => {}, ...fakeHooks().hooks }),
+  })));
+  const figures = [...host.querySelectorAll('.card__resources')];
+  assert.deepEqual(figures.map((figure) => figure.textContent), ['about 120 MB', 'about 1.5 GB · High memory use']);
+  assert.ok(figures[1]!.classList.contains('is-warning'));
 });
 
 test('a running card shows its capture, failure line and details; the menu offers browser, rename and delete', (t) => {

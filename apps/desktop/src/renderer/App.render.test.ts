@@ -22,6 +22,20 @@ import { closeHost, act, dom, openFirstSite, renderApp, settle, site } from './a
 // jsdom's visual clock keeps the process alive after the last test unless the window is closed.
 after(closeHost);
 
+test('App: the header chip and running card display the same resource snapshot', async (t) => {
+  const metrics = { rssBytes: 250_000_000, cpuPercent: null, memoryWarning: false, cpuWarning: false };
+  const app = await renderApp(t, {
+    listSites: async () => [site('a', { status: 'running', port: 4100 })],
+    getResources: async () => ({
+      status: 'available', sampledAt: 1, pollIntervalMs: 60_000, totalMemoryBytes: 8_000_000_000, approximate: true,
+      total: metrics, app: { ...metrics, siteId: null, processes: [] },
+      sites: [{ ...metrics, siteId: 'a', processes: [] }],
+    }),
+  });
+  assert.equal(app.container.querySelector('.topnav__tools .resources-chip')?.textContent, 'Memory: about 250 MB');
+  assert.equal(app.container.querySelector('article.card .card__resources')?.textContent, 'about 250 MB');
+});
+
 test('App: a stopped site\'s tab offers Start and shows the boot wait with the button disabled', async (t) => {
   const app = await renderApp(t, {
     listSites: async () => [site('a'), site('b', { status: 'blocked' })],
