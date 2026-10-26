@@ -13,20 +13,27 @@ export interface ExportMediaUrlDeps extends ContentTypeDeps {
 // Check absolute URLs against the configured origin: another site's /m/ namespace is not ours.
 const ORIGINAL_URL = /(?<![\w/.:%-])((?:https?:)?\/\/[^/\s"'<>\\()]+)?\/m\/([^/\s"'<>\\()?#]+)\/original(?=[\s"'<>\\()?#,;]|$)/g;
 
-/** Local paths need no origin lookup; absolute references must belong to the configured site. */
-async function localOriginalPaths({ body, deps }: { body: string; deps: ExportMediaUrlDeps }): Promise<Map<string, string>> {
+/** Same origin as the configured site; an unparsable URL is never ours. */
+function sameOrigin({ url, origin }: { url: string; origin: string }): boolean {
+  try { return new URL(url, origin).origin === origin; } catch { return false; }
+}
+
+/** Local paths need no origin lookup; absolute references must belong to the configured site.
+ * With no verified origin, absolute references stay as written: a link must never fail the export. */
+async function localOriginalPaths({ body, deps }: { body: string; deps: ExportMediaUrlDeps }): Promise<Map<string, { prefix: string; key: string }>> {
   const matches = [...body.matchAll(ORIGINAL_URL)];
-  const paths = new Map<string, string>();
-  let origin: string | undefined;
+  const paths = new Map<string, { prefix: string; key: string }>();
+  let origin: string | null | undefined;
   for (const match of matches) {
     if (match[1]) {
-      if (!origin) {
-        const configured = await deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId });
-        origin = `${configured.scheme}://${configured.host}`;
-      }
-      if (new URL(match[0], origin).origin !== origin) continue;
+      origin ??= await deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId })
+        .then(configured => `${configured.scheme}://${configured.host}`, () => null);
+      if (!origin || !sameOrigin({ url: match[0], origin })) continue;
     }
-    paths.set(match[0], match[2]!);
+    let key: string;
+    try { key = decodeURIComponent(match[2]!); } catch { continue; } // Malformed escapes are not media keys.
+    // Absolute URLs stay absolute (sitemaps and og:image require them); only the path is upgraded.
+    paths.set(match[0], { prefix: match[1] ?? "", key });
   }
   return paths;
 }
@@ -41,15 +48,16 @@ export async function rewriteMediaOriginalUrls(
   const paths = await localOriginalPaths({ body, deps });
   if (paths.size === 0) return body;
   const records = new Map<string, NonNullable<Awaited<ReturnType<typeof findMediaByIdOrSlug>>>>();
-  for (const [url, key] of paths) {
-    const record = await findMediaByIdOrSlug({ deps, input: { workspaceId: deps.workspaceId, idOrSlug: decodeURIComponent(key) } });
+  for (const [url, { key }] of paths) {
+    const record = await findMediaByIdOrSlug({ deps, input: { workspaceId: deps.workspaceId, idOrSlug: key } });
     if (record && record.status === "active" && record.kind !== "document") records.set(url, record);
   }
   const contentTypes = await resolveContentTypes(deps, [...records.values()]);
   const replacements = new Map<string, string>();
   for (const [url, record] of records) {
     const contentType = contentTypes.get(record.source.sha256);
-    if (contentType) replacements.set(url, mediaPublicPath(decodeURIComponent(paths.get(url)!), { kind: "original", contentType }));
+    const { prefix, key } = paths.get(url)!;
+    if (contentType) replacements.set(url, prefix + mediaPublicPath(key, { kind: "original", contentType }));
   }
   return body.replace(ORIGINAL_URL, url => replacements.get(url) ?? url);
 }

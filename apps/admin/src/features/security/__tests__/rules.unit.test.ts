@@ -200,6 +200,14 @@ describe("buildAccessTokenRows", () => {
     expect(rows.map((r) => r.name)).toEqual(["Netlify token", "Netlify token 2"]);
   });
 
+  it("names a chat-saved 'default-<id>' project row like the sentinel row, keeping the raw label", () => {
+    const rows = buildAccessTokenRows("publish", [
+      rawSummary({ id: "a", providerId: "vercel", label: "default" }),
+      rawSummary({ id: "b", providerId: "vercel", label: "default-01JCHAT" }),
+    ], PROVIDERS);
+    expect(rows.map((r) => [r.name, r.rawLabel])).toEqual([["Vercel token", "default"], ["Vercel token 2", "default-01JCHAT"]]);
+  });
+
   it("numbers legacy rows independently per provider, not globally", () => {
     const rows = buildAccessTokenRows("publish", [
       rawSummary({ id: "a", providerId: "netlify", label: "default" }),

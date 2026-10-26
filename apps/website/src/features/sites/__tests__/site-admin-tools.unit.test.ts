@@ -138,7 +138,7 @@ test("sites_switch_site uses the actual boot binding to acknowledge the current 
   assert.deepEqual(await handlerFor(env.deps, "sites_switch_site")(ctxFor({ name: "served" })), {
     activeSiteName: "served", restartRequired: false, restartInstructions: "This site is already active.", restarting: false,
   });
-  assert.deepEqual(env.persists, []);
+  assert.deepEqual(env.persists, [[{ name: "served" }, { cwd: "/repo" }]]);
 });
 
 test("sites_switch_site: an install-dir boot refuses SITE_BINDING_NOT_SWITCHABLE before authorize", async () => {

@@ -457,7 +457,8 @@ export function buildAccessTokenRows(
   const sentinel = legacySentinelLabel(kind);
   const legacyIndexByProvider = new Map<string, number>();
   return raws.map((raw) => {
-    const isLegacy = raw.label === sentinel;
+    // Chat-saved project keys are `default-<id>` (unique per project); they read like the sentinel row.
+    const isLegacy = raw.label === sentinel || raw.label.startsWith(`${sentinel}-`);
     let name = raw.label;
     if (isLegacy) {
       const index = legacyIndexByProvider.get(raw.providerId) ?? 0;

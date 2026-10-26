@@ -305,8 +305,11 @@ export function activateSite(
   const { switcherBase, name } = required;
   const match = (ports.listSites ?? listSitesReal)({ cwd: switcherBase }).find((site) => site.name === name);
   if (!match) return { ok: false, code: "SITE_NOT_FOUND", error: `site '${name}' was not found` };
-  if (name === required.currentSiteName) return { ok: true, activeSiteName: name, restartRequired: false,
-    restartInstructions: "This site is already active.", restarting: false };
+  if (name === required.currentSiteName) {
+    // Re-selecting the running site cancels a pending switch, so the next start stays here too.
+    (ports.persistActiveSite ?? persistActiveSiteReal)({ name }, { cwd: switcherBase });
+    return { ok: true, activeSiteName: name, restartRequired: false, restartInstructions: "This site is already active.", restarting: false };
+  }
   const refusal = runningSiteRefusal({ dir: match.dir, name }, ports);
   if (refusal) return refusal;
   (ports.persistActiveSite ?? persistActiveSiteReal)({ name }, { cwd: switcherBase });
