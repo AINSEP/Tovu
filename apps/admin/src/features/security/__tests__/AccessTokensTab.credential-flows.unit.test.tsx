@@ -862,7 +862,8 @@ describe("custom project-key usage", () => {
     fireEvent.click(button);
     expect(setCustomKeyUse).toHaveBeenCalledWith({ row: saved, use });
     expect(details).not.toHaveAttribute("open");
-    if (!usedByThisSite) expect(screen.queryByLabelText(/^Access token/)).not.toBeInTheDocument();
+    // The closed add-custom dialog has its own token field; inspect only this saved row.
+    if (!usedByThisSite) expect(within(details).queryByLabelText(/^Access token/)).not.toBeInTheDocument();
   });
 
   it("labels a site-only key without offering an attachment action", () => {
