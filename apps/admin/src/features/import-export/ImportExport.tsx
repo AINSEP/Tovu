@@ -98,10 +98,10 @@ export function ImportExport({
   const tab: ImportExportTabId = resolveImportExportTabId(tabId);
   return (
     // `import-export-page` also scopes the greyed "Soon" tab labels (`styles.css`).
+    // No "Operations" kicker above the title (owner, 2026-10-25); the other Operations pages keep theirs.
     <div className="page import-export-page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">{t("Operations")}</p>
           <h1 className="page-title">{t("Import & Export")}</h1>
           <p className="page-description">{t("Move a site in or out.")}</p>
         </div>

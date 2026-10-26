@@ -27,6 +27,8 @@ describe("Import & Export tabs (owner, 2026-10-25, option A)", () => {
   it("opens Export by default, with Export this site and no Publish button beside it", async () => {
     renderPanel(null);
     expect(screen.getByRole("heading", { level: 1, name: "Import & Export" })).toBeTruthy();
+    // No "Operations" kicker above the title (owner, 2026-10-25).
+    expect(screen.queryByText("Operations")).toBeNull();
     expect(screen.getByRole("tab", { name: /Export/ }).getAttribute("aria-selected")).toBe("true");
     expect(screen.getByRole("button", { name: "Export this site" })).toBeTruthy();
     // Removed from this page (owner, 2026-10-25): it republished the whole site, not the zip.
@@ -133,5 +135,4 @@ it("carries every key in every locale", () => {
   expect(keys).toEqual(expect.arrayContaining(["Export", "Import", "Other", "Soon"]));
   expect(t({ locale: "fr", key: "Open" })).toBe("Ouvrir");
   expect(t({ locale: "fr", key: "Other" })).toBe("Autres");
-  expect(t({ locale: "fr", key: "Operations" })).not.toBe("Operations");
 });
