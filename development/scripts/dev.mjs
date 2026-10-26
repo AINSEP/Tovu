@@ -344,7 +344,7 @@ export function siteEnvForRestart({ shellSite, envFileText }) {
  *   waitForPortsFree: () => Promise<unknown>,
  *   waitForReady: (input: {child: any}) => Promise<boolean>,
  *   envForRestart: () => Record<string, string>,
- *   checkTarget: (input: {env: Record<string, string>}) => string | null,
+ *   checkTarget: (input: {env: Record<string, string>, currentEnv: Record<string, string>, child: any}) => string | null | Promise<string | null>,
  *   restoreSite: (input: {env: Record<string, string>}) => void,
  *   isShuttingDown: () => boolean,
  *   log: (message: string) => void,
@@ -389,18 +389,29 @@ export function createApiRestarter(deps, _options = {}) {
     if (!deps.isShuttingDown()) deps.log("tovu dev: the previous site could not restart; inspect the API startup output.");
     return false;
   }
-  async function run(reason) {
+  async function run({ reason }, { onDecision }) {
     let nextEnv;
     try {
       nextEnv = deps.envForRestart();
-      const refusal = deps.checkTarget({ env: nextEnv });
-      if (refusal) { deps.log(refusal); restoreChoice(); return false; }
+      const refusal = await deps.checkTarget({ env: nextEnv, currentEnv, child });
+      if (refusal) {
+        deps.log(refusal); restoreChoice();
+        await onDecision({ accepted: false, reason: refusal });
+        return false;
+      }
     } catch {
-      deps.log("tovu dev: could not verify the target site; the current API is still running.");
+      const reason = "tovu dev: could not verify the target site; the current API is still running.";
+      deps.log(reason);
       restoreChoice();
+      await onDecision({ accepted: false, reason });
       return false;
     }
-    if (deps.isShuttingDown()) return false;
+    if (deps.isShuttingDown()) {
+      await onDecision({ accepted: false, reason: "The dev supervisor is shutting down." });
+      return false;
+    }
+    // Acknowledgement precedes stopping the API so its tool result can still reach the chat.
+    await onDecision({ accepted: true });
     deps.log(`\ntovu dev: restarting the API (${reason}) — admin Vite keeps running…\n`);
     try {
       await stopCurrent();
@@ -418,8 +429,8 @@ export function createApiRestarter(deps, _options = {}) {
     },
     current: () => child,
     /** @returns {Promise<boolean>} whether the requested site booted; false includes rollback. */
-    restart(reason) {
-      if (!inFlight) inFlight = run(reason).finally(() => (inFlight = null));
+    restart(reason, { onDecision = async () => {} } = {}) {
+      if (!inFlight) inFlight = run({ reason }, { onDecision }).finally(() => (inFlight = null));
       return inFlight;
     },
   };
@@ -479,11 +490,16 @@ function readRepoEnvFile() {
 
 /** Refuse a live target before terminating the current API; the shared workspace owns selection
  * and lease liveness. Unreadable records throw and the restarter keeps the existing child.
- * @returns A refusal with the existing URL, or null for an idle target. @complexity O(sites).
+ * Only the current site's API descendants may keep their own lease during a restart precheck.
+ * @returns A refusal with the existing URL, or null for an idle/owned target. @complexity O(sites + apiPids).
  */
-export function devRestartRefusal({ repoRoot, env }, { select = devSitesHome } = {}) {
+export function devRestartRefusal({ repoRoot, env, currentEnv, apiPids = [] }, { select = devSitesHome } = {}) {
   const target = select({ repoRoot }, { env });
   if (!target.running) return null;
+  if (currentEnv && apiPids.includes(target.running.pid)) {
+    const current = select({ repoRoot }, { env: currentEnv });
+    if (path.resolve(target.dir) === path.resolve(current.dir)) return null;
+  }
   const { app, port, scheme } = target.running;
   if (port > 0) return `tovu dev: switch refused; site is open in ${app} at ${scheme}://localhost:${port}/admin/. The current API is still running.`;
   return `tovu dev: switch refused; site is starting in ${app}. The current API is still running.`;
@@ -504,16 +520,17 @@ export function restoreDevSiteSelection({ repoRoot, name }, { readText = readFil
 }
 
 /**
- * Polls `requestFile` and calls `onRequest(reason)` each time the server writes it. The file is
+ * Polls `requestFile` and calls `onRequest(request)` each time the server writes it. The file is
  * deleted on sight so one request is one restart. Polling (100ms), not `fs.watch`: it behaves the
  * same on every platform and the file may not exist yet.
  */
 function watchRestartRequests(requestFile, onRequest) {
   watchFile(requestFile, { interval: 100 }, (current) => {
     if (current.mtimeMs === 0) return; // missing — including right after we deleted it
-    let reason = "requested by the server";
+    let request = { reason: "requested by the server" };
     try {
-      reason = JSON.parse(readFileSync(requestFile, "utf8")).reason ?? reason;
+      const parsed = JSON.parse(readFileSync(requestFile, "utf8"));
+      request = { ...parsed, reason: parsed.reason ?? request.reason };
     } catch {
       /* unreadable — still a request */
     }
@@ -522,9 +539,26 @@ function watchRestartRequests(requestFile, onRequest) {
     } catch {
       /* already gone */
     }
-    onRequest(reason);
+    onRequest(request);
   });
   return () => unwatchFile(requestFile);
+}
+
+/** Reply to an opt-in precheck while the old API is alive, then preserve the chat delivery grace.
+ * Legacy site-switch requests already waited before writing and keep their existing timing.
+ * @returns The existing restarter's boot result. @complexity O(1) reply I/O and one bounded delay.
+ */
+export async function handleDevRestartRequest({ request, requestFile, restarter }, {
+  writeText = (input) => writeFileAtomic({ ...input, fs: createNodeAtomicFilesystem({}) }),
+  wait = (ms) => new Promise(resolve => setTimeout(resolve, ms)),
+} = {}) {
+  if (!request.requestId) return restarter.restart(request.reason);
+  // A request can select only a sibling response file, never an arbitrary write destination.
+  if (!/^[a-f0-9-]{36}$/.test(request.requestId)) return false;
+  return restarter.restart(request.reason, { onDecision: async (decision) => {
+    writeText({ filePath: `${requestFile}.${request.requestId}.result`, content: JSON.stringify(decision) });
+    if (decision.accepted) await wait(3000);
+  } });
 }
 
 /**
@@ -715,7 +749,10 @@ async function main() {
     markRunning: (child) => plannedExits.delete(child),
     waitForPortsFree: () => waitForPortsFree([API_PORT, DAEMON_PORT]),
     waitForReady: () => waitForPort(API_PORT),
-    checkTarget: ({ env }) => devRestartRefusal({ repoRoot: REPO_ROOT, env: { ...process.env, ...env } }),
+    checkTarget: async ({ env, currentEnv, child }) => devRestartRefusal({
+      repoRoot: REPO_ROOT, env: { ...process.env, ...env }, currentEnv: { ...process.env, ...currentEnv },
+      apiPids: collectProcessTreePids(await listProcessSnapshots(), [child.pid]),
+    }),
     restoreSite: ({ env }) => restoreDevSiteSelection({ repoRoot: REPO_ROOT, name: env.TOVU_SITE }),
     envForRestart: () => {
       const site = siteEnvForRestart({ shellSite: SHELL_TOVU_SITE, envFileText: readRepoEnvFile() });
@@ -726,8 +763,9 @@ async function main() {
     log: (message) => console.log(message),
   });
   apiRestarter.start(apiEnv);
-  watchRestartRequests(restartRequestFile, (reason) => {
-    if (!shuttingDown) void apiRestarter.restart(reason);
+  watchRestartRequests(restartRequestFile, (request) => {
+    void handleDevRestartRequest({ request, requestFile: restartRequestFile, restarter: apiRestarter })
+      .catch(() => console.warn("tovu dev: could not acknowledge the restart request; inspect the supervisor output."));
   });
 
   /**

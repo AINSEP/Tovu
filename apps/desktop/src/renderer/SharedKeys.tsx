@@ -113,11 +113,10 @@ function KeyForm({ bridge, state, entry }: { bridge: OwnerStoreBridge; state: St
 }
 
 /** Main owns the native destination picker; passphrases go only to the fixed preload action.
- * Restore is enabled only after a successful, empty inventory read; the CLI checks again.
+ * Project inventory cannot establish owner-store emptiness; the CLI owns that restore check.
  */
 function BackupForm({ action, bridge, state }: { action: 'export' | 'restore'; bridge: OwnerStoreBridge; state: StoreState }) {
   const restore = action === 'restore';
-  const blocked = restore && state.entries.length > 0;
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -128,7 +127,7 @@ function BackupForm({ action, bridge, state }: { action: 'export' | 'restore'; b
   return <form className="shared-keys__form" onSubmit={submit}>
     <h3>{restore ? 'Restore legacy owner backup' : 'Export legacy owner backup'}</h3>
     <p>{restore ? 'Restore requires an empty owner store. It does not restore project keys.' : 'Keep the passphrase safe. This legacy backup does not include project keys or site backups.'}</p>
-    <fieldset disabled={state.busy || !state.loaded || blocked}>
+    <fieldset disabled={state.busy || !state.loaded}>
       <label className="create-field"><span>Backup passphrase</span>
         <input name="passphrase" type="password" required maxLength={8000} autoComplete="off" spellCheck={false} />
       </label>

@@ -1,4 +1,6 @@
 import fs from "node:fs";
+import { randomUUID } from "node:crypto";
+import { createNodeAtomicFilesystem, writeFileAtomic } from "@jini-ai/platform/fs";
 
 /**
  * @file Dev restart-on-request channel (owner decision OD-S1): after `sites_switch_site`,
@@ -23,19 +25,63 @@ export const DEV_RESTART_REQUEST_FILE_ENV = "TOVU_DEV_RESTART_REQUEST_FILE";
  *  reply reach the chat before the server (and the daemon running the turn) goes down. */
 export const DEV_RESTART_DELAY_MS = 3000;
 
+export type DevRestartDecision = { accepted: true } | { accepted: false; reason: string };
+
 export interface DevRestartPort {
   /** False when the launcher is pinned by an explicit shell site override. */
   canSwitchSite?: boolean;
-  /** Schedules the restart request. Returns at once; the write happens {@link DEV_RESTART_DELAY_MS} later. */
-  requestRestart(required: { reason: string }): void;
+  /** Legacy requests write after the chat delivery delay. Opt-in callers await the supervisor's
+   * precheck; acceptance schedules a restart and does not claim a completed boot. */
+  requestRestart(required: { reason: string }, optional?: { awaitAcceptance?: boolean }): void | Promise<DevRestartDecision | void>;
 }
 
 export interface DevRestartPortOptional {
   env?: Readonly<Record<string, string | undefined>>;
   writeFile?: (path: string, data: string) => void;
+  readFile?: (path: string) => string | null;
+  removeFile?: (path: string) => void;
+  newId?: () => string;
   schedule?: (fn: () => void, ms: number) => void;
   delayMs?: number;
   log?: (message: string) => void;
+}
+
+/** Ask the supervisor's existing precheck before claiming acceptance. Each request has its own
+ * reply file; a missing, malformed or unreadable acknowledgement fails closed without error text.
+ * @returns Acceptance of a scheduled request, never proof that the new API has booted.
+ * @complexity O(1) space and at most 50 small reply reads over five seconds.
+ */
+function requestRestartAcceptance({ requestFile, reason }: { requestFile: string; reason: string },
+  options: DevRestartPortOptional & Required<Pick<DevRestartPortOptional, "writeFile" | "schedule">>): Promise<DevRestartDecision> {
+  const requestId = (options.newId ?? randomUUID)();
+  const replyFile = `${requestFile}.${requestId}.result`;
+  const read = options.readFile ?? (file => fs.existsSync(file) ? fs.readFileSync(file, "utf8") : null);
+  const remove = options.removeFile ?? (file => fs.rmSync(file, { force: true }));
+  return new Promise(resolve => {
+    let remaining = 50;
+    const poll = () => {
+      try {
+        const text = read(replyFile);
+        if (text !== null) {
+          const decision = JSON.parse(text);
+          remove(replyFile);
+          if (decision?.accepted === true) { resolve({ accepted: true }); return; }
+          if (decision?.accepted === false && typeof decision.reason === "string") { resolve({ accepted: false, reason: decision.reason }); return; }
+          throw new Error("Invalid supervisor acknowledgement");
+        }
+        if (--remaining === 0) { resolve({ accepted: false, reason: "The dev supervisor did not confirm the restart request." }); return; }
+        options.schedule(poll, 100);
+      } catch {
+        resolve({ accepted: false, reason: "Could not confirm the restart with the dev supervisor." });
+      }
+    };
+    try {
+      options.writeFile(requestFile, JSON.stringify({ reason, requestId, requestedAt: new Date().toISOString(), pid: process.pid }));
+      options.schedule(poll, 100);
+    } catch {
+      resolve({ accepted: false, reason: "Could not send the restart request to the dev supervisor." });
+    }
+  });
 }
 
 /**
@@ -46,12 +92,14 @@ export function devRestartPortFromEnv(optional: DevRestartPortOptional = {}): De
   const env = optional.env ?? process.env;
   const requestFile = env[DEV_RESTART_REQUEST_FILE_ENV];
   if (!requestFile) return null;
-  const writeFile = optional.writeFile ?? ((path: string, data: string) => fs.writeFileSync(path, data));
+  // The supervisor polls this file; publish whole JSON so it cannot consume a partial request.
+  const writeFile = optional.writeFile ?? ((filePath: string, content: string) => writeFileAtomic({ filePath, content, fs: createNodeAtomicFilesystem({}) }));
   const schedule = optional.schedule ?? ((fn: () => void, ms: number) => void setTimeout(fn, ms).unref?.());
   const log = optional.log ?? ((message: string) => console.error(message));
   return {
     canSwitchSite: env.TOVU_DEV_SITE_PINNED !== "1",
-    requestRestart({ reason }) {
+    requestRestart({ reason }, { awaitAcceptance = false } = {}) {
+      if (awaitAcceptance) return requestRestartAcceptance({ requestFile, reason }, { ...optional, writeFile, schedule });
       schedule(() => {
         try {
           writeFile(requestFile, JSON.stringify({ reason, requestedAt: new Date().toISOString(), pid: process.pid }));

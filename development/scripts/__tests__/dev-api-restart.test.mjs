@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import path from "node:path";
 
-import { classifyChildExit, createApiRestarter, devRestartRefusal, restoreDevSiteSelection, siteEnvForRestart, stopChildGroup } from "../dev.mjs";
+import { classifyChildExit, createApiRestarter, devRestartRefusal, handleDevRestartRequest, restoreDevSiteSelection, siteEnvForRestart, stopChildGroup } from "../dev.mjs";
 
 /**
  * @file `dev.mjs` restart-on-request (owner decision OD-S1, 2026-10-05): the API-child restart state
@@ -183,6 +183,95 @@ test("dev preflight observes the newly selected site and gives the existing Desk
   assert.equal(devRestartRefusal({ repoRoot: "/repo", env }, { select: () => ({ running: null }) }), null);
   assert.equal(devRestartRefusal({ repoRoot: "/repo", env }, { select: () => ({ running: { app: "Desktop", port: 0 } }) }),
     "tovu dev: switch refused; site is starting in Desktop. The current API is still running.");
+});
+
+test("same-site restart allows only a lease in this supervisor's API tree", async () => {
+  const currentEnv = { TOVU_SITE: "alpha" };
+  const running = { pid: 12, app: "Web", scheme: "http", port: 3000 };
+  const select = (_input, { env }) => ({ dir: `/sites/${env.TOVU_SITE}`, running });
+  const check = (env, apiPids) => devRestartRefusal({ repoRoot: "/repo", env, currentEnv, apiPids }, { select });
+  assert.equal(check(currentEnv, [10, 11, 12]), null, 'the actual API is a grandchild of the watcher');
+  const refusal = "tovu dev: switch refused; site is open in Web at http://localhost:3000/admin/. The current API is still running.";
+  assert.equal(check(currentEnv, [10, 11]), refusal, 'matching site and port do not establish process ownership');
+  assert.equal(check({ TOVU_SITE: "beta" }, [10, 11, 12]), refusal, 'an owned process does not bypass the current-site boundary');
+  const { deps, events } = fakeDeps({
+    envForRestart: () => currentEnv,
+    checkTarget: async ({ env, currentEnv: previous, child }) => {
+      assert.deepEqual(previous, currentEnv);
+      assert.equal(child.id, 1);
+      return check(env, [10, 11, 12]);
+    },
+  });
+  const restarter = createApiRestarter(deps);
+  restarter.start(currentEnv);
+  assert.equal(await restarter.restart("provider-settings-live-apply"), true);
+  assert.deepEqual(events.filter(([kind]) => kind === "stop" || kind === "start"), [
+    ["start", 1, currentEnv], ["stop", 1], ["start", 2, currentEnv],
+  ]);
+});
+
+test("supervisor refusal is acknowledged with its reason before any API is stopped", async () => {
+  const reason = "Site is open in Desktop at https://localhost:53775/admin/.";
+  const { deps, events } = fakeDeps({ checkTarget: async () => reason });
+  const restarter = createApiRestarter(deps);
+  restarter.start({ TOVU_SITE: "alpha" });
+  const writes = [];
+  const requestId = "11111111-1111-4111-8111-111111111111";
+  assert.equal(await handleDevRestartRequest({ request: { reason: "provider-settings-live-apply", requestId },
+    requestFile: "/tmp/request.json", restarter }, {
+    writeText: input => writes.push(input),
+    wait: () => assert.fail("a refusal must not schedule a restart"),
+  }), false);
+  assert.deepEqual(writes, [{ filePath: `/tmp/request.json.${requestId}.result`, content: JSON.stringify({ accepted: false, reason }) }]);
+  assert.deepEqual(events, [["start", 1, { TOVU_SITE: "alpha" }]]);
+});
+
+test("supervisor acceptance gives the tool delivery time before stopping its API", async () => {
+  const { deps, events } = fakeDeps();
+  const restarter = createApiRestarter(deps);
+  restarter.start({ TOVU_SITE: "alpha" });
+  const requestId = "11111111-1111-4111-8111-111111111111";
+  assert.equal(await handleDevRestartRequest({ request: { reason: "provider-settings-live-apply", requestId },
+    requestFile: "/tmp/request.json", restarter }, {
+    writeText: ({ content }) => events.push(["ack", JSON.parse(content)]),
+    wait: async ms => { assert.equal(ms, 3000); events.push(["delivery-grace"]); },
+  }), true);
+  assert.deepEqual(events.slice(0, 5), [
+    ["start", 1, { TOVU_SITE: "alpha" }], ["ack", { accepted: true }], ["delivery-grace"], ["planned", 1], ["stop", 1],
+  ]);
+});
+
+test("an unverifiable target and shutdown return refusal acknowledgements", async () => {
+  for (const [overrides, reason] of [
+    [{ checkTarget: () => { throw new Error("unreadable"); } }, "tovu dev: could not verify the target site; the current API is still running."],
+    [{ isShuttingDown: () => true }, "The dev supervisor is shutting down."],
+  ]) {
+    const { deps, events } = fakeDeps(overrides);
+    const restarter = createApiRestarter(deps);
+    restarter.start({ TOVU_SITE: "alpha" });
+    const decisions = [];
+    assert.equal(await restarter.restart("provider-settings-live-apply", { onDecision: async decision => { decisions.push(decision); } }), false);
+    assert.deepEqual(decisions, [{ accepted: false, reason }]);
+    assert.equal(events.length, 1);
+  }
+});
+
+test("invalid reply identifiers cannot select a write path or restart the API", async () => {
+  assert.equal(await handleDevRestartRequest({ request: { reason: "restart", requestId: "../../elsewhere" },
+    requestFile: "/tmp/request.json", restarter: { restart: () => assert.fail("must not restart") } }, {
+    writeText: () => assert.fail("must not write"),
+  }), false);
+});
+
+test("an acknowledgement write failure leaves the old API running", async () => {
+  const { deps, events } = fakeDeps();
+  const restarter = createApiRestarter(deps);
+  restarter.start({ TOVU_SITE: "alpha" });
+  await assert.rejects(handleDevRestartRequest({
+    request: { reason: "restart", requestId: "11111111-1111-4111-8111-111111111111" },
+    requestFile: "/tmp/request.json", restarter,
+  }, { writeText: () => { throw new Error("unavailable"); } }), { message: "unavailable" });
+  assert.deepEqual(events, [["start", 1, { TOVU_SITE: "alpha" }]]);
 });
 
 test("rollback rewrites only the site selection using the current file, including on Windows", () => {

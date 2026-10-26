@@ -49,8 +49,10 @@ export function buildProjectKeyRegistrations({ keys, authorize, loadCards, surfa
         if (!answer.confirmed) return { restarted: false, reason: answer.reason };
         ctx.signal.throwIfAborted();
         await authorize({ ctx, permission: "admin.plugins.enable" });
-        restart.requestRestart({ reason: "provider-settings-live-apply" });
-        return { restarted: true };
+        const decision = await restart.requestRestart({ reason: "provider-settings-live-apply" }, { awaitAcceptance: true });
+        if (!decision) return { restarted: false, reason: "The dev supervisor did not confirm the restart request." };
+        if (!decision.accepted) return { restarted: false, reason: decision.reason };
+        return { restartRequested: true, message: "The dev supervisor accepted the restart request." };
       },
     } });
 }
