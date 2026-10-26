@@ -6,6 +6,7 @@ import * as fs from "node:fs/promises";
 import path from "node:path";
 import express, { type Express, type Request } from "express";
 import { registerConsentHttp, type ConsentHttpPorts } from "@jini-ai/cms/consent/express";
+import type { ConsentConfig } from "@jini-ai/cms/consent";
 import { consentRateLimitKey, createConsentFileRecords, createNodeConsentFiles, type ConsentAtomicWriter } from "@jini-ai/cms/consent/node";
 
 import { createRateLimiter, type RateLimitProfile } from "#src/contracts/core/rate-limit/rate-limit";
@@ -73,6 +74,27 @@ function reportConsentError({ operation }: { operation: "read" | "save"; error: 
   console.error(`[consent] ${operation} failed`);
 }
 
+/** The site's live consent policy: the published revision, else the legacy settings. Shared by both
+ * consent engines so they can never disagree about what visitors were asked.
+ * @param optional.cssBlocks false for the cookie-consent engine, which drops a bad CSS rule alone.
+ * @throws when the published revision fails validation (callers fail closed).
+ * @complexity O(1): one store read, plus one settings read before the first publication. */
+export async function readSiteConsentPolicy({ deps }: { deps: RouteDeps }, { trustedRegion = false, cssBlocks = true }: { trustedRegion?: boolean; cssBlocks?: boolean } = {}): Promise<ConsentConfig> {
+  await deps.siteConsentReady;
+  const state = await deps.consentStore?.read({});
+  // An empty owner Custom CSS gets Tovu's default banner style (owner, 2026-10-22).
+  if (!state?.published) {
+    const legacy = await createSiteConsentConfig({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId }).get({});
+    return withSiteConsentDefaultCss({ config: { ...legacy, regionMode: legacy.regionMode === 'opt-out' ? 'auto' : legacy.regionMode } });
+  }
+  const published = parseConsentConfig({ value: state.published.config });
+  // An old global opt-out must never hide Reject for EU/UK/unknown visitors.
+  const config = withSiteConsentDefaultCss({ config: { ...published, regionMode: published.regionMode === 'opt-out' ? 'auto' : published.regionMode } });
+  if (consentConfigProblems({ config, trustedRegion }, { cssBlocks }).length) throw new Error('Published consent policy is invalid.');
+  // Receipts name an immutable configuration; changing a published revision requires a new choice.
+  return { ...config, reopen: "link", policyVersion: `${config.policyVersion}:${state.published.id}` };
+}
+
 /** Every host effect the engine needs, built from this site's composition. @complexity O(1). */
 export function createSiteConsentPorts({ deps }: { deps: RouteDeps }, { trustedRegionHeader }: { trustedRegionHeader?: string } = {}): ConsentHttpPorts {
   const request = createSiteConsentRequestPorts({
@@ -82,21 +104,7 @@ export function createSiteConsentPorts({ deps }: { deps: RouteDeps }, { trustedR
     rateLimitKey: consentRateLimitKey,
   });
   return {
-    config: { get: async () => {
-      await deps.siteConsentReady;
-      const state = await deps.consentStore?.read({});
-      // An empty owner Custom CSS gets Tovu's default banner style (owner, 2026-10-22).
-      if (!state?.published) {
-        const legacy = await createSiteConsentConfig({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId }).get({});
-        return withSiteConsentDefaultCss({ config: { ...legacy, regionMode: legacy.regionMode === 'opt-out' ? 'auto' : legacy.regionMode } });
-      }
-      const published = parseConsentConfig({ value: state.published.config });
-      // An old global opt-out must never hide Reject for EU/UK/unknown visitors.
-      const config = withSiteConsentDefaultCss({ config: { ...published, regionMode: published.regionMode === 'opt-out' ? 'auto' : published.regionMode } });
-      if (consentConfigProblems({ config, trustedRegion: Boolean(trustedRegionHeader) }).length) throw new Error('Published consent policy is invalid.');
-      // Receipts name an immutable configuration; changing a published revision requires a new choice.
-      return { ...config, reopen: "link", policyVersion: `${config.policyVersion}:${state.published.id}` };
-    } },
+    config: { get: () => readSiteConsentPolicy({ deps }, { trustedRegion: Boolean(trustedRegionHeader) }) },
     records: createConsentFileRecords({ directory: path.join(deps.siteBinding.dir, CONSENT_RECEIPTS_DIR_NAME), files: createNodeConsentFiles({ atomicWrite }) }),
     clock: deps.clock,
     // Receipt IDs must be unpredictable; the site's id generator is time-ordered, so it is not used.

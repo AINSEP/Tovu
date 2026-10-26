@@ -1,4 +1,5 @@
 import { createTracker, createTrackerWarning, createTelemetryTestProbe } from "@jini-ai/diagnostics/observability/node";
+import type { ConsentPluginContribution } from '../../inbound/public-http/middleware/site-cookie-consent.js';
 import { createHash } from 'node:crypto';
 import { createTelemetryDeliveryMonitor, describeTelemetryFailure, type Tracker, type ProviderTelemetryReport, type TelemetryTestResult } from "@jini-ai/diagnostics/observability";
 import { combineObservabilityPorts, createNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
@@ -119,6 +120,8 @@ export interface ProviderPluginRuntime {
 
 export interface ProviderPluginPorts {
   readonly browserAnalytics?: (required: { surface: 'site' | 'admin' }) => readonly BrowserAnalyticsContribution[];
+  /** Cookie-consent adapters of the attached analytics plugins, each mounted under `base/<pluginId>`. */
+  readonly consentAdapters?: (required: { base: string }) => readonly ConsentPluginContribution[];
   readonly observability: ObservabilityPort;
   readonly tracker: Tracker;
   /** Used only after the public boundary has validated the visitor's consent proof. */
@@ -192,13 +195,15 @@ function gatedPort({ slot, contract, testProbe }: { slot: ProviderSlot; contract
   const noop = NOOP_PORTS[contract]() as Record<string, (...args: unknown[]) => unknown>;
   const names = Object.keys(noop);
   // Keep the optional hook available before attachment; every call follows the current slot.
-  if (contract === "product_analytics") names.push("captureAiGeneration", "browserAnalytics");
+  if (contract === "product_analytics") names.push("captureAiGeneration", "browserAnalytics", "consentAdapter");
   const browserCache = new Map<string, { lease: unknown; contribution: unknown }>();
   const gated = Object.fromEntries(names.map((name) => [name, (...args: unknown[]) => {
     const lease = slot.lease;
     const port = lease?.port as Record<string, unknown> | undefined;
     const live = port?.[name];
     if (!lease?.isCurrent({}) || typeof live !== "function") return noop[name]?.(...args);
+    // Each plugin's cookie-consent assets live under its own id, so two plugins never collide.
+    if (name === 'consentAdapter') return live.call(port, { path: `${(args[0] as { base: string }).base}/${slot.pluginId}` });
     if (name === 'browserAnalytics') {
       const surface = (args[0] as { surface: string }).surface;
       const cached = browserCache.get(surface);
@@ -240,6 +245,12 @@ function composePorts({ leases, consent, consentRevision, site, warn }: { warn: 
   const browserCache = new Map<string, { inputs: readonly BrowserAnalyticsContribution[]; output: readonly BrowserAnalyticsContribution[] }>();
   return {
     observability,
+    // Optional and untyped on the Jini port: a plugin without it (or one that throws) adds nothing.
+    consentAdapters: (required: { base: string }): readonly ConsentPluginContribution[] => analytics.flatMap(port => {
+      const build = (port as { consentAdapter?: (input: { base: string }) => ConsentPluginContribution | undefined }).consentAdapter;
+      try { const contribution = typeof build === 'function' ? build.call(port, required) : undefined; return contribution ? [contribution] : []; }
+      catch { failed(); return []; }
+    }),
     browserAnalytics: (required: { surface: 'site' | 'admin' }): readonly BrowserAnalyticsContribution[] => {
       const contributions = analytics.flatMap(port => {
         try { const contribution = port.browserAnalytics?.(required); return contribution ? [contribution] : []; }

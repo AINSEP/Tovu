@@ -3,12 +3,21 @@ import { parse, type DefaultTreeAdapterMap } from 'parse5';
 
 type Node = DefaultTreeAdapterMap['childNode'];
 type Element = DefaultTreeAdapterMap['element'];
-const ANCHOR = '<a href="#jini-consent" data-jini-consent-open>Cookie settings</a>';
+/** Which consent engine delivered the page: the old one marks its runtime; cookie-consent emits its
+ * config script and opens on `data-consent-open`. TODO(P4): drop 'legacy'. */
+type Engine = 'legacy' | 'cookie-consent';
+const ANCHORS: Readonly<Record<Engine, string>> = {
+  legacy: '<a href="#jini-consent" data-jini-consent-open>Cookie settings</a>',
+  'cookie-consent': '<a href="#privacy-choices" data-consent-open>Cookie settings</a>',
+};
 // In a footer the link joins the theme's last row (the "© Site" line) and takes that row's text
 // style; a centred row of its own read as stray. The margin only matters in a non-flex row.
-const INLINE_LINK = `<span data-tovu-consent-settings style="margin-inline-start:1em">${ANCHOR}</span>`;
+const inlineLink = (anchor: string) => `<span data-tovu-consent-settings style="margin-inline-start:1em">${anchor}</span>`;
 // A footerless page has no row to join; a centred row needs no theme container class to line up.
-const ROW_LINK = `<p data-tovu-consent-settings style="margin:0;padding:0 1rem 1.25rem;text-align:center;font-size:0.8125rem">${ANCHOR}</p>`;
+const rowLink = (anchor: string) => `<p data-tovu-consent-settings style="margin:0;padding:0 1rem 1.25rem;text-align:center;font-size:0.8125rem">${anchor}</p>`;
+/** A theme's own live control for this engine: then the page never shows two links. */
+const ownControl = ({ engine, tag, attrs }: { engine: Engine; tag: string; attrs: Map<string, string> }) => engine === 'legacy'
+  ? attrs.has('data-jini-consent-open') : attrs.has('data-consent-open') || (tag === 'a' && attrs.get('href') === '#privacy-choices');
 
 /** Only live, non-hidden markup can host a withdrawal control. O(n) nodes, iterative for deep HTML. */
 function* liveElements({ html }: { html: string }, _options = {}): Generator<Element> {
@@ -40,14 +49,15 @@ function lastRow({ footer }: { footer: Element }, _options = {}): Element {
 /** Locate the live engine UI and the theme's footer/body insertion point in one parse.
  * The last-ending footer is the page footer: article/card footers close before it. A theme that
  * already ships its own live control keeps it alone, so the page never shows two links. */
-function linkPlacement({ html }: { html: string }, _options = {}): { enabled: boolean; offset: number; inline: boolean } {
-  let enabled = false;
+function linkPlacement({ html }: { html: string }, { engine = 'legacy' }: { engine?: Engine } = {}): { enabled: boolean; offset: number; inline: boolean } {
+  // cookie-consent: Tovu rendered the banner in link mode (or the owner's own banner), so the page needs the link.
+  let enabled = engine === 'cookie-consent';
   let footer: Element | null = null;
   let bodyEnd = html.length;
   for (const node of liveElements({ html })) {
     const attrs = new Map(node.attrs.map(attr => [attr.name, attr.value]));
-    if (attrs.has('data-jini-consent-open')) return { enabled: false, offset: 0, inline: false };
-    if (node.tagName === 'section' && attrs.get('id') === 'jini-consent') enabled = attrs.get('data-reopen') === 'link';
+    if (ownControl({ engine, tag: node.tagName, attrs })) return { enabled: false, offset: 0, inline: false };
+    if (engine === 'legacy' && node.tagName === 'section' && attrs.get('id') === 'jini-consent') enabled = attrs.get('data-reopen') === 'link';
     if (node.tagName === 'footer' && contentEnd({ node }) > (footer ? contentEnd({ node: footer }) : -1)) footer = node;
     if (node.tagName === 'body') bodyEnd = contentEnd({ node }, { fallback: bodyEnd });
   }
@@ -55,13 +65,15 @@ function linkPlacement({ html }: { html: string }, _options = {}): { enabled: bo
   return { enabled, offset: contentEnd({ node: lastRow({ footer }) }), inline: true };
 }
 
-/** Add the host control only to HTML actually gated by Jini in link mode, once per page.
+/** Add the host control only to HTML actually gated by Jini in link mode (legacy) or carrying the
+ * cookie-consent config (Tovu renders that banner in link mode), once per page.
  * Source offsets preserve SEO and theme bytes; implicit bodies append the control. Jini has
  * already bounded and buffered this response. No config read competes with its lastGood policy.
  * @complexity O(n) time/space for n HTML bytes; no I/O. */
-export function withSiteConsentSettingsLink({ html }: { html: string }, _options = {}): string {
-  if (!html.includes('data-jini-consent-runtime')) return html;
-  const { enabled, offset, inline } = linkPlacement({ html });
+export function withSiteConsentSettingsLink({ html }: { html: string }, { engine = 'legacy' }: { engine?: Engine } = {}): string {
+  if (!html.includes(engine === 'legacy' ? 'data-jini-consent-runtime' : 'id="jini-consent-config"')) return html;
+  const { enabled, offset, inline } = linkPlacement({ html }, { engine });
   if (!enabled) return html;
-  return html.slice(0, offset) + (inline ? INLINE_LINK : ROW_LINK) + html.slice(offset);
+  const anchor = ANCHORS[engine];
+  return html.slice(0, offset) + (inline ? inlineLink(anchor) : rowLink(anchor)) + html.slice(offset);
 }

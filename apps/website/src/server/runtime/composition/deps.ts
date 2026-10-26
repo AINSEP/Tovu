@@ -17,6 +17,7 @@ import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/
 import { createSiteConsentStore } from '#src/features/consent/revisions.repo';
 import { bindSiteConsentService, ensureSiteConsentPrivacy } from './site-consent.js';
 import { createSiteConsentPorts } from '../../inbound/public-http/middleware/site-consent.js';
+import { bindCookieConsentAnalyticsGate, selectCookieConsent } from './site-cookie-consent.js';
 import { readRequestAnalyticsProof, allowsAnalyticsProof } from '@jini-ai/cms/consent/express';
 import { findExclusionReason } from '@jini-ai/analytics';
 import { resolveClientIp } from '#src/contracts/core/rate-limit/rate-limit';
@@ -2535,6 +2536,7 @@ async function composeSiteRouteDeps(
     siteConsentReady,
     consentStore: createSiteConsentStore({ kernel, workspaceId }),
     consentTrustedRegionHeader: process.env.TOVU_CONSENT_REGION_HEADER?.trim() || undefined,
+    cookieConsent: selectCookieConsent({ workspaceId, loadContributions: agentPluginLifecycle.loadPluginContributions }),
     mailFeedbackRoute: createSiteMailFeedbackRoute({ db: kernel, workspaceId, credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer },
       loadAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }) }),
     siteTitlePreservationStore,
@@ -2588,6 +2590,7 @@ async function composeSiteRouteDeps(
     observabilityEnabled: providerPlugins.observabilityEnabled,
     flushTelemetry: () => providerPlugins.dispose({}),
     browserAnalytics: providerPlugins.browserAnalytics,
+    consentAdapters: providerPlugins.consentAdapters,
     telemetryStatus: providerPlugins.telemetryStatus,
     sendTelemetryTest: () => providerPlugins.sendTelemetryTest({ error: new Error("Tovu test error — safe to ignore") }),
     aiTraceSink,
@@ -3112,16 +3115,21 @@ async function composeSiteRouteDeps(
   }
   routeDeps.siteConsent = bindSiteConsentService({ deps: routeDeps });
   const visitorConsentPorts = createSiteConsentPorts({ deps: routeDeps }, { trustedRegionHeader: routeDeps.consentTrustedRegionHeader });
+  // Site analytics off, or this visitor excluded (DNT/GPC/IP/host rules), means no visitor capture.
+  const analyticsExcluded = async (request: import('express').Request) => {
+    const config = await routeDeps.analyticsConfig.get({ workspaceId });
+    const beacon = { host: request.hostname, path: request.path, kind: 'pageview' as const, referrer: null,
+      dnt: request.get('dnt') === '1', gpc: request.get('sec-gpc') === '1' };
+    return !config.enabled || Boolean(findExclusionReason({ beacon, ip: resolveClientIp(request), config }));
+  };
   routeDeps.visitorAnalyticsProof = async ({ request }) => {
     try {
-      const config = await routeDeps.analyticsConfig.get({ workspaceId });
-      const beacon = { host: request.hostname, path: request.path, kind: 'pageview' as const, referrer: null,
-        dnt: request.get('dnt') === '1', gpc: request.get('sec-gpc') === '1' };
-      if (!config.enabled || findExclusionReason({ beacon, ip: resolveClientIp(request), config })) return undefined;
+      if (await analyticsExcluded(request)) return undefined;
       return readRequestAnalyticsProof({ ports: visitorConsentPorts, request });
     } catch { return undefined; }
   };
   routeDeps.visitorAnalyticsDeliveryAllowed = ({ proof }) => allowsAnalyticsProof({ ports: visitorConsentPorts, proof });
+  if (routeDeps.cookieConsent) bindCookieConsentAnalyticsGate({ deps: routeDeps }, { isExcluded: ({ request }) => analyticsExcluded(request) });
   await registerContentAnalytics({ deps: { bus, tracker, workspaceId } });
   return routeDeps;
 }
