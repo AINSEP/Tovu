@@ -282,7 +282,9 @@ describe("Privacy tab — product analytics consent", () => {
     const controller = baseController();
     render(<SettingsUi useSettingsUiHook={() => controller} />);
     await goToTab(user, "privacy");
-    expect(screen.getByText("Metrics consent allows product analytics. Operational error reporting is controlled by its provider plugin.")).toBeInTheDocument();
+    expect(screen.getByText("Product analytics requires metrics consent. Error reporting follows its provider plugin.")).toBeInTheDocument();
+    // Said once: the old dashed note above the toggles repeated the footer (Chrome look 2026-10-26).
+    expect(screen.queryByText("Metrics consent allows product analytics. Operational error reporting is controlled by its provider plugin.")).toBeNull();
     expect(document.querySelector("[inert]")).toBeNull();
     // The toggles are the one presentation of the choices (no "Share usage" button since 2026-10-26).
     await user.click(screen.getByRole("button", { name: /Product analytics/ }));
@@ -446,7 +448,7 @@ describe("?tab= deep linking", () => {
     render(<SettingsUi useSettingsUiHook={() => baseController()} tabId="privacy" />);
 
     expect(
-      screen.getByText("Metrics consent allows product analytics. Operational error reporting is controlled by its provider plugin."),
+      screen.getByText("Product analytics requires metrics consent. Error reporting follows its provider plugin."),
     ).toBeInTheDocument();
     expect(screen.queryByLabelText("Custom instructions")).not.toBeInTheDocument();
   });
