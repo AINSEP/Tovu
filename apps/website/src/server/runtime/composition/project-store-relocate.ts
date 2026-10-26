@@ -20,7 +20,13 @@ import { acquireLock, type LockSeams } from "./project-store-lock.js";
  * path, BEFORE the database moves, so the moved rows always have the key that sealed them. The old key
  * stays: another sites root's old `project.db` may still need it. Last, the file moves: a hard link
  * then unlink (atomic, never overwrites) on one volume; across volumes a copy that is fsynced and
- * hash-verified before the original is removed.
+ * hash-verified (and its folder fsynced) before the original is removed.
+ *
+ * A move that fails never throws while the old file is intact (a copy that does not verify, a key
+ * that can't be written, a file iCloud evicted): this run uses the old file in place and a later start
+ * tries again, so a save never falls through to the site vault. An old name that can't be removed
+ * after the move (EPERM/EBUSY: OneDrive, antivirus) is removed by a later start, and only when it is
+ * provably the moved file: the same inode, or (across volumes) still the exact bytes that were copied.
  *
  * Two starts at once (web + desktop launched together) take a lock first (`project-store-lock.ts`):
  * only the holder folds, copies the key and moves. The other waits, then finds the file already moved.
@@ -40,6 +46,10 @@ export interface RelocateOptions {
   link?: (from: string, to: string) => void;
   /** `fs.copyFileSync`; a test seam for a copy that comes out damaged. */
   copyFile?: (from: string, to: string) => void;
+  /** `fs.rmSync`; a test seam for an old file Windows/OneDrive/antivirus won't let go of (EPERM/EBUSY). */
+  rm?: (file: string) => void;
+  /** fsyncs a folder (its new entry); a test seam to see it happen before the original is removed. */
+  fsyncDir?: (dir: string) => void;
   /** Seams for the cross-process relocation lock. */
   lock?: LockSeams;
 }
@@ -78,38 +88,128 @@ function carryKey(from: string, to: string): void {
 
 const sha256Of = (file: string): string => createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 
-/** Cross-volume move: copy to a private temp file beside the target, fsync, verify, link into place. */
-function copyVerified(from: string, to: string, copyFile: (from: string, to: string) => void): void {
-  const tmp = path.join(path.dirname(to), `.${path.basename(to)}.tmp-${process.pid}-${randomBytes(4).toString("hex")}`);
+const MOVED_FROM_FILENAME = "moved-from.json";
+const movedFromMarker = (to: string): string => path.join(path.dirname(to), MOVED_FROM_FILENAME);
+
+/** Makes a folder's new entry durable before the original elsewhere is removed. Windows can't open a
+ *  folder for fsync (EISDIR/EPERM); NTFS journals the entry itself, so that is skipped. */
+function fsyncDirectory(dir: string): void {
+  let fd: number | undefined;
   try {
-    copyFile(from, tmp);
-    const fd = fs.openSync(tmp, "r+");
-    try { fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
-    if (sha256Of(tmp) !== sha256Of(from)) throw new Error(`the copy of ${from} did not match the original; it was kept where it is`);
-    fs.linkSync(tmp, to);
+    fd = fs.openSync(dir, "r");
+    fs.fsyncSync(fd);
+  } catch (error) {
+    if (process.platform !== "win32") throw error;
   } finally {
-    fs.rmSync(tmp, { force: true });
+    if (fd !== undefined) fs.closeSync(fd);
   }
 }
 
-/** Moves one file without ever overwriting the target; a concurrent start that got there first wins. */
-function moveFile(from: string, to: string, optional: RelocateOptions): void {
+/** Best-effort removal: a temp or old file that won't go now is left for a later start. */
+function tryRemove(file: string, rm: (file: string) => void): boolean {
+  try {
+    rm(file);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Cross-volume move: copy to a private temp file beside the target, fsync it, verify it, link it into
+ * place, fsync the folder.
+ * @returns The verified content hash, or undefined when the copy did not match (nothing is placed).
+ */
+function copyVerified(from: string, to: string, optional: RelocateOptions): string | undefined {
+  const tmp = path.join(path.dirname(to), `.${path.basename(to)}.tmp-${process.pid}-${randomBytes(4).toString("hex")}`);
+  try {
+    (optional.copyFile ?? fs.copyFileSync)(from, tmp);
+    const fd = fs.openSync(tmp, "r+");
+    try { fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
+    const sha = sha256Of(tmp);
+    if (sha !== sha256Of(from)) {
+      console.warn(`[project-store] the copy of ${from} did not match the original; it stays where it is for now`);
+      return undefined;
+    }
+    fs.linkSync(tmp, to);
+    (optional.fsyncDir ?? fsyncDirectory)(path.dirname(to));
+    return sha;
+  } finally {
+    tryRemove(tmp, (file) => fs.rmSync(file, { force: true }));
+  }
+}
+
+/**
+ * Removes the old name after a move. If it won't go and the move was a copy, records what was copied
+ * (`moved-from.json`) so a later start can tell the stale original from a file an old build wrote to.
+ */
+function removeOriginal(required: { from: string; to: string; copiedSha?: string }, optional: RelocateOptions): void {
+  const { from, to, copiedSha } = required;
+  if (tryRemove(from, optional.rm ?? ((file) => fs.rmSync(file, { force: true }))) || !copiedSha) return;
+  tryRemove(movedFromMarker(to), (file) => fs.writeFileSync(file, JSON.stringify({ path: from, sha256: copiedSha }), { mode: 0o600 }));
+}
+
+/**
+ * Moves one file without ever overwriting the target; a concurrent start that got there first wins.
+ * @returns False when a cross-volume copy did not verify (the original is untouched).
+ */
+function moveFile(from: string, to: string, optional: RelocateOptions): boolean {
   try {
     (optional.link ?? fs.linkSync)(from, to);
   } catch (error) {
-    if (errorCode(error) === "EEXIST" || errorCode(error) === "ENOENT") return;
-    copyVerified(from, to, optional.copyFile ?? fs.copyFileSync);
+    if (errorCode(error) === "EEXIST" || errorCode(error) === "ENOENT") return true;
+    const copiedSha = copyVerified(from, to, optional);
+    if (!copiedSha) return false;
+    removeOriginal({ from, to, copiedSha }, optional);
+    return true;
   }
-  fs.rmSync(from, { force: true });
+  removeOriginal({ from, to }, optional);
+  return true;
 }
 
-/** Folds, publishes the key and moves, under the lock. Re-checks first: another start may have moved it. */
+/**
+ * Folds, publishes the key and moves, under the lock. Re-checks first: another start may have moved
+ * it. Any failure while the old file is intact (nothing placed at the new path) keeps the old file.
+ */
 function moveUnderLock(from: ProjectFiles, to: ProjectFiles, optional: RelocateOptions): ProjectFiles {
   if (fs.existsSync(to.dbPath) || !fs.existsSync(from.dbPath)) return to;
-  if (!foldIntoOneFile(from.dbPath, optional.busyTimeoutMs ?? 1000)) return fs.existsSync(from.dbPath) ? from : to;
-  carryKey(from.keyFile, to.keyFile);
-  moveFile(from.dbPath, to.dbPath, optional);
-  return to;
+  try {
+    if (!foldIntoOneFile(from.dbPath, optional.busyTimeoutMs ?? 1000)) return fs.existsSync(from.dbPath) ? from : to;
+    carryKey(from.keyFile, to.keyFile);
+    return moveFile(from.dbPath, to.dbPath, optional) ? to : from;
+  } catch (error) {
+    // A file at the new path is always whole (it is only ever linked into place), so it wins.
+    if (fs.existsSync(to.dbPath) || !fs.existsSync(from.dbPath)) return to;
+    console.warn(`[project-store] could not move ${from.dbPath} to ${to.dbPath}; using it in place this run: ${error instanceof Error ? error.message : String(error)}`);
+    return from;
+  }
+}
+
+const sameFile = (a: fs.BigIntStats, b: fs.BigIntStats): boolean => a.dev === b.dev && a.ino === b.ino;
+
+/** True when the old file is still exactly what an earlier cross-volume move copied. */
+function isCopiedOriginal(from: string, to: string): boolean {
+  try {
+    const marker = JSON.parse(fs.readFileSync(movedFromMarker(to), "utf8")) as { path?: unknown; sha256?: unknown };
+    return marker.path === from && marker.sha256 === sha256Of(from);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * After the move: removes an old name an earlier move could not, only when it is provably the moved
+ * file (the same inode, or the unchanged bytes that were copied). Never throws.
+ * @complexity O(1) stats; O(file size) once, when a copy left its original behind.
+ */
+function removeLeftOriginal(from: string, to: string, optional: RelocateOptions): void {
+  try {
+    const old = fs.statSync(from, { bigint: true, throwIfNoEntry: false });
+    if (old && (sameFile(old, fs.statSync(to, { bigint: true })) || isCopiedOriginal(from, to))) {
+      tryRemove(from, optional.rm ?? ((file) => fs.rmSync(file, { force: true })));
+    }
+    if (!fs.existsSync(from)) tryRemove(movedFromMarker(to), (file) => fs.rmSync(file, { force: true }));
+  } catch { /* a later start tries again */ }
 }
 
 /** True when there is an old file to move and nothing at the new place yet. */
@@ -134,14 +234,17 @@ function withRelocationLock<T>(required: { from: ProjectFiles; to: ProjectFiles;
  * Which `project.db` + key this start uses, moving an old one into place first.
  * @param required.from The old pair (`<sites root>/project.db`, `~/.tovu/project-key.hex`).
  * @param required.to The new pair (`~/.tovu/projects/<projectId>/`).
- * @returns `to`, or `from` for this run only when another process still holds the old file open.
- * @throws When the old file is damaged (not a database) or a cross-volume copy does not verify; the
- *   old file is kept as it was.
+ * @returns `to`, or `from` for this run when the old file could not be moved (another process still
+ *   holds it open, or the move failed part-way: it is kept as it was and a later start tries again).
+ *   Never throws while the old file is intact.
  * @complexity O(file size) for the fold and, across volumes, the copy + two hashes.
  */
 export function relocateProjectDb(required: { from: ProjectFiles; to: ProjectFiles }, optional: RelocateOptions = {}): ProjectFiles {
   const { from, to } = required;
-  if (!needsMove(from, to)) return to;
+  if (!needsMove(from, to)) {
+    removeLeftOriginal(from.dbPath, to.dbPath, optional);
+    return to;
+  }
   return withRelocationLock({ from, to, work: (files) => files }, optional);
 }
 
@@ -179,6 +282,9 @@ function openChecked<T>(required: { files: ProjectFiles; to: ProjectFiles; opene
  */
 export function openProjectDb<T>(required: { from: ProjectFiles; to: ProjectFiles; opener: ProjectDbOpener<T> }, optional: RelocateOptions = {}): { files: ProjectFiles; db: T } {
   const { from, to, opener } = required;
-  if (!needsMove(from, to)) return openNew(to, opener);
+  if (!needsMove(from, to)) {
+    removeLeftOriginal(from.dbPath, to.dbPath, optional);
+    return openNew(to, opener);
+  }
   return withRelocationLock({ from, to, work: (files) => openChecked({ files, to, opener }) }, optional);
 }
