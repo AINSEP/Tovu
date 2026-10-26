@@ -1,7 +1,7 @@
 /** @file Site consent settings → `@jini-ai/cookie-consent` banner input. The converter runs on read, so
- * every saved revision (old snapshots included) renders without a re-save, and on save, so a stored
- * config always names its banner mode. Field names are unchanged: title, message, acceptLabel,
- * rejectLabel, preferencesLabel, privacyPolicyUrl, secondaryLink*, placement, reopen, appearance and
+ * every saved revision (old snapshots included) renders without a re-save.
+ * Field names are unchanged: title, message, acceptLabel,
+ * rejectLabel, preferencesLabel, privacyPolicyUrl, secondaryLink*, placement, appearance and
  * customCss map one to one. No Node, no engine state: preview, live pages and exports share it. */
 import { renderBanner, CONSENT_PLACEMENTS, type ConsentPlacement, type RenderBannerConfig, type RenderBannerOptions, type RenderedBanner } from '@jini-ai/cookie-consent/render';
 import type { RawContribution } from '@jini-ai/cookie-consent';
@@ -11,7 +11,7 @@ import type { SiteConsentBannerMode } from './config.js';
 export interface SiteConsentSource {
   enabled: boolean; regionMode: string; policyVersion: string; privacyPolicyUrl: string;
   title: string; message: string; acceptLabel: string; rejectLabel: string; preferencesLabel: string;
-  secondaryLinkLabel?: string; secondaryLinkUrl?: string; placement?: string; reopen?: string;
+  secondaryLinkLabel?: string; secondaryLinkUrl?: string; placement?: string;
   appearance?: object; customCss?: string; bannerMode?: SiteConsentBannerMode;
 }
 
@@ -23,13 +23,7 @@ export function siteBannerMode({ config }: { config: Pick<SiteConsentSource, 'en
   return config.enabled ? config.bannerMode ?? 'jini' : 'off';
 }
 
-/** Save-time half of the converter: the stored config names its banner mode (an existing choice is
- * kept, so switching the banner off and on again restores it). Idempotent. @complexity O(fields). */
-export function withSiteBannerMode<T extends Pick<SiteConsentSource, 'enabled' | 'bannerMode'>>({ config }: { config: T }, _optional = {}): T {
-  return config.bannerMode ? config : { ...config, bannerMode: 'jini' };
-}
-
-/** Read-time half: one site config → `renderBanner` input. `policy` is the published policy id (owner
+/** One site config → `renderBanner` input. `policy` is the published policy id (owner
  * version + revision), so a new publication asks visitors again. A global opt-out is read as `auto`:
  * EU, UK and unknown visitors always keep Reject. @complexity O(fields). */
 export function toSiteCookieConsent({ config, policy }: { config: SiteConsentSource; policy: string }, { plugins }: { plugins?: readonly RawContribution[] } = {}): SiteCookieConsent {
@@ -51,8 +45,8 @@ export function toSiteCookieConsent({ config, policy }: { config: SiteConsentSou
 function siteBannerOptions({ config }: { config: SiteConsentSource }, _optional = {}): SiteCookieConsent['options'] {
   const placement = CONSENT_PLACEMENTS.includes(config.placement as ConsentPlacement) ? config.placement as ConsentPlacement : undefined;
   return {
-    // Tovu adds its own footer "Cookie settings" link, so the corner button stays off unless asked for.
-    reopen: config.reopen === 'corner' ? 'corner' : 'link',
+    // Tovu adds its own footer "Cookie settings" link, so the corner button stays off.
+    reopen: 'link',
     ...(placement ? { placement } : {}),
     ...(config.appearance ? { appearance: config.appearance } : {}),
     ...(config.customCss ? { customCss: config.customCss } : {}),

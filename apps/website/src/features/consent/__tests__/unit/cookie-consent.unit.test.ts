@@ -3,9 +3,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { SITE_CONSENT_DEFAULT_CSS, SITE_CONSENT_DEFAULTS } from '../../config.js';
-import { renderSiteConsentPreview, siteBannerMode, toSiteCookieConsent, withSiteBannerMode, type SiteConsentSource } from '../../cookie-consent.js';
+import { renderSiteConsentPreview, siteBannerMode, toSiteCookieConsent, type SiteConsentSource } from '../../cookie-consent.js';
 
-const saved: SiteConsentSource = { ...SITE_CONSENT_DEFAULTS, privacyPolicyUrl: '/privacy', reopen: 'link', customCss: SITE_CONSENT_DEFAULT_CSS };
+const saved: SiteConsentSource = { ...SITE_CONSENT_DEFAULTS, privacyPolicyUrl: '/privacy', customCss: SITE_CONSENT_DEFAULT_CSS };
 
 test('an old saved config (no bannerMode) keeps every copy field and shows the Jini banner', () => {
   const { banner, options } = toSiteCookieConsent({ config: saved, policy: '1:rev1' });
@@ -22,13 +22,6 @@ test('banner mode: the on/off switch rules, then the saved mode, then the Jini b
   assert.equal(siteBannerMode({ config: { enabled: true } }), 'jini');
 });
 
-test('save-time conversion names the mode once and keeps an existing choice', () => {
-  assert.equal(withSiteBannerMode({ config: { enabled: true } }).bannerMode, 'jini');
-  const own = { enabled: false, bannerMode: 'headless' as const };
-  assert.equal(withSiteBannerMode({ config: own }), own);
-  assert.deepEqual(withSiteBannerMode({ config: withSiteBannerMode({ config: { enabled: true } }) }), { enabled: true, bannerMode: 'jini' });
-});
-
 test('a global opt-out is read as auto, so unknown visitors keep Reject; opt-in stays opt-in', () => {
   assert.equal(toSiteCookieConsent({ config: { ...saved, regionMode: 'opt-out' }, policy: 'p' }).banner.client.regionMode, 'auto');
   assert.equal(toSiteCookieConsent({ config: { ...saved, regionMode: 'opt-in' }, policy: 'p' }).banner.client.regionMode, 'opt-in');
@@ -42,11 +35,11 @@ test('the secondary link needs both label and URL; an unknown placement falls ba
   assert.equal(both.options.placement, undefined);
 });
 
-test('plugins reach the client config only when there are some; the corner button only when asked for', () => {
+test('plugins reach the client config only when there are some; preferences reopen through a link', () => {
   const adapter = { id: 'x', kind: 'consent-adapter', category: 'analytics', src: '/_consent/p/x/a.mjs' };
   assert.deepEqual(toSiteCookieConsent({ config: saved, policy: 'p' }, { plugins: [adapter] }).banner.client.plugins, [adapter]);
   assert.equal('plugins' in toSiteCookieConsent({ config: saved, policy: 'p' }, { plugins: [] }).banner.client, false);
-  assert.equal(toSiteCookieConsent({ config: { ...saved, reopen: 'corner' }, policy: 'p' }).options.reopen, 'corner');
+  assert.equal(toSiteCookieConsent({ config: saved, policy: 'p' }).options.reopen, 'link');
 });
 
 test('owner CSS reaches the preview; a bad rule is dropped alone (paired with the same CSS without it)', () => {
