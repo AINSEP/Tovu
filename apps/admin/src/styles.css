@@ -182,11 +182,12 @@ input[type="checkbox"], input[type="radio"] {
 .jini-secret { position: relative; display: flex; flex-direction: column; min-width: 0; }
 .jini-secret input { width: 100%; padding-right: 2.75rem; }
 .jini-secret-toggle {
-  position: absolute; top: 50%; right: 0; width: 40px; height: 40px; min-height: 0; margin: -20px 0 0;
+  /* translateY, not a -20px margin: the phone-width 44px touch-target floor resizes the button. */
+  position: absolute; top: 50%; right: 0; width: 40px; height: 40px; min-height: 0; margin: 0; transform: translateY(-50%);
   display: inline-flex; align-items: center; justify-content: center;
   background: none; border: 0; box-shadow: none; padding: 0; border-radius: var(--r-sm); color: var(--muted); cursor: pointer;
 }
-.jini-secret > label + .jini-secret-toggle { top: auto; bottom: -1.5px; margin: 0; }
+.jini-secret > label + .jini-secret-toggle { top: auto; bottom: -1.5px; margin: 0; transform: none; }
 .jini-secret-toggle:hover:not(:disabled), .jini-secret-toggle:focus-visible { color: var(--accent-text); background: none; }
 .jini-secret-toggle:focus-visible { outline-offset: -5px; }
 .jini-secret-toggle:disabled { opacity: 0.5; cursor: not-allowed; }
