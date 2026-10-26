@@ -26,8 +26,9 @@
           <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg>
         </span>
       </button>
-      <!-- Member sign-in: core's script turns this into the member's email + "Sign out" once they are signed in. Keep data-member-nav; without JS it stays a plain link to /signin. -->
-      <a href="/signin" class="btn btn-ghost nav-signin" data-member-nav data-toolname="starter_sign_in" data-tooldescription="Sign in">Sign in</a>
+      <!-- No default member sign-in link: the renderer has no site-level membership enabled signal.
+           A site offering sign-in can add a /signin link with data-member-nav: core's script turns
+           it into the member's email + "Sign out" when signed in; without JS it stays a plain link. -->
       <a href="download.html" class="btn btn-solid nav-cta">Download</a>
       <button class="nav-toggle btn btn-ghost" type="button" aria-expanded="false" aria-controls="mnav" aria-label="Open menu">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>

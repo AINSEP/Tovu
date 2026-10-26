@@ -200,7 +200,7 @@ test("canary: a POST-style template (blog-sidebar-template.html) renders nav, tr
 
   assert.ok(!html.includes("widget-placeholder"), "no marker may render as an empty widget placeholder");
   assert.ok(html.includes('<nav class="main-nav"'), "the nav partial must be spliced in");
-  assert.match(html, /<div class="nav-actions">[\s\S]*<a href="\/signin" class="btn btn-ghost nav-signin" data-member-nav data-toolname="starter_sign_in" data-tooldescription="Sign in">Sign in<\/a>\s*<a href="\/download" class="btn btn-solid nav-cta">Download<\/a>/, "member sign-in must render before the Download CTA with the starter's attributes");
+  assert.ok(html.includes('<a href="/download" class="btn btn-solid nav-cta">Download</a>'), "the Download CTA must survive without member sign-in");
   assert.ok(html.includes('<a href="/about">About</a>'), "the header menu must resolve to real links");
   assert.ok(html.includes("<footer"), "the footer partial must be spliced in");
   assert.ok(html.includes("<h1>Theme Authoring</h1>"), "the resolved entity must render into the template's slot");
@@ -209,6 +209,23 @@ test("canary: a POST-style template (blog-sidebar-template.html) renders nav, tr
   assert.ok(!html.includes("No docs menu bound yet"));
   assert.ok(html.includes("© 2026 Tovu. All rights reserved."));
 });
+
+for (const prefix of ["", "__original-themes__/"]) {
+  test(`canary: ${prefix}tovu-theme headers omit member sign-in without a site enablement signal`, () => {
+    const theme = tovuTheme();
+    // Reset must not restore the unconditional link. Exercise its real nav through the same renderer.
+    theme.partials.nav = fs.readFileSync(path.resolve(THEME_DIR, `../../${prefix}static/tovu-theme/render/partials/nav.html`), "utf8");
+    for (const pageId of new Set(["index", ...(theme.manifest.templates ?? []).map((name) => name.replace(/\.html$/, ""))])) {
+      const html = renderStaticPage({ theme, pageId });
+      assert.ok(html, `${pageId}: the real page must render`);
+      const header = html.replace(/<!--[\s\S]*?-->/g, "").match(/<header\b[\s\S]*?<\/header>/)?.[0];
+      assert.ok(header, `${pageId}: the header must render without JavaScript`);
+      assert.doesNotMatch(header, /<a\b[^>]*\bhref="\/(?:signin|login)"/, `${pageId}: no default sign-in anchor`);
+      assert.doesNotMatch(header, /<a\b[^>]*\bdata-member-nav\b/, `${pageId}: no member hook without site enablement`);
+      assert.ok(header.includes('<a href="/download" class="btn btn-solid nav-cta">Download</a>'), `${pageId}: retain the Download CTA`);
+    }
+  });
+}
 
 test("canary: a PAGE-style template (page-shell.html) renders through the SAME pipeline, with its own title substituted", () => {
   const html = renderThroughTemplate(tovuTheme(), templateFor(tovuTheme(), "page"), "Terms of Service", {
