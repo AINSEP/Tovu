@@ -22,6 +22,8 @@
    buttons on a narrow screen. */
 .provider-settings-dialog .jini-dialog-footer { flex-wrap: wrap; align-items: center; }
 .provider-settings-dialog p.provider-settings-applies { margin: 0 auto 0 0; color: var(--muted); font-size: var(--text-xs); flex: 1 1 12rem; }
+/* Phone width: the note takes its own row so Cancel and Save stay side by side under it. */
+@media (max-width: 36rem) { .provider-settings-dialog p.provider-settings-applies { flex-basis: 100%; } }
 
 /* Eye toggle for masked fields — the same rules the shared `components/SecretInput` brings to
    `styles.css`; scoped here until that lands on this branch (merge keeps one copy). */
