@@ -11,3 +11,13 @@ Plan: Part 1 source fixes (F1 sigv4, F3 auth+question-answer, F5 CIDR) → F9 (m
 - F3 `37681964` test: note-store invalid-id cases plant a file at each exact target (mutation isValidId→true fails 6/7; `../secret` still held by realpath containment).
 - F5 `95c93ec2` FAILING → `764b4db0` fix: CIDR requires exactly two fields (`/0/24`, `/24/`, `//24`). analytics 172 green.
 - F5 `8f2058c6` test: clock.sleep via controlled timers (mutants ms-5 / non-awaiting both fail).
+
+## 00:30 UTC — PROGRESS (correction: the 00:41 stamp above was mistyped; it was ~00:12)
+Part 1 Codex test findings, all pushed, each proven against the Codex mutation:
+- F1 `5b0…`/`0de090fc`: rehydrate metadata per field with original numeric values (each typeof check removal fails exactly one case); sqlite.f1 tracked handles closed before rm (probe: 0/6 open after forced failure).
+- F2 `db594b8f` unequal-score ordering literal (reversed comparator fails only the new case); `86202e92` sidecar child reaped + bounded readiness (stalled child fails in 5 s, 0 orphans); `405a01be` hard-link title.
+- F6 `c673b8a4` Max-Age test pinned clock (old test at 2026-12-01 fails Max-Age 0); `7f681886` test-owned TMPDIR root (removing finally-rm fails 4 cases).
+F9 (Tovu `cloud/fixwave-1025-F9`): **L15's meilisearch 15–20 % and commit-site 53.6 % were basename-mapping artifacts** (both have large website suites L15 never ran). Real before → after with L15 config (--force):
+- meilisearch provider 91.2 % (49 surv) → 97.3 % (15 surv; 14 equivalent) + 199 case.
+- commit-site 90.7 % (43 surv) → 96.1 % (18 surv, mostly equivalent) → more kills pushed, re-scoring.
+- s3 targets / cloudflare zones+domain-status / render deploy-ops tests pushed, re-scores queued.
