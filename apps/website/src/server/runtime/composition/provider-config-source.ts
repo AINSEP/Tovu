@@ -1,3 +1,6 @@
+import { providerKeyId, type ProviderKeyUsage, type ProviderWriteResult } from "#src/features/project-keys/service";
+export type { ProviderKeyUsage, ProviderWriteResult } from "#src/features/project-keys/service";
+import type { KeyAttachments, ProjectKeyTransaction } from "#src/features/project-keys/attachments";
 import type { AgentPluginStateStore } from "#src/features/api-connections/plugin-state";
 import { SECRET_OPEN_FAILED } from "#src/features/webhooks/secret-sealer.aesgcm";
 
@@ -5,8 +8,8 @@ import { SECRET_OPEN_FAILED } from "#src/features/webhooks/secret-sealer.aesgcm"
  * @file Where a provider plugin's saved settings live (provider wave 2 fix, owner 2026-10-25): a
  * neutral port, `pluginId → { settings, secrets }`, so boot and the admin settings card never know
  * which store answered. Two adapters: the site vault (default) and the project store (`project.db`,
- * shared by every site of a project — see `project-store.ts`). Precedence: the project store when one
- * is configured, else the site vault; no per-site override in v1.
+ * visible to attached sites only — see `project-store.ts`). Site rows win; a project row is read only
+ * when attached to this site.
  *
  * Both adapters reuse the existing plugin-state rows (`plugin-state:<pluginId>:<key>` in a
  * `secrets_vault` table, sealed with that store's key — `features/api-connections/plugin-state.ts`),
@@ -36,6 +39,7 @@ export interface ProviderSettingsView {
 }
 
 export interface ProviderConfigSource {
+  usage?(required: { pluginId: string }, optional?: Record<string, never>): Promise<ProviderKeyUsage>;
   /** Which store this is, for the admin card ("saved for this project" vs "this site"). */
   readonly scope: "project" | "site";
   /** Null when nothing was ever saved for the plugin.
@@ -45,7 +49,7 @@ export interface ProviderConfigSource {
    *  file header), but no secret value is returned. Null when nothing was saved. */
   readSettings(required: { pluginId: string }, optional?: Record<string, never>): Promise<ProviderSettingsView | null>;
   /** Saves the whole config, overwriting a row this machine cannot open. */
-  write(required: { pluginId: string; config: ProviderPluginConfig }, optional?: Record<string, never>): Promise<void>;
+  write(required: { pluginId: string; config: ProviderPluginConfig }, optional?: Record<string, never>): Promise<ProviderWriteResult | void>;
 }
 
 /**
@@ -141,28 +145,49 @@ export function createVaultProviderConfigSource(
       const { settings, secrets } = found;
       return { settings, secretNames: Object.keys(secrets).filter((name) => secrets[name] !== "") };
     },
+    async usage({ pluginId }) {
+      const exists = (await required.state.describe({ workspaceId: required.workspaceId, pluginId })).keys.some(entry => entry.key === CONFIG_KEY);
+      return { ...(exists ? { keyId: providerKeyId({ pluginId }) } : {}), store: required.scope,
+        usedByThisSite: exists && required.scope === "site", usedBy: [] };
+    },
     async write({ pluginId, config }) {
       await store({ pluginId }).set({ key: CONFIG_KEY, value: { settings: { ...config.settings }, secrets: { ...config.secrets } } });
+      return { keyId: providerKeyId({ pluginId }), store: required.scope, usedByThisSite: required.scope === "site", usedBy: [] };
     },
   };
 }
 
-/**
- * Project store first, else the site vault (owner: no per-site override in v1). Reads fall back per
- * plugin; writes go to the project store whenever one is configured.
- */
-export function withProjectPrecedence(
-  required: { site: ProviderConfigSource },
-  optional: { project?: ProviderConfigSource } = {},
+/** Site rows win. Project values are invisible until this site's explicit attachment exists. */
+export function withAttachedProject(
+  { site }: { site: ProviderConfigSource },
+  { project, attachments, siteId = "", transaction = async ({ run }) => run() }: { project: ProviderConfigSource; attachments: KeyAttachments; siteId?: string; transaction?: ProjectKeyTransaction },
 ): ProviderConfigSource {
-  const { project } = optional;
-  if (!project) return required.site;
+  const attached = ({ pluginId }: { pluginId: string }) => attachments.isAttached({ siteId, keyId: providerKeyId({ pluginId }) });
+  async function usage(input: { pluginId: string }): Promise<ProviderKeyUsage> {
+    if (await site.readSettings(input)) return { keyId: providerKeyId(input), store: "site", usedByThisSite: true, usedBy: [] };
+    const keyId = providerKeyId(input);
+    const exists = Boolean(await project.readSettings(input));
+    const users = await attachments.usersOf({ keyId });
+    return { ...(exists ? { keyId } : {}), store: "project", usedByThisSite: exists && users.some(user => user.siteId === siteId), usedBy: users.map(user => user.siteName) };
+  }
   return {
-    scope: "project",
-    read: async (input) => (await project.read(input)) ?? required.site.read(input),
-    readSettings: async (input) => (await project.readSettings(input)) ?? required.site.readSettings(input),
-    write: (input) => project.write(input),
+    scope: "project", usage,
+    read: async input => (await site.read(input)) ?? (await attached(input) ? project.read(input) : null),
+    readSettings: async input => (await site.readSettings(input)) ?? (await attached(input) ? project.readSettings(input) : null),
+    write: input => transaction({ run: async () => {
+      const current = await usage(input);
+      const own = current.store === "site" || (!current.usedByThisSite && current.usedBy.length > 0);
+      // The unfiltered store owns revision reads; filtering it would hide the row being replaced.
+      await (own ? site : project).write(input);
+      return usage(input).then(result => ({ ...result, keyId: providerKeyId(input) }));
+    } }),
   };
+}
+
+/** Presence-only fallback for injected sources predating usage(). */
+export async function providerKeyUsage({ config, pluginId }: { config: ProviderConfigSource; pluginId: string }, _optional = {}): Promise<ProviderKeyUsage> {
+  if (config.usage) return config.usage({ pluginId });
+  return { store: config.scope, usedByThisSite: Boolean(await config.readSettings({ pluginId })), usedBy: [] };
 }
 
 /**

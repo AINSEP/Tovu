@@ -15,7 +15,7 @@ import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 /**
  * @file The real composition root (`deps.ts`) wires custom and publish credentials project-first
  * (owner 2026-10-25): a key saved from site A lands in the shared `project.db` and site B of the same
- * project reads it; with a project store that cannot open, saves stay in the site's own vault.
+ * project reads it only after explicit attachment; with a project store that cannot open, saves stay in the site's own vault.
  */
 
 function withSiteKey(t: TestContext, hex: string): void {
@@ -26,6 +26,7 @@ function withSiteKey(t: TestContext, hex: string): void {
 
 async function bootSite(required: { siteDir: string; openProjectStore: () => ReturnType<typeof openProjectStore> }): Promise<{ deps: RouteDeps; close: () => Promise<void> }> {
   fs.mkdirSync(required.siteDir, { recursive: true });
+  fs.writeFileSync(path.join(required.siteDir, ".site-meta.json"), JSON.stringify({ siteId: `uuid-${path.basename(required.siteDir)}` }));
   let close = async () => {};
   const deps = await createSiteRouteDeps(path.join(required.siteDir, "content.db"), { openProjectStore: required.openProjectStore,
     siteBinding: { dir: required.siteDir, name: path.basename(required.siteDir), dirOverridden: true, switcherCompatible: false },
@@ -38,7 +39,7 @@ const saveKey = (deps: RouteDeps, token: string) => createCustomCredential({ rep
   keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen },
 { workspaceId: deps.workspaceId, label: "hosting", category: "hosting", baseUrl: "https://api.example.test", connection: { token } });
 
-test("a key saved from site A lands in project.db and site B of the same project uses it", async (t) => {
+test("a key saved from site A lands in project.db and site B cannot use it until attached", async (t) => {
   withSiteKey(t, "ab".repeat(32));
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-project-credentials-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -46,15 +47,24 @@ test("a key saved from site A lands in project.db and site B of the same project
   const projectStore = () => openProjectStore({ sitesHome, home: path.join(root, "home") });
   const token = `tok-${"s".repeat(14)}`;
   const a = await bootSite({ siteDir: path.join(sitesHome, "site-a"), openProjectStore: projectStore });
+  let id: string;
   try {
     const saved = await saveKey(a.deps, token);
-    assert.equal(saved.scope, "project");
+    assert.equal(saved.scope, "project"); id = saved.id;
     assert.equal(JSON.stringify(saved).includes(token), false);
+    assert.equal(await resolveCustomCredentialByLabel({ repo: a.deps.customCredentialSetRepo, sealer: a.deps.siteAssistantSecretSealer }, { workspaceId: a.deps.workspaceId, label: "hosting" }), null);
+    await assert.rejects(saveKey(a.deps, token), { message: "Your project already has a key named 'hosting'. Use it here, or pick another name." });
+    await a.deps.projectKeys!.use({ keyId: id, use: true });
   } finally { await a.close(); }
   const b = await bootSite({ siteDir: path.join(sitesHome, "site-b"), openProjectStore: projectStore });
   try {
+    const read = () => resolveCustomCredentialByLabel({ repo: b.deps.customCredentialSetRepo, sealer: b.deps.siteAssistantSecretSealer }, { workspaceId: b.deps.workspaceId, label: "hosting" });
+    assert.equal(await read(), null);
+    await b.deps.projectKeys!.use({ keyId: id!, use: true });
     const resolved = await resolveCustomCredentialByLabel({ repo: b.deps.customCredentialSetRepo, sealer: b.deps.siteAssistantSecretSealer }, { workspaceId: b.deps.workspaceId, label: "hosting" });
     assert.equal(resolved?.connection.token, token);
+    await b.deps.projectKeys!.use({ keyId: id!, use: false });
+    assert.equal(await read(), null);
   } finally { await b.close(); }
 });
 
@@ -62,7 +72,7 @@ test("a key saved from site A lands in project.db and site B of the same project
 const publishDeps = (deps: RouteDeps) => ({ repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer,
   keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen, loadDeployTargets: loadBundledDeployTargets });
 
-test("a publish-host connection saved from site A deploys from site B of the same project", async (t) => {
+test("a publish-host connection saved from site A deploys from site B only after attachment", async (t) => {
   withSiteKey(t, "ef".repeat(32));
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-project-publish-credentials-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -78,6 +88,8 @@ test("a publish-host connection saved from site A deploys from site B of the sam
   } finally { await a.close(); }
   const b = await bootSite({ siteDir: path.join(sitesHome, "site-b"), openProjectStore: projectStore });
   try {
+    assert.equal(await resolveDefaultForPublish(publishDeps(b.deps), { workspaceId: b.deps.workspaceId, providerId: "vercel" }), null);
+    await b.deps.projectKeys!.use({ keyId: id!, use: true });
     const resolved = await resolveDefaultForPublish(publishDeps(b.deps), { workspaceId: b.deps.workspaceId, providerId: "vercel" });
     assert.deepEqual(resolved, { id, label: "default", connection: { providerId: "vercel", token } });
   } finally { await b.close(); }

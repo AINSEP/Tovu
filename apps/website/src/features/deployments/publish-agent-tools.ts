@@ -2,7 +2,6 @@ import type { LoadInstalledDeployTargets, InstalledDeployTarget } from "./deploy
 import { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-repo.js";
 export { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-repo.js";
 import { applyPluginCredentialCard, findPluginCredentialCard, type LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
-import { siteOnlyScope, withSiteOnlyField } from "../custom-credentials/site-only-field.js";
 import { deploymentRefusal, type SiteConsentService } from '#src/features/consent/service';
 import { toolMetadata } from '../../contracts/core/tool-metadata/deployments.js';
 import { inspectStaticPublish } from './static-publish/inspection.js';
@@ -14,7 +13,7 @@ import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnosti
 import { assertCredentialFreeField, type CredentialTokenHint } from '../../contracts/core/credential-token.js';
 import { credentialText, formatCredentialHint, translateCredentialMessage } from '../../contracts/core/credential-copy.js';
 import { resolveOperatorLocale, type OperatorLocaleDeps } from '../agent-plugins/operator-locale.js';
-import { PublishCredentialValidationError } from './publish-credentials/store.js';
+import { PublishCredentialDuplicateLabelError, PublishCredentialValidationError } from './publish-credentials/store.js';
 import { summarizeCredentialSources, type CredentialCopyToolDeps } from '../custom-credentials/index.js';
 import { verifyPublishCredentialById, verifySubmittedPublishCredential } from './static-publish/verify.js';
 import { nowIso as clockNowIso, type Clock } from "@jini-ai/core/primitives";
@@ -806,10 +805,9 @@ function buildProposeCredentialForm(required: {
 async function saveProposedCredential(required: {
   deps: StaticPublishToolDeps; targetId: string; credential: DeployTargetCredentialSpec;
   values: Readonly<Record<string, unknown>>; signal: AbortSignal;
-}, _optional = {}): Promise<{ credentialId: string; tokenHint: CredentialTokenHint | null }> {
+}, _optional = {}): Promise<{ credentialId: string; tokenHint: CredentialTokenHint | null; usedByThisSite: boolean }> {
   const { deps, targetId, credential, values, signal } = required;
-  // "Only for this site" (shown on a new connection only): else the project store when one is attached.
-  const scope = siteOnlyScope({ values });
+  // New project keys remain inert until the person accepts the attachment question.
   const connection: Record<string, unknown> = { providerId: targetId };
   for (const field of credential.fields) {
     if (typeof values[field.name] === "string") connection[field.name] = values[field.name];
@@ -831,8 +829,8 @@ async function saveProposedCredential(required: {
   signal.throwIfAborted();
   const stored = existing
     ? await updatePublishCredential(writeDeps, { workspaceId: deps.workspaceId, id: existing.id, connection })
-    : await createPublishCredential(writeDeps, { workspaceId: deps.workspaceId, label: CUSTOM_PROVIDER_CREDENTIAL_ROW_LABEL, connection, ...(scope ? { scope } : {}) });
-  return { credentialId: stored.id, tokenHint: stored.tokenHint ?? null };
+    : await createPublishCredential(writeDeps, { workspaceId: deps.workspaceId, label: CUSTOM_PROVIDER_CREDENTIAL_ROW_LABEL, connection });
+  return { credentialId: stored.id, tokenHint: stored.tokenHint ?? null, usedByThisSite: existing !== undefined || stored.scope !== "project" };
 }
 
 /** Reuse the provider-owned verifier only where replacement would destroy an existing key.
@@ -874,7 +872,7 @@ async function saveProposeCredential(required: {
   let connection: 'saved' | 'connected' | 'auth' | 'timeout' | 'unreachable' = 'saved';
   try {
     const registry = await deployTargetsLoader(deps)(deps.workspaceId);
-    if (registry.get(targetId)?.module.verifyCredential) {
+    if (saveResult.usedByThisSite && registry.get(targetId)?.module.verifyCredential) {
       const verification = await verifyPublishCredentialById({
         repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer,
         cache: deps.publishCredentialVerificationCache, clock: { nowIso: () => clockNowIso({ clock: deps.clock }) },
@@ -884,7 +882,7 @@ async function saveProposeCredential(required: {
     }
   } catch { connection = 'unreachable'; }
   const hint = formatCredentialHint({ hint: saveResult.tokenHint, locale });
-  return { saved: true as const, providerId: targetId, connected: connection === 'connected', connection,
+  return { saved: true as const, credentialId: saveResult.credentialId, providerId: targetId, connected: connection === 'connected', connection,
     tokenHint: saveResult.tokenHint, message: `${hint ? `${hint}. ` : ''}${credentialText({ id: connection, locale })}` };
 
 }
@@ -954,10 +952,8 @@ export function buildPublishHostCredentialHandler({ deps, surfaces }: { deps: St
       }>({
         toolId: CREDENTIAL_SAVE_TOOL_ID,
         prepare: async () => ({ descriptor, credential, prefill, updating, locale }),
-        // Project-first (owner 2026-10-25): a new connection may opt out, for this site only; an update
-        // changes the saved row where it lives.
-        form: ({ prep }) => withSiteOnlyField({ form: applyPluginCredentialCard({ card: pluginCard, form: buildProposeCredentialForm(prep) }),
-          shared: !prep.updating && Boolean(deps.vendorCredentialSetRepo.project) }),
+        // New project keys need explicit attachment; an update changes the saved row where it lives.
+        form: ({ prep }) => applyPluginCredentialCard({ card: pluginCard, form: buildProposeCredentialForm(prep) }),
         save: ({ values, prep, signal }) => saveProposeCredential({ deps, targetId: prep.descriptor.id, credential: prep.credential, values, signal, locale: prep.locale }),
         result: ({ prep, run }) => {
           if (run.status === 'saved') return run.saved;
@@ -977,7 +973,7 @@ export function buildPublishHostCredentialHandler({ deps, surfaces }: { deps: St
         uriHost: 'tovu',
         text: { noEmitter: "deployment_propose_custom_provider_credential: this execution context has no interactive confirmation channel " +
           "(no emitSurface), so a credential form cannot be shown here. Nothing was saved.", saveFailure: credentialText({ id: 'unreachable', locale }) },
-        safeError: err => err instanceof PublishCredentialValidationError ? translateCredentialMessage({ message: err.message, locale }) : undefined,
+        safeError: err => err instanceof PublishCredentialDuplicateLabelError ? err.message : err instanceof PublishCredentialValidationError ? translateCredentialMessage({ message: err.message, locale }) : undefined,
         logFailure: metadata => console.warn(JSON.stringify(metadata)),
       });
       return card.handler({ surfaceExchanges: surfaces.surfaceExchanges, askThenReport })(ctx, optional);

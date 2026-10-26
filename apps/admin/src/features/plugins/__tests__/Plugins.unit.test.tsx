@@ -765,8 +765,8 @@ describe("X1: a refresh failure after load keeps the tabs and rows", () => {
 describe("provider settings saved notice (injected controller)", () => {
   it("shows the controller's notice as a status toast; its X dismisses it", () => {
     const dismissSettingsNotice = vi.fn();
-    renderPluginsWithController({ settingsNotice: "PostHog settings saved — applies next time Tovu starts", dismissSettingsNotice });
-    expect(screen.getByRole("status")).toHaveTextContent("PostHog settings saved — applies next time Tovu starts");
+    renderPluginsWithController({ settingsNotice: "PostHog settings saved", dismissSettingsNotice });
+    expect(screen.getByRole("status")).toHaveTextContent("PostHog settings saved");
     fireEvent.click(screen.getByRole("button", { name: /dismiss/i }));
     expect(dismissSettingsNotice).toHaveBeenCalled();
   });

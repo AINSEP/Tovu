@@ -199,3 +199,5 @@ export default {
 Do not hard-code a vendor picker, token label, API origin or error branch in core.
 Do not import a sibling plugin's implementation. Use the contribution loader's
 trusted, active bundled-package gate; a third-party upload does not authorize code execution.
+
+- Card saves go to the project unattached. Follow the result's `ask` exactly; on yes call `project_key_use {keyId, use:true}`. An existing site key stays site-only.

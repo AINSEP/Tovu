@@ -115,7 +115,7 @@ test("custom-credentials: an unexpected store failure on list or delete is a fix
   assert.deepEqual(logged.mock.calls.map((c) => c.arguments), [["[custom-credentials] unexpected store error"], ["[custom-credentials] unexpected store error"]]);
 });
 
-test("custom-credentials: with a project store, keys save to the project unless scope is site; Share moves a site key to the project", async (t) => {
+test("custom-credentials: with a project store, keys save to the project unless scope is site; the unused Share route is removed", async (t) => {
   const { app, deps } = setup({ withTargets: false });
   const keyring = new InMemoryKeyring();
   const project = { workspaceId: "project", repo: new InMemoryCustomCredentialSetRepo(), sealer: new AesGcmSecretSealer(keyring), keyring };
@@ -129,15 +129,12 @@ test("custom-credentials: with a project store, keys save to the project unless 
   assert.equal(everywhere.json.credential.scope, "project", JSON.stringify(everywhere.json));
   const own = await send("POST", "", { ...CREATE, label: "Site token", scope: "site" });
   assert.equal(own.json.credential.scope, "site");
-  const moved = await send("POST", `/${own.json.credential.id}/share`);
-  assert.equal(moved.status, 200, JSON.stringify(moved.json));
-  assert.deepEqual([moved.json.credential.id, moved.json.credential.scope], [own.json.credential.id, "project"]);
-  assert.equal(JSON.stringify(moved.json).includes(CREATE.connection.token), false);
-  assert.equal((await send("POST", `/${own.json.credential.id}/share`)).status, 404, "no longer a site-only key");
+  assert.equal((await send("POST", `/${own.json.credential.id}/share`)).status, 404);
+  assert.equal((await shared.customCredentialSetRepo.findById({ workspaceId: deps.workspaceId, id: own.json.credential.id }))?.label, "Site token", "the removed route cannot move the saved key");
   assert.equal((await send("POST", "", { ...CREATE, label: "x", scope: "nowhere" })).status, 400);
   // A server without a project store (Fly) has nothing to share with.
   const siteOnly = await client(t, app, deps.workspaceId);
   const plain = await siteOnly("POST", "", CREATE);
   assert.equal("scope" in plain.json.credential, false);
-  assert.equal((await siteOnly("POST", `/${plain.json.credential.id}/share`)).status, 400);
+  assert.equal((await siteOnly("POST", `/${plain.json.credential.id}/share`)).status, 404);
 });

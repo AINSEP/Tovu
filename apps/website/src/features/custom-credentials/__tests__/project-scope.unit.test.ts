@@ -1,3 +1,6 @@
+import { protectProjectKeyDeletes } from "#src/features/project-keys/protected-vault";
+import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
+import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -27,9 +30,9 @@ import { CustomCredentialVaultRepo } from "../vault-repo.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
- * @file Custom credentials are project-first (owner 2026-10-25): a save lands in the project store
- * every site of the project shares; a site's own row (existing, or saved "only for this site") wins
- * over the project's; a server without a project store (Fly) keeps today's site-only behaviour.
+ * @file Custom credentials save to the project (owner 2026-10-25); a site's own row wins over an
+ * attached project row. Scope tests inject an unfiltered project repo; attachment tests below use
+ * the production attached-only view. A server without a project store (Fly) stays site-only.
  * Real AES-GCM sealing with a separate key per store, so a row only opens with the store that sealed it.
  */
 
@@ -216,4 +219,38 @@ test("Share refuses to delete a site rotation made after the copy was verified",
     { message: "This credential changed while sharing. The site copy was kept; try again." });
   assert.equal((await resolveCustomCredentialByLabel(site, { workspaceId: SITE_A, label: "hosting" }))?.connection.token, secret("rotated"));
   assert.equal((await resolveCustomCredentialByLabel(siteDeps({ project }), { workspaceId: SITE_B, label: "hosting" }))?.connection.token, secret("copied"));
+});
+
+test("custom project keys stay hidden until attached and detach immediately across label and id lookups", async () => {
+  const project = projectScope(); const attachments = fakeAttachments();
+  const raw = project.repo.vault!;
+  const a = siteDeps({ project: { ...project, repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: raw, siteId: SITE_A, attachments }) }) } });
+  const saved = await save(a, SITE_A, "attached-only", secret("attached"));
+  assert.equal(await describeCredential(a, { workspaceId: SITE_A, id: saved.id }), null);
+  assert.equal(await resolveCustomCredentialByLabel(a, { workspaceId: SITE_A, label: "attached-only" }), null);
+  await attachments.attach({ siteId: SITE_A, keyId: saved.id, siteName: "A" });
+  assert.equal((await resolveCustomCredentialByLabel(a, { workspaceId: SITE_A, label: "attached-only" }))?.connection.token, secret("attached"));
+  const b = siteDeps({ project: { ...project, repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: raw, siteId: SITE_B, attachments }) }) } });
+  assert.equal(await describeCredential(b, { workspaceId: SITE_B, id: saved.id }), null);
+  await attachments.detach({ siteId: SITE_A, keyId: saved.id });
+  assert.deepEqual(await listCustomCredentials(a, { workspaceId: SITE_A }), []);
+});
+
+
+test("an explicit delete can remove an unattached project key and refuses a hidden key used by another site", async () => {
+  const project = projectScope(); const attachments = fakeAttachments();
+  const raw = project.repo.vault!;
+  const protectedVault = protectProjectKeyDeletes({ vault: raw, attachments, siteId: SITE_A, transaction: async ({ run }) => run() });
+  const deps = siteDeps({ project: { ...project,
+    repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: protectedVault, siteId: SITE_A, attachments }) }),
+    deletionRepo: new CustomCredentialVaultRepo({ vault: protectedVault }),
+  } });
+  const saved = await save(deps, SITE_A, "unused", secret("unused"));
+  assert.equal(await describeCredential(deps, { workspaceId: SITE_A, id: saved.id }), null);
+  await deleteCustomCredential(deps, { workspaceId: SITE_A, id: saved.id });
+  assert.equal(await raw.find({ workspaceId: "project", id: saved.id }), null);
+  const next = await save(deps, SITE_A, "used-elsewhere", secret("elsewhere"));
+  await attachments.attach({ siteId: SITE_B, siteName: "B", keyId: next.id });
+  await assert.rejects(deleteCustomCredential(deps, { workspaceId: SITE_A, id: next.id }), { message: "Used by B too. To stop using it here, choose 'Stop using it on this site'." });
+  assert.equal((await raw.find({ workspaceId: "project", id: next.id }))?.id, next.id);
 });

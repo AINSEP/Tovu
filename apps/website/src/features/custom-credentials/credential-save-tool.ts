@@ -1,3 +1,4 @@
+import type { ToolExecutionOptions } from "@jini-ai/core";
 import { loadPluginCredentialCardsSafely, type PluginCredentialCard } from "./plugin-credential-card.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/custom-credentials.js';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, ToolInputError, type AgentToolDefinition, type DerivedRiskByToolId, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from '@jini-ai/core';
@@ -34,7 +35,7 @@ export const credentialSaveCatalog: AgentToolDefinition[] = [{
     'Examples: create an API credential with {kind:"api",label:"payments",baseUrl:"https://api.example.test",category:"general"}; rotate a saved API token with {kind:"api",target:"hosting-prod"} (target is the exact saved label, username is preserved); save an image generation key with {kind:"media-provider",target:"image-provider"}; connect repository backups with {kind:"source-control",target:"<repository provider id>",label:"default"}; save a hosting connection with {kind:"publish-host",target:"<storage provider id>",prefill:{bucket:"my-site",region:"us-east-1"}}; use a plugin token with {kind:"agent-plugin-token",target:"<plugin id>"}; open a plugin’s own key card with {kind:"plugin-provider",target:"<provider id>"}. ' +
     'Discover targets first with content_read.custom_credential, media_list_providers, source_control_get_capabilities or deployment_get_static_publish_capabilities. Choose the card or saved key whose usedFor covers the task; do not ask the person. usedFor is display text, not permission or verification. API creation accepts optional label/baseUrl/category/worksFor prefill; without target it creates a new row and refuses a duplicate label. Publish prefill accepts only provider-declared non-secret fields. Never supply a secret in any argument. ' +
     'Before opening any key card, explain which service and purpose it is for. Refuse to open a replacement-token card for a saved working credential unless the person explicitly asked to replace that key. Never open secret-entry cards during a read-only request or to answer what a token is. Read saved metadata and answer in words first. Account-management access may require a separate plugin connection; do not overwrite a working sending key to obtain broader access. ' +
-    'Permissions stay per kind: custom-credentials.write, admin.integrations.manage (media/plugin), source-control.credentials.write, deployments.credentials.write. Results retain each kind’s safe save status and errors; only API creation returns created/credential. Saving a media key does not verify it or add adapter support. External MCP server config, user creation, database destinations and app environment secrets use their own action tools. After success retry the original request once.',
+    'Permissions stay per kind: custom-credentials.write, admin.integrations.manage (media/plugin), source-control.credentials.write, deployments.credentials.write. Results retain each kind’s safe save status and errors; only API creation returns created/credential. Saving a media key does not verify it or add adapter support. External MCP server config, user creation, database destinations and app environment secrets use their own action tools. When the result has ask, ask the person exactly that; on yes call project_key_use {keyId, use:true}. After success retry the original request once.',
   sideEffects: 'mutates-durable-state',
   authorization: { permission: 'resolved-per-kind' },
   inputSchema: {
@@ -123,13 +124,15 @@ function selectPublishSave({ metadata, adapters }: { metadata: Record<string, un
  * @example buildCredentialSaveRegistrations({ adapters });
  * @complexity Registration O(1); each invocation performs O(k + f) routing before one domain save.
  */
-export function buildCredentialSaveRegistrations({ adapters, loadPluginCredentialCards, authorizePluginProvider, adaptersForCards }: { adapters: CredentialSaveAdapters; loadPluginCredentialCards?: () => Promise<readonly PluginCredentialCard[]>; authorizePluginProvider?: (ctx: ToolExecutionContext) => Promise<void>; adaptersForCards?: (required: { cards: readonly PluginCredentialCard[] }) => CredentialSaveAdapters }, _optional = {}): ToolRegistration[] {
+export function buildCredentialSaveRegistrations({ adapters, loadPluginCredentialCards, authorizePluginProvider, adaptersForCards, savedResult }: { savedResult?: (input: { result: unknown; label?: string }) => Promise<unknown>; adapters: CredentialSaveAdapters; loadPluginCredentialCards?: () => Promise<readonly PluginCredentialCard[]>; authorizePluginProvider?: (ctx: ToolExecutionContext) => Promise<void>; adaptersForCards?: (required: { cards: readonly PluginCredentialCard[] }) => CredentialSaveAdapters }, _optional = {}): ToolRegistration[] {
   return buildDomainRegistrations({ metadata: toolMetadata,
     domain: 'credential-save', catalogModule: 'features/custom-credentials/credential-save-tool.ts',
     catalog: indexCatalogById({ catalog: credentialSaveCatalog }), derivedRisk: credentialSaveDerivedRisk,
     handlers: { [CREDENTIAL_SAVE_TOOL_ID]: async (ctx, optional = {}) => {
       const selected = selectSave({ input: requireInputRecord({ input: ctx.input }), adapters });
-      if (selected.handler !== adapters.pluginProvider || !loadPluginCredentialCards) return selected.handler({ ...ctx, input: selected.input }, optional);
+      if (selected.handler !== adapters.pluginProvider || !loadPluginCredentialCards) {
+        return invokeSaveAdapter({ selected, ctx, options: optional, savedResult, loadPluginCredentialCards });
+      }
       // A card can choose a domain, so require the entry permission before reading plugin data.
       if (!authorizePluginProvider) throw new ToolInputError({ message: 'Plugin credential card authorization is unavailable. Use the credential kind directly.' });
       await authorizePluginProvider(ctx);
@@ -138,7 +141,8 @@ export function buildCredentialSaveRegistrations({ adapters, loadPluginCredentia
       const card = cards.find(entry => entry.providerId === selected.input.provider);
       const resolved = { ...selected, handler: resolvedAdapters.pluginProvider };
       const routed = routePluginCard({ card, selected: resolved, adapters: resolvedAdapters });
-      return routed.handler({ ...ctx, input: routed.input }, optional);
+      const result = await routed.handler({ ...ctx, input: routed.input }, optional);
+      return savedResult ? savedResult({ result, label: card?.label }) : result;
     } },
   });
 }
@@ -157,4 +161,19 @@ function routePluginCard({ card, selected, adapters }: { card?: PluginCredential
     case 'oauth': throw new ToolInputError({ message: 'This plugin connects by browser sign-in. Use agent_plugin_connect with its pluginId.' });
     default: return selected;
   }
+}
+
+
+/** Domain saves own the human exchange; one result projection adds the generic attachment ask. */
+async function invokeSaveAdapter({ selected, ctx, options, savedResult, loadPluginCredentialCards }: {
+  selected: { handler: ToolHandler; input: Record<string, unknown> }; ctx: ToolExecutionContext; options: ToolExecutionOptions;
+  savedResult?: (input: { result: unknown; label?: string }) => Promise<unknown>;
+  loadPluginCredentialCards?: () => Promise<readonly PluginCredentialCard[]>;
+}, _optional = {}): Promise<unknown> {
+  const result = await selected.handler({ ...ctx, input: selected.input }, options);
+  if (!savedResult) return result;
+  const cards = loadPluginCredentialCards ? await loadPluginCredentialCardsSafely({ loadCards: loadPluginCredentialCards, workspaceId: "" }) : [];
+  const target = selected.input.target ?? selected.input.provider ?? selected.input.label;
+  const card = cards.find(card => target !== undefined && ((card.saveTarget ?? card.providerId) === target || card.ownedApiLabel === target));
+  return savedResult({ result, label: card?.label });
 }

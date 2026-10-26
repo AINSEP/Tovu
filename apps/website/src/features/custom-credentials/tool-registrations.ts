@@ -56,7 +56,6 @@ import {
 import { cleanCardToken } from "./card-token.js";
 import { applyPluginCredentialCard, loadPluginCredentialCardsSafely, findPluginCredentialCard, buildPluginCredentialForm, readPluginCredentialValues, type LoadPluginCredentialCards } from "./plugin-credential-card.js";
 import { buildCreateForm, buildCreateOutcome, type CreateCredentialPrefill } from "./custom-credential-create-ui.js";
-import { siteOnlyScope, withSiteOnlyField } from "./site-only-field.js";
 import { setTokenForm, setTokenOutcome } from "./custom-credential-set-token-ui.js";
 import { describeDeleteRequestApproval, MAKE_CREDENTIALED_REQUEST_TOOL_ID } from "./delete-request-confirmation-ui.js";
 import type { FileWritePlan, SourceControlProvider } from "../source-control/provider-module.js";
@@ -800,6 +799,7 @@ function mapCreateCredentialError(
 ): CreateCardFailure {
   const { err, locale, label } = required;
   if (err instanceof CustomCredentialDuplicateLabelError) {
+    if (err.message.startsWith("Your project already has a key named '")) return { reason: 'duplicate-label', message: err.message };
     const message =
       `A custom credential labeled '${label}' already exists in this workspace. To rotate its token, use credential_save with kind api and target set to this label — ` +
       "this tool only creates NEW credentials and never overwrites an existing one.";
@@ -878,11 +878,10 @@ async function openCreateCard(required: {
   const card = defineSecretCardTool<Record<string, never>, CustomCredentialSummary, CreateCredentialResult>({
     toolId: CREDENTIAL_SAVE_TOOL_ID,
     prepare: async () => ({}),
-    // Project-first (owner 2026-10-25): the box opts this one key out, for this site only.
-    form: () => withSiteOnlyField({ form: form(), shared: Boolean(routeDeps.customCredentialSetRepo.project) }),
+    // Project saves remain inert until the person accepts the attachment question.
+    form: () => form(),
     save: ({ values, signal }) => {
-      const scope = siteOnlyScope({ values });
-      const submission = { ...submissionOf(values), ...(scope ? { scope } : {}) };
+      const submission = submissionOf(values);
       displayLabel = redactSecrets({ input: submission.displayLabel }, { exactSecrets: [submission.token] });
       return saveCreateCard({ submission, routeDeps, signal });
     },

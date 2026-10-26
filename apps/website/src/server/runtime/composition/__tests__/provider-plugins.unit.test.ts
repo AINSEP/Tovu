@@ -82,7 +82,7 @@ const quiet = () => {};
 test("nothing configured: nothing is loaded, every contract is the shared noop, and AI tracing is off", async () => {
   const { runtime, requested } = fakeRuntime({ factories: {}, installed: [] });
   const ports = await bootProviderPlugins({ runtime, config: configOf({}), serviceName: "tovu", site: SITE, ...consentAlways }, { warn: quiet });
-  assert.deepEqual(requested, [[]]);
+  assert.deepEqual(requested, []);
   assert.equal(isNoopObservabilityPort(ports.observability), true);
   assert.equal(isNoopProductAnalytics(ports.productAnalytics), true);
   assert.equal(ports.aiTraceSink, undefined);
@@ -97,7 +97,7 @@ test("installed + enabled + configured OTel and Sentry: mapped inputs, one fanne
     "observability-sentry": { contract: "observability", id: "sentry", factory: fakeFactory({ calls: sentry, port: recordingObservability(seen) }) },
   } });
   const ports = await bootProviderPlugins({ runtime, config: configOf(CONFIGS), serviceName: "tovu", site: SITE, ...consentAlways }, { warn: quiet });
-  assert.deepEqual(requested, [["observability-opentelemetry", "observability-sentry"]]);
+  assert.deepEqual(requested, [["observability-opentelemetry"], ["observability-sentry"]]);
   assert.deepEqual(otel.inputs, [{ serviceName: "tovu", attribution: OBS_ATTRIBUTION, endpoint: "https://otlp.example.test/otlp", headers: "Authorization=Basic MTIzNDU2OmdsY190b2tlbg==" }]);
   assert.deepEqual(sentry.inputs, [{ serviceName: "tovu", attribution: OBS_ATTRIBUTION, dsn: "https://public@sentry.example.test/1" }]);
   ports.observability.trackOperation({ name: "publish" }).end({ outcome: "completed", failed: false });
@@ -121,9 +121,9 @@ test("unreadable saved settings are treated as not configured, with a warning na
   const calls: Calls = { inputs: [], disposed: 0 };
   const { runtime, requested } = fakeRuntime({ installed: ["observability-opentelemetry"], factories: { "observability-opentelemetry": { contract: "observability", id: "opentelemetry", factory: fakeFactory({ calls, port: recordingObservability([]) }) } } });
   const ports = await bootProviderPlugins({ runtime, config: { ...configOf({}), read: async () => { throw new Error("vault locked"); } }, serviceName: "tovu", site: SITE, ...consentAlways }, { warn: (message) => warnings.push(message) });
-  assert.deepEqual(requested, [[]]);
-  assert.equal(isNoopObservabilityPort(ports.observability), true);
-  assert.deepEqual(warnings, ["provider plugin 'observability-opentelemetry': its settings could not be read; left on the noop"]);
+  assert.deepEqual(requested, []);
+  assert.equal(isNoopObservabilityPort(ports.observability), false);
+  assert.deepEqual(warnings, ["provider plugin 'observability-opentelemetry' did not initialize: Error"]);
 });
 
 test("installed + enabled but unconfigured (or missing a required field): never loaded; contracts Tovu does not host are skipped", async () => {
@@ -134,8 +134,8 @@ test("installed + enabled but unconfigured (or missing a required field): never 
   } });
   const config = configOf({ "observability-opentelemetry": { settings: { endpoint: "  " }, secrets: { headers: "a=b" } }, "payments-stripe": { settings: {}, secrets: { apiKey: "sk" } } });
   const ports = await bootProviderPlugins({ runtime, config, serviceName: "tovu", site: SITE, ...consentAlways }, { warn: quiet });
-  assert.deepEqual(requested, [[]]);
-  assert.equal(isNoopObservabilityPort(ports.observability), true);
+  assert.deepEqual(requested, []);
+  assert.equal(isNoopObservabilityPort(ports.observability), false);
   assert.deepEqual(calls.inputs, []);
 });
 
@@ -171,8 +171,8 @@ test("a throwing factory, an invalid port and a hung initialization each leave o
   assert.ok(!warnings.join("\n").includes("secret@"), "an SDK error message never reaches the log");
   ports.observability.trackOperation({ name: "still-works" }).end({ outcome: "completed", failed: false });
   assert.deepEqual(seen, ["op:still-works"]);
-  assert.equal(isNoopProductAnalytics(ports.productAnalytics), true);
-  assert.equal(ports.aiTraceSink, undefined);
+  assert.equal(isNoopProductAnalytics(ports.productAnalytics), false, "the stable wrapper can become active later");
+  assert.notEqual(ports.aiTraceSink, undefined, "a declared trace slot can become active later");
   assert.deepEqual(warnings, [
     "provider plugin 'observability-opentelemetry' did not initialize: Error",
     "provider plugin 'analytics-posthog' did not initialize: PluginProviderError",
@@ -262,7 +262,7 @@ test("without a warn sink, a provider failure (even a non-Error rejection) goes 
   const warn = t.mock.method(console, "warn", () => {});
   const { runtime } = fakeRuntime({ installed: ["observability-sentry"], factories: { "observability-sentry": { contract: "observability", id: "sentry", factory: () => Promise.reject("refused") } } });
   const ports = await bootProviderPlugins({ runtime, config: configOf(CONFIGS), serviceName: "tovu", site: SITE, ...consentAlways });
-  assert.equal(isNoopObservabilityPort(ports.observability), true);
+  assert.equal(isNoopObservabilityPort(ports.observability), false);
   assert.deepEqual(warn.mock.calls.map((call) => call.arguments[0]), ["[provider-plugins] provider plugin 'observability-sentry' did not initialize: string"]);
 });
 
@@ -375,4 +375,82 @@ test("optional AI capability validation rejects malformed hooks and content poli
   for (const extra of [{ captureAiGeneration: "wrong" }, { includeAiContent: "true" }]) {
     assert.equal(contract.validate({ provider: { capture() {}, identify() {}, ...extra } }), "not a ProductAnalyticsPort");
   }
+});
+
+
+test("an unconfigured slot becomes live without replacing captured ports; rotation, detach, failure and retry use the same lifecycle", async () => {
+  const seen: string[] = []; let saved: ProviderPluginConfig | null = null; let disposed = 0;
+  const factory: PluginProviderFactory = input => {
+    if (input.apiKey === "refuse") throw new TypeError(["fake", "sensitive"].join("_"));
+    const name = String(input.apiKey);
+    return { port: { capture() { seen.push(name); }, identify() {} }, dispose() { disposed++; } };
+  };
+  const { runtime } = fakeRuntime({ installed: ["analytics-posthog"], factories: { "analytics-posthog": { contract: "product_analytics", id: "posthog", factory } } });
+  const warnings: string[] = [];
+  const ports = await bootProviderPlugins({ runtime, config: { ...configOf({}), read: async () => saved }, serviceName: "test", site: SITE, ...consentAlways }, { warn: message => warnings.push(message) });
+  const captured = ports.productAnalytics;
+  const event = { name: "probe", userId: "owner" };
+  captured.capture(event); assert.deepEqual(seen, []);
+  saved = { settings: { host: "https://collector.example.test" }, secrets: { apiKey: ["fake", "first"].join("_") } };
+  assert.equal(await ports.reapply({ pluginId: "analytics-posthog" }), "now");
+  captured.capture(event); assert.deepEqual(seen, [saved.secrets.apiKey]);
+  assert.equal(await ports.reapply({ pluginId: "analytics-posthog" }), "now");
+  assert.equal(disposed, 0, "unchanged settings do not reinitialize");
+  saved = { ...saved, secrets: { apiKey: ["fake", "second"].join("_") } };
+  await ports.reapply({ pluginId: "analytics-posthog" });
+  captured.capture(event); assert.equal(seen[1], saved.secrets.apiKey); assert.equal(disposed, 1);
+  saved = null; await ports.reapply({ pluginId: "analytics-posthog" });
+  captured.capture(event); assert.equal(seen.length, 2); assert.equal(disposed, 2);
+  saved = { settings: { host: "https://collector.example.test" }, secrets: { apiKey: "refuse" } };
+  assert.equal(await ports.reapply({ pluginId: "analytics-posthog" }), "restart");
+  assert.equal(ports.appliesAt({ pluginId: "analytics-posthog" }), "restart");
+  captured.capture(event); assert.equal(seen.length, 2);
+  assert.deepEqual(warnings, ["provider plugin 'analytics-posthog' did not initialize: TypeError"]);
+  saved = { ...saved, secrets: { apiKey: ["fake", "recovered"].join("_") } };
+  assert.equal(await ports.reapply({ pluginId: "analytics-posthog" }), "now");
+  captured.capture(event); assert.equal(seen[2], saved.secrets.apiKey);
+  await ports.dispose({}); assert.equal(disposed, 3);
+});
+
+test("AI generation recording follows live attachment and content-policy rotation, including pending consent", async () => {
+  const events: { input?: string }[] = [];
+  const fullKey = ["fake", "full"].join("_");
+  let saved: ProviderPluginConfig | null = null;
+  const { runtime } = fakeRuntime({ installed: ["analytics-posthog"], factories: {
+    "analytics-posthog": { contract: "product_analytics", id: "posthog", factory: (input) => ({
+      port: { capture() {}, identify() {}, includeAiContent: input.apiKey === fullKey,
+        captureAiGeneration: (event: { input?: string }) => { events.push(event); } }, dispose() {},
+    }) },
+  } });
+  let approve!: (allowed: boolean) => void;
+  const ports = await bootProviderPlugins({ runtime, config: { ...configOf({}), read: async () => saved }, serviceName: "test", site: SITE,
+    consent: () => new Promise<boolean>((resolve) => { approve = resolve; }), consentRevision: () => 0 }, { warn: quiet });
+  const sink = ports.aiTraceSink!;
+  const run = (runId: string) => {
+    const recorder = createAiTraceRecorder({ sink, runId, agentId: "fixture" });
+    recorder.start({ input: "Hello" });
+    recorder.observe({ type: "usage", usage: { input_tokens: 3, output_tokens: 1 } });
+    recorder.finish({ outcome: "succeeded" });
+  };
+  assert.equal(sink.capture, "metadata");
+  saved = { settings: { host: "https://collector.example.test" }, secrets: { apiKey: fullKey } };
+  await ports.reapply({ pluginId: "analytics-posthog" });
+  assert.equal(sink.capture, "full");
+  run("full"); approve(true);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(events[0]?.input, "Hello");
+  run("pending");
+  saved = { ...saved, secrets: { apiKey: ["fake", "metadata"].join("_") } };
+  await ports.reapply({ pluginId: "analytics-posthog" });
+  assert.equal(sink.capture, "metadata");
+  approve(true);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(events.length, 2);
+  assert.equal("input" in events[1]!, false, "the current provider policy strips content approved after rotation");
+  saved = null;
+  await ports.reapply({ pluginId: "analytics-posthog" });
+  run("detached"); approve(true);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(events.length, 2);
+  await ports.dispose({});
 });
