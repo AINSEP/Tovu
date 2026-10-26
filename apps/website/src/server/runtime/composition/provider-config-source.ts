@@ -1,4 +1,5 @@
 import type { AgentPluginStateStore } from "#src/features/api-connections/plugin-state";
+import { SECRET_OPEN_FAILED } from "#src/features/webhooks/secret-sealer.aesgcm";
 
 /**
  * @file Where a provider plugin's saved settings live (provider wave 2 fix, owner 2026-10-25): a
@@ -68,22 +69,20 @@ const stringRecord = (value: unknown): Record<string, string> | null => {
   return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === "string"));
 };
 
-/** The sealer's open failures (Jini `AesGcmSecretSealer`): Node's AES-GCM auth-tag failure (a wrong,
- *  lost or re-minted key, or a tampered row) and the sealer's own damaged-envelope errors. They carry
- *  no code, so their messages are the only stable tell. */
-const OPEN_FAILURE_MESSAGES = [/^Unsupported state or unable to authenticate data$/, /^AesGcmSecretSealer[: ]/];
-
 /**
- * True only for a failure to OPEN a sealed row (above), or the vault's `invalid-record` (the row
- * opened but its payload is not a record). A driver/DB error (SQLITE_BUSY, a dropped connection) or
- * any other vault code is the store failing and is false.
+ * True only for a failure to OPEN a sealed row (Tovu's sealer tags it `SECRET_OPEN_FAILED`: a wrong,
+ * lost or re-minted key, a tampered row, a damaged envelope), or the vault's `invalid-record` (the row
+ * opened but its payload is not a record). By code, never by message: the auth-tag failure's wording
+ * belongs to the crypto runtime (Electron's BoringSSL vs Node's OpenSSL). A driver/DB error
+ * (SQLITE_BUSY, a dropped connection) or any other vault code is the store failing and is false.
  * @complexity O(1).
  */
 function isOpenFailure(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
+  const code = (error as { code?: unknown }).code;
   // By name + code, not `instanceof`: Jini's VaultError can load as more than one module copy.
-  if (error.name === "VaultError") return (error as { code?: unknown }).code === "invalid-record";
-  return OPEN_FAILURE_MESSAGES.some((pattern) => pattern.test(error.message));
+  if (error.name === "VaultError") return code === "invalid-record";
+  return code === SECRET_OPEN_FAILED;
 }
 
 /**

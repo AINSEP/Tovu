@@ -3,12 +3,17 @@ import test from "node:test";
 
 import type { AgentPluginStateStore } from "#src/features/api-connections/plugin-state";
 
+import { SECRET_OPEN_FAILED } from "#src/features/webhooks/secret-sealer.aesgcm";
+
 import { ProviderConfigUnreadableError, createVaultProviderConfigSource, withProjectPrecedence, type ProviderConfigSource } from "../provider-config-source.js";
 
 /**
  * @file The provider-settings port with DI fakes: a Map-backed plugin-state store stands in for the
  * sealed vault rows (the real vault path is proven by `deps-provider-plugin-boot.integration.test.ts`).
  */
+
+/** What Tovu's sealer throws when a sealed value can't be opened (the message is the runtime's own). */
+const openFailure = (message: string) => Object.assign(new Error(message), { code: SECRET_OPEN_FAILED });
 
 function fakeState(): { state: AgentPluginStateStore; rows: Map<string, unknown>; gets: string[] } {
   const rows = new Map<string, unknown>();
@@ -122,21 +127,22 @@ test("vault adapter: only a failure to OPEN a listed row is unreadable; a store 
   const sourceFailingWith = (failure: Error) => createVaultProviderConfigSource({ state: listedState(failure), workspaceId: "ws", scope: "project" });
   // A transient lock or a driver/DB failure is the store failing, not a lost key: it surfaces as itself
   // (the card's GET/PUT answer 500) instead of reading as "not configured" and saving secrets {}.
+  // An uncoded error that merely reads like an open failure is classified by its (missing) code, never its wording.
   for (const failure of [Object.assign(new Error("database is locked"), { code: "SQLITE_BUSY" }), new Error("Connection terminated unexpectedly"),
-    Object.assign(new Error("Secrets vault: context"), { name: "VaultError", code: "context" })]) {
+    Object.assign(new Error("Secrets vault: context"), { name: "VaultError", code: "context" }), new Error("Unsupported state or unable to authenticate data")]) {
     await assert.rejects(sourceFailingWith(failure).read({ pluginId: "obs" }), (caught) => caught === failure, failure.message);
     await assert.rejects(sourceFailingWith(failure).readSettings({ pluginId: "obs" }), (caught) => caught === failure, failure.message);
   }
   // Opening failures: a wrong/re-minted key (GCM auth tag), a damaged envelope, a payload that opened but is not a record.
-  for (const failure of [new Error("Unsupported state or unable to authenticate data"), new Error("AesGcmSecretSealer: ciphertext too short to contain an auth tag"),
-    new Error("AesGcmSecretSealer cannot open alg 'x' (expected 'aes-256-gcm')"), Object.assign(new Error("Secrets vault: invalid-record"), { name: "VaultError", code: "invalid-record" })]) {
+  for (const failure of [openFailure("Unsupported state or unable to authenticate data"), openFailure("error:1C800064:Provider routines::bad decrypt"),
+    openFailure("AesGcmSecretSealer cannot open alg 'x' (expected 'aes-256-gcm')"), Object.assign(new Error("Secrets vault: invalid-record"), { name: "VaultError", code: "invalid-record" })]) {
     await assert.rejects(sourceFailingWith(failure).read({ pluginId: "obs" }), ProviderConfigUnreadableError, failure.message);
     assert.deepEqual(await sourceFailingWith(failure).readSettings({ pluginId: "obs" }), { settings: {}, secretNames: [], unreadable: true }, failure.message);
   }
 });
 
 test("vault adapter: a row this machine cannot open reads as unreadable (listed but not openable); any other failure surfaces as itself", async () => {
-  const sealed = new Error("Unsupported state or unable to authenticate data");
+  const sealed = openFailure("Unsupported state or unable to authenticate data");
   const stateWith = (keys: { key: string; revision: number }[] | Error) => ({
     forPlugin: () => ({ get: async () => { throw sealed; }, set: async () => {}, delete: async () => {} }),
     describe: async () => { if (keys instanceof Error) throw keys; return { keys }; },

@@ -87,10 +87,29 @@ import type { SealedSecret } from "@jini-ai/platform/secrets";
  * @complexity O(n) in ciphertext length.
  * @overallScore 100
  */
+/**
+ * `code` on what {@link AesGcmSecretSealer.open} throws when the sealed value itself can't be opened:
+ * a wrong, lost or re-minted key (the GCM auth tag fails), a tampered or damaged envelope, an
+ * unsupported `alg`. Callers classify by this code, never by the message: the auth-tag failure's
+ * wording is the crypto runtime's own (OpenSSL in Node, BoringSSL in Electron) and may change. A
+ * keyring that can't derive at all (no key, an unusable key) is NOT this: its error passes through.
+ */
+export const SECRET_OPEN_FAILED = "SECRET_OPEN_FAILED";
+
+/** A sealed value that could not be opened ({@link SECRET_OPEN_FAILED}); the message is the cause's. */
+export class SecretOpenError extends Error {
+  readonly code = SECRET_OPEN_FAILED;
+
+  constructor(required: { cause: unknown }, _optional: Record<string, never> = {}) {
+    super(required.cause instanceof Error ? required.cause.message : String(required.cause), { cause: required.cause });
+    this.name = "SecretOpenError";
+  }
+}
+
 export class AesGcmSecretSealer implements SecretSealerPort {
   private readonly sealer: JiniSecretSealer;
 
-  constructor(keyring: KeyringPort, optional: {
+  constructor(private readonly keyring: KeyringPort, optional: {
     randomBytesFn?: (input: { byteLength: number }) => Uint8Array;
   } = {}) {
     // The host keyring satisfies Jini's port as-is; Jini calls only `keyring.derive` (as a method).
@@ -109,11 +128,26 @@ export class AesGcmSecretSealer implements SecretSealerPort {
   }
 
   /** Forward the canonical optional AAD object; absent AAD opens historical records.
-   * @throws Authentication errors for wrong keys, changed AAD or malformed envelopes.
+   * Opened through a per-call view of the keyring that notes a failed derivation, so only a failure
+   * of the opening itself is tagged {@link SECRET_OPEN_FAILED}.
+   * @throws {SecretOpenError} Wrong keys, changed AAD or malformed envelopes (the cause kept).
+   * @throws Whatever `KeyringPort.derive()` throws, as itself.
    * @complexity O(ciphertext bytes), delegated to Jini AES-GCM.
    */
-  open(input: { sealed: SealedSecret }, optional: { aad?: string } = {}): Promise<string> {
-    return this.sealer.open(input, optional);
+  async open(input: { sealed: SealedSecret }, optional: { aad?: string } = {}): Promise<string> {
+    let deriveFailed = false;
+    const keyring: KeyringPort = {
+      activeKey: (...args: Parameters<KeyringPort["activeKey"]>) => this.keyring.activeKey(...args),
+      deriveSigningSecret: (args) => this.keyring.deriveSigningSecret(args),
+      derive: async (args) => {
+        try { return await this.keyring.derive(args); } catch (error) { deriveFailed = true; throw error; }
+      },
+    };
+    try {
+      return await new JiniSecretSealer({ keyring }).open(input, optional);
+    } catch (error) {
+      throw deriveFailed ? error : new SecretOpenError({ cause: error });
+    }
   }
 }
 // Shared-key/AAD rationale: Jini/packages/platform/src/secrets/secret-sealer.aesgcm.ts (ADR-058).
