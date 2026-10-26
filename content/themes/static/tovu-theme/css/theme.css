@@ -1573,12 +1573,14 @@ body:has(> dialog.kui-lightbox[open]) > .jini-chat-bubble { visibility: hidden; 
 :root[data-theme="light"] .tv .made-with a:hover, :root[data-theme="light"] .tv .made-with a:hover b { color: var(--x-hover, var(--fg)); }
 /* Corner: right edge lines up with the hero .wrap's content edge (1200px max, same gutter). */
 .tv .made-with-corner {
+  /* Yield to consent together with chat, without adding motion or measuring the banner. */
+  display: var(--jini-floating-ui-display, inline-flex);
   position: absolute; bottom: clamp(24px, 3vw, 40px);
   right: max(clamp(20px, 4vw, 32px), calc((100% - 1200px) / 2 + clamp(20px, 4vw, 32px)));
 }
 /* Once the hero stacks (<=900px), the corner badge closes the hero, centred under the video. */
 @media (max-width: 900px) {
-  .tv .made-with-corner { display: flex; position: static; margin: clamp(40px, 10vw, 56px) auto 0; max-width: calc(100% - 40px); }
+  .tv .made-with-corner { display: var(--jini-floating-ui-display, flex); position: static; margin: clamp(40px, 10vw, 56px) auto 0; max-width: calc(100% - 40px); }
 }
 
 /* The landing hero video enters with kUInetic's fade-right (distance:48px), which starts it 48px
