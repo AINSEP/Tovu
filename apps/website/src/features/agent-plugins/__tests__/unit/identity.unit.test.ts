@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 
-import { readInstalledAgentPluginIdentity, readPluginMaturity } from "../../identity.js";
+import { readInstalledAgentPluginIdentity, readPluginMaturity, readProviderPluginLink } from "../../identity.js";
 
 const plugin = { pluginId: "github", packageRoot: path.join("/plugins", "github") };
 
@@ -23,6 +23,19 @@ test("unknown host maturity is ignored with a warning, without reflecting arbitr
     const warnings: string[] = [];
     assert.equal(readPluginMaturity({ manifest: { extensions: { tovu: { maturity } } } }, { warn: message => warnings.push(message) }), undefined);
     assert.deepEqual(warnings, ['[agent-plugins] Unknown extensions.tovu.maturity ignored; expected "untested" or "soon".']);
+  }
+});
+
+test("the provider plugin link is read from Tovu's extension; a malformed one warns and links nothing", async () => {
+  const identity = await readInstalledAgentPluginIdentity({ plugin }, {
+    readText: async () => JSON.stringify({ name: 'github', extensions: { tovu: { id: 'tovu/github', providerPlugin: 'analytics-github' } } }),
+  });
+  assert.equal(identity.providerPlugin, 'analytics-github');
+  assert.equal(readProviderPluginLink({ manifest: { extensions: { tovu: {} } } }, { warn: () => assert.fail('absent link must not warn') }), undefined);
+  for (const providerPlugin of ['', 'Bad Id', '../x', 7, ['a']]) {
+    const warnings: string[] = [];
+    assert.equal(readProviderPluginLink({ manifest: { extensions: { tovu: { providerPlugin } } } }, { warn: message => warnings.push(message) }), undefined);
+    assert.equal(warnings.length, 1);
   }
 });
 

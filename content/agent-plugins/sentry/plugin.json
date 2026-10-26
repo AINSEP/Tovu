@@ -10,6 +10,7 @@
       "displayName": "Sentry",
       "summary": "Sends your site's errors to Sentry. Ask the assistant to add error tracking.",
       "id": "tovu/sentry",
+      "providerPlugin": "observability-sentry",
       "provides": [
         "error-tracking",
         "observability"

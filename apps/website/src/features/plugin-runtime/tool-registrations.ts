@@ -102,6 +102,7 @@ import type { InstalledAgentPlugin } from "@jini-ai/agent-plugins/lifecycle";
 // adds no `plugin-runtime -> agent-plugins/tool-registrations` edge. See its header, and the
 // "one tool, two families" section below.
 import { AgentPluginNotInstalledError, type SetAgentPluginEnabledResult } from "@jini-ai/agent-plugins/lifecycle";
+import { AgentPluginLinkedError, bindProviderFacePorts, linkedProviderOf } from "../agent-plugins/provider-plugin-link.js";
 // t91 F1.1/R2 (2026-09-16). `Jini/packages/plugins/src/host/activation.ts` is the domain module that already defines these errors;
 // importing it here adds no `plugin-runtime -> agent-plugins/tool-registrations` edge (same
 // reasoning as the `set-enabled.js` import above).
@@ -477,6 +478,7 @@ async function applyAgentPluginDecision(routeDeps: PluginsToolDeps, principalId:
     // real id), and a bare `Error` would reach the model as an opaque failure instead. The message
     // carries only the plugin id the caller already sent — nothing internal leaks.
     if (error instanceof AgentPluginNotInstalledError) throw new ToolInputError({ message: error.message });
+    if (error instanceof AgentPluginLinkedError) return linkedFaceResult(request, error);
     // t91 F1.1/R2 (2026-09-16): nothing changed, so this is a RESULT the model can relay — matching
     // ADR-055 Decision 6's `changed: false` shape — not a redacted failure. See
     // `activationsRefusalResult` below.
@@ -530,9 +532,24 @@ async function hostIncompatibleEnableResult(routeDeps: PluginsToolDeps, request:
   return incompatible ? hostIncompatibleResult(request, new AgentPluginHostIncompatibleError({ pluginId: request.pluginId })) : undefined;
 }
 
-/** Every Agent Plugin enable pre-flight, in order; the first not-changed result wins. @complexity As its two checks. */
+/** A provider plugin's assistant face has no switch of its own (`agent-plugins/provider-plugin-link.ts`):
+ *  nothing changed, and the note names the provider plugin to switch instead. @complexity O(1). */
+function linkedFaceResult(request: SetEnabledRequest, error: AgentPluginLinkedError): unknown {
+  return { changed: false, cancelled: false, family: request.family, pluginId: request.pluginId, restartRequired: false,
+    reason: "linked", code: error.code, providerPluginId: error.providerPluginId, note: `Nothing changed. ${error.message}` };
+}
+
+/** Pre-flight: a linked face is refused before the confirmation dialog, not after it. A link that cannot be
+ *  read here is left to the write, which checks again. @complexity One manifest read per installed revision. */
+async function linkedFaceEnableResult(routeDeps: PluginsToolDeps, request: SetEnabledRequest): Promise<unknown> {
+  const ports = bindProviderFacePorts({ workspaceRoot: () => routeDeps.agentPluginLayout.forWorkspace(routeDeps.workspaceId).root });
+  const providerPluginId = await linkedProviderOf({ ports, pluginId: request.pluginId }).catch(() => undefined);
+  return providerPluginId === undefined ? undefined : linkedFaceResult(request, new AgentPluginLinkedError({ pluginId: request.pluginId, providerPluginId }));
+}
+
+/** Every Agent Plugin enable pre-flight, in order; the first not-changed result wins. @complexity As its three checks. */
 async function agentPluginEnablePreflight(routeDeps: PluginsToolDeps, request: SetEnabledRequest): Promise<unknown> {
-  return (await unwritableAgentPluginActivationsResult(routeDeps, request)) ?? hostIncompatibleEnableResult(routeDeps, request);
+  return (await unwritableAgentPluginActivationsResult(routeDeps, request)) ?? (await linkedFaceEnableResult(routeDeps, request)) ?? hostIncompatibleEnableResult(routeDeps, request);
 }
 
 /** An interrupted update of this plugin waits for boot recovery (`PLUGIN_UPDATE_PENDING`, or an

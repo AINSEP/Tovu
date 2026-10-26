@@ -127,6 +127,7 @@ function fileEntry(entryPath: string, content: string): AgentPluginArchiveEntry 
 async function withInstalledAgentPlugin<T>(
   fn: (workspaceRoot: string) => Promise<T>,
   extraEntries: readonly AgentPluginArchiveEntry[] = [],
+  manifestExtra: Record<string, unknown> = {},
 ): Promise<T> {
   const dir = await mkdtemp(path.join(tmpdir(), "tovu-plugin-family-"));
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
@@ -139,7 +140,7 @@ async function withInstalledAgentPlugin<T>(
       archiveReader: reader([
         fileEntry(
           "plugin.json",
-          JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: AGENT_PLUGIN_ID, version: "1.0.0" }),
+          JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: AGENT_PLUGIN_ID, version: "1.0.0", ...manifestExtra }),
         ),
         fileEntry(`skills/${AGENT_PLUGIN_ID}/SKILL.md`, `---\nname: ${AGENT_PLUGIN_ID}\ndescription: test\n---\n\nguidance\n`),
         ...extraEntries,
@@ -716,4 +717,21 @@ test("daemon-composed approval memory asks on first enable, skips the same versi
   const changed = await answerDialog(tool, surfaces, enable, "confirm");
   assert.equal(changed.emitted.length, 1);
   assert.equal(surfaces.size(), 0);
+});
+
+test("a provider plugin's assistant face is never switched on its own: no dialog, nothing written, the note names the provider plugin", async () => {
+  await withInstalledAgentPlugin(async (workspaceRoot) => {
+    const { deps } = fakeRouteDeps();
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+    const tool = setEnabledTool(deps, surfaceExchanges);
+    const before = await agentPluginActivations.readAgentPluginActivations({ workspaceRoot });
+    for (const enabled of [true, false]) {
+      const out = (await call(tool, { pluginId: AGENT_PLUGIN_ID, enabled, family: "agent-plugin" }, async () => assert.fail("no confirmation dialog for a refused face"))) as Record<string, unknown>;
+      assert.equal(out.changed, false);
+      assert.equal(out.reason, "linked");
+      assert.equal(out.providerPluginId, "metrics-provider");
+      assert.match(String(out.note), /^Nothing changed\. 'higgsfield-media' is part of the 'metrics-provider' plugin.*family 'site-runtime' and pluginId 'metrics-provider'/);
+    }
+    assert.deepEqual(await agentPluginActivations.readAgentPluginActivations({ workspaceRoot }), before);
+  }, [], { extensions: { tovu: { providerPlugin: "metrics-provider" } } });
 });

@@ -43,7 +43,9 @@ for (const { pluginId, packageRoot } of packages) {
     assert.ok(parsed.ok, parsed.ok ? '' : parsed.reason);
     for (const card of parsed.descriptors) {
       for (const field of ['providerId', 'label', 'category', 'title', 'intro', 'keyHint'] as const) assert.ok(card[field]?.trim(), `${pluginId}: missing ${field}`);
-      assert.ok(card.baseUrl || card.fields?.some(f => f.name === 'baseUrl' && f.required), `${pluginId}: missing API origin`);
+      // A provider settings card's destinations are its provider plugin's declared settings; the parser forbids a baseUrl.
+      if (card.saveKind === 'provider-settings') assert.ok(card.saveTarget, `${pluginId}: provider settings card needs its provider plugin`);
+      else assert.ok(card.baseUrl || card.fields?.some(f => f.name === 'baseUrl' && f.required), `${pluginId}: missing API origin`);
       if (card.helpUrl) assert.ok(card.helpLabel?.trim(), `${pluginId}: missing help label`);
       if (card.saveKind === 'oauth') assert.ok(card.permissions?.trim(), `${pluginId}: missing sign-in permissions`);
     }

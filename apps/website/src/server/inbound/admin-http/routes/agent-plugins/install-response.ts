@@ -99,9 +99,11 @@ export function installErrorResponse(error: unknown): InstallRefusal {
  * responses cannot drift.
  * @complexity O(1).
  */
-export function agentPluginLifecycleFields({ candidate }: { candidate: AgentPluginSearchCandidate & { maturity?: PluginMaturity } }, _optional: Record<string, never> = {}) {
+export function agentPluginLifecycleFields({ candidate }: { candidate: AgentPluginSearchCandidate & { maturity?: PluginMaturity; providerPlugin?: string } }, _optional: Record<string, never> = {}) {
   return {
     ...(candidate.maturity ? { maturity: candidate.maturity } : {}),
+    // The provider plugin whose switch this plugin follows (`provider-plugin-link.ts`); the row shows no switch of its own.
+    ...(candidate.providerPlugin ? { providerPlugin: candidate.providerPlugin } : {}),
     origin: candidate.origin,
     hostOk: candidate.hostOk,
     missingRequires: candidate.missingRequires ?? [],
@@ -113,6 +115,7 @@ export function agentPluginLifecycleFields({ candidate }: { candidate: AgentPlug
 /** The installed plugin's row, as `list.ts` reports it, or null when the read model does not list it. */
 export interface InstalledAgentPluginRow {
   readonly maturity?: PluginMaturity;
+  readonly providerPlugin?: string;
   readonly origin?: AgentPluginSearchCandidate["origin"];
   readonly hostOk?: boolean;
   readonly missingRequires?: readonly string[];

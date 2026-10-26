@@ -87,6 +87,7 @@ import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-co
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import { createDeferredAgentPluginUpdateEffects } from "#src/features/agent-plugins/update-effects";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
+import { bindProviderFacePorts, followProviderActivations } from "#src/features/agent-plugins/provider-plugin-link";
 import { resolveSkillLayout } from "#src/features/skills/layout";
 import type { SiteBackupSources } from "#src/features/site-backup/sources";
 import { SqlitePublishHistoryStore } from "#src/platform/db/sqlite/publish-history-repo.sqlite";
@@ -1293,7 +1294,10 @@ async function composeSiteRouteDeps(
   const idGen = { newId: () => randomUUID() };
   const reportToolAuditError = createSiteAssistantErrorReporter({ ids: idGen, redact: redactSecrets,
     log: entry => console.error("[tool-audit]", entry) });
-  const pluginActivationRepo = sqlitePluginActivationRepoFor({ store: kernel });
+  // One vendor, one switch (owner 2026-10-25): a provider plugin's linked agent plugin face follows
+  // every write of its activation row (`provider-plugin-link.ts`).
+  const pluginActivationRepo = followProviderActivations({ repo: sqlitePluginActivationRepoFor({ store: kernel }), workspaceId,
+    ports: bindProviderFacePorts({ workspaceRoot: () => agentPluginLayout.forWorkspace(workspaceId).root }) });
   // Provider plugins load (and their SDK asks for the host) before `const routeDeps` below exists;
   // reading `routeDeps` then is a temporal-dead-zone ReferenceError. Until `routeDeps` is built the
   // answer is "no host yet" (the SDK then omits its `plugins` lookup facade).

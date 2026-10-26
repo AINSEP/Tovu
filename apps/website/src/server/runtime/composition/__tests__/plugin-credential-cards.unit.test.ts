@@ -14,9 +14,9 @@ const source = ({ pluginId, cards }: { pluginId: string; cards: readonly unknown
 async function loadDeclaredCards({ sources, mailCards = [] }: { sources: readonly { pluginId: string; raw: string }[]; mailCards?: readonly PluginCredentialCard[] }, _options = {}) {
   const refusals: string[] = [];
   const load = createPluginCredentialCardsLoader({ agentPluginLayout: {} as AgentPluginLayout, loadMailCards: async () => mailCards }, {
-    readFile: async ({ filename }) => {
-      assert.ok(['tovu-deploy-targets.json', 'tovu-source-control.json', 'tovu-mail-adapters.json'].includes(filename));
-      return '{}';
+    readFile: async ({ plugin, filename }) => {
+      assert.ok(['plugin.json', 'tovu-deploy-targets.json', 'tovu-source-control.json', 'tovu-mail-adapters.json'].includes(filename));
+      return filename === 'plugin.json' ? sources.find(entry => entry.pluginId === plugin.pluginId)?.raw ?? '{}' : '{}';
     },
     onRefusal: message => refusals.push(message),
     loadContributions: async ({ definition }, options) => {
@@ -53,6 +53,24 @@ test('declaring an API label does not authorize another plugin saveTarget', asyn
   assert.deepEqual(result.cards, []);
   assert.equal(result.refusals.length, 1);
   assert.match(result.refusals[0]!, /destination is not owned/);
+});
+
+const providerCard = { target: 'metrics', label: 'Metrics', category: 'ops', title: 'Connect metrics', intro: 'Send metrics.', keyHint: 'Paste the project key.', saveKind: 'provider-settings', saveTarget: 'metrics-provider' };
+const linkedSource = ({ pluginId, providerPlugin, cards }: { pluginId: string; providerPlugin?: string; cards: readonly unknown[] }, _options = {}) =>
+  ({ pluginId, raw: JSON.stringify({ extensions: { tovu: { ...(providerPlugin ? { providerPlugin } : {}), credentialCards: cards } } }) });
+
+test('an agent plugin that declares its provider plugin owns that provider settings card', async () => {
+  const result = await loadDeclaredCards({ sources: [linkedSource({ pluginId: 'metrics', providerPlugin: 'metrics-provider', cards: [providerCard] })] });
+  assert.deepEqual(result.refusals, []);
+  assert.deepEqual(result.cards.map(card => [card.providerId, card.pluginId, card.saveKind, card.saveTarget]), [['metrics', 'metrics', 'provider-settings', 'metrics-provider']]);
+});
+
+test('a provider settings card for a provider plugin the agent plugin does not declare is refused', async () => {
+  for (const providerPlugin of [undefined, 'other-provider']) {
+    const result = await loadDeclaredCards({ sources: [linkedSource({ pluginId: 'metrics', ...(providerPlugin ? { providerPlugin } : {}), cards: [providerCard] })] });
+    assert.deepEqual(result.cards, []);
+    assert.match(result.refusals[0]!, /destination is not owned/);
+  }
 });
 
 test('duplicate API label claims refuse both plugins in either order and retain unrelated cards', async () => {
