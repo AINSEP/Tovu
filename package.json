@@ -40,6 +40,8 @@
     "check:test-baseline": "tsx development/scripts/check-test-baseline.ts development/scripts/repo-test-failure-baseline.json development/coverage/test-results-all.tap",
     "check:idle-motion": "node --import tsx development/scripts/check-idle-motion.ts",
     "test:idle-cpu": "node development/scripts/measure-idle-cpu.mjs",
+    "test:soak:server": "playwright test --config=development/playwright.memory-soak.config.ts --project=server",
+    "test:soak:desktop": "playwright test --config=development/playwright.memory-soak.config.ts --project=desktop",
     "test:visual": "npm run e2e:journeys -- themes.pins.journey.ts --grep \"Bug pin: theme-visual\"",
     "test:visual:regression": "npm run e2e:journeys -- admin-visual.pins.journey.ts",
     "test:e2e:agent-plugin-chip": "npm run e2e:journeys -- composer.pins.journey.ts --grep \"Bug pin: admin-composer-agent-plugin-chip\"",

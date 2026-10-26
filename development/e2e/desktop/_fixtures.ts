@@ -179,8 +179,9 @@ export interface LaunchOptions {
   env?: Record<string, string>;
 }
 
-/** Launches the sites-home UI with a scrubbed env, the userData guard and the blank-window guards. */
-export async function launchDesktop(options: LaunchOptions = {}): Promise<DesktopLaunch> {
+/** Launches the sites-home UI with a scrubbed env, the userData guard and the blank-window guards.
+ * Optional electronArgs precede the source entry point (for example, main-process GC in soaks). */
+export async function launchDesktop(options: LaunchOptions = {}, { electronArgs = [] }: { electronArgs?: string[] } = {}): Promise<DesktopLaunch> {
   const userDataDir = options.userDataDir ?? scratchDir("userdata");
   refuseRealUserData(userDataDir);
   if (PACKAGED_APP && options.env?.TOVU_DESKTOP_USER_DATA_DIR !== undefined && options.env.TOVU_DESKTOP_USER_DATA_DIR !== userDataDir) {
@@ -189,7 +190,7 @@ export async function launchDesktop(options: LaunchOptions = {}): Promise<Deskto
   for (const siteDir of options.trackedSites ?? []) trackSite(sitesFilePath(userDataDir), siteDir, SITE_ORIGIN.adopted);
   const app = await electron.launch({
     executablePath: ELECTRON_BIN,
-    ...(PACKAGED_APP ? { args: [] } : { args: ["."], cwd: DESKTOP_DIR }),
+    ...(PACKAGED_APP ? { args: electronArgs } : { args: [...electronArgs, "."], cwd: DESKTOP_DIR }),
     env: {
       ...scrubbedEnv(),
       HOME: scratchHome(),
