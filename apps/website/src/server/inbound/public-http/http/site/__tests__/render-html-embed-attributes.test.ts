@@ -36,20 +36,20 @@ test("renderHtmlPageBody: autoplay muted loop playsinline on a media wrapper lan
   const out = renderHtmlPageBody(html, resolvedMap("media", "asset-1", VIDEO_IR));
   assert.equal(
     out,
-    `<div class="xai-video"><video src="/m/asset-1/original" controls autoplay muted loop playsinline>${NO_SUPPORT_FALLBACK}</video></div>`
+    `<div class="xai-video"><video src="/m/asset-1/original.mp4" controls autoplay muted loop playsinline>${NO_SUPPORT_FALLBACK}</video></div>`
   );
 });
 
 test('renderHtmlPageBody: a marker controls="false" attribute removes the default controls attribute', () => {
   const html = `<div class="probe" data-embed-config='{"type":"media","id":"asset-1"}' controls="false"></div>`;
   const out = renderHtmlPageBody(html, resolvedMap("media", "asset-1", VIDEO_IR));
-  assert.equal(out, `<div class="probe"><video src="/m/asset-1/original">${NO_SUPPORT_FALLBACK}</video></div>`);
+  assert.equal(out, `<div class="probe"><video src="/m/asset-1/original.mp4">${NO_SUPPORT_FALLBACK}</video></div>`);
 });
 
 test("renderHtmlPageBody: a bare marker controls attribute keeps controls on", () => {
   const html = `<div data-embed-config='{"type":"media","id":"asset-1"}' controls></div>`;
   const out = renderHtmlPageBody(html, resolvedMap("media", "asset-1", VIDEO_IR));
-  assert.equal(out, `<div><video src="/m/asset-1/original" controls>${NO_SUPPORT_FALLBACK}</video></div>`);
+  assert.equal(out, `<div><video src="/m/asset-1/original.mp4" controls>${NO_SUPPORT_FALLBACK}</video></div>`);
 });
 
 test("renderHtmlPageBody: a <video> marker collapses — class, id, style and autoplay all land on the one rendered <video>", () => {
@@ -57,7 +57,7 @@ test("renderHtmlPageBody: a <video> marker collapses — class, id, style and au
   const out = renderHtmlPageBody(html, resolvedMap("media", "asset-1", VIDEO_IR));
   assert.equal(
     out,
-    `<video src="/m/asset-1/original" controls class="hero" id="v1" style="max-width:600px" autoplay>${NO_SUPPORT_FALLBACK}</video>`
+    `<video src="/m/asset-1/original.mp4" controls class="hero" id="v1" style="max-width:600px" autoplay>${NO_SUPPORT_FALLBACK}</video>`
   );
 });
 

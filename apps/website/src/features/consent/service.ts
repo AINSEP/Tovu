@@ -63,7 +63,7 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
     return { ...state, draft, effective: withSiteConsentDefaultCss({ config: parseConsentConfig({ value: state.published?.config ?? legacy }) }), categoriesEditable: false,
       editor: { defaults: { ...SITE_CONSENT_DEFAULTS, customCss: SITE_CONSENT_DEFAULT_CSS }, placements: [...SITE_CONSENT_PLACEMENTS], textLimits: { ...SITE_CONSENT_TEXT_LIMITS },
         maxCssLength: CONSENT_MAX_CSS_LENGTH, cssSelectors: [...CONSENT_CSS_SELECTORS],
-        regionModes: ports.trustedRegion ? ['opt-in', 'opt-out', 'auto'] : ['opt-in', 'opt-out'],
+        regionModes: ['opt-in', 'auto'],
         categories: CONSENT_CATEGORIES.map(id => ({ id, required: id === 'necessary', editable: false })),
         rules: { gpc: 'always-enforced', preferenceMaxAgeMs: CONSENT_MAX_AGE_MS, staticReceipts: false } } };
   };

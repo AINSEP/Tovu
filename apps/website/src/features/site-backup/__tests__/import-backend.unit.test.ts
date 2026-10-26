@@ -10,6 +10,8 @@ import { createSiteImportBackend, parseSiteImportInput } from "../import-backend
 import { SHARE_LIMITS } from "../share-policy.js";
 import type { HttpResponse } from "../../../platform/http/index.js";
 import { importFixture, OWNER_PASSWORD } from "./import.fixture.js";
+import { createTracker } from "@jini-ai/diagnostics/observability/node";
+import type { ProductEvent } from "@jini-ai/analytics/product";
 
 const UPLOAD_ID = "0f8fad5b-d9cb-469f-a165-70867728950e";
 const INPUT = (message: string) => ({ code: "INVALID_INPUT", message });
@@ -137,6 +139,32 @@ test("the imported site name comes from the archive unless a display name was gi
 });
 
 // Owner setup ---------------------------------------------------------------------------------
+
+test("site_imported fires exactly once after owner commit, including a repeated completion", async t => {
+  const h = await importFixture(t), events: ProductEvent[] = [];
+  const tracker = createTracker({ productAnalytics: { capture: event => { events.push(event); }, identify() {} } });
+  const backend = createSiteImportBackend({ ...h.backendPorts, tracker });
+  const pending = await backend.importBackup({ principalId: "owner", source: await backend.upload({ principalId: "owner", archive: h.archive }) });
+  assert.deepEqual(events, []);
+  const input = { principalId: "owner", importId: pending.importId, adminPassword: OWNER_PASSWORD };
+  const ready = await backend.completeOwner(input);
+  assert.equal(ready.state, "ready");
+  assert.deepEqual(await backend.completeOwner(input), ready);
+  assert.deepEqual(events, [{ name: "site_imported", userId: "owner", properties: {
+    targetSiteId: ready.newSiteId!, operationId: pending.importId, eventId: `import:${pending.importId}`, source: "admin",
+  } }]);
+});
+
+test("site_imported stays silent when creating the imported site fails", async t => {
+  const h = await importFixture(t), events: ProductEvent[] = [];
+  const failure = new Error("creation failed");
+  const tracker = createTracker({ productAnalytics: { capture: event => { events.push(event); }, identify() {} } });
+  const backend = createSiteImportBackend({ ...h.backendPorts, tracker }, { createSite: async () => { throw failure; } });
+  const pending = await backend.importBackup({ principalId: "owner", source: await backend.upload({ principalId: "owner", archive: h.archive }) });
+  await assert.rejects(backend.completeOwner({ principalId: "owner", importId: pending.importId, adminPassword: OWNER_PASSWORD }), error => error === failure);
+  assert.equal(backend.get({ principalId: "owner", importId: pending.importId }).state, "failed");
+  assert.deepEqual(events, []);
+});
 
 async function pendingImport(t: test.TestContext) {
   const h = await importFixture(t);

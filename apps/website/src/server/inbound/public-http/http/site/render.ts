@@ -947,6 +947,7 @@ const MEDIA_VIDEO_FIXED_ATTRIBUTE_NAMES: ReadonlySet<string> = new Set(["class",
 // precedence, controls and the canonical original-byte URL instead of copying a video lifecycle.
 function renderVideoTag(props: {
   readonly kind?: "video" | "audio";
+  readonly contentType: string;
   /** Same `mediaUrlKey`-built `/m/...` key {@link renderImageTag}'s own `urlKey` documents —
    *  readable-slugs S3. */
   readonly urlKey: string;
@@ -963,7 +964,7 @@ function renderVideoTag(props: {
   readonly controls?: boolean;
 }): string {
   const tag = props.kind ?? "video";
-  const src = mediaPublicPath(props.urlKey, { kind: "original" });
+  const src = mediaPublicPath(props.urlKey, { kind: "original", contentType: props.contentType });
   const markerAttributes = props.markerAttributes ?? NO_MARKER_ATTRIBUTES;
   const controlsAttr = (props.controls ?? true) ? " controls" : "";
   const widthAttr = tag === "video" ? mediaDimensionAttr("width", props.width, markerAttributes) : "";
@@ -1544,8 +1545,8 @@ function renderDocMediaPlayer(
     cssClass: mediaNodeStyleOverride(nodeStyle.cssClass, meta.cssClass),
     htmlAttributes: mediaNodeStyleOverride(nodeStyle.htmlAttributes, meta.htmlAttributes),
   };
-  if (meta.contentType?.startsWith("video/")) return renderVideoTag({ ...style, width: meta.width, height: meta.height });
-  if (meta.contentType?.startsWith("audio/")) return renderVideoTag({ kind: "audio", ...style, width: null, height: null });
+  if (meta.contentType?.startsWith("video/")) return renderVideoTag({ contentType: meta.contentType, ...style, width: meta.width, height: meta.height });
+  if (meta.contentType?.startsWith("audio/")) return renderVideoTag({ kind: "audio", contentType: meta.contentType, ...style, width: null, height: null });
   return null;
 }
 
@@ -2662,10 +2663,10 @@ function renderWidgetMediaImage(props: JsonObject): string {
   const urlKey = mediaUrlKey({ id: assetId, slug: typeof props.slug === "string" ? props.slug : null });
 
   if (typeof props.contentType === "string" && props.contentType.startsWith("audio/")) {
-    return renderVideoTag({ kind: "audio", urlKey, alt, width: null, height: null, cssClass, htmlAttributes, markerAttributes, controls });
+    return renderVideoTag({ kind: "audio", contentType: props.contentType, urlKey, alt, width: null, height: null, cssClass, htmlAttributes, markerAttributes, controls });
   }
   if (typeof props.contentType === "string" && props.contentType.startsWith("video/")) {
-    return renderVideoTag({ urlKey, alt, width, height, cssClass, htmlAttributes, markerAttributes, controls });
+    return renderVideoTag({ contentType: props.contentType, urlKey, alt, width, height, cssClass, htmlAttributes, markerAttributes, controls });
   }
 
   const transformName = plausibleMediaRefId(props.transformName);

@@ -39,7 +39,7 @@ export interface ProviderSettingsView {
 }
 
 export interface ProviderConfigSource {
-  usage?(required: { pluginId: string }, optional?: Record<string, never>): Promise<ProviderKeyUsage>;
+  usage(required: { pluginId: string }, optional?: Record<string, never>): Promise<ProviderKeyUsage>;
   /** Which store this is, for the admin card ("saved for this project" vs "this site"). */
   readonly scope: "project" | "site";
   /** Null when nothing was ever saved for the plugin.
@@ -80,6 +80,17 @@ export class ProviderStoreUnavailableError extends Error {
 const UNREADABLE_VIEW: ProviderSettingsView = Object.freeze({ settings: Object.freeze({}), secretNames: Object.freeze([]), unreadable: true });
 
 const CONFIG_KEY = "provider.config";
+
+/** Normalize Tovu's former OTel auth choice at the snapshot boundary shared by boot and both cards.
+ * Reads never rewrite a row; a later save persists the effective choice with its original secrets.
+ * @complexity O(f + u) for public fields and username text; no store writes.
+ */
+function savedProviderConfig({ pluginId, config }: { pluginId: string; config: ProviderPluginConfig }, _optional = {}): ProviderPluginConfig {
+  if (pluginId !== "observability-opentelemetry") return config;
+  const auth = config.settings.auth;
+  if (auth !== "token" && auth !== undefined) return config;
+  return { ...config, settings: { ...config.settings, auth: config.settings.username?.trim() ? "grafana-cloud" : "bearer" } };
+}
 
 const stringRecord = (value: unknown): Record<string, string> | null => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -128,7 +139,7 @@ export function createVaultProviderConfigSource(
   async function read({ pluginId }: { pluginId: string }): Promise<ProviderPluginConfig | null> {
     const row = (await store({ pluginId }).get({ key: CONFIG_KEY }).catch((error: unknown) => unreadableOr({ pluginId, error }))) as { settings?: unknown; secrets?: unknown } | null;
     if (!row || typeof row !== "object") return null;
-    return { settings: stringRecord(row.settings) ?? {}, secrets: stringRecord(row.secrets) ?? {} };
+    return savedProviderConfig({ pluginId, config: { settings: stringRecord(row.settings) ?? {}, secrets: stringRecord(row.secrets) ?? {} } });
   }
   return {
     scope: required.scope,
@@ -164,9 +175,10 @@ export function withAttachedProject(
 ): ProviderConfigSource {
   const attached = ({ pluginId }: { pluginId: string }) => attachments.isAttached({ siteId, keyId: providerKeyId({ pluginId }) });
   async function usage(input: { pluginId: string }): Promise<ProviderKeyUsage> {
-    if (await site.readSettings(input)) return { keyId: providerKeyId(input), store: "site", usedByThisSite: true, usedBy: [] };
+    const own = await site.usage(input);
+    if (own.usedByThisSite) return own;
     const keyId = providerKeyId(input);
-    const exists = Boolean(await project.readSettings(input));
+    const exists = (await project.usage(input)).keyId !== undefined;
     const users = await attachments.usersOf({ keyId });
     return { ...(exists ? { keyId } : {}), store: "project", usedByThisSite: exists && users.some(user => user.siteId === siteId), usedBy: users.map(user => user.siteName) };
   }
@@ -176,18 +188,12 @@ export function withAttachedProject(
     readSettings: async input => (await site.readSettings(input)) ?? (await attached(input) ? project.readSettings(input) : null),
     write: input => transaction({ run: async () => {
       const current = await usage(input);
-      const own = current.store === "site" || (!current.usedByThisSite && current.usedBy.length > 0);
+      const own = !siteId || current.store === "site" || (!current.usedByThisSite && current.usedBy.length > 0);
       // The unfiltered store owns revision reads; filtering it would hide the row being replaced.
       await (own ? site : project).write(input);
       return usage(input).then(result => ({ ...result, keyId: providerKeyId(input) }));
     } }),
   };
-}
-
-/** Presence-only fallback for injected sources predating usage(). */
-export async function providerKeyUsage({ config, pluginId }: { config: ProviderConfigSource; pluginId: string }, _optional = {}): Promise<ProviderKeyUsage> {
-  if (config.usage) return config.usage({ pluginId });
-  return { store: config.scope, usedByThisSite: Boolean(await config.readSettings({ pluginId })), usedBy: [] };
 }
 
 /**
@@ -202,6 +208,7 @@ export function withUnavailableProject(
   const { site, reason } = required;
   return {
     scope: "project",
+    usage: input => site.usage(input),
     read: (input) => site.read(input),
     readSettings: (input) => site.readSettings(input),
     write: () => Promise.reject(new ProviderStoreUnavailableError({ reason })),

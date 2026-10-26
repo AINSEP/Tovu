@@ -32,6 +32,12 @@ test('committed forms require original and still-active consent; delayed events 
   current = true;
   await bus.publish({ ...base, payload: { ...payload, analyticsProvenance } });
   assert.deepEqual(events, [{ name: 'form_submitted', userId: 'visitor:opaque', properties: {
-    eventId: 'event-1', formId: 'form-1', deliveryMode: 'live',
+    eventId: 'event-1', formId: 'form-1', formSlug: 'contact', deliveryMode: 'live',
   } }]);
+  const find = definitions.findById.bind(definitions);
+  definitions.findById = async input => { const definition = await find(input); current = false; return definition; };
+  await bus.publish({ ...base, payload: { ...payload, analyticsProvenance } });
+  assert.deepEqual(events, [{ name: 'form_submitted', userId: 'visitor:opaque', properties: {
+    eventId: 'event-1', formId: 'form-1', formSlug: 'contact', deliveryMode: 'live',
+  } }], 'a revoke during the definition read suppresses the delayed delivery');
 });

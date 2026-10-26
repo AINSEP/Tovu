@@ -964,7 +964,6 @@ export interface ObservabilityDeps {
   /** Enabled analytics plugins supply trusted browser code; core never names the vendor. */
   browserAnalytics?: (required: { surface: 'site' | 'admin' }) => readonly import('@jini-ai/analytics/product').BrowserAnalyticsContribution[];
   /** Existing visitor receipt/GPC decision; absent means public event capture is disabled. */
-  visitorAnalyticsConsent?: (required: { request: import('express').Request }) => Promise<boolean>;
   visitorAnalyticsProof?: import('#src/server/inbound/public-http/visitor-analytics').VisitorAnalyticsDeps['visitorAnalyticsProof'];
   visitorAnalyticsDeliveryAllowed?: import('#src/server/inbound/public-http/visitor-analytics').VisitorAnalyticsDeps['visitorAnalyticsDeliveryAllowed'];
   /** Infrastructure integration only; request, error and feature signals use the facade below. */
@@ -974,6 +973,10 @@ export interface ObservabilityDeps {
    * plugin behind `withProductAnalyticsGuards` (operator consent `core.privacy.telemetry.metrics`
    * first), else the shared noop. Hermetic roots supply the no-provider facade. */
   tracker: import("@jini-ai/diagnostics/observability").Tracker;
+  /** Public event admission follows visitor consent, independent of admin usage telemetry. */
+  visitorTracker?: import("@jini-ai/diagnostics/observability").Tracker;
+  observabilityEnabled?: () => boolean;
+  flushTelemetry?: () => Promise<void>;
   telemetryStatus?: ReturnType<typeof import("@jini-ai/diagnostics/observability").createTelemetryDeliveryMonitor>["read"];
   sendTelemetryTest?: (required: Record<string, never>, optional?: Record<string, never>) => Promise<import("@jini-ai/diagnostics/observability").TelemetryTestResult>;
   /** AI-trace sink of trace providers and optional analytics generation hooks; absent means off. */

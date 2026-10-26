@@ -102,16 +102,16 @@ test("media node: an implausible assetId renders the placeholder", () => {
   assert.equal(MEDIA({ assetId: "a/b" }), "<figure class=\"media-ph\" style=\"aspect-ratio:16 / 9\"><span class=\"media-ph__label\">Media</span></figure>");
 });
 test("media node: a video asset renders a video tag with asset style", () => {
-  assert.equal(MEDIA({ assetId: "v1", alt: "Clip" }, new Map([["v1", meta({ contentType: "video/mp4", width: 640, height: 360, cssClass: "asset-c", htmlAttributes: 'data-a="1"', slug: "clip" })]])), "<video src=\"/m/clip/original\" controls width=\"640\" height=\"360\" class=\"asset-c\" data-a=\"1\">Clip</video>");
+  assert.equal(MEDIA({ assetId: "v1", alt: "Clip" }, new Map([["v1", meta({ contentType: "video/mp4", width: 640, height: 360, cssClass: "asset-c", htmlAttributes: 'data-a="1"', slug: "clip" })]])), "<video src=\"/m/clip/original.mp4\" controls width=\"640\" height=\"360\" class=\"asset-c\" data-a=\"1\">Clip</video>");
 });
 test("media node: node cssClass and htmlAttributes override the asset's on video", () => {
-  assert.equal(MEDIA({ assetId: "v1", cssClass: "node-c", htmlAttributes: 'data-n="2"' }, new Map([["v1", meta({ contentType: "video/webm", cssClass: "asset-c", htmlAttributes: 'data-a="1"' })]])), "<video src=\"/m/v1/original\" controls class=\"node-c\" data-n=\"2\">Your browser does not support the video tag.</video>");
+  assert.equal(MEDIA({ assetId: "v1", cssClass: "node-c", htmlAttributes: 'data-n="2"' }, new Map([["v1", meta({ contentType: "video/webm", cssClass: "asset-c", htmlAttributes: 'data-a="1"' })]])), "<video src=\"/m/v1/original.webm\" controls class=\"node-c\" data-n=\"2\">Your browser does not support the video tag.</video>");
 });
 test("media node: an audio asset renders an audio tag without dimensions", () => {
-  assert.equal(MEDIA({ assetId: "s1", alt: "Song" }, new Map([["s1", meta({ contentType: "audio/mpeg", width: 1, height: 2, cssClass: "asset-c", slug: "song" })]])), "<audio src=\"/m/song/original\" controls class=\"asset-c\">Song</audio>");
+  assert.equal(MEDIA({ assetId: "s1", alt: "Song" }, new Map([["s1", meta({ contentType: "audio/mpeg", width: 1, height: 2, cssClass: "asset-c", slug: "song" })]])), "<audio src=\"/m/song/original.mp3\" controls class=\"asset-c\">Song</audio>");
 });
 test("media node: node style overrides the asset's on audio", () => {
-  assert.equal(MEDIA({ assetId: "s1", cssClass: "node-c", htmlAttributes: 'data-n="2"' }, new Map([["s1", meta({ contentType: "audio/ogg", cssClass: "asset-c", htmlAttributes: 'data-a="1"' })]])), "<audio src=\"/m/s1/original\" controls class=\"node-c\" data-n=\"2\">Your browser does not support the audio tag.</audio>");
+  assert.equal(MEDIA({ assetId: "s1", cssClass: "node-c", htmlAttributes: 'data-n="2"' }, new Map([["s1", meta({ contentType: "audio/ogg", cssClass: "asset-c", htmlAttributes: 'data-a="1"' })]])), "<audio src=\"/m/s1/original.ogg\" controls class=\"node-c\" data-n=\"2\">Your browser does not support the audio tag.</audio>");
 });
 test("media node: an image asset renders the ref image with node style", () => {
   assert.equal(MEDIA({ assetId: "i1", transformName: "public", alt: "Pic", cssClass: "node-c" }, new Map([["i1", meta({ contentType: "image/png", width: 10, height: 20 })]])), "<img src=\"/m/i1/public.v3/image.jpg\" alt=\"Pic\" width=\"10\" height=\"20\" class=\"node-c\" loading=\"lazy\">");
@@ -219,10 +219,10 @@ test("media-image IR: an implausible assetId renders the widget placeholder", ()
   assert.equal(MEDIA_IR({ assetId: "a b" }), "<div class=\"widget widget-placeholder\" aria-hidden=\"true\"></div>");
 });
 test("media-image IR: an audio asset renders an audio tag without dimensions", () => {
-  assert.equal(MEDIA_IR({ assetId: "s1", contentType: "audio/mpeg", alt: "Song", width: 5, height: 6, slug: "song", controls: false }), "<audio src=\"/m/song/original\">Song</audio>");
+  assert.equal(MEDIA_IR({ assetId: "s1", contentType: "audio/mpeg", alt: "Song", width: 5, height: 6, slug: "song", controls: false }), "<audio src=\"/m/song/original.mp3\">Song</audio>");
 });
 test("media-image IR: a video asset renders a sized video tag", () => {
-  assert.equal(MEDIA_IR({ assetId: "v1", contentType: "video/mp4", width: 5, height: 6, cssClass: "c" }), "<video src=\"/m/v1/original\" controls width=\"5\" height=\"6\" class=\"c\">Your browser does not support the video tag.</video>");
+  assert.equal(MEDIA_IR({ assetId: "v1", contentType: "video/mp4", width: 5, height: 6, cssClass: "c" }), "<video src=\"/m/v1/original.mp4\" controls width=\"5\" height=\"6\" class=\"c\">Your browser does not support the video tag.</video>");
 });
 test("media-image IR: an image needs a string transform name", () => {
   assert.equal(MEDIA_IR({ assetId: "i1", contentType: "image/png", version: 2 }), "<div class=\"widget widget-placeholder\" aria-hidden=\"true\"></div>");

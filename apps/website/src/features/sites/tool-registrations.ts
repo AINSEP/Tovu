@@ -225,7 +225,7 @@ export function buildSitesRegistrations(routeDeps: SitesToolDeps): ToolRegistrat
       const switcherBase = await gateSiteSwitchWrite(routeDeps, switcherEnabled, ctx.principal.id);
       return withSchemaOnRejection({ toolId: "sites_switch_site", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
         const { ok: _ok, ...activated } = orThrowRefusal(activateSite(
-          { switcherBase, name, restartNow, dirOverridden: routeDeps.siteBinding.dirOverridden },
+          { switcherBase, name, currentSiteName: routeDeps.siteBinding.name, restartNow, dirOverridden: routeDeps.siteBinding.dirOverridden },
           { listSites: routeDeps.listSites, persistActiveSite: routeDeps.persistActiveSite, devRestart: routeDeps.devRestart,
             readSiteRunning: routeDeps.readSiteRunning, workspace: routeDeps.sitesWorkspace },
         ));

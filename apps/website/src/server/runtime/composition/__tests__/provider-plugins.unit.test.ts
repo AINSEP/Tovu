@@ -71,6 +71,7 @@ const CONFIGS: Record<string, ProviderPluginConfig> = {
 /** A fake saved-settings source over a fixed table. */
 const configOf = (configs: Record<string, ProviderPluginConfig>): ProviderConfigSource => ({
   scope: "site",
+  usage: async ({ pluginId }) => ({ store: "site", usedByThisSite: Boolean(configs[pluginId]), usedBy: [] }),
   read: async ({ pluginId }) => configs[pluginId] ?? null,
   readSettings: async () => null,
   write: async () => {},
@@ -82,7 +83,8 @@ const quiet = () => {};
 
 test('browser contribution comes only from a configured current analytics lease', async () => {
   const contribution = { source: 'function(){return function(mode){};}', origins: ['https://collector.example'], supportsStatic: false };
-  const port: ProductAnalyticsPort = { capture() {}, identify() {}, browserAnalytics: () => contribution };
+  let browserCalls = 0;
+  const port: ProductAnalyticsPort = { capture() {}, identify() {}, browserAnalytics: () => { browserCalls++; return { ...contribution }; } };
   const { runtime } = fakeRuntime({ installed: ['analytics-posthog'], factories: {
     'analytics-posthog': { contract: 'product_analytics', id: 'posthog', factory: fakeFactory({ calls: { inputs: [], disposed: 0 }, port }) },
   } });
@@ -90,6 +92,9 @@ test('browser contribution comes only from a configured current analytics lease'
   assert.deepEqual(providers.browserAnalytics?.({ surface: 'site' }), [{ ...contribution, configuration: {
     url: '/_jini/browser-analytics?surface=site', revision: createHash('sha256').update(JSON.stringify([contribution])).digest('hex'),
   } }]);
+  const cached = providers.browserAnalytics!({ surface: 'site' });
+  assert.equal(providers.browserAnalytics!({ surface: 'site' }), cached);
+  assert.equal(browserCalls, 1, 'unchanged inventory reuses provider source and hashed revision');
   runtime.providerContributions.detach({ pluginId: 'analytics-posthog' });
   assert.deepEqual(providers.browserAnalytics?.({ surface: 'site' }), []);
   await providers.dispose({});
@@ -138,7 +143,10 @@ test("provider reporter feeds delivery status and diagnostic receipts follow liv
   } });
   const providers = await bootProviderPlugins({ runtime, config: configOf(CONFIGS), serviceName: "tovu", site: SITE,
     consent: () => allowed, consentRevision: () => 0 }, { warn: message => { warnings.push(message); }, info: quiet });
-  assert.deepEqual(providers.telemetryStatus({}), [{ providerId: "observability-opentelemetry/trace", lastExport: null, lastShutdown: null }]);
+  assert.deepEqual(providers.telemetryStatus({}), [
+    { providerId: "observability-opentelemetry/trace", lastExport: null, lastShutdown: null },
+    { providerId: "analytics-posthog/events", lastExport: null, lastShutdown: null },
+  ]);
   report({ phase: "export", outcome: "failed", host: "collector.test", errorClass: "Error", statusCode: 401 });
   report({ phase: "export", outcome: "failed", host: "collector.test", errorClass: "Error", statusCode: 401 });
   assert.deepEqual(warnings, ["observability: observability-opentelemetry/trace export failed (Error, HTTP 401, host collector.test)"]);
@@ -538,4 +546,109 @@ test("AI generation recording follows live attachment and content-policy rotatio
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(events.length, 2);
   await ports.dispose({});
+});
+
+test('visitor events follow visitor proof and revocation even when owner admin telemetry is off', async () => {
+  const { captureVisitorEvent } = await import('#src/server/inbound/public-http/visitor-analytics');
+  const events: import('@jini-ai/analytics/product').ProductEvent[] = [];
+  const { runtime } = fakeRuntime({ installed: ['analytics-posthog'], factories: {
+    'analytics-posthog': { contract: 'product_analytics', id: 'posthog', factory: fakeFactory({ calls: { inputs: [], disposed: 0 },
+      port: { capture: (event: import('@jini-ai/analytics/product').ProductEvent) => { events.push(event); }, identify() {} } }) },
+  } });
+  const providers = await bootProviderPlugins({ runtime, config: configOf(CONFIGS), serviceName: 'tovu', site: SITE,
+    consent: () => false, consentRevision: () => 0 }, { warn: quiet });
+  let granted = false, current = true;
+  const deps = { tracker: providers.tracker, visitorTracker: providers.visitorTracker, idGen: { newId: () => 'request' },
+    visitorAnalyticsProof: async () => granted ? { receiptId: 'fixture-receipt', policyVersion: '1' } : undefined,
+    visitorAnalyticsDeliveryAllowed: async () => current };
+  const capture = () => captureVisitorEvent({ deps, request: {} as import('express').Request, name: 'site_pageview' });
+  try {
+    await providers.tracker.capture({ name: 'admin_opened', userId: 'owner' });
+    await capture(); assert.deepEqual(events, []);
+    granted = true; await capture();
+    current = false; await capture();
+    assert.deepEqual(events, [{ name: 'site_pageview', userId: 'visitor:request' }]);
+    await providers.visitorTracker!.capture({ name: 'site_search_performed', userId: 'visitor:request', properties: { email: 'private' } });
+    assert.equal(events.length, 1, 'visitor analytics retains the shared PII guard');
+  } finally { await providers.dispose({}); }
+});
+
+test('enabled reflects configured current observability leases rather than inert wrappers', async () => {
+  let saved: ProviderPluginConfig | null = null;
+  const { runtime } = fakeRuntime({ installed: ['observability-sentry'], factories: {
+    'observability-sentry': { contract: 'observability', id: 'sentry', factory: fakeFactory({ calls: { inputs: [], disposed: 0 }, port: recordingObservability([]) }) },
+  } });
+  const providers = await bootProviderPlugins({ runtime, config: { ...configOf({}), read: async () => saved }, serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet });
+  try {
+    assert.equal(providers.observabilityEnabled!(), false);
+    saved = CONFIGS['observability-sentry']!;
+    await providers.reapply({ pluginId: 'observability-sentry' });
+    assert.equal(providers.observabilityEnabled!(), true);
+    runtime.providerContributions.detach({ pluginId: 'observability-sentry' });
+    assert.equal(providers.observabilityEnabled!(), false);
+  } finally { await providers.dispose({}); }
+});
+
+test('a later contract failure records failure for all rolled-back slots and never publishes stale success', async () => {
+  const contributions = createPluginContributionRegistry({});
+  const events: import('@jini-ai/analytics/product').ProductEvent[] = [];
+  const settings = [{ name: 'apiKey', label: 'Key', required: true }];
+  const analytics = { contract: 'product_analytics', id: 'analytics', contractVersion: 1 as const, settings };
+  const first = { contract: 'observability', id: 'first', contractVersion: 1 as const, settings };
+  const second = { contract: 'ai_trace', id: 'second', contractVersion: 1 as const, settings };
+  let disposed = 0;
+  const runtime = {
+    providerContributions: contributions,
+    listProviderPlugins: async () => [{ pluginId: 'healthy', providers: [analytics] }, { pluginId: 'mixed', providers: [first, second] }],
+    loadProviderPlugins: async ({ pluginIds }: { pluginIds: readonly string[] }) => {
+      for (const pluginId of pluginIds) contributions.replace({ contributions: { pluginId, sdk: {} as never, routes: [], tools: [], widgets: [], providers: pluginId === 'healthy'
+        ? [{ ...analytics, factory: () => ({ port: { capture: (event: import('@jini-ai/analytics/product').ProductEvent) => { events.push(event); }, identify() {} }, dispose() {} }) }]
+        : [{ ...first, factory: () => ({ port: recordingObservability([]), dispose() { disposed++; } }) },
+          { ...second, factory: () => { throw new Error('refused'); } }] } });
+      return pluginIds;
+    },
+  };
+  const providers = await bootProviderPlugins({ runtime, config: configOf({ healthy: { settings: { apiKey: 'fixture' }, secrets: {} }, mixed: { settings: { apiKey: 'fixture' }, secrets: {} } }),
+    serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet });
+  try {
+    assert.deepEqual(events.filter(event => event.properties?.providerId !== 'analytics'), [
+      { name: 'provider_initialized', userId: 'site:site-123', properties: { contract: 'observability', providerId: 'first', outcome: 'failure', reasonClass: 'initialization_failed' } },
+      { name: 'provider_initialized', userId: 'site:site-123', properties: { contract: 'ai_trace', providerId: 'second', outcome: 'failure', reasonClass: 'initialization_failed' } },
+    ]);
+    assert.equal(disposed, 1);
+    assert.equal(providers.observabilityEnabled!(), false);
+  } finally { await providers.dispose({}); }
+});
+
+
+test("provider loading reuses current registrations, reloads retired ones and recovers from refused admission", async () => {
+  const calls: Calls = { inputs: [], disposed: 0 };
+  const { runtime, requested } = fakeRuntime({ installed: ["observability-sentry"], factories: {
+    "observability-sentry": { contract: "observability", id: "sentry", factory: fakeFactory({ calls, port: recordingObservability([]) }) },
+  } });
+  const load = runtime.loadProviderPlugins;
+  let admitted = true;
+  runtime.loadProviderPlugins = input => admitted ? load(input) : Promise.resolve([]);
+  const warnings: string[] = [];
+  const ports = await bootProviderPlugins({ runtime, config: configOf(CONFIGS), serviceName: "test", site: SITE, ...consentAlways }, { warn: message => warnings.push(message) });
+  try {
+    assert.deepEqual(requested, [["observability-sentry"]]);
+    assert.equal(await ports.reapply({ pluginId: "observability-sentry" }), "now");
+    assert.deepEqual(requested, [["observability-sentry"]], "a current registration is reused");
+    assert.equal(calls.inputs.length, 1);
+    runtime.providerContributions.detach({ pluginId: "observability-sentry" });
+    admitted = false;
+    assert.equal(await ports.reapply({ pluginId: "observability-sentry" }), "restart");
+    assert.equal(ports.observabilityEnabled!(), false);
+    assert.equal(calls.disposed, 1);
+    assert.deepEqual(warnings, ["provider plugin 'observability-sentry' did not initialize: Error"]);
+    admitted = true;
+    assert.equal(await ports.reapply({ pluginId: "observability-sentry" }), "now");
+    assert.deepEqual(requested, [["observability-sentry"], ["observability-sentry"]]);
+    assert.equal(calls.inputs.length, 2);
+    assert.equal(ports.observabilityEnabled!(), true);
+    assert.equal(await ports.reapply({ pluginId: "unknown" }), "restart");
+  } finally { await ports.dispose({}); }
+  assert.equal(calls.disposed, 2);
+  assert.equal(await ports.reapply({ pluginId: "observability-sentry" }), "restart");
 });

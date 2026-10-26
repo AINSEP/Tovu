@@ -85,7 +85,7 @@ test("the assistant imports a local SVG logo, persists sanitized bytes and retur
   assert.doesNotMatch(Buffer.from(bytes).toString(), /script|onload|foreignObject|alert/);
   assert.match(Buffer.from(bytes).toString(), /viewBox="0 0 12 12"/);
   assert.equal(createHash("sha256").update(bytes).digest("hex"), media.sha256);
-  assert.equal(media.publicUrl, `/m/${media.slug}/original`);
+  assert.equal(media.publicUrl, `/m/${media.slug}/original.svg`);
 });
 
 test("local import batches eleven images, preserves per-item errors and keeps the shared cap", async (t) => {

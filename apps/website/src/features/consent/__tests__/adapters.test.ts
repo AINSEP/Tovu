@@ -251,3 +251,21 @@ test('privacy bootstrap failure is reported without blocking consent and retries
   assert.equal(attempts, 2);
   assert.equal(logged.length, 1);
 });
+
+test('region resolution reads only the configured header and fails strict for missing or invalid values', () => {
+  let headers: Record<string, string> = {};
+  const read: string[] = [];
+  const request = { get: (name: string) => { read.push(name); return headers[name]; }, ip: '8.8.8.8', socket: { remoteAddress: '127.0.0.1' },
+    headers: { 'x-forwarded-for': '1.1.1.1' } } as unknown as Request;
+  const input = { origin: () => 'https://site.example', rateLimiter: { check: async () => ({ allowed: true as const }) } };
+  headers = { 'x-visitor-country': 'US', 'x-custom-country': 'US' };
+  assert.equal(createSiteConsentRequestPorts(input).region({ request }), null);
+  assert.deepEqual(read, []);
+  const custom = createSiteConsentRequestPorts({ ...input, trustedRegionHeader: 'x-custom-country' });
+  for (const [value, expected] of [['US', 'US'], ['us-ca', 'US-CA'], ['DE', 'DE'], [undefined, null], ['XX', null], ['unknown', null], ['', null], ['US,DE', null]] as const) {
+    headers = { 'x-visitor-country': 'US', ...(value === undefined ? {} : { 'x-custom-country': value }) };
+    read.length = 0;
+    assert.equal(custom.region({ request }), expected);
+    assert.deepEqual(read, ['x-custom-country']);
+  }
+});

@@ -59,7 +59,7 @@ test('readiness preserves receipt failure evidence, page status, metadata and re
     assert.equal(result.truncated, page.truncated);
     assert.equal(result.enabled, false);
     assert.equal(result.placement, 'bottom-right');
-    assert.equal(result.regionMode, 'opt-in');
+    assert.equal(result.regionMode, 'auto');
     assert.equal(result.delivery, 'live');
     assert.equal(result.staticSupported, false);
     assert.equal(result.sampleOnly, true);

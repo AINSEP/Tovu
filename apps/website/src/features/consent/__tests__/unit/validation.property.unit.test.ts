@@ -46,12 +46,13 @@ test('custom CSS accepts the boundary and rejects oversize input before compilat
   }), parameters);
 });
 
-test('enabled consent requires a safe policy link and auto mode requires trusted region data', () => {
+test('enabled consent requires a safe policy link; auto is available with or without a header', () => {
   fc.assert(fc.property(fc.nat({ max: 100000 }), fc.boolean(), (id, trustedRegion) => {
     const config = parseConsentConfig({ value: {
       ...SITE_CONSENT_DEFAULTS, enabled: true, regionMode: 'auto', privacyPolicyUrl: `https://policy-${id}.example/privacy`,
     } });
-    assert.deepEqual(consentConfigProblems({ config, trustedRegion }).map(problem => problem.code), trustedRegion ? [] : ['TRUSTED_REGION_REQUIRED']);
+    assert.deepEqual(consentConfigProblems({ config, trustedRegion }).map(problem => problem.code), []);
+    assert.deepEqual(consentConfigProblems({ config: { ...config, regionMode: 'opt-out' }, trustedRegion }).map(problem => problem.code), ['GLOBAL_OPT_OUT_REFUSED']);
     for (const privacyPolicyUrl of [`http://policy-${id}.example/privacy`, `https://user-${id}@policy.example/privacy`, `javascript:alert(${id})`]) {
       const unsafe = { ...config, privacyPolicyUrl };
       assert.ok(consentConfigProblems({ config: unsafe, trustedRegion: true }).some(problem => problem.code === 'PRIVACY_LINK_REQUIRED'));

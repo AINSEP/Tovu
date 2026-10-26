@@ -68,6 +68,9 @@ function SettingsFooter({ shown, saving, pluginName, agentHandleBase, onClose, t
 export function PluginProviderSettingsDialog({ plugin, agentHandleBase, onClose, onSaved, useSettings = useWiredPluginProviderSettings }: PluginProviderSettingsDialogProps) {
   const { card, values, setValue, save, useSavedKey, saving, error, t } = useSettings(plugin.id);
   const fieldId = useId();
+  // Presence only: a saved alternate secret satisfies the same manifest rule as an entered value.
+  const effectiveValues = Object.fromEntries((card?.fields ?? []).map(field => [field.name,
+    values[field.name]?.trim() || (field.secret && field.saved ? "saved" : field.default ?? "")]));
   // The native dialog focuses on open, before the card has loaded; once it has, start in its first field.
   const firstField = card?.fields[0]?.name;
   useEffect(() => { if (firstField) document.getElementById(`${fieldId}-${firstField}`)?.focus(); }, [fieldId, firstField]);
@@ -82,7 +85,7 @@ export function PluginProviderSettingsDialog({ plugin, agentHandleBase, onClose,
             {t("Use the saved key for this site")}
           </Button> : null}
           {(card?.fields ?? []).map((field) => (
-            <ProviderSettingField key={field.name} field={{ ...field, required: isProviderSettingRequired({ field, values }) }} id={`${fieldId}-${field.name}`} value={values[field.name] ?? ""}
+            <ProviderSettingField key={field.name} field={{ ...field, required: isProviderSettingRequired({ field, values: effectiveValues }) }} id={`${fieldId}-${field.name}`} value={values[field.name] ?? ""}
               onChange={(value) => setValue(field.name, value)} handle={`${agentHandleBase}-setting-${handleWords(field.name)}`} pluginName={plugin.name} t={t} />
           ))}
         </div>

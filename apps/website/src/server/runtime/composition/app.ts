@@ -284,6 +284,7 @@ import { applyPublicPageSecurityHeaders } from "../../inbound/public-http/middle
 import { applyPublishedWebMcp } from '../../inbound/public-http/middleware/published-webmcp.js';
 import { applySiteConsent } from '../../inbound/public-http/middleware/site-consent.js';
 import { applyAdminBrowserAnalytics } from './browser-analytics.js';
+import { applyBrowserAnalyticsHttp } from './browser-analytics-http.js';
 import { applyCanonicalSiteHostRedirect } from '../../inbound/public-http/middleware/canonical-site-host.js';
 import { isPublishedWebMcpEnabled } from '#src/features/webmcp/settings';
 import { registerAdminStatic } from "../../inbound/admin-http/admin-static.js";
@@ -1859,7 +1860,7 @@ function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
       mailer: routeDeps.mailer,
       formDefinitionRepo: routeDeps.formDefinitionRepo,
       formSubmissionRepo: routeDeps.formSubmissionRepo,
-      tracker: routeDeps.tracker,
+      tracker: routeDeps.visitorTracker ?? routeDeps.tracker,
       senderIdentity: routeDeps.mailSenderIdentity,
     })
   );
@@ -1949,6 +1950,8 @@ function applyPublicMiddleware(
   // and only behind an edge that strips visitor-supplied copies.
   if (!options.consentAudit) applySiteConsent({ app, deps: routeDeps }, { trustedRegionHeader: routeDeps.consentTrustedRegionHeader });
 
+  applyBrowserAnalyticsHttp({ app, deps: routeDeps });
+
   // Public routes parse JSON at a small limit here; session-gated paths are left unparsed and
   // parsed by `requireAdminSession` only once the caller has authenticated (15 MB, 75 MB for the
   // base64 upload routes). See `inbound/shared/json-body-parsers.ts` for the limits and why.
@@ -2023,8 +2026,8 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   const memberPublicDeps: MemberPublicRouteDeps = {
     visitorAnalyticsProof: routeDeps.visitorAnalyticsProof,
     visitorAnalyticsDeliveryAllowed: routeDeps.visitorAnalyticsDeliveryAllowed,
+    visitorTracker: routeDeps.visitorTracker,
     tracker: routeDeps.tracker,
-    visitorAnalyticsConsent: routeDeps.visitorAnalyticsConsent,
     // Password writes need the SAME store as the member repos: the durable kernel, or (memory-only
     // composition, no kernel) an in-process mutex. Never mix kernel transactions with memory repos.
     credentialLifecycle: routeDeps.contentKernel ?? createInMemoryCredentialLifecycle(),
@@ -2065,8 +2068,8 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   const newsletterPublicDeps: NewsletterPublicRouteDeps = {
     visitorAnalyticsProof: routeDeps.visitorAnalyticsProof,
     visitorAnalyticsDeliveryAllowed: routeDeps.visitorAnalyticsDeliveryAllowed,
+    visitorTracker: routeDeps.visitorTracker,
     tracker: routeDeps.tracker,
-    visitorAnalyticsConsent: routeDeps.visitorAnalyticsConsent,
     workspaceId: newsletterAdminDeps.workspaceId,
     newsletterReady: newsletterAdminDeps.newsletterReady,
     newsletterConfirmationTokenRepo: newsletterAdminDeps.newsletterConfirmationTokenRepo,
@@ -2452,9 +2455,9 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   registerCommentsSubmitRoute(app, {
     visitorAnalyticsProof: routeDeps.visitorAnalyticsProof,
     visitorAnalyticsDeliveryAllowed: routeDeps.visitorAnalyticsDeliveryAllowed,
+    visitorTracker: routeDeps.visitorTracker,
     tracker: routeDeps.tracker,
     idGen: routeDeps.idGen,
-    visitorAnalyticsConsent: routeDeps.visitorAnalyticsConsent,
     ingressPolicy: routeDeps.commentIngressPolicy,
     providers: routeDeps.commentsProviders,
     workspaceId: routeDeps.workspaceId,
@@ -2472,11 +2475,12 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // (`analytics/config.settings.ts`'s `createSettingsAnalyticsConfig`), replacing the former
   // hardcoded dev-only stub.
   registerAnalyticsIngestRoute(app, {
+    browserAnalytics: routeDeps.browserAnalytics,
     visitorAnalyticsProof: routeDeps.visitorAnalyticsProof,
     visitorAnalyticsDeliveryAllowed: routeDeps.visitorAnalyticsDeliveryAllowed,
+    visitorTracker: routeDeps.visitorTracker,
     tracker: routeDeps.tracker,
     idGen: routeDeps.idGen,
-    visitorAnalyticsConsent: routeDeps.visitorAnalyticsConsent,
     clock: routeDeps.clock,
     ids: routeDeps.idGen,
     sink: routeDeps.analyticsSink,
@@ -2495,10 +2499,10 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   registerFormsSubmitRoute(app, {
     visitorAnalyticsProof: routeDeps.visitorAnalyticsProof,
     visitorAnalyticsDeliveryAllowed: routeDeps.visitorAnalyticsDeliveryAllowed,
+    visitorTracker: routeDeps.visitorTracker,
     formSubmissionAttempts: routeDeps.formSubmissionAttempts,
     tracker: routeDeps.tracker,
     idGen: routeDeps.idGen,
-    visitorAnalyticsConsent: routeDeps.visitorAnalyticsConsent,
     workspaceId: routeDeps.workspaceId,
     submitForm: {
       definitionRepo: routeDeps.formDefinitionRepo,

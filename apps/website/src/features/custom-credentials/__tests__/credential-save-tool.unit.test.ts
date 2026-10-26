@@ -14,6 +14,7 @@ const cases = [
   { adapter: 'sourceControl', input: { kind: 'source-control', target: 'github', label: 'backup' }, forwarded: { provider: 'github', label: 'backup' } },
   { adapter: 'publishHost', input: { kind: 'publish-host', target: 's3', prefill: { bucket: 'site', region: 'region-1' } }, forwarded: { target: 's3', bucket: 'site', region: 'region-1' } },
   { adapter: 'agentPluginToken', input: { kind: 'agent-plugin-token', target: 'supabase' }, forwarded: { pluginId: 'supabase' } },
+  { adapter: 'providerSettings', input: { kind: 'provider-settings', target: 'observability-example' }, forwarded: { pluginId: 'observability-example' } },
   { adapter: 'pluginProvider', input: { kind: 'plugin-provider', target: 'mail-host' }, forwarded: { provider: 'mail-host' } },
 ] as const;
 
@@ -71,6 +72,8 @@ test('unknown kinds, cross-kind fields, secret arguments and target replacement 
     { kind: 'source-control', target: 'github', provider: 'other' },
     { kind: 'publish-host', target: 's3', prefill: { target: 'other' } },
     { kind: 'publish-host', target: 's3', prefill: [] },
+    { kind: 'provider-settings', target: 'observability-example', token: 'card-only-value' },
+    { kind: 'provider-settings', target: 'observability-example', label: 'other row' },
     { kind: 'plugin-provider', target: 'mail-host', label: 'other row' },
     { kind: 'plugin-provider', target: 'mail-host', baseUrl: 'https://elsewhere.example' },
   ]) {
@@ -83,7 +86,7 @@ test('unknown credential kinds explain the supported kinds without calling an ow
   const f = fixture();
   await assert.rejects(f.registrations[0]!.handler({ ...f.context, input: { kind: 'unsupported' } }), {
     name: 'ToolInputError',
-    message: 'Unknown credential kind. Use api, media-provider, source-control, publish-host, agent-plugin-token or plugin-provider.',
+    message: 'Unknown credential kind. Use api, media-provider, source-control, publish-host, agent-plugin-token, plugin-provider or provider-settings.',
   });
   assert.deepEqual(f.calls, []);
 });
@@ -217,4 +220,14 @@ test("credential_save projects the shared attachment question for direct and plu
     assert.deepEqual(await tool!.handler({ ...f.context, input }), { ...projectResult, keyId: "key-a", usedByThisSite: false, ask: "Apply this Hosting key to A?" });
   }
   assert.deepEqual(seen, [{ result: projectResult, label: "Hosting" }, { result: projectResult, label: "Hosting" }]);
+});
+
+
+test('provider settings explain how to open a card and fail explicitly when that owner is unavailable', async () => {
+  const f = fixture();
+  const { providerSettings: _settings, ...adapters } = f.adapters;
+  const [registration] = buildCredentialSaveRegistrations({ adapters });
+  await assert.rejects(registration!.handler({ ...f.context, input: { kind: 'provider-settings', target: 'observability-example' } }), { name: 'ToolInputError', message: 'Provider settings are not available here.' });
+  assert.deepEqual(f.calls, []);
+  assert.match(credentialSaveCatalog[0]!.description, /When explicitly asked to show provider settings, open kind provider-settings/);
 });

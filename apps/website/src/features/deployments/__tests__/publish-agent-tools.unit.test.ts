@@ -24,6 +24,8 @@ import { VendorCredentialSetVaultRepo } from "#src/features/vendor-credentials/v
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { createCustomCredential } from "#src/features/custom-credentials/store";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
+import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
+import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 
 import type { DeployTargetInspection, DeployTargetRegistry, LoadedDeployTarget } from "../deploy-targets/types.js";
 import { loadBundledDeployTargets } from "../deploy-targets/__tests__/bundled-deploy-targets.fixture.js";
@@ -1211,6 +1213,46 @@ const VALID_FORM_SUBMISSION = {
   secretAccessKey: "s3cr3t",
   publicUrl: "https://my-bucket.s3.us-east-1.amazonaws.com",
 };
+
+test("publish cards can save distinct unattached project keys on two sites and update a sole attached non-default", async () => {
+  const vault = new InMemoryVaultRepo({}), attachments = fakeAttachments();
+  const keyring = new InMemoryKeyring(), sealer = new AesGcmSecretSealer(keyring);
+  const host: LoadedDeployTarget = { pluginId: "pin-host", descriptor: { id: "pin-host", label: "Pin Host", module: "host.mjs", configFields: [],
+    credential: { vendorId: "pin-host", tokenField: "token", fields: [{ name: "token", label: "Token", required: true, secret: true }] } },
+    module: { create: () => assert.fail("must not publish") } };
+  function site(siteId: string) {
+    const { deps: base } = fakeDeps();
+    const repo = new VendorCredentialSetVaultRepo({ vault: new InMemoryVaultRepo({}), kind: "vendor", vendor: true }, { project: {
+      workspaceId: "project", keyring, sealer,
+      repo: new VendorCredentialSetVaultRepo({ vault: attachedOnlyVault({ vault, attachments, siteId }), kind: "vendor", vendor: true }),
+    } });
+    const deps = { ...base, workspaceId: siteId, vendorCredentialSetRepo: repo,
+      loadDeployTargets: async () => ({ get: (id: string) => id === "pin-host" ? host : undefined, list: () => [host], refusals: [] }) };
+    const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+    const handler = tool(buildRegistrations(deps, exchanges), "credential_save");
+    return { save: async (token: string) => {
+      const form = await raiseCredentialForm(handler, { target: "pin-host" });
+      exchanges.deliver({ exchangeId: form.exchangeId, principalId: PRINCIPAL_ID, params: { token } }, { toolId: "credential_save" });
+      return await form.pending as { saved: boolean; credentialId: string };
+    } };
+  }
+  const a = site("site-a"), b = site("site-b");
+  const first = await a.save(["first", "fixture", "value"].join("-"));
+  const declined = await a.save(["declined", "fixture", "value"].join("-"));
+  const other = await b.save(["other", "fixture", "value"].join("-"));
+  assert.deepEqual([first.saved, declined.saved, other.saved], [true, true, true]);
+  assert.equal(new Set([first.credentialId, declined.credentialId, other.credentialId]).size, 3);
+  const rows = await vault.list({ workspaceId: "project", kind: "vendor", ownerKey: "tovu", principalId: null });
+  assert.equal(rows.length, 3);
+  assert.equal(new Set(rows.map(row => row.label)).size, 3);
+  assert.equal(rows.every(row => !row.isDefault), true);
+  await attachments.attach({ siteId: "site-a", siteName: "A", keyId: first.credentialId });
+  const updated = await a.save(["rotated", "fixture", "value"].join("-"));
+  assert.equal(updated.saved, true);
+  assert.equal(updated.credentialId, first.credentialId);
+  assert.equal((await vault.find({ workspaceId: "project", id: first.credentialId }))?.revision, 2);
+  assert.equal((await vault.find({ workspaceId: "project", id: other.credentialId }))?.revision, 1);
+});
 
 test("propose-credential replaces its form with the saved hint and not-tested outcome when the host has no verifier", async () => {
   const { deps } = fakeDeps();

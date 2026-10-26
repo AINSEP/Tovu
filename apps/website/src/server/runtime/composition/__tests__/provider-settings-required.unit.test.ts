@@ -25,6 +25,7 @@ function fixture(current: ProviderPluginConfig | null = null) {
   let writes = 0;
   const config: ProviderConfigSource = {
     scope: "project",
+    usage: async () => ({ store: "project", usedByThisSite: saved !== null, usedBy: [] }),
     read: async () => saved,
     readSettings: async () => saved && ({ settings: saved.settings, secretNames: Object.keys(saved.secrets) }),
     write: async ({ config: next }) => { saved = next; writes++; },
@@ -32,11 +33,12 @@ function fixture(current: ProviderPluginConfig | null = null) {
   return { config, saved: () => saved, writes: () => writes };
 }
 
-test('a rejected adapter configuration produces fixed plain card feedback without submitted values', async () => {
+test('a committed save needing restart remains successful without submitted values', async () => {
   const f = fixture();
   const token = ['private', 'fixture', String(456)].join('-');
   const result = await saveProviderSettings({ config: f.config, pluginId, fields, values: { endpoint, token }, reapply: async () => 'restart' });
-  assert.deepEqual(result, { refusal: { code: 'PROVIDER_SETTINGS_NOT_APPLIED', error: 'Settings were saved but could not be applied live. Check the key type and host URL, then restart if required.' } });
+  assert.deepEqual(result, { saved: true, configured: true, store: 'project', usedByThisSite: true, usedBy: [], appliesAt: 'restart' });
+  assert.equal(f.writes(), 1);
   assert.equal(JSON.stringify(result).includes(token), false);
 });
 
@@ -96,6 +98,32 @@ test("chat declares a default Token choice and conditional blank handling withou
   assert.equal(auth?.value, "token");
   assert.deepEqual(token, { kind: "string", name: "token", label: "Token", secret: true, required: true, requiredUnless: { field: "auth", equals: "none" }, allowBlank: true, hint });
   const kept = buildProviderSettingsForm({ prep: { pluginId, fields, saved: { settings: { endpoint }, secretNames: ["token"] } } }).fields.find((field) => field.name === "token");
-  assert.equal(kept?.required, false);
+  assert.equal(kept?.required, true);
+  assert.equal(kept?.kind === "string" && kept.hasSavedValue, true);
   assert.equal(kept?.value, undefined);
+});
+
+
+test("Grafana Cloud requires an instance ID on save, boot and status; a kept token satisfies it", async () => {
+  const cloudFields: readonly PluginProviderSettingField[] = [
+    { name: "auth", label: "Authentication", required: true, default: "grafana-cloud", options: [{ value: "grafana-cloud", label: "Grafana Cloud" }, { value: "bearer", label: "Token only" }, { value: "none", label: "None" }] },
+    { name: "username", label: "Instance ID", requiredWhen: { field: "auth", in: ["grafana-cloud"] } },
+    fields[2]!,
+  ];
+  const cloudDeclaration = { ...declaration, settings: cloudFields };
+  for (const auth of [undefined, "grafana-cloud"]) {
+    const settings = auth ? { auth } : {};
+    const f = fixture({ settings, secrets: { token: "fixture-token" } });
+    assert.deepEqual(await saveProviderSettings({ config: f.config, pluginId, fields: cloudFields, values: { token: "" } }), { refusal: { code: "PROVIDER_SETTINGS_REQUIRED", error: "Instance ID is required." } });
+    assert.equal(f.writes(), 0);
+    assert.equal(providerInputOf({ declaration: cloudDeclaration, saved: f.saved() }), undefined);
+    assert.deepEqual((await providerSettingsStatus({ config: f.config, pluginId, fields: cloudFields })).missing, ["Instance ID"]);
+  }
+  const f = fixture({ settings: { auth: "grafana-cloud", username: "123456" }, secrets: { token: "fixture-token" } });
+  const result = await saveProviderSettings({ config: f.config, pluginId, fields: cloudFields, values: { token: "" } });
+  assert.equal("saved" in result && result.configured, true);
+  assert.equal(f.saved()?.secrets.token, "fixture-token");
+  for (const auth of ["bearer", "none"]) {
+    assert.deepEqual((await providerSettingsStatus({ config: fixture({ settings: { auth }, secrets: auth === "bearer" ? { token: "fixture-token" } : {} }).config, pluginId, fields: cloudFields })).missing, []);
+  }
 });

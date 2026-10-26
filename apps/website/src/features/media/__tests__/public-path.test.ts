@@ -23,8 +23,11 @@ test("mediaUrlKey falls back to the id when a slug is not present at all", () =>
   assert.equal(mediaUrlKey({ id: "asset-1" }), "asset-1");
 });
 
-test("mediaPublicPath builds the original-video path, encoding the key", () => {
-  assert.equal(mediaPublicPath("fox photo", { kind: "original" }), "/m/fox%20photo/original");
+test("mediaPublicPath gives originals their trusted content-type extension, encoding the key", () => {
+  for (const [contentType, ext] of [["image/svg+xml", "svg"], ["video/mp4", "mp4"], ["application/pdf", "pdf"], ["audio/mpeg", "mp3"]]) {
+    assert.equal(mediaPublicPath("fox photo", { kind: "original", contentType }), `/m/fox%20photo/original.${ext}`);
+  }
+  assert.equal(mediaPublicPath("fox", { kind: "original", contentType: "unknown/../../svg" }), "/m/fox/original.bin");
 });
 
 test("mediaPublicPath builds the versioned-transform path, encoding key and transform name", () => {

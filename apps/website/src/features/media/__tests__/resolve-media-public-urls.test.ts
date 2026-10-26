@@ -115,7 +115,7 @@ test("resolveMediaPublicUrls: a recorded video asset uses the byte-passthrough /
   await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: asset.source.sha256, contentType: "video/mp4" });
 
   const result = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, [asset]);
-  assert.equal(result.get(asset.id), `/m/${asset.id}/original`);
+  assert.equal(result.get(asset.id), `/m/${asset.id}/original.mp4`);
 });
 
 test("resolveMediaPublicUrls: sanitized SVG needs no registered raster transform", async () => {
@@ -123,7 +123,7 @@ test("resolveMediaPublicUrls: sanitized SVG needs no registered raster transform
   const asset = fakeAsset({ slug: "vector-logo" });
   await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: asset.source.sha256, contentType: "image/svg+xml" });
   const result = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID, mediaContentTypeStore }, [asset]);
-  assert.equal(result.get(asset.id), "/m/vector-logo/original");
+  assert.equal(result.get(asset.id), "/m/vector-logo/original.svg");
 });
 
 test("resolveMediaPublicUrls: a non-video asset with a registered 'public' transform resolves the real /m/ image URL, ext mapped from the transform's format", async () => {
@@ -174,7 +174,7 @@ test("resolveMediaPublicUrls: mixed batch — trashed, video, and image assets e
   );
 
   assert.equal(result.get(trashed.id), null);
-  assert.equal(result.get(video.id), `/m/${video.id}/original`);
+  assert.equal(result.get(video.id), `/m/${video.id}/original.mp4`);
   assert.equal(result.get(image.id), `/m/${image.id}/${CORE_PUBLIC_TRANSFORM_NAME}.v1/image.jpg`);
 });
 
@@ -195,7 +195,7 @@ test("resolveMediaPublicUrls: a video asset with a valid slug resolves the /orig
   await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: asset.source.sha256, contentType: "video/mp4" });
 
   const result = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, [asset]);
-  assert.equal(result.get(asset.id), `/m/team-intro/original`);
+  assert.equal(result.get(asset.id), `/m/team-intro/original.mp4`);
 });
 
 test("resolveMediaPublicUrls: is scoped to the caller's own workspace — a transform registered for a DIFFERENT workspace never resolves this one's asset", async () => {
@@ -267,7 +267,7 @@ test("mediawidget audio URLs share the original-byte owner without requiring an 
   const asset = fakeAsset({ slug: "sound" });
   await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: asset.source.sha256, contentType: "audio/wav" });
   const urls = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID, mediaContentTypeStore }, [asset]);
-  assert.equal(urls.get(asset.id), "/m/sound/original");
+  assert.equal(urls.get(asset.id), "/m/sound/original.wav");
 });
 
 // A host can resolve native players without an image-transform port; images still need that port.
@@ -283,6 +283,6 @@ test("mediawidget URL batch resolves audio/video originals independently of unre
   await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: trashed.source.sha256, contentType: "audio/wav" });
   const urls = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID, mediaContentTypeStore }, [audio, video, image, trashed]);
   assert.deepEqual([...urls].sort(([a], [b]) => a.localeCompare(b)), [
-    ["audio-id", "/m/sound/original"], ["image-id", null], ["trashed-id", null], ["video-id", "/m/clip/original"],
+    ["audio-id", "/m/sound/original.mp3"], ["image-id", null], ["trashed-id", null], ["video-id", "/m/clip/original.mp4"],
   ]);
 });

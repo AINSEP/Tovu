@@ -31,8 +31,9 @@ export function projectKeyPermission({ row }: { row: VaultRecord }, _optional = 
 }
 
 /** Metadata-only project inventory and explicit opt-in; no decrypt or secret projection. */
-export function createProjectKeys({ vault, attachments, siteId, siteName, reapply, transaction }: {
+export function createProjectKeys({ vault, attachments, siteId, siteName, reapply, transaction, providerUsage }: {
   vault: VaultRepoPort; attachments: KeyAttachments; siteId: string; siteName: string;
+  providerUsage: (input: { pluginId: string }) => Promise<ProviderKeyUsage>;
   reapply: (input: { pluginId: string }) => Promise<"now" | "restart">;
   transaction: ProjectKeyTransaction;
 }, _optional = {}): ProjectKeysPort {
@@ -44,7 +45,9 @@ export function createProjectKeys({ vault, attachments, siteId, siteName, reappl
   };
   async function usage({ keyId }: { keyId: string }) {
     const users = await attachments.usersOf({ keyId });
-    return { keyId, usedByThisSite: users.some(user => user.siteId === siteId), usedBy: users.map(user => user.siteName) };
+    const pluginId = providerPluginOf({ keyId });
+    const effective = pluginId ? await providerUsage({ pluginId }) : undefined;
+    return { keyId, usedByThisSite: effective ? effective.store === "project" && effective.usedByThisSite : users.some(user => user.siteId === siteId), usedBy: users.map(user => user.siteName) };
   }
   return {
     async list({ cards = [] }) {

@@ -38,7 +38,7 @@ test("an acknowledged request returns the supervisor's decision, not a completed
 
 test("acknowledgements are bounded and fail closed on missing, malformed or unreadable replies", async () => {
   const cases = [
-    { readFile: () => null, polls: 50, reason: "The dev supervisor did not confirm the restart request." },
+    { readFile: () => null, polls: 150, reason: "The dev supervisor did not confirm the restart request." },
     { readFile: () => "{", polls: 1, reason: "Could not confirm the restart with the dev supervisor." },
     { readFile: () => JSON.stringify({ accepted: "yes" }), polls: 1, reason: "Could not confirm the restart with the dev supervisor." },
     { readFile: () => { throw new Error("unreadable"); }, polls: 1, reason: "Could not confirm the restart with the dev supervisor." },
@@ -67,6 +67,19 @@ test("an acknowledgement request write failure returns a plain refusal without e
   assert.deepEqual(await port.requestRestart({ reason: "restart" }, { awaitAcceptance: true }), {
     accepted: false, reason: "Could not send the restart request to the dev supervisor.",
   });
+});
+
+test("a slow supervisor precheck can acknowledge after the former five-second deadline", async () => {
+  const scheduled: (() => void)[] = [];
+  let polls = 0;
+  const port = devRestartPortFromEnv({ env: { [DEV_RESTART_REQUEST_FILE_ENV]: "/tmp/request.json" },
+    writeFile: () => {}, removeFile: () => {}, schedule: fn => { scheduled.push(fn); },
+    readFile: () => ++polls < 100 ? null : JSON.stringify({ accepted: true }),
+  })!;
+  const result = port.requestRestart({ reason: "restart" }, { awaitAcceptance: true });
+  while (scheduled.length) scheduled.shift()!();
+  assert.deepEqual(await result, { accepted: true });
+  assert.equal(polls, 100);
 });
 
 test("an explicit launcher site pin withdraws Switch now capability", () => {

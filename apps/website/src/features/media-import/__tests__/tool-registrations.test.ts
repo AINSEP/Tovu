@@ -182,7 +182,7 @@ test("the assistant URL tool sanitizes SVG, hashes stored bytes, and returns an 
   const stored = fixture.blobStore.writes[0]!;
   assert.doesNotMatch(Buffer.from(stored.bytes).toString(), /script|onload|foreignObject|javascript:|alert/);
   assert.equal(sha256Hex(stored.bytes), result.media.sha256);
-  assert.equal(result.media.publicUrl, `/m/${result.media.slug}/original`);
+  assert.equal(result.media.publicUrl, `/m/${result.media.slug}/original.svg`);
   assert.equal((await fixture.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: result.media.id }))?.title, "logo");
 });
 

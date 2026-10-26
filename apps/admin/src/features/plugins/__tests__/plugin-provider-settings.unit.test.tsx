@@ -51,6 +51,48 @@ function posthogDialog(providerSettings: Record<string, AdminPluginProviderSetti
 }
 
 describe("PluginProviderSettingsDialog", () => {
+  it('keeps saved legacy headers private while they satisfy the token requirement through save', async () => {
+    const onSaved = vi.fn();
+    dialogWith(createFakePluginsPort({ providerSettings: { "observability-opentelemetry": card({ fields: [
+      { name: "auth", label: "Authentication", secret: false, required: true, saved: true, value: "bearer", options: [{ value: "grafana-cloud", label: "Grafana Cloud" }, { value: "bearer", label: "Bearer" }] },
+      { name: "token", label: "Token", secret: true, required: true, saved: false, requiredUnless: { field: "auth", equals: "none", orPresent: "headers" } },
+      { name: "headers", label: "Headers", secret: true, required: false, saved: true },
+    ] }) } }), { onSaved });
+    expect((await findControl(/^Authentication/)).value).toBe('bearer');
+    const token = control(/^Token/);
+    expect(token.closest('.provider-settings-field')!.querySelector('.provider-settings-required')).toBeNull();
+    expect(control(/^Headers/).value).toBe('');
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+  });
+
+  it('shows live required marks for Grafana instance ID and Token, including a kept saved token', async () => {
+    dialogWith(createFakePluginsPort({ providerSettings: { "observability-opentelemetry": card({ fields: [
+      { name: "auth", label: "Authentication", secret: false, required: true, saved: false, default: "grafana-cloud", options: [{ value: "grafana-cloud", label: "Grafana Cloud (instance ID + token)" }, { value: "bearer", label: "Token only (Bearer)" }, { value: "none", label: "No authentication (local collector, advanced)" }] },
+      { name: "username", label: "Instance ID", secret: false, required: false, saved: false, requiredWhen: { field: "auth", in: ["grafana-cloud"] } },
+      { name: "token", label: "Token", secret: true, required: true, saved: true, requiredUnless: { field: "auth", equals: "none" } },
+    ] }) } }));
+    const auth = await findControl(/^Authentication/);
+    const instance = control(/^Instance ID/);
+    const token = control(/^Token/);
+    const hasMark = (input: HTMLInputElement) => input.closest('.provider-settings-field')!.querySelector('.provider-settings-required') !== null;
+    expect(auth.value).toBe('grafana-cloud');
+    expect(hasMark(instance)).toBe(true);
+    expect(instance.getAttribute('aria-required')).toBe('true');
+    expect(hasMark(token)).toBe(true);
+    expect(token.hasAttribute('aria-required')).toBe(false);
+    expect(token.value).toBe('');
+    fireEvent.change(auth, { target: { value: 'bearer' } });
+    expect(hasMark(instance)).toBe(false);
+    expect(hasMark(token)).toBe(true);
+    fireEvent.change(auth, { target: { value: 'none' } });
+    expect(hasMark(instance)).toBe(false);
+    expect(hasMark(token)).toBe(false);
+    fireEvent.change(auth, { target: { value: 'grafana-cloud' } });
+    expect(hasMark(instance)).toBe(true);
+    expect(hasMark(token)).toBe(true);
+  });
+
   it('requires Token by default and updates the requirement only for the explicit local collector choice', async () => {
     dialogWith(createFakePluginsPort({ providerSettings: { "observability-opentelemetry": card({ fields: [
       { name: "auth", label: "Authentication", secret: false, required: true, saved: false, default: "token", options: [{ value: "token", label: "Token" }, { value: "none", label: "No authentication (local collector, advanced)" }] },

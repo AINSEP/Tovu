@@ -119,7 +119,7 @@ export const PROJECT_MIGRATIONS: readonly MigrationStep[] = [
 
 /** Brings a project database (`project.db`, SQLite; see `project-store.ts`) to head. */
 export function migrateProjectDatabase(kernel: StorageKernel<unknown>): Promise<MigrationReport> {
-  return runMigrations(kernel, PROJECT_MIGRATIONS, { ledgerTable: PROJECT_LEDGER_TABLE, allowUnknownApplied: true });
+  return runMigrations(kernel, PROJECT_MIGRATIONS, { ledgerTable: PROJECT_LEDGER_TABLE });
 }
 
 /** Brings a content database (any dialect) to head. See `runner.ts`. */

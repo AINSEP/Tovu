@@ -34,6 +34,7 @@ function memoryConfig(): ProviderConfigSource & { saved: Map<string, ProviderPlu
   const saved = new Map<string, ProviderPluginConfig>();
   return {
     scope: "project", saved,
+    usage: async ({ pluginId }) => ({ store: "project", usedByThisSite: saved.has(pluginId), usedBy: [] }),
     read: async ({ pluginId }) => saved.get(pluginId) ?? null,
     readSettings: async ({ pluginId }) => { const found = saved.get(pluginId); return found ? { settings: found.settings, secretNames: Object.keys(found.secrets) } : null; },
     write: async ({ pluginId, config }) => { saved.set(pluginId, config); },
@@ -184,6 +185,28 @@ test("the route carries requiredUnless to the card and enforces token or explici
   assert.deepEqual(config.saved.get("obs"), { settings: { auth: "none" }, secrets: {} });
 });
 
+test("the route returns requiredWhen and enforces the declared default before saving", async (t) => {
+  const fields = [
+    { name: "auth", label: "Authentication", required: true, default: "grafana-cloud", options: [{ value: "grafana-cloud", label: "Grafana Cloud" }, { value: "token", label: "Token only" }] },
+    { name: "username", label: "Instance ID", requiredWhen: { field: "auth", in: ["grafana-cloud"] } },
+    { name: "token", label: "Token", secret: true, required: true },
+  ];
+  const { call, config } = await serve(t, { discoverPlugins: async () => [{ ...RECORDS[0]!, manifest: { contributes: { providers: [{ contract: "observability", id: "opentelemetry", contractVersion: 1, settings: fields }] } } } as unknown as PluginDiscoveryRecord] });
+  const read = await call("GET", `${WS}/plugins/obs/provider-settings`);
+  assert.equal(read.status, 200);
+  assert.deepEqual((read.json.fields as Record<string, unknown>[])[1]!.requiredWhen, { field: "auth", in: ["grafana-cloud"] });
+  const refused = await call("PUT", `${WS}/plugins/obs/provider-settings`, { values: { token: "fixture-token" } });
+  assert.equal(refused.status, 400);
+  assert.deepEqual(refused.json, { code: "PROVIDER_SETTINGS_REQUIRED", error: "Instance ID is required." });
+  assert.equal(config.saved.size, 0);
+  const saved = await call("PUT", `${WS}/plugins/obs/provider-settings`, { values: { username: "123456", token: "fixture-token" } });
+  assert.equal(saved.status, 200);
+  assert.equal(saved.text.includes("fixture-token"), false);
+  const kept = await call("PUT", `${WS}/plugins/obs/provider-settings`, { values: { token: "" } });
+  assert.equal(kept.status, 200);
+  assert.equal(config.saved.get("obs")?.secrets.token, "fixture-token");
+});
+
 test("saved settings this machine can't open (lost or re-minted store key): the card reads as not configured with a notice, and a save overwrites them", async (t) => {
   const { call, config } = await serve(t);
   let unreadable = true;
@@ -218,7 +241,7 @@ test("admin attaches an encoded provider key with its save permission and return
   const result = await call("PUT", `${WS}/project-keys/${encodeURIComponent(keyId)}/use`, { use: true });
   assert.equal(result.status, 200);
   assert.deepEqual(calls, [{ keyId, use: true }]);
-  assert.deepEqual(permissions, ["admin.plugins.enable"]);
+  assert.deepEqual(permissions, ["custom-credentials.read", "admin.plugins.enable"]);
   const malformed = await call("PUT", `${WS}/project-keys/${encodeURIComponent(keyId)}/use`, { use: "true" });
   assert.equal(malformed.status, 400);
   assert.equal(calls.length, 1);
@@ -231,4 +254,20 @@ test("admin save calls live reapply and preserves restart fallback in the respon
   assert.equal(result.status, 200);
   assert.equal(result.json.appliesAt, "restart");
   assert.deepEqual(applied, ["obs"]);
+});
+
+test("project key use denies base readers before looking up any existing or missing key", async t => {
+  const { call } = await serve(t, {
+    authorize: async () => ({ allowed: false, reason: "no_grant" }),
+    projectKeys: {
+      list: async () => [], savedResult: async ({ result }) => result,
+      permissionFor: async () => assert.fail("must authorize before revealing existence"),
+      use: async () => assert.fail("must not mutate"),
+    },
+  });
+  for (const keyId of ["existing-key", "missing-key"]) {
+    const response = await call("PUT", `${WS}/project-keys/${keyId}/use`, { use: true });
+    assert.equal(response.status, 403);
+    assert.equal(response.json.code, "FORBIDDEN");
+  }
 });

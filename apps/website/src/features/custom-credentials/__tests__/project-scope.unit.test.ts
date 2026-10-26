@@ -13,7 +13,6 @@ import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import {
   createCustomCredential,
   CustomCredentialDuplicateLabelError,
-  CustomCredentialNotFoundError,
   CustomCredentialSecretStoreUnconfiguredError,
   CustomCredentialValidationError,
   deleteCustomCredential,
@@ -21,7 +20,6 @@ import {
   describeCredentialByLabel,
   listCustomCredentials,
   resolveCustomCredentialByLabel,
-  shareCustomCredentialWithProject,
   updateCustomCredential,
   type CustomCredentialWriteDeps,
 } from "../store.js";
@@ -136,44 +134,6 @@ test("a project row opens only with the project's key", async () => {
   await assert.rejects(resolveCustomCredentialByLabel(wrongKey, { workspaceId: SITE_A, label: "hosting" }), CustomCredentialSecretStoreUnconfiguredError);
 });
 
-test("Share with all sites copies a site-only row into the project (same id), verified, then drops the site copy", async () => {
-  const project = projectScope();
-  const siteA = siteDeps({ project });
-  const siteB = siteDeps({ project });
-  const token = secret("legacy");
-  const own = await save(siteA, SITE_A, "hosting", token, { scope: "site" });
-  const shared = await shareCustomCredentialWithProject(siteA, { workspaceId: SITE_A, id: own.id });
-  assert.deepEqual({ id: shared.id, scope: shared.scope, label: shared.label }, { id: own.id, scope: "project", label: "hosting" });
-  assert.equal(JSON.stringify(shared).includes(token), false, "the summary never carries the secret");
-  assert.deepEqual(await siteA.repo.listByWorkspace({ workspaceId: SITE_A }), []);
-  assert.equal((await resolveCustomCredentialByLabel(siteB, { workspaceId: SITE_B, label: "hosting" }))?.connection.token, token);
-  assert.equal((await resolveCustomCredentialByLabel(siteA, { workspaceId: SITE_A, label: "hosting" }))?.connection.token, token);
-});
-
-test("Share replaces a same-label project row in place; refuses without a project or a site row", async () => {
-  const project = projectScope();
-  const siteA = siteDeps({ project });
-  const siteB = siteDeps({ project });
-  const before = await save(siteA, SITE_A, "hosting", secret("old"));
-  const own = await save(siteB, SITE_B, "hosting", secret("newer"), { scope: "site" });
-  const shared = await shareCustomCredentialWithProject(siteB, { workspaceId: SITE_B, id: own.id });
-  assert.equal(shared.id, before.id);
-  assert.equal((await resolveCustomCredentialByLabel(siteA, { workspaceId: SITE_A, label: "hosting" }))?.connection.token, secret("newer"));
-  await assert.rejects(shareCustomCredentialWithProject(siteB, { workspaceId: SITE_B, id: before.id }), CustomCredentialNotFoundError);
-  await assert.rejects(shareCustomCredentialWithProject(siteDeps(), { workspaceId: SITE_A, id: "x" }), CustomCredentialValidationError);
-});
-
-test("a failed project write leaves the site row in place", async () => {
-  const project = projectScope();
-  const site = siteDeps({ project });
-  const own = await save(site, SITE_A, "hosting", secret("keep"), { scope: "site" });
-  const insert = project.repo.insert.bind(project.repo);
-  project.repo.insert = async () => { throw new Error("disk full"); };
-  await assert.rejects(shareCustomCredentialWithProject(site, { workspaceId: SITE_A, id: own.id }), /disk full/);
-  project.repo.insert = insert;
-  assert.equal((await describeCredential(site, { workspaceId: SITE_A, id: own.id }))?.scope, "site");
-});
-
 test("an aborted save never writes the project half either", async () => {
   const project = projectScope();
   const site = siteDeps({ project });
@@ -184,42 +144,6 @@ test("an aborted save never writes the project half either", async () => {
   assert.deepEqual(await project.repo.listByWorkspace({ workspaceId: "project" }), []);
 });
 
-
-test("Share copies a rotation's label, origins, username and token from the opened snapshot", async () => {
-  const project = projectScope();
-  const site = siteDeps({ project });
-  const own = await save(site, SITE_A, "before", secret("before"), { scope: "site" });
-  const vault = site.repo.vault!;
-  const find = vault.find.bind(vault);
-  let reads = 0;
-  vault.find = async (input, options) => {
-    if (++reads === 2) await updateCustomCredential(site, { workspaceId: SITE_A, id: own.id, label: "after",
-      baseUrl: "https://new.example.test", additionalHosts: ["https://extra.example.test"], worksFor: ["new-provider"],
-      connection: { token: secret("after"), username: "new-user" } });
-    return find(input, options);
-  };
-  await shareCustomCredentialWithProject(site, { workspaceId: SITE_A, id: own.id });
-  const shared = await resolveCustomCredentialByLabel(siteDeps({ project }), { workspaceId: SITE_B, label: "after" });
-  assert.deepEqual(shared && { baseUrl: shared.baseUrl, additionalHosts: shared.additionalHosts, connection: shared.connection },
-    { baseUrl: "https://new.example.test", additionalHosts: ["https://extra.example.test"], connection: { token: secret("after"), username: "new-user" } });
-  assert.deepEqual((await listCustomCredentials(site, { workspaceId: SITE_A }))[0]!.worksFor, ["new-provider"]);
-});
-
-test("Share refuses to delete a site rotation made after the copy was verified", async () => {
-  const project = projectScope();
-  const site = siteDeps({ project });
-  const own = await save(site, SITE_A, "hosting", secret("copied"), { scope: "site" });
-  const vault = site.repo.vault!;
-  const remove = vault.delete.bind(vault);
-  vault.delete = async (input, options) => {
-    await updateCustomCredential(site, { workspaceId: SITE_A, id: own.id, connection: { token: secret("rotated") } });
-    return remove(input, options);
-  };
-  await assert.rejects(shareCustomCredentialWithProject(site, { workspaceId: SITE_A, id: own.id }),
-    { message: "This credential changed while sharing. The site copy was kept; try again." });
-  assert.equal((await resolveCustomCredentialByLabel(site, { workspaceId: SITE_A, label: "hosting" }))?.connection.token, secret("rotated"));
-  assert.equal((await resolveCustomCredentialByLabel(siteDeps({ project }), { workspaceId: SITE_B, label: "hosting" }))?.connection.token, secret("copied"));
-});
 
 test("custom project keys stay hidden until attached and detach immediately across label and id lookups", async () => {
   const project = projectScope(); const attachments = fakeAttachments();

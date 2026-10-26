@@ -138,3 +138,15 @@ test("observability status includes delivery evidence and test permission withou
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { enabled: false, serviceName: null, canSendTestError: true, providers });
 });
+
+test('observability-status follows the live lease even when the composed port is an inert wrapper', async t => {
+  let configured = false;
+  const deps = { ...createRouteDeps(), observability: { ...createNoopObservabilityPort({}) }, observabilityEnabled: () => configured };
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+  const read = async () => (await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/observability-status`, { headers: { cookie } })).json();
+  assert.deepEqual(await read(), { enabled: false, serviceName: null });
+  configured = true;
+  assert.deepEqual(await read(), { enabled: true, serviceName: 'tovu' });
+  configured = false;
+  assert.deepEqual(await read(), { enabled: false, serviceName: null });
+});

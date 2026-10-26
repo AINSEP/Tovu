@@ -530,56 +530,6 @@ async function openLocated({ scoped, record }: Located<CustomCredentialResolveDe
   return { token: resolved.payload.token, meta: resolved.summary.meta, summary: resolved.summary };
 }
 
-/**
- * Legacy copy-to-project helper (no public route): copies one of this site's own credentials into the
- * project store, re-sealed with the project key, visible to attached sites only. A project
- * row with the same label is replaced in place (its id kept); otherwise the copy keeps this row's id,
- * so anything that names it by id still finds it. The copy is opened and compared before this site's
- * row is removed (a site row would otherwise keep overriding the shared one here); any failure before
- * that leaves the site row exactly as it was. Never moves anything on its own: a person asks.
- * @throws {CustomCredentialValidationError} No project store here.
- * @throws {CustomCredentialNotFoundError} This site has no own row with that id.
- * @throws {CustomCredentialSecretStoreUnconfiguredError} A row can't be opened or sealed, or the copy
- *   does not read back.
- * @throws {CustomCredentialConcurrentModificationError} The copied site revision changed; it is kept.
- * @complexity O(n) in the project's (small) credential count, two opens, one seal and two writes.
- */
-export async function shareCustomCredentialWithProject(deps: CustomCredentialWriteDeps, input: { workspaceId: UUID; id: UUID }): Promise<CustomCredentialSummary> {
-  const [site, project] = credentialScopes(deps, input.workspaceId);
-  if (!project) throw new CustomCredentialValidationError("this site has no project to share credentials with");
-  const record = await deps.repo.findById(input);
-  if (!record) throw new CustomCredentialNotFoundError(`no custom credential '${input.id}' saved for this site only`);
-  const opened = await openLocated({ scoped: site!, record });
-  if (!opened) throw new CustomCredentialNotFoundError(`no custom credential '${input.id}' saved for this site only`);
-  const shared = await writeShared({ project, record: opened.summary, token: opened.token });
-  const check = await openLocated({ scoped: project, record: shared });
-  if (check?.token !== opened.token) throw new CustomCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
-  // Delete only the revision we copied; a concurrent rotation must remain in the site vault.
-  const source = opened.summary;
-  try {
-    await customVault(deps, { kind: source.kind as "custom" | "vendor" }).delete({ ...source, expectedRevision: source.revision });
-  } catch (error) {
-    if (error instanceof VaultError && error.code === "conflict") throw new CustomCredentialConcurrentModificationError("This credential changed while sharing. The site copy was kept; try again.");
-    throw error;
-  }
-  return toSummary(shared, { scope: "project" });
-}
-
-/** Seals `token` with `record`'s label and metadata into the project store: replacing a same-label
- *  project row (compare-and-set on its revision), else inserting under `record`'s id. */
-async function writeShared({ project, record, token }: { project: ScopedCredentialDeps<CustomCredentialWriteDeps>; record: VaultSummary; token: string }): Promise<CustomCredentialSetRecord> {
-  const rows = await project.deps.repo.listByWorkspace({ workspaceId: project.workspaceId });
-  const existing = rows.find((row) => row.label === record.label)?.vaultRecord;
-  const kind = existing?.kind === "custom" ? "custom" : "vendor";
-  const expectedRevision = existing?.revision ?? null;
-  const id = existing?.id ?? record.id;
-  const prepared = await customVault(project.deps, { kind }).prepare({ ...customVaultScope({ workspaceId: project.workspaceId, kind }), id,
-    expectedRevision, provider: null, label: record.label, meta: { ...record.meta, credentialType: "custom" }, payload: { token }, hintToken: token });
-  const shared = customVaultRecord({ row: prepared, expectedRevision });
-  await (existing ? project.deps.repo.update(shared) : project.deps.repo.insert(shared));
-  return shared;
-}
-
 /** Keep the feature's HTTP validation error contract while reusing Jini's canonical ID parser. */
 function validatedWorksFor({ value }: { value: unknown }, _options = {}): string[] {
   try { const ids = normalizeCredentialWorksFor({ value }); for (const id of ids) assertPlainField({ value: id, field: "worksFor" }); return ids; }

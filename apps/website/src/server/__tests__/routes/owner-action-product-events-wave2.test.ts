@@ -155,7 +155,7 @@ test("form_submitted on a consented public submission: committed ids under a req
   const response = await fetch(`${baseUrl}/forms/contact/submit`, { method: "POST", headers: { "content-type": "application/json", cookie: `session=${secret}` }, body: JSON.stringify({ name: secret }) });
   assert.equal(response.status, 201);
   await new Promise((resolve) => setImmediate(resolve));
-  assert.deepEqual(events, [{ name: "form_submitted", userId: "visitor:request-1", properties: { eventId: "id-2", formId: "def-1", deliveryMode: "live" } }]);
+  assert.deepEqual(events, [{ name: "form_submitted", userId: "visitor:request-1", properties: { eventId: "id-2", formId: "def-1", formSlug: "contact", deliveryMode: "live" } }]);
   assertNoSecret(events);
 });
 

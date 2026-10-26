@@ -3,7 +3,7 @@ import type { PluginProviderSettingField } from "@jini-ai/plugins/host";
 
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { providerKeyUsage, type ProviderConfigSource } from "#src/server/runtime/composition/provider-config-source";
+import type { ProviderConfigSource } from "#src/server/runtime/composition/provider-config-source";
 import { declaredProviderSettingFields, saveProviderSettings } from "#src/server/runtime/composition/provider-settings-save";
 import type { PluginsRouteDeps } from "./deps.js";
 
@@ -54,7 +54,7 @@ const choicesOf = ({ default: fallback, options, allowCustom }: PluginProviderSe
 async function cardOf({ deps, config, pluginId, fields }: { deps: ProviderSettingsRouteDeps; config: ProviderConfigSource; pluginId: string; fields: readonly PluginProviderSettingField[] }) {
   const saved = await config.readSettings({ pluginId });
   return {
-    pluginId, ...(await providerKeyUsage({ config, pluginId })), projectAvailable: config.scope === "project", appliesAt: deps.providerAppliesAt?.({ pluginId }) ?? "now",
+    pluginId, ...(await config.usage({ pluginId })), projectAvailable: config.scope === "project", appliesAt: deps.providerAppliesAt?.({ pluginId }) ?? "now",
     ...((await hasLegacyCredential({ deps, pluginId, saved })) ? { legacyCredential: true as const } : {}),
     ...(saved?.unreadable ? { unreadable: true as const } : {}),
     fields: fields.map((field) => {
@@ -62,6 +62,7 @@ async function cardOf({ deps, config, pluginId, fields }: { deps: ProviderSettin
       const value = secret ? undefined : saved?.settings[field.name];
       return { name: field.name, label: field.label, ...(field.hint ? { hint: field.hint } : {}), ...(secret ? {} : choicesOf(field)), secret, required: field.required === true,
         ...(field.requiredUnless ? { requiredUnless: field.requiredUnless } : {}),
+        ...(field.requiredWhen ? { requiredWhen: field.requiredWhen } : {}),
         saved: secret ? (saved?.secretNames.includes(field.name) ?? false) : value !== undefined && value !== "", ...(value === undefined ? {} : { value }) };
     }),
   };
@@ -113,6 +114,7 @@ function registerProjectKeyUseRoute(app: Express, deps: ProviderSettingsRouteDep
       const input = req.body as Record<string, unknown> | null;
       if (!input || typeof input.use !== "boolean" || Object.keys(input).some(key => key !== "use")) { res.status(400).json({ error: "use must be true or false" }); return; }
       const keyId = String(req.params.keyId);
+      if (!await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: "custom-credentials.read", workspaceId: deps.workspaceId })) return;
       const permission = await deps.projectKeys.permissionFor({ keyId });
       if (!await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission, workspaceId: deps.workspaceId })) return;
       res.json(await deps.projectKeys.use({ keyId, use: input.use }));

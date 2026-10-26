@@ -697,7 +697,7 @@ const CONTRACT_TABLE: readonly ContractRow[] = [
     mediaAssetMetadata: new Map<string, MediaAssetRenderMeta>([
       ["asset-vid", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: "video/mp4", slug: null }],
     ]),
-    html: '<video src="/m/asset-vid/original" controls>A clip</video>',
+    html: '<video src="/m/asset-vid/original.mp4" controls>A clip</video>',
   },
   {
     label: "media, resolved asset's contentType is image/* — falls through to the EXACT same tryRenderRefImage path the image node itself uses, byte-identical output",
@@ -780,7 +780,7 @@ const CONTRACT_TABLE: readonly ContractRow[] = [
     mediaAssetMetadata: new Map<string, MediaAssetRenderMeta>([
       ["asset-vid-style", { width: null, height: null, cssClass: "asset-video-class", htmlAttributes: null, contentType: "video/mp4", slug: null }],
     ]),
-    html: '<video src="/m/asset-vid-style/original" controls class="wide-video">clip</video>',
+    html: '<video src="/m/asset-vid-style/original.mp4" controls class="wide-video">clip</video>',
   },
 
   {
@@ -952,7 +952,7 @@ const POST_CONTENT_TABLE: readonly PostContentRow[] = [
       inlineWidgets: { p1: { componentId: "text", props: { body: "Hello widget" } } },
     },
     mustInclude: '<img src="/m/cat-photo/public.v3/image.jpg"',
-    html: '<div class="post-detail-body"><img src="/m/cat-photo/public.v3/image.jpg" alt="A cat" width="320" height="200" class="cover" loading="lazy"><video src="/m/clip-video/original" controls>A clip</video><div class="widget widget-text">Hello widget</div></div>',
+    html: '<div class="post-detail-body"><img src="/m/cat-photo/public.v3/image.jpg" alt="A cat" width="320" height="200" class="cover" loading="lazy"><video src="/m/clip-video/original.mp4" controls>A clip</video><div class="widget widget-text">Hello widget</div></div>',
   },
   {
     label: "title node with text + center align drives the <h1>, not props.title",

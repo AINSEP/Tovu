@@ -53,12 +53,13 @@ export function createFormsModule(deps: FormsModuleDeps): ServerModuleHandle {
         handler: async (event) => {
           const proof = event.payload.analyticsProvenance;
           if (proof?.granted !== true || !proof.subjectId) return;
-          if (!proof.consentProof || !await deps.visitorAnalyticsDeliveryAllowed?.({ proof: proof.consentProof })) return;
           const definition = await deps.formDefinitionRepo.findById({ workspaceId: event.payload.workspaceId, id: event.payload.formDefinitionId });
           if (!definition) return;
+          // The definition read can yield; recheck visitor consent immediately before delivery.
+          if (!proof.consentProof || !await deps.visitorAnalyticsDeliveryAllowed?.({ proof: proof.consentProof })) return;
           // The provider dedupes retries with this committed domain event id; no form answers leave.
           deps.tracker.capture({ name: "form_submitted", userId: proof.subjectId, properties: {
-            eventId: event.id, formId: definition.id,
+            eventId: event.id, formId: definition.id, formSlug: definition.slug,
             deliveryMode: event.payload.deliveryMode === "remote_import" ? "remote_import" : "live",
           } });
         },

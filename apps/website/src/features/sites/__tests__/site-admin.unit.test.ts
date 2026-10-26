@@ -235,3 +235,12 @@ test("activateSite respects a supervisor that cannot switch sites", () => {
   }), { ok: true, activeSiteName: "alpha", restartRequired: true, restartInstructions: SITE_SWITCH_RESTART_INSTRUCTIONS, restarting: false });
   assert.deepEqual(persisted, [{ name: "alpha" }]);
 });
+
+test("switching to the actual current site is a no-op before its own lease is inspected", () => {
+  assert.deepEqual(activateSite({ switcherBase: "/repo", name: "alpha", currentSiteName: "alpha", restartNow: true }, {
+    listSites: () => [SITE],
+    readSiteRunning: () => assert.fail("the current site's own lease is expected"),
+    persistActiveSite: () => assert.fail("must not rewrite the selection"),
+    devRestart: { requestRestart: () => assert.fail("must not restart") },
+  }), { ok: true, activeSiteName: "alpha", restartRequired: false, restartInstructions: "This site is already active.", restarting: false });
+});

@@ -464,13 +464,13 @@ function buildPublishOutcomeResource(spec: {
 
 
 
-/** The label a credential saved from chat is created under — mirrors
+/** The label prefix a credential saved from chat is created under — mirrors
  *  `apps/admin/src/features/deployment/rules.ts`'s `PUBLISH_CREDENTIAL_ROW_LABEL` ("default"). Cannot
  *  be imported directly: `apps/admin` is a genuinely separate npm workspace with no import path into
  *  this server's `src/` (spec §5's own verified finding), so this is a deliberate, documented mirror
  *  rather than a shared constant — an operator never sees or types a label for this provider on
- *  either side (spec §4c/§9), so the two constants only need to agree on VALUE, never be the same
- *  module. */
+ *  either side (spec §4c/§9). New project rows add an id suffix because other sites' unattached
+ *  keys are deliberately invisible here and must never block or be overwritten by a new save. */
 const CUSTOM_PROVIDER_CREDENTIAL_ROW_LABEL = "default";
 
 /** The `ui://` URI for one propose-credential form instance — same "keyed by exchange id, not an
@@ -799,9 +799,31 @@ function buildProposeCredentialForm(required: {
   };
 }
 
+/** Only declared host fields enter the persisted connection; blank secrets keep their prior value. */
+function publishConnectionValues({ targetId, credential, values }: {
+  targetId: string; credential: DeployTargetCredentialSpec; values: Readonly<Record<string, unknown>>;
+}, _optional = {}): Record<string, unknown> {
+  const connection: Record<string, unknown> = { providerId: targetId };
+  for (const field of credential.fields) {
+    // The form submits a blank optional secret as ""; omitted, the store reads it as not provided
+    // on create and keeps the stored one on update.
+    const blankOptionalSecret = values[field.name] === "" && field.secret === true && !field.required;
+    // The explicit remove choice wins over typed text; blank alone still keeps the saved secret.
+    if (values[`clear-${field.name}`] === true) connection[field.name] = null;
+    else if (typeof values[field.name] === "string" && !blankOptionalSecret) connection[field.name] = values[field.name];
+  }
+  return connection;
+}
+
+/** An explicit default wins; a sole visible row is also an unambiguous update target. */
+function publishCredentialToUpdate({ rows, targetId }: { rows: Awaited<ReturnType<typeof listPublishCredentials>>; targetId: string }, _optional = {}) {
+  const candidates = rows.filter(row => row.providerId === targetId);
+  return candidates.find(row => row.isDefault) ?? (candidates.length === 1 ? candidates[0] : undefined);
+}
+
 /**
- * Saves the submitted form as the host's connection: updates the host's default row when it has one
- * (one row per host, as the admin tab shows it), otherwise creates one. Only the host's declared
+ * Saves the submitted form as the host's connection: updates its default or sole visible row,
+ * otherwise creates a distinct project key. Only the host's declared
  * fields are forwarded; `publish-credentials/store.ts` is the one place that decides what is valid
  * (the form ships `novalidate`, so this is the real enforcement point). Its messages name fields,
  * never values.
@@ -814,15 +836,7 @@ async function saveProposedCredential(required: {
 }, _optional = {}): Promise<{ credentialId: string; tokenHint: CredentialTokenHint | null; usedByThisSite: boolean }> {
   const { deps, targetId, credential, values, signal } = required;
   // New project keys remain inert until the person accepts the attachment question.
-  const connection: Record<string, unknown> = { providerId: targetId };
-  for (const field of credential.fields) {
-    // The form submits a blank optional secret as ""; omitted, the store reads it as not provided
-    // on create and keeps the stored one on update.
-    const blankOptionalSecret = values[field.name] === "" && field.secret === true && !field.required;
-    // The explicit remove choice wins over typed text; blank alone still keeps the saved secret.
-    if (values[`clear-${field.name}`] === true) connection[field.name] = null;
-    else if (typeof values[field.name] === "string" && !blankOptionalSecret) connection[field.name] = values[field.name];
-  }
+  const connection = publishConnectionValues({ targetId, credential, values });
   const repo = abortGuardedCredentialRepo({ store: deps.vendorCredentialSetRepo, signal });
   const writeDeps: PublishCredentialWriteDeps = {
     repo,
@@ -833,14 +847,14 @@ async function saveProposedCredential(required: {
     idGen: deps.idGen,
   };
   const saved = await listPublishCredentials(writeDeps, { workspaceId: deps.workspaceId });
-  const existing = saved.find((row) => row.providerId === targetId && row.isDefault);
+  const existing = publishCredentialToUpdate({ rows: saved, targetId });
   // A failed replacement check must leave the working default key intact, before any seal/write.
   if (existing) await checkPublishReplacement({ deps, targetId, credential, connection });
   // Cancellation may arrive during the metadata read or probe; refuse before invoking persistence.
   signal.throwIfAborted();
   const stored = existing
     ? await updatePublishCredential(writeDeps, { workspaceId: deps.workspaceId, id: existing.id, connection })
-    : await createPublishCredential(writeDeps, { workspaceId: deps.workspaceId, label: CUSTOM_PROVIDER_CREDENTIAL_ROW_LABEL, connection });
+    : await createPublishCredential(writeDeps, { workspaceId: deps.workspaceId, label: `${CUSTOM_PROVIDER_CREDENTIAL_ROW_LABEL}-${deps.idGen.newId()}`, connection });
   return { credentialId: stored.id, tokenHint: stored.tokenHint ?? null, usedByThisSite: existing !== undefined || stored.scope !== "project" };
 }
 
@@ -954,7 +968,7 @@ export function buildPublishHostCredentialHandler({ deps, surfaces }: { deps: St
       // Fail closed rather than degrade — identical posture to the execute-publish guard above.
       // The engine supplies a ToolInputError so the refusal remains caller-safe through transport.
       const stored = await listPublishCredentials({ repo: deps.vendorCredentialSetRepo, loadDeployTargets: deployTargetsLoader(deps) }, { workspaceId: deps.workspaceId });
-      const updating = stored.some(row => row.providerId === descriptor.id && row.isDefault);
+      const updating = publishCredentialToUpdate({ rows: stored, targetId: descriptor.id }) !== undefined;
       const locale = await resolveOperatorLocale({ deps, workspaceId: deps.workspaceId, principalId: ctx.principal.id });
       const pluginCard = await findPluginCredentialCard({ loadCards: deps.loadPluginCredentialCards, workspaceId: deps.workspaceId, saveKind: 'publish-host', target: descriptor.id });
       const card = defineSecretCardTool<{

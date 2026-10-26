@@ -1,7 +1,7 @@
 import type { ProviderKeyUsage } from "../project-keys/service.js";
 import { requireInputRecord, requireString, ToolInputError, type ToolExecutionContext, type ToolExecutionOptions, type ToolHandler } from "@jini-ai/core";
 import { askThenReport, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import { isProviderSettingRequired, type PluginProviderSettingField } from "@jini-ai/plugins/host";
+import type { PluginProviderSettingField } from "@jini-ai/plugins/host";
 import { defineSecretCardTool, type SecretCardField, type SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
 import type { SurfaceOutcomeSpec } from "@jini-ai/ui/mcp-ui/surfaces";
 
@@ -47,8 +47,9 @@ const customName = (name: string) => `${name}__custom`;
 function choiceFields({ field, value }: { field: PluginProviderSettingField; value?: string }): SecretCardField[] {
   const options = field.options ?? [];
   const custom = Boolean(value) && !options.some((option) => option.value === value);
-  const select: SecretCardField = { kind: "enum", name: field.name, label: field.label, required: isProviderSettingRequired({ field, values: {} }),
+  const select: SecretCardField = { kind: "enum", name: field.name, label: field.label, required: field.required === true,
     ...(field.requiredUnless ? { requiredUnless: field.requiredUnless } : {}),
+    ...(field.requiredWhen ? { requiredWhen: field.requiredWhen } : {}),
     options: [...options, ...(field.allowCustom ? [{ value: CUSTOM, label: "Custom…" }] : [])], value: custom && field.allowCustom ? CUSTOM : value ?? field.default };
   if (!field.allowCustom) return [select];
   return [select, { kind: "string", name: customName(field.name), label: `Custom ${field.label.toLowerCase()}`, ...(field.hint ? { hint: field.hint } : {}), ...(custom ? { value } : {}) }];
@@ -58,20 +59,22 @@ function choiceFields({ field, value }: { field: PluginProviderSettingField; val
 function secretFieldOf({ field, saved, required }: { field: PluginProviderSettingField; saved: SavedView; required: boolean }): SecretCardField {
   const kept = saved?.secretNames.includes(field.name) === true;
   const hint = [field.hint, kept ? "Leave blank to keep the saved one." : undefined].filter(Boolean).join(" ");
-  return { kind: "string", name: field.name, label: field.label, secret: true, required: required && !kept,
+  return { kind: "string", name: field.name, label: field.label, secret: true, required, ...(kept ? { hasSavedValue: true } : {}),
     ...(field.requiredUnless ? { requiredUnless: field.requiredUnless } : {}),
-    allowBlank: !required || kept || Boolean(field.requiredUnless), ...(hint ? { hint } : {}) };
+    ...(field.requiredWhen ? { requiredWhen: field.requiredWhen } : {}),
+    allowBlank: !required || kept || Boolean(field.requiredUnless || field.requiredWhen), ...(hint ? { hint } : {}) };
 }
 
 /** One declared field → its form controls. A saved secret may be left blank to keep it. */
 function formFieldsOf({ field, saved }: { field: PluginProviderSettingField; saved: SavedView }): SecretCardField[] {
   // Conditional fields keep their base requirement; the form evaluates it as the public choice changes.
-  const required = isProviderSettingRequired({ field, values: {} });
+  const required = field.required === true;
   if (field.secret) return [secretFieldOf({ field, saved, required })];
   const value = saved?.settings[field.name] || undefined;
   if (field.options?.length) return choiceFields({ field, value });
   const initial = value ?? field.default;
-  return [{ kind: "string", name: field.name, label: field.label, required, ...(field.requiredUnless ? { requiredUnless: field.requiredUnless } : {}), ...(field.hint ? { hint: field.hint } : {}), ...(initial ? { value: initial } : {}) }];
+  return [{ kind: "string", name: field.name, label: field.label, required, ...(field.requiredUnless ? { requiredUnless: field.requiredUnless } : {}),
+    ...(field.requiredWhen ? { requiredWhen: field.requiredWhen } : {}), ...(field.hint ? { hint: field.hint } : {}), ...(initial ? { value: initial } : {}) }];
 }
 
 /** The declared card's help, key-entry hint and purposes; values never come from saved settings. */
@@ -122,10 +125,19 @@ function resultOf({ run, pluginId }: { run: { status: string; saved?: Saved; saf
   return { saved: false, reason: run.status };
 }
 
+/** A committed save can need browser reload or provider startup without becoming a failed save. */
+function savedMessage({ result }: { result: Extract<ProviderSettingsSaveResult, { saved: true }> }, _optional = {}): string {
+  const location = result.store === "site" ? "Saved for this site." : result.usedBy?.length
+    ? `Saved. Used by ${result.usedBy.join(", ")}. Other sites pick it up within 30 seconds.`
+    : "Saved to your project — not used by any site yet.";
+  if (!result.configured) return location;
+  return location + (result.appliesAt === "now" ? " Now sending." : " Reload open pages or restart this site to finish applying the saved settings.");
+}
+
 function outcomeOf({ result, title }: { result: ProviderSettingsSaveResult; title: string }): SurfaceOutcomeSpec | undefined {
   if (!result.saved && result.message === undefined) return undefined;
   return { title, state: result.saved ? "success" : "failure", app: { appName: "tovu-provider-settings-outcome", appVersion: "1" },
-    message: result.saved ? `${result.store === "site" ? "Saved for this site." : result.usedBy?.length ? `Saved. Used by ${result.usedBy.join(", ")}. Other sites pick it up within 30 seconds.` : "Saved to your project — not used by any site yet."}${result.configured && result.appliesAt === "now" ? " Now sending." : ""}` : result.message! };
+    message: result.saved ? savedMessage({ result }) : result.message! };
 }
 
 /** Thrown with fixed refusal text from the shared rule (names fields, never values). */

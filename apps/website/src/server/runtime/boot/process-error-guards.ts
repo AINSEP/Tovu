@@ -32,9 +32,8 @@ import { redactedError } from "../../../platform/observability/report-error.js";
  * same way here: Node's own guidance is that resuming normal operation after a truly uncaught
  * synchronous exception is unsafe (the process may be in a corrupted state in a way an unhandled
  * promise rejection is not), and the concrete bug this file fixes is specifically the async-rejection
- * shape (Express 4 swallowing nothing, propagating a rejected promise nowhere). Leaving Node's default
- * `uncaughtException` behavior (log to stderr, exit) in place is the deliberate choice, not an
- * oversight.
+ * shape (Express 4 swallowing nothing, propagating a rejected promise nowhere). Node's fatal
+ * behavior (log to stderr, exit) is retained, with a bounded telemetry drain before exiting.
  *
  * Architectural role:
  * Boot-time process wiring, `src/server/boot/` sibling to `registerPluginSdkResolver()` (see that
@@ -86,12 +85,11 @@ export function installUnhandledRejectionGuard(options: InstallUnhandledRejectio
 /**
  * Forwards process-level failures to the observability port (provider wave 2, 2026-10-25): an
  * unhandled rejection (`installUnhandledRejectionGuard` above still logs it and keeps the process
- * up) and an uncaught exception (`uncaughtExceptionMonitor` observes without changing Node's
- * log-and-exit default). Installed by each process once its `RouteDeps` exist — the serving process
+ * up) and an uncaught exception (report, drain telemetry, then exit). Installed by each process once
+ * its `RouteDeps` exist — the serving process
  * (`index.ts`, `tovu serve`) and the agent daemon — because the port is only built there. Only add
  * this beside the guard: a rejection listener on its own would also suppress Node's default crash.
- * A fatal exception's report is handed to the port synchronously; whether an adapter delivers it
- * before the process exits is the adapter's own buffering.
+ * A fatal exception must never resume service: the deadline forces exit even if a provider hangs.
  * @param required The port and which process this is (`server` or `daemon`), sent as an attribute.
  * @param optional Test seam for the event source; defaults to `process`.
  * @returns An uninstall function removing exactly these two listeners.
@@ -99,19 +97,32 @@ export function installUnhandledRejectionGuard(options: InstallUnhandledRejectio
  */
 export function installProcessErrorReporting(
   required: { tracker: Tracker; processRole: "server" | "daemon" },
-  optional: { target?: Pick<NodeJS.EventEmitter, "on" | "off"> } = {},
+  optional: { target?: Pick<NodeJS.EventEmitter, "on" | "off">; flush?: () => Promise<void>;
+    exit?: (code: number) => void; timeoutMs?: number; log?: (message: string, error: Error) => void } = {},
 ): () => void {
   const { tracker, processRole } = required;
   const target = optional.target ?? process;
+  const exit = optional.exit ?? ((code: number) => process.exit(code));
+  let crashing = false;
   const onRejection = (reason: unknown): void => {
     tracker.error(reason instanceof Error ? reason : redactedError({ error: reason }), { operation: "process.unhandled_rejection", attributes: { process: processRole } });
   };
   const onUncaught = (error: unknown): void => {
-    tracker.error(error instanceof Error ? error : redactedError({ error }), { operation: "process.uncaught_exception", attributes: { process: processRole } });
+    if (crashing) return;
+    crashing = true;
+    let exited = false;
+    const finish = (): void => { if (exited) return; exited = true; clearTimeout(deadline); exit(1); };
+    const deadline = setTimeout(finish, optional.timeoutMs ?? 2_000);
+    try {
+      tracker.error(error instanceof Error ? error : redactedError({ error }), { operation: "process.uncaught_exception", attributes: { process: processRole } });
+      (optional.log ?? console.error)("[uncaughtException] fatal; exiting after telemetry flush:", redactedError({ error }));
+    } catch { /* A broken diagnostic sink must not skip the fatal drain and exit. */ } finally {
+      void Promise.resolve().then(() => optional.flush?.()).catch(() => {}).finally(finish);
+    }
   };
   target.on("unhandledRejection", onRejection);
-  target.on("uncaughtExceptionMonitor", onUncaught);
-  return () => { target.off("unhandledRejection", onRejection); target.off("uncaughtExceptionMonitor", onUncaught); };
+  target.on("uncaughtException", onUncaught);
+  return () => { target.off("unhandledRejection", onRejection); target.off("uncaughtException", onUncaught); };
 }
 
 /** Report a rejected Tovu boot and terminate, including when stderr itself fails.

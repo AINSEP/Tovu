@@ -24,3 +24,19 @@ test('public captures need an original grant and a still-active proof; receipt e
   deps.visitorAnalyticsDeliveryAllowed = async () => { throw new Error('unavailable'); };
   await captureVisitorEvent(required); assert.equal(events.length, 1);
 });
+
+test('public analytics has no legacy boolean-consent fallback or dependency on owner telemetry', async () => {
+  const events: ProductEvent[] = [];
+  const deps: VisitorAnalyticsDeps & { visitorAnalyticsConsent: () => Promise<boolean> } = {
+    idGen: { newId: () => 'local' }, tracker: createTracker({}),
+    visitorTracker: createTracker({ productAnalytics: { capture: event => { events.push(event); }, identify() {} } }),
+    visitorAnalyticsConsent: async () => true,
+    visitorAnalyticsDeliveryAllowed: async () => true,
+  };
+  const required = { deps, request: {} as Request, name: 'site_search_performed', properties: { resultCountBucket: '0' } };
+  await captureVisitorEvent(required); assert.deepEqual(events, []);
+  deps.visitorAnalyticsProof = async () => ({ receiptId: 'private-local-receipt', policyVersion: '1' });
+  await captureVisitorEvent(required);
+  assert.deepEqual(events, [{ name: 'site_search_performed', userId: 'visitor:local', properties: { resultCountBucket: '0' } }]);
+  assert.equal(JSON.stringify(events).includes('private-local-receipt'), false);
+});

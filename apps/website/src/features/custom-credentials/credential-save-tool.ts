@@ -20,7 +20,7 @@ export interface CredentialSaveAdapters {
   readonly providerSettings?: ToolHandler;
 }
 
-const KINDS = ['api', 'media-provider', 'source-control', 'publish-host', 'agent-plugin-token', 'plugin-provider'] as const;
+const KINDS = ['api', 'media-provider', 'source-control', 'publish-host', 'agent-plugin-token', 'plugin-provider', 'provider-settings'] as const;
 type CredentialKind = typeof KINDS[number];
 
 /** Model input carries non-secret metadata only. Schema additionalProperties is descriptive:
@@ -31,11 +31,11 @@ type CredentialKind = typeof KINDS[number];
 export const credentialSaveCatalog: AgentToolDefinition[] = [{
   name: CREDENTIAL_SAVE_TOOL_ID,
   description: 'Save, add, connect or rotate a credential through a secure human form. The person types the API key, token or password in a masked card; it is sealed server-side and never enters chat or model input. This one call waits for submit, cancel, expiry or abandonment. ' +
-    'Choose kind: api for any third-party API, such as a payments or email API, DNS registrar or hosting API; media-provider for image/video generation keys; source-control for git repository commit and backup tokens; publish-host for static site hosting or object storage credentials; agent-plugin-token for an installed plugin personal access token fallback after agent_plugin_connect could not start OAuth sign-in; plugin-provider for a provider whose installed plugin ships its own key card, which asks for the key and required public connection fields and saves through that domain’s existing owner. Prefer a plugin-declared card whenever one covers the task. ' +
+    'Choose kind: api for any third-party API, such as a payments or email API, DNS registrar or hosting API; media-provider for image/video generation keys; source-control for git repository commit and backup tokens; publish-host for static site hosting or object storage credentials; agent-plugin-token for an installed plugin personal access token fallback after agent_plugin_connect could not start OAuth sign-in; provider-settings to show a provider plugin’s manifest settings card (target is the pluginId from provider_status); plugin-provider for a provider whose installed plugin ships its own key card, which asks for the key and required public connection fields and saves through that domain’s existing owner. Prefer a plugin-declared card whenever one covers the task. ' +
     'Examples: create an API credential with {kind:"api",label:"payments",baseUrl:"https://api.example.test",category:"general"}; rotate a saved API token with {kind:"api",target:"hosting-prod"} (target is the exact saved label, username is preserved); save an image generation key with {kind:"media-provider",target:"image-provider"}; connect repository backups with {kind:"source-control",target:"<repository provider id>",label:"default"}; save a hosting connection with {kind:"publish-host",target:"<storage provider id>",prefill:{bucket:"my-site",region:"us-east-1"}}; use a plugin token with {kind:"agent-plugin-token",target:"<plugin id>"}; open a plugin’s own key card with {kind:"plugin-provider",target:"<provider id>"}. ' +
     'Discover targets first with content_read.custom_credential, media_list_providers, source_control_get_capabilities or deployment_get_static_publish_capabilities. Choose the card or saved key whose usedFor covers the task; do not ask the person. usedFor is display text, not permission or verification. API creation accepts optional label/baseUrl/category/worksFor prefill; without target it creates a new row and refuses a duplicate label. Publish prefill accepts only provider-declared non-secret fields. Never supply a secret in any argument. ' +
-    'Before opening any key card, explain which service and purpose it is for. Refuse to open a replacement-token card for a saved working credential unless the person explicitly asked to replace that key. Never open secret-entry cards during a read-only request or to answer what a token is. Read saved metadata and answer in words first. Account-management access may require a separate plugin connection; do not overwrite a working sending key to obtain broader access. ' +
-    'Permissions stay per kind: custom-credentials.write, admin.integrations.manage (media/plugin), source-control.credentials.write, deployments.credentials.write. Results retain each kind’s safe save status and errors; only API creation returns created/credential. Saving a media key does not verify it or add adapter support. External MCP server config, user creation, database destinations and app environment secrets use their own action tools. When the result has ask, ask the person exactly that; on yes call project_key_use {keyId, use:true}. After success retry the original request once.',
+    'Before opening any key card, explain which service and purpose it is for. Refuse to open a replacement-token card for a saved working credential unless the person explicitly asked to replace that key. When explicitly asked to show provider settings, open kind provider-settings; opening the card does not save anything until the person submits. Never open secret-entry cards during a read-only request or to answer what a token is. Read saved metadata and answer in words first. Account-management access may require a separate plugin connection; do not overwrite a working sending key to obtain broader access. ' +
+    'Permissions stay per kind: custom-credentials.write, admin.integrations.manage (media/plugin), source-control.credentials.write, deployments.credentials.write, admin.plugins.enable (provider-settings). Results retain each kind’s safe save status and errors; only API creation returns created/credential. Saving a media key does not verify it or add adapter support. External MCP server config, user creation, database destinations and app environment secrets use their own action tools. When the result has ask, ask the person exactly that; on yes call project_key_use {keyId, use:true}. After success retry the original request once.',
   sideEffects: 'mutates-durable-state',
   authorization: { permission: 'resolved-per-kind' },
   inputSchema: {
@@ -63,14 +63,15 @@ export const credentialSaveDerivedRisk: DerivedRiskByToolId = new Map([[CREDENTI
  */
 function selectSave({ input, adapters }: { input: Record<string, unknown>; adapters: CredentialSaveAdapters }, _optional = {}): { handler: ToolHandler; input: Record<string, unknown> } {
   const kind = requireString({ input, key: 'kind' });
-  if (!KINDS.includes(kind as CredentialKind)) throw new ToolInputError({ message: 'Unknown credential kind. Use api, media-provider, source-control, publish-host, agent-plugin-token or plugin-provider.' });
+  if (!KINDS.includes(kind as CredentialKind)) throw new ToolInputError({ message: 'Unknown credential kind. Use api, media-provider, source-control, publish-host, agent-plugin-token, plugin-provider or provider-settings.' });
   const selectedKind = kind as CredentialKind;
   const { kind: _kind, ...metadata } = input;
+  const targetOnly = ['plugin-provider', 'provider-settings'].includes(selectedKind);
   const fields = selectedKind === 'api'
     ? ['target', 'label', 'baseUrl', 'category', 'worksFor']
-    : selectedKind === 'plugin-provider' ? ['target'] : ['target', 'prefill'];
+    : targetOnly ? ['target'] : ['target', 'prefill'];
   // A plugin card fixes its row on the server, so no label, base URL or category may ride along.
-  const validateHere = selectedKind === 'publish-host' || selectedKind === 'plugin-provider' || (selectedKind === 'api' && !('target' in metadata));
+  const validateHere = selectedKind === 'publish-host' || targetOnly || (selectedKind === 'api' && !('target' in metadata));
   if (validateHere && Object.keys(metadata).some(key => !fields.includes(key))) {
     // Creation previously ignored unknown hints. Refuse them here; other owners already validate
     // their entire input and retain their exact per-kind errors. Never silently drop an extra key.
@@ -88,19 +89,27 @@ function routeSave({ selectedKind, metadata, adapters }: {
   switch (selectedKind) {
     case 'api': return selectApiSave({ metadata, hints, adapters });
     case 'media-provider':
-    case 'source-control': {
-      if ('provider' in hints) throw new ToolInputError({ message: 'Use target for the credential provider.' });
-      return { handler: selectedKind === 'media-provider' ? adapters.mediaProvider : adapters.sourceControl, input: { ...hints, provider: metadata.target } };
-    }
+    case 'source-control': return selectProviderSave({ selectedKind, metadata, hints, adapters });
     case 'agent-plugin-token': {
       if ('pluginId' in hints) throw new ToolInputError({ message: 'Use target for the installed plugin id.' });
       return { handler: adapters.agentPluginToken, input: { ...hints, pluginId: metadata.target } };
     }
     case 'publish-host': return selectPublishSave({ metadata, adapters });
+    case 'provider-settings': {
+      if (!adapters.providerSettings) throw new ToolInputError({ message: 'Provider settings are not available here.' });
+      return { handler: adapters.providerSettings, input: { pluginId: metadata.target } };
+    }
     case 'plugin-provider': return { handler: adapters.pluginProvider, input: { provider: metadata.target } };
     // No default: selectSave refuses any kind outside KINDS before routing, and this switch covers
     // every CredentialKind, so the compiler proves no other value reaches here.
   }
+}
+
+/** Forward a provider target to its existing domain, retaining that domain's validation.
+ * @throws ToolInputError on an attempted target override. @complexity O(k) metadata keys. */
+function selectProviderSave({ selectedKind, metadata, hints, adapters }: { selectedKind: 'media-provider' | 'source-control'; metadata: Record<string, unknown>; hints: Record<string, unknown>; adapters: CredentialSaveAdapters }, _options = {}): { handler: ToolHandler; input: Record<string, unknown> } {
+  if ('provider' in hints) throw new ToolInputError({ message: 'Use target for the credential provider.' });
+  return { handler: selectedKind === 'media-provider' ? adapters.mediaProvider : adapters.sourceControl, input: { ...hints, provider: metadata.target } };
 }
 
 function selectApiSave({ metadata, hints, adapters }: { metadata: Record<string, unknown>; hints: Record<string, unknown>; adapters: CredentialSaveAdapters; }, _options = {}): { handler: ToolHandler; input: Record<string, unknown> } {

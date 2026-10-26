@@ -1,7 +1,7 @@
 import { isProviderSettingRequired, type PluginProviderSettingField } from "@jini-ai/plugins/host";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 
-import { providerKeyUsage, ProviderConfigUnreadableError, ProviderStoreUnavailableError, type ProviderConfigSource, type ProviderKeyUsage } from "./provider-config-source.js";
+import { ProviderConfigUnreadableError, ProviderStoreUnavailableError, type ProviderConfigSource, type ProviderKeyUsage } from "./provider-config-source.js";
 import { providerInputOf } from "./provider-plugins.js";
 import type { Tracker } from '@jini-ai/diagnostics/observability';
 
@@ -100,10 +100,8 @@ export async function saveProviderSettings({ config, pluginId, fields, values, r
     if (error instanceof ProviderStoreUnavailableError) return { refusal: { code: error.code, error: error.message } };
     throw error;
   }
-  const usage = await providerKeyUsage({ config, pluginId });
+  const usage = await config.usage({ pluginId });
   const appliesAt = reapply ? await reapply({ pluginId }) : "restart";
-  if (reapply && appliesAt === 'restart') return { refusal: { code: 'PROVIDER_SETTINGS_NOT_APPLIED',
-    error: 'Settings were saved but could not be applied live. Check the key type and host URL, then restart if required.' } };
   for (const contract of new Set(telemetry?.contracts ?? [])) telemetry?.tracker.capture({ name: 'provider_configured', userId: telemetry.userId,
     properties: { contract, pluginId, action: 'save' } });
   const configured = usage.usedByThisSite && providerInputOf({ declaration: { contract: "", id: pluginId, contractVersion: 1, settings: fields }, saved: next.config }) !== undefined;
@@ -129,9 +127,9 @@ export async function providerSettingsStatus({ config, pluginId, fields }: { con
   const view = await config.readSettings({ pluginId });
   const saved = view && !view.unreadable ? { settings: view.settings, secrets: Object.fromEntries(view.secretNames.map((name) => [name, "saved"])) } : null;
   // Nothing saved still counts declared defaults, so `missing` names only what the person must enter.
-  const input = providerInputOf({ declaration: { contract: "", id: pluginId, contractVersion: 1, settings: fields.map((field) => ({ ...field, required: false })) }, saved: saved ?? { settings: {}, secrets: {} } }) ?? {};
+  const input = providerInputOf({ declaration: { contract: "", id: pluginId, contractVersion: 1, settings: fields.map(({ requiredWhen: _when, ...field }) => ({ ...field, required: false })) }, saved: saved ?? { settings: {}, secrets: {} } }) ?? {};
   const missing = fields.filter((field) => isProviderSettingRequired({ field, values: input }) && !input[field.name]).map((field) => field.label);
-  const usage = await providerKeyUsage({ config, pluginId });
+  const usage = await config.usage({ pluginId });
   return { configured: missing.length === 0 && saved !== null && usage.usedByThisSite, ...usage, appliesAt: "now", missing, ...(view?.unreadable ? { unreadable: true as const } : {}) };
 }
 
@@ -144,7 +142,7 @@ export function bindProviderSettingsCardPorts({ config, discoverPlugins, reapply
   const fields = async ({ pluginId }: { pluginId: string }) => declaredProviderSettingFields({ records: await discoverPlugins(), pluginId });
   return {
     fields,
-    usage: ({ pluginId }: { pluginId: string }) => providerKeyUsage({ config, pluginId }),
+    usage: ({ pluginId }: { pluginId: string }) => config.usage({ pluginId }),
     readSettings: async ({ pluginId }: { pluginId: string }) => {
       const view = await config.readSettings({ pluginId });
       return view && !view.unreadable ? view : null;
@@ -177,7 +175,7 @@ export async function listProviderStatuses({ config, discoverPlugins, activation
     const fields = declaredProviderSettingFields({ records, pluginId });
     if (!fields) continue;
     const state = await activation({ pluginId });
-    rows.push({ pluginId, enabled: state?.enabled === true, ...(await providerSettingsStatus({ config, pluginId, fields })),
+    rows.push({ pluginId, fields: fields.map(field => ({ ...field, required: field.required === true })), settingsCard: { tool: "credential_save" as const, input: { kind: "provider-settings" as const, target: pluginId } }, enabled: state?.enabled === true, ...(await providerSettingsStatus({ config, pluginId, fields })),
       ...(appliesAt ? { appliesAt: appliesAt({ pluginId }) } : {}),
       ...(state?.quarantineReason ? { quarantine: state.quarantineReason } : {}) });
   }
