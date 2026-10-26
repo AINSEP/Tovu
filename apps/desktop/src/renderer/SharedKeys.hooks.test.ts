@@ -12,7 +12,7 @@ const entry: OwnerStoreEntry = { id: 'entry-a', kind: 'vendor', label: 'Deployme
 function fixture() {
   let reads = 0;
   let list = async (): Promise<OwnerStoreReply<'list'>> => ({ version: 1, ok: true, action: 'list', data: { entries: [entry], grants: [] } });
-  const bridge = { list: async () => { reads++; return list(); } } as OwnerStoreBridge;
+  const bridge = { list: async (input) => { assert.deepEqual(input, { store: 'project' }); reads++; return list(); } } as OwnerStoreBridge;
   return { bridge, reads: () => reads, setList: (next: typeof list) => { list = next; } };
 }
 

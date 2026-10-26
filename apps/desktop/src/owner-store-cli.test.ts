@@ -51,6 +51,14 @@ function success({ action, data }: { action: OwnerStoreAction; data: object }) {
   return { version: 1, ok: true, action, data };
 }
 
+test('project store selection stays on stdin through the existing CLI transport', async () => {
+  const f = fixture({ output: success({ action: 'list', data: { entries: [], grants: [] } }) });
+  const result = await runOwnerStoreCli({ repoRoot, userDataDir, action: 'list', fields: { store: 'project' } }, f.options);
+  assert.deepEqual(result, success({ action: 'list', data: { entries: [], grants: [] } }));
+  assert.deepEqual(JSON.parse(f.calls[0]!.stdin), { userDataDir, store: 'project' });
+  assert.deepEqual(f.calls[0]!.args.slice(-3), ['owner-store', 'list', '--json']);
+});
+
 test('S3 put sends the complete private request only on stdin; replies omit payload/meta', async (t) => {
   const logs: unknown[] = [];
   for (const method of ['log', 'warn', 'error'] as const) t.mock.method(console, method, (...args: unknown[]) => { logs.push(args); });

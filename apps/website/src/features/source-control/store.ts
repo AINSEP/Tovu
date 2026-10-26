@@ -450,26 +450,43 @@ export async function deleteSourceControlCredential(deps: SourceControlCredentia
   if (located) await located.scoped.deps.repo.delete({ workspaceId: located.scoped.workspaceId, id: input.id });
 }
 
-/** The saved default's metadata for a host, never decrypted: this site's, else the project's. */
+/** Select from this view's inventory: a visible default wins, else exactly one eligible row.
+ * A project-wide default may belong to another site. Never mutate it or guess among nondefaults.
+ * @complexity O(visible credentials); the attached read view enforces site eligibility.
+ */
+async function selectSourceControlCredential({ repo, workspaceId, providerId }: {
+  repo: SourceControlCredentialSetRepoPort; workspaceId: UUID; providerId: SourceControlProviderId;
+}, _options = {}): Promise<SourceControlCredentialSetRecord | null> {
+  const rows = await repo.listByProvider({ workspaceId, providerId });
+  return rows.find(row => row.isDefault) ?? (rows.length === 1 ? rows[0]! : null);
+}
+
+/** The selected credential's metadata for a host, never decrypted: this site's, else the project's. */
 export async function findDefaultSourceControlCredential(deps: SourceControlCredentialReadDeps,
   input: { workspaceId: UUID; providerId: SourceControlProviderId }): Promise<SourceControlCredentialSetRecord | null> {
   for (const scoped of credentialScopes(deps, input.workspaceId)) {
-    const found = await scoped.deps.repo.findDefaultByProvider({ workspaceId: scoped.workspaceId, providerId: input.providerId });
+    const found = await selectSourceControlCredential({ repo: scoped.deps.repo, workspaceId: scoped.workspaceId, providerId: input.providerId });
     if (found) return found;
   }
   return null;
 }
 
-/** The first store's opened default for the host: this site's, else the project's. @complexity O(scopes). */
+/** The first store's selected credential for the host: this site's, else the attached project's.
+ * @complexity O(attached inventory); opening retains the vault's context and authentication checks. */
 async function findDefaultOpened(deps: { repo: SourceControlCredentialSetRepoPort; sealer: SecretSealerPort }, input: { workspaceId: UUID; providerId: SourceControlProviderId }) {
   for (const scoped of credentialScopes(deps, input.workspaceId)) {
-    const resolved = await vault(scoped.deps).findDefault({ ...credentialScope({ workspaceId: scoped.workspaceId, kind: "source-control" }), provider: input.providerId });
+    const selected = await selectSourceControlCredential({ repo: scoped.deps.repo, workspaceId: scoped.workspaceId, providerId: input.providerId });
+    if (!selected) continue;
+    // The attached-only inventory can select a sole nondefault without changing the project's default.
+    // Open by identity so the default-only reader does not reject that valid selection.
+    const resolved = await vault(scoped.deps).get({ ...credentialScope({ workspaceId: scoped.workspaceId, kind: "source-control" }), id: selected.id });
+    if (resolved && resolved.summary.provider !== input.providerId) throw new VaultError({ code: 'context' });
     if (resolved) return resolved;
   }
   return null;
 }
 
-/** Resolve exactly one indexed default through Jini's context-checked open. Genuine decrypt
+/** Resolve exactly one eligible credential through Jini's context-checked open. Genuine decrypt
  * failures stay typed: this runs in the daemon as well as the HTTP process. */
 export async function resolveDefaultForSourceControl(
   deps: { repo: SourceControlCredentialSetRepoPort; sealer: SecretSealerPort },

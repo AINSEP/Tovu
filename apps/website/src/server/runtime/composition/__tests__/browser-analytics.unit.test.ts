@@ -12,7 +12,7 @@ test('admin HTML injection follows the durable metrics setting and handles strea
   await repo.saveDefinition({ settingId: 'metrics', version: 1, workspaceId: null, ...TELEMETRY_CONSENT, ownerKind: 'core', ownerId: null,
     schema: { type: 'boolean' }, defaultValue: false, scopes: 2, secret: false, status: 'active', aliasOfNamespace: null, aliasOfKey: null, coercionTag: null, createdAt: now, updatedAt: now });
   let middleware!: RequestHandler;
-  const app = { use(_paths: string[], handler: RequestHandler) { middleware = handler; } } as unknown as Express;
+  const app = { get() {}, use(_paths: string[], handler: RequestHandler) { middleware = handler; } } as unknown as Express;
   const surfaces: string[] = [];
   applyAdminBrowserAnalytics({ app, deps: { workspaceId: 'workspace-1', settingsRepo: repo,
     browserAnalytics: ({ surface }) => { surfaces.push(surface); return [{ source: 'function(){return function(mode){};}', origins: [], supportsStatic: false }]; },
@@ -42,4 +42,22 @@ test('admin HTML injection follows the durable metrics setting and handles strea
   assert.equal(granted.html.split('data-jini-browser-analytics').length, 2);
   assert.ok(granted.html.indexOf('data-jini-browser-analytics') < granted.html.indexOf('</body>'));
   assert.deepEqual(surfaces, ['admin', 'admin']);
+});
+
+test('live configuration check exposes only current opaque revisions, including provider removal', () => {
+  let handler!: RequestHandler;
+  let attached = true;
+  const app = { get(_path: string, next: RequestHandler) { handler = next; }, use() {} } as unknown as Express;
+  const contribution = { source: 'private browser configuration', origins: [], supportsStatic: false,
+    configuration: { url: '/_jini/browser-analytics?surface=site', revision: 'opaque-current' } };
+  applyAdminBrowserAnalytics({ app, deps: { browserAnalytics: () => attached ? [contribution] : [] } as unknown as RouteDeps });
+  let body: unknown;
+  const headers = new Map();
+  const res = { setHeader: (key: string, value: string) => headers.set(key, value), json: (value: unknown) => { body = value; } } as unknown as Response;
+  handler({ query: { surface: 'site' } } as unknown as Request, res, () => {});
+  assert.deepEqual(body, ['opaque-current']);
+  assert.equal(headers.get('Cache-Control'), 'no-store');
+  attached = false;
+  handler({ query: { surface: 'site' } } as unknown as Request, res, () => {});
+  assert.deepEqual(body, []);
 });

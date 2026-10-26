@@ -79,6 +79,15 @@ test('S3 successful replacement syncs every distinct grant, including stopped/ex
   assert.ok(!JSON.stringify(result).includes(secret));
 });
 
+test('project saves and listing forward the selected store and never copy or read legacy grants', async () => {
+  const f = fixture();
+  const result = await f.controller.execute({ action: 'put', input: { ...putInput, store: 'project' } });
+  assert.equal(result.ok, true);
+  assert.deepEqual(f.calls, [{ action: 'put', fields: { ...putInput, store: 'project' } }]);
+  await f.controller.execute({ action: 'list', input: { store: 'project' } });
+  assert.deepEqual(f.calls[1], { action: 'list', fields: { store: 'project' } });
+});
+
 test('S3 a failed copy and duplicate/untracked grants preserve committed success and remaining results', async () => {
   const f = fixture({ run: async input => {
     if (input.action === 'put') return reply({ action: 'put', data: { entry } }) as OwnerStoreReply<typeof input.action>;

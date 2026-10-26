@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from 'node:crypto';
 import test from "node:test";
 
 import { createNoopObservabilityPort, createNoopTracker, isNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
@@ -86,13 +87,39 @@ test('browser contribution comes only from a configured current analytics lease'
     'analytics-posthog': { contract: 'product_analytics', id: 'posthog', factory: fakeFactory({ calls: { inputs: [], disposed: 0 }, port }) },
   } });
   const providers = await bootProviderPlugins({ runtime, config: configOf(CONFIGS), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet });
-  assert.deepEqual(providers.browserAnalytics?.({ surface: 'site' }), [contribution]);
+  assert.deepEqual(providers.browserAnalytics?.({ surface: 'site' }), [{ ...contribution, configuration: {
+    url: '/_jini/browser-analytics?surface=site', revision: createHash('sha256').update(JSON.stringify([contribution])).digest('hex'),
+  } }]);
   runtime.providerContributions.detach({ pluginId: 'analytics-posthog' });
   assert.deepEqual(providers.browserAnalytics?.({ surface: 'site' }), []);
   await providers.dispose({});
   const absent = await bootProviderPlugins({ runtime, config: configOf({}), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet });
   assert.deepEqual(absent.browserAnalytics?.({ surface: 'admin' }), []);
   await absent.dispose({});
+});
+
+test('provider replacement changes the browser revision, removal withdraws it, and legacy controllers require restart', async () => {
+  const configs = { ...CONFIGS };
+  let live = true;
+  const { runtime } = fakeRuntime({ installed: ['analytics-posthog'], factories: {
+    'analytics-posthog': { contract: 'product_analytics', id: 'posthog', factory: (input) => ({
+      port: { capture() {}, identify() {}, browserAnalytics: () => ({
+        source: `function(){var key=${JSON.stringify(input.apiKey)};return function(mode){};}`,
+        origins: [], supportsStatic: false, supportsLiveConsent: live,
+      }) }, dispose() {},
+    }) },
+  } });
+  const providers = await bootProviderPlugins({ runtime, config: configOf(configs), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet });
+  try {
+    const first = providers.browserAnalytics!({ surface: 'site' })[0]!.configuration!.revision;
+    configs['analytics-posthog'] = { settings: CONFIGS['analytics-posthog']!.settings, secrets: { apiKey: ['phc', 'replacement'].join('_') } };
+    assert.equal(await providers.reapply({ pluginId: 'analytics-posthog' }), 'now');
+    assert.notEqual(providers.browserAnalytics!({ surface: 'site' })[0]!.configuration!.revision, first);
+    live = false;
+    delete configs['analytics-posthog'];
+    assert.equal(await providers.reapply({ pluginId: 'analytics-posthog' }), 'restart');
+    assert.deepEqual(providers.browserAnalytics!({ surface: 'site' }), []);
+  } finally { await providers.dispose({}); }
 });
 
 test("provider reporter feeds delivery status and diagnostic receipts follow live leases and consent", async () => {
