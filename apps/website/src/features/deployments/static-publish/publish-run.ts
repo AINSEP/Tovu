@@ -190,6 +190,15 @@ export function getPublishRunSnapshot(): PublishRunSnapshot {
   return currentRun;
 }
 
+/** Capture one accepted/settled publish at the shared run owner. No provider payload leaves here.
+ * @complexity O(1) time and space per run. */
+function publishEvent(required: { deps: StaticPublishDeps; input: StaticPublishInput; operationId: string; outcome?: "completed" | "errored" }, _optional = {}): void {
+  const { deps, input, operationId, outcome } = required;
+  if (!input.productEvent) return;
+  deps.tracker?.capture({ name: outcome ? "deploy_finished" : "site_publish_started", userId: input.productEvent.userId,
+    properties: { operationId, eventId: `publish:${operationId}:${outcome ?? "started"}`, target: input.config.target, source: input.productEvent.source, ...(outcome ? { outcome } : {}) } });
+}
+
 function beginRun(target: StaticPublishTargetId, clock: { nowIso(): string }): string {
   const startedAtIso = clock.nowIso();
   currentRun = { status: "running", startedAtIso, finishedAtIso: null, target };
@@ -226,7 +235,9 @@ function settleWithError(startedAtIso: string, target: StaticPublishTargetId, er
  */
 export function startPublishRun(deps: StaticPublishDeps, input: StaticPublishInput, clock: { nowIso(): string }, historyStore: PublishHistoryStore,
   optional: { onSettled?: (settled: { status: "completed" | "errored" }) => void } = {}): PublishRunSnapshot {
+  const operationId = input.idGen.newId();
   const startedAtIso = beginRun(input.config.target, clock);
+  publishEvent({ deps, input, operationId });
 
   void publishStaticSite(deps, input)
     .then(async (outcome) => {
@@ -235,7 +246,11 @@ export function startPublishRun(deps: StaticPublishDeps, input: StaticPublishInp
       settleWithOutcome(startedAtIso, input.config.target, outcome, clock);
     })
     .catch((err: unknown) => settleWithError(startedAtIso, input.config.target, err, clock))
-    .finally(() => optional.onSettled?.({ status: currentRun.status === "completed" ? "completed" : "errored" }));
+    .finally(() => {
+      const status = currentRun.status === "completed" ? "completed" : "errored";
+      publishEvent({ deps, input, operationId, outcome: status });
+      optional.onSettled?.({ status });
+    });
 
   return currentRun;
 }
@@ -274,13 +289,17 @@ export async function runPublishAndAwait(
   clock: { nowIso(): string },
   historyStore: PublishHistoryStore
 ): Promise<StaticPublishOutcome> {
+  const operationId = input.idGen.newId();
   const startedAtIso = beginRun(input.config.target, clock);
+  publishEvent({ deps, input, operationId });
   try {
     const outcome = await publishStaticSite(deps, input);
     settleWithOutcome(startedAtIso, input.config.target, outcome, clock);
     await recordHistoryIfPublished(deps, historyStore, input, outcome, clock, "agent_tool");
+    publishEvent({ deps, input, operationId, outcome: outcome.ok ? "completed" : "errored" });
     return outcome;
   } catch (err) {
+    publishEvent({ deps, input, operationId, outcome: "errored" });
     settleWithError(startedAtIso, input.config.target, err, clock);
     throw err;
   }

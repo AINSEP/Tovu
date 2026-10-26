@@ -10,6 +10,16 @@ import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
   en: {
+    "Send test error": "Send test error",
+    "Sending test error…": "Sending test error…",
+    "Failed to send test error": "Failed to send test error",
+    "Last export succeeded": "Last export succeeded",
+    "Last export failed": "Last export failed",
+    "No export result yet": "No export result yet",
+    "Accepted locally by": "Accepted locally by",
+    "No provider accepted the diagnostic yet.": "No provider accepted the diagnostic yet.",
+    "Remote delivery is confirmed by export status and your provider. Analytics requires telemetry consent.": "Remote delivery is confirmed by export status and your provider. Analytics requires telemetry consent.",
+    error: "error", span: "span", analytics: "analytics",
     "OpenTelemetry is ON — traces are being recorded.": "OpenTelemetry is ON — traces are being recorded.",
     "OpenTelemetry is OFF (the default) — nothing is being recorded.": "OpenTelemetry is OFF (the default) — nothing is being recorded.",
     "Reporting under the service name": "Reporting under the service name",
@@ -47,6 +57,16 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "(empty message)": "(empty message)",
   },
   es: {
+    "Send test error": "Enviar error de prueba",
+    "Sending test error…": "Enviando error de prueba…",
+    "Failed to send test error": "No se pudo enviar el error de prueba",
+    "Last export succeeded": "La última exportación se completó",
+    "Last export failed": "La última exportación falló",
+    "No export result yet": "Aún no hay resultado de exportación",
+    "Accepted locally by": "Aceptado localmente por",
+    "No provider accepted the diagnostic yet.": "Ningún proveedor ha aceptado el diagnóstico aún.",
+    "Remote delivery is confirmed by export status and your provider. Analytics requires telemetry consent.": "La entrega remota se confirma en el estado de exportación y en tu proveedor. Analytics requiere consentimiento de telemetría.",
+    error: "error", span: "traza", analytics: "analítica",
     "Recent errors": "Errores recientes",
     "The newest errors this site's server logged.": "Los errores más recientes que registró el servidor de este sitio.",
     "Recent server errors": "Errores recientes del servidor",

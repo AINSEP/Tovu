@@ -1,3 +1,5 @@
+import { captureMediaUploaded } from "./analytics.js";
+import type { Tracker } from "@jini-ai/diagnostics/observability";
 import { toolMetadata } from '../../contracts/core/tool-metadata/media.js';
 import { withToolMetadata } from '@jini-ai/core';
 import { nowIso } from "@jini-ai/core/primitives";
@@ -32,6 +34,7 @@ const EXT_BY_TRANSFORM_FORMAT: Record<string, string> = { jpeg: "jpg", png: "png
  *  this file actually calls, not the whole `MediaContentTypeStorePort`, so a caller passing a
  *  purpose-built double for either half never needs to fake the other. */
 export interface MediaPublicUrlDeps {
+  tracker?: Tracker;
   mediaContentTypeStore?: Pick<MediaContentTypeStorePort, "getMany" | "set">;
   transformDefinitionRepo?: TransformDefinitionRepoPort;
 }
@@ -134,6 +137,9 @@ function buildRecordUploadContentType(
     if (store) {
       await store.set({ workspaceId: routeDeps.workspaceId, sha256: media.source.sha256, contentType });
     }
+    const family = contentType.split("/")[0];
+    captureMediaUploaded({ tracker: routeDeps.tracker, actorId: media.createdByPrincipal, byteLength: bytes.length,
+      kind: family === "image" || family === "audio" || family === "video" ? family : "other", source: "assistant" });
   };
 }
 

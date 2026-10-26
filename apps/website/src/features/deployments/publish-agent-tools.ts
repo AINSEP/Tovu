@@ -1073,10 +1073,14 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
 
       const { config, plan, detailRows } = planToolPublish(registry, raw, loaded);
       if (!plan.ok) {
+        deps.tracker?.capture({ name: "site_publish_blocked", userId: ctx.principal.id, properties: { target, reasonClass: "config", source: "assistant" } });
         throw new ToolInputError({ message: `deployment_execute_static_publish: ${plan.message}` });
       }
       const consent = await checkToolPublishConsent({ deps, principalId: ctx.principal.id });
-      if (consent) return { published: false, cancelled: false, ...consent };
+      if (consent) {
+        deps.tracker?.capture({ name: "site_publish_blocked", userId: ctx.principal.id, properties: { target, reasonClass: "consent", source: "assistant" } });
+        return { published: false, cancelled: false, ...consent };
+      }
 
       if (config.customDomain && loaded.module.preview) {
         return domainPublishTool({ deps, surfaces, credentialSource, historyStore, config, projectName,
@@ -1087,6 +1091,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       // Refuse unavailable credentials before starting an export.
       const readiness = await credentialSource.isConfigured({ workspaceId: deps.workspaceId, target });
       if (!readiness.configured) {
+        deps.tracker?.capture({ name: "site_publish_blocked", userId: ctx.principal.id, properties: { target, reasonClass: "config", source: "assistant" } });
         return {
           published: false,
           cancelled: false,
@@ -1098,11 +1103,12 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
 
       if (ctx.signal.aborted) return { published: false, cancelled: false, reason: "abandoned" };
       if (getPublishRunSnapshot().status === "running") {
+        deps.tracker?.capture({ name: "site_publish_blocked", userId: ctx.principal.id, properties: { target, reasonClass: "busy", source: "assistant" } });
         return { published: false, cancelled: false, code: "ALREADY_RUNNING", message: "A publish is already running. Wait for it to finish before publishing again." };
       }
       const outcome = await runPublishAndAwait(
         { credentialSource, loadDeployTargets: deployTargetsLoader(deps), buildTarget: deps.buildTarget, tracker: deps.tracker, observability: deps.observability, hostKit: deps.hostKit, formDestination: deps.formDestination },
-        { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config, projectName,
+        { productEvent: { userId: ctx.principal.id, source: "assistant" }, workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config, projectName,
           ...toolCredentialChoice({ raw }) },
         { nowIso: () => clockNowIso({ clock: deps.clock }) },
         historyStore,

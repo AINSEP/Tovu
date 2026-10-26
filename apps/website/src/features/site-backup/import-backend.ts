@@ -1,3 +1,4 @@
+import type { Tracker } from "@jini-ai/diagnostics/observability";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -39,6 +40,7 @@ export function createSiteImportBackend(required: {
   registry: SiteImportRegistry; workspace: SitesWorkspace; reader: AgentPluginArchiveReaderPort; http: HttpClientPort;
   sanitize: ShareDatabaseSanitizer; schema: { index: number; tag: string };
   startSite: (required: { name: string }) => Promise<{ adminUrl: string | null; status: string }>;
+  tracker?: Tracker;
   setupBase?: string;
   creationOptions?: Parameters<typeof createSite>[1];
 }, optional: {
@@ -155,6 +157,7 @@ export function createSiteImportBackend(required: {
         // Owner and restore are committed. A supervisor failure must not repeat site creation.
         const ready: SiteImportRecord = { ...allocated, newSiteId: created.siteId, newSiteName: created.name, status: "ready" };
         put(ready);
+        required.tracker?.capture({ name: "site_imported", userId: ready.principalId, properties: { targetSiteId: created.siteId, operationId: ready.importId, eventId: `import:${ready.importId}`, source: "admin" } });
         fs.rmSync(registry.stagePath(ready), { recursive: true, force: true });
         const started = await startImportedSite({ row: ready, name: created.name, startSite: required.startSite });
         put(started);

@@ -1,3 +1,6 @@
+import { captureVisitorEvent, visitorAnalyticsProvenance } from "../../visitor-analytics.js";
+import { FormSubmissionValidationError, FormRateLimitExceededError, FormDefinitionNotFoundError, FormSubmissionTooFastError, type SubmissionAttempts } from "@jini-ai/cms/forms";
+import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
 import { parseFormMultipartMiddleware } from "./forms-multipart.js";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import express, { type Express } from "express";
@@ -33,9 +36,10 @@ import { clearFormSubmissionResultQueryParams, encodeFormSubmissionResultQuery,
  * this travels via a cookie rather than the query string.
  */
 
-export interface RegisterFormsSubmitRouteDeps {
+export interface RegisterFormsSubmitRouteDeps extends VisitorAnalyticsDeps {
   workspaceId: string;
   submitForm: SubmitFormDeps;
+  formSubmissionAttempts?: SubmissionAttempts;
 }
 
 /** Registers `POST /forms/:slug/submit`. Must be registered BEFORE the site `/:slug` catch-all.
@@ -50,10 +54,20 @@ export interface RegisterFormsSubmitRouteDeps {
  * file) is unaffected — Express dispatches to whichever parser matches the request's actual
  * `Content-Type`, so mounting both here is additive, never a double-parse of the same request. */
 export function registerFormsSubmitRoute(app: Express, deps: RegisterFormsSubmitRouteDeps): void {
-  app.post("/forms/:slug/submit", express.urlencoded({ extended: false, limit: "1mb", parameterLimit: 2002 }), express.raw({ type: "multipart/form-data", limit: "12mb" }), parseFormMultipartMiddleware, createFormSubmitHandler({
+  app.post("/forms/:slug/submit", express.urlencoded({ extended: false, limit: "1mb", parameterLimit: 2002 }), express.raw({ type: "multipart/form-data", limit: "12mb" }), parseFormMultipartMiddleware, (request, response) => createFormSubmitHandler({
     workspaceId: deps.workspaceId,
     definitionRepo: deps.submitForm.definitionRepo,
-    submit: ({ input }) => submitForm({ deps: deps.submitForm, input }, {}),
+    submit: async ({ input }) => {
+      const analyticsProvenance = await visitorAnalyticsProvenance({ deps, request });
+      try { return await submitForm({ deps: deps.submitForm, input }, { analyticsProvenance, attempts: deps.formSubmissionAttempts }); }
+      catch (error) {
+        // The timing refusal is bot screening, not a failed human conversion attempt.
+        if (!(error instanceof FormSubmissionTooFastError)) {
+          void captureVisitorEvent({ deps, request, name: "form_submit_failed", properties: formFailureProperties({ error }) });
+        }
+        throw error;
+      }
+    },
     resolveClientIp,
     isHttpsRequest,
     resultCodec: {
@@ -63,5 +77,14 @@ export function registerFormsSubmitRoute(app: Express, deps: RegisterFormsSubmit
       flashCookieName: FORM_FLASH_COOKIE_NAME,
     },
     targetRefusalReason: target => siteRelativeTargetReason({ target, reservedSegments: RESERVED_SEGMENTS }, {}),
-  }, {}));
+  }, {})(request, response));
+}
+
+/** Keep refusal reasons bounded; field names, answers, slugs and exception messages stay local.
+ * @complexity O(1). */
+function formFailureProperties({ error }: { error: unknown }, _optional = {}): Record<string, string | number> {
+  if (error instanceof FormSubmissionValidationError) return { reason: "validation", invalidFieldCount: error.fieldErrors.length };
+  if (error instanceof FormRateLimitExceededError) return { reason: "rate_limited", invalidFieldCount: 0 };
+  if (error instanceof FormDefinitionNotFoundError) return { reason: "unavailable", invalidFieldCount: 0 };
+  return { reason: "internal", invalidFieldCount: 0 };
 }

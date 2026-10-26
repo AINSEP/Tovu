@@ -30,6 +30,7 @@ import { contributeMailStatusTools } from "#src/features/mail-status/tool-regist
 import { contributeMailProviderTools } from "#src/features/mail-status/provider-tool-registrations";
 import { contributeMailDeliveryTools } from "#src/features/mail-status/delivery-tool-registrations";
 import { contributeServerLogsTools } from "#src/features/server-logs/tool-registrations";
+import { contributeObservabilityTools } from "#src/features/observability/tool-registrations";
 import { renderPostPreview, TemplatePreviewRenderError } from "#src/server/inbound/admin-http/routes/posts/template-preview-render";
 import { contributeIdentityPolicyListPermissionsTools } from "#src/features/identity/permission-list-tool";
 import { contributeSitesListTools } from "#src/features/sites/list-tool";
@@ -366,6 +367,7 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeMailProviderTools() });
   contributions.contributors.register({ contribution: contributeMailDeliveryTools() });
   contributions.contributors.register({ contribution: contributeServerLogsTools() });
+  contributions.contributors.register({ contribution: contributeObservabilityTools({}) });
   // `search_agent_plugin_local` — a STATIC tool (id/schema known at module load); the DYNAMIC
   // `agent_plugin_<pluginId>` tools this same domain also owns are registered separately, directly
   // onto the `ToolRegistry`, by `agent-daemon-server.ts`'s own `registerInstalledAgentPluginTools`
@@ -543,7 +545,7 @@ export function installFirstPartyToolContributors(
           pluginProvider: api.pluginProvider,
           // A provider plugin's settings, saved through the admin Settings card's rule and store.
           ...(originalDeps.providerConfig ? { providerSettings: buildProviderSettingsCredentialHandler({ surfaces, loadCards: () => loadCards(originalDeps.workspaceId), ports: {
-            ...bindProviderSettingsCardPorts({ config: originalDeps.providerConfig, discoverPlugins: originalDeps.discoverPlugins, reapply: originalDeps.reapplyProvider }),
+            ...bindProviderSettingsCardPorts({ config: originalDeps.providerConfig, discoverPlugins: originalDeps.discoverPlugins, reapply: originalDeps.reapplyProvider, tracker: originalDeps.tracker, userId: `site:${originalDeps.workspaceId}` }),
             authorize: ctx => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: originalDeps.authorize }), workspaceId: originalDeps.workspaceId, principalId: ctx.principal.id, permission: 'admin.plugins.enable' }, { entityType: 'plugin' }),
           } }) } : {}),
         } satisfies import("#src/features/custom-credentials/credential-save-tool").CredentialSaveAdapters;

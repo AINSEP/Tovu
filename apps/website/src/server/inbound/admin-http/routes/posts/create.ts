@@ -111,6 +111,7 @@ export const registerAdminPostCreateRoute: ContentRouteRegistrar = (app, deps) =
                   author: req.body?.author,
                   showAuthor: req.body?.showAuthor,
                   actorId: principal.id,
+                  analyticsSource: "admin",
                 },
               }),
             captureEntityVersion: ({ result }) => result.post.version,
@@ -125,7 +126,6 @@ export const registerAdminPostCreateRoute: ContentRouteRegistrar = (app, deps) =
         await processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock });
 
         // Owner-action product event: consent-gated by the port; opaque principal id, no content.
-        deps.tracker.capture({ name: "post_created", userId: principal.id });
         res.status(201).json(toAdminPostResponse(result.post));
       } catch (err) {
         sendPostCreateError(res, err);

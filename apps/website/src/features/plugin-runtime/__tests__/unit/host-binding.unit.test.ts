@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, rm, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import type { PluginManifest } from "@jini-ai/plugins/host";
-import { PluginSnapshotIntegrityError } from "@jini-ai/plugins/host/node";
+import { createPluginModuleSnapshotLifecycle, PluginSnapshotIntegrityError } from "@jini-ai/plugins/host/node";
 import { createPluginModuleImporter, pluginHostBinding } from "../../host-binding.js";
 
 /** Exercises Tovu's required import port: existing built-in ABI, immutable site bytes, and
@@ -62,6 +62,30 @@ test("site entry outside its real package root is refused without importing it",
   await writeFile(modulePath, 'throw new Error("outside entry was evaluated");');
   const importer = createPluginModuleImporter({ manifest, source: "site" });
   assert.equal(await importer({ plugin: { pluginId: manifest.id, packageRoot }, modulePath }), `module path '${modulePath}' escapes the plugin root`);
+});
+
+test("the runtime owner retains a site's late dynamic imports until host disposal", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "tovu-plugin-snapshot-lifecycle-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const packageRoot = path.join(root, "plugins", manifest.id, manifest.version);
+  await mkdir(path.join(packageRoot, "server"), { recursive: true });
+  const modulePath = path.join(packageRoot, "server", "index.mjs");
+  const latePath = path.join(packageRoot, "late.mjs");
+  await writeFile(modulePath, 'export default async () => (await import("../late.mjs")).value;');
+  await writeFile(latePath, 'export const value = "retained";');
+  const pinned = { ...manifest, integrity: {
+    "server/index.mjs": await pluginHostBinding.verifyDigest({ absoluteFilePath: modulePath }),
+    "late.mjs": await pluginHostBinding.verifyDigest({ absoluteFilePath: latePath }),
+  } };
+  const runtimeRoot = path.join(root, "plugins-runtime");
+  const snapshots = createPluginModuleSnapshotLifecycle({ runtimeRoot });
+  const importer = createPluginModuleImporter({ manifest: pinned, source: "site" }, { snapshots });
+  const result = await importer({ plugin: { pluginId: manifest.id, packageRoot }, modulePath });
+  assert.notEqual(typeof result, "string");
+  assert.equal(await (result as { exported: () => Promise<string> }).exported(), "retained");
+  assert.equal((await readdir(runtimeRoot)).length, 1);
+  await snapshots.dispose({});
+  assert.deepEqual(await readdir(runtimeRoot), []);
 });
 
 for (const filename of ["jini.plugin.json", "tovu.plugin.json"]) { // legacy alias

@@ -23,6 +23,7 @@ import type { PluginsRouteDeps } from "./deps.js";
  */
 
 export interface ProviderSettingsRouteDeps extends Pick<PluginsRouteDeps, "workspaceId" | "authorize" | "discoverPlugins"> {
+  tracker?: import('@jini-ai/diagnostics/observability').Tracker;
   providerConfig?: ProviderConfigSource;
   projectKeys?: import("#src/features/project-keys/service").ProjectKeysPort;
   providerAppliesAt?: (input: { pluginId: string }) => "now" | "restart";
@@ -72,10 +73,13 @@ async function resolveCard({ req, res, deps, permission }: { req: Request; res: 
   const principal = getAuthedPrincipal(res);
   if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission, workspaceId: deps.workspaceId }))) return undefined;
   const pluginId = String(req.params.pluginId ?? "");
-  const fields = declaredProviderSettingFields({ records: await deps.discoverPlugins(), pluginId });
+  const records = await deps.discoverPlugins();
+  const fields = declaredProviderSettingFields({ records, pluginId });
   if (!fields) { res.status(404).json({ error: "this plugin declares no provider settings", code: "PLUGIN_NOT_FOUND" }); return undefined; }
   if (!deps.providerConfig) { res.status(503).json({ error: "provider settings are not available here", code: "PROVIDER_SETTINGS_UNAVAILABLE" }); return undefined; }
-  return { deps, pluginId, fields, config: deps.providerConfig };
+  const contracts = (records.find(record => record.id === pluginId)?.manifest?.contributes?.providers ?? []).map(provider => provider.contract);
+  return { deps, pluginId, fields, config: deps.providerConfig,
+    ...(deps.tracker ? { telemetry: { tracker: deps.tracker, contracts, userId: principal.id } } : {}) };
 }
 
 const internalError = (res: Response) => res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });

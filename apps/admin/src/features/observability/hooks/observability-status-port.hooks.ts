@@ -1,4 +1,4 @@
-import type { AdminObservabilityStatus } from "@/lib/api";
+import type { AdminObservabilityStatus, AdminTelemetryTestResult } from "@/lib/api";
 
 /**
  * @file What `use-observability-status.hooks.ts` needs from the outside world, as an interface
@@ -7,4 +7,5 @@ import type { AdminObservabilityStatus } from "@/lib/api";
  */
 export interface ObservabilityStatusPort {
   getObservabilityStatus(): Promise<AdminObservabilityStatus>;
+  sendTestError?(): Promise<AdminTelemetryTestResult>;
 }

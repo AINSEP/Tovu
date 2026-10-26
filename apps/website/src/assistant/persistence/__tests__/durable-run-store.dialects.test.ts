@@ -12,7 +12,7 @@ import type { DurableRun } from "../../durable-runs/ports.js";
 
 const TIME = 1_790_000_000_000;
 function harness(kernel: ChatKernel) {
-  const ledger = createChatRunLedger(kernel);
+  const ledger = createChatRunLedger({ store: kernel });
   const store = ledger.durable!;
   const history = createChatStoreFactory(kernel)({ kind: "user", workspaceId: "ws", userId: "admin" });
   async function accept(messageId = "answer", runId = "old") {
@@ -140,7 +140,7 @@ describeEachChatDialect("durable attempts migration and fencing", harness, (make
         return result;
       }),
     };
-    const store = createChatRunLedger(failingKernel).durable!;
+    const store = createChatRunLedger({ store: failingKernel }).durable!;
     await assert.rejects(store.accept({ principalId: "admin", workspaceId: "ws", conversationId: "chat", messageId: "answer", runId: "old", now: TIME,
       request: { contextRef: JSON.stringify({ userMessage: { id: "question", role: "user", content: "Hi" } }) },
     }, {}));

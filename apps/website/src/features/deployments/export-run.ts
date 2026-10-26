@@ -1,3 +1,4 @@
+import type { Tracker } from "@jini-ai/diagnostics/observability";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -204,7 +205,7 @@ export function getExportRunSnapshot(): ExportRunSnapshot {
  */
 export function startExportRun<TRouteDeps extends { clock: Clock; exportOutputRootDir: string }>(
   required: { routeDeps: TRouteDeps; runExportSite: ExportEngine<TRouteDeps>; clean: boolean },
-  optional?: { basePath?: string; onSettled?: (settled: { status: "completed" | "errored" }) => void },
+  optional?: { basePath?: string; productEvent?: { tracker: Tracker; userId: string; operationId: string; source: "admin" | "assistant" }; onSettled?: (settled: { status: "completed" | "errored" }) => void },
 ): ExportRunSnapshot {
   const { routeDeps, runExportSite, clean } = required;
   const outputDir = routeDeps.exportOutputRootDir;
@@ -234,7 +235,12 @@ export function startExportRun<TRouteDeps extends { clock: Clock; exportOutputRo
         error: err instanceof Error ? err.message : String(err),
       };
     })
-    .finally(() => optional?.onSettled?.({ status: currentRun.status === "completed" ? "completed" : "errored" }));
+    .finally(() => {
+      const status = currentRun.status === "completed" ? "completed" : "errored";
+      const event = optional?.productEvent;
+      event?.tracker.capture({ name: "site_exported", userId: event.userId, properties: { outcome: status, operationId: event.operationId, eventId: `export:${event.operationId}`, source: event.source } });
+      optional?.onSettled?.({ status });
+    });
 
   return currentRun;
 }

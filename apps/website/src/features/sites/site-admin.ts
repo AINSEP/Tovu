@@ -1,3 +1,4 @@
+import type { Tracker } from "@jini-ai/diagnostics/observability";
 import {
   createSite as createSiteReal,
   listSites as listSitesReal,
@@ -113,6 +114,8 @@ export function resolveSiteSwitchBase(required: {
 }
 
 export interface CreateSiteForOwnerRequired {
+  actorId?: string;
+  source?: "admin" | "assistant" | "service";
   adminPassword?: unknown;
   workspaceId: string;
   /** From {@link resolveSiteSwitchBase}: the new site lands at `<switcherBase>/sites/<name>`. */
@@ -123,6 +126,7 @@ export interface CreateSiteForOwnerRequired {
 }
 
 export interface CreateSiteForOwnerPorts {
+  tracker?: Tracker;
   createSite?: typeof createSiteReal;
   /** The guarded outbound client a token check probes through. Absent, a given token is refused as
    *  not checkable rather than saved unchecked. */
@@ -205,6 +209,10 @@ export async function createSiteForOwner(
     const refusal = await checkTokensBeforeCreate(required.workspaceId, ports, parsedTokens.tokens);
     if (refusal) return refusal;
     const result = await (ports.createSite ?? createSiteReal)({ name: required.name, adminPassword }, { cwd: required.switcherBase });
+    // initSite has committed; later optional credential setup cannot turn this into another creation.
+    try { ports.tracker?.capture({ name: "site_created", userId: required.actorId ?? `system:${required.workspaceId}`, properties: {
+      targetSiteId: result.siteId, templateKind: "default", source: required.source ?? "service",
+    } }); } catch { /* Product analytics cannot fail an already-created site. */ }
     const agentPluginTokens = await storeTokensForNewSite(ports, result, parsedTokens.tokens);
     return { ok: true, site: { name: result.name, dir: result.dir, siteId: result.siteId }, agentPluginTokens };
   } catch (err) {

@@ -10,19 +10,28 @@ import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
  * name is model text.
  */
 
-/**
- * Wraps `sink` so each settled attempt is also captured on the (consent-gated) product-analytics port.
- * @returns A sink with the same audit behavior; capture never blocks or fails the audit write.
- * @complexity O(1) per attempt on top of the wrapped sink.
+/** A commit-aware sink keeps audit failure containment while exposing actual insertion evidence. */
+export interface CommittedToolAttemptAuditSink extends ToolAttemptAuditSink {
+  appendCommitted(required: Parameters<ToolAttemptAuditSink["append"]>[0], optional?: Parameters<ToolAttemptAuditSink["append"]>[1]): Promise<boolean>;
+}
+
+/** Capture committed settled attempts through the consent-gated product port. A sink without
+ * insertion evidence retains audit behavior but cannot authorize a product event.
+ * @returns The original audit failure behavior plus commit evidence for request-scoped observers.
+ * @example withToolUseEvents({ sink: persistedAudit, tracker }, {});
+ * @complexity O(1) time and space per attempt beyond the wrapped sink.
  */
-export function withToolUseEvents({ sink, tracker }: { sink: ToolAttemptAuditSink; tracker: Tracker }): ToolAttemptAuditSink {
-  return {
-    append: (required, optional) => {
-      if (required.phase !== "requested") {
-        const toolId = required.phase === "unknown-tool" ? "unknown" : required.toolId;
-        tracker.capture({ name: "assistant_tool_used", userId: required.principalId, properties: { toolId, outcome: required.phase } });
-      }
-      return sink.append(required, optional);
-    },
-  };
+export function withToolUseEvents({ sink, tracker }: { sink: ToolAttemptAuditSink & Partial<CommittedToolAttemptAuditSink>; tracker: Tracker }, _optional = {}): CommittedToolAttemptAuditSink {
+  async function appendCommitted(required: Parameters<ToolAttemptAuditSink["append"]>[0], optional?: Parameters<ToolAttemptAuditSink["append"]>[1]): Promise<boolean> {
+    const committed = sink.appendCommitted ? await sink.appendCommitted(required, optional) : (await sink.append(required, optional), false);
+    // Public attempts need a request-scoped visitor decision; operator consent cannot authorize them.
+    if (!committed || required.phase === "requested" || required.principalId === "anonymous-visitor") return committed;
+    const toolId = required.phase === "unknown-tool" ? "unknown" : required.toolId;
+    tracker.capture({ name: "assistant_tool_used", userId: required.principalId, properties: {
+      toolId, outcome: required.phase, chatSurface: "admin", attemptId: required.attemptId,
+      eventId: `assistant-tool:${required.attemptId}`,
+    } });
+    return committed;
+  }
+  return { append: async (required, optional) => { await appendCommitted(required, optional); }, appendCommitted };
 }

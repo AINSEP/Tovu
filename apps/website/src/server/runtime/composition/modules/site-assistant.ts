@@ -1,3 +1,5 @@
+import type { CommittedToolAttemptAuditSink } from "../tool-use-events.js";
+import { visitorAnalyticsProvenance } from "#src/server/inbound/public-http/visitor-analytics";
 import { VISITOR_TOOL_REFUSAL } from "#src/assistant/site/visitor-executor";
 import { redactSecrets, type ToolDescriptor } from "@jini-ai/core";
 import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "#src/features/members/index";
@@ -654,6 +656,12 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
         if (!preflight.ok) return;
         const { message, priorTurns, provider } = preflight;
         secrets.push(provider.apiKey);
+        const provenance = await visitorAnalyticsProvenance({ deps, request: req });
+        const logicalRunId = deps.idGen.newId();
+        const capture = async (name: string, properties: Record<string, string | number | boolean>) => {
+          if (!provenance?.consentProof || !await deps.visitorAnalyticsDeliveryAllowed?.({ proof: provenance.consentProof })) return;
+          deps.tracker.capture({ name, userId: provenance.subjectId, properties: { chatSurface: "public", ...properties } });
+        };
         const memberResolver = new DefaultMemberAccessResolver({
           sessions: deps.memberSessionRepo, subscriptions: deps.memberSubscriptionRepo, tiers: deps.memberTierRepo,
         });
@@ -689,7 +697,12 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
           },
           confirmation: { ...confirmations, emit: (directive: ToolConfirmationDirective) => { sse(res, "client_directive", directive); } },
           ip: resolveClientIp(req), workspaceId: deps.workspaceId, runId: deps.idGen.newId(), clock: deps.clock,
-          ids: deps.idGen, sink: deps.toolAttemptAuditSink, signal: abort.signal,
+          ids: deps.idGen, sink: { async append(event: Parameters<typeof deps.toolAttemptAuditSink.append>[0], optional?: Parameters<typeof deps.toolAttemptAuditSink.append>[1]) {
+            const sink = deps.toolAttemptAuditSink as typeof deps.toolAttemptAuditSink & Partial<CommittedToolAttemptAuditSink>;
+            const committed = sink.appendCommitted ? await sink.appendCommitted(event, optional) : (await sink.append(event, optional), false);
+            if (committed && event.phase !== "requested") await capture("assistant_tool_used", { toolId: event.phase === "unknown-tool" || event.toolId === "unavailable" ? "unknown" : event.toolId,
+              outcome: event.phase, attemptId: event.attemptId, eventId: `assistant-tool:${event.attemptId}` });
+          } }, signal: abort.signal,
           reportError: (error: unknown) => { reportError({ code: "visitor_tools_audit", diagnostic: error }); },
         };
         const capabilities = createSiteCapabilityRegistry({
@@ -739,7 +752,10 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
         beginStream(req, res);
         // Hard-coded visitor policy: in-process HTTP plus this literal anonymous registry only.
         // Never spread admin CLI options or read the Full CLI access setting here (K1).
-        await runByokProviderTurn({
+        await capture("assistant_message_sent", { inputKind: "text", eventId: `assistant-message:${logicalRunId}` });
+        await capture("assistant_run_started", { logicalRunId, eventId: `assistant-start:${logicalRunId}` });
+        let runOutcome = "completed";
+        try { await runByokProviderTurn({
           protocol: provider.protocol,
           apiKey: provider.apiKey,
           ...(provider.baseUrl ? { baseUrl: provider.baseUrl } : {}),
@@ -775,10 +791,12 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
             // resolves one, which is what keeps it a resolved-action-only channel rather than a
             // fourth kind of tool echo.
             if (event.type === "text_delta") sse(res, "text", { delta: event.delta });
-            else if (event.type === "error") sse(res, "error", reportError({ code: "provider_error", diagnostic: event.message }));
+            else if (event.type === "error") { runOutcome = "failed"; sse(res, "error", reportError({ code: "provider_error", diagnostic: event.message })); }
             else if (event.type === "end") sse(res, "end", { reason: event.reason });
           },
         });
+        } catch (error) { runOutcome = abort.signal.aborted ? "cancelled" : "failed"; throw error; }
+        finally { await capture("assistant_run_finished", { logicalRunId, outcome: abort.signal.aborted ? "cancelled" : runOutcome, eventId: `assistant-finish:${logicalRunId}` }); }
         res.end();
       }
     },

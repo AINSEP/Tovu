@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@/__tests__/fetch-query-render";
+import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api, ApiError } from "@/lib/api";
@@ -16,6 +16,29 @@ import { t as translateObservability } from "../observability-i18n";
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+it("the injected test action exposes pending, accepted, failure and refreshed delivery state", async () => {
+  const calls: string[] = [];
+  let finish!: (result: { providers: { providerId: string; signals: "error"[] }[] }) => void;
+  const port = {
+    getObservabilityStatus: async () => { calls.push("status"); return { enabled: true, serviceName: "tovu", canSendTestError: true }; },
+    sendTestError: () => { calls.push("send"); return new Promise<{ providers: { providerId: string; signals: "error"[] }[] }>(resolve => { finish = resolve; }); },
+  };
+  const { result } = renderHook(() => useObservabilityStatus({ port, locale: "en", t: key => key }));
+  await waitFor(() => expect(result.current.status?.enabled).toBe(true));
+  let sending!: Promise<void>;
+  act(() => { sending = result.current.sendTestError!(); });
+  expect(result.current.sendingTestError).toBe(true);
+  const accepted = { providers: [{ providerId: "errors", signals: ["error" as const] }] };
+  await act(async () => { finish(accepted); await sending; });
+  expect(result.current.testResult).toEqual(accepted);
+  expect(result.current.sendingTestError).toBe(false);
+  await waitFor(() => expect(calls).toEqual(["status", "send", "status"]));
+  port.sendTestError = () => Promise.reject(new Error("Telemetry diagnostic unavailable"));
+  await act(async () => { await result.current.sendTestError!(); });
+  expect(result.current.testResult).toBeNull();
+  expect(result.current.testError).toBe("Telemetry diagnostic unavailable");
 });
 
 describe("useObservabilityStatus — injected port (no fetch stub, no api spy)", () => {

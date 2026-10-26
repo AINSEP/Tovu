@@ -1,3 +1,4 @@
+import type { Tracker } from "@jini-ai/diagnostics/observability";
 import { toolMetadata } from '../../contracts/core/tool-metadata/theme.js';
 import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
@@ -42,6 +43,7 @@ import { verifyActiveThemeResolves } from "./verify-active-theme.js";
 
 /** The narrow slice this tool needs off the full assistant deps bag. */
 export interface SetActiveThemeToolDeps {
+  tracker?: Tracker;
   authorize: AuthorizeFn;
   workspaceId: string;
   clock: Clock;
@@ -99,7 +101,7 @@ export const setActiveThemeDerivedRisk: DerivedRiskByToolId = new Map([["theme_s
  *   and up to two roster syncs.
  */
 export async function applyActiveTheme(
-  required: { routeDeps: SetActiveThemeToolDeps; themeId: string },
+  required: { routeDeps: SetActiveThemeToolDeps; themeId: string; actorId?: string },
   _optional: Record<string, never> = {}
 ): Promise<{ previousThemeId: string; activeThemeId: string }> {
   const { routeDeps, themeId } = required;
@@ -111,11 +113,12 @@ export async function applyActiveTheme(
     const result = await setActiveTheme({
       deps: {
         repo: routeDeps.presentationRepo,
+        tracker: routeDeps.tracker,
         clock: routeDeps.clock,
         availableThemeIds: writableThemeIds(routeDeps),
       },
       input: { workspaceId: routeDeps.workspaceId, activeThemeId: themeId },
-    });
+    }, { actorId: required.actorId, source: "assistant", capture: false });
     activeThemeId = result.settings.activeThemeId;
   } catch (err) {
     // Re-thrown as a `ToolInputError` (a DIFFERENT themeId would fix this) with the valid ids
@@ -129,6 +132,10 @@ export async function applyActiveTheme(
     requestThemePreviewRefresh({ themesDir: routeDeps.themesDir });
     await verifyActiveThemeResolves({ deps: { ...routeDeps, themesDir: routeDeps.themesDir }, activeThemeId, previousThemeId });
   }
+  if (previousThemeId !== activeThemeId) {
+    try { routeDeps.tracker?.capture({ name: "theme_changed", userId: required.actorId ?? `system:${routeDeps.workspaceId}`, properties: { themeId: activeThemeId, source: "assistant" } }); }
+    catch { /* Capture follows verification and cannot fail the active-theme operation. */ }
+  }
   return { previousThemeId, activeThemeId };
 }
 
@@ -140,7 +147,7 @@ function buildSetActiveThemeHandlers(routeDeps: SetActiveThemeToolDeps): Record<
 
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "theme.set" }, { entityType: "presentation" });
 
-      return applyActiveTheme({ routeDeps, themeId });
+      return applyActiveTheme({ routeDeps, themeId, actorId: ctx.principal.id });
     },
   };
 }

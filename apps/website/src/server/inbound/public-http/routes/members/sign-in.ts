@@ -1,3 +1,5 @@
+import { observeMemberSignInFailure } from "./analytics.js";
+import { captureVisitorEvent } from "../../visitor-analytics.js";
 import type { Express, Response } from "express";
 import { SenderIdentityNotConfiguredError } from "#src/platform/mail/index";
 import { MemberAuthError, MemberSignInUnavailableError, MemberValidationError, prepareMemberChallenge } from "#src/features/members/index";
@@ -28,6 +30,7 @@ import { checkMemberPost, checkMemberRequestLimits, memberStringBody, toPublicMe
  */
 export function registerPublicMemberSignInRequestRoute(app: Express, deps: MemberPublicRouteDeps): void {
   app.post("/api/members/v1/workspaces/:workspaceId/sign-in", async (req, res) => {
+    observeMemberSignInFailure({ deps: deps, request: req, response: res, method: "challenge" });
     try {
       if (!checkMemberPost({ req, res, deps })) return;
       const body = memberStringBody({ body: req.body, kind: "signIn" });
@@ -36,8 +39,9 @@ export function registerPublicMemberSignInRequestRoute(app: Express, deps: Membe
       if (!body.email.trim()) { res.status(400).json({ error: `'${body.email}' is not a valid email address` }); return; }
       if (!await checkMemberRequestLimits({ req, res, deps, email: body.email,
         emailLimiter: deps.magicLinkPerEmailLimiter, ipLimiter: deps.magicLinkPerIpLimiter })) return;
-      const prepared = await prepareMemberChallenge({ deps: toPublicMembersWriteServiceDeps(deps), purpose: "signin",
+      const prepared = await prepareMemberChallenge({ deps: toPublicMembersWriteServiceDeps(deps, { request: req }), purpose: "signin",
         input: { workspaceId: deps.workspaceId, email: body.email, redirectPath: body.redirectPath } });
+      void captureVisitorEvent({ deps: deps, request: req, name: "member_sign_in_requested", properties: { method: "challenge", realm: "member" } });
       res.json({ accepted: true, challengeId: prepared.challengeId });
       // Do not await per-address I/O or reflect its outcome in this anti-enumeration response.
       setImmediate(() => { void prepared.deliver().catch(reportMemberDeliveryFailure); });

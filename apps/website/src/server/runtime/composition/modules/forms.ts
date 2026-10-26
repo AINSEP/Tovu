@@ -27,6 +27,7 @@ export interface FormsModuleDeps {
   mailer: MailerPort;
   formDefinitionRepo: FormDefinitionRepoPort;
   formSubmissionRepo: FormSubmissionRepoPort;
+  visitorAnalyticsDeliveryAllowed?: import('#src/server/inbound/public-http/visitor-analytics').VisitorAnalyticsDeps['visitorAnalyticsDeliveryAllowed'];
   /** Resolves each notification's From (`platform/mail/sender-identity.ts`); absent, the placeholder
    *  is used only while `mailer` is non-delivering. */
   senderIdentity?: MailSenderIdentityPort;
@@ -46,14 +47,20 @@ export function createFormsModule(deps: FormsModuleDeps): ServerModuleHandle {
   return {
     name: "forms",
     start: () => {
-      void deps.bus.subscribe<{ workspaceId: string; formDefinitionId: string }>({
+      void deps.bus.subscribe<{ workspaceId: string; formDefinitionId: string; deliveryMode?: string;
+        analyticsProvenance?: import('#src/features/forms/index').FormAnalyticsProvenance }>({
         eventName: "form.submission.received",
         handler: async (event) => {
+          const proof = event.payload.analyticsProvenance;
+          if (proof?.granted !== true || !proof.subjectId) return;
+          if (!proof.consentProof || !await deps.visitorAnalyticsDeliveryAllowed?.({ proof: proof.consentProof })) return;
           const definition = await deps.formDefinitionRepo.findById({ workspaceId: event.payload.workspaceId, id: event.payload.formDefinitionId });
           if (!definition) return;
-          // A public visitor has no principal: one fixed pseudonymous id, so no visitor is ever tracked.
-          // Only committed submissions emit this event; honeypots and retries never reach this bus.
-          deps.tracker.capture({ name: "form_submitted", userId: "site-visitor", properties: { formSlug: definition.slug } });
+          // The provider dedupes retries with this committed domain event id; no form answers leave.
+          deps.tracker.capture({ name: "form_submitted", userId: proof.subjectId, properties: {
+            eventId: event.id, formId: definition.id,
+            deliveryMode: event.payload.deliveryMode === "remote_import" ? "remote_import" : "live",
+          } });
         },
       });
       const senderIdentity = mailSenderIdentityFor({ mailer: deps.mailer }, { senderIdentity: deps.senderIdentity });

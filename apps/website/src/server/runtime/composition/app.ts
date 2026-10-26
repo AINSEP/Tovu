@@ -207,6 +207,7 @@ import {
   type StoredFormSubmission,
 } from "@jini-ai/cms/forms";
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
+import { formSubmissionAttemptsFor } from "#src/features/forms/index";
 import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "@jini-ai/http-kit/verified-origin";
 import { InMemoryRedirectRepo, RedirectHitSinkImpl, redirectMatcher, RedirectSlugChangeCapture, registerRedirectHitOutboxHandler, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { registerRedirectsPhaseHandlers } from "#src/features/redirects/phase-handler";
@@ -282,6 +283,7 @@ import { applySiteServingGate } from "../../inbound/public-http/middleware/site-
 import { applyPublicPageSecurityHeaders } from "../../inbound/public-http/middleware/public-page-security-headers.js";
 import { applyPublishedWebMcp } from '../../inbound/public-http/middleware/published-webmcp.js';
 import { applySiteConsent } from '../../inbound/public-http/middleware/site-consent.js';
+import { applyAdminBrowserAnalytics } from './browser-analytics.js';
 import { applyCanonicalSiteHostRedirect } from '../../inbound/public-http/middleware/canonical-site-host.js';
 import { isPublishedWebMcpEnabled } from '#src/features/webmcp/settings';
 import { registerAdminStatic } from "../../inbound/admin-http/admin-static.js";
@@ -1484,6 +1486,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // per-request) so its fixed-window counts persist across requests within one `createApp()`.
     formDefinitionRepo,
     formSubmissionRepo,
+    formSubmissionAttempts: formSubmissionAttemptsFor({ submissionRepo: formSubmissionRepo }),
     removeFormSubmission: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
       trash: trash,
       entityType: "form_submission"
@@ -1851,6 +1854,7 @@ function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
    */
   startModule(
     createFormsModule({
+      visitorAnalyticsDeliveryAllowed: routeDeps.visitorAnalyticsDeliveryAllowed,
       bus: routeDeps.bus,
       mailer: routeDeps.mailer,
       formDefinitionRepo: routeDeps.formDefinitionRepo,
@@ -2017,6 +2021,10 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // file, the hermetic test composition), durable SQL from `deps.ts`'s
   // `createSiteRouteDeps()` (the real site, ADR-046 Phase 1).
   const memberPublicDeps: MemberPublicRouteDeps = {
+    visitorAnalyticsProof: routeDeps.visitorAnalyticsProof,
+    visitorAnalyticsDeliveryAllowed: routeDeps.visitorAnalyticsDeliveryAllowed,
+    tracker: routeDeps.tracker,
+    visitorAnalyticsConsent: routeDeps.visitorAnalyticsConsent,
     // Password writes need the SAME store as the member repos: the durable kernel, or (memory-only
     // composition, no kernel) an in-process mutex. Never mix kernel transactions with memory repos.
     credentialLifecycle: routeDeps.contentKernel ?? createInMemoryCredentialLifecycle(),
@@ -2055,6 +2063,10 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // `NewsletterRouteDeps`, this parameter's own `RouteDeps` annotation is just narrower.
   const newsletterAdminDeps = routeDeps as NewsletterRouteDeps;
   const newsletterPublicDeps: NewsletterPublicRouteDeps = {
+    visitorAnalyticsProof: routeDeps.visitorAnalyticsProof,
+    visitorAnalyticsDeliveryAllowed: routeDeps.visitorAnalyticsDeliveryAllowed,
+    tracker: routeDeps.tracker,
+    visitorAnalyticsConsent: routeDeps.visitorAnalyticsConsent,
     workspaceId: newsletterAdminDeps.workspaceId,
     newsletterReady: newsletterAdminDeps.newsletterReady,
     newsletterConfirmationTokenRepo: newsletterAdminDeps.newsletterConfirmationTokenRepo,
@@ -2364,6 +2376,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
 
   // Built admin SPA (apps/admin/dist) at /admin; helpful 503 when unbuilt. Walked up to, not a fixed
   // `../` count: the source and compiled (`dist/src/...`) trees sit at different depths.
+  applyAdminBrowserAnalytics({ app, deps: routeDeps });
   registerAdminStatic(app, {
     distDir: process.env.TOVU_ADMIN_DIST ?? resolveAppDistDir("admin"),
   });
@@ -2437,6 +2450,11 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // Public comment submission (ADR-031 §4) — unauthenticated by design; must precede the site
   // `/:slug` catch-all, same reasoning as the store/analytics routes above.
   registerCommentsSubmitRoute(app, {
+    visitorAnalyticsProof: routeDeps.visitorAnalyticsProof,
+    visitorAnalyticsDeliveryAllowed: routeDeps.visitorAnalyticsDeliveryAllowed,
+    tracker: routeDeps.tracker,
+    idGen: routeDeps.idGen,
+    visitorAnalyticsConsent: routeDeps.visitorAnalyticsConsent,
     ingressPolicy: routeDeps.commentIngressPolicy,
     providers: routeDeps.commentsProviders,
     workspaceId: routeDeps.workspaceId,
@@ -2454,6 +2472,11 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // (`analytics/config.settings.ts`'s `createSettingsAnalyticsConfig`), replacing the former
   // hardcoded dev-only stub.
   registerAnalyticsIngestRoute(app, {
+    visitorAnalyticsProof: routeDeps.visitorAnalyticsProof,
+    visitorAnalyticsDeliveryAllowed: routeDeps.visitorAnalyticsDeliveryAllowed,
+    tracker: routeDeps.tracker,
+    idGen: routeDeps.idGen,
+    visitorAnalyticsConsent: routeDeps.visitorAnalyticsConsent,
     clock: routeDeps.clock,
     ids: routeDeps.idGen,
     sink: routeDeps.analyticsSink,
@@ -2470,6 +2493,12 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // Public, unauthenticated form submission endpoint (SPEC-010 REQ-05, FORMS_POST_SUBMIT) — must
   // precede the site `/:slug` catch-all, same reasoning as the routes immediately above.
   registerFormsSubmitRoute(app, {
+    visitorAnalyticsProof: routeDeps.visitorAnalyticsProof,
+    visitorAnalyticsDeliveryAllowed: routeDeps.visitorAnalyticsDeliveryAllowed,
+    formSubmissionAttempts: routeDeps.formSubmissionAttempts,
+    tracker: routeDeps.tracker,
+    idGen: routeDeps.idGen,
+    visitorAnalyticsConsent: routeDeps.visitorAnalyticsConsent,
     workspaceId: routeDeps.workspaceId,
     submitForm: {
       definitionRepo: routeDeps.formDefinitionRepo,

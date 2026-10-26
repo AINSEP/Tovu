@@ -1,3 +1,4 @@
+import type { Tracker } from "@jini-ai/diagnostics/observability";
 /** Tovu host binding for the single Jini lifecycle owner. Only ABI translation and product policy
  * live here; extraction, containment, trust, digest selection, activation and rollback stay in Jini.
  */
@@ -91,9 +92,11 @@ export function resolveAgentPluginDeliveryMode(env: { readonly TOVU_AGENT_PLUGIN
  * Network installation and MCP provisioning have separate host owners and are not used by this
  * binding. Refuse those unbound capabilities rather than bypassing their guards.
  * @complexity O(1) composition. All operations delegate to the lifecycle owner. */
-export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLayout }, optional: { readonly filesystem?: FilesystemPort; readonly identityAdmission?: AgentPluginLifecycleOptional["identityAdmission"]; readonly mcpProvisioning?: import("@jini-ai/agent-plugins/lifecycle").AgentPluginMcpProvisioningPort; readonly supersessionManifests?: SupersessionManifestsPort } = {}) {
+export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLayout }, optional: { readonly productTracker?: () => Pick<Tracker, 'capture'>; readonly filesystem?: FilesystemPort; readonly identityAdmission?: AgentPluginLifecycleOptional["identityAdmission"]; readonly mcpProvisioning?: import("@jini-ai/agent-plugins/lifecycle").AgentPluginMcpProvisioningPort; readonly supersessionManifests?: SupersessionManifestsPort } = {}) {
   const unbound = async (): Promise<never> => { throw new Error("This lifecycle binding does not provide network installation or MCP provisioning"); };
   const policy: AgentPluginLifecycleOptional = {
+    onActivationChanged: ({ pluginId, actor, enabled }) => optional.productTracker?.().capture({ name: enabled ? "agent_plugin_enabled" : "agent_plugin_disabled", userId: actor,
+      properties: { pluginId, pluginKind: "agent", source: "shared" } }),
     ...(optional.identityAdmission ? { identityAdmission: optional.identityAdmission } : {}),
     onEvent: ({ event, message }) => console.warn(event.startsWith("migration") ? `[agent-plugins:${event}] ${message}` : message),
     // Layout first, then preserve explicit Cloudflare rename decisions before seeding.

@@ -1,8 +1,9 @@
+import { captureMemberSignedIn, observeMemberSignInFailure } from "./analytics.js";
 import type { Express } from "express";
 import { MemberLoginError, openLoginEmailContinuation, resolveFederatedIdentity } from "#src/features/member-login/index";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { toPublicMemberResponse } from "../../http/members.js";
-import { checkMemberPost, checkMemberRequestLimits } from "./deps.js";
+import { checkMemberPost, checkMemberRequestLimits, toPublicMembersWriteServiceDeps } from "./deps.js";
 import { setMemberSessionCookie } from "./complete-sign-in.js";
 import { callbackAddress } from "./oidc-callback.js";
 import { MEMBER_OIDC_PATH, MEMBER_OIDC_PROOF_COOKIE, memberOidcContext, memberOidcCookie,
@@ -32,6 +33,7 @@ function proofString({ value, maxLength }: { value: unknown; maxLength: number }
 export function registerMemberOidcVerifyEmailRoute({ app, deps }: { app: Express; deps: MemberOidcRouteDeps }, _options = {}): void {
   app.post(`${MEMBER_OIDC_PATH}/verify-email`, async (req, res) => {
     memberOidcHeaders({ res });
+    observeMemberSignInFailure({ deps: deps.members, request: req, response: res, method: "oidc" });
     try {
       if (!checkMemberPost({ req, res, deps: deps.members })) return;
       if (!await checkMemberRequestLimits({ req, res, deps: deps.members, ipLimiter: deps.members.magicLinkCompleteAttemptLimiter })) return;
@@ -39,12 +41,13 @@ export function registerMemberOidcVerifyEmailRoute({ app, deps }: { app: Express
       const input = await memberOidcContext({ req, deps: deps.members });
       const browserBinding = uniqueMemberCookie({ req, name: MEMBER_OIDC_PROOF_COOKIE }) ?? "";
       const login = await openLoginEmailContinuation({ deps: deps.protocol, input: { ...input, browserBinding, continuation: body.continuation } });
-      const linked = await resolveFederatedIdentity({ deps: deps.links, input: { workspaceId: input.workspaceId,
+      const linked = await resolveFederatedIdentity({ deps: { ...deps.links, onMemberCreated: toPublicMembersWriteServiceDeps(deps.members, { request: req }).onMemberCreated }, input: { workspaceId: input.workspaceId,
         identity: login.identity, startedAt: login.startedAt, connectMemberId: login.connectMemberId,
         emailProof: { challengeId: body.challengeId, code: body.code }, userAgent: req.get("user-agent"), ip: resolveClientIp(req) } });
       if (linked.kind !== "signed_in") throw new MemberLoginError({ code: "LOGIN_INVALID" });
       memberOidcCookie({ res, callbackUrl: await callbackAddress({ req, deps }), kind: "proof" });
       setMemberSessionCookie({ res, rawToken: linked.result.rawSessionToken, expiresAtIso: linked.result.session.expiresAt });
+      captureMemberSignedIn({ deps: deps.members, request: req, result: linked.result, method: "oidc", workspaceId: deps.members.workspaceId });
       res.json({ member: toPublicMemberResponse(linked.result.member), returnPath: "/account" });
     } catch (error) { sendMemberOidcError({ res, error }); }
   });

@@ -82,6 +82,29 @@ function OverviewPanel({ controller }: { controller: ObservabilityStatusControll
       {!status && !error ? <p role="status">{t("Checking current status…")}</p> : null}
 
       {status ? <ObservabilityStatusCard status={status} t={t} /> : null}
+      {status?.providers?.map(provider => (
+        <p className="jini-field-hint" key={provider.providerId}>
+          {provider.providerId}: {provider.lastExport
+            ? <><span>{t(provider.lastExport.outcome === "ok" ? "Last export succeeded" : "Last export failed")}</span> — <time dateTime={provider.lastExport.at}>{provider.lastExport.at}</time>
+              {provider.lastExport.errorClass ? ` (${provider.lastExport.errorClass}${provider.lastExport.statusCode ? `, HTTP ${provider.lastExport.statusCode}` : ""})` : ""}</>
+            : t("No export result yet")}
+        </p>
+      ))}
+      {controller.refresh ? <button type="button" className="jini-button" onClick={controller.refresh}>{t("Refresh")}</button> : null}
+      {status?.canSendTestError && controller.sendTestError ? (
+        <button type="button" className="jini-button" disabled={controller.sendingTestError}
+          onClick={() => { void controller.sendTestError?.(); }}
+          {...agentHandle({ handle: "observability-send-test-error" }, { role: "button", label: "Send test error" })}>
+          {t(controller.sendingTestError ? "Sending test error…" : "Send test error")}
+        </button>
+      ) : null}
+      {controller.testError ? <p role="alert">{controller.testError}</p> : null}
+      {controller.testResult ? <p role="status">
+        {controller.testResult.providers.length
+          ? `${t("Accepted locally by")}: ${controller.testResult.providers.map(provider => `${provider.providerId} (${provider.signals.map(signal => t(signal)).join(", ")})`).join("; ")}.`
+          : t("No provider accepted the diagnostic yet.")}
+        {" "}{t("Remote delivery is confirmed by export status and your provider. Analytics requires telemetry consent.")}
+      </p> : null}
 
       <p className="jini-field-hint">
         <a

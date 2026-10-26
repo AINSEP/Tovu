@@ -40,7 +40,7 @@ import type { PluginsToolDeps } from "./tool-registrations.js";
  * keyed per tool id. Installing never turns the plugin on — `plugins_set_enabled` does that. Agent Plugins use their own admin upload service and `agent_plugins_install` tool; this tool does not take a `family`.
  */
 
-export type PluginsInstallToolDeps = Pick<PluginsToolDeps, "workspaceId" | "authorize" | "pluginInstaller" | "pluginSourcePolicy"> & {
+export type PluginsInstallToolDeps = Pick<PluginsToolDeps, "workspaceId" | "authorize" | "pluginInstaller" | "pluginSourcePolicy" | "tracker"> & {
   readonly readInstallAttachment?: InstallAttachmentReader;
   /** Defaults to `process.env`; read per call so the switch matches the admin route's. */
   readonly env?: Readonly<Record<string, string | undefined>>;
@@ -139,8 +139,12 @@ export function buildRegistrations(deps: PluginsInstallToolDeps, _optional: Reco
         const input = await installInputFor({ request, ownerId: ctx.principal.id, runId: ctx.run.id }, { readAttachment: deps.readInstallAttachment });
         const preview = await previewOrRefuse({ installer, input });
         try {
-          return installedResult({ plugin: await installer.install({ ...input, expectedDigest: preview.digest }) });
+          const plugin = await installer.install({ ...input, expectedDigest: preview.digest });
+          deps.tracker?.capture({ name: "plugin_installed", userId: ctx.principal.id, properties: { pluginId: plugin.id, pluginKind: "cms", source: "assistant" } });
+          return installedResult({ plugin });
         } catch (error) {
+          deps.tracker?.capture({ name: "operation_failed", userId: ctx.principal.id,
+            properties: { operationKind: "plugin_install", reasonClass: error instanceof PluginInstallError ? "refused" : "internal", surface: "assistant", retryable: false } });
           if (error instanceof PluginInstallError) return refusedResult(error, preview.id);
           throw error;
         }

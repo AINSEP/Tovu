@@ -103,6 +103,7 @@ export const registerAdminPageCreateRoute: ContentRouteRegistrar = (app, deps) =
                   bodyJson: req.body?.bodyJson,
                   status: req.body?.status,
                   actorId: principal.id,
+                  analyticsSource: "admin",
                 },
               }),
             captureEntityVersion: ({ result }) => result.post.version,
@@ -114,7 +115,6 @@ export const registerAdminPageCreateRoute: ContentRouteRegistrar = (app, deps) =
         // invalidation subscriber actually sees it, mirroring `posts/create.ts`'s identical fix.
         await processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock });
 
-        deps.tracker.capture({ name: "page_created", userId: principal.id });
         res.status(201).json(toAdminPostResponse(result.post));
       } catch (err) {
         sendPageCreateError(res, err);

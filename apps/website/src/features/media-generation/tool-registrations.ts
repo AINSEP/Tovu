@@ -1,3 +1,5 @@
+import { captureMediaUploaded } from "../media/analytics.js";
+import type { Tracker } from "@jini-ai/diagnostics/observability";
 import { toolMetadata } from '../../contracts/core/tool-metadata/media-generation.js';
 import { type ToolFailureDiagnostic, issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
 import type { Clock } from "@jini-ai/core/primitives";
@@ -72,6 +74,7 @@ import { buildMediaGenerationAgentToolCatalog, IMAGE_MODEL_IDS, imageModelIdsFro
  */
 
 export interface MediaGenerationToolDeps {
+  tracker?: Tracker;
   authorize: AuthorizeFn;
   /** Host-bound guard applies equally to vendor requests and provider-returned asset downloads. */
   mediaGenerationHttpClient: HttpClientPort;
@@ -382,6 +385,7 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
           // trusted from the (here, fixed) `contentType` string.
           const sniffed = sniffContentType({ bytes: generated.bytes });
           await routeDeps.mediaContentTypeStore.set({ workspaceId: routeDeps.workspaceId, sha256: media.source.sha256, contentType: sniffed });
+          captureMediaUploaded({ tracker: routeDeps.tracker, actorId: media.createdByPrincipal, byteLength: generated.bytes.byteLength, kind: "image", source: "assistant" });
 
           const urls = await resolveMediaPublicUrls(routeDeps, [media]);
           return {

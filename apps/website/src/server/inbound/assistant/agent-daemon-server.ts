@@ -1032,6 +1032,16 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   messageAttachmentRefsByRunId.set(run.id, attachmentIds);
   if (durableMessageId !== undefined) durableMessageIdsByRunId.set(run.id, durableMessageId);
   runOwners.record({ runId: run.id, principalId: principal.id }, {});
+  // Durable admin turns settle in the API, which can observe daemon death and recovery. Only
+  // standalone daemon runs report here, so a recovery attempt never becomes another logical run.
+  if (durableMessageId === undefined) {
+    routeDeps.tracker.capture({ name: "assistant_run_started", userId: principal.id, properties: { chatSurface: "daemon", logicalRunId: run.id, eventId: `assistant-start:${run.id}` } });
+    void runLifecycle.stream({ runId: run.id, onEvent: event => {
+      if (event.kind === "end") routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id,
+        properties: { chatSurface: "daemon", logicalRunId: run.id, outcome: event.payload.status, eventId: `assistant-finish:${run.id}` } });
+    } });
+  }
+
   // H2 fix (`agent-run-concurrency.ts`): registered synchronously, in this same
   // never-`await`-ed-yet prefix, so a second `onStarted` call for the same conversation — however
   // close together the two requests arrive — is guaranteed to observe this run as already live.

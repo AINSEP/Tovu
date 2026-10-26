@@ -252,6 +252,8 @@ export type StaticPublishFormDestinationPort = FormReceiverPort;
 export type ExportSiteBoundFn = (options: { outputDir: string; clean?: boolean; basePath?: string }) => Promise<ExportReport>;
 
 export interface StaticPublishInput {
+  /** Authenticated caller attribution, supplied by the HTTP/tool adapter, never publish config. */
+  readonly productEvent?: { readonly userId: string; readonly source: "admin" | "assistant" };
   /** Server-held approval from the existing human exchange/gateway; never read from JSON input. */
   readonly domainApproval?: {
     readonly credentialBinding: string;

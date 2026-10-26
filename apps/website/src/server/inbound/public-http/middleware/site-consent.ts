@@ -1,5 +1,6 @@
 import { parseConsentConfig, consentConfigProblems } from '#src/features/consent/validation';
 import { withSiteConsentSettingsLink } from "#src/features/consent/settings-link";
+import { injectBrowserAnalytics } from '@jini-ai/analytics/product';
 import { randomBytes } from "node:crypto";
 import * as fs from "node:fs/promises";
 import path from "node:path";
@@ -138,7 +139,7 @@ export function applySiteConsent({ app, deps }: { app: Express; deps: RouteDeps 
     }
     next();
   });
-  consentApp.use((_req, res, next) => {
+  consentApp.use((req, res, next) => {
     const end = res.end;
     // Jini captures this native end and calls it with the complete gated body, even for pipes.
     // Inspect that output rather than rereading config: lastGood remains Jini's sole authority.
@@ -146,7 +147,13 @@ export function applySiteConsent({ app, deps }: { app: Express; deps: RouteDeps 
       const type = String(res.getHeader('content-type') ?? '');
       if ((typeof chunk === 'string' || Buffer.isBuffer(chunk)) && (!type || type.includes('text/html'))) {
         const html = Buffer.isBuffer(chunk) ? chunk.toString('utf8') : chunk;
-        const linked = withSiteConsentSettingsLink({ html });
+        let linked = withSiteConsentSettingsLink({ html });
+        // Only the delivered consent runtime can release a live-site contribution. Preview,
+        // administrative HTML and exports do not inherit the crawling operator's choice.
+        const publicPage = !/^\/(?:admin|api|theme-preview|theme-explore)(?:\/|$)/.test(req.path);
+        if (publicPage && !isStaticExportRequest(req) && !res.locals.tovuRenderThemeIdOverride && html.includes('data-jini-consent-runtime')) {
+          linked = injectBrowserAnalytics({ html: linked, contributions: deps.browserAnalytics?.({ surface: 'site' }) ?? [], surface: 'site', delivery: 'live' });
+        }
         if (linked !== html) {
           chunk = Buffer.from(linked);
           res.removeHeader('Content-Length');
@@ -163,6 +170,9 @@ export function applySiteConsent({ app, deps }: { app: Express; deps: RouteDeps 
     // the delivered HTML directly. Optional features declare their consent category instead.
     // Site chat and analytics talk to this same origin; no third-party collector is reviewed yet.
     categoryOrigins: { functional: [], analytics: [] },
+    // Anonymous counts are explicitly allowed after rejection. These trusted plugin origins are
+    // also reachable without an analytics grant; the consent bridge still loads nothing pending.
+    resourceOrigins: () => (deps.browserAnalytics?.({ surface: 'site' }) ?? []).flatMap(item => item.origins),
     delivery: ({ request: req }) => (isStaticExportRequest(req) ? "static" : "live"),
   });
   app.use(consentApp);

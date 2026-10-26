@@ -1,3 +1,4 @@
+import type { Tracker } from "@jini-ai/diagnostics/observability";
 import { toolMetadata } from '../../contracts/core/tool-metadata/deployments.js';
 import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
@@ -42,6 +43,8 @@ import { assertExportNotRunning, diagnoseStaticExport, getExportRunSnapshot, sta
  * enforce that boundary; the owning integration test covers it.
  */
 export interface DeploymentsToolDeps {
+  readonly tracker?: Tracker;
+  readonly idGen?: { newId(): string };
   readonly authorize: AuthorizeFn;
   readonly workspaceId: string;
   readonly clock: Clock;
@@ -117,7 +120,7 @@ export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): T
 
       const clean = optionalBoolean({ input: input, key: "clean" }) ?? false;
       const basePath = optionalString({ input: input, key: "basePath" });
-      return startExportRun({ routeDeps, runExportSite: engine, clean }, { basePath });
+      return startExportRun({ routeDeps, runExportSite: engine, clean }, { basePath, ...(routeDeps.tracker && routeDeps.idGen ? { productEvent: { tracker: routeDeps.tracker, userId: ctx.principal.id, operationId: routeDeps.idGen.newId(), source: "assistant" as const } } : {}) });
     },
 
     deployment_diagnose_static_export: async (ctx) => {

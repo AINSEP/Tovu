@@ -1,8 +1,10 @@
+import { captureMemberSignedIn, observeMemberSignInFailure } from "./analytics.js";
+import { captureVisitorEvent } from "../../visitor-analytics.js";
 import type { Express, Request, Response } from "express";
 import { completeOidcLogin, memberLoginCallbackUrl, requestLoginEmailProof, resolveFederatedIdentity,
   sealLoginEmailContinuation, MemberLoginError, type CompletedOidcLogin, type LoginContext } from "#src/features/member-login/index";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
-import { checkMemberRequestLimits, checkMemberWorkspace } from "./deps.js";
+import { checkMemberRequestLimits, checkMemberWorkspace, toPublicMembersWriteServiceDeps } from "./deps.js";
 import { setMemberSessionCookie } from "./complete-sign-in.js";
 import { MEMBER_OIDC_PATH, MEMBER_OIDC_BINDING_COOKIE, memberOidcContext, memberOidcCookie,
   memberOidcHeaders, memberOidcProviderId, MemberOidcCancelled, redirectMemberOidcError, uniqueMemberCookie,
@@ -46,6 +48,7 @@ async function continueByEmail(required: {
 export function registerMemberOidcCallbackRoute({ app, deps }: { app: Express; deps: MemberOidcRouteDeps }, _options = {}): void {
   app.get(`${MEMBER_OIDC_PATH}/callback`, async (req, res) => {
     memberOidcHeaders({ res });
+    observeMemberSignInFailure({ deps: deps.members, request: req, response: res, method: "oidc" });
     try {
       if (!checkMemberWorkspace({ req, res, deps: deps.members })) return;
       // Clear before reading the untrusted cookie/query, including duplicate-cookie refusal.
@@ -55,7 +58,7 @@ export function registerMemberOidcCallbackRoute({ app, deps }: { app: Express; d
       const input = await memberOidcContext({ req, deps: deps.members });
       const browserBinding = uniqueMemberCookie({ req, name: MEMBER_OIDC_BINDING_COOKIE }) ?? "";
       const login = await completeOidcLogin({ deps: deps.protocol, input: { ...input, browserBinding, params: callbackParams({ req }) } });
-      const linked = await resolveFederatedIdentity({ deps: deps.links, input: { workspaceId: input.workspaceId,
+      const linked = await resolveFederatedIdentity({ deps: { ...deps.links, onMemberCreated: toPublicMembersWriteServiceDeps(deps.members, { request: req }).onMemberCreated }, input: { workspaceId: input.workspaceId,
         identity: login.identity, startedAt: login.startedAt, connectMemberId: login.connectMemberId,
         userAgent: req.get("user-agent"), ip: resolveClientIp(req) } });
       if (linked.kind === "email_verification_required") {
@@ -64,8 +67,9 @@ export function registerMemberOidcCallbackRoute({ app, deps }: { app: Express; d
       }
       memberOidcCookie({ res, callbackUrl, kind: "proof" });
       setMemberSessionCookie({ res, rawToken: linked.result.rawSessionToken, expiresAtIso: linked.result.session.expiresAt });
+      captureMemberSignedIn({ deps: deps.members, request: req, result: linked.result, method: "oidc", workspaceId: deps.members.workspaceId });
       res.redirect(303, "/account");
-    } catch (error) { redirectMemberOidcError({ res, error }); }
+    } catch (error) { void captureVisitorEvent({ deps: deps.members, request: req, name: "member_sign_in_failed", properties: { method: "oidc", realm: "member", reasonClass: "authentication_failed" } }); redirectMemberOidcError({ res, error }); }
   });
 }
 

@@ -73,6 +73,7 @@ export const registerAdminPresentationPatchRoute: ContentRouteRegistrar = (app, 
       const result = await setActiveTheme({
         deps: {
           repo: deps.presentationRepo,
+          tracker: deps.tracker,
           clock: deps.clock,
           availableThemeIds: writableThemeIds(deps),
         },
@@ -80,13 +81,12 @@ export const registerAdminPresentationPatchRoute: ContentRouteRegistrar = (app, 
           workspaceId: deps.workspaceId,
           activeThemeId: readActiveThemeId(req.body),
         },
-      });
+      }, { actorId: principal.id, source: "admin" });
 
       // Template-picker feature (2026-08-10, unified 2026-08-11) — recomputed from the NEWLY active
       // theme (not the one that was active before this PATCH), so switching themes immediately
       // updates what BOTH pickers offer, matching `get.ts`'s identical computation.
       const activeTheme = findStoredTheme({ themes: deps.themes, id: result.settings.activeThemeId });
-      deps.tracker.capture({ name: "theme_changed", userId: principal.id, properties: { themeId: result.settings.activeThemeId } });
       requestThemePreviewRefresh({ themesDir: deps.themesDir });
       const activeThemeTemplates = activeTheme?.manifest.templates ?? [];
       const activeThemeStaticPageIds = activeTheme ? Object.keys(activeTheme.pages) : [];

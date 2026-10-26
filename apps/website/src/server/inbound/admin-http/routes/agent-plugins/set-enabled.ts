@@ -280,7 +280,6 @@ export const registerAgentPluginSetEnabledRoute: AgentPluginsRouteRegistrar = (a
       // previously-provisioned row survives a disable untouched (`federate-mcp.ts`'s own header).
       if (written.enabled) {
         await provisionAgentPluginMcpServersBestEffort(deps, { pluginId, principalId: principal.id });
-        deps.tracker.capture({ name: "agent_plugin_enabled", userId: principal.id, properties: { pluginId } });
       }
 
       sendUpdatedRow(res, candidate, written.enabled, written.warnings);

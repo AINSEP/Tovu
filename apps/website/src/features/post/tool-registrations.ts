@@ -1027,6 +1027,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
                   author,
                   showAuthor,
                   actorId: ctx.principal.id,
+                  analyticsSource: "assistant",
                   // Every `tool-registrations.ts` handler is, by definition, reached only via
                   // `@jini-ai/daemon`'s agent-run path (see `AGENT_TOOL_PRINCIPAL_KIND`'s own doc
                   // in `@jini-ai/cms/core` — `ctx.principal.id` is already the real human's id here,
@@ -1162,6 +1163,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
                   expectedVersion: basisVersion,
                   templateChoice,
                   actorId: ctx.principal.id,
+                  analyticsSource: "assistant",
                   // See content_post_create's identical delegatedBy* comment just above.
                   delegatedByWorkspaceId: routeDeps.workspaceId,
                   delegatedById: ctx.principal.id,
@@ -1442,6 +1444,7 @@ async function duplicatePostOrPage(
             author: source.author ?? null,
             showAuthor: source.showAuthor ?? false,
             actorId: input.principalId,
+            analyticsSource: "assistant",
             // See content_post_create's identical delegatedBy* comment above.
             delegatedByWorkspaceId: routeDeps.workspaceId,
             delegatedById: input.principalId,

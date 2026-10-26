@@ -141,7 +141,7 @@ export function registerAdminExportSiteRoutes(app: Express, deps: AdminExportSit
       }
 
       const snapshot = startExportRun({ routeDeps: deps, runExportSite: deps.runExportSite, clean: parsedBody.clean }, { basePath: parsedBody.basePath,
-        onSettled: ({ status }) => deps.tracker.capture({ name: "site_exported", userId: principal.id, properties: { outcome: status } }) });
+        productEvent: { tracker: deps.tracker, userId: principal.id, operationId: deps.idGen.newId(), source: "admin" } });
       res.status(202).json(snapshot);
     } catch (err) {
       // `startExportRun` itself is not awaited (the run continues in the background, polled via

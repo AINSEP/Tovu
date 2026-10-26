@@ -1,3 +1,5 @@
+import { captureMediaUploaded } from "../media/analytics.js";
+import type { Tracker } from "@jini-ai/diagnostics/observability";
 import { toolMetadata } from '../../contracts/core/tool-metadata/media-import.js';
 import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
 import { buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
@@ -51,6 +53,7 @@ import { refuseUnexpectedKeys } from "../../contracts/core/human-confirm.js";
  */
 
 export interface MediaImportToolDeps {
+  tracker?: Tracker;
   authorize: AuthorizeFn;
   workspaceId: string;
   siteBinding: { readonly dir: string };
@@ -227,6 +230,7 @@ async function persistImportedMedia(required: { routeDeps: MediaImportToolDeps; 
   // Identical recording discipline to the URL, generated-media and admin upload paths.
   const sniffed = sniffContentType({ bytes: input.bytes });
   await routeDeps.mediaContentTypeStore.set({ workspaceId: routeDeps.workspaceId, sha256: media.source.sha256, contentType: sniffed });
+          captureMediaUploaded({ tracker: routeDeps.tracker, actorId: media.createdByPrincipal, byteLength: input.bytes.byteLength, kind: "image", source: "assistant" });
   const urls = await resolveMediaPublicUrls(routeDeps, [media]);
   return {
     media: {

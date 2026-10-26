@@ -1,3 +1,4 @@
+import type { Tracker } from "@jini-ai/diagnostics/observability";
 import type { AuthorizeFn } from "@jini-ai/cms/core";
 
 import {
@@ -52,6 +53,7 @@ import type { ActivateSitePorts, CreateSiteForOwnerPorts } from "./site-admin.js
  * "The sites route and `sites_duplicate_site` re-derive the site binding from `process.cwd()`").
  */
 export interface SitesToolDeps {
+  tracker?: Tracker;
   workspaceId: string;
   authorize: AuthorizeFn;
   /** Shared home/catalog owner, the same port the Sites HTTP routes accept. Defaults to Node. */

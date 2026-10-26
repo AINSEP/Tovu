@@ -6,7 +6,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { definePlugin, HOOK_POINTS, HOOK_CONTENT_ENTRY_BEFORE_SAVE, type ContentEntryDraft, type PluginSdk } from "@tovu/sdk"; // legacy alias: the bundled backing package.
 import type { ClaimMode, DeclarativeContentTypesPort, PluginManifest, PluginModuleImportPort, PluginSdkBinding, PluginTierPolicy, HookRegistry } from "@jini-ai/plugins/host";
-import { PluginInstallError, snapshotPluginModuleGraph } from "@jini-ai/plugins/host/node";
+import { PluginInstallError, snapshotPluginModuleGraph, type PluginModuleSnapshotLifecycle } from "@jini-ai/plugins/host/node";
 import type { RunTier2CallRequired } from "@jini-ai/plugins/host/worker";
 import { PLUGIN_CONTRIBUTION_CAPABILITIES, PLUGIN_MANIFEST_FILENAME, PLUGIN_MANIFEST_FILENAMES } from "@jini-ai/plugins/host";
 import { SHARED_EXTENSION_CAPABILITIES } from "../../contracts/core/extension-capability-vocabulary.js";
@@ -94,6 +94,7 @@ export type PluginBeforeSavePreview = (pluginId: string, entry: Readonly<Content
  * dynamic imports and CommonJS require caches. Snapshots remain available until shutdown.
  * @param required The validated manifest and source selected for this load.
  * @param optional.importModule The existing built-in/worker/test import seam, when present.
+ * @param optional.snapshots The runtime's snapshot owner, disposed after plugin users stop.
  * @returns A registry importer projecting the default export without changing export validation.
  * @throws Snapshot/filesystem/import errors; Jini maps them to the existing load reasons.
  * @complexity O(total package bytes) for a site snapshot; O(1) for an injected seam.
@@ -101,7 +102,7 @@ export type PluginBeforeSavePreview = (pluginId: string, entry: Readonly<Content
  */
 export function createPluginModuleImporter(
   required: { manifest: PluginManifest; source: "built-in" | "site" },
-  optional: { importModule?: (entryPath: string) => Promise<unknown> } = {},
+  optional: { importModule?: (entryPath: string) => Promise<unknown>; snapshots?: PluginModuleSnapshotLifecycle } = {},
 ): PluginModuleImportPort {
   return async ({ plugin, modulePath }) => {
     if (optional.importModule) {
@@ -113,7 +114,8 @@ export function createPluginModuleImporter(
       const [root, entry] = await Promise.all([realpath(plugin.packageRoot), realpath(modulePath)]);
       // The immutable snapshot owner rejects symlinks/hardlinks and checks every retained byte.
       if (!entry.startsWith(root + path.sep)) return `module path '${modulePath}' escapes the plugin root`;
-      entryPath = await snapshotPluginModuleGraph({ pluginRoot: plugin.packageRoot, manifest: required.manifest });
+      entryPath = await snapshotPluginModuleGraph({ pluginRoot: plugin.packageRoot, manifest: required.manifest },
+        optional.snapshots ? { lifecycle: optional.snapshots } : {});
     }
     const imported = await import(pathToFileURL(entryPath).href);
     return { exported: imported.default };
