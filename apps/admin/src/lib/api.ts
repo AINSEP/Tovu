@@ -1346,6 +1346,13 @@ export interface SeoEntryAnalysis {
   resolved: SeoEntryMeta;
 }
 
+/** Safe readiness for markers already on a page, without templates, paths or credentials. */
+export interface AdminPagePluginEmbed {
+  plugin: string;
+  component: string;
+  availability: string;
+}
+
 export interface AdminPost {
   /** Derived from the revision ledger for editor URL stability after unpublishing. */
   everPublished?: boolean;
@@ -2923,7 +2930,7 @@ export const api = {
   // are separate features with separate editors, and the id in the URL is the only thing standing
   // between them.
   getPage: (id: string) =>
-    request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/pages/${encodeURIComponent(id)}`),
+    request<{ post: AdminPost; pluginEmbeds?: readonly AdminPagePluginEmbed[] }>(`/workspaces/${WORKSPACE_ID}/pages/${encodeURIComponent(id)}`),
   // SPEC-047 — writes the bespoke-HTML body, and births the html row on first call. A DIFFERENT
   // endpoint from `updatePost` on purpose: the body and the title/slug/status go through two
   // separate server-side write paths.

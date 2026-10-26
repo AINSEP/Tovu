@@ -31,6 +31,8 @@ import { useFindInPage, useComposedGuestRef, type FindInPage, type FindableGuest
 import { useZoom, type ZoomableGuest } from './use-zoom.hooks.js';
 import { useAppVersion } from './use-app-version.hooks.js';
 import { SiteGrid } from './SiteGrid.js';
+import { ResourcesChip, ResourcesMonitor } from './ResourcesPanel.js';
+import { SharedKeysLauncher } from './SharedKeys.js';
 import { SitesFolders, SitesFoldersDialog } from './SitesFolders.js';
 import { useSiteStorageSettings } from './use-site-storage-settings.hooks.js';
 import type { useSiteFolders } from './use-site-folders.hooks.js';
@@ -155,6 +157,7 @@ export function App({
   const active = findSection(activeId);
 
   return (
+    <ResourcesMonitor projects={projects} onSiteUpdated={applySiteRecord}>
     <div className="app">
       <FindBar find={find} />
       {showTopNav && (
@@ -252,6 +255,7 @@ export function App({
           floating button competing with the guest's. `WorkspaceChatPane` and the `.chat-fab*` rules
           in `app.css` are kept for it. */}
     </div>
+    </ResourcesMonitor>
   );
 }
 
@@ -385,6 +389,7 @@ function TopNav({
       </div>
 
       <div className="topnav__tools">
+        <ResourcesChip />
         <SettingsControl theme={theme} onThemeChange={onThemeChange} onOpenAppearance={onOpenAppearance} useSiteSettings={useSiteSettings} />
       </div>
     </nav>
@@ -1121,6 +1126,7 @@ function MainHeader({
             {rescanning ? 'Scanning…' : 'Rescan'}
           </button>
           <SitesFolders useSettings={useFolders} />
+          <SharedKeysLauncher />
           {/* Next to Rescan because the two are the same KIND of action — both only ever add cards
               for websites that already exist. The difference is who chooses: Rescan looks under the
               scan roots automatically, this one asks the operator for one folder. Styled solid on

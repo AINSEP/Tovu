@@ -29,6 +29,7 @@ import type { FindInPageQuery, FindInPageResult } from '../contracts/find-in-pag
 import type { ZoomDirection } from '../contracts/zoom.js';
 import type { RunnerAppVersionBridge, RunnerUpdateCheckBridge } from '../contracts/app-version.js';
 import type { ResourcesRequest, ResourcesSnapshot } from '../contracts/resources.js';
+import type { OwnerStoreBridge } from '../contracts/owner-store.js';
 
 export interface RunnerInventoryBridge {
   /** Optional for stale preloads. Poll only while visible; use reply.pollIntervalMs, never subscribe.
@@ -138,9 +139,17 @@ export interface RunnerInventoryBridge {
 declare global {
   interface Window {
     tovuRunner?: RunnerInventoryBridge;
+    tovuOwnerStore?: OwnerStoreBridge;
   }
 }
 
 export function runnerInventoryBridge(): RunnerInventoryBridge | undefined {
   return window.tovuRunner;
+}
+
+/** Optional on older preloads; owner-store persistence and file dialogs remain in main.
+ * @example ownerStoreBridge({}, {})?.list({}, {})
+ */
+export function ownerStoreBridge(_input = {}, _options = {}): OwnerStoreBridge | undefined {
+  return window.tovuOwnerStore;
 }

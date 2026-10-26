@@ -14,7 +14,7 @@ import { homedir, tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import vm from "node:vm";
 
-import { buildEntryLoadScript, buildSmokeScript, parseEntryLoadOutput, parseSmokeOutput, resolveSmokeTargets } from "./smoke-native.ts";
+import { assertPackagedOwnerStoreStatus, buildEntryLoadScript, buildSmokeScript, parseEntryLoadOutput, parseSmokeOutput, resolveSmokeTargets } from "./smoke-native.ts";
 
 test("the generated script executes each staged package and reports its individual failure", () => {
   const root = mkdtempSync(path.join(tmpdir(), "smoke-script-"));
@@ -294,4 +294,17 @@ test("native smoke malformed JSON and module errors expose only bounded redacted
   for (const secret of secrets) assert.ok(!JSON.stringify(entries).includes(secret));
   assert.ok(!JSON.stringify(entries).includes(homePath));
   assert.ok(entries.unresolved[0]!.length <= 2_000);
+});
+
+test('owner-store status requires ready and zero entries/grants without echoing diagnostics', () => {
+  const status = { version: 1 as const, ok: true as const, action: 'status' as const, data: { ready: true, entries: 0, grants: 0 } };
+  assert.doesNotThrow(() => assertPackagedOwnerStoreStatus({ reply: status }));
+  for (const data of [{ ready: false, entries: 0, grants: 0 }, { ready: true, entries: 1, grants: 0 }, { ready: true, entries: 0, grants: 1 }]) {
+    assert.throws(() => assertPackagedOwnerStoreStatus({ reply: { ...status, data } }), {
+      message: 'smoke-native: packaged owner-store status failed or profile was not empty',
+    });
+  }
+  assert.throws(() => assertPackagedOwnerStoreStatus({ reply: { version: 1, ok: false, action: 'status', error: { code: 'recovery-required', message: 'unused detail' } } }), {
+    message: 'smoke-native: packaged owner-store status failed or profile was not empty',
+  });
 });
