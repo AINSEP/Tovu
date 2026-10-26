@@ -15,14 +15,16 @@ function recording(): { port: ObservabilityPort; reports: ErrorReport[] } {
 // Built at runtime so no secret-shaped literal sits in the repo.
 const fakeSecret = () => ["sk", "live", "Q".repeat(12) + "z".repeat(12)].join("_");
 
-test("an error object is reported once, with its operation and attributes", () => {
-  const { port, reports } = recording();
-  const failure = new Error("boom");
-  assert.equal(reportErrorOnce({ observability: port, error: failure, operation: "site.publish" }, { attributes: { status: 500 } }), true);
-  assert.equal(reportErrorOnce({ observability: port, error: failure, operation: "http.request" }), false);
-  assert.equal(reports.length, 1);
-  assert.equal(reports[0]!.error, failure, "nothing to redact: the original error object is handed over");
-  assert.deepEqual(reports[0]!.context, { operation: "site.publish", attributes: { status: 500 } });
+test("an error object is reported once per occurrence, with its operation and attributes", () => {
+  runWithErrorReportScope({ scope: { reported: false }, work: () => {
+    const { port, reports } = recording();
+    const failure = new Error("boom");
+    assert.equal(reportErrorOnce({ observability: port, error: failure, operation: "site.publish" }, { attributes: { status: 500 } }), true);
+    assert.equal(reportErrorOnce({ observability: port, error: failure, operation: "http.request" }), false);
+    assert.equal(reports.length, 1);
+    assert.equal(reports[0]!.error, failure, "nothing to redact: the original error object is handed over");
+    assert.deepEqual(reports[0]!.context, { operation: "site.publish", attributes: { status: 500 } });
+  } });
 });
 
 test("message and stack are redacted before the port sees them", () => {
@@ -42,11 +44,11 @@ test("non-Error throws become a redacted Error; no port means no report", () => 
   assert.equal(reportErrorOnce({ observability: undefined, error: new Error("x"), operation: "x" }), false);
 });
 
-test("a report inside a request scope marks that scope; a throwing adapter never throws to the caller", () => {
+test("a throwing adapter leaves the request scope open and never throws to the caller", () => {
   const scope: ErrorReportScope = { reported: false };
   const port: ObservabilityPort = { ...createNoopObservabilityPort({}), reportError: () => { throw new Error("adapter down"); } };
   runWithErrorReportScope({ scope, work: () => reportErrorOnce({ observability: port, error: new Error("y"), operation: "x" }) });
-  assert.equal(scope.reported, true);
+  assert.equal(scope.reported, false);
 });
 
 test("exact secrets are blanked even when they have no recognizable shape", () => {

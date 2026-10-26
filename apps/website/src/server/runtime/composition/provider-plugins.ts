@@ -191,7 +191,7 @@ const NOOP_PORTS: Readonly<Record<ProviderContract, () => object>> = {
  */
 function gatedPort({ slot, contract, testProbe }: { slot: ProviderSlot; contract: ProviderContract; testProbe: ReturnType<typeof createTelemetryTestProbe> }): unknown {
   const noop = NOOP_PORTS[contract]() as Record<string, (...args: unknown[]) => unknown>;
-  const names = Object.keys(noop);
+  const names = Object.keys(noop).filter(name => typeof noop[name] === "function");
   // Keep the optional hook available before attachment; every call follows the current slot.
   if (contract === "product_analytics") names.push("captureAiGeneration", "browserAnalytics");
   const browserCache = new Map<string, { lease: unknown; contribution: unknown }>();
@@ -209,9 +209,12 @@ function gatedPort({ slot, contract, testProbe }: { slot: ProviderSlot; contract
       return contribution;
     }
     const result = live.apply(port, args);
-    testProbe.accepted({ providerId: `${slot.pluginId}/${slot.id}`, method: name, input: args[0] });
+    testProbe.accepted({ providerId: `${slot.pluginId}/${slot.id}`, method: name, input: args[0], supportsMetric: port!.supportsMetric === true });
     return result;
   }]));
+  if (contract === "observability") Object.defineProperty(gated, "supportsMetric", {
+    get: () => slot.lease?.isCurrent({}) === true && (slot.lease.port as ObservabilityPort).supportsMetric === true,
+  });
   if (contract === "product_analytics") Object.defineProperty(gated, "includeAiContent", {
     get: () => slot.lease?.isCurrent({}) === true && (slot.lease.port as ProductAnalyticsPort).includeAiContent === true,
   });

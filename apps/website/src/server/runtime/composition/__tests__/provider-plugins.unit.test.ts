@@ -21,7 +21,7 @@ type Calls = { inputs: Record<string, unknown>[]; disposed: number };
 /** An observability port that records which signals reached it. */
 function recordingObservability(seen: string[]): ObservabilityPort {
   const noop = createNoopObservabilityPort({});
-  return { ...noop, metric: (input) => { seen.push(`metric:${input.name}`); }, trackOperation: (input) => { seen.push(`op:${input.name}`); return noop.trackOperation(input); }, reportError: (report) => { seen.push(`error:${report.context.operation}`); } };
+  return { ...noop, supportsMetric: true, metric: (input) => { seen.push(`metric:${input.name}`); }, trackOperation: (input) => { seen.push(`op:${input.name}`); return noop.trackOperation(input); }, reportError: (report) => { seen.push(`error:${report.context.operation}`); } };
 }
 
 function fakeFactory({ calls, port }: { calls: Calls; port: unknown }): PluginProviderFactory {
@@ -653,4 +653,27 @@ test("provider loading reuses current registrations, reloads retired ones and re
   } finally { await ports.dispose({}); }
   assert.equal(calls.disposed, 2);
   assert.equal(await ports.reapply({ pluginId: "observability-sentry" }), "restart");
+});
+
+
+test("diagnostic receipts exclude noop metrics from Sentry and PostHog while retaining OTel metrics", async () => {
+  const seen: string[] = [];
+  const { runtime } = fakeRuntime({ installed: ["observability-opentelemetry", "observability-sentry", "analytics-posthog"], factories: {
+    "observability-opentelemetry": { contract: "observability", id: "otel", factory: () => ({ port: recordingObservability(seen), dispose() {} }) },
+    "observability-sentry": { contract: "observability", id: "sentry", factory: () => ({ port: {
+      ...recordingObservability(seen), supportsMetric: false, metric() {},
+    }, dispose() {} }) },
+    "analytics-posthog": { contract: "product_analytics", id: "posthog", factory: () => ({ port: { capture() {}, identify() {}, metric() {} }, dispose() {} }) },
+  } });
+  const providers = await bootProviderPlugins({ runtime, config: configOf(CONFIGS), serviceName: "tovu", site: SITE, ...consentAlways }, { warn: quiet, info: quiet });
+  try {
+    assert.equal(providers.observability.supportsMetric, true);
+    const receipt = await providers.sendTelemetryTest({ error: new Error("diagnostic") });
+    assert.deepEqual(receipt.providers, [
+      { providerId: "observability-opentelemetry/otel", signals: ["span", "metric", "error"] },
+      { providerId: "observability-sentry/sentry", signals: ["span", "error"] },
+      { providerId: "analytics-posthog/posthog", signals: ["analytics"] },
+    ]);
+  } finally { await providers.dispose({}); }
+  assert.equal(providers.observability.supportsMetric, false);
 });
