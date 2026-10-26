@@ -17,6 +17,7 @@ export {
 export {
   createCustomCredential,
   CustomCredentialDuplicateLabelError,
+  CustomCredentialConcurrentModificationError,
   CustomCredentialNotFoundError,
   CustomCredentialSecretStoreUnconfiguredError,
   CustomCredentialValidationError,

@@ -21,6 +21,12 @@ function fakeFaces(initial: Record<string, boolean>, links: Record<string, strin
   const writes: [string, boolean][] = [];
   const ports: ProviderFacePorts = {
     links: async () => new Map(Object.entries(links)),
+    reconcileFace: async ({ pluginId, resolveEnabled }) => {
+      const enabled = await resolveEnabled();
+      if (await ports.isFaceActive({ pluginId }) === enabled) return false;
+      await ports.setFace({ pluginId, enabled });
+      return true;
+    },
     isFaceActive: async ({ pluginId }) => faces.get(pluginId) ?? true,
     setFace: async ({ pluginId, enabled }) => { faces.set(pluginId, enabled); writes.push([pluginId, enabled]); },
   };
@@ -56,7 +62,7 @@ test("every provider activation write in this workspace moves its face; other wo
 test("a face that cannot follow is logged, never fails the provider decision; a failed provider write moves nothing", async () => {
   const warnings: string[] = [];
   const failing: ProviderFacePorts = { ...fakeFaces({}, { metrics: "metrics-provider" }).ports, setFace: async () => { throw new Error("disk full"); } };
-  const repo = followProviderActivations({ repo: new InMemoryPluginActivationRepo(), workspaceId: WS, ports: { ...failing, isFaceActive: async () => false } }, { warn: message => warnings.push(message) });
+  const repo = followProviderActivations({ repo: new InMemoryPluginActivationRepo(), workspaceId: WS, ports: { ...failing, reconcileFace: async () => { throw new Error("disk full"); }, isFaceActive: async () => false } }, { warn: message => warnings.push(message) });
   await repo.save(row("metrics-provider", true));
   assert.equal((await repo.getActivation({ workspaceId: WS, pluginId: "metrics-provider" }))?.enabled, true);
   assert.equal(warnings.length, 1);
@@ -98,4 +104,57 @@ test("production ports read the shipped links and switch the real activation rec
   await repo.save(row("analytics-posthog", true));
   assert.equal(await ports.isFaceActive({ pluginId: "posthog" }), true);
   assert.equal(await ports.isFaceActive({ pluginId: "sentry" }), false);
+});
+
+
+test("a delayed older mirror reads current provider state inside the lifecycle owner", async (t) => {
+  const { agentPluginActivations } = await import("../../activation-effects.js");
+  for (const finalEnabled of [false, true]) {
+    const root = await mkdtemp(path.join(os.tmpdir(), "tovu-provider-race-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    await agentPluginActivations.setAgentPluginActivation({ workspaceRoot: root, pluginId: "face", enabled: finalEnabled, actor: "test" });
+    const bound = bindProviderFacePorts({ workspaceRoot: () => root });
+    const started = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    let scans = 0;
+    const ports = { ...bound, links: async () => {
+      if (++scans === 1) { started.resolve(); await release.promise; }
+      return new Map([["face", "provider"]]);
+    } };
+    const repo = followProviderActivations({ repo: new InMemoryPluginActivationRepo(), workspaceId: WS, ports });
+    const earlier = repo.save(row("provider", !finalEnabled));
+    await started.promise;
+    await repo.save(row("provider", finalEnabled));
+    release.resolve();
+    await earlier;
+    assert.equal((await repo.getActivation({ workspaceId: WS, pluginId: "provider" }))?.enabled, finalEnabled);
+    assert.equal(await bound.isFaceActive({ pluginId: "face" }), finalEnabled);
+  }
+});
+
+test("link discovery selects the bundled revision, honors removed links, and refuses ambiguous revisions", async () => {
+  const installed = [
+    { pluginId: "face", archiveDigest: "old", packageRoot: "/old" },
+    { pluginId: "face", archiveDigest: "current", packageRoot: "/current" },
+    { pluginId: "custom", archiveDigest: "a", packageRoot: "/custom-a" },
+    { pluginId: "custom", archiveDigest: "b", packageRoot: "/custom-b" },
+  ] as unknown as Awaited<ReturnType<typeof import("../../lifecycle.js").listInstalledPlugins>>;
+  let removed = false;
+  let ambiguous = false;
+  const reads: string[] = [];
+  const ports = bindProviderFacePorts({ workspaceRoot: () => "/workspace" }, { catalog: {
+    list: async () => ambiguous ? installed : installed.filter(plugin => plugin.pluginId === "face"),
+    bundled: async () => new Map([["face", "current"]]),
+    read: async (plugin, filename) => {
+      assert.equal(filename, "plugin.json");
+      reads.push(plugin.packageRoot);
+      return JSON.stringify({ extensions: { tovu: removed ? {} : { providerPlugin: plugin.packageRoot === "/current" ? "current-provider" : "stale-provider" } } });
+    },
+  } });
+  assert.deepEqual([...(await ports.links({}))], [["face", "current-provider"]]);
+  removed = true;
+  assert.deepEqual([...(await ports.links({}))], []);
+  assert.deepEqual(reads, ["/current", "/current"]);
+  ambiguous = true;
+  await assert.rejects(ports.links({}), { message: "Agent Plugin 'custom' matches 2 installed packages — refusing to guess which one to use" });
 });

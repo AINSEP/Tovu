@@ -5,6 +5,7 @@ import {
   createCustomCredential,
   describeCredential,
   CustomCredentialDuplicateLabelError,
+  CustomCredentialConcurrentModificationError,
   CustomCredentialNotFoundError,
   CustomCredentialSecretStoreUnconfiguredError,
   CustomCredentialValidationError,
@@ -51,6 +52,10 @@ const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/system/custom/credentia
 function sendStoreError(res: Response, err: unknown): void {
   if (err instanceof CustomCredentialValidationError) {
     res.status(400).json({ error: "VALIDATION", detail: err.message });
+    return;
+  }
+  if (err instanceof CustomCredentialConcurrentModificationError) {
+    res.status(409).json({ error: "CONCURRENT_MODIFICATION", detail: err.message });
     return;
   }
   if (err instanceof CustomCredentialDuplicateLabelError) {

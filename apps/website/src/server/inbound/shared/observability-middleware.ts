@@ -88,8 +88,8 @@ export function applyRequestTracking(app: Express, deps: {
       // After an error reaches the app's final handler Express has already reset `req.baseUrl`
       // (undefined at the top level), so it is read defensively.
       const routePattern = req.route ? `${req.baseUrl ?? ""}${req.route.path}` : "unmatched";
-      tracker.end({ statusCode: res.statusCode, routePattern });
       reportServerError({ observability: deps.observability, req, res, scope, routePattern });
+      tracker.end({ statusCode: res.statusCode, routePattern });
       logCompletedRequest({
         requestId, method: req.method, routePattern, statusCode: res.statusCode, durationMs,
       }, { logger: deps.logger, logRequests, slowRequestMs });

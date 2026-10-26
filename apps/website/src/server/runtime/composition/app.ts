@@ -1853,6 +1853,7 @@ function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
       mailer: routeDeps.mailer,
       formDefinitionRepo: routeDeps.formDefinitionRepo,
       formSubmissionRepo: routeDeps.formSubmissionRepo,
+      productAnalytics: routeDeps.productAnalytics,
       senderIdentity: routeDeps.mailSenderIdentity,
     })
   );
@@ -2468,7 +2469,6 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // precede the site `/:slug` catch-all, same reasoning as the routes immediately above.
   registerFormsSubmitRoute(app, {
     workspaceId: routeDeps.workspaceId,
-    productAnalytics: routeDeps.productAnalytics,
     submitForm: {
       definitionRepo: routeDeps.formDefinitionRepo,
       submissionRepo: routeDeps.formSubmissionRepo,

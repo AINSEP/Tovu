@@ -345,3 +345,21 @@ test("site-share artifact transfers bypass tracing entirely and carry no request
   assert.equal(res.headers.get("x-request-id"), null);
   assert.equal(calls.length, 0);
 });
+
+
+test("a synchronous 503 exports its exception before ending the SDK request span, once", async (t) => {
+  const { createInMemoryOtel } = await import("#src/platform/observability/__tests__/fixtures/in-memory-otel");
+  const { port, exporter } = createInMemoryOtel();
+  const app = express();
+  applyRequestTracking(app, { observability: port, env: loggingDisabled });
+  app.get("/unavailable", (_req, res) => res.status(503).end());
+  const baseUrl = await startTestServer(app, t);
+  assert.equal((await fetch(`${baseUrl}/unavailable`)).status, 503);
+  const spans = exporter.getFinishedSpans();
+  assert.equal(spans.length, 1);
+  assert.equal(spans[0]!.name, "GET /unavailable");
+  const exceptions = spans[0]!.events.filter(event => event.name === "exception");
+  assert.equal(exceptions.length, 1);
+  assert.equal(exceptions[0]!.attributes?.["exception.type"], "ServerErrorResponse");
+  assert.equal(exceptions[0]!.attributes?.["operation.name"], "http.request");
+});

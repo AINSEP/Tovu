@@ -1,10 +1,8 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import type { PluginActivationRecord, PluginActivationRepoPort } from "@jini-ai/plugins/host";
 
 import { agentPluginActivations } from "./activation-effects.js";
 import { readProviderPluginLink } from "./identity.js";
-import { listInstalledPlugins } from "./lifecycle.js";
+import { listInstalledPlugins, preferBundledAgentPluginDigests, readBundledAgentPluginDigests, readTrustedPluginFile } from "./lifecycle.js";
 
 /**
  * @file One vendor, one plugin (owner 2026-10-25): a provider plugin (the Plugins screen, its Settings
@@ -30,6 +28,8 @@ export const PROVIDER_LINK_ACTOR = "system:provider-plugin";
 export interface ProviderFacePorts {
   /** Installed agent plugins that declare a provider plugin: agent plugin id → provider plugin id. */
   readonly links: (required: Record<string, never>) => Promise<ReadonlyMap<string, string>>;
+  /** Read canonical state and compare/write within the activation owner's serialized operation. */
+  readonly reconcileFace: (required: { readonly pluginId: string; readonly resolveEnabled: () => Promise<boolean> }) => Promise<boolean>;
   readonly isFaceActive: (required: { readonly pluginId: string }) => Promise<boolean>;
   readonly setFace: (required: { readonly pluginId: string; readonly enabled: boolean }) => Promise<void>;
 }
@@ -57,10 +57,7 @@ export async function syncProviderFaces(
   const switched: string[] = [];
   for (const [face, provider] of await ports.links({})) {
     if (optional.providerId !== undefined && provider !== optional.providerId) continue;
-    const enabled = await providerEnabled({ pluginId: provider });
-    if (await ports.isFaceActive({ pluginId: face }) === enabled) continue;
-    await ports.setFace({ pluginId: face, enabled });
-    switched.push(face);
+    if (await ports.reconcileFace({ pluginId: face, resolveEnabled: () => providerEnabled({ pluginId: provider }) })) switched.push(face);
   }
   return switched;
 }
@@ -75,16 +72,16 @@ export function followProviderActivations(
   { repo, workspaceId, ports }: { repo: PluginActivationRepoPort; workspaceId: string; ports: ProviderFacePorts },
   optional: { readonly warn?: (message: string) => void } = {},
 ): PluginActivationRepoPort {
-  const mirror = async ({ row, enabled }: { row: { workspaceId: string; pluginId: string }; enabled: boolean }) => {
+  const mirror = async ({ row }: { row: { workspaceId: string; pluginId: string } }) => {
     if (row.workspaceId !== workspaceId) return;
-    try { await syncProviderFaces({ ports, providerEnabled: async () => enabled }, { providerId: row.pluginId }); }
+    try { await syncProviderFaces({ ports, providerEnabled: async ({ pluginId }) => (await repo.getActivation({ workspaceId, pluginId }))?.enabled ?? false }, { providerId: row.pluginId }); }
     catch (error) { (optional.warn ?? console.warn)(`[agent-plugins] the assistant face of '${row.pluginId}' could not follow it; the next start retries: ${error instanceof Error ? error.message : String(error)}`); }
   };
   return {
     getActivation: (required, opts) => repo.getActivation(required, opts),
     listAll: (required, opts) => repo.listAll(required, opts),
-    save: async (record: PluginActivationRecord, opts) => { await repo.save(record, opts); await mirror({ row: record, enabled: record.enabled }); },
-    deleteActivation: async (required, opts) => { await repo.deleteActivation(required, opts); await mirror({ row: required, enabled: false }); },
+    save: async (record: PluginActivationRecord, opts) => { await repo.save(record, opts); await mirror({ row: record }); },
+    deleteActivation: async (required, opts) => { await repo.deleteActivation(required, opts); await mirror({ row: required }); },
   };
 }
 
@@ -96,23 +93,36 @@ export async function linkedProviderOf({ ports, pluginId }: { ports: Pick<Provid
 /**
  * Production ports over one workspace's installed agent plugins and activation record. The root is
  * resolved per call, so binding before a site is chosen is safe. An unreadable manifest links nothing.
- * @complexity `links`: one manifest read per installed revision.
+ * @throws Unresolved multiple revisions refuse link discovery rather than picking a switch.
+ * @complexity `links`: O(p) installed packages, one trusted manifest read per selected revision.
  */
-export function bindProviderFacePorts({ workspaceRoot }: { workspaceRoot: () => string }, optional: { readonly readText?: (filePath: string) => Promise<string> } = {}): ProviderFacePorts {
-  const readText = optional.readText ?? ((filePath: string) => readFile(filePath, "utf8"));
-  const linkOf = async (packageRoot: string) => {
-    try { return readProviderPluginLink({ manifest: JSON.parse(await readText(path.join(packageRoot, "plugin.json"))) }); }
-    catch { return undefined; }
+export function bindProviderFacePorts({ workspaceRoot }: { workspaceRoot: () => string }, optional: {
+  readonly catalog?: {
+    list: typeof listInstalledPlugins;
+    bundled: typeof readBundledAgentPluginDigests;
+    read: typeof readTrustedPluginFile;
   };
+} = {}): ProviderFacePorts {
+  const catalog = optional.catalog ?? { list: listInstalledPlugins, bundled: readBundledAgentPluginDigests, read: readTrustedPluginFile };
   return {
     links: async () => {
+      const root = workspaceRoot();
+      const selected = preferBundledAgentPluginDigests(await catalog.list(root), await catalog.bundled(root));
+      const counts = new Map<string, number>();
+      for (const plugin of selected) counts.set(plugin.pluginId, (counts.get(plugin.pluginId) ?? 0) + 1);
       const links = new Map<string, string>();
-      for (const plugin of await listInstalledPlugins(workspaceRoot())) {
-        const provider = links.has(plugin.pluginId) ? undefined : await linkOf(plugin.packageRoot);
-        if (provider !== undefined) links.set(plugin.pluginId, provider);
+      for (const plugin of selected) {
+        // The lifecycle refuses ambiguous non-bundled revisions; none may decide a current switch.
+        if (counts.get(plugin.pluginId) !== 1) throw new Error(`Agent Plugin '${plugin.pluginId}' matches ${counts.get(plugin.pluginId)} installed packages — refusing to guess which one to use`);
+        try {
+          const provider = readProviderPluginLink({ manifest: JSON.parse(await catalog.read(plugin, "plugin.json")) });
+          if (provider !== undefined) links.set(plugin.pluginId, provider);
+        } catch { /* An unreadable manifest links nothing. */ }
       }
       return links;
     },
+    reconcileFace: ({ pluginId, resolveEnabled }) => agentPluginActivations.reconcileAgentPluginActivation({
+      workspaceRoot: workspaceRoot(), pluginId, resolveEnabled, actor: PROVIDER_LINK_ACTOR }),
     isFaceActive: async ({ pluginId }) => agentPluginActivations.isAgentPluginActive({
       activations: await agentPluginActivations.readAgentPluginActivations({ workspaceRoot: workspaceRoot() }), pluginId }),
     setFace: async ({ pluginId, enabled }) => {

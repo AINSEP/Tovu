@@ -11,6 +11,9 @@ import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
 import type { HtmlFormDefinitionRecord as FormDefinitionRecord, FieldDescriptor, FormDefinitionRepoPort } from "@jini-ai/cms/forms";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
+import type { ProductAnalyticsPort, ProductEvent } from "@jini-ai/analytics/product";
+import { createFormsModule } from "../../runtime/composition/modules/forms.js";
+import { processOutbox } from "#src/contracts/core/events/index";
 import { registerFormsSubmitRoute } from "../../inbound/public-http/routes/site/forms-submit.js";
 import { decodeFormFlashCookieValue, FORM_FLASH_COOKIE_NAME } from "../../inbound/public-http/http/site/render.js";
 
@@ -38,7 +41,7 @@ function makeDefinition(overrides: Partial<FormDefinitionRecord> = {}): FormDefi
   };
 }
 
-async function startTestApp(overrides: { definitionRepo?: FormDefinitionRepoPort; submissionRepo?: InMemoryFormSubmissionRepo; upstreamCookie?: boolean } = {}) {
+async function startTestApp(overrides: { definitionRepo?: FormDefinitionRepoPort; submissionRepo?: InMemoryFormSubmissionRepo; upstreamCookie?: boolean; productAnalytics?: ProductAnalyticsPort } = {}) {
   const definitionRepo = overrides.definitionRepo ?? new InMemoryFormDefinitionRepo();
   const submissionRepo = overrides.submissionRepo ?? new InMemoryFormSubmissionRepo();
   const clock = { nowMs: () => Date.parse(NOW), nowIso: () => NOW };
@@ -47,6 +50,14 @@ async function startTestApp(overrides: { definitionRepo?: FormDefinitionRepoPort
 
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();
+  createFormsModule({ bus, formDefinitionRepo: definitionRepo, formSubmissionRepo: submissionRepo,
+    productAnalytics: overrides.productAnalytics,
+    mailer: {
+      capabilities: () => ({ driver: "memory", supportsIdempotencyKey: false, supportsWebhookFeedback: false, maxBatchSize: 1, supportsAttachments: false }),
+      send: async () => { throw new Error("notifications are disabled in this test"); },
+      sendBatch: async () => { throw new Error("notifications are disabled in this test"); },
+    },
+  }).start!();
   const app = express();
   app.use(express.json());
   if (overrides.upstreamCookie) app.use((_req, res, next) => { res.cookie("upstream", "kept", { path: "/" }); next(); });
@@ -902,4 +913,33 @@ test("validation flash cookies preserve upstream cookies and expire in 120 secon
   assert.deepEqual(decodeFormFlashCookieValue(flash.raw), {
     slug: "contact", values: { email: "ada@example.com" },
   });
+});
+
+
+test("form analytics captures only a committed submission, never honeypots or duplicate attempts", { timeout: 5000 }, async (t) => {
+  const events: ProductEvent[] = [];
+  let captured!: () => void;
+  const delivered = new Promise<void>(resolve => { captured = resolve; });
+  const { server, baseUrl, definitionRepo, submissionRepo, outbox, bus } = await startTestApp({ productAnalytics: {
+    capture: event => { events.push(event); captured(); }, identify: () => {},
+  } });
+  t.after(() => new Promise<void>(resolve => server.close(() => resolve())));
+  await definitionRepo.create(makeDefinition());
+  const post = (body: object) => fetch(`${baseUrl}/forms/contact/submit`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+  });
+  const bot = await post({ name: "Ada", _hp: "filled" });
+  assert.equal(bot.status, 201);
+  assert.deepEqual(await bot.json(), { status: "accepted" });
+  assert.deepEqual(events, []);
+  for (let i = 0; i < 2; i++) {
+    const response = await post({ name: "Ada", _attempt: "same-attempt" });
+    assert.equal(response.status, 201);
+    assert.deepEqual(await response.json(), { status: "accepted" });
+    await delivered;
+  }
+  // Delivery is deliberately asynchronous at the public boundary; drain any pending event before asserting.
+  await processOutbox({ outbox, bus, clock: { nowIso: () => NOW, nowMs: () => Date.parse(NOW) } });
+  assert.equal((await submissionRepo.listByDefinition({ workspaceId: WORKSPACE_ID, formDefinitionId: "def-1", limit: 10 })).items.length, 1);
+  assert.deepEqual(events, [{ name: "form_submitted", userId: "site-visitor", properties: { formSlug: "contact" } }]);
 });

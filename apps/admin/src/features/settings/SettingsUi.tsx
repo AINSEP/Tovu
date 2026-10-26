@@ -470,47 +470,28 @@ export function SettingsUi(props: SettingsUiProps) {
       id: "privacy",
       label: t("Privacy"),
       title: t("Privacy"),
-      // Not "Choose what this installation shares" — there is nothing to
-      // choose yet. See the panel note below.
-      subtitle: tCap("Vendor telemetry consent. Not connected to a collection pipeline in Tovu yet."),
+      subtitle: tCap("Product analytics consent."),
       icon: (
         <TabIcon>
           <path d="M9 2.5 14 4.5v4c0 3.2-2.1 6-5 7-2.9-1-5-3.8-5-7v-4z" />
           <path d="M6.75 8.75 8.5 10.5l3-3.25" />
         </TabIcon>
       ),
-      /**
-       * `core.privacy.telemetry.{metrics,content}` models consent to share
-       * anonymous usage data with the *vendor* (this port's origin control).
-       * Tovu has no outbound telemetry path at all — no `ForwardingSink`
-       * implementation exists anywhere in `src/`, only doc comments saying
-       * one will be "built later". Leaving this tab live-but-inert would let
-       * an operator believe they are choosing to share (or successfully
-       * withholding) data that was never going anywhere either way — the
-       * exact "mount for completeness" trap this project's decisions call
-       * out. So: the note says so plainly, and `inert` makes the controls
-       * genuinely unusable (not just dimmed — `inert` also removes them from
-       * focus and keyboard activation, unlike a CSS-only `pointer-events`
-       * fake-disable). `PrivacyTab` has no `disabled` prop to plumb this
-       * through instead.
-       *
-       * A separate, real first-party analytics privacy surface
-       * (`core.analytics.*` — DNT/GPC, retention, path exclusions) is being
-       * built alongside this by another agent. That one is unrelated: it is
-       * about Tovu's OWN first-party analytics, not vendor telemetry, and it
-       * is NOT this tab.
-       */
+      // These controls were inert while no collection path existed, so they could not imply that
+      // consent affected nonexistent delivery. Product analytics now needs that metrics decision.
+      // Operational errors follow their provider plugin; the separate core.analytics privacy
+      // controls govern site analytics rather than this operator's product-analytics consent.
       panel: (
         <div className="settings-ui-inert-wrap">
           <BrowserAgentSettingsPanel locale={settingsLocale} />
           <p className="settings-ui-inert-note" role="note">
             {tCap(
-              "Not wired up: this installation has no outbound telemetry pipeline, so nothing is sent regardless of this choice. The control below is shown for reference and disabled until a real collection path exists.",
+              "Metrics consent allows product analytics. Operational error reporting is controlled by its provider plugin.",
             )}
           </p>
-          <div className="settings-ui-inert-control" inert>
-            <PrivacyTab state={s.privacy.value as PrivacyConsentState} onChange={s.privacy.onChange} agentHandle="settings-privacy" />
-          </div>
+          <PrivacyTab state={s.privacy.value as PrivacyConsentState} onChange={s.privacy.onChange} agentHandle="settings-privacy"
+            labels={{ metricsLabel: t("Product analytics"), metricsHint: t("Usage events sent to your configured analytics provider."),
+              consentFooter: t("Product analytics requires metrics consent. Error reporting follows its provider plugin.") }} />
         </div>
       ),
     },

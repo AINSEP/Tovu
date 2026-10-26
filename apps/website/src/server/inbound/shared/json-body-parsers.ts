@@ -25,6 +25,9 @@ export const PUBLIC_JSON_BODY_LIMIT = "128kb";
 /** The admin API's ceiling for an authenticated caller — the app-wide limit before uploads needed more. */
 export const AUTHENTICATED_JSON_BODY_LIMIT = "15mb";
 
+/** Decoded streamed telemetry bytes, enforced before any larger authenticated parser. */
+export const TELEMETRY_JSON_BODY_LIMIT = "16kb";
+
 /** Covers `TOVU_MAX_UPLOAD_BYTES` (50 MiB) once base64 inflates it ~1.33x, plus headroom. */
 export const LARGE_UPLOAD_JSON_BODY_LIMIT = "75mb";
 
@@ -70,6 +73,7 @@ export function isAuthenticatedBodyPath(path: string): boolean {
  */
 export function jsonBodyLimitForAuthenticatedRequest(method: string, path: string): string {
   const lower = path.toLowerCase();
+  if (/^\/api\/admin\/v1\/telemetry\/?$/.test(lower)) return TELEMETRY_JSON_BODY_LIMIT;
   if (lower === "/api/p" || lower.startsWith("/api/p/")) return PUBLIC_JSON_BODY_LIMIT;
   const isLarge = LARGE_UPLOAD_ROUTES.some((route) => route.method === method.toUpperCase() && route.pattern.test(lower));
   return isLarge ? LARGE_UPLOAD_JSON_BODY_LIMIT : AUTHENTICATED_JSON_BODY_LIMIT;
@@ -77,6 +81,7 @@ export function jsonBodyLimitForAuthenticatedRequest(method: string, path: strin
 
 const publicParser = express.json({ limit: PUBLIC_JSON_BODY_LIMIT });
 const authenticatedParser = express.json({ limit: AUTHENTICATED_JSON_BODY_LIMIT });
+const telemetryParser = express.json({ limit: TELEMETRY_JSON_BODY_LIMIT });
 const largeUploadParser = express.json({ limit: LARGE_UPLOAD_JSON_BODY_LIMIT });
 
 /** App-level parser for every route; session-gated paths are left for {@link parseAuthenticatedJsonBody}. */
@@ -92,6 +97,7 @@ export const parsePublicJsonBody: RequestHandler = (req, res, next) => {
  *  the full path whichever prefix the gate is mounted under. */
 export function parseAuthenticatedJsonBody(req: Request, res: Response, next: NextFunction): void {
   const limit = jsonBodyLimitForAuthenticatedRequest(req.method, `${req.baseUrl}${req.path}`);
+  if (limit === TELEMETRY_JSON_BODY_LIMIT) { telemetryParser(req, res, next); return; }
   const parser = limit === PUBLIC_JSON_BODY_LIMIT ? publicParser : limit === LARGE_UPLOAD_JSON_BODY_LIMIT ? largeUploadParser : authenticatedParser;
   parser(req, res, next);
 }
