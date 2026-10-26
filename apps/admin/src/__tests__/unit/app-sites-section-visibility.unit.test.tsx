@@ -6,6 +6,8 @@ import { App } from "../../App";
 import { appShellApiBody } from "../app-shell-api.fixture";
 import {
   resolveSiteSectionRouteGate,
+  SITES_ROW_STORAGE_KEY,
+  useSidebarSiteSection,
   useSiteSectionAvailability,
   withoutSiteSection,
   type SiteSectionAvailability,
@@ -100,6 +102,8 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   window.history.replaceState(null, "", "/");
+  // The sidebar remembers the last Sites answer; one test's answer must not paint the next one's row.
+  window.localStorage.clear();
 });
 
 /** Renders the app at `path`, inside the same `FetchQueryProvider` `main.tsx` wraps it in (the
@@ -370,5 +374,44 @@ describe("useSiteSectionAvailability", () => {
     await waitFor(() => expect(result.current).toBe("unavailable"));
 
     expect(listSites).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("useSidebarSiteSection", () => {
+  function memoryStorage(initial?: string) {
+    const values = new Map<string, string>(initial === undefined ? [] : [[SITES_ROW_STORAGE_KEY, initial]]);
+    return { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); }, values };
+  }
+
+  it("keeps the Sites row from the first paint while pending when this deployment last had it", () => {
+    const storage = memoryStorage("1");
+    const { result, rerender } = renderHook(({ availability }) => useSidebarSiteSection(availability, { storage }), {
+      initialProps: { availability: "unknown" as SiteSectionAvailability },
+    });
+    expect(result.current).toBe("available");
+    rerender({ availability: "unavailable" });
+    expect(result.current).toBe("unavailable");
+    expect(storage.values.get(SITES_ROW_STORAGE_KEY)).toBe("0");
+  });
+
+  it.each([undefined, "0"])("stays unknown while pending with no remembered yes (%s), then remembers a yes", (initial) => {
+    const storage = memoryStorage(initial);
+    const { result, rerender } = renderHook(({ availability }) => useSidebarSiteSection(availability, { storage }), {
+      initialProps: { availability: "unknown" as SiteSectionAvailability },
+    });
+    expect(result.current).toBe("unknown");
+    rerender({ availability: "available" });
+    expect(result.current).toBe("available");
+    expect(storage.values.get(SITES_ROW_STORAGE_KEY)).toBe("1");
+  });
+
+  it("waits for the server when storage throws", () => {
+    const storage = { getItem: () => { throw new Error("blocked"); }, setItem: () => { throw new Error("blocked"); } };
+    const { result, rerender } = renderHook(({ availability }) => useSidebarSiteSection(availability, { storage }), {
+      initialProps: { availability: "unknown" as SiteSectionAvailability },
+    });
+    expect(result.current).toBe("unknown");
+    rerender({ availability: "available" });
+    expect(result.current).toBe("available");
   });
 });
