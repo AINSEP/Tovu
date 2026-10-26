@@ -586,7 +586,7 @@ export function createAssistantByokModule(
 
     // One agent-run span per turn (its own trace root); the turn runs inside it, so its tool calls'
     // DB and outbound spans nest under the run rather than the long-lived request.
-    return routeDeps.tracker.span("assistant.run", async (span) => {
+    return routeDeps.tracker.trace("assistant.run", async (span) => {
       // BYOK bypasses the daemon lifecycle, but publishes the same normalized model/tool events.
       // Reuse its recorder so both execution modes report generations with the same semantics.
       const aiTrace = routeDeps.aiTraceSink ? createAiTraceRecorder({ sink: routeDeps.aiTraceSink, runId: run.id, agentId: credential.protocol },

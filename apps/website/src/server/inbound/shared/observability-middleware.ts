@@ -81,7 +81,7 @@ export function applyRequestTracking(app: Express, deps: {
     res.setHeader(REQUEST_ID_HEADER, requestId);
     res.locals.requestId = requestId;
     const scope: ErrorReportScope = { reported: false };
-    void deps.tracker.span("http.request", (span) => new Promise<void>((resolve) => {
+    void deps.tracker.trace("http.request", (span) => new Promise<void>((resolve) => {
       res.once("finish", () => {
         const durationMs = performance.now() - startedAt;
         // After an error reaches the app's final handler Express has already reset `req.baseUrl`
