@@ -2915,12 +2915,12 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   color: var(--faint); border: 1px solid var(--border); padding: 1px 5px; border-radius: 5px;
 }
 .tab-bar-item[aria-selected="true"] .tab-bar-tag { color: var(--accent-text); opacity: 0.75; }
-/* Themes' "Soon" tabs (Declarative/Templated/Code, owner 2026-10-11) and Sites' Export Site /
-   Import Site (owner 2026-10-18): label greyed like the sidebar's `.cms-item.is-soon`, but still a
-   live tab (no `disabled`), so hover and the selected state keep their normal colours. Scoped to
-   these pages: other screens' tagged tabs are unchanged. */
-:is(.themes-page, .sites-page) .tab-bar-item:has(.tab-bar-tag):not([aria-selected="true"]) { color: var(--faint); }
-:is(.themes-page, .sites-page) .tab-bar-item:has(.tab-bar-tag):not([aria-selected="true"]):hover { color: var(--muted); }
+/* Themes' "Soon" tabs (Declarative/Templated/Code, owner 2026-10-11) and Import & Export's Export /
+   Import (owner 2026-10-18 on Sites; moved 2026-10-25): label greyed like the sidebar's
+   `.cms-item.is-soon`, but still a live tab (no `disabled`), so hover and the selected state keep
+   their normal colours. Scoped to these pages: other screens' tagged tabs are unchanged. */
+:is(.themes-page, .import-export-page) .tab-bar-item:has(.tab-bar-tag):not([aria-selected="true"]) { color: var(--faint); }
+:is(.themes-page, .import-export-page) .tab-bar-item:has(.tab-bar-tag):not([aria-selected="true"]):hover { color: var(--muted); }
 /* Themes header (owner 2026-10-11): "View site ↗" pinned to the header's top-right corner, the
    Rescan / Turn off / Publish buttons as one row under the description, left edge flush with the
    title. The side block takes the full row so it always wraps below the text; the link is absolute so

@@ -31,17 +31,17 @@ test('the target is the first running site, else the first site, else none', () 
 });
 
 test('the import page is an allowlisted admin path, never one the renderer composes', () => {
-  assert.deepEqual(SITE_ADMIN_PAGES, { import: 'sites?tab=import' });
+  assert.deepEqual(SITE_ADMIN_PAGES, { import: 'import-export?tab=import' });
 });
 
 test('a tab asked for the import page loads the admin on it; the public site ignores it', () => {
-  assert.equal(siteSurfaceUrl({ port: 4321, view: 'admin', status: 'running', adminPage: 'import' }), 'http://127.0.0.1:4321/admin/sites?tab=import');
+  assert.equal(siteSurfaceUrl({ port: 4321, view: 'admin', status: 'running', adminPage: 'import' }), 'http://127.0.0.1:4321/admin/import-export?tab=import');
   assert.equal(siteSurfaceUrl({ port: 4321, view: 'admin', status: 'running' }), 'http://127.0.0.1:4321/admin/');
   assert.equal(siteSurfaceUrl({ port: 4321, view: 'site', status: 'running', adminPage: 'import' }), 'http://127.0.0.1:4321/');
   assert.equal(siteSurfaceUrl({ port: 4321, view: 'admin', status: 'stopped', adminPage: 'import' }), '');
   assert.equal(
     siteSurfaceUrl({ port: 4321, view: 'admin', externalUrl: 'https://localhost:3000/admin/', adminPage: 'import' }),
-    'https://localhost:3000/admin/sites?tab=import',
+    'https://localhost:3000/admin/import-export?tab=import',
   );
 });
 

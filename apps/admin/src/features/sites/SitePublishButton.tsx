@@ -13,8 +13,9 @@ import {
 } from "./hooks/use-site-publish.hooks";
 
 /**
- * @file The Sites Export tab's "Publish" button (owner, 2026-10-18): right-aligned under Sites
- * settings, it opens a small panel of the places this site was published or deployed to before.
+ * @file The Export tab's "Publish" button (owner, 2026-10-18; on Sites, then Import & Export from
+ * 2026-10-25): beside "Export this site", it opens a small panel of the places this site was
+ * published or deployed to before.
  * Nothing ships until a row's own Publish is picked. Markup only; see `use-site-publish.hooks.ts`.
  */
 

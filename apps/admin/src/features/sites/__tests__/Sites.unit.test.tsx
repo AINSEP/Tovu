@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
@@ -573,45 +573,15 @@ describe("Sites — the All sites empty state", () => {
   });
 });
 
-describe("Sites — Export Site and Import Site tabs (owner, 2026-10-18)", () => {
-  it.each([
-    { tabId: "export", tab: /Export Site/, marker: "Export this site", list: { shares: [] } },
-    { tabId: "import", tab: /Import Site/, marker: "Import as a new site", list: { imports: [] } },
-  ])("?tab=$tabId opens its tab with the tab bar still on screen", async ({ tabId, tab, marker, list }) => {
-    vi.stubGlobal("fetch", async () => Response.json(list));
-    try {
-      const controller = controllerFixture();
-      render(<FetchQueryProvider><Sites useSitesHook={() => controller} tabId={tabId} /></FetchQueryProvider>);
-      expect(screen.getByRole("tab", { name: tab }).getAttribute("aria-selected")).toBe("true");
-      expect(screen.getByRole("button", { name: marker })).toBeTruthy();
-      await waitFor(() => expect(screen.queryByText(/Loading (exports|imports)…/)).toBeNull());
-    } finally { vi.unstubAllGlobals(); }
-  });
-
-  it("tags both tabs SOON, greyed by the page scope, and they still navigate (owner, 2026-10-18)", () => {
-    renderSites();
-    expect(document.querySelector(".page.sites-page")).toBeTruthy();
-    for (const [name, search] of [[/Export Site/, "?tab=export"], [/Import Site/, "?tab=import"]] as const) {
-      const tab = screen.getByRole("tab", { name: name });
-      expect(tab.querySelector(".tab-bar-tag")?.textContent).toBe("Soon");
-      expect(tab.hasAttribute("disabled")).toBe(false);
-      fireEvent.click(tab);
-      expect(window.location.search).toBe(search);
-    }
-    expect(screen.getByRole("tab", { name: /All sites/ }).querySelector(".tab-bar-tag")).toBeNull();
-  });
-
-  it("shows the Publish button on the Export tab only (owner, 2026-10-18)", async () => {
-    vi.stubGlobal("fetch", async () => Response.json({ shares: [], imports: [] }));
-    try {
-      const controller = controllerFixture();
-      const { unmount } = render(<FetchQueryProvider><Sites useSitesHook={() => controller} tabId="export" /></FetchQueryProvider>);
-      expect(screen.getByRole("button", { name: "Publish" }).getAttribute("aria-expanded")).toBe("false");
-      await waitFor(() => expect(screen.queryByText("Loading exports…")).toBeNull());
-      unmount();
-      render(<FetchQueryProvider><Sites useSitesHook={() => controller} tabId="import" /></FetchQueryProvider>);
+describe("Sites — Export Site and Import Site moved to Import & Export (owner, 2026-10-25)", () => {
+  it("has no Export, Import or Publish here any more; a stray ?tab=export|import opens the list", () => {
+    for (const tabId of ["export", "import"]) {
+      renderSites({}, tabId);
+      expect(screen.getByRole("tab", { name: /All sites/ }).getAttribute("aria-selected")).toBe("true");
+      expect(screen.queryByRole("tab", { name: /Export Site|Import Site/ })).toBeNull();
       expect(screen.queryByRole("button", { name: "Publish" })).toBeNull();
-    } finally { vi.unstubAllGlobals(); }
+      cleanup();
+    }
   });
 });
 

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useInvalidate } from "@jini-ai/ui/fetch-query";
 import { Sites } from "../Sites";
+import { ImportExport } from "../../import-export";
 import { useSites } from "../hooks/use-sites.hooks";
 import { createFakeSitesPort } from "../hooks/sites-dependencies.hooks";
 import { KEYS } from "../rules";
@@ -36,7 +37,10 @@ describe("Sites request lifecycle", () => {
       return <button onClick={() => invalidate({ key: KEYS.list })}>Refresh site list</button>;
     }
     const view = render(<FetchQueryProvider>
-      <Sites useSitesHook={() => useSites(port, t)} tabId="export" />
+      {/* Export (with Publish) moved to Import & Export (owner, 2026-10-25); both screens mount
+          side by side here so a site-list refresh is still shown not to re-read them. */}
+      <Sites useSitesHook={() => useSites(port, t)} tabId="all" />
+      <ImportExport tabId="export" useTranslate={() => t} useTransferTranslate={() => t} useSitesAvailable={() => true} />
       <RefreshList />
     </FetchQueryProvider>);
     try {

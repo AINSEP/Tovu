@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, renderHook, waitFor } from "@testing-library/react";
+import { act, cleanup, render, renderHook, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../../App";
@@ -172,6 +172,49 @@ describe("the /admin/sites route itself, not just its nav row", () => {
     // reachable, which is the half of this feature that a nav-only fix would silently skip.
     await waitFor(() => expect(window.location.pathname).toBe("/admin/"));
     await waitFor(() => expect(container.querySelector("main")).toHaveAttribute("data-agent-page", "dashboard"));
+  });
+});
+
+/** The shell's synchronous preload bridge, which is what makes `isDesktopAdmin` true. */
+function stubDesktopShell() {
+  vi.stubGlobal("tovuFiles", { getPathForFile: () => "" });
+}
+
+describe("Import & Export inside the desktop shell (owner, 2026-10-25, option A)", () => {
+  it("is reachable, opens on Export, and keeps the Publish button", async () => {
+    stubDesktopShell();
+    vi.stubGlobal("fetch", stubFetch(true));
+    const container = await renderAt("/admin/import-export");
+
+    await waitFor(() => expect(container.querySelector("main")).toHaveAttribute("data-agent-page", "import-export"));
+    expect(window.location.pathname).toBe("/admin/import-export");
+    expect(container.querySelector('a[href="/admin/import-export"]')).not.toBeNull();
+    expect(container.querySelector('a[href="/admin/sites"]')).toBeNull();
+    const main = container.querySelector("main")!;
+    await waitFor(() => expect(within(main).getByRole("tab", { name: /Export/ })).toHaveAttribute("aria-selected", "true"));
+    expect(within(main).getByRole("button", { name: "Export this site" })).toBeTruthy();
+    expect(within(main).getByRole("button", { name: "Publish" })).toBeTruthy();
+  });
+
+  it("renders Import, without the New site link the shell has no route for", async () => {
+    stubDesktopShell();
+    vi.stubGlobal("fetch", stubFetch(true));
+    const container = await renderAt("/admin/import-export?tab=import");
+
+    const main = container.querySelector("main")!;
+    await waitFor(() => expect(within(main).getByRole("tab", { name: /Import/ })).toHaveAttribute("aria-selected", "true"));
+    expect(within(main).getByRole("button", { name: "Import as a new site" })).toBeTruthy();
+    expect(within(main).queryByRole("link", { name: "New site" })).toBeNull();
+  });
+
+  it.each(["export", "import"])("sends an old /sites?tab=%s link to the new tab, not the dashboard", async (tab) => {
+    stubDesktopShell();
+    vi.stubGlobal("fetch", stubFetch(false));
+    const container = await renderAt(`/admin/sites?tab=${tab}`);
+
+    await waitFor(() => expect(window.location.pathname).toBe("/admin/import-export"));
+    expect(window.location.search).toBe(`?tab=${tab}`);
+    await waitFor(() => expect(container.querySelector("main")).toHaveAttribute("data-agent-page", "import-export"));
   });
 });
 
