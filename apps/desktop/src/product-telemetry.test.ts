@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createNoopObservabilityPort, createNoopTracker } from '@jini-ai/diagnostics/observability';
+import { createNoopObservabilityPort, createNoopTracker, type Tracker } from '@jini-ai/diagnostics/observability';
 import type { ProductTelemetry, ProductConsent } from '../../website/src/server/runtime/composition/product-telemetry.ts';
 import { bootDesktopProductTelemetry, desktopProductLaunch, reportDesktopProcessGone, reportDesktopServerExit } from './product-telemetry.ts';
 import { buildServeEnv } from './tovu-server.ts';
@@ -29,7 +29,7 @@ test('no config in dev means noop tracker, no provider reads, no child launch, a
   const selected = desktopProductLaunch({ isPackaged: false, resourcesPath: '/fake/resources', preferencePath: launch.preferencePath, version: '0.0.0-test', env: {} });
   assert.equal(selected, undefined);
   const product = await bootDesktopProductTelemetry({ launch: selected, readConsent: f.readConsent, crashReporter: f.crashReporter }, { boot: f.boot });
-  product.tracker.error(new Error('fake')); await product.tracker.capture({ name: 'app_started' });
+  product.tracker.error({ error: new Error('fake') }); await product.tracker.capture({ name: 'app_started', userId: 'system' });
   assert.equal(product.launch, undefined);
   assert.deepEqual([f.loads(), f.starts.length, f.events.length, f.errors.length], [0, 0, 0, 0]);
   await product.dispose(); assert.equal(f.disposed(), 0);
@@ -62,12 +62,12 @@ test('app_started happens once per launch with usage consent, including a first-
   const product = await bootDesktopProductTelemetry({ launch, readConsent: f.readConsent, crashReporter: f.crashReporter, launchMode: 'update' }, { boot: f.boot });
   assert.deepEqual(f.events, []);
   f.consent(on); product.consentChanged(on); product.consentChanged(on);
-  assert.deepEqual(f.events, [{ name: 'app_started', properties: { launchMode: 'update' } }]);
+  assert.deepEqual(f.events, [{ name: 'app_started', userId: 'system', properties: { launchMode: 'update' } }]);
 });
 
 test('non-clean renderer/GPU/utility exits and one unexpected supervisor exit carry only fixed diagnostic fields', () => {
   const reports: { error: Error; context: unknown }[] = [];
-  const tracker = { ...createNoopTracker({}), error: (error: Error, context: unknown) => { reports.push({ error, context }); } };
+  const tracker: Tracker = { ...createNoopTracker({}), error: ({ error }, { context } = {}) => { reports.push({ error, context }); } };
   reportDesktopProcessGone({ tracker, type: 'renderer', reason: 'clean-exit' });
   for (const type of ['renderer', 'GPU', 'Utility']) reportDesktopProcessGone({ tracker, type, reason: 'crashed' });
   assert.equal(reports.length, 3);

@@ -10,6 +10,7 @@ import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
   en: {
+    metric: "metric",
     "Send test error": "Send test error",
     "Sending test error…": "Sending test error…",
     "Failed to send test error": "Failed to send test error",
@@ -57,6 +58,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "(empty message)": "(empty message)",
   },
   es: {
+    metric: "métrica",
     "Send test error": "Enviar error de prueba",
     "Sending test error…": "Enviando error de prueba…",
     "Failed to send test error": "No se pudo enviar el error de prueba",
@@ -105,6 +107,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Si OpenTelemetry está activado y dónde estará una conexión de proveedor de monitoreo.",
   },
   id: {
+    metric: "metrik",
     "Recent errors": "Kesalahan terbaru",
     "The newest errors this site's server logged.": "Kesalahan terbaru yang dicatat server situs ini.",
     "Recent server errors": "Kesalahan server terbaru",
@@ -143,6 +146,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Apakah OpenTelemetry aktif, dan tempat koneksi penyedia pemantauan akan berada.",
   },
   de: {
+    metric: "Metrik",
     "Recent errors": "Neueste Fehler",
     "The newest errors this site's server logged.": "Die neuesten Fehler, die der Server dieser Website protokolliert hat.",
     "Recent server errors": "Neueste Serverfehler",
@@ -181,6 +185,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Ob OpenTelemetry aktiviert ist und wo eine Verbindung zu einem Monitoring-Anbieter eingerichtet wird.",
   },
   "zh-CN": {
+    metric: "指标",
     "Recent errors": "最近的错误",
     "The newest errors this site's server logged.": "此网站服务器记录的最新错误。",
     "Recent server errors": "最近的服务器错误",
@@ -219,6 +224,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "OpenTelemetry 是否已开启，以及监控提供商连接将设置在何处。",
   },
   "zh-TW": {
+    metric: "指標",
     "Recent errors": "最近的錯誤",
     "The newest errors this site's server logged.": "此網站伺服器記錄的最新錯誤。",
     "Recent server errors": "最近的伺服器錯誤",
@@ -257,6 +263,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "OpenTelemetry 是否已開啟，以及監控提供者連線將設定在何處。",
   },
   "pt-BR": {
+    metric: "métrica",
     "Recent errors": "Erros recentes",
     "The newest errors this site's server logged.": "Os erros mais recentes registrados pelo servidor deste site.",
     "Recent server errors": "Erros recentes do servidor",
@@ -295,6 +302,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Se o OpenTelemetry está ativado e onde ficará uma conexão de provedor de monitoramento.",
   },
   ru: {
+    metric: "метрика",
     "Recent errors": "Последние ошибки",
     "The newest errors this site's server logged.": "Последние ошибки, записанные сервером этого сайта.",
     "Recent server errors": "Последние ошибки сервера",
@@ -333,6 +341,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Включён ли OpenTelemetry и где будет находиться подключение к поставщику мониторинга.",
   },
   fa: {
+    metric: "سنجه",
     "Recent errors": "خطاهای اخیر",
     "The newest errors this site's server logged.": "تازه‌ترین خطاهایی که سرور این سایت ثبت کرده است.",
     "Recent server errors": "خطاهای اخیر سرور",
@@ -371,6 +380,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "این‌که OpenTelemetry روشن است یا نه و اتصال ارائه‌دهندهٔ پایش کجا قرار می‌گیرد.",
   },
   ar: {
+    metric: "مقياس",
     "Recent errors": "الأخطاء الأخيرة",
     "The newest errors this site's server logged.": "أحدث الأخطاء التي سجّلها خادم هذا الموقع.",
     "Recent server errors": "أخطاء الخادم الأخيرة",
@@ -409,6 +419,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "ما إذا كان OpenTelemetry قيد التشغيل ومكان وجود اتصال موفّر المراقبة.",
   },
   ja: {
+    metric: "メトリクス",
     "Recent errors": "最近のエラー",
     "The newest errors this site's server logged.": "このサイトのサーバーが記録した最新のエラーです。",
     "Recent server errors": "最近のサーバーエラー",
@@ -447,6 +458,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "OpenTelemetry がオンかどうか、および監視プロバイダー接続の場所。",
   },
   ko: {
+    metric: "지표",
     "Recent errors": "최근 오류",
     "The newest errors this site's server logged.": "이 사이트의 서버가 기록한 최신 오류입니다.",
     "Recent server errors": "최근 서버 오류",
@@ -485,6 +497,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "OpenTelemetry가 켜져 있는지와 모니터링 제공업체 연결이 위치할 곳입니다.",
   },
   pl: {
+    metric: "metryka",
     "Recent errors": "Ostatnie błędy",
     "The newest errors this site's server logged.": "Najnowsze błędy zapisane przez serwer tej witryny.",
     "Recent server errors": "Ostatnie błędy serwera",
@@ -523,6 +536,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Czy OpenTelemetry jest włączone oraz gdzie będzie znajdować się połączenie z dostawcą monitorowania.",
   },
   hu: {
+    metric: "metrika",
     "Recent errors": "Legutóbbi hibák",
     "The newest errors this site's server logged.": "A webhely kiszolgálója által naplózott legújabb hibák.",
     "Recent server errors": "Legutóbbi kiszolgálóhibák",
@@ -561,6 +575,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Be van-e kapcsolva az OpenTelemetry, és hol lesz a megfigyelési szolgáltatói kapcsolat.",
   },
   fr: {
+    metric: "métrique",
     "Recent errors": "Erreurs récentes",
     "The newest errors this site's server logged.": "Les erreurs les plus récentes enregistrées par le serveur de ce site.",
     "Recent server errors": "Erreurs récentes du serveur",
@@ -599,6 +614,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Si OpenTelemetry est activé et où se trouvera une connexion de fournisseur de surveillance.",
   },
   uk: {
+    metric: "метрика",
     "Recent errors": "Останні помилки",
     "The newest errors this site's server logged.": "Найновіші помилки, записані сервером цього сайту.",
     "Recent server errors": "Останні помилки сервера",
@@ -637,6 +653,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Чи ввімкнено OpenTelemetry і де буде розташовано підключення до постачальника моніторингу.",
   },
   tr: {
+    metric: "metrik",
     "Recent errors": "Son hatalar",
     "The newest errors this site's server logged.": "Bu sitenin sunucusunun kaydettiği en yeni hatalar.",
     "Recent server errors": "Son sunucu hataları",
@@ -675,6 +692,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "OpenTelemetry'nin açık olup olmadığı ve izleme sağlayıcısı bağlantısının bulunacağı yer.",
   },
   th: {
+    metric: "เมตริก",
     "Recent errors": "ข้อผิดพลาดล่าสุด",
     "The newest errors this site's server logged.": "ข้อผิดพลาดล่าสุดที่เซิร์ฟเวอร์ของเว็บไซต์นี้บันทึกไว้",
     "Recent server errors": "ข้อผิดพลาดล่าสุดของเซิร์ฟเวอร์",
@@ -713,6 +731,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "OpenTelemetry เปิดอยู่หรือไม่ และตำแหน่งที่จะมีการเชื่อมต่อผู้ให้บริการตรวจสอบ",
   },
   it: {
+    metric: "metrica",
     "Recent errors": "Errori recenti",
     "The newest errors this site's server logged.": "Gli errori più recenti registrati dal server di questo sito.",
     "Recent server errors": "Errori recenti del server",
@@ -751,6 +770,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Se OpenTelemetry è attivo e dove si troverà una connessione di un provider di monitoraggio.",
   },
   hi: {
+    metric: "मेट्रिक",
     "Recent errors": "हाल की त्रुटियाँ",
     "The newest errors this site's server logged.": "इस साइट के सर्वर द्वारा दर्ज की गई सबसे नई त्रुटियाँ।",
     "Recent server errors": "हाल की सर्वर त्रुटियाँ",
@@ -789,6 +809,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "क्या OpenTelemetry चालू है और निगरानी प्रदाता कनेक्शन कहाँ होगा।",
   },
   ur: {
+    metric: "پیمانہ",
     "Recent errors": "حالیہ خرابیاں",
     "The newest errors this site's server logged.": "اس سائٹ کے سرور کی درج کردہ تازہ ترین خرابیاں۔",
     "Recent server errors": "سرور کی حالیہ خرابیاں",
@@ -827,6 +848,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "آیا OpenTelemetry آن ہے اور نگرانی فراہم کنندہ کا کنکشن کہاں ہوگا۔",
   },
   bn: {
+    metric: "মেট্রিক",
     "Recent errors": "সাম্প্রতিক ত্রুটি",
     "The newest errors this site's server logged.": "এই সাইটের সার্ভার যে সর্বশেষ ত্রুটিগুলো লগ করেছে।",
     "Recent server errors": "সাম্প্রতিক সার্ভার ত্রুটি",

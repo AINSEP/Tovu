@@ -1035,10 +1035,9 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   // Durable admin turns settle in the API, which can observe daemon death and recovery. Only
   // standalone daemon runs report here, so a recovery attempt never becomes another logical run.
   if (durableMessageId === undefined) {
-    routeDeps.tracker.capture({ name: "assistant_run_started", userId: principal.id, properties: { chatSurface: "daemon", logicalRunId: run.id, eventId: `assistant-start:${run.id}` } });
+    routeDeps.tracker.capture({ name: "assistant_run_started", userId: principal.id }, { properties: { chatSurface: "daemon", logicalRunId: run.id, eventId: `assistant-start:${run.id}` } });
     void runLifecycle.stream({ runId: run.id, onEvent: event => {
-      if (event.kind === "end") routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id,
-        properties: { chatSurface: "daemon", logicalRunId: run.id, outcome: event.payload.status, eventId: `assistant-finish:${run.id}` } });
+      if (event.kind === "end") routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id }, { properties: { chatSurface: "daemon", logicalRunId: run.id, outcome: event.payload.status, eventId: `assistant-finish:${run.id}` } });
     } });
   }
 

@@ -488,7 +488,7 @@ export interface AdminTelemetryDeliveryStatus {
   statusCode?: number;
 }
 export interface AdminTelemetryTestResult {
-  providers: { providerId: string; signals: ("error" | "span" | "analytics")[] }[];
+  providers: { providerId: string; signals: ("error" | "span" | "analytics" | "metric")[] }[];
 }
 
 /** One captured server log line — mirrors `ServerLogEntry` in

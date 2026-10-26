@@ -52,7 +52,7 @@ export async function bootDesktopProductTelemetry({ launch, readConsent, crashRe
     const consent = readConsent();
     if (!active || started || !consent.usage || !consent.installationId) return;
     started = true;
-    void tracker.capture({ name: 'app_started', properties: { launchMode } });
+    void tracker.capture({ name: 'app_started', userId: 'system' }, { properties: { launchMode } });
   };
   captureStarted();
   return { tracker, launch: active ? launch : undefined,
@@ -67,11 +67,11 @@ export async function bootDesktopProductTelemetry({ launch, readConsent, crashRe
 /** Parent-observed exits deliberately carry no site directory, title, executable or log text. */
 export function reportDesktopProcessGone({ tracker, type, reason }: { tracker: Tracker; type: string; reason: string }, _options = {}): void {
   if (reason === 'clean-exit') return;
-  tracker.error(new Error('process gone'), { operation: 'desktop.process_gone', attributes: { process: type, code: reason } });
+  tracker.error({ error: new Error('process gone') }, { context: { operation: 'desktop.process_gone', attributes: { process: type, code: reason } } });
 }
 
 /** Supervisor owns unexpected-exit classification and invokes this exactly once per child. */
 export function reportDesktopServerExit({ tracker, code, signal }: { tracker: Tracker; code: number | null; signal: string | null }, _options = {}): void {
-  tracker.error(new Error('site server exited'), { operation: 'desktop.server_exit',
-    attributes: { ...(code === null ? {} : { code }), ...(signal === null ? {} : { signal }) } });
+  tracker.error({ error: new Error('site server exited') }, { context: { operation: 'desktop.server_exit',
+    attributes: { ...(code === null ? {} : { code }), ...(signal === null ? {} : { signal }) } } });
 }

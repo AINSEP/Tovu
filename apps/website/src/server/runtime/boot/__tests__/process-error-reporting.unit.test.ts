@@ -21,20 +21,21 @@ function recording(): { port: ObservabilityPort; reports: ErrorReport[] } {
 // Built at runtime so no secret-shaped literal sits in the repo.
 const secret = ["sk", "live", "P".repeat(12) + "w".repeat(12)].join("_");
 
-test("a rejection and an exception are each reported once; fatal reports flush before exiting", async () => {
+test("separate rejection occurrences remain reportable; fatal reports flush before exiting", async () => {
   const { port, reports } = recording();
   const target = new EventEmitter();
   const steps: string[] = [];
   let release!: () => void;
   const drained = new Promise<void>(resolve => { release = resolve; });
   const uninstall = installProcessErrorReporting({ tracker: createTracker({ observability: port }), processRole: "daemon" }, {
-    target, log() {}, flush: async () => { assert.equal(reports.length, 2); steps.push("flush"); await drained; }, exit: code => { steps.push(`exit:${code}`); },
+    target, log() {}, flush: async () => { assert.equal(reports.length, 3); steps.push("flush"); await drained; }, exit: code => { steps.push(`exit:${code}`); },
   });
   const rejection = new Error(`provider refused ${secret}`);
   target.emit("unhandledRejection", rejection, Promise.resolve());
   target.emit("unhandledRejection", rejection, Promise.resolve());
   target.emit("uncaughtException", new RangeError("fatal"), "uncaughtException");
   assert.deepEqual(reports.map(({ context }) => context), [
+    { operation: "process.unhandled_rejection", attributes: { process: "daemon" } },
     { operation: "process.unhandled_rejection", attributes: { process: "daemon" } },
     { operation: "process.uncaught_exception", attributes: { process: "daemon" } },
   ]);

@@ -215,7 +215,7 @@ export async function createSiteForOwner(
     if (refusal) return refusal;
     const result = await (ports.createSite ?? createSiteReal)({ name: required.name, adminPassword }, { cwd: required.switcherBase });
     // initSite has committed; later optional credential setup cannot turn this into another creation.
-    try { ports.tracker?.capture({ name: "site_created", userId: required.actorId ?? `system:${required.workspaceId}`, properties: {
+    try { ports.tracker?.capture({ name: "site_created", userId: required.actorId ?? `system:${required.workspaceId}` }, { properties: {
       targetSiteId: result.siteId, templateKind: "default", source: required.source ?? "service",
     } }); } catch { /* Product analytics cannot fail an already-created site. */ }
     const agentPluginTokens = await storeTokensForNewSite(ports, result, parsedTokens.tokens);

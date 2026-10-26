@@ -49,10 +49,10 @@ export function registerProductTelemetryIpc({ ipcMain, isShellPage, tracker }: {
       errors.push(at);
       const error = new Error(payload.message);
       error.stack = payload.stack;
-      tracker.error(error, { operation: 'desktop.shell_error', attributes: { process: 'renderer' } });
+      tracker.error({ error }, { context: { operation: 'desktop.shell_error', attributes: { process: 'renderer' } } });
     } else {
       const action = payload.kind === 'action';
-      void tracker.capture({ name: action ? 'desktop_action' : 'desktop_screen_viewed', properties: { [action ? 'action' : 'screen']: payload.id } });
+      void tracker.capture({ name: action ? 'desktop_action' : 'desktop_screen_viewed', userId: 'system' }, { properties: { [action ? 'action' : 'screen']: payload.id } });
     }
   };
   ipcMain.on(PRODUCT_TELEMETRY_CHANNEL, listener);

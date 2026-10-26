@@ -719,7 +719,7 @@ async function applySiteRuntimeDecision(routeDeps: PluginsToolDeps, principalId:
 
   const record = discovery.find((r) => r.id === pluginId);
   if (!record) throw new ToolInputError({ message: `plugin '${pluginId}' was not found in the current discovery snapshot` });
-  if (((priorActivation as PluginActivationRecord | null)?.enabled ?? false) !== result.activation.enabled) routeDeps.tracker?.capture({ name: "plugin_toggled", userId: principalId, properties: { pluginId: record.id, pluginKind: "cms", enabled: result.activation.enabled, source: "assistant" } });
+  if (((priorActivation as PluginActivationRecord | null)?.enabled ?? false) !== result.activation.enabled) routeDeps.tracker?.capture({ name: "plugin_toggled", userId: principalId }, { properties: { pluginId: record.id, pluginKind: "cms", enabled: result.activation.enabled, source: "assistant" } });
   return {
     changed: true,
     cancelled: false,

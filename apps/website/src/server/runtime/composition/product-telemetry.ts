@@ -151,24 +151,11 @@ function scrub({ text }: { text: string }, _options = {}): string {
   return maskLocalPaths({ text: redactSecrets({ input: redactLocalText({ text }) }) }, { keepRoots: KEEP_ROOTS });
 }
 
-/** The memory extension admits bounded numeric series only, never caller-named strings. O(64). */
-function memoryDiagnosticAttributes({ context }: Pick<ErrorReport, 'context'>, _options = {}): Record<string, number> {
-  const attributes: Record<string, number> = {};
-  if (context.operation !== 'desktop.memory_growth') return attributes;
-  for (let index = 0; index < 64; index++) {
-    for (const key of [`rss_${index}_mb`, `elapsed_${index}_min`]) {
-      const value = context.attributes?.[key];
-      if (typeof value === 'number' && Number.isFinite(value) && value >= 0) attributes[key] = value;
-    }
-  }
-  return attributes;
-}
-
 /** Project diagnostic context without carrying site IDs, URLs, user identities or raw route slugs.
  * @returns Only the permitted context keys, with local text scrubbed. @complexity O(n) selected text.
  */
 function errorContext({ context }: Pick<ErrorReport, 'context'>, _options = {}): ErrorReport['context'] {
-  const attributes: Record<string, string | number> = memoryDiagnosticAttributes({ context });
+  const attributes: Record<string, string | number> = {};
   for (const key of ['process', 'code', 'signal'] as const) {
     const value = context.attributes?.[key];
     if (typeof value === 'string') attributes[key] = scrub({ text: value }).slice(0, 100);
@@ -180,19 +167,33 @@ function errorContext({ context }: Pick<ErrorReport, 'context'>, _options = {}):
     ...(context.level === 'warning' ? { level: 'warning' as const } : {}) };
 }
 
-/** Error-only product port: consent gates every report; causes/custom Error fields never cross.
+const PRODUCT_METRIC_UNITS: Readonly<Record<string, string>> = Object.freeze({
+  'process.memory.rss': 'By', 'process.memory.heap_used': 'By', 'process.count': '{process}', 'process.uptime': 's',
+});
+const PRODUCT_METRIC_PROCESSES = new Set(['main', 'renderer', 'server', 'daemon', 'other']);
+
+/** Product errors follow crash consent; numeric gauges follow usage consent with fixed labels.
+ * Causes/custom Error fields and caller-named metric attributes never cross.
  * All lifecycle signals retain the singleton noop implementations (no product traces).
- * @complexity O(n) error and permitted context text per consenting report.
+ * @returns A port retaining local error admission and metric capability.
+ * @complexity O(n) error and permitted context text per report; O(1) per metric.
  */
 function productObservability({ inner, readConsent }: { inner: ObservabilityPort; readConsent: () => ProductConsent }, _options = {}): ObservabilityPort {
-  return { ...createNoopObservabilityPort({}), reportError({ error, context }) {
-    if (readConsent().crashes !== true) return;
-    const original = error instanceof Error ? error : new Error(String(error));
-    const safe = new Error(scrub({ text: original.message }).slice(0, 300));
-    safe.name = scrub({ text: original.name }).slice(0, 100);
-    safe.stack = scrub({ text: original.stack ?? '' });
-    inner.reportError({ error: safe, context: errorContext({ context }) });
-  } };
+  return { ...createNoopObservabilityPort({}),
+    get supportsMetric() { return inner.supportsMetric === true; },
+    metric(input, options = {}) {
+      if (readConsent().usage !== true || !Object.hasOwn(PRODUCT_METRIC_UNITS, input.name)) return;
+      const process = options.attributes?.process;
+      if (typeof process !== 'string' || !PRODUCT_METRIC_PROCESSES.has(process) || !Number.isFinite(input.value) || input.value < 0) return;
+      return inner.metric({ name: input.name, value: input.value }, { kind: 'gauge', unit: PRODUCT_METRIC_UNITS[input.name], attributes: { process } });
+    }, reportError({ error, context }) {
+      if (readConsent().crashes !== true) return false;
+      const original = error instanceof Error ? error : new Error(String(error));
+      const safe = new Error(scrub({ text: original.message }).slice(0, 300));
+      safe.name = scrub({ text: original.name }).slice(0, 100);
+      safe.stack = scrub({ text: original.stack ?? '' });
+      return inner.reportError({ error: safe, context: errorContext({ context }) });
+    } };
 }
 
 /** Catalog projection precedes the shared privacy guard: caller IDs and discarded fields cannot

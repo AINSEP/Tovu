@@ -133,7 +133,7 @@ export async function applyActiveTheme(
     await verifyActiveThemeResolves({ deps: { ...routeDeps, themesDir: routeDeps.themesDir }, activeThemeId, previousThemeId });
   }
   if (previousThemeId !== activeThemeId) {
-    try { routeDeps.tracker?.capture({ name: "theme_changed", userId: required.actorId ?? `system:${routeDeps.workspaceId}`, properties: { themeId: activeThemeId, source: "assistant" } }); }
+    try { routeDeps.tracker?.capture({ name: "theme_changed", userId: required.actorId ?? `system:${routeDeps.workspaceId}` }, { properties: { themeId: activeThemeId, source: "assistant" } }); }
     catch { /* Capture follows verification and cannot fail the active-theme operation. */ }
   }
   return { previousThemeId, activeThemeId };

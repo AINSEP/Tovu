@@ -106,7 +106,7 @@ export function installProcessErrorReporting(
   const exit = optional.exit ?? ((code: number) => process.exit(code));
   let crashing = false;
   const onRejection = (reason: unknown): void => {
-    tracker.error(reason instanceof Error ? reason : redactedError({ error: reason }), { operation: "process.unhandled_rejection", attributes: { process: processRole } });
+    tracker.error({ error: reason instanceof Error ? reason : redactedError({ error: reason }) }, { context: { operation: "process.unhandled_rejection", attributes: { process: processRole } } });
   };
   const onUncaught = (error: unknown): void => {
     if (crashing) return;
@@ -118,13 +118,13 @@ export function installProcessErrorReporting(
       (optional.log ?? ((_message, failure) => console.error(failure)))("[uncaughtException] fatal; exiting after telemetry flush:", error instanceof Error ? error : redactedError({ error }));
     } catch { /* A broken stderr must not skip the report, fatal drain and exit. */ }
     try {
-      tracker.error(error instanceof Error ? error : redactedError({ error }), { operation: "process.uncaught_exception", attributes: { process: processRole } });
+      tracker.error({ error: error instanceof Error ? error : redactedError({ error }) }, { context: { operation: "process.uncaught_exception", attributes: { process: processRole } } });
     } catch { /* A broken diagnostic sink must not skip the fatal drain and exit. */ } finally {
       void Promise.resolve().then(() => optional.flush?.()).catch(() => {}).finally(finish);
     }
   };
   const onMonitor = (error: unknown): void => {
-    tracker.error(error instanceof Error ? error : redactedError({ error }), { operation: "process.uncaught_exception", attributes: { process: processRole } });
+    tracker.error({ error: error instanceof Error ? error : redactedError({ error }) }, { context: { operation: "process.uncaught_exception", attributes: { process: processRole } } });
   };
   const fatalEvent = optional.flush ? 'uncaughtException' : 'uncaughtExceptionMonitor';
   const fatalHandler = optional.flush ? onUncaught : onMonitor;

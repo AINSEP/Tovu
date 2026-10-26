@@ -15,7 +15,7 @@ export function captureMediaUploaded(
     kind: "image" | "audio" | "video" | "document" | "other"; source: "admin" | "assistant" | "service" },
   _optional: Record<string, never> = {},
 ): void {
-  try { tracker?.capture({ name: "media_uploaded", userId: actorId, properties: {
+  try { tracker?.capture({ name: "media_uploaded", userId: actorId }, { properties: {
     kind, bytesBucket: uploadBytesBucket({ byteLength }), source,
   } }); } catch { /* Product analytics cannot fail a completed upload. */ }
 }

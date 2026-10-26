@@ -27,7 +27,7 @@ import { bootAuthenticated, startTestServer } from "../helpers/http-test-server.
 
 /**
  * @file The second wave of owner-action product events (provider wave 2): each is ONE generic
- * `capture({ name, userId, properties? })` with an opaque id and small fixed properties. Every
+ * `capture({ name, userId }, { properties? })` with an opaque id and small fixed properties. Every
  * request below also carries a secret-looking header and value, which must never reach an event.
  * Consent and PII rules are the port's own (`withProductAnalyticsGuards`); a recording fake stands in.
  */
