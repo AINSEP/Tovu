@@ -182,3 +182,21 @@ test("siteIdentityFor: a deployed site with no .site-meta.json is named by TOVU_
   fs.writeFileSync(path.join(bare.dir, ".site-meta.json"), JSON.stringify({ siteId: "site-uuid-own" }));
   assert.equal(siteIdentityFor({ ...flyShape, runtimeMode: "local", projectId: "project-x" }, { env: { TOVU_SITE_ID: "site-uuid-local-twin" } }).siteId, "site-uuid-own");
 });
+
+test("siteIdentityFor: only a UUID-like short token is taken as a site id (meta or TOVU_SITE_ID); anything else falls back, with a warning", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-site-identity-token-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const warnings: string[] = [];
+  t.mock.method(console, "warn", (message: string) => { warnings.push(message); });
+  const bare = { name: "blog", dir: path.join(root, "blog") };
+  fs.mkdirSync(bare.dir);
+  const local = { workspaceId: "workspace-local", runtimeMode: "local" as const, projectId: "project-x", binding: bare };
+  for (const bad of ["a b", "x\"\ny", "../etc", "z".repeat(65)]) {
+    fs.writeFileSync(path.join(bare.dir, ".site-meta.json"), JSON.stringify({ siteId: bad }));
+    assert.equal(siteIdentityFor(local, { env: { TOVU_SITE_ID: "site-uuid-env" } }).siteId, "site-uuid-env", JSON.stringify(bad));
+    assert.equal(siteIdentityFor(local, { env: { TOVU_SITE_ID: bad } }).siteId, "workspace-local", JSON.stringify(bad));
+  }
+  assert.ok(warnings.length >= 8 && warnings.every((line) => /not a valid site id/.test(line)), warnings.join("\n"));
+  fs.writeFileSync(path.join(bare.dir, ".site-meta.json"), JSON.stringify({ siteId: "6f1d1c2e-1b7a-4c1e-9a3f-2b8c4d5e6f70" }));
+  assert.equal(siteIdentityFor(local, { env: {} }).siteId, "6f1d1c2e-1b7a-4c1e-9a3f-2b8c4d5e6f70");
+});

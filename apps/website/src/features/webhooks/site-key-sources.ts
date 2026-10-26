@@ -164,6 +164,19 @@ export function readSiteMetaId(siteDir: string): string | undefined {
   return typeof id === "string" && id !== "" ? id : undefined;
 }
 
+const SITE_ID_TOKEN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
+
+/**
+ * Whether a value may name a site: a UUID-like short token (letters, digits, `-`, `_`; at most 64).
+ * A site id travels into provider signals and, through `tovu deploy config`, into a generated config
+ * file's env block, so a hand-edited or hostile `.site-meta.json` / `TOVU_SITE_ID` (a newline, quotes,
+ * a path) is refused rather than carried.
+ * @complexity O(1) (bounded length).
+ */
+export function isSiteIdToken(value: string): boolean {
+  return SITE_ID_TOKEN.test(value);
+}
+
 export interface ResolveSiteKeyIdInput {
   readonly siteDir: string;
 }

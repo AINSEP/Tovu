@@ -237,9 +237,10 @@ export function createProgram(): Command {
     )
     .option("--target <target>", deployConfigTargetOptionHelp())
     .option("--region <region>", "platform region (required — no default region is assumed)")
+    .option("--site <name>", "which local site's id to stamp as TOVU_SITE_ID (default: the site this process serves)")
     .option("--out <file>", "write the generated config to this file instead of stdout")
-    .action(async (options: { target?: string; region?: string; out?: string }) => {
-      await runDeployConfigCommand({ target: options.target, region: options.region, out: options.out });
+    .action(async (options: { target?: string; region?: string; site?: string; out?: string }) => {
+      await runDeployConfigCommand({ target: options.target, region: options.region, site: options.site, out: options.out });
     });
 
   program

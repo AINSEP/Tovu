@@ -212,7 +212,7 @@ import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "#src/features/navi
 import { buildMenuTrashFollowUpHooks } from "#src/features/navigation/menu-trash-follow-ups";
 import { SqliteWebhookDeliveryRepo, SqliteWebhookSubscriptionRepo } from "#src/platform/db/sqlite/webhook-repo.sqlite";
 import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";
-import { readSiteMetaId, resolveSiteKeyId, siteKeySources, siteKeyEnvOnlySources } from "#src/features/webhooks/site-key-sources";
+import { isSiteIdToken, readSiteMetaId, resolveSiteKeyId, siteKeySources, siteKeyEnvOnlySources } from "#src/features/webhooks/site-key-sources";
 import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyring";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { SqliteSiteAssistantCredentialRepo } from "#src/platform/db/sqlite/site-credential-repo.sqlite";
@@ -1119,6 +1119,13 @@ async function composeProviderConfig({ overrides, runtimeMode, onStoreClose, sit
   return { providerConfigSource: withProjectPrecedence({ site }, { project: projectStore.config }), projectId: projectStore.projectId };
 }
 
+/** A site id from `source`, or undefined (warned) when it is not a short token. */
+function acceptedSiteId(value: string | undefined, source: string): string | undefined {
+  if (value === undefined || isSiteIdToken(value)) return value;
+  console.warn(`[site-identity] ${source} holds ${JSON.stringify(value.slice(0, 80))}, which is not a valid site id; it is ignored`);
+  return undefined;
+}
+
 /**
  * Which site sends every provider signal. NOT the workspace id: every starter-template site seeds the
  * same one (`workspace-local`), so two sites would report as one. The site's own `.site-meta.json` id
@@ -1126,11 +1133,13 @@ async function composeProviderConfig({ overrides, runtimeMode, onStoreClose, sit
  * next comes `TOVU_SITE_ID`, which `tovu deploy config` sets from the local site's meta: the deployed
  * copy reports as the same site. The meta wins over the env so one env shared by several local sites
  * can never merge them. The workspace id is only the last resort. The slug is the site folder's name;
- * Fly (production) has no project store, so its project is the site itself.
+ * Fly (production) has no project store, so its project is the site itself. Either source is taken
+ * only as a short token (`isSiteIdToken`); anything else is warned about and skipped.
  */
 export function siteIdentityFor({ workspaceId, binding, runtimeMode, projectId }: { workspaceId: string; binding: { name: string; dir: string }; runtimeMode: RuntimeMode; projectId: string | undefined }, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): SiteIdentity {
   const environment = runtimeMode === "production" ? "fly" : resolveApiConnectionRuntime({ env }) === "desktop" ? "desktop" : "local";
-  const siteId = readSiteMetaId(binding.dir) ?? (env.TOVU_SITE_ID || undefined) ?? workspaceId;
+  const siteId = acceptedSiteId(readSiteMetaId(binding.dir), `${binding.dir}/.site-meta.json`)
+    ?? acceptedSiteId(env.TOVU_SITE_ID || undefined, "TOVU_SITE_ID") ?? workspaceId;
   return { siteId, siteSlug: binding.name, environment, projectId: projectId ?? siteId };
 }
 
