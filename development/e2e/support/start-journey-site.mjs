@@ -93,32 +93,37 @@ async function startSoakSite({ site, repoRoot }, _options = {}) {
     adminPassword: env.TOVU_ADMIN_PASSWORD,
     spawnFn: (command, args, options) => spawn(command, [...args, "--with-sample-content"], { ...options, cwd: site.runtimeDir }),
   });
-  let inspectorOutput = "";
+  let inspectorURL;
+  let serveChild;
   let server;
+  let stopping = false;
+  // Registered before boot: `serve` is detached from this launcher's process group, so a Ctrl-C or
+  // Playwright shutdown during boot would otherwise orphan it with its inspector open.
+  for (const signal of ["SIGTERM", "SIGINT"]) process.once(signal, async () => {
+    stopping = true;
+    if (server) await server.stop();
+    else try { process.kill(-serveChild.pid, "SIGKILL"); } catch { /* not spawned yet, or already gone */ }
+    process.exit(0);
+  });
+  // The inspector URL is a local capability: redact it from mirrored output and boot errors.
+  const redact = text => String(text).replace(/ws:\/\/[^\s"']+/g, "ws://[inspector]");
   try {
     server = await startTovuServer({ repoRoot, siteDir: site.siteDir, port: site.ports.api,
       cliMode: "compiled", baseEnv: process.env, readyTimeoutMs: 180_000,
       desktopCredential: { username: env.TOVU_ADMIN_USER, password: env.TOVU_ADMIN_PASSWORD },
-      // Inspector stderr includes a capability URL; keep it out of Playwright/CI diagnostics.
-      mirror: { stdout: process.stdout, stderr: new Writable({ write(_chunk, _encoding, done) { done(); } }) },
+      mirror: { stdout: process.stdout, stderr: new Writable({ write(chunk, _encoding, done) { process.stderr.write(redact(chunk), done); } }) },
       spawnFn: (command, args, options) => {
-        const child = spawn(command, ["--expose-gc", "--inspect=127.0.0.1:0", ...args], { ...options, cwd: site.runtimeDir });
-        child.stderr.on("data", chunk => { inspectorOutput = (inspectorOutput + chunk.toString()).slice(-8192); });
-        return child;
+        serveChild = spawn(command, ["--expose-gc", "--inspect=127.0.0.1:0", ...args], { ...options, cwd: site.runtimeDir });
+        // First match only: serve prints its own inspector line before any descendant can.
+        serveChild.stderr.on("data", chunk => { inspectorURL ??= String(chunk).match(/ws:\/\/127\.0\.0\.1:\d+\/[a-f0-9-]+/)?.[0]; });
+        return serveChild;
       },
     });
-    const inspectorURL = inspectorOutput.match(/ws:\/\/127\.0\.0\.1:\d+\/[a-f0-9-]+/)?.[0];
     if (!inspectorURL) throw new Error("Missing serve inspector");
     writeFileSync(path.join(site.runtimeDir, "soak-server.json"), JSON.stringify({ pid: server.pid, inspectorURL, workspaceId: server.workspaceId }), { mode: 0o600 });
-  } catch {
+  } catch (error) {
     await server?.stop();
-    throw new Error("Soak compiled init/serve instrumentation failed (private diagnostics withheld)");
+    throw new Error(`Soak compiled serve instrumentation failed: ${redact(error?.message ?? error)}`);
   }
-  let stopping = false;
-  for (const signal of ["SIGTERM", "SIGINT"]) process.once(signal, async () => {
-    stopping = true;
-    await server.stop();
-    process.exit(0);
-  });
   server.onExit(() => { if (!stopping) process.exit(1); });
 }

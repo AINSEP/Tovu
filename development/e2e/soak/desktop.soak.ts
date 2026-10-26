@@ -43,7 +43,8 @@ test("native capture memory floors after 50 captures", async ({}, info) => {
   let phase = "desktop build freshness and isolated launch";
   try {
     await desktopGlobalSetup(); // Selected only by the desktop project.
-    launch = await launchDesktop({ trackedSites: [site.siteDir] }, { electronArgs: ["--js-flags=--expose-gc"] });
+    // Untracked: capture targets the soak launcher's site directly; the desktop never manages it.
+    launch = await launchDesktop({}, { electronArgs: ["--js-flags=--expose-gc"] });
     phase = "native capture bridge setup";
     const { env, versions } = await launch.app.evaluate(async ({ BrowserWindow }, { adapterURL, siteURL }) => {
       const { startDesktopCaptureBridge } = await import(adapterURL);
@@ -78,15 +79,16 @@ test("native capture memory floors after 50 captures", async ({}, info) => {
       expect(result.png.byteLength).toBeGreaterThan(8);
       expect(new URL(result.finalUrl).origin).toBe(site.apiURL);
     }
-    const lifetime = await launch.app.evaluate(() => {
+    phase = "capture window lifetimes";
+    // `destroyed` can be emitted after the bridge has already answered the last capture.
+    await expect.poll(() => launch!.app.evaluate(() => {
       const { created, loaded, destroyed } = (globalThis as MainState).__memorySoak;
       return { created, loaded, destroyed };
-    });
-    expect(lifetime).toEqual({ created: 60, loaded: 60, destroyed: 60 });
-    phase = "bridge and desktop cleanup";
-  } catch {
+    }), { timeout: 10_000 }).toEqual({ created: 60, loaded: 60, destroyed: 60 });
+  } catch (error) {
+    // samples.json keeps only the fixed phase; the report keeps the real assertion or I/O error.
     evidence.fail({ reason: phase });
-    throw new Error(`Desktop soak failed: ${phase}`);
+    throw error;
   } finally {
     if (launch) {
       try {

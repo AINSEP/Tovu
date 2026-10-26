@@ -110,10 +110,10 @@ test("serve memory floors after 3,000 requests", async ({ request }, info) => {
       expect(response.headers.get("content-type")).toContain(item.type);
       expect(bytes.byteLength).toBeGreaterThan(0);
     }
-    phase = "inspector cleanup";
-  } catch {
+  } catch (error) {
+    // samples.json keeps only the fixed phase; the report keeps the real assertion or I/O error.
     evidence.fail({ reason: phase });
-    throw new Error(`Server soak failed: ${phase}`);
+    throw error;
   } finally {
     try { await inspector?.close(); }
     catch { evidence.fail({ reason: "inspector cleanup" }); throw new Error("Inspector cleanup failed"); }
