@@ -215,6 +215,7 @@ export type LoadPluginContributions = TovuAgentPluginLifecycle["loadPluginContri
 
 /** Compatibility activation effects take explicit workspace roots and cannot discover a site. */
 export const explicitRootAgentPluginActivations = {
+  reconcileAgentPluginActivation: explicitRootLifecycle.reconcileAgentPluginActivation,
   setAgentPluginActivation: explicitRootLifecycle.setAgentPluginActivation,
   recordBundledAgentPluginIfAbsent: explicitRootLifecycle.recordBundledAgentPluginIfAbsent,
   enableBundledAgentPluginUnlessOperatorDisabled: explicitRootLifecycle.enableBundledAgentPluginUnlessOperatorDisabled,

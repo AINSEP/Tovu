@@ -168,3 +168,24 @@ test("malformed authenticated JSON and errors after headers are sent are forward
   respondToOversizedBody(oversized, {} as Request, { headersSent: true } as Response, (err) => { forwarded = err; });
   assert.equal(forwarded, oversized);
 });
+
+
+test("telemetry's first authenticated parser limits decoded streamed bytes to 16 KiB", async () => {
+  const { gzipSync } = await import("node:zlib");
+  const valid = '{"type":"pageview","route":"/admin"}';
+  const padded = Buffer.from(valid + " ".repeat(16 * 1024));
+  for (const encoded of [false, true]) {
+    const bytes = encoded ? gzipSync(padded) : padded;
+    const req = Object.assign(Readable.from([bytes]), {
+      method: "POST", path: "/API/ADMIN/v1/telemetry/", baseUrl: "",
+      headers: { "content-type": "application/json", "transfer-encoding": "chunked", ...(encoded ? { "content-encoding": "gzip" } : {}) },
+    }) as unknown as Request;
+    const error = await new Promise<unknown>(resolve => parseAuthenticatedJsonBody(req, {} as Response, resolve));
+    assert.equal((error as { type: string }).type, "entity.too.large");
+    assert.equal(req.body?.type, undefined, "oversized JSON never reaches the route");
+  }
+  const exact = valid + " ".repeat(16 * 1024 - Buffer.byteLength(valid));
+  const { req, error } = await parseBody("/api/admin/v1/telemetry", exact);
+  assert.equal(error, undefined);
+  assert.deepEqual(req.body, { type: "pageview", route: "/admin" });
+});

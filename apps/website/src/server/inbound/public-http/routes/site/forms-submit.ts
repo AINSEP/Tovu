@@ -1,7 +1,6 @@
 import { parseFormMultipartMiddleware } from "./forms-multipart.js";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import express, { type Express } from "express";
-import type { ProductAnalyticsPort } from "@jini-ai/analytics/product";
 import { createFormSubmitHandler } from "@jini-ai/cms/forms/express";
 import { submitForm, type SubmitFormDeps } from "#src/features/forms/index";
 import { siteRelativeTargetReason } from "@jini-ai/cms/redirects";
@@ -37,8 +36,6 @@ import { clearFormSubmissionResultQueryParams, encodeFormSubmissionResultQuery,
 export interface RegisterFormsSubmitRouteDeps {
   workspaceId: string;
   submitForm: SubmitFormDeps;
-  /** `form_submitted` (consent-gated port): the form's slug only, never a field value or the visitor. */
-  productAnalytics?: ProductAnalyticsPort;
 }
 
 /** Registers `POST /forms/:slug/submit`. Must be registered BEFORE the site `/:slug` catch-all.
@@ -56,12 +53,7 @@ export function registerFormsSubmitRoute(app: Express, deps: RegisterFormsSubmit
   app.post("/forms/:slug/submit", express.urlencoded({ extended: false, limit: "1mb", parameterLimit: 2002 }), express.raw({ type: "multipart/form-data", limit: "12mb" }), parseFormMultipartMiddleware, createFormSubmitHandler({
     workspaceId: deps.workspaceId,
     definitionRepo: deps.submitForm.definitionRepo,
-    submit: async ({ input }) => {
-      const result = await submitForm({ deps: deps.submitForm, input }, {});
-      // A public visitor has no principal: one fixed pseudonymous id, so no visitor is ever tracked.
-      deps.productAnalytics?.capture({ name: "form_submitted", userId: "site-visitor", properties: { formSlug: input.slug } });
-      return result;
-    },
+    submit: ({ input }) => submitForm({ deps: deps.submitForm, input }, {}),
     resolveClientIp,
     isHttpsRequest,
     resultCodec: {

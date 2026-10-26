@@ -16,12 +16,14 @@
  * the manifest back.
  */
 import { registerFormNotifySubscriber, type FormDefinitionRepoPort, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
+import type { ProductAnalyticsPort } from "@jini-ai/analytics/product";
 import type { EventBusPort } from "@jini-ai/cms/core";
 import { mailSenderIdentityFor, type MailerPort, type MailSenderIdentityPort } from "#src/platform/mail/index";
 import type { ServerModuleHandle } from "./types.js";
 
 export interface FormsModuleDeps {
   bus: EventBusPort;
+  productAnalytics?: ProductAnalyticsPort;
   mailer: MailerPort;
   formDefinitionRepo: FormDefinitionRepoPort;
   formSubmissionRepo: FormSubmissionRepoPort;
@@ -44,6 +46,16 @@ export function createFormsModule(deps: FormsModuleDeps): ServerModuleHandle {
   return {
     name: "forms",
     start: () => {
+      if (deps.productAnalytics) void deps.bus.subscribe<{ workspaceId: string; formDefinitionId: string }>({
+        eventName: "form.submission.received",
+        handler: async (event) => {
+          const definition = await deps.formDefinitionRepo.findById({ workspaceId: event.payload.workspaceId, id: event.payload.formDefinitionId });
+          if (!definition) return;
+          // A public visitor has no principal: one fixed pseudonymous id, so no visitor is ever tracked.
+          // Only committed submissions emit this event; honeypots and retries never reach this bus.
+          deps.productAnalytics!.capture({ name: "form_submitted", userId: "site-visitor", properties: { formSlug: definition.slug } });
+        },
+      });
       const senderIdentity = mailSenderIdentityFor({ mailer: deps.mailer }, { senderIdentity: deps.senderIdentity });
       void registerFormNotifySubscriber({
         ...deps,

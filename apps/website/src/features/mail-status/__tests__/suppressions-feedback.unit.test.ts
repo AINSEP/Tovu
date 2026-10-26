@@ -243,3 +243,30 @@ test("feedback tools retain failure semantics for provider, credential and inbox
     { mailSuppressionAdmin: { lastFeedbackEvent: async () => { throw new Error("inbox offline"); } } },
   ]) await assert.rejects(tools(["admin.forms.manage"], [], overrides as never).call("mail_get_feedback_setup"), /offline/);
 });
+
+
+test("feedback inventory sees project secrets without opening them, with site-over-project precedence", async () => {
+  const { InMemoryCustomCredentialSetRepo } = await import("../../custom-credentials/repo.memory.js");
+  const { AesGcmSecretSealer } = await import("../../webhooks/secret-sealer.aesgcm.js");
+  const { InMemoryKeyring } = await import("../../webhooks/keyring.memory.js");
+  const { createCustomCredential } = await import("../../custom-credentials/store.js");
+  const keyring = new InMemoryKeyring();
+  const project = { workspaceId: "project", repo: new InMemoryCustomCredentialSetRepo(), sealer: new AesGcmSecretSealer(keyring), keyring };
+  const { CustomCredentialVaultRepo } = await import("../../custom-credentials/vault-repo.js");
+  const { InMemoryVaultRepo } = await import("@jini-ai/platform/secrets/credential-sets");
+  const repo = new CustomCredentialVaultRepo({ vault: new InMemoryVaultRepo({}) }, { project });
+  let sequence = 0;
+  let at = AT(20);
+  const write = { repo, keyring, sealer: project.sealer, clock: { nowIso: () => at, nowMs: () => Date.parse(at) }, idGen: { newId: () => `secret-${++sequence}` } };
+  const input = { workspaceId: "ws", label: "Tovu Mail — Hosted Webhook Secret", category: "general" as const,
+    baseUrl: "https://mail.example.test", connection: { token: ["fake", "secret", "x".repeat(12)].join("-") } };
+  await createCustomCredential(write, input);
+  const setup = () => readMailFeedbackSetup(feedbackDeps({ customCredentialSetRepo: repo }));
+  project.sealer.open = async () => { throw new Error("inventory must not decrypt"); };
+  assert.deepEqual((await setup()).providers[0]!.signingSecret!.current,
+    { label: input.label, configured: true, updatedAt: AT(20) });
+  at = AT(21);
+  await createCustomCredential(write, { ...input, scope: "site" });
+  assert.deepEqual((await setup()).providers[0]!.signingSecret!.current,
+    { label: input.label, configured: true, updatedAt: AT(21) });
+});

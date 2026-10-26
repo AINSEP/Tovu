@@ -1,4 +1,4 @@
-import { normalizeCredentialWorksFor, VaultError } from "@jini-ai/platform/secrets/credential-sets";
+import { normalizeCredentialWorksFor, VaultError, type VaultSummary } from "@jini-ai/platform/secrets/credential-sets";
 import { CredentialInputError, CREDENTIAL_MESSAGES, assertCredentialFreeField, normalizeCredentialToken } from '../../contracts/core/credential-token.js';
 import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 
@@ -35,6 +35,9 @@ export class CustomCredentialValidationError extends Error {}
 /** A `(workspaceId, label)` collision — the route maps this to `409 DUPLICATE_LABEL`. */
 export class CustomCredentialDuplicateLabelError extends Error {}
 
+/** A share copied an older revision; the concurrently changed site row remains intact. */
+export class CustomCredentialConcurrentModificationError extends Error {}
+
 /** Thrown when `sealer.seal()`/`keyring.activeKey()` fails while writing a connection — the
  *  realistic cause is a missing site key (`TOVU_SITE_KEY`), same fail-closed
  *  contract every sibling credential table's store documents. */
@@ -59,7 +62,7 @@ async function toSummary(record: CustomCredentialSetRecord, optional: { scope?: 
 interface Located<D> { readonly scoped: ScopedCredentialDeps<D>; readonly record: CustomCredentialSetRecord }
 
 /** The summary's `scope`, only when a project store is attached. */
-const reportedScope = (deps: CustomCredentialReadDeps, scoped: ScopedCredentialDeps<unknown>): { scope?: CustomCredentialScope } =>
+const reportedScope = (deps: CustomCredentialInventoryDeps, scoped: ScopedCredentialDeps<unknown>): { scope?: CustomCredentialScope } =>
   deps.repo.project ? { scope: scoped.scope } : {};
 
 /** The row with this id, from the first store holding it (ids are unique across both). @complexity O(scopes). */
@@ -76,7 +79,7 @@ async function locateById<D extends CustomCredentialReadDeps>(deps: D, input: { 
  * already claims (a site row of the same label is the override).
  * @complexity O(n log n) in the two stores' (small) credential counts; no row is opened.
  */
-async function listEffective<D extends CustomCredentialReadDeps>(deps: D, workspaceId: UUID): Promise<Located<D>[]> {
+async function listEffective<D extends CustomCredentialInventoryDeps>(deps: D, workspaceId: UUID): Promise<Located<D>[]> {
   const found: Located<D>[] = [];
   const labels = new Set<string>();
   for (const scoped of credentialScopes(deps, workspaceId)) {
@@ -85,6 +88,11 @@ async function listEffective<D extends CustomCredentialReadDeps>(deps: D, worksp
     for (const record of records) labels.add(record.label);
   }
   return found.sort((a, b) => byVaultLabel(a.record, b.record));
+}
+
+/** Presence inventory never needs a sealer or write ports. */
+export interface CustomCredentialInventoryDeps {
+  repo: Pick<CustomCredentialSetRepoPort, "listByWorkspace" | "project">;
 }
 
 export interface CustomCredentialReadDeps {
@@ -130,7 +138,7 @@ export async function describeCredentialByLabel(deps: CustomCredentialReadDeps, 
  * @complexity O(n) in the workspace's own (small) credential-set count. One repo read, one array
  *   map, no per-row I/O.
  */
-export async function listCustomCredentials(deps: CustomCredentialReadDeps, input: { workspaceId: UUID }): Promise<CustomCredentialSummary[]> {
+export async function listCustomCredentials(deps: CustomCredentialInventoryDeps, input: { workspaceId: UUID }): Promise<CustomCredentialSummary[]> {
   const located = await listEffective(deps, input.workspaceId);
   return Promise.all(located.map(({ scoped, record }) => toSummary(record, reportedScope(deps, scoped))));
 }
@@ -490,12 +498,12 @@ export async function resolveCustomCredentialByLabel(
 
 /** Opens one located row with the store that sealed it: its token and the metadata of that same read.
  * @throws CustomCredentialSecretStoreUnconfiguredError on crypto failure or a payload without a token. */
-async function openLocated({ scoped, record }: Located<CustomCredentialResolveDeps>): Promise<{ token: string; meta: Record<string, unknown> } | null> {
+async function openLocated({ scoped, record }: Located<CustomCredentialResolveDeps>): Promise<{ token: string; meta: Record<string, unknown>; summary: VaultSummary } | null> {
   const kind = record.vaultRecord!.kind === "custom" ? "custom" : "vendor";
   const resolved = await customVault(scoped.deps, { kind }).get({ ...customVaultScope({ ...record, kind }), id: record.id });
   if (!resolved) return null;
   if (typeof resolved.payload?.token !== "string") throw new CustomCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
-  return { token: resolved.payload.token, meta: resolved.summary.meta };
+  return { token: resolved.payload.token, meta: resolved.summary.meta, summary: resolved.summary };
 }
 
 /**
@@ -509,7 +517,8 @@ async function openLocated({ scoped, record }: Located<CustomCredentialResolveDe
  * @throws {CustomCredentialNotFoundError} This site has no own row with that id.
  * @throws {CustomCredentialSecretStoreUnconfiguredError} A row can't be opened or sealed, or the copy
  *   does not read back.
- * @complexity O(n) in the project's (small) credential count, two seals/opens, three writes.
+ * @throws {CustomCredentialConcurrentModificationError} The copied site revision changed; it is kept.
+ * @complexity O(n) in the project's (small) credential count, two opens, one seal and two writes.
  */
 export async function shareCustomCredentialWithProject(deps: CustomCredentialWriteDeps, input: { workspaceId: UUID; id: UUID }): Promise<CustomCredentialSummary> {
   const [site, project] = credentialScopes(deps, input.workspaceId);
@@ -518,23 +527,30 @@ export async function shareCustomCredentialWithProject(deps: CustomCredentialWri
   if (!record) throw new CustomCredentialNotFoundError(`no custom credential '${input.id}' saved for this site only`);
   const opened = await openLocated({ scoped: site!, record });
   if (!opened) throw new CustomCredentialNotFoundError(`no custom credential '${input.id}' saved for this site only`);
-  const shared = await writeShared({ project, record, token: opened.token });
+  const shared = await writeShared({ project, record: opened.summary, token: opened.token });
   const check = await openLocated({ scoped: project, record: shared });
   if (check?.token !== opened.token) throw new CustomCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
-  await deps.repo.delete(input);
+  // Delete only the revision we copied; a concurrent rotation must remain in the site vault.
+  const source = opened.summary;
+  try {
+    await customVault(deps, { kind: source.kind as "custom" | "vendor" }).delete({ ...source, expectedRevision: source.revision });
+  } catch (error) {
+    if (error instanceof VaultError && error.code === "conflict") throw new CustomCredentialConcurrentModificationError("This credential changed while sharing. The site copy was kept; try again.");
+    throw error;
+  }
   return toSummary(shared, { scope: "project" });
 }
 
 /** Seals `token` with `record`'s label and metadata into the project store: replacing a same-label
  *  project row (compare-and-set on its revision), else inserting under `record`'s id. */
-async function writeShared({ project, record, token }: { project: ScopedCredentialDeps<CustomCredentialWriteDeps>; record: CustomCredentialSetRecord; token: string }): Promise<CustomCredentialSetRecord> {
+async function writeShared({ project, record, token }: { project: ScopedCredentialDeps<CustomCredentialWriteDeps>; record: VaultSummary; token: string }): Promise<CustomCredentialSetRecord> {
   const rows = await project.deps.repo.listByWorkspace({ workspaceId: project.workspaceId });
   const existing = rows.find((row) => row.label === record.label)?.vaultRecord;
   const kind = existing?.kind === "custom" ? "custom" : "vendor";
   const expectedRevision = existing?.revision ?? null;
   const id = existing?.id ?? record.id;
   const prepared = await customVault(project.deps, { kind }).prepare({ ...customVaultScope({ workspaceId: project.workspaceId, kind }), id,
-    expectedRevision, provider: null, label: record.label, meta: { ...record.vaultRecord!.meta, credentialType: "custom" }, payload: { token }, hintToken: token });
+    expectedRevision, provider: null, label: record.label, meta: { ...record.meta, credentialType: "custom" }, payload: { token }, hintToken: token });
   const shared = customVaultRecord({ row: prepared, expectedRevision });
   await (existing ? project.deps.repo.update(shared) : project.deps.repo.insert(shared));
   return shared;

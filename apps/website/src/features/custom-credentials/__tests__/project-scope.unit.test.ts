@@ -180,3 +180,40 @@ test("an aborted save never writes the project half either", async () => {
   await assert.rejects(save(guarded, SITE_A, "hosting", secret("late")));
   assert.deepEqual(await project.repo.listByWorkspace({ workspaceId: "project" }), []);
 });
+
+
+test("Share copies a rotation's label, origins, username and token from the opened snapshot", async () => {
+  const project = projectScope();
+  const site = siteDeps({ project });
+  const own = await save(site, SITE_A, "before", secret("before"), { scope: "site" });
+  const vault = site.repo.vault!;
+  const find = vault.find.bind(vault);
+  let reads = 0;
+  vault.find = async (input, options) => {
+    if (++reads === 2) await updateCustomCredential(site, { workspaceId: SITE_A, id: own.id, label: "after",
+      baseUrl: "https://new.example.test", additionalHosts: ["https://extra.example.test"], worksFor: ["new-provider"],
+      connection: { token: secret("after"), username: "new-user" } });
+    return find(input, options);
+  };
+  await shareCustomCredentialWithProject(site, { workspaceId: SITE_A, id: own.id });
+  const shared = await resolveCustomCredentialByLabel(siteDeps({ project }), { workspaceId: SITE_B, label: "after" });
+  assert.deepEqual(shared && { baseUrl: shared.baseUrl, additionalHosts: shared.additionalHosts, connection: shared.connection },
+    { baseUrl: "https://new.example.test", additionalHosts: ["https://extra.example.test"], connection: { token: secret("after"), username: "new-user" } });
+  assert.deepEqual((await listCustomCredentials(site, { workspaceId: SITE_A }))[0]!.worksFor, ["new-provider"]);
+});
+
+test("Share refuses to delete a site rotation made after the copy was verified", async () => {
+  const project = projectScope();
+  const site = siteDeps({ project });
+  const own = await save(site, SITE_A, "hosting", secret("copied"), { scope: "site" });
+  const vault = site.repo.vault!;
+  const remove = vault.delete.bind(vault);
+  vault.delete = async (input, options) => {
+    await updateCustomCredential(site, { workspaceId: SITE_A, id: own.id, connection: { token: secret("rotated") } });
+    return remove(input, options);
+  };
+  await assert.rejects(shareCustomCredentialWithProject(site, { workspaceId: SITE_A, id: own.id }),
+    { message: "This credential changed while sharing. The site copy was kept; try again." });
+  assert.equal((await resolveCustomCredentialByLabel(site, { workspaceId: SITE_A, label: "hosting" }))?.connection.token, secret("rotated"));
+  assert.equal((await resolveCustomCredentialByLabel(siteDeps({ project }), { workspaceId: SITE_B, label: "hosting" }))?.connection.token, secret("copied"));
+});

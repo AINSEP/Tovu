@@ -277,17 +277,16 @@ describe("Settings after moving Appearance to Admin UI", () => {
   });
 });
 
-describe("Privacy tab — inert by design (no Tovu telemetry backend)", () => {
-  it("renders the reference note and makes the control genuinely inert", async () => {
+describe("Privacy tab — product analytics consent", () => {
+  it("explains the policy and allows the existing consent decision", async () => {
     const user = userEvent.setup();
-    render(<SettingsUi useSettingsUiHook={() => baseController()} />);
+    const controller = baseController();
+    render(<SettingsUi useSettingsUiHook={() => controller} />);
     await goToTab(user, "privacy");
-
-    expect(
-      screen.getByText(/this installation has no outbound telemetry pipeline/i),
-    ).toBeInTheDocument();
-    const wrap = document.querySelector(".settings-ui-inert-control");
-    expect(wrap).toHaveAttribute("inert");
+    expect(screen.getByText("Metrics consent allows product analytics. Operational error reporting is controlled by its provider plugin.")).toBeInTheDocument();
+    expect(document.querySelector("[inert]")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Share usage" }));
+    expect(controller.privacy.onChange).toHaveBeenCalledWith(expect.objectContaining({ telemetry: { metrics: true, content: true } }));
   });
 });
 
@@ -447,7 +446,7 @@ describe("?tab= deep linking", () => {
     render(<SettingsUi useSettingsUiHook={() => baseController()} tabId="privacy" />);
 
     expect(
-      screen.getByText(/this installation has no outbound telemetry pipeline/i),
+      screen.getByText("Metrics consent allows product analytics. Operational error reporting is controlled by its provider plugin."),
     ).toBeInTheDocument();
     expect(screen.queryByLabelText("Custom instructions")).not.toBeInTheDocument();
   });

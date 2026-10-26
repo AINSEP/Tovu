@@ -12,6 +12,7 @@
  */
 import type { OriginRegistryPort, VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
 import type { CustomCredentialSetRepoPort } from "../custom-credentials/index.js";
+import { listCustomCredentials } from "../custom-credentials/store.js";
 import { mailWebhookSecretLabels } from "../mail/feedback-sources.js";
 import type { MailSuppressionAdminRepo } from "../mail/suppression-admin.repo.js";
 import type { MailProviderConfiguration, MailProviderControl } from "../../platform/mail/mail-status.js";
@@ -19,7 +20,7 @@ import type { MailProviderConfiguration, MailProviderControl } from "../../platf
 export interface MailFeedbackSetupDeps {
   workspaceId: string;
   mailProviderControl?: Pick<MailProviderControl, "describe">;
-  customCredentialSetRepo?: Pick<CustomCredentialSetRepoPort, "listByWorkspace">;
+  customCredentialSetRepo?: Pick<CustomCredentialSetRepoPort, "listByWorkspace" | "project">;
   originRegistry?: Pick<OriginRegistryPort, "canonicalOrigin">;
   mailSuppressionAdmin?: Pick<MailSuppressionAdminRepo, "lastFeedbackEvent">;
 }
@@ -95,7 +96,7 @@ export async function readMailFeedbackSetup(deps: MailFeedbackSetupDeps, _option
   if (!deps.mailProviderControl?.describe) return { available: false, providers: [] };
   const report = await deps.mailProviderControl.describe();
   const active = report.providers.filter((provider) => provider.lanes.length > 0);
-  const records = deps.customCredentialSetRepo ? await deps.customCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId }) : [];
+  const records = deps.customCredentialSetRepo ? await listCustomCredentials({ repo: deps.customCredentialSetRepo }, { workspaceId: deps.workspaceId }) : [];
   const saved = new Map(records.map((record) => [record.label, record.updatedAt] as const));
   const origin = await siteOrigin(deps);
   return { available: true, providers: await Promise.all(active.map((provider) => providerSetup(deps, provider, { origin, saved }))) };

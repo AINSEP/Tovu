@@ -120,6 +120,7 @@ async function admit(limiter: RateLimiter, req: Request, res: Response): Promise
     res.status(403).json({ error: "browser telemetry requires a signed-in session", code: "FORBIDDEN" });
     return null;
   }
+  // Early rejection only: the authenticated dispatcher enforces decoded streamed bytes first.
   if (Number(req.headers["content-length"] ?? 0) > MAX_TELEMETRY_BODY_BYTES) {
     res.status(413).json({ error: "telemetry body is too large", code: "PAYLOAD_TOO_LARGE" });
     return null;
