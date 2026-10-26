@@ -483,11 +483,7 @@ export function SettingsUi(props: SettingsUiProps) {
       panel: (
         <div className="settings-ui-inert-wrap">
           <BrowserAgentSettingsPanel locale={settingsLocale} />
-          <p className="settings-ui-inert-note" role="note">
-            {tCap(
-              "Metrics consent allows product analytics. Operational error reporting is controlled by its provider plugin.",
-            )}
-          </p>
+          {/* The policy is said once, in PrivacyTab's footer; a second note above it said the same. */}
           <PrivacyTab state={s.privacy.value as PrivacyConsentState} onChange={s.privacy.onChange} agentHandle="settings-privacy"
             labels={{ metricsLabel: t("Product analytics"), metricsHint: t("Usage events sent to your configured analytics provider."),
               consentFooter: t("Product analytics requires metrics consent. Error reporting follows its provider plugin.") }} />
