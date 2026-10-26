@@ -33,7 +33,6 @@ export function withSiteBannerMode<T extends Pick<SiteConsentSource, 'enabled' |
  * version + revision), so a new publication asks visitors again. A global opt-out is read as `auto`:
  * EU, UK and unknown visitors always keep Reject. @complexity O(fields). */
 export function toSiteCookieConsent({ config, policy }: { config: SiteConsentSource; policy: string }, { plugins }: { plugins?: readonly RawContribution[] } = {}): SiteCookieConsent {
-  const placement = CONSENT_PLACEMENTS.includes(config.placement as ConsentPlacement) ? config.placement as ConsentPlacement : undefined;
   return {
     banner: {
       mode: siteBannerMode({ config }),
@@ -44,13 +43,19 @@ export function toSiteCookieConsent({ config, policy }: { config: SiteConsentSou
         ...(config.secondaryLinkLabel && config.secondaryLinkUrl ? { secondaryLinkLabel: config.secondaryLinkLabel, secondaryLinkUrl: config.secondaryLinkUrl } : {}),
       },
     },
-    options: {
-      // Tovu adds its own footer "Cookie settings" link, so the corner button stays off unless asked for.
-      reopen: config.reopen === 'corner' ? 'corner' : 'link',
-      ...(placement ? { placement } : {}),
-      ...(config.appearance ? { appearance: config.appearance } : {}),
-      ...(config.customCss ? { customCss: config.customCss } : {}),
-    },
+    options: siteBannerOptions({ config }),
+  };
+}
+
+/** Placement, reopen and the owner's styling; an unknown placement falls back to the renderer's. @complexity O(1). */
+function siteBannerOptions({ config }: { config: SiteConsentSource }, _optional = {}): SiteCookieConsent['options'] {
+  const placement = CONSENT_PLACEMENTS.includes(config.placement as ConsentPlacement) ? config.placement as ConsentPlacement : undefined;
+  return {
+    // Tovu adds its own footer "Cookie settings" link, so the corner button stays off unless asked for.
+    reopen: config.reopen === 'corner' ? 'corner' : 'link',
+    ...(placement ? { placement } : {}),
+    ...(config.appearance ? { appearance: config.appearance } : {}),
+    ...(config.customCss ? { customCss: config.customCss } : {}),
   };
 }
 

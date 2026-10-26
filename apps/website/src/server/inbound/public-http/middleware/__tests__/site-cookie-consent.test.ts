@@ -4,6 +4,7 @@ import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 import * as fs from 'node:fs/promises';
+import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import express from 'express';
@@ -13,7 +14,8 @@ import { consentFixture } from '#src/features/consent/__tests__/fixture';
 import type { SiteConsentSource } from '#src/features/consent/cookie-consent';
 import { createRouteDeps } from '#src/server/runtime/composition/app';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
-import { applySiteCookieConsent, type ConsentPluginHttp } from '../site-cookie-consent.js';
+import { bindCookieConsentAnalyticsGate } from '#src/server/runtime/composition/site-cookie-consent';
+import { applySiteCookieConsent, cookieConsentPreviewGate, type ConsentPluginHttp } from '../site-cookie-consent.js';
 import { CONSENT_RECEIPTS_DIR_NAME, CONSENT_SAVE_PROFILE } from '../site-consent.js';
 
 const CLIENT = { src: '/_consent/client-0123456789ab.min.js', body: Buffer.from('/* injected consent client */') };
@@ -43,6 +45,8 @@ async function publicFixture({ t }: { t: TestContext }, { config = {}, resolvers
   applySiteCookieConsent({ app, deps, consent: { regionResolvers: async () => resolvers } }, { client: CLIENT });
   app.get(['/', '/about', '/index.html'], (_req, res) => res.type('html').send(PAGE));
   app.get('/stream', (_req, res) => { res.type('html'); res.write(PAGE.slice(0, 65)); res.write(PAGE.slice(65, 105)); res.end(PAGE.slice(105)); });
+  // Plain Uint8Array chunks (not Buffers), as a piped web stream writes them.
+  app.get('/bytes', (_req, res) => { res.type('html'); res.write(new Uint8Array(Buffer.from(PAGE.slice(0, 65)))); res.end(new Uint8Array(Buffer.from(PAGE.slice(65)))); });
   app.get(['/admin/example', '/api/example', '/theme-preview/example'], (_req, res) => res.type('html').send(PAGE));
   app.get('/asset.css', (_req, res) => res.type('css').send('body{}'));
   const base = await startTestServer(app, t);
@@ -53,6 +57,14 @@ async function publicFixture({ t }: { t: TestContext }, { config = {}, resolvers
 /** A browser choice with a receipt by default; patches exercise pending, stale and denied choices. */
 function consentCookie({ policy, now }: { policy: string; now: number }, { patch = {} }: { patch?: Record<string, unknown> } = {}): string {
   return 'jini_consent=' + encodeURIComponent(JSON.stringify({ v: 1, p: policy, t: now, a: 'accept', c: { functional: true, analytics: true, marketing: true }, r: 'receipt_fixture_0123456789', ...patch }));
+}
+
+/** A GET whose path reaches the server byte for byte (fetch would normalize dot segments away). */
+function rawGet({ base, path: requestPath }: { base: string; path: string }): Promise<number> {
+  const url = new URL(base);
+  return new Promise((resolve, reject) => {
+    http.get({ host: url.hostname, port: url.port, path: requestPath }, response => { response.resume(); response.on('end', () => resolve(response.statusCode!)); }).on('error', reject);
+  });
 }
 
 /** Receipts use the public Host origin. A foreign Origin changes only the trust input. */
@@ -220,4 +232,63 @@ test('admin, API and theme previews receive no banner or region cookie', async t
     assert.equal(response.headers.get('set-cookie'), null);
   }
   assert.equal(regionReads, 0);
+});
+
+test('HTML written as plain Uint8Array chunks keeps its bytes and gets one banner', async t => {
+  const f = await publicFixture({ t });
+  const dom = new JSDOM(await (await fetch(f.base + '/bytes')).text());
+  try {
+    assert.equal(dom.window.document.querySelector('main')?.textContent, 'Site');
+    assert.equal(dom.window.document.querySelectorAll('#jini-consent').length, 1);
+  } finally { dom.window.close(); }
+});
+
+test('the admin preview keeps the footer settings link that live pages get', t => {
+  const f = consentFixture({ t });
+  const html = cookieConsentPreviewGate({ html: PAGE, config: { ...f.config, bannerMode: 'jini' } as Parameters<typeof cookieConsentPreviewGate>[0]['config'],
+    record: null, regionMode: 'opt-in', gpc: false, endpoint: '/api/site-consent' });
+  const dom = new JSDOM(html);
+  try {
+    const document = dom.window.document;
+    assert.equal(document.querySelectorAll('footer a[data-consent-open]').length, 1);
+    assert.equal(document.documentElement.getAttribute('data-consent-region'), 'opt-in');
+    assert.equal(document.querySelectorAll('#jini-consent[data-preview]').length, 1);
+  } finally { dom.window.close(); }
+});
+
+test('a plugin claiming a non-optional category gets the strictest gate, not a free pass', async t => {
+  const f = await publicFixture({ t });
+  const calls: unknown[] = [];
+  f.deps.consentAdapters = ({ base }) => [{
+    adapter: { id: 'claims', kind: 'consent-adapter', category: 'necessary', src: `${base}/claims/a.mjs` },
+    http: { path: `${base}/claims`, handle: async input => { calls.push(input); return { status: 200, body: 'ok' }; } },
+  }];
+  const response = await fetch(f.base + '/_consent/p/claims/collect', { method: 'POST', headers: { origin: f.base, 'content-type': 'text/plain' }, body: 'event' });
+  assert.equal(response.status, 403);
+  await response.text();
+  assert.deepEqual(calls, []);
+});
+
+test('plugin paths with dot segments or encoded separators never reach a plugin handler', async t => {
+  const f = await publicFixture({ t });
+  for (const requestPath of [PLUGIN_PATH + '/../fixture/adapter.mjs', PLUGIN_PATH + '/%2e%2e/secret', PLUGIN_PATH + '/a%2fb', PLUGIN_PATH + '/./adapter.mjs']) {
+    assert.equal(await rawGet({ base: f.base, path: requestPath }), 404, requestPath);
+  }
+  assert.deepEqual(f.calls, []);
+});
+
+test('detached delivery rechecks the receipt: a forged, withdrawn or stale-policy proof never delivers', async t => {
+  const f = await publicFixture({ t });
+  bindCookieConsentAnalyticsGate({ deps: f.deps });
+  const allowed = (proof: { receiptId: string; policyVersion: string }) => f.deps.visitorAnalyticsDeliveryAllowed!({ proof });
+  const accepted = await postChoice(f);
+  const { id } = await accepted.json() as { id: string };
+  assert.equal(await allowed({ receiptId: id, policyVersion: f.policy }), true);
+  assert.equal(await allowed({ receiptId: 'forged_receipt_0123456789', policyVersion: f.policy }), false);
+  assert.equal(await allowed({ receiptId: id, policyVersion: 'old-policy' }), false);
+  const withdrawn = await fetch(f.base + '/_consent', { method: 'POST', headers: { origin: f.base, 'content-type': 'application/json' },
+    body: JSON.stringify({ action: 'withdraw', policy: f.policy, previousId: id }) });
+  assert.equal(withdrawn.status, 201);
+  await withdrawn.text();
+  assert.equal(await allowed({ receiptId: id, policyVersion: f.policy }), false);
 });

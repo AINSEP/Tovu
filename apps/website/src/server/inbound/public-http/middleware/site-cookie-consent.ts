@@ -16,10 +16,10 @@ import * as fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import express, { type Express, type Request, type Response } from 'express';
-import { REGION_COOKIE, type RawContribution, type RegionResolver } from '@jini-ai/cookie-consent';
-import { parseStored } from '@jini-ai/cookie-consent/policy';
+import { OPTIONAL, REGION_COOKIE, type Optional, type RawContribution, type RegionResolver } from '@jini-ai/cookie-consent';
+import { DEFAULT_MAX_AGE_MS, parseStored } from '@jini-ai/cookie-consent/policy';
 import { renderBanner, type RenderedBanner } from '@jini-ai/cookie-consent/render';
-import { handleReceipt, readConsent, resolveRegion } from '@jini-ai/cookie-consent/server';
+import { handleReceipt, readConsent, resolveRegion, type ConsentRecord } from '@jini-ai/cookie-consent/server';
 import { consentRateLimitKey, createConsentFileRecords, createNodeConsentFiles } from '@jini-ai/cookie-consent/node';
 import { createRateLimiter, resolveClientIp } from '#src/contracts/core/rate-limit/rate-limit';
 import { renderSiteConsentPreview, toSiteCookieConsent, type SiteConsentSource } from '#src/features/consent/cookie-consent';
@@ -46,6 +46,8 @@ export interface ConsentPluginContribution { adapter: RawContribution; http?: Co
 export const CONSENT_ENDPOINT = '/_consent';
 const PLUGIN_BASE = `${CONSENT_ENDPOINT}/p`;
 const MAX_HTML_BYTES = 4 * 1024 * 1024;
+/** A dot segment or an encoded separator never reaches a plugin handler, whatever the plugin does with paths. */
+const UNSAFE_PLUGIN_PATH = /(?:^|\/)\.\.?(?:\/|$)|%2e|%2f|%5c|\\/i;
 
 /** Read the client bundle once; the hash makes its URL immutable (and lets static exports copy it). */
 function loadClient(_required = {}, { resolve = createRequire(import.meta.url).resolve }: { resolve?: (id: string) => string } = {}) {
@@ -96,9 +98,15 @@ export function insertBanner({ html, rendered }: { html: string; rendered: Rende
  * @complexity O(HTML bytes + CSS length). */
 export const cookieConsentPreviewGate = (({ html, config, regionMode }: { html: string; config: SiteConsentSource; regionMode: string }) => {
   const rendered = renderSiteConsentPreview({ config, policy: config.policyVersion }, { region: regionMode === 'opt-out' ? 'opt-out' : 'opt-in' });
-  const withAttrs = rendered.htmlAttrs ? html.replace(/<html\b/i, `<html ${rendered.htmlAttrs}`) : html;
-  return insertBanner({ html: withAttrs, rendered });
+  // Attributes last: they include data-consent-open, which would read as the theme's own opener and
+  // hide the footer link that live pages get.
+  const withBanner = insertBanner({ html, rendered });
+  return rendered.htmlAttrs ? withBanner.replace(/<html\b/i, `<html ${rendered.htmlAttrs}`) : withBanner;
 }) as unknown as ConsentDryRunGate;
+
+/** Any body chunk Node accepts (string, Buffer, Uint8Array) as bytes. */
+const toBuffer = ({ chunk, encoding }: { chunk: string | Uint8Array; encoding: unknown }, _optional = {}): Buffer => typeof chunk === 'string'
+  ? Buffer.from(chunk, typeof encoding === 'string' ? encoding as BufferEncoding : 'utf8') : Buffer.from(chunk);
 
 /** Buffer one HTML response and hand the full body to `transform` at `end`. A response that is not
  * HTML, already flushed, or over the cap goes out untouched (the page then has no banner: nothing
@@ -110,7 +118,7 @@ export function captureHtml({ res, transform }: { res: Response; transform: (req
   const isHtml = () => String(res.getHeader('content-type') ?? '').includes('text/html') && !res.getHeader('content-encoding') && !res.headersSent;
   const passThrough = () => { res.write = write; res.end = end; const held = Buffer.concat(chunks); chunks.length = 0; if (held.length) Reflect.apply(write, res, [held]); };
   res.write = function (this: Response, chunk: unknown, encoding?: unknown, callback?: unknown) {
-    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), typeof encoding === 'string' ? encoding as BufferEncoding : 'utf8');
+    const buffer = toBuffer({ chunk: chunk as string | Uint8Array, encoding });
     if (!isHtml() || size + buffer.length > maxBytes) { passThrough(); return Reflect.apply(write, this, [chunk, encoding, callback]); }
     chunks.push(buffer); size += buffer.length;
     const done = typeof encoding === 'function' ? encoding : callback;
@@ -119,7 +127,7 @@ export function captureHtml({ res, transform }: { res: Response; transform: (req
   } as Response['write'];
   res.end = function (this: Response, chunk?: unknown, encoding?: unknown, callback?: unknown) {
     res.write = write; res.end = end;
-    if (typeof chunk === 'string' || Buffer.isBuffer(chunk)) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, typeof encoding === 'string' ? encoding as BufferEncoding : 'utf8'));
+    if (typeof chunk === 'string' || chunk instanceof Uint8Array) chunks.push(toBuffer({ chunk, encoding }));
     const done = [chunk, encoding, callback].find(item => typeof item === 'function') as (() => void) | undefined;
     const original = Buffer.concat(chunks);
     if (!isHtml() || res.statusCode >= 400 || res.statusCode === 204 || res.statusCode === 304) { Reflect.apply(end, this, [original, done]); return this; }
@@ -141,14 +149,19 @@ async function applyRegionCookie({ req, res, resolvers }: { req: Request; res: R
   if (hint === 'strict' && current !== undefined) res.clearCookie(REGION_COOKIE, { path: '/' });
 }
 
-/** Mount the receipt endpoint (with Tovu's rate limit and the site's file store). */
-function mountReceipts({ app, deps }: { app: Express; deps: RouteDeps }, _optional = {}): void {
-  const limiter = createRateLimiter({ profile: CONSENT_SAVE_PROFILE, clock: deps.clock });
-  const store = createConsentFileRecords({ directory: path.join(deps.siteBinding.dir, CONSENT_RECEIPTS_DIR_NAME), files: createNodeConsentFiles({
+/** The site's receipt files: the same directory the old engine and readiness's storage check use. */
+function siteReceiptStore({ deps }: { deps: RouteDeps }, _optional = {}) {
+  return createConsentFileRecords({ directory: path.join(deps.siteBinding.dir, CONSENT_RECEIPTS_DIR_NAME), files: createNodeConsentFiles({
     atomicWrite: async ({ filePath, data }, { createParent, mode, refuseSymlink }) => {
       if (createParent) await fs.promises.mkdir(path.dirname(filePath), { recursive: true, mode: 0o700 });
       writeJsonFileAtomic({ filePath, data }, { mode, refuseSymlink });
     } }) });
+}
+
+/** Mount the receipt endpoint (with Tovu's rate limit and the site's file store). */
+function mountReceipts({ app, deps }: { app: Express; deps: RouteDeps }, _optional = {}): void {
+  const limiter = createRateLimiter({ profile: CONSENT_SAVE_PROFILE, clock: deps.clock });
+  const store = siteReceiptStore({ deps });
   app.post(CONSENT_ENDPOINT, express.raw({ type: () => true, limit: '4kb' }), async (req, res) => {
     try {
       const config = await readSiteConsentPolicy({ deps }, { cssBlocks: false });
@@ -169,15 +182,11 @@ function mountPluginHttp({ app, deps }: { app: Express; deps: RouteDeps }, _opti
   const limiter = createRateLimiter({ profile: { windowSeconds: 60, max: 120, burst: 20 }, clock: deps.clock });
   app.use(PLUGIN_BASE, express.raw({ type: () => true, limit: '256kb' }), async (req, res, next) => {
     const full = PLUGIN_BASE + req.path;
-    const plugin = siteConsentPlugins({ deps }).find(item => item.http && full.startsWith(item.http.path + '/'));
-    if (!plugin?.http) { next(); return; }
+    const plugin = pluginFor({ deps, full });
+    if (!plugin) { next(); return; }
     try {
-      if (req.method !== 'GET') {
-        const category = String(plugin.adapter.category ?? 'marketing') as 'functional' | 'analytics' | 'marketing';
-        const allowed = req.get('origin') === resolveSiteConsentOrigin({ request: req }) && (await readSiteVisitorConsent({ deps, req })).allowed[category];
-        if (!allowed) { res.status(403).end(); return; }
-        if (!(await limiter.check({ key: resolveClientIp(req) })).allowed) { res.status(429).end(); return; }
-      }
+      const refused = req.method === 'GET' ? null : await collectorRefusal({ req, deps, adapter: plugin.adapter, limiter });
+      if (refused) { res.status(refused).end(); return; }
       const result = await plugin.http.handle({ method: req.method, path: full.slice(plugin.http.path.length),
         body: Buffer.isBuffer(req.body) ? req.body : new Uint8Array(), contentType: req.get('content-type') ?? 'application/octet-stream' });
       if (result.contentType) res.setHeader('Content-Type', result.contentType);
@@ -185,6 +194,24 @@ function mountPluginHttp({ app, deps }: { app: Express; deps: RouteDeps }, _opti
       res.status(result.status).end(result.body);
     } catch { res.status(502).end(); }
   });
+}
+
+/** The active plugin mounted over this path; none for a path with a dot segment or encoded separator. */
+function pluginFor({ deps, full }: { deps: RouteDeps; full: string }, _optional = {}): (ConsentPluginContribution & { http: ConsentPluginHttp }) | undefined {
+  if (UNSAFE_PLUGIN_PATH.test(full)) return undefined;
+  return siteConsentPlugins({ deps }).find((item): item is ConsentPluginContribution & { http: ConsentPluginHttp } => Boolean(item.http && full.startsWith(item.http.path + '/')));
+}
+
+/** The status refusing a collector write, or null: it must come from this site, while the visitor's choice
+ * allows the adapter's category, within the rate limit. A category that is not optional (even 'necessary')
+ * is read as marketing, the strictest. @complexity O(cookie header) plus one policy read. */
+async function collectorRefusal(
+  { req, deps, adapter, limiter }: { req: Request; deps: RouteDeps; adapter: RawContribution; limiter: ReturnType<typeof createRateLimiter> },
+  _optional = {},
+): Promise<403 | 429 | null> {
+  const category: Optional = (OPTIONAL as readonly unknown[]).includes(adapter.category) ? adapter.category as Optional : 'marketing';
+  if (req.get('origin') !== resolveSiteConsentOrigin({ request: req }) || !(await readSiteVisitorConsent({ deps, req })).allowed[category]) return 403;
+  return (await limiter.check({ key: resolveClientIp(req) })).allowed ? null : 429;
 }
 
 /** The server gate: what this visitor's stored choice allows right now (GPC applied, durable rule: an
@@ -199,8 +226,23 @@ export async function readSiteVisitorConsent({ deps, req }: { deps: RouteDeps; r
 }
 
 /** The published policy id visitors are asked under now. @complexity O(1) reads. */
-export async function readSiteConsentPolicyVersion({ deps }: { deps: RouteDeps }, _optional = {}): Promise<string> {
+async function readSiteConsentPolicyVersion({ deps }: { deps: RouteDeps }, _optional = {}): Promise<string> {
   return (await readSiteConsentPolicy({ deps }, { cssBlocks: false })).policyVersion;
+}
+
+/** Detached delivery recheck, the old engine's rule: the receipt is still active (a later choice retires
+ * it), names the current policy, grants analytics without GPC and is within the choice lifetime. A forged
+ * or withdrawn receipt id never delivers. @complexity O(1): one policy read and one receipt read. */
+export async function siteReceiptAllowsAnalytics({ deps, proof }: { deps: RouteDeps; proof: { receiptId: string; policyVersion: string } }, _optional = {}): Promise<boolean> {
+  const policy = await readSiteConsentPolicyVersion({ deps });
+  if (proof.policyVersion !== policy) return false;
+  const record = (await siteReceiptStore({ deps }).read?.({ id: proof.receiptId }) ?? null) as Partial<ConsentRecord> | null;
+  return activeAnalyticsRecord({ record, policy, nowMs: deps.clock.nowMs() });
+}
+
+function activeAnalyticsRecord({ record, policy, nowMs }: { record: Partial<ConsentRecord> | null; policy: string; nowMs: number }, _optional = {}): boolean {
+  if (!record || record.policyVersion !== policy || record.gpc !== false) return false;
+  return record.choices?.analytics === true && nowMs - Date.parse(String(record.timestamp)) <= DEFAULT_MAX_AGE_MS;
 }
 
 /** The old engine's analytics proof shape (receipt id + policy), from the new cookie. Undefined unless

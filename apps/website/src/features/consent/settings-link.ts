@@ -19,6 +19,11 @@ const rowLink = (anchor: string) => `<p data-tovu-consent-settings style="margin
 const ownControl = ({ engine, tag, attrs }: { engine: Engine; tag: string; attrs: Map<string, string> }) => engine === 'legacy'
   ? attrs.has('data-jini-consent-open') : attrs.has('data-consent-open') || (tag === 'a' && attrs.get('href') === '#privacy-choices');
 
+/** Legacy only: the engine's own section says whether it reopens through a link; undefined for any other
+ * element. TODO(P4): delete with the legacy engine. */
+const legacyReopensByLink = ({ engine, tag, attrs }: { engine: Engine; tag: string; attrs: Map<string, string> }) =>
+  engine === 'legacy' && tag === 'section' && attrs.get('id') === 'jini-consent' ? attrs.get('data-reopen') === 'link' : undefined;
+
 /** Only live, non-hidden markup can host a withdrawal control. O(n) nodes, iterative for deep HTML. */
 function* liveElements({ html }: { html: string }, _options = {}): Generator<Element> {
   const nodes: Node[] = [...parse(html, { sourceCodeLocationInfo: true }).childNodes];
@@ -57,7 +62,7 @@ function linkPlacement({ html }: { html: string }, { engine = 'legacy' }: { engi
   for (const node of liveElements({ html })) {
     const attrs = new Map(node.attrs.map(attr => [attr.name, attr.value]));
     if (ownControl({ engine, tag: node.tagName, attrs })) return { enabled: false, offset: 0, inline: false };
-    if (engine === 'legacy' && node.tagName === 'section' && attrs.get('id') === 'jini-consent') enabled = attrs.get('data-reopen') === 'link';
+    enabled = legacyReopensByLink({ engine, tag: node.tagName, attrs }) ?? enabled;
     if (node.tagName === 'footer' && contentEnd({ node }) > (footer ? contentEnd({ node: footer }) : -1)) footer = node;
     if (node.tagName === 'body') bodyEnd = contentEnd({ node }, { fallback: bodyEnd });
   }
