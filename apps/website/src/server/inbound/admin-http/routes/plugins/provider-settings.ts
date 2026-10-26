@@ -48,6 +48,11 @@ async function hasLegacyCredential({ deps, pluginId, saved }: { deps: ProviderSe
   return deps.legacyProviderCredential({ pluginId }).catch(() => false);
 }
 
+/** A public field's declared choices (`default`, `options`, `allowCustom`), passed to the card as declared. */
+const choicesOf = ({ default: fallback, options, allowCustom }: PluginProviderSettingField) => ({
+  ...(fallback === undefined ? {} : { default: fallback }), ...(options ? { options } : {}), ...(allowCustom ? { allowCustom: true as const } : {}),
+});
+
 async function cardOf({ deps, config, pluginId, fields }: { deps: ProviderSettingsRouteDeps; config: ProviderConfigSource; pluginId: string; fields: readonly PluginProviderSettingField[] }) {
   const saved = await config.readSettings({ pluginId });
   return {
@@ -57,7 +62,7 @@ async function cardOf({ deps, config, pluginId, fields }: { deps: ProviderSettin
     fields: fields.map((field) => {
       const secret = field.secret === true;
       const value = secret ? undefined : saved?.settings[field.name];
-      return { name: field.name, label: field.label, ...(field.hint ? { hint: field.hint } : {}), secret, required: field.required === true,
+      return { name: field.name, label: field.label, ...(field.hint ? { hint: field.hint } : {}), ...(secret ? {} : choicesOf(field)), secret, required: field.required === true,
         saved: secret ? (saved?.secretNames.includes(field.name) ?? false) : value !== undefined && value !== "", ...(value === undefined ? {} : { value }) };
     }),
   };
@@ -95,7 +100,9 @@ function nextConfig({ body, fields, current }: { body: unknown; fields: readonly
   for (const [name, value] of entries) (secretNames.has(name) ? entered : settings)[name] = value.trim();
   const secrets: Record<string, string> = { ...current?.secrets };
   for (const [name, value] of Object.entries(entered)) if (value !== "") secrets[name] = value;
-  const changed = labelsOf(fields, (field) => !field.secret && (settings[field.name] ?? "") !== (current?.settings[field.name] ?? ""));
+  // A blank public field means the plugin's declared default, so filling in that default is no change.
+  const effective = (field: PluginProviderSettingField, value: string | undefined) => value || field.default || "";
+  const changed = labelsOf(fields, (field) => !field.secret && effective(field, settings[field.name]) !== effective(field, current?.settings[field.name]));
   const kept = labelsOf(fields, (field) => !entered[field.name] && Boolean(current?.secrets[field.name]));
   if (changed && kept) return { refusal: { code: "PROVIDER_SETTINGS_SECRET_REENTRY", error: `Changing ${changed} needs ${kept} entered again.` } };
   return { config: { settings, secrets } };

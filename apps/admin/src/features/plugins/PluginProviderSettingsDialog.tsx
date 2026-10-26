@@ -1,8 +1,12 @@
 import { agentHandle } from "@jini-ai/agentic";
-import { useId } from "react";
+import { Button, Dialog } from "@jini-ai/ui-kit/react";
+import { useEffect, useId } from "react";
 
-import type { AdminPlugin, AdminPluginProviderSettingField } from "@/lib/api";
+import type { AdminPlugin, AdminPluginProviderSettings } from "@/lib/api";
 import { useWiredPluginProviderSettings } from "./hooks/use-plugin-provider-settings.hooks";
+import { ProviderSettingField } from "./PluginProviderSettingField";
+import "../../styles/native-domain-dialogs.css";
+import "./provider-settings-dialog.css";
 
 /**
  * @file A provider plugin's secure settings card (2026-10-26): Plugins → Installed (or Downloaded) →
@@ -10,6 +14,10 @@ import { useWiredPluginProviderSettings } from "./hooks/use-plugin-provider-sett
  * password inputs that never show a saved value ("Saved — leave blank to keep"). Saved values are
  * sealed on the server (the project store shared by this machine's sites, or this site's vault) and
  * take effect at the next start.
+ *
+ * 2026-10-25 redesign (owner: "looks awful"): the admin's native domain dialog (`PostUrlDialog`'s
+ * Jini `Dialog` + `.jini-dialog-body`/`.jini-dialog-footer`) with the `.field` primitives — label
+ * above a full-width control, hint below — instead of bare inline labels.
  */
 
 export interface PluginProviderSettingsDialogProps {
@@ -25,54 +33,47 @@ function handleWords(name: string): string {
   return name.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-/** One declared field: a password input for a secret (never showing a saved value), text otherwise. */
-function ProviderSettingInput({ field, id, value, onChange, handle, pluginName, t }: {
-  field: AdminPluginProviderSettingField; id: string; value: string; onChange: (value: string) => void; handle: string; pluginName: string; t: (key: string) => string;
-}) {
-  const placeholder = field.secret && field.saved ? t("Saved — leave blank to keep") : field.hint ?? "";
+/** The card's re-entry notices (a key saved the retired way, or saved keys this machine can't open). */
+function ReentryNotices({ card, t }: { card: AdminPluginProviderSettings | null; t: (key: string) => string }) {
   return (
-    <label htmlFor={id} className="form-field">
-      <span>{field.required ? `${field.label} *` : field.label}</span>
-      <input id={id} type={field.secret ? "password" : "text"} autoComplete="off" value={value} placeholder={placeholder}
-        onChange={(event) => onChange(event.target.value)}
-        {...agentHandle({ handle }, { role: "field", label: `${pluginName} setting: ${field.label}` })} />
-      {field.hint && !field.secret ? <small>{field.hint}</small> : null}
-    </label>
+    <>
+      {card?.unreadable ? <p className="provider-settings-notice" role="note">{t("Saved keys for this plugin can't be read on this machine. Enter them again here and save.")}</p> : null}
+      {card?.legacyCredential ? <p className="provider-settings-notice" role="note">{t("A key for this plugin was saved in an older format that Tovu no longer reads. Enter it again here and save.")}</p> : null}
+    </>
   );
 }
 
 export function PluginProviderSettingsDialog({ plugin, agentHandleBase, onClose, useSettings = useWiredPluginProviderSettings }: PluginProviderSettingsDialogProps) {
   const { card, values, setValue, save, saving, error, saved, t } = useSettings(plugin.id);
-  const titleId = useId();
   const fieldId = useId();
+  // The native dialog focuses on open, before the card has loaded; once it has, start in its first field.
+  const firstField = card?.fields[0]?.name;
+  useEffect(() => { if (firstField) document.getElementById(`${fieldId}-${firstField}`)?.focus(); }, [fieldId, firstField]);
   return (
-    <div className="settings-dialog-backdrop" onClick={onClose}>
-      <div className="settings-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} onClick={(e) => e.stopPropagation()}>
-        <h2 id={titleId}>{`${plugin.name} — ${t("Settings")}`}</h2>
-        {card ? (
-          <p>{card.store === "project" ? t("Saved for every site in this project. Takes effect the next time Tovu starts.") : t("Saved for this site. Takes effect the next time Tovu starts.")}</p>
-        ) : null}
-        {card?.unreadable ? <p role="note">{t("Saved keys for this plugin can't be read on this machine. Enter them again here and save.")}</p> : null}
-        {card?.legacyCredential ? <p role="note">{t("A key for this plugin was saved in an older format that Tovu no longer reads. Enter it again here and save.")}</p> : null}
-        {error ? <p className="save-error" role="alert">{error}</p> : null}
-        {saved ? <p role="status">{t("Settings saved.")}</p> : null}
-        <form onSubmit={(event) => { event.preventDefault(); void save(); }}>
+    <Dialog open title={plugin.name} pending={saving} onClose={() => onClose()} className="settings-dialog jini-domain-dialog provider-settings-dialog">
+      {card ? <p className="provider-settings-subtitle">{t(card.store === "project" ? "Saved for every site in this project" : "Saved for this site")}</p> : null}
+      <form onSubmit={(event) => { event.preventDefault(); void save(); }} noValidate>
+        <div className="jini-dialog-body">
+          <ReentryNotices card={card} t={t} />
           {(card?.fields ?? []).map((field) => (
-            <ProviderSettingInput key={field.name} field={field} id={`${fieldId}-${field.name}`} value={values[field.name] ?? ""}
+            <ProviderSettingField key={field.name} field={field} id={`${fieldId}-${field.name}`} value={values[field.name] ?? ""}
               onChange={(value) => setValue(field.name, value)} handle={`${agentHandleBase}-setting-${handleWords(field.name)}`} pluginName={plugin.name} t={t} />
           ))}
-          <span className="editor-actions">
-            <button type="button" className="btn-secondary" onClick={onClose}
-              {...agentHandle({ handle: `${agentHandleBase}-settings-close` }, { role: "button", label: `Close ${plugin.name} settings` })}>
-              {t("Close")}
-            </button>
-            <button type="submit" disabled={!card || saving}
-              {...agentHandle({ handle: `${agentHandleBase}-settings-save` }, { role: "button", label: `Save ${plugin.name} settings` })}>
-              {saving ? t("Saving…") : t("Save")}
-            </button>
-          </span>
-        </form>
-      </div>
-    </div>
+        </div>
+        {error ? <p className="save-error" role="alert">{error}</p> : null}
+        {saved ? <p className="provider-settings-saved" role="status">{t("Settings saved.")}</p> : null}
+        <div className="jini-dialog-footer">
+          {card ? <p className="provider-settings-applies">{t("Takes effect the next time Tovu starts.")}</p> : null}
+          <Button variant="secondary" className="btn-secondary" disabled={saving} onPress={() => onClose()}
+            attrs={agentHandle({ handle: `${agentHandleBase}-settings-close` }, { role: "button", label: `Close ${plugin.name} settings` })}>
+            {t("Cancel")}
+          </Button>
+          <Button type="submit" variant="primary" disabled={!card || saving}
+            attrs={agentHandle({ handle: `${agentHandleBase}-settings-save` }, { role: "button", label: `Save ${plugin.name} settings` })}>
+            {saving ? t("Saving…") : t("Save")}
+          </Button>
+        </div>
+      </form>
+    </Dialog>
   );
 }

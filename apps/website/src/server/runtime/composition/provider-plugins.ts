@@ -73,12 +73,14 @@ export function legacyProviderCredentialCheck(
 /**
  * The factory input a provider's saved settings make, or undefined when it is not configured: no row
  * saved, no declared settings, or a required declared field without a value. Only declared names pass.
+ * A blank public field takes the plugin's declared `default` (e.g. its vendor's cloud host).
  * @complexity O(f) declared fields.
  */
 export function providerInputOf({ declaration, saved }: { declaration: PluginProviderDeclaration; saved: ProviderPluginConfig | null }): Readonly<Record<string, string>> | undefined {
   const fields = declaration.settings ?? [];
   if (!saved || fields.length === 0) return undefined;
-  const values: Record<string, string | undefined> = { ...saved.settings, ...saved.secrets };
+  const defaults = Object.fromEntries(fields.filter((field) => !field.secret && field.default).map((field) => [field.name, field.default!]));
+  const values: Record<string, string | undefined> = { ...defaults, ...Object.fromEntries(Object.entries(saved.settings).filter(([, value]) => value.trim() !== "")), ...saved.secrets };
   const present = (name: string) => (values[name] ?? "").trim() !== "";
   if (fields.some((field) => field.required && !present(field.name))) return undefined;
   return Object.fromEntries(fields.filter((field) => present(field.name)).map((field) => [field.name, values[field.name]!]));

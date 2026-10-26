@@ -147,6 +147,15 @@ test("providerInputOf: only declared names pass, blanks are dropped, and a requi
   assert.deepEqual(providerInputOf({ declaration, saved: { settings: { endpoint: "https://c", extra: "dropped" }, secrets: { headers: "" } } }), { endpoint: "https://c" });
 });
 
+test("providerInputOf: a blank public field takes the plugin's declared default; a saved value wins", () => {
+  const declaration = { contract: "product_analytics", id: "x", contractVersion: 1 as const, settings: [
+    { name: "host", label: "Host", required: true, default: "https://us.example.test" }, { name: "apiKey", label: "Key", secret: true, required: true }] };
+  assert.deepEqual(providerInputOf({ declaration, saved: { settings: { host: " " }, secrets: { apiKey: "k" } } }), { host: "https://us.example.test", apiKey: "k" });
+  assert.deepEqual(providerInputOf({ declaration, saved: { settings: {}, secrets: { apiKey: "k" } } }), { host: "https://us.example.test", apiKey: "k" });
+  assert.deepEqual(providerInputOf({ declaration, saved: { settings: { host: "https://eu.example.test" }, secrets: { apiKey: "k" } } }), { host: "https://eu.example.test", apiKey: "k" });
+  assert.equal(providerInputOf({ declaration, saved: { settings: {}, secrets: {} } }), undefined);
+});
+
 test("a throwing factory, an invalid port and a hung initialization each leave only their own contract on the noop", async () => {
   const warnings: string[] = [];
   const seen: string[] = [];

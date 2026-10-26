@@ -20,8 +20,13 @@ const MANIFEST = { contributes: { providers: [
   { contract: "observability", id: "second", contractVersion: 1, settings: [{ name: "endpoint", label: "dup" }] },
   { contract: "observability", id: "third", contractVersion: 1 },
 ] } };
+const US = "https://us.analytics.example.test";
+const HOST_MANIFEST = { contributes: { providers: [{ contract: "product_analytics", id: "ph", contractVersion: 1, settings: [
+  { name: "host", label: "Region / host", required: true, default: US, options: [{ value: US, label: "US" }, { value: "https://eu.analytics.example.test", label: "EU" }], allowCustom: true },
+  { name: "apiKey", label: "API key", secret: true, required: true }] }] } };
 const RECORDS = [
   { id: "obs", name: "Obs", version: "1.0.0", source: "site", status: "valid", errors: [], manifest: MANIFEST },
+  { id: "ph", name: "Ph", version: "1.0.0", source: "site", status: "valid", errors: [], manifest: HOST_MANIFEST },
   { id: "plain", name: "Plain", version: "1.0.0", source: "site", status: "valid", errors: [] },
 ] as unknown as PluginDiscoveryRecord[];
 
@@ -94,6 +99,22 @@ test("a changed public field never keeps a saved secret: it must be entered agai
   const other = "Authorization=Bearer x";
   assert.equal((await call("PUT", `${WS}/plugins/obs/provider-settings`, { values: { endpoint: "https://new.example.test", headers: other } })).status, 200);
   assert.deepEqual(config.saved.get("obs"), { settings: { endpoint: "https://new.example.test" }, secrets: { headers: other } });
+});
+
+test("a public field's declared default and options reach the card; filling a blank with its default is no change", async (t) => {
+  const { call, config } = await serve(t);
+  const read = await call("GET", `${WS}/plugins/ph/provider-settings`);
+  assert.deepEqual(read.json.fields, [
+    { name: "host", label: "Region / host", default: US, options: [{ value: US, label: "US" }, { value: "https://eu.analytics.example.test", label: "EU" }], allowCustom: true, secret: false, required: true, saved: false },
+    { name: "apiKey", label: "API key", secret: true, required: true, saved: false },
+  ]);
+  // Saved before the card prefilled the default: a blank host means the plugin's default.
+  const key = ["phc", String(Date.now())].join("_");
+  config.saved.set("ph", { settings: { host: "" }, secrets: { apiKey: key } });
+  assert.equal((await call("PUT", `${WS}/plugins/ph/provider-settings`, { values: { host: US, apiKey: "" } })).status, 200);
+  assert.deepEqual(config.saved.get("ph"), { settings: { host: US }, secrets: { apiKey: key } });
+  const moved = await call("PUT", `${WS}/plugins/ph/provider-settings`, { values: { host: "https://eu.analytics.example.test", apiKey: "" } });
+  assert.equal(moved.json.code, "PROVIDER_SETTINGS_SECRET_REENTRY");
 });
 
 test("PUT refuses undeclared names, non-text values and a malformed body", async (t) => {
