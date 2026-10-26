@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import type { Translate } from "@jini-ai/ui/panel-kit";
-import { describeApiError } from "@/lib/api";
+import { API_UNREACHABLE_CODE, ApiError, describeApiError } from "@/lib/api";
 import { requestAssistantPrompt } from "@/lib/assistant-prompt-bus";
 import {
   defaultSiteTransferPort,
@@ -184,6 +184,30 @@ function passwordProblemFor({ password, confirm, t }: { password: string; confir
   return null;
 }
 
+/** The upload route's v1 cap (`SHARE_LIMITS.maxArchiveBytes`), checked here because the server
+ *  refuses an oversized body before reading it and the dropped connection hides its reason. */
+const MAX_IMPORT_ZIP_BYTES = 300 * 1024 * 1024;
+
+/** The server's own reason when it answered that import is unavailable here (503), else null. */
+function unavailableReason(error: unknown): string | null {
+  return error instanceof ApiError && error.status === 503 && error.message ? error.message : null;
+}
+
+/**
+ * Uploads the zip; when the connection drops, asks the server why. A route that refuses before
+ * reading the body (busy, unavailable, signed out) closes the socket mid-upload, so the browser
+ * only sees "cannot reach the Tovu API" — a fresh GET returns the real refusal instead.
+ * @complexity O(1) round trips beyond the upload.
+ */
+async function uploadOrExplain({ port, file }: { port: SiteTransferPort; file: File }): Promise<{ uploadId: string }> {
+  try {
+    return await port.uploadImportZip({ file });
+  } catch (failure) {
+    if (failure instanceof ApiError && failure.code === API_UNREACHABLE_CODE) await port.listImports();
+    throw failure;
+  }
+}
+
 /**
  * Import Site: a share link or a .zip into a NEW site, then the new owner's password (the
  * backend's needs-owner contract), plus the hand-off to the site-import plugin for live websites.
@@ -203,6 +227,8 @@ export function useSiteImport({ port, t }: { port: SiteTransferPort; t: Translat
   const [settingOwner, setSettingOwner] = useState(false);
   const [ownerError, setOwnerError] = useState<string | null>(null);
   const [liveAddress, setLiveAddress] = useState("");
+  // A 503 on the list means import is off on this host: say why once, above the form, not as a list error.
+  const unavailable = unavailableReason(list.error);
 
   // A link and a file are two ways to give ONE source; choosing one clears the other.
   const setLink = (next: string) => {
@@ -224,14 +250,19 @@ export function useSiteImport({ port, t }: { port: SiteTransferPort; t: Translat
 
   async function startImport() {
     if (importing) return;
+    if (unavailable) return;
     if (!file && !validShareLink(link)) {
       setImportError(t("Paste an https:// share link."));
+      return;
+    }
+    if (file && file.size > MAX_IMPORT_ZIP_BYTES) {
+      setImportError(t("This zip is over the 300 MB limit."));
       return;
     }
     setImporting(true);
     setImportError(null);
     try {
-      const source = file ? { uploadId: (await port.uploadImportZip({ file })).uploadId } : { url: link.trim() };
+      const source = file ? { uploadId: (await uploadOrExplain({ port, file })).uploadId } : { url: link.trim() };
       setCurrent(await port.startImport(source));
       setLinkState("");
       setFile(null);
@@ -263,16 +294,16 @@ export function useSiteImport({ port, t }: { port: SiteTransferPort; t: Translat
   }
 
   return {
-    imports: list.data?.imports,
-    listError: list.error ? describeApiError(list.error, t("Couldn't load imports.")) : null,
+    imports: unavailable ? [] : list.data?.imports,
+    listError: list.error && !unavailable ? describeApiError(list.error, t("Couldn't load imports.")) : null,
     link,
     setLink,
     file,
     chooseFiles,
     clearFile: () => setFile(null),
-    canImport: Boolean(file) || link.trim().length > 0,
+    canImport: !unavailable && (Boolean(file) || link.trim().length > 0),
     importing,
-    importError,
+    importError: importError ?? unavailable,
     startImport,
     current,
     resume: (item) => {

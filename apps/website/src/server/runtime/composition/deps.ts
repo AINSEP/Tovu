@@ -17,7 +17,7 @@ import { SiteImportRegistry } from "#src/features/site-backup/import-registry";
 import { createShareArchiveReader } from "#src/features/site-backup/import-archive-reader";
 import * as importYauzl from "yauzl";
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
-import { switcherBaseForBinding, isSiteSwitcherEnabled } from "#src/platform/site-dir/index";
+import { siteCreationBaseForBinding } from "#src/platform/site-dir/index";
 import { localSiteSupervisorForHost } from "../lifecycle/local-site-host.js";
 import { SiteShareRegistry } from "#src/features/site-backup/share-registry";
 import { prepareShareContent } from "#src/features/site-backup/share-preparation";
@@ -2909,16 +2909,18 @@ async function composeSiteRouteDeps(
   configureSiteImports({}, {});
 
   function configureSiteImports(_required: Record<string, never>, _options = {}): void {
-    const importBase = switcherBaseForBinding(resolvedSiteBinding);
-    const importSupervisor = isSiteSwitcherEnabled() ? localSiteSupervisorForHost({ binding: resolvedSiteBinding }) : undefined;
-    if (importBase !== null && importSupervisor) {
+    // Import needs local site creation and a known sites home, not the switcher: desktop serves
+    // `<home>/<name>` pinned and starts its own sites, so it has no supervisor here.
+    const importBase = siteCreationBaseForBinding({ binding: resolvedSiteBinding });
+    if (importBase !== null) {
+      const importSupervisor = localSiteSupervisorForHost({ binding: resolvedSiteBinding });
       const workspace = createSitesWorkspace({}, { cwd: importBase });
       // Import payloads live in app-data, outside every served/source tree, including app-data DBs.
       const registry = new SiteImportRegistry({ directory: join(workspace.config({}).appData, "site-imports", workspaceId) });
       const importHttp = createDefaultHttpClient(SITE_IMPORT_EGRESS_POLICY, { observability });
       routeDeps.siteImportBackend = createSiteImportBackend({ registry, workspace, reader: createShareArchiveReader({ yauzl: importYauzl }), http: importHttp, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion(),
         // Wait for the new site to answer, so the import's "Open" link never points at a port still booting.
-        startSite: input => startLocalSiteWhenRunning({ supervisor: importSupervisor, name: input.name }),
+        startSite: async input => importSupervisor ? startLocalSiteWhenRunning({ supervisor: importSupervisor, name: input.name }) : { adminUrl: null, status: "stopped" },
         setupBase: "/api/admin/v1/workspaces/" + encodeURIComponent(workspaceId) + "/site-imports",
       }, { report: ({ importId, status }) => console.info("[site-import]", importId, status) });
     }

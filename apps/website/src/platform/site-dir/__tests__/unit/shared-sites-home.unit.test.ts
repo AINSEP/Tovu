@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createSitesWorkspace } from "../../sites-home.js";
-import { createSite, listSites, describeSiteBinding, switcherBaseForBinding } from "../../site-registry.js";
+import { createSite, listSites, describeSiteBinding, switcherBaseForBinding, siteCreationBaseForBinding } from "../../site-registry.js";
 import { resolveSiteRoot, pinDefaultSiteRoot } from "../../site-root.js";
 import { createLocalSiteSupervisor } from "../../local-site-supervisor.js";
 import { claimSiteRunning } from "../../site-running.js";
@@ -189,5 +189,26 @@ test("stalecard: the named default follows its moved site through the configured
     assert.equal(pinDefaultSiteRoot({}, options), moved);
     assert.equal(options.env.TOVU_SITE_DIR, moved);
     assert.equal(fs.existsSync(path.join(cwd, "sites")), false);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test("import: a pinned boot inside the sites home can create sibling sites without the switcher flag", () => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-import-base-")));
+  try {
+    const cwd = path.join(root, "app"), home = path.join(root, "Desktop Sites");
+    fs.mkdirSync(cwd);
+    const dir = path.join(home, "alpha"); writeSite(dir, "alpha-id");
+    const outside = path.join(root, "elsewhere", "beta"); writeSite(outside, "beta-id");
+    // Desktop's `tovu serve <home>/<name>`: pinned, never switchable, switcher flag absent.
+    const pinned = { dir, name: "alpha", dirOverridden: true, switcherCompatible: false };
+    const options = { cwd, homeDir: root, env: { TOVU_SITES_HOME: home } as NodeJS.ProcessEnv };
+    assert.equal(switcherBaseForBinding(pinned), null);
+    assert.equal(siteCreationBaseForBinding({ binding: pinned }, options), cwd);
+    assert.equal(siteCreationBaseForBinding({ binding: { ...pinned, switcherBase: path.join(root, "repo") } }, options), path.join(root, "repo"));
+    assert.equal(siteCreationBaseForBinding({ binding: pinned }, { ...options, env: { ...options.env, NODE_ENV: "production" } }), null);
+    assert.equal(siteCreationBaseForBinding({ binding: { ...pinned, dir: outside, name: "beta" } }, options), null);
+    // The switcher's own base still wins when it is enabled for a switchable binding.
+    const switchable = { ...pinned, switcherCompatible: true, switcherBase: path.join(root, "repo") };
+    assert.equal(siteCreationBaseForBinding({ binding: switchable }, { ...options, env: { ...options.env, TOVU_ENABLE_SITE_SWITCHER: "1" } }), path.join(root, "repo"));
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });

@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { ApiError } from "@/lib/api";
+import { API_UNREACHABLE_CODE, ApiError } from "@/lib/api";
 import { resetAssistantDockBus, subscribeToAssistantDockRequests } from "@/lib/assistant-dock-bus";
 import { resetAssistantPromptBus, useAssistantPromptRequests } from "@/lib/assistant-prompt-bus";
 import {
@@ -407,6 +407,54 @@ describe("useSiteImport", () => {
     const port = createFakeSiteTransferPort({ listImports: async () => { throw new ApiError("", 500); } });
     const { result } = renderHook(() => useSiteImport({ port, t }), { wrapper });
     await waitFor(() => expect(result.current.listError).toBe("Couldn't load imports."));
+  });
+
+  it("an unavailable import shows the server's reason, not a list failure, and uploads nothing", async () => {
+    const reason = "Import requires local site creation and a configured sites home.";
+    const uploadImportZip = vi.fn(async () => ({ uploadId: "never" }));
+    const port = createFakeSiteTransferPort({ uploadImportZip, listImports: async () => { throw new ApiError(reason, 503, "UNAVAILABLE"); } });
+    const { result } = renderHook(() => useSiteImport({ port, t }), { wrapper });
+    await waitFor(() => expect(result.current.importError).toBe(reason));
+    expect(result.current.listError).toBeNull();
+    expect(result.current.imports).toEqual([]);
+    act(() => result.current.chooseFiles([new File(["PK"], "site.tovu.zip")]));
+    expect(result.current.canImport).toBe(false);
+    await act(() => result.current.startImport());
+    expect(uploadImportZip).not.toHaveBeenCalled();
+  });
+
+  it("refuses a zip over the 300 MB cap before uploading it", async () => {
+    const uploadImportZip = vi.fn(async () => ({ uploadId: "never" }));
+    const { result } = renderHook(() => useSiteImport({ port: createFakeSiteTransferPort({ uploadImportZip }), t }), { wrapper });
+    const huge = new File(["PK"], "huge.tovu.zip");
+    Object.defineProperty(huge, "size", { value: 300 * 1024 * 1024 + 1 });
+    act(() => result.current.chooseFiles([huge]));
+    await act(() => result.current.startImport());
+    expect(uploadImportZip).not.toHaveBeenCalled();
+    expect(result.current.importError).toBe("This zip is over the 300 MB limit.");
+  });
+
+  it("a dropped upload asks the server why, so its refusal replaces 'cannot reach the API'", async () => {
+    let listCalls = 0;
+    const port = createFakeSiteTransferPort({
+      listImports: async () => { if (listCalls++ === 0) return { imports: [] }; throw new ApiError("Another ZIP upload is running.", 409, "BUSY"); },
+      uploadImportZip: async () => { throw new ApiError("cannot reach the Tovu API — is the server running?", 0, API_UNREACHABLE_CODE); },
+    });
+    const { result } = renderHook(() => useSiteImport({ port, t }), { wrapper });
+    await waitFor(() => expect(result.current.imports).toEqual([]));
+    act(() => result.current.chooseFiles([new File(["PK"], "site.tovu.zip")]));
+    await act(() => result.current.startImport());
+    expect(result.current.importError).toBe("Another ZIP upload is running.");
+  });
+
+  it("a dropped upload keeps its own error when the server answers fine", async () => {
+    const port = createFakeSiteTransferPort({
+      uploadImportZip: async () => { throw new ApiError("cannot reach the Tovu API — is the server running?", 0, API_UNREACHABLE_CODE); },
+    });
+    const { result } = renderHook(() => useSiteImport({ port, t }), { wrapper });
+    act(() => result.current.chooseFiles([new File(["PK"], "site.tovu.zip")]));
+    await act(() => result.current.startImport());
+    expect(result.current.importError).toBe("cannot reach the Tovu API — is the server running?");
   });
 
   it("hands a valid live website to the assistant as a draft and opens the dock", () => {
