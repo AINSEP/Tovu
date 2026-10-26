@@ -3,9 +3,11 @@ import fs from "node:fs";
 import path from "node:path";
 import type { StorageKernel } from "@jini-ai/db/kernel";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
+import type { VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 
 import { createAgentPluginStateStore } from "#src/features/api-connections/plugin-state";
 import { createApiConnectionVault } from "#src/features/api-connections/vault-stores";
+import type { KeyringPort, SecretSealerPort } from "#src/features/webhooks/index";
 import { FixedSiteKeyKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { atomicCreateSiteKeyFile, mintSiteKeyHex } from "#src/features/webhooks/site-key-ensure";
@@ -155,9 +157,22 @@ function openProjectDb(dbPath: string): ReturnType<typeof openNativeSqlite> {
   return db;
 }
 
+/**
+ * The project's own `secrets_vault` with the keyring and sealer that open its rows (owner 2026-10-25:
+ * keys save to the project by default). Any credential store builds its project half from this —
+ * the same row shape and sealing as a site's, under {@link PROJECT_WORKSPACE_ID}.
+ */
+export interface ProjectVaultScope {
+  readonly workspaceId: string;
+  readonly repo: VaultRepoPort;
+  readonly keyring: KeyringPort;
+  readonly sealer: SecretSealerPort;
+}
+
 export interface ProjectStore {
   readonly projectId: string;
   readonly config: ProviderConfigSource;
+  readonly vault: ProjectVaultScope;
   readonly dbPath: string;
   close(required: Record<string, never>, optional?: Record<string, never>): void;
 }
@@ -190,9 +205,10 @@ export async function openProjectStore(
     throw error;
   }
   const keyring = new FixedSiteKeyKeyring(hex);
-  const vault = createApiConnectionVault({ repo: new SqlSecretsVaultRepo({ kernel }), keyring, sealer: new AesGcmSecretSealer(keyring),
+  const scope: ProjectVaultScope = { workspaceId: PROJECT_WORKSPACE_ID, repo: new SqlSecretsVaultRepo({ kernel }), keyring, sealer: new AesGcmSecretSealer(keyring) };
+  const vault = createApiConnectionVault({ repo: scope.repo, keyring, sealer: scope.sealer,
     clock: optional.clock ?? { nowMs: () => Date.now() }, workspaceId: PROJECT_WORKSPACE_ID });
   const config = createVaultProviderConfigSource({ workspaceId: PROJECT_WORKSPACE_ID, scope: "project",
     state: createAgentPluginStateStore({ vault, workspaceId: PROJECT_WORKSPACE_ID }) });
-  return { projectId, config, dbPath, close: () => closeSqliteConnection(db) };
+  return { projectId, config, vault: scope, dbPath, close: () => closeSqliteConnection(db) };
 }

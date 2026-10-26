@@ -12,6 +12,13 @@ import Database from "better-sqlite3";
 
 import { ensureProjectKey, openProjectStore, projectDbPath, projectIdFor, projectKeyFilePath } from "../project-store.js";
 import { ProviderConfigUnreadableError } from "../provider-config-source.js";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { createCustomCredential, resolveCustomCredentialByLabel } from "#src/features/custom-credentials/store";
+import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { PROJECT_VAULT_STATEMENTS } from "#src/platform/db/migrations/project/0000_project_vault";
+import { PROJECT_CREDENTIAL_KINDS_STATEMENTS } from "#src/platform/db/migrations/project/0001_project_credential_kinds";
 
 /**
  * @file `project.db` on a real filesystem (temp dirs only): it and its key live in
@@ -187,6 +194,41 @@ test("reopening keeps the data (own migration ledger, idempotent); a different p
   await wrongKey.config.write({ pluginId: "analytics-posthog", config: { settings: { host: "https://ph2.example.test" }, secrets: { apiKey: "phc2" } } });
   assert.deepEqual(await wrongKey.config.read({ pluginId: "analytics-posthog" }), { settings: { host: "https://ph2.example.test" }, secrets: { apiKey: "phc2" } });
   assert.deepEqual(await wrongKey.config.readSettings({ pluginId: "analytics-posthog" }), { settings: { host: "https://ph2.example.test" }, secretNames: ["apiKey"] });
+});
+
+test("credentials save in the project store: sealed with the project key, read back after reopening (0001 admits credential kinds)", async (t) => {
+  const { home, sitesHome } = dirs(t);
+  const token = `tok-${"p".repeat(12)}`;
+  const deps = (store: Awaited<ReturnType<typeof openProjectStore>>) => {
+    const keyring = new InMemoryKeyring();
+    const project = { workspaceId: store.vault.workspaceId, repo: new CustomCredentialVaultRepo({ vault: store.vault.repo }), sealer: store.vault.sealer, keyring: store.vault.keyring };
+    return { repo: new CustomCredentialVaultRepo({ vault: new InMemoryVaultRepo({}) }, { project }), sealer: new AesGcmSecretSealer(keyring), keyring,
+      clock: { nowMs: () => 0 }, idGen: { newId: () => "cred-1" } };
+  };
+  const first = await openProjectStore({ sitesHome, home });
+  const saved = await createCustomCredential(deps(first), { workspaceId: "site-a", label: "hosting", category: "hosting", baseUrl: "https://api.example.test", connection: { token } });
+  assert.equal(saved.scope, "project");
+  first.close({});
+  assert.equal(fs.readFileSync(projectDbPath({ home, projectId: projectIdFor({ sitesHome }) })).includes(token), false, "sealed at rest");
+  const again = await openProjectStore({ sitesHome, home });
+  t.after(() => again.close({}));
+  assert.equal((await resolveCustomCredentialByLabel(deps(again), { workspaceId: "site-b", label: "hosting" }))?.connection.token, token);
+});
+
+test("0001 rebuilds a 0000 project vault: rows kept, credential kinds admitted, labels unique", () => {
+  const db = new Database(":memory:");
+  for (const statement of PROJECT_VAULT_STATEMENTS) db.exec(statement);
+  const row = (kind: string, id: string, label: string) => db.prepare(`INSERT INTO secrets_vault (workspace_id, id, kind, owner_key, label, is_default, revision, meta, created_at, updated_at)
+    VALUES ('project', ?, ?, 'tovu', ?, 0, 1, '{}', 't', 't')`).run(id, kind, label);
+  row("api-connection", "settings", "plugin-state");
+  assert.throws(() => row("vendor", "v0", "hosting"), /CHECK/);
+  for (const statement of PROJECT_CREDENTIAL_KINDS_STATEMENTS) db.exec(statement);
+  assert.deepEqual(db.prepare("SELECT id, kind FROM secrets_vault").all(), [{ id: "settings", kind: "api-connection" }]);
+  row("vendor", "v1", "hosting");
+  row("custom", "c1", "legacy");
+  assert.throws(() => row("custom", "c2", "legacy"), /UNIQUE/);
+  assert.throws(() => row("personal-execution", "p1", "mine"), /CHECK/);
+  db.close();
 });
 
 test("a project.db that cannot be migrated is closed and the error surfaces", async (t) => {

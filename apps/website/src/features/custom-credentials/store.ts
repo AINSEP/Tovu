@@ -4,11 +4,12 @@ import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 
 import { isUniqueViolation } from "../../platform/db/kernel/dialect.js";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
-import { createTovuStoreVault } from "#src/platform/secrets/vault-kinds";
+import { byVaultLabel, createTovuStoreVault } from "#src/platform/secrets/vault-kinds";
 import { customVaultRecord, customVaultScope } from "./vault-repo.js";
 import {
   CUSTOM_CREDENTIAL_CATEGORIES,
   type CustomCredentialCategoryId,
+  type CustomCredentialScope,
   type CustomCredentialSetRecord,
   type CustomCredentialSetRepoPort,
   type CustomCredentialSummary,
@@ -40,14 +41,64 @@ export class CustomCredentialSecretStoreUnconfiguredError extends Error {}
 
 export class CustomCredentialNotFoundError extends Error {}
 
-/** Safe hints are stored with the envelope; no per-row decrypt is needed for readback. */
-async function toSummary(record: CustomCredentialSetRecord): Promise<CustomCredentialSummary> {
+/** Safe hints are stored with the envelope; no per-row decrypt is needed for readback. `scope` is
+ *  reported only where a project store is attached, so a site-only server's summaries are unchanged. */
+async function toSummary(record: CustomCredentialSetRecord, optional: { scope?: CustomCredentialScope } = {}): Promise<CustomCredentialSummary> {
   const row = record.vaultRecord;
   return { credentialType: "custom", worksFor: [...(record.worksFor ?? [])], id: record.id, label: record.label, category: record.category, baseUrl: record.baseUrl,
     additionalHosts: record.additionalHosts, ...(record.username !== undefined ? { username: record.username } : {}),
     configured: true, tokenHint: row?.tokenLength === null || row?.tokenLength === undefined ? null :
       { length: row.tokenLength, last4: row.tokenLength >= 12 ? row.last4 : null },
+    ...(optional.scope ? { scope: optional.scope } : {}),
     createdAt: record.createdAt, updatedAt: record.updatedAt };
+}
+
+/** One store a site reads credentials from, with the deps (repo, sealer, keyring) that open its rows. */
+interface Scoped<D> { readonly deps: D; readonly workspaceId: UUID; readonly scope: CustomCredentialScope }
+interface Located<D> { readonly scoped: Scoped<D>; readonly record: CustomCredentialSetRecord }
+
+/**
+ * The stores a site reads, in precedence order (owner 2026-10-25): its own vault first — an existing
+ * row, or one saved "only for this site", overrides — then the project store every site of the
+ * project shares, when the composition root attached one (`types.ts`'s `repo.project`). The project
+ * half carries its own sealer and keyring: Jini derives the sealing key from the store's key, and the
+ * row's AAD binds its workspace, so a project row opens only with the project's.
+ * @complexity O(1).
+ */
+function scopesOf<D extends CustomCredentialReadDeps>(deps: D, workspaceId: UUID): Scoped<D>[] {
+  const site: Scoped<D> = { deps, workspaceId, scope: "site" };
+  const project = deps.repo.project;
+  if (!project) return [site];
+  return [site, { deps: { ...deps, repo: project.repo, sealer: project.sealer, keyring: project.keyring }, workspaceId: project.workspaceId, scope: "project" }];
+}
+
+/** The summary's `scope`, only when a project store is attached. */
+const reportedScope = (deps: CustomCredentialReadDeps, scoped: Scoped<unknown>): { scope?: CustomCredentialScope } =>
+  deps.repo.project ? { scope: scoped.scope } : {};
+
+/** The row with this id, from the first store holding it (ids are unique across both). @complexity O(scopes). */
+async function locateById<D extends CustomCredentialReadDeps>(deps: D, input: { workspaceId: UUID; id: UUID }): Promise<Located<D> | null> {
+  for (const scoped of scopesOf(deps, input.workspaceId)) {
+    const record = await scoped.deps.repo.findById({ workspaceId: scoped.workspaceId, id: input.id });
+    if (record) return { scoped, record };
+  }
+  return null;
+}
+
+/**
+ * Every row this site uses, in label order: its own rows, then project rows whose label no site row
+ * already claims (a site row of the same label is the override).
+ * @complexity O(n log n) in the two stores' (small) credential counts; no row is opened.
+ */
+async function listEffective<D extends CustomCredentialReadDeps>(deps: D, workspaceId: UUID): Promise<Located<D>[]> {
+  const found: Located<D>[] = [];
+  const labels = new Set<string>();
+  for (const scoped of scopesOf(deps, workspaceId)) {
+    const records = await scoped.deps.repo.listByWorkspace({ workspaceId: scoped.workspaceId });
+    for (const record of records.filter((row) => !labels.has(row.label))) found.push({ scoped, record });
+    for (const record of records) labels.add(record.label);
+  }
+  return found.sort((a, b) => byVaultLabel(a.record, b.record));
 }
 
 export interface CustomCredentialReadDeps {
@@ -63,8 +114,8 @@ export interface CustomCredentialReadDeps {
  * @complexity O(1) — one `findById` lookup.
  */
 export async function describeCredential(deps: CustomCredentialReadDeps, input: { workspaceId: UUID; id: UUID }): Promise<CustomCredentialSummary | null> {
-  const record = await deps.repo.findById(input);
-  return record ? toSummary(record) : null;
+  const located = await locateById(deps, input);
+  return located ? toSummary(located.record, reportedScope(deps, located.scoped)) : null;
 }
 
 /**
@@ -82,9 +133,8 @@ export async function describeCredential(deps: CustomCredentialReadDeps, input: 
  *   repo method (see that function's own doc for why).
  */
 export async function describeCredentialByLabel(deps: CustomCredentialReadDeps, input: { workspaceId: UUID; label: string }): Promise<CustomCredentialSummary | null> {
-  const records = await deps.repo.listByWorkspace({ workspaceId: input.workspaceId });
-  const record = records.find((row) => row.label === input.label);
-  return record ? toSummary(record) : null;
+  const located = (await listEffective(deps, input.workspaceId)).find(({ record }) => record.label === input.label);
+  return located ? toSummary(located.record, reportedScope(deps, located.scoped)) : null;
 }
 
 /**
@@ -95,8 +145,8 @@ export async function describeCredentialByLabel(deps: CustomCredentialReadDeps, 
  *   map, no per-row I/O.
  */
 export async function listCustomCredentials(deps: CustomCredentialReadDeps, input: { workspaceId: UUID }): Promise<CustomCredentialSummary[]> {
-  const records = await deps.repo.listByWorkspace(input);
-  return Promise.all(records.map(record => toSummary(record)));
+  const located = await listEffective(deps, input.workspaceId);
+  return Promise.all(located.map(({ scoped, record }) => toSummary(record, reportedScope(deps, scoped))));
 }
 
 export interface CustomCredentialWriteDeps extends CustomCredentialReadDeps {
@@ -269,6 +319,34 @@ export interface CreateCustomCredentialInput {
   /** Omitted = no extra hosts beyond `baseUrl`. See `validateAdditionalHosts`'s own doc. */
   additionalHosts?: unknown;
   worksFor?: unknown;
+  /** `"site"` = "Only for this site". Omitted (or `"project"`) = the project store when one is
+   *  attached, so every site of the project can use it; this site's vault otherwise. */
+  scope?: unknown;
+}
+
+/**
+ * Where a new row is written: the project store by default when one is attached, this site's vault
+ * when asked ("only for this site") or when there is no project store (Fly/production).
+ * @throws {CustomCredentialValidationError} `scope` is neither omitted, `"site"` nor `"project"`.
+ */
+function createTarget<D extends CustomCredentialReadDeps>(deps: D, input: { workspaceId: UUID; scope?: unknown }): Scoped<D> {
+  if (input.scope !== undefined && input.scope !== "site" && input.scope !== "project") {
+    throw new CustomCredentialValidationError('scope must be "site" or "project"');
+  }
+  const [site, project] = scopesOf(deps, input.workspaceId);
+  return input.scope === "site" || !project ? site! : project;
+}
+
+const duplicateLabel = (label: string) => new CustomCredentialDuplicateLabelError(`a custom credential labeled '${label}' already exists in this workspace`);
+
+/**
+ * A project row whose label this site already uses would be hidden here by the site row (site rows
+ * override), so the save would look lost: refused as the same duplicate as within one store.
+ */
+async function assertLabelFreeOnSite(deps: CustomCredentialReadDeps, input: { target: Scoped<unknown>; workspaceId: UUID; label: string }): Promise<void> {
+  if (input.target.scope !== "project") return;
+  const site = await deps.repo.listByWorkspace({ workspaceId: input.workspaceId });
+  if (site.some((row) => row.label === input.label)) throw duplicateLabel(input.label);
 }
 
 /**
@@ -288,18 +366,20 @@ export async function createCustomCredential(deps: CustomCredentialWriteDeps, in
   const baseUrl = validateBaseUrl(input.baseUrl);
   const additionalHosts = validateAdditionalHosts(input.additionalHosts);
   const connection = validateConnection(input.connection);
+  const target = createTarget(deps, input);
+  await assertLabelFreeOnSite(deps, { target, workspaceId: input.workspaceId, label });
   const id = deps.idGen.newId();
-  const prepared = await customVault(deps).prepare({ ...customVaultScope({ workspaceId: input.workspaceId, id }),
+  const prepared = await customVault(target.deps).prepare({ ...customVaultScope({ workspaceId: target.workspaceId, id }),
     id, expectedRevision: null, provider: null, label,
     meta: { credentialType: "custom", worksFor: validatedWorksFor({ value: input.worksFor === undefined ? [] : input.worksFor }), category, baseUrl, additionalHosts: [...additionalHosts], username: connection.username ?? null },
     payload: { token: connection.token }, hintToken: connection.token });
   const record = customVaultRecord({ row: prepared, expectedRevision: null });
-  try { await deps.repo.insert(record); }
+  try { await target.deps.repo.insert(record); }
   catch (err) {
-    if (isUniqueLabelViolation(err)) throw new CustomCredentialDuplicateLabelError(`a custom credential labeled '${label}' already exists in this workspace`);
+    if (isUniqueLabelViolation(err)) throw duplicateLabel(label);
     throw err;
   }
-  return toSummary(record);
+  return toSummary(record, reportedScope(deps, target));
 }
 
 export interface UpdateCustomCredentialInput {
@@ -369,23 +449,25 @@ function updatedConnection({ input, existing }: {
  * @complexity Constant queries/seals plus metadata size; CAS rejects a concurrent replacement.
  */
 export async function updateCustomCredential(deps: CustomCredentialWriteDeps, input: UpdateCustomCredentialInput): Promise<CustomCredentialSummary> {
-  const existing = await deps.repo.findById(input);
-  if (!existing) throw new CustomCredentialNotFoundError(`no custom credential '${input.id}' in this workspace`);
+  // Changed where it lives: this site's own row, else the project's (shared by every site).
+  const located = await locateById(deps, input);
+  if (!located) throw new CustomCredentialNotFoundError(`no custom credential '${input.id}' in this workspace`);
+  const { scoped, record: existing } = located;
   const { label, category, baseUrl, additionalHosts } = updatedMetadata({ input, existing });
   const { connection, username } = updatedConnection({ input, existing });
   const expectedRevision = existing.vaultRecord!.revision;
   const kind = existing.vaultRecord!.kind === "custom" ? "custom" : "vendor";
-  const prepared = await customVault(deps, { kind }).prepare({ ...customVaultScope({ ...input, kind }), id: input.id,
+  const prepared = await customVault(scoped.deps, { kind }).prepare({ ...customVaultScope({ workspaceId: scoped.workspaceId, kind }), id: input.id,
     expectedRevision, provider: null, label,
     meta: { ...existing.vaultRecord!.meta, worksFor: input.worksFor === undefined ? [...(existing.worksFor ?? [])] : validatedWorksFor({ value: input.worksFor }), category, baseUrl, additionalHosts: [...additionalHosts], username: username ?? null },
     ...(connection ? { payload: { token: connection.token }, hintToken: connection.token } : {}) });
   const record = customVaultRecord({ row: prepared, expectedRevision });
-  try { await deps.repo.update(record); }
+  try { await scoped.deps.repo.update(record); }
   catch (err) {
-    if (isUniqueLabelViolation(err)) throw new CustomCredentialDuplicateLabelError(`a custom credential labeled '${label}' already exists in this workspace`);
+    if (isUniqueLabelViolation(err)) throw duplicateLabel(label);
     throw err;
   }
-  return toSummary(record);
+  return toSummary(record, reportedScope(deps, scoped));
 }
 
 /**
@@ -396,7 +478,9 @@ export async function updateCustomCredential(deps: CustomCredentialWriteDeps, in
  * @complexity O(1).
  */
 export async function deleteCustomCredential(deps: CustomCredentialReadDeps, input: { workspaceId: UUID; id: UUID }): Promise<void> {
-  await deps.repo.delete(input);
+  // A project row is removed for every site of the project, as its summary's `scope` says.
+  const located = await locateById(deps, input);
+  if (located) await located.scoped.deps.repo.delete({ workspaceId: located.scoped.workspaceId, id: input.id });
 }
 
 export interface CustomCredentialResolveDeps {
@@ -413,19 +497,69 @@ export async function resolveCustomCredentialByLabel(
   deps: CustomCredentialResolveDeps,
   input: { workspaceId: UUID; label: string }
 ): Promise<{ id: UUID; category: CustomCredentialCategoryId; baseUrl: string; additionalHosts: readonly string[]; connection: CustomProviderConnectionInput } | null> {
-  const records = await deps.repo.listByWorkspace({ workspaceId: input.workspaceId });
-  const record = records.find(row => row.label === input.label);
-  if (!record) return null;
-  const kind = record.vaultRecord!.kind === "custom" ? "custom" : "vendor";
-  const resolved = await customVault(deps, { kind }).get({ ...customVaultScope({ ...record, kind }), id: record.id });
-  if (!resolved) return null;
-  if (typeof resolved.payload?.token !== "string") throw new CustomCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
+  // Site row first, else the project's (`scopesOf`); opened with the store that sealed it.
+  const located = (await listEffective(deps, input.workspaceId)).find(({ record }) => record.label === input.label);
+  if (!located) return null;
+  const opened = await openLocated(located);
+  if (!opened) return null;
   // Use metadata from the same read as the payload, so a concurrent origin/username update cannot
   // pair a new token with the old allowlist. Never fall back to an embedded legacy username.
-  const current = resolved.summary.meta;
-  return { id: record.id, category: current.category as CustomCredentialCategoryId, baseUrl: current.baseUrl as string,
-    additionalHosts: current.additionalHosts as string[], connection: { token: resolved.payload.token,
+  const { token, meta: current } = opened;
+  return { id: located.record.id, category: current.category as CustomCredentialCategoryId, baseUrl: current.baseUrl as string,
+    additionalHosts: current.additionalHosts as string[], connection: { token,
       ...(typeof current.username === "string" ? { username: current.username } : {}) } };
+}
+
+/** Opens one located row with the store that sealed it: its token and the metadata of that same read.
+ * @throws CustomCredentialSecretStoreUnconfiguredError on crypto failure or a payload without a token. */
+async function openLocated({ scoped, record }: Located<CustomCredentialResolveDeps>): Promise<{ token: string; meta: Record<string, unknown> } | null> {
+  const kind = record.vaultRecord!.kind === "custom" ? "custom" : "vendor";
+  const resolved = await customVault(scoped.deps, { kind }).get({ ...customVaultScope({ ...record, kind }), id: record.id });
+  if (!resolved) return null;
+  if (typeof resolved.payload?.token !== "string") throw new CustomCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
+  return { token: resolved.payload.token, meta: resolved.summary.meta };
+}
+
+/**
+ * "Share with all sites" (owner 2026-10-25): copies one of this site's own credentials into the
+ * project store, re-sealed with the project key, so every site of the project can use it. A project
+ * row with the same label is replaced in place (its id kept); otherwise the copy keeps this row's id,
+ * so anything that names it by id still finds it. The copy is opened and compared before this site's
+ * row is removed (a site row would otherwise keep overriding the shared one here); any failure before
+ * that leaves the site row exactly as it was. Never moves anything on its own: a person asks.
+ * @throws {CustomCredentialValidationError} No project store here.
+ * @throws {CustomCredentialNotFoundError} This site has no own row with that id.
+ * @throws {CustomCredentialSecretStoreUnconfiguredError} A row can't be opened or sealed, or the copy
+ *   does not read back.
+ * @complexity O(n) in the project's (small) credential count, two seals/opens, three writes.
+ */
+export async function shareCustomCredentialWithProject(deps: CustomCredentialWriteDeps, input: { workspaceId: UUID; id: UUID }): Promise<CustomCredentialSummary> {
+  const [site, project] = scopesOf(deps, input.workspaceId);
+  if (!project) throw new CustomCredentialValidationError("this site has no project to share credentials with");
+  const record = await deps.repo.findById(input);
+  if (!record) throw new CustomCredentialNotFoundError(`no custom credential '${input.id}' saved for this site only`);
+  const opened = await openLocated({ scoped: site!, record });
+  if (!opened) throw new CustomCredentialNotFoundError(`no custom credential '${input.id}' saved for this site only`);
+  const shared = await writeShared({ project, record, token: opened.token });
+  const check = await openLocated({ scoped: project, record: shared });
+  if (check?.token !== opened.token) throw new CustomCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
+  await deps.repo.delete(input);
+  return toSummary(shared, { scope: "project" });
+}
+
+/** Seals `token` with `record`'s label and metadata into the project store: replacing a same-label
+ *  project row (compare-and-set on its revision), else inserting under `record`'s id. */
+async function writeShared({ project, record, token }: { project: Scoped<CustomCredentialWriteDeps>; record: CustomCredentialSetRecord; token: string }): Promise<CustomCredentialSetRecord> {
+  const rows = await project.deps.repo.listByWorkspace({ workspaceId: project.workspaceId });
+  const existing = rows.find((row) => row.label === record.label)?.vaultRecord;
+  const kind = existing?.kind === "custom" ? "custom" : "vendor";
+  const expectedRevision = existing?.revision ?? null;
+  const id = existing?.id ?? record.id;
+  const prepared = await customVault(project.deps, { kind }).prepare({ ...customVaultScope({ workspaceId: project.workspaceId, kind }), id,
+    expectedRevision, provider: null, label: record.label, meta: { ...record.vaultRecord!.meta, credentialType: "custom" }, payload: { token }, hintToken: token });
+  const shared = customVaultRecord({ row: prepared, expectedRevision });
+  await (existing ? project.deps.repo.update(shared) : project.deps.repo.insert(shared));
+  return shared;
 }
 
 /** Keep the feature's HTTP validation error contract while reusing Jini's canonical ID parser. */

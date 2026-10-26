@@ -66,7 +66,7 @@ import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { instrumentStorageKernel, trackFetch } from "#src/platform/observability/index";
 import { bootProviderPlugins, legacyProviderCredentialCheck, type SiteIdentity } from "./provider-plugins.js";
 import { createVaultProviderConfigSource, withProjectPrecedence, withUnavailableProject, type ProviderConfigSource } from "./provider-config-source.js";
-import { openProjectStore, type ProjectStore } from "./project-store.js";
+import { openProjectStore, type ProjectStore, type ProjectVaultScope } from "./project-store.js";
 import { createAgentPluginStateStore } from "#src/features/api-connections/plugin-state";
 import { createApiConnectionVault } from "#src/features/api-connections/vault-stores";
 import { createTelemetryConsent } from "./telemetry-consent.js";
@@ -194,6 +194,8 @@ import {
 } from "#src/features/newsletter/repo.sqlite";
 import { DefaultMemberAccessResolver, MembersSubscriberDirectory } from "#src/features/members/index";
 import { listCustomCredentials, resolveCustomCredentialByLabel } from "#src/features/custom-credentials/index";
+import type { CustomCredentialProjectScope } from "#src/features/custom-credentials/types";
+import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
 import { ensureSearchProviderSetting } from "#src/features/site-search/settings";
 import { bindSiteSearchPorts, createSiteSearchRuntime } from "./modules/site-search.js";
 import {
@@ -1117,12 +1119,25 @@ function providerPluginBoot({ overrides }: { overrides: Partial<CreateSiteRouteD
  */
 async function composeProviderConfig({ overrides, runtimeMode, onStoreClose, site }: {
   overrides: Partial<CreateSiteRouteDepsOverrides>; runtimeMode: RuntimeMode; onStoreClose: (close: () => void) => void; site: ProviderConfigSource;
-}): Promise<{ providerConfigSource: ProviderConfigSource; projectId: string | undefined }> {
+}): Promise<{ providerConfigSource: ProviderConfigSource; projectId: string | undefined; projectVault?: ProjectVaultScope }> {
   const projectStore = await projectStoreFor({ overrides, runtimeMode });
   if (!projectStore) return { providerConfigSource: site, projectId: undefined };
   if ("unavailable" in projectStore) return { providerConfigSource: withUnavailableProject({ site, reason: projectStore.unavailable }), projectId: undefined };
   onStoreClose(() => projectStore.close({}));
-  return { providerConfigSource: withProjectPrecedence({ site }, { project: projectStore.config }), projectId: projectStore.projectId };
+  return { providerConfigSource: withProjectPrecedence({ site }, { project: projectStore.config }), projectId: projectStore.projectId, projectVault: projectStore.vault };
+}
+
+/**
+ * The project half of the custom-credential store (owner 2026-10-25: keys save to the project by
+ * default; `features/custom-credentials/store.ts`'s scope rule). Absent where no project store opened
+ * — production, or a project store that failed to open: credentials then stay site-only, which is
+ * safe because a site row always wins over a project row (unlike provider settings, whose saves are
+ * refused then).
+ */
+function customCredentialProject(projectVault: ProjectVaultScope | undefined): { project?: CustomCredentialProjectScope } {
+  if (!projectVault) return {};
+  const { workspaceId, repo, sealer, keyring } = projectVault;
+  return { project: { workspaceId, repo: new CustomCredentialVaultRepo({ vault: repo }), sealer, keyring } };
 }
 
 /** A site id from `source`, or undefined (warned) when it is not a short token. */
@@ -2048,12 +2063,6 @@ async function composeSiteRouteDeps(
   // Redirect callbacks carry their own sealed state and only need the same site key.
   const externalMcpOAuthDevices = createSqliteDeviceAuthorizationStore({ db: kernel, workspaceId, clock, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring });
 
-  // 2026-08-31 (mail rule-of-two build): resolved once here, ahead of the `RouteDeps` object
-  // literal below, because `mailer:` (built from it) is an earlier property than
-  // `customCredentialSetRepo:` — see `resolve-mailer.ts`'s own header for the full design. Sealed
-  // via the SAME shared sealer/keyring every other credential repo on this root already reuses (no
-  // third `EnvOrFileKeyring` instance).
-  const customCredentialSetRepo = new SqliteCustomCredentialSetRepo(kernel);
   // Provider plugins (observability, product analytics, AI tracing): installed + enabled +
   // configured (their key card) → loaded and initialized here, awaited and bounded, before any
   // consumer of their ports; otherwise each contract keeps its noop. This is the composition root
@@ -2065,9 +2074,17 @@ async function composeSiteRouteDeps(
   // its exact objects). See `provider-plugins.ts`.
   // Saved provider settings: the project store when one is open, else sealed plugin-state rows in this
   // site's vault (see provider-config-source.ts and project-store.ts).
-  const { providerConfigSource, projectId } = await composeProviderConfig({ overrides, runtimeMode, onStoreClose,
+  const { providerConfigSource, projectId, projectVault } = await composeProviderConfig({ overrides, runtimeMode, onStoreClose,
     site: createVaultProviderConfigSource({ workspaceId, scope: "site", state: createAgentPluginStateStore({ workspaceId,
       vault: createApiConnectionVault({ repo: new SqlSecretsVaultRepo({ kernel: kernel as unknown as StorageKernel<SecretsVaultDatabase> }), keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, workspaceId }) }) }) });
+  // 2026-08-31 (mail rule-of-two build): resolved once here, ahead of the `RouteDeps` object
+  // literal below, because `mailer:` (built from it) is an earlier property than
+  // `customCredentialSetRepo:` — see `resolve-mailer.ts`'s own header for the full design. Sealed
+  // via the SAME shared sealer/keyring every other credential repo on this root already reuses (no
+  // third `EnvOrFileKeyring` instance).
+  // Its rows: this site's own, then the project's (shared by every site of the project), opened
+  // after the project store (owner 2026-10-25).
+  const customCredentialSetRepo = new SqliteCustomCredentialSetRepo(kernel, customCredentialProject(projectVault));
   const providerPlugins = await providerPluginBoot({ overrides })({
     runtime: pluginRuntime,
     config: providerConfigSource,

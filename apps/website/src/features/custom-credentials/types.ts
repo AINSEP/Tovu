@@ -3,6 +3,7 @@ import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 import type { VaultRecord, VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import type { SealedSecret } from "@jini-ai/platform/secrets";
+import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 
 /**
  * @file Custom API credential contracts over the unified vendor vault kind. Display labels name
@@ -77,8 +78,27 @@ export interface CustomCredentialSummary {
   /** Omitted entirely (never `""`) when the credential has no saved username. */
   readonly username?: string;
   readonly configured: true;
+  /** Where the row lives — present only where a project store is attached (local web + desktop):
+   *  `"project"` is shared by every site of the project, `"site"` is this site's own (an override). */
+  readonly scope?: CustomCredentialScope;
   readonly createdAt: ISODateTime;
   readonly updatedAt: ISODateTime;
+}
+
+/** This site's own vault, or the project store every site of the project shares (`project.db`). */
+export type CustomCredentialScope = "site" | "project";
+
+/**
+ * The project store's half of the custom-credential store (owner 2026-10-25: keys save to the project
+ * by default). The same repo shape over the project's own `secrets_vault`, opened with the project's
+ * keyring and sealer, under the project's workspace id. Attached to a site's repo by the composition
+ * root only where a project store opened; Fly/production has none (the project is the site there).
+ */
+export interface CustomCredentialProjectScope {
+  readonly workspaceId: UUID;
+  readonly repo: CustomCredentialSetRepoPort;
+  readonly sealer: SecretSealerPort;
+  readonly keyring: KeyringPort;
 }
 
 /** Every origin this credential's token may legitimately be sent to — `baseUrl`'s own origin plus
@@ -96,6 +116,9 @@ export function allowedOriginsFor(record: { readonly baseUrl: string; readonly a
  *  reject it — see `store.ts`'s `isUniqueLabelViolation`. */
 export interface CustomCredentialSetRepoPort {
   readonly vault?: VaultRepoPort;
+  /** The project store this site's rows fall back to (`store.ts`'s scope rule: site first, then
+   *  project; new rows go to the project unless saved "only for this site"). Absent = site only. */
+  readonly project?: CustomCredentialProjectScope;
   insert(record: CustomCredentialSetRecord): Promise<void>;
   /** Full-row replace by `(workspaceId, id)` — used for both a rename/re-categorize and a
    *  connection rotation. Same UNIQUE-violation possibility as `insert` (renaming into another
