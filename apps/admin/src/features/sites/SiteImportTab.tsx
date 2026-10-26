@@ -1,4 +1,5 @@
 import { DataTable } from "@jini-ai/admin/react";
+import { SecretInput } from "@/components/SecretInput/SecretInput";
 import { agentHandle } from "@jini-ai/agentic";
 import { FileDropzone } from "@jini-ai/ui";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
@@ -196,7 +197,7 @@ function OwnerStep({ controller, name, t }: { controller: SiteImportController; 
         </div>
         <div className="field">
           <label className="field-label" htmlFor="sites-import-owner-password">{t("Password")}</label>
-          <input id="sites-import-owner-password" type="password" autoComplete="new-password" maxLength={512} value={controller.password}
+          <SecretInput label={t("Password")} id="sites-import-owner-password" autoComplete="new-password" maxLength={512} value={controller.password}
             // It appears in answer to Import or Finish setup, often above the button pressed: focus
             // brings it into view and puts the cursor where the next keystroke belongs.
             autoFocus
@@ -204,7 +205,7 @@ function OwnerStep({ controller, name, t }: { controller: SiteImportController; 
         </div>
         <div className="field">
           <label className="field-label" htmlFor="sites-import-owner-confirm">{t("Confirm password")}</label>
-          <input id="sites-import-owner-confirm" type="password" autoComplete="new-password" maxLength={512} value={controller.confirm}
+          <SecretInput label={t("Confirm password")} id="sites-import-owner-confirm" autoComplete="new-password" maxLength={512} value={controller.confirm}
             disabled={controller.settingOwner} aria-invalid={controller.passwordProblem ? true : undefined}
             aria-describedby={controller.passwordProblem ? "sites-import-owner-problem" : undefined}
             onChange={(event) => controller.setConfirm(event.target.value)} />

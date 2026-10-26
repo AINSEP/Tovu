@@ -1,4 +1,4 @@
-import { useMemo, useState, type ForwardedRef, type RefObject } from "react";
+import { useMemo, type ForwardedRef, type RefObject } from "react";
 
 import {
   accessTokenProviderMatchesQuery,
@@ -60,8 +60,6 @@ export function useRemoveConfirmDialog(
 }
 
 export interface AddCustomCredentialDialogState {
-  showToken: boolean;
-  toggleShowToken: () => void;
   readyToSave: boolean;
   baseUrlInvalid: boolean;
   close: () => void;
@@ -69,42 +67,33 @@ export interface AddCustomCredentialDialogState {
 }
 
 /**
- * `AddCustomCredentialDialog`'s local show/hide toggle, its two save-readiness checks, and its
- * close/save handlers — extracted verbatim, same computation, same inputs/outputs.
+ * `AddCustomCredentialDialog`'s two save-readiness checks and its close/save handlers. The token
+ * field's show/hide lives in the shared `SecretInput`, which re-hides once the form resets.
  *
  * @param ref - The forwarded ref `AddCustomCredentialDialog` receives from its caller.
  * @param controller - Reads `controller.customAddForm`; calls `resetCustomAddForm`/
  *   `createCustomCredential`.
- * @returns `showToken`/`toggleShowToken` for the token field's Show/Hide button,
- *   `readyToSave`/`baseUrlInvalid` for the form's own validity checks, and `close`/`save`.
+ * @returns `readyToSave`/`baseUrlInvalid` for the form's own validity checks, and `close`/`save`.
  * @complexity O(1).
  */
 export function useAddCustomCredentialDialog(
   ref: ForwardedRef<HTMLDialogElement>,
   controller: AccessTokensController
 ): AddCustomCredentialDialogState {
-  const [showToken, setShowToken] = useState(false);
   const form = controller.customAddForm;
   const readyToSave = customCredentialReadyToSave(form);
   const baseUrlInvalid = form.baseUrl.trim() !== "" && !isValidHttpUrl(form.baseUrl.trim());
 
-  function toggleShowToken(): void {
-    setShowToken((prev) => !prev);
-  }
   function close(): void {
     (ref as RefObject<HTMLDialogElement>).current?.close();
     controller.resetCustomAddForm();
-    setShowToken(false);
   }
   async function save(): Promise<void> {
     const ok = await controller.createCustomCredential();
-    if (ok) {
-      (ref as RefObject<HTMLDialogElement>).current?.close();
-      setShowToken(false);
-    }
+    if (ok) (ref as RefObject<HTMLDialogElement>).current?.close();
   }
 
-  return { showToken, toggleShowToken, readyToSave, baseUrlInvalid, close, save };
+  return { readyToSave, baseUrlInvalid, close, save };
 }
 
 /**

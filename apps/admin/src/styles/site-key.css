@@ -49,5 +49,6 @@
 .site-key-recovery-unlock, .site-key-recovery-start-fresh { display: flex; flex-direction: column; gap: var(--space-2); align-items: flex-start; margin: 0; }
 .site-key-recovery-unlock label, .site-key-recovery-confirm label { font-weight: 600; font-size: var(--text-sm); }
 .site-key-recovery-row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; width: 100%; }
+.site-key-recovery-row .jini-secret { flex: 1 1 18rem; }
 .site-key-recovery-row input { flex: 1 1 18rem; min-width: 0; font-family: var(--font-mono); }
 .site-key-recovery-start-fresh p { margin: 0; font-size: var(--text-sm); }

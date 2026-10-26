@@ -170,19 +170,26 @@ input[type="checkbox"], input[type="radio"] {
 }
 .field-hint { font-size: var(--text-xs); color: var(--muted); margin: 0; }
 .field-error { font-size: var(--text-xs); color: var(--danger); margin: 0; }
-/* New-site admin password: the reveal toggle sits flush inside the input's right edge. */
 .site-admin-login-hint strong { color: var(--fg); font-weight: 600; }
 .site-admin-login-hint .info-tip { margin-left: 0.25rem; }
 /* One click selects the whole starter password for copying. */
 .site-admin-starter-password { font-family: var(--font-mono); user-select: all; }
-.site-admin-password-wrap { position: relative; display: flex; }
-.site-admin-password-wrap input { padding-right: 2.4rem; }
-.site-admin-password-toggle {
-  position: absolute; top: 0; right: 0; bottom: 0; width: 2.4rem; display: inline-flex; align-items: center; justify-content: center;
-  background: none; border: 0; padding: 0; color: var(--muted); cursor: pointer;
+/* Every masked secret field — `components/SecretInput` and the Jini ui-kit's password `TextField`
+   (which wraps its whole `<label>` + input, toggle outside the label) — carries one eye toggle
+   inside the input's right edge. The input is padded so long values never run under it; the
+   button is a transparent 40px tap target centred on the ~37px input, so it overhangs invisibly
+   instead of resizing the field. */
+.jini-secret { position: relative; display: flex; flex-direction: column; min-width: 0; }
+.jini-secret input { width: 100%; padding-right: 2.75rem; }
+.jini-secret-toggle {
+  position: absolute; top: 50%; right: 0; width: 40px; height: 40px; min-height: 0; margin: -20px 0 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: 0; box-shadow: none; padding: 0; border-radius: var(--r-sm); color: var(--muted); cursor: pointer;
 }
-.site-admin-password-toggle:hover:not(:disabled), .site-admin-password-toggle:focus-visible { color: var(--accent-text); }
-.site-admin-password-toggle:disabled { opacity: 0.5; cursor: not-allowed; }
+.jini-secret > label + .jini-secret-toggle { top: auto; bottom: -1.5px; margin: 0; }
+.jini-secret-toggle:hover:not(:disabled), .jini-secret-toggle:focus-visible { color: var(--accent-text); background: none; }
+.jini-secret-toggle:focus-visible { outline-offset: -5px; }
+.jini-secret-toggle:disabled { opacity: 0.5; cursor: not-allowed; }
 /* Short fields pair into a row (OD: ID + TRANSPORT); long ones (COMMAND, ARGS, ENV) are not
    wrapped in `.field-row` at all and stay full-width — the grid is opt-in per field, not a
    blanket two-column layout. */
@@ -1360,6 +1367,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    0.85rem/600/fg-2 value, one of four different label idioms MSG-02 asked to consolidate.
    Layout (flex/gap) stays, since that's this context's own, not shared with the primitive. */
 .login-card label { display: flex; flex-direction: column; gap: 0.3rem; font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.login-field { display: flex; flex-direction: column; gap: 0.3rem; }
 .login-error { color: var(--danger); font-size: 0.85rem; }
 
 /* Layout */

@@ -18,7 +18,7 @@
 .email-card-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2); }
 .email-field { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
 .email-input-row { display: flex; gap: var(--space-2); min-width: 0; }
-.email-input-row .jini-input { flex: 1; min-width: 0; }
+.email-input-row .jini-input, .email-input-row .jini-secret { flex: 1; min-width: 0; }
 .email-provider-form, .email-test-form { display: flex; flex-direction: column; gap: var(--space-3); margin: 0; }
 .email-providers { gap: var(--space-3); }
 .email-provider { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--border); border-radius: 10px; }
@@ -104,9 +104,9 @@
 
 /* Control widths (owner, 2026-10-22: "no reason this needs to be as wide as it is"). Each control is
    sized to what it holds, not the column, like Cookie Consent: addresses, keys and URLs 24rem with
-   their button (Show) beside, selects 12–18rem, searches 20rem. Phones still shrink them to fit. */
+   their button beside, selects 12–18rem, searches 20rem. Phones still shrink them to fit. */
 .email-sections .email-field > .jini-input { width: 24rem; max-width: 100%; }
-.email-input-row .jini-input { flex: 0 1 24rem; }
+.email-input-row .jini-input, .email-input-row .jini-secret { flex: 0 1 24rem; }
 .email-filters select.jini-input { flex: 0 1 auto; width: auto; min-width: 12rem; max-width: min(18rem, 100%); }
 .email-sections input[type="search"].jini-input { width: 20rem; max-width: 100%; }
 .email-filters input[type="search"].jini-input { flex: 0 1 20rem; }

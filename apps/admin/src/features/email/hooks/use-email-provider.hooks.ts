@@ -25,8 +25,6 @@ export interface EmailProviderController {
   reload: () => void;
   drafts: Record<string, MailProviderCredentialInput>;
   setDraftField: (providerId: string, key: keyof MailProviderCredentialInput, value: string) => void;
-  revealed: Record<string, boolean>;
-  toggleReveal: (providerId: string) => void;
   busyId: string | null;
   notice: ProviderNotice;
   saveKey: (provider: MailProviderConfiguration) => Promise<void>;
@@ -110,7 +108,6 @@ export function useEmailProvider(required: { api: Pick<EmailApi, "listProviders"
   const refresh = useCallback(async () => { const report = await api.listProviders(); setData(report); return report; }, [api, setData]);
   const additions = useProviderChoices({ pluginApi: required.pluginApi, refresh });
   const [drafts, setDrafts] = useState<Record<string, MailProviderCredentialInput>>({});
-  const [revealed, setRevealed] = useState<Record<string, boolean>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
   const [notice, setNotice] = useState<ProviderNotice>(null);
   const [pendingSwitch, setPendingSwitch] = useState<MailProviderConfiguration | null>(null);
@@ -120,7 +117,6 @@ export function useEmailProvider(required: { api: Pick<EmailApi, "listProviders"
     // Typing answers "Enter the key first." — drop that hint so it doesn't linger next to a filled field.
     setNotice((current) => (current?.providerId === providerId && current.text === "Enter the key first." ? null : current));
   }, []);
-  const toggleReveal = useCallback((providerId: string) => setRevealed((all) => ({ ...all, [providerId]: !all[providerId] })), []);
 
   const saveKey = useCallback(async (provider: MailProviderConfiguration) => {
     const body = credentialBody(drafts[provider.id]);
@@ -162,8 +158,8 @@ export function useEmailProvider(required: { api: Pick<EmailApi, "listProviders"
   }, [api, pendingSwitch, reload, onChanged]);
 
   return useMemo(() => ({
-    ...additions, view, reload, drafts, setDraftField, revealed, toggleReveal, busyId, notice, saveKey, pendingSwitch, askSwitch: setPendingSwitch, confirmSwitch,
-  }), [additions, view, reload, drafts, setDraftField, revealed, toggleReveal, busyId, notice, saveKey, pendingSwitch, confirmSwitch]);
+    ...additions, view, reload, drafts, setDraftField, busyId, notice, saveKey, pendingSwitch, askSwitch: setPendingSwitch, confirmSwitch,
+  }), [additions, view, reload, drafts, setDraftField, busyId, notice, saveKey, pendingSwitch, confirmSwitch]);
 }
 
 /** The real API port. */

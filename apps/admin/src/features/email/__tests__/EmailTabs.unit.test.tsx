@@ -51,7 +51,7 @@ describe("Email tab components", () => {
     expect(screen.queryByLabelText("Username")).toBeNull();
     expect(screen.getByRole("link", { name: "Where do I get a key?" })).toHaveAttribute("href", PROVIDER.setup.helpUrl);
     expect(screen.getByRole("button", { name: "Use this provider" })).toBeDisabled();
-    await userEvent.click(screen.getByRole("button", { name: "Show" }));
+    await userEvent.click(screen.getByRole("button", { name: "Show Access key" }));
     expect(key).toHaveAttribute("type", "text");
     await userEvent.type(key, "secret");
     await userEvent.click(screen.getByRole("button", { name: "Save key" }));
