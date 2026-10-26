@@ -1279,6 +1279,16 @@ test("rescanSites reads persisted extra folders fresh and leaves all discoveries
   assert.equal((await rescanSites(wired)).length, 2, 'removing a root never removes existing cards');
 });
 
+test("rescanSites gives discovered same-named sites distinct display names without renaming tracked ones", async () => {
+  const deps = scanDeps({ readSiteName: () => "Same" });
+  const tracked = siteFolder(fs.realpathSync(tempDir()), "tracked");
+  trackSite(deps.projectsPath, tracked);
+  siteFolder(deps.scanRoot, "a");
+  siteFolder(deps.scanRoot, "b");
+  const records = await rescanSites(deps);
+  assert.deepEqual(records.map((record) => record.displayName), ["Same", "Same 2", "Same 3"]);
+});
+
 test("handleCreate remembers its home so a site later created beside it is discovered", async () => {
   const homeDir = fs.realpathSync(tempDir());
   const parent = path.join(homeDir, "Documents", "Tovu", "sites");
@@ -1973,10 +1983,10 @@ test("shared discovery imports new paths while preserving local creation authori
   const projectsPath = sitesFilePath(root);
   const sharedSites = createSitesWorkspace({}, { homeDir: root, cwd: root, env: {}, sourceRoots: [], platform: "linux" });
   sharedSites.registry({}).merge({ entries: [{ id: "discovered-id", name: "Discovered", path: discovered, createdBy: "Web", lastOpened: null }] });
-  importSharedSiteDiscovery({ projectsPath, sharedSites });
+  importSharedSiteDiscovery({ projectsPath, sharedSites, readSiteName: path.basename });
   trackSite(projectsPath, local, SITE_ORIGIN.created, { siteId: "local-id" });
-  importSharedSiteDiscovery({ projectsPath, sharedSites });
-  importSharedSiteDiscovery({ projectsPath, sharedSites });
+  importSharedSiteDiscovery({ projectsPath, sharedSites, readSiteName: path.basename });
+  importSharedSiteDiscovery({ projectsPath, sharedSites, readSiteName: path.basename });
   const rows = readTrackedSites(projectsPath);
   assert.equal(rows.length, 2);
   assert.equal(rows.find((row) => row.siteDir === local)?.origin, SITE_ORIGIN.created);
@@ -1990,18 +2000,36 @@ test("shared discovery with no workspace is inert and unavailable discovery pres
   const root = tempDir();
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const projectsPath = sitesFilePath(root);
-  importSharedSiteDiscovery({ projectsPath, sharedSites: undefined });
+  importSharedSiteDiscovery({ projectsPath, sharedSites: undefined, readSiteName: path.basename });
   assert.equal(fs.existsSync(projectsPath), false);
   trackSite(projectsPath, path.join(root, "local"));
   const before = fs.readFileSync(projectsPath, "utf8");
   const sharedSites = { registry: () => { throw new Error("Catalog unavailable"); } } as unknown as NonNullable<ProjectIpcDeps["sharedSites"]>;
   const warn = t.mock.method(console, "warn", () => {});
-  importSharedSiteDiscovery({ projectsPath, sharedSites });
+  importSharedSiteDiscovery({ projectsPath, sharedSites, readSiteName: path.basename });
   assert.deepEqual(warn.mock.calls.map((call) => call.arguments[0]), [
     "tovu desktop: shared catalog bookkeeping is unavailable; local websites remain usable.",
     "tovu desktop: shared discovery is unavailable; showing local website cards.",
   ]);
   assert.equal(fs.readFileSync(projectsPath, "utf8"), before);
+});
+
+test("shared discovery gives an adopted same-named site a display alias like Add existing, once", (t) => {
+  const root = fs.realpathSync(tempDir());
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = writeSite(path.join(root, "source"), "source-id");
+  const imported = writeSite(path.join(root, "imported"), "imported-id");
+  const readSiteName = () => "imp-src";
+  const projectsPath = sitesFilePath(root);
+  trackSite(projectsPath, source);
+  const sharedSites = createSitesWorkspace({}, { homeDir: root, cwd: root, env: {}, sourceRoots: [], platform: "linux" });
+  sharedSites.registry({}).merge({ entries: [{ id: "imported-id", name: "imp-src", path: imported, createdBy: "Web", lastOpened: null }] });
+  importSharedSiteDiscovery({ projectsPath, sharedSites, readSiteName });
+  importSharedSiteDiscovery({ projectsPath, sharedSites, readSiteName });
+  const rows = readTrackedSites(projectsPath);
+  assert.equal(rows.find((row) => row.siteDir === source)?.displayNameAlias, undefined, "the already-tracked source keeps its name");
+  assert.equal(rows.find((row) => row.siteDir === imported)?.displayNameAlias, "imp-src 2");
+  assert.equal(JSON.parse(fs.readFileSync(path.join(imported, "config.json"), "utf8")).name, "imported", "the site's own config is untouched");
 });
 
 

@@ -8,7 +8,7 @@ import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
 import { interpolate } from "@jini-ai/ui/panel-kit";
 import type { TabBarTab } from "@jini-ai/ui/tab-strip";
 import { siteRegistration, siteRowState, siteRowStateLabelKey, siteRowStateToneClass } from "./rules";
-import { AllSitesIcon, ExportSiteIcon, ImportSiteIcon, NewSiteIcon } from "./sites-visuals";
+import { AllSitesIcon, NewSiteIcon } from "./sites-visuals";
 import type { CreateSitePluginTokenField, CreateSitePluginTokensController } from "./hooks/use-create-site-plugin-tokens.hooks";
 
 /**
@@ -166,7 +166,7 @@ export function resolveSiteRegistrationBadge(
  * The URL key is `?tab=`, the same one every other tabbed admin screen uses and the one
  * `panels.tsx` threads in, so the two tabs stay deep-linkable and bookmarkable.
  */
-export const SITES_TAB_IDS = ["all", "new", "export", "import", "trash"] as const;
+export const SITES_TAB_IDS = ["all", "new", "trash"] as const;
 export type SitesTabId = (typeof SITES_TAB_IDS)[number];
 
 /** Falls back to the list for an absent or unrecognized `?tab=` value, through the same shared
@@ -177,27 +177,18 @@ export function resolveSitesTabId(tabId: string | null | undefined): SitesTabId 
 }
 
 /**
- * Export Site / Import Site carry the sidebar's "Soon" tag (owner, 2026-10-18: "greyed out for both
- * but you can still go to them and try it"). Tagged tabs stay enabled and fully usable; the grey
- * label comes from `.sites-page` in `styles.css`. Set to `false` to drop both tags.
- */
-export const SITE_TRANSFER_TABS_SOON = true;
-
-/**
  * The two tabs themselves, in the shape `TabBar` takes.
  *
  * The count is `listedCount` and nothing else — never nudged up to include a live binding that is
  * not in the list, which would restate the exact lie the `Not initialized` badge exists to prevent.
  * "New site" carries no count: it is an action, not a collection.
  *
- * @complexity Time/space: O(1) — a fixed array of at most five tabs.
+ * @complexity Time/space: O(1) — a fixed array of at most three tabs.
  */
 export function resolveSitesTabs(
   { t, listedCount }: { t: Translate; listedCount: number },
-  { localManagementEnabled = false, trashCount = 0, transferTabsSoon = SITE_TRANSFER_TABS_SOON }: { localManagementEnabled?: boolean; trashCount?: number; transferTabsSoon?: boolean } = {},
+  { localManagementEnabled = false, trashCount = 0 }: { localManagementEnabled?: boolean; trashCount?: number } = {},
 ): TabBarTab[] {
-  const soonTag = transferTabsSoon ? t("Soon") : undefined;
-  const soonSuffix = transferTabsSoon ? " (coming soon)" : "";
   return [
     {
       id: "all",
@@ -214,24 +205,9 @@ export function resolveSitesTabs(
       handle: "sites-tab-new",
       handleLabel: "Switch to the New site tab — the form that creates a site folder",
     },
-    // Export Site / Import Site (owner, 2026-10-18): move a site out as a `.tovu.zip` and bring
-    // one in as a new site. Actions, so no count.
-    {
-      id: "export",
-      label: t("Export Site"),
-      icon: <ExportSiteIcon />,
-      tag: soonTag,
-      handle: "sites-tab-export",
-      handleLabel: "Switch to the Export Site tab — make a .tovu.zip of this site and manage its share links" + soonSuffix,
-    },
-    {
-      id: "import",
-      label: t("Import Site"),
-      icon: <ImportSiteIcon />,
-      tag: soonTag,
-      handle: "sites-tab-import",
-      handleLabel: "Switch to the Import Site tab — import a share link, a .tovu.zip or a live website" + soonSuffix,
-    },
+    // Export Site / Import Site (owner, 2026-10-18) were tabs here until the owner moved them to
+    // Operations → Import & Export (2026-10-25; `features/import-export/import-export-tabs.tsx`),
+    // so they work on hosts with no Sites section.
     ...(localManagementEnabled ? [{ id: "trash", label: t("Trash"), count: trashCount, handle: "sites-tab-trash", handleLabel: "Switch to the site Trash tab" }] : []),
   ];
 }

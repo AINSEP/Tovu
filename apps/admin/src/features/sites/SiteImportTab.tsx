@@ -9,7 +9,8 @@ import { useWiredSiteImport, type SiteImportController } from "./hooks/use-site-
 import { formatTransferBytes, importOptionsTip, importSourceLabel, importStateView } from "./site-transfer-rules";
 
 /**
- * @file The Sites screen's "Import Site" tab (owner, 2026-10-18). Two ways in, under one ⓘ:
+ * @file The "Import Site" screen (owner, 2026-10-18; on Sites, then the Import & Export page's
+ * Import tab from 2026-10-25). Two ways in, under one ⓘ:
  * - a Tovu share link or `.tovu.zip` becomes a NEW site, then the new owner's password is chosen
  *   here (the backend's needs-owner step; the password never goes through an agent tool);
  * - a live website goes to the existing `site-import` agent plugin as a drafted assistant request.
@@ -21,9 +22,12 @@ export interface SiteImportTabProps {
   t: Translate;
   /** Test seam, same convention as `SitesProps.useSitesHook`. */
   useImport?: typeof useWiredSiteImport;
+  /** Whether to link to Sites → New site. Off where this deployment has no Sites section (the
+   *  desktop app, a hosted install), since that route would bounce to the dashboard. */
+  showNewSiteLink?: boolean;
 }
 
-export function SiteImportTab({ t, useImport = useWiredSiteImport }: SiteImportTabProps) {
+export function SiteImportTab({ t, useImport = useWiredSiteImport, showNewSiteLink = false }: SiteImportTabProps) {
   const controller = useImport({ t });
   return (
     <section className="site-transfer" aria-label={t("Import Site")}>
@@ -36,7 +40,7 @@ export function SiteImportTab({ t, useImport = useWiredSiteImport }: SiteImportT
       <ImportProgress controller={controller} t={t} />
       <div className="onboarding-card">
         <ArchiveSource controller={controller} t={t} />
-        <LiveWebsiteSource controller={controller} t={t} />
+        <LiveWebsiteSource controller={controller} showNewSiteLink={showNewSiteLink} t={t} />
       </div>
       <h3 className="site-transfer-subtitle">{t("Past imports")}</h3>
       <ImportList controller={controller} t={t} />
@@ -103,7 +107,7 @@ function ArchiveSource({ controller, t }: { controller: SiteImportController; t:
 }
 
 /** "From a live website": hands a drafted request to the assistant; the owner presses Send. */
-function LiveWebsiteSource({ controller, t }: { controller: SiteImportController; t: Translate }) {
+function LiveWebsiteSource({ controller, showNewSiteLink, t }: { controller: SiteImportController; showNewSiteLink: boolean; t: Translate }) {
   return (
     <form
       className="onboarding-section"
@@ -116,11 +120,16 @@ function LiveWebsiteSource({ controller, t }: { controller: SiteImportController
       <div className="onboarding-section-head">
         <h3 className="onboarding-section-title">{t("From a live website")}</h3>
         <p className="onboarding-section-lead">
-          {t("Imports into this site. To keep this site as it is, make a new site first.")}{" "}
-          <a className="link-button" href="/admin/sites?tab=new"
-            {...agentHandle({ handle: "sites-import-live-new-site" }, { role: "link", label: "Go to the New site tab" })}>
-            {t("New site")}
-          </a>
+          {t("Imports into this site. To keep this site as it is, make a new site first.")}
+          {showNewSiteLink ? (
+            <>
+              {" "}
+              <a className="link-button" href="/admin/sites?tab=new"
+                {...agentHandle({ handle: "sites-import-live-new-site" }, { role: "link", label: "Go to the New site tab" })}>
+                {t("New site")}
+              </a>
+            </>
+          ) : null}
         </p>
       </div>
       <div className="field">

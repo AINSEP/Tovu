@@ -811,7 +811,10 @@ async function saveProposedCredential(required: {
   // New project keys remain inert until the person accepts the attachment question.
   const connection: Record<string, unknown> = { providerId: targetId };
   for (const field of credential.fields) {
-    if (typeof values[field.name] === "string") connection[field.name] = values[field.name];
+    // The form submits a blank optional secret as ""; omitted, the store reads it as not provided
+    // on create and keeps the stored one on update.
+    const blankOptionalSecret = values[field.name] === "" && field.secret === true && !field.required;
+    if (typeof values[field.name] === "string" && !blankOptionalSecret) connection[field.name] = values[field.name];
   }
   const repo = abortGuardedCredentialRepo({ store: deps.vendorCredentialSetRepo, signal });
   const writeDeps: PublishCredentialWriteDeps = {
@@ -842,7 +845,8 @@ async function checkPublishReplacement({ deps, targetId, credential, connection 
   deps: StaticPublishToolDeps; targetId: string; credential: DeployTargetCredentialSpec; connection: Record<string, unknown>;
 }, _options = {}): Promise<void> {
   // A blank secret keeps the stored one (store.ts updatedConnection), so no working key is replaced.
-  if (credential.fields.some(field => (field.secret === true || field.name === credential.tokenField) && !connection[field.name])) return;
+  // A blank OPTIONAL secret is no reason to skip checking a replaced token.
+  if (credential.fields.some(field => (field.secret === true && field.required || field.name === credential.tokenField) && !connection[field.name])) return;
   const registry = await deployTargetsLoader(deps)(deps.workspaceId);
   if (!registry.get(targetId)?.module.verifyCredential) return;
   const verification = await verifySubmittedPublishCredential({

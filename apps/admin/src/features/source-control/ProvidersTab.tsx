@@ -355,16 +355,17 @@ function SourceControlCredentialFields({
 }) {
   const info = row.info;
   const connected = row.saved !== undefined;
+  const tokenLabel = info.tokenLabel !== undefined ? translate(info.tokenLabel) : translate("Access token");
 
   return (
     <>
       <div className="source-control-credential-fields">
         <div className="field">
           <label className="field-label" htmlFor={`source-control-credentials-token-${row.providerId}`}>
-            {info.tokenLabel !== undefined ? translate(info.tokenLabel) : translate("Access token")}
+            {tokenLabel}
           </label>
           <SecretInput
-            label={info.tokenLabel !== undefined ? translate(info.tokenLabel) : translate("Access token")}
+            label={tokenLabel}
             id={`source-control-credentials-token-${row.providerId}`}
             // `new-password`, not `off` — Chrome ignores `off` on credential-shaped fields by
             // design. See `security/AccessTokensTab.tsx`'s token input for the full reasoning.

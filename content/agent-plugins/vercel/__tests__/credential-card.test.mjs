@@ -23,7 +23,8 @@ test('every credential card parses its task purposes', () => {
     {
       "providerId": "vercel",
       "usedFor": [
-        "Publishes and updates your live website on Vercel"
+        "Publishes and updates your live website on Vercel",
+        "Optional: shares site exports as download links from your Vercel Blob store"
       ]
     }
   ]);

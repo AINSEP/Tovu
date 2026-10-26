@@ -62,7 +62,7 @@ test("share routes validate sources and authorize before effects, preserve downl
     }
   }
   failure = undefined;
-  const token = "a".repeat(64), artifact = root + "/artifacts/" + token + "/received.tovu.zip";
+  const token = "a".repeat(16), artifact = root + "/artifacts/" + token + "/received.tovu.zip";
   for (const [url, body, type] of [[artifact.replace(token, "bad"), Buffer.from([80, 75, 3, 4]), "application/zip"], [artifact.replace("received.tovu.zip", "bad.zip"), Buffer.from([80, 75, 3, 4]), "application/zip"], [artifact, "{}", "application/json"], [artifact, "PK", "application/zip"], [artifact, "BAD ZIP", "application/zip"]] as const) {
     const response = await fetch(url, { method: "PUT", headers: { "content-type": type }, body }); assert.equal(response.status, 400); assert.equal((await response.json()).code, "INVALID_INPUT");
   }
@@ -84,7 +84,7 @@ test("public share namespace terminates safely when no registry is configured", 
   const app = express(); registerPublicShareRoutes({ app });
   const base = await startTestServer(app, t);
   for (const method of ["GET", "HEAD", "POST"]) {
-    const response = await fetch(`${base}/_share/${"a".repeat(64)}/site.tovu.zip`, { method });
+    const response = await fetch(`${base}/_share/${"a".repeat(16)}/site.tovu.zip`, { method });
     assert.equal(response.status, 404); assert.equal(response.headers.get("cache-control"), "no-store");
   }
 });
@@ -123,7 +123,7 @@ test("share artifact routes admit a connected-computer grant, and every route re
   registerAdminSiteShareRoutes({ app, deps: portFake<RouteDeps>({ workspaceId: "ws", siteShareBackend: { registry },
     authorize: async () => { if (authorizeFault) throw authorizeFault; return { allowed, reason: "test" }; } }) });
   const root = (await startTestServer(app, t)) + "/api/admin/v1/workspaces/ws/site-shares";
-  const artifact = root + "/artifacts/" + "a".repeat(64) + "/received.tovu.zip";
+  const artifact = root + "/artifacts/" + "a".repeat(16) + "/received.tovu.zip";
   const sanitized = { code: "SHARE_FAILED", message: "Share operation failed. Check storage configuration and retry." };
 
   // A publishing grant (not RBAC) answers for the artifact routes: it reaches the registry.

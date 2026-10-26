@@ -3,13 +3,14 @@ import type { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { buildSiteBackupManifest, readPlannedFile, SITE_BACKUP_DATABASE_PATH, SITE_BACKUP_MANIFEST_PATH, type PlannedDiskFile } from "./sources.js";
 import type { SiteSharePlanContent } from "./plan-store.js";
 import { checkShareLimits, SHARE_LIMITS, SiteShareRefusal } from "./share-policy.js";
-import { requireShareSecretFree, claimSharePath } from "./share-file-policy.js";
+import { requireShareSecretFree, claimSharePath, type PackageFileInventory } from "./share-file-policy.js";
+import { readBundledPackageFiles } from "./package-file-inventory.js";
 import type { SiteBackupPushProgress } from "./push-engine.js";
 
 type ShareZipEntry = { readonly path: string; readonly content: Buffer };
 type ShareZipProgressOptions = { signal?: AbortSignal; progress?: SiteBackupPushProgress };
 /** The picked Files handed to Jini's encoder and the manifest inventory, in the same order. */
-interface CollectedShareEntries { readonly files: File[]; readonly inventory: { path: string; bytes: number; sha256: string }[] }
+interface CollectedShareEntries { readonly files: File[]; readonly inventory: { path: string; bytes: number; sha256: string }[]; readonly packageFiles: PackageFileInventory }
 
 /** Buffered media/documents first, then the sanitized database projection when the plan has one. O(entries). */
 function inMemoryEntries(required: { plan: SiteSharePlanContent }): ShareZipEntry[] {
@@ -28,7 +29,7 @@ function claimArchivePaths(required: { entries: readonly { path: string }[] }): 
 function addEntry(required: { entry: ShareZipEntry; collected: CollectedShareEntries }, optional: ShareZipProgressOptions = {}): void {
   const { entry, collected } = required;
   optional.signal?.throwIfAborted();
-  requireShareSecretFree({ path: entry.path, bytes: entry.content });
+  requireShareSecretFree({ path: entry.path, bytes: entry.content }, { packageFiles: collected.packageFiles });
   // Node File accepts Buffer directly; the DOM type omits potentially shared-backed views.
   // This assertion preserves the bytes without allocating a second Uint8Array.
   const picked = new File([entry.content as ConstructorParameters<typeof File>[0][number]], entry.path.split("/").at(-1)!);
@@ -73,13 +74,13 @@ async function encodeShareZip(required: { files: readonly File[]; zip: typeof zi
  * @throws SiteShareRefusal for stale files, unsafe aliases, secrets, cancellation, and v1 caps.
  * @complexity O(payload bytes + paths²), at most 2,000 paths; O(payload bytes) memory, bounded to 300 MiB.
  */
-export async function buildShareZip(required: { plan: SiteSharePlanContent; zip: typeof zipFolderFiles }, optional: ShareZipProgressOptions = {}): Promise<Buffer> {
+export async function buildShareZip(required: { plan: SiteSharePlanContent; zip: typeof zipFolderFiles }, optional: ShareZipProgressOptions & { packageFiles?: PackageFileInventory } = {}): Promise<Buffer> {
   const { plan } = required;
   const memory = inMemoryEntries({ plan });
   const sizes = [...plan.files, ...memory.map(file => ({ path: file.path, bytes: file.content.length }))];
   checkShareLimits({ files: sizes, totalBytes: plan.totalBytes });
   claimArchivePaths({ entries: sizes });
-  const collected: CollectedShareEntries = { files: [], inventory: [] };
+  const collected: CollectedShareEntries = { files: [], inventory: [], packageFiles: optional.packageFiles ?? await readBundledPackageFiles() };
   for (const entry of memory) addEntry({ entry, collected }, optional);
   await addDiskFiles({ files: plan.files, collected }, optional);
   collected.files.push(buildManifestFile({ plan, inventory: collected.inventory }));

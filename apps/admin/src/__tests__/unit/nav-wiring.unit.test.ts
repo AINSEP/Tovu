@@ -173,14 +173,25 @@ describe("Operations nav section — observability", () => {
     expect(item?.soonPreviewable).toBe(true);
   });
 
-  it("sits ahead of Activity Log and Import & Export, the two still-unbuilt Operations rows", () => {
+  it("sits ahead of Activity Log, the still-unbuilt Operations row", () => {
     const operations = getNav().find((group) => group.label === "Operations");
     const ids = operations!.items.map((item) => item.id);
 
     const observabilityIndex = ids.indexOf("observability");
     expect(observabilityIndex).toBeGreaterThanOrEqual(0);
     expect(ids.indexOf("activity-log")).toBeGreaterThan(observabilityIndex);
-    expect(ids.indexOf("import-export")).toBeGreaterThan(observabilityIndex);
+  });
+});
+
+describe("Ungrouped top row", () => {
+  // Owner, 2026-10-25: Import & Export lives under Sites and above AI Assistant, not in Operations.
+  it("is Overview, Sites, Import & Export, AI Assistant, and Operations no longer lists Import & Export", () => {
+    const [top] = getNav();
+    expect(top?.label).toBeUndefined();
+    expect(top?.items.map((item) => item.id)).toEqual(["dashboard", "sites", "import-export", "ai-assistant"]);
+
+    const operations = getNav().find((group) => group.label === "Operations");
+    expect(operations!.items.map((item) => item.id)).not.toContain("import-export");
   });
 });
 

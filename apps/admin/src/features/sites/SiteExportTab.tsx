@@ -7,7 +7,8 @@ import { useWiredSiteExport, type SiteExportController } from "./hooks/use-site-
 import { formatTransferBytes, shareStatusView, shortLink } from "./site-transfer-rules";
 
 /**
- * @file The Sites screen's "Export Site" tab (owner, 2026-10-18): one button that makes a
+ * @file The "Export Site" screen (owner, 2026-10-18; on Sites, then the Import & Export page's
+ * Export tab from 2026-10-25): one button that makes a
  * `.tovu.zip` of this site (no confirmation, owner rule) and the list of this site's exports. Markup
  * only; every effect is in {@link useWiredSiteExport}.
  */
@@ -16,7 +17,8 @@ export interface SiteExportTabProps {
   t: Translate;
   /** Test seam, same convention as `SitesProps.useSitesHook`. */
   useExport?: typeof useWiredSiteExport;
-  /** Sits beside "Export this site" (owner, 2026-10-18); the Sites screen passes its Publish button. */
+  /** Sits beside "Export this site" (owner, 2026-10-18). The Import & Export page passed the Publish
+   *  button here until the owner removed it on 2026-10-25; nothing passes one now. */
   publish?: ReactNode;
 }
 

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { AgentPluginArchiveEntry, AgentPluginArchiveReaderPort } from "@jini-ai/agent-plugins/lifecycle";
 import { checkShareLimits, SHARE_LIMITS, SiteShareRefusal } from "./share-policy.js";
-import { validateSharePath, excludedSharePath, requireShareSecretFree, claimSharePath, sharePathAlias } from "./share-file-policy.js";
+import { validateSharePath, excludedSharePath, requireShareSecretFree, claimSharePath, sharePathAlias, type PackageFileInventory } from "./share-file-policy.js";
 import { SITE_BACKUP_MANIFEST_PATH, SITE_BACKUP_DATABASE_PATH } from "./sources.js";
 
 /**
@@ -171,7 +171,7 @@ export function checkArchiveMatchesInventory(required: { inventory: ReadonlyMap<
  * @throws SiteShareRefusal (INVALID_ARCHIVE, SECRET_IN_CONTENT) or the signal's reason.
  * @complexity O(payload bytes), at most 300 MiB buffered.
  */
-export async function readListedFiles(required: { archive: Buffer; reader: AgentPluginArchiveReaderPort; inventory: ReadonlyMap<string, InventoryRecord>; manifestBytes: Buffer }, optional: { signal?: AbortSignal } = {}): Promise<Map<string, Buffer>> {
+export async function readListedFiles(required: { archive: Buffer; reader: AgentPluginArchiveReaderPort; inventory: ReadonlyMap<string, InventoryRecord>; manifestBytes: Buffer }, optional: { signal?: AbortSignal; packageFiles?: PackageFileInventory } = {}): Promise<Map<string, Buffer>> {
   const files = new Map<string, Buffer>();
   let expanded = required.manifestBytes.length;
   for await (const entry of required.reader.entries({ archive: required.archive })) {
@@ -183,13 +183,13 @@ export async function readListedFiles(required: { archive: Buffer; reader: Agent
   return files;
 }
 
-async function readListedFile(required: { entry: FileEntry; inventory: ReadonlyMap<string, InventoryRecord>; remainingBytes: number }, optional: { signal?: AbortSignal }): Promise<Buffer> {
+async function readListedFile(required: { entry: FileEntry; inventory: ReadonlyMap<string, InventoryRecord>; remainingBytes: number }, optional: { signal?: AbortSignal | undefined; packageFiles?: PackageFileInventory | undefined }): Promise<Buffer> {
   const { entry } = required;
   const expected = required.inventory.get(entry.entryPath);
   if (!expected || expected.bytes !== entry.declaredSize) refuseArchive("Unlisted ZIP file or size mismatch.");
   const content = await readBounded({ entry, maxBytes: Math.min(expected.bytes, required.remainingBytes), signal: optional.signal });
   if (content.length !== expected.bytes || sha256Hex(content) !== expected.sha256) refuseArchive("ZIP size or SHA-256 mismatch.");
-  if (entry.entryPath !== SITE_BACKUP_DATABASE_PATH) requireShareSecretFree({ path: entry.entryPath, bytes: content });
+  if (entry.entryPath !== SITE_BACKUP_DATABASE_PATH) requireShareSecretFree({ path: entry.entryPath, bytes: content }, { packageFiles: optional.packageFiles });
   return content;
 }
 

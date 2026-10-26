@@ -1335,6 +1335,19 @@ test("propose-credential with a project store: cards have no site-only checkbox;
   await update.pending;
 });
 
+test("propose-credential: an optional secret the person leaves blank (Vercel's Blob token) is not provided, so the save still succeeds", async () => {
+  const { deps } = fakeDeps();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "credential_save");
+
+  const { html, exchangeId, pending } = await raiseCredentialForm(proposeTool, { target: "vercel" });
+  assert.match(html.match(/<input[^>]*id="mcpui-field-blobToken"[^>]*>/)?.[0] ?? "", /type="password"/);
+  const token = `vercel_${"t".repeat(12)}4321`;
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { token, blobToken: "" } }, { toolId: "credential_save" });
+  assert.equal((await pending as { saved?: boolean }).saved, true);
+  assert.equal((await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId })).filter((r) => r.vendorId === "vercel").length, 1);
+});
+
 test("with no emitSurface, the credential form is refused outright — no exchange is ever opened, nothing saved", async () => {
   const { deps } = fakeDeps();
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });

@@ -450,7 +450,9 @@ function tokenOnlyMoveSpec({ registry, host, providerId }: {
   const spec = registry.get(providerId)?.descriptor.credential;
   const previous = registry.get(host)?.descriptor.credential;
   if (!spec || !previous || spec.tokenField !== previous.tokenField) return undefined;
-  if (![spec, previous].every(candidate => candidate.fields.length === 1 && candidate.fields[0]!.name === candidate.tokenField)) return undefined;
+  // Token-only = the token is the only REQUIRED field; an optional extra (a host's add-on secret) may
+  // be absent, so the retained envelope is still a valid connection for the destination.
+  if (![spec, previous].every(candidate => candidate.fields.every(field => field.name === candidate.tokenField || !field.required))) return undefined;
   return spec;
 }
 

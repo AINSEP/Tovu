@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, renderHook, waitFor } from "@testing-library/react";
+import { act, cleanup, render, renderHook, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../../App";
@@ -12,6 +12,7 @@ import {
 } from "../../App.hooks";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { api, ApiError, type AdminUser } from "../../lib/api";
+import { getNav } from "../../nav";
 
 /**
  * @file The Sites section exists only on a deployment that owns site switching from the admin.
@@ -175,6 +176,70 @@ describe("the /admin/sites route itself, not just its nav row", () => {
   });
 });
 
+/** The shell's synchronous preload bridge, which is what makes `isDesktopAdmin` true. */
+function stubDesktopShell() {
+  vi.stubGlobal("tovuFiles", { getPathForFile: () => "" });
+}
+
+describe("Import & Export inside the desktop shell (owner, 2026-10-25, option A)", () => {
+  it("is reachable and opens on Export, with no Publish button (owner removed it, 2026-10-25)", async () => {
+    stubDesktopShell();
+    vi.stubGlobal("fetch", stubFetch(true));
+    const container = await renderAt("/admin/import-export");
+
+    await waitFor(() => expect(container.querySelector("main")).toHaveAttribute("data-agent-page", "import-export"));
+    expect(window.location.pathname).toBe("/admin/import-export");
+    expect(container.querySelector('a[href="/admin/import-export"]')).not.toBeNull();
+    expect(container.querySelector('a[href="/admin/sites"]')).toBeNull();
+    const main = container.querySelector("main")!;
+    await waitFor(() => expect(within(main).getByRole("tab", { name: /Export/ })).toHaveAttribute("aria-selected", "true"));
+    expect(within(main).getByRole("button", { name: "Export this site" })).toBeTruthy();
+    expect(within(main).queryByRole("button", { name: "Publish" })).toBeNull();
+  });
+
+  it("still reaches publishing from the dashboard's Publish All and the Deployment row", async () => {
+    stubDesktopShell();
+    vi.stubGlobal("fetch", stubFetch(true));
+    const container = await renderAt("/admin/");
+
+    const main = container.querySelector("main")!;
+    await waitFor(() => expect(main).toHaveAttribute("data-agent-page", "dashboard"));
+    expect(within(main).getByRole("button", { name: "Publish All" })).toBeTruthy();
+    expect(container.querySelector('a[href="/admin/deployment"]')).not.toBeNull();
+  });
+
+  it("renders Import, without the New site link the shell has no route for", async () => {
+    stubDesktopShell();
+    vi.stubGlobal("fetch", stubFetch(true));
+    const container = await renderAt("/admin/import-export?tab=import");
+
+    const main = container.querySelector("main")!;
+    await waitFor(() => expect(within(main).getByRole("tab", { name: /Import/ })).toHaveAttribute("aria-selected", "true"));
+    expect(within(main).getByRole("button", { name: "Import as a new site" })).toBeTruthy();
+    expect(within(main).queryByRole("link", { name: "New site" })).toBeNull();
+  });
+
+  it.each(["export", "import"])("sends an old /sites?tab=%s link to the new tab, not the dashboard", async (tab) => {
+    stubDesktopShell();
+    vi.stubGlobal("fetch", stubFetch(false));
+    const container = await renderAt(`/admin/sites?tab=${tab}`);
+
+    await waitFor(() => expect(window.location.pathname).toBe("/admin/import-export"));
+    expect(window.location.search).toBe(`?tab=${tab}`);
+    await waitFor(() => expect(container.querySelector("main")).toHaveAttribute("data-agent-page", "import-export"));
+  });
+
+  it.each(["export", "import"])("keeps the query on a legacy /section/sites?tab=%s link, so it reaches the new tab too", async (tab) => {
+    stubDesktopShell();
+    vi.stubGlobal("fetch", stubFetch(false));
+    const container = await renderAt(`/admin/section/sites?tab=${tab}`);
+
+    await waitFor(() => expect(window.location.pathname).toBe("/admin/import-export"));
+    expect(window.location.search).toBe(`?tab=${tab}`);
+    await waitFor(() => expect(container.querySelector("main")).toHaveAttribute("data-agent-page", "import-export"));
+  });
+});
+
 describe("resolveSiteSectionRouteGate", () => {
   it("holds rather than redirects while the answer is still unknown", () => {
     // The premature-redirect guard: collapsing `unknown` into "unavailable" would bounce a
@@ -214,6 +279,11 @@ describe("withoutSiteSection", () => {
     expect(filtered.map((group) => group.label)).toEqual([undefined, "Content"]);
     expect(filtered[0]?.items.map((item) => item.id)).toEqual(["dashboard", "ai-assistant"]);
     expect(filtered[1]?.items.map((item) => item.id)).toEqual(["posts"]);
+  });
+
+  it("puts Import & Export directly above AI Assistant in the real desktop nav (owner, 2026-10-25)", () => {
+    const [top] = withoutSiteSection(getNav(), "unavailable");
+    expect(top?.items.map((item) => item.id)).toEqual(["dashboard", "import-export", "ai-assistant"]);
   });
 });
 

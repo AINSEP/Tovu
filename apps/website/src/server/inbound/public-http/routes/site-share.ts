@@ -3,7 +3,7 @@ import { SHARE_DOWNLOAD_HEADERS } from "#src/features/site-backup/share-service"
 import type { SiteShareRegistry } from "#src/features/site-backup/share-registry";
 
 /**
- * Possession of the 256-bit token authorizes exactly one attachment. Mount before request
+ * Possession of the 16-letter (~91-bit) token authorizes exactly one attachment. Mount before request
  * tracking/page analytics: neither a successful token nor a guessed token belongs in telemetry.
  * All other methods/shapes in this reserved namespace terminate here, including without storage.
  */

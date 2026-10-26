@@ -113,7 +113,6 @@ const SIMPLE_PANELS: ReadonlyArray<{ id: string; component: unknown; extraProps?
   { id: "recovery", component: Recovery },
   { id: "observability", component: Observability },
   { id: "activity-log", component: Placeholder, extraProps: { sectionId: "activity-log" } },
-  { id: "import-export", component: ImportExport },
   // 2026-09-10: retired as a nav row (folded into a Settings tab — see `panels.tsx`'s own comment
   // on this panel), so its render is now the redirect, not the real `Workspace` screen. `Workspace`
   // itself is exercised where it actually mounts now: `SettingsUi.unit.test.tsx`'s "Workspace tab".
@@ -160,6 +159,8 @@ const TAB_THREADED_PANELS: ReadonlyArray<[id: string, component: unknown]> = [
   ["consent", CookieConsent],
   ["admin-ui", AdminUi],
   ["providers", Providers],
+  // Export / Import / Other (owner, 2026-10-25: Export and Import moved here from Sites).
+  ["import-export", ImportExport],
   // The nav-less `/appearance` alias for the SITE-themes screen (ADR-063) — its render has no
   // `ctx.view` switch of its own (unlike `themes` below, which also handles `theme-explore`), so it
   // fits this generic table even though it renders the same `Themes` component `themes` does.

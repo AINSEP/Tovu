@@ -40,19 +40,19 @@ const failureOf = (promise: Promise<unknown>): Promise<{ code?: string; message:
 for (const file of ["../x.tovu.zip", "Site.tovu.zip", "site.zip", "-site.tovu.zip"]) {
   test(`the share file name ${file} is refused before the token is reserved`, async t => {
     const registry = await registryIn(t);
-    await assert.rejects(receiveSiteShareArtifact({ registry, site: "ws", token: "a".repeat(64), file, archive: ARCHIVE }), { code: "INVALID_INPUT", message: "Invalid share file name." });
+    await assert.rejects(receiveSiteShareArtifact({ registry, site: "ws", token: "a".repeat(16), file, archive: ARCHIVE }), { code: "INVALID_INPUT", message: "Invalid share file name." });
     assert.deepEqual(await registry.list({}), []);
   });
 }
 test("a received artifact is stored with its hash and the given storage locator", async t => {
   const registry = await registryIn(t), storage = { provider: "s3", key: "_share/k/site.tovu.zip" };
-  const row = await receiveSiteShareArtifact({ registry, site: "ws", token: "b".repeat(64), file: "site.tovu.zip", archive: ARCHIVE }, { storage });
+  const row = await receiveSiteShareArtifact({ registry, site: "ws", token: "b".repeat(16), file: "site.tovu.zip", archive: ARCHIVE }, { storage });
   assert.deepEqual([row.status, row.bytes, row.url, row.storage, row.sha256.length], ["active", ARCHIVE.length, null, storage, 64]);
   assert.deepEqual(await registry.get({ shareId: row.shareId }), row);
 });
 test("an artifact the registry cannot write is removed and the write error is rethrown", async t => {
   const registry = await registryIn(t);
-  await assert.rejects(receiveSiteShareArtifact({ registry, site: "ws", token: "c".repeat(64), file: "site.tovu.zip", archive: Buffer.allocUnsafeSlow(SHARE_LIMITS.maxArchiveBytes + 1) }), { code: "LIMIT_EXCEEDED", message: "Share exceeds the v1 300 MiB archive cap." });
+  await assert.rejects(receiveSiteShareArtifact({ registry, site: "ws", token: "c".repeat(16), file: "site.tovu.zip", archive: Buffer.allocUnsafeSlow(SHARE_LIMITS.maxArchiveBytes + 1) }), { code: "LIMIT_EXCEEDED", message: "Share exceeds the v1 300 MiB archive cap." });
   assert.deepEqual(await registry.list({}), []);
 });
 
@@ -135,7 +135,7 @@ test("a failed delivery to another server's share folder is deleted remotely", a
 
 async function sharedRow(t: TestContext, storage?: SiteShareRecord["storage"], url: string | null = null): Promise<{ registry: SiteShareRegistry; row: SiteShareRecord }> {
   const registry = await registryIn(t);
-  const received = await receiveSiteShareArtifact({ registry, site: "ws", token: "d".repeat(64), file: "site.tovu.zip", archive: ARCHIVE }, storage ? { storage } : {});
+  const received = await receiveSiteShareArtifact({ registry, site: "ws", token: "d".repeat(16), file: "site.tovu.zip", archive: ARCHIVE }, storage ? { storage } : {});
   const row = { ...received, url };
   await registry.put({ record: row });
   return { registry, row };

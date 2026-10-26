@@ -16,6 +16,7 @@ import { ConfirmDialog, ConfirmDialogDefaultsProvider, Sidebar, useSidebar } fro
 import { Toast } from "@jini-ai/ui";
 import { useRouteLocation } from "./lib/router";
 import { resolveAddonsRoute } from "./lib/addons-routes";
+import { resolveImportExportRoute } from "./lib/import-export-routes";
 import { IntegrationsRedirect } from "./features/integrations";
 import { getNav } from "./nav";
 import { Login } from "./features/auth";
@@ -120,11 +121,14 @@ export function parseRoute(routePath: string): Route {
     }
     // A known id resolves exactly like the modern bare-segment path. Anything past the id is
     // ignored, matching the single inline branch this replaces (`/section/settings/foo` never
-    // looked past `settings` either).
-    return parseRoute(`/${id}`);
+    // looked past `settings` either). The query is kept: `/section/sites?tab=import` must still
+    // reach the moved-tab resolver below, not the Sites gate.
+    return parseRoute(`/${id}${routePath.slice(rawPath.length)}`);
   }
 
-  const moved = resolveAddonsRoute({ routePath });
+  // Sites' old Export/Import tabs first: their new home is not under Add-ons, and the redirect has to
+  // win before `renderRoute`'s Sites gate would send the route to the dashboard.
+  const moved = resolveImportExportRoute({ routePath }) ?? resolveAddonsRoute({ routePath });
   return { ...matchRoute({ routePath: moved.matchPath, panels: ADMIN_PANELS }), redirectPath: moved.redirectPath };
 }
 

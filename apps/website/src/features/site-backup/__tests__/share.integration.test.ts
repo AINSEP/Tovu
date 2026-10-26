@@ -200,7 +200,7 @@ test("create → anonymous GET with private download headers; revoke → 404 and
   assert.equal(response.headers.get("x-content-type-options"), "nosniff");
   assert.equal(response.headers.get("x-robots-tag"), "noindex, nofollow");
   assert.deepEqual(Buffer.from(await response.arrayBuffer()), Buffer.from("PK fixture"));
-  assert.equal((await fetch(`${base}/_share/${"0".repeat(64)}/site.tovu.zip`)).status, 404);
+  assert.equal((await fetch(`${base}/_share/${"z".repeat(16)}/site.tovu.zip`)).status, 404);
   assert.equal((await fetch(`${base}/_share/${created.token}/other.tovu.zip`)).status, 404);
   const failed = await createSiteShare({ registry, site: "ws", name: "failed", archive: Buffer.from("PK failed") });
   await registry.put({ record: { ...failed, status: "failed" } });

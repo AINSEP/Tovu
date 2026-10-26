@@ -31,7 +31,7 @@ import { SiteImportRegistry } from "#src/features/site-backup/import-registry";
 import { createShareArchiveReader } from "#src/features/site-backup/import-archive-reader";
 import * as importYauzl from "yauzl";
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
-import { switcherBaseForBinding, isSiteSwitcherEnabled } from "#src/platform/site-dir/index";
+import { siteCreationBaseForBinding } from "#src/platform/site-dir/index";
 import { localSiteSupervisorForHost } from "../lifecycle/local-site-host.js";
 import { SiteShareRegistry } from "#src/features/site-backup/share-registry";
 import { prepareShareContent } from "#src/features/site-backup/share-preparation";
@@ -243,7 +243,7 @@ import {
   purgeMedia,
   SharpImageTransformer,
 } from "#src/features/media/index";
-import { readBundledObjectStoreEnvDeclarations, createMediaBlobStore, ensureMediaObjectStoreSetting, loadBundledObjectStoreRegistry, loadObjectStoreRegistry, readMediaObjectStoreSetting, selectArtifactStoreProvider, type MediaObjectStorePorts } from "#src/features/object-storage/index";
+import { readBundledObjectStoreEnvDeclarations, createMediaBlobStore, ensureMediaObjectStoreSetting, loadBundledObjectStoreRegistry, loadObjectStoreRegistry, readMediaObjectStoreSetting, artifactStoreBinding, artifactStoreTarget, selectArtifactStoreProvider, type MediaObjectStorePorts } from "#src/features/object-storage/index";
 import { ensureCoreMediaTransform } from "#src/features/media/bootstrap";
 import { createSqliteIdentityRouteDeps, resolveOwnerCredentials, type IdentityRouteDepsSlice } from "#src/features/identity/wiring";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
@@ -3058,23 +3058,23 @@ async function composeSiteRouteDeps(
             objectStore: async () => {
               // Any object-store provider that can deliver artifacts (not one hard-coded deploy target);
               // the site's media choice wins so media and shares share one provider and connection.
-              const chosen = selectArtifactStoreProvider({ loaded: await mediaStorePorts().loadSiteRegistry(), preferredId: await readMediaObjectStoreSetting({ settingsRepo, workspaceId }) });
+              // Revoke passes the share's saved provider, so only that store may delete it.
+              const chosen = await selectArtifactStoreProvider({ loaded: await mediaStorePorts().loadSiteRegistry(), preferredId: await readMediaObjectStoreSetting({ settingsRepo, workspaceId }),
+                resolveCredential: async ({ id }) => { const resolved = await credentials.resolve({ workspaceId, target: artifactStoreTarget(id) }); return resolved.ok ? resolved : undefined; } },
+              selection.provider === undefined ? {} : { savedProvider: selection.provider });
               if (!chosen) return undefined;
-              // Provider ids use underscores; the saved connection is keyed by the hyphenated target id.
-              const target = chosen.id.replace(/_/g, "-");
-              const resolved = await credentials.resolve({ workspaceId, target });
-              if (!resolved.ok) return undefined;
-              // A new default connection must never turn revocation into deletion in another bucket.
-              // Bind non-secret storage coordinates, allowing credentials to rotate for the same store.
-              const storageBinding = JSON.stringify([resolved.bucket, resolved.region, resolved.endpoint ?? "", resolved.publicUrl]);
+              const target = artifactStoreTarget(chosen.id), resolved = chosen.credential;
               // Reuse the plugin's signing/PUT/DELETE owner; pin only the anonymous verification hop.
               // A normal publish's kit remains unchanged, including its observability.
               const kit = createDeployHostKit({});
               const shareKit = { ...kit, fetch: async (url: string, init: RequestInit, options: { timeoutMs: number }) => {
+                // A provider whose own upload/delete API goes through kit.fetch (not SigV4) keeps it.
+                if (init.method !== "HEAD") return kit.fetch(url, init, options);
                 const response = await guardedOutboundHttpClient.send({ request: { method: "HEAD", url, headers: {}, idleTimeoutMs: options.timeoutMs, totalDeadlineMs: options.timeoutMs, maxResponseBytes: 1024, signal: init.signal ?? undefined } }, { redirect: "error" });
                 return new Response(null, { status: response.status, headers: response.headers });
               } };
-              return { provider: target, binding: storageBinding, store: chosen.provider.createArtifactStore({ credential: toDeployTargetCredential(resolved), config: {}, kit: shareKit }) };
+              const store = chosen.provider.createArtifactStore({ credential: toDeployTargetCredential(resolved), config: {}, kit: shareKit });
+              return { provider: target, binding: artifactStoreBinding({ store, credential: resolved }), store };
             },
           }, selection),
         });
@@ -3087,16 +3087,18 @@ async function composeSiteRouteDeps(
   configureSiteImports({}, {});
 
   function configureSiteImports(_required: Record<string, never>, _options = {}): void {
-    const importBase = switcherBaseForBinding(resolvedSiteBinding);
-    const importSupervisor = isSiteSwitcherEnabled() ? localSiteSupervisorForHost({ binding: resolvedSiteBinding }) : undefined;
-    if (importBase !== null && importSupervisor) {
+    // Import needs local site creation and a known sites home, not the switcher: desktop serves
+    // `<home>/<name>` pinned and starts its own sites, so it has no supervisor here.
+    const importBase = siteCreationBaseForBinding({ binding: resolvedSiteBinding });
+    if (importBase !== null) {
+      const importSupervisor = localSiteSupervisorForHost({ binding: resolvedSiteBinding });
       const workspace = createSitesWorkspace({}, { cwd: importBase });
       // Import payloads live in app-data, outside every served/source tree, including app-data DBs.
       const registry = new SiteImportRegistry({ directory: join(workspace.config({}).appData, "site-imports", workspaceId) });
       const importHttp = createDefaultHttpClient(SITE_IMPORT_EGRESS_POLICY, { observability });
       routeDeps.siteImportBackend = createSiteImportBackend({ registry, workspace, tracker, reader: createShareArchiveReader({ yauzl: importYauzl }), http: importHttp, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion(),
         // Wait for the new site to answer, so the import's "Open" link never points at a port still booting.
-        startSite: input => startLocalSiteWhenRunning({ supervisor: importSupervisor, name: input.name }),
+        startSite: async input => importSupervisor ? startLocalSiteWhenRunning({ supervisor: importSupervisor, name: input.name }) : { adminUrl: null, status: "stopped" },
         setupBase: "/api/admin/v1/workspaces/" + encodeURIComponent(workspaceId) + "/site-imports",
       }, { report: ({ importId, status }) => console.info("[site-import]", importId, status) });
     }

@@ -1,18 +1,18 @@
 /**
- * @file The three places a site already moves in or out, in the order the Import & Export panel
- * lists them. Each card links to the screen that owns the flow — this panel never re-implements
- * one (export/import live on Sites since the owner placed them there 2026-10-18; static export
- * lives on Deployment). `title`/`lead` are English keys for `import-export-i18n.ts`.
+ * @file The places a site moves in or out that live on another screen, listed on the Import &
+ * Export panel's Other tab. Each card links to the screen that owns the flow — this panel never
+ * re-implements one (static export lives on Deployment). Export and Import were cards linking to
+ * Sites until the owner moved them onto this page as tabs (2026-10-25): the desktop app and a hosted
+ * install have no Sites section, so those links bounced to the dashboard. `title`/`lead` are
+ * English keys for `import-export-i18n.ts`.
  */
 export interface ImportExportLink {
-  id: "export" | "import" | "static";
+  id: "static";
   title: string;
   lead: string;
   href: string;
 }
 
 export const IMPORT_EXPORT_LINKS: readonly ImportExportLink[] = [
-  { id: "export", title: "Export Site", lead: "A .tovu.zip of this site that another Tovu can import.", href: "/admin/sites?tab=export" },
-  { id: "import", title: "Import Site", lead: "Make a new site from a .tovu.zip or share link.", href: "/admin/sites?tab=import" },
   { id: "static", title: "Static Site", lead: "Read-only HTML of the published pages, for any static host.", href: "/admin/deployment?tab=static-site" },
 ];
