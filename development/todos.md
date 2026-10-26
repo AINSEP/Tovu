@@ -22,6 +22,9 @@ before building the eventual agent tool catalog. See
 
 ---
 
+## BUG (2026-10-25): switching localhost:3000 to a site already open in Desktop crashes the API
+Switching to Vindexa while the Desktop app had it open: the switch rewrote `.env` TOVU_SITE and restarted the API, which then refused to boot (`site-running.ts:24` claimSiteRunning: "Running in Desktop (port 53775)…") → :3000 down, no message in the admin. Fix: `sites_switch_site` + the switch route check `readSiteRunning` on the target FIRST and refuse with "open in Desktop at <url>"; dev.mjs falls back to the previous site if a restart fails. Fold into the fast-site-switching work below.
+
 ## ⭐ HIGH PRIORITY, NOT NOW (owner 2026-10-25): fast site switching on localhost:3000
 Switching which site is active on the local web app (localhost:3000) is slow today. It needs an app restructuring so a switch is quick: e.g. per-site runtimes kept warm / swapped without a full server restart, instead of tearing down and rebooting. Plan first (measure today's switch time + what restarts), then build. Not now — owner will say when.
 
