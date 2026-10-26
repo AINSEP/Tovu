@@ -1233,8 +1233,12 @@ async function composeSiteRouteDeps(
   const reportToolAuditError = createSiteAssistantErrorReporter({ ids: idGen, redact: redactSecrets,
     log: entry => console.error("[tool-audit]", entry) });
   const pluginActivationRepo = sqlitePluginActivationRepoFor({ store: kernel });
+  // Provider plugins load (and their SDK asks for the host) before `const routeDeps` below exists;
+  // reading `routeDeps` then is a temporal-dead-zone ReferenceError. Until `routeDeps` is built the
+  // answer is "no host yet" (the SDK then omits its `plugins` lookup facade).
+  let routeDepsBuiltForPluginHost: { readonly pluginHost?: RouteDeps["pluginHost"] } | undefined;
   const pluginRuntime = composePluginRuntime({
-    getPluginHost: () => routeDeps.pluginHost,
+    getPluginHost: () => routeDepsBuiltForPluginHost?.pluginHost,
     workspaceId,
     clock,
     activationRepo: pluginActivationRepo,
@@ -2863,6 +2867,7 @@ async function composeSiteRouteDeps(
 
   siteAppBootWorkByDeps.set(routeDeps, siteAppBootWork);
   routeDeps.pluginHost = createTovuPluginHost({ deps: routeDeps });
+  routeDepsBuiltForPluginHost = routeDeps;
   // Start re-attachment only after its SDK's host getter is safe. Earlier composition awaits
   // (including vault normalization) must never race this pass. Boot awaits this before serving.
   routeDeps.pluginRuntimeReady = pluginRuntime.attachEnabledPluginsAtBoot();
