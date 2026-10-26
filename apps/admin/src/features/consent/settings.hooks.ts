@@ -26,7 +26,7 @@ export interface ConsentEditorLimits {
   regionModes: ConsentSettingsView['regionMode'][];
   /** Only supplied by the cookie-consent engine. */
   bannerModes?: NonNullable<ConsentSettingsView['bannerMode']>[];
-  rules: { gpc: string; preferenceMaxAgeMs: number; staticReceipts: boolean; staticBanner?: boolean };
+  rules: { gpc: string; preferenceMaxAgeMs: number; staticReceipts: boolean };
 }
 
 export interface ConsentSettingsSnapshot {

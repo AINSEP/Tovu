@@ -16,7 +16,7 @@ import * as fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import express, { type Express, type Request, type Response } from 'express';
-import { OPTIONAL, REGION_COOKIE, type Optional, type RawContribution, type RegionResolver } from '@jini-ai/cookie-consent';
+import { CONSENT_COOKIE, OPTIONAL, REGION_COOKIE, type Optional, type RawContribution, type RegionResolver } from '@jini-ai/cookie-consent';
 import { DEFAULT_MAX_AGE_MS, parseStored } from '@jini-ai/cookie-consent/policy';
 import { renderBanner, type RenderedBanner } from '@jini-ai/cookie-consent/render';
 import { handleReceipt, readConsent, resolveRegion, type ConsentRecord } from '@jini-ai/cookie-consent/server';
@@ -68,9 +68,8 @@ function toWebRequest({ req, body }: { req: Request; body: Buffer }, _optional =
 
 /** Adapters of the analytics plugins attached to this site, mounted under one path each.
  * A plugin that throws or is not configured contributes nothing. @complexity O(plugins). */
-export function siteConsentPlugins({ deps }: { deps: RouteDeps }, _optional = {}): ConsentPluginContribution[] {
-  try { return deps.consentAdapters?.({ base: PLUGIN_BASE }) ?? []; }
-  catch { return []; }
+export function siteConsentPlugins({ deps }: { deps: RouteDeps }, _optional = {}): readonly ConsentPluginContribution[] {
+  return deps.consentAdapters?.({ base: PLUGIN_BASE }) ?? [];
 }
 
 /** One page's banner. Exports get local evidence and no plugins (no server to store or collect).
@@ -249,7 +248,7 @@ function activeAnalyticsRecord({ record, policy, nowMs }: { record: Partial<Cons
  * analytics is allowed and a server receipt exists. @complexity O(cookie header). */
 export async function readSiteAnalyticsProof({ deps, req }: { deps: RouteDeps; req: Request }, _optional = {}): Promise<{ receiptId: string; policyVersion: string } | undefined> {
   const state = await readSiteVisitorConsent({ deps, req });
-  const raw = req.get('cookie')?.match(/(?:^|;\s*)jini_consent=([^;]*)/)?.[1];
+  const raw = req.get('cookie')?.match(new RegExp(`(?:^|;\\s*)${CONSENT_COOKIE}=([^;]*)`))?.[1];
   let receiptId: string | undefined;
   try { receiptId = parseStored({ raw: raw === undefined ? null : decodeURIComponent(raw) })?.r; } catch { receiptId = undefined; }
   return state.allowed.analytics && receiptId ? { receiptId, policyVersion: state.policy } : undefined;

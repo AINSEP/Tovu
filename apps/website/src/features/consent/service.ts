@@ -11,7 +11,7 @@ import { CONSENT_CATEGORIES, CONSENT_MAX_AGE_MS, CONSENT_MAX_CSS_LENGTH, CONSENT
 import { SITE_CONSENT_BANNER_MODES, SITE_CONSENT_DEFAULT_CSS, SITE_CONSENT_DEFAULTS, SITE_CONSENT_PLACEMENTS, SITE_CONSENT_TEXT_LIMITS, withSiteConsentDefaultCss } from './config.js';
 import { consentPagePath } from './request.js';
 import { consentDryRun, type ConsentDryRunGate } from './readiness.js';
-import { renderSiteConsentPreview, withSiteBannerMode } from './cookie-consent.js';
+import { renderSiteConsentPreview } from './cookie-consent.js';
 
 export interface ConsentServicePorts {
   workspaceId: string;
@@ -69,7 +69,7 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
         maxCssLength: CONSENT_MAX_CSS_LENGTH, cssSelectors: [...CONSENT_CSS_SELECTORS],
         regionModes: ['opt-in', 'auto'], ...(ports.cookieConsent ? { bannerModes: [...SITE_CONSENT_BANNER_MODES] } : {}),
         categories: CONSENT_CATEGORIES.map(id => ({ id, required: id === 'necessary', editable: false })),
-        rules: { gpc: 'always-enforced', preferenceMaxAgeMs: CONSENT_MAX_AGE_MS, staticReceipts: false, staticBanner: Boolean(ports.cookieConsent) } } };
+        rules: { gpc: 'always-enforced', preferenceMaxAgeMs: CONSENT_MAX_AGE_MS, staticReceipts: false } } };
   };
   /** Engine validation plus this site's privacy-page linkage; no HTTP fetch to external policies. */
   const problems = async ({ config }: { config: ConsentConfig }, _optional = {}): Promise<ConsentProblem[]> => {
@@ -120,8 +120,7 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
   /** Append an immutable draft; the legacy engine blocks invalid CSS, cookie-consent drops it. */
   const saveDraft = async ({ principalId, config: value, expectedDraftId }: { principalId: string; config: unknown; expectedDraftId: string | null }, _optional = {}) => {
     const store = await authorize({ principalId, write: true });
-    const parsed = parseConsentConfig({ value });
-    const config = ports.cookieConsent ? withSiteBannerMode({ config: parsed }) : parsed;
+    const config = parseConsentConfig({ value });
     const blockingProblems = await problems({ config });
     const revision = { id: ports.ids.newId(), config, actorId: principalId, createdAt: ports.clock.nowIso() };
     await store.saveDraft({ revision, expectedDraftId });
