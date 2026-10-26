@@ -4,6 +4,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createAssistantChatsModule } from "../runtime/composition/modules/assistant-chats.js";
 import type { RouteDeps } from "../routes/types.js";
 import type { AssistantRunFinalizer } from "../runtime/composition/modules/assistant-run-finalizer.js";
+import { createTracker } from "@jini-ai/diagnostics/observability/node";
 
 type Handler = (req: Request, res: Response, next: NextFunction) => void;
 function harness() {
@@ -16,7 +17,7 @@ function harness() {
     appendMessage: async ({ message }: { conversationId: string; message: unknown }) => message,
   };
   const app = { use() {}, ...Object.fromEntries(["get", "post", "put", "patch", "delete"].map(method => [method, (path: string, handler: Handler) => { routes.set(`${method} ${path}`, handler); }])) } as unknown as Express;
-  const deps = { workspaceId: "ws", chatHistory: () => store, chatRunLedger: { reconcileInterrupted: async () => 0 } } as unknown as RouteDeps;
+  const deps = { workspaceId: "ws", tracker: createTracker({}), chatHistory: () => store, chatRunLedger: { reconcileInterrupted: async () => 0 } } as unknown as RouteDeps;
   createAssistantChatsModule(deps, { finalizer: { watch() {} } as unknown as AssistantRunFinalizer }).registerRoutes!(app);
   const invoke = (route: string, body: object) => new Promise<Record<string, any>>((resolve, reject) => {
     const res = { locals: { principal: { id: "owner" } }, status() { return this; }, json: resolve } as unknown as Response;

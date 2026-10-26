@@ -65,12 +65,15 @@ test("installed + enabled + configured: loaded once at boot, initialized, then r
   assert.equal(events.filter((event) => event === "dispose").length, 1);
 });
 
-test("not configured: the plugin's code is never imported and the port is the noop", async () => {
+test("not configured: the plugin's code is never imported and its stable port is inert", async () => {
   const { events, runtime, ready } = fixture();
   await ready;
   const ports = await boot(runtime, false);
-  assert.equal(isNoopObservabilityPort(ports.observability), true);
+  assert.equal(isNoopObservabilityPort(ports.observability), false, "a declared slot retains a stable facade for live apply");
+  ports.observability.trackRequest({ method: "GET", path: "/probe" }).end({ statusCode: 200, routePattern: "/probe" });
+  ports.observability.reportError({ error: new Error("probe"), context: { operation: "probe" } });
   assert.deepEqual(events, []);
+  await ports.dispose({});
 });
 
 test("runtime disposal drains an in-flight plugin setup and rejects later attachments", async () => {

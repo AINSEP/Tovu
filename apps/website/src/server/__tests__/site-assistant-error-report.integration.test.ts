@@ -5,6 +5,7 @@ import test, { type TestContext } from "node:test";
 import express from "express";
 import { set as setLegacySetting } from "@jini-ai/core/settings";
 import { createNoopObservabilityPort, type ErrorReport, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import { createTracker } from "@jini-ai/diagnostics/observability/node";
 
 import { setPublicAssistantSettings } from "#src/assistant/index";
 import type { SiteAssistantErrorLogEntry } from "#src/assistant/site/public-errors";
@@ -27,7 +28,8 @@ async function boot({ t }: { t: TestContext }) {
   const reports: ErrorReport[] = [];
   const logs: SiteAssistantErrorLogEntry[] = [];
   const observability: ObservabilityPort = { ...createNoopObservabilityPort({}), reportError: (report) => { reports.push(report); } };
-  const deps = { ...createRouteDeps(), observability, siteAssistantErrorLog: (entry: SiteAssistantErrorLogEntry) => { logs.push(entry); } };
+  const tracker = createTracker({ observability });
+  const deps = { ...createRouteDeps(), observability, tracker, siteAssistantErrorLog: (entry: SiteAssistantErrorLogEntry) => { logs.push(entry); } };
   await deps.siteTitleReady;
   // Public assistant ON with no credential saved: every chat is a NOT_CONFIGURED 503.
   await setPublicAssistantSettings({
@@ -36,7 +38,7 @@ async function boot({ t }: { t: TestContext }) {
     authorize: async () => ({ allowed: true, reason: "test" }),
   }, { workspaceId: deps.workspaceId, patch: { publicEnabled: true }, callerPrincipalId: "test-caller" });
   const app = express();
-  applyRequestTracking(app, { observability, env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } });
+  applyRequestTracking(app, { tracker, env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } });
   app.use(parsePublicJsonBody);
   createSiteAssistantModule(deps, {}).registerRoutes?.(app);
   return { reports, logs, baseUrl: await startTestServer(app, t) };

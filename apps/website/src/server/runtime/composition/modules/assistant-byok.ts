@@ -627,7 +627,8 @@ export function createAssistantByokModule(
           // `translateRunAgentPayload`'s existing switch on the client with zero new cases.
           onEvent: (event: ByokTurnEvent) => {
             aiTrace?.observe(event as unknown as Record<string, unknown>);
-            if (event.type === "error") { reportedError = true; reportRunFailure(new Error(event.message)); }
+            // Reporting a disconnect's AbortError would mark this active span failed despite its canceled outcome.
+            if (event.type === "error" && !abort.signal.aborted) { reportedError = true; reportRunFailure(new Error(event.message)); }
             sse(res, event.type === "error" ? "error" : "agent", stampUsage(event));
           },
         });

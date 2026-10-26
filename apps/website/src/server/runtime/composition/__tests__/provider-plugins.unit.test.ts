@@ -479,9 +479,10 @@ test("AI generation recording follows live attachment and content-policy rotatio
         captureAiGeneration: (event: { input?: string }) => { events.push(event); } }, dispose() {},
     }) },
   } });
-  let approve!: (allowed: boolean) => void;
+  const approvals: Array<(allowed: boolean) => void> = [];
+  const approve = (allowed: boolean) => { for (const resolve of approvals.splice(0)) resolve(allowed); };
   const ports = await bootProviderPlugins({ runtime, config: { ...configOf({}), read: async () => saved }, serviceName: "test", site: SITE,
-    consent: () => new Promise<boolean>((resolve) => { approve = resolve; }), consentRevision: () => 0 }, { warn: quiet });
+    consent: () => new Promise<boolean>((resolve) => { approvals.push(resolve); }), consentRevision: () => 0 }, { warn: quiet });
   const sink = ports.aiTraceSink!;
   const run = (runId: string) => {
     const recorder = createAiTraceRecorder({ sink, runId, agentId: "fixture" });

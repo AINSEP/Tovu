@@ -22,7 +22,7 @@ import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/adm
 import { bootAuthenticated, createCapturingResponse, extractRouteHandler, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
 
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
-import { resolveAgentPluginRefs } from "../../../../../../../features/agent-plugins/lifecycle.js";
+import { createTovuAgentPluginLifecycle, resolveAgentPluginRefs } from "../../../../../../../features/agent-plugins/lifecycle.js";
 import {
   installAgentPlugin,
   type AgentPluginArchiveEntry,
@@ -191,16 +191,19 @@ test("AGENT_PLUGIN_SET_ENABLED: enabling writes a real activation record and ret
   });
 });
 
-test("AGENT_PLUGIN_SET_ENABLED: enabling captures one agent_plugin_enabled product event with the plugin id only; disabling captures none", async (t) => {
+test("AGENT_PLUGIN_SET_ENABLED: the shared lifecycle captures one event per activation change", async (t) => {
   await withAgentPluginsDir(async () => {
     await installReal("site-compliance", "seed-set-enabled-events");
     const events: unknown[] = [];
-    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp({ tracker: createTracker({ productAnalytics: { capture: (event) => { events.push(event); }, identify: () => {} } }) }).app, t);
+    const tracker = createTracker({ productAnalytics: { capture: (event) => { events.push(event); }, identify: () => {} } });
+    const lifecycle = createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }, { productTracker: () => tracker });
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp({ tracker, setAgentPluginEnabled: lifecycle.setAgentPluginEnabled }).app, t);
     assert.equal((await patch(baseUrl, cookie, "site-compliance", { enabled: false })).status, 200);
     assert.equal((await patch(baseUrl, cookie, "site-compliance", { enabled: true })).status, 200);
-    assert.equal(events.length, 1);
-    assert.deepEqual((events[0] as { name: string; properties: unknown }).properties, { pluginId: "site-compliance" });
-    assert.equal((events[0] as { name: string }).name, "agent_plugin_enabled");
+    assert.deepEqual(events.map(event => ({ name: (event as { name: string }).name, properties: (event as { properties: unknown }).properties })), [
+      { name: "agent_plugin_disabled", properties: { pluginId: "site-compliance", pluginKind: "agent", source: "shared" } },
+      { name: "agent_plugin_enabled", properties: { pluginId: "site-compliance", pluginKind: "agent", source: "shared" } },
+    ]);
   });
 });
 

@@ -508,7 +508,7 @@ test("renderSite: the page shell includes only the lazy loader and inline bubble
   assert.match(html, /<script defer src="\/site-chat\/site-assistant-loader\.js"><\/script>/);
   assert.doesNotMatch(html, /(?:src|href)=["'][^"']*(?:site-assistant\.(?:js|css)|react)|modulepreload/i);
   // Exactly once each: this is the shell every route funnels through, not per-theme injection.
-  assert.equal(html.match(/tovu-site-assistant-root/g)?.length, 1);
+  assert.equal(html.match(/id="tovu-site-assistant-root"/g)?.length, 1);
   assert.equal((html.match(/site-assistant-loader\.js/g) ?? []).length, 1);
   // Bubble styles live in <head> (never delayed behind the deferred script), and the
   // deferred script comes after the themed page body — never a blocking script ahead of paintable
