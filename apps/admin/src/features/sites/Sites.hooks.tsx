@@ -56,11 +56,6 @@ export function resolveShownStarterPassword({ adminPassword, starterAdminPasswor
   return adminPassword === "" && starterAdminPassword ? starterAdminPassword : null;
 }
 
-/** Mask/reveal presentation stays out of the form markup. @complexity O(1). */
-export function resolveAdminPasswordPresentation({ revealed, t }: { revealed: boolean; t: Translate }, _options: Record<string, never> = {}) {
-  return { inputType: revealed ? "text" : "password", revealLabel: t(revealed ? "Hide password" : "Show password") };
-}
-
 /** The create-name input's own `disabled` state: also disabled while a create is already in flight,
  *  not just when the deployment can't switch sites — an enabled field mid-request lets an operator
  *  type a second name that a same-tick success handler would silently overwrite (finding 24,

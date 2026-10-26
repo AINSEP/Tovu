@@ -13,7 +13,7 @@ import { KEYS, createdTokensNoteKey, readSnapshot, siteNameErrorKey, siteWriteEr
 import { defaultSitesPort } from "./sites-dependencies.hooks";
 import type { SitesPort } from "./sites-port.hooks";
 import { useCreateSitePluginTokens, type CreateSitePluginTokensController } from "./use-create-site-plugin-tokens.hooks";
-import { resolveAdminPasswordPresentation, resolveCreatedAdminLogin, resolveShownStarterPassword } from "../Sites.hooks";
+import { resolveCreatedAdminLogin, resolveShownStarterPassword } from "../Sites.hooks";
 
 /**
  * @file Everything the Sites screen does, so `Sites.tsx` is only markup.
@@ -72,9 +72,6 @@ export interface SitesController {
   createName: string;
   adminPassword: string;
   setAdminPassword: (value: string) => void;
-  adminPasswordInputType: string;
-  adminPasswordRevealLabel: string;
-  toggleAdminPasswordVisibility: () => void;
   /** The starter password to show beside the blank password field — see {@link resolveShownStarterPassword}. */
   shownStarterPassword: string | null;
   createdAdminLogin: string | null;
@@ -121,7 +118,6 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
 
   const [createName, setCreateNameRaw] = useState("");
   const [adminPassword, setAdminPasswordRaw] = useState("");
-  const [passwordRevealed, setPasswordRevealed] = useState(false);
   const [createdAdminLogin, setCreatedAdminLogin] = useState<string | null>(null);
   const [createdName, setCreatedName] = useState<string | null>(null);
   const [activation, setActivation] = useState<AdminSiteActivation | null>(null);
@@ -180,7 +176,6 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
     setCreatedTokens(null);
     setCreatedAdminLogin(null);
   }, []);
-  const toggleAdminPasswordVisibility = useCallback(() => setPasswordRevealed((value) => !value), []);
 
   const createSite = useCallback(() => {
     const name = createName.trim();
@@ -207,7 +202,6 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
         setCreatedName(result.site.name);
         setCreatedAdminLogin(resolveCreatedAdminLogin({ customPassword, starterAdminPassword: list.data?.starterAdminPassword, t }));
         setAdminPasswordRaw("");
-        setPasswordRevealed(false);
         setCreatedTokens(resolveCreatedTokens(result.agentPluginTokens, pluginTokens.displayNames, t));
         pluginTokens.clear();
         // Raw, not the wrapped `setCreateName` — that also clears `createdName`, which would erase
@@ -250,7 +244,6 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
   );
 
   const view = readSnapshot(list.data);
-  const passwordPresentation = resolveAdminPasswordPresentation({ revealed: passwordRevealed, t });
 
   return {
     localSites,
@@ -265,9 +258,6 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
     createName,
     adminPassword,
     setAdminPassword,
-    adminPasswordInputType: passwordPresentation.inputType,
-    adminPasswordRevealLabel: passwordPresentation.revealLabel,
-    toggleAdminPasswordVisibility,
     shownStarterPassword: resolveShownStarterPassword({ adminPassword, starterAdminPassword: list.data?.starterAdminPassword }),
     createdAdminLogin,
     setCreateName,

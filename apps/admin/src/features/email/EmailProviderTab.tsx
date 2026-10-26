@@ -1,4 +1,6 @@
+import type { ChangeEvent } from "react";
 import { ConfirmDialog } from "@jini-ai/admin/react";
+import { SecretInput } from "@/components/SecretInput/SecretInput";
 import { agentHandle, agentHandleSegment } from "@jini-ai/agentic";
 
 import type { AdminMailStatus } from "../../lib/api";
@@ -50,9 +52,8 @@ function Lanes(props: { status: AdminMailStatus | null; providers: readonly Mail
   );
 }
 
-/** The input type for a declared field; a secret shows as text only while revealed. Pure. */
-function inputType(field: MailProviderField, shown: boolean): string {
-  if (field.type === "secret") return shown ? "text" : "password";
+/** The input type for a declared non-secret field. Pure. */
+function inputType(field: MailProviderField): string {
   return field.type === "text" ? "text" : field.type;
 }
 
@@ -61,31 +62,28 @@ function KeyField(props: { provider: MailProviderConfiguration; field: MailProvi
   const key = field.key as "token" | "username" | "baseUrl";
   const id = `email-provider-${provider.id}-${field.key}`;
   const secret = field.type === "secret";
-  const shown = controller.revealed[provider.id] === true;
   const replacing = secret && provider.credential.saved;
   const placeholder = replacing ? t({ locale, key: "Saved — enter a new key to replace it" }) : field.placeholder ?? field.defaultValue;
+  const inputProps = {
+    id,
+    className: "jini-input",
+    spellCheck: false,
+    value: controller.drafts[provider.id]?.[key] ?? "",
+    placeholder,
+    onChange: (event: ChangeEvent<HTMLInputElement>) => controller.setDraftField(provider.id, key, event.target.value),
+    ...agentHandle({ handle: `email-provider-${provider.id}-${agentHandleSegment({ value: field.key })}` }, { role: "field", label: `${provider.label} ${field.label}` }),
+  };
   return (
     <div className="jini-field email-field">
       <label className="jini-field-label" htmlFor={id}>{field.label}</label>
       <div className="email-input-row">
-        <input
-          id={id}
-          className="jini-input"
-          type={inputType(field, shown)}
+        {secret ? (
           // `new-password`, not `off`, on the key: Chrome ignores `off` and silently filled the admin
           // sign-in into these fields (see `security/AccessTokensTab.tsx`'s token input).
-          autoComplete={secret ? "new-password" : "off"}
-          spellCheck={false}
-          value={controller.drafts[provider.id]?.[key] ?? ""}
-          placeholder={placeholder}
-          onChange={(event) => controller.setDraftField(provider.id, key, event.target.value)}
-          {...agentHandle({ handle: `email-provider-${provider.id}-${agentHandleSegment({ value: field.key })}` }, { role: "field", label: `${provider.label} ${field.label}` })}
-        />
-        {secret ? (
-          <button type="button" className="btn-secondary" aria-pressed={shown} onClick={() => controller.toggleReveal(provider.id)}>
-            {t({ locale, key: shown ? "Hide" : "Show" })}
-          </button>
-        ) : null}
+          <SecretInput label={field.label} autoComplete="new-password" {...inputProps} />
+        ) : (
+          <input type={inputType(field)} autoComplete="off" {...inputProps} />
+        )}
       </div>
       {field.help ? <span className="jini-field-hint">{field.help}</span> : null}
     </div>

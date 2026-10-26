@@ -1,4 +1,5 @@
 import type { AdminUser } from "../../lib/api";
+import { SecretInput } from "@/components/SecretInput/SecretInput";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { t as translateAuth } from "./auth-i18n";
 import { useWiredLogin } from "./hooks/use-login.hooks";
@@ -33,10 +34,11 @@ export function Login({ onLogin, useLoginHook = useWiredLogin }: LoginProps) {
           {t("Username")}
           <input autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} autoFocus />
         </label>
-        <label>
-          {t("Password")}
-          <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
-        </label>
+        {/* Not wrapped in its <label> like Username: the eye toggle's name would join the input's. */}
+        <div className="login-field">
+          <label htmlFor="login-password">{t("Password")}</label>
+          <SecretInput label={t("Password")} locale={locale} id="login-password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        </div>
         {error ? <div className="login-error">{error}</div> : null}
         <button disabled={busy}>{busy ? t("Signing in…") : t("Sign in")}</button>
       </form>

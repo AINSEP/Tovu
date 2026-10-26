@@ -1,4 +1,5 @@
 import { agentHandle } from "@jini-ai/agentic";
+import { SecretInput } from "@/components/SecretInput/SecretInput";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
 import type { Translate } from "@jini-ai/ui/panel-kit";
@@ -98,7 +99,7 @@ import type { useWiredSites } from "./hooks/use-sites.hooks";
 export interface CreateSiteOnboardingProps {
   controller: Pick<
     ReturnType<typeof useWiredSites>,
-    "createName" | "setCreateName" | "createNameError" | "createSite" | "creating" | "switchingEnabled" | "pluginTokens" | "t" | "adminPassword" | "setAdminPassword" | "adminPasswordInputType" | "adminPasswordRevealLabel" | "toggleAdminPasswordVisibility" | "shownStarterPassword"
+    "createName" | "setCreateName" | "createNameError" | "createSite" | "creating" | "switchingEnabled" | "pluginTokens" | "t" | "adminPassword" | "setAdminPassword" | "shownStarterPassword"
   >;
   /** Back to the "All sites" tab, creating nothing. Supplied by `Sites.tsx` so this form owns no
    *  routing of its own — same seam Runner's own `onBack` is. */
@@ -214,9 +215,9 @@ function PluginTokenField({ field, id, onChange, t }: { field: CreateSitePluginT
         </span>
         <span className="field">
           {/* `new-password`, not `off` — see `security/AccessTokensTab.tsx`'s token input. */}
-          <input
+          <SecretInput
+            label={t("Paste an access token")}
             id="site-key-supabase"
-            type="password"
             value={field.token}
             placeholder={t("Paste an access token")}
             autoComplete="new-password"
@@ -328,40 +329,23 @@ export function CreateSiteOnboarding({ controller, onCancel, useDatabase = useCr
           </p>
           <div className="field">
             <label className="field-label" htmlFor="site-admin-password">{controller.t("Set a different admin password")}</label>
-            <div className="site-admin-password-wrap">
-              <input
-                id="site-admin-password"
-                type={controller.adminPasswordInputType}
-                value={controller.adminPassword}
-                minLength={1}
-                maxLength={512}
-                autoComplete="new-password"
-                disabled={resolveCreateInputDisabled(controller)}
-                onChange={(e) => controller.setAdminPassword(e.target.value)}
-                {...agentHandle({ handle: "sites-create-admin-password" }, { role: "field", label: "Optional admin password for the new site" })}
-              />
-              <button type="button" className="site-admin-password-toggle" disabled={resolveCreateInputDisabled(controller)} onClick={controller.toggleAdminPasswordVisibility}
-                aria-label={controller.adminPasswordRevealLabel} title={controller.adminPasswordRevealLabel}
-                {...agentHandle({ handle: "sites-create-admin-password-reveal" }, { role: "button", label: controller.adminPasswordRevealLabel })}>
-                <PasswordEyeIcon revealed={controller.adminPasswordInputType === "text"} />
-              </button>
-            </div>
+            <SecretInput
+              label={controller.t("Set a different admin password")}
+              id="site-admin-password"
+              value={controller.adminPassword}
+              minLength={1}
+              maxLength={512}
+              autoComplete="new-password"
+              disabled={resolveCreateInputDisabled(controller)}
+              onChange={(e) => controller.setAdminPassword(e.target.value)}
+              {...agentHandle({ handle: "sites-create-admin-password" }, { role: "field", label: "Optional admin password for the new site" })}
+              toggleAttrs={agentHandle({ handle: "sites-create-admin-password-reveal" }, { role: "button", label: "Show or hide the new site's admin password" })}
+            />
           </div>
         </div>
         <DatabaseSection t={controller.t} database={database} pluginTokens={controller.pluginTokens} />
         <OnboardingActions controller={controller} onCancel={onCancel} />
       </div>
     </form>
-  );
-}
-
-/** Eye (shown) / struck-through eye (hidden) glyph for the password reveal toggle. */
-function PasswordEyeIcon({ revealed }: { revealed: boolean }) {
-  return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
-      <circle cx="12" cy="12" r="3" />
-      {revealed ? <path d="M4 4l16 16" /> : null}
-    </svg>
   );
 }

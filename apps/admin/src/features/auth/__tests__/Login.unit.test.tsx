@@ -37,9 +37,9 @@ describe("Login", () => {
   it("renders the hook's username/password values in their inputs", () => {
     render(<Login onLogin={vi.fn()} useLoginHook={stubHook({ username: "alice", password: "secret" })} />);
     expect(screen.getByLabelText(/username/i)).toHaveValue("alice");
-    expect(screen.getByLabelText(/password/i)).toHaveValue("secret");
-    expect(screen.getByLabelText(/password/i)).toHaveAttribute("type", "password");
-    expect(screen.getByLabelText(/password/i)).toHaveAttribute("autocomplete", "current-password");
+    expect(screen.getByLabelText("Password")).toHaveValue("secret");
+    expect(screen.getByLabelText("Password")).toHaveAttribute("type", "password");
+    expect(screen.getByLabelText("Password")).toHaveAttribute("autocomplete", "current-password");
   });
 
   it("calls the hook's setUsername/setPassword as the operator types", async () => {
@@ -49,7 +49,7 @@ describe("Login", () => {
     render(<Login onLogin={vi.fn()} useLoginHook={stubHook({ username: "", password: "", setUsername, setPassword })} />);
 
     await user.type(screen.getByLabelText(/username/i), "x");
-    await user.type(screen.getByLabelText(/password/i), "y");
+    await user.type(screen.getByLabelText("Password"), "y");
 
     expect(setUsername).toHaveBeenCalledWith("x");
     expect(setPassword).toHaveBeenCalledWith("y");

@@ -72,6 +72,9 @@ describe("SHARED_COMPONENTS_DICT: cross-locale key parity", () => {
 
   // Spot-check every key the currently-wired call sites actually call t()/interpolate() with.
   const CALL_SITE_KEYS = [
+    // SecretInput.hooks.ts: the eye toggle's accessible name.
+    "Show {label}",
+    "Hide {label}",
     "Aspect ratio",
     "Choose images",
     "Choose images from the media library to fill this gallery.",

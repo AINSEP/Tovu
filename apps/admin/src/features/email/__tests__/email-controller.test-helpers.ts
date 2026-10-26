@@ -12,7 +12,7 @@ export function createTabHooks(_required = {}, _optional = {}): EmailTabHooks {
     })),
     provider: vi.fn<EmailTabHooks["provider"]>(() => ({
       view: { kind: "loaded", data: { setting: { transactional: null, bulk: null }, providers: [], refusals: [] } },
-      reload: vi.fn(), drafts: {}, setDraftField: vi.fn(), revealed: {}, toggleReveal: vi.fn(),
+      reload: vi.fn(), drafts: {}, setDraftField: vi.fn(),
       choices: [], adding: null, addError: null, addWarning: null, retryAdd: vi.fn(async () => undefined), addProvider: vi.fn(async () => undefined),
       busyId: null, notice: null, saveKey: vi.fn(async () => {}),
       pendingSwitch: null, askSwitch: vi.fn(), confirmSwitch: vi.fn(async () => {}),

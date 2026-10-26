@@ -43,6 +43,8 @@ import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
  */
 export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
   es: {
+    "Show {label}": "Mostrar {label}",
+    "Hide {label}": "Ocultar {label}",
     "Preview": "Vista previa",
     "Loading preview…": "Cargando vista previa…",
     "Preview unavailable.": "Vista previa no disponible.",
@@ -202,6 +204,8 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "Personalizado para esta entrada",
   },
   id: {
+    "Show {label}": "Tampilkan {label}",
+    "Hide {label}": "Sembunyikan {label}",
     "Preview": "Pratinjau",
     "Loading preview…": "Memuat pratinjau…",
     "Preview unavailable.": "Pratinjau tidak tersedia.",
@@ -361,6 +365,8 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "Khusus untuk pos ini",
   },
   de: {
+    "Show {label}": "{label} anzeigen",
+    "Hide {label}": "{label} ausblenden",
     "Preview": "Vorschau",
     "Loading preview…": "Vorschau wird geladen…",
     "Preview unavailable.": "Vorschau nicht verfügbar.",
@@ -520,6 +526,8 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "Eigener Inhalt für diesen Beitrag",
   },
   "zh-CN": {
+    "Show {label}": "显示{label}",
+    "Hide {label}": "隐藏{label}",
     "Preview": "预览",
     "Loading preview…": "正在加载预览…",
     "Preview unavailable.": "预览不可用。",
@@ -679,6 +687,8 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "为此文章自定义",
   },
   "zh-TW": {
+    "Show {label}": "顯示{label}",
+    "Hide {label}": "隱藏{label}",
     "Preview": "預覽",
     "Loading preview…": "正在載入預覽…",
     "Preview unavailable.": "預覽無法使用。",
@@ -838,6 +848,8 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "為此文章自訂",
   },
   "pt-BR": {
+    "Show {label}": "Mostrar {label}",
+    "Hide {label}": "Ocultar {label}",
     "Preview": "Prévia",
     "Loading preview…": "Carregando prévia…",
     "Preview unavailable.": "Prévia indisponível.",
@@ -997,6 +1009,8 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "Personalizado para este post",
   },
   ru: {
+    "Show {label}": "Показать: {label}",
+    "Hide {label}": "Скрыть: {label}",
     "Preview": "Предпросмотр",
     "Loading preview…": "Загрузка предпросмотра…",
     "Preview unavailable.": "Предпросмотр недоступен.",
@@ -1156,6 +1170,8 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "Своё для этой записи",
   },
   fa: {
+    "Show {label}": "نمایش {label}",
+    "Hide {label}": "پنهان کردن {label}",
     "Preview": "پیش‌نمایش",
     "Loading preview…": "در حال بارگذاری پیش‌نمایش…",
     "Preview unavailable.": "پیش‌نمایش در دسترس نیست.",
@@ -1315,6 +1331,8 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "سفارشی برای این نوشته",
   },
   ar: {
+    "Show {label}": "إظهار {label}",
+    "Hide {label}": "إخفاء {label}",
     "Preview": "معاينة",
     "Loading preview…": "جارٍ تحميل المعاينة…",
     "Preview unavailable.": "المعاينة غير متاحة.",
@@ -1474,6 +1492,8 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "مخصص لهذه التدوينة",
   },
   ja: {
+    "Show {label}": "{label}を表示",
+    "Hide {label}": "{label}を隠す",
     "Preview": "プレビュー",
     "Loading preview…": "プレビューを読み込み中…",
     "Preview unavailable.": "プレビューを表示できません。",
@@ -1633,6 +1653,8 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "この投稿用にカスタマイズ",
   },
   ko: {
+    "Show {label}": "{label} 표시",
+    "Hide {label}": "{label} 숨기기",
     "Preview": "미리보기",
     "Loading preview…": "미리보기 로딩 중…",
     "Preview unavailable.": "미리보기를 사용할 수 없습니다.",
@@ -1792,6 +1814,8 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "이 게시물 전용",
   },
   pl: {
+    "Show {label}": "Pokaż: {label}",
+    "Hide {label}": "Ukryj: {label}",
     "Preview": "Podgląd",
     "Loading preview…": "Ładowanie podglądu…",
     "Preview unavailable.": "Podgląd niedostępny.",
@@ -1951,6 +1975,8 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "Własna dla tego wpisu",
   },
   hu: {
+    "Show {label}": "{label} megjelenítése",
+    "Hide {label}": "{label} elrejtése",
     "Preview": "Előnézet",
     "Loading preview…": "Előnézet betöltése…",
     "Preview unavailable.": "Az előnézet nem érhető el.",
@@ -2110,6 +2136,8 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "Egyedi ehhez a bejegyzéshez",
   },
   fr: {
+    "Show {label}": "Afficher : {label}",
+    "Hide {label}": "Masquer : {label}",
     "Preview": "Aperçu",
     "Loading preview…": "Chargement de l’aperçu…",
     "Preview unavailable.": "Aperçu indisponible.",
@@ -2269,6 +2297,8 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "Personnalisé pour cet article",
   },
   uk: {
+    "Show {label}": "Показати: {label}",
+    "Hide {label}": "Приховати: {label}",
     "Preview": "Попередній перегляд",
     "Loading preview…": "Завантаження попереднього перегляду…",
     "Preview unavailable.": "Попередній перегляд недоступний.",
@@ -2428,6 +2458,8 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "Свій для цього допису",
   },
   tr: {
+    "Show {label}": "{label} göster",
+    "Hide {label}": "{label} gizle",
     "Preview": "Önizleme",
     "Loading preview…": "Önizleme yükleniyor…",
     "Preview unavailable.": "Önizleme kullanılamıyor.",
@@ -2587,6 +2619,8 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "Bu yazıya özel",
   },
   th: {
+    "Show {label}": "แสดง{label}",
+    "Hide {label}": "ซ่อน{label}",
     "Preview": "ตัวอย่าง",
     "Loading preview…": "กำลังโหลดตัวอย่าง…",
     "Preview unavailable.": "ไม่สามารถแสดงตัวอย่างได้",
@@ -2746,6 +2780,8 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "กำหนดเองสำหรับโพสต์นี้",
   },
   it: {
+    "Show {label}": "Mostra {label}",
+    "Hide {label}": "Nascondi {label}",
     "Preview": "Anteprima",
     "Loading preview…": "Caricamento anteprima…",
     "Preview unavailable.": "Anteprima non disponibile.",
@@ -2905,6 +2941,8 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "Personalizzato per questo articolo",
   },
   hi: {
+    "Show {label}": "{label} दिखाएँ",
+    "Hide {label}": "{label} छिपाएँ",
     "Preview": "पूर्वावलोकन",
     "Loading preview…": "पूर्वावलोकन लोड हो रहा है…",
     "Preview unavailable.": "पूर्वावलोकन उपलब्ध नहीं है।",
@@ -3064,6 +3102,8 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "इस पोस्ट के लिए कस्टम",
   },
   ur: {
+    "Show {label}": "{label} دکھائیں",
+    "Hide {label}": "{label} چھپائیں",
     "Preview": "پیش منظر",
     "Loading preview…": "پیش منظر لوڈ ہو رہا ہے…",
     "Preview unavailable.": "پیش منظر دستیاب نہیں ہے۔",
@@ -3223,6 +3263,8 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "اس پوسٹ کے لیے حسب منشا",
   },
   bn: {
+    "Show {label}": "{label} দেখান",
+    "Hide {label}": "{label} লুকান",
     "Preview": "প্রাকদর্শন",
     "Loading preview…": "প্রাকদর্শন লোড হচ্ছে…",
     "Preview unavailable.": "প্রাকদর্শন উপলব্ধ নয়।",

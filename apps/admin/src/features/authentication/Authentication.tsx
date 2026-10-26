@@ -1,4 +1,5 @@
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
+import { SecretInput } from "@/components/SecretInput/SecretInput";
 import {
   I18nProvider,
   SETTINGS_DIALOG_DICTIONARIES,
@@ -45,28 +46,30 @@ function AuthenticationCredentialField(props: {
   const inputId = `authentication-${props.providerId}-${props.field.key}`;
   const hintId = `${inputId}-hint`;
 
+  // A div, not a wrapping <label>: the secret field's eye toggle must stay out of the input's name.
   return (
-    <label className="source-config-field" htmlFor={inputId}>
-      <span className="source-config-field-label">
+    <div className="source-config-field">
+      <label className="source-config-field-label" htmlFor={inputId}>
         {props.t(props.field.label)}
         <span className="source-config-field-required" aria-label={props.t("required")}>
           *
         </span>
-      </span>
-      <input
+      </label>
+      <SecretInput
+        label={props.t(props.field.label)}
+        secret={props.field.kind === "password"}
         id={inputId}
-        type={props.field.kind}
         defaultValue=""
         placeholder={props.t(props.field.placeholder)}
         required={props.field.required}
-        autoComplete={props.field.kind === "password" ? "new-password" : "off"}
+        autoComplete="new-password"
         spellCheck={false}
         aria-describedby={hintId}
       />
       <span id={hintId} className="jini-field-hint">
         {props.t(props.field.hint)}
       </span>
-    </label>
+    </div>
   );
 }
 
