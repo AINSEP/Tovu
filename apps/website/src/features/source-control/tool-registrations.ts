@@ -8,7 +8,6 @@ import { requireToolPermission } from "@jini-ai/cms/core";
 // for why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather
 // than redacting it into a message-stripped 500.
 import { ToolInputError } from "@jini-ai/core";
-import { type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";

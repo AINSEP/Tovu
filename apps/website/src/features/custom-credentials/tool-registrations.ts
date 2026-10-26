@@ -23,7 +23,7 @@ import {
   forbiddenRule,
 } from "../../contracts/core/model-facing-tool-errors.js";
 import { callerSafeErrorMessage, withModelFacingErrors, type CallerSafeErrorRule, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
-import { askThenReport, SURFACE_DISMISSED_PARAM, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import { askThenReport, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 // `SurfaceEmission` itself is `@jini-ai/core`'s own type (`@jini-ai/daemon/surface-exchanges` re-exports the
 // functions that use it, but not the type) — imported directly here so `handleSetTokenAnswer` below
 // can name its `askThenReport`-shaped return type explicitly, mirroring `features/deployments/

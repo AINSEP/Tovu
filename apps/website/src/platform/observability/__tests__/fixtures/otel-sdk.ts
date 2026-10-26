@@ -16,29 +16,24 @@
  * (including a test runner) that also touches it.
  */
 // Span lifecycle rationale: Jini packages/diagnostics/src/observability/otel.ts.
-import { AsyncLocalStorage } from "node:async_hooks";
-
 import { ROOT_CONTEXT, SpanKind, SpanStatusCode, trace, type Span, type Tracer } from "@opentelemetry/api";
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
-import { BatchSpanProcessor, type SpanProcessor } from "@opentelemetry/sdk-trace-base";
+import type { SpanProcessor } from "@opentelemetry/sdk-trace-base";
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 import {
   createOtelObservabilityPort as createDiagnosticOtelPort,
-  type ExporterFactory,
   type ObservabilityConfigEnabled,
   type ObservabilityPort,
-  type SpanScopePort,
   type TraceSpanKind,
   type TraceSpanPort,
   type TracerPort,
-  type TracerProviderFactory,
 } from "@jini-ai/diagnostics/observability";
+import { createAsyncLocalSpanScope } from "@jini-ai/diagnostics/observability/node";
 
 /** Test seam: replace the OTLP batch pipeline with explicit SDK span processors. */
 export interface OtelAdapterOptions {
-  spanProcessors?: SpanProcessor[];
+  spanProcessors: SpanProcessor[];
 }
 
 const SDK_SPAN_KINDS: Record<TraceSpanKind, SpanKind> = { server: SpanKind.SERVER, client: SpanKind.CLIENT, internal: SpanKind.INTERNAL };
@@ -80,73 +75,24 @@ function adaptTracer({ tracer }: { tracer: Tracer }): TracerPort {
  * request becomes that request span's child. AsyncLocalStorage is Node-only, which is why Jini takes
  * this as a host port. Express caveat: a continuation resumed from a socket/stream callback outside
  * the scope (some body parsers) starts root spans rather than mis-parenting them.
- * @param _required Empty; each call owns a fresh store.
- * @returns A scope port over one AsyncLocalStorage instance.
  */
-export function createAsyncLocalSpanScope(_required: Record<string, never>): SpanScopePort {
-  const storage = new AsyncLocalStorage<TraceSpanPort>();
-  return { active: () => storage.getStore(), run: ({ span, fn }) => storage.run(span, fn) };
-}
-
-/**
- * Creates structural SDK factories; no provider, exporter or background timer starts until invoked.
- * @param required Empty required object; all SDK overrides are optional.
- * @param options Optional test processors, which prevent constructing a real exporter.
- * @returns Factories which preserve service identity and do not register the provider globally.
- * @complexity O(1) setup, excluding SDK processor construction.
- * @example createOtelFactories({}, { spanProcessors: [processor] });
- *
- * These factories build one port's `NodeTracerProvider` when invoked (one per test port here; a
- * production host builds its port once at boot, through the provider plugin).
- *
- * @complexity O(1) setup cost (one provider, one span processor, one exporter); `trackRequest`
- * itself is O(1) per call (`tracer.startSpan` plus a handful of attribute writes) — the same cost
- * shape the no-op port has, since the OTel SDK's real cost (the batching queue and its periodic
- * HTTP export) lives in the span processor's own background timer, not in any individual
- * `trackRequest`/`end` call.
- */
-export function createOtelFactories(_required: Record<string, never>, options: OtelAdapterOptions = {}): {
-  exporterFactory: ExporterFactory;
-  tracerProviderFactory: TracerProviderFactory;
-} {
-  return {
-    exporterFactory: {
-      create: ({ endpoint }) => {
-        if (options.spanProcessors !== undefined) return undefined;
-        return new OTLPTraceExporter({ url: endpoint });
-      },
-    },
-    tracerProviderFactory: {
-      create: ({ serviceName, exporter }) => {
-        let spanProcessors = options.spanProcessors;
-        if (spanProcessors === undefined) {
-          // The diagnostics port treats exporters as opaque. Narrow at the SDK boundary rather
-          // than casting an arbitrary port value into a live processor's exporter dependency.
-          if (!(exporter instanceof OTLPTraceExporter)) {
-            throw new TypeError("OpenTelemetry requires an OTLP trace exporter");
-          }
-          spanProcessors = [new BatchSpanProcessor(exporter)];
-        }
-        const provider = new NodeTracerProvider({
-          resource: resourceFromAttributes({ [ATTR_SERVICE_NAME]: serviceName }),
-          spanProcessors,
-        });
-        return { getTracer: ({ name }) => adaptTracer({ tracer: provider.getTracer(name) }) };
-      },
-    },
-  };
-}
 
 /**
  * Binds Jini's tracing lifecycle to host SDK factories, with injectable processors for tests.
  * @param required Enabled diagnostics configuration.
- * @param options Optional SDK test processors; production uses a bounded OTLP batch processor.
+ * @param options Explicit SDK test processors; this fixture never creates a network exporter.
  * @returns A request tracker owned by one provider instance. SDK setup errors propagate.
  * @complexity O(1) setup and O(1) per track/end, excluding SDK batching/export I/O.
  * @example createOtelObservabilityPort({ config }, { spanProcessors: [processor] });
  */
-export function createOtelObservabilityPort({ config }: { config: ObservabilityConfigEnabled }, options: OtelAdapterOptions = {}): ObservabilityPort {
-  // Construct once at boot: the batch processor's export queue/timer belongs to the provider,
+export function createOtelObservabilityPort({ config }: { config: ObservabilityConfigEnabled }, options: OtelAdapterOptions): ObservabilityPort {
+  // Construct once per test: the processor belongs to the provider,
   // not to individual requests. getTracer uses the instance so other global registrations survive.
-  return createDiagnosticOtelPort({ config, ...createOtelFactories({}, options) }, { scope: createAsyncLocalSpanScope({}) });
+  // Exporters are opaque to diagnostics; explicit processors own export here, so its factory is inert.
+  return createDiagnosticOtelPort({ config, exporterFactory: { create: () => undefined }, tracerProviderFactory: {
+    create: ({ serviceName }) => {
+      const provider = new NodeTracerProvider({ resource: resourceFromAttributes({ [ATTR_SERVICE_NAME]: serviceName }), spanProcessors: options.spanProcessors });
+      return { getTracer: ({ name }) => adaptTracer({ tracer: provider.getTracer(name) }) };
+    },
+  } }, { scope: createAsyncLocalSpanScope({}) });
 }

@@ -8,7 +8,7 @@ import {
 } from "@jini-ai/platform/mail";
 import type { MailAttemptObserver } from "#src/features/mail/attempts.repo";
 import type { MailTestModeSetting } from "#src/features/settings/mail-provider";
-import type { MailerPort, MailerSendOptions, MailerSendResult, OutboundEmail } from "#src/platform/mail/index";
+import type { MailerPort, MailerSendOptions } from "#src/platform/mail/index";
 import { toJiniMailer, toTovuMailer } from "#src/platform/mail/purpose-scoped-mailer";
 
 /**

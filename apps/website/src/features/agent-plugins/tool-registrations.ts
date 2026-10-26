@@ -10,7 +10,7 @@ import { appendPluginNotes } from "./memory.js";
 // Jini owns activation lifecycle; this host binding owns its effects.
 import { agentPluginActivations } from "./activation-effects.js";
 const { filterActiveAgentPlugins, isAgentPluginActive, readAgentPluginActivations, resolveAgentPluginActivation } = agentPluginActivations;
-import { buildDomainRegistrations, indexCatalogById, isRecord, optionalNumber, optionalString, requireInputRecord, requireString, ToolInputError, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, optionalNumber, optionalString, requireInputRecord, requireString, ToolInputError, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
 
 import { readFrontmatterField } from "#src/platform/markdown/frontmatter";
 

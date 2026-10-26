@@ -37,7 +37,7 @@ import type { ExportReport } from "#src/features/site-export/index";
  * `#src/features/theme/index` — nothing under `server/` or `assistant/`. The leaf module imports
  * nothing at runtime at all, so it cannot participate in a cycle regardless.
  */
-import { firstExportFailure, type ExportFailureSummary } from "#src/features/site-export/export-failure-summary";
+import { firstExportFailure } from "#src/features/site-export/export-failure-summary";
 
 import { redactDeployTargetMessage, toDeployTargetCredential } from "./credentials.js";
 import type { PublishCredentialSource, StaticPublishConfig, StaticPublishOutcome, StaticPublishTargetId } from "./types.js";
