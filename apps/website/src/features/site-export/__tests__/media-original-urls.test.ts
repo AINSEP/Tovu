@@ -31,11 +31,19 @@ test("export rewrites legacy original URLs in HTML, inline CSS, XML and JSON, pr
     `<link rel="icon" href="${old}"><image:loc>${origin}${old}</image:loc>{"src":"${old}"}` +
     `<img src="https://foreign.invalid${old}"><img src="${old}.svg"><img src="${old}-other">`;
   const expected = `<header><img src="${canonical}?v=1#mark"></header><footer style="background:url(${canonical})"></footer>` +
-    `<link rel="icon" href="${canonical}"><image:loc>${canonical}</image:loc>{"src":"${canonical}"}` +
+    `<link rel="icon" href="${canonical}"><image:loc>${origin}${canonical}</image:loc>{"src":"${canonical}"}` +
     `<img src="https://foreign.invalid${old}"><img src="${old}.svg"><img src="${old}-other">`;
   assert.equal(await rewriteMediaOriginalUrls({ body, deps }), expected);
   assert.equal((await deps.mediaContentTypeStore.getMany({ workspaceId: deps.workspaceId, sha256s: [media.source.sha256] })).get(media.source.sha256), "image/svg+xml");
   assert.equal(await rewriteMediaOriginalUrls({ body: expected, deps }), expected);
+});
+
+test("without a verified origin, absolute and malformed references stay as written and the export continues", async () => {
+  const { deps, old, canonical } = await fixture();
+  const unverified = { ...deps, originRegistry: { ...deps.originRegistry, canonicalOrigin: async () => { throw new Error("no verified origin"); } } };
+  const body = `<img src="${old}"><a href="https://example.invalid${old}">x</a><img src="/m/%E0%A4%A/original">`;
+  assert.equal(await rewriteMediaOriginalUrls({ body, deps: unverified as typeof deps }),
+    `<img src="${canonical}"><a href="https://example.invalid${old}">x</a><img src="/m/%E0%A4%A/original">`);
 });
 
 test("export response rewrite preserves MIME and security headers and leaves binary responses untouched", async () => {
