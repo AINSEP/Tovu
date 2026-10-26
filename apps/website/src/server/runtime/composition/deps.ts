@@ -64,7 +64,7 @@ import { dirname, join, resolve, sep } from "node:path";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { instrumentStorageKernel, trackFetch } from "#src/platform/observability/index";
-import { bootProviderPlugins, type SiteIdentity } from "./provider-plugins.js";
+import { bootProviderPlugins, legacyProviderCredentialCheck, type SiteIdentity } from "./provider-plugins.js";
 import { createVaultProviderConfigSource, withProjectPrecedence, type ProviderConfigSource } from "./provider-config-source.js";
 import { openProjectStore, type ProjectStore } from "./project-store.js";
 import { createAgentPluginStateStore } from "#src/features/api-connections/plugin-state";
@@ -192,7 +192,7 @@ import {
   SqliteNewsletterSubscriptionRepo,
 } from "#src/features/newsletter/repo.sqlite";
 import { DefaultMemberAccessResolver, MembersSubscriberDirectory } from "#src/features/members/index";
-import { resolveCustomCredentialByLabel } from "#src/features/custom-credentials/index";
+import { listCustomCredentials, resolveCustomCredentialByLabel } from "#src/features/custom-credentials/index";
 import { ensureSearchProviderSetting } from "#src/features/site-search/settings";
 import { bindSiteSearchPorts, createSiteSearchRuntime } from "./modules/site-search.js";
 import {
@@ -2501,6 +2501,8 @@ async function composeSiteRouteDeps(
     productAnalytics,
     aiTraceSink,
     providerConfig: providerConfigSource,
+    // Wave 2's retired provider-key rows, found by label only (never decrypted): the settings card's re-entry notice.
+    legacyProviderCredential: legacyProviderCredentialCheck({ listLabels: () => listCustomCredentials({ repo: customCredentialSetRepo }, { workspaceId }) }),
     // Built and probed in the prelude above, over the same content kernel that carries site content.
     publishTrustRevocations,
     clock,
