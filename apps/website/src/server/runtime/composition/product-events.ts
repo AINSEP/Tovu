@@ -75,7 +75,7 @@ function allowedValue({ rule, value }: { rule: Rules[string]; value: unknown }, 
 }
 
 /** Project only catalog properties and replace all caller identity with installation identity.
- * Unknown fields are omitted; an invalid value of a declared field refuses the whole event.
+ * Unknown fields and invalid enum values are omitted; invalid booleans/numbers refuse the event.
  * @returns A fresh event, or undefined for unapproved names/values/identity. No effects.
  * @example projectProductEvent({ event: { name: 'app_started', userId: 'ignored' }, installationId: 'fake-install' });
  * @complexity O(k) declared keys, bounded by the frozen catalog; no caller-property scan.
@@ -90,13 +90,18 @@ export function projectProductEvent({ event, installationId }: { event: ProductE
   return properties ? { name: event.name, userId: installationId, properties } : undefined;
 }
 
-/** Declared keys only; one invalid declared value refuses the event. @complexity O(k) declared keys. */
+/** Declared keys only; invalid enums are omitted, invalid booleans/numbers refuse the event.
+ * @complexity O(k) declared keys.
+ */
 function declaredProperties({ rules, properties }: { rules: Rules; properties: ProductEvent['properties'] }, _options = {}): ProductEventProperties | undefined {
   const projected: Record<string, ProductEventProperties[string]> = {};
   for (const [key, rule] of Object.entries(rules)) {
     const value = properties?.[key];
     if (value === undefined) continue;
-    if (!allowedValue({ rule, value })) return undefined;
+    if (!allowedValue({ rule, value })) {
+      if (Array.isArray(rule)) continue;
+      return undefined;
+    }
     projected[key] = value;
   }
   return projected;

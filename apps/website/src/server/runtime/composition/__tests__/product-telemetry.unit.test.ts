@@ -80,7 +80,7 @@ test('unset or incomplete child env never loads providers or reads config, and r
   assert.deepEqual({ loads, warnings }, { loads: 0, warnings: 0 });
 });
 
-test('catalog event uses installation identity and only permitted properties; unknown, visitor and free-text enum events are dropped', async () => {
+test('catalog event uses installation identity; unknown and visitor events are dropped, free-text enum properties are omitted', async () => {
   const f = await fixture();
   try {
     await f.prefs(granted);
@@ -94,13 +94,30 @@ test('catalog event uses installation identity and only permitted properties; un
     product.productAnalytics.identify({ userId: 'site-principal', traits: { plan: 'private' } });
     assert.equal(product.productAnalytics.captureAiGeneration, undefined);
     assert.equal(product.productAnalytics.browserAnalytics, undefined);
-    assert.deepEqual(f.events, [{ name: 'site_created', userId: INSTALL, properties: { templateKind: 'default', source: 'admin' } }]);
+    assert.deepEqual(f.events, [
+      { name: 'site_created', userId: INSTALL, properties: { templateKind: 'default', source: 'admin' } },
+      { name: 'site_created', userId: INSTALL, properties: {} },
+      { name: 'app_started', userId: INSTALL, properties: {} },
+    ]);
     assert.deepEqual(f.inputs, [{ config: CONFIG, release: f.required.release, attribution: { attributes: {
       source: 'desktop', release: f.required.release, os: process.platform, arch: process.arch, process: 'server',
     }, groups: {} } }]);
     assert.deepEqual(product.crashUpload, { submitURL: 'https://crash.example.test/upload', globalExtra: { release: f.required.release } });
     await product.dispose();
     assert.equal(f.disposed(), 1);
+  } finally { await f.close(); }
+});
+
+test('unknown enum drops only its property and still sends the event; known enum is kept', async () => {
+  const f = await fixture();
+  try {
+    const product = await bootProductTelemetry(f.required, { ...f.options, readConsent: () => granted });
+    await product.productAnalytics.capture({ name: 'assistant_run_finished', userId: 'principal', properties: { outcome: 'new-outcome', chatSurface: 'admin' } });
+    await product.productAnalytics.capture({ name: 'assistant_run_finished', userId: 'principal', properties: { outcome: 'succeeded', chatSurface: 'admin' } });
+    assert.deepEqual(f.events, [
+      { name: 'assistant_run_finished', userId: INSTALL, properties: { chatSurface: 'admin' } },
+      { name: 'assistant_run_finished', userId: INSTALL, properties: { chatSurface: 'admin', outcome: 'succeeded' } },
+    ]);
   } finally { await f.close(); }
 });
 
@@ -233,7 +250,7 @@ test('post-load failure disposes resources and a throwing warning sink cannot fa
   } finally { await f.close(); }
 });
 
-test('catalog is frozen; declared free-text values refuse events while unknown identity fields are omitted', () => {
+test('catalog is frozen; declared free-text enum values and unknown identity fields are omitted', () => {
   assert.equal(Object.isFrozen(PRODUCT_EVENTS), true);
   for (const rules of Object.values(PRODUCT_EVENTS)) {
     assert.equal(Object.isFrozen(rules), true);
@@ -241,6 +258,7 @@ test('catalog is frozen; declared free-text values refuse events while unknown i
   }
   assert.deepEqual(projectProductEvent({ installationId: INSTALL, event: { name: 'plugin_toggled', userId: 'private', properties: { enabled: true, pluginKind: 'cms', pluginId: 'custom-private-name' } } }),
     { name: 'plugin_toggled', userId: INSTALL, properties: { enabled: true, pluginKind: 'cms' } });
-  assert.equal(projectProductEvent({ installationId: INSTALL, event: { name: 'desktop_action', userId: 'private', properties: { action: 'private action' } } }), undefined);
+  assert.deepEqual(projectProductEvent({ installationId: INSTALL, event: { name: 'desktop_action', userId: 'private', properties: { action: 'private action' } } }),
+    { name: 'desktop_action', userId: INSTALL, properties: {} });
   assert.equal(projectProductEvent({ installationId: INSTALL, event: { name: 'toString', userId: 'private' } }), undefined);
 });
