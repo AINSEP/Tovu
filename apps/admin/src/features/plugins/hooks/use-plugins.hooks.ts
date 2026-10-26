@@ -83,6 +83,11 @@ export interface PluginsController {
   /** Opens the package-files viewer for one plugin (a row's eye button, on either list tab). */
   onInspectPlugin: (id: string) => void;
   onCloseInspector: () => void;
+  /** The provider plugin open in `PluginProviderSettingsDialog` (looked up fresh, like `inspectedPlugin`). */
+  settingsPlugin: AdminPlugin | null;
+  /** Opens a provider plugin's settings card (a row's Settings button, when it declares settings). */
+  onOpenSettings: (id: string) => void;
+  onCloseSettings: () => void;
   /** The plugin waiting on `PluginRemoveConfirmDialog`, looked up fresh from `plugins` by id (same as
    *  `inspectedPlugin`), so the confirmed row is always the current one; `null` while it's closed. */
   pendingRemovePlugin: AdminPlugin | null;
@@ -146,6 +151,7 @@ export function usePlugins({ port, locale, t, installPort = defaultPluginInstall
   const [rowSavingId, setRowSavingId] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(new Set());
   const [inspectedPluginId, setInspectedPluginId] = useState<string | null>(null);
+  const [settingsPluginId, setSettingsPluginId] = useState<string | null>(null);
   const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
@@ -213,6 +219,9 @@ export function usePlugins({ port, locale, t, installPort = defaultPluginInstall
     inspectedPlugin: findPluginById({ plugins, id: inspectedPluginId }),
     onInspectPlugin: setInspectedPluginId,
     onCloseInspector: () => setInspectedPluginId(null),
+    settingsPlugin: findPluginById({ plugins, id: settingsPluginId }),
+    onOpenSettings: setSettingsPluginId,
+    onCloseSettings: () => setSettingsPluginId(null),
     pendingRemovePlugin: findPluginById({ plugins, id: pendingRemoveId }),
     onRequestRemove: (plugin: AdminPlugin) => setPendingRemoveId(plugin.id),
     onConfirmRemove: (plugin: AdminPlugin) => {

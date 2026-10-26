@@ -10,6 +10,14 @@ import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const PLUGINS_DICT: Record<string, Record<string, string>> = {
   es: {
+    // Provider plugin settings card (2026-10-26).
+    "Settings": "Ajustes",
+    "Saved for every site in this project. Takes effect the next time Tovu starts.": "Se guarda para todos los sitios de este proyecto. Se aplica la próxima vez que se inicie Tovu.",
+    "Saved for this site. Takes effect the next time Tovu starts.": "Se guarda para este sitio. Se aplica la próxima vez que se inicie Tovu.",
+    "Settings saved.": "Ajustes guardados.",
+    "Saved — leave blank to keep": "Guardado: déjalo en blanco para conservarlo",
+    "failed to load plugin settings": "no se pudieron cargar los ajustes del plugin",
+    "failed to save plugin settings": "no se pudieron guardar los ajustes del plugin",
     // Agent Plugin compatibility, dependents and explicit update (2026-10-21).
     "Not for this Tovu version": "No es para esta versión de Tovu",
     "Needs {capabilities}": "Necesita {capabilities}",

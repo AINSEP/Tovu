@@ -7,6 +7,7 @@ import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
 import { navigate } from "../../lib/router";
 import { PluginRow } from "./PluginRow";
 import { PluginPackageFilesModal } from "./PluginPackageFilesModal";
+import { PluginProviderSettingsDialog } from "./PluginProviderSettingsDialog";
 import { PluginRemoveConfirmDialog } from "./PluginRemoveConfirmDialog";
 import { AddPluginPanel } from "./AddPluginPanel";
 import { UploadIcon } from "./agent-plugins-visuals";
@@ -108,6 +109,7 @@ function InstalledPluginRows({
             onToggleExpanded={() => onToggleExpanded(plugin.id)}
             agentHandleBase={rowHandleById.get(plugin.id)!}
             onInspect={() => controller.onInspectPlugin(plugin.id)}
+            {...(plugin.providerSettings ? { onSettings: () => controller.onOpenSettings(plugin.id) } : {})}
             action={
               <button
                 type="button"
@@ -184,6 +186,7 @@ function DownloadedPluginRows({
             onToggleExpanded={() => onToggleExpanded(plugin.id)}
             agentHandleBase={rowHandleById.get(plugin.id)!}
             onInspect={() => controller.onInspectPlugin(plugin.id)}
+            {...(plugin.providerSettings ? { onSettings: () => controller.onOpenSettings(plugin.id) } : {})}
             action={action}
           />
         );
@@ -327,7 +330,7 @@ export function Plugins({ tabId, usePluginsHook = useWiredPlugins }: PluginsProp
 /** The screen once `PLUGINS_LIST` has settled: header, row error, tab bar, the active tab's panel,
  *  and the package-files viewer and Remove confirm dialog (both opened through the controller). */
 function LoadedPlugins({ plugins, controller, activeTabId }: { plugins: AdminPlugin[]; controller: PluginsController; activeTabId: PluginsTabId }) {
-  const { error, rowError, t, locale, inspectedPlugin, pendingRemovePlugin } = controller;
+  const { error, rowError, t, locale, inspectedPlugin, pendingRemovePlugin, settingsPlugin } = controller;
 
   // Plugin ids are stable and unique, same per-row-handle derivation every other list on this
   // workstream uses (`buildAgentListHandles`), computed once from the FULL unfiltered list so a
@@ -376,6 +379,10 @@ function LoadedPlugins({ plugins, controller, activeTabId }: { plugins: AdminPlu
       <ActivePanel plugins={plugins} controller={controller} rowHandleById={rowHandleById} />
 
       {inspectedPlugin ? <PluginPackageFilesModal plugin={inspectedPlugin} onClose={controller.onCloseInspector} /> : null}
+
+      {settingsPlugin ? (
+        <PluginProviderSettingsDialog plugin={settingsPlugin} agentHandleBase={rowHandleById.get(settingsPlugin.id)!} onClose={controller.onCloseSettings} />
+      ) : null}
 
       {pendingRemovePlugin ? (
         <PluginRemoveConfirmDialog

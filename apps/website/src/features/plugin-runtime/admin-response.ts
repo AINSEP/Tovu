@@ -51,6 +51,9 @@ export interface AdminPluginEnvelope {
    * for an enabled plugin, why it was refused; for one that is off, what turning it on would hit.
    * Always present (empty when clear), so the admin row and `plugins_list` need no absent case. */
   readonly conflicts: readonly PluginConflict[];
+  /** (2026-10-26) Present (true) only when the plugin's manifest declares provider settings — the admin
+   * row then offers its settings card (`routes/plugins/provider-settings.ts`). Absent otherwise. */
+  readonly providerSettings?: true;
 }
 
 /**
@@ -87,5 +90,6 @@ export function toAdminPluginResponse(
         : null,
     errors: discovery.errors,
     conflicts: optional.conflicts ?? [],
+    ...((discovery.manifest?.contributes?.providers ?? []).some((provider) => (provider.settings?.length ?? 0) > 0) ? { providerSettings: true as const } : {}),
   };
 }
