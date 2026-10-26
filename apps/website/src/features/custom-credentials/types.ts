@@ -97,6 +97,8 @@ export type CustomCredentialScope = "site" | "project";
 export interface CustomCredentialProjectScope {
   readonly workspaceId: UUID;
   readonly repo: CustomCredentialSetRepoPort;
+  /** Explicit deletion metadata only, over the raw project vault with its usage guard. */
+  readonly deletionRepo?: CustomCredentialSetRepoPort;
   readonly sealer: SecretSealerPort;
   readonly keyring: KeyringPort;
 }

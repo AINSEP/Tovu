@@ -1,3 +1,4 @@
+import { credentialDeletionRepo } from "#src/features/vendor-credentials/project-scope";
 import { isBuiltInExternalMcpServer } from "#src/features/external-mcp/built-in-connections";
 import { OwnerRequiredError } from "@jini-ai/user-management";
 import { assertUserAccountAction, SelfDeleteError, callerMayManageUserTrash } from "#src/features/identity/delete-user-service";
@@ -230,23 +231,23 @@ export function buildPermanentDeleteDeps(deps: Deps): PermanentDeleteToolDeps {
           });
         }
         case "custom_credential_delete":
-          // This site's own key, else the project's (shared by every site; deleted for all of them).
-          return recordPlan({ toolId, id, load: () => describeCustomCredential({ repo: deps.customCredentialSetRepo }, key), label: credential => credential.label,
+          // This site's own key, else the attached project key (deletion is refused while other sites use it).
+          return recordPlan({ toolId, id, load: () => describeCustomCredential({ repo: credentialDeletionRepo({ repo: deps.customCredentialSetRepo }) }, key), label: credential => credential.label,
             warning: "Deletes the saved custom credential. The token is not revoked at its provider.",
-            remove: async () => { await deleteCustomCredential({ repo: deps.customCredentialSetRepo }, key); return { removed: true, id }; } });
+            remove: async () => { await deleteCustomCredential({ repo: credentialDeletionRepo({ repo: deps.customCredentialSetRepo }) }, key); return { removed: true, id }; } });
         case "deployment_delete_provider_credential":
           return recordPlan({ toolId, id, load: async () => {
-            const record = await findPublishCredentialRecord({ repo: deps.vendorCredentialSetRepo }, key);
+            const record = await findPublishCredentialRecord({ repo: credentialDeletionRepo({ repo: deps.vendorCredentialSetRepo }) }, key);
             if (!record) return null;
             const hosts = (await deps.loadDeployTargets(deps.workspaceId)).list().filter(host => host.descriptor.credential?.vendorId === record.vendorId).map(host => host.descriptor.id);
             return { ...record, affectedHosts: hosts };
           }, label: credential => `${credential.label} (${credential.vendorId}); used by publish hosts: ${credential.affectedHosts.join(", ") || "none"}`,
             warning: "Deletes this vendor credential shared by its publish hosts. Another credential may become the default. Deployed sites remain; the token is not revoked at its provider.",
-            remove: async () => { await deletePublishCredential({ repo: deps.vendorCredentialSetRepo, transaction: deps.contentKernel }, key); return { removed: true, id }; } });
+            remove: async () => { await deletePublishCredential({ repo: credentialDeletionRepo({ repo: deps.vendorCredentialSetRepo }), transaction: deps.contentKernel }, key); return { removed: true, id }; } });
         case "source_control_delete_credential":
-          return recordPlan({ toolId, id, load: () => describeSourceControlCredential({ repo: deps.sourceControlCredentialSetRepo }, key), label: credential => credential.label,
+          return recordPlan({ toolId, id, load: () => describeSourceControlCredential({ repo: credentialDeletionRepo({ repo: deps.sourceControlCredentialSetRepo }) }, key), label: credential => credential.label,
             warning: "Deletes the saved source-control credential. Another credential may become the default. Repositories remain; the token is not revoked at its provider.",
-            remove: async () => { await deleteSourceControlCredential({ repo: deps.sourceControlCredentialSetRepo }, key); return { removed: true, id }; } });
+            remove: async () => { await deleteSourceControlCredential({ repo: credentialDeletionRepo({ repo: deps.sourceControlCredentialSetRepo }) }, key); return { removed: true, id }; } });
       }
     }) as PermanentDeleteToolDeps["prepare"],
   };

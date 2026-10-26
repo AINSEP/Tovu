@@ -547,7 +547,7 @@ describe("usePlugins — provider settings card", () => {
 
     act(() => result.current.onSettingsSaved());
     expect(result.current.settingsPlugin).toBeNull();
-    expect(result.current.settingsNotice).toBe("PostHog settings saved — applies next time Tovu starts");
+    expect(result.current.settingsNotice).toBe("PostHog settings saved");
 
     act(() => result.current.dismissSettingsNotice());
     expect(result.current.settingsNotice).toBeNull();

@@ -6,7 +6,7 @@ import { isUniqueViolation } from "../../platform/db/kernel/dialect.js";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import { byVaultLabel, createTovuStoreVault } from "#src/platform/secrets/vault-kinds";
 import { customVaultRecord, customVaultScope } from "./vault-repo.js";
-import { credentialCreateTarget, credentialScopes, type ScopedCredentialDeps } from "../vendor-credentials/project-scope.js";
+import { credentialDeletionRepo, credentialCreateTarget, credentialScopes, type ScopedCredentialDeps } from "../vendor-credentials/project-scope.js";
 import {
   CUSTOM_CREDENTIAL_CATEGORIES,
   type CustomCredentialCategoryId,
@@ -305,8 +305,8 @@ export interface CreateCustomCredentialInput {
   /** Omitted = no extra hosts beyond `baseUrl`. See `validateAdditionalHosts`'s own doc. */
   additionalHosts?: unknown;
   worksFor?: unknown;
-  /** `"site"` = "Only for this site". Omitted (or `"project"`) = the project store when one is
-   *  attached, so every site of the project can use it; this site's vault otherwise. */
+  /** `"site"` = a site-owned key. Omitted (or `"project"`) = the project store when one is
+   *  attached, visible to attached sites only; this site's vault otherwise. */
   scope?: unknown;
 }
 
@@ -354,7 +354,7 @@ export async function createCustomCredential(deps: CustomCredentialWriteDeps, in
   const record = customVaultRecord({ row: prepared, expectedRevision: null });
   try { await target.deps.repo.insert(record); }
   catch (err) {
-    if (isUniqueLabelViolation(err)) throw duplicateLabel(label);
+    if (isUniqueLabelViolation(err)) throw target.scope === "project" ? new CustomCredentialDuplicateLabelError(`Your project already has a key named '${label}'. Use it here, or pick another name.`) : duplicateLabel(label);
     throw err;
   }
   return toSummary(record, reportedScope(deps, target));
@@ -427,7 +427,7 @@ function updatedConnection({ input, existing }: {
  * @complexity Constant queries/seals plus metadata size; CAS rejects a concurrent replacement.
  */
 export async function updateCustomCredential(deps: CustomCredentialWriteDeps, input: UpdateCustomCredentialInput): Promise<CustomCredentialSummary> {
-  // Changed where it lives: this site's own row, else the project's (shared by every site).
+  // Changed where it lives: this site's own row, else the project's attached row.
   const located = await locateById(deps, input);
   if (!located) throw new CustomCredentialNotFoundError(`no custom credential '${input.id}' in this workspace`);
   const { scoped, record: existing } = located;
@@ -442,7 +442,7 @@ export async function updateCustomCredential(deps: CustomCredentialWriteDeps, in
   const record = customVaultRecord({ row: prepared, expectedRevision });
   try { await scoped.deps.repo.update(record); }
   catch (err) {
-    if (isUniqueLabelViolation(err)) throw duplicateLabel(label);
+    if (isUniqueLabelViolation(err)) throw scoped.scope === "project" ? new CustomCredentialDuplicateLabelError(`Your project already has a key named '${label}'. Use it here, or pick another name.`) : duplicateLabel(label);
     throw err;
   }
   return toSummary(record, reportedScope(deps, scoped));
@@ -456,8 +456,8 @@ export async function updateCustomCredential(deps: CustomCredentialWriteDeps, in
  * @complexity O(1).
  */
 export async function deleteCustomCredential(deps: CustomCredentialReadDeps, input: { workspaceId: UUID; id: UUID }): Promise<void> {
-  // A project row is removed for every site of the project, as its summary's `scope` says.
-  const located = await locateById(deps, input);
+  // A project row is removed only when no other site uses it, with its attachments.
+  const located = await locateById({ ...deps, repo: credentialDeletionRepo({ repo: deps.repo }) }, input);
   if (located) await located.scoped.deps.repo.delete({ workspaceId: located.scoped.workspaceId, id: input.id });
 }
 
@@ -499,8 +499,8 @@ async function openLocated({ scoped, record }: Located<CustomCredentialResolveDe
 }
 
 /**
- * "Share with all sites" (owner 2026-10-25): copies one of this site's own credentials into the
- * project store, re-sealed with the project key, so every site of the project can use it. A project
+ * Legacy copy-to-project helper (no public route): copies one of this site's own credentials into the
+ * project store, re-sealed with the project key, visible to attached sites only. A project
  * row with the same label is replaced in place (its id kept); otherwise the copy keeps this row's id,
  * so anything that names it by id still finds it. The copy is opened and compared before this site's
  * row is removed (a site row would otherwise keep overriding the shared one here); any failure before

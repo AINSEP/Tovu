@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { AdminPluginProviderSettings } from "@/lib/api";
 import { PluginProviderSettingsDialog } from "../PluginProviderSettingsDialog";
@@ -20,7 +20,7 @@ const UNREADABLE_NOTICE = "Saved keys for this plugin can't be read on this mach
 const LEGACY_NOTICE = "A key for this plugin was saved in an older format that Tovu no longer reads. Enter it again here and save.";
 
 function card(overrides: Partial<AdminPluginProviderSettings> = {}): AdminPluginProviderSettings {
-  return { pluginId: "observability-opentelemetry", store: "project", appliesAt: "next-start", fields: [
+  return { pluginId: "observability-opentelemetry", store: "project", keyId: "plugin-state:observability-opentelemetry:provider.config", usedByThisSite: false, usedBy: [], projectAvailable: true, appliesAt: "now", fields: [
     { name: "endpoint", label: "OTLP endpoint", hint: "https://…", secret: false, required: true, saved: true, value: "https://old.example.test" },
     { name: "headers", label: "OTLP headers", secret: true, required: false, saved: true },
   ], ...overrides };
@@ -60,8 +60,8 @@ describe("PluginProviderSettingsDialog", () => {
     expect(headers.value).toBe("");
     expect(headers.placeholder).toBe("Saved — leave blank to keep");
     expect(screen.getByRole("heading", { name: "OpenTelemetry settings" })).toBeTruthy();
-    expect(screen.getByText("Saved for every site in this project")).toBeTruthy();
-    expect(screen.getByText("Takes effect the next time Tovu starts.")).toBeTruthy();
+    expect(screen.getByText("Saved to your project — not used by any site yet")).toBeTruthy();
+    expect(screen.queryByText("Takes effect the next time Tovu starts.")).toBeNull();
   });
 
   it("a key saved the retired way asks to be entered again; saving clears the notice", async () => {
@@ -241,4 +241,22 @@ describe("PluginRow settings button", () => {
     fireEvent.click(screen.getByRole("button", { name: "Settings — X" }));
     expect(opened).toBe(1);
   });
+});
+
+
+it("uses a saved project key for this site through the shared port without another dialog", async () => {
+  const providerSettings = { "observability-opentelemetry": card() };
+  const onSaved = vi.fn();
+  dialogWith(createFakePluginsPort({ providerSettings }), { onSaved });
+  fireEvent.click(await screen.findByRole("button", { name: "Use the saved key for this site" }));
+  await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+  expect(providerSettings["observability-opentelemetry"].usedByThisSite).toBe(true);
+  expect(screen.queryByRole("button", { name: "Use the saved key for this site" })).toBeNull();
+  expect(screen.getByText("Used by this-site")).toBeTruthy();
+});
+
+it("labels an existing site key as site-only when a project store is available", async () => {
+  dialogWith(createFakePluginsPort({ providerSettings: { "observability-opentelemetry": card({ store: "site", usedByThisSite: true }) } }));
+  expect(await screen.findByText("Saved for this site only")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Use the saved key for this site" })).toBeNull();
 });

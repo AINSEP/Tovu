@@ -63,7 +63,7 @@ test("GET lists the declared fields (first declaration of a name wins); nothing 
   const { call, permissions } = await serve(t);
   const { status, json } = await call("GET", `${WS}/plugins/obs/provider-settings`);
   assert.equal(status, 200);
-  assert.deepEqual(json, { pluginId: "obs", store: "project", appliesAt: "next-start", fields: [
+  assert.deepEqual(json, { pluginId: "obs", store: "project", usedByThisSite: false, usedBy: [], projectAvailable: true, appliesAt: "now", fields: [
     { name: "endpoint", label: "OTLP endpoint", hint: "https://…", secret: false, required: true, saved: false },
     { name: "headers", label: "OTLP headers", secret: true, required: false, saved: false },
   ] });
@@ -187,4 +187,31 @@ test("saved settings this machine can't open (lost or re-minted store key): the 
   // Any other read failure is still an error, never a silent overwrite.
   config.read = async () => { throw new Error("db down"); };
   assert.equal((await call("PUT", `${WS}/plugins/obs/provider-settings`, { values: { endpoint: "https://x.example.test" } })).status, 500);
+});
+
+
+test("admin attaches an encoded provider key with its save permission and returns live apply status", async t => {
+  const calls: { keyId: string; use: boolean }[] = [];
+  const keyId = "plugin-state:observability-example:provider.config";
+  const { call, permissions } = await serve(t, { projectKeys: {
+    list: async () => [], savedResult: async ({ result }) => result,
+    permissionFor: async ({ keyId: found }) => { assert.equal(found, keyId); return "admin.plugins.enable"; },
+    use: async input => { calls.push(input); return { ...input, usedByThisSite: input.use, usedBy: input.use ? ["A"] : [], appliesAt: "now" }; },
+  } });
+  const result = await call("PUT", `${WS}/project-keys/${encodeURIComponent(keyId)}/use`, { use: true });
+  assert.equal(result.status, 200);
+  assert.deepEqual(calls, [{ keyId, use: true }]);
+  assert.deepEqual(permissions, ["admin.plugins.enable"]);
+  const malformed = await call("PUT", `${WS}/project-keys/${encodeURIComponent(keyId)}/use`, { use: "true" });
+  assert.equal(malformed.status, 400);
+  assert.equal(calls.length, 1);
+});
+
+test("admin save calls live reapply and preserves restart fallback in the response", async t => {
+  const applied: string[] = [];
+  const { call } = await serve(t, { reapplyProvider: async ({ pluginId }) => { applied.push(pluginId); return "restart"; } });
+  const result = await call("PUT", `${WS}/plugins/obs/provider-settings`, { values: { endpoint: "https://collector.example.test" } });
+  assert.equal(result.status, 200);
+  assert.equal(result.json.appliesAt, "restart");
+  assert.deepEqual(applied, ["obs"]);
 });

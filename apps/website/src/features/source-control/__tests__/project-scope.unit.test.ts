@@ -1,3 +1,5 @@
+import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
+import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -108,4 +110,20 @@ test("no project store (Fly): tokens stay in the site vault and summaries carry 
   assert.ok(await a.repo.findById({ workspaceId: SITE_A, id: saved.id }));
   assert.equal((await resolveDefaultForSourceControl(a, { workspaceId: SITE_A, providerId: "example-git" }))?.connection.token, secret("fly"));
   assert.equal("scope" in (await listSourceControlCredentials(a, { workspaceId: SITE_A }))[0]!, false);
+});
+
+
+test("git-host defaults, descriptions and lists only expose attached project rows", async () => {
+  const project = projectHalf(); const attachments = fakeAttachments();
+  const raw = project.repo.vault!;
+  const a = site({ ...project, repo: new InMemorySourceControlCredentialSetRepo({ vault: attachedOnlyVault({ vault: raw, siteId: SITE_A, attachments }) }) });
+  const saved = await save(a, SITE_A, "attached-only", secret("git"));
+  const input = { workspaceId: SITE_A, providerId: "example-git" };
+  assert.equal(await findDefaultSourceControlCredential(a, input), null);
+  assert.deepEqual(await listSourceControlCredentials(a, { workspaceId: SITE_A }), []);
+  await attachments.attach({ siteId: SITE_A, keyId: saved.id, siteName: "A" });
+  assert.equal((await resolveDefaultForSourceControl(a, input))?.connection.token, secret("git"));
+  assert.equal((await describeCredential(a, { workspaceId: SITE_A, id: saved.id }))?.id, saved.id);
+  await attachments.detach({ siteId: SITE_A, keyId: saved.id });
+  assert.equal(await resolveDefaultForSourceControl(a, input), null);
 });

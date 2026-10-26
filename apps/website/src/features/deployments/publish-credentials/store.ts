@@ -8,7 +8,7 @@ import type { KeyringPort, SecretSealerPort } from "../../webhooks/index.js";
 import { VaultError, matchingCredentialProviderIds, selectCredentialForProvider, normalizeCredentialWorksFor, type VaultSummary } from "@jini-ai/platform/secrets/credential-sets";
 import { credentialVault, credentialScope, credentialHint } from "../../vendor-credentials/vault-adapter.js";
 import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "../../vendor-credentials/types.js";
-import { credentialCreateTarget, credentialScopes, type ScopedCredentialDeps } from "../../vendor-credentials/project-scope.js";
+import { credentialDeletionRepo, credentialCreateTarget, credentialScopes, type ScopedCredentialDeps } from "../../vendor-credentials/project-scope.js";
 import type { DeployTargetCredentialSpec, DeployTargetFieldSpec, DeployTargetRegistry } from "../deploy-targets/types.js";
 import type { PublishConnectionInput, PublishCredentialScope, PublishCredentialSummary, PublishProviderId } from "./types.js";
 
@@ -364,8 +364,8 @@ export interface CreatePublishCredentialInput {
    *  out to be the vendor's FIRST saved connection; Jini owns atomic auto-defaulting. */
   isDefault?: unknown;
   worksFor?: unknown;
-  /** `"site"` = "Only for this site". Omitted (or `"project"`) = the project store when one is
-   *  attached, so every site of the project can use it; this site's vault otherwise. */
+  /** `"site"` = a site-owned key. Omitted (or `"project"`) = the project store when one is
+   *  attached, visible to attached sites only; this site's vault otherwise. */
   scope?: unknown;
 }
 
@@ -388,7 +388,7 @@ async function saveConnection({ deps, input, providerId }: { deps: PublishCreden
   catch (error) {
     const duplicate = isUniqueLabelViolation(error) || error instanceof VaultError && error.code === "conflict" &&
       (await deps.repo.listByVendor({ workspaceId: input.workspaceId, vendorId: input.provider! })).some(row => row.id !== input.id && row.label === input.label);
-    if (duplicate) throw new PublishCredentialDuplicateLabelError(`a '${providerId}' credential labeled '${input.label}' already exists in this workspace`);
+    if (duplicate) throw new PublishCredentialDuplicateLabelError(input.workspaceId === 'project' ? `Your project already has a key named '${input.label}'. Use it here, or pick another name.` : `a '${providerId}' credential labeled '${input.label}' already exists in this workspace`);
     throw error;
   }
 }
@@ -408,7 +408,9 @@ export async function createPublishCredential(deps: PublishCredentialWriteDeps, 
     provider: validated.spec.vendorId, label, meta: { credentialType: "vendor", worksFor: validatedWorksFor({ value: input.worksFor === undefined ? registry.get(providerId)?.module.defaultCredentialWorksFor ?? [validated.spec.vendorId] : input.worksFor }), accountLabel: null }, payload: { vendorId: validated.spec.vendorId, ...fields },
     hintToken: fields[validated.spec.tokenField], isDefault,
   } });
-  return (await describeCredential(deps, { workspaceId: input.workspaceId, id: summary.id }))!;
+  // The project read view deliberately hides this new row until it is attached; use put's result.
+  const publishHosts = publishHostsForCredential({ credential: summary, registry });
+  return { ...vaultSummary({ summary, providerId, publishHosts, defaultFor: summary.isDefault ? publishHosts : [] }), ...reportedScope({ deps, workspaceId: input.workspaceId, row: summary }) };
 }
 
 export interface UpdatePublishCredentialInput {
@@ -530,12 +532,12 @@ export async function findPublishCredentialRecord(deps: { repo: Pick<VendorCrede
 }
 
 /** Legacy rows were folded by 0012. Delete only the vault row; reboot has no source to recopy.
- *  A project row is removed for every site of the project, as its summary's `scope` says. */
+ *  A project row is removed only when no other site uses it; its attachments are removed with it. */
 export async function deletePublishCredential(deps: {
   repo: Pick<VendorCredentialSetRepoPort, "delete" | "findById" | "project">;
   transaction?: Pick<StorageKernel<unknown>, "transaction">;
 }, input: { workspaceId: UUID; id: UUID }): Promise<void> {
-  const owner = await ownerOf(deps.repo, input);
+  const owner = await ownerOf(credentialDeletionRepo({ repo: deps.repo }), input);
   await owner.repo.delete({ workspaceId: owner.workspaceId, id: input.id });
 }
 

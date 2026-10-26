@@ -1,3 +1,6 @@
+import { protectProjectKeyDeletes } from "#src/features/project-keys/protected-vault";
+import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
+import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -179,4 +182,39 @@ test("an aborted save never writes the project half either", async () => {
   const guarded = { ...site, repo: abortGuardedCredentialRepo({ store: site.repo, signal: controller.signal }) };
   await assert.rejects(save(guarded, SITE_A, "hosting", secret("late")));
   assert.deepEqual(await project.repo.listByWorkspace({ workspaceId: "project" }), []);
+});
+
+
+test("custom project keys stay hidden until attached and detach immediately across label and id lookups", async () => {
+  const project = projectScope(); const attachments = fakeAttachments();
+  const raw = project.repo.vault!;
+  const a = siteDeps({ project: { ...project, repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: raw, siteId: SITE_A, attachments }) }) } });
+  const saved = await save(a, SITE_A, "attached-only", secret("attached"));
+  assert.equal(await describeCredential(a, { workspaceId: SITE_A, id: saved.id }), null);
+  assert.equal(await resolveCustomCredentialByLabel(a, { workspaceId: SITE_A, label: "attached-only" }), null);
+  await attachments.attach({ siteId: SITE_A, keyId: saved.id, siteName: "A" });
+  assert.equal((await resolveCustomCredentialByLabel(a, { workspaceId: SITE_A, label: "attached-only" }))?.connection.token, secret("attached"));
+  const b = siteDeps({ project: { ...project, repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: raw, siteId: SITE_B, attachments }) }) } });
+  assert.equal(await describeCredential(b, { workspaceId: SITE_B, id: saved.id }), null);
+  await attachments.detach({ siteId: SITE_A, keyId: saved.id });
+  assert.deepEqual(await listCustomCredentials(a, { workspaceId: SITE_A }), []);
+});
+
+
+test("an explicit delete can remove an unattached project key and refuses a hidden key used by another site", async () => {
+  const project = projectScope(); const attachments = fakeAttachments();
+  const raw = project.repo.vault!;
+  const protectedVault = protectProjectKeyDeletes({ vault: raw, attachments, siteId: SITE_A, transaction: async ({ run }) => run() });
+  const deps = siteDeps({ project: { ...project,
+    repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: protectedVault, siteId: SITE_A, attachments }) }),
+    deletionRepo: new CustomCredentialVaultRepo({ vault: protectedVault }),
+  } });
+  const saved = await save(deps, SITE_A, "unused", secret("unused"));
+  assert.equal(await describeCredential(deps, { workspaceId: SITE_A, id: saved.id }), null);
+  await deleteCustomCredential(deps, { workspaceId: SITE_A, id: saved.id });
+  assert.equal(await raw.find({ workspaceId: "project", id: saved.id }), null);
+  const next = await save(deps, SITE_A, "used-elsewhere", secret("elsewhere"));
+  await attachments.attach({ siteId: SITE_B, siteName: "B", keyId: next.id });
+  await assert.rejects(deleteCustomCredential(deps, { workspaceId: SITE_A, id: next.id }), { message: "Used by B too. To stop using it here, choose 'Stop using it on this site'." });
+  assert.equal((await raw.find({ workspaceId: "project", id: next.id }))?.id, next.id);
 });

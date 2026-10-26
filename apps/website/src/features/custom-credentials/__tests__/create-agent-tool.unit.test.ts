@@ -708,7 +708,7 @@ for (const mode of ["missing", "empty", "populated", "unavailable", "partial"] a
   });
 }
 
-test("submit with a project store: the key saves for every site of the project unless 'Only for this site' is ticked", { timeout: 5_000 }, async (t) => {
+test("submit with a project store: cards have no site-only checkbox and both new keys save to the project", { timeout: 5_000 }, async (t) => {
   const { deps, sealer } = fakeRouteDeps();
   const projectKeyring = new InMemoryKeyring();
   const project = { workspaceId: "project", repo: new InMemoryCustomCredentialSetRepo(), sealer: new AesGcmSecretSealer(projectKeyring), keyring: projectKeyring };
@@ -716,12 +716,12 @@ test("submit with a project store: the key saves for every site of the project u
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const createTool = tool(buildRegistrations({ ...deps, customCredentialSetRepo: repo }, surfaceExchanges), TOOL_ID);
   const first = await raiseForm(createTool, {}, { signal: t.signal });
-  const box = formControl(first.ui, "Only for this site");
+  assert.doesNotMatch(first.ui.resource.text, /onlyThisSite|Only for this site/);
   surfaceExchanges.deliver({ exchangeId: first.exchangeId, principalId: PRINCIPAL_ID, params: { label: "shared", baseUrl: "https://api.example.com", category: "ops", token: "shared-token" } }, { toolId: TOOL_ID });
   assert.equal((await first.pending as { credential: { scope?: string } }).credential.scope, "project");
   const second = await raiseForm(createTool, {}, { signal: t.signal });
-  surfaceExchanges.deliver({ exchangeId: second.exchangeId, principalId: PRINCIPAL_ID, params: { label: "mine", baseUrl: "https://api.example.com", category: "ops", token: "site-token", [box.name]: true } }, { toolId: TOOL_ID });
-  assert.equal((await second.pending as { credential: { scope?: string } }).credential.scope, "site");
-  assert.deepEqual((await repo.listByWorkspace({ workspaceId: WORKSPACE_ID })).map((row) => row.label), ["mine"]);
+  surfaceExchanges.deliver({ exchangeId: second.exchangeId, principalId: PRINCIPAL_ID, params: { label: "mine", baseUrl: "https://api.example.com", category: "ops", token: "site-token", onlyThisSite: true } }, { toolId: TOOL_ID });
+  assert.equal((await second.pending as { credential: { scope?: string } }).credential.scope, "project");
+  assert.deepEqual((await repo.listByWorkspace({ workspaceId: WORKSPACE_ID })).map((row) => row.label), []);
   assert.equal((await resolveCustomCredentialByLabel({ repo, sealer }, { workspaceId: WORKSPACE_ID, label: "shared" }))?.connection.token, "shared-token");
 });

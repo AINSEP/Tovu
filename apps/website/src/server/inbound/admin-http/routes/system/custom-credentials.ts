@@ -1,3 +1,4 @@
+import { ToolInputError } from "@jini-ai/core";
 import { invalidatePublishCredentialCompatibility } from "#src/features/deployments/publish-credentials/index";
 import type { Express, Request, Response } from "express";
 
@@ -10,7 +11,6 @@ import {
   CustomCredentialValidationError,
   deleteCustomCredential,
   listCustomCredentials,
-  shareCustomCredentialWithProject,
   updateCustomCredential,
   type CustomCredentialSummary,
   type UpdateCustomCredentialInput,
@@ -49,6 +49,7 @@ const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/system/custom/credentia
 /** Every error this route can produce, shaped once so each handler below stays a thin dispatch —
  *  mirrors `source-control-credentials.ts`'s own `sendStoreError`. */
 function sendStoreError(res: Response, err: unknown): void {
+  if (err instanceof ToolInputError) { res.status(409).json({ error: "KEY_IN_USE", detail: err.message }); return; }
   if (err instanceof CustomCredentialValidationError) {
     res.status(400).json({ error: "VALIDATION", detail: err.message });
     return;
@@ -173,18 +174,6 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
       const before = await describeCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
       const credential = await updateCustomCredential(writeDeps, buildUpdateCredentialInput(deps.workspaceId, req.params.id, body));
       if (before && body.worksFor !== undefined && registry && deps.publishCredentialVerificationCache) invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, before, after: credential });
-      res.status(200).json({ credential });
-    } catch (err) {
-      sendStoreError(res, err);
-    }
-  });
-
-  // "Share with all sites": moves one of this site's own keys into the project store (store.ts's
-  // `shareCustomCredentialWithProject`: copied, verified, then the site copy removed).
-  app.post(`${BASE_PATH}/:id/share`, async (req, res) => {
-    if (await rejectUnlessAuthorized(req, res)) return;
-    try {
-      const credential = await shareCustomCredentialWithProject(writeDeps, { workspaceId: deps.workspaceId, id: req.params.id });
       res.status(200).json({ credential });
     } catch (err) {
       sendStoreError(res, err);

@@ -9,6 +9,7 @@ import type { PluginsPort } from "./plugins-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultPluginsPort: PluginsPort = {
+  useProjectKey: input => api.useProjectKey(input),
   listPlugins: () => authenticatedAdminRequest({ path: `/workspaces/${WORKSPACE_ID}/plugins`, method: "GET" }),
   setPluginEnabled: (id, patch) => api.setPluginEnabled(id, patch),
   uninstallPlugin: (id) => api.uninstallPlugin(id),
@@ -48,6 +49,13 @@ export function createFakePluginsPort(options: FakePluginsPortOptions = {}): Plu
 
   return {
     plugins,
+    async useProjectKey({ keyId, use }) {
+      const card = Object.values(options.providerSettings ?? {}).find(card => card.keyId === keyId);
+      if (!card) throw new ApiError("project key not found", 404, "KEY_NOT_FOUND");
+      card.usedByThisSite = use;
+      card.usedBy = use ? ["this-site"] : [];
+      return { keyId, usedByThisSite: use, usedBy: card.usedBy, appliesAt: "now" };
+    },
 
     async listPlugins() {
       return { plugins: [...plugins], ...(options.installSources ? { installSources: options.installSources } : {}) };
