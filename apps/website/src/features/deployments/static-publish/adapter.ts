@@ -481,7 +481,7 @@ export async function publishStaticSite(deps: StaticPublishDeps, input: StaticPu
   // Publish/deploy chokepoint: one `site.publish` operation per run (target id only; the outcome
   // is `published` or the failure code), with its export and host egress as child spans.
   const tracker = deps.tracker ?? createNoopTracker({});
-  return tracker.span("site.publish", async (span) => {
+  return tracker.trace("site.publish", async (span) => {
     const outcome = await publishStaticSiteSteps(deps, input);
     span.setOutcome(outcome.ok ? { outcome: "published", failed: false } : { outcome: outcome.code, failed: true });
     return outcome;

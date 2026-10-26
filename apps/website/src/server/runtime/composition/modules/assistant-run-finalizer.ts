@@ -620,7 +620,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
   function startWatch(watch: Watch) {
       const { runId, conversationId } = watch;
       // Inside the run's scope, so the ledger writes the loop makes are recorded under the run.
-      const done = tracker.span("assistant.run", async (span) => {
+      const done = tracker.trace("assistant.run", async (span) => {
         try { span.setOutcome({ status: await follow(watch) }); }
         catch (error) {
           // A watch that threw proved nothing about the run itself; the error says why it stopped.

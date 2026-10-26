@@ -32,7 +32,7 @@ async function boot(t: test.TestContext, port: ObservabilityPort): Promise<strin
   app.get("/api/handled", (_req, res) => { res.status(503).json({ error: "down" }); });
   app.get("/api/missing", (_req, res) => { res.status(404).end(); });
   app.post("/api/publish", async (_req, res) => {
-    await createTracker({ observability: port }).span("site.publish", async () => { throw new Error("publish failed"); })
+    await createTracker({ observability: port }).trace("site.publish", async () => { throw new Error("publish failed"); })
       .catch(() => res.status(500).json({ error: "publish failed" }));
   });
   app.use(captureRouteError);

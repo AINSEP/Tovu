@@ -741,7 +741,7 @@ async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, 
   const started = await startDaemonRun(req, res, run, principal.id, daemon);
   if (!started.ok) return;
   daemonRunId = started.daemonRunId;
-  return deps.tracker.span("assistant.run", async (span) => {
+  return deps.tracker.trace("assistant.run", async (span) => {
     runTracker = span;
     if (closedEarly) {
       runTracker.setOutcome({ status: "canceled" });

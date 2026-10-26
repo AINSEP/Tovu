@@ -65,7 +65,7 @@ type DeliveryBus = ReturnType<typeof outboxWorkerArgs>["bus"];
  * with the event's stable name only (never its payload); a failed delivery is reported and still
  * rethrown, so retry/backoff stays `processOutbox`'s. Without a port the bus is used as-is. */
 function trackedDelivery({ bus, tracker }: { bus: DeliveryBus; tracker: Tracker }): DeliveryBus {
-  return { publish: (input) => tracker.span("outbox.deliver", async (span) => {
+  return { publish: (input) => tracker.trace("outbox.deliver", async (span) => {
     const result = await bus.publish(input);
     span.setOutcome({ outcome: "delivered", failed: false });
     return result;
