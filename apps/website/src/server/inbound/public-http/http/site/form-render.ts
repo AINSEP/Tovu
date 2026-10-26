@@ -164,6 +164,22 @@ export const FORM_BASELINE_STYLE =
   ":where([data-tovu-form] textarea){min-height:100px;resize:vertical;}" +
   ":where([data-tovu-form] :is(input[type=checkbox],input[type=radio],input[type=range])){accent-color:var(--accent,#2563eb);}" +
   ":where([data-tovu-form] input[type=range]){width:100%;margin:0;}" +
+  // Single-line select, Builder and HTML mode (2026-10-25, owner: the native caret sat jammed against
+  // the right border next to the rounded inputs). Own chevron, two currentColor gradient strokes so it
+  // follows the theme's text colour in light and dark with no per-theme SVG, plus end padding so the
+  // text never runs under it. The ONE deliberate exception to the zero-specificity rule above: these
+  // are `select:where(...)`, (0,0,1), and this `<style>` comes after the theme's `<link>`, so they beat
+  // a theme field rule of the same weight (tovu-theme's `background:` shorthand would otherwise reset
+  // the chevron and leave `appearance:none` with no caret at all) while a theme's class-level select
+  // rule still wins. Only longhands, so the theme keeps its colour, border, radius and focus ring.
+  // Mirrored for RTL; forced-colors gets the native control back, which the OS draws legibly.
+  `select:where(.${FORM_CLASS} select:not([multiple],[size])){-webkit-appearance:none;appearance:none;padding-inline-end:40px;cursor:pointer;` +
+  "background-image:linear-gradient(45deg,transparent calc(50% - .75px),currentColor calc(50% - .75px),currentColor calc(50% + .75px),transparent calc(50% + .75px))," +
+  "linear-gradient(135deg,transparent calc(50% - .75px),currentColor calc(50% - .75px),currentColor calc(50% + .75px),transparent calc(50% + .75px));" +
+  "background-size:6px 6px;background-repeat:no-repeat;background-position:calc(100% - 21px) 50%,calc(100% - 15px) 50%;}" +
+  `select:where(.${FORM_CLASS} select:not([multiple],[size]):dir(rtl)){background-position:15px 50%,21px 50%;}` +
+  `select:where(.${FORM_CLASS} select:disabled){cursor:not-allowed;opacity:.6;}` +
+  `@media (forced-colors:active){select:where(.${FORM_CLASS} select:not([multiple],[size])){-webkit-appearance:auto;appearance:auto;background-image:none;}}` +
   ":where([data-tovu-form] button:not([type=button],[type=reset])){align-self:flex-start;padding:8px 16px;" +
   "border:1px solid transparent;border-radius:6px;background:var(--fg,#111827);" +
   "color:var(--bg,#fff);font-weight:600;cursor:pointer;}" +
