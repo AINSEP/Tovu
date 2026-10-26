@@ -5,7 +5,7 @@ import test from "node:test";
 import { createNoopObservabilityPort, createNoopTracker, isNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 import type { ProductAnalyticsPort } from "@jini-ai/analytics/product";
 import { createAiTraceRecorder } from "@jini-ai/agent-runtime/ai-trace";
-import { createPluginContributionRegistry, PluginProviderStartupError, type PluginProviderFactory, type PluginProviderSettingField } from "@jini-ai/plugins/host";
+import { createPluginContributionRegistry, type PluginProviderFactory, type PluginProviderSettingField } from "@jini-ai/plugins/host";
 
 import { attributionFor, bootProviderPlugins, legacyProviderCredentialCheck, PROVIDER_CONTRACTS, providerInputOf, type SiteIdentity } from "../provider-plugins.js";
 import type { ProviderConfigSource, ProviderPluginConfig } from "../provider-config-source.js";
@@ -656,9 +656,11 @@ test("provider loading reuses current registrations, reloads retired ones and re
 
 test('runtime returns explicit plugin-safe guidance while keeping SDK errors and retired ports private', async () => {
   const cause = new Error('https://credential@private.example/sdk');
+  // A plugin artifact bundles its own copy of the error class, so the host must match it by shape.
+  const bundledCopy = Object.assign(new Error('The exporter could not start.', { cause }), {
+    name: 'PluginProviderStartupError', reason: 'The exporter could not start.', action: 'Correct the endpoint and save again.' });
   const { runtime } = fakeRuntime({ installed: ['observability-sentry'], factories: {
-    'observability-sentry': { contract: 'observability', id: 'sentry', factory: () => { throw new PluginProviderStartupError({
-      reason: 'The exporter could not start.', action: 'Correct the endpoint and save again.', cause }); } },
+    'observability-sentry': { contract: 'observability', id: 'sentry', factory: () => { throw bundledCopy; } },
   } });
   const ports = await bootProviderPlugins({ runtime, config: configOf(CONFIGS), serviceName: 'test', site: SITE, ...consentAlways }, { warn: () => {} });
   try {
