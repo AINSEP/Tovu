@@ -18,7 +18,7 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 /**
  * @file The owner-action product events (provider wave 2): each key admin action makes ONE generic
- * `capture({ name, userId, properties? })` on `RouteDeps.tracker` with the signed-in
+ * `capture({ name, userId }, { properties? })` on `RouteDeps.tracker` with the signed-in
  * principal's opaque id and no content. A recording fake stands in for the port; consent and PII
  * rules are the port's own (`withProductAnalyticsGuards`, tested with the provider selection).
  */

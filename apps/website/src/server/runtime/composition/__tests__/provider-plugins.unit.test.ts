@@ -21,7 +21,7 @@ type Calls = { inputs: Record<string, unknown>[]; disposed: number };
 /** An observability port that records which signals reached it. */
 function recordingObservability(seen: string[]): ObservabilityPort {
   const noop = createNoopObservabilityPort({});
-  return { ...noop, trackOperation: (input) => { seen.push(`op:${input.name}`); return noop.trackOperation(input); }, reportError: (report) => { seen.push(`error:${report.context.operation}`); } };
+  return { ...noop, metric: (input) => { seen.push(`metric:${input.name}`); }, trackOperation: (input) => { seen.push(`op:${input.name}`); return noop.trackOperation(input); }, reportError: (report) => { seen.push(`error:${report.context.operation}`); } };
 }
 
 function fakeFactory({ calls, port }: { calls: Calls; port: unknown }): PluginProviderFactory {
@@ -155,13 +155,13 @@ test("provider reporter feeds delivery status and diagnostic receipts follow liv
   report({ phase: "export", outcome: "ok", host: "collector.test" });
   assert.equal(providers.telemetryStatus({})[0]!.lastExport!.outcome, "ok");
   const send = () => providers.sendTelemetryTest({ error: new Error("Tovu test error — safe to ignore") });
-  assert.deepEqual(await send(), { providers: [{ providerId: "observability-opentelemetry/trace", signals: ["span", "error"] }] });
+  assert.deepEqual(await send(), { providers: [{ providerId: "observability-opentelemetry/trace", signals: ["span", "metric", "error"] }] });
   allowed = true;
   assert.deepEqual(await send(), { providers: [
-    { providerId: "observability-opentelemetry/trace", signals: ["span", "error"] },
+    { providerId: "observability-opentelemetry/trace", signals: ["span", "metric", "error"] },
     { providerId: "analytics-posthog/events", signals: ["analytics"] },
   ] });
-  assert.deepEqual(seen, ["op:telemetry.test", "error:telemetry.test", "op:telemetry.test", "error:telemetry.test", "event:telemetry_test"]);
+  assert.deepEqual(seen, ["op:telemetry.test", "metric:telemetry.test", "error:telemetry.test", "op:telemetry.test", "metric:telemetry.test", "error:telemetry.test", "event:telemetry_test"]);
   await providers.dispose({});
   assert.deepEqual(await send(), { providers: [] });
 });
@@ -286,7 +286,7 @@ test("product analytics: consent first; a revoke that lands while consent is bei
   answer(true);
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(captured, ["post_published:p-1"]);
-  ports.tracker.capture({ name: "post_published", userId: "p-1", properties: { email: "x" } });
+  ports.tracker.capture({ name: "post_published", userId: "p-1" }, { properties: { email: "x" } });
   answer(true);
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(captured, ["post_published:p-1"], "PII-shaped properties are refused by the guard");
@@ -568,7 +568,7 @@ test('visitor events follow visitor proof and revocation even when owner admin t
     granted = true; await capture();
     current = false; await capture();
     assert.deepEqual(events, [{ name: 'site_pageview', userId: 'visitor:request' }]);
-    await providers.visitorTracker!.capture({ name: 'site_search_performed', userId: 'visitor:request', properties: { email: 'private' } });
+    await providers.visitorTracker!.capture({ name: 'site_search_performed', userId: 'visitor:request' }, { properties: { email: 'private' } });
     assert.equal(events.length, 1, 'visitor analytics retains the shared PII guard');
   } finally { await providers.dispose({}); }
 });

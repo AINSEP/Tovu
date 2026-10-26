@@ -173,7 +173,7 @@ export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = (app, deps) 
       // snapshot, so reaching this line means the record is in it.
       const record = discovery.find((r) => r.id === pluginId) as PluginDiscoveryRecord;
       // The gateway has committed; retries that keep the same state do not count.
-      if (((priorActivation as PluginActivationRecord | null)?.enabled ?? false) !== result.activation.enabled) deps.tracker.capture({ name: "plugin_toggled", userId: principal.id, properties: { pluginId: record.id, pluginKind: "cms", enabled: result.activation.enabled, source: "admin" } });
+      if (((priorActivation as PluginActivationRecord | null)?.enabled ?? false) !== result.activation.enabled) deps.tracker.capture({ name: "plugin_toggled", userId: principal.id }, { properties: { pluginId: record.id, pluginKind: "cms", enabled: result.activation.enabled, source: "admin" } });
       res.json({
         plugin: toAdminPluginResponse(record, result.activation),
         changeSetId,

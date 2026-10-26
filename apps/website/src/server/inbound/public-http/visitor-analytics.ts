@@ -42,7 +42,7 @@ export async function captureVisitorEvent(
   if (!provenance) return;
   try {
     if (provenance.consentProof && !await deps.visitorAnalyticsDeliveryAllowed?.({ proof: provenance.consentProof })) return;
-    await (deps.visitorTracker ?? deps.tracker)!.capture({ name, userId: optional.subjectId ?? provenance.subjectId, properties });
+    await (deps.visitorTracker ?? deps.tracker)!.capture({ name, userId: optional.subjectId ?? provenance.subjectId }, { properties });
   }
   catch { /* Product analytics cannot turn a committed public operation into a failure. */ }
 }

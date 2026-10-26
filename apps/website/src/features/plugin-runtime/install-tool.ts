@@ -140,11 +140,10 @@ export function buildRegistrations(deps: PluginsInstallToolDeps, _optional: Reco
         const preview = await previewOrRefuse({ installer, input });
         try {
           const plugin = await installer.install({ ...input, expectedDigest: preview.digest });
-          deps.tracker?.capture({ name: "plugin_installed", userId: ctx.principal.id, properties: { pluginId: plugin.id, pluginKind: "cms", source: "assistant" } });
+          deps.tracker?.capture({ name: "plugin_installed", userId: ctx.principal.id }, { properties: { pluginId: plugin.id, pluginKind: "cms", source: "assistant" } });
           return installedResult({ plugin });
         } catch (error) {
-          deps.tracker?.capture({ name: "operation_failed", userId: ctx.principal.id,
-            properties: { operationKind: "plugin_install", reasonClass: error instanceof PluginInstallError ? "refused" : "internal", surface: "assistant", retryable: false } });
+          deps.tracker?.capture({ name: "operation_failed", userId: ctx.principal.id }, { properties: { operationKind: "plugin_install", reasonClass: error instanceof PluginInstallError ? "refused" : "internal", surface: "assistant", retryable: false } });
           if (error instanceof PluginInstallError) return refusedResult(error, preview.id);
           throw error;
         }
