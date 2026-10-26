@@ -86,12 +86,18 @@ export function projectProductEvent({ event, installationId }: { event: ProductE
     const screen = productAdminScreen({ route: event.properties?.route });
     return screen ? { name: 'admin_screen_viewed', userId: installationId, properties: { screen } } : undefined;
   }
-  const properties: Record<string, ProductEventProperties[string]> = {};
-  for (const [key, rule] of Object.entries(PRODUCT_EVENTS[event.name]!)) {
-    const value = event.properties?.[key];
+  const properties = declaredProperties({ rules: PRODUCT_EVENTS[event.name]!, properties: event.properties });
+  return properties ? { name: event.name, userId: installationId, properties } : undefined;
+}
+
+/** Declared keys only; one invalid declared value refuses the event. @complexity O(k) declared keys. */
+function declaredProperties({ rules, properties }: { rules: Rules; properties: ProductEvent['properties'] }, _options = {}): ProductEventProperties | undefined {
+  const projected: Record<string, ProductEventProperties[string]> = {};
+  for (const [key, rule] of Object.entries(rules)) {
+    const value = properties?.[key];
     if (value === undefined) continue;
     if (!allowedValue({ rule, value })) return undefined;
-    properties[key] = value;
+    projected[key] = value;
   }
-  return { name: event.name, userId: installationId, properties };
+  return projected;
 }
