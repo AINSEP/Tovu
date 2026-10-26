@@ -3,6 +3,7 @@ import type { CredentialTokenHint, CredentialConnection } from '../../contracts/
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 import type { SealedSecret } from "../webhooks/index.js";
+import type { CredentialProjectHalf } from "../vendor-credentials/project-scope.js";
 
 /** Source-control identities are separate from deploy targets: they carry authentication,
  * never a repository, owner or branch. The store seals the complete connection as one blob.
@@ -48,6 +49,9 @@ export interface SourceControlCredentialSummary {
   readonly isDefault: boolean;
   /** See `SourceControlCredentialSetRecord.accountLabel`'s own doc — carried through unchanged. */
   readonly accountLabel: string | null;
+  /** Where the row lives — present only where a project store is attached (local web + desktop):
+   *  `"project"` is shared by every site of the project, `"site"` is this site's own (an override). */
+  readonly scope?: "site" | "project";
   readonly createdAt: ISODateTime;
   readonly updatedAt: ISODateTime;
 }
@@ -65,6 +69,10 @@ export interface SourceControlCredentialSummary {
  * most-recently-updated remaining row to default if the deleted row WAS the default. */
 export interface SourceControlCredentialSetRepoPort {
   readonly vault?: VaultRepoPort;
+  /** The project store this site's rows fall back to (`store.ts`'s scope rule, shared in
+   *  `vendor-credentials/project-scope.ts`: site first, then project; new rows go to the project
+   *  unless saved "only for this site"). Absent = site only (Fly/production). */
+  readonly project?: CredentialProjectHalf<SourceControlCredentialSetRepoPort>;
   insert(record: SourceControlCredentialSetRecord): Promise<void>;
   /** Full-row replace by `(workspaceId, id)` — used for both a label rename and a connection
    *  rotation. Same UNIQUE-violation possibility as `insert` (renaming into another row's label). */

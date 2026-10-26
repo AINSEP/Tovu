@@ -8,6 +8,7 @@ import type { KeyringPort, SecretSealerPort } from "../../webhooks/index.js";
 import { VaultError, matchingCredentialProviderIds, selectCredentialForProvider, normalizeCredentialWorksFor, type VaultSummary } from "@jini-ai/platform/secrets/credential-sets";
 import { credentialVault, credentialScope, credentialHint } from "../../vendor-credentials/vault-adapter.js";
 import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "../../vendor-credentials/types.js";
+import { credentialCreateTarget, credentialScopes, type ScopedCredentialDeps } from "../../vendor-credentials/project-scope.js";
 import type { DeployTargetCredentialSpec, DeployTargetFieldSpec, DeployTargetRegistry } from "../deploy-targets/types.js";
 import type { PublishConnectionInput, PublishCredentialScope, PublishCredentialSummary, PublishProviderId } from "./types.js";
 
@@ -112,34 +113,15 @@ export interface PublishCredentialReadDeps {
   loadDeployTargets(workspaceId: string): Promise<DeployTargetRegistry>;
 }
 
-/** One store a site reads publish credentials from, with the deps (repo, sealer, keyring) that open its rows. */
-interface Scoped<D> { readonly deps: D; readonly workspaceId: string; readonly scope: PublishCredentialScope }
-
-/**
- * The stores a site reads, in precedence order — the same rule as `custom-credentials/store.ts`'s
- * `scopesOf` (owner 2026-10-25): its own vault first (an existing row, or one saved "only for this
- * site", overrides), then the project store every site of the project shares, when the composition
- * root attached one (`vendor-credentials/types.ts`'s `repo.project`). The project half carries its own
- * sealer and keyring: Jini derives the sealing key from the store's key and the row's AAD binds its
- * workspace, so a project row opens only with the project's.
- * @complexity O(1).
- */
-function scopesOf<D extends PublishCredentialReadDeps>(deps: D, workspaceId: string): Scoped<D>[] {
-  const site: Scoped<D> = { deps, workspaceId, scope: "site" };
-  const project = deps.repo.project;
-  if (!project) return [site];
-  return [site, { deps: { ...deps, repo: project.repo, sealer: project.sealer, keyring: project.keyring } as D, workspaceId: project.workspaceId, scope: "project" }];
-}
-
 /** The store a listed row came from: rows carry their own store's workspace id. */
-function scopeOfRow<D extends PublishCredentialReadDeps>(deps: D, input: { workspaceId: string; row: { workspaceId: string } }): Scoped<D> {
-  const scopes = scopesOf(deps, input.workspaceId);
+function scopeOfRow<D extends PublishCredentialReadDeps>(deps: D, input: { workspaceId: string; row: { workspaceId: string } }): ScopedCredentialDeps<D> {
+  const scopes = credentialScopes(deps, input.workspaceId);
   return scopes.find(scoped => scoped.workspaceId === input.row.workspaceId) ?? scopes[0]!;
 }
 
 /** The vendor row with this id, from the first store holding it (ids are unique across both). @complexity O(scopes). */
-async function locateById<D extends PublishCredentialReadDeps>(deps: D, input: { workspaceId: string; id: string }): Promise<{ scoped: Scoped<D>; existing: VendorCredentialSetRecord } | null> {
-  for (const scoped of scopesOf(deps, input.workspaceId)) {
+async function locateById<D extends PublishCredentialReadDeps>(deps: D, input: { workspaceId: string; id: string }): Promise<{ scoped: ScopedCredentialDeps<D>; existing: VendorCredentialSetRecord } | null> {
+  for (const scoped of credentialScopes(deps, input.workspaceId)) {
     const existing = await scoped.deps.repo.findById({ workspaceId: scoped.workspaceId, id: input.id });
     if (existing) return { scoped, existing };
   }
@@ -156,7 +138,7 @@ const labelKey = (row: VaultSummary): string => row.meta.credentialType === "cus
 async function inventory({ deps, workspaceId }: { deps: PublishCredentialReadDeps; workspaceId: string }, _options = {}): Promise<VaultSummary[]> {
   const rows: VaultSummary[] = [];
   const claimed = new Set<string>();
-  for (const scoped of scopesOf(deps, workspaceId)) {
+  for (const scoped of credentialScopes(deps, workspaceId)) {
     const own = await storeInventory({ deps: scoped.deps, workspaceId: scoped.workspaceId });
     rows.push(...own.filter(row => !claimed.has(labelKey(row))));
     for (const row of own) claimed.add(labelKey(row));
@@ -388,24 +370,11 @@ export interface CreatePublishCredentialInput {
 }
 
 /**
- * Where a new row is written: the project store by default when one is attached, this site's vault
- * when asked ("only for this site") or when there is no project store (Fly/production).
- * @throws {PublishCredentialValidationError} `scope` is neither omitted, `"site"` nor `"project"`.
- */
-function createTarget<D extends PublishCredentialReadDeps>(deps: D, input: { workspaceId: string; scope?: unknown }): Scoped<D> {
-  if (input.scope !== undefined && input.scope !== "site" && input.scope !== "project") {
-    throw new PublishCredentialValidationError('scope must be "site" or "project"');
-  }
-  const [site, project] = scopesOf(deps, input.workspaceId);
-  return input.scope === "site" || !project ? site! : project;
-}
-
-/**
  * A project row whose vendor and label this site already uses would be hidden here by the site row
  * (site rows override), so the save would look lost: refused as the same duplicate as within one store.
  */
 async function assertLabelFreeOnSite({ deps, target, workspaceId, vendorId, label, providerId }: { deps: PublishCredentialReadDeps;
-  target: Scoped<unknown>; workspaceId: string; vendorId: string; label: string; providerId: string }, _options = {}): Promise<void> {
+  target: ScopedCredentialDeps<unknown>; workspaceId: string; vendorId: string; label: string; providerId: string }, _options = {}): Promise<void> {
   if (target.scope !== "project") return;
   if ((await deps.repo.listByVendor({ workspaceId, vendorId })).some(row => row.label === label)) {
     throw new PublishCredentialDuplicateLabelError(`a '${providerId}' credential labeled '${label}' already exists in this workspace`);
@@ -431,7 +400,8 @@ export async function createPublishCredential(deps: PublishCredentialWriteDeps, 
   const validated = validateConnection(input.connection, registry);
   const isDefault = optionalBoolean(input.isDefault, "isDefault") === true;
   const { providerId, ...fields } = validated.connection;
-  const target = createTarget(deps, input);
+  // Project-first (`vendor-credentials/project-scope.ts`); "site" = only for this site.
+  const target = credentialCreateTarget(deps, input, message => new PublishCredentialValidationError(message));
   await assertLabelFreeOnSite({ deps, target, workspaceId: input.workspaceId, vendorId: validated.spec.vendorId, label, providerId });
   const summary = await saveConnection({ deps: target.deps, providerId, input: {
     ...credentialScope({ workspaceId: target.workspaceId, kind: "vendor" }), id: deps.idGen.newId(), expectedRevision: null,
@@ -631,7 +601,7 @@ function selectedCandidateProviderId({ explicitId, candidate, registry }: {
 async function openPublishVaultRecord({ deps, input, candidate }: {
   deps: PublishCredentialResolveDeps; input: { workspaceId: UUID; id: UUID }; candidate: VaultSummary;
 }, _options = {}) {
-  // Opened with the store that sealed it: this site's, or the project's (`scopesOf`).
+  // Opened with the store that sealed it: this site's, or the project's (`credentialScopes`).
   const scoped = scopeOfRow(deps, { workspaceId: input.workspaceId, row: candidate });
   try { return await vault(scoped.deps).get({ ...credentialScope({ workspaceId: scoped.workspaceId, kind: candidate.kind === "custom" ? "custom" : "vendor" }), id: input.id }); }
   catch { throw new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage); }

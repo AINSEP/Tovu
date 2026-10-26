@@ -5,6 +5,7 @@ import { isUniqueViolation } from "../../platform/db/kernel/dialect.js";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import { VaultError, type VaultSummary } from "@jini-ai/platform/secrets/credential-sets";
 import { credentialVault, credentialScope, credentialHint } from "../vendor-credentials/vault-adapter.js";
+import { credentialCreateTarget, credentialScopes, type CredentialScope, type ScopedCredentialDeps } from "../vendor-credentials/project-scope.js";
 import { buildSourceControlProvider, type LoadSourceControlProviders, type SourceControlProviderRegistry, type SourceControlProviderDescriptor } from "./provider-registry.js";
 import type {
   SourceControlConnectionInput,
@@ -91,6 +92,39 @@ export interface SourceControlCredentialReadDeps {
   sealer?: SecretSealerPort;
 }
 
+/** A row and the store holding it (`vendor-credentials/project-scope.ts`: this site's own vault first,
+ *  then the project half `types.ts`'s `repo.project` attaches), with the deps that open it. */
+interface Located<D> { readonly scoped: ScopedCredentialDeps<D>; readonly record: SourceControlCredentialSetRecord }
+
+/** The summary's `scope`, only where a project store is attached (a site-only server's output is unchanged). */
+const reportedScope = (deps: SourceControlCredentialReadDeps, scoped: ScopedCredentialDeps<unknown>): { scope?: CredentialScope } =>
+  deps.repo.project ? { scope: scoped.scope } : {};
+
+/** The row with this id, from the first store holding it (ids are unique across both). @complexity O(scopes). */
+async function locateById<D extends SourceControlCredentialReadDeps>(deps: D, input: { workspaceId: UUID; id: UUID }): Promise<Located<D> | null> {
+  for (const scoped of credentialScopes(deps, input.workspaceId)) {
+    const record = await scoped.deps.repo.findById({ workspaceId: scoped.workspaceId, id: input.id });
+    if (record) return { scoped, record };
+  }
+  return null;
+}
+
+/**
+ * Every row this site uses: its own rows, then project rows whose host and label no site row already
+ * claims (a site row of the same host and label is the override).
+ * @complexity O(n) in the two stores' (small) credential counts; no row is opened.
+ */
+async function listEffective<D extends SourceControlCredentialReadDeps>(deps: D, workspaceId: UUID): Promise<Located<D>[]> {
+  const found: Located<D>[] = [];
+  const claimed = new Set<string>();
+  for (const scoped of credentialScopes(deps, workspaceId)) {
+    const records = await scoped.deps.repo.listByWorkspace({ workspaceId: scoped.workspaceId });
+    for (const record of records.filter((row) => !claimed.has(`${row.providerId}\0${row.label}`))) found.push({ scoped, record });
+    for (const record of records) claimed.add(`${record.providerId}\0${record.label}`);
+  }
+  return found;
+}
+
 /**
  * The read model for ONE credential set. Pure DB read — no sealer, no keyring, cannot fail on a
  * misconfigured site key. Returns `null` if no row exists for `(workspaceId, id)` (not an
@@ -102,8 +136,8 @@ export async function describeCredential(
   deps: SourceControlCredentialReadDeps,
   input: { workspaceId: UUID; id: UUID }
 ): Promise<SourceControlCredentialSummary | null> {
-  const record = await deps.repo.findById(input);
-  return record ? toSummary(record) : null;
+  const located = await locateById(deps, input);
+  return located ? { ...await toSummary(located.record), ...reportedScope(deps, located.scoped) } : null;
 }
 
 /**
@@ -118,8 +152,8 @@ export async function listSourceControlCredentials(
   deps: SourceControlCredentialReadDeps,
   input: { workspaceId: UUID }
 ): Promise<SourceControlCredentialSummary[]> {
-  const records = await deps.repo.listByWorkspace(input);
-  return Promise.all(records.map(record => toSummary(record)));
+  const located = await listEffective(deps, input.workspaceId);
+  return Promise.all(located.map(async ({ scoped, record }) => ({ ...await toSummary(record), ...reportedScope(deps, scoped) })));
 }
 
 export interface SourceControlCredentialWriteDeps extends SourceControlCredentialReadDeps {
@@ -288,6 +322,21 @@ export interface CreateSourceControlCredentialInput {
   /** `true` makes this the provider's default connection. Omitted/`false` still auto-defaults if
    *  this turns out to be the provider's FIRST saved connection; Jini owns atomic auto-defaulting. */
   isDefault?: unknown;
+  /** `"site"` = "Only for this site". Omitted (or `"project"`) = the project store when one is
+   *  attached, so every site of the project can use it; this site's vault otherwise. */
+  scope?: unknown;
+}
+
+/**
+ * A project row whose host and label this site already uses would be hidden here by the site row
+ * (site rows override), so the save would look lost: refused as the same duplicate as within one store.
+ */
+async function assertLabelFreeOnSite({ deps, target, workspaceId, providerId, label }: { deps: SourceControlCredentialReadDeps;
+  target: ScopedCredentialDeps<unknown>; workspaceId: UUID; providerId: SourceControlProviderId; label: string }, _options = {}): Promise<void> {
+  if (target.scope !== "project") return;
+  if ((await deps.repo.listByProvider({ workspaceId, providerId })).some(row => row.label === label)) {
+    throw new SourceControlCredentialDuplicateLabelError(`a '${providerId}' credential labeled '${label}' already exists in this workspace`);
+  }
 }
 
 /** Validate the loaded declaration, then make the secret durable before identity discovery.
@@ -301,11 +350,14 @@ export async function createSourceControlCredential(
   const label = validateLabel(input.label);
   const connection = validateConnection({ raw: input.connection, registry: await credentialRegistry({ deps, workspaceId: input.workspaceId }) });
   const isDefault = optionalBoolean(input.isDefault, "isDefault") === true;
+  // Project-first (`vendor-credentials/project-scope.ts`); "site" = only for this site.
+  const target = credentialCreateTarget(deps, input, message => new SourceControlCredentialValidationError(message));
+  await assertLabelFreeOnSite({ deps, target, workspaceId: input.workspaceId, providerId: connection.providerId, label });
   const id = deps.idGen.newId();
-  const summary = await saveConnection({ deps, input: { ...credentialScope({ workspaceId: input.workspaceId, kind: "source-control", id }),
+  const summary = await saveConnection({ deps: target.deps, input: { ...credentialScope({ workspaceId: target.workspaceId, kind: "source-control", id }),
     id, provider: connection.providerId, label, expectedRevision: null, payload: { ...connection }, hintToken: connection.token,
     meta: { accountLabel: null }, isDefault } });
-  return probeSavedConnection({ deps, summary, connection });
+  return { ...await probeSavedConnection({ deps: target.deps, summary, connection, workspaceId: input.workspaceId }), ...reportedScope(deps, target) };
 }
 
 /** Conflict translation is label-specific; a CAS conflict is never reported as a duplicate. */
@@ -320,8 +372,9 @@ async function saveConnection({ deps, input }: { deps: SourceControlCredentialWr
   }
 }
 
-async function probeSavedConnection({ deps, summary, connection }: { deps: SourceControlCredentialWriteDeps; summary: VaultSummary; connection: SourceControlConnectionInput }, _options = {}): Promise<SourceControlCredentialSummary> {
-  const probe = await probeAccountLabel(deps, summary.workspaceId, connection.providerId, connection.token);
+/** `deps` writes the store holding `summary`'s row; `workspaceId` is the site's (its provider registry). */
+async function probeSavedConnection({ deps, summary, connection, workspaceId }: { deps: SourceControlCredentialWriteDeps; summary: VaultSummary; connection: SourceControlConnectionInput; workspaceId: UUID }, _options = {}): Promise<SourceControlCredentialSummary> {
+  const probe = await probeAccountLabel(deps, workspaceId, connection.providerId, connection.token);
   try { if (probe.accountLabel !== null) assertPlainAccountLabel({ value: probe.accountLabel }); } catch { probe.accountLabel = null; }
   if (probe.accountLabel !== null) {
     // This is the saved revision, not a new read's revision: an old probe must not heal a rotation.
@@ -356,27 +409,30 @@ export async function updateSourceControlCredential(
   { deps, input }: { deps: SourceControlCredentialWriteDeps; input: UpdateSourceControlCredentialInput },
   _options = {},
 ): Promise<SourceControlCredentialSummary> {
-  const existing = await deps.repo.findById(input);
-  if (!existing) throw new SourceControlCredentialNotFoundError(`no source control credential '${input.id}' in this workspace`);
+  // Changed where it lives: this site's own row, else the project's (shared by every site).
+  const located = await locateById(deps, input);
+  if (!located) throw new SourceControlCredentialNotFoundError(`no source control credential '${input.id}' in this workspace`);
+  const { scoped, record: existing } = located;
   const label = input.label !== undefined ? validateLabel(input.label) : existing.label;
   const requestedDefault = optionalBoolean(input.isDefault, "isDefault");
-  const row = await deps.repo.vault!.find(input);
+  const row = await scoped.deps.repo.vault!.find({ workspaceId: scoped.workspaceId, id: input.id });
   if (!row) throw new SourceControlCredentialNotFoundError(`no source control credential '${input.id}' in this workspace`);
+  const where = credentialScope({ workspaceId: scoped.workspaceId, kind: "source-control" });
   const patch = await normalizeConnectionPatch({ raw: input.connection, existing: existing.providerId, registry: () => credentialRegistry({ deps, workspaceId: input.workspaceId }) });
   if (patch !== undefined && !isEmptyTokenPatch({ value: patch })) {
     const connection = validateConnection({ raw: patch, registry: await credentialRegistry({ deps, workspaceId: input.workspaceId }) });
-    const summary = await saveConnection({ deps, input: { ...credentialScope({ ...input, kind: "source-control" }), id: input.id,
+    const summary = await saveConnection({ deps: scoped.deps, input: { ...where, id: input.id,
       expectedRevision: row.revision, provider: connection.providerId, label, payload: { ...connection }, hintToken: connection.token,
       meta: { ...row.meta, accountLabel: null }, ...(requestedDefault === true ? { isDefault: true } : {}) } });
-    return probeSavedConnection({ deps, summary, connection });
+    return { ...await probeSavedConnection({ deps: scoped.deps, summary, connection, workspaceId: input.workspaceId }), ...reportedScope(deps, scoped) };
   }
   const provider = await preservedProvider({ raw: patch, existing: existing.providerId, registry: () => credentialRegistry({ deps, workspaceId: input.workspaceId }) });
   // Omitting payload retains ciphertext/hints without a key; Jini owns both groups' defaults.
-  const summary = await saveConnection({ deps, input: { ...credentialScope({ ...input, kind: "source-control" }), id: input.id,
+  const summary = await saveConnection({ deps: scoped.deps, input: { ...where, id: input.id,
     expectedRevision: row.revision, provider, label,
     meta: { ...row.meta, accountLabel: provider === existing.providerId ? row.meta.accountLabel : null },
     ...(requestedDefault === true ? { isDefault: true } : {}) } });
-  return { ...vaultSummary({ summary }), connection: "saved" };
+  return { ...vaultSummary({ summary }), connection: "saved", ...reportedScope(deps, scoped) };
 }
 
 /**
@@ -389,7 +445,28 @@ export async function updateSourceControlCredential(
  *   group).
  */
 export async function deleteSourceControlCredential(deps: SourceControlCredentialReadDeps, input: { workspaceId: UUID; id: UUID }): Promise<void> {
-  await deps.repo.delete(input);
+  // A project row is removed for every site of the project, as its summary's `scope` says.
+  const located = await locateById(deps, input);
+  if (located) await located.scoped.deps.repo.delete({ workspaceId: located.scoped.workspaceId, id: input.id });
+}
+
+/** The saved default's metadata for a host, never decrypted: this site's, else the project's. */
+export async function findDefaultSourceControlCredential(deps: SourceControlCredentialReadDeps,
+  input: { workspaceId: UUID; providerId: SourceControlProviderId }): Promise<SourceControlCredentialSetRecord | null> {
+  for (const scoped of credentialScopes(deps, input.workspaceId)) {
+    const found = await scoped.deps.repo.findDefaultByProvider({ workspaceId: scoped.workspaceId, providerId: input.providerId });
+    if (found) return found;
+  }
+  return null;
+}
+
+/** The first store's opened default for the host: this site's, else the project's. @complexity O(scopes). */
+async function findDefaultOpened(deps: { repo: SourceControlCredentialSetRepoPort; sealer: SecretSealerPort }, input: { workspaceId: UUID; providerId: SourceControlProviderId }) {
+  for (const scoped of credentialScopes(deps, input.workspaceId)) {
+    const resolved = await vault(scoped.deps).findDefault({ ...credentialScope({ workspaceId: scoped.workspaceId, kind: "source-control" }), provider: input.providerId });
+    if (resolved) return resolved;
+  }
+  return null;
 }
 
 /** Resolve exactly one indexed default through Jini's context-checked open. Genuine decrypt
@@ -399,7 +476,8 @@ export async function resolveDefaultForSourceControl(
   input: { workspaceId: UUID; providerId: SourceControlProviderId }
 ): Promise<{ id: UUID; label: string; connection: SourceControlConnectionInput } | null> {
   try {
-    const resolved = await vault(deps).findDefault({ ...credentialScope({ workspaceId: input.workspaceId, kind: "source-control" }), provider: input.providerId });
+    // This site's default first (a site with any row for the host has one), else the project's.
+    const resolved = await findDefaultOpened(deps, input);
     if (!resolved) return null;
     if (!resolved.payload) throw new SourceControlCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
     // Reading a saved connection never requires its plugin or reinterprets its paired fields.

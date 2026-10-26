@@ -7,7 +7,7 @@ import { ToolInputError } from "@jini-ai/core";
 import { purgeMedia, MediaNotFoundError, MediaStillReferencedError } from "#src/features/media/index";
 import { deleteCustomCredential, describeCredential as describeCustomCredential } from "#src/features/custom-credentials/index";
 import { deletePublishCredential, findPublishCredentialRecord } from "#src/features/deployments/publish-credentials/index";
-import { deleteSourceControlCredential } from "#src/features/source-control/index";
+import { deleteSourceControlCredential, describeCredential as describeSourceControlCredential } from "#src/features/source-control/index";
 import { deleteExternalMcpServer } from "#src/assistant/index";
 import { mayActOnEntityType } from "#src/features/trash/index";
 import { type TrashItem } from "@jini-ai/cms/trash";
@@ -244,7 +244,7 @@ export function buildPermanentDeleteDeps(deps: Deps): PermanentDeleteToolDeps {
             warning: "Deletes this vendor credential shared by its publish hosts. Another credential may become the default. Deployed sites remain; the token is not revoked at its provider.",
             remove: async () => { await deletePublishCredential({ repo: deps.vendorCredentialSetRepo, transaction: deps.contentKernel }, key); return { removed: true, id }; } });
         case "source_control_delete_credential":
-          return recordPlan({ toolId, id, load: () => deps.sourceControlCredentialSetRepo.findById(key), label: credential => credential.label,
+          return recordPlan({ toolId, id, load: () => describeSourceControlCredential({ repo: deps.sourceControlCredentialSetRepo }, key), label: credential => credential.label,
             warning: "Deletes the saved source-control credential. Another credential may become the default. Repositories remain; the token is not revoked at its provider.",
             remove: async () => { await deleteSourceControlCredential({ repo: deps.sourceControlCredentialSetRepo }, key); return { removed: true, id }; } });
       }
