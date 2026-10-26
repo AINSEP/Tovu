@@ -2893,6 +2893,8 @@ async function composeSiteRouteDeps(
               // A normal publish's kit remains unchanged, including its observability.
               const kit = createDeployHostKit({});
               const shareKit = { ...kit, fetch: async (url: string, init: RequestInit, options: { timeoutMs: number }) => {
+                // A provider whose own upload/delete API goes through kit.fetch (not SigV4) keeps it.
+                if (init.method !== "HEAD") return kit.fetch(url, init, options);
                 const response = await guardedOutboundHttpClient.send({ request: { method: "HEAD", url, headers: {}, idleTimeoutMs: options.timeoutMs, totalDeadlineMs: options.timeoutMs, maxResponseBytes: 1024, signal: init.signal ?? undefined } }, { redirect: "error" });
                 return new Response(null, { status: response.status, headers: response.headers });
               } };
