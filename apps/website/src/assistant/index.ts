@@ -133,6 +133,7 @@ export type { ExecutionCredentialPort, ResolvedByokCredential, RequestSuppliedBy
 export { runByokProviderTurn } from "./byok-provider-turn.js";
 export {
   createSiteAssistantErrorReporter,
+  siteAssistantIncident,
   type SiteAssistantErrorReporter,
   type SiteAssistantErrorLogEntry,
   type SiteAssistantPublicError,

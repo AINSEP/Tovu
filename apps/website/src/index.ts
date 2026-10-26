@@ -22,7 +22,7 @@ import { awaitSiteBootReadiness } from "./server/runtime/boot/site-boot-readines
 import { checkContentDbSchema } from "./server/runtime/boot/content-db-schema-guard.js";
 import { setReadinessSnapshot } from "./server/runtime/lifecycle/readiness-state.js";
 import { registerPluginSdkResolver } from "./server/runtime/boot/plugin-sdk-resolver.js";
-import { installUnhandledRejectionGuard, reportFatalBootFailure } from "./server/runtime/boot/process-error-guards.js";
+import { installProcessErrorReporting, installUnhandledRejectionGuard, reportFatalBootFailure } from "./server/runtime/boot/process-error-guards.js";
 import { attachServerLogFile, installServerLogCapture, serverLogFilePaths } from "./platform/server-logs/index.js";
 import { shutdownAssistantDaemon, startAssistantDaemon } from "./server/inbound/assistant/index.js";
 import { closeStoreOnShutdown, stopServingWithinGrace } from "./server/runtime/lifecycle/close-store-on-shutdown.js";
@@ -245,6 +245,8 @@ async function main(): Promise<void> {
   const deps = useMemory
     ? createRouteDeps(process.env.TOVU_PLUGINS_DIR ? { installDir: resolvePath(process.env.TOVU_PLUGINS_DIR) } : {})
     : await createSiteRouteDeps(defaultContentDbPath(), { onStoreOpened: (store) => (siteStore = store) });
+  // Unhandled rejections/exceptions reach the error tracker too, now that its port exists.
+  installProcessErrorReporting({ observability: deps.observability, processRole: "server" });
   if (!useMemory) await completeDevSiteMetaOrWarn(siteDir());
   // Boot passes the composition starts and never awaits, which read the store: the legacy
   // publish-credential tail here, `createServingApp`'s BYOK pass below. The store close waits for

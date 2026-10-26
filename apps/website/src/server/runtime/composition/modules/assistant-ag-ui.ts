@@ -55,6 +55,7 @@ import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/adm
 import type { RouteDeps } from "#src/server/routes/types";
 import { cancelDaemonRunBestEffort, fetchAgentDaemon, fetchAgentDaemonEventStream, type DaemonCallOptions } from "./assistant-daemon-client.js";
 import { createNoopObservabilityPort, type AgentRunStatus, type ObservabilityPort } from "#src/platform/observability/index";
+import { reportErrorOnce } from "#src/platform/observability/report-error";
 import type { ServerModuleHandle } from "./types.js";
 
 export const AG_UI_RUN_PATH = "/api/admin/v1/assistant/ag-ui-run";
@@ -770,6 +771,7 @@ export function createAssistantAgUiModule(routeDeps: RouteDeps): ServerModuleHan
       app.post(AG_UI_RUN_PATH, (req: Request, res: Response, next: NextFunction) => {
         void handleAgUiRun(req, res, routeDeps.observability).catch((error: unknown) => {
           console.error("[assistant-ag-ui] unhandled error", error);
+          reportErrorOnce({ observability: routeDeps.observability, error, operation: "assistant.run" });
           if (res.headersSent) {
             writeAgUiEvent(res, { type: EventType.RUN_ERROR, message: "assistant failed" });
             res.end();

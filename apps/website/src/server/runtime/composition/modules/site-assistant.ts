@@ -14,11 +14,13 @@ import { randomBytes } from "node:crypto";
 import { isSameOrigin, normalizeOriginCandidate } from "@jini-ai/http-kit/verified-origin";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { registerSiteAssistantConfirm } from "#src/server/inbound/public-http/routes/site-assistant-confirm";
+import { reportErrorOnce } from "#src/platform/observability/report-error";
 import type { ErrorRequestHandler, Express, Request, Response } from "express";
 
 import {
   createSiteCapabilityRegistry,
   createSiteAssistantErrorReporter,
+  siteAssistantIncident,
   type SiteAssistantErrorReporter,
   type SiteAssistantErrorLogEntry,
   detectsExplicitNavigationIntent,
@@ -576,9 +578,16 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
   const resolution = resolveSiteAssistantMode(env);
   // MOVE: Process-lifetime budgets survive individual chat requests; no timers or workers are started.
   const visitorToolBudgets = createVisitorToolBudgets({ clock: deps.clock });
+  const log = deps.siteAssistantErrorLog ?? ((entry: SiteAssistantErrorLogEntry) => console.error("[site-assistant]", entry));
   const reporter = createSiteAssistantErrorReporter({
     ids: deps.idGen, redact: redactSecrets,
-    log: deps.siteAssistantErrorLog ?? (entry => console.error("[site-assistant]", entry)),
+    // Failures (not visitor-caused answers) also reach the error tracker, with the same redacted
+    // diagnostic and the public error id; the visitor still gets only the fixed public message.
+    log: (entry) => {
+      log(entry);
+      const incident = siteAssistantIncident({ entry });
+      if (incident) reportErrorOnce({ observability: deps.observability, error: incident, operation: "site_assistant.chat" }, { attributes: { code: entry.code, errorId: entry.errorId } });
+    },
   });
 
   return {
