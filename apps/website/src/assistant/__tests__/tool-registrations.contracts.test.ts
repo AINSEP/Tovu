@@ -1,5 +1,6 @@
 import { consentAgentToolCatalog } from '#src/features/consent/tool-registrations';
 import { observabilityAgentToolCatalog } from '#src/features/observability/tool-registrations';
+import { projectKeysCatalog } from '#src/features/project-keys/tools';
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { serverLogsAgentToolCatalog } from "../../features/server-logs/agent-tools.js";
@@ -205,6 +206,7 @@ function wiredRegistration(toolId: string, existing?: ContentTypeRecord): ToolRe
  */
 const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   observability: observabilityAgentToolCatalog,
+  "project-keys": projectKeysCatalog,
   consent: consentAgentToolCatalog,
   "tool-gaps": toolGapsAgentToolCatalog,
   "content-stats": contentStatsAgentToolCatalog as unknown as AgentToolDefinition[],
