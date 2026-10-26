@@ -3343,7 +3343,7 @@ export function injectSiteAssistantIntoStaticPage(html: string, enabled: SiteCha
  * @complexity O(n·k) over `html`'s length and the number of `tag` occurrences — k is 1 or 2 for any
  * real template.
  */
-function insertBeforeUncommentedTag(html: string, tag: RegExp, markup: string): string {
+export function insertBeforeUncommentedTag(html: string, tag: RegExp, markup: string): string {
   for (let match = tag.exec(html); match !== null; match = tag.exec(html)) {
     if (isInsideHtmlComment(html, match.index)) continue;
     return html.slice(0, match.index) + markup + html.slice(match.index);

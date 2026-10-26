@@ -85,6 +85,20 @@ const OBS_ATTRIBUTION = attributionFor({ contract: "observability", site: SITE }
 const consentAlways = { consent: () => true, consentRevision: () => 0 };
 const quiet = () => {};
 
+test('cookie-consent adapter is mounted under base/<pluginId> only while its lease is current', async () => {
+  const paths: string[] = [];
+  const port = { capture() {}, identify() {}, consentAdapter: ({ path }: { path: string }) => { paths.push(path); return { adapter: { id: 'posthog', kind: 'consent-adapter', category: 'analytics', src: `${path}/a.mjs` } }; } };
+  const { runtime } = fakeRuntime({ installed: ['analytics-posthog'], factories: {
+    'analytics-posthog': { contract: 'product_analytics', id: 'posthog', factory: fakeFactory({ calls: { inputs: [], disposed: 0 }, port }) },
+  } });
+  const providers = await bootProviderPlugins({ runtime, config: configOf(CONFIGS), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet });
+  assert.deepEqual(providers.consentAdapters?.({ base: '/_consent/p' }).map(item => item.adapter.src), ['/_consent/p/analytics-posthog/a.mjs']);
+  assert.deepEqual(paths, ['/_consent/p/analytics-posthog']);
+  runtime.providerContributions.detach({ pluginId: 'analytics-posthog' });
+  assert.deepEqual(providers.consentAdapters?.({ base: '/_consent/p' }), []);
+  await providers.dispose({});
+});
+
 test('browser contribution comes only from a configured current analytics lease', async () => {
   const contribution = { source: 'function(){return function(mode){};}', origins: ['https://collector.example'], supportsStatic: false };
   let browserCalls = 0;

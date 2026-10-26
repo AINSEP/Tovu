@@ -126,20 +126,22 @@ export function useConsentPage({ port, t }: { port: ConsentRevisionsPort; t: Tra
 export interface ConsentPreviewState {
   html: string | null;
   problems: ConsentFieldProblem[];
+  warnings: ConsentFieldProblem[];
   error: string | null;
 }
 
 /** The real renderer's gated page for the current (unsaved) settings, debounced; a response that
- * arrives after a newer request was sent is dropped. @complexity O(1) requests per settle. */
+ * arrives after a newer request was sent is dropped. CSS warnings travel with the preview, never
+ * into the saved draft's publish blockers. @complexity O(1) requests per settle. */
 export function useConsentPreview({ port, config, t }: { port: ConsentRevisionsPort; config: ConsentSettingsView | null; t: Translate }, { delayMs = 500 }: { delayMs?: number } = {}): ConsentPreviewState {
-  const [state, setState] = useState<ConsentPreviewState>({ html: null, problems: [], error: null });
+  const [state, setState] = useState<ConsentPreviewState>({ html: null, problems: [], warnings: [], error: null });
   const sequence = useRef(0);
   useEffect(() => {
     if (!config) return undefined;
     const ticket = ++sequence.current;
     const timer = setTimeout(() => {
       port.preview({ config }).then(
-        result => { if (ticket === sequence.current) setState({ html: result.html, problems: result.blockingProblems, error: null }); },
+        result => { if (ticket === sequence.current) setState({ html: result.html, problems: result.blockingProblems, warnings: result.warnings ?? [], error: null }); },
         error => { if (ticket === sequence.current) setState(current => ({ ...current, error: describeApiError(error, t("Couldn't render the preview.")) })); },
       );
     }, delayMs);

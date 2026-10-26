@@ -24,6 +24,8 @@ export interface ConsentEditorLimits {
   textLimits: Partial<Record<'title' | 'message' | 'acceptLabel' | 'rejectLabel' | 'preferencesLabel' | 'secondaryLinkLabel', number>>;
   maxCssLength: number;
   regionModes: ConsentSettingsView['regionMode'][];
+  /** Only supplied by the cookie-consent engine. */
+  bannerModes?: NonNullable<ConsentSettingsView['bannerMode']>[];
   rules: { gpc: string; preferenceMaxAgeMs: number; staticReceipts: boolean };
 }
 
@@ -53,6 +55,8 @@ export interface ConsentReadiness {
 export interface ConsentPreview {
   html: string;
   blockingProblems: ConsentFieldProblem[];
+  /** Dropped CSS rules/tokens from the cookie-consent renderer; never publish blockers. */
+  warnings?: ConsentFieldProblem[];
   revisionId: string | null;
 }
 
