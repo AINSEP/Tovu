@@ -178,7 +178,7 @@ describe('useConsentPreview', () => {
   it('renders nothing until there is a config', () => {
     const port = fakeConsentPort({ preview: vi.fn() });
     const { result } = renderHook(() => useConsentPreview({ port, config: null, t }));
-    expect(result.current).toEqual({ html: null, problems: [], error: null });
+    expect(result.current).toEqual({ html: null, problems: [], warnings: [], error: null });
     expect(port.preview).not.toHaveBeenCalled();
   });
 
@@ -194,6 +194,23 @@ describe('useConsentPreview', () => {
     expect(result.current.html).toBeNull();
     await act(async () => { responses[1]!.resolve(preview('<p>new</p>')); });
     expect(result.current.html).toBe('<p>new</p>');
+  });
+
+  it('keeps CSS warnings separate from blockers and clears them with a clean preview', async () => {
+    const warnings = [{ field: 'appearance', code: 'selector', message: 'Selector was skipped.' }];
+    const responses = [deferred<ConsentPreview>(), deferred<ConsentPreview>()];
+    let call = 0;
+    const port = fakeConsentPort({ preview: () => responses[call++]!.promise });
+    const { result, rerender } = renderHook(({ config }) => useConsentPreview({ port, config, t }, { delayMs: 0 }), { initialProps: { config: CONSENT_CONFIG } });
+    await waitFor(() => expect(call).toBe(1));
+    await act(async () => { responses[0]!.resolve({ ...preview('<p>styled</p>'), warnings }); });
+    expect(result.current.warnings).toEqual(warnings);
+    expect(result.current.problems).toEqual([]);
+    rerender({ config: { ...CONSENT_CONFIG, customCss: '' } });
+    await waitFor(() => expect(call).toBe(2));
+    await act(async () => { responses[1]!.resolve(preview('<p>clean</p>')); });
+    expect(result.current.warnings).toEqual([]);
+    expect(result.current.html).toBe('<p>clean</p>');
   });
 
   it('keeps the last preview and reports a render failure', async () => {

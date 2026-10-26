@@ -10,6 +10,7 @@ import { readSiteConsentAuthoringSettings } from '#src/features/consent/settings
 import { fetchPublishedPage, resolveSameOriginPath } from '#src/features/site-inspection/published-page';
 import type { RouteDeps } from '#src/server/routes/types';
 import { CONSENT_RECEIPTS_DIR_NAME, createPrivacyPageCheck } from '../../inbound/public-http/middleware/site-consent.js';
+import { cookieConsentPreviewGate } from '../../inbound/public-http/middleware/site-cookie-consent.js';
 
 /** Reuse the existing local-render owner (bounded reads, timeout, finally-close, no external URL).
  * @example bindSiteConsentService({ deps })
@@ -26,6 +27,7 @@ export function siteConsentPorts({ deps }: { deps: RouteDeps }, _options = {}): 
     workspaceId: deps.workspaceId, authorize: deps.authorize, store: deps.consentStore,
     ready: deps.siteConsentReady, clock: deps.clock, ids: deps.idGen,
     trustedRegion: Boolean(deps.consentTrustedRegionHeader),
+    ...(deps.cookieConsent ? { cookieConsent: true, consentGate: cookieConsentPreviewGate } : {}),
     readLegacy: async () => readSiteConsentAuthoringSettings({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId }),
     privacyPageExists: createPrivacyPageCheck({ deps }),
     receiptStorage: async () => {

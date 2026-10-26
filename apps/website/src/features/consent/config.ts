@@ -6,6 +6,11 @@ export const SITE_CONSENT_NAMESPACE = 'core.consent';
 export const SITE_CONSENT_PLACEMENTS = ['bottom-bar', 'bottom-left', 'bottom-right', 'top-bar'] as const;
 export type SiteConsentPlacement = typeof SITE_CONSENT_PLACEMENTS[number];
 
+/** Which banner the site shows: Jini's, the owner's own (built on window.jiniConsent), or none.
+ * Absent in a saved config means "follow `enabled`": on = Jini banner, off = none. */
+export const SITE_CONSENT_BANNER_MODES = ['jini', 'headless', 'off'] as const;
+export type SiteConsentBannerMode = typeof SITE_CONSENT_BANNER_MODES[number];
+
 export const SITE_CONSENT_REGION_MODES = ['auto', 'opt-in', 'opt-out'] as const;
 export type SiteConsentRegionMode = typeof SITE_CONSENT_REGION_MODES[number];
 
@@ -26,7 +31,7 @@ export const SITE_CONSENT_DEFAULTS = {
   // A corner card covers far less of the page than a full-width bar (owner, 2026-10-22).
   placement: 'bottom-right' as SiteConsentPlacement,
 };
-export type SiteConsentSettings = typeof SITE_CONSENT_DEFAULTS & { allowUnsafeEval?: boolean; reopen?: 'link' };
+export type SiteConsentSettings = typeof SITE_CONSENT_DEFAULTS & { allowUnsafeEval?: boolean; reopen?: 'link'; bannerMode?: SiteConsentBannerMode };
 
 /** Tovu's default banner Custom CSS: live whenever the owner's field is empty, and shown in that
  * field so the owner edits it like their own. The engine allows only its banner selectors and a few

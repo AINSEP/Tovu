@@ -57,6 +57,30 @@ test('invalid customization remains a draft and cannot replace the valid publish
   assert.ok(missing.blockingProblems.some(problem => problem.code === 'PRIVACY_PAGE_MISSING'));
 });
 
+test('cookie-consent reports dropped CSS as preview warnings and still publishes; the legacy engine blocks it', async t => {
+  const f = consentFixture({ t });
+  f.ports.cookieConsent = true;
+  // The service's page gate is an injected effect; CSS diagnostics still use the real Jini renderer.
+  f.ports.consentGate = ({ html }) => html;
+  const good = '#jini-consent h2 { color: #000000; }';
+  const config = { ...f.config, customCss: good + '\n#jini-consent [data-x] { color: #000000; }' };
+  const clean = await f.service.preview({ principalId: 'owner', config: { ...f.config, customCss: good } });
+  assert.deepEqual(clean.warnings, []);
+  const preview = await f.service.preview({ principalId: 'owner', config });
+  assert.deepEqual(preview.blockingProblems, []);
+  assert.equal(preview.warnings?.length, 1);
+  assert.equal(preview.warnings?.[0]?.code, 'selector');
+  assert.equal(preview.warnings?.[0]?.field, 'appearance');
+  const draft = await f.service.saveDraft({ principalId: 'owner', config, expectedDraftId: null });
+  assert.deepEqual(draft.blockingProblems, []);
+  await f.service.publish({ principalId: 'owner', draftId: draft.revision.id, expectedPublishedId: null });
+  assert.equal((await f.store.read({})).published?.id, draft.revision.id);
+  f.ports.cookieConsent = false;
+  assert.ok((await f.service.preview({ principalId: 'owner', config })).blockingProblems.some(problem => problem.field === 'appearance'));
+  assert.equal((await f.service.preview({ principalId: 'owner', config })).warnings, undefined);
+  await assert.rejects(f.service.publish({ principalId: 'owner', draftId: draft.revision.id, expectedPublishedId: draft.revision.id }));
+});
+
 test('every service operation authorizes before reading state or performing effects', async t => {
   const f = consentFixture({ t }); f.deny();
   f.ports.store = undefined;

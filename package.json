@@ -131,6 +131,7 @@
     "@jini-ai/cli": "^0.6.12",
     "@jini-ai/cms": "^0.6.12",
     "@jini-ai/commerce": "^0.6.12",
+    "@jini-ai/cookie-consent": "^0.6.12",
     "@jini-ai/core": "^0.6.12",
     "@jini-ai/daemon": "^0.6.12",
     "@jini-ai/db": "^0.6.12",
