@@ -265,6 +265,8 @@ function composePorts({ leases, consent, consentRevision, site, warn, product }:
       return output;
     },
     tracker: createTracker({ observability, productAnalytics: trackerAnalytics }, { warn }),
+    // A site's "send test error" exercises the site's own providers, never Tovu's product branch.
+    siteTracker: product ? createTracker({ observability: siteObservability, productAnalytics }, { warn }) : undefined,
     // Public callers own visitor proof checks; the owner's admin preference cannot veto them.
     visitorTracker: createTracker({ observability: siteObservability, productAnalytics: withProductAnalyticsGuards({ inner, consent: () => true }) }, { warn }),
     shutdownGenerations: () => generations?.shutdown?.(),
@@ -392,8 +394,8 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
     leases.set(slot.contract, [...(leases.get(slot.contract) ?? []), gatedPort({ slot, contract: slot.contract, testProbe })]);
   }
   await Promise.all([...new Set(slots.map(slot => slot.pluginId))].map(pluginId => reapply({ pluginId })));
-  const product = await bootProductTelemetryFromEnv({ env: optional.env ?? process.env, processRole: required.processRole ?? 'server' }, { warn, ...optional.productTelemetry });
-  const { shutdownGenerations, ...ports } = composePorts({ leases, consent: required.consent, consentRevision: required.consentRevision, site: required.site, warn, product });
+  const product = await bootProductTelemetryFromEnv({ env: optional.env, processRole: required.processRole }, { warn, ...optional.productTelemetry });
+  const { shutdownGenerations, siteTracker, ...ports } = composePorts({ leases, consent: required.consent, consentRevision: required.consentRevision, site: required.site, warn, product });
   tracker = ports.tracker;
   // Boot settles before a tracker exists. Flush only through the healthy, consenting facade;
   // local diagnostics remain authoritative when analytics itself failed to initialize.
@@ -402,7 +404,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
   let disposal: Promise<void> | undefined;
   return { ...ports, telemetryStatus: delivery.read,
     observabilityEnabled: () => slots.some(slot => slot.contract === "observability" && slot.lease?.isCurrent({}) === true),
-    sendTelemetryTest: ({ error }) => testProbe.send({ tracker: ports.tracker, error, userId: `site:${required.site.siteId}` }),
+    sendTelemetryTest: ({ error }) => testProbe.send({ tracker: siteTracker ?? ports.tracker, error, userId: `site:${required.site.siteId}` }),
     reapply, appliesAt: ({ pluginId }) => applied.get(pluginId) ?? "now",
     async dispose() {
       closed = true;

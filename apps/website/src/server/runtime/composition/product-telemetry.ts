@@ -32,6 +32,12 @@ export interface ProductTelemetryOptions {
 }
 const OFF: ProductConsent = Object.freeze({ crashes: false, usage: false, installationId: null });
 const WARNING = '[product-telemetry] unavailable; product reporting is disabled';
+// Five levels above composition/: Resources in the staged desktop bundle (stage-website-shared keeps
+// website/src/server/runtime/composition below it), the payload root in a packaged child, apps/ in a
+// checkout. Stack frames below it stay readable as app:///…; every other local path is masked.
+const INSTALL_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../..');
+// Frames are home-redacted before masking, so the root is retained in its redacted spelling too.
+const KEEP_ROOTS = [INSTALL_ROOT, redactLocalText({ text: INSTALL_ROOT })];
 
 /** Parse the existing desktop preference key; malformed values never grant consent. O(1). */
 function consentOf({ value }: { value: unknown }, _options = {}): ProductConsent {
@@ -76,6 +82,8 @@ function validEntry({ entry }: { entry: ConfigEntry | undefined }, _options = {}
 function configOf({ value }: { value: unknown }, _options = {}): ProductTelemetryConfig {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('InvalidProductConfig');
   const config = value as ProductTelemetryConfig;
+  // An empty document would mark telemetry active (and prompt for consent) with nothing to send.
+  if (!config.observability && !config.productAnalytics) throw new Error('InvalidProductConfig');
   for (const key of ['observability', 'productAnalytics'] as const) {
     const entry = config[key];
     if (!validEntry({ entry })) throw new Error('InvalidProductConfig');
@@ -109,12 +117,9 @@ async function loadProductProviders(required: ProductProviderInput, _options = {
   const [{ discoverPlugins, loadProviderPluginArtifact, siteEntryPath }, { pluginHostBinding, createPluginModuleImporter }, { PROVIDER_CONTRACTS }] = await Promise.all([
     import('@jini-ai/plugins/host/node'), import('../../../features/plugin-runtime/host-binding.js'), import('./provider-plugins.js'),
   ]);
-  const moduleDir = path.dirname(fileURLToPath(import.meta.url));
-  // stage-website-shared preserves website/src/server/runtime/composition below Resources.
-  // That bundle has no node_modules ancestor: resolve from the existing payload/shell roots too.
-  const resourcesDir = path.resolve(moduleDir, '../../../../..');
+  // The staged desktop bundle has no node_modules ancestor: resolve from the payload/shell roots too.
   const catalogPath = createRequire(import.meta.url).resolve('@jini-ai/provider-plugins/catalog', {
-    paths: [moduleDir, path.join(resourcesDir, 'tovu'), path.join(resourcesDir, 'app.asar')],
+    paths: [path.dirname(fileURLToPath(import.meta.url)), path.join(INSTALL_ROOT, 'tovu'), path.join(INSTALL_ROOT, 'app.asar')],
   });
   const installDir = path.join(path.dirname(catalogPath), 'plugins');
   const records = await discoverPlugins({ ...pluginHostBinding, builtIns: [], installDir });
@@ -143,7 +148,7 @@ async function loadProductProviders(required: ProductProviderInput, _options = {
 
 /** Credential + PII redaction precedes truncation so a cut cannot hide a secret's shape. O(n). */
 function scrub({ text }: { text: string }, _options = {}): string {
-  return maskLocalPaths({ text: redactSecrets({ input: redactLocalText({ text }) }) });
+  return maskLocalPaths({ text: redactSecrets({ input: redactLocalText({ text }) }) }, { keepRoots: KEEP_ROOTS });
 }
 
 /** The memory extension admits bounded numeric series only, never caller-named strings. O(64). */
@@ -239,7 +244,7 @@ export async function bootProductTelemetry(required: ProductTelemetryRequired, o
  * provider loads; ordinary web/dev composition retains its existing ports and tracker behavior.
  * @returns Undefined without an active launch configuration. @complexity O(1) beyond boot.
  */
-export async function bootProductTelemetryFromEnv({ env, processRole }: { env: NodeJS.ProcessEnv; processRole: 'server' | 'daemon' }, options: ProductTelemetryOptions = {}): Promise<ProductTelemetry | undefined> {
+export async function bootProductTelemetryFromEnv({ env = process.env, processRole = 'server' }: { env?: NodeJS.ProcessEnv | undefined; processRole?: 'server' | 'daemon' | undefined }, options: ProductTelemetryOptions = {}): Promise<ProductTelemetry | undefined> {
   const configPath = env.TOVU_PRODUCT_TELEMETRY_CONFIG;
   const preferencePath = env.TOVU_PRODUCT_TELEMETRY_PREFS;
   if (!configPath || !preferencePath) return undefined;

@@ -3,6 +3,7 @@ import { mkdtemp, writeFile, utimes, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { createNoopObservabilityPort, isNoopObservabilityPort, type ErrorReport } from '@jini-ai/diagnostics/observability';
 import { isNoopProductAnalytics, type ProductEvent } from '@jini-ai/analytics/product';
 import { bootProductTelemetry, bootProductTelemetryFromEnv, createProductConsentReader, type ProductConsent, type ProductProviderInput, type ProductTelemetry } from '../product-telemetry.js';
@@ -159,12 +160,17 @@ test('error payload masks POSIX/Windows/UNC/file paths, credentials and email; c
     assert.equal(original.message, message, 'site branch error is not mutated');
     product.observability.reportError({ error: new Error('x'.repeat(500)), context: { operation: 'fake.operation' } });
     assert.equal((f.errors[1]!.error as Error).message.length, 300);
+    // A frame inside the shipped tree (this checkout's apps/) stays readable; others are masked.
+    const shipped = new Error('fake');
+    shipped.stack = `Error: fake\n at shipped (${fileURLToPath(import.meta.url)}:3:2)\n at other (/opt/elsewhere/a.ts:1:1)`;
+    product.observability.reportError({ error: shipped, context: { operation: 'fake.operation' } });
+    assert.match((f.errors[2]!.error as Error).stack ?? '', /^Error: fake\n at shipped \(app:\/\/\/[^\s<>()]*\/__tests__\/product-telemetry\.unit\.test\.ts:3:2\)\n at other \(<path>:1:1\)$/);
     product.observability.trackRequest({ method: 'GET', path: '/private' }).end({ statusCode: 500, routePattern: '/private' });
     product.observability.trackDbQuery({ system: 'sqlite' }).end({ operation: 'select' });
     product.observability.trackOutboundCall({ method: 'GET', url: 'https://private.example.test' }).end({ statusCode: 500 });
     product.observability.trackAgentRun({ runId: 'private' }).end({ status: 'failed' });
     product.observability.trackOperation({ name: 'private' }).end({ outcome: 'failed', failed: true });
-    assert.equal(f.errors.length, 2);
+    assert.equal(f.errors.length, 3);
   } finally { await f.close(); }
 });
 
@@ -201,7 +207,7 @@ test('missing/corrupt config, invalid shape and load/init failure yield both noo
   const f = await fixture();
   try {
     const messages: string[] = [];
-    for (const text of [undefined, '{broken', 'null', '[]', '{"observability":{"plugin":"../private","input":{}}}', '{"productAnalytics":{"plugin":"fake","input":null}}', JSON.stringify(CONFIG)]) {
+    for (const text of [undefined, '{broken', 'null', '[]', '{}', '{"observability":{"plugin":"../private","input":{}}}', '{"productAnalytics":{"plugin":"fake","input":null}}', JSON.stringify(CONFIG)]) {
       if (text === undefined) await rm(f.required.configPath);
       else await writeFile(f.required.configPath, text);
       const warnings: string[] = [];
@@ -213,7 +219,7 @@ test('missing/corrupt config, invalid shape and load/init failure yield both noo
       assert.equal(product.crashUpload, undefined);
       await product.dispose(); messages.push(...warnings);
     }
-    assert.equal(messages.length, 7);
+    assert.equal(messages.length, 8);
   } finally { await f.close(); }
 });
 

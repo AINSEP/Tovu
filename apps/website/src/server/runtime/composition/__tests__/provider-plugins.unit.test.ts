@@ -753,6 +753,10 @@ test('env configured: product catalog projection is independent from site consen
     assert.equal(productEvents.length, 2);
     await ports.visitorTracker!.capture({ name: 'assistant_message_sent', userId: 'visitor', properties: { chatSurface: 'public', inputKind: 'text' } });
     assert.equal(productEvents.length, 2, 'visitor consent cannot authorize install product events');
+    const productErrorCount = productErrors.length;
+    await ports.sendTelemetryTest!({ error: new Error('Tovu test error — safe to ignore') });
+    assert.equal(siteErrors.at(-1), 'error:telemetry.test');
+    assert.equal(productErrors.length, productErrorCount, "a site's telemetry test never reaches the product branch");
     await ports.dispose({}); await ports.dispose({});
     assert.deepEqual({ siteDisposed, productDisposed }, { siteDisposed: 2, productDisposed: 1 });
   } finally { await ports.dispose({}); await rm(root, { recursive: true, force: true }); }
