@@ -61,6 +61,20 @@ describe("createInstalledSkillsComposerCapabilitySource", () => {
     expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
+  it("keeps the last good list when a revalidation fails, without caching the failure", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ skills: [{ toolId: "skill_one", name: "one", description: "First" }] }, { headers: { ETag: 'W/"one"' } }))
+      .mockResolvedValueOnce(jsonResponse({ error: "unavailable" }, { status: 500 }))
+      .mockResolvedValueOnce(new Response(null, { status: 304 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const source = createInstalledSkillsComposerCapabilitySource();
+    const first = await source.list();
+    expect(await source.reload()).toBe(first);
+    expect(await source.reload()).toBe(first);
+    expect(fetchMock.mock.calls[2]?.[1].headers["If-None-Match"]).toBe('W/"one"');
+  });
+
   it("deduplicates pending reads and lets force supersede an older response with its validator", async () => {
     let release!: (response: Response) => void;
     const fetchMock = vi.fn()

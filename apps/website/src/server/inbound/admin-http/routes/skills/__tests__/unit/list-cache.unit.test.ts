@@ -1,4 +1,4 @@
-/** Skills validators reuse Express's response lifecycle, after workspace and permission guards. */
+/** Skills validators match If-None-Match themselves, after workspace and permission guards. */
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -24,9 +24,9 @@ test("matching validators return an empty 304; changed skills return a private 2
   assert.match(first.headers.get("vary") ?? "", /Cookie/);
   const etag = first.headers.get("etag");
   assert.ok(etag);
-  // Prevent fetch from adding request no-cache, which would suppress Express's freshness check.
+  // Default fetch mode, as the admin client sends it: fetch adds `Cache-Control: no-cache` here.
   const headers = { "If-None-Match": etag };
-  const unchanged = await fetch(url, { headers, cache: "no-cache" });
+  const unchanged = await fetch(url, { headers });
   assert.equal(unchanged.status, 304);
   assert.equal(await unchanged.text(), "");
   assert.equal(unchanged.headers.get("etag"), etag);
@@ -34,7 +34,7 @@ test("matching validators return an empty 304; changed skills return a private 2
   const directory = path.join(fixture.deps.skillLayout.forWorkspace("workspace-local").root, "new-skill");
   mkdirSync(directory, { recursive: true });
   writeFileSync(path.join(directory, "SKILL.md"), "---\nname: new-skill\ndescription: A new skill.\n---\nGuidance.\n");
-  const changed = await fetch(url, { headers, cache: "no-cache" });
+  const changed = await fetch(url, { headers });
   assert.equal(changed.status, 200);
   assert.notEqual(changed.headers.get("etag"), etag);
   assert.equal((await changed.json()).skills[0].name, "new-skill");
@@ -58,9 +58,9 @@ test("matching validators cannot bypass workspace or authorization guards or rea
   assert.ok(etag);
   allowed = false; refuseEnumeration = true;
   const headers = { "If-None-Match": etag };
-  assert.equal((await fetch(url.replace("workspace-local", "other"), { headers, cache: "no-cache" })).status, 404);
+  assert.equal((await fetch(url.replace("workspace-local", "other"), { headers })).status, 404);
   assert.equal(authorizations, 1);
-  const denied = await fetch(url, { headers, cache: "no-cache" });
+  const denied = await fetch(url, { headers });
   assert.equal(denied.status, 403);
   assert.equal((await denied.json()).code, "FORBIDDEN");
   assert.equal(authorizations, 2);
