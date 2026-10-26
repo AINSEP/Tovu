@@ -167,3 +167,18 @@ test("siteIdentityFor: each site is named by its own .site-meta.json siteId, not
   const fly = siteIdentityFor({ ...shared, runtimeMode: "production", projectId: undefined, binding: siteWith("e", { siteId: "site-uuid-e" }) }, { env: {} });
   assert.deepEqual(fly, { siteId: "site-uuid-e", siteSlug: "e", environment: "fly", projectId: "site-uuid-e" });
 });
+
+test("siteIdentityFor: a deployed site with no .site-meta.json is named by TOVU_SITE_ID (set at deploy), never the shared workspace id", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-site-identity-env-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const bare = { name: "blog", dir: path.join(root, "blog") };
+  fs.mkdirSync(bare.dir);
+  const flyShape = { workspaceId: "workspace-local", runtimeMode: "production" as const, projectId: undefined, binding: bare };
+  assert.deepEqual(siteIdentityFor(flyShape, { env: { TOVU_SITE_ID: "site-uuid-local-twin" } }),
+    { siteId: "site-uuid-local-twin", siteSlug: "blog", environment: "fly", projectId: "site-uuid-local-twin" });
+  // Empty means unset: the workspace id stays the last resort.
+  assert.equal(siteIdentityFor(flyShape, { env: { TOVU_SITE_ID: "" } }).siteId, "workspace-local");
+  // The site's own meta still wins: one env shared by several local sites must not merge them.
+  fs.writeFileSync(path.join(bare.dir, ".site-meta.json"), JSON.stringify({ siteId: "site-uuid-own" }));
+  assert.equal(siteIdentityFor({ ...flyShape, runtimeMode: "local", projectId: "project-x" }, { env: { TOVU_SITE_ID: "site-uuid-local-twin" } }).siteId, "site-uuid-own");
+});

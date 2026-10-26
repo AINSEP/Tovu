@@ -150,6 +150,20 @@ export function readSiteMetaJson(siteDir: string): Record<string, unknown> | und
   return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : undefined;
 }
 
+/**
+ * This site's own id from its `.site-meta.json`: `siteId` (a randomUUID minted by init-site), else
+ * the first-boot `siteKeyId` (the boot completes the file with `siteId` = that same id, so the name
+ * holds across that first restart). Undefined when the file is missing or holds neither. Shared by
+ * the server's site identity (`deps.ts`'s `siteIdentityFor`) and `tovu deploy config`, which carries
+ * it to the deployed server as `TOVU_SITE_ID`, so both name the same site the same way.
+ * @complexity O(1), one small file read.
+ */
+export function readSiteMetaId(siteDir: string): string | undefined {
+  const meta = readSiteMetaJson(siteDir);
+  const id = typeof meta?.siteId === "string" && meta.siteId !== "" ? meta.siteId : meta?.siteKeyId;
+  return typeof id === "string" && id !== "" ? id : undefined;
+}
+
 export interface ResolveSiteKeyIdInput {
   readonly siteDir: string;
 }

@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -29,6 +30,26 @@ test("renders the generator's config to stdout and its operator notes to stderr"
   assert.equal(io.out.length, 1);
   assert.match(io.out[0]!, /ams/);
   assert.ok(io.err.every((line) => line.startsWith("tovu deploy config: ")));
+});
+
+test("the deployed server is named by the local site's .site-meta.json siteId (TOVU_SITE_ID in the generated env)", async (t) => {
+  const site = await mkdtemp(path.join(tmpdir(), "tovu-deploy-config-site-")); t.after(() => rm(site, { recursive: true, force: true }));
+  const io = capture({ TOVU_BUNDLED_AGENT_PLUGINS_DIR: FIXTURE_PLUGINS_DIR, TOVU_SITE_DIR: site });
+  await runDeployConfigCommand({ target: "example-host", region: "ams" }, io.ports);
+  assert.doesNotMatch(io.out[0]!, /TOVU_SITE_ID/, "a site with no meta (no id yet) adds nothing");
+  await writeFile(path.join(site, ".site-meta.json"), JSON.stringify({ siteId: "site-uuid-1234" }));
+  await runDeployConfigCommand({ target: "example-host", region: "ams" }, io.ports);
+  assert.match(io.out[1]!, /^env\.TOVU_SITE_ID = "site-uuid-1234"$/m);
+});
+
+test("a site that cannot be resolved still renders, without TOVU_SITE_ID, and says why on stderr", async (t) => {
+  const dir = await mkdtemp(path.join(tmpdir(), "tovu-deploy-config-unresolved-")); t.after(() => rm(dir, { recursive: true, force: true }));
+  const notADirectory = path.join(dir, "file");
+  await writeFile(notADirectory, "x");
+  const io = capture({ TOVU_BUNDLED_AGENT_PLUGINS_DIR: FIXTURE_PLUGINS_DIR, TOVU_SITES_HOME: notADirectory });
+  await runDeployConfigCommand({ target: "example-host", region: "ams" }, io.ports);
+  assert.doesNotMatch(io.out[0]!, /TOVU_SITE_ID/);
+  assert.match(io.err[0]!, /^tovu deploy config: the site could not be resolved, so TOVU_SITE_ID is not set: /);
 });
 
 test("--out writes the rendered file and reports where", async (t) => {
