@@ -866,6 +866,21 @@ describe("custom project-key usage", () => {
     if (!usedByThisSite) expect(within(details).queryByLabelText(/^Access token/)).not.toBeInTheDocument();
   });
 
+  it.each([
+    { usedBy: ["Shop", "Docs"], warning: "Used by 1 other site; it will use the new token too." },
+    { usedBy: ["Shop", "Docs", "Blog"], warning: "Used by 2 other sites; they will use the new token too." },
+  ])("warns before Replace that $usedBy switch to the new token", ({ usedBy, warning }) => {
+    const saved = row({ kind: "custom", id: "project-key", scope: "project", usedBy, usedByThisSite: true, category: "general" });
+    renderTab({ groups: [groupFor("custom", saved.providerId, [rowState({ row: saved })])] });
+    expect(screen.getByText(warning)).toHaveClass("save-warning");
+  });
+
+  it("does not warn when only this site uses the project key", () => {
+    const saved = row({ kind: "custom", id: "project-key", scope: "project", usedBy: ["Shop"], usedByThisSite: true, category: "general" });
+    renderTab({ groups: [groupFor("custom", saved.providerId, [rowState({ row: saved })])] });
+    expect(screen.queryByText(/will use the new token too/)).not.toBeInTheDocument();
+  });
+
   it("labels a site-only key without offering an attachment action", () => {
     const saved = row({ kind: "custom", scope: "site", category: "general" });
     renderTab({ groups: [groupFor("custom", saved.providerId, [rowState({ row: saved })])] });
@@ -884,12 +899,12 @@ describe("custom project-key usage", () => {
 
   it.each([
     { initial: undefined, selected: "site", label: "This site only" },
-    { initial: "site" as const, selected: "project", label: "Save to project (pick sites later)" },
+    { initial: "site" as const, selected: "project", label: "Save to project and use on this site" },
   ])("offers both storage choices and forwards $selected", ({ initial, selected, label }) => {
     const setCustomAddField = vi.fn();
     renderTab({ projectKeysAvailable: true, setCustomAddField, customAddForm: { ...makeAccessTokens().customAddForm, scope: initial } });
     fireEvent.click(screen.getByRole("button", { name: "+ Add custom provider" }));
-    const project = screen.getByRole("radio", { name: "Save to project (pick sites later)" });
+    const project = screen.getByRole("radio", { name: "Save to project and use on this site" });
     expect(project).toHaveProperty("checked", initial !== "site");
     expect(screen.getByRole("radio", { name: "This site only" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("radio", { name: label }));
@@ -900,7 +915,7 @@ describe("custom project-key usage", () => {
     renderTab({ projectKeysAvailable: false });
     fireEvent.click(screen.getByRole("button", { name: "+ Add custom provider" }));
     expect(screen.getByText("This site only")).toBeInTheDocument();
-    expect(screen.queryByRole("radio", { name: "Save to project (pick sites later)" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "Save to project and use on this site" })).not.toBeInTheDocument();
   });
 });
 

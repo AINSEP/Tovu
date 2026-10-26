@@ -1911,6 +1911,16 @@ export function copyKeysUpgradeMessage({ site, t }: { site: string; t: (key: str
   return interpolate({ template: t("Start {site} once in Tovu to upgrade it, then copy."), vars: { site } });
 }
 
+/** Replace on a project key rewrites the one shared row, so every other site using it switches
+ *  too; the owner is warned before saving (Opus UI review 2026-10-26 item 2). Null when no other
+ *  site uses the key. */
+export function sharedKeyReplaceWarning({ usedBy, usedByThisSite, t }: { usedBy?: readonly string[]; usedByThisSite?: boolean; t: (key: string) => string }, _options = {}): string | null {
+  const others = (usedBy?.length ?? 0) - (usedByThisSite ? 1 : 0);
+  if (others < 1) return null;
+  if (others === 1) return t("Used by 1 other site; it will use the new token too.");
+  return interpolate({ template: t("Used by {count} other sites; they will use the new token too."), vars: { count: String(others) } });
+}
+
 const COPY_REASON_TEXT: Record<string, string> = {
   "target-exists": "skipped (already there)", "conflict": "Changed during copy; try again.",
   "source-missing": "Key no longer available; reopen to refresh.",
