@@ -28,7 +28,7 @@ function inventoryFixture(_required = {}, _optional = {}) {
     repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: guarded, attachments, siteId: "shop-id" }) }),
     deletionRepo: new CustomCredentialVaultRepo({ vault: guarded }) };
   const repo = new CustomCredentialVaultRepo({ vault: new InMemoryVaultRepo({}) }, { project });
-  const keys = createProjectKeys({ vault, attachments, siteId: "shop-id", siteName: "Shop", transaction, reapply: async () => "now" });
+  const keys = createProjectKeys({ vault, attachments, siteId: "shop-id", siteName: "Shop", transaction, providerUsage: async () => assert.fail("custom keys have no provider usage"), reapply: async () => "now" });
   let sequence = 0;
   const write = { repo, sealer, keyring, clock: createFakeClock({ startIso: "2026-10-26T00:00:00.000Z" }), idGen: { newId: () => `credential-${++sequence}` } };
   const deps: AdminCustomCredentialsDeps = { workspaceId: "workspace", customCredentialSetRepo: repo,
@@ -43,10 +43,11 @@ function inventoryFixture(_required = {}, _optional = {}) {
 
 async function inventoryClient({ t, deps }: { t: import("node:test").TestContext; deps: AdminCustomCredentialsDeps }, _optional = {}) {
   const app = express();
+  app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
   registerAdminCustomCredentialsRoutes(app, deps);
   const root = await startTestServer(app, t);
-  return () => fetch(`${root}/api/admin/v1/workspaces/${deps.workspaceId}/system/custom/credentials`);
+  return (init?: RequestInit) => fetch(`${root}/api/admin/v1/workspaces/${deps.workspaceId}/system/custom/credentials`, init);
 }
 
 test("admin inventory keeps an unattached key visible, reports exact site usage, and never grants runtime access by listing", async t => {
@@ -100,4 +101,27 @@ test("admin inventory denies unauthorized readers before inspecting project meta
   const response = await read();
   assert.equal(response.status, 403);
   assert.equal(reads, 0);
+});
+
+test("Access Tokens project add attaches only the current site; site-only add never attaches", async t => {
+  const { deps, write, attachments } = inventoryFixture();
+  const request = await inventoryClient({ t, deps });
+  for (const scope of ["project", "site"] as const) {
+    const label = `${scope} API`;
+    const token = ["synthetic", scope, "new-value"].join("-");
+    const response = await request({ method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+      label, scope, category: "general", baseUrl: "https://api.example.test", connection: { token },
+    }) });
+    assert.equal(response.status, 201);
+    const result = await response.json();
+    assert.equal(result.credential.scope, scope);
+    assert.deepEqual(await attachments.usersOf({ keyId: result.credential.id }), scope === "project" ? [{ siteId: "shop-id", siteName: "Shop" }] : []);
+    assert.equal((await resolveCustomCredentialByLabel(write, { workspaceId: deps.workspaceId, label }))?.connection.token, token);
+    assert.equal(JSON.stringify(result).includes(token), false);
+    if (scope === "project") {
+      assert.equal(result.credential.usedByThisSite, true);
+      assert.deepEqual(result.credential.usedBy, ["Shop"]);
+      assert.equal(await attachments.isAttached({ keyId: result.credential.id, siteId: "docs-id" }), false);
+    }
+  }
 });

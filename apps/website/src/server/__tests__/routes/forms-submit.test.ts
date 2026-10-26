@@ -45,7 +45,7 @@ function makeDefinition(overrides: Partial<FormDefinitionRecord> = {}): FormDefi
   };
 }
 
-async function startTestApp(overrides: { definitionRepo?: FormDefinitionRepoPort; submissionRepo?: InMemoryFormSubmissionRepo; upstreamCookie?: boolean; productAnalytics?: ProductAnalyticsPort; nowMs?: () => number; visitorAnalyticsConsent?: VisitorAnalyticsDeps["visitorAnalyticsConsent"] } = {}) {
+async function startTestApp(overrides: { definitionRepo?: FormDefinitionRepoPort; submissionRepo?: InMemoryFormSubmissionRepo; upstreamCookie?: boolean; productAnalytics?: ProductAnalyticsPort; nowMs?: () => number; allowVisitorAnalytics?: (required: { request: express.Request }) => Promise<boolean> } = {}) {
   const definitionRepo = overrides.definitionRepo ?? new InMemoryFormDefinitionRepo();
   const submissionRepo = overrides.submissionRepo ?? new InMemoryFormSubmissionRepo();
   const clock = { nowMs: overrides.nowMs ?? (() => Date.parse(NOW)), nowIso: () => NOW };
@@ -55,8 +55,8 @@ async function startTestApp(overrides: { definitionRepo?: FormDefinitionRepoPort
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();
   const tracker = createTracker({ productAnalytics: overrides.productAnalytics });
-  const visitorAnalyticsProof: VisitorAnalyticsDeps['visitorAnalyticsProof'] = overrides.visitorAnalyticsConsent ? async ({ request }) =>
-    await overrides.visitorAnalyticsConsent!({ request }) ? { receiptId: ['fake', 'consent', 'receipt'].join('_'), policyVersion: '1' } : undefined : undefined;
+  const visitorAnalyticsProof: VisitorAnalyticsDeps['visitorAnalyticsProof'] = overrides.allowVisitorAnalytics ? async ({ request }) =>
+    await overrides.allowVisitorAnalytics!({ request }) ? { receiptId: ['fake', 'consent', 'receipt'].join('_'), policyVersion: '1' } : undefined : undefined;
   const visitorAnalyticsDeliveryAllowed = async () => true;
   const formSubmissionAttempts = formSubmissionAttemptsFor({ submissionRepo });
   createFormsModule({ bus, formDefinitionRepo: definitionRepo, formSubmissionRepo: submissionRepo,
@@ -76,7 +76,6 @@ async function startTestApp(overrides: { definitionRepo?: FormDefinitionRepoPort
     formSubmissionAttempts,
     tracker,
     idGen,
-    visitorAnalyticsConsent: overrides.visitorAnalyticsConsent,
     visitorAnalyticsProof,
     visitorAnalyticsDeliveryAllowed,
     submitForm: {
@@ -194,7 +193,7 @@ test("live timing: a consented fast refusal emits no analytics; its persisted re
   const conversion = new Promise<void>(resolve => { onConversion = resolve; });
   const { server, baseUrl, definitionRepo, submissionRepo, outbox, bus, formSubmissionAttempts } = await startTestApp({
     nowMs: () => nowMs,
-    visitorAnalyticsConsent: async () => true,
+    allowVisitorAnalytics: async () => true,
     productAnalytics: { capture: event => { events.push(event); onConversion(); }, identify: () => {} },
   });
   t.after(() => new Promise<void>(resolve => { server.closeAllConnections(); server.close(() => resolve()); }));
@@ -1035,7 +1034,7 @@ test("form analytics captures only a committed submission, never honeypots or du
   const delivered = new Promise<void>(resolve => { captured = resolve; });
   const { server, baseUrl, definitionRepo, submissionRepo, outbox, bus } = await startTestApp({ productAnalytics: {
     capture: event => { events.push(event); captured(); }, identify: () => {},
-  }, visitorAnalyticsConsent: async () => true });
+  }, allowVisitorAnalytics: async () => true });
   t.after(() => new Promise<void>(resolve => server.close(() => resolve())));
   await definitionRepo.create(makeDefinition());
   const post = (body: object) => fetch(`${baseUrl}/forms/contact/submit`, {

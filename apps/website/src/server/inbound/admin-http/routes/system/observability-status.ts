@@ -17,7 +17,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * that decision through the same workspace-id-404 -> authorize -> 403 shape every sibling route in
  * this directory uses (`module-status.ts`, `deployment-overview.ts`).
  */
-export type AdminObservabilityStatusDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "observability" | "telemetryStatus" | "sendTelemetryTest" | "tracker">;
+export type AdminObservabilityStatusDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "observability" | "observabilityEnabled" | "telemetryStatus" | "sendTelemetryTest" | "tracker">;
 
 export function registerAdminObservabilityStatusRoute(app: Express, deps: AdminObservabilityStatusDeps): void {
   app.get("/api/admin/v1/workspaces/:workspaceId/system/observability-status", async (req, res) => {
@@ -46,7 +46,7 @@ export function registerAdminObservabilityStatusRoute(app: Express, deps: AdminO
       // Whether a configured provider plugin backs the port, and the fixed service identity it
       // reports under. Never the collector endpoint, DSN or any credential: those live only in the
       // provider plugins' sealed key cards and must not be disclosed by this status route.
-      const enabled = !isNoopObservabilityPort(deps.observability);
+      const enabled = deps.observabilityEnabled?.() ?? !isNoopObservabilityPort(deps.observability);
       const testAccess = deps.sendTelemetryTest ? await deps.authorize({ principalId: principal.id,
         permission: "system.write", workspaceId: deps.workspaceId, entityType: "observability" }) : undefined;
       res.status(200).json({ enabled, serviceName: enabled ? "tovu" : null,

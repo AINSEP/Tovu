@@ -659,7 +659,9 @@ export const registerMediaRenditionRoute: MediaRenditionRouteRegistrar = (app, d
  * {@link sendMediaOriginalResponse}), plus {@link resolveMediaAccessDecision}'s own O(p) cost.
  */
 export const registerMediaOriginalVideoRoute: MediaRenditionRouteRegistrar = (app, deps) => {
-  app.get("/m/:assetId/original", async (req, res) => {
+  // Both URL generations use the same gate, byte sniffing and response headers. The suffix is
+  // for static-host MIME inference; it never selects the live response's Content-Type.
+  app.get(["/m/:assetId/original", "/m/:assetId/original.:ext"], async (req, res) => {
     const { assetId } = readRenditionRouteParams(req);
 
     try {

@@ -2,12 +2,15 @@ import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { providerInputOf } from "../provider-plugins.js";
+import type { PluginProviderSettingField } from "@jini-ai/plugins/host";
+
 import type { AgentPluginStateStore } from "#src/features/api-connections/plugin-state";
 
 import { SECRET_OPEN_FAILED } from "#src/features/webhooks/secret-sealer.aesgcm";
 
 import { ProviderConfigUnreadableError, ProviderStoreUnavailableError, createVaultProviderConfigSource, withAttachedProject, withUnavailableProject, type ProviderConfigSource } from "../provider-config-source.js";
-import { saveProviderSettings } from "../provider-settings-save.js";
+import { providerSettingsStatus, saveProviderSettings } from "../provider-settings-save.js";
 
 /**
  * @file The provider-settings port with DI fakes: a Map-backed plugin-state store stands in for the
@@ -25,7 +28,7 @@ function fakeState(): { state: AgentPluginStateStore; rows: Map<string, unknown>
     set: async ({ key, value }: { key: string; value: unknown }) => { rows.set(`${workspaceId}/${pluginId}/${key}`, value); },
     delete: async () => {},
   });
-  return { rows, gets, state: { forPlugin: view, readerFor: view, describe: async () => ({ keys: [] }) } as unknown as AgentPluginStateStore };
+  return { rows, gets, state: { forPlugin: view, readerFor: view, describe: async ({ workspaceId, pluginId }: { workspaceId: string; pluginId: string }) => ({ keys: rows.has(`${workspaceId}/${pluginId}/provider.config`) ? [{ key: "provider.config", revision: 1 }] : [] }) } as unknown as AgentPluginStateStore };
 }
 
 test("vault adapter: nothing saved reads as null; a write is read back as one row; the public read returns secret names only", async () => {
@@ -60,11 +63,36 @@ function memorySource(scope: ProviderConfigSource["scope"]): ProviderConfigSourc
   const writes: string[] = [];
   return {
     scope, writes,
+    usage: async ({ pluginId }) => ({ ...(saved.has(pluginId) ? { keyId: `plugin-state:${pluginId}:provider.config` } : {}), store: scope, usedByThisSite: scope === "site" && saved.has(pluginId), usedBy: [] }),
     read: async ({ pluginId }) => saved.get(pluginId) ?? null,
     readSettings: async ({ pluginId }) => { const found = saved.get(pluginId); return found ? { settings: found.settings, secretNames: Object.keys(found.secrets) } : null; },
     write: async ({ pluginId, config }) => { writes.push(pluginId); saved.set(pluginId, { settings: { ...config.settings }, secrets: { ...config.secrets } }); },
   };
 }
+
+test("a site without a stable id saves usable site settings and leaves the project untouched", async () => {
+  const site = memorySource("site"), project = memorySource("project");
+  const config = withAttachedProject({ site }, { project, attachments: fakeAttachments(), siteId: "" });
+  const values = { settings: { endpoint: "https://collector.example.test" }, secrets: {} };
+  assert.deepEqual(await config.write({ pluginId: "obs", config: values }), {
+    keyId: "plugin-state:obs:provider.config", store: "site", usedByThisSite: true, usedBy: [],
+  });
+  assert.deepEqual(await config.read({ pluginId: "obs" }), values);
+  assert.deepEqual(project.writes, []);
+});
+
+test("effective provider usage observes site precedence through metadata without opening either envelope", async () => {
+  const site = memorySource("site"), project = memorySource("project"), attachments = fakeAttachments();
+  const pluginId = "obs", keyId = "plugin-state:obs:provider.config";
+  const config = withAttachedProject({ site }, { project, attachments, siteId: "a" });
+  await project.write({ pluginId, config: { settings: {}, secrets: {} } });
+  await attachments.attach({ siteId: "a", siteName: "A", keyId });
+  site.readSettings = async () => assert.fail("usage must not open the site envelope");
+  project.readSettings = async () => assert.fail("usage must not open the project envelope");
+  assert.deepEqual(await config.usage({ pluginId }), { keyId, store: "project", usedByThisSite: true, usedBy: ["A"] });
+  await site.write({ pluginId, config: { settings: {}, secrets: {} } });
+  assert.deepEqual(await config.usage({ pluginId }), { keyId, store: "site", usedByThisSite: true, usedBy: [] });
+});
 
 test("precedence: without a project store the site vault is the source", () => {
   const site = memorySource("site");
@@ -183,9 +211,89 @@ test("vault adapter: a row this machine cannot open reads as unreadable (listed 
   const down = createVaultProviderConfigSource({ state: stateWith(new Error("db down")), workspaceId: "ws", scope: "project" });
   await assert.rejects(down.read({ pluginId: "obs" }), (caught) => caught === sealed);
   // Site precedence also applies when the project row is unreadable.
-  const site: ProviderConfigSource = { scope: "site", read: async () => ({ settings: { endpoint: "https://site" }, secrets: {} }),
+  const site: ProviderConfigSource = { scope: "site", usage: async () => ({ store: "site", usedByThisSite: true, usedBy: [] }), read: async () => ({ settings: { endpoint: "https://site" }, secrets: {} }),
     readSettings: async () => ({ settings: { endpoint: "https://site" }, secretNames: [] }), write: async () => {} };
   const both = withAttachedProject({ site }, { project: unreadable, attachments: fakeAttachments(), siteId: "a" });
   assert.deepEqual(await both.read({ pluginId: "obs" }), { settings: { endpoint: "https://site" }, secrets: {} });
   assert.deepEqual(await both.readSettings({ pluginId: "obs" }), { settings: { endpoint: "https://site" }, secretNames: [] });
+});
+
+
+const OTEL_FIELDS: readonly PluginProviderSettingField[] = [
+  { name: "endpoint", label: "Endpoint", required: true },
+  { name: "auth", label: "Authentication", required: true, default: "grafana-cloud" },
+  { name: "username", label: "Instance ID", requiredWhen: { field: "auth", in: ["grafana-cloud"] } },
+  { name: "token", label: "Token", secret: true, required: true, requiredUnless: { field: "auth", equals: "none", orPresent: "headers" } },
+  { name: "headers", label: "Extra headers", secret: true },
+];
+
+test("OTel's old auth choice is normalized in both vault scopes, without writing or mutating the saved snapshot", async () => {
+  const pluginId = "observability-opentelemetry";
+  for (const scope of ["site", "project"] as const) for (const [settings, auth] of [
+    [{ auth: "token", username: " 123456 " }, "grafana-cloud"],
+    [{ auth: "token", username: "" }, "bearer"],
+    [{ auth: "token", username: "  " }, "bearer"],
+    [{ auth: "token" }, "bearer"],
+    [{ username: "123456" }, "grafana-cloud"],
+    [{}, "bearer"],
+    [{ auth: "bearer", username: "123456" }, "bearer"],
+    [{ auth: "none", username: "123456" }, "none"],
+  ] as const) {
+    const { state, rows, gets } = fakeState();
+    const original = { settings: { endpoint: "https://collector.example.test", ...settings }, secrets: { token: "fixture-only" } };
+    const snapshot = structuredClone(original);
+    rows.set(`ws/${pluginId}/provider.config`, original);
+    const source = createVaultProviderConfigSource({ state, workspaceId: "ws", scope });
+    const expected = { settings: { ...original.settings, auth }, secrets: original.secrets };
+    assert.deepEqual(await source.read({ pluginId }), expected);
+    assert.deepEqual(await source.readSettings({ pluginId }), { settings: expected.settings, secretNames: ["token"] });
+    assert.deepEqual(gets, ["provider.config", "provider.config"]);
+    assert.deepEqual(rows.get(`ws/${pluginId}/provider.config`), snapshot, "reads leave the old row intact");
+    rows.set("ws/other-provider/provider.config", snapshot);
+    assert.deepEqual(await source.read({ pluginId: "other-provider" }), snapshot, "another provider owns its own auth vocabulary");
+  }
+});
+
+test("an attached project's migrated OTel choice feeds boot, both cards and the next save without secret re-entry", async () => {
+  const pluginId = "observability-opentelemetry";
+  const { state, rows } = fakeState();
+  const project = createVaultProviderConfigSource({ state, workspaceId: "project", scope: "project" });
+  const site = createVaultProviderConfigSource({ state, workspaceId: "site", scope: "site" });
+  const attachments = fakeAttachments();
+  const keyId = `plugin-state:${pluginId}:provider.config`;
+  const settings = { endpoint: "https://collector.example.test", auth: "token", username: "123456" };
+  const secrets = { token: "fixture-only" };
+  rows.set(`project/${pluginId}/provider.config`, { settings, secrets });
+  const source = withAttachedProject({ site }, { project, attachments, siteId: "a" });
+  assert.equal(await source.read({ pluginId }), null);
+  await attachments.attach({ siteId: "a", siteName: "A", keyId });
+  const expected = { settings: { ...settings, auth: "grafana-cloud" }, secrets };
+  assert.deepEqual(await source.read({ pluginId }), expected);
+  assert.deepEqual(await source.readSettings({ pluginId }), { settings: expected.settings, secretNames: ["token"] });
+  assert.deepEqual(providerInputOf({ declaration: { contract: "observability", id: "opentelemetry", contractVersion: 1, settings: OTEL_FIELDS }, saved: await source.read({ pluginId }) }), { ...expected.settings, token: "fixture-only" });
+  assert.deepEqual(await providerSettingsStatus({ config: source, pluginId, fields: OTEL_FIELDS }), { configured: true, keyId, store: "project", usedByThisSite: true, usedBy: ["A"], appliesAt: "now", missing: [] });
+  const result = await saveProviderSettings({ config: source, pluginId, fields: OTEL_FIELDS, values: { auth: "grafana-cloud", token: "" } });
+  assert.deepEqual(result, { saved: true, configured: true, keyId, store: "project", usedByThisSite: true, usedBy: ["A"], appliesAt: "restart" });
+  assert.deepEqual(rows.get(`project/${pluginId}/provider.config`), expected);
+});
+
+test("legacy header-only OTel rows survive boot/status/save, and changing their destination still requires re-entry", async () => {
+  const pluginId = "observability-opentelemetry";
+  const { state, rows } = fakeState();
+  const source = createVaultProviderConfigSource({ state, workspaceId: "ws", scope: "site" });
+  const endpoint = "https://collector.example.test";
+  const headers = "authorization=Custom fixture-only,X-Extra=kept";
+  rows.set(`ws/${pluginId}/provider.config`, { settings: { endpoint }, secrets: { headers } });
+  const declaration = { contract: "observability", id: "opentelemetry", contractVersion: 1 as const, settings: OTEL_FIELDS };
+  assert.deepEqual(providerInputOf({ declaration, saved: await source.read({ pluginId }) }), { endpoint, auth: "bearer", headers });
+  assert.deepEqual(await providerSettingsStatus({ config: source, pluginId, fields: OTEL_FIELDS }), {
+    configured: true, keyId: `plugin-state:${pluginId}:provider.config`, store: "site", usedByThisSite: true, usedBy: [], appliesAt: "now", missing: [],
+  });
+  const saved = await saveProviderSettings({ config: source, pluginId, fields: OTEL_FIELDS, values: { auth: "bearer", token: "", headers: "" } });
+  assert.deepEqual(saved, { saved: true, configured: true, keyId: `plugin-state:${pluginId}:provider.config`, store: "site", usedByThisSite: true, usedBy: [], appliesAt: "restart" });
+  assert.equal(JSON.stringify(saved).includes(headers), false);
+  assert.deepEqual(rows.get(`ws/${pluginId}/provider.config`), { settings: { endpoint, auth: "bearer" }, secrets: { headers } });
+  assert.deepEqual(await saveProviderSettings({ config: source, pluginId, fields: OTEL_FIELDS, values: { endpoint: "https://other.example.test" } }), {
+    refusal: { code: "PROVIDER_SETTINGS_SECRET_REENTRY", error: "Changing Endpoint needs Extra headers entered again." },
+  });
 });

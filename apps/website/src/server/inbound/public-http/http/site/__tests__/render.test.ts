@@ -1240,7 +1240,7 @@ test("renderDocNode: a generic media VIDEO node with a slug in mediaAssetMetadat
     undefined,
     new Map([["asset-vid", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: "video/mp4", slug: "fox" }]])
   );
-  assert.match(html, /<video src="\/m\/fox\/original" controls>A clip<\/video>/);
+  assert.match(html, /<video src="\/m\/fox\/original\.mp4" controls>A clip<\/video>/);
 });
 
 test("renderDocNode: a malformed assetId/transformName (embedded '/', empty, or over-length) degrades to the placeholder even when the name would otherwise resolve — never a malformed /m/ URL", () => {
@@ -2483,7 +2483,7 @@ test("renderSite (Slice 2, media): a media-image VIDEO IR carrying props.slug re
     }),
   });
 
-  assert.match(html, /<video src="\/m\/fox\/original" controls>A hero clip<\/video>/);
+  assert.match(html, /<video src="\/m\/fox\/original\.mp4" controls>A hero clip<\/video>/);
 });
 
 test("renderSite (Slice 2, media): width/height/class are each omitted independently when null, never a zeroed/empty attribute", async () => {
@@ -2581,7 +2581,7 @@ test('renderSite (video/embed): a resolved media-image IR carrying contentType "
   });
 
   assert.doesNotMatch(html, /<img/);
-  assert.match(html, /<video src="\/m\/asset-1\/original" controls width="1920" height="1080" class="hero-video">A hero clip<\/video>/);
+  assert.match(html, /<video src="\/m\/asset-1\/original\.mp4" controls width="1920" height="1080" class="hero-video">A hero clip<\/video>/);
 });
 
 test("renderSite (video/embed): htmlAttributes' boolean attributes (muted/loop/autoplay/playsinline) render on the <video> tag", async () => {
@@ -2616,7 +2616,7 @@ test("renderSite (video/embed): htmlAttributes' boolean attributes (muted/loop/a
     }),
   });
 
-  assert.match(html, /<video src="\/m\/asset-1\/original" controls muted="" loop="" autoplay="" playsinline="">A hero clip<\/video>/);
+  assert.match(html, /<video src="\/m\/asset-1\/original\.mp4" controls muted="" loop="" autoplay="" playsinline="">A hero clip<\/video>/);
 });
 
 test("renderSite (video/embed): width/height/class are each omitted independently when null, and an empty alt falls back to the no-support message, same conventions <img> already follows", async () => {
@@ -2639,7 +2639,7 @@ test("renderSite (video/embed): width/height/class are each omitted independentl
 
   const videoMatch = html.match(/<video[^>]*>[^<]*<\/video>/);
   assert.ok(videoMatch, "expected exactly one <video> tag in the rendered page");
-  assert.equal(videoMatch![0], '<video src="/m/asset-1/original" controls>Your browser does not support the video tag.</video>');
+  assert.equal(videoMatch![0], '<video src="/m/asset-1/original.mp4" controls>Your browser does not support the video tag.</video>');
 });
 
 /**

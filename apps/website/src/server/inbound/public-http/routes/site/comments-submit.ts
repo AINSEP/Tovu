@@ -82,20 +82,18 @@ export function registerCommentsSubmitRoute(app: Express, deps: CommentsSubmitDe
   if (typeof deps.ipHashSalt?.then !== "function") {
     throw new TypeError("registerCommentsSubmitRoute requires deps.ipHashSalt (a Promise<string> from resolveCommentsIpHashSalt at the composition root)");
   }
-  const handler = deps.ipHashSalt.then((ipHashSalt) => (request: Parameters<RequestHandler>[0]) => createCommentSubmitHandler({
+  const handler = deps.ipHashSalt.then((ipHashSalt) => createCommentSubmitHandler({
     ingressPolicy: { submit: async submission => {
       const owner = deps.providers ? providerIngress({ providers: deps.providers, siteId: deps.workspaceId }) : deps.ingressPolicy;
-      const result = await owner.submit(submission);
-      if (result.ok) void captureVisitorEvent({ deps, request, name: "comment_submitted", properties: {
-        entryId: submission.entryId, moderationState: ["pending", "approved", "spam"].includes(result.comment.status) ? result.comment.status : "other",
-      } });
-      return result;
+      return owner.submit(submission);
     } },
     workspaceId: deps.workspaceId,
     ipHashSalt,
     rateLimiter: deps.rateLimiter,
     clientIp: ({ request }) => resolveClientIp(request),
-  }, { formRedirect: ({ request }) => request.is('application/x-www-form-urlencoded')
+  }, { onAccepted: ({ request, submission, comment }) => captureVisitorEvent({ deps, request, name: "comment_submitted", properties: {
+    entryId: submission.entryId, moderationState: ["pending", "approved", "spam"].includes(comment.status) ? comment.status : "other",
+  } }), formRedirect: ({ request }) => request.is('application/x-www-form-urlencoded')
     ? commentFormReturnTo({ value: request.body?.returnTo }) : undefined }));
   // Observed here so a construction failure is not an unhandled rejection at boot; each request
   // below re-awaits the same promise and hands that failure to Express's error path instead.
@@ -107,7 +105,7 @@ export function registerCommentsSubmitRoute(app: Express, deps: CommentsSubmitDe
     }
     let built: RequestHandler;
     try {
-      built = (await handler)(request);
+      built = await handler;
     } catch (error) {
       next(error);
       return;

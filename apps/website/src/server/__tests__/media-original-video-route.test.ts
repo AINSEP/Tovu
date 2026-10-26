@@ -76,8 +76,8 @@ test("public SVG originals have image/svg+xml, nosniff and CSP, including legacy
     // Bypass ingest deliberately to exercise the legacy-data serving boundary.
     const originalGet = deps.blobStore.get.bind(deps.blobStore);
     deps.blobStore.get = async (input) => input.storageKey === blob.storageKey ? raw : originalGet(input);
-    for (const key of [media.id, media.slug]) {
-      const response = await fetch(`${baseUrl}/m/${key}/original`);
+    for (const url of [media.id, media.slug].flatMap(key => [`${baseUrl}/m/${key}/original`, `${baseUrl}/m/${key}/original.svg`])) {
+      const response = await fetch(url);
       assert.equal(response.status, 200);
       assert.equal(response.headers.get("content-type"), "image/svg+xml");
       assert.equal(response.headers.get("x-content-type-options"), "nosniff");
@@ -86,7 +86,7 @@ test("public SVG originals have image/svg+xml, nosniff and CSP, including legacy
       const clean = await response.text();
       assert.doesNotMatch(clean, /script|onload|foreignObject|alert/);
       assert.match(clean, /viewBox="0 0 10 10"/);
-      const partial = await fetch(`${baseUrl}/m/${key}/original`, { headers: { Range: "bytes=0-9" } });
+      const partial = await fetch(url, { headers: { Range: "bytes=0-9" } });
       assert.equal(partial.status, 206);
       assert.equal(partial.headers.get("content-type"), "image/svg+xml");
       assert.equal(partial.headers.get("x-content-type-options"), "nosniff");
@@ -145,6 +145,12 @@ test("media original video route: a real mp4 serves 200 with the sniffed video c
     assert.equal(res.headers.get("content-disposition"), null, "video is never forced to download");
     const body = new Uint8Array(await res.arrayBuffer());
     assert.deepEqual(body, bytes);
+    const extended = await fetch(`${baseUrl}/m/${media.id}/original.mp4`);
+    assert.equal(extended.status, 200);
+    for (const name of ["content-type", "cache-control", "x-content-type-options", "accept-ranges", "content-disposition"]) {
+      assert.equal(extended.headers.get(name), res.headers.get(name), name);
+    }
+    assert.deepEqual(new Uint8Array(await extended.arrayBuffer()), bytes);
   });
 });
 
@@ -237,6 +243,10 @@ test("media original video route: an anonymous caller is 404'd for a video whose
     assert.equal(anonRes.headers.get("cache-control"), "private, no-store", "a per-viewer denial must never be shared-cached");
     const anonBody = (await anonRes.json()) as { error: string };
     assert.equal(anonBody.error, "video rendition not found", "must be indistinguishable from a non-video/unknown asset");
+    const extendedAnon = await fetch(`${baseUrl}/m/${media.id}/original.mp4`);
+    assert.equal(extendedAnon.status, 404);
+    assert.equal(extendedAnon.headers.get("cache-control"), "private, no-store");
+    assert.deepEqual(await extendedAnon.json(), anonBody);
 
     deps.memberSessionRepo = new InMemoryMemberSessionRepo([activeMemberSession(deps.workspaceId)]);
     const memberRes = await fetch(`${baseUrl}/m/${media.id}/original`, {

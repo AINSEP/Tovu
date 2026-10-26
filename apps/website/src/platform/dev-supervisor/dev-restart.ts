@@ -49,7 +49,7 @@ export interface DevRestartPortOptional {
 /** Ask the supervisor's existing precheck before claiming acceptance. Each request has its own
  * reply file; a missing, malformed or unreadable acknowledgement fails closed without error text.
  * @returns Acceptance of a scheduled request, never proof that the new API has booted.
- * @complexity O(1) space and at most 50 small reply reads over five seconds.
+ * @complexity O(1) space and at most 150 small reply reads over fifteen seconds.
  */
 function requestRestartAcceptance({ requestFile, reason }: { requestFile: string; reason: string },
   options: DevRestartPortOptional & Required<Pick<DevRestartPortOptional, "writeFile" | "schedule">>): Promise<DevRestartDecision> {
@@ -58,7 +58,7 @@ function requestRestartAcceptance({ requestFile, reason }: { requestFile: string
   const read = options.readFile ?? (file => fs.existsSync(file) ? fs.readFileSync(file, "utf8") : null);
   const remove = options.removeFile ?? (file => fs.rmSync(file, { force: true }));
   return new Promise(resolve => {
-    let remaining = 50;
+    let remaining = 150;
     const poll = () => {
       try {
         const text = read(replyFile);

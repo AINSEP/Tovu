@@ -86,8 +86,13 @@ export function createSiteConsentPorts({ deps }: { deps: RouteDeps }, { trustedR
       await deps.siteConsentReady;
       const state = await deps.consentStore?.read({});
       // An empty owner Custom CSS gets Tovu's default banner style (owner, 2026-10-22).
-      if (!state?.published) return withSiteConsentDefaultCss({ config: await createSiteConsentConfig({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId }).get({}) });
-      const config = withSiteConsentDefaultCss({ config: parseConsentConfig({ value: state.published.config }) });
+      if (!state?.published) {
+        const legacy = await createSiteConsentConfig({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId }).get({});
+        return withSiteConsentDefaultCss({ config: { ...legacy, regionMode: legacy.regionMode === 'opt-out' ? 'auto' : legacy.regionMode } });
+      }
+      const published = parseConsentConfig({ value: state.published.config });
+      // An old global opt-out must never hide Reject for EU/UK/unknown visitors.
+      const config = withSiteConsentDefaultCss({ config: { ...published, regionMode: published.regionMode === 'opt-out' ? 'auto' : published.regionMode } });
       if (consentConfigProblems({ config, trustedRegion: Boolean(trustedRegionHeader) }).length) throw new Error('Published consent policy is invalid.');
       // Receipts name an immutable configuration; changing a published revision requires a new choice.
       return { ...config, reopen: "link", policyVersion: `${config.policyVersion}:${state.published.id}` };
@@ -170,9 +175,9 @@ export function applySiteConsent({ app, deps }: { app: Express; deps: RouteDeps 
     // the delivered HTML directly. Optional features declare their consent category instead.
     // Site chat and analytics talk to this same origin; no third-party collector is reviewed yet.
     categoryOrigins: { functional: [], analytics: [] },
-    // Anonymous counts are explicitly allowed after rejection. These trusted plugin origins are
-    // also reachable without an analytics grant; the consent bridge still loads nothing pending.
-    resourceOrigins: () => (deps.browserAnalytics?.({ surface: 'site' }) ?? []).flatMap(item => item.origins),
+    // Anonymous counts are allowed after rejection, through the same-origin consent-gated relay.
+    // Remote SDK/collector origins would let unlabelled author scripts bypass the bridge.
+    resourceOrigins: [],
     delivery: ({ request: req }) => (isStaticExportRequest(req) ? "static" : "live"),
   });
   app.use(consentApp);

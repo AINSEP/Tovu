@@ -322,7 +322,7 @@ test("media_list_assets' publicUrl is the byte-passthrough /original URL for a v
   };
   const found = listed.media.find((m) => m.id === uploaded.media.id);
   assert.ok(found);
-  assert.equal(found.publicUrl, `/m/${uploaded.media.slug}/original`);
+  assert.equal(found.publicUrl, `/m/${uploaded.media.slug}/original.mp4`);
 });
 
 test("a trashed asset's publicUrl is null, never a link a visitor would 404 on", async () => {

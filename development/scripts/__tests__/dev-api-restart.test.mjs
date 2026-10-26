@@ -28,6 +28,7 @@ function fakeDeps(overrides = {}) {
     waitForReady: async () => true,
     markRunning: () => {},
     isShuttingDown: () => false,
+    shutdown: () => {},
     log: () => {},
     ...overrides,
   };
@@ -335,4 +336,41 @@ test("a busy API port never starts a second writing child", async () => {
   restarter.start({ TOVU_SITE: "alpha" });
   assert.equal(await restarter.restart("switch"), false);
   assert.equal(events.filter(([kind]) => kind === "start").length, 1);
+});
+
+test("failed target and rollback readiness shut down the whole stack visibly", async () => {
+  const shutdowns = [];
+  const { deps, events } = fakeDeps({ waitForReady: async () => false, shutdown: code => shutdowns.push(code) });
+  const restarter = createApiRestarter(deps);
+  restarter.start({ TOVU_SITE: "alpha" });
+  assert.equal(await restarter.restart("switch"), false);
+  assert.equal(events.filter(([kind]) => kind === "start").length, 3);
+  assert.deepEqual(shutdowns, [1]);
+});
+
+test("ports remaining busy after recovery shut down instead of leaving only Vite alive", async () => {
+  const shutdowns = [];
+  const { deps, events } = fakeDeps({ waitForPortsFree: async () => false, shutdown: code => shutdowns.push(code) });
+  const restarter = createApiRestarter(deps);
+  restarter.start({ TOVU_SITE: "alpha" });
+  assert.equal(await restarter.restart("switch"), false);
+  assert.equal(events.filter(([kind]) => kind === "start").length, 1);
+  assert.deepEqual(shutdowns, [1]);
+});
+
+test("joining restart requests each receive the shared precheck decision with one restart", async () => {
+  for (const refusal of [null, "Site is open in Desktop."]) {
+    let release;
+    const decisions = [];
+    const { deps, events } = fakeDeps({ checkTarget: () => new Promise(resolve => { release = resolve; }) });
+    const restarter = createApiRestarter(deps);
+    restarter.start({ TOVU_SITE: "alpha" });
+    const first = restarter.restart("first", { onDecision: async value => { decisions.push(["first", value]); } });
+    const second = restarter.restart("second", { onDecision: async value => { decisions.push(["second", value]); } });
+    release(refusal);
+    assert.deepEqual(await Promise.all([first, second]), [!refusal, !refusal]);
+    const expected = refusal ? { accepted: false, reason: refusal } : { accepted: true };
+    assert.deepEqual(decisions, [["first", expected], ["second", expected]]);
+    assert.equal(events.filter(([kind]) => kind === "start").length, refusal ? 1 : 2);
+  }
 });

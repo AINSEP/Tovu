@@ -142,10 +142,10 @@ test('readiness requires writable receipt storage and reports its count without 
   assert.deepEqual((await f.service.readiness({ principalId: 'owner', config: f.config })).receipts, { writable: false, count: null });
 });
 
-test('Jini validators reject credential links, untrusted auto mode and unreadable custom colors', () => {
+test('Jini validators reject credential links and unreadable custom colors; auto mode stays strict without a header', () => {
   const config = parseConsentConfig({ value: { ...consentFixtureDefaults, privacyPolicyUrl: 'https://user:pass@example.com/privacy', regionMode: 'auto', appearance: { backgroundColor: '#fff', textColor: '#fff' } } });
   const codes = consentConfigProblems({ config, trustedRegion: false }).map(problem => problem.code);
-  assert.ok(codes.includes('PRIVACY_LINK_REQUIRED')); assert.ok(codes.includes('TRUSTED_REGION_REQUIRED')); assert.ok(codes.includes('contrast'));
+  assert.ok(codes.includes('PRIVACY_LINK_REQUIRED')); assert.equal(codes.includes('TRUSTED_REGION_REQUIRED'), false); assert.ok(codes.includes('contrast'));
 });
 
 test('SQL-only schema has exact columns and failed duplicate saves cannot move either head', async t => {
@@ -175,11 +175,11 @@ test('preview is read-only and local paths cannot address APIs, traverse or esca
   await assert.rejects(f.service.preview({ principalId: 'owner' }));
 });
 
-test('the editor offers automatic region mode only when an operator configured a trusted region header', async t => {
+test('the editor always offers automatic regions and never offers global opt-out', async t => {
   const f = consentFixture({ t });
-  assert.deepEqual((await f.service.read({ principalId: 'owner' })).editor.regionModes, ['opt-in', 'opt-out']);
+  assert.deepEqual((await f.service.read({ principalId: 'owner' })).editor.regionModes, ['opt-in', 'auto']);
   f.ports.trustedRegion = true;
-  assert.deepEqual((await f.service.read({ principalId: 'owner' })).editor.regionModes, ['opt-in', 'opt-out', 'auto']);
+  assert.deepEqual((await f.service.read({ principalId: 'owner' })).editor.regionModes, ['opt-in', 'auto']);
 });
 
 test('readiness never invents a placement: a policy without one is refused, a named one is reported', async t => {
@@ -223,4 +223,13 @@ test('the editor snapshot shows the default banner style in an empty Custom CSS 
   const own = '#jini-consent { padding: 12px; }';
   await f.service.saveDraft({ principalId: 'owner', config: { ...f.config, customCss: own }, expectedDraftId: empty.revision.id });
   assert.equal((await f.service.read({ principalId: 'owner' })).draft?.config.customCss, own);
+});
+
+test('global opt-out is refused instead of hiding Reject in EU, UK and unknown countries', () => {
+  for (const trustedRegion of [false, true]) {
+    const config = parseConsentConfig({ value: { ...consentFixtureDefaults, regionMode: 'opt-out', privacyPolicyUrl: '/privacy' } });
+    assert.deepEqual(consentConfigProblems({ config, trustedRegion }).filter(problem => problem.field === 'regionMode'), [{
+      code: 'GLOBAL_OPT_OUT_REFUSED', field: 'regionMode', message: 'Use automatic region mode for US opt-out. EU, UK and unknown regions must keep Reject.',
+    }]);
+  }
 });

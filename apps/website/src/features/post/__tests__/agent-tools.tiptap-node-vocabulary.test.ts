@@ -216,7 +216,7 @@ test("media, schema-required assetId+transformName only, resolved asset is a VID
   ]);
   assertValidDoc(doc);
   const html = renderDocNode(doc, undefined, undefined, mediaAssetMetadata);
-  assert.equal(html, '<video src="/m/asset-clip/original" controls>Your browser does not support the video tag.</video>');
+  assert.equal(html, '<video src="/m/asset-clip/original.mp4" controls>Your browser does not support the video tag.</video>');
 });
 
 test("media, schema-required assetId+transformName only, resolved asset is an IMAGE: renders a real <img> through the shared tryRenderRefImage resolution (the same path the now-retired 'image' node used)", () => {

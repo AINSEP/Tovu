@@ -39,6 +39,7 @@ export const analyticsSaltContext: AnalyticsSaltContext = {
 export interface AnalyticsIngestRouteDeps extends IngestDeps, VisitorAnalyticsDeps {
   resolveWorkspaceForHost: (host: string) => Promise<string | null> | string | null;
   analyticsSeed: string;
+  browserAnalytics?: import('#src/server/routes/types').RouteDeps['browserAnalytics'];
   /**
    * Per-request vendor forwarders (site `core.analytics.sink` + visitor consent, `forwarding.ts`).
    * Absent or empty → the built-in sink alone, exactly the pre-forwarding path.

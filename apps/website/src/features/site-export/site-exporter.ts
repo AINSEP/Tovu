@@ -10,6 +10,7 @@ import { withSecurityMeta } from "./static-security-headers.js";
 import { buildPreviewExportManifest } from "./theme-preview-manifest.js";
 import { themePreviewExportSize, type ThemePreviewExportSize } from "./theme-preview-report.js";
 import type { SettingsRepoPort } from "@jini-ai/core/settings";
+import { rewriteExportMediaResponse, type ExportMediaUrlDeps } from "./media-original-urls.js";
 export { ExportOutputNotEmptyError } from "@jini-ai/devops/static-export";
 export type { ExportedRoute, FailedRoute, ExportedAsset, FailedAsset } from "@jini-ai/devops/static-export";
 import type { ExportReport as BaseExportReport } from "@jini-ai/devops/static-export";
@@ -474,7 +475,7 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
     // Asset discovery/fetch/output-layout is entirely basePath-agnostic (see writeContentRoute's own
     // comment) — no rewrite is applied here, by design, not by omission.
 
-export interface ExportSiteRouteDeps extends RouteManifestDeps {
+export interface ExportSiteRouteDeps extends RouteManifestDeps, ExportMediaUrlDeps {
   readonly settingsRepo?: SettingsRepoPort;
   readonly siteTitleReady?: Promise<void>;
   readonly createSiteApp: () => RequestListener;
@@ -523,7 +524,7 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath }: Expo
     manifest: { build: async () => manifest },
     app: createNodeAppFactory({ createApp: () => routeDeps.createSiteApp() }, {}),
     writer: createNodeArtifactWriter({}, {}),
-    fetch: ({ url }, options) => tracedFetch(url, options?.init),
+    fetch: async ({ url }, options) => rewriteExportMediaResponse({ response: await tracedFetch(url, options?.init), deps: routeDeps }),
     assetSource: createNodeAssetSource({}, {}),
     themeLayout: { resolve: ({ theme }) => ({
       pagesDir: resolveThemeLayout(theme.apiVersion as 2 | undefined).pagesDir,

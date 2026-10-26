@@ -1,5 +1,5 @@
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
-import { createNoopTracker } from "@jini-ai/diagnostics/observability";
+import { createNoopObservabilityPort, createNoopTracker } from "@jini-ai/diagnostics/observability";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 
@@ -18,11 +18,12 @@ import express from "express";
 import { saveExternalMcpServer } from "#src/assistant/index";
 import { AgentPluginUpdateError } from "@jini-ai/agent-plugins/lifecycle";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
+import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import { bootAuthenticated, createCapturingResponse, extractRouteHandler, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
 
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
-import { createTovuAgentPluginLifecycle, resolveAgentPluginRefs } from "../../../../../../../features/agent-plugins/lifecycle.js";
+import { resolveAgentPluginRefs } from "../../../../../../../features/agent-plugins/lifecycle.js";
 import {
   installAgentPlugin,
   type AgentPluginArchiveEntry,
@@ -191,15 +192,36 @@ test("AGENT_PLUGIN_SET_ENABLED: enabling writes a real activation record and ret
   });
 });
 
-test("AGENT_PLUGIN_SET_ENABLED: the shared lifecycle captures one event per activation change", async (t) => {
+test("AGENT_PLUGIN_SET_ENABLED: production composition captures one event per activation change through the mailer", async (t) => {
   await withAgentPluginsDir(async () => {
     await installReal("site-compliance", "seed-set-enabled-events");
+    await installReal("linked-metrics", "seed-composition-linked", { extensions: { tovu: { id: "test/linked-metrics", providerPlugin: "metrics-provider" } } });
     const events: unknown[] = [];
     const tracker = createTracker({ productAnalytics: { capture: (event) => { events.push(event); }, identify: () => {} } });
-    const lifecycle = createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }, { productTracker: () => tracker });
-    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp({ tracker, setAgentPluginEnabled: lifecycle.setAgentPluginEnabled }).app, t);
+    const dir = await mkdtemp(path.join(tmpdir(), "tovu-toggle-composition-"));
+    let close = async () => {};
+    t.after(async () => { await close(); await forceRemove(dir); });
+    const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
+      siteBinding: { dir, name: "toggle-fixture", dirOverridden: true, switcherCompatible: false },
+      onStoreOpened: store => { close = () => store.close(); },
+      bootProviderPlugins: async () => ({ observability: createNoopObservabilityPort({}), tracker, aiTraceSink: undefined,
+        telemetryStatus: () => [], sendTelemetryTest: async () => ({ providers: [] }),
+        reapply: async () => "now", appliesAt: () => "now", dispose: async () => {} }),
+    });
+    const app = express();
+    app.use(express.json());
+    registerAuthRoutes(app, deps);
+    app.use("/api/admin", requireAdminSession(deps));
+    // No toggle override: this goes through deps.ts -> site mailer -> the shared boot lifecycle.
+    registerAgentPluginSetEnabledRoute(app, deps);
+    const { baseUrl, cookie } = await bootAuthenticated(app, t);
+    await deps.pluginRuntimeReady;
+    events.length = 0;
     assert.equal((await patch(baseUrl, cookie, "site-compliance", { enabled: false })).status, 200);
     assert.equal((await patch(baseUrl, cookie, "site-compliance", { enabled: true })).status, 200);
+    const linked = await patch(baseUrl, cookie, "linked-metrics", { enabled: false });
+    assert.equal(linked.status, 409);
+    assert.equal((await linked.json()).code, "AGENT_PLUGIN_LINKED");
     assert.deepEqual(events.map(event => ({ name: (event as { name: string }).name, properties: (event as { properties: unknown }).properties })), [
       { name: "agent_plugin_disabled", properties: { pluginId: "site-compliance", pluginKind: "agent", source: "shared" } },
       { name: "agent_plugin_enabled", properties: { pluginId: "site-compliance", pluginKind: "agent", source: "shared" } },

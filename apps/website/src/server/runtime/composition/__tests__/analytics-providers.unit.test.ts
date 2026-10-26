@@ -1,5 +1,9 @@
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { createSiteConsentPorts } from "../../../inbound/public-http/middleware/site-consent.js";
 import test from "node:test";
 
 import { createAnalyticsForwarderRegistry, type AnalyticsForwarderModule } from "@jini-ai/analytics";
@@ -46,7 +50,7 @@ test("analyticsProviderRouteDeps: absent providers keep the built-in-only, hook-
   assert.deepEqual(analyticsProviderRouteDeps(createRouteDeps()), {});
 });
 
-test("analyticsProviderRouteDeps: forwards to the selected vendor through the consent engine (consent off → allowed)", async () => {
+test("analyticsProviderRouteDeps: requires an explicit receipt before forwarding, including US opt-out regions", async t => {
   const base = createRouteDeps();
   const created: unknown[] = [];
   const vendor: AnalyticsForwarderModule = { create: (input) => { created.push(input); return { forward: async () => ({ status: "ok", value: undefined }) }; } };
@@ -62,8 +66,19 @@ test("analyticsProviderRouteDeps: forwards to the selected vendor through the co
     analyticsConfig: { get: async ({ workspaceId }: { workspaceId: string }) => ({ ...(await base.analyticsConfig.get({ workspaceId })), sink: "plausible" }) },
     analyticsProviders: { load: async () => set, resolveCredential: async () => null, httpClient },
   };
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'tovu-consent-forward-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  deps.siteBinding = { ...base.siteBinding, dir: directory };
   const route = analyticsProviderRouteDeps(deps as never);
-  const request = { get: () => undefined, headers: {}, method: "POST", path: "/_analytics/e" };
+  const headers: Record<string, string> = { 'x-region': 'US' };
+  const request = { get: (name: string) => headers[name], headers: {}, method: "POST", path: "/_analytics/e" };
+  assert.deepEqual(await route.forwarders!({ request }), []); assert.deepEqual(created, []);
+  const ports = createSiteConsentPorts({ deps: deps as never });
+  const policy = await ports.config.get({});
+  const id = 'receipt_explicit_0123456789';
+  await ports.records.save({ record: { id, timestamp: ports.clock.nowIso(), policyVersion: policy.policyVersion,
+    regionMode: 'opt-out', gpc: false, action: 'accept', choices: { necessary: true, functional: true, analytics: true, marketing: true } } });
+  headers.cookie = 'jini_consent=' + id;
   const bound = await route.forwarders!({ request });
   assert.deepEqual(bound.map((b) => b.id), ["plausible"]);
   assert.deepEqual(created, [{ credential: null, kit: { httpClient } }]);
@@ -72,6 +87,9 @@ test("analyticsProviderRouteDeps: forwards to the selected vendor through the co
 
   const noRegion = analyticsProviderRouteDeps({ ...deps, consentTrustedRegionHeader: undefined } as never);
   assert.equal((await noRegion.forwarders!({ request })).length, 1);
+  headers['sec-gpc'] = '1'; assert.deepEqual(await route.forwarders!({ request }), []);
+  delete headers['sec-gpc']; await ports.records.retire!({ id });
+  assert.deepEqual(await route.forwarders!({ request }), []);
 });
 
 test("buildAnalyticsProviders: credentials are cached per label for the TTL; failures are retried", async () => {

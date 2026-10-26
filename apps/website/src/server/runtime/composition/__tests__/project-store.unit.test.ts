@@ -19,6 +19,8 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { PROJECT_VAULT_STATEMENTS } from "#src/platform/db/migrations/project/0000_project_vault";
 import { PROJECT_CREDENTIAL_KINDS_STATEMENTS } from "#src/platform/db/migrations/project/0001_project_credential_kinds";
+import { PROJECT_LEDGER_TABLE } from "#src/platform/db/migrations/index";
+import { UnknownAppliedMigrationError } from "#src/platform/db/migrations/step";
 
 /**
  * @file `project.db` on a real filesystem (temp dirs only): it and its key live in
@@ -35,6 +37,20 @@ function dirs(t: TestContext) {
   const projectId = projectIdFor({ sitesHome });
   return { home, sitesHome, projectId, keyFile: projectKeyFilePath({ home, projectId }) };
 }
+
+test("a newer project ledger refuses an older runtime instead of ignoring access-boundary migrations", async t => {
+  const input = dirs(t);
+  const store = await openProjectStore(input);
+  const dbPath = store.dbPath;
+  store.close({});
+  const db = new Database(dbPath);
+  try {
+    db.prepare(`INSERT INTO ${PROJECT_LEDGER_TABLE} (id, checksum, applied_at) VALUES (?, ?, ?)`)
+      .run("9999_future_attachment_boundary", "ab".repeat(32), "2026-10-26T00:00:00.000Z");
+  } finally { db.close(); }
+  await assert.rejects(openProjectStore(input), error => error instanceof UnknownAppliedMigrationError
+    && error.ids.includes("9999_future_attachment_boundary"));
+});
 
 test("project.db and its key live in ~/.tovu/projects/<projectId>/, outside the sites root; each sites root is its own project", async (t) => {
   const { home, sitesHome, projectId } = dirs(t);

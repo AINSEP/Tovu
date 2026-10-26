@@ -5,8 +5,8 @@ import type { ConsentAnalyticsProof } from "@jini-ai/cms/consent/express";
 /** Composition-bound public analytics ports. Missing consent or identity generation denies capture. */
 export interface VisitorAnalyticsDeps {
   tracker?: Tracker;
+  visitorTracker?: Tracker;
   idGen?: { newId(): string };
-  visitorAnalyticsConsent?: (required: { request: Request }) => Promise<boolean>;
   visitorAnalyticsProof?: (required: { request: Request }) => Promise<ConsentAnalyticsProof | undefined>;
   visitorAnalyticsDeliveryAllowed?: (required: { proof: ConsentAnalyticsProof }) => Promise<boolean>;
 }
@@ -24,14 +24,10 @@ export async function visitorAnalyticsProvenance(
   { deps, request }: { deps: VisitorAnalyticsDeps; request: Request },
   _optional: Record<string, never> = {},
 ): Promise<VisitorAnalyticsProvenance | undefined> {
-  if (!deps.tracker || !deps.idGen) return undefined;
+  if (!(deps.visitorTracker ?? deps.tracker) || !deps.idGen) return undefined;
   try {
-    if (deps.visitorAnalyticsProof) {
-      const consentProof = await deps.visitorAnalyticsProof({ request });
-      return consentProof ? { granted: true, subjectId: `visitor:${deps.idGen.newId()}`, consentProof } : undefined;
-    }
-    if (!await deps.visitorAnalyticsConsent?.({ request })) return undefined;
-    return { granted: true, subjectId: `visitor:${deps.idGen.newId()}` };
+    const consentProof = await deps.visitorAnalyticsProof?.({ request });
+    return consentProof ? { granted: true, subjectId: `visitor:${deps.idGen.newId()}`, consentProof } : undefined;
   } catch { return undefined; }
 }
 
@@ -46,7 +42,7 @@ export async function captureVisitorEvent(
   if (!provenance) return;
   try {
     if (provenance.consentProof && !await deps.visitorAnalyticsDeliveryAllowed?.({ proof: provenance.consentProof })) return;
-    deps.tracker!.capture({ name, userId: optional.subjectId ?? provenance.subjectId, properties });
+    await (deps.visitorTracker ?? deps.tracker)!.capture({ name, userId: optional.subjectId ?? provenance.subjectId, properties });
   }
   catch { /* Product analytics cannot turn a committed public operation into a failure. */ }
 }

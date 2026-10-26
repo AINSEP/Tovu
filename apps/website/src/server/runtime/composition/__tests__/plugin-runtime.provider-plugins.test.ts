@@ -42,7 +42,7 @@ function fixture({ enabled = true, setupThrows = false, setupGate }: { enabled?:
 }
 
 const boot = (runtime: ReturnType<typeof composePluginRuntime>, configured = true) => bootProviderPlugins({
-  runtime, config: { scope: "site", readSettings: async () => null, write: async () => {},
+  runtime, config: { scope: "site", usage: async () => ({ store: "site", usedByThisSite: configured, usedBy: [] }), readSettings: async () => null, write: async () => {},
     read: async () => configured ? { settings: { endpoint: "https://collector.example.test" }, secrets: {} } : null },
   serviceName: "tovu", site: { siteId: "ws", siteSlug: "s", environment: "local", projectId: "ws" }, consent: () => false, consentRevision: () => 0,
 }, { warn: () => {} });

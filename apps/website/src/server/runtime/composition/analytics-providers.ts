@@ -1,6 +1,6 @@
 import type { Request } from "express";
 import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
-import { readRequestConsentChoices } from "@jini-ai/cms/consent/express";
+import { readRequestAnalyticsProof } from "@jini-ai/cms/consent/express";
 
 import { loadAnalyticsProviders } from "#src/features/agent-plugins/analytics-provider-registry";
 import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
@@ -79,7 +79,7 @@ export function analyticsProviderRouteDeps(
       config: routeDeps.analyticsConfig,
       loadProviders: providers.load,
       consentAllowsAnalytics: async ({ request }) =>
-        (await readRequestConsentChoices({ ports: consentPorts, request: request as Request })).analytics,
+        Boolean(await readRequestAnalyticsProof({ ports: consentPorts, request: request as Request })),
       resolveCredential: providers.resolveCredential,
       httpClient: providers.httpClient,
     }),

@@ -7,11 +7,16 @@ import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { createProjectKeys } from "../service.js";
 import { buildProjectKeyRegistrations } from "../tools.js";
 import { fakeAttachments, vaultRow } from "./helpers.js";
+import { saveProviderSettings } from "#src/server/runtime/composition/provider-settings-save";
 
 async function fixture() {
   const vault = new InMemoryVaultRepo({}); const attachments = fakeAttachments();
   await vault.put({ record: vaultRow(), expectedRevision: null });
-  const inputs = { vault, attachments, siteId: "uuid-a", siteName: "A", transaction: async <T>({ run }: { run: () => Promise<T> }) => run(), reapply: async () => "now" as const };
+  const providerUsage = async ({ pluginId }: { pluginId: string }) => {
+    const users = await attachments.usersOf({ keyId: `plugin-state:${pluginId}:provider.config` });
+    return { store: "project" as const, usedByThisSite: users.some(user => user.siteId === "uuid-a"), usedBy: users.map(user => user.siteName) };
+  };
+  const inputs = { vault, attachments, providerUsage, siteId: "uuid-a", siteName: "A", transaction: async <T>({ run }: { run: () => Promise<T> }) => run(), reapply: async () => "now" as const };
   return { vault, attachments, inputs, keys: createProjectKeys(inputs) };
 }
 test("save asks once, explicit attach changes only this site, and detach leaves the saved row", async () => {
@@ -34,7 +39,7 @@ test("tool authorization precedes mutation, malformed input is refused and resta
   const ctx = { executionId: "use", principal: { id: "owner" }, run: { id: "run" }, signal: new AbortController().signal, input: { keyId: "key-a", use: true } };
   await assert.rejects(use.handler(ctx), { message: "denied" });
   assert.equal((await keys.list({}))[0]!.usedByThisSite, false);
-  assert.deepEqual(permissions, ["custom-credentials.write"]);
+  assert.deepEqual(permissions, ["custom-credentials.read", "custom-credentials.write"]);
   denied = false;
   await use.handler(ctx);
   assert.equal((await keys.list({}))[0]!.usedByThisSite, true);
@@ -94,4 +99,36 @@ test("provider inventory uses manifest labels and live-apply fallback returns re
   assert.deepEqual(calls, ["analytics-example"]);
   const rows = await keys.list({ cards: [{ providerId: "example", label: "Example", title: "Connect Example", category: "ops", baseUrl: "", saveKind: "provider-settings", saveTarget: "analytics-example" }] });
   assert.equal(rows.find(row => row.keyId === keyId)?.name, "Example");
+});
+
+test("a site override shadows an attached project provider in use results and inventory", async () => {
+  const { inputs, vault } = await fixture();
+  const keyId = "plugin-state:analytics-example:provider.config";
+  await vault.put({ record: { ...vaultRow({ id: keyId, kind: "api-connection" }), isDefault: false }, expectedRevision: null });
+  const keys = createProjectKeys({ ...inputs, providerUsage: async () => ({ store: "site", usedByThisSite: true, usedBy: [] }) });
+  assert.deepEqual(await keys.use({ keyId, use: true }), { keyId, usedByThisSite: false, usedBy: ["A"], appliesAt: "now" });
+  assert.equal((await keys.list({})).find(row => row.keyId === keyId)?.usedByThisSite, false);
+  assert.equal(await inputs.attachments.isAttached({ keyId, siteId: "uuid-a" }), true);
+});
+
+test("a committed provider save awaiting restart retains the explicit project attachment question", async () => {
+  const { inputs, vault, keys } = await fixture();
+  const pluginId = "analytics-example", keyId = `plugin-state:${pluginId}:provider.config`;
+  const token = ["private", "fixture", "value"].join("-");
+  let writes = 0;
+  const saved = await saveProviderSettings({ pluginId, fields: [{ name: "token", label: "Token", required: true, secret: true }], values: { token },
+    reapply: async () => "restart",
+    config: { scope: "project", usage: inputs.providerUsage, read: async () => null, readSettings: async () => null,
+      write: async () => {
+        writes++;
+        await vault.put({ record: { ...vaultRow({ id: keyId, kind: "api-connection" }), isDefault: false }, expectedRevision: null });
+      } },
+  });
+  assert.deepEqual(saved, { saved: true, configured: false, store: "project", usedByThisSite: false, usedBy: [], appliesAt: "restart" });
+  assert.deepEqual(await keys.savedResult({ result: { ...saved, keyId }, label: "Example" }), {
+    ...saved, keyId, ask: "Apply this Example key to A?",
+  });
+  assert.equal(writes, 1);
+  assert.deepEqual(await inputs.attachments.usersOf({ keyId }), []);
+  assert.equal(JSON.stringify(saved).includes(token), false);
 });

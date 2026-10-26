@@ -1,3 +1,4 @@
+import { mediaFileExtension } from "@jini-ai/cms/media/import";
 import { isValidMediaSlugFormat } from "@jini-ai/cms/media/slug";
 
 /**
@@ -39,9 +40,11 @@ export function mediaUrlKey(asset: MediaUrlKeySource): string {
 }
 
 /** Either variant of the `/m/{key}/...` URL contract (ADR-027 §4): the byte-passthrough original
- *  (used for video, and for any admin/original-blob link), or a versioned image transform. */
+ *  (used for video, and for any admin/original-blob link), or a versioned image transform.
+ *  Original extensions use the stored, server-validated content type so static hosts can infer
+ *  the same MIME type as the live server; never pass a client-declared upload type here. */
 export type MediaPublicPathVariant =
-  | { readonly kind: "original" }
+  | { readonly kind: "original"; readonly contentType: string }
   | { readonly kind: "transform"; readonly name: string; readonly version: number; readonly ext: string };
 
 /**
@@ -55,6 +58,6 @@ export type MediaPublicPathVariant =
  */
 export function mediaPublicPath(key: string, variant: MediaPublicPathVariant): string {
   const encodedKey = encodeURIComponent(key);
-  if (variant.kind === "original") return `/m/${encodedKey}/original`;
+  if (variant.kind === "original") return `/m/${encodedKey}/original.${mediaFileExtension({ contentType: variant.contentType })}`;
   return `/m/${encodedKey}/${encodeURIComponent(variant.name)}.v${variant.version}/image.${variant.ext}`;
 }

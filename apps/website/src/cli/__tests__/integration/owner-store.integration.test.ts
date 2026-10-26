@@ -96,7 +96,7 @@ test('desktop project saves and inventory share project_keys_list without openin
     const project = await openProjectStore({ sitesHome: workspace.home({}), home: f.home });
     try {
       const keys = createProjectKeys({ vault: project.vault.repo, attachments: project.attachments, transaction: project.transaction,
-        siteId: 'first', siteName: 'First', reapply: async () => 'now' });
+        siteId: 'first', siteName: 'First', providerUsage: async () => assert.fail("custom keys have no provider usage"), reapply: async () => 'now' });
       assert.deepEqual(await keys.list({}), [{ keyId: metadata.id, name: 'Deployment key', kind: 'vendor', usedByThisSite: false, usedBy: [] }]);
       assert.deepEqual(await project.attachments.usersOf({ keyId: metadata.id }), []);
       await keys.use({ keyId: metadata.id, use: true });

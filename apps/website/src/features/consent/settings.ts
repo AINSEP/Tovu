@@ -67,7 +67,7 @@ export async function resolveSiteConsentActivation(deps: Deps, _options = {}): P
 async function readValues(deps: Deps): Promise<Omit<SiteConsentSettings, 'enabled'>> {
   const entries = await Promise.all(Object.entries(SITE_CONSENT_DEFAULTS).filter(([key]) => key !== 'enabled').map(async ([key, fallback]) => {
     const resolved = await readSetting(deps, key as keyof SiteConsentSettings);
-    const value = resolved === null ? fallback : resolved.value;
+    const value = resolved === null || (key === 'regionMode' && resolved.sourceLayer === 'default') ? fallback : resolved.value;
     if (typeof value !== typeof fallback) throw new Error(`Invalid cookie consent setting: ${key}.`);
     if (typeof value === 'string' && value.length > 2000) throw new Error(`Cookie consent setting ${key} exceeds 2000 characters.`);
     return [key, value] as const;

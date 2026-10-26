@@ -628,7 +628,7 @@ export function createAssistantByokModule(
           onEvent: (event: ByokTurnEvent) => {
             aiTrace?.observe(event as unknown as Record<string, unknown>);
             // Reporting a disconnect's AbortError would mark this active span failed despite its canceled outcome.
-            if (event.type === "error" && !abort.signal.aborted) { reportedError = true; reportRunFailure(new Error(event.message)); }
+            if (event.type === "error" && !abort.signal.aborted && !reportedError) { reportedError = true; reportRunFailure(new Error(event.message)); }
             sse(res, event.type === "error" ? "error" : "agent", stampUsage(event));
           },
         });
@@ -637,7 +637,7 @@ export function createAssistantByokModule(
         aiTrace?.finish({ outcome: abort.signal.aborted ? "cancelled" : "failed" });
         routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id, properties: { chatSurface: "admin", logicalRunId: run.id, outcome: abort.signal.aborted ? "cancelled" : "failed", eventId: `assistant-finish:${run.id}` } });
         span.setOutcome(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }, { thrown: { error } }));
-        if (!abort.signal.aborted) reportRunFailure(error);
+        if (!abort.signal.aborted && !reportedError) reportRunFailure(error);
         sse(res, "error", { type: "error", message: error instanceof Error ? error.message : String(error) });
         sse(res, "end", { reason: "error" });
         res.end();

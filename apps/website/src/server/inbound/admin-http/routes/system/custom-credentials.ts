@@ -14,6 +14,7 @@ import {
   listCustomCredentialInventory,
   updateCustomCredential,
   type UpdateCustomCredentialInput,
+  type CustomCredentialSummary,
 } from "#src/features/custom-credentials/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -101,6 +102,13 @@ function buildUpdateCredentialInput(workspaceId: string, id: string, body: Recor
   };
 }
 
+/** The site's Access Tokens add action is its explicit yes; other sites still need their own yes. */
+async function attachAddedProjectKey({ credential, keys }: { credential: CustomCredentialSummary; keys: AdminCustomCredentialsDeps["projectKeys"] }, _optional = {}) {
+  if (credential.scope !== "project" || !keys) return credential;
+  const usage = await keys.use({ keyId: credential.id, use: true });
+  return { ...credential, usedBy: usage.usedBy, usedByThisSite: usage.usedByThisSite };
+}
+
 export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCustomCredentialsDeps): void {
   const readDeps = { repo: deps.customCredentialSetRepo, sealer: deps.siteAssistantSecretSealer };
   const writeDeps = {
@@ -173,7 +181,7 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
         ...(body.scope !== undefined ? { scope: body.scope } : {}),
       });
       if (registry && deps.publishCredentialVerificationCache) invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, after: credential });
-      res.status(201).json({ credential });
+      res.status(201).json({ credential: await attachAddedProjectKey({ credential, keys: deps.projectKeys }) });
     } catch (err) {
       sendStoreError(res, err);
     }

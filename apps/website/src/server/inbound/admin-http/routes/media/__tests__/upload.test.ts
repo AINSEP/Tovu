@@ -186,7 +186,7 @@ test("upload: SVG declared as image/png is sanitized before hashing and storing"
   assert.doesNotMatch(Buffer.from(bytes).toString(), /script|onload|alert/);
   assert.match(Buffer.from(bytes).toString(), /viewBox="0 0 10 10"/);
   assert.equal(createHash("sha256").update(bytes).digest("hex"), json.media.sha256);
-  assert.equal(json.media.publicUrl, `/m/${json.media.slug}/original`);
+  assert.equal(json.media.publicUrl, `/m/${json.media.slug}/original.svg`);
 });
 
 test("upload: HTML declared as image/jpeg is rejected with 400", async (t) => {

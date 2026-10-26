@@ -347,12 +347,14 @@ export function siteEnvForRestart({ shellSite, envFileText }) {
  *   checkTarget: (input: {env: Record<string, string>, currentEnv: Record<string, string>, child: any}) => string | null | Promise<string | null>,
  *   restoreSite: (input: {env: Record<string, string>}) => void,
  *   isShuttingDown: () => boolean,
+ *   shutdown: (code: number) => void,
  *   log: (message: string) => void,
  * }} deps
  */
 export function createApiRestarter(deps, _options = {}) {
   let child = null;
   let inFlight = null;
+  let decision = null;
   let currentEnv = {};
   /** Persistence failure must not prevent restoring the live API. Never log env/error payloads. */
   function restoreChoice() {
@@ -386,7 +388,10 @@ export function createApiRestarter(deps, _options = {}) {
       await stopCurrent();
       if (await boot(currentEnv)) return false;
     } catch { /* Report recovery failure without disclosing environment or child error payloads. */ }
-    if (!deps.isShuttingDown()) deps.log("tovu dev: the previous site could not restart; inspect the API startup output.");
+    if (!deps.isShuttingDown()) {
+      deps.log("tovu dev: the previous site could not restart; inspect the API startup output.");
+      deps.shutdown(1);
+    }
     return false;
   }
   async function run({ reason }, { onDecision }) {
@@ -430,7 +435,19 @@ export function createApiRestarter(deps, _options = {}) {
     current: () => child,
     /** @returns {Promise<boolean>} whether the requested site booted; false includes rollback. */
     restart(reason, { onDecision = async () => {} } = {}) {
-      if (!inFlight) inFlight = run({ reason }, { onDecision }).finally(() => (inFlight = null));
+      if (inFlight) {
+        const current = inFlight;
+        return decision.then(onDecision).then(() => current);
+      }
+      let acknowledge;
+      decision = new Promise(resolve => { acknowledge = resolve; });
+      inFlight = run({ reason }, { onDecision: async value => {
+        await onDecision(value);
+        acknowledge(value);
+      } }).finally(() => {
+        acknowledge({ accepted: false, reason: "The dev supervisor could not acknowledge the restart." });
+        inFlight = null;
+      });
       return inFlight;
     },
   };
@@ -748,7 +765,8 @@ async function main() {
     markPlanned: (child) => plannedExits.add(child),
     markRunning: (child) => plannedExits.delete(child),
     waitForPortsFree: () => waitForPortsFree([API_PORT, DAEMON_PORT]),
-    waitForReady: () => waitForPort(API_PORT),
+    waitForReady: () => waitForPort(API_PORT, 90_000),
+    shutdown,
     checkTarget: async ({ env, currentEnv, child }) => devRestartRefusal({
       repoRoot: REPO_ROOT, env: { ...process.env, ...env }, currentEnv: { ...process.env, ...currentEnv },
       apiPids: collectProcessTreePids(await listProcessSnapshots(), [child.pid]),

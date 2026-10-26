@@ -2225,7 +2225,8 @@ export interface AdminPluginProviderSettingField {
   allowCustom?: true;
   secret: boolean;
   required: boolean;
-  requiredUnless?: { readonly field: string; readonly equals: string };
+  requiredUnless?: { readonly field: string; readonly equals: string; readonly orPresent?: string };
+  requiredWhen?: { readonly field: string; readonly in: readonly string[] };
   saved: boolean;
   value?: string;
 }

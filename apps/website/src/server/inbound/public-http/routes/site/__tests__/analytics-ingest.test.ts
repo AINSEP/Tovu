@@ -538,3 +538,24 @@ test("analytics-ingest: no forwarders (consent denied or sink \"local\") keeps t
   assert.equal(res.status, 204);
   assert.equal(sink.all().length, 1);
 });
+
+test('an active browser contribution owns PostHog pageviews; the local analytics sink still counts once', async t => {
+  const events: unknown[] = [];
+  const { createTracker } = await import('@jini-ai/diagnostics/observability/node');
+  const visitorTracker = createTracker({ productAnalytics: { capture: event => { events.push(event); }, identify() {} } });
+  let active = true;
+  const { app, sink } = buildApp(undefined, { visitorTracker, idGen: { newId: () => 'request-id' },
+    visitorAnalyticsProof: async () => ({ receiptId: 'private-receipt', policyVersion: '1' }), visitorAnalyticsDeliveryAllowed: async () => true,
+    browserAnalytics: () => active ? [{ source: 'function(){return function(){}}', origins: [], supportsStatic: false }] : [],
+  });
+  const url = await startTestServer(app, t);
+  const send = () => fetch(url + '/_analytics/e', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ host: 'example.com', path: '/welcome' }) });
+  assert.equal((await send()).status, 204);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(sink.all().length, 1); assert.deepEqual(events, []);
+  active = false;
+  assert.equal((await send()).status, 204);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(sink.all().length, 2);
+  assert.deepEqual(events, [{ name: 'site_pageview', userId: 'visitor:request-id', properties: { routeTemplate: '/:path' } }]);
+});

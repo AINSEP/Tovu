@@ -429,7 +429,7 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
       // new site; without it, Activate behaves exactly as before (persist + instructions).
       const restartNow = (req.body as Record<string, unknown> | null | undefined)?.restartNow === true;
       const activated = activateSite(
-        { switcherBase: gate.switcherBase, name: String(req.params.name ?? ""), restartNow, dirOverridden: deps.siteBinding.dirOverridden },
+        { switcherBase: gate.switcherBase, name: String(req.params.name ?? ""), currentSiteName: deps.siteBinding.name, restartNow, dirOverridden: deps.siteBinding.dirOverridden },
         { listSites, persistActiveSite: deps.persistActiveSite, devRestart, readSiteRunning: deps.readSiteRunning, workspace: sitesWorkspace },
       );
       if (!activated.ok) {

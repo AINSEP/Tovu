@@ -111,7 +111,7 @@ test('replace sanitizes SVG before switching its source and preserves the media 
   assert.equal(result.status, 200);
   assert.equal(result.json.media.id, media.id);
   assert.equal(result.json.media.version, media.version + 1);
-  assert.equal(result.json.media.publicUrl, `/m/${media.slug}/original`);
+  assert.equal(result.json.media.publicUrl, `/m/${media.slug}/original.svg`);
   const blob = await deps.assetBlobRepo.findByHash({ workspaceId: deps.workspaceId, sha256: result.json.media.sha256 });
   assert.ok(blob);
   const bytes = await deps.blobStore.get({ storageKey: blob.storageKey });

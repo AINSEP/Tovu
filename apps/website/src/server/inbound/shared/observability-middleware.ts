@@ -95,7 +95,11 @@ export function applyRequestTracking(app: Express, deps: {
         resolve();
       });
       // A disconnected response may never finish; settle its span without retaining the request.
-      res.once("close", () => { span.setOutcome({ statusCode: res.statusCode, routePattern: req.route ? `${req.baseUrl ?? ""}${req.route.path}` : "unmatched" }); resolve(); });
+      res.once("close", () => {
+        if (res.writableFinished) return;
+        span.setOutcome({ statusCode: 499, routePattern: req.route ? `${req.baseUrl ?? ""}${req.route.path}` : "unmatched" });
+        resolve();
+      });
       // Routing and the handler run inside the request's scope, so a DB query or outbound call they
       // make is recorded as this request's child. The facade contains adapters without scoping.
       runWithErrorReportScope({ scope, work: next });

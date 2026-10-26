@@ -98,6 +98,7 @@ sites/*/ops/*.db-shm
 # Theme preview refresh marker (`features/theme/preview-refresh.ts`): rewritten on every theme save
 # so the agent daemon can signal the website's admin previews. Runtime state, never content.
 sites/*/themes/.preview-refresh.json
+content/themes/.preview-refresh.json*
 sites/*/themes/.preview-refresh.json.*.tmp
 # `web_screenshot_page` captures (`features/web-screenshot/capture-files.ts`, 2026-10-08): agent
 # artifacts for the owner to open, a few hundred KB each. Never content; site backup, duplicate and

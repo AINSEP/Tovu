@@ -16,6 +16,9 @@ export const PROVIDER_STATUS_TOOL_ID = "provider_status";
 /** One provider plugin's status row; the composition root fills it from discovery, activation and the settings store. */
 export interface ProviderStatusRow {
   readonly pluginId: string;
+  /** Manifest declarations only; never saved values. */
+  readonly fields?: readonly import("@jini-ai/plugins/host").PluginProviderSettingField[];
+  readonly settingsCard?: { readonly tool: "credential_save"; readonly input: { readonly kind: "provider-settings"; readonly target: string } };
   readonly enabled: boolean;
   readonly configured: boolean;
   readonly missing: readonly string[];
@@ -36,7 +39,7 @@ export interface ProviderStatusPorts {
 
 export const providerStatusAgentToolCatalog: AgentToolDefinition[] = [{
   name: PROVIDER_STATUS_TOOL_ID,
-  description: "Read-only status of provider plugins (product analytics, error tracking, observability/tracing): for each, pluginId, enabled, configured (every required setting has a value), missing (labels of required settings without one), store (site = this site's own key; project = a key saved in your project), usedByThisSite (false = saved but not used here; ask before project_key_use), keyId, usedBy, appliesAt (now, or restart when the provider cannot re-start live), unreadable (saved but cannot be opened on this machine; enter it again) and quarantine (the host's reason, when it switched the plugin off). Never returns a setting value or secret. Pass pluginId for one plugin. To set one up, open its agent plugin's key card with credential_save {kind:\"plugin-provider\",target:<card target>}. Requires admin.plugins.read.",
+  description: "Read-only status of provider plugins (product analytics, error tracking, observability/tracing): for each, pluginId, enabled, configured (every required setting has a value), missing (labels of required settings without one), store (site = this site's own key; project = a key saved in your project), usedByThisSite (false = saved but not used here; ask before project_key_use), keyId, usedBy, appliesAt (now, or restart when the provider cannot re-start live), unreadable (saved but cannot be opened on this machine; enter it again) and quarantine (the host's reason, when it switched the plugin off). Returns fields from the manifest with required, requiredUnless, requiredWhen, options, defaults and hints; use these declarations to explain requirements. Never returns a saved setting value or secret. Pass pluginId for one plugin. When asked to show or open settings, call the returned settingsCard tool and input to open the human card. Requires admin.plugins.read.",
   sideEffects: "none",
   authorization: { permission: "admin.plugins.read" },
   inputSchema: { type: "object", additionalProperties: false, properties: { pluginId: { type: "string", minLength: 1, description: "Optional provider plugin id, e.g. from plugins_list." } } },

@@ -59,11 +59,16 @@ export type { SetAgentPluginEnabledInput } from '../../contracts/headless/plugin
 // A stable owner context per booted layout preserves its queues without selecting a site again.
 const lifecycles = new WeakMap<import("./layout.js").AgentPluginLayout, ReturnType<typeof createTovuAgentPluginLifecycle>>();
 
-export async function setAgentPluginEnabled(input: SetAgentPluginEnabledInput, options: { readonly links?: Pick<ProviderFacePorts, "links"> } = {}): Promise<SetAgentPluginEnabledResult> {
+export async function setAgentPluginEnabled(input: SetAgentPluginEnabledInput, options: {
+  readonly links?: Pick<ProviderFacePorts, "links">;
+  /** Reuse boot queues and tracking while retaining this host's linked-face guard. */
+  readonly lifecycle?: Pick<ReturnType<typeof createTovuAgentPluginLifecycle>, "setAgentPluginEnabled">;
+} = {}): Promise<SetAgentPluginEnabledResult> {
   // A provider plugin's assistant face has no switch of its own (`provider-plugin-link.ts`).
   const links = options.links ?? bindProviderFacePorts({ workspaceRoot: () => input.agentPluginLayout.forWorkspace(input.workspaceId).root });
   const providerPluginId = await linkedProviderOf({ ports: links, pluginId: input.pluginId });
   if (providerPluginId !== undefined) throw new AgentPluginLinkedError({ pluginId: input.pluginId, providerPluginId });
+  if (options.lifecycle) return options.lifecycle.setAgentPluginEnabled(input);
   let lifecycle = lifecycles.get(input.agentPluginLayout);
   if (!lifecycle) {
     lifecycle = createTovuAgentPluginLifecycle({ layout: input.agentPluginLayout });

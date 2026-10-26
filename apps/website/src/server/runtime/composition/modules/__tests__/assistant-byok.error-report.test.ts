@@ -21,7 +21,8 @@ import { BYOK_TURN_PATH, createAssistantByokModule } from "../assistant-byok.js"
 // Built at runtime so no secret-shaped literal sits in the repo.
 const secret = ["sk", "ant", "T".repeat(12) + "u".repeat(12)].join("-");
 
-test("a failed BYOK turn (provider connection dropped) is reported once as assistant.run with the protocol and run id only", async (t) => {
+for (const throwAfterError of [false, true]) {
+test(`a failed BYOK turn reports once, including a throw after its error event (${throwAfterError})`, async (t) => {
   // A provider that drops every connection: the turn streams an error event.
   const provider = createServer((req) => { req.socket.destroy(); });
   provider.listen(0, "127.0.0.1");
@@ -34,6 +35,20 @@ test("a failed BYOK turn (provider connection dropped) is reported once as assis
   const deps = { ...createRouteDeps(), tracker: createTracker({ observability }), observability, aiTraceSink: createAiGenerationSink({ analytics, userId: "site:fixture" })! };
   const app = express();
   app.use(express.json());
+  let thrownAfterError = false;
+  app.use((req, res, next) => {
+    if (throwAfterError && req.path === BYOK_TURN_PATH) {
+      const write = res.write.bind(res);
+      res.write = ((...args: Parameters<typeof res.write>) => {
+        if (!thrownAfterError && String(args[0]).includes('event: error')) {
+          thrownAfterError = true;
+          throw new Error('response write failed after provider error');
+        }
+        return write(...args);
+      }) as typeof res.write;
+    }
+    next();
+  });
   registerAuthRoutes(app, deps);
   createAssistantByokModule(deps, createByokToolSurface(deps, { installExtensions: false })).registerRoutes?.(app);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -42,6 +57,7 @@ test("a failed BYOK turn (provider connection dropped) is reported once as assis
     byok: { protocol: "anthropic", apiKey: secret, model: "fixture", baseUrl: `http://127.0.0.1:${(provider.address() as AddressInfo).port}` },
   }) });
   await response.text();
+  assert.equal(thrownAfterError, throwAfterError);
   assert.equal(reports.length, 1, JSON.stringify(reports.map(({ context }) => context)));
   assert.equal(reports[0]!.context.operation, "assistant.run");
   assert.deepEqual(Object.keys(reports[0]!.context.attributes ?? {}).sort(), ["agent", "runId"]);
@@ -54,3 +70,5 @@ test("a failed BYOK turn (provider connection dropped) is reported once as assis
   assert.ok(!JSON.stringify(generations).includes(secret));
   assert.ok(!JSON.stringify(generations).includes("private question"));
 });
+
+}

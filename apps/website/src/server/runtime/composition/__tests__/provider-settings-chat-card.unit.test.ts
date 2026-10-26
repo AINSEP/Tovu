@@ -48,7 +48,7 @@ function fakeState(): { state: AgentPluginStateStore; rows: Map<string, unknown>
     set: async ({ key, value }: { key: string; value: unknown }) => { rows.set(`${workspaceId}/${pluginId}/${key}`, value); },
     delete: async () => {},
   });
-  return { rows, state: { forPlugin: view, readerFor: view, describe: async () => ({ keys: [] }) } as unknown as AgentPluginStateStore };
+  return { rows, state: { forPlugin: view, readerFor: view, describe: async ({ workspaceId, pluginId }: { workspaceId: string; pluginId: string }) => ({ keys: rows.has(`${workspaceId}/${pluginId}/provider.config`) ? [{ key: "provider.config", revision: 1 }] : [] }) } as unknown as AgentPluginStateStore };
 }
 
 const bundledCards = () => {
@@ -59,8 +59,19 @@ const bundledCards = () => {
 
 const refuse: ToolHandler = async () => { throw new Error("wrong save kind"); };
 
+test("browser restart after a committed attached save produces a success card with reload guidance", async () => {
+  const f = await fixture({ saved: { settings: { host: "https://eu.i.posthog.com" }, secrets: { apiKey: secret } },
+    submit: { host: "https://eu.i.posthog.com", apiKey: "" }, reapply: async () => "restart" });
+  assert.equal(f.result.saved, true);
+  assert.equal(f.result.configured, true);
+  assert.equal(f.result.appliesAt, "restart");
+  assert.match(f.transcript, /Reload open pages or restart this site to finish applying the saved settings/);
+  assert.doesNotMatch(f.transcript, /Check the key type|could not be applied live/);
+  assert.equal(f.transcript.includes(secret), false);
+});
+
 /** credential_save with only the provider-settings adapter real; the human answer is the only other fake. */
-async function fixture({ submit, saved, records = [record] }: { submit: Record<string, string>; saved?: { settings: Record<string, string>; secrets: Record<string, string> }; records?: PluginDiscoveryRecord[] }) {
+async function fixture({ submit, saved, records = [record], reapply, direct = false }: { submit: Record<string, string>; saved?: { settings: Record<string, string>; secrets: Record<string, string> }; records?: PluginDiscoveryRecord[]; reapply?: () => Promise<"now" | "restart">; direct?: boolean }) {
   const site = fakeState();
   const project = fakeState();
   const attachments = fakeAttachments();
@@ -70,17 +81,17 @@ async function fixture({ submit, saved, records = [record] }: { submit: Record<s
   const clock = createSystemClock();
   const idGen = createRandomUuidGenerator();
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock, idGenerator: idGen, defaultChannel: "mcp-ui" });
-  const cards = bundledCards();
+  const cards = direct ? [] : bundledCards();
   const authorized: string[] = [];
   const adapters: CredentialSaveAdapters = { apiCreate: refuse, apiRotate: refuse, mediaProvider: refuse, sourceControl: refuse, publishHost: refuse, agentPluginToken: refuse, pluginProvider: refuse,
     providerSettings: buildProviderSettingsCredentialHandler({ surfaces: { surfaceExchanges }, loadCards: async () => cards, ports: {
-      ...bindProviderSettingsCardPorts({ config, discoverPlugins: async () => records }),
+      ...bindProviderSettingsCardPorts({ config, discoverPlugins: async () => records, reapply }),
       authorize: async () => { authorized.push("admin.plugins.enable"); },
     } }) };
   const [registration] = buildCredentialSaveRegistrations({ adapters, loadPluginCredentialCards: async () => cards, authorizePluginProvider: async () => { authorized.push("custom-credentials.write"); } });
   let exchangeId = "";
   let transcript = "";
-  const input = { kind: "plugin-provider", target: "posthog" };
+  const input = direct ? { kind: "provider-settings", target: PLUGIN } : { kind: "plugin-provider", target: "posthog" };
   const pending = registration!.handler({ executionId: "e1", principal: { id: "owner" }, run: { id: "r1" }, input, signal: new AbortController().signal } as unknown as ToolExecutionContext, {
     emitSurface: async (surface) => {
       transcript += JSON.stringify(surface);
@@ -160,7 +171,7 @@ test("provider_status reports presence only: configured, missing, store, never a
     authorize: async () => {},
   } });
   const run = (input?: unknown) => registration!.handler({ executionId: "e", principal: { id: "owner" }, run: { id: "r" }, input, signal: new AbortController().signal } as unknown as ToolExecutionContext, {});
-  assert.deepEqual(await run(), { providers: [{ pluginId: PLUGIN, enabled: true, configured: false, store: "project", usedByThisSite: false, usedBy: [], appliesAt: "now", missing: ["Project API key"] }] });
+  assert.deepEqual(await run(), { providers: [{ pluginId: PLUGIN, fields: record.manifest!.contributes!.providers![0]!.settings!.map(field => ({ ...field, required: field.required === true })), settingsCard: { tool: "credential_save", input: { kind: "provider-settings", target: PLUGIN } }, enabled: true, configured: false, store: "project", usedByThisSite: false, usedBy: [], appliesAt: "now", missing: ["Project API key"] }] });
   await config.write({ pluginId: PLUGIN, config: { settings: { host: "https://ph.private.example.test" }, secrets: { apiKey: secret } } });
   const pending = await run({ pluginId: PLUGIN }) as { providers: { configured: boolean; usedByThisSite: boolean; keyId: string }[] };
   assert.equal(pending.providers[0]!.configured, false);
@@ -168,7 +179,7 @@ test("provider_status reports presence only: configured, missing, store, never a
   assert.equal(pending.providers[0]!.keyId, `plugin-state:${PLUGIN}:provider.config`);
   await attachments.attach({ siteId: "site-a", siteName: "A", keyId: pending.providers[0]!.keyId });
   const status = await run({ pluginId: PLUGIN });
-  assert.deepEqual(status, { providers: [{ pluginId: PLUGIN, enabled: true, configured: true, store: "project", keyId: `plugin-state:${PLUGIN}:provider.config`, usedByThisSite: true, usedBy: ["A"], appliesAt: "now", missing: [] }] });
+  assert.deepEqual(status, { providers: [{ pluginId: PLUGIN, fields: record.manifest!.contributes!.providers![0]!.settings!.map(field => ({ ...field, required: field.required === true })), settingsCard: { tool: "credential_save", input: { kind: "provider-settings", target: PLUGIN } }, enabled: true, configured: true, store: "project", keyId: `plugin-state:${PLUGIN}:provider.config`, usedByThisSite: true, usedBy: ["A"], appliesAt: "now", missing: [] }] });
   assert.ok(!JSON.stringify(status).includes(secret) && !JSON.stringify(status).includes("ph.private"), "no secret or setting value");
   await assert.rejects(run({ pluginId: "nope" }), /No installed provider plugin 'nope'/);
 });
@@ -181,4 +192,30 @@ test("a different key card explains site isolation and retains the manifest's he
   } });
   assert.equal(form.description, "Keys are sealed on the server the moment you submit — the assistant never sees them. Your project's saved Example key is used by A. A key entered here is used by this site only.");
   assert.deepEqual(form.details, [{ label: "Key help", value: "https://help.example.test" }, { label: "Where to find it", value: "Find your project key" }, { label: "Used for", value: "Product events" }]);
+});
+
+
+test("provider_status exposes manifest requirements and choices with the command that opens settings", async () => {
+  const fields = [
+    { name: "auth", label: "Authentication", default: "cloud", options: [{ value: "cloud", label: "Cloud" }, { value: "none", label: "Local" }] },
+    { name: "username", label: "Instance ID", requiredWhen: { field: "auth", in: ["cloud"] } },
+    { name: "token", label: "Token", secret: true, required: true, requiredUnless: { field: "auth", equals: "none" } },
+  ];
+  const config = createVaultProviderConfigSource({ state: fakeState().state, workspaceId: "ws", scope: "site" });
+  const rows = await listProviderStatuses({ config, discoverPlugins: async () => [{ id: "provider", manifest: { contributes: { providers: [{ contract: "observability", id: "example", contractVersion: 1, settings: fields }] } } } as unknown as PluginDiscoveryRecord], activation: async () => ({ enabled: true }) });
+  assert.deepEqual(rows[0]?.fields, fields.map(field => ({ ...field, required: "required" in field && field.required === true })));
+  assert.deepEqual(rows[0]?.missing, ["Instance ID", "Token"]);
+  assert.deepEqual(rows[0]?.settingsCard, { tool: "credential_save", input: { kind: "provider-settings", target: "provider" } });
+});
+
+
+test("the provider_status settings command opens the manifest card without an agent plugin", async () => {
+  const f = await fixture({ direct: true, submit: { host: "https://eu.i.posthog.com", apiKey: secret } });
+  assert.deepEqual(f.input, { kind: "provider-settings", target: PLUGIN });
+  assert.equal(f.result.saved, true);
+  assert.deepEqual(f.authorized, ["admin.plugins.enable"]);
+  assert.match(f.transcript, /Connect provider/);
+  assert.match(f.transcript, /EU Cloud/);
+  assert.equal(f.transcript.includes(secret), false);
+  assert.equal(JSON.stringify(f.result).includes(secret), false);
 });

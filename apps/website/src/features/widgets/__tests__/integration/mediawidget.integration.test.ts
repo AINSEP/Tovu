@@ -37,7 +37,7 @@ test('media structured config renders mixed media and keeps safe attributes with
   const html = renderWidgetIr({ componentId: 'media', props: { config: { mode: 'media', items: [{ slug: 'photo' }, { slug: 'missing' }, { slug: 'audio', caption: 'Sound' }], layout: 'carousel', htmlAttributes: 'data-kui="scroll-snap-x" onclick="x"' }, media: { ...media, audio: { assetId: 'audio-id', slug: 'audio', contentType: 'audio/mpeg' } } } });
   assert.equal((html.match(/<img/g) ?? []).length, 1);
   assert.ok(html.includes('<audio'));
-  assert.ok(html.includes('/m/audio/original'));
+  assert.ok(html.includes('/m/audio/original.mp3'));
   assert.ok(html.includes('data-kui="scroll-snap-x"'));
   assert.ok(!html.includes('onclick'));
 });
@@ -104,7 +104,7 @@ test('found slugs, missing slugs, audio and two placement overrides resolve thro
   assert.equal(inlineResolved.get("media")?.get("media:1")?.componentId, "media");
   const inlineHtml = renderHtmlPageBody(inline, inlineResolved);
   assert.ok(inlineHtml.includes('<audio'));
-  assert.ok(inlineHtml.includes('/m/sound/original'));
+  assert.ok(inlineHtml.includes('/m/sound/original.mp3'));
   assert.ok(!inlineHtml.includes('<img'));
   assert.ok(!inlineHtml.includes('missing'));
   const rawInline = `<div data-embed-config='${JSON.stringify({ type: 'media', content: { mode: 'html', html: '<img data-media-slug="first">' } })}'></div>`;
@@ -171,7 +171,7 @@ test('audio shares player styling and forwarded marker attributes in widgets and
   assert.ok(!html.includes(' controls'));
   const meta = { slug: 'sound', width: null, height: null, cssClass: 'stored', htmlAttributes: 'data-kui="stored"', contentType: 'audio/wav' };
   const doc = renderDocNode({ type: 'media', attrs: { assetId: 'sound-id', transformName: 'public', cssClass: 'node', htmlAttributes: 'data-kui="node"' } }, new Map(), new Map(), new Map([['sound-id', meta]]));
-  assert.ok(doc.includes('<audio src="/m/sound/original" controls'));
+  assert.ok(doc.includes('<audio src="/m/sound/original.mp3" controls'));
   assert.ok(doc.includes('class="node"'));
   assert.ok(doc.includes('data-kui="node"'));
 });

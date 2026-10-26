@@ -261,7 +261,8 @@ test("end to end: a delivery the integrations module enqueued is signed and POST
   createIntegrationsModule({ bus, ...deps, idGen: { newId: () => "delivery-1" } }).start?.();
   await bus.publish({
     id: "evt-1", name: "form.submission.received", workspaceId: "workspace-1", occurredAt: nowIso,
-    payload: { workspaceId: "workspace-1", formDefinitionId: "def-1", submissionId: "s-1" },
+    payload: { workspaceId: "workspace-1", formDefinitionId: "def-1", submissionId: "s-1", deliveryMode: "live",
+      analyticsProvenance: { granted: true, subjectId: "visitor:local", consentProof: { receiptId: "private-consent-receipt", policyVersion: "1" } } },
   });
 
   const clock = fakeScheduler();
@@ -273,6 +274,8 @@ test("end to end: a delivery the integrations module enqueued is signed and POST
 
   assert.equal(httpClient.calls.length, 1);
   assert.equal(httpClient.calls[0].request.url, "https://example.com/hooks");
+  assert.deepEqual(JSON.parse(httpClient.calls[0].request.body as string).data, { workspaceId: 'workspace-1', formDefinitionId: 'def-1', submissionId: 's-1' });
+  assert.equal(String(httpClient.calls[0].request.body).includes('private-consent-receipt'), false);
   assert.equal(httpClient.calls[0].request.headers["tovu-delivery-id"], "delivery-1");
   assert.match(httpClient.calls[0].request.headers["tovu-signature"], /^t=\d+,v1=[0-9a-f]{64}$/);
   const [row] = await deps.webhookDeliveryRepo.listBySubscription({ workspaceId: "workspace-1", subscriptionId: "sub-1", limit: 10 });

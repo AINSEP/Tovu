@@ -50,11 +50,11 @@ function validateConsentAppearanceShape({ raw }: { raw: Record<string, unknown> 
 }
 
 /** Readiness and publication share this decision. Jini is the only CSS/link authority. O(n). */
-export function consentConfigProblems({ config, trustedRegion }: { config: ConsentConfig; trustedRegion: boolean }, _options = {}): ConsentProblem[] {
+export function consentConfigProblems({ config }: { config: ConsentConfig; trustedRegion: boolean }, _options = {}): ConsentProblem[] {
   const problems: ConsentProblem[] = compileConsentCss({ css: config.customCss, tokens: config.appearance }).problems.map(problem => ({ ...problem, field: 'appearance' }));
   if (config.enabled && !consentPolicyHref({ url: config.privacyPolicyUrl })) problems.push({ code: 'PRIVACY_LINK_REQUIRED', field: 'privacyPolicyUrl', message: 'Link a published privacy page or a credential-free HTTPS privacy policy.' });
   if (Boolean(config.secondaryLinkLabel) !== Boolean(config.secondaryLinkUrl) || (config.secondaryLinkUrl && !consentPolicyHref({ url: config.secondaryLinkUrl }))) problems.push({ code: 'SECONDARY_LINK_INVALID', field: 'secondaryLinkUrl', message: 'Supply both a secondary link label and a local or HTTPS link.' });
-  if (config.regionMode === 'auto' && !trustedRegion) problems.push({ code: 'TRUSTED_REGION_REQUIRED', field: 'regionMode', message: 'Automatic region mode requires an operator-configured trusted region header. Choose opt-in everywhere.' });
+  if (config.regionMode === 'opt-out') problems.push({ code: 'GLOBAL_OPT_OUT_REFUSED', field: 'regionMode', message: 'Use automatic region mode for US opt-out. EU, UK and unknown regions must keep Reject.' });
   return problems;
 }
 

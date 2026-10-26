@@ -1,8 +1,9 @@
 import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
 import { protectProjectKeyDeletes } from "#src/features/project-keys/protected-vault";
 import { createProjectKeys } from "#src/features/project-keys/service";
-import { watchProviderRevisions } from "./provider-revision-watch.js";
+import { siteProviderRevisions, watchProviderRevisions } from "./provider-revision-watch.js";
 import { defaultBundledSourceRoot } from "#src/features/agent-plugins/supersession";
+import { setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
 import { createReadyLoginProviderList } from "#src/features/member-login/ready-providers";
 import { createPluginExportRuntime } from "#src/features/agent-plugins/exports/runtime";
 import { createPluginExportSource } from "#src/features/agent-plugins/exports/source";
@@ -15,7 +16,6 @@ import { createCommentTargetLookup } from '#src/features/comments/comment-target
 import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
 import { createSiteConsentStore } from '#src/features/consent/revisions.repo';
 import { bindSiteConsentService, ensureSiteConsentPrivacy } from './site-consent.js';
-import { readRequestConsentChoices } from '@jini-ai/cms/consent/express';
 import { createSiteConsentPorts } from '../../inbound/public-http/middleware/site-consent.js';
 import { readRequestAnalyticsProof, allowsAnalyticsProof } from '@jini-ai/cms/consent/express';
 import { findExclusionReason } from '@jini-ai/analytics';
@@ -1132,16 +1132,16 @@ function providerPluginBoot({ overrides }: { overrides: Partial<CreateSiteRouteD
  */
 async function composeProviderConfig({ overrides, runtimeMode, onStoreClose, site, binding }: {
   overrides: Partial<CreateSiteRouteDepsOverrides>; runtimeMode: RuntimeMode; onStoreClose: (close: () => void) => void; site: ProviderConfigSource; binding: { dir: string; name: string };
-}): Promise<{ projectStore?: ProjectStore; providerConfigSource: ProviderConfigSource; projectId: string | undefined; projectVault?: ProjectVaultScope }> {
-  const projectStore = await projectStoreFor({ overrides, runtimeMode });
-  if (!projectStore) return { providerConfigSource: site, projectId: undefined };
-  if ("unavailable" in projectStore) return { providerConfigSource: withUnavailableProject({ site, reason: projectStore.unavailable }), projectId: undefined };
-  onStoreClose(() => projectStore.close({}));
+}): Promise<{ siteId: string; projectStore?: ProjectStore; providerConfigSource: ProviderConfigSource; projectId: string | undefined; projectVault?: ProjectVaultScope }> {
   const siteId = acceptedSiteId(readSiteMetaId(binding.dir), "site meta") ?? "";
+  const projectStore = await projectStoreFor({ overrides, runtimeMode });
+  if (!projectStore) return { siteId, providerConfigSource: site, projectId: undefined };
+  if ("unavailable" in projectStore) return { siteId, providerConfigSource: withUnavailableProject({ site, reason: projectStore.unavailable }), projectId: undefined };
+  onStoreClose(() => projectStore.close({}));
   if (siteId) await projectStore.attachments.renameSite({ siteId, siteName: binding.name });
   const protectedVault = protectProjectKeyDeletes({ vault: projectStore.vault.repo, attachments: projectStore.attachments, siteId, transaction: input => projectStore.transaction(input) });
   const repo = attachedOnlyVault({ vault: protectedVault, siteId, attachments: projectStore.attachments });
-  return { projectStore, providerConfigSource: withAttachedProject({ site }, { project: projectStore.config, attachments: projectStore.attachments, siteId, transaction: input => projectStore.transaction(input) }),
+  return { siteId, projectStore, providerConfigSource: withAttachedProject({ site }, { project: projectStore.config, attachments: projectStore.attachments, siteId, transaction: input => projectStore.transaction(input) }),
     projectId: projectStore.projectId, projectVault: { ...projectStore.vault, repo, deletionRepo: protectedVault } };
 }
 
@@ -2101,7 +2101,7 @@ async function composeSiteRouteDeps(
   // its exact objects). See `provider-plugins.ts`.
   // Saved provider settings: the project store when one is open, else sealed plugin-state rows in this
   // site's vault (see provider-config-source.ts and project-store.ts).
-  const { providerConfigSource, projectId, projectVault, projectStore } = await composeProviderConfig({ overrides, runtimeMode, onStoreClose, binding: resolvedSiteBinding,
+  const { providerConfigSource, projectId, projectVault, projectStore, siteId: projectSiteId } = await composeProviderConfig({ overrides, runtimeMode, onStoreClose, binding: resolvedSiteBinding,
     site: createVaultProviderConfigSource({ workspaceId, scope: "site", state: createAgentPluginStateStore({ workspaceId,
       vault: createApiConnectionVault({ repo: new SqlSecretsVaultRepo({ kernel: kernel as unknown as StorageKernel<SecretsVaultDatabase> }), keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, workspaceId }) }) }) });
   // 2026-08-31 (mail rule-of-two build): resolved once here, ahead of the `RouteDeps` object
@@ -2125,11 +2125,12 @@ async function composeSiteRouteDeps(
     await providerPlugins.dispose({});
     await pluginRuntime.dispose({});
   });
-  const projectSiteId = acceptedSiteId(readSiteMetaId(resolvedSiteBinding.dir), "site meta") ?? "";
   const projectKeys = projectStore ? createProjectKeys({ vault: projectStore.vault.repo, attachments: projectStore.attachments,
-    siteId: projectSiteId, siteName: resolvedSiteBinding.name, reapply: input => providerPlugins.reapply(input),
+    siteId: projectSiteId, siteName: resolvedSiteBinding.name, providerUsage: input => providerConfigSource.usage(input), reapply: input => providerPlugins.reapply(input),
     transaction: input => projectStore.transaction(input) }) : undefined;
-  if (projectStore) onStoreClose(watchProviderRevisions({ read: () => projectStore.providerRevisions({ siteId: projectSiteId }), reapply: input => providerPlugins.reapply(input) }));
+  onStoreClose(watchProviderRevisions({ read: () => projectStore?.providerRevisions({ siteId: projectSiteId }) ?? Promise.resolve([]),
+    readSite: () => siteProviderRevisions({ kernel: kernel as unknown as StorageKernel<unknown>, workspaceId }),
+    reapply: input => providerPlugins.reapply(input) }));
   const { observability, tracker, aiTraceSink } = providerPlugins;
   lifecycleTracker = tracker;
   for (const event of pendingLifecycleEvents.splice(0)) tracker.capture(event);
@@ -2161,7 +2162,8 @@ async function composeSiteRouteDeps(
     delivery: { observe: createMailAttemptObserver({ db: kernel }), ledger: createMailSendLedgerRepo({ db: kernel }), suppression: createMailSuppressionRepo({ db: kernel }), capture: createMailCaptureRepo({ db: kernel, origin: originRegistry }) },
     readSenderEmail: async () => (await readMailSenderSetting({ settingsRepo, workspaceId })).email,
     readConfiguredSender: (required) => readMailSenderSetting({ settingsRepo, workspaceId: required.workspaceId }),
-  }, { durableOutboxReady: capabilityName => mailDurableOutboxReady(capabilityName) });
+  }, { durableOutboxReady: capabilityName => mailDurableOutboxReady(capabilityName),
+    setAgentPluginEnabled: input => setAgentPluginEnabled(input, { lifecycle: agentPluginLifecycle }) });
   // Email page phase 3: the provider's own sender-domain verdict and the test-mode read, each fresh.
   // SPEC-022's durable-outbox readiness, named once: the live mailer's purpose gate below and the
   // Email page's use readiness probe (`platform/mail/purpose-gate-probe.ts`) read the same function.
@@ -2580,6 +2582,9 @@ async function composeSiteRouteDeps(
     // From provider plugins (see `providerPlugins` above for the rule-of-two it follows).
     observability,
     tracker,
+    visitorTracker: providerPlugins.visitorTracker,
+    observabilityEnabled: providerPlugins.observabilityEnabled,
+    flushTelemetry: () => providerPlugins.dispose({}),
     browserAnalytics: providerPlugins.browserAnalytics,
     telemetryStatus: providerPlugins.telemetryStatus,
     sendTelemetryTest: () => providerPlugins.sendTelemetryTest({ error: new Error("Tovu test error — safe to ignore") }),
@@ -3105,7 +3110,6 @@ async function composeSiteRouteDeps(
   }
   routeDeps.siteConsent = bindSiteConsentService({ deps: routeDeps });
   const visitorConsentPorts = createSiteConsentPorts({ deps: routeDeps }, { trustedRegionHeader: routeDeps.consentTrustedRegionHeader });
-  routeDeps.visitorAnalyticsConsent = async ({ request }) => (await readRequestConsentChoices({ ports: visitorConsentPorts, request })).analytics;
   routeDeps.visitorAnalyticsProof = async ({ request }) => {
     try {
       const config = await routeDeps.analyticsConfig.get({ workspaceId });

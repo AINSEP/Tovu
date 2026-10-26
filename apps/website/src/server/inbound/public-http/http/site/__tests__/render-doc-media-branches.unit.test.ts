@@ -136,15 +136,15 @@ test("media image: malformed marker attribute entries are dropped and well-forme
 // --- media attribute merge: <video> -------------------------------------------------------------
 
 test("media video: a marker alt replaces the fallback text node verbatim", () => {
-  assert.equal(mediaVideo({ alt: "Asset alt", markerAttributes: [{ name: "alt", value: "Marker text" }] }), '<video src="/m/v1/original" controls>Marker text</video>');
+  assert.equal(mediaVideo({ alt: "Asset alt", markerAttributes: [{ name: "alt", value: "Marker text" }] }), '<video src="/m/v1/original.mp4" controls>Marker text</video>');
 });
 
 test("media video: a bare marker alt empties the fallback text node", () => {
-  assert.equal(mediaVideo({ markerAttributes: [{ name: "alt", value: null }] }), '<video src="/m/v1/original" controls></video>');
+  assert.equal(mediaVideo({ markerAttributes: [{ name: "alt", value: null }] }), '<video src="/m/v1/original.mp4" controls></video>');
 });
 
 test("media video: the asset alt becomes the escaped fallback text when no marker alt is present", () => {
-  assert.equal(mediaVideo({ alt: "A & B" }), '<video src="/m/v1/original" controls>A &amp; B</video>');
+  assert.equal(mediaVideo({ alt: "A & B" }), '<video src="/m/v1/original.mp4" controls>A &amp; B</video>');
 });
 
 test("renderDocNode: a managed image's asset htmlAttributes class reaches the rendered <img>", () => {

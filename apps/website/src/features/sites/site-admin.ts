@@ -232,6 +232,8 @@ export const SITE_SWITCH_RESTARTING_NOTICE =
   "The dev server is restarting onto the new site now. The admin reconnects by itself in a few seconds — nothing to do.";
 
 export interface ActivateSiteRequired {
+  /** Actual boot binding, independent of a pending persisted selection. */
+  currentSiteName?: string;
   /** From {@link resolveSiteSwitchBase}. Both the lookup and the `.env` write are rooted here. */
   switcherBase: string;
   name: string;
@@ -255,7 +257,7 @@ export interface ActivateSitePorts {
 export interface ActivateSiteResult {
   ok: true;
   activeSiteName: string;
-  restartRequired: true;
+  restartRequired: boolean;
   restartInstructions: string;
   /** Set only when `restartNow` was asked: whether a restart was actually requested. */
   restarting?: boolean;
@@ -303,6 +305,8 @@ export function activateSite(
   const { switcherBase, name } = required;
   const match = (ports.listSites ?? listSitesReal)({ cwd: switcherBase }).find((site) => site.name === name);
   if (!match) return { ok: false, code: "SITE_NOT_FOUND", error: `site '${name}' was not found` };
+  if (name === required.currentSiteName) return { ok: true, activeSiteName: name, restartRequired: false,
+    restartInstructions: "This site is already active.", restarting: false };
   const refusal = runningSiteRefusal({ dir: match.dir, name }, ports);
   if (refusal) return refusal;
   (ports.persistActiveSite ?? persistActiveSiteReal)({ name }, { cwd: switcherBase });

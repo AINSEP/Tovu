@@ -28,7 +28,6 @@ export {
   listCustomCredentials,
   listCustomCredentialInventory,
   resolveCustomCredentialByLabel,
-  shareCustomCredentialWithProject,
   updateCustomCredential,
   type CreateCustomCredentialInput,
   type CustomCredentialReadDeps,

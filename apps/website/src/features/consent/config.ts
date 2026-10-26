@@ -12,8 +12,8 @@ export type SiteConsentRegionMode = typeof SITE_CONSENT_REGION_MODES[number];
 export const SITE_CONSENT_DEFAULTS = {
   // All sites show the banner by default; settings.ts preserves explicit owner on/off choices.
   enabled: true,
-  // Opt-in everywhere is the safe default: "auto" only differs once a trusted region header exists.
-  regionMode: 'opt-in' as SiteConsentRegionMode,
+  // A configured trusted header resolves US opt-out; unknown stays strict (Reject shown).
+  regionMode: 'auto' as SiteConsentRegionMode,
   policyVersion: '1',
   privacyPolicyUrl: '',
   secondaryLinkLabel: '',

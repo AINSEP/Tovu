@@ -273,18 +273,20 @@ export async function saveLanguage(next: string, previous: string): Promise<read
   ]);
 }
 
+/** Map optional privacy preferences to the existing ledger sentinels. O(1); no effects. */
+function privacyLedgerValues({ state }: { state: PrivacyConsentState }, _options = {}) {
+  return { metrics: state.telemetry.metrics ?? false, content: state.telemetry.content ?? false,
+    installationId: state.installationId ?? NO_INSTALLATION_ID_SENTINEL,
+    decisionAt: state.privacyDecisionAt ?? NO_DECISION_SENTINEL };
+}
+
 export async function savePrivacy(
   next: PrivacyConsentState,
   previous: PrivacyConsentState,
 ): Promise<readonly string[]> {
-  const nextMetrics = next.telemetry.metrics ?? false;
-  const previousMetrics = previous.telemetry.metrics ?? false;
-  const nextContent = next.telemetry.content ?? false;
-  const previousContent = previous.telemetry.content ?? false;
-  const nextInstallationId = next.installationId ?? NO_INSTALLATION_ID_SENTINEL;
-  const previousInstallationId = previous.installationId ?? NO_INSTALLATION_ID_SENTINEL;
-  const nextDecisionAt = next.privacyDecisionAt ?? NO_DECISION_SENTINEL;
-  const previousDecisionAt = previous.privacyDecisionAt ?? NO_DECISION_SENTINEL;
+  const nextValues = privacyLedgerValues({ state: next }), previousValues = privacyLedgerValues({ state: previous });
+  const { metrics: nextMetrics, content: nextContent, installationId: nextInstallationId, decisionAt: nextDecisionAt } = nextValues;
+  const { metrics: previousMetrics, content: previousContent, installationId: previousInstallationId, decisionAt: previousDecisionAt } = previousValues;
 
   const candidates: LedgerCandidate[] = [
     { key: PRIVACY_KEYS.metrics, valueJson: nextMetrics, changed: nextMetrics !== previousMetrics },
@@ -300,9 +302,16 @@ export async function savePrivacy(
       changed: nextDecisionAt !== previousDecisionAt,
     },
   ];
+  // A withdrawal stops live browser collection even when the durable save fails.
+  // Keep only a denial marker for reloads; it can never manufacture a grant.
+  if (!nextMetrics && previousMetrics && typeof window !== 'undefined') {
+    try { window.localStorage.setItem('jini:metrics-withdrawal', '1'); } catch { /* Live teardown still applies. */ }
+    window.dispatchEvent(new CustomEvent('jini:metrics-consent-changed', { detail: false }));
+  }
   // Metrics is the first durable write. Signal it before later preference writes can fail.
   const metrics = await saveChangedEntries(PRIVACY_NAMESPACE, WORKSPACE_SCOPE, candidates.filter(candidate => candidate.key === PRIVACY_KEYS.metrics));
   if (metrics.includes(PRIVACY_KEYS.metrics) && typeof window !== 'undefined') {
+    try { window.localStorage.removeItem('jini:metrics-withdrawal'); } catch { /* The marker only denies. */ }
     window.dispatchEvent(new CustomEvent('jini:metrics-consent-changed', { detail: nextMetrics }));
   }
   const remaining = await saveChangedEntries(PRIVACY_NAMESPACE, WORKSPACE_SCOPE, candidates.filter(candidate => candidate.key !== PRIVACY_KEYS.metrics));

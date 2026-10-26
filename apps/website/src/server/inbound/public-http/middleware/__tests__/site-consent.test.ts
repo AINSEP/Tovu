@@ -12,6 +12,7 @@ import { createRouteDeps } from '#src/server/runtime/composition/app';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
 import { consentFixture } from '#src/features/consent/__tests__/fixture';
 import { applySiteConsent, CONSENT_RECEIPTS_DIR_NAME, createPrivacyPageCheck, createSiteConsentPorts } from '../site-consent.js';
+import { applyBrowserAnalyticsHttp } from '#src/server/runtime/composition/browser-analytics-http';
 import { bindSiteConsentService } from '#src/server/runtime/composition/site-consent';
 import { InMemorySettingsRepo, set } from '@jini-ai/core/settings';
 import { ensureSiteConsentDefinitions, SITE_CONSENT_NAMESPACE } from '#src/features/consent/settings';
@@ -362,16 +363,37 @@ test('a published policy with an empty Custom CSS is served with the default sty
   assert.equal(await serve('#jini-consent { padding: 12px; }'), '#jini-consent { padding: 12px; }');
 });
 
-test('an auto-region published policy is refused without a trusted region header and served with one', async t => {
+for (const scenario of [
+  { name: 'configured US', configured: true, region: 'US', optOut: true },
+  { name: 'configured lowercase US subdivision', configured: true, region: 'us-ca', optOut: true },
+  { name: 'missing configured header', configured: true, region: undefined, optOut: false },
+  { name: 'unknown configured country', configured: true, region: 'XX', optOut: false },
+  { name: 'non-US configured country', configured: true, region: 'DE', optOut: false },
+  { name: 'malformed configured country', configured: true, region: 'US,DE', optOut: false },
+  { name: 'visitor US header without configuration', configured: false, region: 'US', optOut: false },
+  { name: 'no region configuration or header', configured: false, region: undefined, optOut: false },
+]) test(`automatic region shows exact first-layer choices for ${scenario.name}`, async t => {
   const f = await publicFixture({ t });
   const state = await f.store.read({});
   assert.ok(state?.published);
   const published = state.published;
   f.deps.consentStore = { ...f.store, read: async () => ({ ...state, published: { ...published, config: { ...(published.config as object), regionMode: 'auto' } } }) };
-  await assert.rejects(() => createSiteConsentPorts({ deps: f.deps }).config.get({}), { message: 'Published consent policy is invalid.' });
+  assert.equal((await createSiteConsentPorts({ deps: f.deps }).config.get({})).regionMode, 'auto');
   const trusted = await createSiteConsentPorts({ deps: f.deps }, { trustedRegionHeader: 'x-region' }).config.get({});
   assert.equal(trusted.regionMode, 'auto');
   assert.equal(trusted.policyVersion, `${f.config.policyVersion}:${published.id}`);
+  const app = express();
+  applySiteConsent({ app, deps: f.deps }, scenario.configured ? { trustedRegionHeader: 'x-region' } : {});
+  app.get('/', (_req, res) => res.type('html').send('<html><head></head><body>Site</body></html>'));
+  const base = await startTestServer(app, t);
+  const response = await fetch(base, { headers: scenario.region === undefined ? {} : { 'x-region': scenario.region } });
+  assert.equal(response.status, 200);
+  const dom = new JSDOM(await response.text());
+  try {
+    const buttons = [...dom.window.document.querySelectorAll('.jini-consent-actions.jini-consent-initial button')];
+    assert.deepEqual(buttons.map(button => button.getAttribute('value')), scenario.optOut ? ['accept'] : ['reject', 'accept']);
+    assert.deepEqual(buttons.map(button => button.textContent), scenario.optOut ? [f.config.acceptLabel] : [f.config.rejectLabel, f.config.acceptLabel]);
+  } finally { dom.window.close(); }
 });
 
 test('an accepted choice is durably written under the site receipts directory, created on first save', async t => {
@@ -429,4 +451,56 @@ test('cached published unsafe-eval and the host link survive a later configurati
       assert.match(dom.window.document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.getAttribute('content') ?? '', /'unsafe-eval'/);
     } finally { dom.window.close(); }
   }
+});
+
+test('plugin collectors and CDNs never widen the pre-choice or rejected consent CSP', async t => {
+  const f = await publicFixture({ t });
+  f.deps.browserAnalytics = () => [{ supportsStatic: false, origins: ['https://cdn.jsdelivr.net', 'https://us.i.posthog.com', 'https://us-assets.i.posthog.com'], source: 'function(){return function(){}}' }];
+  const app = express(); applySiteConsent({ app, deps: f.deps });
+  app.get('/', (_req, res) => res.type('html').send('<html><head></head><body>Page</body></html>'));
+  const base = await startTestServer(app, t);
+  const initial = await (await fetch(base)).text();
+  const choice = await fetch(base + '/api/site-consent', { method: 'POST', headers: { origin: base, accept: 'application/json', 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ action: 'reject', policyVersion: `${f.config.policyVersion}:${f.revisionId}` }) });
+  assert.equal(choice.status, 200);
+  const cookie = choice.headers.get('set-cookie')!.split(';')[0]!;
+  const rejected = await (await fetch(base, { headers: { cookie } })).text();
+  for (const html of [initial, rejected]) {
+    const dom = new JSDOM(html);
+    try {
+      const policies = Array.from(dom.window.document.querySelectorAll('meta[http-equiv="Content-Security-Policy"]')).map(node => node.getAttribute('content'));
+      assert.ok(policies.length > 0);
+      for (const policy of policies) {
+        assert.ok(policy!.includes("connect-src 'self'"));
+        assert.equal(/jsdelivr|posthog/.test(policy!), false);
+      }
+    } finally { dom.window.close(); }
+  }
+});
+
+test('same-origin analytics collection is denied before a choice and for unauthenticated admin callers', async t => {
+  const f = await publicFixture({ t });
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'tovu-consent-relay-'));
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  f.deps.siteBinding = { ...f.deps.siteBinding, dir };
+  const calls: unknown[] = [];
+  f.deps.browserAnalytics = ({ surface }) => [{ source: 'function(){return function(){}}', origins: [], supportsStatic: false,
+    http: { path: '/_jini/browser-analytics/fixture/' + surface, handle: async input => { calls.push(input); return { status: 200, body: '1' }; } } }];
+  const app = express(); applySiteConsent({ app, deps: f.deps }); applyBrowserAnalyticsHttp({ app, deps: f.deps });
+  const base = await startTestServer(app, t);
+  const send = (surface = 'site', cookie = '', origin = base) => fetch(base + '/_jini/browser-analytics/fixture/' + surface + '/e/', {
+    method: 'POST', headers: { origin, cookie, 'content-type': 'text/plain' }, body: 'fixture-event',
+  });
+  assert.equal((await send()).status, 403); assert.deepEqual(calls, []);
+  const choice = await fetch(base + '/api/site-consent', { method: 'POST', headers: { origin: base, accept: 'application/json', 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ action: 'reject', policyVersion: `${f.config.policyVersion}:${f.revisionId}` }) });
+  assert.equal(choice.status, 200);
+  const cookie = choice.headers.get('set-cookie')!.split(';')[0]!;
+  assert.equal((await send('site', cookie, 'https://other.example')).status, 403);
+  assert.equal((await send('admin', cookie)).status, 403); assert.deepEqual(calls, []);
+  assert.equal((await send('site', cookie)).status, 200);
+  assert.equal(calls.length, 1);
+  const input = calls[0] as { body: Uint8Array; path: string };
+  assert.equal(input.path, '/e/'); assert.equal(Buffer.from(input.body).toString(), 'fixture-event');
+  assert.equal(JSON.stringify(calls).includes('jini_consent'), false);
 });

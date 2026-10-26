@@ -99,7 +99,7 @@ export function registerAnalyticsIngestRoute(app: Express, deps: AnalyticsIngest
       const forwarders = deps.forwarders ? await deps.forwarders({ request: req }) : [];
       const binding = createAnalyticsIngestBinding({ deps }, { forwarders, limiter });
       const outcome = await ingestHit({ input: { beacon, context }, deps: binding.deps }, binding.optional);
-      if (outcome.accepted && beacon.kind === "pageview" && !/^\/(admin|_preview|preview)(\/|$)/.test(beacon.path)) {
+      if (outcome.accepted && !(deps.browserAnalytics?.({ surface: 'site' }) ?? []).length && beacon.kind === "pageview" && !/^\/(admin|_preview|preview)(\/|$)/.test(beacon.path)) {
         void captureVisitorEvent({ deps, request: req, name: "site_pageview", properties: { routeTemplate: "/:path" } });
       }
     } catch {

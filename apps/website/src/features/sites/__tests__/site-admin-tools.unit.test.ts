@@ -130,6 +130,17 @@ test("sites_switch_site: an unknown site is a schema-attached refusal and nothin
   assert.equal(env.persists.length, 0);
 });
 
+test("sites_switch_site uses the actual boot binding to acknowledge the current site without restart", async () => {
+  const env = fake();
+  env.deps.listSites = () => [{ ...SITE, name: "served", dir: "/repo/sites/served" }];
+  env.deps.readSiteRunning = () => assert.fail("own lease must not be treated as another process");
+  env.deps.devRestart = { requestRestart: () => assert.fail("must not restart the current site") };
+  assert.deepEqual(await handlerFor(env.deps, "sites_switch_site")(ctxFor({ name: "served" })), {
+    activeSiteName: "served", restartRequired: false, restartInstructions: "This site is already active.", restarting: false,
+  });
+  assert.deepEqual(env.persists, []);
+});
+
 test("sites_switch_site: an install-dir boot refuses SITE_BINDING_NOT_SWITCHABLE before authorize", async () => {
   const env = fake({ switcherCompatible: false });
   await assert.rejects(

@@ -21,7 +21,8 @@ import type { ProviderConfigSource, ProviderPluginConfig } from "./provider-conf
  * (`provider-config-source.ts`: the project store when one is configured, else the site vault). A
  * provider is "configured" when every required declared field has a value; its saved values are its
  * factory's required args, plus host identity (`serviceName`) and site attribution (`attributionFor`). Never env, files, logs or chat. Tovu
- * holds no per-vendor mapping: everything it needs to know comes from the manifest.
+ * boot holds no per-vendor mapping: everything it needs to know comes from the manifest; the
+ * settings adapter alone normalizes retired persisted choices before they reach this boundary.
  *
  * Order: initialized (awaited, each bounded by the provider host's timeout) before the composition
  * root decorates kernels and HTTP clients, so application work never starts on a half-built port.
@@ -120,6 +121,9 @@ export interface ProviderPluginPorts {
   readonly browserAnalytics?: (required: { surface: 'site' | 'admin' }) => readonly BrowserAnalyticsContribution[];
   readonly observability: ObservabilityPort;
   readonly tracker: Tracker;
+  /** Used only after the public boundary has validated the visitor's consent proof. */
+  readonly visitorTracker?: Tracker;
+  observabilityEnabled?: () => boolean;
   telemetryStatus: ReturnType<typeof createTelemetryDeliveryMonitor>["read"];
   sendTelemetryTest(required: { error: Error }, optional?: Record<string, never>): Promise<TelemetryTestResult>;
   /** Undefined when neither a trace nor analytics provider is declared; slots can activate live. */
@@ -189,11 +193,20 @@ function gatedPort({ slot, contract, testProbe }: { slot: ProviderSlot; contract
   const names = Object.keys(noop);
   // Keep the optional hook available before attachment; every call follows the current slot.
   if (contract === "product_analytics") names.push("captureAiGeneration", "browserAnalytics");
+  const browserCache = new Map<string, { lease: unknown; contribution: unknown }>();
   const gated = Object.fromEntries(names.map((name) => [name, (...args: unknown[]) => {
     const lease = slot.lease;
     const port = lease?.port as Record<string, unknown> | undefined;
     const live = port?.[name];
     if (!lease?.isCurrent({}) || typeof live !== "function") return noop[name]?.(...args);
+    if (name === 'browserAnalytics') {
+      const surface = (args[0] as { surface: string }).surface;
+      const cached = browserCache.get(surface);
+      if (cached?.lease === lease) return cached.contribution;
+      const contribution = live.apply(port, args);
+      browserCache.set(surface, { lease, contribution });
+      return contribution;
+    }
     const result = live.apply(port, args);
     testProbe.accepted({ providerId: `${slot.pluginId}/${slot.id}`, method: name, input: args[0] });
     return result;
@@ -224,6 +237,7 @@ function composePorts({ leases, consent, consentRevision, site, warn }: { warn: 
   const generations = createAiGenerationSink({ analytics: productAnalytics, userId: `site:${site.siteId}` });
   if (generations) sinks.push({ ...generations, get capture() { return productAnalytics.includeAiContent === true ? "full" : "metadata"; } });
   const observability = combineObservabilityPorts({ ports: (leases.get("observability") ?? []) as ObservabilityPort[] }, { onFailure: failed });
+  const browserCache = new Map<string, { inputs: readonly BrowserAnalyticsContribution[]; output: readonly BrowserAnalyticsContribution[] }>();
   return {
     observability,
     browserAnalytics: (required: { surface: 'site' | 'admin' }): readonly BrowserAnalyticsContribution[] => {
@@ -231,13 +245,20 @@ function composePorts({ leases, consent, consentRevision, site, warn }: { warn: 
         try { const contribution = port.browserAnalytics?.(required); return contribution ? [contribution] : []; }
         catch { failed(); return []; }
       });
+      const cached = browserCache.get(required.surface);
+      if (cached && cached.inputs.length === contributions.length && contributions.every((item, index) => item === cached.inputs[index])) return cached.output;
       // One revision for the complete inventory: retiring any provider invalidates every old SDK.
+      // Cache by live lease contributions; polls never rebuild source or rehash unchanged providers.
       const revision = createHash('sha256').update(JSON.stringify(contributions)).digest('hex');
-      return contributions.map(contribution => ({ ...contribution, configuration: {
+      const output = contributions.map(contribution => ({ ...contribution, configuration: {
         url: `/_jini/browser-analytics?surface=${required.surface}`, revision,
       } }));
+      browserCache.set(required.surface, { inputs: contributions, output });
+      return output;
     },
-    tracker: createTracker({ observability, productAnalytics }, { warn: failed }),
+    tracker: createTracker({ observability, productAnalytics }, { warn }),
+    // Public callers own visitor proof checks; the owner's admin preference cannot veto them.
+    visitorTracker: createTracker({ observability, productAnalytics: withProductAnalyticsGuards({ inner, consent: () => true }) }, { warn }),
     shutdownGenerations: () => generations?.shutdown?.(),
     aiTraceSink: sinks.length === 0 ? undefined : {
       ...createFanOutAiTraceSink({ sinks }),
@@ -298,34 +319,51 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
       if (input && !lease) throw new Error("ProviderUnavailable");
       slot.lease = lease;
       slot.input = signature;
-      if (lease) initialization({ slot, outcome: 'success', reasonClass: 'ready' });
-      else initialization({ slot, outcome: 'noop', reasonClass: 'not_configured' });
     } catch (error) {
       // A removed or changed key must never keep sending through the previous lease.
       slot.lease = undefined;
       slot.input = undefined;
-      initialization({ slot, outcome: 'failure', reasonClass: 'initialization_failed' });
       throw error;
     } finally { await old?.dispose({}); }
   }
-  async function apply({ pluginId }: { pluginId: string }): Promise<"now" | "restart"> {
+  /** Success reflects the complete plugin, since a later failure retires every earlier lease.
+   * @complexity O(s * f) for s slots with f declared settings; O(s) pending observations. */
+  async function applySlots({ selected, saved }: { selected: ProviderSlot[]; saved: ProviderPluginConfig | null }): Promise<void> {
+    const changed: ProviderSlot[] = [];
+    for (const slot of selected) {
+      const input = providerInputOf({ declaration: slot.declaration, saved });
+      if (!unchangedSlot({ slot, signature: input === undefined ? undefined : JSON.stringify(input) })) changed.push(slot);
+      await replaceSlot(slot, saved);
+    }
+    for (const slot of changed) initialization({ slot, outcome: slot.lease ? 'success' : 'noop', reasonClass: slot.lease ? 'ready' : 'not_configured' });
+  }
+  /** Reuse a current registration, otherwise admit the configured plugin through the runtime owner.
+   * @throws Error when admission fails; apply owns retiring all of the plugin's leases.
+   * @complexity O(s * f + r) for selected slots, fields and registered contributions; one bounded load.
+   */
+  async function ensureLoaded({ pluginId, selected, saved }: { pluginId: string; selected: readonly ProviderSlot[]; saved: ProviderPluginConfig | null }, _optional = {}): Promise<void> {
+    if (!selected.some(slot => providerInputOf({ declaration: slot.declaration, saved }))) return;
+    if (loaded.has(pluginId) && required.runtime.providerContributions.list({}).some(snapshot => snapshot.pluginId === pluginId)) return;
+    const admitted = await required.runtime.loadProviderPlugins({ pluginIds: [pluginId] }, { timeoutMs });
+    if (!admitted.includes(pluginId)) throw new Error("ProviderUnavailable");
+    loaded.add(pluginId);
+  }
+  /** Apply one saved snapshot, retiring every selected lease on failure and logging only its class.
+   * @returns Live-apply timing; missing slots, closed hosts and failed admission require restart.
+   * @complexity O(s * f + r) slot settings/registrations plus bounded provider load and initialization.
+   */
+  async function apply({ pluginId }: { pluginId: string }, _optional = {}): Promise<"now" | "restart"> {
     if (closed) return "restart";
     const selected = slots.filter(slot => slot.pluginId === pluginId);
     if (selected.length === 0) return "restart";
-    const reached = new Set<ProviderSlot>();
     try {
       const saved = await required.config.read({ pluginId });
       const restartBrowser = selected.some(slot => browserNeedsRestart({ slot, saved }));
-      const configured = selected.some(slot => providerInputOf({ declaration: slot.declaration, saved }));
-      if (configured && (!loaded.has(pluginId) || !required.runtime.providerContributions.list({}).some(snapshot => snapshot.pluginId === pluginId))) {
-        const admitted = await required.runtime.loadProviderPlugins({ pluginIds: [pluginId] }, { timeoutMs });
-        if (!admitted.includes(pluginId)) throw new Error("ProviderUnavailable");
-        loaded.add(pluginId);
-      }
-      for (const slot of selected) { reached.add(slot); await replaceSlot(slot, saved); }
+      await ensureLoaded({ pluginId, selected, saved });
+      await applySlots({ selected, saved });
       return restartBrowser ? 'restart' : 'now';
     } catch (error) {
-      for (const slot of selected) if (!reached.has(slot)) initialization({ slot, outcome: 'failure', reasonClass: 'initialization_failed' });
+      for (const slot of selected) initialization({ slot, outcome: 'failure', reasonClass: 'initialization_failed' });
       const retired = selected.map(slot => { const lease = slot.lease; slot.lease = undefined; slot.input = undefined; return lease; });
       await Promise.all(retired.map(lease => lease?.dispose({})));
       // Class only: an SDK's construction error can quote the endpoint or DSN it was given.
@@ -342,7 +380,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
   }
   const leases = new Map<ProviderContract, unknown[]>();
   for (const slot of slots) {
-    if (slot.contract === "observability") delivery.register({ providerId: `${slot.pluginId}/${slot.id}` });
+    if (slot.contract === "observability" || slot.contract === "product_analytics") delivery.register({ providerId: `${slot.pluginId}/${slot.id}` });
     leases.set(slot.contract, [...(leases.get(slot.contract) ?? []), gatedPort({ slot, contract: slot.contract, testProbe })]);
   }
   await Promise.all([...new Set(slots.map(slot => slot.pluginId))].map(pluginId => reapply({ pluginId })));
@@ -353,6 +391,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
   for (const event of initializations) tracker.capture(event);
   initializations.length = 0;
   return { ...ports, telemetryStatus: delivery.read,
+    observabilityEnabled: () => slots.some(slot => slot.contract === "observability" && slot.lease?.isCurrent({}) === true),
     sendTelemetryTest: ({ error }) => testProbe.send({ tracker: ports.tracker, error, userId: `site:${required.site.siteId}` }),
     reapply, appliesAt: ({ pluginId }) => applied.get(pluginId) ?? "now",
     async dispose() { closed = true; await Promise.all(queues.values()); await shutdownGenerations(); await host.dispose({}); } };

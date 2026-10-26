@@ -364,3 +364,23 @@ test("a synchronous 503 exports its exception before ending the SDK request span
   assert.equal(exceptions[0]!.attributes?.["exception.type"], "ServerErrorResponse");
   assert.equal(exceptions[0]!.attributes?.["operation.name"], "http.request");
 });
+
+test('a client disconnect before finish settles the request as aborted rather than HTTP 200', async t => {
+  const { get } = await import('node:http');
+  const { port, calls } = createSpyObservabilityPort();
+  const app = express();
+  let reached!: () => void;
+  const handling = new Promise<void>(resolve => { reached = resolve; });
+  let closed!: () => void;
+  const disconnected = new Promise<void>(resolve => { closed = resolve; });
+  applyRequestTracking(app, { tracker: createTracker({ observability: port }), env: loggingDisabled });
+  app.get('/waiting/:id', (_req, res) => { res.on('close', closed); reached(); });
+  const baseUrl = await startTestServer(app, t);
+  const request = get(`${baseUrl}/waiting/private`);
+  request.on('error', () => {});
+  await handling;
+  request.destroy();
+  await disconnected;
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(calls, [{ input: { method: 'GET', path: '/waiting/private' }, outcome: { statusCode: 499, routePattern: '/waiting/:id' } }]);
+});

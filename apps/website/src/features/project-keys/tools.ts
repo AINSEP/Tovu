@@ -36,6 +36,7 @@ export function buildProjectKeyRegistrations({ keys, authorize, loadCards, surfa
         const input = requireInputRecord({ input: ctx.input });
         if (Object.keys(input).some(key => key !== "keyId" && key !== "use") || typeof input.keyId !== "string" || !input.keyId || typeof input.use !== "boolean") throw new ToolInputError({ message: "project_key_use requires keyId and use (true or false)." });
         const keyId = input.keyId;
+        await authorize({ ctx, permission: "custom-credentials.read" });
         // Attachment uses exactly the permission of the domain that owns saving this key.
         await authorize({ ctx, permission: await available().permissionFor({ keyId }) });
         ctx.signal.throwIfAborted();
