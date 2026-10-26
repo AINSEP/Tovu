@@ -114,6 +114,27 @@ test("vault adapter: a read racing a rotation never pairs the old endpoint with 
   assert.ok(isWholePair(await source.read({ pluginId: "obs" })));
 });
 
+test("vault adapter: only a failure to OPEN a listed row is unreadable; a store failure (SQLITE_BUSY) surfaces, so a save never drops a valid key", async () => {
+  const listedState = (failure: Error) => ({
+    forPlugin: () => ({ get: async () => { throw failure; }, set: async () => {}, delete: async () => {} }),
+    describe: async () => ({ keys: [{ key: "provider.config", revision: 3 }] }),
+  }) as unknown as AgentPluginStateStore;
+  const sourceFailingWith = (failure: Error) => createVaultProviderConfigSource({ state: listedState(failure), workspaceId: "ws", scope: "project" });
+  // A transient lock or a driver/DB failure is the store failing, not a lost key: it surfaces as itself
+  // (the card's GET/PUT answer 500) instead of reading as "not configured" and saving secrets {}.
+  for (const failure of [Object.assign(new Error("database is locked"), { code: "SQLITE_BUSY" }), new Error("Connection terminated unexpectedly"),
+    Object.assign(new Error("Secrets vault: context"), { name: "VaultError", code: "context" })]) {
+    await assert.rejects(sourceFailingWith(failure).read({ pluginId: "obs" }), (caught) => caught === failure, failure.message);
+    await assert.rejects(sourceFailingWith(failure).readSettings({ pluginId: "obs" }), (caught) => caught === failure, failure.message);
+  }
+  // Opening failures: a wrong/re-minted key (GCM auth tag), a damaged envelope, a payload that opened but is not a record.
+  for (const failure of [new Error("Unsupported state or unable to authenticate data"), new Error("AesGcmSecretSealer: ciphertext too short to contain an auth tag"),
+    new Error("AesGcmSecretSealer cannot open alg 'x' (expected 'aes-256-gcm')"), Object.assign(new Error("Secrets vault: invalid-record"), { name: "VaultError", code: "invalid-record" })]) {
+    await assert.rejects(sourceFailingWith(failure).read({ pluginId: "obs" }), ProviderConfigUnreadableError, failure.message);
+    assert.deepEqual(await sourceFailingWith(failure).readSettings({ pluginId: "obs" }), { settings: {}, secretNames: [], unreadable: true }, failure.message);
+  }
+});
+
 test("vault adapter: a row this machine cannot open reads as unreadable (listed but not openable); any other failure surfaces as itself", async () => {
   const sealed = new Error("Unsupported state or unable to authenticate data");
   const stateWith = (keys: { key: string; revision: number }[] | Error) => ({
