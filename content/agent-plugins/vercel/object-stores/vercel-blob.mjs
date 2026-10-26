@@ -16,7 +16,8 @@
  */
 
 const BLOB_API = "https://vercel.com/api/blob";
-const BLOB_API_VERSION = "11";
+/** Matches `@vercel/blob` 2.8.2 (`BLOB_API_VERSION = 13`, sent on every API call). */
+const BLOB_API_VERSION = "13";
 /** The smallest edge cache Blob allows, so a revoked link stops serving within about a minute. */
 const BLOB_CACHE_MAX_AGE_SECONDS = "60";
 /** The token is 16 ASCII letters, the shape core's `SHARE_TOKEN` mints (a plugin cannot import core). */
@@ -72,7 +73,7 @@ function isExactBlobUrl(required) {
 /**
  * The share-facing artifact store over one Blob store.
  * @param {{ blobToken: string, kit: any }} required
- * @returns {import("@jini-ai/devops/deploy").ArtifactStorePort}
+ * @returns {import("@jini-ai/devops/deploy").ArtifactStorePort & { binding: string }}
  * @complexity O(1) to build; each call is one request.
  */
 function createBlobArtifactStore(required) {
@@ -81,12 +82,15 @@ function createBlobArtifactStore(required) {
   // `?download=1` is Blob's attachment URL, so the browser saves the ZIP instead of opening it.
   const shareUrl = (key) => `${origin}/${key}?download=1`;
   return {
+    /** Core records this so revoke only deletes through the same Blob store the share was put in. */
+    binding: origin,
     async upload({ key, bytes }, options = {}) {
       requireKey({ key, kit });
       options.signal?.throwIfAborted();
       const response = await blobApi({ kit, blobToken, op: "upload", path: `/?pathname=${encodeURIComponent(key)}`, init: {
         method: "PUT", body: bytes, signal: options.signal,
-        headers: { "x-content-type": "application/zip", "x-add-random-suffix": "0", "x-allow-overwrite": "1", "x-cache-control-max-age": BLOB_CACHE_MAX_AGE_SECONDS },
+        // `@vercel/blob` 2.8.2 `put()` always sends the access header; shares are public by design.
+        headers: { "x-vercel-blob-access": "public", "x-content-type": "application/zip", "x-add-random-suffix": "0", "x-allow-overwrite": "1", "x-cache-control-max-age": BLOB_CACHE_MAX_AGE_SECONDS },
       } });
       const stored = await response.json().catch(() => ({}));
       if (!isExactBlobUrl({ returned: stored.url, origin, key })) throw new kit.DeployError("Vercel Blob stored the share under an unexpected address.", 502);

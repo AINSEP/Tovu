@@ -2880,15 +2880,12 @@ async function composeSiteRouteDeps(
             objectStore: async () => {
               // Any object-store provider that can deliver artifacts (not one hard-coded deploy target);
               // the site's media choice wins so media and shares share one provider and connection.
-              const chosen = selectArtifactStoreProvider({ loaded: await mediaStorePorts().loadSiteRegistry(), preferredId: await readMediaObjectStoreSetting({ settingsRepo, workspaceId }) });
-              if (!chosen) return undefined;
               // Provider ids use underscores; the saved connection is keyed by the hyphenated target id.
-              const target = chosen.id.replace(/_/g, "-");
-              const resolved = await credentials.resolve({ workspaceId, target });
-              if (!resolved.ok) return undefined;
-              // A new default connection must never turn revocation into deletion in another bucket.
-              // Bind non-secret storage coordinates, allowing credentials to rotate for the same store.
-              const storageBinding = JSON.stringify([resolved.bucket, resolved.region, resolved.endpoint ?? "", resolved.publicUrl]);
+              const targetOf = (id: string) => id.replace(/_/g, "-");
+              const chosen = await selectArtifactStoreProvider({ loaded: await mediaStorePorts().loadSiteRegistry(), preferredId: await readMediaObjectStoreSetting({ settingsRepo, workspaceId }),
+                resolveCredential: async ({ id }) => { const resolved = await credentials.resolve({ workspaceId, target: targetOf(id) }); return resolved.ok ? resolved : undefined; } });
+              if (!chosen) return undefined;
+              const target = targetOf(chosen.id), resolved = chosen.credential;
               // Reuse the plugin's signing/PUT/DELETE owner; pin only the anonymous verification hop.
               // A normal publish's kit remains unchanged, including its observability.
               const kit = createDeployHostKit({});
@@ -2898,7 +2895,12 @@ async function composeSiteRouteDeps(
                 const response = await guardedOutboundHttpClient.send({ request: { method: "HEAD", url, headers: {}, idleTimeoutMs: options.timeoutMs, totalDeadlineMs: options.timeoutMs, maxResponseBytes: 1024, signal: init.signal ?? undefined } }, { redirect: "error" });
                 return new Response(null, { status: response.status, headers: response.headers });
               } };
-              return { provider: target, binding: storageBinding, store: chosen.provider.createArtifactStore({ credential: toDeployTargetCredential(resolved), config: {}, kit: shareKit }) };
+              const store = chosen.provider.createArtifactStore({ credential: toDeployTargetCredential(resolved), config: {}, kit: shareKit });
+              // A new default connection must never turn revocation into deletion in another bucket.
+              // Bind non-secret storage coordinates, allowing credentials to rotate for the same store;
+              // a provider that names its own store (e.g. a token-scoped one) supplies that instead.
+              const storageBinding = store.binding ?? JSON.stringify([resolved.bucket, resolved.region, resolved.endpoint ?? "", resolved.publicUrl]);
+              return { provider: target, binding: storageBinding, store };
             },
           }, selection),
         });

@@ -34,7 +34,7 @@ function blobFake(options = {}) {
     const url = new URL(input);
     const headers = new Headers(init.headers);
     const method = init.method ?? "GET";
-    calls.push({ method, url: url.href, authorization: headers.get("authorization") });
+    calls.push({ method, url: url.href, authorization: headers.get("authorization"), headers: Object.fromEntries(headers) });
     if (url.origin === "https://vercel.com" && url.pathname.startsWith("/api/blob")) {
       if (options.apiStatus) return new Response(`denied for ${headers.get("authorization")}`, { status: options.apiStatus });
       if (headers.get("authorization") !== `Bearer ${blobToken}`) return new Response(null, { status: 403 });
@@ -121,7 +121,7 @@ test("the manifest registers provider `vercel`; it is chosen and delivered when 
     { id: "local", label: "This server's disk", provider: { create: () => ({ status: "rejected", error: { code: "not_configured", message: "unused" } }) } },
     { id: "vercel", label: "Vercel Blob", provider },
   ] });
-  const chosen = selectArtifactStoreProvider({ loaded: { registry, refusals: [] }, preferredId: "" });
+  const chosen = await selectArtifactStoreProvider({ loaded: { registry, refusals: [] }, preferredId: "", resolveCredential: async () => ({ token: "vercel-api-token-unused", blobToken }) });
   assert.equal(chosen?.id, "vercel");
   const fake = blobFake();
   const delivery = await resolveShareDelivery({
@@ -146,4 +146,38 @@ test("create, then revoke deletes the blob and verifies it is gone", async () =>
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+test("an S3-style store with no saved credential is skipped, so a Vercel-only site still gets Blob", async () => {
+  const uncredentialed = { create: () => ({ status: "rejected", error: { code: "not_configured", message: "unused" } }), createArtifactStore: () => assert.fail("an uncredentialed store is never built") };
+  const registry = createObjectStoreRegistry({}, { seed: [{ id: "s3_compatible", label: "S3", provider: uncredentialed }, { id: "vercel", label: "Vercel Blob", provider }] });
+  const asked = [];
+  const chosen = await selectArtifactStoreProvider({ loaded: { registry, refusals: [] }, preferredId: "s3_compatible", resolveCredential: async ({ id }) => {
+    asked.push(id);
+    return id === "vercel" ? { token: "vercel-api-token-unused", blobToken } : undefined;
+  } });
+  assert.deepEqual(asked, ["s3_compatible", "vercel"]);
+  assert.equal(chosen?.id, "vercel");
+  const fake = blobFake();
+  const store = chosen.provider.createArtifactStore({ credential: chosen.credential, config: {}, kit: fake.kit });
+  assert.equal((await store.upload({ key, bytes, headers: SHARE_DOWNLOAD_HEADERS })).url, `${STORE_ORIGIN}/${key}?download=1`);
+});
+
+test("the store's binding is its Blob origin, so two Blob stores never share one binding", () => {
+  const { kit } = blobFake();
+  const otherToken = ["vercel_blob_rw_", "OtherStore9", "_", "y".repeat(20)].join("");
+  const binding = (token) => provider.createArtifactStore({ credential: { token: "vercel-api-token-unused", blobToken: token }, config: {}, kit }).binding;
+  assert.equal(binding(blobToken), STORE_ORIGIN);
+  assert.equal(binding(otherToken), "https://otherstore9.public.blob.vercel-storage.com");
+});
+
+test("put and delete send the headers @vercel/blob 2.8.2 sends: API version 13 and public access", async () => {
+  const fake = blobFake();
+  const store = fake.store();
+  await store.upload({ key, bytes, headers: SHARE_DOWNLOAD_HEADERS });
+  await store.delete({ key });
+  const api = fake.calls.filter(call => call.url.startsWith("https://vercel.com/api/blob"));
+  assert.equal(api.length, 2);
+  for (const call of api) assert.equal(call.headers["x-api-version"], "13", call.method);
+  assert.equal(api[0].headers["x-vercel-blob-access"], "public");
 });
