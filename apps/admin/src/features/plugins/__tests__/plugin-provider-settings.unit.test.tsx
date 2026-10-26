@@ -14,6 +14,7 @@ import { usePluginProviderSettings } from "../hooks/use-plugin-provider-settings
  */
 
 const t = (key: string) => key;
+const UNREADABLE_NOTICE = "Saved keys for this plugin can't be read on this machine. Enter them again here and save.";
 const LEGACY_NOTICE = "A key for this plugin was saved in an older format that Tovu no longer reads. Enter it again here and save.";
 
 function card(overrides: Partial<AdminPluginProviderSettings> = {}): AdminPluginProviderSettings {
@@ -50,10 +51,22 @@ describe("PluginProviderSettingsDialog", () => {
     await waitFor(() => expect(screen.queryByText(LEGACY_NOTICE)).toBeNull());
   });
 
+  it("saved keys this machine can't read ask to be entered again; saving clears the notice", async () => {
+    const providerSettings = { "observability-opentelemetry": card({ unreadable: true, fields: card().fields.map((field) => ({ ...field, saved: false, value: undefined })) }) };
+    dialogWith(createFakePluginsPort({ providerSettings }));
+    const notice = await screen.findByText(UNREADABLE_NOTICE);
+    expect(notice.getAttribute("role")).toBe("note");
+    fireEvent.change(screen.getByLabelText(/OTLP endpoint/), { target: { value: "https://new.example.test" } });
+    fireEvent.change(screen.getByLabelText(/OTLP headers/), { target: { value: "Authorization=Basic abc" } });
+    fireEvent.submit(screen.getByRole("button", { name: "Save" }).closest("form")!);
+    await waitFor(() => expect(screen.queryByText(UNREADABLE_NOTICE)).toBeNull());
+  });
+
   it("no notice when nothing was saved the retired way", async () => {
     dialogWith(createFakePluginsPort({ providerSettings: { "observability-opentelemetry": card() } }));
     await screen.findByLabelText(/OTLP endpoint/);
     expect(screen.queryByText(LEGACY_NOTICE)).toBeNull();
+    expect(screen.queryByText(UNREADABLE_NOTICE)).toBeNull();
   });
 
   it("saves edits; a blank secret keeps the saved one; the form resets secrets to blank", async () => {

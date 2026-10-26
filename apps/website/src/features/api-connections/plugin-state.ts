@@ -65,8 +65,8 @@ const isConflict = (error: unknown): boolean => error instanceof VaultError && e
  * Creates the workspace's plugin-state store over the api-connection vault.
  * @param required.vault - The workspace's api-connection vault (`createApiConnectionVault`).
  * @param required.workspaceId - The only workspace this store serves; any other scope is refused.
- * @complexity get/delete O(1) vault calls; set O(1), plus O(r) rows to count keys when it creates one;
- * describe O(r log r).
+ * @complexity get/delete O(1) vault calls; set O(r) in the workspace's api-connection rows (one
+ * summary listing); describe O(r log r).
  */
 export function createAgentPluginStateStore(
   required: { readonly vault: SecretsVaultService; readonly workspaceId: string },
@@ -98,16 +98,16 @@ export function createAgentPluginStateStore(
     return { keys };
   }
 
-  async function keyCount(pluginId: string): Promise<number> {
-    return (await vault.list({ ...scope })).filter((row) => row.id.startsWith(rowPrefix(pluginId))).length;
-  }
-
+  /** The existing row's revision comes from the summary listing, which opens no envelope: a row sealed
+   *  under a key this machine no longer has (a lost or re-minted store key) can still be overwritten,
+   *  so the user re-enters the setting instead of being stuck behind an error. */
   async function write(input: AgentPluginStateScope, key: string, value: AdminSurfaceStateValue): Promise<void> {
     const id = rowId(input, key);
     const stored = checkedValue(value);
-    const existing = await vault.get({ ...scope, id });
-    if (!existing && (await keyCount(input.pluginId)) >= PLUGIN_STATE_MAX_KEYS) throw new Error(`A plugin may keep at most ${PLUGIN_STATE_MAX_KEYS} settings here. Remove one and retry.`);
-    await vault.put({ ...scope, id, expectedRevision: existing?.summary.revision ?? null, provider: null, label: `Plugin settings ${id}`,
+    const rows = await vault.list({ ...scope });
+    const existing = rows.find((row) => row.id === id);
+    if (!existing && rows.filter((row) => row.id.startsWith(rowPrefix(input.pluginId))).length >= PLUGIN_STATE_MAX_KEYS) throw new Error(`A plugin may keep at most ${PLUGIN_STATE_MAX_KEYS} settings here. Remove one and retry.`);
+    await vault.put({ ...scope, id, expectedRevision: existing?.revision ?? null, provider: null, label: `Plugin settings ${id}`,
       meta: { credentialFormat: PLUGIN_STATE_FORMAT }, payload: { value: stored } as unknown as VaultMeta })
       .catch((error: unknown) => {
         if (isConflict(error)) throw new Error("This setting changed while it was being saved. Reload the plugin's settings and retry.", { cause: error });

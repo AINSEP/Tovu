@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { AgentPluginStateStore } from "#src/features/api-connections/plugin-state";
 
-import { createVaultProviderConfigSource, withProjectPrecedence, type ProviderConfigSource } from "../provider-config-source.js";
+import { ProviderConfigUnreadableError, createVaultProviderConfigSource, withProjectPrecedence, type ProviderConfigSource } from "../provider-config-source.js";
 
 /**
  * @file The provider-settings port with DI fakes: a Map-backed plugin-state store stands in for the
@@ -112,4 +112,29 @@ test("vault adapter: a read racing a rotation never pairs the old endpoint with 
   const found = await createVaultProviderConfigSource({ state: racing, workspaceId: "ws", scope: "site" }).read({ pluginId: "obs" });
   assert.ok(isWholePair(found), `read a mixed pair: ${JSON.stringify(found)}`);
   assert.ok(isWholePair(await source.read({ pluginId: "obs" })));
+});
+
+test("vault adapter: a row this machine cannot open reads as unreadable (listed but not openable); any other failure surfaces as itself", async () => {
+  const sealed = new Error("Unsupported state or unable to authenticate data");
+  const stateWith = (keys: { key: string; revision: number }[] | Error) => ({
+    forPlugin: () => ({ get: async () => { throw sealed; }, set: async () => {}, delete: async () => {} }),
+    describe: async () => { if (keys instanceof Error) throw keys; return { keys }; },
+  }) as unknown as AgentPluginStateStore;
+  const unreadable = createVaultProviderConfigSource({ state: stateWith([{ key: "provider.config", revision: 3 }]), workspaceId: "ws", scope: "project" });
+  const error = await unreadable.read({ pluginId: "obs" }).catch((caught: unknown) => caught);
+  assert.ok(error instanceof ProviderConfigUnreadableError);
+  assert.equal((error as Error).cause, sealed);
+  assert.deepEqual(await unreadable.readSettings({ pluginId: "obs" }), { settings: {}, secretNames: [], unreadable: true });
+  // Not listed (or the listing fails too): the store itself is failing, so the original error surfaces.
+  const missing = createVaultProviderConfigSource({ state: stateWith([{ key: "other", revision: 1 }]), workspaceId: "ws", scope: "project" });
+  await assert.rejects(missing.read({ pluginId: "obs" }), (caught) => caught === sealed);
+  await assert.rejects(missing.readSettings({ pluginId: "obs" }), (caught) => caught === sealed);
+  const down = createVaultProviderConfigSource({ state: stateWith(new Error("db down")), workspaceId: "ws", scope: "project" });
+  await assert.rejects(down.read({ pluginId: "obs" }), (caught) => caught === sealed);
+  // Precedence: an unreadable project row never falls back to the site's row.
+  const site: ProviderConfigSource = { scope: "site", read: async () => ({ settings: { endpoint: "https://site" }, secrets: {} }),
+    readSettings: async () => ({ settings: { endpoint: "https://site" }, secretNames: [] }), write: async () => {} };
+  const both = withProjectPrecedence({ site }, { project: unreadable });
+  await assert.rejects(both.read({ pluginId: "obs" }), ProviderConfigUnreadableError);
+  assert.deepEqual(await both.readSettings({ pluginId: "obs" }), { settings: {}, secretNames: [], unreadable: true });
 });

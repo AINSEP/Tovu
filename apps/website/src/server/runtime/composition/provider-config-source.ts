@@ -25,15 +25,41 @@ export interface ProviderPluginConfig {
   readonly secrets: Readonly<Record<string, string>>;
 }
 
+/** The admin card's view: public values and the NAMES of saved secrets, never a secret value. */
+export interface ProviderSettingsView {
+  readonly settings: Readonly<Record<string, string>>;
+  readonly secretNames: readonly string[];
+  /** A row is saved but this machine cannot open it (the store's key was lost or re-minted): shown as
+   *  not configured, with a notice to enter the settings again. */
+  readonly unreadable?: true;
+}
+
 export interface ProviderConfigSource {
   /** Which store this is, for the admin card ("saved for this project" vs "this site"). */
   readonly scope: "project" | "site";
-  /** Null when nothing was ever saved for the plugin. */
+  /** Null when nothing was ever saved for the plugin.
+   *  @throws {ProviderConfigUnreadableError} When a row is saved but cannot be opened here. */
   read(required: { pluginId: string }, optional?: Record<string, never>): Promise<ProviderPluginConfig | null>;
-  /** Public values only (no secret is decrypted); null when nothing was saved. */
-  readSettings(required: { pluginId: string }, optional?: Record<string, never>): Promise<{ settings: Readonly<Record<string, string>>; secretNames: readonly string[] } | null>;
+  /** Public values and secret names. The row holding both halves is decrypted to read them (see the
+   *  file header), but no secret value is returned. Null when nothing was saved. */
+  readSettings(required: { pluginId: string }, optional?: Record<string, never>): Promise<ProviderSettingsView | null>;
+  /** Saves the whole config, overwriting a row this machine cannot open. */
   write(required: { pluginId: string; config: ProviderPluginConfig }, optional?: Record<string, never>): Promise<void>;
 }
+
+/**
+ * A plugin's settings row exists but cannot be opened on this machine: the store's key was lost or
+ * re-minted (e.g. `project.db` synced to another machine without `~/.tovu/project-key.hex`). Boot
+ * treats it as unconfigured (noop); the card asks for the settings again; a save overwrites the row.
+ */
+export class ProviderConfigUnreadableError extends Error {
+  constructor(required: { pluginId: string; cause: unknown }, _optional: Record<string, never> = {}) {
+    super(`the saved settings for '${required.pluginId}' can't be read on this machine; enter them again`, { cause: required.cause });
+    this.name = "ProviderConfigUnreadableError";
+  }
+}
+
+const UNREADABLE_VIEW: ProviderSettingsView = Object.freeze({ settings: Object.freeze({}), secretNames: Object.freeze([]), unreadable: true });
 
 const CONFIG_KEY = "provider.config";
 
@@ -53,8 +79,17 @@ export function createVaultProviderConfigSource(
   _optional: Record<string, never> = {},
 ): ProviderConfigSource {
   const store = ({ pluginId }: { pluginId: string }) => required.state.forPlugin({ workspaceId: required.workspaceId, pluginId });
+  /**
+   * Classifies a failed row read: the row is listed (the listing opens no envelope) but could not be
+   * opened → unreadable on this machine; otherwise the store itself is failing → the original error.
+   */
+  async function unreadableOr({ pluginId, error }: { pluginId: string; error: unknown }): Promise<never> {
+    const listed = await required.state.describe({ workspaceId: required.workspaceId, pluginId })
+      .then(({ keys }) => keys.some((entry) => entry.key === CONFIG_KEY), () => false);
+    throw listed ? new ProviderConfigUnreadableError({ pluginId, cause: error }) : error;
+  }
   async function read({ pluginId }: { pluginId: string }): Promise<ProviderPluginConfig | null> {
-    const row = (await store({ pluginId }).get({ key: CONFIG_KEY })) as { settings?: unknown; secrets?: unknown } | null;
+    const row = (await store({ pluginId }).get({ key: CONFIG_KEY }).catch((error: unknown) => unreadableOr({ pluginId, error }))) as { settings?: unknown; secrets?: unknown } | null;
     if (!row || typeof row !== "object") return null;
     return { settings: stringRecord(row.settings) ?? {}, secrets: stringRecord(row.secrets) ?? {} };
   }
@@ -62,9 +97,16 @@ export function createVaultProviderConfigSource(
     scope: required.scope,
     read,
     async readSettings({ pluginId }) {
-      const found = await read({ pluginId });
+      let found: ProviderPluginConfig | null;
+      try {
+        found = await read({ pluginId });
+      } catch (error) {
+        if (error instanceof ProviderConfigUnreadableError) return UNREADABLE_VIEW;
+        throw error;
+      }
       if (!found) return null;
-      return { settings: found.settings, secretNames: Object.keys(found.secrets).filter((name) => found.secrets[name] !== "") };
+      const { settings, secrets } = found;
+      return { settings, secretNames: Object.keys(secrets).filter((name) => secrets[name] !== "") };
     },
     async write({ pluginId, config }) {
       await store({ pluginId }).set({ key: CONFIG_KEY, value: { settings: { ...config.settings }, secrets: { ...config.secrets } } });
