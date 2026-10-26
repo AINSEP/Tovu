@@ -6,6 +6,7 @@ import {
   copyKeysResultText,
   otherCredentialRemoveDialogBody,
   removeDialogTitle,
+  sharedKeyReplaceWarning,
   siteKeyGenerateErrorMessage,
   siteKeyRevealErrorMessage,
   t,
@@ -175,5 +176,27 @@ describe("site key terminology copy", () => {
   it("names the key in German and Spanish", () => {
     expect(t({ locale: "de", key: "Site key" })).toBe("Website-Schlüssel");
     expect(t({ locale: "es", key: "Site key" })).toBe("Clave del sitio");
+  });
+});
+
+describe("Access Tokens project-key strings", () => {
+  const KEYS = [
+    "Project — used by:", "Project — not used by any site yet", "This site only", "Use on this site",
+    "Stop using on this site", "Use on this site to replace this key.", "Save key to",
+    "Save to project and use on this site", "Used by 1 other site; it will use the new token too.",
+    "Used by {count} other sites; they will use the new token too.",
+  ];
+
+  it.each(LOCALES)("translates every usage string in %s", (locale) => {
+    for (const key of KEYS) expect(t({ locale, key })).not.toBe(key);
+  });
+
+  it("counts only the other sites in the replace warning", () => {
+    const en = (key: string) => t({ locale: "en", key });
+    expect(sharedKeyReplaceWarning({ usedBy: ["Shop"], usedByThisSite: true, t: en })).toBeNull();
+    expect(sharedKeyReplaceWarning({ usedBy: ["Shop"], usedByThisSite: false, t: en })).toBe("Used by 1 other site; it will use the new token too.");
+    expect(sharedKeyReplaceWarning({ usedBy: ["Shop", "Docs", "Blog"], usedByThisSite: true, t: en })).toBe("Used by 2 other sites; they will use the new token too.");
+    expect(sharedKeyReplaceWarning({ usedBy: ["Shop", "Docs", "Blog"], usedByThisSite: true, t: (key) => t({ locale: "es", key }) }))
+      .toBe("La usan 2 sitios más; también usarán el token nuevo.");
   });
 });
