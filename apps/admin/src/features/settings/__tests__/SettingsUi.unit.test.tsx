@@ -284,8 +284,9 @@ describe("Privacy tab — product analytics consent", () => {
     await goToTab(user, "privacy");
     expect(screen.getByText("Metrics consent allows product analytics. Operational error reporting is controlled by its provider plugin.")).toBeInTheDocument();
     expect(document.querySelector("[inert]")).toBeNull();
-    await user.click(screen.getByRole("button", { name: "Share usage" }));
-    expect(controller.privacy.onChange).toHaveBeenCalledWith(expect.objectContaining({ telemetry: { metrics: true, content: true } }));
+    // The toggles are the one presentation of the choices (no "Share usage" button since 2026-10-26).
+    await user.click(screen.getByRole("button", { name: /Product analytics/ }));
+    expect(controller.privacy.onChange).toHaveBeenCalledWith(expect.objectContaining({ telemetry: expect.objectContaining({ metrics: true }) }));
   });
 });
 
