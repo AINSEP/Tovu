@@ -2,10 +2,10 @@
 import { compileConsentCss, type ConsentConfig } from '@jini-ai/cms/consent';
 import { consentPolicyHref } from '@jini-ai/cms/consent/html';
 import { ToolInputError } from '@jini-ai/core';
-import { SITE_CONSENT_DEFAULTS, SITE_CONSENT_PLACEMENTS, SITE_CONSENT_REGION_MODES, SITE_CONSENT_TEXT_LIMITS, type SiteConsentSettings } from './config.js';
+import { SITE_CONSENT_BANNER_MODES, SITE_CONSENT_DEFAULTS, SITE_CONSENT_PLACEMENTS, SITE_CONSENT_REGION_MODES, SITE_CONSENT_TEXT_LIMITS, type SiteConsentSettings } from './config.js';
 
 export type ConsentProblem = { code: string; message: string; field?: string };
-const FIELDS = [...Object.keys(SITE_CONSENT_DEFAULTS), 'appearance', 'customCss', 'allowUnsafeEval', 'reopen'];
+const FIELDS = [...Object.keys(SITE_CONSENT_DEFAULTS), 'appearance', 'customCss', 'allowUnsafeEval', 'reopen', 'bannerMode'];
 
 /** Strict full configuration input; every host field is explicit, including the on/off choice.
  * Missing fields, unknown fields and type mismatches never reach persistence.
@@ -50,8 +50,10 @@ function validateConsentAppearanceShape({ raw }: { raw: Record<string, unknown> 
 }
 
 /** Readiness and publication share this decision. Jini is the only CSS/link authority. O(n). */
-export function consentConfigProblems({ config }: { config: ConsentConfig; trustedRegion: boolean }, _options = {}): ConsentProblem[] {
-  const problems: ConsentProblem[] = compileConsentCss({ css: config.customCss, tokens: config.appearance }).problems.map(problem => ({ ...problem, field: 'appearance' }));
+/** `cssBlocks: false` (cookie-consent engine): a bad CSS rule is dropped on its own and reported by the
+ * preview, so it never blocks publishing. */
+export function consentConfigProblems({ config }: { config: ConsentConfig; trustedRegion: boolean }, { cssBlocks = true }: { cssBlocks?: boolean } = {}): ConsentProblem[] {
+  const problems: ConsentProblem[] = cssBlocks ? compileConsentCss({ css: config.customCss, tokens: config.appearance }).problems.map(problem => ({ ...problem, field: 'appearance' })) : [];
   if (config.enabled && !consentPolicyHref({ url: config.privacyPolicyUrl })) problems.push({ code: 'PRIVACY_LINK_REQUIRED', field: 'privacyPolicyUrl', message: 'Link a published privacy page or a credential-free HTTPS privacy policy.' });
   if (Boolean(config.secondaryLinkLabel) !== Boolean(config.secondaryLinkUrl) || (config.secondaryLinkUrl && !consentPolicyHref({ url: config.secondaryLinkUrl }))) problems.push({ code: 'SECONDARY_LINK_INVALID', field: 'secondaryLinkUrl', message: 'Supply both a secondary link label and a local or HTTPS link.' });
   if (config.regionMode === 'opt-out') problems.push({ code: 'GLOBAL_OPT_OUT_REFUSED', field: 'regionMode', message: 'Use automatic region mode for US opt-out. EU, UK and unknown regions must keep Reject.' });
@@ -62,4 +64,5 @@ export function consentConfigProblems({ config }: { config: ConsentConfig; trust
 function validateConsentOptions({ raw }: { raw: Record<string, unknown> }, _options = {}): void {
   if ('allowUnsafeEval' in raw && typeof raw.allowUnsafeEval !== 'boolean') throw new ToolInputError({ message: 'allowUnsafeEval must be a boolean.' });
   if ('reopen' in raw && raw.reopen !== 'link') throw new ToolInputError({ message: 'Tovu cookie preferences reopen through a link.' });
+  if ('bannerMode' in raw && !SITE_CONSENT_BANNER_MODES.includes(raw.bannerMode as never)) throw new ToolInputError({ message: 'Choose the Jini banner, your own banner, or none.' });
 }
