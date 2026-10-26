@@ -416,6 +416,45 @@ export function useSiteSectionAvailability(
   return snapshot.data.switchingEnabled === true ? "available" : "unavailable";
 }
 
+/** Where {@link useSidebarSiteSection} remembers this deployment's last confirmed answer. */
+export const SITES_ROW_STORAGE_KEY = "tovu-admin-sites-row-available";
+
+/** Storage access throws in a locked-down browser; the row then simply waits for the server. */
+function readSitesRowFlag(storage: Pick<Storage, "getItem"> | undefined): boolean {
+  try { return storage?.getItem(SITES_ROW_STORAGE_KEY) === "1"; } catch { return false; }
+}
+
+function writeSitesRowFlag(storage: Pick<Storage, "setItem"> | undefined, available: boolean): void {
+  try { storage?.setItem(SITES_ROW_STORAGE_KEY, available ? "1" : "0"); } catch { /* best effort */ }
+}
+
+function defaultSitesRowStorage(): Storage | undefined {
+  try { return typeof window === "undefined" ? undefined : window.localStorage; } catch { return undefined; }
+}
+
+/**
+ * The sidebar's own view of {@link useSiteSectionAvailability}: while the server's answer is still
+ * `unknown`, it reuses this browser's last confirmed answer for this deployment, so the Sites row is
+ * there from the first paint instead of arriving late and pushing every row under it down (owner,
+ * 2026-10-26: a mis-click risk). Nav only — the route gate keeps the strict three-state answer, so a
+ * `/admin/sites` visit still holds until the server confirms. A deployment that never had the
+ * section (desktop, hosted) remembers `unavailable` and shows no row either way.
+ *
+ * @param availability - {@link useSiteSectionAvailability}'s answer.
+ * @param options.storage - Injectable `localStorage`.
+ * @complexity O(1).
+ */
+export function useSidebarSiteSection(
+  availability: SiteSectionAvailability,
+  { storage = defaultSitesRowStorage() }: { storage?: Pick<Storage, "getItem" | "setItem"> } = {},
+): SiteSectionAvailability {
+  const [lastAvailable] = useState(() => readSitesRowFlag(storage));
+  useEffect(() => {
+    if (availability !== "unknown") writeSitesRowFlag(storage, availability === "available");
+  }, [availability, storage]);
+  return availability === "unknown" && lastAvailable ? "available" : availability;
+}
+
 /** {@link withoutSiteSection}'s predicate, hoisted out of the `.filter` call so the id comparison is
  *  one named thing rather than an inline arrow repeated per group. */
 function isNotSiteSection(item: AdminNavItem): boolean {

@@ -56,6 +56,7 @@ import {
   useScreenshotAnnouncement,
   useSidebarDrawer,
   useSiteSectionAvailability,
+  useSidebarSiteSection,
   withoutSiteSection,
   type SiteSectionAvailability,
   type UseLogoutConfirm,
@@ -583,8 +584,11 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
   // `TOVU_ENABLE_SITE_SWITCHER` — whether this deployment has a Sites section at all. Called
   // unconditionally here for the same rules-of-hooks reason as the line above, and read TWICE
   // below (the nav filter and the route gate) from this one value, so the sidebar and the router
-  // can never disagree about whether the section exists. See `useSiteSectionAvailability`.
+  // can never disagree about whether the section exists. See `useSiteSectionAvailability`. The one
+  // exception is the pending window: the sidebar keeps the last confirmed answer so the Sites row
+  // does not arrive late and shift the rows under it, while the route gate still holds.
   const siteSection = useSiteSectionAvailability(user);
+  const sidebarSiteSection = useSidebarSiteSection(siteSection);
   const routePath = useRouteLocation();
   const route = useMemo(() => parseRoute(routePath), [routePath]);
   // Tells the assistant which screen each message is sent from; an editor adds its open entry.
@@ -649,7 +653,7 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
    * Overview declares no permission, so the `slice(0, 1)` boundary still holds.
    */
   const rawNavGroups = withoutInaccessiblePanels({
-    groups: withoutSiteSection(getNav(), siteSection),
+    groups: withoutSiteSection(getNav(), sidebarSiteSection),
     panels: ADMIN_PANELS,
     permissions: effectivePermissions,
   });
