@@ -212,10 +212,11 @@ export async function seedSite(required: { deps: SiteDeps }): Promise<{ connecti
     notify: { enabled: false, recipients: [] },
     fields: [{ id: "email", label: "Email", type: "email", required: true }, { id: "message", label: "Message", type: "textarea", required: false }] });
   const credentials = { repo: deps.customCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen };
-  await createCustomCredential(credentials, { workspaceId: deps.workspaceId, label: formDestinationKeyLabel({ scope: RECEIVER_SCOPE }), category: "hosting",
+  // Site-owned, as formReceiverKey saves it: a project key attaches to no site until the owner says yes.
+  await createCustomCredential(credentials, { workspaceId: deps.workspaceId, scope: "site", label: formDestinationKeyLabel({ scope: RECEIVER_SCOPE }), category: "hosting",
     baseUrl: RECEIVER_URL, connection: { token: fixtureToken({ name: "receiver" }) } });
-  const a = await createCustomCredential(credentials, { workspaceId: deps.workspaceId, label: "Rows A", category: "general", baseUrl: "https://rows-a.example.test", worksFor: [PUSH_A], connection: { token: fixtureToken({ name: "rows-a" }) } });
-  const b = await createCustomCredential(credentials, { workspaceId: deps.workspaceId, label: "Rows B", category: "general", baseUrl: "https://rows-b.example.test", worksFor: [PUSH_B], connection: { token: fixtureToken({ name: "rows-b" }) } });
+  const a = await createCustomCredential(credentials, { workspaceId: deps.workspaceId, scope: "site", label: "Rows A", category: "general", baseUrl: "https://rows-a.example.test", worksFor: [PUSH_A], connection: { token: fixtureToken({ name: "rows-a" }) } });
+  const b = await createCustomCredential(credentials, { workspaceId: deps.workspaceId, scope: "site", label: "Rows B", category: "general", baseUrl: "https://rows-b.example.test", worksFor: [PUSH_B], connection: { token: fixtureToken({ name: "rows-b" }) } });
   return { connectionA: a.id, connectionB: b.id };
 }
 
