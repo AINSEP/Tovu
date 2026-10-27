@@ -267,3 +267,31 @@ test("vendor neutrality end to end: a second provider plugin connects, stores se
   }]);
   assert.ok(!JSON.stringify([written, call.html]).includes(accessToken), "no token in the tool result or the confirmation card");
 });
+
+test("security: the composition gives the assistant's tool registrar and the admin screen's connections ONE frozen-account map, so an admin action the assistant runs is pinned", async () => {
+  const composition = await compose();
+  const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
+  const registry = createToolRegistry({});
+  const registered = await registerAgentPluginExecutableTools({
+    registry, workspaceId: WORKSPACE, host: composition.agentPluginTools, authorize: allowAll, isActive: async () => true,
+    applyApproval: ({ registration }, { disclose }) => applyToolApprovalPolicy({ registration, surfaces }, { disclose }),
+  });
+  try {
+    await composition.adminSurfaceHost.bootstrapData({ context: { workspaceId: WORKSPACE, principalId: "admin-1", pluginId: PLUGIN, surfaceId: "account" } });
+    const f = { executor: createToolExecutor({ registry }), surfaces };
+    // Approved while the account was not connected: the card froze no account for this call.
+    const call = await startConfirmingCall(f, "p_acme_office__account_whoami", { payload: {} });
+    assert.deepEqual(call.rows.filter(([label]) => label === "Account"), []);
+    await connectForRef(composition);
+    call.answer("confirm");
+    const refused = await call.pending;
+    // The registrar froze this call's accounts in the map the screen's connections port reads, so the
+    // account connected while the card waited gets no token. A second map would see an unfrozen call.
+    assert.deepEqual((refused.output as { ok?: boolean } | undefined)?.ok, false, JSON.stringify(refused));
+    // Approved with the account shown: the same action gets its token.
+    const shown = await startConfirmingCall(f, "p_acme_office__account_whoami", { payload: {} });
+    assert.deepEqual(shown.rows.filter(([label]) => label === "Account"), [["Account", "Ada"]]);
+    shown.answer("confirm");
+    assert.deepEqual((await shown.pending).output, { ok: true, result: { name: "Ada" } });
+  } finally { registered.dispose(); }
+});
