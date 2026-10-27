@@ -116,6 +116,10 @@ export function captureHtml({ res, transform }: { res: Response; transform: (req
   const chunks: Buffer[] = [];
   let size = 0;
   const isHtml = () => String(res.getHeader('content-type') ?? '').includes('text/html') && !res.getHeader('content-encoding') && !res.headersSent;
+  // `res.send` ends with one chunk and never calls `write`, so the cap is checked here too. An empty
+  // body (HEAD) has nothing to transform, and its Content-Length/ETag describe the GET body.
+  const untouched = (body: Buffer) => !isHtml() || body.length === 0 || body.length > maxBytes
+    || res.statusCode >= 400 || res.statusCode === 204 || res.statusCode === 304;
   const passThrough = () => { res.write = write; res.end = end; const held = Buffer.concat(chunks); chunks.length = 0; if (held.length) Reflect.apply(write, res, [held]); };
   res.write = function (this: Response, chunk: unknown, encoding?: unknown, callback?: unknown) {
     const buffer = toBuffer({ chunk: chunk as string | Uint8Array, encoding });
@@ -130,7 +134,7 @@ export function captureHtml({ res, transform }: { res: Response; transform: (req
     if (typeof chunk === 'string' || chunk instanceof Uint8Array) chunks.push(toBuffer({ chunk, encoding }));
     const done = [chunk, encoding, callback].find(item => typeof item === 'function') as (() => void) | undefined;
     const original = Buffer.concat(chunks);
-    if (!isHtml() || res.statusCode >= 400 || res.statusCode === 204 || res.statusCode === 304) { Reflect.apply(end, this, [original, done]); return this; }
+    if (untouched(original)) { Reflect.apply(end, this, [original, done]); return this; }
     transform({ html: original.toString('utf8') }).then(html => {
       res.removeHeader('Content-Length'); res.removeHeader('ETag');
       Reflect.apply(end, this, [Buffer.from(html), done]);
@@ -232,7 +236,8 @@ async function collectorDecision(
   const state = await readSiteVisitorConsent({ deps, req });
   const allowed = category === 'analytics' && state.analyticsLevel === 'anonymous' ? adapter.supportsAnonymous === true : state.allowed[category];
   if (!allowed) return denied;
-  return { status: (await limiter.check({ key: resolveClientIp(req) })).allowed ? null : 429, analyticsLevel: state.analyticsLevel };
+  // The receipts' key (an IPv6 /64), so rotating addresses inside one network shares one budget.
+  return { status: (await limiter.check({ key: consentRateLimitKey({ address: resolveClientIp(req) }) })).allowed ? null : 429, analyticsLevel: state.analyticsLevel };
 }
 
 /** The server gate: what this visitor may run right now (GPC/DNT applied, durable rule: an
