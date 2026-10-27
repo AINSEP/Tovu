@@ -219,6 +219,8 @@ test("ordinary media travels unchanged; an active document loses its uploader; a
   insertMedia(sql, { id: "m1", sha: SHA_A, createdBy: "uploader" });
   insertDocument(sql, { id: "d1", sha: SHA_B });
   insertDocument(sql, { id: "d2", sha: SHA_C, status: "trashed" });
+  // Every shared media row needs its source blob since ee8eb404a (v2 archive refuses MISSING_MEDIA).
+  insertBlob(sql, { id: "b-a", sha: SHA_A });
   insertBlob(sql, { id: "b-b", sha: SHA_B });
   const { rows } = await share(t, sql);
   assert.deepEqual(rows("media").map(row => [row.id, row.kind, row.created_by]), [["m1", "media", "uploader"], ["d1", "document", null]]);
