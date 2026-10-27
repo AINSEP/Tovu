@@ -9,7 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import express from 'express';
 import { JSDOM } from 'jsdom';
-import type { RegionResolver } from '@jini-ai/cookie-consent';
+import { CONSENT_COOKIE, type RegionResolver } from '@jini-ai/cookie-consent';
 import { consentFixture } from '#src/features/consent/__tests__/fixture';
 import type { SiteConsentSource } from '#src/features/consent/cookie-consent';
 import { createRouteDeps } from '#src/server/runtime/composition/app';
@@ -56,7 +56,7 @@ async function publicFixture({ t }: { t: TestContext }, { config = {}, resolvers
 
 /** A browser choice with a receipt by default; patches exercise pending, stale and denied choices. */
 function consentCookie({ policy, now }: { policy: string; now: number }, { patch = {} }: { patch?: Record<string, unknown> } = {}): string {
-  return 'jini_consent=' + encodeURIComponent(JSON.stringify({ v: 1, p: policy, t: now, a: 'accept', c: { functional: true, analytics: true, marketing: true }, r: 'receipt_fixture_0123456789', ...patch }));
+  return CONSENT_COOKIE + '=' + encodeURIComponent(JSON.stringify({ v: 1, p: policy, t: now, a: 'accept', c: { functional: true, analytics: true, marketing: true }, r: 'receipt_fixture_0123456789', ...patch }));
 }
 
 /** A GET whose path reaches the server byte for byte (fetch would normalize dot segments away). */
@@ -102,6 +102,33 @@ test('ordinary and streamed public HTML get one banner, config, client and foote
     } finally { dom.window.close(); }
   }
   assert.deepEqual(f.calls, [], 'rendering the page must not call a plugin');
+});
+
+test('only live new-engine pages expire the old HttpOnly cookie without adopting its consent', async t => {
+  const f = await publicFixture({ t });
+  const legacy = 'jini_consent=old_receipt_0123456789';
+  const current = consentCookie({ policy: f.policy, now: f.deps.clock.nowMs() });
+  const stateFor = (cookie: string) => readSiteVisitorConsent({ deps: f.deps, req: { get: (name: string) => name === 'cookie' ? cookie : undefined } as unknown as import('express').Request });
+  assert.equal((await stateFor(legacy)).status, 'pending');
+  assert.equal((await stateFor(legacy)).allowed.analytics, false);
+  assert.equal((await stateFor(current.replace(CONSENT_COOKIE, 'jini_consent'))).status, 'pending', 'even new-format data under the old name is not consent');
+  const response = await fetch(f.base, { headers: { cookie: legacy } });
+  assert.match(response.headers.get('set-cookie') ?? '', /jini_consent=; Path=\/; Expires=Thu, 01 Jan 1970.*HttpOnly/);
+  await response.text();
+  const chosen = await stateFor(`${legacy}; ${current}`);
+  assert.equal(chosen.status, 'set', 'a surviving old cookie cannot shadow the new choice');
+  assert.equal(chosen.allowed.analytics, true);
+  const next = await fetch(f.base + '/about', { headers: { cookie: current } });
+  assert.equal(next.headers.get('set-cookie'), null, 'the new choice is never cleared');
+  await next.text();
+  for (const route of ['/asset.css', '/admin/example', CLIENT.src]) {
+    const asset = await fetch(f.base + route, { headers: { cookie: legacy } });
+    assert.equal(asset.headers.get('set-cookie'), null);
+    await asset.text();
+  }
+  const exported = await fetch(f.base, { headers: { cookie: legacy, 'x-tovu-static-export': '1' } });
+  assert.equal(exported.headers.get('set-cookie'), null);
+  await exported.text();
 });
 
 test('POST /_consent saves an immutable receipt in the serving site, returns 201 and sets no cookie', async t => {

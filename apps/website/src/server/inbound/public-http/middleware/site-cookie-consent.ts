@@ -156,6 +156,11 @@ function setRegionCookie({ req, res, hint }: { req: Request; res: Response; hint
   if (hint === 'strict' && current !== undefined) res.clearCookie(REGION_COOKIE, { path: '/' });
 }
 
+/** Only this engine retires the old host-only HttpOnly cookie; its receipt id proves no new categories. */
+function clearLegacyCookie({ req, res }: { req: Request; res: Response }, _optional = {}): void {
+  if (/(?:^|;\s*)jini_consent=/.test(req.get('cookie') ?? '')) res.clearCookie('jini_consent', { path: '/', httpOnly: true, sameSite: 'lax' });
+}
+
 /** The site's receipt files: the same directory the old engine and readiness's storage check use. */
 function siteReceiptStore({ deps }: { deps: RouteDeps }, _optional = {}) {
   return createConsentFileRecords({ directory: path.join(deps.siteBinding.dir, CONSENT_RECEIPTS_DIR_NAME), files: createNodeConsentFiles({
@@ -286,6 +291,7 @@ export function applySiteCookieConsent({ app, deps, consent }: { app: Express; d
     delete req.headers['if-none-match'];
     delete req.headers['if-modified-since'];
     if (!isStaticExportRequest(req)) {
+      clearLegacyCookie({ req, res });
       try { await applyRegionCookie({ req, res, deps, resolvers: await consent.regionResolvers() }); }
       catch { console.error('[consent] region check failed'); }
     }
