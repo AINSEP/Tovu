@@ -7,7 +7,7 @@
  * baseline's method (`2026-10-26-memory-baseline.md`) so every phase is measured the same way:
  *
  *   node development/scripts/measure-site-memory.mjs --site <dir> --mode compiled|tsx
- *     [--idle-seconds 240] [--idle-minutes N]
+ *     [--idle-seconds 240] [--idle-minutes N] [--expect-daemon running|parked]
  *
  * 1. Copies the site into a temp dir. SQLite files go through `sqlite3 .backup`, so a running site's
  *    WAL is folded in and its files are never opened for writing. `.agent-runtime/` (the daemon's
@@ -16,12 +16,17 @@
  *    admin and daemon credentials.
  * 3. Starts `tovu serve` with Electron run as node, the way the desktop spawns it. `compiled` first
  *    transpiles `apps/website/src` file by file with esbuild into the temp dir (no source maps, a
- *    `dist/package.json` for `#src/*`); `tsx` runs the TypeScript source with the tsx loader.
+ *    `dist/package.json` for `#src/*`); `tsx` runs the TypeScript source with the tsx loader and,
+ *    after it, the same `dev-source-maps-off.mjs` preload as the real dev launchers.
  *    `--idle-minutes` sets `TOVU_AGENT_DAEMON_IDLE_MINUTES` for the park phases.
  * 4. Waits `--idle-seconds` of natural idle (default 240: the V8 memory reducer runs within ~4 min).
  * 5. For every process in the server's tree: macOS `footprint`, then over the inspector
  *    `process.memoryUsage()`, the loaded `file:` module count, `HeapProfiler.collectGarbage`, an 8 s
- *    settle, `memoryUsage()` and `footprint` again. Every node child inherits
+ *    settle, `memoryUsage()` and `footprint` again. No sample is taken unless the server is alive
+ *    and the daemon is in the phase's expected state (`--expect-daemon`; default `parked` when the
+ *    idle wait outlasts `--idle-minutes`, else `running`). A process whose `footprint` cannot be read
+ *    makes the result `complete: false` with null totals and exit code 1; it never counts as zero.
+ *    Every node child inherits
  *    `NODE_OPTIONS=--inspect=127.0.0.1:0`; its inspector port is found with `lsof`.
  * 6. Kills every process it started by pid, checks their ports are closed, deletes the temp dir.
  *
@@ -51,28 +56,38 @@ const GC_SETTLE_MS = 8_000;
 const MB = 1024 * 1024;
 const SQLITE_FILE = /\.(db|sqlite)$/;
 const SQLITE_SIDECAR = /\.(db|sqlite)-(wal|shm|journal)$/;
+const MAPS_OFF = new URL("./dev-source-maps-off.mjs", import.meta.url).href;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const log = (message) => process.stderr.write(`measure-site-memory: ${message}\n`);
 const toMb = (bytes) => (bytes === null ? null : Math.round((bytes / MB) * 10) / 10);
 
-/** `--site <dir> --mode compiled|tsx [--idle-seconds N] [--idle-minutes N]` → options. */
-export function parseArgs({ argv }) {
-  const options = { site: null, mode: null, idleSeconds: 240, idleMinutes: null };
+/** `--site <dir> --mode compiled|tsx [--idle-seconds N] [--idle-minutes N] [--expect-daemon running|parked]` → options. */
+export function parseArgs({ argv }, _options = {}) {
+  const options = { site: null, mode: null, idleSeconds: 240, idleMinutes: null, expectDaemon: null };
   const flags = { "--site": (v) => { options.site = path.resolve(v); }, "--mode": (v) => { options.mode = v; },
-    "--idle-seconds": (v) => { options.idleSeconds = Number(v); }, "--idle-minutes": (v) => { options.idleMinutes = Number(v); } };
+    "--idle-seconds": (v) => { options.idleSeconds = Number(v); }, "--idle-minutes": (v) => { options.idleMinutes = Number(v); },
+    "--expect-daemon": (v) => { options.expectDaemon = v; } };
   for (let i = 0; i < argv.length; i += 2) {
     const apply = flags[argv[i]];
     if (!apply || argv[i + 1] === undefined) throw new Error(`unknown option or missing value: ${argv[i]}`);
     apply(argv[i + 1]);
   }
-  if (!options.site || !["compiled", "tsx"].includes(options.mode)) throw new Error("usage: --site <dir> --mode compiled|tsx [--idle-seconds N] [--idle-minutes N]");
+  return checkOptions({ options });
+}
+
+/** Validate parsed options and fill `expectDaemon`'s default. */
+function checkOptions({ options }) {
+  if (!options.site || !["compiled", "tsx"].includes(options.mode)) throw new Error("usage: --site <dir> --mode compiled|tsx [--idle-seconds N] [--idle-minutes N] [--expect-daemon running|parked]");
   if (!Number.isFinite(options.idleSeconds) || options.idleSeconds < 0) throw new Error("--idle-seconds must be a number ≥ 0");
+  // A park phase waits past the idle limit, so the daemon should have exited by the time we sample.
+  options.expectDaemon ??= options.idleMinutes > 0 && options.idleSeconds > options.idleMinutes * 60 ? "parked" : "running";
+  if (!["running", "parked"].includes(options.expectDaemon)) throw new Error("--expect-daemon must be running or parked");
   return options;
 }
 
 /** `footprint -p` → bytes, or `null` when the process is gone. Parses "Footprint: 187 MB". */
-export function parseFootprint({ text }) {
+export function parseFootprint({ text }, _options = {}) {
   const match = /Footprint:\s+([\d.]+)\s+(B|KB|MB|GB)\b/.exec(text);
   if (!match) return null;
   return Number(match[1]) * { B: 1, KB: 1024, MB, GB: 1024 * MB }[match[2]];
@@ -102,6 +117,11 @@ function roleOf({ pid, rootPid, name }) {
     const args = execFileSync("ps", ["-o", "args=", "-p", String(pid)], { encoding: "utf8" });
     return /agent-daemon-server\.(ts|js)/.test(args) ? "daemon" : name;
   } catch { return name; }
+}
+
+/** The server's tree with each process's role: the real `listProcesses` port of `measureTree`. */
+function listProcesses({ rootPid }) {
+  return listTree({ rootPid }).map((row) => ({ pid: row.pid, name: row.name, role: roleOf({ ...row, rootPid }) }));
 }
 
 function listeningPorts({ pid }) {
@@ -162,9 +182,9 @@ async function moduleCount({ cdp }) {
 }
 
 /** Natural numbers for one process, then a forced GC; the after-GC read happens once all have settled. */
-async function measureNatural({ process: proc }) {
-  const footprintNatural = toMb(footprintBytes({ pid: proc.pid }));
-  const url = await inspectorUrl({ pid: proc.pid });
+async function measureNatural({ process: proc, ports }) {
+  const footprintNatural = toMb(ports.readFootprint({ pid: proc.pid }));
+  const url = await ports.inspectorUrl({ pid: proc.pid });
   if (!url) return { ...proc, cdp: null, footprint: { natural: footprintNatural }, heap: null, modules: null };
   const cdp = await openCdp({ url });
   const natural = await memoryUsage({ cdp });
@@ -173,23 +193,41 @@ async function measureNatural({ process: proc }) {
   return { ...proc, cdp, footprint: { natural: footprintNatural }, heap: { natural }, modules };
 }
 
-async function measureAfterGc({ sample }) {
+async function measureAfterGc({ sample, ports }) {
   const { cdp, ...rest } = sample;
-  if (!cdp) return { ...rest, footprint: { ...rest.footprint, afterGc: toMb(footprintBytes({ pid: rest.pid })) } };
+  const footprint = { ...rest.footprint, afterGc: toMb(ports.readFootprint({ pid: rest.pid })) };
+  if (!cdp) return { ...rest, footprint };
   const afterGc = await memoryUsage({ cdp });
   cdp.close();
-  return { ...rest, heap: { ...rest.heap, afterGc }, footprint: { ...rest.footprint, afterGc: toMb(footprintBytes({ pid: rest.pid })) } };
+  return { ...rest, heap: { ...rest.heap, afterGc }, footprint };
 }
 
-async function measureTree({ rootPid }) {
-  const processes = listTree({ rootPid }).map((row) => ({ pid: row.pid, name: row.name, role: roleOf({ ...row, rootPid }) }));
+/** Refuse to sample a tree whose server is gone (an empty tree would total zero) or whose daemon state is wrong for the phase. */
+function assertSampleable({ processes, rootPid, expectDaemon }) {
+  if (!processes.some((proc) => proc.pid === rootPid && proc.role === "server")) throw new Error(`server ${rootPid} is not running; no sample taken`);
+  const daemonRunning = processes.some((proc) => proc.role === "daemon");
+  if (daemonRunning !== (expectDaemon === "running")) throw new Error(`expected the daemon ${expectDaemon}, but it is ${daemonRunning ? "running" : "absent"}; no sample taken`);
+}
+
+const REAL_TREE_PORTS = { listProcesses, readFootprint: footprintBytes, inspectorUrl, sleep };
+
+/**
+ * Footprint (and, over the inspector, heap and module count) for every process in the server's tree.
+ * Throws before sampling unless the server is alive and the daemon matches `expectDaemon`.
+ * Any unreadable footprint is listed in `missing`, makes `complete` false and nulls the totals.
+ */
+export async function measureTree({ rootPid, expectDaemon }, optional = {}) {
+  const ports = { ...REAL_TREE_PORTS, ...optional };
+  const processes = ports.listProcesses({ rootPid });
+  assertSampleable({ processes, rootPid, expectDaemon });
   const samples = [];
-  for (const proc of processes) samples.push(await measureNatural({ process: proc }));
-  await sleep(GC_SETTLE_MS);
+  for (const proc of processes) samples.push(await measureNatural({ process: proc, ports }));
+  await ports.sleep(GC_SETTLE_MS);
   const measured = [];
-  for (const sample of samples) measured.push(await measureAfterGc({ sample }));
-  const total = (key) => Math.round(measured.reduce((sum, row) => sum + (row.footprint[key] ?? 0), 0) * 10) / 10;
-  return { processCount: measured.length, totalFootprint: { natural: total("natural"), afterGc: total("afterGc") }, processes: measured };
+  for (const sample of samples) measured.push(await measureAfterGc({ sample, ports }));
+  const missing = measured.flatMap((row) => ["natural", "afterGc"].filter((key) => row.footprint[key] === null).map((key) => `${row.role} ${row.pid} footprint.${key}`));
+  const total = (key) => (missing.length > 0 ? null : Math.round(measured.reduce((sum, row) => sum + row.footprint[key], 0) * 10) / 10);
+  return { complete: missing.length === 0, missing, processCount: measured.length, totalFootprint: { natural: total("natural"), afterGc: total("afterGc") }, processes: measured };
 }
 
 function walkFiles({ dir }, { skipDir = () => false } = {}) {
@@ -258,10 +296,19 @@ function serveEnv({ temp, siteCopy }, { idleMinutes = null } = {}) {
   };
 }
 
+/**
+ * `tovu serve` argv for Electron-as-node. tsx mode imports maps-off AFTER tsx (tsx turns source maps
+ * on as it registers), exactly as the dev launchers do, so the harness measures T5's saving.
+ * Both preloads are file URLs: a bare `C:\` path is read as a URL scheme on Windows.
+ */
+export function serverLaunchArgs({ entry, mode, siteCopy, port }, { resolveTsx = () => repoRequire.resolve("tsx") } = {}) {
+  const loader = mode === "tsx" ? ["--import", pathToFileURL(resolveTsx()).href, "--import", MAPS_OFF] : [];
+  return [...loader, entry, "serve", siteCopy, "--port", String(port)];
+}
+
 /** Spawn `tovu serve`; `ready` resolves once its boot line is printed. The caller owns stopping `child`. */
 function startServer({ entry, mode, env, siteCopy, port, logFile }) {
-  const loader = mode === "tsx" ? ["--import", pathToFileURL(repoRequire.resolve("tsx")).href] : [];
-  const child = spawn(ELECTRON_BIN, [...loader, entry, "serve", siteCopy, "--port", String(port)], { cwd: env.HOME, env, stdio: ["ignore", "pipe", "pipe"] });
+  const child = spawn(ELECTRON_BIN, serverLaunchArgs({ entry, mode, siteCopy, port }), { cwd: env.HOME, env, stdio: ["ignore", "pipe", "pipe"] });
   const output = fs.createWriteStream(logFile);
   let stdout = "";
   child.stderr.pipe(output);
@@ -349,8 +396,8 @@ async function measureSite(options) {
     const child = await launch({ temp, options, started });
     await sleep(options.idleSeconds * 1000);
     recordTree({ started });
-    const result = await measureTree({ rootPid: child.pid });
-    return { mode: options.mode, idleSeconds: options.idleSeconds, idleMinutes: options.idleMinutes, ...result };
+    const result = await measureTree({ rootPid: child.pid, expectDaemon: options.expectDaemon });
+    return { mode: options.mode, idleSeconds: options.idleSeconds, idleMinutes: options.idleMinutes, expectDaemon: options.expectDaemon, ...result };
   } catch (error) {
     // The temp dir (and its log) is deleted below, so show the end of the server log now.
     const logFile = path.join(temp, "serve.log");
@@ -368,7 +415,12 @@ async function main() {
     return;
   }
   const options = parseArgs({ argv: process.argv.slice(2) });
-  console.log(JSON.stringify(await measureSite(options), null, 2));
+  const result = await measureSite(options);
+  console.log(JSON.stringify(result, null, 2));
+  if (!result.complete) {
+    console.error(`measure-site-memory: INCOMPLETE, footprint unreadable for ${result.missing.join(", ")}`);
+    process.exitCode = 1;
+  }
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
