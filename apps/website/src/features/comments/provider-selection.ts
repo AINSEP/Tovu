@@ -78,6 +78,9 @@ export function createCommentsCapability(required: {
   } };
   const providers = createCommentsProviderRegistry({ selections });
   const ready = Promise.all([required.commentsReady, required.settingsReady]).then(() => undefined);
+  // Observed at once: nothing awaits it until the first comments request, and a boot rejection left
+  // unobserved until then is an unhandled rejection. Only marks it handled; `resolve` still throws it.
+  ready.catch(() => undefined);
   const builtin = createBuiltinCommentsProvider({ siteId: required.siteId, repo: required.module.commentRepo, ingress: required.module.ingressPolicy,
     writes: required.module.writeService, ready, getSettings: ({ siteId }) => getCommentsSettings({ settingsRepo: required.settings.settingsRepo }, { workspaceId: siteId }) });
   providers.register({ definition: BUILTIN_COMMENTS_DEFINITION, resolve: async ({ siteId }, _optional = {}) => {

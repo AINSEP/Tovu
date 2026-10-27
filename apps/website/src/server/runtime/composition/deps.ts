@@ -1554,6 +1554,10 @@ async function composeSiteRouteDeps(
       )
     )
     .then(() => undefined);
+  // Observed at once: composition awaits provider boot before any consumer reads this tail, and a
+  // rejection left unobserved across that pause is an unhandled rejection (Codex check 2026-10-27).
+  // Only marks it handled; every consumer below still receives the rejection.
+  siteTitleReady.catch(() => undefined);
 
   // ADR-PIPE-012 D-5/D-8 (T043/T044): the persistent composition root uses the real SQLite
   // adapters for both navigation repo ports, and runs the binding-index rebuild once at boot
