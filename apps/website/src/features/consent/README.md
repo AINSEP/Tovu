@@ -55,7 +55,7 @@ The existing settings ledger remains the boot/default/legacy source until first 
 Static export crawls with explicitly enabled consent return gated HTTP 200 HTML containing the
 banner and reopen link, with optional scripts inert in templates. Static hosts still have no durable
 receipt backend. With the cookie-consent module wired, the deployment preflight only refuses for
-other blocking problems; without it (old engine, removed in consent P4) deployment returns 409
+other blocking problems; without it (old engine, still the default until consent P4 removes it) deployment returns 409
 `CONSENT_REVIEW_REQUIRED` with Fix now / Publish without banner choices. Publish without banner is an explicit
 PUT of a disabled draft, POST to publish it, then a deployment retry. Explain that this also disables
 live-site enforcement and may allow optional scripts. No request flag bypasses the gate. The local
