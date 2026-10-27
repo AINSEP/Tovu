@@ -84,6 +84,16 @@ export function createRawFileSitePort({ siteDir }: { siteDir: string }, { filesy
       else if (!stat.isDirectory()) throw new Error(LINK_REFUSAL);
     }
   }
+  /** A backup's bytes, or `null` when it is gone. Never follows a link. */
+  function readBackup(backup: string): Buffer | null {
+    let fd: number;
+    try { fd = openSync(backup, constants.O_RDONLY | constants.O_NOFOLLOW); } catch (error) { if (missing(error)) return null; throw error; }
+    try { return readFileSync(fd); } finally { closeSync(fd); }
+  }
+  function alreadyRestored(inverse: { relPath: string; sha256: string | null }): boolean {
+    const current = read(inverse.relPath);
+    return current !== null && sha(current.bytes) === inverse.sha256;
+  }
   function replace(relPath: string, bytes: Uint8Array, mode: number): void {
     target(relPath);
     if (bytes.byteLength > BACKSTOP_LIMITS.bytes) throw new Error("Choose files totaling at most 50 MB per send.");
@@ -117,11 +127,15 @@ export function createRawFileSitePort({ siteDir }: { siteDir: string }, { filesy
       }
       if (!/^[a-f0-9-]{36}$/.test(inverse.backupName)) throw new Error("The saved undo file has an unsafe address.");
       const backup = path.join(privateDir(".publish-previous"), inverse.backupName);
-      const fd = openSync(backup, constants.O_RDONLY | constants.O_NOFOLLOW);
-      let bytes: Buffer;
-      try { bytes = readFileSync(fd); } finally { closeSync(fd); }
+      const bytes = readBackup(backup);
+      // A repeated undo finds its copy already reclaimed below: done when the file holds those bytes.
+      if (bytes === null && alreadyRestored(inverse)) return;
+      if (bytes === null) throw new Error("The saved undo file is missing.");
       if (sha(bytes) !== inverse.sha256) throw new Error("The saved undo file failed its checksum check.");
       replace(inverse.relPath, bytes, inverse.mode);
+      // The undo is spent and nothing else reads this copy; kept, every overwrite would leave up to
+      // 50 MB behind for good.
+      try { unlinkSync(backup); } catch (error) { if (!missing(error)) throw error; }
     },
   };
 }

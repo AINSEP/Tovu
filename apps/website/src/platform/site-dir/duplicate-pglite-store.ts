@@ -52,11 +52,16 @@ async function copySource(sourceDataDir: string, targetDataDir: string): Promise
     }
     throw err;
   }
-  const source = openPgliteKernel<unknown>({ dataDir: sourceDataDir });
+  // Nested so the lock is released however the open, the copy or the close fails: the open can
+  // throw synchronously, and a rejected close must not skip `release()` for the process's life.
   try {
-    await storageOps(source).copyTo(targetDataDir);
+    const source = openPgliteKernel<unknown>({ dataDir: sourceDataDir });
+    try {
+      await storageOps(source).copyTo(targetDataDir);
+    } finally {
+      await source.close();
+    }
   } finally {
-    await source.close();
     release();
   }
 }
