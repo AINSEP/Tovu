@@ -116,6 +116,11 @@ export const CROSS_SITE_EXCLUDED: Readonly<Record<string, string>> = {
   'provider-status': 'Provider status reads installed plugins and their live provider state in the active process.',
 };
 
+/** Reads refused on a peer although their domain is cross-site; catalog tests pin each one. */
+export const CROSS_SITE_EXCLUDED_TOOLS: Readonly<Record<string, string>> = {
+  comments_get_provider: 'The provider selection and its readiness come from the active process\'s installed provider adapters; a peer has no provider registry, so a vendor selection would read as wrong data.',
+};
+
 /** A dependency omitted by peer composition must fail visibly, never fall back to active data. */
 export class CrossSiteUnavailable extends ToolInputError {
   readonly field: string;
@@ -145,6 +150,8 @@ type PeerResolution = { handler: ToolRegistration['handler']; principal: Princip
 export interface PeerSiteReads {
   /** Host-owned scope policy keeps the assistant free of runtime imports of server composition. */
   readonly readDomains: ReadonlySet<string>;
+  /** Single reads refused inside an otherwise cross-site domain. */
+  readonly excludedReadTools?: ReadonlySet<string>;
   /** Exact registry-name comparison; never opens a database. Throws a path-free local-host/registry refusal. */
   isCurrentSite(required: { siteName: string }, optional?: Record<string, never>): boolean;
   /** The caller adapter gates installation ownership. The builder must return only allowlisted
@@ -449,7 +456,7 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
     pending = work.catch(() => {});
     return work;
   };
-  return { readDomains: CROSS_SITE_READ_DOMAINS, isCurrentSite, resolve,
+  return { readDomains: CROSS_SITE_READ_DOMAINS, excludedReadTools: new Set(Object.keys(CROSS_SITE_EXCLUDED_TOOLS)), isCurrentSite, resolve,
     async close() { closed = true; await pending; await Promise.allSettled([...running]); await Promise.all([...cache].map(([key, entry]) => remove(key, entry))); },
   };
 }

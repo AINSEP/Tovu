@@ -437,6 +437,8 @@ export function buildAssistantToolRegistrations(
   // own normalization, and a slug is resolved only after the selected site's permission gate.
   const inputRegistrations = prepareReadRegistrations({ registrations: approvedRegistrations, ownerByToolId, routeDeps: enrichedRouteDeps, options, beforeLookup: assertChatDeleteAllowed });
   const peer = routeDeps.peerSiteReads;
+  const peerReadable = ({ registration }: { registration: ToolRegistration }) => !!peer && isReadOnlyTool({ descriptor: registration.descriptor })
+    && peer.readDomains.has(ownerByToolId.get(registration.descriptor.id) ?? '') && !peer.excludedReadTools?.has(registration.descriptor.id);
   const scopedRegistrations = options.targetScope !== "off" && peer ? inputRegistrations.flatMap(registration => applyTargetScope({
     registrations: [registration],
     isCurrentTarget: ({ target }) => peer.isCurrentSite({ siteName: target }),
@@ -463,7 +465,7 @@ export function buildAssistantToolRegistrations(
           const rawIds = new Set(raw.map(tool => tool.descriptor.id));
           const combined = [...raw, ...deriveContentReadRegistrations(raw).filter(tool => !rawIds.has(tool.descriptor.id))];
           const adapted = options.contributions?.contentTargetInputs?.({ registrations: combined, routeDeps: peerDeps }) ?? combined;
-          return adapted.filter(registration => isReadOnlyTool({ descriptor: registration.descriptor }) && peer.readDomains.has(ownerByToolId.get(registration.descriptor.id) ?? ''));
+          return adapted.filter(registration => peerReadable({ registration }));
         },
       });
       if (resolved === "current") return resolved;
@@ -482,7 +484,7 @@ export function buildAssistantToolRegistrations(
     refuseMessage: isReadOnlyTool({ descriptor: registration.descriptor })
       ? `${registration.descriptor.id} can't read another site yet.`
       : "Writes run only on the active site. Switch with sites_switch_site first.",
-    scoped: ({ registration }) => isReadOnlyTool({ descriptor: registration.descriptor }) && peer.readDomains.has(ownerByToolId.get(registration.descriptor.id) ?? ''),
+    scoped: peerReadable,
   })) : inputRegistrations;
   // `items` batches wrap the APPROVED handler, so each item is classified on its own input; see
   // `batch-tool-inputs.ts` for why the reverse order would let a batch skip an item's approval.

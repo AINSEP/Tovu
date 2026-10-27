@@ -14,7 +14,7 @@ import { askChoiceDerivedRisk } from '../ask-choice-tool.js';
 import { externalMcpReauthDerivedRisk } from '../external-mcp-reauth-tool.js';
 import { adminScreenLinkDerivedRisk } from '../admin-screen-link-tool.js';
 import { toolGapsDerivedRisk } from '../tool-gaps-tool.js';
-import { CROSS_SITE_READ_DOMAINS, CROSS_SITE_EXCLUDED, CrossSiteUnavailable } from '#src/server/runtime/composition/peer-site-reads';
+import { CROSS_SITE_READ_DOMAINS, CROSS_SITE_EXCLUDED, CROSS_SITE_EXCLUDED_TOOLS, CrossSiteUnavailable } from '#src/server/runtime/composition/peer-site-reads';
 import { peerFixture } from '#src/server/runtime/composition/__tests__/peer-site-reads.fixture';
 import { sitesReadAgentToolCatalog } from '#src/features/sites/agent-tools';
 
@@ -52,8 +52,9 @@ test('complete production catalog classifies every reader and exercises every sc
   const raw = buildAssistantToolRegistrations(f.deps, undefined, { contributions: f.contributions, targetScope: 'off', includeContentReadCollapse: false });
   const scoped = f.build(), scopedById = new Map(scoped.map(tool => [tool.descriptor.id, tool]));
   const reads = raw.filter(tool => isReadOnlyTool({ descriptor: tool.descriptor }));
-  const crossSite = reads.filter(tool => CROSS_SITE_READ_DOMAINS.has(byTool.get(tool.descriptor.id) ?? ''));
-  const excluded = reads.filter(tool => Object.hasOwn(CROSS_SITE_EXCLUDED, byTool.get(tool.descriptor.id) ?? ''));
+  const toolExcluded = (tool: ToolRegistration) => Object.hasOwn(CROSS_SITE_EXCLUDED_TOOLS, tool.descriptor.id);
+  const crossSite = reads.filter(tool => CROSS_SITE_READ_DOMAINS.has(byTool.get(tool.descriptor.id) ?? '') && !toolExcluded(tool));
+  const excluded = reads.filter(tool => Object.hasOwn(CROSS_SITE_EXCLUDED, byTool.get(tool.descriptor.id) ?? '') || toolExcluded(tool));
   const counts = `${crossSite.length} cross-site tools, ${excluded.length} EXCLUDED tools`;
   t.diagnostic(counts);
   const unclassified = reads.filter(tool => {
@@ -63,6 +64,12 @@ test('complete production catalog classifies every reader and exercises every sc
   assert.deepEqual(unclassified, [], `${counts}; unclassified/overlapping domains: ${unclassified.join(', ')}`);
   assert.ok(crossSite.length > 0 && excluded.length > 0, counts);
   for (const domain of CROSS_SITE_READ_DOMAINS) assert.ok(!Object.hasOwn(CROSS_SITE_EXCLUDED, domain), `${counts}; overlapping ${domain}`);
+  // A per-tool exclusion carves one read out of an otherwise cross-site domain; anywhere else it is dead config.
+  for (const id of Object.keys(CROSS_SITE_EXCLUDED_TOOLS)) {
+    const tool = reads.find(read => read.descriptor.id === id);
+    assert.ok(tool && CROSS_SITE_READ_DOMAINS.has(byTool.get(id) ?? ''), `${counts}; ${id} must be a read in a cross-site domain`);
+    await assert.rejects(f.call(id, { site: 'B' }), { message: `${id} can't read another site yet.` });
+  }
 
   const inputs: Record<string, Record<string, unknown>> = {
     content_post_list: { kind: 'post' }, content_post_get: { kind: 'post', id: 'post' }, content_post_search: { kind: 'post', query: 'B' },
@@ -96,7 +103,8 @@ test('complete production catalog classifies every reader and exercises every sc
     assert.ok(!((registration.descriptor.inputSchema as Schema).required ?? []).includes('site'), `${tool.descriptor.id} site is optional`);
     if (!Object.hasOwn(properties(tool), 'site')) {
       await assert.rejects(f.call(tool.descriptor.id, { site: 'B' }), {
-        message: 'Writes run only on the active site. Switch with sites_switch_site first.',
+        message: isReadOnlyTool({ descriptor: tool.descriptor }) ? `${tool.descriptor.id} can't read another site yet.`
+          : 'Writes run only on the active site. Switch with sites_switch_site first.',
       });
     }
   }
