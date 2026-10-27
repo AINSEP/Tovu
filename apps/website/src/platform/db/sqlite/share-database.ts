@@ -1,3 +1,4 @@
+import type { ArchiveMediaSource, ArchiveMediaCopy } from "#src/features/site-backup/archive-media";
 import { mkdtemp, rm, statfs, writeFile } from "node:fs/promises";
 import { scheduler } from "node:timers/promises";
 import { tmpdir } from "node:os";
@@ -12,7 +13,7 @@ import { SHARE_TABLES, SHARE_LEGACY_PRIVATE_TABLES, SHARE_LIMITS, SiteShareRefus
 import { requireShareSecretFree } from "#src/features/site-backup/share-file-policy";
 import { computeBlobStorageKey, documentContentType } from "#src/features/media/index";
 import { listColumns, listTables } from "../kernel/dialect.js";
-import { openSqliteFileKernel, sqliteKernel, sqliteClientOf, closeSqliteConnection } from "../kernel/drivers/sqlite.js";
+import { openSqliteFileKernel, sqliteKernel, sqliteClientOf, sqliteConnectionOf, closeSqliteConnection } from "../kernel/drivers/sqlite.js";
 import type { StorageKernel } from "../kernel/port.js";
 import { CHAT_TABLE_NAMES } from "./chat-orphan-check.js";
 import { openContentDb } from "./content-db.js";
@@ -324,21 +325,95 @@ export async function sanitizeShareDatabase(required: { snapshot: Buffer }, opti
       ...await target.run(db => db.selectFrom("asset_blobs").select(["storage_key as storageKey", "sha256"]).execute()) as { storageKey: string; sha256: string }[],
       ...await target.run(db => db.selectFrom("asset_renditions").select("storage_key as storageKey").execute()) as { storageKey: string }[],
     ];
-    // Older shares included Trash/orphan sidecars. Only explicitly projected-away keys may
-    // be discarded on import; arbitrary unreferenced archive uploads must still refuse.
-    const retainedKeys = new Set(media.map(row => row.storageKey));
-    const sourceMedia = [
-      ...await from.run(db => db.selectFrom("asset_blobs").select("storage_key as storageKey").execute()),
-      ...await from.run(db => db.selectFrom("asset_renditions").select("storage_key as storageKey").execute()),
-    ];
-    const excludedBlobKeys = [...new Set(sourceMedia.map(row => String(row.storageKey)).filter(key => !retainedKeys.has(key)))];
+    // Older shares included Trash/orphan sidecars. v2 emits only retained owners, so
+    // arbitrary unreferenced archive media must refuse rather than be pruned on import.
     await requireProjectedSecretFree({ target });
     const bytes = sqliteClientOf(fresh).serialize();
     requireShareSecretFree({ path: "database/content.db", bytes });
-    return { bytes, media, documents, excludedBlobKeys };
+    return { bytes, media, documents, archiveMedia: await archiveMediaSources({ target }) };
   } finally {
     await source?.close();
     if (fresh) closeSqliteConnection(fresh);
     await rm(staging, { recursive: true, force: true });
   }
+}
+
+/** Snapshot metadata for the archive selector. Three bulk reads, then indexed lookups per item. */
+async function archiveMediaSources({ target }: { target: Kernel }): Promise<ArchiveMediaSource[]> {
+  const rows = await target.run(db => db.selectFrom("media").selectAll().execute());
+  const blobs = await target.run(db => db.selectFrom("asset_blobs").selectAll().execute());
+  const renditions = await target.run(db => db.selectFrom("asset_renditions").selectAll().where("transform_name", "=", "public").execute());
+  const transforms = await target.run(db => db.selectFrom("transform_registry").selectAll().where("name", "=", "public").orderBy("version", "asc").execute());
+  const byHash = new Map(blobs.map(row => [ownerKey(row.workspace_id, row.sha256), row]));
+  const byKey = new Map(blobs.map(row => [String(row.storage_key), row]));
+  const definitions = new Map(transforms.map(row => [String(row.workspace_id), row]));
+  const publics = new Map(renditions.map(row => [ownerKey(row.workspace_id, [row.asset_id, row.version]), row]));
+  return rows.map(row => {
+    const blob = byHash.get(ownerKey(row.workspace_id, row.source_sha256));
+    if (!blob) throw new SiteShareRefusal({ code: "MISSING_MEDIA", message: `Media '${row.id}' has no source blob.` });
+    const definition = definitions.get(String(row.workspace_id));
+    const rendition = definition && publics.get(ownerKey(row.workspace_id, [row.id, definition.version]));
+    return { id: String(row.id), workspaceId: String(row.workspace_id), slug: String(row.slug ?? row.id), kind: String(row.kind),
+      originalFilename: row.original_filename === null ? null : String(row.original_filename), storageKey: String(blob.storage_key), sha256: String(blob.sha256), documentOwned: Boolean(blob.document_owned),
+      ...(definition ? { public: { version: Number(definition.version), params: JSON.parse(String(definition.params_json)),
+        ...(rendition ? { storageKey: String(rendition.storage_key), sha256: renditionHash({ key: String(rendition.storage_key), blob: byKey.get(String(rendition.storage_key)) }) } : {}) } } : {}) };
+  });
+}
+
+/** Rewrites only the fresh share projection. No live DB or blob store is changed.
+ * Rebuild sidecars so original and latest public point at the same copy; other renditions regenerate.
+ * @throws SiteShareRefusal if copies do not cover the snapshot, or secret scanning refuses.
+ * @complexity O(media + copies) indexed reads/writes, bounded by the share snapshot cap.
+ */
+export async function rewriteArchiveMedia(required: { bytes: Buffer; copies: readonly ArchiveMediaCopy[] }, optional: { signal?: AbortSignal } = {}): Promise<Buffer> {
+  const staging = await mkdtemp(path.join(tmpdir(), "tovu-archive-media-"));
+  let target: Kernel | undefined;
+  try {
+    const file = path.join(staging, "content.db");
+    await writeFile(file, required.bytes, { mode: 0o600, flag: "wx" });
+    target = openSqliteFileKernel<Tables>(file);
+    await rewriteMediaRows({ target, copies: required.copies }, optional);
+    await requireProjectedSecretFree({ target });
+    const bytes = sqliteConnectionOf(target)!.serialize();
+    requireShareSecretFree({ path: "content.db", bytes });
+    return bytes;
+  } finally { await target?.close(); await rm(staging, { recursive: true, force: true }); }
+}
+
+async function rewriteMediaRows(required: { target: Kernel; copies: readonly ArchiveMediaCopy[] }, optional: { signal?: AbortSignal }): Promise<void> {
+  const { target } = required;
+  const media = await target.run(db => db.selectFrom("media").selectAll().execute());
+  const byId = new Map(media.map(row => [ownerKey(row.workspace_id, row.id), row]));
+  const blobs = await target.run(db => db.selectFrom("asset_blobs").selectAll().execute());
+  const byHash = new Map(blobs.map(row => [ownerKey(row.workspace_id, row.sha256), row]));
+  if (byId.size !== required.copies.length) throw new SiteShareRefusal({ code: "INVALID_MEDIA", message: "Archive media does not cover the snapshot." });
+  await target.transaction(async () => {
+    await target.run(db => db.deleteFrom("asset_renditions").execute());
+    await target.run(db => db.deleteFrom("asset_blobs").execute());
+    for (const copy of required.copies) {
+      optional.signal?.throwIfAborted();
+      const row = byId.get(ownerKey(copy.workspaceId, copy.id));
+      if (!row) throw new SiteShareRefusal({ code: "INVALID_MEDIA", message: "Unknown archive media item." });
+      await target.run(db => db.updateTable("media").set({ source_sha256: copy.sha256 }).where("id", "=", copy.id).where("workspace_id", "=", copy.workspaceId).execute());
+      await target.run(db => db.insertInto("asset_blobs").values(archiveBlobRow({ copy, media: row, existing: byHash.get(ownerKey(copy.workspaceId, copy.sha256)) }))
+        .onConflict(oc => oc.columns(["workspace_id", "sha256"]).doUpdateSet({ document_owned: sql`max(document_owned, excluded.document_owned)` })).execute());
+      for (const rendition of [{ name: "original", version: 1 }, ...(copy.publicVersion === undefined ? [] : [{ name: "public", version: copy.publicVersion }])]) {
+        await target.run(db => db.insertInto("asset_renditions").values({ id: copy.id + ":" + rendition.name, workspace_id: copy.workspaceId, asset_id: copy.id, transform_name: rendition.name, version: rendition.version, storage_key: copy.storageKey, created_at: row.created_at }).execute());
+      }
+    }
+  });
+}
+
+/** Preserve unchanged blob metadata and sticky document privacy while replacing its path/hash. */
+function archiveBlobRow(required: { copy: ArchiveMediaCopy; media: Row; existing?: Row | undefined }): Row {
+  const { copy, media } = required;
+  const original: Row = required.existing ?? { id: copy.workspaceId + ":" + copy.sha256, created_by_principal: "share", created_at: media.created_at, status: "active", tombstoned_at: null };
+  const documentOwned = Boolean(copy.documentOwned || media.kind === "document" || original.document_owned);
+  const contentType = copy.contentType === "application/octet-stream" ? original.content_type ?? copy.contentType : copy.contentType;
+  return { ...original, workspace_id: copy.workspaceId, sha256: copy.sha256, storage_key: copy.storageKey, content_type: contentType, document_owned: documentOwned ? 1 : 0 };
+}
+
+function renditionHash(required: { key: string; blob: Row | undefined }): string | undefined {
+  if (typeof required.blob?.sha256 === "string") return required.blob.sha256;
+  return /[a-f0-9]{64}$/.exec(required.key)?.[0];
 }

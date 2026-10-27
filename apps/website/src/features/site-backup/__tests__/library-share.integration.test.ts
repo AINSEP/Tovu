@@ -20,7 +20,7 @@ import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { SqliteMediaRepo, SqliteAssetBlobRepo, SqliteAssetRenditionRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { sanitizeShareDatabase } from "#src/platform/db/sqlite/share-database";
+import { sanitizeShareDatabase, rewriteArchiveMedia } from "#src/platform/db/sqlite/share-database";
 import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 import { readTemplate } from "#src/platform/site-dir/read-template";
@@ -30,7 +30,7 @@ import { registerAdminMediaListRoute } from "#src/server/inbound/admin-http/rout
 import type { MediaRenditionRouteDeps } from "#src/server/inbound/admin-http/routes/media/deps";
 import { prepareShareContent } from "../share-preparation.js";
 import { buildShareZip } from "../share-zip.js";
-import { buildSiteBackupManifest } from "../sources.js";
+import { fixtureManifest } from "./archive.fixture.js";
 import { buildZipFixture } from "../../agent-plugins/__tests__/fixtures/build-zip.js";
 import { MAX_DOCUMENT_BYTES, validateDocumentIngress, registerTransform } from "../../media/index.js";
 import { InMemoryPostRepo } from "../../post/index.js";
@@ -96,13 +96,13 @@ for (const storage of ["local", "s3"] as const) test(`L3 ${storage}: share/impor
   fs.mkdirSync(path.join(siteDir, "uploads/chat-attachments"), { recursive: true });
   fs.writeFileSync(path.join(siteDir, "uploads/chat-attachments/private.md"), "Temporary attachment");
   const plan = await prepareShareContent({ sources: { siteDir, mediaUploadsDir: path.join(siteDir, "uploads"), themesDir: path.join(siteDir, "themes"), skillsDir: path.join(siteDir, "skills"), agentPlugins: resolveAgentPluginLayout({ siteDir, env: {} }), tovuVersion: "test" },
-    blobStore: await sourceStore(t, h, storage), sanitize: sanitizeShareDatabase,
+    blobStore: await sourceStore(t, h, storage), sanitize: sanitizeShareDatabase, rewriteMedia: rewriteArchiveMedia, imageTransformer: { transform: async () => assert.fail("not raster") },
     dbOps: { getCapabilities: async () => ({ restorePoint: { costClass: "cheap", kind: "file-snapshot" } }), captureRestorePoint: async () => {
       const artifactRef = path.join(h.root, "source-snapshot.db"); fs.writeFileSync(artifactRef, h.db.$client.serialize()); return { artifactRef, watermarkAtCapture: 1 };
     }, restoreFromArtifact: async () => { throw new Error("must never restore source"); } },
   });
   const paths = plan.bufferedFiles!.map(file => file.path);
-  assert.equal(paths.filter(name => name === "uploads/" + doc.storageKey).length, 1);
+  assert.equal(paths.filter(name => name.startsWith("media/")).length, plan.media!.length);
   assert.equal(paths.includes("uploads/" + trashed.storageKey), false);
   assert.equal(paths.some(name => name.includes("chat-attachments")), false);
   const exported = new Database(plan.database!.bytes);
@@ -182,24 +182,12 @@ for (const variant of ["missing", "corrupt", "invalid-json", "invalid-docx", "ba
   assert.equal(fs.readdirSync(h.registry.directory).some(name => name.endsWith(".stage")), false);
 });
 
-test("L3 an old v1 share without Library columns still imports as ordinary media", async t => {
+test("L3 a v1 archive is refused without creating a site", async t => {
   const h = await importFixture(t);
-  // Native SQLite removes the additive columns; this does not call the importer's schema matcher.
-  // Shares have always projected into the fresh bootstrap's schema, not a site's migration DDL.
-  h.db.$client.exec("ALTER TABLE media DROP COLUMN original_filename; ALTER TABLE media DROP COLUMN kind; ALTER TABLE asset_blobs DROP COLUMN document_owned");
-  const files = new Map(h.files); files.set("database/content.db", h.db.$client.serialize());
-  const inventory = [...files].map(([path, bytes]) => ({ path, bytes: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") }));
-  files.set("tovu-backup.json", Buffer.from(buildSiteBackupManifest({ ...h.plan, schema: { index: 77, tag: "0077_external_mcp_tool_approvals" }, files: inventory })));
-  const picked = [...files].map(([name, bytes]) => {
-    const file = new File([bytes as BlobPart], name.split("/").at(-1)!);
-    Object.defineProperty(file, "webkitRelativePath", { value: "share/" + name }); return file;
-  });
-  const archive = Buffer.from(await (await zipFolderFiles({ files: picked, maxBytes: 300 * 1024 * 1024 })).arrayBuffer());
+  const archive = await buildZipFixture([{ path: "tovu-backup.json", content: JSON.stringify({ formatVersion: 1 }) }]);
   const upload = await h.backend.upload({ principalId: "recipient", archive });
-  const pending = await h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } });
-  const staged = new Database(path.join(h.registry.stagePath(pending), "database/content.db"), { readonly: true });
-  try { assert.deepEqual(staged.prepare("SELECT kind,original_filename FROM media WHERE id='media'").get(), { kind: "media", original_filename: null }); }
-  finally { staged.close(); }
+  await assert.rejects(h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } }), /manifest/);
+  assert.deepEqual(h.workspace.registry({}).list({}), []);
 });
 
 for (const status of ["active", "trashed"]) test(`L3 document-first deduplication strips mixed blob uploader attribution (${status})`, async t => {
@@ -218,10 +206,11 @@ for (const status of ["active", "trashed"]) test(`L3 document-first deduplicatio
 
 for (const schema of [{ index: 13, tag: "0013_unify_vault_credentials" }, { index: 14, tag: "0014_media_library" }]) test(`L3 rejects invented manifest identity ${schema.index}`, async t => {
   const h = await importFixture(t);
-  const inventory = [...h.files].map(([path, bytes]) => ({ path, bytes: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") }));
+  const files = new Map(h.plan.bufferedFiles!.map(file => [file.path, file.content]));
+  files.set("content.db", h.plan.database!.bytes);
   const archive = await buildZipFixture([
-    ...[...h.files].map(([path, content]) => ({ path, content })),
-    { path: "tovu-backup.json", content: buildSiteBackupManifest({ ...h.plan, schema, files: inventory }) },
+    ...[...files].map(([path, content]) => ({ path, content })),
+    { path: "manifest.json", content: fixtureManifest({ plan: { ...h.plan, schema }, files }) },
   ]);
   const upload = await h.backend.upload({ principalId: "recipient", archive });
   await assert.rejects(h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } }), /schema identity/);

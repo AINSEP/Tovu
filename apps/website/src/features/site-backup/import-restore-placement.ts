@@ -21,10 +21,10 @@ type CompiledBuild = Parameters<typeof checkSourceDirContainment>[0]["build"];
 const PLAIN: ThemeManifestVerdict = { kind: "plain" };
 const QUARANTINE: ThemeManifestVerdict = { kind: "quarantine" };
 
-const THEME_MANIFEST = /^themes\/(static|declarative)\/([^/]+)\/theme.json$/;
-const THEME_FILE = /^themes\/(static|declarative)\/([^/]+)\/(.+)$/;
-const THEME_ID = /^themes\/((?:static|declarative)\/[^/]+)\//;
-const STATIC_ASSET = /\.(?:html|css|js|json|map|png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf|otf|txt|md|mp4|webm|pdf)$/i;
+const THEME_MANIFEST = /^themes\/((?:__original-themes__\/)?(?:static|declarative))\/([^/]+)\/theme.json$/;
+const THEME_FILE = /^themes\/((?:__original-themes__\/)?(?:static|declarative))\/([^/]+)\/(.+)$/;
+const THEME_ID = /^themes\/((?:__original-themes__\/)?(?:static|declarative)\/[^/]+)\//;
+const STATIC_ASSET = /\.(?:html?|css|m?js|json|webmanifest|xml|liquid|map|png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf|otf|txt|md|mp4|webm|pdf)$/i;
 
 /**
  * Reads every staged static/declarative `theme.json`: a tier that disagrees with its folder, an
@@ -48,7 +48,7 @@ export function inspectThemeManifests(required: { root: string; files: readonly 
 function inspectThemeManifest(required: { root: string; file: string; tier: string; name: string }): ThemeManifestVerdict {
   try {
     const manifest = JSON.parse(fs.readFileSync(path.join(required.root, required.file), "utf8"));
-    if (manifest.tier !== required.tier) return QUARANTINE;
+    if (manifest.tier !== required.tier.split("/").at(-1)) return QUARANTINE;
     if (manifest.build?.source !== "compiled") return PLAIN;
     return inspectCompiledTheme({ root: required.root, id: required.tier + "/" + required.name, name: required.name, manifest });
   } catch { return QUARANTINE; }
@@ -100,7 +100,7 @@ function isCompiledSource(required: { file: string; theme: string; compiledSourc
  */
 export function restoreDestination(required: { file: string; liveThemes: ReadonlySet<string>; compiledSources: ReadonlyMap<string, string> }): string | null {
   const { file } = required;
-  if (file.startsWith("settings/")) return null; // Init regenerates host config and fresh identity.
+  if (file === "settings.json") return null; // Init regenerates host config and fresh identity.
   if (file.startsWith("uploads/")) return file;
   const theme = THEME_ID.exec(file)?.[1];
   const live = theme !== undefined && required.liveThemes.has(theme) && !isCompiledSource({ file, theme, compiledSources: required.compiledSources });

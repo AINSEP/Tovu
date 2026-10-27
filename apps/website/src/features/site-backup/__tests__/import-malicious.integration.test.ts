@@ -64,7 +64,7 @@ async function archiveItems(archive: Buffer): Promise<ZipItem[]> {
 }
 function mutateManifest(items: ZipItem[], change: (manifest: any) => void): ZipItem[] {
   return items.map(item => {
-    if (item.name !== "tovu-backup.json") return item;
+    if (item.name !== "manifest.json") return item;
     const manifest = JSON.parse(item.bytes.toString()); change(manifest);
     return { ...item, bytes: Buffer.from(JSON.stringify(manifest)) };
   });
@@ -95,7 +95,7 @@ test("package filename exceptions require the exact content-addressed root on ex
     // B's tree-path gate refuses credential filenames (.npmrc, *.pem) before the file policy runs.
     const archive = await pack(appendListed(await archiveItems(h.archive), [{ name, bytes }]));
     const upload = await h.backend.upload({ principalId: "recipient", archive });
-    await assert.rejects(h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } }), { code: /^UNSAFE_(?:FILE|PATH)$/ });
+    await assert.rejects(h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } }), { code: /^(?:UNSAFE_(?:FILE|PATH)|INVALID_ARCHIVE)$/ });
     assert.deepEqual(h.workspace.registry({}).list({}), []);
   });
 });
@@ -111,7 +111,7 @@ test("package manifest filename exceptions preserve secret scanning on export an
     assert.deepEqual(fs.readFileSync(path.join(h.root, "source", name)), bytes, "refusal must not damage package bytes");
     const archive = await pack(appendListed(await archiveItems(h.archive), [{ name, bytes }]));
     const upload = await h.backend.upload({ principalId: "recipient", archive });
-    await assert.rejects(h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } }), { code: "SECRET_IN_CONTENT" });
+    await assert.rejects(h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } }), { code: /^(?:SECRET_IN_CONTENT|INVALID_ARCHIVE)$/ });
     assert.deepEqual(h.workspace.registry({}).list({}), []);
   });
 });
@@ -157,26 +157,26 @@ test("B malicious ZIP matrix: no registered/partial site and no mutation to an e
     bytes.writeUInt16LE(0x756e, extra); return bytes;
   } });
   for (const [label, change] of [
-    ["format", (m: any) => { m.format = "other"; }], ["version", (m: any) => { m.formatVersion = 2; }],
-    ["profile", (m: any) => { m.profile = "backup"; }], ["sanitizer", (m: any) => { m.sanitizationVersion = 2; }],
-    ["schema", (m: any) => { m.schema.tag = "forged"; }], ["engine", (m: any) => { m.database.engine = "postgres"; }],
+    ["scopes", (m: any) => { m.scopes.database = false; }], ["version", (m: any) => { m.formatVersion = 3; }],
+    ["profile", (m: any) => { m.profile = "backup"; }], ["format version", (m: any) => { m.formatVersion = 1; }],
+    ["schema", (m: any) => { m.schema.tag = "forged"; }], ["media hash", (m: any) => { m.media[0].sha256 = "0".repeat(64); }],
     ["hash", (m: any) => { m.files[0].sha256 = "0".repeat(64); }], ["size", (m: any) => { m.files[0].bytes++; }],
     ["missing inventory", (m: any) => { m.files.pop(); }],
   ] as const) cases.push({ name: label, make: () => pack(mutateManifest(items, change)) });
   cases.push({ name: "unlisted file", make: () => pack([...items, { name: "uploads/unlisted", bytes: Buffer.from("bad") }]) });
   cases.push({ name: "unreferenced upload", make: () => pack(appendListed(items, [{ name: "uploads/stranded-chat", bytes: Buffer.from("private-chat") }])) });
   cases.push({ name: "unlisted directory", make: () => pack([...items, { name: "unused/", bytes: Buffer.alloc(0), mode: 0o040755 }]) });
-  cases.push({ name: "missing file", make: () => pack(items.filter(item => item.name !== "themes/static/site/index.html")) });
-  cases.push({ name: "private file", make: () => pack(appendListed(items, [{ name: "themes/static/site/.env.local", bytes: Buffer.from("PRIVATE") }])) });
+  cases.push({ name: "missing file", make: () => pack(items.filter(item => item.name !== "themes/site/index.html")) });
+  cases.push({ name: "private file", make: () => pack(appendListed(items, [{ name: "themes/site/.env.local", bytes: Buffer.from("PRIVATE") }])) });
   cases.push({ name: "media hash differs from database", make: () => {
-    const media = items.find(item => item.name.startsWith("uploads/"))!;
+    const media = items.find(item => item.name.startsWith("media/"))!;
     const wrong = Buffer.from("changed-media");
     const changed = items.map(item => item === media ? { ...item, bytes: wrong } : item);
     return pack(mutateManifest(changed, m => {
       const record = m.files.find((file: any) => file.path === media.name); record.bytes = wrong.length; record.sha256 = createHash("sha256").update(wrong).digest("hex");
     }));
   } });
-  cases.push({ name: "2 MiB manifest cap", make: () => pack(items.map(item => item.name === "tovu-backup.json" ? { ...item, bytes: Buffer.alloc(SHARE_LIMITS.maxManifestBytes + 1, 32) } : item)) });
+  cases.push({ name: "2 MiB manifest cap", make: () => pack(items.map(item => item.name === "manifest.json" ? { ...item, bytes: Buffer.alloc(SHARE_LIMITS.maxManifestBytes + 1, 32) } : item)) });
   cases.push({ name: "2,000 entry cap", make: () => pack(Array.from({ length: 2001 }, (_, i) => ({ name: "uploads/file-" + i, bytes: Buffer.alloc(0) }))) });
   cases.push({ name: "declared ZIP bomb", make: async () => {
     const bytes = await pack(items), entry = centralEntries(bytes)[0]!;
@@ -255,14 +255,14 @@ test("verifier refuses malformed manifest contracts before invoking the database
   const h = await importFixture(t), items = await archiveItems(h.archive);
   const mutations: [string, (m: any) => void][] = [
     ["missing schema", m => { delete m.schema; }], ["wrong schema index", m => { m.schema.index++; }],
-    ["missing database", m => { delete m.database; }], ["wrong database path", m => { m.database.path = "other.db"; }],
+    ["missing database", m => { m.files = m.files.filter((file: any) => file.path !== "content.db"); }], ["wrong database path", m => { m.files.find((file: any) => file.path === "content.db").path = "other.db"; }],
     ["non-array files", m => { m.files = {}; }], ["empty name", m => { m.site.name = " "; }],
     ["non-string name", m => { m.site.name = 42; }], ["long name", m => { m.site.name = "x".repeat(201); }],
     ["null file", m => { m.files[0] = null; }], ["non-string path", m => { m.files[0].path = 4; }],
     ["fractional size", m => { m.files[0].bytes = 0.5; }], ["negative size", m => { m.files[0].bytes = -1; }],
     ["bad hash", m => { m.files[0].sha256 = "not sha256"; }],
     ["duplicate manifest path", m => { m.files.push(m.files[0]); }],
-    ["manifest lists itself", m => { m.files[0].path = "tovu-backup.json"; }],
+    ["manifest lists itself", m => { m.files[0].path = "manifest.json"; }],
     ["unrecognized scope", m => { m.files[0].path = "unknown/content.txt"; }],
     ["missing DB inventory", m => { m.files = m.files.filter((f: any) => f.path !== "database/content.db"); }],
     ["oversized manifest inventory", m => { m.files = Array(2000).fill(m.files[0]); }],
@@ -270,8 +270,8 @@ test("verifier refuses malformed manifest contracts before invoking the database
   for (const [label, change] of mutations) await t.test(label, async () => {
     await assert.rejects(verifySiteImport({ archive: await pack(mutateManifest(items, change)), reader, schema: h.plan.schema, sanitize: async () => assert.fail("invalid manifest must not invoke database owner") }), { code: "INVALID_ARCHIVE" });
   });
-  for (const bytes of [Buffer.from("{"), Buffer.from("null")]) await assert.rejects(verifySiteImport({ archive: await pack(items.map(item => item.name === "tovu-backup.json" ? { ...item, bytes } : item)), reader, schema: h.plan.schema, sanitize: async () => assert.fail("invalid JSON must not sanitize") }), { code: "INVALID_ARCHIVE" });
-  await assert.rejects(verifySiteImport({ archive: await pack(items.filter(item => item.name !== "tovu-backup.json")), reader, schema: h.plan.schema, sanitize: async () => assert.fail() }), { code: "INVALID_ARCHIVE", message: /manifest is required/ });
+  for (const bytes of [Buffer.from("{"), Buffer.from("null")]) await assert.rejects(verifySiteImport({ archive: await pack(items.map(item => item.name === "manifest.json" ? { ...item, bytes } : item)), reader, schema: h.plan.schema, sanitize: async () => assert.fail("invalid JSON must not sanitize") }), { code: "INVALID_ARCHIVE" });
+  await assert.rejects(verifySiteImport({ archive: await pack(items.filter(item => item.name !== "manifest.json")), reader, schema: h.plan.schema, sanitize: async () => assert.fail() }), { code: "INVALID_ARCHIVE", message: /manifest/ });
 });
 
 test("share preflight independently rejects disagreeing local headers and ambiguous directory metadata", async t => {

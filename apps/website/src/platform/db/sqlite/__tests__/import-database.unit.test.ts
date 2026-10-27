@@ -38,7 +38,6 @@ function writeOutputs(root: string, { bytes = Buffer.from("rebuilt") }: { bytes?
   fs.writeFileSync(path.join(root, "output.db"), bytes);
   fs.writeFileSync(path.join(root, "media.json"), JSON.stringify([{ storageKey: "blobs/a" }]));
   fs.writeFileSync(path.join(root, "documents.json"), JSON.stringify([]));
-  fs.writeFileSync(path.join(root, "excluded-blobs.json"), JSON.stringify(["blobs/private"]));
 }
 
 test("the helper launch runs the TypeScript source through tsx and a build's JavaScript directly, both with a heap ceiling", () => {
@@ -60,7 +59,7 @@ test("an oversized snapshot and a staging area without room are refused before a
 test("a successful helper's rebuilt database and manifests are returned and its staging root is removed", async () => {
   const { fork, roots } = forkThat(({ root, child }) => { writeOutputs(root); child.emit("close", 0); });
   const result = await rebuildImportDatabase({ snapshot: Buffer.from("input") }, { statfs: plenty, fork });
-  assert.deepEqual(result, { bytes: Buffer.from("rebuilt"), media: [{ storageKey: "blobs/a" }], documents: [], excludedBlobKeys: ["blobs/private"] });
+  assert.deepEqual(result, { bytes: Buffer.from("rebuilt"), media: [{ storageKey: "blobs/a" }], documents: [] });
   assert.equal(fs.existsSync(roots[0]!), false);
 });
 

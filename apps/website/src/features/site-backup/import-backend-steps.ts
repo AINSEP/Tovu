@@ -15,6 +15,7 @@ export type SiteImportSource = { url: string } | { uploadId: string };
 export interface SiteImportView {
   importId: string; source: SiteImportSource; newSiteId: string | null; newSiteName: string | null;
   state: SiteImportRecord["status"]; status: SiteImportRecord["status"]; createdAt: string;
+  warnings?: readonly string[];
   setupUrl?: string; adminUrl?: string | null; error?: string; instructions: string;
 }
 export interface ParsedSiteImportInput { source: SiteImportSource; displayName?: string; requestId?: string }

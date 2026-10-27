@@ -17,9 +17,9 @@ export type PackageFileInventory = ReadonlyMap<string, ReadonlyMap<string, strin
 function excludedRuntimeSharePath({ path, parts }: { path: string; parts: string[] }, _options = {}): boolean {
   // Plugin runtime data/memory have fixed roots. A package's src/data or docs/notes is content.
   const roots = [
-    /^plugins\/[^/]+\/[^/]+\/(?:data|memory)(?:\/|$)/,
+    /^plugins\/[^/]+\/[^/]+\/(?:data(?:\/|$)|memory\/(?!notes(?:\/|$)|learned(?:\/|$)))/,
     /^agent-plugins\/ws\/[^/]+\/(?:data|staging)(?:\/|$)/,
-    /^agent-plugins\/ws\/[^/]+\/[^/]+\/(?:data|memory)(?:\/|$)/,
+    /^agent-plugins\/ws\/[^/]+\/[^/]+\/(?:data(?:\/|$)|memory\/(?!notes(?:\/|$)|learned(?:\/|$)))/,
     /^uploads\/chat-attachments(?:\/|$)/,
   ];
   return roots.some(root => root.test(path)) ||
@@ -96,7 +96,7 @@ function hasUnportableSpelling(required: { path: string }): boolean {
 export function validateSharePath(required: { path: string }, _optional: Record<string, never> = {}): void {
   const p = required.path;
   // This one exact path is produced by trusted projection, never by a filesystem walk.
-  const reason = p === "database/content.db" ? null : checkTreePath(p);
+  const reason = ["database/content.db", "content.db"].includes(p) ? null : checkTreePath(p);
   if (reason || hasUnportableSpelling({ path: p })) {
     const suffix = reason ? `: ${reason}` : ".";
     throw new SiteShareRefusal({ code: "UNSAFE_PATH", message: `Share path '${p}' is unsafe${suffix}` });

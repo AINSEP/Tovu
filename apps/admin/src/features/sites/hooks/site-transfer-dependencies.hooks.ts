@@ -29,6 +29,7 @@ export interface SiteImport {
   source: { url: string } | { uploadId: string };
   newSiteName: string | null;
   state: SiteImportState;
+  warnings?: readonly string[];
   createdAt: string;
   adminUrl?: string | null;
   error?: string;

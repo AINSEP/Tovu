@@ -4,7 +4,6 @@ import { MAX_DOCUMENT_BYTES, type BlobStorePort } from "#src/features/media/inde
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
 import { captureDatabaseSnapshot, collectSiteBackupFiles, readPlannedFile, type CollectedSiteBackupFiles, type PlannedDiskFile, type SiteBackupInclude, type SiteBackupSources } from "./sources.js";
 import { checkShareLimits, SHARE_LIMITS, SiteShareRefusal, type ShareDatabaseProjection, type ShareDatabaseSanitizer } from "./share-policy.js";
-import { validateSharePath } from "./share-file-policy.js";
 
 /**
  * @file The steps of `prepareShareContent`: the projected database, the collected site files, the
@@ -13,7 +12,7 @@ import { validateSharePath } from "./share-file-policy.js";
 
 type ShareBlobStore = Pick<BlobStorePort, "get" | "sizeOf">;
 
-/** Every byte the share will carry, checked against the v1 caps on each addition. */
+/** Every byte the share will carry, checked against the archive caps on each addition. */
 export interface ShareLedger {
   readonly sizes: { path: string; bytes: number }[];
   readonly buffered: { path: string; content: Buffer }[];
@@ -49,37 +48,17 @@ export async function collectShareFiles(required: { sources: SiteBackupSources; 
   return collected;
 }
 
-/**
- * Buffers every blob the projection references, once per key: its size is checked from the store
- * before any byte is fetched, and the fetched bytes must match that size and the database hash.
- * @complexity O(media + referenced blob bytes), bounded by the v1 caps.
- */
-export async function bufferReferencedMedia(required: { projected: ShareDatabaseProjection; blobStore: ShareBlobStore; ledger: ShareLedger }, optional: { signal?: AbortSignal } = {}): Promise<void> {
-  const seen = new Set<string>();
-  const documentKeys = new Set(required.projected.documents?.map(document => document.storageKey));
-  for (const media of required.projected.media) {
-    optional.signal?.throwIfAborted();
-    if (seen.has(media.storageKey)) continue;
-    seen.add(media.storageKey);
-    const entryPath = `uploads/${media.storageKey}`;
-    validateSharePath({ path: entryPath });
-    const size = await reportedBlobSize({ blobStore: required.blobStore, storageKey: media.storageKey, document: documentKeys.has(media.storageKey) });
-    checkShareLimits({ files: [...required.ledger.sizes, { path: entryPath, bytes: size }] });
-    const content = await fetchVerifiedBlob({ blobStore: required.blobStore, media, size });
-    addBuffered({ ledger: required.ledger, file: { path: entryPath, content } });
-  }
-}
-
-async function reportedBlobSize(required: { blobStore: ShareBlobStore; storageKey: string; document: boolean }): Promise<number> {
+export async function reportedBlobSize(required: { blobStore: ShareBlobStore; storageKey: string; document: boolean }): Promise<number> {
   if (!required.blobStore.sizeOf) throw new SiteShareRefusal({ code: "UNBOUNDED_MEDIA", message: "This media store cannot report blob sizes. Configure a size-aware blob store before sharing." });
   const size = await required.blobStore.sizeOf({ storageKey: required.storageKey });
   if (size === null) throw new SiteShareRefusal({ code: "MISSING_MEDIA", message: `Share media '${required.storageKey}' is missing from the blob store.` });
   if (!Number.isSafeInteger(size) || size < 0) throw new SiteShareRefusal({ code: "UNBOUNDED_MEDIA", message: "Media storage returned an invalid byte count; nothing was shared." });
   if (required.document && (size === 0 || size > MAX_DOCUMENT_BYTES)) throw new SiteShareRefusal({ code: "INVALID_DOCUMENT", message: "Library document blobs must be non-empty and at most 10 MiB; nothing was shared." });
+  checkShareLimits({ files: [{ path: "media/blob", bytes: size }] });
   return size;
 }
 
-async function fetchVerifiedBlob(required: { blobStore: ShareBlobStore; media: ShareDatabaseProjection["media"][number]; size: number }): Promise<Buffer> {
+export async function fetchVerifiedBlob(required: { blobStore: ShareBlobStore; media: ShareDatabaseProjection["media"][number]; size: number }): Promise<Buffer> {
   const { media } = required;
   const content = Buffer.from(await required.blobStore.get({ storageKey: media.storageKey }));
   if (content.length !== required.size || (media.sha256 && createHash("sha256").update(content).digest("hex") !== media.sha256)) throw new SiteShareRefusal({ code: "MEDIA_CHANGED", message: `Share media '${media.storageKey}' changed or failed its checksum.` });
@@ -87,16 +66,14 @@ async function fetchVerifiedBlob(required: { blobStore: ShareBlobStore; media: S
 }
 
 /**
- * Regenerates `settings/config.json` (name only; no host, port or credentials) and
- * `settings/.site-meta.json` (named provenance only) and buffers both.
+ * Regenerates root `settings.json` with name and named template provenance, never host configuration.
  * @returns the shared site name: the config's string `name`, else the site folder name.
  */
 export async function addPortableSettings(required: { files: readonly PlannedDiskFile[]; siteDir: string; ledger: ShareLedger }): Promise<string> {
   const config = await readPortableJson({ file: required.files.find(file => file.path === "settings/config.json") });
   const name = typeof config.name === "string" ? config.name : path.basename(required.siteDir);
-  addBuffered({ ledger: required.ledger, file: { path: "settings/config.json", content: Buffer.from(JSON.stringify({ name, domain: null, port: null })) } });
   const meta = await readPortableJson({ file: required.files.find(file => file.path === "settings/.site-meta.json") });
-  addBuffered({ ledger: required.ledger, file: { path: "settings/.site-meta.json", content: Buffer.from(JSON.stringify(pickProvenance({ meta }))) } });
+  addBuffered({ ledger: required.ledger, file: { path: "settings.json", content: Buffer.from(JSON.stringify({ name, template: pickProvenance({ meta }) })) } });
   return name;
 }
 

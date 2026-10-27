@@ -528,3 +528,13 @@ it("withholds Open for failed, unfinished and ready imports without an admin add
     expect(within(row).getByText("—").className).toBe("muted-cell");
   }
 });
+
+it("explains that export images are web-optimized copies", () => {
+  render(<SiteExportTab t={t} useExport={() => exportController()} />);
+  expect(screen.getByText("Images are exported as web-optimized copies.")).toBeTruthy();
+});
+it("shows edited-code warnings in the current import result", () => {
+  const warning = "Edited agent-plugins/demo was imported and kept switched off.";
+  render(<SiteImportTab t={t} useImport={() => importController({ current: siteImport({ warnings: [warning] }) })} />);
+  expect(screen.getByRole("status").textContent).toContain(warning);
+});

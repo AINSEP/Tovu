@@ -51,6 +51,8 @@ export interface SiteBackupPlanContent extends SiteBackupCommonContent {
 export interface SiteSharePlanContent extends SiteBackupCommonContent {
   readonly target: { readonly kind: "zip" };
   readonly profile: "share";
+  readonly media?: readonly import("./archive-manifest.js").ArchiveMedia[];
+  readonly plugins?: readonly import("./archive-manifest.js").ArchivePlugin[];
   readonly bufferedFiles?: readonly { readonly path: string; readonly content: Buffer }[];
 }
 

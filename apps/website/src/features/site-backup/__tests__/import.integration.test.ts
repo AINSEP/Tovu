@@ -7,7 +7,7 @@ import path from "node:path";
 import test from "node:test";
 import { createHash } from "node:crypto";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
-import { buildShareZip } from "../share-zip.js";
+import { buildFixtureShareZip as buildShareZip } from "./archive.fixture.js";
 import { loadTheme } from "../../theme/theme.js";
 import { importFixture, OWNER_PASSWORD, MEDIA, STORAGE_KEY } from "./import.fixture.js";
 
@@ -34,7 +34,7 @@ for (const placement of ["inSite", "appData"] as const) test("B valid archive an
   assert.deepEqual(fs.readFileSync(path.join(entry.path, "uploads", STORAGE_KEY)), MEDIA);
   assert.equal(fs.existsSync(path.join(entry.path, "themes/static/site/index.html")), true);
   assert.equal(fs.existsSync(path.join(entry.path, "themes/code/site/index.ts")), false);
-  assert.equal(fs.existsSync(path.join(entry.path, ".import-quarantine/themes/code/site/index.ts")), true);
+  assert.equal(fs.existsSync(path.join(entry.path, ".import-quarantine/themes/code/executable/index.ts")), true);
   assert.equal(fs.existsSync(path.join(entry.path, "plugins/custom/plugin.json")), false);
   for (const rejectedPassword of ["source-password", "tovu-dev", "deployment-password"]) await h.assertOwnerLogin({ dir: entry.path, rejectedPassword });
   const again = await h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId }, requestId: "same-request" });
@@ -92,14 +92,14 @@ test("restore quarantines malformed, executable and unsafe compiled theme varian
   files.set("themes/static/safe/site.js", Buffer.from("window.safe = true"));
   files.set("themes/declarative/safe/theme.json", Buffer.from('{"tier":"declarative"}'));
   files.set("themes/declarative/safe/tokens.json", Buffer.from("{}"));
-  files.set("settings/config.json", Buffer.from('{"name":"never overwrite host"}'));
+  files.set("settings.json", Buffer.from('{"name":"never overwrite host"}'));
   files.set("overrides/custom.html", Buffer.from("quarantined override"));
   files.set("uploads/blob", Buffer.from("binary media"));
   const root = path.join(h.root, "theme-stage"), dir = path.join(h.root, "restored"), dbPath = path.join(dir, "content.db");
   fs.mkdirSync(dir); fs.mkdirSync(path.join(dir, "themes/static/safe"), { recursive: true });
   fs.writeFileSync(path.join(dir, "themes/static/safe/stale.html"), "seed theme must be replaced as a tree");
   fs.writeFileSync(path.join(dir, "config.json"), "host configuration");
-  stageVerifiedImport({ root, verified: { name: "Copy", database: h.safe.bytes, files } });
+  stageVerifiedImport({ root, verified: { warnings: [], modified: new Set(), plugins: [], trustedPlugins: [], name: "Copy", database: h.safe.bytes, files } });
   await restoreStagedImport({ root, dir, dbPath });
   for (const [tier, name] of variants) {
     assert.equal(fs.existsSync(path.join(dir, `themes/${tier}/${name}/index.html`)), false, name);

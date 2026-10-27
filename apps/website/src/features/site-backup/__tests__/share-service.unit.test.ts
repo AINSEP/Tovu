@@ -52,7 +52,7 @@ test("a received artifact is stored with its hash and the given storage locator"
 });
 test("an artifact the registry cannot write is removed and the write error is rethrown", async t => {
   const registry = await registryIn(t);
-  await assert.rejects(receiveSiteShareArtifact({ registry, site: "ws", token: "c".repeat(16), file: "site.tovu.zip", archive: Buffer.allocUnsafeSlow(SHARE_LIMITS.maxArchiveBytes + 1) }), { code: "LIMIT_EXCEEDED", message: "Share exceeds the v1 300 MiB archive cap." });
+  await assert.rejects(receiveSiteShareArtifact({ registry, site: "ws", token: "c".repeat(16), file: "site.tovu.zip", archive: Buffer.allocUnsafeSlow(SHARE_LIMITS.maxArchiveBytes + 1) }), { code: "LIMIT_EXCEEDED", message: "Share exceeds the 300 MiB archive cap." });
   assert.deepEqual(await registry.list({}), []);
 });
 

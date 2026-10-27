@@ -158,7 +158,7 @@ for (const placement of ["inSite", "appData"] as const) test("A production prepa
   } finally { closeSqliteConnection(imported); }
   assert.equal(createHash("sha256").update(fs.readFileSync(path.join(entry.path, "uploads", STORAGE_KEY))).digest("hex"), HASH);
   assert.deepEqual(fs.readFileSync(path.join(entry.path, "themes/static/site/index.html")), h.files.get("themes/static/site/index.html"));
-  for (const [name, bytes] of packageFiles) assert.deepEqual(fs.readFileSync(path.join(entry.path, ".import-quarantine", packageRoot, name)), bytes, "B preserves quarantined " + name);
+  for (const [name, bytes] of packageFiles) assert.deepEqual(fs.readFileSync(path.join(entry.path, ".import-quarantine/agent-plugins/portable/package", name)), bytes, "B preserves quarantined " + name);
   assert.equal(loadTheme({ themeDir: path.join(entry.path, "themes/static/site"), id: "site", source: "site" }).status, "valid");
 });
 

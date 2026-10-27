@@ -716,11 +716,12 @@ test("a snapshot within the caller's byte cap is read back", async t => {
   const result = await captureDatabaseSnapshot({ dbOps: new FakeDbOps(site.root), scopeId: "ws-1" }, { maxBytes: 6 });
   assert.deepEqual(result.ok && [...result.bytes], [0x53, 0x51, 0x4c, 0x00, 0xff, 0x01]);
 });
-test("a share manifest names the share profile and its sanitization version", () => {
-  const manifest = JSON.parse(buildSiteBackupManifest({ profile: "share", createdAt: "2026-10-16T00:00:00Z", tovuVersion: "1", schema: { index: 1, tag: "one" },
-    site: { name: "Shared", folderName: "shared" }, database: { watermarkAtCapture: 3 }, include: ALL, scopeNotes: {}, files: [] }));
-  assert.deepEqual([manifest.profile, manifest.sanitizationVersion, manifest.database], ["share", 1, { path: "database/content.db", engine: "sqlite", watermarkAtCapture: 3 }]);
+test("repository manifests retain their independent format and omit ZIP profile fields", () => {
+  const manifest = JSON.parse(buildSiteBackupManifest({ createdAt: "2026-10-16T00:00:00Z", tovuVersion: "1", schema: { index: 1, tag: "one" }, site: { name: "Site", folderName: "site" }, database: { watermarkAtCapture: 3 }, include: ALL, scopeNotes: {}, files: [] }));
+  assert.equal(manifest.formatVersion, 1);
+  assert.equal(manifest.profile, undefined);
 });
+
 test("collected files come back sorted by path in code-unit order", async t => {
   const site = makeSite(); t.after(site.cleanup);
   write(path.join(site.root, "themes/static/demo/B.html"), "b");

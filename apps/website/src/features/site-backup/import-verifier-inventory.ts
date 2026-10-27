@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 import type { AgentPluginArchiveEntry, AgentPluginArchiveReaderPort } from "@jini-ai/agent-plugins/lifecycle";
 import { checkShareLimits, SHARE_LIMITS, SiteShareRefusal } from "./share-policy.js";
 import { validateSharePath, excludedSharePath, requireShareSecretFree, claimSharePath, sharePathAlias, type PackageFileInventory } from "./share-file-policy.js";
-import { SITE_BACKUP_MANIFEST_PATH, SITE_BACKUP_DATABASE_PATH } from "./sources.js";
+import { ARCHIVE_MANIFEST_PATH as SITE_BACKUP_MANIFEST_PATH, ARCHIVE_DATABASE_PATH as SITE_BACKUP_DATABASE_PATH, parseArchiveManifest, requireArchiveFileRecord, type ArchiveManifest } from "./archive-manifest.js";
+import { archiveCodeUnit, archiveSecretScanPath } from "./archive-paths.js";
 
 /**
  * @file The archive half of `verifySiteImport`: the metadata-only first pass, the manifest contract,
@@ -16,11 +17,12 @@ type FileEntry = Extract<AgentPluginArchiveEntry, { kind: "file" }>;
 export interface InventoryRecord { readonly path: string; readonly bytes: number; readonly sha256: string }
 
 /** A manifest that passed the share identity contract; only the fields later steps read are typed. */
-export interface SupportedShareManifest { readonly files: unknown[]; readonly site: { readonly name: string } }
+export type SupportedShareManifest = ArchiveManifest;
 
 /** What the metadata pass learned, before any listed content is read. */
 export interface ArchiveScan {
   readonly manifestBytes: Buffer;
+  readonly wrapper: string;
   /** Case/Unicode alias of every file entry, the manifest included. */
   readonly fileAliases: Set<string>;
   readonly directories: Set<string>;
@@ -34,9 +36,8 @@ interface EntryClaims {
   readonly sizes: { path: string; bytes: number }[];
 }
 
-const SHARE_INVENTORY_ROOTS = /^(?:uploads|themes|plugins|agent-plugins|skills|overrides)\/.+/;
-const SHARE_SETTINGS_FILES = ["settings/config.json", "settings/.site-meta.json"];
-const SHA256_HEX = /^[a-f0-9]{64}$/;
+const SHARE_INVENTORY_ROOTS = /^(?:media|themes|plugins|agent-plugins|skills)\/.+/;
+const SHARE_SETTINGS_FILES = ["settings.json"];
 
 export function refuseArchive(message: string): never { throw new SiteShareRefusal({ code: "INVALID_ARCHIVE", message }); }
 
@@ -52,16 +53,37 @@ export function sha256Hex(bytes: Buffer): string { return createHash("sha256").u
  */
 export async function scanArchiveMetadata(required: { archive: Buffer; reader: AgentPluginArchiveReaderPort }, optional: { signal?: AbortSignal } = {}): Promise<ArchiveScan> {
   const claims: EntryClaims = { aliases: new Map(), fileAliases: new Set(), directories: new Set(), sizes: [] };
+  const entries: AgentPluginArchiveEntry[] = [];
   let manifestBytes: Buffer | undefined;
+  let wrapper = "";
   let count = 0;
   for await (const entry of required.reader.entries({ archive: required.archive })) {
     optional.signal?.throwIfAborted();
-    if (++count > SHARE_LIMITS.maxFiles) refuseArchive("Import exceeds the v1 2,000-entry cap.");
-    const file = claimEntry({ claims, entry });
-    if (file?.entryPath === SITE_BACKUP_MANIFEST_PATH) manifestBytes = await readBounded({ entry: file, maxBytes: SHARE_LIMITS.maxManifestBytes, signal: optional.signal });
+    if (++count > SHARE_LIMITS.maxFiles) refuseArchive("Import exceeds the 2,000-entry cap.");
+    const name = entry.entryPath.replace(/\/$/, "");
+    validateRawEntry({ entry, name });
+    if (ignoredArchivePath({ path: name })) continue;
+    entries.push(entry);
+    if (isManifestEntry({ entry, name })) {
+      if (manifestBytes) refuseArchive("Exactly one v2 manifest is required.");
+      wrapper = name.slice(0, -SITE_BACKUP_MANIFEST_PATH.length);
+      manifestBytes = await readBounded({ entry: entry as FileEntry, maxBytes: SHARE_LIMITS.maxManifestBytes, signal: optional.signal });
+    }
   }
-  if (!manifestBytes) refuseArchive("Root tovu-backup.json manifest is required.");
-  return { manifestBytes, fileAliases: claims.fileAliases, directories: claims.directories };
+  if (!manifestBytes) refuseArchive("A v2 manifest.json at root or inside one wrapper folder is required.");
+  claimNormalizedEntries({ entries, claims, wrapper });
+  return { manifestBytes, wrapper, fileAliases: claims.fileAliases, directories: claims.directories };
+}
+
+/** Finder metadata is discarded identically in both passes, without decompressing it. */
+export function ignoredArchivePath(required: { path: string }, _optional = {}): boolean {
+  return required.path.split("/").some(part => part === "__MACOSX" || part === ".DS_Store");
+}
+function stripArchiveWrapper(required: { path: string; wrapper: string }): string {
+  if (!required.path.startsWith(required.wrapper)) refuseArchive("Files outside the single wrapper folder are forbidden.");
+  const path = required.path.slice(required.wrapper.length);
+  validateSharePath({ path: path.replace(/\/$/, "") });
+  return path;
 }
 
 /** Claims one entry; returns it when it is a file, `undefined` for a directory. */
@@ -100,35 +122,7 @@ function claimFile(required: { claims: EntryClaims; entry: FileEntry }): void {
  * @complexity O(manifest bytes).
  */
 export function parseShareManifest(required: { manifestBytes: Buffer; schema: { index: number; tag: string } }): SupportedShareManifest {
-  let manifest: unknown;
-  try { manifest = JSON.parse(required.manifestBytes.toString("utf8")); } catch { refuseArchive("Invalid share manifest JSON."); }
-  if (!isSupportedManifest(manifest, required.schema)) refuseArchive("Unsupported share format/profile/version, schema identity, database or site name.");
-  return manifest;
-}
-
-// The manifest is untrusted JSON of any shape; each predicate reads it exactly as the archive gave it.
-function isSupportedManifest(manifest: any, schema: { index: number; tag: string }): manifest is SupportedShareManifest {
-  return formatSupported(manifest) && schemaSupported(manifest, schema) && databaseSupported(manifest) && fileListSupported(manifest) && siteNameSupported(manifest);
-}
-function formatSupported(manifest: any): boolean {
-  return manifest?.format === "tovu-site-backup" && manifest.formatVersion === 1 && manifest.profile === "share" && manifest.sanitizationVersion === 1;
-}
-function schemaSupported(manifest: any, schema: { index: number; tag: string }): boolean {
-  // Library added columns, not a new manifest identity. Historical database compatibility
-  // belongs to the worker's trusted schema matcher, never invented migration-ID aliases.
-  return manifest.schema?.index === schema.index && manifest.schema?.tag === schema.tag;
-}
-function databaseSupported(manifest: any): boolean {
-  return manifest.database?.engine === "sqlite" && manifest.database?.path === SITE_BACKUP_DATABASE_PATH;
-}
-function fileListSupported(manifest: any): boolean {
-  return Array.isArray(manifest.files) && manifest.files.length + 1 <= SHARE_LIMITS.maxFiles;
-}
-function siteNameSupported(manifest: any): boolean {
-  return typeof manifest.site?.name === "string" && Boolean(manifest.site.name.trim()) && manifest.site.name.length <= 200;
-}
-function isInventoryRecord(file: any): file is InventoryRecord {
-  return Boolean(file) && typeof file.path === "string" && Number.isSafeInteger(file.bytes) && file.bytes >= 0 && SHA256_HEX.test(file.sha256);
+  return parseArchiveManifest({ bytes: required.manifestBytes, schema: required.schema });
 }
 
 /**
@@ -139,8 +133,8 @@ function isInventoryRecord(file: any): file is InventoryRecord {
  */
 export function buildManifestInventory(required: { files: readonly unknown[] }): Map<string, InventoryRecord> {
   const inventory = new Map<string, InventoryRecord>();
-  for (const file of required.files) {
-    if (!isInventoryRecord(file)) refuseArchive("Invalid manifest file record.");
+  for (const record of required.files) {
+    const file = requireArchiveFileRecord({ file: record });
     validateSharePath({ path: file.path });
     if (inventory.has(file.path) || file.path === SITE_BACKUP_MANIFEST_PATH) refuseArchive("Duplicate manifest file.");
     if (refusedInventoryPath(file.path)) refuseArchive("Unrecognized or private file in share inventory.");
@@ -151,7 +145,7 @@ export function buildManifestInventory(required: { files: readonly unknown[] }):
 
 function refusedInventoryPath(path: string): boolean {
   if (path === SITE_BACKUP_DATABASE_PATH) return false;
-  return excludedSharePath({ path }) || !SHARE_INVENTORY_ROOTS.test(path) && !SHARE_SETTINGS_FILES.includes(path);
+  return excludedSharePath({ path: archiveSecretScanPath({ path, plugins: [] }) }) || !SHARE_INVENTORY_ROOTS.test(path) && !SHARE_SETTINGS_FILES.includes(path);
 }
 
 /**
@@ -171,25 +165,29 @@ export function checkArchiveMatchesInventory(required: { inventory: ReadonlyMap<
  * @throws SiteShareRefusal (INVALID_ARCHIVE, SECRET_IN_CONTENT) or the signal's reason.
  * @complexity O(payload bytes), at most 300 MiB buffered.
  */
-export async function readListedFiles(required: { archive: Buffer; reader: AgentPluginArchiveReaderPort; inventory: ReadonlyMap<string, InventoryRecord>; manifestBytes: Buffer }, optional: { signal?: AbortSignal; packageFiles?: PackageFileInventory } = {}): Promise<Map<string, Buffer>> {
+export async function readListedFiles(required: { archive: Buffer; reader: AgentPluginArchiveReaderPort; inventory: ReadonlyMap<string, InventoryRecord>; manifestBytes: Buffer; wrapper?: string; manifest?: ArchiveManifest; modified?: Set<string> }, optional: { signal?: AbortSignal; packageFiles?: PackageFileInventory } = {}): Promise<Map<string, Buffer>> {
   const files = new Map<string, Buffer>();
   let expanded = required.manifestBytes.length;
   for await (const entry of required.reader.entries({ archive: required.archive })) {
-    if (entry.kind !== "file" || entry.entryPath === SITE_BACKUP_MANIFEST_PATH) continue;
-    const content = await readListedFile({ entry, inventory: required.inventory, remainingBytes: SHARE_LIMITS.maxExpandedBytes - expanded }, optional);
+    if (entry.kind !== "file" || ignoredArchivePath({ path: entry.entryPath })) continue;
+    const entryPath = stripArchiveWrapper({ path: entry.entryPath, wrapper: required.wrapper ?? "" });
+    if (entryPath === SITE_BACKUP_MANIFEST_PATH) continue;
+    const content = await readListedFile({ entry: { ...entry, entryPath }, inventory: required.inventory, remainingBytes: SHARE_LIMITS.maxExpandedBytes - expanded, manifest: required.manifest, modified: required.modified }, optional);
     expanded += content.length;
-    files.set(entry.entryPath, content);
+    files.set(entryPath, content);
   }
   return files;
 }
 
-async function readListedFile(required: { entry: FileEntry; inventory: ReadonlyMap<string, InventoryRecord>; remainingBytes: number }, optional: { signal?: AbortSignal | undefined; packageFiles?: PackageFileInventory | undefined }): Promise<Buffer> {
+async function readListedFile(required: { entry: FileEntry; inventory: ReadonlyMap<string, InventoryRecord>; remainingBytes: number; manifest?: ArchiveManifest | undefined; modified?: Set<string> | undefined }, optional: { signal?: AbortSignal | undefined; packageFiles?: PackageFileInventory | undefined }): Promise<Buffer> {
   const { entry } = required;
   const expected = required.inventory.get(entry.entryPath);
-  if (!expected || expected.bytes !== entry.declaredSize) refuseArchive("Unlisted ZIP file or size mismatch.");
-  const content = await readBounded({ entry, maxBytes: Math.min(expected.bytes, required.remainingBytes), signal: optional.signal });
-  if (content.length !== expected.bytes || sha256Hex(content) !== expected.sha256) refuseArchive("ZIP size or SHA-256 mismatch.");
-  if (entry.entryPath !== SITE_BACKUP_DATABASE_PATH) requireShareSecretFree({ path: entry.entryPath, bytes: content }, { packageFiles: optional.packageFiles });
+  if (!expected) refuseArchive("Unlisted ZIP file.");
+  const unit = archiveCodeUnit({ path: entry.entryPath });
+  if (!unit && expected.bytes !== entry.declaredSize) refuseArchive("ZIP size mismatch.");
+  const content = await readBounded({ entry, maxBytes: Math.min(entry.declaredSize!, required.remainingBytes), signal: optional.signal });
+  verifyListedIntegrity({ content, expected, unit, modified: required.modified });
+  if (entry.entryPath !== SITE_BACKUP_DATABASE_PATH) requireShareSecretFree({ path: archiveSecretScanPath({ path: entry.entryPath, plugins: required.manifest?.plugins ?? [] }), bytes: content }, { packageFiles: optional.packageFiles });
   return content;
 }
 
@@ -200,9 +198,35 @@ async function readBounded(required: { entry: FileEntry; maxBytes: number; signa
   for await (const chunk of required.entry.openReadStream({})) {
     required.signal?.throwIfAborted();
     size += chunk.length;
-    if (size > required.maxBytes) refuseArchive("Expanded ZIP bytes exceed the manifest or v1 cap (possible ZIP bomb).");
+    if (size > required.maxBytes) refuseArchive("Expanded ZIP bytes exceed the manifest or archive cap (possible ZIP bomb).");
     chunks.push(Buffer.from(chunk));
   }
   if (size !== required.entry.declaredSize) refuseArchive("ZIP declared and actual size differ.");
   return Buffer.concat(chunks, size);
+}
+
+function validateRawEntry(required: { entry: AgentPluginArchiveEntry; name: string }): void {
+  // Validate traversal/aliases even on ignored metadata. Its known OS name and the database
+  // extension are placeholders only during the pre-strip path check, never extraction paths.
+  validateSharePath({ path: required.name.split("/").map(part => part === ".DS_Store" ? "finder-metadata" : part).join("/").replace(/(^|\/)content\.db$/, "$1content-database") });
+  if (required.entry.kind !== "file" && required.entry.kind !== "directory") refuseArchive("ZIP links and special entries are forbidden.");
+}
+function isManifestEntry(required: { entry: AgentPluginArchiveEntry; name: string }): boolean {
+  return required.entry.kind === "file" && /^(?:[^/]+\/)?manifest\.json$/.test(required.name);
+}
+
+function claimNormalizedEntries(required: { entries: readonly AgentPluginArchiveEntry[]; claims: EntryClaims; wrapper: string }): void {
+  const { entries, claims, wrapper } = required;
+  for (const entry of entries) {
+    if (entry.kind === "directory" && entry.entryPath.replace(/\/$/, "") === wrapper.slice(0, -1)) continue;
+    const entryPath = stripArchiveWrapper({ path: entry.entryPath, wrapper });
+    claimEntry({ claims, entry: { ...entry, entryPath } });
+  }
+}
+
+/** Editable code changes disable their entire unit; data integrity failures always refuse. */
+function verifyListedIntegrity(required: { content: Buffer; expected: InventoryRecord; unit: string | undefined; modified: Set<string> | undefined }): void {
+  if (required.content.length === required.expected.bytes && sha256Hex(required.content) === required.expected.sha256) return;
+  if (!required.unit || !required.modified) refuseArchive("ZIP size or SHA-256 mismatch.");
+  required.modified.add(required.unit);
 }

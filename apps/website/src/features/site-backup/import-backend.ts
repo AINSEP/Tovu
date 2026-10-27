@@ -10,7 +10,7 @@ import type { SitesWorkspace } from "#src/platform/site-dir/sites-home";
 import type { SiteImportRegistry, SiteImportRecord } from "./import-registry.js";
 import { SHARE_LIMITS, SiteShareRefusal, type ShareDatabaseSanitizer } from "./share-policy.js";
 import { verifySiteImport } from "./import-verifier.js";
-import { restoreStagedImport, stageVerifiedImport } from "./import-restore.js";
+import { restoreStagedImport, stageVerifiedImport, stagedImportWarnings } from "./import-restore.js";
 import {
   consumeUpload, deadlineSignal, downloadShareArchive, importSiteSlug, parseImportInput, reconcileInterruptedImports, refusal,
   requireFreeSpace, requireOwnerSetup, requireStagingBudget, siteImportView, startImportedSite,
@@ -48,7 +48,10 @@ export function createSiteImportBackend(required: {
   report?: (required: { importId: string; status: string }) => void;
 } = {}): SiteImportBackend {
   const { registry, workspace } = required;
-  const view = (row: SiteImportRecord): SiteImportView => siteImportView({ row }, { setupBase: required.setupBase });
+  const view = (row: SiteImportRecord): SiteImportView => {
+    const warnings = stagedImportWarnings({ root: registry.stagePath(row) });
+    return { ...siteImportView({ row }, { setupBase: required.setupBase }), ...(warnings.length ? { warnings } : {}) };
+  };
   const put = (row: SiteImportRecord) => { registry.put({ row }); optional.report?.({ importId: row.importId, status: row.status }); };
   let active = false;
   const exclusive = async <T>(run: () => Promise<T>): Promise<T> => {
@@ -152,6 +155,7 @@ export function createSiteImportBackend(required: {
         const home = workspace.home({});
         requireFreeSpace({ dir: fs.existsSync(home) ? home : path.dirname(home), message: "Import requires 900 MiB of free space on the sites-home volume." });
         signal.throwIfAborted();
+        const warnings = stagedImportWarnings({ root: registry.stagePath(pending) });
         const creating: SiteImportRecord = { ...pending, status: "creating" }; put(creating);
         const { row: allocated, created } = await createImportedSite({ row: creating, adminPassword, signal });
         // Owner and restore are committed. A supervisor failure must not repeat site creation.
@@ -161,7 +165,7 @@ export function createSiteImportBackend(required: {
         fs.rmSync(registry.stagePath(ready), { recursive: true, force: true });
         const started = await startImportedSite({ row: ready, name: created.name, startSite: required.startSite });
         put(started);
-        return view(started);
+        return { ...view(started), ...(warnings.length ? { warnings } : {}) };
       });
     },
     async list(input) { return exclusive(async () => { registry.expire({}); return registry.list(input).map(view); }); },

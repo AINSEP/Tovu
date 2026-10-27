@@ -547,7 +547,6 @@ export async function readPlannedFile(file: PlannedDiskFile, optional: { openFil
 }
 
 export interface SiteBackupManifestInput {
-  readonly profile?: "share";
   readonly createdAt: string;
   readonly tovuVersion: string;
   readonly schema: { readonly index: number; readonly tag: string };
@@ -576,7 +575,6 @@ export function buildSiteBackupManifest(input: SiteBackupManifestInput): string 
   const manifest = {
     format: "tovu-site-backup",
     formatVersion: 1,
-    ...(input.profile === "share" ? { profile: "share", sanitizationVersion: 1 } : {}),
     createdAt: input.createdAt,
     tovu: { version: input.tovuVersion },
     schema: { index: input.schema.index, tag: input.schema.tag },
