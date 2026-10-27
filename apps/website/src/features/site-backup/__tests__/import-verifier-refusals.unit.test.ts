@@ -137,7 +137,7 @@ test("the sanitizer receives the archived database snapshot and the caller's abo
 });
 test("every recognised portable root and the settings file are admitted", async () => {
   const files = new Map(content);
-  for (const path of ["themes/site/index.html", "themes/overrides/site.css", "skills/s/SKILL.md", "plugins/p/memory/notes/n.md", "agent-plugins/a/memory/learned/l.md"]) files.set(path, Buffer.from("plain"));
+  for (const path of ["themes/site/index.html", "themes/__overrides__/site.css", "skills/s/SKILL.md", "plugins/p/memory/notes/n.md", "agent-plugins/a/memory/learned/l.md"]) files.set(path, Buffer.from("plain"));
   const result = await verify(entries(manifest({}, files), files));
   assert.deepEqual([...result.files.keys()].sort(), ["agent-plugins/a/memory/learned/l.md", "overrides/site.css", "plugins/p/memory/notes/n.md", "settings.json", "skills/s/SKILL.md", "themes/untrusted/site/index.html", "uploads/blob"]);
 });

@@ -13,7 +13,7 @@ async function preparation(t: TestContext) {
   const sources = { siteDir, themesDir: path.join(siteDir, "themes"), skillsDir: path.join(siteDir, "skills"), mediaUploadsDir: null, agentPlugins: resolveAgentPluginLayout({ siteDir, env: {} }), tovuVersion: "test" };
   const projection: ShareDatabaseProjection = { bytes: Buffer.from("projected"), media: [] };
   const enrich = (value: ShareDatabaseProjection): ShareDatabaseProjection => ({ ...value, archiveMedia: [...new Map(value.media.map(row => [row.storageKey, row])).values()].map(row => ({ ...row, sha256: row.sha256 ?? "", id: row.storageKey, slug: row.storageKey, workspaceId: "ws", kind: value.documents?.some(doc => doc.storageKey === row.storageKey) ? "document" : "media", originalFilename: null })) });
-  const ports: Parameters<typeof prepareShareContent>[0] = { sources, sanitize: async () => enrich(projection), rewriteMedia: async ({ bytes }) => bytes, imageTransformer: { transform: async () => assert.fail("not raster") },
+  const ports: Parameters<typeof prepareShareContent>[0] = { snapshotRoot: h.root, sources, sanitize: async () => enrich(projection), rewriteMedia: async ({ bytes }) => bytes, imageTransformer: { transform: async () => assert.fail("not raster") },
     blobStore: { sizeOf: async () => assert.fail("no media"), get: async () => assert.fail("no media") },
     dbOps: { getCapabilities: async () => ({ restorePoint: { kind: "file-snapshot", costClass: "cheap" } }),
       captureRestorePoint: async () => { const artifactRef = path.join(h.root, "snapshot.db"); fs.writeFileSync(artifactRef, "private"); return { artifactRef, watermarkAtCapture: 7 }; }, restoreFromArtifact: async () => assert.fail("export must not restore") } };

@@ -94,7 +94,7 @@ test("a provider settings save attaches to this site and reopening shows the sav
   project.usage = async ({ pluginId }) => ({ ...(project.saved.has(pluginId) ? { keyId } : {}), store: "project", usedByThisSite: false, usedBy: [] });
   const site: ProviderConfigSource = { scope: "site", read: async () => null, readSettings: async () => null,
     usage: async () => ({ store: "site", usedByThisSite: false, usedBy: [] }), write: async () => assert.fail("must save to the project") };
-  const config = withAttachedProject({ site }, { project, attachments, siteId: WS });
+  const config = withAttachedProject({ site }, { project, attachments, siteId: WS, siteName: "A" });
   const projectKeys = createProjectKeys({ vault, attachments, siteId: WS, siteName: "A", providerUsage: config.usage,
     transaction: async ({ run }) => run(), reapply: async () => "restart" });
   const { call } = await serve(t, { providerConfig: config, projectKeys });

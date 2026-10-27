@@ -20,6 +20,8 @@ import { requireShareSecretFree } from "../share-file-policy.js";
 
 // Real installed packages include both MCP transport declarations and credential schema metadata.
 const packageRoot = `agent-plugins/ws/ws/portable/package/sha256/${"a".repeat(64)}`;
+/** v2 archives the runtime package root above at its portable path, and the database at the root. */
+const archivePackageRoot = "agent-plugins/portable/package";
 const packageFiles = new Map([
   ["plugin.json", Buffer.from('{"name":"portable","version":"1.0.0"}')],
   ["mcp.json", Buffer.from('{"mcpServers":{"portable":{"command":"node","args":["server.mjs"]}}}')],
@@ -101,12 +103,12 @@ for (const placement of ["inSite", "appData"] as const) test("A production prepa
   } } });
   let archivedDatabase: Buffer | undefined;
   const archivedPackage = new Map<string, Buffer>();
-  for await (const file of reader.entries({ archive: prepared.archive })) if (file.kind === "file" && (file.entryPath === "database/content.db" || file.entryPath.startsWith(packageRoot + "/"))) {
+  for await (const file of reader.entries({ archive: prepared.archive })) if (file.kind === "file" && (file.entryPath === "content.db" || file.entryPath.startsWith(archivePackageRoot + "/"))) {
     const chunks: Buffer[] = [];
     for await (const chunk of file.openReadStream({})) chunks.push(Buffer.from(chunk));
     const bytes = Buffer.concat(chunks);
-    if (file.entryPath === "database/content.db") archivedDatabase = bytes;
-    else archivedPackage.set(file.entryPath.slice(packageRoot.length + 1), bytes);
+    if (file.entryPath === "content.db") archivedDatabase = bytes;
+    else archivedPackage.set(file.entryPath.slice(archivePackageRoot.length + 1), bytes);
   }
   assert.deepEqual(archivedPackage, packageFiles, "A exports every required package byte");
   assert.deepEqual(archivedDatabase, prepared.plan.database!.bytes, "A's exact projected DB is what its ZIP contains");

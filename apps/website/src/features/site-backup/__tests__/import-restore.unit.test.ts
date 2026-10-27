@@ -91,8 +91,9 @@ test("custom code that lands switched off gets one warning per unit; trusted, li
     "Agent plugin 'mine' isn't code this Tovu recognises. It was imported and kept switched off.",
     "Plugin 'custom' isn't code this Tovu recognises. It was imported and kept switched off.",
     "Skill 'notes' isn't code this Tovu recognises. It was imported and kept switched off.",
-    "Theme 'fancy' isn't code this Tovu recognises. It was imported and kept switched off.",
+    // Sorted by archive unit: themes/__overrides__ sorts before themes/fancy.
     "Theme overrides aren't code this Tovu recognises. They were imported and kept switched off.",
+    "Theme 'fancy' isn't code this Tovu recognises. It was imported and kept switched off.",
   ]);
 });
 

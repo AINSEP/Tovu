@@ -32,10 +32,11 @@ export function addBuffered(required: { ledger: ShareLedger; file: { path: strin
  * Snapshots the site database and returns only the sanitizer's fresh projection.
  * Release the private snapshot before buffering media and assembling the public ZIP: the snapshot
  * is scoped to this helper, so it is released before the caller does either.
+ * `snapshotRoot` is a private folder outside the source site: Export never writes into site storage.
  * @throws SiteShareRefusal DATABASE_SNAPSHOT_FAILED with the snapshot's caller-safe message.
  */
-export async function captureProjectedDatabase(required: { dbOps: DbOpsPort; sanitize: ShareDatabaseSanitizer }, optional: { signal?: AbortSignal } = {}): Promise<{ projected: ShareDatabaseProjection; watermarkAtCapture: number }> {
-  const snapshot = await captureDatabaseSnapshot({ dbOps: required.dbOps, scopeId: "site-share" }, { maxBytes: SHARE_LIMITS.maxExpandedBytes });
+export async function captureProjectedDatabase(required: { dbOps: DbOpsPort; sanitize: ShareDatabaseSanitizer; snapshotRoot: string }, optional: { signal?: AbortSignal } = {}): Promise<{ projected: ShareDatabaseProjection; watermarkAtCapture: number }> {
+  const snapshot = await captureDatabaseSnapshot({ dbOps: required.dbOps, scopeId: "site-share" }, { maxBytes: SHARE_LIMITS.maxExpandedBytes, snapshotRoot: required.snapshotRoot });
   if (!snapshot.ok) throw new SiteShareRefusal({ code: "DATABASE_SNAPSHOT_FAILED", message: snapshot.message });
   const projected = await required.sanitize({ snapshot: snapshot.bytes }, { signal: optional.signal });
   return { projected, watermarkAtCapture: snapshot.watermarkAtCapture };

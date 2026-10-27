@@ -5,6 +5,10 @@ import test from "node:test";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
+import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
+import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import { InMemoryCustomCredentialSetRepo, listCustomCredentials, resolveCustomCredentialByLabel, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
 import { formDestinationKeyLabel, formReceiverKey, listFormDestinations } from "../key-store.js";
 
@@ -55,6 +59,23 @@ test("a republish reuses the saved key and moves its address only when the publi
   await again.save!({ url: "https://renamed.example/" });
   assert.equal(updates, 1);
   assert.equal((await resolveCustomCredentialByLabel(creds, { workspaceId: W, label }))?.baseUrl, "https://renamed.example");
+});
+
+test("a receiver key stays site-owned with a project store and republishing reuses the installed secret", async () => {
+  const base = credentials(), projectVault = new InMemoryVaultRepo({}), attachments = fakeAttachments();
+  const project = { workspaceId: "project", sealer: base.sealer, keyring: base.keyring,
+    repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: projectVault, attachments, siteId: W }) }) };
+  const creds = { ...base, repo: new CustomCredentialVaultRepo({ vault: new InMemoryVaultRepo({}) }, { project }) };
+  const first = await formReceiverKey({ credentials: creds, workspaceId: W, scope: "host-a" }, { newSecret: () => KEY_A });
+  await first.save({ url: "https://a.example" });
+  const again = await formReceiverKey({ credentials: creds, workspaceId: W, scope: "host-a" }, { newSecret: () => KEY_B });
+  assert.equal(again.secret, KEY_A, "the receiver and the stored credential must keep the same secret");
+  await again.save({ url: "https://renamed.example" });
+  assert.deepEqual(await listFormDestinations({ credentials: creds, workspaceId: W }), [
+    { scope: "host-a", destination: { url: "https://renamed.example", secret: KEY_A } },
+  ]);
+  assert.equal((await creds.repo.listByWorkspace({ workspaceId: W })).length, 1);
+  assert.deepEqual(await project.repo.listByWorkspace({ workspaceId: "project" }), []);
 });
 
 test("a concurrent first save keeps the winner's key; other save failures propagate", async () => {

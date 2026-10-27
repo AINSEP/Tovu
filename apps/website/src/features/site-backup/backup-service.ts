@@ -30,6 +30,8 @@ import { resolveDefaultForSourceControl, SourceControlCredentialSecretStoreUncon
 import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "../source-control/types.js";
 import type { SiteImportBackend } from "./import-backend.js";
 import type { SiteShareBackend } from "./share-backend.js";
+import { sanitizeShareDatabase } from "#src/platform/db/sqlite/share-database";
+import { SiteShareRefusal, type ShareDatabaseSanitizer } from "./share-policy.js";
 import { siteBackupPlanStore as DEFAULT_PLAN_STORE, type SiteBackupPlan, type SiteBackupPlanStore } from "./plan-store.js";
 import { CANCELLED, initialPushProgress, uploadPlannedContent, type SiteBackupPushProgress } from "./push-engine.js";
 import { SiteBackupPushJobs } from "./push-jobs.js";
@@ -65,8 +67,10 @@ import {
  * same planId keeps waiting on the same job. The upload itself is `push-engine.ts`.
  *
  * Safety rules, each re-checked at push time where the world can change in between:
+ * - The database is the share projection ({@link captureBackupDatabase}): content, themes and
+ *   settings, never accounts, members, RBAC, sessions or secrets.
  * - Private repositories only (public and "internal" both refused), because the database holds
- *   members, form submissions and admin accounts. Re-checked before pushing.
+ *   unpublished content. Re-checked before pushing.
  * - Never a force push, and never a surprise overwrite: the push commits on the PLAN's tip, and a
  *   branch that moved since is refused (`DIVERGED_BRANCH`) before a single blob is uploaded, and
  *   again by the host itself on the non-force ref update.
@@ -130,6 +134,8 @@ export interface SiteBackupToolDeps {
    *  folder — both tools then answer `UNAVAILABLE`. */
   readonly siteBackupSources?: SiteBackupSources;
   readonly siteShareBackend?: SiteShareBackend;
+  /** Test-only; defaults to {@link sanitizeShareDatabase}, the share/export policy. */
+  readonly siteBackupSanitize?: ShareDatabaseSanitizer;
   /** Test-only; defaults to the process-wide store. */
   readonly siteBackupPlanStore?: SiteBackupPlanStore;
   /** Test-only; defaults to {@link siteAwareSiteKeyStatus} (site-aware — see that function's doc). */
@@ -591,20 +597,43 @@ async function savePlan(required: {
 type PreparedContent = Pick<SiteBackupPlan, "database" | "files" | "skipped" | "scopeNotes" | "totalBytes">;
 
 /**
- * The bytes a plan holds: the database snapshot (when included), the disk files, and the limit
- * check over both.
+ * The database a backup uploads: the snapshot rebuilt through the share projection.
+ * Why: the raw snapshot holds password hashes, sessions, magic-link tokens and sealed vault rows
+ * (security review SEC-1). Deleting rows would leave them in free pages, so the backup is a NEW
+ * database built by the same policy as share/export (owner decision 2026-10-26: one policy, never
+ * a second backup-only scrub). A share refusal (unknown populated table, secret in content) is
+ * the plan's refusal.
+ *
+ * @complexity O(database size).
+ */
+async function captureBackupDatabase(required: { deps: SiteBackupToolDeps }): Promise<{ ok: true; database: NonNullable<PreparedContent["database"]> } | Refusal> {
+  const { deps } = required;
+  const snapshot = await captureDatabaseSnapshot({ dbOps: deps.dbOps, scopeId: SNAPSHOT_SCOPE_ID });
+  if (!snapshot.ok) {
+    logFailureDetail(deps, PLAN_TOOL_ID, { code: "database-snapshot", ...(snapshot.logDetail !== undefined ? { logDetail: snapshot.logDetail } : {}) });
+    return { ok: false, code: "DATABASE_SNAPSHOT_FAILED", message: snapshot.message };
+  }
+  try {
+    const projected = await (deps.siteBackupSanitize ?? sanitizeShareDatabase)({ snapshot: snapshot.bytes });
+    return { ok: true, database: { bytes: projected.bytes, watermarkAtCapture: snapshot.watermarkAtCapture } };
+  } catch (err) {
+    if (err instanceof SiteShareRefusal) return { ok: false, code: err.code, message: err.message };
+    throw err;
+  }
+}
+
+/**
+ * The bytes a plan holds: the sanitized database (when included), the disk files, and the limit
+ * check over both, so the limits measure the uploaded bytes.
  *
  * @complexity O(database size + site files).
  */
 async function prepareContent(deps: SiteBackupToolDeps, sources: SiteBackupSources, include: SiteBackupInclude, host: SiteBackupHostLimit): Promise<{ ok: true; content: PreparedContent } | Refusal> {
   let database: PreparedContent["database"] = null;
   if (include.database) {
-    const snapshot = await captureDatabaseSnapshot({ dbOps: deps.dbOps, scopeId: SNAPSHOT_SCOPE_ID });
-    if (!snapshot.ok) {
-      logFailureDetail(deps, PLAN_TOOL_ID, { code: "database-snapshot", ...(snapshot.logDetail !== undefined ? { logDetail: snapshot.logDetail } : {}) });
-      return { ok: false, code: "DATABASE_SNAPSHOT_FAILED", message: snapshot.message };
-    }
-    database = { bytes: snapshot.bytes, watermarkAtCapture: snapshot.watermarkAtCapture };
+    const captured = await captureBackupDatabase({ deps });
+    if (!captured.ok) return captured;
+    database = captured.database;
   }
   const collected = await collectSiteBackupFiles({ sources, include });
   const fitting = skipOversizedFiles(collected.files, host);

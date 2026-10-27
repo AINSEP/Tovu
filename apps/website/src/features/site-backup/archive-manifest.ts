@@ -67,7 +67,8 @@ function validateFiles({ files }: { files: any[] }): Map<string, ArchiveFile> {
   claimSharePath({ path: ARCHIVE_MANIFEST_PATH, directory: false, aliases, files: names });
   for (const record of files) {
     const file = requireArchiveFileRecord({ file: record });
-    if (![ARCHIVE_DATABASE_PATH, "settings.json"].includes(file.path) && !ROOT.test(file.path)) invalid();
+    // A path listed twice is a malformed manifest, not an unsafe archive path.
+    if (inventory.has(file.path) || (![ARCHIVE_DATABASE_PATH, "settings.json"].includes(file.path) && !ROOT.test(file.path))) invalid();
     claimSharePath({ path: file.path, directory: false, aliases, files: names });
     inventory.set(file.path, file);
   }

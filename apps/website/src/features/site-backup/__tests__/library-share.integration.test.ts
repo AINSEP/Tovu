@@ -95,7 +95,7 @@ for (const storage of ["local", "s3"] as const) test(`L3 ${storage}: share/impor
   const siteDir = path.join(h.root, "source");
   fs.mkdirSync(path.join(siteDir, "uploads/chat-attachments"), { recursive: true });
   fs.writeFileSync(path.join(siteDir, "uploads/chat-attachments/private.md"), "Temporary attachment");
-  const plan = await prepareShareContent({ sources: { siteDir, mediaUploadsDir: path.join(siteDir, "uploads"), themesDir: path.join(siteDir, "themes"), skillsDir: path.join(siteDir, "skills"), agentPlugins: resolveAgentPluginLayout({ siteDir, env: {} }), tovuVersion: "test" },
+  const plan = await prepareShareContent({ snapshotRoot: h.root, sources: { siteDir, mediaUploadsDir: path.join(siteDir, "uploads"), themesDir: path.join(siteDir, "themes"), skillsDir: path.join(siteDir, "skills"), agentPlugins: resolveAgentPluginLayout({ siteDir, env: {} }), tovuVersion: "test" },
     blobStore: await sourceStore(t, h, storage), sanitize: sanitizeShareDatabase, rewriteMedia: rewriteArchiveMedia, imageTransformer: { transform: async () => assert.fail("not raster") },
     dbOps: { getCapabilities: async () => ({ restorePoint: { costClass: "cheap", kind: "file-snapshot" } }), captureRestorePoint: async () => {
       const artifactRef = path.join(h.root, "source-snapshot.db"); fs.writeFileSync(artifactRef, h.db.$client.serialize()); return { artifactRef, watermarkAtCapture: 1 };
@@ -272,9 +272,10 @@ test("L3 genuine pre-L3 share omits Trash and orphan payloads but rejects arbitr
     assert.equal(staged.prepare("SELECT 1 FROM media WHERE kind='document'").get(), undefined);
     assert.deepEqual(staged.prepare("SELECT sha256 FROM asset_blobs").all(), [{ sha256: HASH }]);
   } finally { staged.close(); }
-  h.files.set("uploads/unlisted-owner.txt", Buffer.from("No database owner"));
-  const extra = await h.backend.upload({ principalId: "recipient", archive: await h.archiveWithDatabase(h.db.$client.serialize()) });
-  await assert.rejects(h.backend.importBackup({ principalId: "recipient", source: { uploadId: extra.uploadId } }), /Unreferenced uploads/);
+  // v2 archives carry media only under media/ with a manifest record; a raw uploads/ entry is unlisted.
+  const unlisted = new Map([["uploads/unlisted-owner.txt", Buffer.from("No database owner")]]);
+  const extra = await h.backend.upload({ principalId: "recipient", archive: await h.archiveWithDatabase(h.db.$client.serialize(), { unlisted }) });
+  await assert.rejects(h.backend.importBackup({ principalId: "recipient", source: { uploadId: extra.uploadId } }), /ZIP inventory differs from the manifest/);
 });
 
 test("L3 valid DOCX package expansion is bounded within entry limits", async t => {
@@ -310,7 +311,8 @@ for (const variant of ["oversize", "wrong-signature", "secret-sentinel", "destin
   const doc = addDocument(h, "guarded", bytes);
   const errors = {
     oversize: /10 MiB/, "wrong-signature": /PDF signature/, "secret-sentinel": /credential-shaped/,
-    "destination-collision": /Conflicting imported document blob keys/, "forged-cross-owner": /database/i,
+    // v2 carries no rendition bytes, so the forged rendition's recipient key fails its hash before any destination move.
+    "destination-collision": /Referenced media is missing or failed its hash/, "forged-cross-owner": /database/i,
   };
   if (variant === "wrong-signature") h.db.$client.prepare("UPDATE media SET original_filename='guarded.pdf' WHERE id='guarded'").run();
   if (variant === "destination-collision") {

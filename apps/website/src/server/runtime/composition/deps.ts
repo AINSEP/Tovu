@@ -34,7 +34,7 @@ import * as importYauzl from "yauzl";
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { siteCreationBaseForBinding } from "#src/platform/site-dir/index";
 import { localSiteSupervisorForHost } from "../lifecycle/local-site-host.js";
-import { SiteShareRegistry } from "#src/features/site-backup/share-registry";
+import { adoptLegacyShareDirectory, SiteShareRegistry } from "#src/features/site-backup/share-registry";
 import { prepareShareContent } from "#src/features/site-backup/share-preparation";
 import { sanitizeShareDatabase, rewriteArchiveMedia } from "#src/platform/db/sqlite/share-database";
 import { createRuntimeShareDelivery, resolveShareDelivery } from "#src/features/site-backup/share-hosting";
@@ -667,6 +667,43 @@ export function defaultChatDbPath(contentDbPath: string = defaultContentDbPath()
 }
 
 /**
+ * Where this site's shares live: `TOVU_SHARE_STORAGE_DIR`, else `<sites root>/.tovu/site-shares/<workspaceId>`,
+ * a sibling of every site folder like `sites/.tovu/site-key.hex` and the site previews. Never the source
+ * site's own storage: Export writes nothing into the site it reads (Codex check 2026-10-26). The sites
+ * root is what a container mounts as its volume (`/workspace/Tovu/sites`) and the desktop's sites home,
+ * so shares survive a redeploy; app data under a container's home would not. An install-dir boot
+ * (`tovu serve <dir>`) has no sites root, so it keeps `<app-data>/site-shares/<workspaceId>`. Shares
+ * made before 2026-10-26 sat under the database's `ops/shares`; the default adopts them once so their
+ * links keep working.
+ * @throws When the folder is the site, inside it, inside its database folder or a served content root.
+ * @complexity O(content roots), plus one directory move the first time a legacy catalog is adopted.
+ */
+function resolveShareDirectory(required: { workspaceId: string; siteDir: string; switcherCompatible: boolean; dbPath: string; contentRoots: readonly string[] }, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): string {
+  const databaseDir = isInMemoryDbPath(required.dbPath) ? undefined : dirname(required.dbPath);
+  const configured = env.TOVU_SHARE_STORAGE_DIR;
+  const sharesRoot = required.switcherCompatible ? join(dirname(required.siteDir), ".tovu") : createSitesWorkspace({}).config({}).appData;
+  const shareDirectory = resolve(configured || join(sharesRoot, "site-shares", required.workspaceId));
+  const forbidden = [required.siteDir, ...(databaseDir === undefined ? [] : [databaseDir]), ...required.contentRoots];
+  const refuse = (target: string): void => {
+    if (isInsideAny({ target, roots: forbidden })) throw new Error("TOVU_SHARE_STORAGE_DIR must be private and outside the site's folders and served content folders.");
+  };
+  // Checked before anything is created or moved, so a refused folder is never made inside the site;
+  // checked again on the real path, so a symlink cannot smuggle it back in.
+  refuse(shareDirectory);
+  if (!configured) adoptLegacyShareDirectory({ from: join(databaseDir ?? required.siteDir, "ops", "shares"), to: shareDirectory });
+  mkdirSync(shareDirectory, { recursive: true, mode: 0o700 });
+  const physicalShares = realpathSync(shareDirectory);
+  refuse(physicalShares);
+  return physicalShares;
+}
+
+/** `target` equals or sits under one of `roots`, compared as given and as real paths. @complexity O(roots). */
+function isInsideAny(required: { target: string; roots: readonly string[] }): boolean {
+  return required.roots.some(root => [resolve(root), existsSync(root) ? realpathSync(root) : resolve(root)]
+    .some(candidate => required.target === candidate || required.target.startsWith(candidate + sep)));
+}
+
+/**
  * SPEC-003 (ADR-PIPE-003 C-010) — an already-opened db + a resolved workspace id, supplied by
  * the install-dir boot path (`site-dir/boot-site-dir.ts`) instead of this function opening its
  * own db. `db`/`workspaceId` are required together or omitted together (validated below) — there
@@ -1144,7 +1181,7 @@ async function composeProviderConfig({ overrides, runtimeMode, onStoreClose, sit
   if (siteId) await projectStore.attachments.renameSite({ siteId, siteName: binding.name });
   const protectedVault = protectProjectKeyDeletes({ vault: projectStore.vault.repo, attachments: projectStore.attachments, siteId, transaction: input => projectStore.transaction(input) });
   const repo = attachedOnlyVault({ vault: protectedVault, siteId, attachments: projectStore.attachments });
-  return { siteId, projectStore, providerConfigSource: withAttachedProject({ site }, { project: projectStore.config, attachments: projectStore.attachments, siteId, transaction: input => projectStore.transaction(input) }),
+  return { siteId, projectStore, providerConfigSource: withAttachedProject({ site }, { project: projectStore.config, attachments: projectStore.attachments, siteId, siteName: binding.name, transaction: input => projectStore.transaction(input) }),
     projectId: projectStore.projectId, projectVault: { ...projectStore.vault, repo, deletionRepo: protectedVault } };
 }
 
@@ -3040,22 +3077,14 @@ async function composeSiteRouteDeps(
   function configureSiteSharing(_required: Record<string, never>, _options = {}): void {
     if (routeDeps.siteBackupSources) {
       try {
-        // App-data / mounted SQLite locations own persistence, even when the site source is ephemeral.
-        const shareDirectory = resolve(process.env.TOVU_SHARE_STORAGE_DIR || join(isInMemoryDbPath(dbPath) ? resolvedSiteBinding.dir : dirname(dbPath), "ops", "shares"));
-        mkdirSync(shareDirectory, { recursive: true, mode: 0o700 });
-        const physicalShares = realpathSync(shareDirectory);
         const contentRoots = [resolvedThemesDir, resolvedUploadsDir, agentPluginLayout.root, skillLayout.root, join(resolvedSiteBinding.dir, "plugins"), join(resolvedSiteBinding.dir, "overrides")];
-        if (physicalShares === (existsSync(resolvedSiteBinding.dir) ? realpathSync(resolvedSiteBinding.dir) : resolve(resolvedSiteBinding.dir)) || contentRoots.some(root => {
-          const physicalRoot = existsSync(root) ? realpathSync(root) : resolve(root);
-          return physicalShares === physicalRoot || physicalShares.startsWith(physicalRoot + sep);
-        })) throw new Error("TOVU_SHARE_STORAGE_DIR must be private and outside served content folders.");
-        const registry = new SiteShareRegistry({ directory: physicalShares });
+        const registry = new SiteShareRegistry({ directory: resolveShareDirectory({ workspaceId, siteDir: resolvedSiteBinding.dir, switcherCompatible: resolvedSiteBinding.switcherCompatible, dbPath, contentRoots }) });
         const credentials = composePublishCredentialSource({ workspaceId, executionMode: routeDeps.publishExecutionMode,
           dbDeps: { repo: routeDeps.vendorCredentialSetRepo, sealer: siteAssistantSecretSealer, loadDeployTargets: routeDeps.loadDeployTargets } });
         // Token-bearing verification requests use the guarded HTTP owner without telemetry. Never
         // infer a recipient-facing URL from localhost, Host, or ephemeral deployment storage.
         routeDeps.siteShareBackend = createSiteShareBackend({ registry, site: workspaceId, zip: zipFolderFiles,
-          prepare: ({ signal }) => prepareShareContent({ dbOps: routeDeps.dbOps, sources: routeDeps.siteBackupSources!, sanitize: sanitizeShareDatabase, blobStore, imageTransformer: routeDeps.imageTransformer!, rewriteMedia: rewriteArchiveMedia }, { signal, packageThemesRoot: routeDeps.packageThemesDir }),
+          prepare: ({ signal }) => prepareShareContent({ dbOps: routeDeps.dbOps, snapshotRoot: tmpdir(), sources: routeDeps.siteBackupSources!, sanitize: sanitizeShareDatabase, blobStore, imageTransformer: routeDeps.imageTransformer!, rewriteMedia: rewriteArchiveMedia }, { signal, packageThemesRoot: routeDeps.packageThemesDir }),
           delivery: selection => resolveShareDelivery({
             http: guardedOutboundHttpClient,
             peer: async () => {

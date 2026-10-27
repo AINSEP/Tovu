@@ -1,4 +1,4 @@
-import { archiveCodeUnit, editedArchiveWarnings, keptOffArchiveWarnings } from "./archive-paths.js";
+import { archiveCodeUnit, editedArchiveWarnings, keptOffArchiveWarnings, OVERRIDES_UNIT } from "./archive-paths.js";
 import fs from "node:fs";
 import path from "node:path";
 import { openSqliteFileKernel } from "#src/platform/db/kernel/drivers/sqlite";
@@ -37,7 +37,7 @@ function keptOffUnits(required: { root: string; verified: VerifiedSiteImport }):
 function stagedCodeUnit(required: { file: string; live: ReadonlySet<string> }): string | undefined {
   const theme = /^themes\/([^/]+)\/([^/]+)\//.exec(required.file);
   if (theme) return theme[1] === "__original-themes__" || required.live.has(theme[1] + "/" + theme[2]) ? undefined : "themes/" + theme[2];
-  if (required.file.startsWith("overrides/")) return "themes/overrides";
+  if (required.file.startsWith("overrides/")) return OVERRIDES_UNIT;
   return archiveCodeUnit({ path: required.file });
 }
 

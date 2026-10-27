@@ -158,10 +158,13 @@ export function createVaultProviderConfigSource(
   };
 }
 
-/** Site rows win. Project values are invisible until this site's explicit attachment exists. */
+/** Site rows win. Project saves attach in the same transaction, so status and live apply see the
+ * committed config. Other project values stay invisible until explicitly attached. The unfiltered
+ * store owns revision reads; filtering it would hide the row being replaced.
+ */
 export function withAttachedProject(
   { site }: { site: ProviderConfigSource },
-  { project, attachments, siteId = "", transaction = async ({ run }) => run() }: { project: ProviderConfigSource; attachments: KeyAttachments; siteId?: string; transaction?: ProjectKeyTransaction },
+  { project, attachments, siteId = "", siteName = siteId, transaction = async ({ run }) => run() }: { project: ProviderConfigSource; attachments: KeyAttachments; siteId?: string; siteName?: string; transaction?: ProjectKeyTransaction },
 ): ProviderConfigSource {
   const attached = ({ pluginId }: { pluginId: string }) => attachments.isAttached({ siteId, keyId: providerKeyId({ pluginId }) });
   async function usage(input: { pluginId: string }): Promise<ProviderKeyUsage> {
@@ -179,8 +182,8 @@ export function withAttachedProject(
     write: input => transaction({ run: async () => {
       const current = await usage(input);
       const own = !siteId || current.store === "site" || (!current.usedByThisSite && current.usedBy.length > 0);
-      // The unfiltered store owns revision reads; filtering it would hide the row being replaced.
       await (own ? site : project).write(input);
+      if (!own) await attachments.attach({ siteId, siteName, keyId: providerKeyId(input) });
       return usage(input).then(result => ({ ...result, keyId: providerKeyId(input) }));
     } }),
   };

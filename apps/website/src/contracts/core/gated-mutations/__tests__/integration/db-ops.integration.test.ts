@@ -108,6 +108,34 @@ test("AC-30: capturing a restore point for a SQLite-backed site produces a whole
   }
 });
 
+test("captureRestorePoint with a directory writes the whole-file copy there and nothing beside content.db", async () => {
+  const tmpDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "gated-mutations-db-ops-dir-")));
+  const siteData = path.join(tmpDir, "site-data"), privateDir = path.join(tmpDir, "private");
+  fs.mkdirSync(siteData);
+  fs.mkdirSync(privateDir);
+  const filePath = path.join(siteData, "content.db");
+  try {
+    const db = await openPreparedContentDb(filePath);
+    await stampWatermark(db, 3);
+    seedContent(db);
+    const before = databaseState(db.$client);
+    const siteFiles = fs.readdirSync(siteData).sort();
+
+    const result = await new SqliteDbOpsAdapter({ db, filePath }).captureRestorePoint({ scopeId: "site-share" }, { directory: privateDir });
+
+    assert.equal(path.dirname(result.artifactRef), privateDir);
+    assert.match(path.basename(result.artifactRef), /^restore-point-site-share-wm3-\d+\.db$/);
+    assert.deepEqual(fs.readdirSync(siteData).sort(), siteFiles, "no artifact lands beside content.db");
+    const copy = new Database(result.artifactRef, { readonly: true });
+    assert.deepEqual(databaseState(copy), before);
+    copy.close();
+    assert.equal(result.watermarkAtCapture, 3);
+    db.$client.close();
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
 test("AC-29: a Postgres-backed site with no dump/blue-green tooling configured at all reports costClass='unavailable'", async () => {
   const caps = evaluatePostgresRestoreCapability({
     pgDumpBinaryPath: null,

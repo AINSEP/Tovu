@@ -55,6 +55,9 @@ async function addDiskFiles(required: { files: readonly PlannedDiskFile[]; colle
 
 /** The manifest File over the final inventory; refused when it exceeds 2 MiB or, counted in, the archive caps. */
 function buildManifestFile(required: { plan: SiteSharePlanContent; inventory: CollectedShareEntries["inventory"] }): File {
+  // Count the manifest as an entry first: the manifest validator would otherwise refuse a full
+  // share as INVALID_ARCHIVE instead of telling the owner it is over the file cap.
+  checkShareLimits({ files: [...required.inventory, { path: SITE_BACKUP_MANIFEST_PATH, bytes: 0 }] });
   const manifest = Buffer.from(buildArchiveManifest({ schema: required.plan.schema, site: { name: required.plan.site.name }, scopes: required.plan.include, media: required.plan.media ?? [], plugins: required.plan.plugins ?? [], files: required.inventory }));
   if (manifest.length > SHARE_LIMITS.maxManifestBytes) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: "Share manifest exceeds 2 MiB." });
   checkShareLimits({ files: [...required.inventory, { path: SITE_BACKUP_MANIFEST_PATH, bytes: manifest.length }] });

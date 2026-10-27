@@ -27,14 +27,16 @@ const shipped = (files: Record<string, string>): PackageFileInventory => new Map
 const LABELS = `"API token": "Token de API"`;
 
 for (const path of [
-  "plugins/a/1/data", "plugins/a/1/memory/private.md", "agent-plugins/ws/w/data/x", "agent-plugins/ws/w/staging",
+  // A flat (unversioned) plugin's own data/ is runtime data too (lot export-leftovers).
+  "plugins/a/1/data", "plugins/a/1.0.0/data/x", "plugins/static/a/data/x", "plugins/a/data", "plugins/a/1/memory/private.md", "agent-plugins/ws/w/data/x", "agent-plugins/ws/w/staging",
   "agent-plugins/ws/w/p/data", "agent-plugins/ws/w/p/memory/x", "uploads/chat-attachments", "uploads/chat-attachments/a.png",
   "Uploads/Chat-Attachments/a.png", "themes/.env", "themes/.env.production", "themes/chat.db", "settings/chat.db-wal", "settings/chat.db.bak",
 ]) {
   test(`'${path}' is a known private location and is excluded`, () => { assert.equal(excludedSharePath({ path }), true); });
 }
 
-for (const path of ["plugins/a/1/src/data/x", "plugins/a/data", "agent-plugins/ws/w/p/q/data", "uploads/chat-attachmentsx", "themes/chat.dbx", "themes/site/index.html"]) {
+// RED (green-1027): a flat plugin's src/data was read as a version folder's data/ and dropped from the export.
+for (const path of ["plugins/a/1/src/data/x", "plugins/a/src/data/x", "plugins/a/lib/memory/x", "agent-plugins/ws/w/p/q/data", "uploads/chat-attachmentsx", "themes/chat.dbx", "themes/site/index.html"]) {
   test(`'${path}' is ordinary content and is kept`, () => { assert.equal(excludedSharePath({ path }), false); });
 }
 

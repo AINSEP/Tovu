@@ -21,7 +21,8 @@ export function fixtureArchivePlan(required: { plan: SiteSharePlanContent; files
         const ext = path.extname(row.original_filename ?? "").slice(1) || "bin";
         const file = `media/${slug}.${ext}`;
         const bytes = source.get("uploads/" + row.storage_key) ?? [...source.values()].find(bytes => sha(bytes) === row.sha256);
-        if (bytes) { files.set(file, bytes); media.push({ id: row.id, slug, path: file, sha256: row.sha256 }); }
+        // The manifest hashes what the archive carries, so a corrupt blob reaches import's DB/blob policy.
+        if (bytes) { files.set(file, bytes); media.push({ id: row.id, slug, path: file, sha256: sha(bytes) }); }
       }
     } finally { db.close(); }
   }

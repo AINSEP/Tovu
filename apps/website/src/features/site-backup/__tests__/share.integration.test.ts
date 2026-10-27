@@ -123,7 +123,7 @@ test("fresh share projection preserves drafts/schedules/autosaves, excludes priv
   await write(".site-meta.json", JSON.stringify({ templateId: "starter", templateVersion: "1", schemaVersion: 13, siteId: sentinel, siteKeyId: sentinel, storage: sentinel }));
   const sources = { siteDir: dir, mediaUploadsDir: null, themesDir: path.join(dir, "themes"), agentPlugins: resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: path.join(dir, "agent-plugins") } }), skillsDir: path.join(dir, "skills"), tovuVersion: "test" };
   const readKeys: string[] = [];
-  const plan = await prepareShareContent({ sources, sanitize: sanitizeShareDatabase, rewriteMedia: rewriteArchiveMedia, imageTransformer: { transform: async () => assert.fail("not raster") },
+  const plan = await prepareShareContent({ snapshotRoot: tmpdir(), sources, sanitize: sanitizeShareDatabase, rewriteMedia: rewriteArchiveMedia, imageTransformer: { transform: async () => assert.fail("not raster") },
     blobStore: { get: async ({ storageKey: key }) => { readKeys.push(key); return mediaBytes; }, sizeOf: async () => mediaBytes.length },
     dbOps: { getCapabilities: async () => ({ restorePoint: { costClass: "cheap", kind: "file-snapshot" } }), captureRestorePoint: async () => { const artifactRef = path.join(dir, "snapshot.db"); await writeFile(artifactRef, sql.serialize()); return { artifactRef, watermarkAtCapture: 42 }; }, restoreFromArtifact: async () => { throw new Error("must never restore"); } },
   });
@@ -141,13 +141,15 @@ test("fresh share projection preserves drafts/schedules/autosaves, excludes priv
   }
   assert.equal(entries.get("media/media.bin")?.toString(), mediaBytes.toString());
   assert.equal(createHash("sha256").update(entries.get("media/media.bin")!).digest("hex"), hash);
-  for (const file of ["themes/site/index.html", "themes/site/data/content.json", "plugins/site/package/plugin.json", "plugins/site/package/src/data/default.json", "plugins/site/package/src/notes/help.md", "themes/site/out/main.js", "themes/overrides/page.html"]) assert.ok(entries.has(file), file);
+  for (const file of ["themes/site/index.html", "themes/site/data/content.json", "plugins/site/package/plugin.json", "plugins/site/package/src/data/default.json", "plugins/site/package/src/notes/help.md", "themes/site/out/main.js", "themes/__overrides__/page.html"]) assert.ok(entries.has(file), file);
   assert.deepEqual(JSON.parse(entries.get("settings.json")!.toString()), { name: "Shared site", template: { templateId: "starter", templateVersion: "1", schemaVersion: 13 } });
   assert.deepEqual(Object.keys(JSON.parse(entries.get("settings.json")!.toString()).template).sort(), ["schemaVersion", "templateId", "templateVersion"]);
   const shared = new Database(entries.get("content.db")!);
   t.after(() => shared.close());
   assert.deepEqual(shared.prepare("SELECT * FROM posts ORDER BY id").all(), sql.prepare("SELECT * FROM posts ORDER BY id").all());
-  for (const table of ["media", "asset_blobs", "menus", "nav_location_bindings", "presentation_settings"]) assert.deepEqual(shared.prepare(`SELECT * FROM "${table}"`).all(), sql.prepare(`SELECT * FROM "${table}"`).all(), table);
+  for (const table of ["media", "menus", "nav_location_bindings", "presentation_settings"]) assert.deepEqual(shared.prepare(`SELECT * FROM "${table}"`).all(), sql.prepare(`SELECT * FROM "${table}"`).all(), table);
+  // An unsniffed (null) content_type is filled with the archive's sniffed type; every other column is kept.
+  assert.deepEqual(shared.prepare(`SELECT * FROM "asset_blobs"`).all(), sql.prepare(`SELECT * FROM "asset_blobs"`).all().map(row => ({ ...(row as object), content_type: "application/octet-stream" })), "asset_blobs");
   for (const table of ["principals", "identity_users", "sessions", "api_keys", "secrets_vault", "setting_values_global", "setting_values_user", "setting_revisions"]) assert.equal((shared.prepare(`SELECT count(*) AS n FROM "${table}"`).get() as { n: number }).n, 0, table);
   assert.deepEqual(shared.prepare("SELECT setting_id FROM setting_definitions ORDER BY setting_id").all(), [{ setting_id: "title" }]);
   assert.equal((shared.prepare("SELECT count(*) AS n FROM post_search_document").get() as { n: number }).n, 4, "search is rebuilt from portable posts");

@@ -51,7 +51,7 @@ async function repack(files: ReadonlyMap<string, Buffer>): Promise<Buffer> {
   });
   return Buffer.from(await (await zipFolderFiles({ files: picked, maxBytes: 300 * 1024 * 1024 })).arrayBuffer());
 }
-async function fixture(t: TestContext) {
+async function fixture(t: TestContext, optional: { siteFiles?: Readonly<Record<string, string>>; activeThemeId?: string } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-v2-"));
   t.after(() => {
     // Installed plugin packages are read-only; make the tree writable so it can be removed.
@@ -67,7 +67,7 @@ async function fixture(t: TestContext) {
   t.after(() => db.$client.close());
   db.$client.prepare("INSERT INTO workspaces (id,slug,name,created_at) VALUES ('ws','source','Source',?)").run(stamp);
   db.$client.prepare("INSERT INTO posts (id,workspace_id,title,slug,body_json,status,kind,updated_at,version) VALUES ('page','ws','Page','page','{\"type\":\"doc\",\"content\":[]}','draft','page',?,1)").run(stamp);
-  db.$client.prepare("INSERT INTO presentation_settings (workspace_id,active_theme_id,updated_at) VALUES ('ws','static/site',?)").run(stamp);
+  db.$client.prepare("INSERT INTO presentation_settings (workspace_id,active_theme_id,updated_at) VALUES ('ws',?,?)").run(optional.activeThemeId ?? "static/site", stamp);
   db.$client.prepare("INSERT INTO principals (id,workspace_id,kind,display_name,status,created_at) VALUES ('owner','ws','user','Owner','active',?)").run(stamp);
   db.$client.prepare("INSERT INTO identity_users (principal_id,workspace_id,username,password_hash) VALUES ('owner','ws','admin',?)").run(privateSentinel);
   db.$client.prepare("INSERT INTO sessions (id,workspace_id,principal_id,token_hash,created_at,expires_at) VALUES ('session','ws','owner',?,?,?)").run(privateSentinel, stamp, stamp);
@@ -95,6 +95,7 @@ async function fixture(t: TestContext) {
   write(siteDir, "themes/__original-themes__/static/site/pages/index.html", '<!doctype html><html><head><link rel="stylesheet" href="../css/styles.css" /></head><body>Original</body></html>');
   write(siteDir, "themes/__original-themes__/static/site/css/styles.css", "body{margin:0}");
   write(siteDir, "skills/ws/ws/notes/SKILL.md", "Site skill");
+  for (const [file, text] of Object.entries(optional.siteFiles ?? {})) write(siteDir, file, text);
   write(siteDir, "config.json", JSON.stringify({ name: "Source", domain: "private.test", port: 9911, password: privateSentinel }));
   write(siteDir, ".site-meta.json", JSON.stringify({ templateId: "starter", siteId: privateSentinel }));
   write(sourceRoot, "demo/plugin.json", '{"$schema":"https://agent-plugins.org/schemas/1.1.0/plugin.schema.json","name":"demo","version":"1.0.0","description":"Fixture plugin"}');
@@ -107,7 +108,7 @@ async function fixture(t: TestContext) {
   write(siteDir, "agent-plugins/ws/ws/demo/memory/notes/note.md", "Site note");
   const packageFiles = await readBundledPackageFiles({}, { sourceRoot });
   const sourceBefore = db.$client.serialize();
-  const plan = await prepareShareContent({ sources: { siteDir, themesDir: path.join(siteDir, "themes"), skillsDir: path.join(siteDir, "skills"), mediaUploadsDir: null, agentPlugins: layout, tovuVersion: "test" }, sanitize: sanitizeShareDatabase, rewriteMedia: rewriteArchiveMedia,
+  const plan = await prepareShareContent({ snapshotRoot: root, sources: { siteDir, themesDir: path.join(siteDir, "themes"), skillsDir: path.join(siteDir, "skills"), mediaUploadsDir: null, agentPlugins: layout, tovuVersion: "test" }, sanitize: sanitizeShareDatabase, rewriteMedia: rewriteArchiveMedia,
     imageTransformer: { transform: async () => ({ bytes: webp, contentType: "image/webp" }) },
     blobStore: { sizeOf: async ({ storageKey }) => blobs.get(storageKey)?.length ?? null, get: async ({ storageKey }) => blobs.get(storageKey)! },
     dbOps: { getCapabilities: async () => ({ restorePoint: { kind: "file-snapshot", costClass: "cheap" } }), captureRestorePoint: async () => { const artifactRef = path.join(root, "snapshot.db"); fs.writeFileSync(artifactRef, sourceBefore); return { artifactRef, watermarkAtCapture: 5 }; }, restoreFromArtifact: async () => assert.fail("no live restore") },
@@ -162,6 +163,35 @@ test("v2 tree, one public media copy per item, no secrets and full content round
   const layout = resolveAgentPluginLayout({ siteDir: dir, env: {} }), lifecycle = createTovuAgentPluginLifecycle({ layout });
   const workspaceRoot = layout.forWorkspace(readTemplate({ templateId: "starter" }).seed.workspace.id).root;
   assert.equal((await lifecycle.readAgentPluginActivations({ workspaceRoot })).plugins.demo!.enabled, true);
+});
+
+// RED (Codex check 2026-10-26): a theme with id `overrides` exported into the overrides namespace, so
+// import quarantined it and fell back to the starter theme.
+test("a theme named overrides and the site's theme overrides both round-trip without colliding", async t => {
+  const theme = '{"id":"overrides","name":"Overrides","version":"1.0.0","tier":"static"}';
+  const h = await fixture(t, { activeThemeId: "static/overrides", siteFiles: {
+    "themes/static/overrides/theme.json": theme,
+    "themes/static/overrides/index.html": "<main>overrides theme</main>",
+    "themes/static/overrides/tokens.json": "{}",
+    "themes/static/overrides/pages/index.html": '<!doctype html><html><head><link rel="stylesheet" href="../css/styles.css" /></head><body>Overrides</body></html>',
+    "themes/static/overrides/css/styles.css": "body{margin:0}",
+    "overrides/custom.css": "body{color:red}",
+  } });
+  const files = await unpack(h.archive);
+  assert.equal(files.get("themes/overrides/index.html")?.toString(), "<main>overrides theme</main>");
+  assert.equal(files.get("themes/__overrides__/custom.css")?.toString(), "body{color:red}");
+  const { dir } = await h.restore(h.archive, "overrides-copy");
+  const themesRoot = path.join(dir, "themes");
+  assert.equal(fs.readFileSync(path.join(themesRoot, "static/overrides/index.html"), "utf8"), "<main>overrides theme</main>");
+  assert.equal(loadTheme({ themeDir: path.join(themesRoot, "static/overrides"), id: "overrides", source: "site" }).status, "valid");
+  for (const quarantined of [".import-quarantine/themes/static/overrides", ".import-quarantine/themes/untrusted/overrides", ".import-quarantine/overrides/index.html"]) {
+    assert.equal(fs.existsSync(path.join(dir, quarantined)), false, `the theme is not quarantined (${quarantined})`);
+  }
+  assert.equal(fs.readFileSync(path.join(dir, ".import-quarantine/overrides/custom.css"), "utf8"), "body{color:red}");
+  const restored = new Database(path.join(dir, "content.db"), { readonly: true });
+  try {
+    assert.deepEqual(restored.prepare("SELECT active_theme_id FROM presentation_settings").all(), [{ active_theme_id: "static/overrides" }]);
+  } finally { restored.close(); }
 });
 
 test("one Finder wrapper and metadata import; two wrappers and files outside the wrapper refuse", async t => {

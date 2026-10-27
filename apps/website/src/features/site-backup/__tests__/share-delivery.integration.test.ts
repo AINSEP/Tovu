@@ -123,7 +123,8 @@ test("no delivery returns a private ZIP download and a clear link-setup message"
   const registry = new SiteShareRegistry({ directory });
   const backend = createSiteShareBackend({ registry, site: "ws", zip: zipFolderFiles, delivery: async () => undefined,
     prepare: async () => ({ profile: "share", target: { kind: "zip" }, include: { database: true, media: true, themes: true, plugins: true, settings: true },
-      database: { bytes: Buffer.from("projected database"), watermarkAtCapture: 42 }, files: [], bufferedFiles: [], skipped: [], scopeNotes: {}, totalBytes: Buffer.byteLength("projected database"),
+      // A v2 share always carries settings.json beside content.db.
+      database: { bytes: Buffer.from("projected database"), watermarkAtCapture: 42 }, files: [], bufferedFiles: [{ path: "settings.json", content: Buffer.from("{}") }], skipped: [], scopeNotes: {}, totalBytes: Buffer.byteLength("projected database") + 2,
       site: { name: "Site", folderName: "site" }, schema: { index: 14, tag: "0014_media_library" }, tovuVersion: "test", createdAt: "2026-10-18T12:00:00.000Z" }),
   });
   const result = await backend.create({ principalId: "owner", signal: new AbortController().signal }, { waitMs: 1000 }) as { url: string | null; downloadUrl: string; message: string };

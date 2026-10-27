@@ -1,7 +1,7 @@
 import { excludedSharePath, validateSharePath } from "./share-file-policy.js";
 import { checkShareLimits, SiteShareRefusal } from "./share-policy.js";
 import { constants as fsConstants, type Dirent, type Stats } from "node:fs";
-import { lstat, open, readdir, readFile, stat, unlink } from "node:fs/promises";
+import { lstat, mkdtemp, open, readdir, readFile, rm, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
@@ -16,7 +16,8 @@ import type { AgentPluginLayout } from "../agent-plugins/layout.js";
  *
  * The backup folder's layout (paths relative to the folder root):
  * - `tovu-backup.json` — the manifest ({@link buildSiteBackupManifest}).
- * - `database/content.db` — the snapshot ({@link captureDatabaseSnapshot}). NEVER the live
+ * - `database/content.db` — the snapshot ({@link captureDatabaseSnapshot}), rebuilt through the share
+ *   policy before upload (`backup-service.ts` `captureBackupDatabase`: no accounts or secrets). NEVER the live
  *   `content.db` file: a plain read of a WAL-mode database can miss committed pages still in
  *   `content.db-wal`. The snapshot comes only from `DbOpsPort.captureRestorePoint` (SQLite's online
  *   backup API), the same consistent copy the gated-mutation restore points use.
@@ -407,19 +408,22 @@ async function collectShareOnlyTrees(required: { sink: WalkSink; sources: SiteBa
 
 export type DatabaseSnapshotResult = { ok: true; bytes: Buffer; watermarkAtCapture: number } | { ok: false; message: string; logDetail?: string };
 
+const SNAPSHOT_FAILED = "the database snapshot failed; nothing was backed up";
+
 /**
  * A consistent copy of the whole site database, held in memory.
  *
  * Only a cheap file snapshot (SQLite) is accepted: that is the only restore mechanism whose artifact
  * is a single file this process can read back. Anything else is refused BEFORE a capture is attempted.
- * The restore-point file `captureRestorePoint` writes beside `content.db` is deleted as soon as it is
- * read, success or not, so a backup never leaves one behind.
+ * The restore-point file `captureRestorePoint` writes (beside `content.db`, or inside a fresh private
+ * folder under `optional.snapshotRoot`) is deleted as soon as it is read, success or not, so a backup
+ * never leaves one behind. A site export passes `snapshotRoot` so it never writes into source-site storage.
  *
  * @returns The snapshot bytes and the watermark stamped at capture, or a caller-safe `message` (a
  *   capture failure's own text stays in `logDetail`, which is for the server log only).
  * @complexity O(database size) — one full copy, one read, one unlink.
  */
-export async function captureDatabaseSnapshot(input: { dbOps: DbOpsPort; scopeId: string }, optional: { maxBytes?: number } = {}): Promise<DatabaseSnapshotResult> {
+export async function captureDatabaseSnapshot(input: { dbOps: DbOpsPort; scopeId: string }, optional: { maxBytes?: number; snapshotRoot?: string } = {}): Promise<DatabaseSnapshotResult> {
   const { restorePoint } = await input.dbOps.getCapabilities();
   if (restorePoint.costClass !== "cheap" || restorePoint.kind !== "file-snapshot") {
     return {
@@ -427,13 +431,29 @@ export async function captureDatabaseSnapshot(input: { dbOps: DbOpsPort; scopeId
       message: `this site's database cannot be snapshotted into a backup file: only SQLite sites are supported (this database reports a '${restorePoint.kind}' restore mechanism)`,
     };
   }
+  if (optional.snapshotRoot === undefined) return readRestorePoint(input, optional);
+  let directory: string;
+  try {
+    directory = await mkdtemp(path.join(optional.snapshotRoot, "tovu-snapshot-"));
+  } catch (err) {
+    return { ok: false, message: SNAPSHOT_FAILED, logDetail: describeErrorForLog({ err }) };
+  }
+  try {
+    return await readRestorePoint(input, { ...optional, directory });
+  } finally {
+    await rm(directory, { recursive: true, force: true }).catch(() => undefined);
+  }
+}
 
+/** Captures one restore point (into `directory` when given), reads it back and unlinks it. */
+async function readRestorePoint(input: { dbOps: DbOpsPort; scopeId: string }, optional: { maxBytes?: number; directory?: string }): Promise<DatabaseSnapshotResult> {
   let artifactRef: string;
   let watermarkAtCapture: number;
   try {
-    ({ artifactRef, watermarkAtCapture } = await input.dbOps.captureRestorePoint({ scopeId: input.scopeId }));
+    const scope = { scopeId: input.scopeId };
+    ({ artifactRef, watermarkAtCapture } = await (optional.directory === undefined ? input.dbOps.captureRestorePoint(scope) : input.dbOps.captureRestorePoint(scope, { directory: optional.directory })));
   } catch (err) {
-    return { ok: false, message: "the database snapshot failed; nothing was backed up", logDetail: describeErrorForLog({ err }) };
+    return { ok: false, message: SNAPSHOT_FAILED, logDetail: describeErrorForLog({ err }) };
   }
   try {
     if (optional.maxBytes !== undefined && (await stat(artifactRef)).size > optional.maxBytes) return { ok: false, message: "Database snapshot exceeds the v1 300 MiB share cap." };

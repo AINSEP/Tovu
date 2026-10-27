@@ -15,7 +15,8 @@ import type { FormDestinationAddress } from "./types.js";
  * the hosting target id for a co-hosted receiver (so a key saved before destinations were their own
  * category keeps its label) and the destination id for an external one. Its base URL is the
  * receiver's origin, which is where a pull goes. The key is never written to HTML, history, logs or
- * errors. Generic: every destination uses the same keys.
+ * errors. Receiver keys are site-owned: a project-first create would stay hidden on republish and
+ * mint a different receiver secret. Every destination uses the same lifecycle.
  */
 const LABEL_PREFIX = "Form submissions key: ";
 
@@ -44,7 +45,7 @@ export async function formReceiverKey(
   }
   const secret = (optional.newSecret ?? (() => randomBytes(32).toString("base64url")))();
   return { secret, save: async ({ url }) => {
-    try { await createCustomCredential(credentials, { workspaceId, label, category: "hosting", baseUrl: new URL(url).origin, connection: { token: secret } }); }
+    try { await createCustomCredential(credentials, { workspaceId, label, scope: "site", category: "hosting", baseUrl: new URL(url).origin, connection: { token: secret } }); }
     // A concurrent publish saved its key first; the next publish installs that one everywhere.
     catch (error) { if (!(error instanceof CustomCredentialDuplicateLabelError)) throw error; }
   } };

@@ -78,9 +78,19 @@ function originalExtension(source: ArchiveMediaSource): string {
 }
 function mediaPath(required: { source: ArchiveMediaSource; extension: string; aliases: Set<string> }): string {
   const slug = required.source.slug || required.source.id;
-  let candidate = `media/${slug}.${required.extension}`, suffix = 2;
-  while (required.aliases.has(sharePathAlias({ path: candidate }))) candidate = `media/${slug}-${suffix++}.${required.extension}`;
+  const extension = portableExtension({ slug, extension: required.extension });
+  let candidate = `media/${slug}.${extension}`, suffix = 2;
+  while (required.aliases.has(sharePathAlias({ path: candidate }))) candidate = `media/${slug}-${suffix++}.${extension}`;
   validateSharePath({ path: candidate });
   required.aliases.add(sharePathAlias({ path: candidate }));
   return candidate;
+}
+
+/** A document keeps its own extension, which the share path policy may never publish (Keynote's
+ * `.key`). The archive name is cosmetic: the media row keeps the original filename, so `.bin` names it. */
+function portableExtension(required: { slug: string; extension: string }): string {
+  try { validateSharePath({ path: `media/${required.slug}.${required.extension}` }); return required.extension; } catch (error) {
+    if (error instanceof SiteShareRefusal) return "bin";
+    throw error;
+  }
 }

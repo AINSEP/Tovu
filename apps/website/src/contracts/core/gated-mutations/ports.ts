@@ -25,8 +25,12 @@ export interface RestoreCapability {
 export interface DbOpsPort {
   /** Pure, side-effect-free static check of what this site's restore mechanism can do. */
   getCapabilities(): Promise<{ restorePoint: RestoreCapability }>;
-  /** Captures a real restore-point artifact, stamped with the watermark value at capture time. */
-  captureRestorePoint(required: { scopeId: string }): Promise<{ artifactRef: string; watermarkAtCapture: number }>;
+  /**
+   * Captures a real restore-point artifact, stamped with the watermark value at capture time.
+   * `directory` writes the artifact there instead of the adapter's default (beside the live
+   * database): a site export passes a private temp folder so it never writes into source-site storage.
+   */
+  captureRestorePoint(required: { scopeId: string }, optional?: { directory?: string }): Promise<{ artifactRef: string; watermarkAtCapture: number }>;
   /**
    * Physically restores the live database from a previously-captured artifact (ADR-045 §3
    * restore ceremony, closing the "ledger-only" disclosed gap). A real (SQLite) adapter performs

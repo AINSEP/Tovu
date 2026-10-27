@@ -142,7 +142,7 @@ test("export leaves the source's publish history destinations untouched and neve
   const { reader } = await import("./import.fixture.js");
   let checked = false;
   for await (const entry of reader.entries({ archive })) {
-    if (entry.kind !== "file" || entry.entryPath !== "database/content.db") continue;
+    if (entry.kind !== "file" || entry.entryPath !== "content.db") continue;
     const chunks: Buffer[] = [];
     for await (const chunk of entry.openReadStream({})) chunks.push(Buffer.from(chunk));
     const bytes = Buffer.concat(chunks);
@@ -418,12 +418,13 @@ test("backend reports archive progress without starting a second ZIP and keeps v
   const r = await shareRegistry(t); let entered!: () => void, release!: () => void;
   const started = new Promise<void>(resolve => { entered = resolve; }), gate = new Promise<void>(resolve => { release = resolve; });
   let encodes = 0;
-  const backend = createSiteShareBackend({ registry: r, site: "ws", prepare: async () => ({ ...plan(), bufferedFiles: undefined }), zip: async args => { encodes++; entered(); await gate; return zipFolderFiles(args); }, delivery: async () => delivery() });
+  const backend = createSiteShareBackend({ registry: r, site: "ws", prepare: async () => plan(), zip: async args => { encodes++; entered(); await gate; return zipFolderFiles(args); }, delivery: async () => delivery() });
   const signal = new AbortController().signal;
   const pending = await backend.create({ principalId: "owner", signal }, { waitMs: 0 }) as { jobId: string };
   await started;
   const progress = await backend.create({ principalId: "owner", jobId: pending.jobId, signal }, { waitMs: 0 }) as { phase: string; progress: { filesTotal: number; bytesTotal: number } };
-  assert.equal(progress.phase, "archive-or-upload"); assert.equal(progress.progress.filesTotal, 1); assert.equal(progress.progress.bytesTotal, 17);
+  // v2 refuses a plan without settings.json before encoding, so the plan keeps it: two entries; bytes are the plan's total.
+  assert.equal(progress.phase, "archive-or-upload"); assert.equal(progress.progress.filesTotal, 2); assert.equal(progress.progress.bytesTotal, 17);
   release();
   const done = await backend.create({ principalId: "owner", jobId: pending.jobId, signal }, { waitMs: 1000 }) as Record<string, unknown>;
   assert.equal(done.url, "https://bucket.example/site.zip"); assert.equal(done.message, undefined); assert.equal(done.storage, undefined); assert.equal(done.token, undefined); assert.equal(encodes, 1);

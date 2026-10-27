@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { runtimeToArchivePath, archiveToRuntimePath, archiveCodeUnit } from "../../archive-paths.js";
+import { runtimeToArchivePath, archiveToRuntimePath, archiveCodeUnit, OVERRIDES_UNIT } from "../../archive-paths.js";
 test("theme tiers and original tiers round-trip from each staged manifest", () => {
   const files = new Map([["themes/roast/theme.json", Buffer.from('{"tier":"static"}')], ["themes/__originals__/roast/theme.json", Buffer.from('{"tier":"static"}')]]);
   for (const path of ["themes/static/roast/theme.json", "themes/__original-themes__/static/roast/theme.json", "overrides/style.css"]) {
@@ -8,6 +8,15 @@ test("theme tiers and original tiers round-trip from each staged manifest", () =
     assert.ok(archivePath);
     assert.equal(archiveToRuntimePath({ path: archivePath, files }), path);
   }
+});
+test("a theme named overrides and the overrides folder map to distinct archive paths and units", () => {
+  const files = new Map([["themes/overrides/theme.json", Buffer.from('{"tier":"static"}')]]);
+  assert.equal(runtimeToArchivePath({ path: "themes/static/overrides/index.html" }), "themes/overrides/index.html");
+  assert.equal(runtimeToArchivePath({ path: "overrides/index.html" }), "themes/__overrides__/index.html");
+  assert.equal(archiveToRuntimePath({ path: "themes/overrides/index.html", files }), "themes/static/overrides/index.html");
+  assert.equal(archiveToRuntimePath({ path: "themes/__overrides__/index.html", files }), "overrides/index.html");
+  assert.equal(archiveCodeUnit({ path: "themes/overrides/index.html" }), "themes/overrides");
+  assert.equal(archiveCodeUnit({ path: "themes/__overrides__/index.html" }), OVERRIDES_UNIT);
 });
 test("plugin package digest and workspace flatten; runtime ledgers never ship", () => {
   assert.equal(runtimeToArchivePath({ path: `agent-plugins/ws/ws/demo/package/sha256/${"a".repeat(64)}/plugin.json` }), "agent-plugins/demo/package/plugin.json");

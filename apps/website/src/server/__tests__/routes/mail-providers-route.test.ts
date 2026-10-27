@@ -4,7 +4,12 @@ import test from "node:test";
 
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
-import { resolveCustomCredentialByLabel } from "#src/features/custom-credentials/index";
+import { describeCredentialByLabel, resolveCustomCredentialByLabel } from "#src/features/custom-credentials/index";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
+import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
+import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
+import { createProjectKeys } from "#src/features/project-keys/service";
 import type { MailProviderConfiguration, MailProviderConfigurationReport, MailProviderControl } from "#src/platform/mail/mail-status";
 
 /**
@@ -17,7 +22,7 @@ const LABEL = "Tovu Mail — Fake API";
 
 function control(deps: ReturnType<typeof createRouteDeps>, calls: { selects: string[]; invalidations: number }, optional: { available?: () => boolean } = {}): MailProviderControl {
   const view = async (): Promise<MailProviderConfiguration> => {
-    const row = (await deps.customCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId })).find((r) => r.label === LABEL);
+    const row = await describeCredentialByLabel({ repo: deps.customCredentialSetRepo }, { workspaceId: deps.workspaceId, label: LABEL });
     return {
       id: "fakemail", label: "Fake", origin: "plugin", hosted: true, lanes: [], capabilities: { feedback: false, domainVerification: false },
       credential: row ? { required: true, saved: true, label: LABEL, credentialId: row.id, updatedAt: row.updatedAt } : { required: true, saved: false, label: LABEL },
@@ -32,8 +37,8 @@ function control(deps: ReturnType<typeof createRouteDeps>, calls: { selects: str
   };
 }
 
-async function rig(t: test.TestContext, optional: { grants?: string[]; withControl?: boolean; available?: () => boolean } = {}) {
-  const base = createRouteDeps();
+async function rig(t: test.TestContext, optional: { grants?: string[]; withControl?: boolean; available?: () => boolean; deps?: ReturnType<typeof createRouteDeps> } = {}) {
+  const base = optional.deps ?? createRouteDeps();
   const calls = { selects: [] as string[], invalidations: 0 };
   const grants = optional.grants ? new Set(optional.grants) : undefined;
   const deps = {
@@ -113,6 +118,35 @@ test("refusals map to statuses and leave everything unchanged", async (t) => {
   assert.equal(badUrl.status, 400);
   assert.equal((await badUrl.json() as { error: string }).error, "VALIDATION");
   assert.equal(r.calls.invalidations, 0);
+});
+
+test("mail card saves attach the project key immediately and re-saving rotates that same key", async t => {
+  const base = createRouteDeps(), vault = new InMemoryVaultRepo({}), attachments = fakeAttachments();
+  const siteId = base.workspaceId;
+  const project = { workspaceId: "project", repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault, attachments, siteId }) }),
+    sealer: base.siteAssistantSecretSealer, keyring: base.siteAssistantSecretKeyring };
+  const repo = new CustomCredentialVaultRepo({ vault: new InMemoryVaultRepo({}) }, { project });
+  const projectKeys = createProjectKeys({ vault, attachments, siteId, siteName: "A", transaction: async ({ run }) => run(),
+    providerUsage: async () => { throw new Error("mail keys are custom credentials"); }, reapply: async () => "now" });
+  const r = await rig(t, { deps: { ...base, customCredentialSetRepo: repo, projectKeys } });
+  const first = await r.send("PUT", "mail-providers/fakemail/credential", { token: "first-mail-token", username: "sender" });
+  assert.equal(first.status, 200);
+  const provider = (await first.json() as { provider: MailProviderConfiguration }).provider;
+  assert.equal(provider.credential.saved, true);
+  const id = provider.credential.credentialId!;
+  assert.deepEqual(await attachments.usersOf({ keyId: id }), [{ siteId, siteName: "A" }]);
+  const read = () => resolveCustomCredentialByLabel({ repo, sealer: base.siteAssistantSecretSealer }, { workspaceId: siteId, label: LABEL });
+  assert.equal((await read())?.connection.token, "first-mail-token");
+  const firstRevision = (await vault.find({ workspaceId: "project", id }))!.revision;
+  const second = await r.send("PUT", "mail-providers/fakemail/credential", { token: "second-mail-token" });
+  assert.equal(second.status, 200, "re-saving must not hit a hidden duplicate label");
+  assert.equal((await second.json() as { provider: MailProviderConfiguration }).provider.credential.credentialId, id);
+  assert.deepEqual((await read())?.connection, { token: "second-mail-token", username: "sender" });
+  assert.equal((await vault.find({ workspaceId: "project", id }))!.revision, firstRevision + 1);
+  assert.equal((await project.repo.listByWorkspace({ workspaceId: "project" })).length, 1);
+  assert.deepEqual(await repo.listByWorkspace({ workspaceId: siteId }), []);
+  assert.equal(await attachments.isAttached({ siteId: "site-b", keyId: id }), false);
+  assert.deepEqual(r.calls, { selects: [], invalidations: 2 });
 });
 
 test("a non-object body reads as empty; an unexpected fault is a 500 without detail", async (t) => {

@@ -133,14 +133,14 @@ function selectPublishSave({ metadata, adapters }: { metadata: Record<string, un
  * @example buildCredentialSaveRegistrations({ adapters });
  * @complexity Registration O(1); each invocation performs O(k + f) routing before one domain save.
  */
-export function buildCredentialSaveRegistrations({ adapters, loadPluginCredentialCards, authorizePluginProvider, adaptersForCards, savedResult }: { savedResult?: (input: { result: unknown; label?: string }) => Promise<unknown>; adapters: CredentialSaveAdapters; loadPluginCredentialCards?: () => Promise<readonly PluginCredentialCard[]>; authorizePluginProvider?: (ctx: ToolExecutionContext) => Promise<void>; adaptersForCards?: (required: { cards: readonly PluginCredentialCard[] }) => CredentialSaveAdapters }, _optional = {}): ToolRegistration[] {
+export function buildCredentialSaveRegistrations({ adapters, loadPluginCredentialCards, authorizePluginProvider, adaptersForCards, savedResult }: { savedResult?: (input: { result: unknown }) => Promise<unknown>; adapters: CredentialSaveAdapters; loadPluginCredentialCards?: () => Promise<readonly PluginCredentialCard[]>; authorizePluginProvider?: (ctx: ToolExecutionContext) => Promise<void>; adaptersForCards?: (required: { cards: readonly PluginCredentialCard[] }) => CredentialSaveAdapters }, _optional = {}): ToolRegistration[] {
   return buildDomainRegistrations({ metadata: toolMetadata,
     domain: 'credential-save', catalogModule: 'features/custom-credentials/credential-save-tool.ts',
     catalog: indexCatalogById({ catalog: credentialSaveCatalog }), derivedRisk: credentialSaveDerivedRisk,
     handlers: { [CREDENTIAL_SAVE_TOOL_ID]: async (ctx, optional = {}) => {
       const selected = selectSave({ input: requireInputRecord({ input: ctx.input }), adapters });
       if (selected.handler !== adapters.pluginProvider || !loadPluginCredentialCards) {
-        return invokeSaveAdapter({ selected, ctx, options: optional, savedResult, loadPluginCredentialCards });
+        return invokeSaveAdapter({ selected, ctx, options: optional, savedResult });
       }
       // A card can choose a domain, so require the entry permission before reading plugin data.
       if (!authorizePluginProvider) throw new ToolInputError({ message: 'Plugin credential card authorization is unavailable. Use the credential kind directly.' });
@@ -151,7 +151,7 @@ export function buildCredentialSaveRegistrations({ adapters, loadPluginCredentia
       const resolved = { ...selected, handler: resolvedAdapters.pluginProvider };
       const routed = routePluginCard({ card, selected: resolved, adapters: resolvedAdapters });
       const result = await routed.handler({ ...ctx, input: routed.input }, optional);
-      return savedResult ? savedResult({ result, label: card?.label }) : result;
+      return savedResult ? savedResult({ result }) : result;
     } },
   });
 }
@@ -174,15 +174,10 @@ function routePluginCard({ card, selected, adapters }: { card?: PluginCredential
 
 
 /** Domain saves own the human exchange; one shared result hook attaches successful project saves. */
-async function invokeSaveAdapter({ selected, ctx, options, savedResult, loadPluginCredentialCards }: {
+async function invokeSaveAdapter({ selected, ctx, options, savedResult }: {
   selected: { handler: ToolHandler; input: Record<string, unknown> }; ctx: ToolExecutionContext; options: ToolExecutionOptions;
-  savedResult?: (input: { result: unknown; label?: string }) => Promise<unknown>;
-  loadPluginCredentialCards?: () => Promise<readonly PluginCredentialCard[]>;
+  savedResult?: (input: { result: unknown }) => Promise<unknown>;
 }, _optional = {}): Promise<unknown> {
   const result = await selected.handler({ ...ctx, input: selected.input }, options);
-  if (!savedResult) return result;
-  const cards = loadPluginCredentialCards ? await loadPluginCredentialCardsSafely({ loadCards: loadPluginCredentialCards, workspaceId: "" }) : [];
-  const target = selected.input.target ?? selected.input.provider ?? selected.input.label;
-  const card = cards.find(card => target !== undefined && ((card.saveTarget ?? card.providerId) === target || card.ownedApiLabel === target));
-  return savedResult({ result, label: card?.label });
+  return savedResult ? savedResult({ result }) : result;
 }

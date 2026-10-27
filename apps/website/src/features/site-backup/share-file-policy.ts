@@ -16,8 +16,13 @@ export type PackageFileInventory = ReadonlyMap<string, ReadonlyMap<string, strin
 
 function excludedRuntimeSharePath({ path, parts }: { path: string; parts: string[] }, _options = {}): boolean {
   // Plugin runtime data/memory have fixed roots. A package's src/data or docs/notes is content.
+  // Only a tier folder or a version folder (the installer refuses non-semver names, so it starts with a
+  // digit) owns one; a flat plugin's own `src/data` is content, never a version's data/.
   const roots = [
-    /^plugins\/[^/]+\/[^/]+\/(?:data(?:\/|$)|memory\/(?!notes(?:\/|$)|learned(?:\/|$)))/,
+    /^plugins\/(?:(?:static|declarative|code)\/[^/]+|[^/]+\/\d[^/]*)\/(?:data(?:\/|$)|memory\/(?!notes(?:\/|$)|learned(?:\/|$)))/,
+    // An old flat-layout site plugin (`plugins/<id>/data/`, no version folder) has the same runtime
+    // data root (OAuth tokens); export maps it to `plugins/<id>/package/data/`, which import refuses.
+    /^plugins\/(?!static\/|declarative\/|code\/)[^/]+\/data(?:\/|$)/,
     /^agent-plugins\/ws\/[^/]+\/(?:data|staging)(?:\/|$)/,
     /^agent-plugins\/ws\/[^/]+\/[^/]+\/(?:data(?:\/|$)|memory\/(?!notes(?:\/|$)|learned(?:\/|$)))/,
     /^uploads\/chat-attachments(?:\/|$)/,

@@ -33,7 +33,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  *   provider; the click is the person's explicit confirmation. `settings.workspace.write`.
  */
 export type AdminMailProviderDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "clock" | "idGen" | "customCredentialSetRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring">
-  & Partial<Pick<RouteDeps, "mailProviderControl">>;
+  & Partial<Pick<RouteDeps, "mailProviderControl" | "projectKeys">>;
 
 const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/system/mail-providers";
 
@@ -108,7 +108,7 @@ export function registerAdminMailProviderRoutes(app: Express, deps: AdminMailPro
   app.get(`${BASE_PATH}/:providerId/credential`, route("custom-credentials.write", ({ req }) =>
     planMailProviderCredential({ control: deps.mailProviderControl, providerId: providerId(req) })));
   app.put(`${BASE_PATH}/:providerId/credential`, route("custom-credentials.write", async ({ req }) => ({
-    provider: await saveMailProviderCredential({ control: deps.mailProviderControl, credentials, workspaceId: deps.workspaceId, providerId: providerId(req), input: readCredentialInput(req.body) }),
+    provider: await saveMailProviderCredential({ control: deps.mailProviderControl, credentials, workspaceId: deps.workspaceId, providerId: providerId(req), input: readCredentialInput(req.body) }, { projectKeys: deps.projectKeys }),
   })));
   app.post(`${BASE_PATH}/:providerId/activate`, route("settings.workspace.write", ({ req, principalId }) =>
     activateMailProvider({ control: deps.mailProviderControl, providerId: providerId(req), principalId })));

@@ -106,10 +106,11 @@ export async function importFixture(t: TestContext, placement: "inSite" | "appDa
   const backend = createSiteImportBackend(backendPorts);
   const archive = await buildShareZip({ plan, zip: zipFolderFiles });
   // Hostile fixtures bypass A's projection, but retain a schema-valid DB and exact ZIP hashes.
-  const archiveWithDatabase = async (snapshot: Buffer) => {
+  const archiveWithDatabase = async (snapshot: Buffer, optional: { unlisted?: ReadonlyMap<string, Buffer> } = {}) => {
     const nextPlan = fixtureArchivePlan({ plan: { ...runtimePlan, database: { bytes: snapshot, watermarkAtCapture: 0 } }, files });
     const entries = new Map(nextPlan.bufferedFiles!.map(file => [file.path, file.content])); entries.set("content.db", snapshot);
     entries.set("manifest.json", Buffer.from(fixtureManifest({ plan: nextPlan, files: entries })));
+    for (const [name, bytes] of optional.unlisted ?? []) entries.set(name, bytes);
     const picked = [...entries].map(([name, bytes]) => {
       const file = new File([bytes as BlobPart], name.split("/").at(-1)!);
       Object.defineProperty(file, "webkitRelativePath", { value: "share/" + name });
@@ -129,6 +130,7 @@ export async function importFixture(t: TestContext, placement: "inSite" | "appDa
     fs.writeFileSync(path.join(siteDir, ".site-meta.json"), JSON.stringify({ siteId: "source-site", schemaVersion: runtimeSchemaVersion().index }));
     const readKeys: string[] = [];
     const productionPlan = await prepareShareContent({
+      snapshotRoot: root,
       sources: { siteDir, mediaUploadsDir: null, themesDir: path.join(siteDir, "themes"), skillsDir: path.join(siteDir, "skills"), agentPlugins: resolveAgentPluginLayout({ siteDir, env: {} }), tovuVersion: "test" },
       sanitize: sanitizeShareDatabase, rewriteMedia: rewriteArchiveMedia, imageTransformer: { transform: async () => assert.fail("fixture media is not raster") },
       blobStore: { get: async ({ storageKey }) => { assert.equal(storageKey, STORAGE_KEY); readKeys.push(storageKey); return MEDIA; }, sizeOf: async ({ storageKey }) => { assert.equal(storageKey, STORAGE_KEY); return MEDIA.length; } },
