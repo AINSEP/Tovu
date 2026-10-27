@@ -209,10 +209,13 @@ test("an apply is bound to the dry run the user confirmed: a source replaced mea
     await legacyOwnerStore({ userDataDir: other, entries: [entry({ value: "unreviewed-secret-1234567890", label: "Swapped key" })] });
     for (const name of ["owner.db-wal", "owner.db-shm"]) fs.rmSync(path.join(f.userDataDir, name), { force: true });
     for (const name of ["owner.db", "owner.key"]) fs.copyFileSync(path.join(other, name), path.join(f.userDataDir, name));
+    // In a child with a hard deadline: with the digest check gone, the apply ran into the swapped store
+    // and hung for minutes instead of failing (Codex check 2026-10-27). A regression now fails in seconds.
     for (const request of [{ expectedDigest: dryRun.data.sourceDigest }, {}]) {
-      const applied = await f.invoke({ action: "import", request: { source: "owner-store", apply: true, ...request } });
-      assert.ok(!applied.ok);
-      assert.equal(applied.error.code, "source-changed");
+      const applied = ownerStoreInChild({ home: f.home, action: "import", request: { userDataDir: f.userDataDir, source: "owner-store", apply: true, ...request } });
+      assert.equal(applied.signal, null, "the apply finishes on its own, never killed at the deadline");
+      assert.equal(applied.status, 1);
+      assert.equal(JSON.parse(applied.stdout).error.code, "source-changed");
     }
     const listed = await f.invoke({ action: "list", request: { store: "project" } });
     assert.ok(listed.ok);
@@ -282,15 +285,22 @@ test("a backup import never moves or rewrites the file; empty imports nothing an
   } finally { await f.close(); }
 });
 
+/** The registered `tovu owner-store <action> --json` in a child process, killed (SIGKILL) after 30 s. */
+function ownerStoreInChild(required: { home: string; action: OwnerStoreAction; input?: string; request?: Record<string, unknown> }) {
+  const { home } = required;
+  const args = ["--import", "tsx", path.resolve(import.meta.dirname, "../../main.ts"), "owner-store", required.action, "--json"];
+  const result = spawnSync(process.execPath, args, { encoding: "utf8", timeout: 30_000, killSignal: "SIGKILL",
+    input: required.input ?? JSON.stringify(required.request),
+    env: { ...childProcessCoverageEnv(path.join(home, "child-coverage")), HOME: home, USERPROFILE: home, TOVU_DESKTOP_USER_DATA_DIR: home,
+      APPDATA: path.join(home, "Roaming"), XDG_CONFIG_HOME: home, XDG_DATA_HOME: home } });
+  return { ...result, args };
+}
+
 test("the registered CLI consumes secrets only on stdin and sanitizes malformed JSON", () => {
   const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-owner-process-")));
   const secret = "must-never-appear-in-a-parser-error-12345";
-  const args = ["--import", "tsx", path.resolve(import.meta.dirname, "../../main.ts"), "owner-store", "put", "--json"];
   try {
-    const result = spawnSync(process.execPath, args, { encoding: "utf8", timeout: 30_000,
-      input: `{"userDataDir":${JSON.stringify(home)},"entry":{"payload":"${secret}"`,
-      env: { ...childProcessCoverageEnv(path.join(home, "child-coverage")), HOME: home, USERPROFILE: home, TOVU_DESKTOP_USER_DATA_DIR: home,
-        APPDATA: path.join(home, "Roaming"), XDG_CONFIG_HOME: home, XDG_DATA_HOME: home } });
+    const { args, ...result } = ownerStoreInChild({ home, action: "put", input: `{"userDataDir":${JSON.stringify(home)},"entry":{"payload":"${secret}"` });
     assert.equal(result.error, undefined);
     assert.equal(result.status, 1);
     assert.equal(result.stderr, "");
