@@ -6,7 +6,7 @@ export const ASSISTANT_CLI_PERMISSIONS_KEY = "permissions";
 export const ASSISTANT_CLI_CAPABILITIES = [
   { key: "shell", label: "Bash/shell", description: "Run terminal commands such as git, npm or scripts." },
   { key: "fileWrite", label: "File edit/write", description: "Create and edit files with the CLI's file tools." },
-  { key: "userMcp", label: "Your MCP servers", description: "Use the MCP servers set up in your own CLI." },
+  { key: "userMcp", label: "Your MCP servers", description: "Use the MCP servers set up in your own CLI. Off can't block ones your organization's policy adds." },
   { key: "subagents", label: "Subagents/Task", description: "Hand parts of a task to other agents." },
   { key: "userSettings", label: "Your skills and settings", description: "Load your own CLI skills, settings, hooks and plugins." },
   { key: "web", label: "Web fetch/search", description: "Use the CLI's web fetch and web search." },
