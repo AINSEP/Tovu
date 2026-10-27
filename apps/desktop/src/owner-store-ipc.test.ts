@@ -139,6 +139,17 @@ test('import: the apply names the confirmed dry run digest, so a source replaced
   assert.equal((await kept.controller.execute({ action: 'import', input: { source: 'owner-store' } })).ok, true);
 });
 
+// Codex check 2026-10-27: only main binds the apply to the digest; the renderer never receives it.
+test('import: replies to the renderer never carry the source digest, while the apply still names it', async () => {
+  const withDigest = (data: LegacyImportReport) => reply({ action: 'import', data: { ...data, sourceDigest: 'digest-reviewed' } }) as never;
+  const applied = fixture({ run: async input => withDigest((input.fields as { apply: boolean }).apply ? report('imported', true) : report('new')) });
+  const result = await applied.controller.execute({ action: 'import', input: { source: 'owner-store' } });
+  assert.deepEqual(result, reply({ action: 'import', data: report('imported', true) }));
+  assert.deepEqual(applied.calls.at(-1)?.fields, { source: 'owner-store', apply: true, expectedDigest: 'digest-reviewed' });
+  const nothingNew = fixture({ run: async () => withDigest(report('conflict')) });
+  assert.deepEqual(await nothingNew.controller.execute({ action: 'import', input: { source: 'owner-store' } }), reply({ action: 'import', data: report('conflict') }));
+});
+
 test('import: cancelling the confirmation never applies; nothing new or a failed dry run skips the dialog', async () => {
   const cancelled = fixture({ confirmImport: async () => false });
   const result = await cancelled.controller.execute({ action: 'import', input: { source: 'owner-store' } });

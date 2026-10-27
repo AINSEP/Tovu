@@ -73,6 +73,13 @@ async function importRequest({ request, ports, serialize }: {
   return serialize(() => ports.run({ action: 'import', fields: { ...fields, apply: true, ...(expectedDigest === undefined ? {} : { expectedDigest }) } }));
 }
 
+/** Only main binds the apply to the source digest; the renderer's reply never carries it. */
+function withoutSourceDigest(reply: OwnerStoreReply<'import'>): OwnerStoreReply<'import'> {
+  if (!reply.ok) return reply;
+  const { sourceDigest: _mainOnly, ...data } = reply.data;
+  return { ...reply, data };
+}
+
 /** Fixed-action dispatch; vault payload/revision validation stays with the CLI's existing owner.
  * @complexity O(request bytes) plus delegated work. Unknown actions fail before a spawn.
  */
@@ -86,7 +93,7 @@ async function executeRequest({ action, input, ports, serialize }: {
     list: () => serialize(() => ports.run({ action: 'list', fields: request.store === 'project' ? { store: 'project' } : {} })),
     // Project attachments reference the original row; a save never creates a site copy.
     put: () => serialize(() => ports.run({ action: 'put', fields: { store: 'project', entry: request.entry as OwnerStoreCliFields['put']['entry'] } })),
-    import: () => importRequest({ request, ports, serialize }),
+    import: async () => withoutSourceDigest(await importRequest({ request, ports, serialize })),
   };
   return handlers[action]();
 }
