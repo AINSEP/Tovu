@@ -7,6 +7,24 @@ import path from "node:path";
 import type { SpawnedDaemonProcess } from "@jini-ai/sidecar/supervisor";
 import { localSiteChildEnv, localSiteProcessLog } from "../local-site-process.js";
 
+test("T47/runtime-0#5: stderr overflow retains the later fatal tail", (t) => {
+  const siteDir = mkdtempSync(path.join(os.tmpdir(), "tovu-child-stderr-overflow-"));
+  t.after(() => rmSync(siteDir, { recursive: true, force: true }));
+  const events = new EventEmitter();
+  const child: SpawnedDaemonProcess = { pid: 42, on(input) { events.on(input.event, input.listener); }, kill() { return true; } };
+  const diagnostics = localSiteProcessLog({ name: "alpha", siteDir });
+  t.after(() => diagnostics.stderr.destroy());
+  diagnostics.observe({ child });
+  diagnostics.stderr.write("x".repeat(65_537));
+  diagnostics.stderr.write("\nFATAL ERROR: crash after verbose startup\n    at final-native-frame\n");
+  events.emit("exit", { code: null, signal: "SIGABRT" });
+  diagnostics.stderr.end();
+
+  const saved = readFileSync(path.join(siteDir, "ops/logs/local-site.log"), "utf8");
+  assert.match(saved, /FATAL ERROR: crash after verbose startup/);
+  assert.match(saved, /at final-native-frame/);
+});
+
 // A parent must persist the native reason even when the site's own console never reports a crash.
 for (const outcome of [{ code: 7, signal: null }, { code: null, signal: "SIGKILL" }, { code: 0, signal: null }] as const) {
   test(`local child exit is durable: code=${outcome.code}, signal=${outcome.signal}`, (t) => {

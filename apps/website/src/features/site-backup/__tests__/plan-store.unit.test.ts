@@ -72,6 +72,21 @@ test("the store holds at most its cap: the oldest plan is evicted first", () => 
   assert.equal(store.take({ planId: c.planId, ...OWNER }).ok, true);
 });
 
+test("T48: other principals and workspaces cannot evict a caller's live backup plan", () => {
+  for (const other of [
+    { ...OWNER, principalId: "other-owner" },
+    { ...OWNER, workspaceId: "other-ws" },
+  ]) {
+    const { store } = makeStore({ maxPlans: 2 });
+    const plan = store.save({ ...OWNER, content: CONTENT });
+    store.save({ ...other, content: CONTENT });
+    store.save({ ...other, content: CONTENT });
+
+    assert.deepEqual(store.take({ ...OWNER, planId: plan.planId }), { ok: true, plan },
+      "another caller's plans must not consume this caller's retention budget");
+  }
+});
+
 test("expired plans are swept on save, so they never push out a live one", () => {
   const { store, clock } = makeStore({ maxPlans: 2 });
   const stale = store.save({ ...OWNER, content: CONTENT });

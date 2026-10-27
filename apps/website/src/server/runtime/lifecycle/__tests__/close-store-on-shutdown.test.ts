@@ -43,6 +43,30 @@ function fakeStore(kind: SiteStorage["kind"], close: () => Promise<void>) {
   return { storage, close };
 }
 
+test("T47/runtime-0#3: beforeExit stops the daemon before closing its shared store", async () => {
+  const proc = new FakeProcess();
+  const order: string[] = [];
+  let releaseDaemon!: () => void;
+  let storeClosed!: () => void;
+  const daemonStopped = new Promise<void>((resolve) => { releaseDaemon = resolve; });
+  const closed = new Promise<void>((resolve) => { storeClosed = resolve; });
+  closeStoreOnShutdown({
+    store: fakeStore("sqlite", async () => { order.push("store"); storeClosed(); }),
+    onShutdown: () => { order.push("daemon"); return daemonStopped; },
+  }, { proc });
+
+  proc.emit("beforeExit");
+  try {
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.deepEqual(order, ["daemon"], "the store must stay open while the daemon is stopping");
+  } finally {
+    releaseDaemon();
+    await closed;
+  }
+  assert.deepEqual(order, ["daemon", "store"]);
+  assert.deepEqual(proc.exits, []);
+});
+
 test("real signals use the default process, close once across SIGTERM/SIGINT, and run the exit handler after closing", { timeout: 15_000 }, async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "shutdown-signals-"));
   const resultPath = path.join(dir, "result.json");

@@ -97,6 +97,23 @@ function takeAddedSignalListeners(before: Map<string, Function[]>, keep = "SIGTE
   return added;
 }
 
+test("T47/runtime-0#6: a binding can assemble a usable supervisor after its prior host shuts down", async (t) => {
+  withEnv(t, { TOVU_ENABLE_SITE_SWITCHER: "1" });
+  const before = new Map(["SIGTERM", "SIGINT", "SIGHUP", "exit"].map((signal) => [signal, process.listeners(signal as NodeJS.Signals)]));
+  const site = binding();
+  t.after(() => fs.rmSync(path.dirname(path.dirname(site.dir)), { recursive: true, force: true }));
+  t.after(() => { takeAddedSignalListeners(before); });
+  const first = localSiteSupervisorForHost({ binding: site });
+  assert.ok(first);
+  await shutdownLocalSiteHosts({});
+  const reopened = localSiteSupervisorForHost({ binding: site });
+  assert.ok(reopened);
+  t.after(() => reopened.shutdown());
+
+  await assert.doesNotReject(reopened.withStoppedSite({ name: "unused-site", task: async () => {} }),
+    "host assembly must not return the cached terminal supervisor");
+});
+
 test("local site supervisor: one per binding directory; a SIGTERM listener stops it so later starts refuse as SITE_HOST_STOPPING", async (t) => {
   withEnv(t, { TOVU_ENABLE_SITE_SWITCHER: "1", PORT: "4400", JINI_AGENT_DAEMON_URL: "http://127.0.0.1:4555" });
   const before = new Map(["SIGTERM", "SIGINT", "SIGHUP", "exit"].map((signal) => [signal, process.listeners(signal as NodeJS.Signals)]));

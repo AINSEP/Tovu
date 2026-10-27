@@ -29,6 +29,24 @@ test("no active forms means an empty manifest", () => {
   assert.deepEqual(buildFormDestinationManifest({ definitions: [] }), []);
 });
 
+test("T9: the static-host manifest includes default text caps and preserves authored limits", () => {
+  const manifest = buildFormDestinationManifest({ definitions: [{ ...waitlist, fields: [
+    { id: "name", label: "Name", type: "text", required: false },
+    waitlist.fields[0]!,
+    waitlist.fields[3]!,
+    { id: "token", label: "Token", type: "hidden", required: false },
+    waitlist.fields[2]!,
+  ] }] });
+
+  assert.deepEqual(manifest, [{ slug: "byho-waitlist", fields: [
+    { name: "name", required: false, maxLength: 100 },
+    { name: "email", required: true, maxLength: 254 },
+    { name: "visitor_note", required: false, maxLength: 2000 },
+    { name: "token", required: false, maxLength: 2000 },
+    { name: "consent", required: true },
+  ] }]);
+});
+
 // ---- buildFormDeliveryForm: the snapshot a push delivery freezes when a submission is planned ----
 
 test("the delivery form adds each field's label and type to the manifest's names, flags, lengths and groups", () => {

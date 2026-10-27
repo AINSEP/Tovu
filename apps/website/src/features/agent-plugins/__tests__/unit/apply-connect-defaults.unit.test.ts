@@ -1,5 +1,5 @@
 // openid-client validates token_type; successful provider fixtures include the required wire field.
-import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
+import { createTempSiteLayoutFixture, testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -63,7 +63,7 @@ const tokenFetch = (async () =>
     headers: { "content-type": "application/json" },
   })) as typeof fetch;
 
-async function makeHarness(row: { allowedToolNames?: string; provisionedByPluginId?: string; url?: string; enableThrows?: boolean; productionBindings?: boolean }) {
+async function makeHarness(row: { allowedToolNames?: string; provisionedByPluginId?: string; url?: string; enableThrows?: boolean; productionBindings?: boolean; agentPluginLayout?: ReturnType<typeof resolveAgentPluginLayout> }) {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
@@ -95,6 +95,7 @@ async function makeHarness(row: { allowedToolNames?: string; provisionedByPlugin
     workspaceId: WORKSPACE,
     repo,
     clock,
+    ...(row.agentPluginLayout ? { agentPluginLayout: row.agentPluginLayout } : {}),
     ...(row.productionBindings ? {} : {
       resolveServers: async (input: { pluginId: string }) => (input.pluginId === PLUGIN ? DECLARED : {}),
       enablePlugin: async (input: { pluginId: string }) => {
@@ -148,6 +149,26 @@ test("after the first OAuth callback, a plugin-provisioned row with empty lists 
   assert.equal(row.writeGrantsUpdatedAt, "2026-09-27T12:00:00.000Z");
   assert.deepEqual(h.enabledPlugins, [PLUGIN]);
   assert.equal(h.rosterNotifications(), 1);
+});
+
+test("T21: OAuth sign-in respects an operator's explicit plugin-off decision", async (t) => {
+  const fixture = createTempSiteLayoutFixture({});
+  t.after(fixture.cleanup);
+  const { agentPluginLayout } = fixture.deps;
+  const workspaceRoot = agentPluginLayout.forWorkspace(WORKSPACE).root;
+  await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN, enabled: false, actor: "operator-1" });
+  const h = await makeHarness({ provisionedByPluginId: PLUGIN, agentPluginLayout });
+
+  await h.signIn();
+
+  const row = await h.readRow();
+  assert.equal(row.oauthStatus, "connected", "sign-in still completes and stores the credentials");
+  assert.equal(row.enabled, false, "sign-in must not activate a connection whose plugin the operator turned off");
+  assert.deepEqual(h.enabledPlugins, []);
+  assert.equal(row.allowedToolNames, "[]");
+  assert.equal(row.writeAllowedToolNames, "[]");
+  assert.equal((await agentPluginActivations.readAgentPluginActivations({ workspaceRoot })).plugins[PLUGIN]?.enabled, false);
+  assert.equal(h.rosterNotifications(), 0);
 });
 
 test("OAuth callback composes installed defaults with real plugin activation storage", async () => {

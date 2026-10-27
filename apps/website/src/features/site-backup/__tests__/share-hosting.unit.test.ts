@@ -16,6 +16,7 @@ import type { PeerCallDeps } from "../../publish-content/peer-transport.js";
 import { SiteShareRegistry } from "../share-registry.js";
 import type { ShareDelivery } from "../share-service.js";
 import { createPeerShareDelivery, createRuntimeShareDelivery, resolveShareDelivery } from "../share-hosting.js";
+import { SiteShareRefusal } from "../share-policy.js";
 
 const TOKEN = "a".repeat(16);
 const KEY = `_share/${TOKEN}/site.tovu.zip`;
@@ -79,8 +80,12 @@ for (const publicOrigin of ["http://share.example.test", "https://user@share.exa
   });
 }
 
-test("an unparseable public origin fails as an invalid URL", t => {
-  assert.throws(() => runtime(t, { publicOrigin: "not a url" }), { code: "ERR_INVALID_URL" });
+test("T48: an unparseable public origin raises a typed STORAGE_SETUP refusal", t => {
+  assert.throws(() => runtime(t, { publicOrigin: "not a url" }), (error: unknown) => {
+    assert.ok(error instanceof SiteShareRefusal);
+    assert.equal(error.code, "STORAGE_SETUP");
+    return true;
+  });
 });
 
 test("the runtime delivery names the server provider and binds to its registry directory", t => {
@@ -278,6 +283,20 @@ test("selection falls back to the runtime delivery when no peer is connected", a
 
 test("selection falls back to the runtime delivery when the peer connection fails", async () => {
   assert.equal(await resolveShareDelivery(selection({ peer: async () => { throw new Error("disconnected"); }, runtime: () => RUNTIME }).required), RUNTIME);
+});
+
+test("T48: an invalid runtime origin falls back to object storage or private ZIP delivery", async t => {
+  const registry = registryIn(t);
+  const { http } = anonymousHttp();
+  for (const fallback of [OBJECT_STORE, undefined]) {
+    const { required } = selection({
+      peer: noPeer,
+      runtime: () => createRuntimeShareDelivery({ registry, site: "ws", publicOrigin: "http://localhost:3000", http }),
+      objectStore: async () => fallback,
+    });
+
+    assert.equal(await resolveShareDelivery(required), fallback);
+  }
 });
 
 test("selection skips a peer bound elsewhere and takes the runtime delivery matching the saved binding", async () => {

@@ -106,8 +106,8 @@ test("site values win; unattached project values stay hidden; a different key on
   const bSite = memorySource("site");
   const b = withAttachedProject({ site: bSite }, { project, attachments, siteId: "b" });
   const first = { settings: { endpoint: "https://a.example.test" }, secrets: { token: ["fake", "a"].join("_") } };
-  assert.deepEqual(await a.write({ pluginId: "obs", config: first }), { keyId, store: "project", usedByThisSite: false, usedBy: [] });
-  assert.equal(await a.read({ pluginId: "obs" }), null);
+  assert.deepEqual(await a.write({ pluginId: "obs", config: first }), { keyId, store: "project", usedByThisSite: true, usedBy: ["a"] });
+  assert.deepEqual(await a.read({ pluginId: "obs" }), first);
   assert.equal(await b.readSettings({ pluginId: "obs" }), null);
   await attachments.attach({ siteId: "a", keyId, siteName: "A" });
   assert.deepEqual(await a.read({ pluginId: "obs" }), first);
@@ -121,6 +121,26 @@ test("site values win; unattached project values stay hidden; a different key on
   assert.equal(await a.read({ pluginId: "obs" }), null);
   const missing = withAttachedProject({ site: memorySource("site") }, { project, attachments });
   assert.equal(await missing.read({ pluginId: "obs" }), null);
+});
+
+test("a project provider save commits its attachment before returning usage", async () => {
+  const site = memorySource("site"), project = memorySource("project"), attachments = fakeAttachments();
+  let inTransaction = false;
+  const attach = attachments.attach.bind(attachments);
+  attachments.attach = async input => { assert.equal(inTransaction, true); await attach(input); };
+  const config = withAttachedProject({ site }, { project, attachments, siteId: "a", siteName: "A", transaction: async ({ run }) => {
+    inTransaction = true;
+    try {
+      const result = await run();
+      assert.equal(await attachments.isAttached({ siteId: "a", keyId: "plugin-state:obs:provider.config" }), true, "attachment exists before commit");
+      return result;
+    } finally { inTransaction = false; }
+  } });
+  const values = { settings: { endpoint: "https://collector.example.test" }, secrets: { token: "fixture-only" } };
+  assert.deepEqual(await config.write({ pluginId: "obs", config: values }), {
+    keyId: "plugin-state:obs:provider.config", store: "project", usedByThisSite: true, usedBy: ["A"],
+  });
+  assert.deepEqual(await config.read({ pluginId: "obs" }), values);
 });
 
 test("a project store that failed to open: reads fall back to the site vault, a save is refused (never written to the site vault)", async () => {
@@ -274,7 +294,7 @@ test("an attached project's migrated OTel choice feeds boot, both cards and the 
   const settings = { endpoint: "https://collector.example.test", auth: "token", username: "123456" };
   const secrets = { token: "fixture-only" };
   rows.set(`project/${pluginId}/provider.config`, { settings, secrets });
-  const source = migrated(withAttachedProject({ site }, { project, attachments, siteId: "a" }));
+  const source = migrated(withAttachedProject({ site }, { project, attachments, siteId: "a", siteName: "A" }));
   assert.equal(await source.read({ pluginId }), null);
   await attachments.attach({ siteId: "a", siteName: "A", keyId });
   const expected = { settings: { ...settings, auth: "grafana-cloud" }, secrets };

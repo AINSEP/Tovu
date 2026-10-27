@@ -13,14 +13,14 @@ const waitlist: FormDefinitionRecord = { ...base, id: "f1", slug: "waitlist", st
 ] };
 const disabled: FormDefinitionRecord = { ...waitlist, id: "f2", slug: "old", status: "disabled" };
 
-function setup({ failCreateOn }: { failCreateOn?: string } = {}) {
+function setup({ failCreateOn, definitions = [waitlist, disabled] }: { failCreateOn?: string; definitions?: FormDefinitionRecord[] } = {}) {
   const rows: FormSubmissionRecord[] = [];
   const events: { name: string; aggregateId: string; payload: unknown }[] = [];
   const receipts = new Map<string, string>();
   const lookups: string[] = [];
   let ids = 0;
   const deps: ImportRemoteSubmissionsDeps = {
-    definitionRepo: { findBySlug: async ({ slug }) => { lookups.push(slug); return [waitlist, disabled].find((d) => d.slug === slug) ?? null; } },
+    definitionRepo: { findBySlug: async ({ slug }) => { lookups.push(slug); return definitions.find((d) => d.slug === slug) ?? null; } },
     submissionRepo: {
       create: async (record) => { if (record.data.email === failCreateOn) throw new Error("disk full"); rows.push(record); },
       // Rolls back every write made inside `work` when it throws, like the store's real transaction.
@@ -81,6 +81,24 @@ test("rows the live validator rejects are imported with declared text fields onl
   assert.deepEqual(s.rows.map((stored) => stored.data), [{ email: "", note: "too long" }, { email: ["a", "b"] }]);
   assert.equal(s.rows[0]!.submittedAt, "2026-10-19T12:00:00.000Z", "an unusable host time falls back to the import time");
   assert.equal(s.rows[0]!.sourceIp, null);
+});
+
+test("T9: remote imports report the live submit path's default text-length violations", async () => {
+  const s = setup({ definitions: [{ ...waitlist, fields: [
+    waitlist.fields[0]!,
+    { id: "name", label: "Name", type: "text", required: false },
+    { id: "note", label: "Note", type: "textarea", required: false, maxLength: null },
+  ] }] });
+  const result = await importRemoteFormSubmissions({ deps: s.deps, workspaceId: "w", destinationKey: "d", items: [
+    row("below", { email: "a@b.co", name: "a".repeat(99), note: "m".repeat(1999) }),
+    row("at", { email: "a@b.co", name: "😀".repeat(100), note: "🎉".repeat(2000) }),
+    row("over", { email: "a@b.co", name: "a".repeat(101), note: "m".repeat(2001) }),
+  ] });
+
+  assert.deepEqual(result.committedIds, ["below", "at", "over"], "invalid remote rows remain available for admin review");
+  assert.deepEqual(result.invalid.map(({ remoteId, fieldErrors }) => ({ remoteId, fieldErrors })), [
+    { remoteId: "over", fieldErrors: [{ field: "name", reason: "too_long" }, { field: "note", reason: "too_long" }] },
+  ]);
 });
 
 test("rows for a form that no longer exists are skipped and not acknowledged; a disabled form still imports", async () => {

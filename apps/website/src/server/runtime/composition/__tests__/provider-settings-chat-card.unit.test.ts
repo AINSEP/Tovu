@@ -1,4 +1,6 @@
-import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
+import { fakeAttachments, vaultRow } from "#src/features/project-keys/__tests__/helpers";
+import { createProjectKeys } from "#src/features/project-keys/service";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -76,8 +78,14 @@ async function fixture({ submit, saved, records = [record], reapply, direct = fa
   const project = fakeState();
   const attachments = fakeAttachments();
   const config = withAttachedProject({ site: createVaultProviderConfigSource({ state: site.state, workspaceId: "ws", scope: "site" }) },
-    { project: createVaultProviderConfigSource({ state: project.state, workspaceId: "project", scope: "project" }), attachments, siteId: "site-a" });
-  if (saved) { await config.write({ pluginId: PLUGIN, config: saved }); await attachments.attach({ siteId: "site-a", siteName: "A", keyId: `plugin-state:${PLUGIN}:provider.config` }); }
+    { project: createVaultProviderConfigSource({ state: project.state, workspaceId: "project", scope: "project" }), attachments, siteId: "site-a", siteName: "A" });
+  if (saved) await config.write({ pluginId: PLUGIN, config: saved });
+  const appliedConfigs: unknown[] = [];
+  const apply = async () => { appliedConfigs.push(await config.read({ pluginId: PLUGIN })); return reapply ? reapply() : "restart" as const; };
+  const vault = new InMemoryVaultRepo({});
+  await vault.put({ record: { ...vaultRow({ id: `plugin-state:${PLUGIN}:provider.config`, kind: "api-connection" }), isDefault: false }, expectedRevision: null });
+  const projectKeys = createProjectKeys({ vault, attachments, siteId: "site-a", siteName: "A", providerUsage: config.usage,
+    transaction: async ({ run }) => run(), reapply: apply });
   const clock = createSystemClock();
   const idGen = createRandomUuidGenerator();
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock, idGenerator: idGen, defaultChannel: "mcp-ui" });
@@ -85,10 +93,11 @@ async function fixture({ submit, saved, records = [record], reapply, direct = fa
   const authorized: string[] = [];
   const adapters: CredentialSaveAdapters = { apiCreate: refuse, apiRotate: refuse, mediaProvider: refuse, sourceControl: refuse, publishHost: refuse, agentPluginToken: refuse, pluginProvider: refuse,
     providerSettings: buildProviderSettingsCredentialHandler({ surfaces: { surfaceExchanges }, loadCards: async () => cards, ports: {
-      ...bindProviderSettingsCardPorts({ config, discoverPlugins: async () => records, reapply }),
+      ...bindProviderSettingsCardPorts({ config, discoverPlugins: async () => records, reapply: apply }),
       authorize: async () => { authorized.push("admin.plugins.enable"); },
     } }) };
-  const [registration] = buildCredentialSaveRegistrations({ adapters, loadPluginCredentialCards: async () => cards, authorizePluginProvider: async () => { authorized.push("custom-credentials.write"); } });
+  const [registration] = buildCredentialSaveRegistrations({ adapters, loadPluginCredentialCards: async () => cards, authorizePluginProvider: async () => { authorized.push("custom-credentials.write"); },
+    savedResult: input => projectKeys.savedResult(input) });
   let exchangeId = "";
   let transcript = "";
   const input = direct ? { kind: "provider-settings", target: PLUGIN } : { kind: "plugin-provider", target: "posthog" };
@@ -103,12 +112,13 @@ async function fixture({ submit, saved, records = [record], reapply, direct = fa
   for (let tick = 0; tick < 200 && !exchangeId; tick++) await new Promise((resolve) => setImmediate(resolve));
   if (exchangeId) assert.ok(surfaceExchanges.deliver({ exchangeId, principalId: "owner", params: submit }, { toolId: "credential_save" }));
   const result = await pending as Record<string, unknown>;
-  return { result, transcript, input, site, project, config, authorized };
+  return { result, transcript, input, site, project, config, authorized, appliedConfigs };
 }
 
 test("the chat card saves the provider's settings into the PROJECT store, not the site vault; the key never reaches the result, transcript or model input", async () => {
   const f = await fixture({ submit: { host: "https://eu.i.posthog.com", apiKey: secret } });
-  assert.deepEqual(f.result, { saved: true, configured: false, pluginId: PLUGIN, store: "project", keyId: `plugin-state:${PLUGIN}:provider.config`, usedByThisSite: false, usedBy: [], appliesAt: "restart" });
+  assert.deepEqual(f.result, { saved: true, configured: true, pluginId: PLUGIN, store: "project", keyId: `plugin-state:${PLUGIN}:provider.config`, usedByThisSite: true, usedBy: ["A"], appliesAt: "restart" });
+  assert.deepEqual(f.appliedConfigs, [{ settings: { host: "https://eu.i.posthog.com" }, secrets: { apiKey: secret } }], "the single reapply can already read the saved key");
   assert.deepEqual(f.project.rows.get(`project/${PLUGIN}/provider.config`), { settings: { host: "https://eu.i.posthog.com" }, secrets: { apiKey: secret } });
   assert.equal(f.site.rows.size, 0, "nothing in the site vault");
   assert.deepEqual(f.authorized, ["custom-credentials.write", "admin.plugins.enable"], "the admin Settings card's save permission is checked too");
@@ -155,8 +165,8 @@ test('the chat save refuses a missing conditional token with exact guidance and 
   assert.deepEqual(refused.result, { saved: false, reason: "error", message: 'Token is required. Choose "No authentication" only for a local collector.' });
   assert.equal(refused.project.rows.size, 0);
   const local = await fixture({ records: [conditional], submit: { auth: "none", token: "" } });
-  assert.deepEqual(local.result, { saved: true, pluginId: PLUGIN, configured: false,
-    keyId: `plugin-state:${PLUGIN}:provider.config`, store: "project", usedByThisSite: false, usedBy: [], appliesAt: "restart" });
+  assert.deepEqual(local.result, { saved: true, pluginId: PLUGIN, configured: true,
+    keyId: `plugin-state:${PLUGIN}:provider.config`, store: "project", usedByThisSite: true, usedBy: ["A"], appliesAt: "restart" });
   assert.deepEqual(local.project.rows.get(`project/${PLUGIN}/provider.config`), { settings: { auth: "none" }, secrets: {} });
 });
 
@@ -164,7 +174,7 @@ test("provider_status reports presence only: configured, missing, store, never a
   const project = fakeState();
   const attachments = fakeAttachments();
   const config = withAttachedProject({ site: createVaultProviderConfigSource({ state: fakeState().state, workspaceId: "ws", scope: "site" }) },
-    { project: createVaultProviderConfigSource({ state: project.state, workspaceId: "project", scope: "project" }), attachments, siteId: "site-a" });
+    { project: createVaultProviderConfigSource({ state: project.state, workspaceId: "project", scope: "project" }), attachments, siteId: "site-a", siteName: "A" });
   const [registration] = buildProviderStatusRegistrations({ ports: {
     list: () => listProviderStatuses({ config, discoverPlugins: async () => [record, { id: "plain", manifest: {} } as unknown as PluginDiscoveryRecord],
       activation: async () => ({ enabled: true }) }),
@@ -173,6 +183,7 @@ test("provider_status reports presence only: configured, missing, store, never a
   const run = (input?: unknown) => registration!.handler({ executionId: "e", principal: { id: "owner" }, run: { id: "r" }, input, signal: new AbortController().signal } as unknown as ToolExecutionContext, {});
   assert.deepEqual(await run(), { providers: [{ pluginId: PLUGIN, fields: record.manifest!.contributes!.providers![0]!.settings!.map(field => ({ ...field, required: field.required === true })), settingsCard: { tool: "credential_save", input: { kind: "provider-settings", target: PLUGIN } }, enabled: true, configured: false, store: "project", usedByThisSite: false, usedBy: [], appliesAt: "now", missing: ["Project API key"] }] });
   await config.write({ pluginId: PLUGIN, config: { settings: { host: "https://ph.private.example.test" }, secrets: { apiKey: secret } } });
+  await attachments.detach({ siteId: "site-a", keyId: `plugin-state:${PLUGIN}:provider.config` });
   const pending = await run({ pluginId: PLUGIN }) as { providers: { configured: boolean; usedByThisSite: boolean; keyId: string }[] };
   assert.equal(pending.providers[0]!.configured, false);
   assert.equal(pending.providers[0]!.usedByThisSite, false);

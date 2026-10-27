@@ -290,6 +290,44 @@ function mutationsHarness(t: TestContext, bridge: Pick<RunnerInventoryBridge, 'c
 const CREATED: CreatedSiteRecord = { ...site('new'), agentPluginTokens: { status: 'saved', pluginIds: ['x'] } };
 const INPUT: CreateSiteInput = { displayName: 'new', database: { kind: 'sqlite' } };
 
+test('T18: a poll started before creation cannot erase the new site and its token notice', async (t) => {
+  const stalePoll = deferred<readonly SiteRecord[]>();
+  const pendingCreate = deferred<CreatedSiteRecord>();
+  const responses = [Promise.resolve([site('a')]), stalePoll.promise];
+  const bridge = {
+    listSites: () => responses.shift()!,
+    createSite: () => pendingCreate.promise,
+    deleteSite: async () => {},
+  };
+  const getBridge = () => bridge;
+  let tick!: () => void;
+  let stopped = 0;
+  const startInterval = (callback: () => void) => { tick = callback; return () => { stopped++; }; };
+  const hook = renderHook(t, () => {
+    const polling = useSitesPolling({}, { getBridge, startInterval });
+    const mutations = useProjectMutations({
+      projects: polling.projects, setProjects: polling.setProjects,
+      closeProjectTab: () => {}, startCreating: () => {}, stopCreating: () => {},
+    }, { getBridge });
+    return { ...polling, ...mutations };
+  });
+  await settle();
+  assert.deepEqual(hook.current().projects.map(project => project.id), ['a']);
+  act(() => tick()); // The snapshot taken before creation is still in flight.
+  let creating!: Promise<void>;
+  act(() => { creating = hook.current().handleCreate(INPUT); });
+  await act(async () => { pendingCreate.resolve(CREATED); await creating; });
+  assert.equal(hook.current().lastCreated, CREATED, 'the successful create exposes its token outcome');
+
+  await act(async () => { stalePoll.resolve([site('a')]); });
+  await settle();
+  const actual = { ids: hook.current().projects.map(project => project.id), notice: hook.current().lastCreated };
+  hook.unmount();
+  assert.equal(stopped, 1, 'unmount releases the polling interval');
+  assert.deepEqual(actual, { ids: ['a', 'new'], notice: CREATED },
+    'an older inventory snapshot must preserve the newly created site and its one-time token notice');
+});
+
 test('useProjectMutations: a create appends the plain record, keeps the full result for the notice, and resets the form', async (t) => {
   const inputs: CreateSiteInput[] = [];
   const { hook, calls } = mutationsHarness(t, { createSite: async (input) => { inputs.push(input); return CREATED; }, deleteSite: async () => {} });

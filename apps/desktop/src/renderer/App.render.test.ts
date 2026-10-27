@@ -117,6 +117,25 @@ test('App: the nav badges running sites, inert links do nothing, and an agent na
   assert.match(app.container.querySelector('webview')?.getAttribute('src') ?? '', /\/admin\/.*import/, 'on its Import page');
 });
 
+test('T3: navigating away from Websites and back preserves the open admin webview', async (t) => {
+  const app = await renderApp(t, {
+    listSites: async () => [site('a', { status: 'running', port: 4100 })],
+  });
+  await openFirstSite(app);
+  const guest = app.container.querySelector('webview');
+  assert.ok(guest, 'the running site has an admin browsing context');
+
+  await act(async () => { for (const listener of app.listeners.navigate) listener('agents' as RunnerSectionId); });
+  await settle();
+  const guestWhileAway = app.container.querySelector('webview');
+  await app.click(app.byLabel('Websites'));
+  await app.click(app.all('[role="tab"]').find(tab => tab.textContent?.includes('Site a')));
+
+  assert.equal(app.container.querySelector('webview'), guest,
+    'returning to the site must reuse its browsing context, preserving routes and unsaved forms');
+  assert.equal(guestWhileAway, guest, 'other sections hide the guest without unmounting it');
+});
+
 test('App: the Settings menu opens, moves with the arrows, picks a theme, opens Sites settings and Appearance', async (t) => {
   const app = await renderApp(t);
   const gear = app.byLabel('Settings')!;

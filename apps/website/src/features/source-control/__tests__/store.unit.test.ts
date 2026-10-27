@@ -809,6 +809,44 @@ test('opaque metadata and canonical blank-token patches never load provider code
   assert.equal((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: 'example-git' }))?.connection.token, 'saved-secret');
 });
 
+test('T26: token-only rotation retains the saved provider', async () => {
+  const deps = makeDeps({ loadSourceControlProviders: exampleProvidersWithoutProbe });
+  const saved = await createSourceControlCredential({ deps, input: {
+    workspaceId: WORKSPACE, label: 'rotation',
+    connection: { providerId: 'example-git', token: 'original-fixture-token' },
+  } });
+
+  await assert.doesNotReject(() => updateSourceControlCredential({ deps, input: {
+    workspaceId: WORKSPACE, id: saved.id, connection: { token: 'replacement-fixture-token' },
+  } }));
+  assert.deepEqual((await resolveDefaultForSourceControl(deps, {
+    workspaceId: WORKSPACE, providerId: 'example-git',
+  }))?.connection, { providerId: 'example-git', token: 'replacement-fixture-token' });
+});
+
+test('T36: blank-token patches refuse changes to other connection fields', async () => {
+  const base = exampleRegistry({ probe: false }).list()[0]!;
+  const loaded = { ...base, descriptor: { ...base.descriptor, credential: {
+    tokenField: 'token', fields: [
+      { name: 'token', label: 'Token', required: true, secret: true as const },
+      { name: 'baseUrl', label: 'API URL', required: false },
+    ],
+  } } };
+  const deps = makeDeps({ loadSourceControlProviders: async () => ({
+    list: () => [loaded], get: id => id === loaded.descriptor.id ? loaded : undefined, refusals: [],
+  }) });
+  const connection = { providerId: loaded.descriptor.id, token: 'saved-fixture-token', baseUrl: 'https://old.example.test' };
+  const saved = await createSourceControlCredential({ deps, input: { workspaceId: WORKSPACE, label: 'endpoint', connection } });
+
+  await assert.rejects(() => updateSourceControlCredential({ deps, input: {
+    workspaceId: WORKSPACE, id: saved.id,
+    connection: { providerId: loaded.descriptor.id, token: '', baseUrl: 'https://new.example.test' },
+  } }), SourceControlCredentialValidationError);
+  assert.deepEqual((await resolveDefaultForSourceControl(deps, {
+    workspaceId: WORKSPACE, providerId: loaded.descriptor.id,
+  }))?.connection, connection);
+});
+
 test('token-only providers without a credential form still use token admission; missing registry refuses new writes', async () => {
   const base = exampleRegistry({ probe: false }).list()[0]!;
   const { credential: _credential, ...descriptor } = base.descriptor;

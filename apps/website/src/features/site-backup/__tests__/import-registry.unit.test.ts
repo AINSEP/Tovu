@@ -8,6 +8,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
+import { createSitesWorkspace } from "../../../platform/site-dir/sites-home.js";
+import { reconcileInterruptedImports, requireStagingBudget } from "../import-backend-steps.js";
 import { SiteImportRegistry, type SiteImportRecord, type SiteImportUpload } from "../import-registry.js";
 
 const NOW = Date.UTC(2026, 0, 1);
@@ -188,6 +190,48 @@ test("expiry removes an upload older than one hour with its payload", t => {
   raw(registry, `${ID_B}.upload.zip`, "PK");
   registry.expire({});
   assert.deepEqual(fs.readdirSync(registry.directory), []);
+});
+
+test("T25: interrupted verification and orphaned payloads release the staging budget without discarding live owner setup", async t => {
+  const registry = registryIn(t);
+  const orphanStageId = "dddddddd-dddd-dddd-dddd-dddddddddddd";
+  const liveImportId = "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee";
+  const interrupted = record({ source: { url: "https://public.example/site.zip" } });
+  const live = record({ importId: liveImportId, status: "needs-owner" });
+  registry.put({ row: interrupted });
+  registry.put({ row: live });
+  for (const importId of [ID_A, orphanStageId, liveImportId]) {
+    fs.mkdirSync(registry.stagePath({ importId }));
+    fs.writeFileSync(path.join(registry.stagePath({ importId }), "payload"), "staged");
+  }
+  // Crash after ZIP publication, before metadata; and a ZIP whose metadata is unreadable.
+  raw(registry, `${ID_B}.upload.zip`, "PK");
+  raw(registry, `${ID_C}.upload.zip`, "PK");
+  raw(registry, `${ID_C}.upload.json`, "{");
+  const leakedPaths = [registry.stagePath(interrupted), registry.stagePath({ importId: orphanStageId }),
+    registry.uploadPath({ uploadId: ID_B }), registry.uploadPath({ uploadId: ID_C })];
+  assert.deepEqual(leakedPaths.map(file => fs.existsSync(file)), [true, true, true, true]);
+
+  // Reopen persisted state, then use the same locked recovery/budget sequence as upload().
+  const restarted = new SiteImportRegistry({ directory: registry.directory });
+  const workspace = createSitesWorkspace({}, { homeDir: registry.directory, cwd: registry.directory,
+    appDataDir: path.join(registry.directory, "profile"), sourceRoots: [],
+    env: { TOVU_SITES_HOME: path.join(registry.directory, "sites") } });
+  const space = fs.statfsSync(registry.directory);
+  t.mock.method(fs, "statfsSync", () => ({ ...space, bsize: 4096, bavail: 1_000_000 }));
+  const recover = () => restarted.exclusive({ run: async () => {
+    await reconcileInterruptedImports({ registry: restarted, workspace, put: row => restarted.put({ row }) });
+    assert.doesNotThrow(() => requireStagingBudget({ registry: restarted }),
+      "crash leftovers must not permanently exhaust the four-payload staging budget");
+  } });
+
+  await recover();
+  assert.equal(restarted.get({ importId: ID_A, principalId: "owner" }).status, "failed");
+  assert.deepEqual(leakedPaths.map(file => fs.existsSync(file)), [false, false, false, false]);
+  assert.deepEqual(restarted.get({ importId: liveImportId, principalId: "owner" }), live);
+  assert.equal(fs.readFileSync(path.join(restarted.stagePath(live), "payload"), "utf8"), "staged");
+  await recover();
+  assert.equal(fs.readFileSync(path.join(restarted.stagePath(live), "payload"), "utf8"), "staged");
 });
 
 test("expiry keeps an upload exactly one hour old", t => {
