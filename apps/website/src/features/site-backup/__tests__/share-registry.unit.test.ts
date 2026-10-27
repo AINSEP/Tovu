@@ -5,14 +5,12 @@
  * where a file is expected yields a genuine EISDIR/ENOTDIR from the OS.
  */
 import assert from "node:assert/strict";
-import fs, { existsSync } from "node:fs";
-import { syncBuiltinESMExports } from "node:module";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 
-import { SHARE_TOKEN, SHARE_TOKEN_ALPHABET, SiteShareRegistry, adoptLegacyShareDirectory, newShareIdentity, type SiteShareRecord } from "../share-registry.js";
+import { SHARE_TOKEN, SHARE_TOKEN_ALPHABET, SiteShareRegistry, newShareIdentity, type SiteShareRecord } from "../share-registry.js";
 
 const SHARE_ID = "0b0c4d1e-2f3a-4b5c-8d9e-0f1a2b3c4d5e";
 
@@ -122,76 +120,4 @@ test("a token differing only in letter case never resolves, even where the disk 
   await writeFile(path.join(directory, `${variant}.token`), SHARE_ID);
   assert.equal((await registry.findToken({ token: minted, file: "site.tovu.zip" }))?.shareId, SHARE_ID);
   assert.equal(await registry.findToken({ token: variant, file: "site.tovu.zip" }), null);
-});
-
-// Legacy adoption: shares made before 2026-10-27 lived under the source database's `ops/shares`.
-test("a legacy share catalog moves to the private folder once, files intact", async t => {
-  const directory = await tempDir(t);
-  const from = path.join(directory, "site", "data.nosync", "ops", "shares"), to = path.join(directory, "app-data", "site-shares", "ws");
-  await mkdir(from, { recursive: true });
-  await writeFile(path.join(from, `${SHARE_ID}.json`), "{\"shareId\":1}");
-  await writeFile(path.join(from, "site.tovu.zip"), "zip bytes");
-  adoptLegacyShareDirectory({ from, to });
-  assert.equal(existsSync(from), false);
-  assert.equal(await readFile(path.join(to, `${SHARE_ID}.json`), "utf8"), "{\"shareId\":1}");
-  assert.equal(await readFile(path.join(to, "site.tovu.zip"), "utf8"), "zip bytes");
-});
-// RED (green-1027): one unreadable legacy record made the rebind throw, so boot disabled sharing for the whole site.
-test("an unreadable legacy record moves untouched and never blocks adopting the rest", async t => {
-  const directory = await tempDir(t);
-  const from = path.join(directory, "legacy"), to = path.join(directory, "current");
-  await mkdir(from);
-  await writeFile(path.join(from, `${SHARE_ID}.json`), "not json");
-  await writeFile(path.join(from, "site.tovu.zip"), "zip bytes");
-  adoptLegacyShareDirectory({ from, to });
-  assert.equal(existsSync(from), false);
-  assert.equal(await readFile(path.join(to, `${SHARE_ID}.json`), "utf8"), "not json");
-  assert.equal(await readFile(path.join(to, "site.tovu.zip"), "utf8"), "zip bytes");
-});
-test("an existing private catalog is never overwritten by a legacy one", async t => {
-  const directory = await tempDir(t);
-  const from = path.join(directory, "legacy"), to = path.join(directory, "current");
-  await mkdir(from);
-  await mkdir(to);
-  await writeFile(path.join(from, "old.json"), "old");
-  await writeFile(path.join(to, "new.json"), "new");
-  adoptLegacyShareDirectory({ from, to });
-  assert.equal(await readFile(path.join(from, "old.json"), "utf8"), "old");
-  assert.equal(existsSync(path.join(to, "old.json")), false);
-  assert.equal(await readFile(path.join(to, "new.json"), "utf8"), "new");
-});
-// RED (Codex check 2026-10-27): across volumes the catalog was copied straight into `to`, so a copy
-// cut short left a partial `to` and every later boot skipped adoption, losing the rest of the catalog.
-test("a cross-volume adoption cut short mid-copy leaves no private folder, and the next boot adopts everything", async t => {
-  const directory = await tempDir(t);
-  const from = path.join(directory, "legacy"), to = path.join(directory, "current");
-  await mkdir(from);
-  await writeFile(path.join(from, `${SHARE_ID}.json`), "{}");
-  await writeFile(path.join(from, "site.tovu.zip"), "zip bytes");
-  const { renameSync, cpSync } = fs;
-  const restore = (): void => { Object.assign(fs, { renameSync, cpSync }); syncBuiltinESMExports(); };
-  t.after(restore);
-  Object.assign(fs, {
-    renameSync: (source: fs.PathLike, target: fs.PathLike) => {
-      if (source === from) throw Object.assign(new Error("cross-device link"), { code: "EXDEV" });
-      renameSync(source, target);
-    },
-    cpSync: (_source: string, target: string) => { fs.mkdirSync(target); fs.writeFileSync(path.join(target, "half-written.tmp"), "{"); throw new Error("copy interrupted"); },
-  });
-  syncBuiltinESMExports();
-  assert.throws(() => adoptLegacyShareDirectory({ from, to }), /copy interrupted/);
-  assert.equal(existsSync(to), false, "a partial copy is never left where adoption looks for a finished catalog");
-  // Still across volumes next boot, now with a copy that completes.
-  Object.assign(fs, { cpSync });
-  syncBuiltinESMExports();
-  adoptLegacyShareDirectory({ from, to });
-  assert.equal(await readFile(path.join(to, "site.tovu.zip"), "utf8"), "zip bytes");
-  assert.equal(existsSync(path.join(to, "half-written.tmp")), false, "the cut-short copy's leftovers are discarded");
-  assert.equal(existsSync(from), false);
-});
-test("no legacy catalog leaves the private folder untouched", async t => {
-  const directory = await tempDir(t);
-  const to = path.join(directory, "current");
-  adoptLegacyShareDirectory({ from: path.join(directory, "absent"), to });
-  assert.equal(existsSync(to), false);
 });

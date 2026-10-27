@@ -34,7 +34,7 @@ import * as importYauzl from "yauzl";
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { siteCreationBaseForBinding } from "#src/platform/site-dir/index";
 import { localSiteSupervisorForHost } from "../lifecycle/local-site-host.js";
-import { adoptLegacyShareDirectory, SiteShareRegistry } from "#src/features/site-backup/share-registry";
+import { SiteShareRegistry } from "#src/features/site-backup/share-registry";
 import { prepareShareContent } from "#src/features/site-backup/share-preparation";
 import { sanitizeShareDatabase, rewriteArchiveMedia } from "#src/platform/db/sqlite/share-database";
 import { createRuntimeShareDelivery, resolveShareDelivery } from "#src/features/site-backup/share-hosting";
@@ -68,7 +68,7 @@ import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { createHttpClient as createGuardedMediaHttpClient, createNodeGuardedHttpPorts } from "@jini-ai/platform/http/guarded";
 import { executeCommand } from "@jini-ai/cms/core";
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
@@ -667,46 +667,34 @@ export function defaultChatDbPath(contentDbPath: string = defaultContentDbPath()
 }
 
 /**
- * Where this site's shares live: `TOVU_SHARE_STORAGE_DIR`, else `<sites root>/.tovu/site-shares/<site>/<workspaceId>`,
- * a sibling of every site folder like `sites/.tovu/site-key.hex` and the site previews. Never the source
- * site's own storage: Export writes nothing into the site it reads (Codex check 2026-10-26). The sites
- * root is what a container mounts as its volume (`/workspace/Tovu/sites`) and the desktop's sites home,
- * so shares survive a redeploy; app data under a container's home would not. An install-dir boot
- * (`tovu serve <dir>`) has no sites root, so it keeps `<app-data>/site-shares/<site>/<workspaceId>`. `<site>`
- * is {@link shareSiteKey}: every starter site seeds the same workspace id (`workspace-local`), so the
- * workspace alone merged two sites' catalogs (Codex check 2026-10-27). Shares made before 2026-10-26 sat
- * under the database's `ops/shares`; the default adopts each site's own once so their links keep working.
- * @throws When the folder is the site, inside it, inside its database folder or a served content root.
- * @complexity O(content roots), plus one directory move the first time a legacy catalog is adopted.
+ * Where this site's shares live: `TOVU_SHARE_STORAGE_DIR`, else `<database dir>/ops/shares` (the site
+ * folder for an in-memory database). `ops/` is the site's private runtime folder beside its database, next
+ * to the journal and logs, and every backup, duplicate and publish walk already leaves it out. The
+ * database placement is the site's identity: an in-site database moves with its folder, an app-data one is
+ * keyed by a siteId the sites registry keeps unique, so two catalogs collide only when two boots open the
+ * same database, and then they are the same site. Keying by workspace id merged every starter site's
+ * catalog (`workspace-local`) and a copied `.site-meta.json` id merged a Finder copy's (Codex checks
+ * 2026-10-26/27, design 2026-10-27). Only the transient export snapshot must stay out of the site (tmpdir).
+ * @throws When the folder is inside the site or its database folder (other than its `ops/shares`), or
+ *   inside a served content root.
+ * @complexity O(content roots).
  */
-function resolveShareDirectory(required: { workspaceId: string; siteDir: string; switcherCompatible: boolean; dbPath: string; contentRoots: readonly string[] }, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): string {
+function resolveShareDirectory(required: { siteDir: string; dbPath: string; contentRoots: readonly string[] }, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): string {
   const databaseDir = isInMemoryDbPath(required.dbPath) ? undefined : dirname(required.dbPath);
-  const configured = env.TOVU_SHARE_STORAGE_DIR;
-  const sharesRoot = required.switcherCompatible ? join(dirname(required.siteDir), ".tovu") : createSitesWorkspace({}).config({}).appData;
-  const shareDirectory = resolve(configured || join(sharesRoot, "site-shares", shareSiteKey({ siteDir: required.siteDir }, { env }), required.workspaceId));
-  const forbidden = [required.siteDir, ...(databaseDir === undefined ? [] : [databaseDir]), ...required.contentRoots];
+  const privateOps = join(databaseDir ?? required.siteDir, "ops");
+  const shareDirectory = resolve(env.TOVU_SHARE_STORAGE_DIR || join(privateOps, "shares"));
+  const siteFolders = [required.siteDir, ...(databaseDir === undefined ? [] : [databaseDir])];
   const refuse = (target: string): void => {
-    if (isInsideAny({ target, roots: forbidden })) throw new Error("TOVU_SHARE_STORAGE_DIR must be private and outside the site's folders and served content folders.");
+    if (isInsideAny({ target, roots: required.contentRoots }) || (isInsideAny({ target, roots: siteFolders }) && !isInsideAny({ target, roots: [join(privateOps, "shares")] })))
+      throw new Error("TOVU_SHARE_STORAGE_DIR must be private: outside the site's folders and served content folders, or its own ops/shares.");
   };
-  // Checked before anything is created or moved, so a refused folder is never made inside the site;
+  // Checked before anything is created, so a refused folder is never made inside the site;
   // checked again on the real path, so a symlink cannot smuggle it back in.
   refuse(shareDirectory);
-  if (!configured) adoptLegacyShareDirectory({ from: join(databaseDir ?? required.siteDir, "ops", "shares"), to: shareDirectory });
   mkdirSync(shareDirectory, { recursive: true, mode: 0o700 });
   const physicalShares = realpathSync(shareDirectory);
   refuse(physicalShares);
   return physicalShares;
-}
-
-/**
- * The site's own folder name under `site-shares`: its `.site-meta.json` id, else `TOVU_SITE_ID` (a deployed
- * copy has no meta), else a digest of the site folder's path. Never the workspace id, which sites share.
- * @complexity O(path length).
- */
-function shareSiteKey(required: { siteDir: string }, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): string {
-  return acceptedSiteId(readSiteMetaId(required.siteDir), `${required.siteDir}/.site-meta.json`)
-    ?? acceptedSiteId(env.TOVU_SITE_ID || undefined, "TOVU_SITE_ID")
-    ?? `dir-${createHash("sha256").update(resolve(required.siteDir)).digest("hex").slice(0, 16)}`;
 }
 
 /** `target` equals or sits under one of `roots`, compared as given and as real paths. @complexity O(roots). */
@@ -3094,7 +3082,7 @@ async function composeSiteRouteDeps(
     if (routeDeps.siteBackupSources) {
       try {
         const contentRoots = [resolvedThemesDir, resolvedUploadsDir, agentPluginLayout.root, skillLayout.root, join(resolvedSiteBinding.dir, "plugins"), join(resolvedSiteBinding.dir, "overrides")];
-        const registry = new SiteShareRegistry({ directory: resolveShareDirectory({ workspaceId, siteDir: resolvedSiteBinding.dir, switcherCompatible: resolvedSiteBinding.switcherCompatible, dbPath, contentRoots }) });
+        const registry = new SiteShareRegistry({ directory: resolveShareDirectory({ siteDir: resolvedSiteBinding.dir, dbPath, contentRoots }) });
         const credentials = composePublishCredentialSource({ workspaceId, executionMode: routeDeps.publishExecutionMode,
           dbDeps: { repo: routeDeps.vendorCredentialSetRepo, sealer: siteAssistantSecretSealer, loadDeployTargets: routeDeps.loadDeployTargets } });
         // Token-bearing verification requests use the guarded HTTP owner without telemetry. Never

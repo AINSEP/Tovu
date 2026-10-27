@@ -4,7 +4,7 @@ import type { prepareShareContent } from "./share-preparation.js";
 import type { SiteBackupPushProgress } from "./push-engine.js";
 import { SiteBackupPushJobs, type PushJobKey, type PushJobWait } from "./push-jobs.js";
 import { buildShareZip } from "./share-zip.js";
-import { createSiteShare, revokeSiteShare, type ShareDelivery } from "./share-service.js";
+import { createSiteShare, isOwnShareFolder, revokeSiteShare, type ShareDelivery } from "./share-service.js";
 import { SiteShareRegistry, type SiteShareRecord } from "./share-registry.js";
 import { SiteShareRefusal } from "./share-policy.js";
 
@@ -77,7 +77,7 @@ export function createSiteShareBackend(required: {
       if (!row) throw new SiteShareRefusal({ code: "NOT_FOUND", message: "Share not found for this site." });
       let delivery: ShareDelivery | undefined;
       // Resolution failure must not prevent revoke's own disable-first/delete-local sequence.
-      if (row.storage && !(row.storage.provider === "tovu-server" && row.storage.binding === required.registry.directory)) {
+      if (row.storage && !isOwnShareFolder({ storage: row.storage })) {
         try { delivery = await required.delivery({ provider: row.storage.provider, binding: row.storage.binding }); }
         catch { /* revokeSiteShare disables locally before reporting the missing remote store. */ }
       }

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import path from "node:path";
 import type { ArtifactStorePort } from "@jini-ai/devops/deploy";
 import { SiteShareRegistry, newShareIdentity, SHARE_FILE, type SiteShareRecord } from "./share-registry.js";
 import { SiteShareRefusal } from "./share-policy.js";
@@ -45,9 +46,14 @@ function deliveryStorage(required: { delivery: ShareDelivery; key: string }): No
   return { provider: required.delivery.provider, key: required.key, ...(required.delivery.binding ? { binding: required.delivery.binding } : {}) };
 }
 
-/** True when the artifact lives in this server's own share folder, so there is nothing remote. */
-function isOwnShareFolder(required: { storage: { provider: string; binding?: string | undefined }; directory: string }): boolean {
-  return required.storage.provider === "tovu-server" && required.storage.binding === required.directory;
+/**
+ * True when the artifact lives in this server's own share folder, so there is nothing remote. This server's
+ * runtime delivery binds a share to its catalog's absolute path; a connected peer binds it to a URL. A record
+ * sits in the catalog that made it, and that catalog moves with the site folder, so the path it saved may be
+ * stale after a move or rename: only its shape is compared, never its value (design 2026-10-27).
+ */
+export function isOwnShareFolder(required: { storage: { provider: string; binding?: string | undefined } }): boolean {
+  return required.storage.provider === "tovu-server" && required.storage.binding !== undefined && path.isAbsolute(required.storage.binding);
 }
 
 async function cancelReceivedShare(required: { registry: SiteShareRegistry; row: SiteShareRecord }): Promise<never> {
@@ -82,7 +88,7 @@ async function deliverShare(required: { registry: SiteShareRegistry; row: SiteSh
 async function purgeFailedDelivery(required: { registry: SiteShareRegistry; row: SiteShareRecord; delivery: ShareDelivery; key: string; uploadedUrl: string | null }): Promise<void> {
   const { delivery, key, uploadedUrl } = required;
   try {
-    if (!isOwnShareFolder({ storage: delivery, directory: required.registry.directory })) {
+    if (!isOwnShareFolder({ storage: delivery })) {
       await delivery.store.delete({ key });
       if (uploadedUrl && !await delivery.store.verify({ key, url: uploadedUrl, present: false })) throw new Error("purge unverified");
     }
@@ -96,7 +102,7 @@ export async function revokeSiteShare(required: { registry: SiteShareRegistry; s
   if (!row) throw new SiteShareRefusal({ code: "NOT_FOUND", message: "Share not found for this site." });
   try { await required.registry.deleteArtifact({ shareId: row.shareId }); }
   catch { throw new SiteShareRefusal({ code: "DELETE_FAILED", message: "Share token is disabled but its ZIP could not be deleted. Retry revoke." }); }
-  if (row.storage && !isOwnShareFolder({ storage: row.storage, directory: required.registry.directory })) await deleteRemoteArtifact({ row, storage: row.storage }, { delivery: optional.delivery });
+  if (row.storage && !isOwnShareFolder({ storage: row.storage })) await deleteRemoteArtifact({ row, storage: row.storage }, { delivery: optional.delivery });
   return row;
 }
 

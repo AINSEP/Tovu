@@ -1,8 +1,8 @@
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { existsSync } from "node:fs";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { existsSync, realpathSync } from "node:fs";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
@@ -40,11 +40,10 @@ test("bad private share storage logs and disables only sharing", async t => {
   }
 });
 
-// RED (Codex check 2026-10-26): with no TOVU_SHARE_STORAGE_DIR, shares defaulted to `ops/shares` beside
-// the source database, so Export wrote into the site it reads. They now live beside the site under the
-// sites root (the container volume, the desktop sites home), so they survive a redeploy; an install-dir
-// boot has no sites root and keeps app data. An existing legacy catalog is adopted there once.
-test("default share storage is the sites root's private folder, never the source site, and adopts the legacy catalog", async t => {
+// Design 2026-10-27 (owner may flip): with no TOVU_SHARE_STORAGE_DIR the catalog lives in the private
+// `ops/shares` beside the site's database, next to the journal and logs, which every backup, duplicate
+// and publish walk already leaves out. It moves with the database, so it needs no site key of its own.
+test("default share catalog is the private ops/shares beside the site's database", async t => {
   const previous = process.env.TOVU_SHARE_STORAGE_DIR;
   t.after(() => { if (previous === undefined) delete process.env.TOVU_SHARE_STORAGE_DIR; else process.env.TOVU_SHARE_STORAGE_DIR = previous; });
   delete process.env.TOVU_SHARE_STORAGE_DIR;
@@ -52,11 +51,9 @@ test("default share storage is the sites root's private folder, never the source
     const sitesRoot = await mkdtemp(path.join(tmpdir(), "share-boot-default-"));
     t.after(() => rm(sitesRoot, { recursive: true, force: true }));
     const siteDir = path.join(sitesRoot, "site"), themesDir = path.join(siteDir, "themes"), uploadsDir = path.join(siteDir, "uploads");
-    const dbDir = path.join(siteDir, "data.nosync"), legacy = path.join(dbDir, "ops", "shares");
+    const dbDir = path.join(siteDir, "data.nosync");
     await mkdir(themesDir, { recursive: true });
     await mkdir(uploadsDir, { recursive: true });
-    await mkdir(legacy, { recursive: true });
-    await writeFile(path.join(legacy, "0b0c4d1e-2f3a-4b5c-8d9e-0f1a2b3c4d5e.json"), "legacy share");
     await writeFile(path.join(siteDir, ".site-meta.json"), JSON.stringify({ siteId: "site-meta-id" }));
     let close: (() => Promise<void>) | undefined;
     const deps = await createSiteRouteDeps(path.join(dbDir, "content.db"), {
@@ -67,19 +64,18 @@ test("default share storage is the sites root's private folder, never the source
     try {
       await deps.identityReady;
       assert.ok(deps.siteShareBackend, "sharing stays available");
-      assert.equal(existsSync(legacy), false, "nothing is left or created under the source database's ops/shares");
-      const root = switcherCompatible ? path.join(sitesRoot, ".tovu") : createSitesWorkspace({}).config({}).appData;
-      const adopted = path.join(root, "site-shares", "site-meta-id", deps.workspaceId);
-      assert.equal(await readFile(path.join(adopted, "0b0c4d1e-2f3a-4b5c-8d9e-0f1a2b3c4d5e.json"), "utf8"), "legacy share");
-      assert.equal(existsSync(path.join(siteDir, ".tovu")), false, "never inside the site's own folder");
+      assert.equal(deps.siteShareBackend.registry.directory, path.join(realpathSync(dbDir), "ops", "shares"));
+      assert.equal(existsSync(path.join(sitesRoot, ".tovu", "site-shares")), false, "nothing under the sites root");
+      assert.equal(existsSync(path.join(createSitesWorkspace({}).config({}).appData, "site-shares")), false, "nothing under app data");
     } finally { await close?.(); }
   });
 });
 
-// RED (Codex check 2026-10-27, HIGH): every starter site seeds the same workspace id (`workspace-local`),
-// so a shares folder keyed only by it merged two sites' catalogs (each could list, download and revoke
-// the other's shares) and the second site's legacy catalog was never adopted. Keyed by site identity too.
-test("two sites with the same workspace id never see or revoke each other's shares, and both adopt their legacy catalog", async t => {
+// RED (Codex check 2026-10-27, HIGH; design 2026-10-27): every starter site seeds the same workspace id
+// (`workspace-local`), and a Finder copy carries the source's `.site-meta.json` id. A catalog keyed by
+// either merged two sites' catalogs (each could list, download and revoke the other's shares). Two
+// databases are two sites, so the catalog beside each database never collides.
+test("two sites with different databases but the same workspace id and copied meta id never see or revoke each other's shares", async t => {
   const previous = process.env.TOVU_SHARE_STORAGE_DIR;
   t.after(() => { if (previous === undefined) delete process.env.TOVU_SHARE_STORAGE_DIR; else process.env.TOVU_SHARE_STORAGE_DIR = previous; });
   delete process.env.TOVU_SHARE_STORAGE_DIR;
@@ -88,13 +84,10 @@ test("two sites with the same workspace id never see or revoke each other's shar
   const shareIds = { a: "0b0c4d1e-2f3a-4b5c-8d9e-0f1a2b3c4d5a", b: "0b0c4d1e-2f3a-4b5c-8d9e-0f1a2b3c4d5b" };
   const booted: Record<string, Awaited<ReturnType<typeof createSiteRouteDeps>>> = {};
   for (const name of ["a", "b"] as const) {
-    const siteDir = path.join(sitesRoot, `site-${name}`), legacy = path.join(siteDir, "data.nosync", "ops", "shares");
+    const siteDir = path.join(sitesRoot, `site-${name}`);
     await mkdir(path.join(siteDir, "themes"), { recursive: true });
     await mkdir(path.join(siteDir, "uploads"), { recursive: true });
-    await mkdir(legacy, { recursive: true });
-    await writeFile(path.join(siteDir, ".site-meta.json"), JSON.stringify({ siteId: `site-${name}-id` }));
-    await writeFile(path.join(legacy, `${shareIds[name]}.json`), JSON.stringify({ shareId: shareIds[name], token: "A".repeat(16), site: "workspace-local",
-      file: `site-${name}.tovu.zip`, bytes: 1, sha256: "0".repeat(64), url: null, status: "active", createdAt: "2026-10-20T00:00:00.000Z", revokedAt: null }));
+    await writeFile(path.join(siteDir, ".site-meta.json"), JSON.stringify({ siteId: "copied-meta-id" }));
     let close: (() => Promise<void>) | undefined;
     const deps = await createSiteRouteDeps(path.join(siteDir, "data.nosync", "content.db"), {
       themesDir: path.join(siteDir, "themes"), uploadsDir: path.join(siteDir, "uploads"),
@@ -104,11 +97,13 @@ test("two sites with the same workspace id never see or revoke each other's shar
     t.after(() => close?.());
     await deps.identityReady;
     assert.equal(deps.workspaceId, "workspace-local");
+    await deps.siteShareBackend!.registry.put({ record: { shareId: shareIds[name], token: name.toUpperCase().repeat(16), site: "workspace-local",
+      file: `site-${name}.tovu.zip`, bytes: 1, sha256: "0".repeat(64), url: null, status: "active", createdAt: "2026-10-20T00:00:00.000Z", revokedAt: null } });
     booted[name] = deps;
   }
   for (const [mine, theirs] of [["a", "b"], ["b", "a"]] as const) {
     const backend = booted[mine].siteShareBackend!;
-    assert.deepEqual((await backend.list({})).map(row => row.shareId), [shareIds[mine]], `site ${mine} lists only its own adopted share`);
+    assert.deepEqual((await backend.list({})).map(row => row.shareId), [shareIds[mine]], `site ${mine} lists only its own share`);
     await assert.rejects(backend.revoke({ shareId: shareIds[theirs] }), { code: "NOT_FOUND" });
   }
 });
