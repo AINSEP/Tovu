@@ -5,3 +5,8 @@ Tovu HEAD 07a37c6d253843f139be4aff55f497fdb733dce9 (branch results = cloud/green
 
 ## 2026-10-27T17:36:11Z — PROGRESS
 Node 24.22.0 installed. /root/Jini symlinked to /home/user/Jini (already on cloud/green-1027). pnpm install OK. pnpm -r build: exit 1. FAIL: @jini-ai/memory (src/__tests__/note-store.test.ts(134,42) TS2345 string|number|undefined vs OpenMode), @jini-ai/mcp (src/federation/__tests__/fed-presets.unit.test.ts(45,50) TS2353 'presetRegistry' not in AttachFederatedMcpToolsRequiredArgs; tsc still emitted dist, chmod of bin/serve.js did not run). cookie-consent now PASSES: client.min.js 10559 B, 4599 B gz (budget 4608). dist exists for sidecar, server, daemon, agent-runtime, mcp.
+
+## 2026-10-27T17:41:54Z — PROGRESS
+Setup done. Tovu: npm install with cookie-consent file: workaround (npm ci 404 path), restored package.json/lock. @tovu/sdk build: FIRST attempt FAILED before link (src/index.ts(164,76) TS2694 PluginProviderContribution not exported from @jini-ai/plugins/dist/host); ran link:jini then sdk build OK, then link:jini again (path: link, build, link). Desktop npm ci OK; 13 @jini-ai pkgs symlinked to /root/Jini. build:preload FAILS tsc (preload.mts references OwnerStoreBridge delete/grant/revoke/sync/export/restore absent from contracts/owner-store.ts) but dist/preload emitted. better-sqlite3/argon2 load OK. Typecheck (a) done: jini 2 errors (memory note-store.test.ts(134,42) TS2345; mcp fed-presets.unit.test.ts(45,50) TS2353); website tsconfig.json 1 (cli/commands/owner-store.ts(79,21) TS2322); tsconfig.tests.json 394; desktop 13 (all preload.mts owner-store bridge). Phase 1 lane A GREEN running.
+
+## 2026-10-27T17:41:59Z — HEARTBEAT
