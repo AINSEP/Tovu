@@ -254,6 +254,18 @@ test("T1-7: removing write_thing from the write list refuses it ('may write' is 
   );
 });
 
+test("T1-7b: granting write_thing 'may write' after boot lets its next call run, without an assistant restart", async () => {
+  const { repo, sealer, deps } = makeStoreDeps(makeClock());
+  await saveExternalMcpServer(deps, baseSaveInput({ writeAllowedToolNames: "" }));
+  const { toolExecutor, session } = await boot({ repo, sealer });
+
+  await saveExternalMcpServer(deps, baseSaveInput({ writeAllowedToolNames: "write_thing" }));
+
+  const writeResult = await callWriteThing(toolExecutor);
+  assert.equal(writeResult.status, "completed", JSON.stringify(writeResult));
+  assert.deepEqual(session.calls.map((call) => call.name), ["write_thing"]);
+});
+
 test("T1-8: removing read_thing from the allowlist refuses it", async () => {
   const { repo, sealer, deps } = makeStoreDeps(makeClock());
   await saveExternalMcpServer(deps, baseSaveInput());
