@@ -13,3 +13,6 @@ Setup done. Tovu: npm install with cookie-consent file: workaround (npm ci 404 p
 
 ## 2026-10-27T17:47:35Z — HEARTBEAT
 Phase 1 lane A done (112 files). Phase 2 mutations running (orchestrator /tmp/p2.py).
+
+## 2026-10-27T17:57:39Z — PROGRESS
+Phase 1 lane A (112 lot files) + typecheck + Phase 2 mutations (all 33 non-skipped lots, ui-two skipped) complete; every restore left tree clean (DIRTY-CHECK '' for all). Raw per-file JSON in /tmp/res (not committed). fed-security.cross mcp rebuild exit 2 both under mutation and after restore (pre-existing tsc error in fed-presets.unit.test.ts, dist still emitted). Starting phase 3: rechecks (d), diagnosis (e), sweep (c).
