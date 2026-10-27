@@ -16,6 +16,7 @@ import { SITES_MCP_SERVER_ID } from "./sites-mcp-registration.ts";
  */
 import net from "node:net";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import fs from "node:fs";
 import { redactLocalText } from "../../website/src/platform/server-logs/redact-local-text.ts";
 import { createRedactedOutputSink } from "../../website/src/platform/server-logs/console-tee.ts";
@@ -221,7 +222,8 @@ interface CliSpawnPlan {
  * whatever Node is first on `PATH`, reintroducing exactly the system-Node dependency
  * `buildServeEnv`'s own comment already explains was removed on purpose.
  *
- * `--import` names `require.resolve("tsx")`'s own ABSOLUTE path, not the bare specifier `"tsx"`:
+ * `--import` names `require.resolve("tsx")`'s own ABSOLUTE path as a `file:` URL (a bare `C:\` path is
+ * read as a URL scheme on Windows: `ERR_UNSUPPORTED_ESM_URL_SCHEME`), not the bare specifier `"tsx"`:
  * Node resolves a bare `--import` specifier relative to the CHILD's own `cwd`, walking up through
  * ITS ancestor `node_modules` directories — which happens to still find this repo's own
  * `node_modules/tsx` for any cwd still inside the repo (confirmed: works from `apps/desktop/`, whose
@@ -230,6 +232,8 @@ interface CliSpawnPlan {
  * scenario a packaged app's `userData` cwd would be. `apps/website`'s own
  * `serve-command.integration.test.ts` already resolves the loader this same way, for this same
  * reason (see its `TSX_LOADER` constant's own comment).
+ *
+ * Source mode also imports `dev-source-maps-off.mjs` after tsx (`TOVU_DEV_SOURCE_MAPS=1` keeps maps on).
  *
  * Pure — no `spawn()` call — so mode selection is directly assertable without a real checkout or a
  * real child process.
@@ -240,7 +244,9 @@ interface CliSpawnPlan {
 function buildCliSpawnPlan(input: CliSpawnPlanInput): CliSpawnPlan {
   const cliMode = input.cliMode ?? "compiled";
   if (cliMode === "source") {
-    return { command: process.execPath, args: ["--import", require.resolve("tsx"), resolveDevCliEntry(input.repoRoot), ...input.cliArgs] };
+    const mapsOff = path.join(input.repoRoot, "development", "scripts", "dev-source-maps-off.mjs");
+    return { command: process.execPath, args: ["--import", pathToFileURL(require.resolve("tsx")).href,
+      "--import", pathToFileURL(mapsOff).href, resolveDevCliEntry(input.repoRoot), ...input.cliArgs] };
   }
   return { command: process.execPath, args: [resolveCliEntry(input.repoRoot), ...input.cliArgs] };
 }

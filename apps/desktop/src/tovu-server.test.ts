@@ -19,6 +19,7 @@ import path from "node:path";
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 import type { SpawnOptions } from "node:child_process";
 import { spawn } from "node:child_process";
 
@@ -202,13 +203,19 @@ test("buildCliSpawnPlan in source mode runs the TS entry under --import tsx, nev
   assert.equal(plan.command, process.execPath);
   assert.deepEqual(plan.args, [
     "--import",
-    require.resolve("tsx"),
+    pathToFileURL(require.resolve("tsx")).href,
+    "--import",
+    pathToFileURL(path.join(root, "development", "scripts", "dev-source-maps-off.mjs")).href,
     path.join(root, "apps", "website", "src", "cli", "main.ts"),
     "serve",
     "/tmp/site",
     "--port",
     "3601",
   ]);
+  // A bare absolute path is not an ESM URL: Windows reads `C:` as a scheme (ERR_UNSUPPORTED_ESM_URL_SCHEME).
+  for (const [index, arg] of plan.args.entries()) {
+    if (plan.args[index - 1] === "--import") assert.equal(new URL(arg).protocol, "file:", arg);
+  }
 });
 
 test("buildServeEnv sets ELECTRON_RUN_AS_NODE so the Electron binary runs the CLI as Node", () => {
@@ -620,7 +627,9 @@ test("startTovuServer in source mode runs the TS entry under --import tsx instea
   assert.equal(recorded!.command, process.execPath);
   assert.deepEqual(recorded!.args, [
     "--import",
-    require.resolve("tsx"),
+    pathToFileURL(require.resolve("tsx")).href,
+    "--import",
+    pathToFileURL(path.join(root, "development", "scripts", "dev-source-maps-off.mjs")).href,
     path.join(root, "apps", "website", "src", "cli", "main.ts"),
     "serve",
     "/tmp/my-site",
