@@ -35,7 +35,10 @@ for (const placement of ["inSite", "appData"] as const) test("B valid archive an
   assert.equal(fs.existsSync(path.join(entry.path, "themes/static/site/index.html")), true);
   assert.equal(fs.existsSync(path.join(entry.path, "themes/code/site/index.ts")), false);
   assert.equal(fs.existsSync(path.join(entry.path, ".import-quarantine/themes/code/executable/index.ts")), true);
-  assert.equal(fs.existsSync(path.join(entry.path, "plugins/custom/plugin.json")), false);
+  // A shipped site plugin is kept off: preserved in the unserved quarantine, never in Jini's install dir.
+  // Init leaves Jini's install dir empty, so the id's slot stays free to install for real.
+  assert.deepEqual(fs.readdirSync(path.join(entry.path, "plugins")), []);
+  assert.equal(fs.existsSync(path.join(entry.path, ".import-quarantine/plugins/custom/package/jini.plugin.json")), true);
   for (const rejectedPassword of ["source-password", "tovu-dev", "deployment-password"]) await h.assertOwnerLogin({ dir: entry.path, rejectedPassword });
   const again = await h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId }, requestId: "same-request" });
   assert.equal(again.importId, pending.importId);

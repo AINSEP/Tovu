@@ -97,7 +97,7 @@ test("package filename exceptions require the exact content-addressed root on ex
   // no digest folder: the digest is the manifest record's field). Each import refusal code is exact.
   const cases: { runtime: string; archive: string; plugin?: PackageRecord; code: string }[] = [
     { runtime: "themes/site/mcp.json", archive: "themes/site/mcp.json", code: "UNSAFE_FILE" },
-    { runtime: "plugins/portable/mcp.json", archive: "plugins/portable/package/mcp.json", plugin: { kind: "site", id: "portable" }, code: "UNSAFE_FILE" },
+    { runtime: "plugins/portable/package/mcp.json", archive: "plugins/portable/package/mcp.json", plugin: { kind: "site", id: "portable" }, code: "UNSAFE_FILE" },
     { runtime: "themes/site/tovu-credential-schemes.json", archive: "themes/site/tovu-credential-schemes.json", code: "UNSAFE_FILE" },
     ...["a".repeat(63), "a".repeat(65), "g".repeat(64)].map(digest => ({
       runtime: `agent-plugins/ws/ws/portable/package/sha256/${digest}/mcp.json`, archive: "agent-plugins/portable/package/mcp.json",
@@ -135,14 +135,14 @@ test("import refuses exactly what export refuses inside a site plugin package", 
   });
 });
 
-test("an old flat-layout site plugin's data/ folder stays out of the export, which then imports cleanly", async t => {
-  // `plugins/custom/` (the fixture's flat plugin, no version folder) keeps its runtime data in `data/`,
-  // like `plugins/<id>/<version>/data/`: OAuth tokens, never content. One policy on both sides.
+test("an installed site plugin's data/ folder stays out of the export, which then imports cleanly", async t => {
+  // `plugins/custom/1.0.0/data/` is the plugin's runtime data (OAuth tokens, never content) beside its
+  // package; export ships only the files Jini lists for the package. One policy on both sides.
   const h = await importFixture(t);
   h.files.set("plugins/custom/data/state.json", Buffer.from('{"state":"plugin-runtime"}'));
   const { archive } = await h.prepareProductionShare();
   const names = (await archiveItems(archive)).map(item => item.name);
-  assert.ok(names.includes("plugins/custom/package/plugin.json"), "the plugin itself is exported");
+  assert.ok(names.includes("plugins/custom/package/jini.plugin.json"), "the plugin itself is exported");
   // Baseline RED: export shipped `plugins/custom/package/data/state.json` and import refused the
   // archive as private runtime data (INVALID_ARCHIVE).
   assert.deepEqual(names.filter(name => name.startsWith("plugins/custom/") && name.includes("/data/")), []);

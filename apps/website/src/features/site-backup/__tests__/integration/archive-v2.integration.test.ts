@@ -24,6 +24,7 @@ import { verifySiteImport } from "../../import-verifier.js";
 import { createShareArchiveReader } from "../../import-archive-reader.js";
 import { readBundledPackageFiles } from "../../package-file-inventory.js";
 import { stageVerifiedImport, restoreStagedImport, stagedImportWarnings } from "../../import-restore.js";
+import { jiniSitePlugins, sitePluginManifest } from "../fixtures/site-plugin.fixture.js";
 const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const stamp = "2026-10-26T00:00:00Z";
 const reader = createShareArchiveReader({ yauzl });
@@ -108,7 +109,7 @@ async function fixture(t: TestContext, optional: { siteFiles?: Readonly<Record<s
   write(siteDir, "agent-plugins/ws/ws/demo/memory/notes/note.md", "Site note");
   const packageFiles = await readBundledPackageFiles({}, { sourceRoot });
   const sourceBefore = db.$client.serialize();
-  const plan = await prepareShareContent({ snapshotRoot: root, sources: { siteDir, themesDir: path.join(siteDir, "themes"), skillsDir: path.join(siteDir, "skills"), mediaUploadsDir: null, agentPlugins: layout, tovuVersion: "test" }, sanitize: sanitizeShareDatabase, rewriteMedia: rewriteArchiveMedia,
+  const plan = await prepareShareContent({ snapshotRoot: root, sources: { siteDir, themesDir: path.join(siteDir, "themes"), skillsDir: path.join(siteDir, "skills"), mediaUploadsDir: null, agentPlugins: layout, sitePlugins: jiniSitePlugins({ installDir: path.join(siteDir, "plugins") }), tovuVersion: "test" }, sanitize: sanitizeShareDatabase, rewriteMedia: rewriteArchiveMedia,
     imageTransformer: { transform: async () => ({ bytes: webp, contentType: "image/webp" }) },
     blobStore: { sizeOf: async ({ storageKey }) => blobs.get(storageKey)?.length ?? null, get: async ({ storageKey }) => blobs.get(storageKey)! },
     dbOps: { getCapabilities: async () => ({ restorePoint: { kind: "file-snapshot", costClass: "cheap" } }), captureRestorePoint: async () => { const artifactRef = path.join(root, "snapshot.db"); fs.writeFileSync(artifactRef, sourceBefore); return { artifactRef, watermarkAtCapture: 5 }; }, restoreFromArtifact: async () => assert.fail("no live restore") },
@@ -194,27 +195,28 @@ test("a theme named overrides and the site's theme overrides both round-trip wit
   } finally { restored.close(); }
 });
 
-// RED (lane A2, 2026-10-27): a flat site plugin's memory/private was exported (only a tier or version
-// folder's private memory was excluded) and import refuses it, so the exported site did not re-import.
-// A folder named like a version but not SemVer (2fa) was private runtime data to the exclusion rule but
-// package content to the archive mapping; the installer only creates SemVer folders, so it is content.
-test("a flat site plugin round-trips: its private memory never leaves, its notes and a 2fa/ folder do", async t => {
+// Rewritten for backup ownership P1 (2026-10-27). Before: a flat `plugins/flat/` (bare plugin.json) shipped
+// as a package with its memory/notes and a 2fa/ folder. Site plugins have no memory folders, and export
+// now ships only the files Jini lists for a valid installed version (manifest plus integrity), so a flat
+// folder, notes and runtime data stay home and the folder is named in the plugins note instead.
+test("a site plugin ships only its installed package, which import keeps off outside Jini's install dir", async t => {
+  const installed = { id: "versioned", version: "1.0.0", package: { "index.js": "export default {};" } };
   const h = await fixture(t, { siteFiles: {
     "plugins/flat/plugin.json": '{"id":"flat","name":"Flat","version":"1.0.0"}',
     "plugins/flat/memory/notes/n.md": "public note",
-    "plugins/flat/memory/private/secret.md": "private memory",
     "plugins/flat/2fa/data/help.md": "plugin docs",
-    // An installed version: its own manifest names its folder (design 2026-10-27).
-    "plugins/versioned/1.0.0/jini.plugin.json": '{"id":"versioned","version":"1.0.0"}',
-    "plugins/versioned/1.0.0/plugin.json": '{"id":"versioned","name":"Versioned","version":"1.0.0"}',
+    "plugins/versioned/1.0.0/jini.plugin.json": sitePluginManifest(installed),
+    "plugins/versioned/1.0.0/index.js": installed.package["index.js"],
+    "plugins/versioned/1.0.0/memory/notes/n.md": "public note",
     "plugins/versioned/1.0.0/memory/private/secret.md": "private memory",
   } });
   const files = await unpack(h.archive);
-  assert.equal([...files.keys()].some(name => name.includes("memory/private")), false, "private memory never leaves the site");
-  assert.equal(files.get("plugins/flat/memory/notes/n.md")?.toString(), "public note");
-  assert.equal(files.get("plugins/flat/package/2fa/data/help.md")?.toString(), "plugin docs");
-  assert.ok(files.has("plugins/versioned/package/plugin.json"));
-  await h.restore(h.archive, "flat-copy");
+  assert.deepEqual([...files.keys()].filter(name => name.startsWith("plugins/")).sort(), ["plugins/versioned/package/index.js", "plugins/versioned/package/jini.plugin.json"]);
+  assert.match(h.plan.scopeNotes.plugins ?? "", /'flat'/);
+  const { dir } = await h.restore(h.archive, "plugin-copy");
+  assert.equal(fs.readFileSync(path.join(dir, ".import-quarantine/plugins/versioned/package/index.js"), "utf8"), installed.package["index.js"]);
+  const discovered = await jiniSitePlugins({ installDir: path.join(dir, "plugins") })();
+  assert.deepEqual(discovered.records.filter(record => record.source === "site"), [], "imported site plugin code never enters Jini's discovery root");
 });
 
 test("one Finder wrapper and metadata import; two wrappers and files outside the wrapper refuse", async t => {

@@ -403,7 +403,7 @@ test("zip surfaces encoding failures, translates size refusals, detects stale fi
 });
 test("portable paths enforce depth, dangerous filenames, content scanning and order-independent collisions", () => {
   for (const name of ["themes/" + Array(33).fill("x").join("/"), "themes/space /x", "themes/x?.txt", "themes/x<.txt", "themes/a:b", "themes/x\u007f"]) assert.throws(() => validateSharePath({ path: name }), { code: "UNSAFE_PATH" });
-  for (const name of ["uploads/chat-attachments/a", "agent-plugins/ws/ws/staging/x", "plugins/a/memory/private/a", "themes/.env.production"]) assert.equal(excludedSharePath({ path: name }), true);
+  for (const name of ["uploads/chat-attachments/a", "agent-plugins/ws/ws/staging/x", "agent-plugins/ws/ws/a/memory/private/a", "themes/.env.production"]) assert.equal(excludedSharePath({ path: name }), true);
   for (const name of ["themes/.git/a", "themes/.share-private/a", "themes/id_ed25519.pub", "themes/private_key.txt", "themes/foo.sqlite-wal", "themes/.mcp.a.json", "themes/restore-point-a", "themes/superseded-a"]) assert.throws(() => excludedSharePath({ path: name }), { code: "UNSAFE_FILE" });
   const bytes = Buffer.from("\u0000ghp_" + "x".repeat(36) + "\u0000");
   assert.throws(() => requireShareSecretFree({ path: "themes/a.png", bytes }), { code: "SECRET_IN_CONTENT" });

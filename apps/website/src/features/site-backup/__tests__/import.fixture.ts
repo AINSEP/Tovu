@@ -39,6 +39,7 @@ import { declareDataModule } from "../../plugins/data-module.js";
 import { ensureDefaultList } from "../../newsletter/lists.js";
 import { SqliteNewsletterListRepo } from "../../newsletter/repo.sqlite.js";
 import type { SiteSharePlanContent } from "../plan-store.js";
+import { installSitePlugin, jiniSitePlugins, sitePluginManifest } from "./fixtures/site-plugin.fixture.js";
 
 export const OWNER_PASSWORD = "recipient-only-password";
 export const MEDIA = Buffer.from("import-media-fixture");
@@ -46,6 +47,24 @@ export const HASH = createHash("sha256").update(MEDIA).digest("hex");
 export const STORAGE_KEY = "ws/ws/blobs/" + HASH.slice(0, 2) + "/" + HASH;
 export const reader = createShareArchiveReader({ yauzl });
 export const stamp = "2026-10-18T00:00:00.000Z";
+const CUSTOM_PLUGIN = { id: "custom", version: "1.0.0", package: { "index.js": "export default {};" } };
+
+/**
+ * The fixture's site plugin entries, installed the way Jini's installer lays them out: each
+ * `plugins/<id>/package/<file>` goes into `<installDir>/<id>/1.0.0/` under a manifest whose integrity
+ * lists them; any other `plugins/<id>/<file>` is runtime data beside the package in that version folder.
+ */
+function installFixtureSitePlugins(required: { installDir: string; files: ReadonlyMap<string, Buffer> }): void {
+  const plugins = new Map<string, { package: Record<string, string>; extra: Record<string, string> }>();
+  for (const [name, bytes] of required.files) {
+    const match = /^plugins\/([^/]+)\/(package\/)?(.+)$/.exec(name);
+    if (!match || (match[2] && match[3] === "jini.plugin.json")) continue;
+    const plugin = plugins.get(match[1]!) ?? { package: {}, extra: {} };
+    (match[2] ? plugin.package : plugin.extra)[match[3]!] = bytes.toString("utf8");
+    plugins.set(match[1]!, plugin);
+  }
+  for (const [id, plugin] of plugins) installSitePlugin({ installDir: required.installDir, id, version: "1.0.0", package: plugin.package }, { extra: plugin.extra });
+}
 
 export async function importFixture(t: TestContext, placement: "inSite" | "appData" = "inSite") {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-import-b-"));
@@ -86,7 +105,9 @@ export async function importFixture(t: TestContext, placement: "inSite" | "appDa
     ["themes/static/site/js/site.js", Buffer.from("window.importedTheme = true;")],
     ["themes/code/executable/theme.json", Buffer.from('{"id":"executable","tier":"code"}')],
     ["themes/code/executable/index.ts", Buffer.from("throw new Error('must never execute')")],
-    ["plugins/custom/plugin.json", Buffer.from('{"id":"custom"}')],
+    // An installed site plugin, as its archive carries it (manifest plus the files its integrity lists).
+    ["plugins/custom/package/jini.plugin.json", Buffer.from(sitePluginManifest(CUSTOM_PLUGIN))],
+    ["plugins/custom/package/index.js", Buffer.from(CUSTOM_PLUGIN.package["index.js"])],
     ["skills/custom/SKILL.md", Buffer.from("Never execute on import")],
     ["settings/config.json", Buffer.from('{"name":"Portable","domain":null,"port":null}')],
   ]);
@@ -124,16 +145,18 @@ export async function importFixture(t: TestContext, placement: "inSite" | "appDa
     const siteDir = path.join(root, "source");
     fs.mkdirSync(siteDir, { recursive: true });
     for (const [name, bytes] of files) {
-      if (name.startsWith("database/") || name.startsWith("uploads/")) continue;
+      if (name.startsWith("database/") || name.startsWith("uploads/") || name.startsWith("plugins/")) continue;
       const relative = name.startsWith("settings/") ? name.slice("settings/".length) : name;
       fs.mkdirSync(path.dirname(path.join(siteDir, relative)), { recursive: true });
       fs.writeFileSync(path.join(siteDir, relative), bytes);
     }
+    const installDir = path.join(siteDir, "plugins");
+    installFixtureSitePlugins({ installDir, files });
     fs.writeFileSync(path.join(siteDir, ".site-meta.json"), JSON.stringify({ siteId: "source-site", schemaVersion: runtimeSchemaVersion().index }));
     const readKeys: string[] = [];
     const productionPlan = await prepareShareContent({
       snapshotRoot: root,
-      sources: { siteDir, mediaUploadsDir: null, themesDir: path.join(siteDir, "themes"), skillsDir: path.join(siteDir, "skills"), agentPlugins: resolveAgentPluginLayout({ siteDir, env: {} }), tovuVersion: "test" },
+      sources: { siteDir, mediaUploadsDir: null, themesDir: path.join(siteDir, "themes"), skillsDir: path.join(siteDir, "skills"), agentPlugins: resolveAgentPluginLayout({ siteDir, env: {} }), sitePlugins: jiniSitePlugins({ installDir }), tovuVersion: "test" },
       sanitize: sanitizeShareDatabase, rewriteMedia: rewriteArchiveMedia, imageTransformer: { transform: async () => assert.fail("fixture media is not raster") },
       blobStore: { get: async ({ storageKey }) => { assert.equal(storageKey, STORAGE_KEY); readKeys.push(storageKey); return MEDIA; }, sizeOf: async ({ storageKey }) => { assert.equal(storageKey, STORAGE_KEY); return MEDIA.length; } },
       dbOps: { getCapabilities: async () => ({ restorePoint: { costClass: "cheap", kind: "file-snapshot" } }), captureRestorePoint: async () => {
