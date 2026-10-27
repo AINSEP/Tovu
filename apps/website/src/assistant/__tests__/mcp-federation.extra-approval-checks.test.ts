@@ -48,7 +48,8 @@ const CONFIG: FederatedMcpConnectionConfig = {
   connectionId: "acme",
   label: "Acme",
   allowedToolNames: ["assistant_set_instructions", "list_projects", "search", "run_thing"],
-  writeAllowedToolNames: [],
+  // "May write" granted: these tests are about the per-call card, not the write grant (fed-security).
+  writeAllowedToolNames: ["assistant_set_instructions", "search", "run_thing"],
   connectTimeoutMs: 1_000,
   callTimeoutMs: 1_000,
   maxResultBytes: 4_096,

@@ -7,7 +7,8 @@ import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "@jini-a
 
 const config: FederatedMcpConnectionConfig = {
   connectionId: "higgsfield", label: "Higgsfield", allowedToolNames: ["models_explore", "job_status", "generate"],
-  writeAllowedToolNames: [], readOnlyRemoteNames: new Set(["models_explore", "job_status"]),
+  // The contradicted-hint cases make models_explore a write, which needs "may write" (fed-security).
+  writeAllowedToolNames: ["models_explore"], readOnlyRemoteNames: new Set(["models_explore", "job_status"]),
   connectTimeoutMs: 1000, callTimeoutMs: 1000, maxResultBytes: 4096, maxTools: 8,
 };
 const ctx: ToolExecutionContext = { executionId: "exec", principal: { id: "owner" }, run: { id: "run" }, input: {}, signal: new AbortController().signal };

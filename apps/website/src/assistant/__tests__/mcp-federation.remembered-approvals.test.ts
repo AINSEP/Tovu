@@ -55,7 +55,8 @@ const CONFIG: FederatedMcpConnectionConfig = {
   connectionId: "supabase",
   label: "Supabase",
   allowedToolNames: ["delete_project", "assistant_set_instructions", "send_message"],
-  writeAllowedToolNames: [],
+  // "May write" granted: these tests are about remembered approvals, not the write grant (fed-security).
+  writeAllowedToolNames: ["delete_project", "assistant_set_instructions", "send_message"],
   connectTimeoutMs: 1_000,
   callTimeoutMs: 1_000,
   maxResultBytes: 4_096,

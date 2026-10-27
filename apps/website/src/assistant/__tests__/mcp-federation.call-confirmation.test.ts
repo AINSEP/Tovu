@@ -55,7 +55,8 @@ const CONFIG: FederatedMcpConnectionConfig = {
   connectionId: "supabase",
   label: "Supabase",
   allowedToolNames: ["list_tables", "execute_sql", "create_project", "get_advisors", "both_hints"],
-  writeAllowedToolNames: [],
+  // "May write" granted: these tests are about the per-call card, not the write grant (fed-security).
+  writeAllowedToolNames: ["execute_sql", "create_project", "both_hints"],
   connectTimeoutMs: 1_000,
   callTimeoutMs: 1_000,
   maxResultBytes: 4_096,
@@ -109,9 +110,10 @@ test("G3 admission: a destructive tool NOT on the operator allowlist stays refus
   );
 });
 
-test("G3 per-call grants: an allowlisted destructive tool is not refused; removed from the allowlist it is", () => {
+test("G3 per-call grants: an allowlisted destructive tool needs 'may write'; removed from the allowlist it is refused", () => {
   const tool = { remoteName: "execute_sql", declaredAnnotations: { readOnlyHint: false, destructiveHint: true } };
-  assert.equal(refusalForAdmittedToolUnderCurrentGrants(tool, { allowedToolNames: ["execute_sql"], writeAllowedToolNames: [] }), null);
+  assert.equal(refusalForAdmittedToolUnderCurrentGrants(tool, { allowedToolNames: ["execute_sql"], writeAllowedToolNames: ["execute_sql"] }), null);
+  assert.equal(refusalForAdmittedToolUnderCurrentGrants(tool, { allowedToolNames: ["execute_sql"], writeAllowedToolNames: [] }), "remote-declares-not-read-only");
   assert.equal(
     refusalForAdmittedToolUnderCurrentGrants(tool, { allowedToolNames: ["list_tables"], writeAllowedToolNames: [] }),
     "not-in-operator-allowlist",

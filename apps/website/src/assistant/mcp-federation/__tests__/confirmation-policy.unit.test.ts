@@ -10,7 +10,7 @@ async function run(name: string, input: Record<string, unknown>, annotations?: R
   const destructive: boolean[] = [];
   const approvalClasses: (ToolApprovalClass | undefined)[] = [];
   const {registrations} = await federateSession({session, nativeToolIds: new Set(), config: {
-    connectionId: "service", label: "Service", allowedToolNames: [name], writeAllowedToolNames: [],
+    connectionId: "service", label: "Service", allowedToolNames: [name], writeAllowedToolNames: [name],
     maxTools: 5, maxResultBytes: 4096, connectTimeoutMs: 100, callTimeoutMs: 100,
   }, deps: {workspaceId: "workspace", authorize: async () => ({allowed: allow, reason: allow ? "matched" : "insufficient_permission"}),
     confirmCall: async (_ctx, request) => {cards.push(request.remoteName); destructive.push(request.destructive); approvalClasses.push(request.approvalClass); return {confirmed: false, result: {cancelled: true}};},
