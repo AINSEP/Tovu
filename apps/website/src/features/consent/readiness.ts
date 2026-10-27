@@ -38,9 +38,11 @@ export function consentGateInventory({ html }: { html: string }, _options = {}):
     const node = nodes.pop()!;
     if (!('tagName' in node)) continue;
     const item = inventoryItem({ node });
-    if (item) items.push(item);
+    if (item) {
+      if (items.length === 200) { truncated = true; break; }
+      items.push(item);
+    }
     if (node.tagName !== 'template') nodes.push(...node.childNodes);
-    if (items.length === 200) { truncated = nodes.length > 0; break; }
   }
   return { items, truncated };
 }

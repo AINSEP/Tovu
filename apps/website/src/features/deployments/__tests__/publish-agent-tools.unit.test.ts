@@ -416,6 +416,35 @@ test("deployment_preview_static_publish reports validity, computed base path, an
   assert.equal(resolveCallCount, 0, "deployment_preview_static_publish must never call PublishCredentialSource.resolve()");
 });
 
+test("preview and execute use the chosen credential when two compatible keys have no default", async () => {
+  const captured: { value: DeployFile[] | null } = { value: null };
+  const usedTokens: string[] = [];
+  const { deps } = fakeDeps({ buildTarget: (_config, credential) => {
+    usedTokens.push(credential.token);
+    return fakeDeployTarget(captured);
+  } });
+  deps.publishExecutionMode = "hosted-api-only";
+  const writeDeps = { repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer,
+    keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen, loadDeployTargets: deps.loadDeployTargets };
+  const chosen = await createPublishCredential(writeDeps, { workspaceId: deps.workspaceId, label: "Chosen",
+    connection: { providerId: "github-pages", token: "chosen-publish-token" }, isDefault: false });
+  await createPublishCredential(writeDeps, { workspaceId: deps.workspaceId, label: "Other",
+    connection: { providerId: "github-pages", token: "other-publish-token" }, isDefault: false });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const registrations = buildRegistrations(deps, surfaceExchanges);
+  const input = { target: "github-pages", owner: "octo", repo: "demo", projectName: "demo" };
+  const preview = tool(registrations, "deployment_preview_static_publish");
+  assert.equal((await call(preview, { input }) as { credentialsConfigured: boolean }).credentialsConfigured, false);
+  const selected = { ...input, credentialId: chosen.id };
+  const ready = await call(preview, { input: selected }) as { credentialsConfigured: boolean };
+  assert.equal(ready.credentialsConfigured, true);
+  const result = await call(tool(registrations, "deployment_execute_static_publish"), { input: selected, emitSurface: async () => undefined }) as { published: boolean };
+  assert.equal(result.published, true);
+  assert.deepEqual(usedTokens, ["chosen-publish-token"]);
+  assert.ok(captured.value?.length);
+  assert.doesNotMatch(JSON.stringify({ ready, result }), /chosen-publish-token|other-publish-token/);
+});
+
 test("deployment_preview_static_publish reports invalid config and false credentials without throwing", async () => {
   const { deps } = fakeDeps({
     credentialSource: {

@@ -44,6 +44,21 @@ function isCompleteConsentPage({ page }: { page: { ok: boolean; truncated: boole
   return page.ok && !page.truncated;
 }
 
+/** The legacy ledger allowed empty or longer copy; editor reads must let the owner repair it.
+ * Defaults replace only out-of-range text in a copy; published policies and writes stay strict.
+ * @complexity O(n) text length across seven bounded legacy fields; no storage writes. */
+function legacyEditorConsentConfig({ config }: { config: ConsentConfig }, _options = {}): ConsentConfig {
+  const normalized = { ...config };
+  const limits = { ...SITE_CONSENT_TEXT_LIMITS, policyVersion: 64 };
+  for (const key of Object.keys(limits) as (keyof typeof limits)[]) {
+    const text = normalized[key];
+    if (typeof text !== 'string') continue;
+    const emptyAllowed = key === 'secondaryLinkLabel' && text.length === 0;
+    if (text.length > limits[key] || (!emptyAllowed && !text.trim())) normalized[key] = SITE_CONSENT_DEFAULTS[key];
+  }
+  return normalized;
+}
+
 /** Creates one workspace's adapters over the engine and durable policy store.
  * Authorization remains in each operation so direct/tool callers cannot bypass the HTTP guard.
  * @example createSiteConsentService({ ports })
@@ -60,7 +75,7 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
   const read = async ({ principalId }: { principalId: string }, _optional = {}) => {
     const store = await authorize({ principalId });
     const state = await store.read({});
-    const legacy = state.published ? null : await ports.readLegacy({});
+    const legacy = state.published ? null : legacyEditorConsentConfig({ config: await ports.readLegacy({}) });
     // An empty Custom CSS is what the public site fills with the default style, so the editor shows
     // that default in the field for the owner to edit (owner, 2026-10-22).
     const draft = state.draft && { ...state.draft, config: withSiteConsentDefaultCss({ config: state.draft.config }) };
@@ -145,8 +160,10 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
       await ports.ready;
       if (!ports.store) throw new Error('Consent store unavailable');
       const state = await ports.store.read({});
-      const config = parseConsentConfig({ value: state.published?.config ?? await ports.readLegacy({}) });
-      if (!config.enabled) return null;
+      const effective = state.published?.config ?? await ports.readLegacy({});
+      // Explicit OFF remains a rollback even when saved legacy copy exceeds today's editor limits.
+      if (effective.enabled === false) return null;
+      const config = parseConsentConfig({ value: effective });
       const blockingProblems = await problems({ config });
       // The cookie-consent banner works on a static host (choices kept in the browser, labelled so).
       if (ports.cookieConsent) return blockingProblems.length ? deploymentRefusal({ problems: blockingProblems }) : null;

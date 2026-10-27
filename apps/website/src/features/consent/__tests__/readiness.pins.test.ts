@@ -50,10 +50,21 @@ test('inventory caps at 200 entries and distinguishes an exhausted head from mor
   assert.equal(result.truncated, true);
 });
 
-test('200 body items report truncation for the remaining empty head (reported, not fixed)', () => {
-  const result = consentGateInventory({ html: `<body>${'<template data-jini-consent-script><script></script></template>'.repeat(200)}</body>` });
+for (const count of [199, 200, 201]) {
+  test(`${count} body items report truncation only when another gated item exists`, () => {
+    const result = consentGateInventory({ html: `<head><title>Site</title></head><body><p>Ordinary content</p>${'<template data-jini-consent-script><script></script></template>'.repeat(count)}</body>` });
+    assert.equal(result.items.length, Math.min(count, 200));
+    assert.equal(result.truncated, count > 200);
+  });
+}
+
+test('a dry run at exactly 200 gated items remains complete with ordinary DOM nodes left', () => {
+  const config = { ...SITE_CONSENT_DEFAULTS, enabled: true, privacyPolicyUrl: '/privacy' };
+  const html = `<!doctype html><html><head><title>Site</title></head><body><p>Ordinary content</p>${'<button data-consent-category="analytics" onclick="go()">Go</button>'.repeat(200)}</body></html>`;
+  const result = consentDryRun({ html, config });
   assert.equal(result.items.length, 200);
-  assert.equal(result.truncated, true);
+  assert.equal(result.truncated, false);
+  assert.deepEqual(result.problems, []);
 });
 
 test('a dry run whose engine gate throws is blocking evidence with every optional category still denied', () => {

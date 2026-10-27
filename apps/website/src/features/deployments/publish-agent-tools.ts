@@ -1031,7 +1031,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       const basePath = plan.ok ? plan.basePath : undefined;
       // Local readiness stays non-decrypting. A provider inspection below is an explicit
       // authenticated read; its server-side credential never enters this tool result.
-      const credential = await credentialSource.isConfigured({ workspaceId: deps.workspaceId, target });
+      const credential = await credentialSource.isConfigured({ workspaceId: deps.workspaceId, target, ...toolCredentialChoice({ raw }) });
 
       const inspected = plan.ok && credential.configured ? await inspectStaticPublish({
         deps: { credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, hostKit: deps.hostKit, formDestination: deps.formDestination },
@@ -1115,7 +1115,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
 
       // Never decrypts (same `isConfigured()` contract the preview/capabilities handlers use above).
       // Refuse unavailable credentials before starting an export.
-      const readiness = await credentialSource.isConfigured({ workspaceId: deps.workspaceId, target });
+      const readiness = await credentialSource.isConfigured({ workspaceId: deps.workspaceId, target, ...toolCredentialChoice({ raw }) });
       if (!readiness.configured) {
         deps.tracker?.capture({ name: "site_publish_blocked", userId: ctx.principal.id }, { properties: { target, reasonClass: "config", source: "assistant" } });
         return {

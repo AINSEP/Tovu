@@ -501,6 +501,51 @@ test("composePublishCredentialSource: self-hosted-cli mode still never falls bac
 // to A's account. `resolve()` now takes the chosen connection's id and publishes with THAT row or
 // refuses. A client-supplied id is UNTRUSTED: the workspace scoping below is the whole point.
 
+test("credentialId: readiness selects a named non-default key without decrypting an ambiguous inventory", async () => {
+  const deps = makeWriteDeps();
+  const chosen = await createPublishCredential(deps, {
+    workspaceId: WORKSPACE, label: "Chosen", connection: { providerId: "vercel", token: "chosen-token" }, isDefault: false,
+  });
+  await createPublishCredential(deps, {
+    workspaceId: WORKSPACE, label: "Other", connection: { providerId: "vercel", token: "other-token" }, isDefault: false,
+  });
+  const source = createDbPublishCredentialSource({ ...deps,
+    sealer: { seal: async () => assert.fail("readiness must not seal"), open: async () => assert.fail("readiness must not decrypt") },
+  });
+  assert.equal((await source.isConfigured({ workspaceId: WORKSPACE, target: "vercel" })).configured, false);
+  const input = { workspaceId: WORKSPACE, target: "vercel", credentialId: chosen.id };
+  assert.deepEqual(await source.isConfigured(input), { configured: true });
+});
+
+test("credentialId: readiness refuses missing, foreign and incompatible IDs despite a valid default", async () => {
+  const deps = makeWriteDeps();
+  await createPublishCredential(deps, {
+    workspaceId: WORKSPACE, label: "Default", connection: { providerId: "vercel", token: "my-token" }, isDefault: true,
+  });
+  const foreign = await createPublishCredential(deps, {
+    workspaceId: OTHER_WORKSPACE, label: "Foreign", connection: { providerId: "vercel", token: "foreign-token" },
+  });
+  const incompatible = await createPublishCredential(deps, {
+    workspaceId: WORKSPACE, label: "GitHub", connection: { providerId: "github-pages", token: "github-token" },
+  });
+  const source = createDbPublishCredentialSource(deps);
+  const missing = await source.isConfigured({ workspaceId: WORKSPACE, target: "vercel", credentialId: "missing" });
+  assert.equal(missing.configured, false);
+  assert.deepEqual(await source.isConfigured({ workspaceId: WORKSPACE, target: "vercel", credentialId: foreign.id }), missing);
+  assert.equal((await source.isConfigured({ workspaceId: WORKSPACE, target: "vercel", credentialId: incompatible.id })).configured, false);
+});
+
+test("credentialId: neither composed nor env readiness falls back for an unavailable saved connection", async () => {
+  const env = { VERCEL_TOKEN: "env-token" };
+  const composed = composePublishCredentialSource({ workspaceId: WORKSPACE, executionMode: "self-hosted-cli", dbDeps: makeWriteDeps(), env });
+  const fromEnv = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, env);
+  for (const source of [composed, fromEnv]) {
+    assert.deepEqual(await source.isConfigured({ workspaceId: WORKSPACE, target: "vercel" }), { configured: true });
+    const input = { workspaceId: WORKSPACE, target: "vercel", credentialId: "missing" };
+    assert.equal((await source.isConfigured(input)).configured, false);
+  }
+});
+
 test("credentialId: resolves the NAMED connection, not the provider's current default, when the two differ", async () => {
   const writeDeps = makeWriteDeps();
   const chosen = await createPublishCredential(writeDeps, {

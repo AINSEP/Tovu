@@ -193,11 +193,13 @@ export async function describeCredential(deps: PublishCredentialReadDeps, input:
   return (await listPublishCredentials(deps, input)).find(row => row.id === input.id) ?? null;
 }
 
-/** Configuration requires a compatible selected candidate, not merely a provider-group default. */
-export async function hasDefaultForPublish(deps: PublishCredentialReadDeps, input: { workspaceId: UUID; providerId: PublishProviderId }): Promise<boolean> {
+/** Configuration requires a compatible selected candidate, not merely a provider-group default.
+ * An explicit id must select that authorized row; no secret is opened.
+ * @complexity O(rows × compatibility IDs), one metadata inventory per store and one catalog load. */
+export async function hasDefaultForPublish(deps: PublishCredentialReadDeps, input: { workspaceId: UUID; providerId: PublishProviderId; id?: UUID }): Promise<boolean> {
   const registry = await deps.loadDeployTargets(input.workspaceId);
   const provider = providerContract({ registry, providerId: input.providerId });
-  return provider !== null && selectPublishCredential({ registry, credentials: await inventory({ deps, workspaceId: input.workspaceId }), provider }) !== null;
+  return provider !== null && selectPublishCredential({ registry, credentials: await inventory({ deps, workspaceId: input.workspaceId }), provider, id: input.id }) !== null;
 }
 
 function validatedWorksFor({ value }: { value: unknown }, _options = {}): string[] {
@@ -381,13 +383,17 @@ async function assertLabelFreeOnSite({ deps, target, workspaceId, vendorId, labe
   }
 }
 
-/** Label conflicts keep the feature's error contract; stale CAS failures stay conflicts. */
-async function saveConnection({ deps, input, providerId }: { deps: PublishCredentialWriteDeps;
+/** Label conflicts keep the feature's error contract; stale CAS failures stay conflicts.
+ * @complexity One vault write; on conflict, O(vendor rows) metadata lookup without opening secrets. */
+async function saveConnection({ deps, target, input, providerId }: { deps: PublishCredentialWriteDeps; target: ScopedCredentialDeps<PublishCredentialWriteDeps>;
   input: Parameters<ReturnType<typeof vault>["put"]>[0]; providerId: PublishProviderId }, _options = {}): Promise<VaultSummary> {
-  try { return await vault(deps).put(input); }
+  try { return await vault(target.deps).put(input); }
   catch (error) {
+    // Unattached project rows are hidden from normal reads. Use only deletion metadata to
+    // distinguish a duplicate label from a CAS conflict; never attach or open the existing key.
+    const labelRepo = target.scope === "project" ? credentialDeletionRepo({ repo: deps.repo }).project!.repo : target.deps.repo;
     const duplicate = isUniqueLabelViolation(error) || error instanceof VaultError && error.code === "conflict" &&
-      (await deps.repo.listByVendor({ workspaceId: input.workspaceId, vendorId: input.provider! })).some(row => row.id !== input.id && row.label === input.label);
+      (await labelRepo.listByVendor({ workspaceId: input.workspaceId, vendorId: input.provider! })).some(row => row.id !== input.id && row.label === input.label);
     if (duplicate) throw new PublishCredentialDuplicateLabelError(input.workspaceId === 'project' ? `Your project already has a key named '${input.label}'. Use it here, or pick another name.` : `a '${providerId}' credential labeled '${input.label}' already exists in this workspace`);
     throw error;
   }
@@ -403,7 +409,7 @@ export async function createPublishCredential(deps: PublishCredentialWriteDeps, 
   // Project-first (`vendor-credentials/project-scope.ts`); "site" = only for this site.
   const target = credentialCreateTarget(deps, input, message => new PublishCredentialValidationError(message));
   await assertLabelFreeOnSite({ deps, target, workspaceId: input.workspaceId, vendorId: validated.spec.vendorId, label, providerId });
-  const summary = await saveConnection({ deps: target.deps, providerId, input: {
+  const summary = await saveConnection({ deps, target, providerId, input: {
     ...credentialScope({ workspaceId: target.workspaceId, kind: "vendor" }), id: deps.idGen.newId(), expectedRevision: null,
     provider: validated.spec.vendorId, label, meta: { credentialType: "vendor", worksFor: validatedWorksFor({ value: input.worksFor === undefined ? registry.get(providerId)?.module.defaultCredentialWorksFor ?? [validated.spec.vendorId] : input.worksFor }), accountLabel: null }, payload: { vendorId: validated.spec.vendorId, ...fields },
     hintToken: fields[validated.spec.tokenField], ...(isDefault === undefined ? {} : { isDefault }),
@@ -487,6 +493,7 @@ async function updatedConnection({ deps, input, existing, registry, host }: { de
 
 /** Omitted connections retain their sealed envelope/hints and never require a site key.
  * Provider moves retarget the old compatibility IDs unless the caller supplies worksFor.
+ * Reject labels that would hide a project row behind a site's row before writing.
  */
 export async function updatePublishCredential(deps: PublishCredentialWriteDeps, input: UpdatePublishCredentialInput): Promise<PublishCredentialSummary> {
   // Changed where it lives: this site's own row, else the project's (shared by every site).
@@ -500,7 +507,8 @@ export async function updatePublishCredential(deps: PublishCredentialWriteDeps, 
   const row = await scoped.deps.repo.vault!.find({ workspaceId: scoped.workspaceId, id: input.id });
   if (!row) throw new PublishCredentialNotFoundError(`no publish credential '${input.id}' in this workspace`);
   const { providerId, accountLabel, ...changes } = await connectionChanges({ deps: scoped.deps, input, existing, registry, host, row });
-  const summary = await saveConnection({ deps: scoped.deps, providerId, input: { ...credentialScope({ workspaceId: scoped.workspaceId, kind: "vendor" }), id: input.id,
+  await assertLabelFreeOnSite({ deps, target: scoped, workspaceId: input.workspaceId, vendorId: changes.provider, label, providerId });
+  const summary = await saveConnection({ deps, target: scoped, providerId, input: { ...credentialScope({ workspaceId: scoped.workspaceId, kind: "vendor" }), id: input.id,
     expectedRevision: row.revision, label, ...changes,
     meta: { ...row.meta, worksFor: updatedWorksFor({ value: input.worksFor, row, provider: changes.provider, host }), accountLabel },
     ...(requestedDefault === true ? { isDefault: true } : {}) } });
