@@ -86,3 +86,25 @@ Desktop:
 11. nested-sites-migration.test.ts — LOAD FAILURE: `SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]: TypeScript parameter property is not supported in strip-only mode` at apps/website/src/platform/site-dir/local-site-supervisor.ts:13 (`constructor(readonly code: string)`) — the desktop runner uses Node strip-only TS. **REGRESSION** (load failure; website file imported by desktop test uses non-strippable syntax).
 12. site-dir-store.test.ts "initSiteDir creates a complete blank site with the requested name through Tovu's actual CLI" (16s) — deepStrictEqual: actual `[{id:'page-blog'}]`, expected `[]` (line 563). UNSURE (blank site now ships a page-blog; maybe CLI/template drift, or env tool path).
 Not seen this run (vs known list): purpose-scoped-mailer, site-exporter live site, mcp-ui ask-choice, telemetry-reporter Invalid URL — all passed.
+
+## Correction to the Tovu node:test total above
+Sum over the 8 batches: 3628 executed (incl. subtests), **3616 pass / 7 fail / 5 skip**. (Earlier line "12→(7…" was garbled.) Total Tovu failures incl. desktop+admin: 7 node:test + 5 desktop (3 ReferenceError, 1 load failure, 1 site-dir-store) = 12 distinct; admin 0.
+
+## Comparison with run 1
+Jini: run 1 had cms/db/platform/ui/devops failures and 2 packages failing tsc; run 2 has **only the Sentry SpanStreaming failure** and a clean `pnpm -r build` (exit 0). Tovu: run 1 admin consent-i18n failure is gone (1200/1200); the search-discovery negative control ("…installed on the site?") is STILL failing; the two reruns (publish-agent-tools, provider-plugins) STILL fail.
+
+## Server soak (record-only, `TOVU_SOAK_RECORD_ONLY=1 npm run test:soak:server`, exit 0, 1.3 min)
+commit 1bde8079, linux x64, node 24.22.0, warm-up 500, workload 3000 requests, limit 15%. Metric = heapUsed (MiB):
+- warm-up floor (baseline) **121.9** → final floor **119.2** = **-2.2% growth**, tailGrowth +0.2%. Verdict pass, wouldFail=false.
+- RSS (MiB) by checkpoint: 611.5 (0) → 759.8 (500) → 767.8 (1000) → 768.6 (1500/2000) → 769.5 (2500/3000): one-time +150 MiB step during the first 500 requests, then flat.
+- "Multiple copies of chat.db" / chat.db: **0 occurrences** in the soak log. The samples contain a single pid (24137, the serve process); the agent daemon is not sampled, so its RSS is not available and I cannot positively confirm from samples that the daemon stayed up for the whole soak — only that no crash message appeared and the test passed.
+Build for the soak: `npm run build` / `admin:build` refuse to run while linked Jini (check-no-linked-jini guard), so I ran the same underlying steps (`npm run build:server`, `vite build` in apps/admin), both exit 0; no code touched.
+
+## What this did NOT test
+- Desktop Electron memory soak (needs display); desktop UI; real PostHog/Sentry/Grafana delivery; Postgres-backed tests (db settings-revision.postgres.test.ts not collected); Playwright/browser journeys; UI look.
+- Desktop suite was run as its whole `npm test` (1797 tests) rather than only the 26 listed files.
+- `tsc -p apps/website/tsconfig.json` (path in the brief) doesn't exist; used root tsconfig.json (0 errors). typecheck:e2e/typecheck:tests/scripts not run.
+- Not run against the published npm Jini versions (linked local Jini @ cloud/release-1026); package.json/lock edits for cookie-consent are local-only, NOT committed.
+
+## 2026-10-27T01:21:28Z — DONE
+All lists, build gates, reruns, search-discovery measurement and soak completed within caps; no product code or tests edited. Summary of non-expected failures needing a look: publish-agent-tools (isDefault), provider-plugins duplicate site_created, search-discovery cannibalization, desktop productDisposers ReferenceError x3, desktop nested-sites-migration strip-only TS load failure, desktop site-dir-store page-blog. Expected still-failing: site-consent x3, sdk-public-api range, Sentry SpanStreaming.
