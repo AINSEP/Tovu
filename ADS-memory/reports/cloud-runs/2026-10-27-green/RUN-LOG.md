@@ -19,3 +19,6 @@ Phase 1 lane A (112 lot files) + typecheck + Phase 2 mutations (all 33 non-skipp
 
 ## 2026-10-27T18:05:41Z — HEARTBEAT
 Phase 3: (d) rechecks all PASS (10/10 incl. T3 App.render 16 tests ok 2.5s; T38 duplicate-pglite 7 tests ok 12s; no file abort). (e) items run: share suites do NOT hang here (all end <=71s); only a single 60s test-timeout in share-refusals. Sweep running (2 workers) over 1263 queue items; started at ~18:04.
+
+## 2026-10-27T18:13:17Z — HEARTBEAT
+Sweep in progress: 161 of 1263 queue items done, no mutation active. Tree clean.
