@@ -54,10 +54,22 @@ test("SEC-1 restore: restoring a sanitized GitHub backup keeps the target site's
   assert.ok(catalogBefore, "fixture: the target site is registered");
 
   // `h.safe` is `sanitizeShareDatabase` over a source site with its own owner ("source-password"),
-  // session and vault row: the same projection `prepareContent` now uploads.
-  const upload = await h.backend.upload({ principalId: "recipient", archive: await githubBackupZip({ database: h.safe.bytes }) });
-  // Refused or installed as a NEW site: either way the target's accounts are the property under test.
-  await h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } }).catch((error: unknown) => error);
+  // session and vault row: the same projection `prepareContent` now uploads. The old folder layout
+  // (tovu-backup.json, database/content.db) is no longer an import format: refused by name, nothing installed.
+  const legacy = await h.backend.upload({ principalId: "recipient", archive: await githubBackupZip({ database: h.safe.bytes }) });
+  await assert.rejects(h.backend.importBackup({ principalId: "recipient", source: { uploadId: legacy.uploadId } }),
+    { name: "SiteShareRefusal", code: "INVALID_ARCHIVE", message: "A v2 manifest.json at root, or inside one wrapper folder with nothing outside it, is required." });
+  assert.deepEqual(h.workspace.registry({}).list({}), [catalogBefore], "a refused import installs nothing");
+
+  // A supported backup of the same projection (`h.archive`) must install as a NEW site before the
+  // target's accounts prove anything (Codex check 2026-10-27: a refusal alone left them untouched trivially).
+  const upload = await h.backend.upload({ principalId: "recipient", archive: h.archive });
+  const pending = await h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } });
+  assert.equal(pending.state, "needs-owner");
+  const created = await h.backend.completeOwner({ principalId: "recipient", importId: pending.importId, adminPassword: OWNER_PASSWORD });
+  assert.equal(created.state, "ready");
+  assert.notEqual(created.newSiteId, target.siteId);
+  assert.equal(h.workspace.registry({}).list({}).length, 2, "the import is a second site beside the target");
 
   assert.deepEqual(h.workspace.registry({}).list({}).find(site => site.id === target.siteId), catalogBefore, "the target stays registered at the same folder");
   assert.equal(accountRows({ dbPath }), before, "owner, roles, member and member session are untouched");
