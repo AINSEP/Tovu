@@ -283,7 +283,9 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
         workspaceId: deps.workspaceId,
         label: body.label,
         connection: body.connection,
-        isDefault: body.isDefault ?? (body.scope === "site" ? undefined : false),
+        // Only a project-bound create starts non-default (attached next); a site row, including every
+        // create where no project store is open, keeps Jini's first-row auto-default.
+        isDefault: body.isDefault ?? (body.scope !== "site" && deps.vendorCredentialSetRepo.project ? false : undefined),
         worksFor: body.worksFor,
         // "site" = only for this site; omitted = the project store when one is attached.
         scope: body.scope,
