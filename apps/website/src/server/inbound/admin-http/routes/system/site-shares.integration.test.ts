@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer, loginAsOwner, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
-import { SiteShareRegistry } from "#src/features/site-backup/share-registry";
+import { SHARE_TOKEN_LENGTH, SiteShareRegistry } from "#src/features/site-backup/share-registry";
 
 // RED gap: these routes previously had no assertion through the actual session/RBAC mount.
 test("all six share routes require authentication, site-backup.push and the correct workspace", async t => {
@@ -22,7 +22,8 @@ test("all six share routes require authentication, site-backup.push and the corr
   const owner = await loginAsOwner(base);
   const bare = await loginAsBarePrincipal(deps, base);
   const id = "00000000-0000-4000-8000-000000000001";
-  const token = "a".repeat(64);
+  // Share tokens are 16 letters since d3ea26cfd (owner 10-25); a 64-hex token is refused as INVALID_INPUT.
+  const token = "a".repeat(SHARE_TOKEN_LENGTH);
   const routes = [
     ["GET", ""], ["POST", ""], ["GET", `/${id}/download`], ["DELETE", `/${id}`],
     ["PUT", `/artifacts/${token}/site.tovu.zip`], ["DELETE", `/artifacts/${token}/site.tovu.zip`],

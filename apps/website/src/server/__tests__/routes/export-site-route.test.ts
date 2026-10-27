@@ -266,7 +266,9 @@ test("export-site: trigger starts a real run (202), honors a real 'basePath', a 
   const home = readFileSync(path.join(exportOutputDir, "index.html"), "utf8");
   assert.match(home, /href="\/preview\/welcome"/);
   assert.match(home, /href="\/preview\/theme-assets\/tovu-starter\//);
-  assert.doesNotMatch(home, /href="\/(?!preview\/)/);
+  // Theme comments may quote example markup (tovu-starter's nav: `<a href="/your-page.html">`);
+  // only live links must be rebased, so comments are dropped before the check.
+  assert.doesNotMatch(home.replace(/<!--[\s\S]*?-->/g, ""), /href="\/(?!preview\/)/);
 });
 
 test("export-site: req.body can never actually be undefined through this app's real composition (the global express.json() in app.ts always defaults it to {}) -- parseTriggerRequestBody's `body === undefined` branch is reached by calling the real handler directly with an explicitly undefined body, the same type-bypass technique a `default: throw` exhaustiveness guard would need; the trigger still starts a real, honest export", async (t) => {

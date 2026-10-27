@@ -134,7 +134,9 @@ test("tovu export --base-path <path>: rewrites root-relative links and prints th
   assert.match(home, /id="audit-css" rel="stylesheet" href="\/my-repo\/theme-assets\/tovu-starter\/css\/theme.css"/);
   assert.match(home, /id="audit-js" src="\/my-repo\/theme-assets\/tovu-starter\/scripts\/main.js"/);
   assert.match(home, /id="audit-image" src="\/my-repo\/theme-assets\/tovu-starter\/assets\/logo.png"/);
-  assert.doesNotMatch(home, /\b(?:href|src)=["']\/(?!\/|my-repo(?:\/|["']))/, "all root-relative href/src values must carry the requested base path");
+  // Theme comments may quote example markup (tovu-starter's nav: `<a href="/your-page.html">`);
+  // only live links must be rebased, so comments are dropped before the check.
+  assert.doesNotMatch(home.replace(/<!--[\s\S]*?-->/g, ""), /\b(?:href|src)=["']\/(?!\/|my-repo(?:\/|["']))/, "all root-relative href/src values must carry the requested base path");
 });
 
 test("tovu export: TOVU_EXPORT_DIR env var sets the default output directory when --out is omitted", (t) => {

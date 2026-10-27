@@ -8,6 +8,7 @@ import path from "node:path";
 import test from "node:test";
 import Database from "better-sqlite3";
 import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databases.js";
+import { ARCHIVE_DATABASE_PATH } from "../archive-manifest.js";
 import { importFixture, OWNER_PASSWORD, reader, stamp } from "./import.fixture.js";
 
 const privateTables = ["principals", "identity_users", "sessions", "secrets_vault"];
@@ -18,7 +19,7 @@ test("B successfully strips hostile schema-valid accounts, sessions and secrets 
   const archive = await h.archiveWithDatabase(raw);
   let checkedArchive = false;
   for await (const entry of reader.entries({ archive })) {
-    if (entry.kind !== "file" || entry.entryPath !== "database/content.db") continue;
+    if (entry.kind !== "file" || entry.entryPath !== ARCHIVE_DATABASE_PATH) continue;
     const chunks: Buffer[] = [];
     for await (const chunk of entry.openReadStream({})) chunks.push(Buffer.from(chunk));
     const bytes = Buffer.concat(chunks);

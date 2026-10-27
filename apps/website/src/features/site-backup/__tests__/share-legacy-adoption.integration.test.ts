@@ -10,7 +10,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import type { HttpClientPort } from "@jini-ai/core/primitives";
+import type { HttpClientPort, HttpResponse } from "@jini-ai/core/primitives";
 import { createSiteShareBackend } from "../share-backend.js";
 import { createRuntimeShareDelivery, resolveShareDelivery } from "../share-hosting.js";
 import { adoptLegacyShareDirectory, SiteShareRegistry } from "../share-registry.js";
@@ -18,7 +18,7 @@ import { createSiteShare } from "../share-service.js";
 
 /** The anonymous `/_share/<token>/<file>` download as the public route answers it, from whichever catalog is live. */
 function anonymousDownloads(current: () => SiteShareRegistry): HttpClientPort {
-  return { send: async ({ request }) => {
+  return { send: async ({ request }): Promise<HttpResponse> => {
     const [, , token = "", file = ""] = new URL(request.url).pathname.split("/");
     const row = await current().findToken({ token, file });
     if (!row) return { status: 404, headers: {}, bodyText: "" };
