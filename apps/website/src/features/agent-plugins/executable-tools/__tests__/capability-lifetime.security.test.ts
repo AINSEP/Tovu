@@ -63,7 +63,7 @@ async function boot() {
   const descriptor = parsed.descriptors[0]!;
   const frozen = createFrozenConnectionAccounts();
   const issuedTokens = createIssuedTokenMemories();
-  const limiter = { check: async () => ({ allowed: true }) };
+  const limiter = { check: async () => ({ allowed: true as const }) };
   const http = fakeHttp().http;
   const state = () => ({ get: async () => null });
   const apiOrigins = async () => [];
