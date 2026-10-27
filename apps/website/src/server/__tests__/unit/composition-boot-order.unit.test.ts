@@ -82,10 +82,14 @@ test("index.ts main(): a refusing schema guard stops a disk boot before site-key
     claimSiteRunning: () => ({ release: () => {} }),
     devTls: { active: false },
     installServerLogCapture: () => {},
+    processBuildRelease: () => "test-release",
+    telemetryEnvironment: () => "test",
+    process: { env: {} },
     serverLogFilePaths: () => ({ server: "/isolated/server.log", daemon: "/isolated/daemon.log" }),
     attachServerLogFile: () => {},
     installUnhandledRejectionGuard: () => {},
     ensureAgentDaemonToken: () => {},
+    ensureToolExecToken: () => {},
     registerPluginSdkResolver: () => {},
     runProductionReadinessGateOrExit: async () => {},
     warnIfNoSiteKeyAtBoot: () => {},
@@ -156,7 +160,15 @@ test("createSiteRouteDeps prelude: store open, then the awaited workspace, deny 
   // The shared kernel lock serializes it with the background settings writers.
   // Top-level (two-space indented) awaits only: nested async closures may await freely.
   const topLevelAwaits = body.slice(firstBootPromise).match(/^  (?:const [^=]+= )?await[^\n]*/gm) ?? [];
-  assert.deepEqual(topLevelAwaits, ["  await normalizeSiteVaultAtBoot({ kernel, workspaceId, siteDir: siteDirForKeyring, clock }, {"], "only the fenced vault normalization may await after boot promises start");
+  // Later composition steps that must await (each boot promise above carries its own .catch):
+  // the project store open (09f93109d7), provider plugin boot (ca96ee648d) and the content
+  // analytics bus subscriptions (b46eb6e29a). Any other new top-level await fails here.
+  assert.deepEqual(topLevelAwaits, [
+    "  await normalizeSiteVaultAtBoot({ kernel, workspaceId, siteDir: siteDirForKeyring, clock }, {",
+    "  const { providerConfigSource: savedProviderConfig, projectId, projectVault, projectStore, siteId: projectSiteId } = await composeProviderConfig({ overrides, runtimeMode, onStoreClose, binding: resolvedSiteBinding,",
+    "  const providerPlugins = await providerPluginBoot({ overrides })({",
+    "  await registerContentAnalytics({ deps: { bus, tracker, workspaceId } });",
+  ], "only the fenced vault normalization and the listed composition steps may await after boot promises start");
   const keyring = indexOfAnchor(body, "const siteAssistantSecretKeyring = new EnvOrFileKeyring(");
   const normalize = indexOfAnchor(body, "await normalizeSiteVaultAtBoot(");
   const credentials = indexOfAnchor(body, "const siteAssistantCredentialRepo = new SqliteSiteAssistantCredentialRepo(");
