@@ -49,3 +49,15 @@ test("a version-shaped folder is a site plugin version on both sides; any other 
     assert.equal(excludedSharePath({ path: `plugins/demo/${folder}/data/help.md` }), false);
   }
 });
+
+// RED (Codex check 2026-10-27): `1.2` plus any dotted tail counted as a version, so a flat plugin's
+// `1.2.docs/index.js` lost its folder and collided with the plugin's own `index.js` (export refused the
+// duplicate). Only names the installer can create (SemVer) and the legacy two-part `1.0` are versions.
+test("a flat plugin's dotted content folder keeps its name, so it never collides with the plugin root", () => {
+  const mapped = ["plugins/demo/index.js", "plugins/demo/1.2.docs/index.js"].map(path => runtimeToArchivePath({ path }));
+  assert.deepEqual(mapped, ["plugins/demo/package/index.js", "plugins/demo/package/1.2.docs/index.js"]);
+  assert.equal(excludedSharePath({ path: "plugins/demo/1.2.docs/data/help.md" }), false);
+  for (const version of ["1.0", "1.2.3", "1.2.3-beta.1", "1.2.3+build.7", "1.2.3-rc.1+build"]) {
+    assert.equal(runtimeToArchivePath({ path: `plugins/demo/${version}/index.js` }), "plugins/demo/package/index.js", version);
+  }
+});

@@ -15,12 +15,12 @@ const PACKAGE_MANIFEST_NAMES = ["mcp.json", "tovu-credential-schemes.json"];
 export type PackageFileInventory = ReadonlyMap<string, ReadonlyMap<string, string>>;
 
 /** A site plugin's version folder: every SemVer name the installer creates (Jini plugins
- *  `host/node/install.ts` refuses any other) plus the two-part `1.0` the archive mapping always took.
- *  This one shape decides "version folder" for both the private-data exclusion here and the archive
- *  mapping (`archive-paths.ts`); any other folder (`2fa/`, `1/`) is the flat plugin's own content.
- *  It errs wide on purpose: a folder wrongly read as a version only loses its data/ from the share,
- *  a version wrongly read as content would ship its runtime data. */
-export const PLUGIN_VERSION_FOLDER = String.raw`\d+\.\d+(?:\.[^/]+)?`;
+ *  `host/node/install.ts` refuses any other name in a plugin's slot) plus the two-part `1.0` the archive
+ *  mapping always took. This one shape decides "version folder" for both the private-data exclusion here
+ *  and the archive mapping (`archive-paths.ts`); any other folder (`2fa/`, `1/`, `1.2.docs/`) is the flat
+ *  plugin's own content. Not wider: a content folder read as a version loses its name in the archive and
+ *  collides with the plugin's root files (`1.2.docs/index.js` vs `index.js`; Codex check 2026-10-27). */
+export const PLUGIN_VERSION_FOLDER = String.raw`\d+\.\d+(?:\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)?`;
 /** The plugin memory a share carries. Every other folder under a plugin's `memory/` is private runtime
  *  state: export excludes it ({@link excludedSharePath}) and import refuses it (`archive-manifest.ts`). */
 export const SHARED_PLUGIN_MEMORY = String.raw`memory\/(?:notes|learned)`;
