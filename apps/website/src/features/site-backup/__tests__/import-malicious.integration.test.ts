@@ -309,7 +309,6 @@ test("verifier refuses malformed manifest contracts before invoking the database
     ["null file", m => { m.files[0] = null; }], ["non-string path", m => { m.files[0].path = 4; }],
     ["fractional size", m => { m.files[0].bytes = 0.5; }], ["negative size", m => { m.files[0].bytes = -1; }],
     ["bad hash", m => { m.files[0].sha256 = "not sha256"; }],
-    ["duplicate manifest path", m => { m.files.push(m.files[0]); }],
     ["manifest lists itself", m => { m.files[0].path = "manifest.json"; }],
     ["unrecognized scope", m => { m.files[0].path = "unknown/content.txt"; }],
     ["missing settings inventory", m => { m.files = m.files.filter((f: any) => f.path !== "settings.json"); }],
@@ -318,6 +317,8 @@ test("verifier refuses malformed manifest contracts before invoking the database
   for (const [label, change] of mutations) await t.test(label, async () => {
     await assert.rejects(verifySiteImport({ archive: await pack(mutateManifest(items, change)), reader, schema: h.plan.schema, sanitize: async () => assert.fail("invalid manifest must not invoke database owner") }), { code: "INVALID_ARCHIVE" });
   });
+  // A path listed twice refuses as the same path collision export guards against (import-verifier-refusals pins the message).
+  await assert.rejects(verifySiteImport({ archive: await pack(mutateManifest(items, m => { m.files.push(m.files[0]); })), reader, schema: h.plan.schema, sanitize: async () => assert.fail("duplicate path must not invoke database owner") }), { code: "UNSAFE_PATH", message: "Duplicate file or file/directory collision." });
   for (const bytes of [Buffer.from("{"), Buffer.from("null")]) await assert.rejects(verifySiteImport({ archive: await pack(items.map(item => item.name === "manifest.json" ? { ...item, bytes } : item)), reader, schema: h.plan.schema, sanitize: async () => assert.fail("invalid JSON must not sanitize") }), { code: "INVALID_ARCHIVE" });
   await assert.rejects(verifySiteImport({ archive: await pack(items.filter(item => item.name !== "manifest.json")), reader, schema: h.plan.schema, sanitize: async () => assert.fail() }), { code: "INVALID_ARCHIVE", message: /manifest/ });
 });
