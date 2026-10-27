@@ -7,7 +7,7 @@ import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";
 import type { KeyringPort, SecretSealerPort } from "#src/features/webhooks/ports";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { ensureSiteKey } from "#src/features/webhooks/site-key-ensure";
+import type { ensureSiteKey } from "#src/features/webhooks/site-key-ensure";
 import { resolveSiteKeyId, siteKeySources } from "#src/features/webhooks/site-key-sources";
 import type { SealedSecret } from "#src/features/webhooks/types";
 import { STORAGE_SECRET_FILENAME } from "#src/platform/site-dir/layout";
@@ -99,8 +99,10 @@ export async function sealConnectionStringForNewSite(
   // Ports, real by default: `ensure` mints/validates the key on disk under the operator's home and
   // `sealerFor` builds the env/file keyring, so a unit test can drive the refusal and sealing arms
   // in-process without touching the real home directory.
+  // `ensure` is imported on first use: only `tovu init` mints a key, and the module's graph reaches the
+  // migration runner, which a reader of the connection string (the agent daemon's DB client) must not load.
   {
-    ensure = ensureSiteKey,
+    ensure = async (input) => (await import("#src/features/webhooks/site-key-ensure")).ensureSiteKey(input),
     sealerFor = (siteKeyIdForSite: string) => siteSecretSealer(required.siteDir, process.env, siteKeyIdForSite),
   }: { ensure?: typeof ensureSiteKey; sealerFor?: (siteKeyId: string) => SiteSecretSealer } = {},
 ): Promise<SiteSecretSealer> {
