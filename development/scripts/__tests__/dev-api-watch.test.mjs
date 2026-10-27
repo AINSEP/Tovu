@@ -3,12 +3,17 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import { apiWatchArgs } from "../dev-api-watch.mjs";
 
+const MAPS_OFF = new URL("../dev-source-maps-off.mjs", import.meta.url).href;
+
+// tsx forwards node flags after its own options and after its loader, so --import must follow --exclude.
 test("tsx watch excludes generic and absolute plugin snapshots for custom sites homes", () => {
   assert.deepEqual(apiWatchArgs({ sitesHome: "/custom/sites" }, { homeDir: "/home/owner" }), [
-    "tsx", "watch", "--exclude", "**/plugins-runtime/**", "--exclude", "/custom/sites/**/plugins-runtime/**", "apps/website/src/index.ts",
+    "tsx", "watch", "--exclude", "**/plugins-runtime/**", "--exclude", "/custom/sites/**/plugins-runtime/**",
+    "--import", MAPS_OFF, "apps/website/src/index.ts",
   ]);
   assert.deepEqual(apiWatchArgs({}, { homeDir: "/home/owner" }), [
-    "tsx", "watch", "--exclude", "**/plugins-runtime/**", "--exclude", "/home/owner/**/plugins-runtime/**", "apps/website/src/index.ts",
+    "tsx", "watch", "--exclude", "**/plugins-runtime/**", "--exclude", "/home/owner/**/plugins-runtime/**",
+    "--import", MAPS_OFF, "apps/website/src/index.ts",
   ]);
 });
 

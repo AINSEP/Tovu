@@ -27,6 +27,7 @@ import {
 import { createDaemonSupervisor as createSidecarSupervisor } from "@jini-ai/sidecar/supervisor";
 import type { DaemonSupervisorRequired, SpawnedDaemonProcess as SidecarDaemonProcess, SupervisorScheduler } from "@jini-ai/sidecar/supervisor";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { redactLocalText } from "../../../platform/server-logs/redact-local-text.js";
 import { createRedactedOutputSink } from "../../../platform/server-logs/console-tee.js";
 
@@ -399,9 +400,13 @@ export function createRealDaemonProcessPorts(input: DaemonSpawnEnvInput, optiona
     return createNodeDaemonProcessAdapter({
       command: process.execPath,
       // Preload awaits pruning before tsx starts; keep the supervisor's synchronous child contract.
+      // `--import tsx` instead of `tsx/cli`: the CLI relaunches a second node, one more process per site.
+      // Every --import is a file URL; a bare `C:\` path is read as a URL scheme on Windows.
       args: isCompiled ? args : ["--import",
         new URL("../../../../../../development/scripts/prune-tsx-cache.mjs?prune", import.meta.url).href,
-        createRequire(import.meta.url).resolve("tsx/cli"), ...args],
+        "--import", pathToFileURL(createRequire(import.meta.url).resolve("tsx")).href,
+        "--import", new URL("../../../../../../development/scripts/dev-source-maps-off.mjs", import.meta.url).href,
+        ...args],
       cwd: process.cwd(),
       // Every respawn binds the same workspace and parent pid (D10/watchdog contract),
       // while refreshing process.env so repaired launch configuration can take effect.
