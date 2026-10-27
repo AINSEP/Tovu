@@ -69,6 +69,12 @@ test("ctx.sleep on the system clock resolves, and rejects when its signal aborts
   });
 });
 
+/** The proxies below swap the repo after its first post-arming read. Only method accesses count: the
+ *  shared scope rule also reads the repo's `project` field before the binding's own lookup. */
+function methodReads(target: object, key: PropertyKey, counter: { reads: number }): number {
+  return typeof Reflect.get(target, key) === "function" ? counter.reads++ : counter.reads;
+}
+
 test("transport failures are named per method; a credential removed after binding is reported as changed", async () => {
   await scripted(async ctx => {
     await assert.rejects(ctx.get("https://api.example-host.dev/v1/targets"), (error: Error) => error.name === "ToolInputError" && error.message.startsWith("Could not reach deployment ops host 'api.example-host.dev' using credential 'ops'."));
@@ -82,9 +88,9 @@ test("transport failures are named per method; a credential removed after bindin
   await scripted(async ctx => { removed = true; return ctx.get("https://api.example-host.dev/v1/targets"); }, async deps => {
     const empty = new InMemoryCustomCredentialSetRepo();
     // The URL binding still sees the row; it is gone by the time the request itself opens it.
-    let readsAfterArming = 0;
+    const afterArming = { reads: 0 };
     const changing = { ...deps, customCredentialSetRepo: new Proxy(deps.customCredentialSetRepo, { get: (target, key) => {
-      const source = removed && readsAfterArming++ > 0 ? empty : target;
+      const source = removed && methodReads(target, key, afterArming) > 0 ? empty : target;
       const value = Reflect.get(source, key);
       return typeof value === "function" ? value.bind(source) : value;
     } }) };
@@ -97,12 +103,12 @@ test("a request fault the host does not classify (a row this site's sealer canno
   const moved = (await fixture({ labels: ["ops"], host: "https://elsewhere.example", additionalHosts: [] })).deps.customCredentialSetRepo;
   let armed = false;
   await scripted(async ctx => { armed = true; return ctx.get("https://api.example-host.dev/v1/targets"); }, async deps => {
-    let readsAfterArming = 0;
+    const afterArming = { reads: 0 };
     const sent: unknown[] = [];
     const changing = { ...deps,
       deployOpsHttpClient: { send: async (request: unknown) => { sent.push(request); return { status: 200, headers: {}, bodyText: "[]" }; } },
       customCredentialSetRepo: new Proxy(deps.customCredentialSetRepo, { get: (target, key) => {
-        const source = armed && readsAfterArming++ > 0 ? moved : target;
+        const source = armed && methodReads(target, key, afterArming) > 0 ? moved : target;
         const value = Reflect.get(source, key);
         return typeof value === "function" ? value.bind(source) : value;
       } }) };
