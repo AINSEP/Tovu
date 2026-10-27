@@ -96,6 +96,13 @@ function fakeCredentialSource(): PublishCredentialSource {
   };
 }
 
+/** The run owner mints its operation id first (product events); the next id is the one
+ *  `publishStaticSite` mints inside the started run, so throwing there is an unexpected publish failure. */
+function idGenFailingInsidePublish(failure: unknown): StaticPublishInput["idGen"] {
+  let calls = 0;
+  return { newId: () => { if (calls++ === 0) return "operation-1"; throw failure; } };
+}
+
 function githubInput(routeDeps: ReturnType<typeof createRouteDeps>): StaticPublishInput {
   return {
     workspaceId: routeDeps.workspaceId,
@@ -280,7 +287,7 @@ for (const mode of ["awaited", "background"] as const) {
     const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => assert.fail("must not build") };
     const history = new InMemoryPublishHistoryStore();
     const failure = new Error("run ID generation failed");
-    const input = { ...githubInput(routeDeps), idGen: { newId: () => { throw failure; } }, exportSiteBound: async () => assert.fail("must not export") };
+    const input = { ...githubInput(routeDeps), idGen: idGenFailingInsidePublish(failure), exportSiteBound: async () => assert.fail("must not export") };
     if (mode === "awaited") {
       const run = runPublishAndAwait(deps, input, clock, history);
       assert.equal(getPublishRunSnapshot().status, "running");
@@ -295,7 +302,7 @@ for (const mode of ["awaited", "background"] as const) {
     assert.deepEqual(getPublishRunSnapshot(), { status: "errored", startedAtIso: "2026-08-16T12:00:00.000Z", finishedAtIso: "2026-08-16T12:00:00.000Z", target: "github-pages", error: "run ID generation failed" });
     assert.equal(await history.getLast({ workspaceId: routeDeps.workspaceId, target: "github-pages" }), null);
     // A normal refusal can start and settle after the unexpected failure.
-    const recovered = await runPublishAndAwait(deps, { ...input, projectName: "" }, clock, history);
+    const recovered = await runPublishAndAwait(deps, { ...input, idGen: routeDeps.idGen, projectName: "" }, clock, history);
     assert.deepEqual(recovered, { ok: false, code: "INVALID_CONFIG", message: "projectName must be 1-200 characters" });
     assert.equal(getPublishRunSnapshot().error, undefined);
   });
@@ -366,7 +373,7 @@ test("an unexpected non-Error publish failure settles the run with its string fo
   const routeDeps = testRouteDeps();
   const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => assert.fail("must not build") };
   const history = new InMemoryPublishHistoryStore();
-  const input = { ...githubInput(routeDeps), idGen: { newId: () => { throw "opaque failure value"; } }, exportSiteBound: async () => assert.fail("must not export") };
+  const input = { ...githubInput(routeDeps), idGen: idGenFailingInsidePublish("opaque failure value"), exportSiteBound: async () => assert.fail("must not export") };
   await assert.rejects(runPublishAndAwait(deps, input, clock, history), (error) => error === "opaque failure value");
   assert.equal(getPublishRunSnapshot().status, "errored");
   assert.equal(getPublishRunSnapshot().error, "opaque failure value");

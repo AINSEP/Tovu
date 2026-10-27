@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
+import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import { registerAdminPublishSiteRoutes } from "../publish-site.js";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -17,8 +18,8 @@ test("publish trigger preserves shape errors, validation order, and domain confi
   const ports = {
     workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "fixture" }),
     loadDeployTargets: async () => { calls.push("registry"); return registry; },
-    publishExecutionMode: "hosted-api-only",
-  } satisfies Pick<RouteDeps, "workspaceId" | "authorize" | "loadDeployTargets" | "publishExecutionMode">;
+    publishExecutionMode: "hosted-api-only", tracker: createNoopTracker({}),
+  } satisfies Pick<RouteDeps, "workspaceId" | "authorize" | "loadDeployTargets" | "publishExecutionMode" | "tracker">;
   const app = express(); app.use(express.json({ strict: false }));
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
   registerAdminPublishSiteRoutes(app, ports as RouteDeps);

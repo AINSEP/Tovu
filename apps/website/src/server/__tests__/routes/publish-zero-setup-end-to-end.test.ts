@@ -24,6 +24,8 @@ import {
   type ProvisioningFileIo,
 } from "#src/features/publish-trust/provisioning";
 import { nodeProvisioningFileIo } from "#src/features/publish-trust/provisioning.node-io";
+import { readBundledDeployConfigCandidatePaths } from "#src/features/deployments/deploy-config-registry";
+import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 import type { HttpClientPort } from "#src/platform/http/index";
 import type { KeyringPort } from "#src/features/webhooks/index";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
@@ -239,19 +241,21 @@ async function publishEverything(s: Awaited<ReturnType<typeof scenario>>, site: 
 }
 
 test("the address to confirm comes from the deploy config the repo already carries", async () => {
+  // The vendor config paths are plugin data; read them the way the composition root does.
+  const candidatePaths = readBundledDeployConfigCandidatePaths({ sourceRoot: join(resolveProductRoot(), "content", "agent-plugins") });
   const io = memoryIo({
     "fly.toml": ['app = "tovu"', "[env]", '  TOVU_PUBLIC_URL = "https://tovu.example"'].join("\n"),
   });
-  assert.equal(await findCandidateDestination({ io, resolvePath: (r) => r }), "https://tovu.example");
+  assert.equal(await findCandidateDestination({ io, resolvePath: (r) => r }, { candidatePaths }), "https://tovu.example");
 
   // This repo generates its config during CI; the committed workflow owns the public URL.
   const workflowIo = memoryIo({
     ".github/workflows/fly-deploy.yml": 'env:\n  TOVU_PUBLIC_URL: https://workflow.example\n',
   });
-  assert.equal(await findCandidateDestination({ io: workflowIo, resolvePath: (r) => r }), "https://workflow.example");
+  assert.equal(await findCandidateDestination({ io: workflowIo, resolvePath: (r) => r }, { candidatePaths }), "https://workflow.example");
 
   // A fresh install that has never been deployed simply has none. An empty state, not an error.
-  assert.equal(await findCandidateDestination({ io: memoryIo(), resolvePath: (r) => r }), null);
+  assert.equal(await findCandidateDestination({ io: memoryIo(), resolvePath: (r) => r }, { candidatePaths }), null);
 });
 
 test("connecting learns the destination's workspace instead of asking a human for it", async () => {
