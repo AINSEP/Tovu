@@ -2070,6 +2070,8 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 /* Owner 10-27: both cards are capped (~10rem per count, Appearance 24rem beside) so they don't stretch across a wide pane. */
 .dash-top { display: grid; grid-template-columns: minmax(0, 40rem); justify-content: start; gap: var(--space-4); align-items: stretch; width: 100%; }
 @container (min-width: 1040px) { .dash-top { grid-template-columns: minmax(0, 40rem) minmax(0, 24rem); } }
+/* Owner 10-27: Appearance keeps its 24rem width when it drops under the counts, too. */
+.dash-top > .dash-panel { width: 100%; max-width: 24rem; }
 .dash-stats {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; overflow: hidden;
   background: var(--border); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
