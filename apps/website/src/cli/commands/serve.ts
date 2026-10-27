@@ -22,7 +22,7 @@ import { installProcessErrorReporting, installUnhandledRejectionGuard } from "..
 import { attachServerLogFile, installServerLogCapture, serverLogFilePaths } from "../../platform/server-logs/index.js";
 import { processBuildRelease, telemetryEnvironment } from '../../server/runtime/composition/build-release.js';
 import { registerPluginSdkResolver } from "../../server/runtime/boot/plugin-sdk-resolver.js";
-import { ensureAgentDaemonToken } from "../../assistant/index.js";
+import { ensureAgentDaemonToken, ensureToolExecToken } from "../../assistant/index.js";
 import { runProductionReadinessGateOrExit } from "../../server/runtime/boot/boot-readiness-gate.js";
 import { warnIfNoSiteKeyAtBoot } from "../../server/runtime/boot/site-key-boot-notice.js";
 import { ensureSiteKeyForBoot } from "../../features/webhooks/site-key-ensure.js";
@@ -188,6 +188,8 @@ export async function runServeCommand(input: RunServeCommandInput, optional: Run
   // so `startAssistantDaemon()` — called later, from inside `app.listen()`'s callback — hands it to
   // the daemon child through the inherited env. See this file's header for the ordering contract.
   ensureAgentDaemonToken({}, {});
+  // The tool RPC token (ADR-070) stays in module memory, NOT this env: see `daemon-access.ts`.
+  ensureToolExecToken({}, {});
 
   // CIC U-002/ADR-005 (ESCALATE_SECURITY) — see this file's header. Must precede `createApp()`
   // below (and therefore every route it mounts, including the `plugins` module's

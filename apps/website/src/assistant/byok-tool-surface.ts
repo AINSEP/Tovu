@@ -17,6 +17,7 @@ import {
   type RunRef,
   type SurfaceEmitter,
   type ToolDescriptor,
+  type ToolRegistration,
   type ToolRegistry,
 } from "@jini-ai/core";
 import type { ToolExecutor } from "@jini-ai/daemon";
@@ -42,6 +43,7 @@ import { createAssistantToolExecutor } from "./tool-recovery-preset.js";
 import { err, isRecord, mapToolExecutionResult, ok, resolveDelegatedInput, type ByokMetaToolResult } from "./byok-meta-tool-result.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { readDaemonCallContext } from "./daemon-call-context.js";
 
 
 export type { ByokMetaToolResult } from "./byok-meta-tool-result.js";
@@ -125,6 +127,17 @@ export interface ByokToolSurface {
    * the turn route must not append its "still connecting" note.
    */
   readonly awaitFederation: (timeoutMs: number) => Promise<{ readonly settled: boolean }>;
+  /**
+   * The agent daemon's view of this surface over the tool RPC (ADR-070, `assistant-tool-exec.ts`).
+   * `executor` is {@link ByokToolSurface.executor}, each call run the way `executeMetaTool` runs one:
+   * after the installed-extension pass and inside a fresh per-principal delete grant, so
+   * `site_describe_capabilities` lists what this caller may use. `listToolsFor` is the catalog the
+   * daemon fetches at each run start, built fresh per call (delete policy and installed skills).
+   */
+  readonly daemonCalls: {
+    readonly executor: ToolExecutor;
+    readonly listToolsFor: (required: { readonly principalId: string }, optional?: Record<string, never>) => Promise<readonly ToolDescriptor[]>;
+  };
 }
 
 /** Bounds `search_tools`' `limit`, mirroring `@jini-ai/http-kit`'s `tool-catalog.ts`
@@ -418,6 +431,12 @@ export interface ByokToolSurfaceOptions {
    * `assistant-byok.ts` (the only production caller) wants.
    */
   readonly federationConnect?: (connection: ResolvedFederatedConnection) => Promise<McpSessionPort>;
+  /**
+   * Host-built registrations added after the catalog's own, given those so one can delegate to
+   * another's handler (the chat-attachment tools reuse `media_upload_asset`). Injected by the
+   * composition root for the same module-cycle reason as `registerInstalledExtensions`.
+   */
+  readonly hostRegistrations?: (required: { readonly registrations: readonly ToolRegistration[] }) => readonly ToolRegistration[];
 }
 
 /** Stable discovery-filter port of `createChatDeleteScope`'s scope. */
@@ -562,15 +581,16 @@ export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: B
   const visibleRegistry = createDiscoveryRegistry({ registry, deleteScope });
   // `listCatalogTools` is `site_describe_capabilities`' reader over this surface's OWN registry, the
   // one `search_tools`/`describe_tool` below are seeded from. Spread last, so a reader smuggled in
-  // through `routeDeps` cannot replace it.
+  // through `routeDeps` cannot replace it. A daemon call adds the tools the daemon runs itself.
   const deps: AssistantToolRegistryDeps = {
     ...routeDeps,
     magicLinkPerEmailLimiter,
-    listCatalogTools: () => listToolCatalogEntries(visibleRegistry),
+    listCatalogTools: () => withDaemonLocalTools({ entries: listToolCatalogEntries(visibleRegistry) }),
   };
   const surfaceExchanges = options.surfaceExchangeStore ?? createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
 
-  for (const registration of buildAssistantToolRegistrations(deps, { surfaceExchanges }, { contributions: options.contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS })) {
+  const registrations = buildAssistantToolRegistrations(deps, { surfaceExchanges }, { contributions: options.contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS });
+  for (const registration of [...registrations, ...(options.hostRegistrations?.({ registrations }) ?? [])]) {
     registry.register(registration);
   }
 
@@ -631,6 +651,13 @@ export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: B
     return { settled: outcome === "started" };
   }
 
+  /** The installed-extension pass, then any skill installed since the last call. */
+  async function syncInstalled(): Promise<void> {
+    await ready;
+    const skillsRegistry = registry as ToolRegistry & { refreshInstalledSkills?: () => Promise<boolean> };
+    if (await skillsRegistry.refreshInstalledSkills?.()) catalog = buildToolCatalogQuery(registry);
+  }
+
   async function executeMetaTool(
     principal: Principal,
     run: RunRef,
@@ -639,9 +666,7 @@ export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: B
     emitSurface?: SurfaceEmitter,
     exposure?: ToolExposure,
   ): Promise<ByokMetaToolResult> {
-    await ready;
-    const skillsRegistry = registry as ToolRegistry & { refreshInstalledSkills?: () => Promise<boolean> };
-    if (await skillsRegistry.refreshInstalledSkills?.()) catalog = buildToolCatalogQuery(registry);
+    await syncInstalled();
     const args = isRecord(call.input) ? call.input : {};
 
     if (!META_TOOL_IDS.has(call.name) && !exposure) {
@@ -701,5 +726,26 @@ export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: B
     ready,
     federation,
     awaitFederation,
+    daemonCalls: {
+      executor: {
+        ...executor,
+        execute: async (call, optional) => {
+          await syncInstalled();
+          return deleteScope.fresh({ principalId: call.principal.id, run: () => executor.execute(call, optional) });
+        },
+      },
+      listToolsFor: async ({ principalId }) => {
+        await syncInstalled();
+        return deleteScope.fresh({ principalId, run: () => visibleRegistry.list({}) });
+      },
+    },
   };
+}
+
+/** Rows for the ids the calling daemon runs itself (frontend control), which this registry lacks. */
+function withDaemonLocalTools({ entries }: { entries: ReturnType<typeof listToolCatalogEntries> }): ReturnType<typeof listToolCatalogEntries> {
+  const known = new Set(entries.map((entry) => entry.id));
+  const local = (readDaemonCallContext()?.localToolIds ?? []).filter((id) => !known.has(id));
+  if (local.length === 0) return entries;
+  return [...entries, ...listToolCatalogEntries({ list: () => local.map((id) => ({ id, description: "", inputSchema: {} }) as ToolDescriptor) })];
 }

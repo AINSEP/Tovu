@@ -28,7 +28,7 @@ import { processBuildRelease, telemetryEnvironment } from './server/runtime/comp
 import { shutdownAssistantDaemon, startAssistantDaemon } from "./server/inbound/assistant/index.js";
 import { closeStoreOnShutdown, stopServingWithinGrace } from "./server/runtime/lifecycle/close-store-on-shutdown.js";
 import { ensureAgentDaemonPortResolved } from "./server/runtime/lifecycle/agent-daemon-port.js";
-import { ensureAgentDaemonToken } from "./assistant/index.js";
+import { ensureAgentDaemonToken, ensureToolExecToken } from "./assistant/index.js";
 import { registerAdminDevProxyUpgrade } from "./server/inbound/admin-http/admin-dev-proxy.js";
 import { resolveBindHost } from "./server/runtime/boot/bind-host.js";
 import { reserveBootListener } from "./server/runtime/boot/boot-listener.js";
@@ -148,6 +148,8 @@ async function prepareSiteBoot(
   // import, no await, no I/O), so it does not weaken `registerPluginSdkResolver`'s ordering
   // guarantee documented immediately below — there is still no `await` point ahead of it.
   ensureAgentDaemonToken({}, {});
+  // The tool RPC token (ADR-070) stays in module memory, NOT this env: see `daemon-access.ts`.
+  ensureToolExecToken({}, {});
 
   // SPEC-005 (ADR-005-ARCH, CIC U-002, ESCALATE_SECURITY): must run synchronously, before any
   // other boot step, and unconditionally before `createApp(deps)` wires any route or before any

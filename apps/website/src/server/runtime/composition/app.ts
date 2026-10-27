@@ -1918,7 +1918,7 @@ function trackByokBootWork(
 
 /** Install the ordered public request guards before any normal routes. O(1) setup. */
 function applyPublicMiddleware(
-  { app, routeDeps }: { app: express.Express; routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps },
+  { app, routeDeps, internalRouter }: { app: express.Express; routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps; internalRouter: express.Router },
   options: CreateAppOptions = {},
 ): void {
   // X-Forwarded-For is trusted only for a known edge proxy's hops (Fly) or TOVU_TRUST_PROXY.
@@ -1962,6 +1962,10 @@ function applyPublicMiddleware(
   // base64 upload routes). See `inbound/shared/json-body-parsers.ts` for the limits and why.
   // Mail provider webhooks read RAW bytes (signatures), so they mount ahead of the JSON parser.
   if (routeDeps.mailFeedbackRoute) registerMailFeedbackRoute({ app, route: routeDeps.mailFeedbackRoute });
+  // The agent daemon's tool RPC (ADR-070) gates before parsing and parses its own body, so it mounts
+  // ahead of the public parser. Its routes are added once the BYOK surface exists (`createApp`); they
+  // carry full `/internal/...` paths, so this mounts at the root.
+  app.use(internalRouter);
   app.use(parsePublicJsonBody);
 }
 
@@ -1975,7 +1979,8 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // the full trace.
   resetPageHeadRegistry();
   const app = express();
-  applyPublicMiddleware({ app, routeDeps }, options);
+  const internalRouter = express.Router();
+  applyPublicMiddleware({ app, routeDeps, internalRouter }, options);
   registerPluginContributionRoutes({ app, deps: routeDeps, auth: createPluginRouteAuthPorts({ deps: routeDeps }) });
 
   // Once per bus, not once per createApp call: see `subscribeSiteEventHandlersOnce`.
@@ -2283,6 +2288,8 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // See `AssistantByokModuleHandle`'s own doc for the full trace.
   const byokAssistantModule = createAssistantByokModule(routeDeps);
   trackByokBootWork({ routeDeps, byokAssistantModule }, options);
+  // Through the handle, not a direct import, for the same zero-new-edge reason as `toolSurface` above.
+  byokAssistantModule.registerToolExecRoutes({ router: internalRouter });
 
   // Roster-change fan-out (S6, 2026-09-24): this web-server process holds two federation runtimes
   // — the agent daemon (a separate process, reached over HTTP) and BYOK's own in-process

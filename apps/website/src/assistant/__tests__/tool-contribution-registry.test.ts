@@ -463,7 +463,11 @@ test("daemon construction statements and the real BYOK root independently build 
   const daemonIds = daemonRegistry.list({}).map(({ id }) => id).sort();
   const byokIds = byok.toolSurface.registry.list({}).map(({ id }) => id).sort();
 
-  assert.deepEqual(byokIds, daemonIds);
+  // BYOK also hosts the three chat-attachment tools for the agent daemon's tool RPC (ADR-070,
+  // `modules/assistant-tool-exec.ts`); the real daemon registers its own copies at module top level,
+  // outside the construction statements `buildDaemonToolSurface` runs.
+  const serverHostedAttachmentToolIds = ["chat_list_pending_attachments", "library_save_attachment", "media_promote_chat_attachment"];
+  assert.deepEqual(byokIds, [...daemonIds, ...serverHostedAttachmentToolIds].sort());
   // And specifically includes the registry-contributed domains, not just parity on whatever
   // DOMAIN_SLICES already provided — a parity check that passed vacuously (both empty) would not
   // prove anything about THIS seam.

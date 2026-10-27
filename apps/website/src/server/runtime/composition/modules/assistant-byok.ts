@@ -83,6 +83,9 @@ import { redactedError } from "#src/platform/observability/report-error";
 import { registerInstalledExtensionTools } from "../installed-extension-tools.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 import type { ServerModuleHandle } from "./types.js";
+import { buildDaemonAttachmentTools, createDaemonApprovalMemory, createDaemonAwareInstallAttachmentReader, registerAssistantToolExecRoutes } from "./assistant-tool-exec.js";
+import type { ToolExecutionRouteTarget } from "@jini-ai/daemon/http";
+import type { AttachmentLookup } from "@jini-ai/daemon/http";
 
 export const BYOK_TURN_PATH = "/api/admin/v1/assistant/byok-turn";
 
@@ -320,6 +323,8 @@ async function resolveByokSystemPrompt(
  */
 export interface AssistantByokModuleHandle extends ServerModuleHandle {
   readonly toolSurface: ByokToolSurface;
+  /** Mounts the agent daemon's tool RPC over `toolSurface` (`assistant-tool-exec.ts`). */
+  readonly registerToolExecRoutes: (required: { readonly router: ToolExecutionRouteTarget }) => void;
 }
 
 /**
@@ -404,9 +409,11 @@ async function attachTurnMessagesOrRespond({ attachmentIds, messages, principalI
   return true;
 }
 
+/** @param optional.attachmentLookup Test seam for the daemon's attachment store (`assistant-tool-exec.ts`). */
 export function createAssistantByokModule(
   routeDeps: RouteDeps & ByokToolSurfaceDeps,
   toolSurface?: ByokToolSurface,
+  { attachmentLookup }: { attachmentLookup?: AttachmentLookup } = {},
 ): AssistantByokModuleHandle {
   // Must run before `createByokToolSurface` (below, or the caller's own instance's earlier
   // construction) calls `buildAssistantToolRegistrations`: that function reads whatever
@@ -420,15 +427,21 @@ export function createAssistantByokModule(
   };
   // `outboundTestOrigins` is set only by the site-import journey harness; absent, this factory is
   // `createDefaultHttpClient` itself (`platform/http/test-origin-allowlist.ts`).
+  // The agent daemon's tool RPC runs on this same surface (`assistant-tool-exec.ts`); the daemon-call
+  // adapters below change nothing for a BYOK turn.
   installFirstPartyToolContributors({ contributions }, { observability: routeDeps.observability, chatAttachmentsDir: routeDeps.siteStoragePaths.chatAttachmentsDir,
-    createHttpClient: createTestOriginHttpClientFactory({ allowedOrigins: routeDeps.outboundTestOrigins ?? [] }) });
+    createHttpClient: createTestOriginHttpClientFactory({ allowedOrigins: routeDeps.outboundTestOrigins ?? [] }),
+    readInstallAttachment: createDaemonAwareInstallAttachmentReader({ uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir }) });
+  const surfaceDeps = routeDeps.conversationToolApprovals ? { ...routeDeps, nativeApprovalMemory: routeDeps.nativeApprovalMemory ?? createDaemonApprovalMemory({
+    store: routeDeps.conversationToolApprovals, workspaceId: routeDeps.workspaceId, clock: routeDeps.clock }) } : routeDeps;
   // The public contract and both roots require complete BYOK dependencies;
   // no cast may conceal a missing runtime port.
   let automaticPluginRuns: ReturnType<typeof createAutomaticPluginRuns>;
   const resolvedToolSurface =
     toolSurface ??
-    createByokToolSurface(routeDeps, {
+    createByokToolSurface(surfaceDeps, {
       contributions,
+      hostRegistrations: ({ registrations }) => buildDaemonAttachmentTools({ deps: routeDeps, registrations }, attachmentLookup ? { getLookup: () => attachmentLookup } : {}),
       prepareGuidance: (required, optional) => automaticPluginRuns.prepareGuidance(required, optional),
       // The root injects the audit sink; see RouteDeps.toolAttemptAuditSink for why
       // consumers must not open their own database. A supplied toolSurface bypasses this branch.
@@ -449,6 +462,7 @@ export function createAssistantByokModule(
   return {
     name: "assistant-byok",
     toolSurface: resolvedToolSurface,
+    registerToolExecRoutes: ({ router }) => registerAssistantToolExecRoutes({ router, toolSurface: resolvedToolSurface }, {}),
     registerRoutes: (app: Express) => {
       app.use(BYOK_TURN_PATH, requireAdminSession(routeDeps));
       app.post(BYOK_TURN_PATH, (req: Request, res: Response, next: NextFunction) => {

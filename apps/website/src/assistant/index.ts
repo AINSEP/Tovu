@@ -158,7 +158,7 @@ export type { ByokToolSurface, ByokToolSurfaceDeps } from "./byok-tool-surface.j
 // point, for daemon-lifecycle concerns).
 // ---------------------------------------------------------------------------------------------
 export { A2UI_ACTIONS_PATH, a2uiNotPendingBody, deliverA2uiAction, readA2uiAction } from "./a2ui-actions-route.js";
-export { AGENT_DAEMON_TOKEN_ENV_VAR, ensureAgentDaemonToken } from "./daemon-access.js";
+export { AGENT_DAEMON_TOKEN_ENV_VAR, ensureAgentDaemonToken, ensureToolExecToken, currentToolExecToken, TOOL_EXEC_TOKEN_ENV_VAR } from "./daemon-access.js";
 export { AGENT_DAEMON_EXIT_CODE } from "./daemon-exit-codes.js";
 // Process-spawning daemon lifecycle belongs to server/runtime/lifecycle/daemon-supervisor.ts;
 // re-exporting it here would create an assistant -> server dependency. The pure respawn policy

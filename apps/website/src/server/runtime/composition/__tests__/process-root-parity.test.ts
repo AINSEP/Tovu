@@ -65,6 +65,12 @@ const contributions = {
 // exactly like the one entry it used to hold.
 const KNOWN_DAEMON_ONLY_EXTRA_TOOL_IDS: ReadonlySet<string> = new Set([]);
 
+// The three chat-attachment tools BYOK's surface hosts for the agent daemon's tool RPC (ADR-070,
+// `modules/assistant-tool-exec.ts`'s `buildDaemonAttachmentTools`). The real daemon registers its own
+// copies at module top level in `agent-daemon-server.ts`, which `buildDaemonToolSurface`'s seam does
+// not run, so the seam lacks them; W3-C removes the daemon's copies and this list becomes the only owner.
+const SERVER_HOSTED_ATTACHMENT_TOOL_IDS: readonly string[] = ["chat_list_pending_attachments", "library_save_attachment", "media_promote_chat_attachment"];
+
 /**
  * RESOLVED (owner ruling, architecture pass P1 finding C1 — closed 2026-09-24, S1 above closed the
  * installed-extension-tools third of this gap; `design-byok-external-mcp-2026-09-24.md`'s S1-S6
@@ -246,8 +252,9 @@ test("BYOK adds only its run-scoped guidance loader to the shared base and prese
     const base = buildBaseRole(routeDeps);
     const byok = await buildByokRole(routeDeps);
 
-    // A base registry has no live-run consent owner. Both execution roots add the same loader.
-    assert.deepEqual([...byok.ids].sort(), [...base.ids, 'load_agent_plugin'].sort());
+    // A base registry has no live-run consent owner. Both execution roots add the same loader; BYOK
+    // also hosts the daemon-call attachment tools.
+    assert.deepEqual([...byok.ids].sort(), [...base.ids, 'load_agent_plugin', ...SERVER_HOSTED_ATTACHMENT_TOOL_IDS].sort());
     assert.deepEqual(byok.publishContentTypes, base.publishContentTypes);
     assert.ok(byok.publishContentTypes.length > 0, "the publish-content type registry must not be empty — that is the f0cfd0c67 regression this pins from the other side");
     assert.deepEqual(byok.duplicateResources, base.duplicateResources);
@@ -274,7 +281,7 @@ test("the daemon construction seam and real BYOK root expose identical installed
   assert.ok(daemon.publishContentTypes.includes("post"), "daemon boot must install first-party publish content types");
 
   const missingFromDaemon = [...byok.ids].filter((id) => !daemon.ids.has(id));
-  assert.deepEqual(missingFromDaemon, [], "BYOK must never expose a tool id the daemon does not also carry — that would mean the daemon is missing something BYOK has, the opposite of the documented gap");
+  assert.deepEqual(missingFromDaemon.sort(), [...SERVER_HOSTED_ATTACHMENT_TOOL_IDS].sort(), "BYOK must never expose a tool id the daemon does not also carry — that would mean the daemon is missing something BYOK has, the opposite of the documented gap");
 
   const extraOnDaemon = [...daemon.ids].filter((id) => !byok.ids.has(id));
   assert.deepEqual(
