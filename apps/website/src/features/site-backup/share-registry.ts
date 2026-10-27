@@ -30,7 +30,9 @@ export const SHARE_FILE = /^[a-z0-9][a-z0-9-]{0,79}\.tovu\.zip$/;
 /**
  * Moves a share catalog from its old home (`ops/shares` beside the source site's database, used
  * before 2026-10-27) to the private one outside the site, once, so existing links and revokes keep working.
- * A copy then remove covers a move across volumes. No-op when the new folder exists or the old is absent.
+ * A copy then remove covers a move across volumes; the copy goes to a `.partial` sibling renamed into
+ * place only once complete, so a copy cut short is redone next boot rather than mistaken for an adopted
+ * catalog. No-op when the new folder exists or the old is absent.
  * A share this server delivered itself saved its catalog folder as the binding; those are re-pointed at
  * the new folder, or revoke would look for a remote delivery that no longer exists.
  * @complexity O(catalog files).
@@ -44,7 +46,10 @@ export function adoptLegacyShareDirectory(required: { from: string; to: string }
   try { renameSync(required.from, required.to); }
   catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "EXDEV") throw error;
-    cpSync(required.from, required.to, { recursive: true });
+    const partial = `${required.to}.partial`;
+    rmSync(partial, { recursive: true, force: true });
+    cpSync(required.from, partial, { recursive: true });
+    renameSync(partial, required.to);
     rmSync(required.from, { recursive: true, force: true });
   }
 }
