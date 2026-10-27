@@ -5,8 +5,9 @@
  * Exists so plugin code never holds a credential store, a raw network client or another plugin's
  * budget: every capability is scoped here to the calling plugin and workspace.
  * - connections: delegated to the host's connection accessor, always with the calling plugin and
- *   workspace, so a plugin can only reach its own connections in this workspace. When the call was
- *   confirmed, the account shown on the card is required (a switched account is refused).
+ *   workspace, so a plugin can only reach its own connections in this workspace. Jini's capability
+ *   session already refuses any ref but the call's own top-level `connectionRef`; when the call was
+ *   confirmed, the account shown on the card is required too (a switched account is refused).
  * - http: the guarded outbound client (public addresses only, no redirects), HTTPS only, bounded,
  *   and only to the https origins the calling plugin's connections declare (`apiOrigins`), so a URL
  *   built from tool input can never carry the plugin's bearer token to another host.

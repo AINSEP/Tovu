@@ -20,7 +20,7 @@ export const PLUGIN = 'acme-office';
 export const TOKEN = 'acme-' + 'tok-' + 'x'.repeat(32);
 
 const schema = { type: 'object', required: ['connectionRef', 'table'], additionalProperties: false,
-  properties: { connectionRef: { type: 'string' }, table: { type: 'string' }, values: { type: 'array', items: { type: 'string' } } } };
+  properties: { connectionRef: { type: 'string' }, table: { type: 'string' }, values: { type: 'array', items: { type: 'string' } }, note: { type: 'object' } } };
 
 export function acmeTools(calls: { input: unknown; token: string }[]): LoadedAgentPluginTool[] {
   const append: AgentPluginToolModule = {

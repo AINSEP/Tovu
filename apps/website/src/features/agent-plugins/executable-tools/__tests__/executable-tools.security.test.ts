@@ -115,6 +115,23 @@ test('an account switched after confirmation is refused at token time, so the wr
   assert.equal(fixture.calls.length, 0);
 });
 
+test('a connectionRef inside payload data is data: the card shows the call\'s own account and the write runs', async () => {
+  const fixture = await bootFixture();
+  const call = await startConfirmingCall(fixture, WRITE, { ...input, note: { connectionRef: 'invoice-123' } });
+  assert.deepEqual(call.rows.filter(([label]) => label === 'Account'), [['Account', 'alice@acme.test']]);
+  call.answer('confirm');
+  assert.equal((await call.pending).status, 'completed');
+  assert.deepEqual(fixture.tokenRequests.map(request => request.target.connectionRef), ['conn-1']);
+});
+
+test('a confirmed call that waited on the card still asks for the account it showed (the freeze survives the park)', async () => {
+  const fixture = await bootFixture();
+  const call = await startConfirmingCall(fixture, WRITE, input);
+  call.answer('confirm');
+  assert.equal((await call.pending).status, 'completed');
+  assert.deepEqual(fixture.tokenRequests, [{ target: { workspaceId: WORKSPACE, pluginId: PLUGIN, connectionRef: 'conn-1' }, expectedAccountId: 'alice' }]);
+});
+
 test('a connection that is not connected is refused before the card, and nothing runs', async () => {
   const fixture = await bootFixture();
   const call = await startConfirmingCall(fixture, WRITE, { ...input, connectionRef: 'conn-unknown' });
