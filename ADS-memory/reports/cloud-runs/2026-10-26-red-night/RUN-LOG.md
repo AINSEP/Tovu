@@ -8,3 +8,6 @@ Setup done; all 57 files executed (~12 min). RESULTS.md written. Failures: none 
 
 ## 2026-10-27T06:22:50Z — DONE
 All inventory files run; REPORT ONLY, no code edits. No processes left running.
+
+## 2026-10-27T06:23:00Z — DONE (final)
+Results pushed at f0f7de31b4a4 on cloud/red-1026-night-results; a straggler test process (pid 4329) was killed.
