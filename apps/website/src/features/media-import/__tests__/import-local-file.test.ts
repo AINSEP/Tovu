@@ -183,7 +183,7 @@ test("catalog schema, domain registration and derived risk declare a permission-
 
 for (const [filename, bytes, contentType, publicUrl, defaultTitle] of [
   ["photo.mp4", PNG, "image/png", null, "photo"],
-  ["hero.png", MP4, "video/mp4", "/m/summer-launch/original", "hero"],
+  ["hero.png", MP4, "video/mp4", "/m/summer-launch/original.mp4", "hero"],
 ] as const) {
   test(`imports ${contentType} by bytes, preserves metadata and blob bytes, and dedupes repeated imports`, async (t) => {
     const f = await setup(t);

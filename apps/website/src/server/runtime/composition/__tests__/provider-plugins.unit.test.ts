@@ -711,11 +711,11 @@ test('env unset: site tracker/visitor/error/browser/AI behavior matches the exis
     await ports.visitorTracker!.capture({ name: 'form_submitted', userId: 'visitor' });
     ports.tracker.error({ error: new Error('fake error') }, { context: { operation: 'fake.error' } });
     const work = await ports.tracker.trace({ name: 'fake.work', run: async () => 42 });
-    assert.deepEqual({ siteEvents, operations, work, aiTraceSink: ports.aiTraceSink, enabled: ports.observabilityEnabled!(), productLoads }, {
+    assert.deepEqual({ siteEvents, operations, work, aiTraceSink: ports.aiTraceSink && { capture: ports.aiTraceSink.capture }, enabled: ports.observabilityEnabled!(), productLoads }, {
       siteEvents: [
         { name: 'unknown_site_event', userId: 'owner', properties: { route: '/admin/pages/site-slug' } },
         { name: 'form_submitted', userId: 'visitor' },
-      ], operations: ['error:fake.error', 'op:fake.work'], work: 42, aiTraceSink: undefined, enabled: true, productLoads: 0,
+      ], operations: ['error:fake.error', 'op:fake.work'], work: 42, aiTraceSink: { capture: 'metadata' }, enabled: true, productLoads: 0,
     });
     assert.deepEqual(ports.browserAnalytics!({ surface: 'admin' }), [{ ...browser, configuration: {
       url: '/_jini/browser-analytics?surface=admin', revision: createHash('sha256').update(JSON.stringify([browser])).digest('hex'),

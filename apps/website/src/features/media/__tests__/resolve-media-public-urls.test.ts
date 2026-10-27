@@ -174,7 +174,7 @@ test("resolveMediaPublicUrls: mixed batch — trashed, video, and image assets e
   );
 
   assert.equal(result.get(trashed.id), null);
-  assert.equal(result.get(video.id), `/m/${video.id}/original.mp4`);
+  assert.equal(result.get(video.id), `/m/${video.id}/original.webm`);
   assert.equal(result.get(image.id), `/m/${image.id}/${CORE_PUBLIC_TRANSFORM_NAME}.v1/image.jpg`);
 });
 

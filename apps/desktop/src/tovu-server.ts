@@ -309,6 +309,7 @@ function buildCliEnv({ baseEnv, siteDir }: { baseEnv?: NodeJS.ProcessEnv; siteDi
   }
 
   delete env.PORT;
+  delete env.TOVU_CHAT_DB;
   delete env.TOVU_CONTENT_DB;
   delete env.TOVU_DB;
 
@@ -410,8 +411,8 @@ interface BuildServeEnvInput {
  *   live site" for a site that had already been deployed, because the scan looked for
  *   `apps/desktop/fly.toml` instead of the then-committed repo-root config.
  *
- * `PORT`, `TOVU_CONTENT_DB` and `TOVU_DB` are dropped so a variable exported in the developer's
- * shell cannot silently repoint the desktop app's database or port — this shell's `--port` and
+ * `PORT`, `TOVU_CHAT_DB`, `TOVU_CONTENT_DB` and `TOVU_DB` are dropped so an exported shell
+ * variable cannot silently repoint the desktop app's database or port — this shell's `--port` and
  * `<dir>` are the only authority over those. `TOVU_HOST` is overwritten to `127.0.0.1` for the
  * same reason — see the LAN-bind plan note above the identity-seeding paragraph.
  * `TOVU_PUBLIC_URL` is dropped because desktop development loads the repo-root

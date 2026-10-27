@@ -43,7 +43,7 @@ test('plugins reach the client config only when there are some; preferences reop
 });
 
 test('owner CSS reaches the preview; a bad rule is dropped alone (paired with the same CSS without it)', () => {
-  const good = '#jini-consent h2 { color: #000000; }';
+  const good = '#jini-consent h2 { font-size: 16px; }';
   const base = renderSiteConsentPreview({ config: { ...saved, customCss: good }, policy: 'p' });
   const withBad = renderSiteConsentPreview({ config: { ...saved, customCss: `${good}\n#jini-consent [data-x] { color: #000000; }` }, policy: 'p' });
   assert.match(base.head, /#jini-consent h2/);

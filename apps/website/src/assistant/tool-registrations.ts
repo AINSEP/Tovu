@@ -113,7 +113,13 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
  * this assignment at compile time for any field only a DIFFERENT extension declares.
  */
 export type AssistantToolRegistryDeps = import("../features/consent/tool-registrations.js").ConsentToolDeps & ToolGapsToolDeps & import("../features/skills/install-tool.js").SkillsInstallToolDeps & import("../features/analytics/tool-registrations.js").AnalyticsToolDeps &
-  { peerSiteReads?: PeerSiteReads; toolAttemptAuditSink: ToolAttemptAuditSink } &
+  { peerSiteReads?: PeerSiteReads; toolAttemptAuditSink: ToolAttemptAuditSink;
+    // Dynamically installed provider/project-key contributors consume these narrow ports too.
+    projectKeys?: import("../features/project-keys/service.js").ProjectKeysPort;
+    providerAppliesAt?: (required: { pluginId: string }) => "now" | "restart" | "failed";
+    reapplyProvider?: (required: { pluginId: string }) => Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult>;
+    providerConfig?: import("../server/runtime/composition/provider-config-source.js").ProviderConfigSource;
+  } &
   import("../server/runtime/composition/assistant-history-tools.js").AssistantHistoryHostDeps &
   import("../features/post/tool-registrations.js").ContentStatsToolDeps &
   import("../features/mail-status/tool-registrations.js").MailStatusToolDeps &

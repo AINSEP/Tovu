@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, renderHook } from '@testing-library/react';
 import { ConsentBannerFields, ConsentLookFields, ConsentPreviewFrame, ConsentRulesFields } from '@jini-ai/admin/consent/react';
-import { CONSENT_DICT } from '../consent-dictionary';
+import { CONSENT_DICT, translate } from '../consent-dictionary';
 import { useConsentTranslate } from '../consent-i18n';
 import { CONSENT_CONFIG } from './consent-fixtures';
 
@@ -24,6 +24,10 @@ describe('CONSENT_DICT', () => {
       expect(Object.keys(CONSENT_DICT[locale]).sort(), locale).toEqual(keys);
       for (const [key, value] of Object.entries(CONSENT_DICT[locale])) expect(value.trim(), `${locale} ${key}`).not.toBe('');
     }
+  });
+
+  it.each(EXPECTED_LOCALES)('translates the dynamic-code help trigger in %s', locale => {
+    expect(translate({ locale, key: 'About dynamic code' })).not.toBe('About dynamic code');
   });
 
   it('translates every label, legend, option, hint and button the Jini sections render', () => {

@@ -385,7 +385,7 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
           // trusted from the (here, fixed) `contentType` string.
           const sniffed = sniffContentType({ bytes: generated.bytes });
           await routeDeps.mediaContentTypeStore.set({ workspaceId: routeDeps.workspaceId, sha256: media.source.sha256, contentType: sniffed });
-          captureMediaUploaded({ tracker: routeDeps.tracker, actorId: media.createdByPrincipal, byteLength: generated.bytes.byteLength, kind: "image", source: "assistant" });
+          captureMediaUploaded({ tracker: routeDeps.tracker, actorId: ctx.principal.id, byteLength: generated.bytes.byteLength, kind: "image", source: "assistant" });
 
           const urls = await resolveMediaPublicUrls(routeDeps, [media]);
           return {

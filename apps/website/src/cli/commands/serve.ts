@@ -108,6 +108,9 @@ function resolveServePort(input: RunServeCommandInput, config: ConfigJson): numb
 
 /** BR-04/EC-08: a `dir` argument overrides legacy env vars — logs a warning naming whichever is set, rather than silently ignoring it. */
 function warnIfLegacyEnvVarsIgnored(): void {
+  if (process.env.TOVU_CHAT_DB !== undefined) {
+    process.stderr.write("tovu: warning: TOVU_CHAT_DB is ignored when a dir argument is given\n");
+  }
   if (process.env.TOVU_CONTENT_DB !== undefined) {
     process.stderr.write("tovu: warning: TOVU_CONTENT_DB is ignored when a dir argument is given\n");
   }
@@ -137,13 +140,18 @@ export function pinPlainHttpIntoEnv(env: NodeJS.ProcessEnv = process.env): void 
  * them from cwd would disagree with explicit `tovu serve <dir>` overrides.
  * The explicit CLI target wins over an existing env value for every path family.
  * Setting the parent env also propagates the same binding to its daemon child.
+ * Legacy DB overrides are cleared here so the daemon inherits the same database layout.
  *
  * @param target - Already-resolved absolute install-dir target.
  * @param env - Defaults to `process.env`; injectable to avoid mutating the test runner.
- * @complexity O(1) — one assignment.
+ * @complexity O(1).
  */
 export function pinServedSiteDirIntoEnv(target: string, env: NodeJS.ProcessEnv = process.env): void {
   env.TOVU_SITE_DIR = target;
+  // The API passes explicit site paths; the daemon resolves defaults from this inherited env.
+  delete env.TOVU_CHAT_DB;
+  delete env.TOVU_CONTENT_DB;
+  delete env.TOVU_DB;
   // An explicit CLI target must be unswitchable in the daemon as well as the API.
   // The child reconstructs its binding from env; see SITE_BINDING_NOT_SWITCHABLE_ENV.
   env[SITE_BINDING_NOT_SWITCHABLE_ENV] = "1";

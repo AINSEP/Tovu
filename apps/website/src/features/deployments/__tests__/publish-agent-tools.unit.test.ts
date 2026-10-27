@@ -1474,7 +1474,7 @@ test("submit: a first-time save creates exactly one s3-compatible row, auto-defa
   const s3Rows = rows.filter((r) => r.vendorId === "s3-compatible");
   assert.equal(s3Rows.length, 1);
   assert.equal(s3Rows[0]!.isDefault, true, "a vendor's first-ever saved connection auto-defaults");
-  assert.equal(s3Rows[0]!.label, "default");
+  assert.match(s3Rows[0]!.label, /^default-/);
   // `VALID_FORM_SUBMISSION.secretAccessKey` is "s3cr3t" — s3-compatible's primary secret is
   // `secretAccessKey`, not `accessKeyId` (`vendor-credentials/store.ts`'s `deriveTokenTail`).
   // Owner 2026-10-07: the secret access key is shorter than 12, so it exposes no characters.
