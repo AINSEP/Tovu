@@ -28,3 +28,6 @@ Sweep: 421 queue items done (tier1, desktop tier2, 7 Jini full suites done; webs
 
 ## 2026-10-27T18:40:03Z — HEARTBEAT
 Sweep: 809/1263 done.
+
+## 2026-10-27T19:09:45Z — PROGRESS
+Phase 2 extra steps (gem-leftovers, export-leftovers --extra) run; ALL-at-BASE check (15 files) and Jini-lots-at-BASE check (4 files) done, all restored clean. Sweep complete: 1263/1263 items, 24549 tests, 84 failing items (0 NEW). RESULTS.md written.
