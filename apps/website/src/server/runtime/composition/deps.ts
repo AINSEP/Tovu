@@ -68,7 +68,7 @@ import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { createHttpClient as createGuardedMediaHttpClient, createNodeGuardedHttpPorts } from "@jini-ai/platform/http/guarded";
 import { executeCommand } from "@jini-ai/cms/core";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
@@ -667,14 +667,15 @@ export function defaultChatDbPath(contentDbPath: string = defaultContentDbPath()
 }
 
 /**
- * Where this site's shares live: `TOVU_SHARE_STORAGE_DIR`, else `<sites root>/.tovu/site-shares/<workspaceId>`,
+ * Where this site's shares live: `TOVU_SHARE_STORAGE_DIR`, else `<sites root>/.tovu/site-shares/<site>/<workspaceId>`,
  * a sibling of every site folder like `sites/.tovu/site-key.hex` and the site previews. Never the source
  * site's own storage: Export writes nothing into the site it reads (Codex check 2026-10-26). The sites
  * root is what a container mounts as its volume (`/workspace/Tovu/sites`) and the desktop's sites home,
  * so shares survive a redeploy; app data under a container's home would not. An install-dir boot
- * (`tovu serve <dir>`) has no sites root, so it keeps `<app-data>/site-shares/<workspaceId>`. Shares
- * made before 2026-10-26 sat under the database's `ops/shares`; the default adopts them once so their
- * links keep working.
+ * (`tovu serve <dir>`) has no sites root, so it keeps `<app-data>/site-shares/<site>/<workspaceId>`. `<site>`
+ * is {@link shareSiteKey}: every starter site seeds the same workspace id (`workspace-local`), so the
+ * workspace alone merged two sites' catalogs (Codex check 2026-10-27). Shares made before 2026-10-26 sat
+ * under the database's `ops/shares`; the default adopts each site's own once so their links keep working.
  * @throws When the folder is the site, inside it, inside its database folder or a served content root.
  * @complexity O(content roots), plus one directory move the first time a legacy catalog is adopted.
  */
@@ -682,7 +683,7 @@ function resolveShareDirectory(required: { workspaceId: string; siteDir: string;
   const databaseDir = isInMemoryDbPath(required.dbPath) ? undefined : dirname(required.dbPath);
   const configured = env.TOVU_SHARE_STORAGE_DIR;
   const sharesRoot = required.switcherCompatible ? join(dirname(required.siteDir), ".tovu") : createSitesWorkspace({}).config({}).appData;
-  const shareDirectory = resolve(configured || join(sharesRoot, "site-shares", required.workspaceId));
+  const shareDirectory = resolve(configured || join(sharesRoot, "site-shares", shareSiteKey({ siteDir: required.siteDir }, { env }), required.workspaceId));
   const forbidden = [required.siteDir, ...(databaseDir === undefined ? [] : [databaseDir]), ...required.contentRoots];
   const refuse = (target: string): void => {
     if (isInsideAny({ target, roots: forbidden })) throw new Error("TOVU_SHARE_STORAGE_DIR must be private and outside the site's folders and served content folders.");
@@ -695,6 +696,17 @@ function resolveShareDirectory(required: { workspaceId: string; siteDir: string;
   const physicalShares = realpathSync(shareDirectory);
   refuse(physicalShares);
   return physicalShares;
+}
+
+/**
+ * The site's own folder name under `site-shares`: its `.site-meta.json` id, else `TOVU_SITE_ID` (a deployed
+ * copy has no meta), else a digest of the site folder's path. Never the workspace id, which sites share.
+ * @complexity O(path length).
+ */
+function shareSiteKey(required: { siteDir: string }, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): string {
+  return acceptedSiteId(readSiteMetaId(required.siteDir), `${required.siteDir}/.site-meta.json`)
+    ?? acceptedSiteId(env.TOVU_SITE_ID || undefined, "TOVU_SITE_ID")
+    ?? `dir-${createHash("sha256").update(resolve(required.siteDir)).digest("hex").slice(0, 16)}`;
 }
 
 /** `target` equals or sits under one of `roots`, compared as given and as real paths. @complexity O(roots). */
