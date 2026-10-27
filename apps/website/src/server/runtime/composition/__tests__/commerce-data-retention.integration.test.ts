@@ -98,11 +98,12 @@ for (const populated of [false, true]) {
         }
         db.insert(workspaces).values({ id: "retained-ws", name: "Retained", slug: "retained", createdAt: NOW }).run();
         if (populated) {
-          db.insert(members).values({ id: "retained-member", workspaceId: "retained-ws", email: "retained@example.test", status: "active", createdAt: NOW, updatedAt: NOW, version: 9 }).run();
           // Keep this pre-0011 upgrade fixture historical: current Drizzle also names 0014's
-          // kind/original_filename columns. The shared copier inserts only columns present here.
-          await copyRowsIntoOlderSchema({ target: db, tables: ["media"], populate: current => {
+          // kind/original_filename and 0034's members.password_hash columns. The shared copier
+          // inserts only columns present here.
+          await copyRowsIntoOlderSchema({ target: db, tables: ["members", "media"], populate: current => {
             current.insert(workspaces).values({ id: "retained-ws", name: "Retained", slug: "retained", createdAt: NOW }).run();
+            current.insert(members).values({ id: "retained-member", workspaceId: "retained-ws", email: "retained@example.test", status: "active", createdAt: NOW, updatedAt: NOW, version: 9 }).run();
             current.insert(media).values({ id: "retained-media", workspaceId: "retained-ws", title: "Retained", alt: "Retained", caption: "", credit: "", sourceSha256: "retained-hash", status: "active", createdAt: NOW, updatedAt: NOW, version: 3 }).run();
           } });
           // Historical SQL fixtures use the frozen schema, whose Drizzle exports were retired.
