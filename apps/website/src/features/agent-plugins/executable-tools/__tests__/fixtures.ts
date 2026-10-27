@@ -65,14 +65,14 @@ export function fakeHttp() {
 export const allowAll: AuthorizeFn = async () => ({ allowed: true, reason: 'test' });
 
 /** Registers the fixture plugin on a fresh registry through the real registrar and approval owner. */
-export async function bootFixture(options: { readonly active?: () => boolean; readonly authorize?: AuthorizeFn; readonly accountId?: string } = {}) {
+export async function bootFixture(options: { readonly active?: () => boolean; readonly authorize?: AuthorizeFn; readonly accountId?: string; readonly extraTools?: readonly LoadedAgentPluginTool[] } = {}) {
   const calls: { input: unknown; token: string }[] = [];
   const account = { accountId: options.accountId ?? 'alice' };
   const { connections, tokenRequests } = fakeConnections(account);
   const { http, requests } = fakeHttp();
   const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' }) };
   const registry: ToolRegistry = createToolRegistry({});
-  const loadContributions: AgentPluginExecutableToolHost['loadContributions'] = async () => ({ items: acmeTools(calls), refusals: [] });
+  const loadContributions: AgentPluginExecutableToolHost['loadContributions'] = async () => ({ items: [...acmeTools(calls), ...(options.extraTools ?? [])], refusals: [] });
   const registered = await registerAgentPluginExecutableTools({
     registry, workspaceId: WORKSPACE, authorize: options.authorize ?? allowAll,
     host: { loadContributions, connections, http, limiter: { check: async () => ({ allowed: true }) }, state: () => ({ get: async () => null }), apiOrigins: async () => ['https://api.acme.test'], issuedTokens: createIssuedTokenMemories() },
