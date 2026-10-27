@@ -602,7 +602,9 @@ test('T37: plugin exceptions and unknown error codes become safe PROVIDER_ERROR 
   const deps = await withExampleGitCredential(testRouteDeps());
   const adapters: SourceControlCommitAdapter[] = [
     { commit: async () => { throw new Error('fixture_adapter_detail: fixture_fake_token_never_real'); } },
-    { commit: async () => ({ ok: false, code: 'unexpected-plugin-code', message: 'Provider refused the commit.' } as unknown as SourceControlCommitResult) },
+    // Inherited Object.prototype names are not mapped codes either.
+    ...['unexpected-plugin-code', 'constructor', 'toString', '__proto__', 'hasOwnProperty'].map((code): SourceControlCommitAdapter => (
+      { commit: async () => ({ ok: false, code, message: 'Provider refused the commit.' } as unknown as SourceControlCommitResult) })),
   ];
   const outcomes = await Promise.allSettled(adapters.map(gitAdapter => commitSiteToSourceControl({
     providerId: 'example-git',
@@ -610,7 +612,7 @@ test('T37: plugin exceptions and unknown error codes become safe PROVIDER_ERROR 
     gitAdapter,
   }, controlledInput(deps, async ({ outputDir }) => controlledReport(outputDir)))));
 
-  assert.deepEqual(outcomes.map(outcome => outcome.status), ['fulfilled', 'fulfilled']);
+  assert.deepEqual(outcomes.map(outcome => outcome.status), adapters.map(() => 'fulfilled'));
   for (const outcome of outcomes) {
     assert.equal(outcome.status, 'fulfilled');
     if (outcome.status !== 'fulfilled') throw new Error('commit must return a typed failure');

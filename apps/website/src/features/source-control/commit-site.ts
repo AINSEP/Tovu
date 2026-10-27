@@ -457,7 +457,9 @@ export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: Com
       "network-unreachable": "NETWORK_UNREACHABLE",
       "provider-error": "PROVIDER_ERROR",
     } as const;
-    return { ok: false, code: codeByAdapterCode[result.code] ?? "PROVIDER_ERROR", message: result.message };
+    // Own keys only: a plugin's `constructor`/`__proto__` code must not resolve to an inherited member.
+    const code = Object.hasOwn(codeByAdapterCode, result.code) ? codeByAdapterCode[result.code] : "PROVIDER_ERROR";
+    return { ok: false, code, message: result.message };
   }
 
   return {
