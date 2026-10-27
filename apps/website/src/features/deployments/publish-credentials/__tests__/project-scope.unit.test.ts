@@ -198,12 +198,17 @@ test('a Deployments-page save attaches its project key to this site and survives
   const b = site({ ...project, vault: attachedOnlyVault({ vault: project.vault, siteId: SITE_B, attachments }) });
   const keys = createProjectKeys({ vault: project.vault, attachments, siteId: SITE_A, siteName: 'A', transaction: async ({ run }) => run(),
     providerUsage: async () => ({ store: 'project', usedByThisSite: false, usedBy: [] }), reapply: async () => 'now' });
+  let rejectAttachment = false;
   const app = express();
   registerAdminPublishCredentialsRoutes(app, {
     workspaceId: SITE_A, authorize: async () => ({ allowed: true, reason: 'test' }), clock: a.deps.clock, idGen: a.deps.idGen,
     vendorCredentialSetRepo: a.deps.repo, siteAssistantSecretSealer: a.deps.sealer, siteAssistantSecretKeyring: a.deps.keyring,
     loadDeployTargets: loadBundledDeployTargets, publishCredentialVerificationCache: new InMemoryPublishCredentialVerificationCache(),
-    projectKeys: keys,
+    projectKeys: { ...keys, use: async (input, options) => {
+      assert.equal((await project.vault.find({ workspaceId: 'project', id: input.keyId }))?.isDefault, false, 'non-default before attachment');
+      if (rejectAttachment) throw new Error('attachment unavailable');
+      return keys.use(input, options);
+    } },
   } as AdminPublishCredentialsDeps);
   const path = '/api/admin/v1/workspaces/:workspaceId/system/publish/credentials';
   const { res, capture } = createCapturingResponse();
@@ -223,4 +228,12 @@ test('a Deployments-page save attaches its project key to this site and survives
   assert.equal(own.capture.statusCode, 201);
   const ownId = (own.capture.jsonBody as { credential: { id: string } }).credential.id;
   assert.equal(await attachments.isAttached({ siteId: SITE_A, keyId: ownId }), false);
+  assert.equal((await a.deps.repo.vault!.find({ workspaceId: SITE_A, id: ownId }))?.isDefault, true, 'site-only first keys retain automatic defaults');
+  rejectAttachment = true;
+  const failed = createCapturingResponse(); failed.res.locals.principal = { id: 'owner' };
+  await extractRouteHandler(app, 'post', path)({ params: { workspaceId: SITE_A }, body: { label: 'Unattached', connection: { providerId: 'vercel', token: secret('orphan') } } }, failed.res);
+  assert.equal(failed.capture.statusCode, 500);
+  const orphan = (await project.vault.list({ workspaceId: 'project', kind: 'vendor', ownerKey: 'tovu', principalId: null })).find(row => row.label === 'Unattached')!;
+  assert.equal(orphan.isDefault, false);
+  assert.deepEqual(await attachments.usersOf({ keyId: orphan.id }), []);
 });

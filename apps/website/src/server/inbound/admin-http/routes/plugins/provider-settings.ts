@@ -98,7 +98,8 @@ export function registerPluginProviderSettingsRoutes(app: Express, deps: Provide
       if (!card) return;
       const saved = await saveProviderSettings({ ...card, reapply: deps.reapplyProvider, values: (req.body as { values?: unknown } | null)?.values });
       if ("refusal" in saved) { res.status(saved.refusal.code === "PROVIDER_SETTINGS_UNAVAILABLE" ? 503 : 400).json(saved.refusal); return; }
-      res.json({ ...(await cardOf(card)), appliesAt: saved.appliesAt, ...(saved.message ? { message: saved.message } : {}) });
+      const attached = deps.projectKeys ? await deps.projectKeys.savedResult({ result: saved }) as typeof saved : saved;
+      res.json({ ...(await cardOf(card)), appliesAt: attached.appliesAt, ...(attached.message ? { message: attached.message } : {}) });
     } catch { internalError(res); }
   });
   registerProjectKeyUseRoute(app, deps);

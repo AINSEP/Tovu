@@ -878,9 +878,9 @@ async function openCreateCard(required: {
   const card = defineSecretCardTool<Record<string, never>, CustomCredentialSummary, CreateCredentialResult>({
     toolId: CREDENTIAL_SAVE_TOOL_ID,
     prepare: async () => ({}),
-    // Project saves remain inert until the person accepts the attachment question.
     form: () => form(),
     save: ({ values, signal }) => {
+      // The shared save-result path attaches a submitted project key to this site.
       const submission = submissionOf(values);
       displayLabel = redactSecrets({ input: submission.displayLabel }, { exactSecrets: [submission.token] });
       return saveCreateCard({ submission, routeDeps, signal });

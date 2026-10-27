@@ -82,3 +82,35 @@ test("a batch containing another site's key refuses before deleting any earlier 
   assert.equal((await vault.find(second))?.id, "key-b");
   assert.equal(await attachments.isAttached({ siteId: "site-a", keyId: "key-a" }), true);
 });
+
+for (const mutation of ["delete", "move", "batch-delete", "batch-move"] as const) {
+  for (const attached of [false, true]) {
+    test(`${mutation} never promotes an unattached project key; attached=${attached}`, async () => {
+      const vault = new InMemoryVaultRepo({}), attachments = fakeAttachments();
+      const current = await vault.put({ record: vaultRow(), expectedRevision: null });
+      await vault.put({ record: { ...vaultRow({ id: "key-b" }), label: "Candidate", isDefault: false }, expectedRevision: null });
+      await attachments.attach({ siteId: "site-a", siteName: "A", keyId: current.id });
+      // Project defaults are shared: a key used by another site is still an attached candidate.
+      if (attached) await attachments.attach({ siteId: "site-b", siteName: "B", keyId: "key-b" });
+      let inTransaction = false;
+      const protectedVault = protectProjectKeyDeletes({ vault, attachments, siteId: "site-a", transaction: async ({ run }) => {
+        inTransaction = true;
+        try { return await run(); } finally { inTransaction = false; }
+      } });
+      const put = { record: { ...current, provider: "other-host", revision: current.revision + 1 }, expectedRevision: current.revision };
+      const remove = { workspaceId: "project", id: current.id, expectedRevision: current.revision };
+      const originalPut = vault.put.bind(vault);
+      vault.put = async (input, options) => {
+        assert.equal(inTransaction, true, "promotion repair belongs to the mutation transaction");
+        return originalPut(input, options);
+      };
+      if (mutation === "delete") await protectedVault.delete(remove);
+      if (mutation === "move") await protectedVault.put(put);
+      if (mutation === "batch-delete") await protectedVault.applyBatch!({ ops: [{ delete: remove }] });
+      if (mutation === "batch-move") await protectedVault.applyBatch!({ ops: [{ put }] });
+      assert.equal((await vault.find({ workspaceId: "project", id: "key-b" }))?.isDefault, attached);
+      assert.equal((await vault.findDefault(query))?.id ?? null, attached ? "key-b" : null);
+      assert.equal((await attachments.usersOf({ keyId: current.id })).length, mutation.includes("delete") ? 0 : 1);
+    });
+  }
+}

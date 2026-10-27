@@ -163,7 +163,7 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
         workspaceId: deps.workspaceId,
         label: body.label,
         connection: body.connection,
-        isDefault: body.isDefault,
+        isDefault: body.isDefault ?? (body.scope === "site" ? undefined : false),
         // "site" = only for this site; omitted = the project store when one is attached.
         scope: body.scope,
       } });

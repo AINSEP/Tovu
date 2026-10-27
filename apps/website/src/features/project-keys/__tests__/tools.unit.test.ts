@@ -8,6 +8,8 @@ import { createProjectKeys } from "../service.js";
 import { buildProjectKeyRegistrations } from "../tools.js";
 import { fakeAttachments, vaultRow } from "./helpers.js";
 import { saveProviderSettings } from "#src/server/runtime/composition/provider-settings-save";
+import { buildCredentialSaveRegistrations } from "#src/features/custom-credentials/credential-save-tool";
+import { attachedOnlyVault } from "../attached-vault.js";
 
 async function fixture() {
   const vault = new InMemoryVaultRepo({}); const attachments = fakeAttachments();
@@ -19,9 +21,9 @@ async function fixture() {
   const inputs = { vault, attachments, providerUsage, siteId: "uuid-a", siteName: "A", transaction: async <T>({ run }: { run: () => Promise<T> }) => run(), reapply: async () => "now" as const };
   return { vault, attachments, inputs, keys: createProjectKeys(inputs) };
 }
-test("save asks once, explicit attach changes only this site, and detach leaves the saved row", async () => {
+test("save attaches to this site immediately, and detach leaves the saved row", async () => {
   const { keys, inputs } = await fixture();
-  assert.deepEqual(await keys.savedResult({ result: { created: true, credential: { id: "key-a" } }, label: "Production" }), { created: true, credential: { id: "key-a" }, keyId: "key-a", usedByThisSite: false, usedBy: [], ask: "Apply this Production key to A?" });
+  assert.deepEqual(await keys.savedResult({ result: { created: true, credential: { id: "key-a" } }, label: "Production" }), { created: true, credential: { id: "key-a" }, keyId: "key-a", usedByThisSite: true, usedBy: ["A"], appliesAt: "now" });
   assert.deepEqual(await keys.use({ keyId: "key-a", use: true }), { keyId: "key-a", usedByThisSite: true, usedBy: ["A"], appliesAt: "now" });
   const b = createProjectKeys({ ...inputs, siteId: "uuid-b", siteName: "B" });
   assert.deepEqual(await b.list({}), [{ keyId: "key-a", name: "Production", kind: "vendor", usedByThisSite: false, usedBy: ["A"] }]);
@@ -111,8 +113,9 @@ test("a site override shadows an attached project provider in use results and in
   assert.equal(await inputs.attachments.isAttached({ keyId, siteId: "uuid-a" }), true);
 });
 
-test("a committed provider save awaiting restart retains the explicit project attachment question", async () => {
-  const { inputs, vault, keys } = await fixture();
+test("a committed provider save attaches immediately and retains the restart outcome", async () => {
+  const { inputs, vault } = await fixture();
+  const keys = createProjectKeys({ ...inputs, reapply: async () => "restart" });
   const pluginId = "analytics-example", keyId = `plugin-state:${pluginId}:provider.config`;
   const token = ["private", "fixture", "value"].join("-");
   let writes = 0;
@@ -126,9 +129,44 @@ test("a committed provider save awaiting restart retains the explicit project at
   });
   assert.deepEqual(saved, { saved: true, configured: false, store: "project", usedByThisSite: false, usedBy: [], appliesAt: "restart" });
   assert.deepEqual(await keys.savedResult({ result: { ...saved, keyId }, label: "Example" }), {
-    ...saved, keyId, ask: "Apply this Example key to A?",
+    ...saved, keyId, usedByThisSite: true, usedBy: ["A"],
   });
   assert.equal(writes, 1);
-  assert.deepEqual(await inputs.attachments.usersOf({ keyId }), []);
+  assert.deepEqual(await inputs.attachments.usersOf({ keyId }), [{ siteId: "uuid-a", siteName: "A" }]);
   assert.equal(JSON.stringify(saved).includes(token), false);
+});
+
+for (const kind of ["publish-host", "source-control", "provider-settings", "plugin-provider"] as const) {
+  test(`${kind} uses the common save-result attachment path and becomes visible on reload`, async () => {
+    const { keys, inputs, vault, attachments } = await fixture();
+    const keyId = kind.includes("provider") ? "plugin-state:analytics-example:provider.config" : "saved-key";
+    const save = async () => {
+      await vault.put({ record: { ...vaultRow({ id: keyId, kind: kind.includes("provider") ? "api-connection" : "vendor" }), label: kind, isDefault: false }, expectedRevision: null });
+      return kind.includes("provider") ? { saved: true, keyId, store: "project" } : { saved: true, credentialId: keyId };
+    };
+    const unused = async () => assert.fail("unexpected save adapter");
+    const tool = buildCredentialSaveRegistrations({ adapters: {
+      apiCreate: unused, apiRotate: unused, mediaProvider: unused, agentPluginToken: unused,
+      publishHost: save, sourceControl: save, providerSettings: save, pluginProvider: unused,
+    }, loadPluginCredentialCards: async () => [{ providerId: "analytics", label: "Analytics", title: "Analytics", category: "ops", baseUrl: "",
+      saveKind: "provider-settings", saveTarget: "analytics-example" }], authorizePluginProvider: async () => {},
+      savedResult: input => keys.savedResult(input),
+    })[0]!;
+    const target = kind === "plugin-provider" ? "analytics" : "analytics-example";
+    const result = await tool.handler({ executionId: kind, principal: { id: "owner" }, run: { id: "run" }, signal: new AbortController().signal, input: { kind, target } }) as { usedByThisSite: boolean; ask?: string };
+    assert.equal(result.usedByThisSite, true);
+    assert.equal(result.ask, undefined);
+    assert.equal(await attachments.isAttached({ siteId: inputs.siteId, keyId }), true);
+    assert.equal(await attachments.isAttached({ siteId: "uuid-b", keyId }), false);
+    assert.equal((await attachedOnlyVault({ vault, attachments, siteId: inputs.siteId }).find({ workspaceId: "project", id: keyId }))?.id, keyId);
+  });
+}
+
+test("site-only media saves, failed saves and site overrides never acquire project attachments", async () => {
+  const { keys, attachments } = await fixture();
+  for (const result of [{ saved: true, provider: "openai", configured: true }, { saved: false, credentialId: "key-a" },
+    { saved: true, keyId: "key-a", store: "site" }]) {
+    assert.equal(await keys.savedResult({ result }), result);
+  }
+  assert.deepEqual(await attachments.usersOf({ keyId: "key-a" }), []);
 });

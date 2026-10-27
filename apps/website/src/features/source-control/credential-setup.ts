@@ -68,7 +68,6 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
   }, Awaited<ReturnType<typeof createSourceControlCredential>>, ProposalResult>({
     toolId: CREDENTIAL_SAVE_TOOL_ID,
     prepare: async () => ({ descriptor: ctx.signal.aborted ? undefined : descriptor, provider, label, locale }),
-    // New project keys remain inert until the person accepts the attachment question.
     form: ({ prep }) => applyPluginCredentialCard({ card: pluginCard, form: {
       title: `Connect ${prep.descriptor!.label}`,
       description: `${prep.descriptor!.credential!.help ?? 'Type the secret here. The assistant never sees it.'} ${BACKUP_REPOSITORY_RULES}`,
@@ -110,6 +109,7 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
         // The project half writes too (project-first saves): guarded alike.
         ...(store.project ? { project: { ...store.project, repo: abortGuardedCredentialRepo({ store: store.project.repo, signal }) } } : {}),
       };
+      // New project keys stay non-default while the shared save-result path attaches them to this site.
       return createSourceControlCredential({ deps: {
         repo, sealer: deps.siteAssistantSecretSealer,
         keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen,

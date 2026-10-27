@@ -2,9 +2,12 @@ import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import test, { type TestContext } from "node:test";
 import express from "express";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { createProjectKeys } from "#src/features/project-keys/service";
+import { fakeAttachments, vaultRow } from "#src/features/project-keys/__tests__/helpers";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 
-import { ProviderConfigUnreadableError, withUnavailableProject, type ProviderConfigSource, type ProviderPluginConfig } from "#src/server/runtime/composition/provider-config-source";
+import { ProviderConfigUnreadableError, withAttachedProject, withUnavailableProject, type ProviderConfigSource, type ProviderPluginConfig } from "#src/server/runtime/composition/provider-config-source";
 import { registerPluginProviderSettingsRoutes, type ProviderSettingsRouteDeps } from "../../provider-settings.js";
 
 /**
@@ -82,6 +85,28 @@ test("PUT saves public values and secrets; responses never carry a secret; a bla
   const read = await call("GET", `${WS}/plugins/obs/provider-settings`);
   assert.ok(!read.text.includes("c2VjcmV0"));
   assert.deepEqual(permissions, ["admin.plugins.enable", "admin.plugins.enable", "admin.plugins.read"]);
+});
+
+test("a provider settings save attaches to this site and reopening shows the saved fields", async t => {
+  const vault = new InMemoryVaultRepo({}), attachments = fakeAttachments(), project = memoryConfig();
+  const keyId = "plugin-state:obs:provider.config";
+  await vault.put({ record: { ...vaultRow({ id: keyId, kind: "api-connection" }), isDefault: false }, expectedRevision: null });
+  project.usage = async ({ pluginId }) => ({ ...(project.saved.has(pluginId) ? { keyId } : {}), store: "project", usedByThisSite: false, usedBy: [] });
+  const site: ProviderConfigSource = { scope: "site", read: async () => null, readSettings: async () => null,
+    usage: async () => ({ store: "site", usedByThisSite: false, usedBy: [] }), write: async () => assert.fail("must save to the project") };
+  const config = withAttachedProject({ site }, { project, attachments, siteId: WS });
+  const projectKeys = createProjectKeys({ vault, attachments, siteId: WS, siteName: "A", providerUsage: config.usage,
+    transaction: async ({ run }) => run(), reapply: async () => "restart" });
+  const { call } = await serve(t, { providerConfig: config, projectKeys });
+  const saved = await call("PUT", `${WS}/plugins/obs/provider-settings`, { values: { endpoint: "https://collector.example.test", headers: "private-fixture" } });
+  assert.equal(saved.status, 200);
+  assert.equal(saved.json.usedByThisSite, true);
+  assert.equal(await attachments.isAttached({ siteId: WS, keyId }), true);
+  assert.equal(await attachments.isAttached({ siteId: "other-site", keyId }), false);
+  const reload = await call("GET", `${WS}/plugins/obs/provider-settings`);
+  assert.equal(reload.status, 200);
+  assert.deepEqual((reload.json.fields as { saved: boolean; value?: string }[]).map(({ saved, value }) => [saved, value]), [[true, "https://collector.example.test"], [true, undefined]]);
+  assert.equal(reload.text.includes("private-fixture"), false);
 });
 
 test("a changed public field never keeps a saved secret: it must be entered again, so a saved key can't be redirected to another server", async (t) => {

@@ -1,7 +1,7 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { credentialSaveFixtureInput, credentialSaveFixtureRegistrations } from "../../../__tests__/support/credential-save.js";
 import { deploymentRefusal } from "../../consent/service.js";
-import { credentialSaveCatalog } from "../../custom-credentials/credential-save-tool.js";
+import { buildCredentialSaveRegistrations, credentialSaveCatalog } from "../../custom-credentials/credential-save-tool.js";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -25,6 +25,7 @@ import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { createCustomCredential } from "#src/features/custom-credentials/store";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
 import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
+import { createProjectKeys } from "#src/features/project-keys/service";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 
 import type { DeployTargetInspection, DeployTargetRegistry, LoadedDeployTarget } from "../deploy-targets/types.js";
@@ -1214,7 +1215,7 @@ const VALID_FORM_SUBMISSION = {
   publicUrl: "https://my-bucket.s3.us-east-1.amazonaws.com",
 };
 
-test("publish cards can save distinct unattached project keys on two sites and update a sole attached non-default", async () => {
+test("publish card saves attach to their site and reopening updates the sole attached non-default", async () => {
   const vault = new InMemoryVaultRepo({}), attachments = fakeAttachments();
   const keyring = new InMemoryKeyring(), sealer = new AesGcmSecretSealer(keyring);
   const host: LoadedDeployTarget = { pluginId: "pin-host", descriptor: { id: "pin-host", label: "Pin Host", module: "host.mjs", configFields: [],
@@ -1229,28 +1230,38 @@ test("publish cards can save distinct unattached project keys on two sites and u
     const deps = { ...base, workspaceId: siteId, vendorCredentialSetRepo: repo,
       loadDeployTargets: async () => ({ get: (id: string) => id === "pin-host" ? host : undefined, list: () => [host], refusals: [] }) };
     const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-    const handler = tool(buildRegistrations(deps, exchanges), "credential_save");
+    const keys = createProjectKeys({ vault, attachments, siteId, siteName: siteId, transaction: async ({ run }) => run(),
+      providerUsage: async () => ({ store: "project", usedByThisSite: false, usedBy: [] }), reapply: async () => "now" });
+    const unused = async () => assert.fail("unexpected credential kind");
+    const handler = buildCredentialSaveRegistrations({ adapters: {
+      apiCreate: unused, apiRotate: unused, sourceControl: unused, mediaProvider: unused, agentPluginToken: unused, pluginProvider: unused,
+      publishHost: buildPublishHostCredentialHandler({ deps, surfaces: { surfaceExchanges: exchanges } }),
+    }, savedResult: input => keys.savedResult(input) })[0]!;
     return { save: async (token: string) => {
       const form = await raiseCredentialForm(handler, { target: "pin-host" });
       exchanges.deliver({ exchangeId: form.exchangeId, principalId: PRINCIPAL_ID, params: { token } }, { toolId: "credential_save" });
-      return await form.pending as { saved: boolean; credentialId: string };
+      return await form.pending as { saved: boolean; credentialId: string; usedByThisSite: boolean; ask?: string };
     } };
   }
   const a = site("site-a"), b = site("site-b");
   const first = await a.save(["first", "fixture", "value"].join("-"));
-  const declined = await a.save(["declined", "fixture", "value"].join("-"));
+  const reopened = await a.save(["reopened", "fixture", "value"].join("-"));
   const other = await b.save(["other", "fixture", "value"].join("-"));
-  assert.deepEqual([first.saved, declined.saved, other.saved], [true, true, true]);
-  assert.equal(new Set([first.credentialId, declined.credentialId, other.credentialId]).size, 3);
+  assert.deepEqual([first.saved, reopened.saved, other.saved], [true, true, true]);
+  assert.equal(first.usedByThisSite, true);
+  assert.equal(first.ask, undefined);
+  assert.equal(reopened.credentialId, first.credentialId);
+  assert.notEqual(other.credentialId, first.credentialId);
   const rows = await vault.list({ workspaceId: "project", kind: "vendor", ownerKey: "tovu", principalId: null });
-  assert.equal(rows.length, 3);
-  assert.equal(new Set(rows.map(row => row.label)).size, 3);
+  assert.equal(rows.length, 2);
+  assert.equal(new Set(rows.map(row => row.label)).size, 2);
   assert.equal(rows.every(row => !row.isDefault), true);
-  await attachments.attach({ siteId: "site-a", siteName: "A", keyId: first.credentialId });
+  assert.equal(await attachments.isAttached({ siteId: "site-a", keyId: first.credentialId }), true);
+  assert.equal(await attachments.isAttached({ siteId: "site-b", keyId: first.credentialId }), false);
   const updated = await a.save(["rotated", "fixture", "value"].join("-"));
   assert.equal(updated.saved, true);
   assert.equal(updated.credentialId, first.credentialId);
-  assert.equal((await vault.find({ workspaceId: "project", id: first.credentialId }))?.revision, 2);
+  assert.equal((await vault.find({ workspaceId: "project", id: first.credentialId }))?.revision, 3);
   assert.equal((await vault.find({ workspaceId: "project", id: other.credentialId }))?.revision, 1);
 });
 
