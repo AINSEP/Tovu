@@ -205,7 +205,7 @@ async function readListedFile(required: { entry: FileEntry; inventory: ReadonlyM
   if (!unit && expected.bytes !== entry.declaredSize) refuseArchive("ZIP size mismatch.");
   const content = await readBounded({ entry, maxBytes: Math.min(entry.declaredSize!, required.remainingBytes), signal: optional.signal });
   verifyListedIntegrity({ content, expected, unit, modified: required.modified });
-  if (entry.entryPath !== SITE_BACKUP_DATABASE_PATH) requireShareSecretFree({ path: archiveSecretScanPath({ path: entry.entryPath, plugins: required.manifest?.plugins ?? [] }), bytes: content }, { packageFiles: optional.packageFiles });
+  if (entry.entryPath !== SITE_BACKUP_DATABASE_PATH) requireShareSecretFree({ path: archiveSecretScanPath({ path: entry.entryPath, plugins: required.manifest?.plugins ?? [] }), bytes: content }, { packageFiles: optional.packageFiles, shownPath: entry.entryPath });
   return content;
 }
 

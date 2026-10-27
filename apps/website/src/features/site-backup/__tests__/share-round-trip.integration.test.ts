@@ -151,7 +151,9 @@ for (const placement of ["inSite", "appData"] as const) test("A production prepa
   const imported = openContentDb({ filePath: importedDbPath });
   try {
     const rows = (db: typeof imported, table: string) => (db.$client.prepare('SELECT * FROM "' + table + '" ORDER BY 1').all() as Record<string, unknown>[]).map(({ workspace_id, ...rest }) => rest);
-    for (const table of ["posts", "menus", "nav_location_bindings", "media", "asset_blobs", "presentation_settings"]) assert.deepEqual(rows(imported, table), rows(h.db, table), table);
+    for (const table of ["posts", "menus", "nav_location_bindings", "media", "presentation_settings"]) assert.deepEqual(rows(imported, table), rows(h.db, table), table);
+    // A v2 share fills a never-sniffed (null) content_type with the sniffed type, as share.integration pins.
+    assert.deepEqual(rows(imported, "asset_blobs"), rows(h.db, "asset_blobs").map(row => ({ ...row, content_type: "application/octet-stream" })), "asset_blobs");
     for (const table of ["sessions", "api_keys", "secrets_vault", "external_mcp_servers"]) assert.equal((imported.$client.prepare('SELECT count(*) AS n FROM "' + table + '"').get() as { n: number }).n, 0);
     assert.deepEqual(imported.$client.prepare("SELECT id,name,is_default FROM p_newsletter__lists").all(), [{ id: "default-list", name: "All subscribers", is_default: 1 }]);
     const accounts = imported.$client.prepare("SELECT principal_id FROM identity_users").all() as { principal_id: string }[];
@@ -171,7 +173,8 @@ test("production export still refuses literal credentials inside a hashed plugin
   h.files.set(file, Buffer.from(`export const config = { token: "${key}" };`));
   await assert.rejects(h.prepareProductionShare(), (error: unknown) => {
     assert.equal((error as { code: string }).code, "SECRET_IN_CONTENT");
-    assert.ok((error as Error).message.includes(file));
+    // The owner is shown the file's archive path, never the synthetic `ws/archive` path the scan rules use.
+    assert.ok((error as Error).message.includes(`'${archivePackageRoot}/targets/cloudflare-pages.mjs'`), (error as Error).message);
     assert.equal((error as Error).message.includes(key), false);
     return true;
   });

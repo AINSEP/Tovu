@@ -33,6 +33,7 @@ import { SHARE_LIMITS } from "../share-policy.js";
 import { prepareShareContent } from "../share-preparation.js";
 
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
+import { removeFrozenPackageTree } from "../../agent-plugins/lifecycle.js";
 import { FIRST_PARTY_DATA_MODULES } from "../../plugins/data-modules.js";
 import { declareDataModule } from "../../plugins/data-module.js";
 import { ensureDefaultList } from "../../newsletter/lists.js";
@@ -48,7 +49,8 @@ export const stamp = "2026-10-18T00:00:00.000Z";
 
 export async function importFixture(t: TestContext, placement: "inSite" | "appData" = "inSite") {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-import-b-"));
-  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  // An agent-plugin import seeds frozen (read-only) package trees, which a plain rmSync cannot remove.
+  t.after(async () => { await removeFrozenPackageTree({ root }); fs.rmSync(root, { recursive: true, force: true }); });
   fs.mkdirSync(path.join(root, "sites"));
   const options = { homeDir: root, cwd: root, appDataDir: path.join(root, "profile"), env: { TOVU_SITES_HOME: path.join(root, "sites") } };
   const workspace = createSitesWorkspace({}, options);

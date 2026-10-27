@@ -117,6 +117,11 @@ test("source credentials refuse even in otherwise editable code", async () => {
   const files = new Map(content); files.set("themes/site/code.js", Buffer.from('const key = "gh' + 'p_' + "x".repeat(36) + '";'));
   await refuses(entries(manifest({}, files), files), { code: "SECRET_IN_CONTENT", message: "Share refused: 'themes/site/code.js' contains credential-shaped content. Remove the secret before sharing." });
 });
+test("a credential in an imported agent-plugin package names its archive path, not the scan path", async () => {
+  const files = new Map(content); files.set("agent-plugins/a/package/targets/deploy.mjs", Buffer.from('const key = "gh' + 'p_' + "x".repeat(36) + '";'));
+  const plugins = [{ kind: "agent", id: "a", version: "1.0.0", digest: "b".repeat(64), enabled: false, shipped: true }];
+  await refuses(entries(manifest({ plugins }, files), files), { code: "SECRET_IN_CONTENT", message: "Share refused: 'agent-plugins/a/package/targets/deploy.mjs' contains credential-shaped content. Remove the secret before sharing." });
+});
 test("projection media and document admission cannot be granted by ZIP checksums", async () => {
   await assert.rejects(verify(entries(), { projection: { ...projection, media: [{ storageKey: "other", sha256: "0".repeat(64) }] } }), /not referenced/);
   const doc = Buffer.from("# Notes\n"), sha256 = sha(doc), documents = [{ storageKey: "doc", sha256, originalFilename: "notes.md" }];

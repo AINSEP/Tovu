@@ -31,7 +31,7 @@ function claimArchivePaths(required: { entries: readonly { path: string }[] }): 
 function addEntry(required: { entry: ShareZipEntry; collected: CollectedShareEntries }, optional: ShareZipProgressOptions = {}): void {
   const { entry, collected } = required;
   optional.signal?.throwIfAborted();
-  requireShareSecretFree({ path: archiveSecretScanPath({ path: entry.path, plugins: collected.plugins }), bytes: entry.content }, { packageFiles: collected.packageFiles });
+  requireShareSecretFree({ path: archiveSecretScanPath({ path: entry.path, plugins: collected.plugins }), bytes: entry.content }, { packageFiles: collected.packageFiles, shownPath: entry.path });
   // Node File accepts Buffer directly; the DOM type omits potentially shared-backed views.
   // This assertion preserves the bytes without allocating a second Uint8Array.
   const picked = new File([entry.content as ConstructorParameters<typeof File>[0][number]], entry.path.split("/").at(-1)!);

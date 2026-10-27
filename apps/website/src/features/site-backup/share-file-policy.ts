@@ -60,7 +60,7 @@ export function excludedSharePath(required: { path: string }, _optional: Record<
 /** Refuses a suspicious segment. {@link PACKAGE_MANIFEST_NAMES} pass below the seven-segment package
  *  root, their bytes still scanned; a credential-like name passes there only when `credentialNameAllowed`.
  *  Every other name rule (.git, node_modules, .pem/.key, .db, id_rsa, .mcp*.json, .npmrc) always applies. */
-function refuseSuspiciousSharePath(required: { path: string }, { credentialNameAllowed }: { credentialNameAllowed: boolean }): void {
+function refuseSuspiciousSharePath(required: { path: string }, { credentialNameAllowed, shownPath = required.path }: { credentialNameAllowed: boolean; shownPath?: string }): void {
   const p = required.path.toLowerCase();
   const packageContent = PACKAGE_CONTENT_ROOT.test(p);
   const suspicious = (part: string, index: number): boolean => {
@@ -68,7 +68,7 @@ function refuseSuspiciousSharePath(required: { path: string }, { credentialNameA
     return !(inPackage && PACKAGE_MANIFEST_NAMES.includes(part)) && suspiciousSharePart({ part }, { packageContent: inPackage && credentialNameAllowed });
   };
   if (p.split("/").some(suspicious)) {
-    throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: `Share refuses suspicious required path '${required.path}'. Remove it before sharing.` });
+    throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: `Share refuses suspicious required path '${shownPath}'. Remove it before sharing.` });
   }
 }
 
@@ -108,8 +108,11 @@ export function validateSharePath(required: { path: string }, _optional: Record<
   }
 }
 
-/** Scan the complete bytes, including binary content; a required file is refused, never damaged. O(bytes). */
-export function requireShareSecretFree(required: { path: string; bytes: Uint8Array }, optional: { packageFiles?: PackageFileInventory | undefined } = {}): void {
+/** Scan the complete bytes, including binary content; a required file is refused, never damaged. O(bytes).
+ * `path` picks the rules; a refusal names `shownPath` when given (the archive path the owner can find,
+ * not the synthetic scan path `archiveSecretScanPath` builds). */
+export function requireShareSecretFree(required: { path: string; bytes: Uint8Array }, optional: { packageFiles?: PackageFileInventory | undefined; shownPath?: string } = {}): void {
+  const shownPath = optional.shownPath ?? required.path;
   const text = Buffer.from(required.bytes).toString("latin1");
   // Only code can contain credential references; content/settings retain strict secret detection.
   const codeAware = /\.(?:js|mjs|cjs|ts|tsx|jsx)$/i.test(required.path);
@@ -120,8 +123,8 @@ export function requireShareSecretFree(required: { path: string; bytes: Uint8Arr
   // scanner does not decode compressed or encoded bytes (credentials.gz), so for those the name refusal
   // is the guard; a verified one is the build's own bytes, so nothing is hidden in it.
   const vendorOnly = verifiedPackageFile(required, optional);
-  if (!vendorOnly && PACKAGE_CONTENT_ROOT.test(required.path.toLowerCase())) refuseSuspiciousSharePath(required, { credentialNameAllowed: false });
-  if (redactSecretShapes({ text }, { codeAware, vendorOnly }).redactions > 0) throw new SiteShareRefusal({ code: "SECRET_IN_CONTENT", message: `Share refused: '${required.path}' contains credential-shaped content. Remove the secret before sharing.` });
+  if (!vendorOnly && PACKAGE_CONTENT_ROOT.test(required.path.toLowerCase())) refuseSuspiciousSharePath(required, { credentialNameAllowed: false, shownPath });
+  if (redactSecretShapes({ text }, { codeAware, vendorOnly }).redactions > 0) throw new SiteShareRefusal({ code: "SECRET_IN_CONTENT", message: `Share refused: '${shownPath}' contains credential-shaped content. Remove the secret before sharing.` });
 }
 
 function unsafeSharePath(message: string): never { throw new SiteShareRefusal({ code: "UNSAFE_PATH", message }); }
