@@ -28,6 +28,23 @@ async function publicFixture({ t }: { t: import('node:test').TestContext }, _opt
   return { ...f, deps, revisionId: saved.revision.id };
 }
 
+/** Static consent keeps the UI while optional scripts remain in inert templates. */
+async function assertGatedStaticExport({ response }: { response: Response }, _options = {}) {
+  assert.equal(response.status, 200);
+  const dom = new JSDOM(await response.text());
+  try {
+    const document = dom.window.document;
+    assert.ok(document.querySelector('#jini-consent'));
+    assert.ok(document.querySelector('a[href="#jini-consent"][data-jini-consent-open]'));
+    assert.equal(document.querySelector('template[data-jini-consent-script][data-category="analytics"]')?.innerHTML,
+      '<script data-consent-category="analytics">window.optional=1</script>');
+    assert.equal(document.querySelector('script[data-consent-category="analytics"]'), null);
+    assert.ok(![...document.querySelectorAll('script')].some(script => script.textContent === 'window.optional=1'));
+    const state = JSON.parse(document.querySelector('#jini-consent-config')!.textContent!);
+    assert.deepEqual(state.choices, { necessary: true, functional: false, analytics: false, marketing: false });
+  } finally { dom.window.close(); }
+}
+
 test('live canonical metadata reaches crawlers on all public pages without a consent grant', async t => {
   const f = await publicFixture({ t });
   const app = express(); applySiteConsent({ app, deps: f.deps });
@@ -111,14 +128,13 @@ test('page requests need no active-theme source scan to run first-party assets',
   }
 });
 
-test('live HTML is gated and static export returns 409 without changing the live delivery mode', async t => {
+test('live HTML and static exports are gated without changing the live delivery mode', async t => {
   const f = await publicFixture({ t }); const app = express();
   applySiteConsent({ app, deps: f.deps });
   app.get('/', (_req, res) => res.type('html').send('<html><head></head><body><script data-consent-category="analytics">window.optional=1</script></body></html>'));
   const base = await startTestServer(app, t);
   const exported = await fetch(base, { headers: { 'x-tovu-static-export': '1' } });
-  assert.equal(exported.status, 409);
-  assert.equal(await exported.text(), 'Static export requires cookie consent to be disabled. Review optional scripts before exporting.');
+  await assertGatedStaticExport({ response: exported });
   const live = await fetch(base); const html = await live.text();
   assert.equal(live.status, 200); assert.match(html, /data-jini-consent-script/);
   assert.match(html, /window.optional=1/); assert.equal(live.headers.get('cache-control'), 'private, no-store');
@@ -240,8 +256,7 @@ test('cached OFF cannot bypass consent after publishing ON when the next policy 
     assert.ok(!html.includes('sensitive policy storage path'));
   } finally { dom.window.close(); }
   const exported = await fetch(base, { headers: { 'x-tovu-static-export': '1' } });
-  assert.equal(exported.status, 409);
-  assert.match(await exported.text(), /Static export requires/);
+  await assertGatedStaticExport({ response: exported });
 });
 
 test('bound readiness counts the serving site receipts and blocks when that directory is unavailable', async t => {
@@ -309,7 +324,7 @@ test('the publishing privacy check still rejects missing local Pages', async () 
   assert.equal(await privacyPageExists({ url: '/no-such-privacy-page/' }), false);
 });
 
-test('live defaults show consent; exports omit defaults, honor owner ON/OFF and block published ON', async t => {
+test('live defaults show consent; exports omit defaults, preserve OFF and gate owner or published ON', async t => {
   const settingsRepo = new InMemorySettingsRepo(); let id = 0;
   const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };
   const ids = { newId: () => `setting-${++id}` };
@@ -344,9 +359,8 @@ test('live defaults show consent; exports omit defaults, honor owner ON/OFF and 
   assert.equal(await exported.text(), original);
   assert.match(await (await fetch(base)).text(), /id="jini-consent"/);
   await write('enabled', true);
-  const blocked = await fetch(base, { headers: { 'x-tovu-static-export': '1' } });
-  assert.equal(blocked.status, 409);
-  assert.equal(await blocked.text(), 'Static export requires cookie consent to be disabled. Review optional scripts before exporting.');
+  const enabledExport = await fetch(base, { headers: { 'x-tovu-static-export': '1' } });
+  await assertGatedStaticExport({ response: enabledExport });
   await write('enabled', false);
   assert.equal(await (await fetch(base)).text(), original);
   const disabledExport = await fetch(base, { headers: { 'x-tovu-static-export': '1' } });
@@ -354,8 +368,7 @@ test('live defaults show consent; exports omit defaults, honor owner ON/OFF and 
   assert.equal(await disabledExport.text(), original);
   published = { id: 'published-enabled', config: { ...await config, enabled: true } };
   const publishedExport = await fetch(base, { headers: { 'x-tovu-static-export': '1' } });
-  assert.equal(publishedExport.status, 409);
-  assert.equal(await publishedExport.text(), 'Static export requires cookie consent to be disabled. Review optional scripts before exporting.');
+  await assertGatedStaticExport({ response: publishedExport });
 });
 
 test('consent readiness rejection propagates before any policy read', async () => {

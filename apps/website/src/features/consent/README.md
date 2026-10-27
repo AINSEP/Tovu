@@ -52,8 +52,11 @@ is `<owner version>:<published revision id>`, so receipts identify exact retaine
 new publications re-ask visitors. Snapshots are retained; no cleanup deletes referenced policy data.
 The existing settings ledger remains the boot/default/legacy source until first publication.
 
-Static publication still has no durable receipt backend. Deployment returns 409
-`CONSENT_REVIEW_REQUIRED` with Fix now / Publish without banner choices. The latter is an explicit
+Static export crawls with explicitly enabled consent return gated HTTP 200 HTML containing the
+banner and reopen link, with optional scripts inert in templates. Static hosts still have no durable
+receipt backend. With the cookie-consent module wired, the deployment preflight only refuses for
+other blocking problems; without it (old engine, removed in consent P4) deployment returns 409
+`CONSENT_REVIEW_REQUIRED` with Fix now / Publish without banner choices. Publish without banner is an explicit
 PUT of a disabled draft, POST to publish it, then a deployment retry. Explain that this also disables
 live-site enforcement and may allow optional scripts. No request flag bypasses the gate. The local
 renderer has a composition-only audit option; no header/query/cookie can select it.
@@ -93,8 +96,10 @@ For Alpine compatibility, first self-host CDN Alpine, then offer `@alpinejs/csp`
 exception with its warning. CDN Alpine remains blocked before consent with either flag value.
 Never enable the exception solely because a theme was detected.
 
-Static delivery limitation (published Jini 0.6.12): enabled consent still refuses export with HTTP
-409 because static hosts cannot save durable receipts. The existing default-only export exemption
-and disabled-consent exports are unchanged. Shipping a functioning banner, withdrawal link and
-receipt lifecycle in enabled static exports requires a Jini-owned static delivery contract; Tovu
-must not bypass that refusal by presenting a static request as live or shipping a broken POST form.
+Static delivery (owner decision 2026-10-26; Jini fddd084f3): explicitly enabled consent exports
+gated HTTP 200 HTML with the banner and a native reopen link. Because static hosts cannot save
+durable receipts, optional scripts remain inert in templates with denied defaults; the exporter's
+saved grants are never baked into the page. This retains consent rather than shipping trackers
+ungated, and does not provide a static receipt backend. The existing default-only export exemption
+and disabled-consent exports are unchanged. Jini owns the static delivery contract; Tovu continues
+to select static delivery for export requests.

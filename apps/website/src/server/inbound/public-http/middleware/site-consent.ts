@@ -125,9 +125,10 @@ async function isDefaultOnlyConsent({ deps }: { deps: RouteDeps }, _options = {}
 
 /**
  * Register consent for this app. The exporter's crawl (`x-tovu-static-export`) gets the engine's
- * static delivery, which refuses HTML with 409 while explicitly enabled consent is on: a static host
- * cannot store receipts, and silently stripping consent would ship trackers ungated. Default-only
- * consent skips the engine for exports; a failed check falls through to it, which blocks.
+ * static delivery: explicitly enabled consent returns gated HTML with 200, the banner and a reopen
+ * link. A static host cannot store receipts, so optional scripts stay inert in templates rather
+ * than shipping trackers ungated. Default-only consent skips the engine for exports; a failed
+ * check falls through to the engine's gated delivery.
  * @complexity O(1) at registration; per page see `registerConsentHttp`.
  */
 export function applySiteConsent({ app, deps }: { app: Express; deps: RouteDeps }, { trustedRegionHeader }: { trustedRegionHeader?: string } = {}): void {
