@@ -84,7 +84,8 @@ test("createSiteRouteDeps composes the SQLite audit sink itself, over the SAME c
 test("the SQLite audit sink follows the root's OWN ContentDb HANDLE, not its dbPath — the install-dir `serve` shape", async (t) => {
   const dir = mkTempDir("tovu-audit-sink-handle-");
   const handleDbPath = path.join(dir, "handle.db");
-  const neverOpenedDbPath = path.join(dir, "never-opened.db");
+  const neverOpenedDbPath = path.join(dir, "never-opened", "content.db");
+  fs.mkdirSync(path.dirname(neverOpenedDbPath));
   let deps: Awaited<ReturnType<typeof createSiteRouteDeps>> | undefined;
   try {
     // `overrides.db` is `cli/commands/serve.ts`'s real install-dir path (`boot-site-dir.ts` has

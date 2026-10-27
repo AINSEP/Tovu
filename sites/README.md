@@ -79,7 +79,7 @@ CLI is the same model with the path passed explicitly.
 
 Each `TOVU_*_DIR` variable still overrides its own subpath independently (`TOVU_MEDIA_UPLOADS_DIR`,
 `TOVU_THEMES_DIR`, `TOVU_SKILLS_DIR`, `TOVU_AGENT_PLUGINS_DIR`, `TOVU_EXPORT_DIR`,
-`TOVU_PUBLISH_DIR`, `TOVU_CONTENT_DB`, …), so a deployment that relocates one directory — a large
+`TOVU_PUBLISH_DIR`, `TOVU_CONTENT_DB` (a `content.db` in its own folder), …), so a deployment that relocates one directory — a large
 uploads volume, say — does not have to move the rest.
 
 ## Backing a site up

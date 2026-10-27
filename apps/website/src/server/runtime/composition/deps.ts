@@ -71,7 +71,7 @@ import { executeCommand } from "@jini-ai/cms/core";
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { dirname, join, resolve, sep } from "node:path";
+import { basename, dirname, join, resolve, sep } from "node:path";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { instrumentStorageKernel, trackFetch } from "#src/platform/observability/index";
@@ -638,7 +638,18 @@ export function defaultContentDbPath(): string {
   // scratch space. Database journals/snapshots follow content.db into data.nosync or app-data;
   // uploads/chat-attachments stay under the site root. A deployment passes an explicit dir, and `TOVU_CONTENT_DB` still
   // overrides this outright. ABSOLUTE now, where the old `join("infra", "content.db")` was relative.
-  return process.env.TOVU_CONTENT_DB ?? resolveSiteDatabasePaths({ dir: siteDir() }).contentDbPath;
+  return assertContentDbFileName(process.env.TOVU_CONTENT_DB ?? resolveSiteDatabasePaths({ dir: siteDir() }).contentDbPath);
+}
+
+/**
+ * The database folder is the site's identity: chat.db, ops/database-journal.db and ops/shares sit
+ * beside content.db, so two databases in one folder would share all three (design 2026-10-27 I-A).
+ * Placement only ever names the file content.db; this refuses the legacy paths that do not.
+ * @throws When a file database is named anything but `content.db`.
+ */
+function assertContentDbFileName(dbPath: string): string {
+  if (isInMemoryDbPath(dbPath) || basename(dbPath) === "content.db") return dbPath;
+  throw new Error(`Give each database its own folder, named content.db: move ${dbPath} to <its own folder>/content.db and point TOVU_CONTENT_DB at that file.`);
 }
 
 /**
@@ -667,28 +678,23 @@ export function defaultChatDbPath(contentDbPath: string = defaultContentDbPath()
 }
 
 /**
- * Where this site's shares live: `TOVU_SHARE_STORAGE_DIR`, else `<database dir>/ops/shares` (the site
- * folder for an in-memory database). `ops/` is the site's private runtime folder beside its database, next
- * to the journal and logs, and every backup, duplicate and publish walk already leaves it out. The
- * database placement is the site's identity: an in-site database moves with its folder, an app-data one is
- * keyed by a siteId the sites registry keeps unique, so two catalogs collide only when two boots open the
- * same database, and then they are the same site. Keying by workspace id merged every starter site's
- * catalog (`workspace-local`) and a copied `.site-meta.json` id merged a Finder copy's (Codex checks
+ * Where this site's shares live: `<database dir>/ops/shares` (the site folder for an in-memory database).
+ * `ops/` is the site's private runtime folder beside its database, next to the journal and logs, and every
+ * backup, duplicate and publish walk already leaves it out. The database placement is the site's
+ * identity: an in-site database moves with its folder, an app-data one is keyed by a siteId the sites
+ * registry keeps unique, and boot refuses any database not named content.db, so two catalogs collide only
+ * when two boots open the same database, and then they are the same site. Keying by workspace id merged
+ * every starter site's catalog (`workspace-local`) and a copied `.site-meta.json` id merged a Finder copy's (Codex checks
  * 2026-10-26/27, design 2026-10-27). Only the transient export snapshot must stay out of the site (tmpdir).
- * @throws When the folder is inside the site or its database folder (other than its `ops/shares`), or
- *   inside a served content root.
+ * @throws When the folder is inside a served content root.
  * @complexity O(content roots).
  */
-function resolveShareDirectory(required: { siteDir: string; dbPath: string; contentRoots: readonly string[] }, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): string {
-  const databaseDir = isInMemoryDbPath(required.dbPath) ? undefined : dirname(required.dbPath);
-  const privateOps = join(databaseDir ?? required.siteDir, "ops");
-  const shareDirectory = resolve(env.TOVU_SHARE_STORAGE_DIR || join(privateOps, "shares"));
-  const siteFolders = [required.siteDir, ...(databaseDir === undefined ? [] : [databaseDir])];
+function resolveShareDirectory(required: { siteDir: string; dbPath: string; contentRoots: readonly string[] }): string {
+  const shareDirectory = resolve(isInMemoryDbPath(required.dbPath) ? required.siteDir : dirname(required.dbPath), "ops", "shares");
   const refuse = (target: string): void => {
-    if (isInsideAny({ target, roots: required.contentRoots }) || (isInsideAny({ target, roots: siteFolders }) && !isInsideAny({ target, roots: [join(privateOps, "shares")] })))
-      throw new Error("TOVU_SHARE_STORAGE_DIR must be private: outside the site's folders and served content folders, or its own ops/shares.");
+    if (isInsideAny({ target, roots: required.contentRoots })) throw new Error("A site's ops/shares must not be inside a served content folder; give its database its own folder.");
   };
-  // Checked before anything is created, so a refused folder is never made inside the site;
+  // Checked before anything is created, so a refused folder is never made inside a served root;
   // checked again on the real path, so a symlink cannot smuggle it back in.
   refuse(shareDirectory);
   mkdirSync(shareDirectory, { recursive: true, mode: 0o700 });
@@ -1152,6 +1158,7 @@ export async function createSiteRouteDeps(
   overrides?: Partial<CreateSiteRouteDepsOverrides>
 ): Promise<NewsletterRouteDeps & ByokToolSurfaceDeps> {
   assertOverridesPairedOrAbsent(overrides);
+  assertContentDbFileName(dbPath);
   const opened = await openCompositionStore(dbPath, overrides);
   try {
     return await composeSiteRouteDeps(dbPath, { store: opened.store, onStoreClose: opened.onClose, beforeStoreClose: opened.beforeClose }, overrides);

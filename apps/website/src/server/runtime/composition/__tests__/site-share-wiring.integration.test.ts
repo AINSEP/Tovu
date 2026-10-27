@@ -2,31 +2,28 @@ import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js
 import assert from "node:assert/strict";
 import test from "node:test";
 import { existsSync, realpathSync } from "node:fs";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
-import { createSiteRouteDeps } from "../deps.js";
+import { createSiteRouteDeps, defaultContentDbPath } from "../deps.js";
 
 // RED: mkdir/containment errors escaped composition and prevented the whole site booting.
 test("bad private share storage logs and disables only sharing", async t => {
   const directory = await mkdtemp(path.join(tmpdir(), "share-boot-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  const previous = process.env.TOVU_SHARE_STORAGE_DIR;
-  t.after(() => { if (previous === undefined) delete process.env.TOVU_SHARE_STORAGE_DIR; else process.env.TOVU_SHARE_STORAGE_DIR = previous; });
   const errors: unknown[][] = [];
   t.mock.method(console, "error", (...args: unknown[]) => { errors.push(args); });
   const siteDir = path.join(directory, "site"), themesDir = path.join(siteDir, "themes"), uploadsDir = path.join(siteDir, "uploads");
   await mkdir(themesDir, { recursive: true });
   await mkdir(uploadsDir, { recursive: true });
-  // Outside the database folder (`directory` here), so this case still reaches mkdir, not the containment check.
-  await mkdir(path.join(directory, "outside"));
-  const notDirectory = path.join(directory, "outside", "file");
-  await writeFile(notDirectory, "not a directory");
-  for (const [index, invalid] of [notDirectory, path.join(themesDir, "public-shares")].entries()) {
-    process.env.TOVU_SHARE_STORAGE_DIR = invalid;
+  // `ops/shares` is a file (mkdir fails), or the database folder sits inside a served content folder.
+  const blockedDbDir = path.join(directory, "blocked");
+  await mkdir(path.join(blockedDbDir, "ops"), { recursive: true });
+  await writeFile(path.join(blockedDbDir, "ops", "shares"), "not a directory");
+  for (const dbDir of [blockedDbDir, path.join(themesDir, "public-db")]) {
     let close: (() => Promise<void>) | undefined;
-    const deps = await createSiteRouteDeps(path.join(directory, `content-${index}.db`), {
+    const deps = await createSiteRouteDeps(path.join(dbDir, "content.db"), {
       themesDir, uploadsDir,
       siteBinding: { dir: siteDir, name: "site", dirOverridden: true, switcherCompatible: false },
       onStoreOpened: store => { close = () => store.close(); },
@@ -40,13 +37,51 @@ test("bad private share storage logs and disables only sharing", async t => {
   }
 });
 
-// Design 2026-10-27 (owner may flip): with no TOVU_SHARE_STORAGE_DIR the catalog lives in the private
+// RED (design 2026-10-27 I-A): the database folder is the site's identity: chat.db, the journal and
+// ops/shares sit beside content.db, so two databases in one folder (`/db/a.db`, `/db/b.db`, the legacy
+// env override) would share all three. Boot refuses that placement before opening anything.
+test("boot refuses a content database not named content.db and names the fix", async t => {
+  const directory = await mkdtemp(path.join(tmpdir(), "share-boot-name-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const previous = process.env.TOVU_CONTENT_DB;
+  t.after(() => { if (previous === undefined) delete process.env.TOVU_CONTENT_DB; else process.env.TOVU_CONTENT_DB = previous; });
+  process.env.TOVU_CONTENT_DB = path.join(directory, "a.db");
+  const namesFix = /own folder, named content\.db/;
+  assert.throws(() => defaultContentDbPath(), namesFix);
+  await assert.rejects(createSiteRouteDeps(), namesFix);
+  await assert.rejects(createSiteRouteDeps(path.join(directory, "b.db")), namesFix);
+  assert.deepEqual(await readdir(directory), [], "nothing is created or opened");
+});
+
+// A symlinked folder cannot split a site: the same content.db reached through a link is the same
+// physical folder, so it gets the same catalog.
+test("content.db reached through a symlinked folder keeps the same share catalog", async t => {
+  const directory = await mkdtemp(path.join(tmpdir(), "share-boot-link-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const siteDir = path.join(directory, "site"), themesDir = path.join(siteDir, "themes"), uploadsDir = path.join(siteDir, "uploads");
+  await mkdir(themesDir, { recursive: true });
+  await mkdir(uploadsDir, { recursive: true });
+  await symlink(siteDir, path.join(directory, "link"));
+  const directories: string[] = [];
+  for (const dir of [siteDir, path.join(directory, "link")]) {
+    let close: (() => Promise<void>) | undefined;
+    const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
+      themesDir, uploadsDir,
+      siteBinding: { dir: siteDir, name: "site", dirOverridden: true, switcherCompatible: false },
+      onStoreOpened: store => { close = () => store.close(); },
+    });
+    try {
+      await deps.identityReady;
+      directories.push(deps.siteShareBackend!.registry.directory);
+    } finally { await close?.(); }
+  }
+  assert.deepEqual(directories, Array(2).fill(path.join(realpathSync(siteDir), "ops", "shares")));
+});
+
+// Design 2026-10-27: the catalog lives in the private
 // `ops/shares` beside the site's database, next to the journal and logs, which every backup, duplicate
 // and publish walk already leaves out. It moves with the database, so it needs no site key of its own.
 test("default share catalog is the private ops/shares beside the site's database", async t => {
-  const previous = process.env.TOVU_SHARE_STORAGE_DIR;
-  t.after(() => { if (previous === undefined) delete process.env.TOVU_SHARE_STORAGE_DIR; else process.env.TOVU_SHARE_STORAGE_DIR = previous; });
-  delete process.env.TOVU_SHARE_STORAGE_DIR;
   for (const switcherCompatible of [true, false]) await t.test(switcherCompatible ? "switchable site" : "install-dir site", async t => {
     const sitesRoot = await mkdtemp(path.join(tmpdir(), "share-boot-default-"));
     t.after(() => rm(sitesRoot, { recursive: true, force: true }));
@@ -76,9 +111,6 @@ test("default share catalog is the private ops/shares beside the site's database
 // either merged two sites' catalogs (each could list, download and revoke the other's shares). Two
 // databases are two sites, so the catalog beside each database never collides.
 test("two sites with different databases but the same workspace id and copied meta id never see or revoke each other's shares", async t => {
-  const previous = process.env.TOVU_SHARE_STORAGE_DIR;
-  t.after(() => { if (previous === undefined) delete process.env.TOVU_SHARE_STORAGE_DIR; else process.env.TOVU_SHARE_STORAGE_DIR = previous; });
-  delete process.env.TOVU_SHARE_STORAGE_DIR;
   const sitesRoot = await mkdtemp(path.join(tmpdir(), "share-boot-two-"));
   t.after(() => rm(sitesRoot, { recursive: true, force: true }));
   const shareIds = { a: "0b0c4d1e-2f3a-4b5c-8d9e-0f1a2b3c4d5a", b: "0b0c4d1e-2f3a-4b5c-8d9e-0f1a2b3c4d5b" };
@@ -105,32 +137,5 @@ test("two sites with different databases but the same workspace id and copied me
     const backend = booted[mine].siteShareBackend!;
     assert.deepEqual((await backend.list({})).map(row => row.shareId), [shareIds[mine]], `site ${mine} lists only its own share`);
     await assert.rejects(backend.revoke({ shareId: shareIds[theirs] }), { code: "NOT_FOUND" });
-  }
-});
-
-test("TOVU_SHARE_STORAGE_DIR inside the source site or its database folder disables only sharing", async t => {
-  const directory = await mkdtemp(path.join(tmpdir(), "share-boot-inside-"));
-  t.after(() => rm(directory, { recursive: true, force: true }));
-  const previous = process.env.TOVU_SHARE_STORAGE_DIR;
-  t.after(() => { if (previous === undefined) delete process.env.TOVU_SHARE_STORAGE_DIR; else process.env.TOVU_SHARE_STORAGE_DIR = previous; });
-  const errors: unknown[][] = [];
-  t.mock.method(console, "error", (...args: unknown[]) => { errors.push(args); });
-  const siteDir = path.join(directory, "site"), themesDir = path.join(siteDir, "themes"), uploadsDir = path.join(siteDir, "uploads");
-  const dbDir = path.join(directory, "app-db");
-  await mkdir(themesDir, { recursive: true });
-  await mkdir(uploadsDir, { recursive: true });
-  for (const [index, inside] of [path.join(siteDir, "private-shares"), path.join(dbDir, "shares")].entries()) {
-    process.env.TOVU_SHARE_STORAGE_DIR = inside;
-    let close: (() => Promise<void>) | undefined;
-    const deps = await createSiteRouteDeps(path.join(dbDir, `content-${index}.db`), {
-      themesDir, uploadsDir,
-      siteBinding: { dir: siteDir, name: "site", dirOverridden: true, switcherCompatible: false },
-      onStoreOpened: store => { close = () => store.close(); },
-    });
-    try {
-      await deps.identityReady;
-      assert.equal(deps.siteShareBackend, undefined);
-      assert.ok(errors.at(-1)?.some(value => String(value).includes("[site-share]")));
-    } finally { await close?.(); }
   }
 });
