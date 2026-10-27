@@ -106,6 +106,8 @@ test("an operator's own 'off' is kept and reported", async () => {
 
 test("an operator disable during connection setup is reported even when activations become read-only", async (t) => {
   await withAgentPluginsDir(async (workspaceRoot) => {
+    // Installed: every activation state now goes through the switch's checks, installed first.
+    await installPlugin();
     await recordBundledAgentPluginIfAbsent({ workspaceRoot, pluginId: PLUGIN });
     const deps = await operatorEnabledRow();
     const lockPath = path.join(workspaceRoot, ACTIVATIONS_LOCK_FILENAME);
@@ -133,6 +135,7 @@ test("an operator disable during connection setup is reported even when activati
 
 test("no activation record reads as on and writes nothing", async () => {
   await withAgentPluginsDir(async (workspaceRoot) => {
+    await installPlugin();
     const outcome = await switchOnSavedTokenConnection(await operatorEnabledRow(), { pluginId: PLUGIN, connectionId: "remote" });
     assert.deepEqual(outcome, { state: "on" });
     assert.equal(Object.hasOwn((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins, PLUGIN), false);
@@ -189,6 +192,7 @@ test("a missing connection row is reported as off", async () => {
 
 test("a plugin an operator already switched on stays on without a write", async () => {
   await withAgentPluginsDir(async (workspaceRoot) => {
+    await installPlugin();
     await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN, enabled: true, actor: "owner" });
     const outcome = await switchOnSavedTokenConnection(await operatorEnabledRow(), { pluginId: PLUGIN, connectionId: "remote" });
     assert.deepEqual(outcome, { state: "on" });

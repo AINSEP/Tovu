@@ -51,24 +51,19 @@ export async function isPluginOffByOperator(input: { workspaceId: string; agentP
 }
 
 /**
- * Makes sure `pluginId`'s activation is on: no record already reads as on; the seeder's own disabled
- * record is switched on (decided under the activations lock, so an operator toggle racing it wins);
- * anyone else's disabled record is an operator's "off" and stays. Shared with `switch-on-saved-token.ts`,
- * which needs it on top of connect defaults (they skip a row an operator already set up and so never
- * reach the plugin's activation). The switch-on itself is `setAgentPluginEnabled`'s, so it keeps every
- * check a switch has (installed, host-compatible, no pending update, not a provider plugin's linked face,
- * whose provider's switch decides: `provider-plugin-link.ts`); only its write is the locked conditional one.
+ * Makes sure `pluginId`'s activation is on: no record and an "on" record already read as on (nothing
+ * is written); the seeder's own disabled record is switched on (decided under the activations lock,
+ * so an operator toggle racing it wins); anyone else's disabled record is an operator's "off" and
+ * stays. Shared with `switch-on-saved-token.ts`, which needs it on top of connect defaults (they skip a
+ * row an operator already set up and so never reach the plugin's activation). EVERY state goes through
+ * `setAgentPluginEnabled`, so every one keeps the checks a switch has (installed, host-compatible, no
+ * pending update, not a provider plugin's linked face, whose provider's switch decides:
+ * `provider-plugin-link.ts`) before anything is granted; only its write is the locked conditional one.
  * @returns false when an operator's "off" stopped it.
  * @throws What `setAgentPluginEnabled` refuses with (`AgentPluginLinkedError`, not installed, incompatible, pending update).
- * @complexity One activations read, at most one locked write.
+ * @complexity One plugin-locked switch, at most one locked write.
  */
 export async function switchPluginOnUnlessOperatorOff(input: { workspaceId: string; agentPluginLayout: AgentPluginLayout; pluginId: string }, _options = {}): Promise<boolean> {
-  const workspaceRoot = input.agentPluginLayout.forWorkspace(input.workspaceId).root;
-  const activations = await agentPluginActivations.readAgentPluginActivations({ workspaceRoot });
-  if (!Object.hasOwn(activations.plugins, input.pluginId)) return true;
-  const record = activations.plugins[input.pluginId];
-  if (!record || record.enabled) return true;
-  if (record.updatedBy !== SEED_ACTOR) return false;
   const result = await setAgentPluginEnabled({ workspaceId: input.workspaceId, agentPluginLayout: input.agentPluginLayout, pluginId: input.pluginId, enabled: true, actor: CONNECT_DEFAULTS_ACTOR }, { unlessOperatorDisabled: true });
   return result.enabled;
 }

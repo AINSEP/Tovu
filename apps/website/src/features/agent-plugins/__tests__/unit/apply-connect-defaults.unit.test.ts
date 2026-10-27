@@ -223,7 +223,8 @@ test("an operator turning the plugin OFF after the off-check but before the enab
     const workspaceRoot = layout.forWorkspace(WORKSPACE).root;
     await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN, enabled: false, actor: "system:seed" });
     // Controlled interleaving: the check reads the seeder's default-off (not an operator's), then the
-    // operator's own "off" lands before the enable runs.
+    // operator's own "off" lands before the enable runs. The switch-on helper reads nothing itself, so
+    // only Jini's locked conditional write (`unlessOperatorDisabled`) can keep this "off".
     const h = await makeHarness({ provisionedByPluginId: PLUGIN, productionBindings: true, isPluginOffByOperator: async () => {
       await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN, enabled: false, actor: "operator-1" });
       return false;
@@ -242,8 +243,11 @@ test("an operator turning the plugin OFF after the off-check but before the enab
   }
 });
 
-/** Installs the plugin with `tovu` manifest extensions, seeder default-off, and signs in through real storage. */
-async function signInSeededOff(tovuExtension: Record<string, unknown>) {
+/** The activation record a sign-in finds: the seeder's default-off, none (absent reads as on), or an operator's "on". */
+type ActivationBefore = "seed-off" | "absent" | "operator-on";
+
+/** Installs the plugin with `tovu` manifest extensions and `before` as its activation record, and signs in through real storage. */
+async function signInWith(tovuExtension: Record<string, unknown>, before: ActivationBefore = "seed-off") {
   const dir = await mkdtemp(path.join(tmpdir(), "tovu-connect-defaults-checks-"));
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
   process.env.TOVU_AGENT_PLUGINS_DIR = path.join(dir, "installed");
@@ -257,7 +261,7 @@ async function signInSeededOff(tovuExtension: Record<string, unknown>) {
     await installAgentPlugin({ archive: packed.bytes, expectedSha256: packed.sha256,
       archiveReader: createBundledSourceArchiveReader(), layout, workspaceId: WORKSPACE });
     const workspaceRoot = layout.forWorkspace(WORKSPACE).root;
-    await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN, enabled: false, actor: "system:seed" });
+    if (before !== "absent") await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN, enabled: before === "operator-on", actor: before === "seed-off" ? "system:seed" : "operator-1" });
     const h = await makeHarness({ provisionedByPluginId: PLUGIN, productionBindings: true });
     await h.signIn();
     const activation = (await agentPluginActivations.readAgentPluginActivations({ workspaceRoot })).plugins[PLUGIN];
@@ -274,11 +278,30 @@ for (const [name, tovuExtension] of [
   ["a plugin this host is incompatible with", { hostRange: ">=999.0.0" }],
 ] as const) {
   test(`a sign-in never switches on ${name}, and grants nothing`, async () => {
-    const { activation, row, rosterNotifications } = await signInSeededOff(tovuExtension);
+    const { activation, row, rosterNotifications } = await signInWith(tovuExtension);
     assert.deepEqual([activation?.enabled, activation?.updatedBy], [false, "system:seed"]);
     assert.equal(row.oauthStatus, "connected");
     assert.deepEqual([row.enabled, row.allowedToolNames, row.writeAllowedToolNames], [false, "[]", "[]"]);
     assert.equal(rosterNotifications, 0);
+  });
+}
+
+// Codex (batch4 MED): no record and an "on" record skipped the switch checks, so an incompatible
+// installed plugin still got its connection grants. Every activation state goes through them.
+for (const before of ["absent", "operator-on"] as const) {
+  test(`an incompatible plugin whose activation is ${before} gets no grants from a sign-in, and its record is untouched`, async () => {
+    const { activation, row, rosterNotifications } = await signInWith({ hostRange: ">=999.0.0" }, before);
+    assert.deepEqual(activation === undefined ? "absent" : [activation.enabled, activation.updatedBy], before === "absent" ? "absent" : [true, "operator-1"]);
+    assert.equal(row.oauthStatus, "connected");
+    assert.deepEqual([row.enabled, row.allowedToolNames, row.writeAllowedToolNames], [false, "[]", "[]"]);
+    assert.equal(rosterNotifications, 0);
+  });
+  test(`a compatible plugin whose activation is ${before} gets its grants, and its record is not rewritten`, async () => {
+    const { activation, row, rosterNotifications } = await signInWith({}, before);
+    // No record stays no record: a written one would stamp an operator-installed plugin as bundled (uninstall refuses those).
+    assert.deepEqual(activation === undefined ? "absent" : [activation.enabled, activation.updatedBy, activation.origin], before === "absent" ? "absent" : [true, "operator-1", "operator-installed"]);
+    assert.deepEqual([row.enabled, JSON.parse(row.allowedToolNames!), JSON.parse(row.writeAllowedToolNames!)], [true, ["list_projects", "create_project"], ["create_project"]]);
+    assert.equal(rosterNotifications, 1);
   });
 }
 
