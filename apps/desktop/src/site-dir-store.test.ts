@@ -561,7 +561,8 @@ test("initSiteDir creates a complete blank site with the requested name through 
   try {
     // Posts and pages share this table; only the template-owned Blog listing ships without
     // sample content, so the starter's Blog links resolve (4889f880aa).
-    assert.deepEqual(db.prepare("SELECT id, kind, slug, template_choice FROM posts").all(), [
+    // node:sqlite rows are null-prototype objects; spread them so deepStrictEqual compares fields only.
+    assert.deepEqual(db.prepare("SELECT id, kind, slug, template_choice FROM posts").all().map(row => ({ ...row })), [
       { id: "page-blog", kind: "page", slug: "blog", template_choice: "listing-default.html" },
     ]);
   } finally {
