@@ -14,26 +14,21 @@ const PACKAGE_MANIFEST_NAMES = ["mcp.json", "tovu-credential-schemes.json"];
  *  ships (`package-file-inventory.ts`). The only proof a package-shaped path is the installer's. */
 export type PackageFileInventory = ReadonlyMap<string, ReadonlyMap<string, string>>;
 
-/** A site plugin's version folder: every SemVer name the installer creates (Jini plugins
- *  `host/node/install.ts` refuses any other name in a plugin's slot) plus the two-part `1.0` the archive
- *  mapping always took. This one shape decides "version folder" for both the private-data exclusion here
- *  and the archive mapping (`archive-paths.ts`); any other folder (`2fa/`, `1/`, `1.2.docs/`) is the flat
- *  plugin's own content. Not wider: a content folder read as a version loses its name in the archive and
- *  collides with the plugin's root files (`1.2.docs/index.js` vs `index.js`; Codex check 2026-10-27). */
-export const PLUGIN_VERSION_FOLDER = String.raw`\d+\.\d+(?:\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)?`;
 /** The plugin memory a share carries. Every other folder under a plugin's `memory/` is private runtime
  *  state: export excludes it ({@link excludedSharePath}) and import refuses it (`archive-manifest.ts`). */
 export const SHARED_PLUGIN_MEMORY = String.raw`memory\/(?:notes|learned)`;
 const PRIVATE_PLUGIN_MEMORY = String.raw`memory\/(?!(?:notes|learned)(?:\/|$))`;
-/** A site plugin's root: a tier folder, or `plugins/<id>` with or without a version folder. */
-const SITE_PLUGIN_ROOT = String.raw`plugins\/(?:(?:static|declarative|code)\/[^/]+|(?!(?:static|declarative|code)\/)[^/]+(?:\/${PLUGIN_VERSION_FOLDER})?)`;
+/** A site plugin's root: a tier folder, or `plugins/<id>`. A versioned slot's active version is walked as
+ *  `plugins/<id>` (`sources.ts` walkSitePlugins, from its manifest), so a folder name never decides
+ *  "version": a content folder read as one loses its name and its data/ (Codex check 2026-10-27). */
+const SITE_PLUGIN_ROOT = String.raw`plugins\/(?:(?:static|declarative|code)\/[^/]+|(?!(?:static|declarative|code)\/)[^/]+)`;
 const SITE_PLUGIN_RUNTIME = new RegExp(String.raw`^${SITE_PLUGIN_ROOT}\/(?:data(?:\/|$)|${PRIVATE_PLUGIN_MEMORY})`);
 const AGENT_PLUGIN_RUNTIME = new RegExp(String.raw`^agent-plugins\/ws\/[^/]+\/[^/]+\/(?:data(?:\/|$)|${PRIVATE_PLUGIN_MEMORY})`);
 
 function excludedRuntimeSharePath({ path, parts }: { path: string; parts: string[] }, _options = {}): boolean {
   // Plugin runtime data/memory have fixed roots. A package's src/data or docs/notes is content.
-  // Only a plugin root (tier folder, version folder, or an old flat-layout `plugins/<id>/`) owns one;
-  // a flat plugin's own `src/data` is content, never a version's data/. The flat root's data/ holds
+  // Only a plugin root (tier folder, or `plugins/<id>/`, which is also how an installed version is
+  // walked) owns one; a flat plugin's own `src/data` is content, never a version's data/. The flat root's data/ holds
   // the same runtime data (OAuth tokens); export would map it to `plugins/<id>/package/data/`, which
   // import refuses, and its private memory is refused by import's archive root.
   const roots = [

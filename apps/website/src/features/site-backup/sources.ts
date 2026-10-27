@@ -7,6 +7,7 @@ import path from "node:path";
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import type { AgentPluginLayout } from "../agent-plugins/layout.js";
+import { activeSitePluginVersion } from "./site-plugin-slots.js";
 
 /**
  * @file What a site backup is made of, read from this machine: which files on disk each scope switch
@@ -89,12 +90,15 @@ export interface SiteBackupSources {
   readonly agentPlugins: AgentPluginLayout;
   readonly skillsDir: string;
   readonly tovuVersion: string;
+  /** Site plugin id -> its enabled activation's version: the retained version a share exports. */
+  readonly sitePluginVersions?: () => Promise<ReadonlyMap<string, string>>;
 }
 
 /** One file on disk a backup will upload. `bytes` and `mtimeMs` are what {@link readPlannedFile}
  *  compares against at push time. */
 export interface PlannedDiskFile {
-  /** Relative to the backup folder, `/`-separated. */
+  /** Relative to the backup folder, `/`-separated. A share's versioned site plugin leaves its version
+   *  folder out (`plugins/<id>/<path in the package>`); `absPath` is still the file on disk. */
   readonly path: string;
   readonly bytes: number;
   readonly scope: SiteBackupScope;
@@ -402,9 +406,32 @@ async function collectPluginScope(required: { sink: WalkSink; sources: SiteBacku
 /** Site-local plugin packages and theme overrides travel only in a share. */
 async function collectShareOnlyTrees(required: { sink: WalkSink; sources: SiteBackupSources; include: SiteBackupInclude }): Promise<void> {
   const { sink, sources, include } = required;
-  if (include.plugins) await walkTree(sink, { absDir: path.join(sources.siteDir, "plugins"), relDir: "plugins", scope: "plugins" });
+  if (include.plugins) await walkSitePlugins({ sink, pluginsDir: path.join(sources.siteDir, "plugins") }, { pinned: await sources.sitePluginVersions?.() });
   if (include.themes) await walkTree(sink, { absDir: path.join(sources.siteDir, "overrides"), relDir: "overrides", scope: "themes" });
 }
+
+/**
+ * Each site plugin slot once ({@link activeSitePluginVersion}): only its active version is walked, under
+ * `plugins/<id>` as if flat, so its data/ and private memory are excluded relative to the package root and
+ * its paths carry no version folder (the archive's `plugins/<id>/package/...`, import's layout unchanged).
+ * A flat slot is walked as is; tier folders, files and links take the ordinary walk.
+ * @complexity O(entries under the plugins folder) plus one manifest read per slot child.
+ */
+async function walkSitePlugins(required: { sink: WalkSink; pluginsDir: string }, optional: { pinned?: ReadonlyMap<string, string> | undefined }): Promise<void> {
+  const { sink, pluginsDir } = required;
+  if (sink.profile === "share" && !(await enterShareDirectory({ sink, absDir: pluginsDir, relDir: "plugins" }))) return;
+  for (const entry of await readdirOrEmpty(pluginsDir, sink.fileSystem)) {
+    if (skippedWalkEntry({ sink, relDir: "plugins", name: entry.name }, {})) continue;
+    if (!entry.isDirectory() || PLUGIN_TIERS.has(entry.name)) {
+      await walkEntry({ sink, entry, absDir: pluginsDir, relDir: "plugins", scope: "plugins" });
+      continue;
+    }
+    const slot = path.join(pluginsDir, entry.name);
+    const version = await activeSitePluginVersion({ slot, children: await readdirOrEmpty(slot, sink.fileSystem) }, { pinned: optional.pinned?.get(entry.name) });
+    await walkTree(sink, { absDir: version === undefined ? slot : path.join(slot, version), relDir: `plugins/${entry.name}`, scope: "plugins" });
+  }
+}
+const PLUGIN_TIERS: ReadonlySet<string> = new Set(["static", "declarative", "code"]);
 
 export type DatabaseSnapshotResult = { ok: true; bytes: Buffer; watermarkAtCapture: number } | { ok: false; message: string; logDetail?: string };
 

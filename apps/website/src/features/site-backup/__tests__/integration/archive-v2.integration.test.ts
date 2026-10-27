@@ -204,6 +204,8 @@ test("a flat site plugin round-trips: its private memory never leaves, its notes
     "plugins/flat/memory/notes/n.md": "public note",
     "plugins/flat/memory/private/secret.md": "private memory",
     "plugins/flat/2fa/data/help.md": "plugin docs",
+    // An installed version: its own manifest names its folder (design 2026-10-27).
+    "plugins/versioned/1.0.0/jini.plugin.json": '{"id":"versioned","version":"1.0.0"}',
     "plugins/versioned/1.0.0/plugin.json": '{"id":"versioned","name":"Versioned","version":"1.0.0"}',
     "plugins/versioned/1.0.0/memory/private/secret.md": "private memory",
   } });

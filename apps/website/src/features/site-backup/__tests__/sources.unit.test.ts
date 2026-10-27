@@ -679,6 +679,7 @@ test("share plugin root lstat failures are never hidden as missing installations
 test("share collection omits only private runtime files and includes overrides and plugin source", async t => {
   const site = makeSite(); t.after(site.cleanup);
   rmSync(path.join(site.sources.themesDir, "static/demo/.git"), { recursive: true, force: true });
+  write(path.join(site.root, "plugins/custom/1.0.0/jini.plugin.json"), JSON.stringify({ id: "custom", version: "1.0.0" }));
   write(path.join(site.root, "plugins/custom/1.0.0/src/data/default.json"), "{}");
   write(path.join(site.root, "plugins/custom/1.0.0/data/private.json"), "private");
   write(path.join(site.root, "overrides/header.html"), "override");
@@ -686,8 +687,9 @@ test("share collection omits only private runtime files and includes overrides a
   write(path.join(site.root, "agent-plugins/ws/workspace-local/composio/memory/private/secret.md"), "private");
   const result = await collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, themes: true, plugins: true } }, { profile: "share" });
   assert.ok(paths(result.files).includes("overrides/header.html"));
-  assert.ok(paths(result.files).includes("plugins/custom/1.0.0/src/data/default.json"));
-  assert.equal(paths(result.files).includes("plugins/custom/1.0.0/data/private.json"), false);
+  // The installed version is walked as the package root, so its paths carry no version folder.
+  assert.ok(paths(result.files).includes("plugins/custom/src/data/default.json"));
+  assert.equal(paths(result.files).some(file => file.endsWith("data/private.json")), false);
   assert.equal(paths(result.files).includes("themes/static/demo/.env.local"), false);
   // A v2 share carries a plugin's memory notes and learned facts; every other memory folder is private.
   assert.ok(paths(result.files).includes("agent-plugins/ws/workspace-local/composio/memory/notes/notes.md"));

@@ -113,6 +113,8 @@ test("fresh share projection preserves drafts/schedules/autosaves, excludes priv
   const write = async (relative: string, text: string) => { const file = path.join(dir, relative); await mkdir(path.dirname(file), { recursive: true }); await writeFile(file, text); };
   await write("themes/static/site/index.html", "<main>Portable theme</main>");
   await write("themes/static/site/data/content.json", '{"content":"required theme data"}');
+  // An installed legacy two-part version: its own manifest names its folder (design 2026-10-27).
+  await write("plugins/site/1.0/jini.plugin.json", '{"id":"site","version":"1.0"}');
   await write("plugins/site/1.0/plugin.json", '{"name":"portable"}');
   await write("plugins/site/1.0/src/data/default.json", '{"content":"required plugin data"}');
   await write("plugins/site/1.0/src/notes/help.md", "Required plugin documentation");
@@ -246,9 +248,10 @@ test("ordinary prose, theme query strings and SEO defaults/values survive byte-f
 });
 
 test("share excludes only private locations; required nested data/notes/out survive and suspect names refuse", () => {
-  for (const file of ["plugins/site/1.0/data/oauth.json", "plugins/site/1.0/memory/private/x.md", "themes/static/site/.env.local", "themes/static/site/nested/chat.db-wal"]) assert.equal(excludedSharePath({ path: file }), true, file);
-  for (const file of ["themes/static/site/out/main.js", "themes/static/site/ops/help.md", "themes/static/site/staging/help.md", "plugins/site/1.0/src/data/default.json", "plugins/site/1.0/src/notes/help.md", "plugins/site/1.0/src/learned/help.md"]) assert.equal(excludedSharePath({ path: file }), false, file);
-  for (const file of ["themes/static/site/key.pem", "plugins/site/1.0/src/credentials.json", "themes/static/site/vault/readme.md", "plugins/site/1.0/src/.npmrc"]) assert.throws(() => excludedSharePath({ path: file }), (error: unknown) => (error as { code: string }).code === "UNSAFE_FILE", file);
+  // An installed version is walked as `plugins/<id>/...` (sources.ts walkSitePlugins), so these are its paths.
+  for (const file of ["plugins/site/data/oauth.json", "plugins/site/memory/private/x.md", "themes/static/site/.env.local", "themes/static/site/nested/chat.db-wal"]) assert.equal(excludedSharePath({ path: file }), true, file);
+  for (const file of ["themes/static/site/out/main.js", "themes/static/site/ops/help.md", "themes/static/site/staging/help.md", "plugins/site/src/data/default.json", "plugins/site/src/notes/help.md", "plugins/site/src/learned/help.md"]) assert.equal(excludedSharePath({ path: file }), false, file);
+  for (const file of ["themes/static/site/key.pem", "plugins/site/src/credentials.json", "themes/static/site/vault/readme.md", "plugins/site/src/.npmrc"]) assert.throws(() => excludedSharePath({ path: file }), (error: unknown) => (error as { code: string }).code === "UNSAFE_FILE", file);
 });
 
 // RED: nested JSON values used to be rewritten rather than omitted, or missed after double encoding.

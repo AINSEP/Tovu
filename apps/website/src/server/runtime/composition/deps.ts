@@ -867,7 +867,7 @@ function resolveSiteBindingOverride(overrides?: Partial<CreateSiteRouteDepsOverr
  *
  * @complexity O(1) — env reads and one small `package.json` read.
  */
-function resolveSiteBackupSources(input: { siteDir: string; uploadsDir: string; mediaIsRemoteByEnv: boolean; isMediaRemote: () => Promise<boolean>; themesDir: string; agentPluginLayout: RouteDeps["agentPluginLayout"]; skillLayout: RouteDeps["skillLayout"] }): SiteBackupSources {
+function resolveSiteBackupSources(input: { siteDir: string; uploadsDir: string; mediaIsRemoteByEnv: boolean; isMediaRemote: () => Promise<boolean>; themesDir: string; agentPluginLayout: RouteDeps["agentPluginLayout"]; skillLayout: RouteDeps["skillLayout"]; sitePluginVersions: NonNullable<SiteBackupSources["sitePluginVersions"]> }): SiteBackupSources {
   return {
     siteDir: input.siteDir,
     mediaUploadsDir: input.mediaIsRemoteByEnv ? null : input.uploadsDir,
@@ -876,6 +876,7 @@ function resolveSiteBackupSources(input: { siteDir: string; uploadsDir: string; 
     agentPlugins: input.agentPluginLayout,
     skillsDir: input.skillLayout.root,
     tovuVersion: readTovuVersion(),
+    sitePluginVersions: input.sitePluginVersions,
   };
 }
 
@@ -2625,7 +2626,9 @@ async function composeSiteRouteDeps(
     agentPluginLayout,
     agentPluginLifecycle,
     skillLayout,
-    siteBackupSources: resolveSiteBackupSources({ siteDir: resolvedSiteBinding.dir, uploadsDir: resolvedUploadsDir, mediaIsRemoteByEnv, isMediaRemote, themesDir: resolvedThemesDir, agentPluginLayout, skillLayout }),
+    siteBackupSources: resolveSiteBackupSources({ siteDir: resolvedSiteBinding.dir, uploadsDir: resolvedUploadsDir, mediaIsRemoteByEnv, isMediaRemote, themesDir: resolvedThemesDir, agentPluginLayout, skillLayout,
+      // The same active pointer plugin discovery boots (`plugin-runtime.ts` discoverPlugins).
+      sitePluginVersions: async () => new Map((await pluginActivationRepo.listAll()).filter(row => row.workspaceId === workspaceId && row.enabled).map(row => [row.pluginId, row.version])) }),
     siteStoragePaths: resolveSiteStoragePaths({ contentDbPath: dbPath, siteDir: resolvedSiteBinding.dir, uploadsDir: resolvedUploadsDir }),
     outbox,
     bus,
