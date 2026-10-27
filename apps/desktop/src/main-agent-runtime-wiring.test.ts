@@ -42,6 +42,9 @@ test("quit waits for owned runtime disposal even without sites and disposes once
   assert.notEqual(end, -1);
   let finishDisposal!: () => void;
   const disposal = new Promise<void>((resolve) => { finishDisposal = resolve; });
+  let finishProductDisposal!: () => void;
+  const productDisposal = new Promise<void>((resolve) => { finishProductDisposal = resolve; });
+  const shutdownOrder: string[] = [];
   let disposals = 0;
   let prevented = 0;
   let finalQuits = 0;
@@ -53,8 +56,10 @@ test("quit waits for owned runtime disposal even without sites and disposes once
     siteDiscoveryAbort: null, siteValidationAbort: null,
     quitPhase: "idle", openSites: new Map(),
     pendingTeardowns: createShutdownTracker({}), decideBeforeQuit,
-    desktopAgentRuntime: { dispose: () => { disposals++; return disposal; } },
-    siteThemePreviews: { dispose: () => {} },
+    productDisposers: [() => { shutdownOrder.push("product-listeners"); }, () => { shutdownOrder.push("product-memory"); }],
+    desktopProduct: { dispose: () => { shutdownOrder.push("product"); return productDisposal; } },
+    desktopAgentRuntime: { dispose: () => { shutdownOrder.push("runtime"); disposals++; return disposal; } },
+    siteThemePreviews: { dispose: () => { shutdownOrder.push("previews"); } },
     finalQuitHeldForUpdate: () => false,
     QUIT_DEADLINE_MS: 30_000,
     setTimeout: () => ({ unref: () => {} }), clearTimeout: () => {},
@@ -63,7 +68,7 @@ test("quit waits for owned runtime disposal even without sites and disposes once
         assert.equal(channel, "before-quit");
         onQuit = listener;
       },
-      quit: () => { finalQuits++; onQuit(event); finishedQuit(); },
+      quit: () => { shutdownOrder.push("quit"); finalQuits++; onQuit(event); finishedQuit(); },
       exit: () => assert.fail("quit must drain rather than force exit"),
     },
   });
@@ -72,13 +77,18 @@ test("quit waits for owned runtime disposal even without sites and disposes once
   onQuit(event);
   assert.equal(prevented, 2);
   assert.equal(disposals, 1);
+  assert.deepEqual(shutdownOrder, ["product-listeners", "product-memory", "product", "runtime", "previews"]);
   assert.equal(vm.runInContext("quitPhase", context), "draining");
   await new Promise<void>((resolve) => setImmediate(resolve));
   assert.equal(finalQuits, 0);
+  finishProductDisposal();
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(finalQuits, 0, "runtime disposal must still finish after product telemetry has drained");
   finishDisposal();
   await quitCompleted;
   assert.equal(finalQuits, 1);
   assert.equal(disposals, 1);
   assert.equal(prevented, 2);
   assert.equal(vm.runInContext("quitPhase", context), "drained");
+  assert.deepEqual(shutdownOrder, ["product-listeners", "product-memory", "product", "runtime", "previews", "quit"]);
 });

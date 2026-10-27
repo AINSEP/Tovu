@@ -10,7 +10,14 @@ export interface LocalSiteState {
   app?: string; external?: boolean;
 }
 export class LocalSiteError extends Error {
-  constructor(readonly code: string) { super(code); this.name = "LocalSiteError"; }
+  // Desktop loads this module through Node's strip-only TypeScript support.
+  readonly code: string;
+
+  constructor(code: string) {
+    super(code);
+    this.code = code;
+    this.name = "LocalSiteError";
+  }
 }
 export interface LocalSiteProcess {
   pid: number;
