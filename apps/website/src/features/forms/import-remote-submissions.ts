@@ -3,13 +3,15 @@ import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
 import { validateSubmissionPayload, type FieldError, type FormAnswer, type FormDefinitionRecord, type FormDefinitionRepoPort, type FormOutboxPort, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
 import type { FormPullRefusal } from "@jini-ai/cms/forms";
 import { htmlSubmissionDefinition } from "@jini-ai/cms/forms/html";
+import { FORM_LONG_TEXT_MAX_CHARS, capSubmissionFieldLengths, fieldMaxChars } from "./field-length-caps.js";
 
 /**
  * @file Imports submissions a form destination stored where Tovu's server does not run (a static
  * export), into the same submissions store the live endpoint writes. Generic: no host is named here.
  * Each row is validated with the live endpoint's own validator. The store has no status column, so
- * an invalid row is still imported (its declared fields only) and listed in the result with its
- * field errors rather than dropped. A receipt keyed by (workspace, destination, remote id) makes the
+ * an invalid row is still imported (its declared fields only, cut to the live text caps) and listed in
+ * the result with its field errors rather than dropped; it emits no `form.submission.received`, since
+ * it was never an accepted submission (owner decision 2026-10-27, T9). A receipt keyed by (workspace, destination, remote id) makes the
  * import idempotent, and it outlives Trash and purge, so a retried pull never resurrects a deleted row.
  */
 
@@ -100,24 +102,27 @@ function countsFor({ counts, formSlug }: { counts: Map<string, FormImportCounts>
   return created;
 }
 
-/** Validate, then claim the receipt, write the row and enqueue `form.submission.received` in one
- * transaction, the same event shape the live submit path emits, so notifications fire once.
+/** Validate, then claim the receipt, write the row and, for a valid row, enqueue `form.submission.received`
+ * in one transaction, the same event shape the live submit path emits, so notifications fire once.
  * @complexity O(fields). */
 async function importOne(
   required: { deps: ImportRemoteSubmissionsDeps; workspaceId: string; destinationKey: string; item: RemoteSubmissionInput; definition: FormDefinitionRecord },
   _optional: Record<string, never> = {},
 ): Promise<{ kind: "duplicate" } | { kind: "imported"; submissionId: string; fieldErrors?: FieldError[] }> {
   const { deps, workspaceId, destinationKey, item } = required;
-  const definition = htmlSubmissionDefinition({ definition: required.definition, body: { ...item.answers } });
+  // The live submit path's view (`forms/index.ts` definitionView): HTML-mode names plus the text caps.
+  const htmlView = htmlSubmissionDefinition({ definition: required.definition, body: { ...item.answers } });
+  const definition = capSubmissionFieldLengths({ definition: htmlView, body: { ...item.answers } });
   const validation = validateSubmissionPayload({ definition, body: { ...item.answers } });
-  const data = validation.valid ? validation.data : declaredAnswers({ definition, answers: item.answers });
+  const data = validation.valid ? validation.data : declaredAnswers({ definition: htmlView, answers: item.answers });
   const analyticsProvenance = deps.readAnalyticsProvenance?.({ item });
   const now = new Date(deps.clock.nowMs()).toISOString();
   const submissionId = deps.idGen.newId();
   const write = async (): Promise<boolean> => {
     if (!await deps.receipts.claim({ workspaceId, destinationKey, remoteId: item.id, submissionId, importedAt: now })) return false;
     await deps.submissionRepo.create({ id: submissionId, workspaceId, formDefinitionId: definition.id, data, sourceIp: item.ip, submittedAt: submittedAt({ value: item.submittedAt, now }) });
-    await deps.outbox.enqueue({ id: deps.idGen.newId(), name: "form.submission.received", occurredAt: now, workspaceId, aggregateId: submissionId,
+    // An invalid row is kept for review only: notifications and webhooks fire for accepted submissions.
+    if (validation.valid) await deps.outbox.enqueue({ id: deps.idGen.newId(), name: "form.submission.received", occurredAt: now, workspaceId, aggregateId: submissionId,
       payload: { workspaceId, formDefinitionId: definition.id, submissionId, deliveryMode: "remote_import", ...(analyticsProvenance ? { analyticsProvenance } : {}) } });
     return true;
   };
@@ -128,14 +133,30 @@ async function importOne(
 }
 
 /** An invalid row keeps only declared fields with text values, so stored answers never gain keys
- * the form does not define. @complexity O(fields). */
+ * the form does not define, and each value is cut to the field's live text cap (a choice field, which
+ * live submits hold to its options, to the long-text cap) so an invalid row is never stored uncapped.
+ * @complexity O(total answer length). */
 function declaredAnswers({ definition, answers }: { definition: FormDefinitionRecord; answers: Readonly<Record<string, unknown>> }, _optional = {}): Record<string, FormAnswer> {
   const data: Record<string, FormAnswer> = {};
   for (const field of definition.fields) {
     const value = answers[field.id];
-    if (typeof value === "string" || (Array.isArray(value) && value.every((entry) => typeof entry === "string"))) data[field.id] = value as FormAnswer;
+    const kept = cappedTextAnswer(value, fieldMaxChars({ field }) ?? FORM_LONG_TEXT_MAX_CHARS);
+    if (kept !== undefined) data[field.id] = kept;
   }
   return data;
+}
+
+/** A text or text-list answer cut to `max`; undefined for any other value. @complexity O(answer length). */
+function cappedTextAnswer(value: unknown, max: number): FormAnswer | undefined {
+  if (typeof value === "string") return capped(value, max);
+  if (Array.isArray(value) && value.every((entry) => typeof entry === "string")) return value.map((entry: string) => capped(entry, max));
+  return undefined;
+}
+
+/** The first `max` code points, the unit the live caps count (an emoji counts once). @complexity O(n). */
+function capped(value: string, max: number): string {
+  // UTF-16 units never undercount code points, so a short value is already within the cap.
+  return value.length <= max ? value : [...value].slice(0, max).join("");
 }
 
 /** The host's receive time when it is a real timestamp; otherwise the import time. @complexity O(1). */

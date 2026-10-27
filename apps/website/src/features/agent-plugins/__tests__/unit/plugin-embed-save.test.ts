@@ -38,6 +38,19 @@ test("T1: unknown/disabled save with warnings; versions give actionable editor r
   assert.match(retired[0]!.message, /contract v1 retired/i);
 });
 
+test("T8: a retired embed remains savable when its old props no longer match the current schema", async () => {
+  const { runtime } = harness({ packages: [{ ...owner, exports: { button: {
+    ...definition, minVersion: 2,
+    props: { type: "object", properties: { caption: { type: "string" } }, required: ["caption"], additionalProperties: false },
+  } } }] });
+  // This v1 embed was valid with `label`; the current contract requires `caption` instead.
+  const html = embedMarkerSnippetFromConfig({ config });
+  await assert.doesNotReject(async () => {
+    const warnings = await runtime.validateHtml({ workspaceId, html });
+    assert.deepEqual(warnings.map(warning => warning.code), ["PLUGIN_VERSION_RETIRED"]);
+  }, "retired contracts must produce a non-blocking version warning, not a props error");
+});
+
 test("T1: a mixed batch cannot hide invalid props behind an earlier valid occurrence", async () => {
   const { runtime } = harness();
   const html = embedMarkerSnippetFromConfig({ config }) + embedMarkerSnippetFromConfig({ config: { ...config, props: { label: true } } });

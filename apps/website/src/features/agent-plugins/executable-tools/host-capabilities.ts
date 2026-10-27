@@ -55,7 +55,8 @@ export type AgentPluginApiOriginsFor = (required: { readonly workspaceId: string
 /** Accounts frozen when a call was confirmed, keyed by that call's abort signal (one per execution). */
 export interface FrozenConnectionAccounts {
   bind(required: { readonly signal: AbortSignal; readonly accounts: ReadonlyMap<string, string> }, optional?: Record<string, never>): void;
-  lookup(required: { readonly signal: AbortSignal | undefined; readonly connectionRef: string }, optional?: Record<string, never>): string | undefined;
+  /** The frozen account id; `null` when the call was frozen but not for this connection; `undefined` when it was never frozen. */
+  lookup(required: { readonly signal: AbortSignal | undefined; readonly connectionRef: string }, optional?: Record<string, never>): string | null | undefined;
 }
 
 /** Response bodies a plugin may read in one request; larger answers fail instead of truncating. */
@@ -65,13 +66,17 @@ const IDLE_TIMEOUT_MS = 30_000;
 export const HTTPS_ONLY_MESSAGE = 'Plugin tools may only call https:// addresses. Report this to the plugin author.';
 export const UNDECLARED_ORIGIN_MESSAGE = 'Plugin tools may only call the API addresses their plugin declares. Report this to the plugin author.';
 export const RESPONSE_TOO_LARGE_MESSAGE = 'The service returned more data than a plugin tool may read at once. Request a smaller range and retry.';
+export const UNAPPROVED_CONNECTION_MESSAGE = 'This call was approved for another connection, so it cannot use this one. Nothing was changed.';
 
 /** Creates the frozen-account map. Weakly keyed: an execution's entry disappears with its signal. @complexity O(1). */
 export function createFrozenConnectionAccounts(_required: Record<string, never> = {}, _optional: Record<string, never> = {}): FrozenConnectionAccounts {
   const bySignal = new WeakMap<AbortSignal, ReadonlyMap<string, string>>();
   return {
     bind: ({ signal, accounts }) => { bySignal.set(signal, accounts); },
-    lookup: ({ signal, connectionRef }) => (signal ? bySignal.get(signal)?.get(connectionRef) : undefined),
+    lookup: ({ signal, connectionRef }) => {
+      const accounts = signal ? bySignal.get(signal) : undefined;
+      return accounts === undefined ? undefined : accounts.get(connectionRef) ?? null;
+    },
   };
 }
 
@@ -102,12 +107,19 @@ export function createGuardedPluginHttp(required: { readonly http: HttpClientPor
  * the https rule itself stays in {@link guardedPluginFetch} so a plaintext URL keeps its own message.
  * @complexity One origins lookup per fetch, then O(response size).
  */
-function declaredOriginsHttp(http: HttpClientPort, origins: () => Promise<readonly string[]>): AgentPluginToolCapabilities['http'] {
-  return { async fetch({ url }, options) {
+function declaredOriginsHttp(http: HttpClientPort, origins: () => Promise<readonly string[]>, toolSignal: AbortSignal | undefined): AgentPluginToolCapabilities['http'] {
+  return { async fetch({ url }, options = {}) {
     const target = new URL(url);
     if (target.protocol === 'https:' && !(await origins()).includes(target.origin)) throw new Error(UNDECLARED_ORIGIN_MESSAGE);
-    return guardedPluginFetch(http, url, options);
+    return guardedPluginFetch(http, url, { ...options, ...withToolSignal(toolSignal, options.signal) });
   } };
+}
+
+/** Aborting the tool aborts its requests too, alongside any signal the plugin passed itself. @complexity O(1). */
+function withToolSignal(toolSignal: AbortSignal | undefined, pluginSignal: AbortSignal | undefined): { signal?: AbortSignal } {
+  const signals = [toolSignal, pluginSignal].filter((signal): signal is AbortSignal => signal !== undefined);
+  if (signals.length === 0) return {};
+  return { signal: signals.length === 1 ? signals[0]! : AbortSignal.any(signals) };
 }
 
 /**
@@ -133,9 +145,11 @@ export function createAgentPluginToolCapabilities(
   return ({ pluginId, workspaceId, signal }): AgentPluginToolCapabilities => ({
     connections: { async getAccessToken({ connectionRef }) {
       const expectedAccountId = frozen.lookup({ signal, connectionRef });
+      // A confirmed call may only use the connections its approval froze, never an unpinned other one.
+      if (expectedAccountId === null) throw new Error(UNAPPROVED_CONNECTION_MESSAGE);
       return connections.getAccessToken({ workspaceId, pluginId, connectionRef }, expectedAccountId === undefined ? {} : { expectedAccountId });
     } },
-    http: declaredOriginsHttp(required.http, () => apiOrigins({ workspaceId, pluginId })),
+    http: declaredOriginsHttp(required.http, () => apiOrigins({ workspaceId, pluginId }), signal),
     // NUL cannot appear in a workspace or plugin id, so one plugin's key can never name another's budget.
     limiter: { check: ({ key }) => limiter.check({ key: `${workspaceId}\u0000${pluginId}\u0000${key}` }) },
     ...(writer === undefined ? {} : { artifacts: { write: (input) => writer.write({ ...input, workspaceId, pluginId }) } }),

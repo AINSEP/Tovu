@@ -317,6 +317,35 @@ test("provisionAgentPluginMcpServers: a disabled row holding a saved access toke
   assert.deepEqual(await deps.repo.findByServerId({ workspaceId: "ws-1", serverId: "remote" }), before);
 });
 
+test("T15: re-enabling preserves an operator-edited disabled connection and its OAuth tokens", async () => {
+  const deps = makeDeps();
+  const input = { workspaceId: "ws-1", pluginId: "some-plugin", principalId: "principal-1", servers: { remote: REMOTE_SERVER } };
+  await provisionAgentPluginMcpServers(deps, input);
+  // The operator changes the provisioned connection while leaving the plugin disabled.
+  await saveExternalMcpServer(deps, {
+    workspaceId: input.workspaceId, serverId: "remote", principalId: "operator-1",
+    label: "My signed-in connection", transport: "streamable_http", authMode: "oauth", enabled: false,
+    url: "https://operator.example.com/mcp", command: "", args: "", allowedToolNames: "", writeAllowedToolNames: "",
+    oauth: { grant: "authorization_code", clientId: "operator-client" },
+  });
+  const edited = await deps.repo.findByServerId({ workspaceId: input.workspaceId, serverId: "remote" });
+  assert.ok(edited);
+  assert.equal(edited.provisionedByPluginId, input.pluginId);
+  const payload = { tokens: { accessToken: "fixture-access-token", refreshToken: "fixture-refresh-token", tokenType: "Bearer", scopes: [], expiresAt: null } };
+  await deps.repo.upsert({ ...edited, ...await sealExternalMcpOAuthPayload(deps, edited, payload), oauthStatus: "connected" });
+  const before = await deps.repo.findByServerId({ workspaceId: input.workspaceId, serverId: "remote" });
+  assert.ok(before?.sealedOAuth);
+
+  const result = await provisionAgentPluginMcpServers(deps, input);
+
+  const after = await deps.repo.findByServerId({ workspaceId: input.workspaceId, serverId: "remote" });
+  assert.deepEqual(after, before, "enabling must preserve the operator's URL, auth settings and sealed credentials");
+  assert.ok(after);
+  assert.deepEqual(await openExternalMcpOAuthPayload(deps.sealer, after), payload);
+  assert.deepEqual(result.alreadyProvisioned, ["remote"]);
+  assert.deepEqual(result.provisioned, []);
+});
+
 test("provisionAgentPluginMcpServers: the SAME plugin's row at an old url is left alone once it is enabled or has tools granted", async () => {
   for (const edit of [{ enabled: true }, { allowedToolNames: JSON.stringify(["search"]) }]) {
     const deps = makeDeps();

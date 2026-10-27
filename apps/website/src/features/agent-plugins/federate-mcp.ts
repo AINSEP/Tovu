@@ -415,12 +415,16 @@ function buildProvisioningSaveInput(
 }
 
 /** Whether a row this same plugin provisioned still sits at an endpoint or auth mode the plugin no
- *  longer declares AND nobody has used it yet (never enabled, both tool lists empty). Such a row
- *  holds nothing an operator chose, only provisioning's own defaults plus, at most, sign-in state
- *  (an OAuth client, tokens) minted for the OLD endpoint, which must not carry over to the new one.
- *  It is re-provisioned from the current declaration (rule 1b in this file's header).
+ *  longer declares AND nobody has used it yet (never enabled, both tool lists empty, no saved
+ *  secret). Such a row holds nothing an operator chose, only provisioning's own defaults plus, at
+ *  most, a registered OAuth client minted for the OLD endpoint, which must not carry over to the new
+ *  one. It is re-provisioned from the current declaration (rule 1b in this file's header).
  *  @complexity O(1) plus two short JSON parses. */
 function isStaleUntouchedProvisioning(existing: ExternalMcpServerRecord, planned: PlannedAgentPluginMcpUpsert): boolean {
+  // Saved tokens (OAuth or a pasted access token) mean someone signed in: the row may differ from
+  // the declaration because an operator edited its URL or auth mode, and deleting it would throw
+  // away those edits and the sign-in (Gemini triage T15).
+  if (existing.sealedOAuth) return false;
   // A saved access token on a server that declares token sign-in is that declaration in use, not a
   // changed auth mode: treating it as stale deleted the token whenever the row was still disabled
   // (e.g. saved while an operator keeps the plugin off) — Codex review 2026-09-29.

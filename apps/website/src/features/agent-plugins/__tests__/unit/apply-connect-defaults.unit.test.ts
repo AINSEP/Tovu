@@ -1,5 +1,5 @@
 // openid-client validates token_type; successful provider fixtures include the required wire field.
-import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
+import { createTempSiteLayoutFixture, testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -63,7 +63,7 @@ const tokenFetch = (async () =>
     headers: { "content-type": "application/json" },
   })) as typeof fetch;
 
-async function makeHarness(row: { allowedToolNames?: string; provisionedByPluginId?: string; url?: string; enableThrows?: boolean; productionBindings?: boolean }) {
+async function makeHarness(row: { allowedToolNames?: string; provisionedByPluginId?: string; url?: string; enableThrows?: boolean; productionBindings?: boolean; agentPluginLayout?: ReturnType<typeof resolveAgentPluginLayout> }) {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
@@ -95,12 +95,15 @@ async function makeHarness(row: { allowedToolNames?: string; provisionedByPlugin
     workspaceId: WORKSPACE,
     repo,
     clock,
+    ...(row.agentPluginLayout ? { agentPluginLayout: row.agentPluginLayout } : {}),
     ...(row.productionBindings ? {} : {
       resolveServers: async (input: { pluginId: string }) => (input.pluginId === PLUGIN ? DECLARED : {}),
       enablePlugin: async (input: { pluginId: string }) => {
         if (row.enableThrows) throw new Error("activation store unwritable");
         enabledPlugins.push(input.pluginId);
       },
+      // No activation storage in these fake-port cases: no operator has turned the plugin off.
+      ...(row.agentPluginLayout ? {} : { isPluginOffByOperator: async () => false }),
     }),
     notifyRosterChanged: async () => {
       rosterNotifications += 1;
@@ -150,6 +153,26 @@ test("after the first OAuth callback, a plugin-provisioned row with empty lists 
   assert.equal(h.rosterNotifications(), 1);
 });
 
+test("T21: OAuth sign-in respects an operator's explicit plugin-off decision", async (t) => {
+  const fixture = createTempSiteLayoutFixture({});
+  t.after(fixture.cleanup);
+  const { agentPluginLayout } = fixture.deps;
+  const workspaceRoot = agentPluginLayout.forWorkspace(WORKSPACE).root;
+  await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN, enabled: false, actor: "operator-1" });
+  const h = await makeHarness({ provisionedByPluginId: PLUGIN, agentPluginLayout });
+
+  await h.signIn();
+
+  const row = await h.readRow();
+  assert.equal(row.oauthStatus, "connected", "sign-in still completes and stores the credentials");
+  assert.equal(row.enabled, false, "sign-in must not activate a connection whose plugin the operator turned off");
+  assert.deepEqual(h.enabledPlugins, []);
+  assert.equal(row.allowedToolNames, "[]");
+  assert.equal(row.writeAllowedToolNames, "[]");
+  assert.equal((await agentPluginActivations.readAgentPluginActivations({ workspaceRoot })).plugins[PLUGIN]?.enabled, false);
+  assert.equal(h.rosterNotifications(), 0);
+});
+
 test("OAuth callback composes installed defaults with real plugin activation storage", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "tovu-connect-defaults-"));
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
@@ -164,7 +187,8 @@ test("OAuth callback composes installed defaults with real plugin activation sto
     await installAgentPlugin({ archive: packed.bytes, expectedSha256: packed.sha256,
       archiveReader: createBundledSourceArchiveReader(), layout, workspaceId: WORKSPACE });
     const workspaceRoot = layout.forWorkspace(WORKSPACE).root;
-    await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN, enabled: false, actor: "test:operator" });
+    // The seeder's default-off record: a sign-in switches it on (an operator's own "off" stays, see T21).
+    await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN, enabled: false, actor: "system:seed" });
     const h = await makeHarness({ provisionedByPluginId: PLUGIN, productionBindings: true });
     await h.signIn();
     const row = await h.readRow();
