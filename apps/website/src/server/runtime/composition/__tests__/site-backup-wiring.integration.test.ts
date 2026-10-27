@@ -27,6 +27,7 @@ import { githubFromSource } from "#src/features/source-control/__tests__/fixture
 import { createCustomCredential } from "#src/features/custom-credentials/store";
 import { SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import { describeSiteBinding } from "#src/platform/site-dir/site-registry";
+import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 import { createRouteDeps } from "../app.js";
 import { createSiteRouteDeps, mediaUploadsDir } from "../deps.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
@@ -71,20 +72,30 @@ function callPlan(registration: ToolRegistration): Promise<unknown> {
   return call(registration, { owner: "octo", repo: "backups" });
 }
 
+/** A temp site folder bound like `serve` binds one. Without it `createSiteRouteDeps` boots the default
+ *  binding (`sites/tovu-dev`), which tests must never read, and which a fresh clone does not have. */
+function tempSiteBinding(root: string): { dir: string; name: string; dirOverridden: true; switcherCompatible: false } {
+  const dir = path.join(root, "site");
+  fs.mkdirSync(dir, { recursive: true });
+  return { dir, name: "site", dirOverridden: true, switcherCompatible: false };
+}
+
 test("createSiteRouteDeps gives site backup the directories the site is served from, and the real registry wires both tools to them", async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-site-backup-wiring-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  const deps = await createSiteRouteDeps(path.join(dir, "content.db"));
+  const siteBinding = tempSiteBinding(dir);
+  const deps = await createSiteRouteDeps(path.join(dir, "content.db"), { siteBinding });
   await deps.identityReady;
 
   const sources = deps.siteBackupSources;
   assert.ok(sources, "the real runtime must carry siteBackupSources, or both tools answer UNAVAILABLE");
-  assert.equal(sources.siteDir, deps.siteBinding.dir);
+  assert.equal(sources.siteDir, siteBinding.dir);
   assert.equal(sources.themesDir, deps.themesDir);
-  assert.equal(sources.mediaUploadsDir, process.env.TOVU_MEDIA_BLOB_STORE === "s3" ? null : mediaUploadsDir());
-  assert.equal(sources.agentPlugins.root, resolveAgentPluginLayout().root);
-  assert.equal(sources.skillsDir, resolveSkillLayout().root);
-  const productVersion = (JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8")) as { version: string }).version;
+  assert.equal(sources.mediaUploadsDir, process.env.TOVU_MEDIA_BLOB_STORE === "s3" ? null : mediaUploadsDir({ siteDir: siteBinding.dir }));
+  assert.equal(sources.agentPlugins.root, resolveAgentPluginLayout({ siteDir: siteBinding.dir }).root);
+  assert.equal(sources.skillsDir, resolveSkillLayout({ siteDir: siteBinding.dir }).root);
+  // The product root, not cwd: package.json sits at the repo root since the apps/ restructure.
+  const productVersion = (JSON.parse(fs.readFileSync(path.join(resolveProductRoot(), "package.json"), "utf8")) as { version: string }).version;
   assert.equal(sources.tovuVersion, productVersion);
 
   assert.ok(deps.siteBackupHttpClient, "the backup gets its own long-timeout client");
@@ -153,7 +164,7 @@ test("media moved to a remote provider by the SITE SETTING is noted by the backu
   const uploadsDir = path.join(root, "uploads");
   fs.mkdirSync(path.join(uploadsDir, "originals"), { recursive: true });
   fs.writeFileSync(path.join(uploadsDir, "originals", "stale-local.bin"), "left behind before the switch", "utf8");
-  const deps = await createSiteRouteDeps(path.join(root, "content.db"), { uploadsDir });
+  const deps = await createSiteRouteDeps(path.join(root, "content.db"), { uploadsDir, siteBinding: tempSiteBinding(root) });
   await Promise.all([deps.identityReady, deps.siteTitleReady]);
   const sources = deps.siteBackupSources;
   assert.ok(sources);
