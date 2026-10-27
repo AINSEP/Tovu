@@ -1,13 +1,10 @@
 
-// activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
-import { agentPluginActivations } from "./activation-effects.js";
-const { enableBundledAgentPluginUnlessOperatorDisabled, readAgentPluginActivations } = agentPluginActivations;
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 
 import type { ExternalMcpServerRepoPort } from "#src/assistant/index";
 
 
-import { createApplyConnectDefaults, isPluginOffByOperator as defaultIsPluginOffByOperator, SEED_ACTOR } from "./apply-connect-defaults.js";
+import { createApplyConnectDefaults, isPluginOffByOperator as defaultIsPluginOffByOperator, switchPluginOnUnlessOperatorOff } from "./apply-connect-defaults.js";
 import type { AgentPluginLayout } from "./layout.js";
 
 /**
@@ -28,10 +25,6 @@ import type { AgentPluginLayout } from "./layout.js";
  */
 
 
-/** Recorded as `updatedBy` when this switches the plugin on — the same actor a first sign-in's
- *  connect defaults record (`apply-connect-defaults.ts`). */
-const SWITCH_ON_ACTOR = "system:connect-defaults";
-
 /** Where each "off" is switched back on in the admin (`apps/admin/src/panels.tsx` nav labels). */
 export const AGENT_PLUGINS_SCREEN = "Add-Ons → Agent Plugins";
 export const EXTERNAL_MCP_SCREEN = "Add-Ons → Integrations → External MCP";
@@ -51,24 +44,8 @@ export interface SwitchOnSavedTokenDeps {
   /** Injected for tests. Defaults to reading this workspace's activations file. */
   readonly isPluginOffByOperator?: (pluginId: string) => Promise<boolean>;
   /** Injected for tests. Switches the plugin's activation on unless an operator turned it off; false
-   *  when an operator's "off" stopped it. Defaults to {@link defaultSwitchPluginOn}. */
+   *  when an operator's "off" stopped it. Defaults to `apply-connect-defaults.ts`'s {@link switchPluginOnUnlessOperatorOff}. */
   readonly switchPluginOn?: (pluginId: string) => Promise<boolean>;
-}
-
-/**
- * Makes sure `pluginId`'s activation is on: no record already reads as on; the seeder's own disabled
- * record is switched on (decided under the activations lock, so an operator toggle racing it wins);
- * anyone else's disabled record is an operator's "off" and stays. Needed on top of connect defaults,
- * which skip a row an operator already set up and so never reach the plugin's activation.
- */
-async function defaultSwitchPluginOn(input: { workspaceId: string; agentPluginLayout: AgentPluginLayout; pluginId: string }, _options = {}): Promise<boolean> {
-  const workspaceRoot = input.agentPluginLayout.forWorkspace(input.workspaceId).root;
-  const activations = await readAgentPluginActivations({ workspaceRoot: workspaceRoot });
-  if (!Object.hasOwn(activations.plugins, input.pluginId)) return true;
-  const record = activations.plugins[input.pluginId];
-  if (!record || record.enabled) return true;
-  if (record.updatedBy !== SEED_ACTOR) return false;
-  return (await enableBundledAgentPluginUnlessOperatorDisabled({ workspaceRoot, pluginId: input.pluginId, actor: SWITCH_ON_ACTOR })) !== "left-disabled-by-operator";
 }
 
 /**
@@ -91,7 +68,7 @@ export async function switchOnSavedTokenConnection(
   const row = await deps.externalMcpServerRepo.findByServerId({ workspaceId: deps.workspaceId, serverId: target.connectionId });
   if (row?.enabled !== true) return { state: "connection-off-by-operator" };
 
-  const switchPluginOn = deps.switchPluginOn ?? ((pluginId: string) => defaultSwitchPluginOn({ ...deps, pluginId }));
+  const switchPluginOn = deps.switchPluginOn ?? ((pluginId: string) => switchPluginOnUnlessOperatorOff({ ...deps, pluginId }));
   return (await switchPluginOn(target.pluginId)) ? { state: "on" } : { state: "plugin-off-by-operator" };
 }
 

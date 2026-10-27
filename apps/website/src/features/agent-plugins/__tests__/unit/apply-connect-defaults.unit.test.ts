@@ -63,7 +63,7 @@ const tokenFetch = (async () =>
     headers: { "content-type": "application/json" },
   })) as typeof fetch;
 
-async function makeHarness(row: { allowedToolNames?: string; provisionedByPluginId?: string; url?: string; enableThrows?: boolean; productionBindings?: boolean; agentPluginLayout?: ReturnType<typeof resolveAgentPluginLayout> }) {
+async function makeHarness(row: { allowedToolNames?: string; provisionedByPluginId?: string; url?: string; enableThrows?: boolean; productionBindings?: boolean; agentPluginLayout?: ReturnType<typeof resolveAgentPluginLayout>; isPluginOffByOperator?: (pluginId: string) => Promise<boolean> }) {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
@@ -96,6 +96,7 @@ async function makeHarness(row: { allowedToolNames?: string; provisionedByPlugin
     repo,
     clock,
     ...(row.agentPluginLayout ? { agentPluginLayout: row.agentPluginLayout } : {}),
+    ...(row.isPluginOffByOperator ? { isPluginOffByOperator: row.isPluginOffByOperator } : {}),
     ...(row.productionBindings ? {} : {
       resolveServers: async (input: { pluginId: string }) => (input.pluginId === PLUGIN ? DECLARED : {}),
       enablePlugin: async (input: { pluginId: string }) => {
@@ -199,6 +200,41 @@ test("OAuth callback composes installed defaults with real plugin activation sto
     assert.equal(activation?.enabled, true);
     assert.equal(activation?.updatedBy, "system:connect-defaults");
     assert.equal(h.rosterNotifications(), 1);
+  } finally {
+    if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
+    else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
+    await forceRemove(dir);
+  }
+});
+
+test("an operator turning the plugin OFF after the off-check but before the enable keeps it off and grants nothing", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "tovu-connect-defaults-race-"));
+  const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
+  process.env.TOVU_AGENT_PLUGINS_DIR = path.join(dir, "installed");
+  try {
+    const source = path.join(dir, "source");
+    await mkdir(source);
+    await writeFile(path.join(source, "plugin.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: PLUGIN, version: "1.0.0" }));
+    await writeFile(path.join(source, "mcp.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json", mcpServers: DECLARED }));
+    const packed = await packAgentPluginDirectory(source);
+    const layout = resolveAgentPluginLayout();
+    await installAgentPlugin({ archive: packed.bytes, expectedSha256: packed.sha256,
+      archiveReader: createBundledSourceArchiveReader(), layout, workspaceId: WORKSPACE });
+    const workspaceRoot = layout.forWorkspace(WORKSPACE).root;
+    await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN, enabled: false, actor: "system:seed" });
+    // Controlled interleaving: the check reads the seeder's default-off (not an operator's), then the
+    // operator's own "off" lands before the enable runs.
+    const h = await makeHarness({ provisionedByPluginId: PLUGIN, productionBindings: true, isPluginOffByOperator: async () => {
+      await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN, enabled: false, actor: "operator-1" });
+      return false;
+    } });
+    await h.signIn();
+    const activation = (await agentPluginActivations.readAgentPluginActivations({ workspaceRoot })).plugins[PLUGIN];
+    assert.deepEqual([activation?.enabled, activation?.updatedBy], [false, "operator-1"], "the operator's off must not be overwritten");
+    const row = await h.readRow();
+    assert.equal(row.oauthStatus, "connected");
+    assert.deepEqual([row.enabled, row.allowedToolNames, row.writeAllowedToolNames], [false, "[]", "[]"]);
+    assert.equal(h.rosterNotifications(), 0);
   } finally {
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
     else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
