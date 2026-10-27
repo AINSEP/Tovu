@@ -32,11 +32,11 @@ A raw batch tool discloses every request kind through its own `describeAffectedR
 shows every line it returns (at most 50).
 
 Before the card is shown the approval owner has detached the input (request and target), and the
-disclosure step reads the account each `connectionRef` the call carries is signed in as (every string
-`connectionRef` key at any depth of the arguments, whatever the schema says, so no schema construct can
-hide one; one that names no connected account refuses the call) and freezes them all: at token time the accessor is asked
-for that exact account, so a switched account is refused instead of silently used, and a connection
-the approval did not show is refused outright. A call that names no connection freezes nothing. Activation and the `admin.assistant.use` permission are re-read right before the
+disclosure step reads the account for each connection the projection disclosed (the validated input's
+top-level string `connectionRef`, or none; a `connectionRef` nested in payload data is data) and freezes
+them, always, even when there are none: at token time the accessor is asked for that exact account, so a
+switched account is refused instead of silently used. Jini's capability session refuses any other ref
+before Tovu is asked, so a call that names no connection gets no token at all. Activation and the `admin.assistant.use` permission are re-read right before the
 handler runs; a plugin disabled during confirmation is refused.
 
 ## Public API
