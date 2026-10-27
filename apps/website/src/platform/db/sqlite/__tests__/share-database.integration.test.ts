@@ -104,7 +104,7 @@ test("an already-aborted signal refuses before any staging or free-space probe",
 test("a snapshot above the expanded cap refuses with LIMIT_EXCEEDED before staging", async () => {
   let probed = false;
   const statfsPort: StagingSpacePort = async () => { probed = true; return { bavail: 1, bsize: 1 }; };
-  await assert.rejects(sanitizeShareDatabase({ snapshot: Buffer.allocUnsafe(SHARE_LIMITS.maxExpandedBytes + 1) }, { statfs: statfsPort }), refusal("LIMIT_EXCEEDED", "Database exceeds the v1 300 MiB cap."));
+  await assert.rejects(sanitizeShareDatabase({ snapshot: Buffer.allocUnsafe(SHARE_LIMITS.maxExpandedBytes + 1) }, { statfs: statfsPort }), refusal("LIMIT_EXCEEDED", "Database exceeds the 300 MiB cap."));
   assert.equal(probed, false);
 });
 

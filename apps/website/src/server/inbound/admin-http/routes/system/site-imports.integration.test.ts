@@ -139,7 +139,7 @@ test("raw parser refuses compressed uploads, clears admission and reports the re
   for (let sent = 0; sent < length;) { const bytes = chunk.subarray(0, Math.min(chunk.length, length - sent)); sent += bytes.length; if (!pending.write(bytes)) await once(pending, "drain"); }
   pending.end();
   const refused = await response; assert.equal(refused.status, 413);
-  assert.deepEqual(JSON.parse(refused.body), { code: "LIMIT_EXCEEDED", message: "ZIP upload exceeds the v1 300 MiB cap." });
+  assert.deepEqual(JSON.parse(refused.body), { code: "LIMIT_EXCEEDED", message: "ZIP upload exceeds the 300 MiB cap." });
   assert.equal(uploads, 0);
   const accepted = await fetch(root, { method: "POST", headers: { "content-type": "application/zip" }, body: "zip" });
   assert.equal(accepted.status, 201); assert.equal(uploads, 1);

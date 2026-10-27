@@ -27,7 +27,7 @@ export function registerAdminSiteImportRoutes(
   const fail = (res: Response, error: unknown) => {
     const known = error instanceof SiteShareRefusal;
     const tooLarge = (error as { type?: string })?.type === "entity.too.large";
-    res.status(known && error.code === "NOT_FOUND" ? 404 : tooLarge ? 413 : 400).json({ code: known ? error.code : tooLarge ? "LIMIT_EXCEEDED" : "IMPORT_FAILED", message: known ? error.message : tooLarge ? "ZIP upload exceeds the v1 300 MiB cap." : "Import operation failed. No existing site was changed." });
+    res.status(known && error.code === "NOT_FOUND" ? 404 : tooLarge ? 413 : 400).json({ code: known ? error.code : tooLarge ? "LIMIT_EXCEEDED" : "IMPORT_FAILED", message: known ? error.message : tooLarge ? "ZIP upload exceeds the 300 MiB cap." : "Import operation failed. No existing site was changed." });
   };
   const gate = async (req: Request, res: Response, permission: string) => {
     res.set({ "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer" });

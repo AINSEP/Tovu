@@ -711,7 +711,7 @@ test("share collection with no agent-plugins folder at all collects only skills"
 test("a snapshot larger than the caller's byte cap is refused and its artifact removed", async t => {
   const site = makeSite(); t.after(site.cleanup);
   const dbOps = new FakeDbOps(site.root);
-  assert.deepEqual(await captureDatabaseSnapshot({ dbOps, scopeId: "ws-1" }, { maxBytes: 5 }), { ok: false, message: "Database snapshot exceeds the v1 300 MiB share cap." });
+  assert.deepEqual(await captureDatabaseSnapshot({ dbOps, scopeId: "ws-1" }, { maxBytes: 5 }), { ok: false, message: "Database snapshot exceeds the 300 MiB share cap." });
   assert.equal(existsSync(dbOps.artifactPath!), false);
 });
 test("a snapshot within the caller's byte cap is read back", async t => {

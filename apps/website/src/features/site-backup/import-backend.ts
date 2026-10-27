@@ -120,7 +120,7 @@ export function createSiteImportBackend(required: {
     async upload(input) {
       return exclusive(async () => {
         requireStagingBudget({ registry });
-        if (!Buffer.isBuffer(input.archive) || input.archive.length > SHARE_LIMITS.maxArchiveBytes) refusal("LIMIT_EXCEEDED", "Upload exceeds the v1 300 MiB ZIP cap.");
+        if (!Buffer.isBuffer(input.archive) || input.archive.length > SHARE_LIMITS.maxArchiveBytes) refusal("LIMIT_EXCEEDED", "Upload exceeds the 300 MiB ZIP cap.");
         const uploadId = randomUUID();
         try {
           fs.writeFileSync(registry.uploadPath({ uploadId }), input.archive, { flag: "wx", mode: 0o600 });

@@ -295,7 +295,7 @@ function portableValue(required: { row: Row; schema: SettingValueSchema }, _opti
  */
 export async function sanitizeShareDatabase(required: { snapshot: Buffer }, optional: { signal?: AbortSignal; statfs?: StagingSpacePort } = {}): Promise<ShareDatabaseProjection> {
   optional.signal?.throwIfAborted();
-  if (required.snapshot.length > SHARE_LIMITS.maxExpandedBytes) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: "Database exceeds the v1 300 MiB cap." });
+  if (required.snapshot.length > SHARE_LIMITS.maxExpandedBytes) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: "Database exceeds the 300 MiB cap." });
   const staging = await mkdtemp(path.join(tmpdir(), "tovu-share-projection-"));
   let source: Kernel | undefined;
   let fresh: ReturnType<typeof openContentDb> | undefined;

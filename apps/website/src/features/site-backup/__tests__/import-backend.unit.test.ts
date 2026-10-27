@@ -65,7 +65,7 @@ const URL_SOURCE = { url: "https://public.example/site.tovu.zip" };
 
 test("an upload over the archive cap is refused with the upload cap message", async t => {
   const h = await importFixture(t);
-  await assert.rejects(h.backend.upload({ principalId: "owner", archive: Buffer.alloc(SHARE_LIMITS.maxArchiveBytes + 1) }), { code: "LIMIT_EXCEEDED", message: "Upload exceeds the v1 300 MiB ZIP cap." });
+  await assert.rejects(h.backend.upload({ principalId: "owner", archive: Buffer.alloc(SHARE_LIMITS.maxArchiveBytes + 1) }), { code: "LIMIT_EXCEEDED", message: "Upload exceeds the 300 MiB ZIP cap." });
 });
 test("a fifth staged payload is refused with the staging budget message", async t => {
   const h = await importFixture(t);
@@ -112,7 +112,7 @@ for (const [label, overrides] of [["a non-200 status", { status: 206 }], ["no bo
   test(`a download with ${label} is refused as a failed download`, async t => {
     const h = await importFixture(t);
     const backend = createSiteImportBackend({ ...h.backendPorts, http: { send: async () => response({ bodyBytes: h.archive, ...overrides }) } });
-    await assert.rejects(backend.importBackup({ principalId: "owner", source: URL_SOURCE }), { code: "DOWNLOAD_FAILED", message: "Share download failed or exceeded the v1 300 MiB archive cap." });
+    await assert.rejects(backend.importBackup({ principalId: "owner", source: URL_SOURCE }), { code: "DOWNLOAD_FAILED", message: "Share download failed or exceeded the 300 MiB archive cap." });
   });
 }
 const REFUSED_CONTENT_TYPES: Record<string, string>[] = [{}, { "content-type": "" }, { "content-type": "text/html" }];

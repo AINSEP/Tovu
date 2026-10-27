@@ -94,7 +94,7 @@ export function consumeUpload(required: { registry: SiteImportRegistry; uploadId
  */
 export async function downloadShareArchive(required: { http: HttpClientPort; url: string; signal: AbortSignal }): Promise<Buffer> {
   const response = await required.http.send({ method: "GET", url: required.url, headers: { Accept: "application/zip", "Accept-Encoding": "identity" }, idleTimeoutMs: 30_000, totalDeadlineMs: 120_000, maxResponseBytes: SHARE_LIMITS.maxArchiveBytes, signal: required.signal });
-  if (response.status !== 200 || !response.bodyBytes || response.bodyBytesTruncated !== false) refusal("DOWNLOAD_FAILED", "Share download failed or exceeded the v1 300 MiB archive cap.");
+  if (response.status !== 200 || !response.bodyBytes || response.bodyBytesTruncated !== false) refusal("DOWNLOAD_FAILED", "Share download failed or exceeded the 300 MiB archive cap.");
   const contentType = Object.entries(response.headers).find(([name]) => name.toLowerCase() === "content-type")?.[1]?.split(";", 1)[0]?.trim().toLowerCase();
   if (!contentType || !ARCHIVE_CONTENT_TYPES.includes(contentType)) refusal("INVALID_CONTENT_TYPE", "Share download must have a ZIP or binary Content-Type.");
   return Buffer.from(response.bodyBytes);

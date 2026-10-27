@@ -456,7 +456,7 @@ async function readRestorePoint(input: { dbOps: DbOpsPort; scopeId: string }, op
     return { ok: false, message: SNAPSHOT_FAILED, logDetail: describeErrorForLog({ err }) };
   }
   try {
-    if (optional.maxBytes !== undefined && (await stat(artifactRef)).size > optional.maxBytes) return { ok: false, message: "Database snapshot exceeds the v1 300 MiB share cap." };
+    if (optional.maxBytes !== undefined && (await stat(artifactRef)).size > optional.maxBytes) return { ok: false, message: "Database snapshot exceeds the 300 MiB share cap." };
     return { ok: true, bytes: await readFile(artifactRef), watermarkAtCapture };
   } catch (err) {
     return { ok: false, message: "the database snapshot could not be read back; nothing was backed up", logDetail: describeErrorForLog({ err }) };

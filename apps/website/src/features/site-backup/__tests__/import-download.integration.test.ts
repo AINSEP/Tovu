@@ -70,6 +70,6 @@ test("failed HTTP status or missing binary body records a failed import without 
   }
   const rows = await h.backend.list({ principalId: "recipient" });
   assert.equal(rows.length, 2);
-  assert.ok(rows.every(row => row.state === "failed" && row.error === "Share download failed or exceeded the v1 300 MiB archive cap."));
+  assert.ok(rows.every(row => row.state === "failed" && row.error === "Share download failed or exceeded the 300 MiB archive cap."));
   assert.deepEqual(h.workspace.registry({}).list({}), []);
 });
