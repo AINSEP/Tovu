@@ -166,7 +166,9 @@ test("createSiteApp() on a SQLite composition adds no second copy of the serving
 
   createApp(deps);
   const servedOnce = Object.fromEntries(bus.subscriptions);
-  assert.equal(servedOnce["form.submission.received"], 2, "sanity: forms notify and webhook fan-out each subscribe once");
+  // Three distinct subscribers, each once: forms' consent-gated form_submitted analytics (cbf441365),
+  // forms' notify mail, and integrations' webhook fan-out.
+  assert.equal(servedOnce["form.submission.received"], 3, "sanity: forms analytics, forms notify and webhook fan-out each subscribe once");
 
   deps.createSiteApp();
   deps.createSiteApp();
