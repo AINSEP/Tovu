@@ -166,7 +166,9 @@ test("the sites-home attach registration executes the admission check before gra
     handler(event, prefs, { src });
     assert.equal(event.prevented, src === SUPERVISED ? 0 : 1);
     assert.deepEqual(prefs, src === SUPERVISED
-      ? { nodeIntegration: false, contextIsolation: true, preload: PRELOAD }
+      // Jini's guest policy also pins the sandbox and web-security flags whatever the page asked for.
+      ? { nodeIntegration: false, contextIsolation: true, preload: PRELOAD, sandbox: true, webSecurity: true,
+        allowRunningInsecureContent: false, nodeIntegrationInSubFrames: false, experimentalFeatures: false }
       : { nodeIntegration: true, contextIsolation: false, preload: "/evil.js" });
   }
   assert.deepEqual(asked, ["https://attacker.example/admin", SUPERVISED]);

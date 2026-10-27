@@ -143,7 +143,7 @@ test('plugin list/toggle/uninstall dispatch to injected host capabilities and re
     return registration.handler({ executionId: 'call', principal: { id: 'operator' }, run: { id: 'run' }, signal: new AbortController().signal, input } as ToolExecutionContext);
   }
   const listed = await call('plugins_list', undefined) as { agentPlugins: unknown[] };
-  assert.deepEqual(listed.agentPlugins, [{ pluginId: 'github', version: '1.2.3', archiveDigest: 'a'.repeat(64), skills: ['github'] }]);
+  assert.deepEqual(listed.agentPlugins, [{ pluginId: 'github', version: '1.2.3', archiveDigest: 'a'.repeat(64), skills: ['github'], exports: [] }]);
   const disabled = await call('plugins_set_enabled', { family: 'agent-plugin', pluginId: 'github', enabled: false }) as { changed: boolean };
   assert.equal(disabled.changed, true);
   assert.deepEqual(await call('plugins_uninstall', { family: 'agent-plugin', pluginId: 'github' }), { pluginId: 'github', trashed: true });
