@@ -303,3 +303,16 @@ test('global opt-out is refused instead of hiding Reject in EU, UK and unknown c
     }]);
   }
 });
+
+test('deployment lets default-only consent export; a published policy still refuses even with no owner flag', async t => {
+  const f = consentFixture({ t });
+  f.ports.readLegacy = async () => ({ ...f.config, privacyPolicyUrl: '' });
+  f.ports.defaultOnly = async () => true;
+  assert.equal(await f.service.deploymentCheck({ principalId: 'owner', permission: 'system.publish' }), null);
+  const saved = await f.service.saveDraft({ principalId: 'owner', config: f.config, expectedDraftId: null });
+  await f.service.publish({ principalId: 'owner', draftId: saved.revision.id, expectedPublishedId: null });
+  assert.equal((await f.service.deploymentCheck({ principalId: 'owner', permission: 'system.publish' }))?.code, 'CONSENT_REVIEW_REQUIRED');
+  f.ports.defaultOnly = async () => { throw new Error('ledger unreadable'); };
+  f.ports.store = { ...f.store, read: async () => ({ draft: null, published: null }) };
+  assert.equal((await f.service.deploymentCheck({ principalId: 'owner', permission: 'system.publish' }))?.blockingProblems[0]?.code, 'CONSENT_UNAVAILABLE');
+});

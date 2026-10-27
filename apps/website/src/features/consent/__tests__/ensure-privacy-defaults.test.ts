@@ -165,6 +165,7 @@ test('ensuring an unpublished policy retains PRIVACY_PAGE_MISSING and cannot pub
     workspaceId: 'site-a', ready: Promise.resolve(), clock, ids: { newId: () => 'revision' },
     authorize: async () => ({ allowed: true, reason: 'test owner' }), trustedRegion: false,
     readLegacy: async () => config,
+    defaultOnly: async () => false,
     store: { read: async () => ({ draft, published: null }),
       saveDraft: async ({ revision }) => { draft = revision; },
       publish: async () => assert.fail('missing privacy Page must block publication') },

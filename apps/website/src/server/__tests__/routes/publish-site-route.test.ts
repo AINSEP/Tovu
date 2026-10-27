@@ -15,6 +15,8 @@ import { bundledDeployEnvVars } from "#src/features/deployments/deploy-targets/_
 import type { DeployTargetCreateContext, HostDeployPublishInput, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { set as setSetting } from "@jini-ai/core/settings";
+import { SITE_CONSENT_NAMESPACE } from "#src/features/consent/config";
 import { InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/publish-history";
 
 
@@ -62,12 +64,7 @@ const PUBLISH_PATH = "system/publish";
  *  dir; the two "concurrent trigger" tests below pass their OWN per-test dir instead, since they
  *  need a directory that outlives only that one test. */
 function testRouteDeps(publishOutputRootDir: string = publishOutputDir): ReturnType<typeof createRouteDeps> {
-  const deps = { ...createRouteDeps(), publishOutputRootDir };
-  // The banner is on by default for new sites (0e2090872), so the real preflight refuses every static
-  // publish of this fresh site with 409 CONSENT_REVIEW_REQUIRED. These tests are about the run itself;
-  // the consent 409 has its own test at the end of this file, which installs its own refusal.
-  if (deps.siteConsent) deps.siteConsent.deploymentCheck = async () => null;
-  return deps;
+  return { ...createRouteDeps(), publishOutputRootDir };
 }
 
 /** Restores an env var to exactly what it was, INCLUDING "it was unset" — `process.env.X = undefined`
@@ -1089,4 +1086,24 @@ test("publish-site: enabled consent returns 409 with explicit choices before sta
   assert.equal(response.status, 409);
   const body = await response.json(); assert.equal(body.code, 'CONSENT_REVIEW_REQUIRED');
   assert.deepEqual(body.choices.map((choice: { id: string }) => choice.id), ['fix-now', 'publish-without-banner']);
+});
+
+test("publish-site: a fresh site's default-on banner does not block a static publish; an owner's explicit ON still refuses", async t => {
+  // Real consent preflight (no stub): consent is on by default for live serving (0e2090872), but only an
+  // owner's choice or a published policy refuses a static export (028a0b9b4).
+  const deps = testRouteDeps();
+  assert.ok(deps.siteConsent);
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+  t.after(() => rmSync(publishOutputDir, { recursive: true, force: true }));
+  const trigger = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ target: "github-pages", owner: "octo", repo: "demo-repo", projectName: "demo" }) });
+  assert.equal(trigger.status, 202, JSON.stringify(await trigger.clone().json()));
+  for (let attempt = 0, status = "running"; attempt < 200 && status === "running"; attempt++) {
+    await delay(20);
+    status = (await (await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, { headers: { cookie } })).json()).status;
+  }
+  const principalId = await deps.ownerPrincipalId;
+  await setSetting({ deps: { repo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen, principals: deps.principalRepo, authorize: deps.authorize },
+    input: { namespace: SITE_CONSENT_NAMESPACE, key: "enabled", value: true, scope: "workspace", workspaceId: deps.workspaceId, callerPrincipalId: principalId } });
+  const refusal = await deps.siteConsent.deploymentCheck({ principalId, permission: "system.publish" });
+  assert.equal(refusal?.code, "CONSENT_REVIEW_REQUIRED");
 });

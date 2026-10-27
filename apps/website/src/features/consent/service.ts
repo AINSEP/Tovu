@@ -22,6 +22,8 @@ export interface ConsentServicePorts {
   ids: { newId(): string };
   trustedRegion: boolean;
   readLegacy(required: Record<string, never>, optional?: Record<string, never>): Promise<ConsentConfig>;
+  /** True when no owner on/off choice exists, so `readLegacy().enabled` is only the product default. */
+  defaultOnly(required: Record<string, never>, optional?: Record<string, never>): Promise<boolean>;
   privacyPageExists(required: { url: string }, optional?: Record<string, never>): Promise<boolean>;
   renderPage(required: { path: string }, optional?: Record<string, never>): Promise<{ html: string; ok: boolean; truncated: boolean }>;
   /** Inspect the live receipt backend without saving a visitor choice; errors block readiness. */
@@ -160,6 +162,9 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
       await ports.ready;
       if (!ports.store) throw new Error('Consent store unavailable');
       const state = await ports.store.read({});
+      // Default-only consent (no owner choice, nothing published) exports without the banner, as the
+      // export crawl skips it (site-consent.ts isDefaultOnlyConsent); live serving keeps it on.
+      if (!state.published && await ports.defaultOnly({})) return null;
       const effective = state.published?.config ?? await ports.readLegacy({});
       // Explicit OFF remains a rollback even when saved legacy copy exceeds today's editor limits.
       if (effective.enabled === false) return null;

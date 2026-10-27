@@ -6,7 +6,7 @@ import { SITE_CONSENT_NAMESPACE } from '#src/features/consent/config';
 import { resolveSiteTitle } from '#src/features/settings/site-title';
 import { readConsentReceiptStorage } from '@jini-ai/cms/consent/node';
 import { createSiteConsentService } from '#src/features/consent/service';
-import { readSiteConsentAuthoringSettings } from '#src/features/consent/settings';
+import { readSiteConsentAuthoringSettings, resolveSiteConsentActivation } from '#src/features/consent/settings';
 import { fetchPublishedPage, resolveSameOriginPath } from '#src/features/site-inspection/published-page';
 import type { RouteDeps } from '#src/server/routes/types';
 import { CONSENT_RECEIPTS_DIR_NAME, createPrivacyPageCheck } from '../../inbound/public-http/middleware/site-consent.js';
@@ -29,6 +29,7 @@ export function siteConsentPorts({ deps }: { deps: RouteDeps }, _options = {}): 
     trustedRegion: Boolean(deps.consentTrustedRegionHeader),
     ...(deps.cookieConsent ? { cookieConsent: true, consentGate: cookieConsentPreviewGate } : {}),
     readLegacy: async () => readSiteConsentAuthoringSettings({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId }),
+    defaultOnly: async () => (await resolveSiteConsentActivation({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId })).source === 'default',
     privacyPageExists: createPrivacyPageCheck({ deps }),
     receiptStorage: async () => {
       try { return await readConsentReceiptStorage({ directory: path.join(deps.siteBinding.dir, CONSENT_RECEIPTS_DIR_NAME) }); }

@@ -19,7 +19,7 @@ export function consentFixture({ t }: { t: TestContext }, _options = {}) {
     workspaceId: 'ws', store, ready: Promise.resolve(),
     authorize: async ({ permission }) => { calls.push(permission); return { allowed, reason: allowed ? 'matched' : 'insufficient_permission' }; },
     clock: { nowIso: () => '2026-10-20T12:00:00.000Z' }, ids: { newId: () => `revision-${++count}` },
-    trustedRegion: false, readLegacy: async () => ({ ...SITE_CONSENT_DEFAULTS, enabled: false }), privacyPageExists: async () => true,
+    trustedRegion: false, readLegacy: async () => ({ ...SITE_CONSENT_DEFAULTS, enabled: false }), defaultOnly: async () => false, privacyPageExists: async () => true,
     renderPage: async () => ({ html: '<!doctype html><html><head></head><body><script src="https://tracker.example/pixel.js?secret=redact"></script><script data-consent-category="functional">window.optional=1</script><button onclick="window.clicked=1">Click</button></body></html>', ok: true, truncated: false }),
     receiptStorage: async () => ({ writable: true, count: 0 }),
   };
