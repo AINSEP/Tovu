@@ -69,7 +69,7 @@ test("registry expires only old staged payloads and pending owner rows, retainin
 });
 test("upload budget refuses a fifth payload and low disk space before retaining bytes", async t => {
   const h = await importFixture(t);
-  for (let n = 0; n < 4; n++) fs.writeFileSync(h.registry.uploadPath({ uploadId: randomUUID() }), "staged");
+  for (let n = 0; n < 4; n++) { const uploadId = randomUUID(); fs.writeFileSync(h.registry.uploadPath({ uploadId }), "staged"); h.registry.saveUpload({ row: { uploadId, principalId: "owner", createdAt: Date.now() } }); }
   await assert.rejects(h.backend.upload({ principalId: "owner", archive: h.archive }), { code: "BUSY", message: /Four imports/ });
   for (const file of fs.readdirSync(h.registry.directory).filter(name => name.endsWith(".upload.zip"))) fs.rmSync(path.join(h.registry.directory, file));
   const space = fs.statfsSync(h.registry.directory);

@@ -24,6 +24,8 @@ export interface SiteImportUpload { uploadId: string; principalId: string; creat
 const ID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 /** A staged upload is claimable for one hour after it is saved. */
 const UPLOAD_TTL_MS = 3600_000;
+/** The statuses whose import may still own a `<id>.stage` directory. */
+const STAGED_STATUSES: ReadonlySet<SiteImportRecord["status"]> = new Set(["verifying", "needs-owner", "creating"]);
 /** The import id behind an `<id>.json` history record name; undefined for every other file. */
 function recordIdOf(name: string): string | undefined {
   const id = name.slice(0, -5);
@@ -99,11 +101,30 @@ export class SiteImportRegistry {
       this.put({ row: { ...row, status: "failed", error: "Owner setup expired. Import the archive again." } });
     }
   }
-  /** Expired payloads are disposable; retain history with a named failure rather than dead setup. */
+  /** Removes a ZIP whose metadata is missing or unreadable: a crash between the two writes. */
+  private removeOrphanUpload(required: { id: string }): void {
+    if (!ID.test(required.id) || this.store(required.id, ".upload.json").read({}).state === "ok") return;
+    fs.rmSync(this.uploadPath({ uploadId: required.id }), { force: true });
+  }
+  /** Removes a stage no in-progress record owns; an unreadable record keeps its stage untouched. */
+  private removeOrphanStage(required: { importId: string }): void {
+    if (!ID.test(required.importId)) return;
+    const read = this.store(required.importId, ".json").read({});
+    if (read.state === "unreadable") return;
+    const status = read.state === "ok" ? (read.value as SiteImportRecord | null)?.status : undefined;
+    if (status === undefined || !STAGED_STATUSES.has(status)) fs.rmSync(this.stagePath(required), { recursive: true, force: true });
+  }
+  /** Expired payloads are disposable; retain history with a named failure rather than dead setup.
+   * Crash leftovers (a ZIP without metadata, a stage without a pending record) are removed too, so
+   * they never pin the staging budget. Callers hold the import lock: an upload writes its ZIP
+   * before its metadata, so an unlocked sweep could remove a payload that is still being saved.
+   */
   expire(_required: Record<string, never>, _options: Record<string, never> = {}): void {
     for (const filename of fs.readdirSync(this.directory)) {
       const importId = recordIdOf(filename);
       if (filename.endsWith(".upload.json")) this.expireUpload({ id: filename.slice(0, -12) });
+      else if (filename.endsWith(".upload.zip")) this.removeOrphanUpload({ id: filename.slice(0, -11) });
+      else if (filename.endsWith(".stage")) this.removeOrphanStage({ importId: filename.slice(0, -6) });
       else if (importId !== undefined) this.expireOwnerSetup({ importId });
     }
   }
