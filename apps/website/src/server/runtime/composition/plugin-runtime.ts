@@ -216,6 +216,8 @@ export interface PluginRuntimeBindings {
   /** Installed + enabled plugins here that declare providers, with their declarations (manifest only). */
   readonly listProviderPlugins: (required: Record<string, never>, optional?: Record<string, never>) => Promise<readonly { pluginId: string; providers: NonNullable<NonNullable<PluginManifest["contributes"]>["providers"]> }[]>;
   readonly discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
+  /** Discovery with the enabled activations' version pins: the versions boot runs (a pin never falls forward). */
+  readonly discoverActivePlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
   readonly onPluginEnabled: (pluginId: string) => Promise<void>;
   readonly onPluginDisabled: (pluginId: string) => void;
   readonly locatePluginPackageDirs: (pluginId: string) => Promise<{
@@ -741,6 +743,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     loadProviderPlugins,
     listProviderPlugins,
     discoverPlugins,
+    discoverActivePlugins,
     onPluginEnabled,
     onPluginDisabled,
     locatePluginPackageDirs,

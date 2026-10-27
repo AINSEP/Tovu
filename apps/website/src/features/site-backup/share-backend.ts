@@ -15,6 +15,8 @@ export interface SiteShareBackend {
   revoke(required: { shareId: string }, optional?: Record<string, never>): Promise<SiteShareView>;
 }
 export type SiteShareView = Omit<SiteShareRecord, "token" | "storage"> & { downloadUrl: string };
+/** A finished export, with what was left out of it (the share's scope notes) for the exporter only. */
+type ExportedShare = SiteShareRecord & { readonly notes?: readonly string[] };
 
 /** Locators/tokens stay in the private registry. The authorized caller receives the verified URL. */
 function view(row: SiteShareRecord): SiteShareView {
@@ -23,7 +25,7 @@ function view(row: SiteShareRecord): SiteShareView {
 }
 
 /** What a create caller sees for one wait: the finished share, a cancellation, or in-flight progress. */
-function createOutcome(required: { waited: PushJobWait<SiteShareRecord>; jobId: string }): unknown {
+function createOutcome(required: { waited: PushJobWait<ExportedShare>; jobId: string }): unknown {
   const { waited } = required;
   if (waited.state === "done") return { ...view(waited.result), ...(waited.result.url ? {} : { message: "ZIP ready. Download zip only. Connect a deployed Tovu site or S3-compatible storage to get a link." }) };
   if (waited.state === "abandoned") throw new SiteShareRefusal({ code: "CANCELLED", message: "Share export was cancelled." });
@@ -38,10 +40,10 @@ export function createSiteShareBackend(required: {
   zip: typeof zipFolderFiles;
   delivery: (required: { provider?: string; binding?: string }) => Promise<ShareDelivery | undefined>;
 }, _optional: Record<string, never> = {}): SiteShareBackend {
-  const jobs = new SiteBackupPushJobs<SiteShareRecord>();
+  const jobs = new SiteBackupPushJobs<ExportedShare>();
   let active: string | null = null;
   /** Prepares, archives and delivers one share under a ten-minute bound; always frees the site's lane. */
-  const exportShare = async (signal: AbortSignal, progress: SiteBackupPushProgress): Promise<SiteShareRecord> => {
+  const exportShare = async (signal: AbortSignal, progress: SiteBackupPushProgress): Promise<ExportedShare> => {
     try {
       const bounded = AbortSignal.any([signal, AbortSignal.timeout(10 * 60 * 1000)]);
       const content = await required.prepare({ signal: bounded });
@@ -50,7 +52,10 @@ export function createSiteShareBackend(required: {
       const archive = await buildShareZip({ plan: content, zip: required.zip }, { signal: bounded, progress });
       const delivery = await required.delivery({});
       bounded.throwIfAborted();
-      return await createSiteShare({ registry: required.registry, site: required.site, name: content.site.folderName, archive }, { delivery, signal: bounded });
+      const record = await createSiteShare({ registry: required.registry, site: required.site, name: content.site.folderName, archive }, { delivery, signal: bounded });
+      // Plugins left out of the archive are told to the exporter, never dropped silently.
+      const notes = Object.values(content.scopeNotes);
+      return notes.length > 0 ? { ...record, notes } : record;
     } finally { active = null; }
   };
   /** Starts a new export job, refusing a resume of an unknown job and a second export on this site. */

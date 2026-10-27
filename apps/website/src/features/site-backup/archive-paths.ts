@@ -30,10 +30,7 @@ const AGENT_PLUGIN_FILE = new RegExp(String.raw`^agent-plugins\/ws\/[^/]+\/([^/]
 function pluginArchivePath({ path: file }: { path: string }): string | null {
   const agent = AGENT_PLUGIN_FILE.exec(file);
   if (agent) return `agent-plugins/${agent[1]}/${agent[2] ?? "package"}/${agent[3]}`;
-  const site = /^plugins\/(?:static|declarative|code)\/([^/]+)\/(.+)$/.exec(file);
-  if (site) return `plugins/${site[1]}/package/${site[2]}`;
-  if (/^plugins\/[^/]+\/(?:package|memory)\//.test(file)) return file;
-  if (/^plugins\/[^/]+\//.test(file)) return file.replace(/^(plugins\/[^/]+)\//, "$1/package/");
+  // A site plugin file is already walked as its archive path, `plugins/<id>/package/...` (sources.ts walkSitePlugins).
   if (file.startsWith("agent-plugins/")) throw new SiteShareRefusal({ code: "UNSUPPORTED_PLUGIN", message: `Cannot flatten plugin path '${file}'. Update its installed layout before export.` });
   return file;
 }

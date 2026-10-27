@@ -876,7 +876,7 @@ function resolveSiteBindingOverride(overrides?: Partial<CreateSiteRouteDepsOverr
  *
  * @complexity O(1) — env reads and one small `package.json` read.
  */
-function resolveSiteBackupSources(input: { siteDir: string; uploadsDir: string; mediaIsRemoteByEnv: boolean; isMediaRemote: () => Promise<boolean>; themesDir: string; agentPluginLayout: RouteDeps["agentPluginLayout"]; skillLayout: RouteDeps["skillLayout"]; sitePluginVersions: NonNullable<SiteBackupSources["sitePluginVersions"]> }): SiteBackupSources {
+function resolveSiteBackupSources(input: { siteDir: string; uploadsDir: string; mediaIsRemoteByEnv: boolean; isMediaRemote: () => Promise<boolean>; themesDir: string; agentPluginLayout: RouteDeps["agentPluginLayout"]; skillLayout: RouteDeps["skillLayout"]; sitePlugins: NonNullable<SiteBackupSources["sitePlugins"]> }): SiteBackupSources {
   return {
     siteDir: input.siteDir,
     mediaUploadsDir: input.mediaIsRemoteByEnv ? null : input.uploadsDir,
@@ -885,7 +885,7 @@ function resolveSiteBackupSources(input: { siteDir: string; uploadsDir: string; 
     agentPlugins: input.agentPluginLayout,
     skillsDir: input.skillLayout.root,
     tovuVersion: readTovuVersion(),
-    sitePluginVersions: input.sitePluginVersions,
+    sitePlugins: input.sitePlugins,
   };
 }
 
@@ -2637,8 +2637,8 @@ async function composeSiteRouteDeps(
     agentPluginLifecycle,
     skillLayout,
     siteBackupSources: resolveSiteBackupSources({ siteDir: resolvedSiteBinding.dir, uploadsDir: resolvedUploadsDir, mediaIsRemoteByEnv, isMediaRemote, themesDir: resolvedThemesDir, agentPluginLayout, skillLayout,
-      // The same active pointer plugin discovery boots (`plugin-runtime.ts` discoverPlugins).
-      sitePluginVersions: async () => new Map((await pluginActivationRepo.listAll()).filter(row => row.workspaceId === workspaceId && row.enabled).map(row => [row.pluginId, row.version])) }),
+      // Jini's discovery with the same active pointer boot runs, over the folder it scans.
+      sitePlugins: async () => ({ installDir: pluginsInstallDir({ siteDir: resolvedSiteBinding.dir }), records: await pluginRuntime.discoverActivePlugins() }) }),
     siteStoragePaths: resolveSiteStoragePaths({ contentDbPath: dbPath, siteDir: resolvedSiteBinding.dir, uploadsDir: resolvedUploadsDir }),
     outbox,
     bus,

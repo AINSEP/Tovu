@@ -5,6 +5,7 @@ import { collectSiteBackupFiles, readPlannedFile, type PlannedDiskFile, type Sit
 import type { ArchivePlugin } from "./archive-manifest.js";
 import { runtimeToArchivePath } from "./archive-paths.js";
 import { SiteShareRefusal } from "./share-policy.js";
+import { PLUGIN_MANIFEST_FILENAMES } from "@jini-ai/plugins/host";
 
 /** Selects installed package versions through the lifecycle owner; includes reset baselines.
  * @throws SiteShareRefusal for multiple workspaces, unsafe originals or stale planned files.
@@ -93,8 +94,9 @@ async function unindexedAgentRecords(required: { files: readonly PlannedDiskFile
   return extras;
 }
 
-/** Only the package's own manifest names its version; nested example manifests do not. */
+/** Only the package's own manifest names its version; nested example manifests do not. Jini lists exactly
+ *  one manifest per package (the one discovery validated against its version folder). */
 function sitePluginVersion(required: { file: PlannedDiskFile; bytes: Buffer; id: string; current: string }): string {
-  if (runtimeToArchivePath({ path: required.file.path }) !== `plugins/${required.id}/package/plugin.json`) return required.current;
+  if (!PLUGIN_MANIFEST_FILENAMES.some(name => required.file.path === `plugins/${required.id}/package/${name}`)) return required.current;
   return String(JSON.parse(required.bytes.toString("utf8")).version ?? "unknown");
 }

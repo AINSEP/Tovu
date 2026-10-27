@@ -18,21 +18,13 @@ export type PackageFileInventory = ReadonlyMap<string, ReadonlyMap<string, strin
  *  state: export excludes it ({@link excludedSharePath}) and import refuses it (`archive-manifest.ts`). */
 export const SHARED_PLUGIN_MEMORY = String.raw`memory\/(?:notes|learned)`;
 const PRIVATE_PLUGIN_MEMORY = String.raw`memory\/(?!(?:notes|learned)(?:\/|$))`;
-/** A site plugin's root: a tier folder, or `plugins/<id>`. A versioned slot's active version is walked as
- *  `plugins/<id>` (`sources.ts` walkSitePlugins, from its manifest), so a folder name never decides
- *  "version": a content folder read as one loses its name and its data/ (Codex check 2026-10-27). */
-const SITE_PLUGIN_ROOT = String.raw`plugins\/(?:(?:static|declarative|code)\/[^/]+|(?!(?:static|declarative|code)\/)[^/]+)`;
-const SITE_PLUGIN_RUNTIME = new RegExp(String.raw`^${SITE_PLUGIN_ROOT}\/(?:data(?:\/|$)|${PRIVATE_PLUGIN_MEMORY})`);
 const AGENT_PLUGIN_RUNTIME = new RegExp(String.raw`^agent-plugins\/ws\/[^/]+\/[^/]+\/(?:data(?:\/|$)|${PRIVATE_PLUGIN_MEMORY})`);
 
 function excludedRuntimeSharePath({ path, parts }: { path: string; parts: string[] }, _options = {}): boolean {
   // Plugin runtime data/memory have fixed roots. A package's src/data or docs/notes is content.
-  // Only a plugin root (tier folder, or `plugins/<id>/`, which is also how an installed version is
-  // walked) owns one; a flat plugin's own `src/data` is content, never a version's data/. The flat root's data/ holds
-  // the same runtime data (OAuth tokens); export would map it to `plugins/<id>/package/data/`, which
-  // import refuses, and its private memory is refused by import's archive root.
+  // A site plugin needs no rule here: the share walks only the files Jini lists as its package
+  // (`sources.ts` walkSitePlugins), so its data/ and private memory are never reached.
   const roots = [
-    SITE_PLUGIN_RUNTIME,
     /^agent-plugins\/ws\/[^/]+\/(?:data|staging)(?:\/|$)/,
     AGENT_PLUGIN_RUNTIME,
     /^uploads\/chat-attachments(?:\/|$)/,

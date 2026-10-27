@@ -24,10 +24,11 @@ test("plugin package digest and workspace flatten; runtime ledgers never ship", 
   assert.equal(runtimeToArchivePath({ path: "agent-plugins/ws/ws/demo/memory/notes/readme.md" }), "agent-plugins/demo/memory/notes/readme.md");
   assert.equal(runtimeToArchivePath({ path: "agent-plugins/ws/ws/activations.json" }), null);
 });
-// An installed version reaches the mapping already walked as `plugins/<id>/...` (sources.ts walkSitePlugins).
-test("site package files go under package/ while portable memory stays outside it", () => {
-  assert.equal(runtimeToArchivePath({ path: "plugins/demo/plugin.json" }), "plugins/demo/package/plugin.json");
-  assert.equal(runtimeToArchivePath({ path: "plugins/demo/memory/notes/note.md" }), "plugins/demo/memory/notes/note.md");
+// Before: `plugins/demo/plugin.json` and tier folders were remapped under package/. After: the share walks a
+// site plugin's Jini-listed files as `plugins/<id>/package/...` already (sources.ts walkSitePlugins).
+test("a site package file is already its archive path; tier folders are not remapped", () => {
+  assert.equal(runtimeToArchivePath({ path: "plugins/demo/package/plugin.json" }), "plugins/demo/package/plugin.json");
+  assert.equal(runtimeToArchivePath({ path: "plugins/static/demo/index.js" }), "plugins/static/demo/index.js");
 });
 test("skills flatten out of their workspace folder; a skill folder is one code unit", () => {
   assert.equal(runtimeToArchivePath({ path: "skills/ws/workspace-local/help/SKILL.md" }), "skills/help/SKILL.md");
@@ -41,11 +42,11 @@ test("skills flatten out of their workspace folder; a skill folder is one code u
 
 // RED (Codex check 2026-10-27): `1.2` plus any dotted tail counted as a version, so a flat plugin's
 // `1.2.docs/index.js` lost its folder and collided with the plugin's own `index.js` (export refused the
-// duplicate). A folder name never makes a version (design 2026-10-27): only a slot child whose manifest
-// names it is one, chosen before the walk (share-site-plugin-versions). The mapping keeps every folder.
+// duplicate). A folder name never makes a version (design 2026-10-27): Jini's discovery picks it before the
+// walk (share-site-plugin-versions). The mapping and the private-data exclusion keep every package folder.
 test("a folder name never makes a site plugin version: the mapping and the private-data exclusion keep it", () => {
   for (const folder of ["1", "2fa", "1.0", "1.2", "1.2.3", "1.0.0-beta.1", "1.2.3+build.7", "1.2.docs"]) {
-    assert.equal(runtimeToArchivePath({ path: `plugins/demo/${folder}/index.js` }), `plugins/demo/package/${folder}/index.js`, folder);
-    assert.equal(excludedSharePath({ path: `plugins/demo/${folder}/data/help.md` }), false, folder);
+    assert.equal(runtimeToArchivePath({ path: `plugins/demo/package/${folder}/index.js` }), `plugins/demo/package/${folder}/index.js`, folder);
+    assert.equal(excludedSharePath({ path: `plugins/demo/package/${folder}/data/help.md` }), false, folder);
   }
 });

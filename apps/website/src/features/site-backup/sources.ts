@@ -1,13 +1,14 @@
 import { excludedSharePath, validateSharePath } from "./share-file-policy.js";
 import { checkShareLimits, SiteShareRefusal } from "./share-policy.js";
+import { createHash } from "node:crypto";
 import { constants as fsConstants, type Dirent, type Stats } from "node:fs";
 import { lstat, mkdtemp, open, readdir, readFile, rm, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
+import { listSitePluginPackage, type PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import type { AgentPluginLayout } from "../agent-plugins/layout.js";
-import { activeSitePluginVersion } from "./site-plugin-slots.js";
 
 /**
  * @file What a site backup is made of, read from this machine: which files on disk each scope switch
@@ -90,15 +91,16 @@ export interface SiteBackupSources {
   readonly agentPlugins: AgentPluginLayout;
   readonly skillsDir: string;
   readonly tovuVersion: string;
-  /** Site plugin id -> its enabled activation's version: the retained version a share exports. */
-  readonly sitePluginVersions?: () => Promise<ReadonlyMap<string, string>>;
+  /** The site plugin install folder and Jini's discovery of it with the activation pins (the version
+   *  boot runs): a share ships only what Jini lists for a valid record. Absent: no plugin ships. */
+  readonly sitePlugins?: () => Promise<{ installDir: string; records: readonly PluginDiscoveryRecord[] }>;
 }
 
 /** One file on disk a backup will upload. `bytes` and `mtimeMs` are what {@link readPlannedFile}
  *  compares against at push time. */
 export interface PlannedDiskFile {
-  /** Relative to the backup folder, `/`-separated. A share's versioned site plugin leaves its version
-   *  folder out (`plugins/<id>/<path in the package>`); `absPath` is still the file on disk. */
+  /** Relative to the backup folder, `/`-separated. A share's site plugin file is already its archive
+   *  path (`plugins/<id>/package/<path in the package>`); `absPath` is still the file on disk. */
   readonly path: string;
   readonly bytes: number;
   readonly scope: SiteBackupScope;
@@ -367,7 +369,7 @@ export async function collectSiteBackupFiles(input: { sources: SiteBackupSources
   if (include.media) await collectMediaScope({ sink, sources, scopeNotes });
   if (include.themes) await walkTree(sink, { absDir: sources.themesDir, relDir: "themes", scope: "themes" });
   if (include.plugins) await collectPluginScope({ sink, sources });
-  if (sink.profile === "share") await collectShareOnlyTrees({ sink, sources, include });
+  if (sink.profile === "share") await collectShareOnlyTrees({ sink, sources, include, scopeNotes });
   if (include.settings) {
     for (const name of ["config.json", ".site-meta.json"]) {
       await addFile(sink, { absPath: path.join(sources.siteDir, name), relPath: `settings/${name}`, scope: "settings" });
@@ -404,34 +406,54 @@ async function collectPluginScope(required: { sink: WalkSink; sources: SiteBacku
 }
 
 /** Site-local plugin packages and theme overrides travel only in a share. */
-async function collectShareOnlyTrees(required: { sink: WalkSink; sources: SiteBackupSources; include: SiteBackupInclude }): Promise<void> {
+async function collectShareOnlyTrees(required: { sink: WalkSink; sources: SiteBackupSources; include: SiteBackupInclude; scopeNotes: Partial<Record<SiteBackupScope, string>> }): Promise<void> {
   const { sink, sources, include } = required;
-  if (include.plugins) await walkSitePlugins({ sink, pluginsDir: path.join(sources.siteDir, "plugins") }, { pinned: await sources.sitePluginVersions?.() });
+  if (include.plugins) await walkSitePlugins(required);
   if (include.themes) await walkTree(sink, { absDir: path.join(sources.siteDir, "overrides"), relDir: "overrides", scope: "themes" });
 }
 
 /**
- * Each site plugin slot once ({@link activeSitePluginVersion}): only its active version is walked, under
- * `plugins/<id>` as if flat, so its data/ and private memory are excluded relative to the package root and
- * its paths carry no version folder (the archive's `plugins/<id>/package/...`, import's layout unchanged).
- * A flat slot is walked as is; tier folders, files and links take the ordinary walk.
- * @complexity O(entries under the plugins folder) plus one manifest read per slot child.
+ * Site plugins exactly as Jini lays them out: for each folder in the install dir, the files
+ * `listSitePluginPackage` names for its valid, pinned discovery record (manifest plus integrity files),
+ * as `plugins/<id>/package/<path>`. Nothing else under the folder is walked, so no folder name, missing
+ * manifest or fallen-forward pin can turn data/ or private memory into package content. A folder that
+ * is not a valid installed plugin, or whose files fail their checks, ships nothing and is named in the
+ * plugins scope note; the export carries on (the owner never has to repair a folder by hand).
+ * @complexity O(install-dir entries + listed files), one read and hash per listed file.
  */
-async function walkSitePlugins(required: { sink: WalkSink; pluginsDir: string }, optional: { pinned?: ReadonlyMap<string, string> | undefined }): Promise<void> {
-  const { sink, pluginsDir } = required;
-  if (sink.profile === "share" && !(await enterShareDirectory({ sink, absDir: pluginsDir, relDir: "plugins" }))) return;
-  for (const entry of await readdirOrEmpty(pluginsDir, sink.fileSystem)) {
-    if (skippedWalkEntry({ sink, relDir: "plugins", name: entry.name }, {})) continue;
-    if (!entry.isDirectory() || PLUGIN_TIERS.has(entry.name)) {
-      await walkEntry({ sink, entry, absDir: pluginsDir, relDir: "plugins", scope: "plugins" });
-      continue;
-    }
-    const slot = path.join(pluginsDir, entry.name);
-    const version = await activeSitePluginVersion({ slot, children: await readdirOrEmpty(slot, sink.fileSystem) }, { pinned: optional.pinned?.get(entry.name) });
-    await walkTree(sink, { absDir: version === undefined ? slot : path.join(slot, version), relDir: `plugins/${entry.name}`, scope: "plugins" });
+async function walkSitePlugins(required: { sink: WalkSink; sources: SiteBackupSources; scopeNotes: Partial<Record<SiteBackupScope, string>> }): Promise<void> {
+  const { sink, sources } = required;
+  const { installDir, records } = await sources.sitePlugins?.() ?? { installDir: path.join(sources.siteDir, "plugins"), records: [] };
+  if (!(await enterShareDirectory({ sink, absDir: installDir, relDir: "plugins" }))) return;
+  const leftOut: string[] = [];
+  for (const { name } of await readdirOrEmpty(installDir, sink.fileSystem)) {
+    if (name.startsWith(".")) continue; // Jini's own staging (`.drafts`) and Finder files; never a plugin.
+    const record = records.find(candidate => candidate.source === "site" && candidate.id === name);
+    const files = record && await sitePluginPackageFiles({ sink, installDir, record });
+    if (files) sink.files.push(...files);
+    else leftOut.push(name);
   }
+  if (leftOut.length > 0) required.scopeNotes.plugins = `Left out because they aren't valid installed plugins (damaged manifest, version not installed, or changed files): ${leftOut.sort().map(name => `'${name}'`).join(", ")}.`;
 }
-const PLUGIN_TIERS: ReadonlySet<string> = new Set(["static", "declarative", "code"]);
+
+/** One plugin's planned files, each through the walk's guards and checked against its integrity sha256;
+ *  `null` when Jini will not list it or any listed file is missing, linked, excluded or changed. */
+async function sitePluginPackageFiles(required: { sink: WalkSink; installDir: string; record: PluginDiscoveryRecord }): Promise<PlannedDiskFile[] | null> {
+  const { record } = required;
+  const listed = await listSitePluginPackage({ installDir: required.installDir, record }).catch(() => null);
+  if (listed === null) return null;
+  const staged: WalkSink = { ...required.sink, files: [], skipped: [] };
+  for (const file of listed.files) {
+    await addFile(staged, { absPath: path.join(listed.rootDir, file.relativePath), relPath: `plugins/${record.id}/package/${file.relativePath}`, scope: "plugins" });
+  }
+  if (staged.skipped.length > 0 || staged.files.length !== listed.files.length) return null;
+  for (const [index, planned] of staged.files.entries()) {
+    const expected = listed.files[index]!.sha256;
+    const read = expected === null ? null : await readPlannedFile(planned);
+    if (read && (!read.ok || createHash("sha256").update(read.bytes).digest("hex") !== expected)) return null;
+  }
+  return staged.files;
+}
 
 export type DatabaseSnapshotResult = { ok: true; bytes: Buffer; watermarkAtCapture: number } | { ok: false; message: string; logDetail?: string };
 

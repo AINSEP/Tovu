@@ -20,6 +20,7 @@ import {
   type SiteBackupInclude,
   type SiteBackupSources,
 } from "../sources.js";
+import { installSitePlugin, jiniSitePlugins } from "./fixtures/site-plugin.fixture.js";
 
 /**
  * @file `sources.ts`'s proof: which bytes on disk a site backup picks up for each scope switch, what
@@ -679,16 +680,17 @@ test("share plugin root lstat failures are never hidden as missing installations
 test("share collection omits only private runtime files and includes overrides and plugin source", async t => {
   const site = makeSite(); t.after(site.cleanup);
   rmSync(path.join(site.sources.themesDir, "static/demo/.git"), { recursive: true, force: true });
-  write(path.join(site.root, "plugins/custom/1.0.0/jini.plugin.json"), JSON.stringify({ id: "custom", version: "1.0.0" }));
-  write(path.join(site.root, "plugins/custom/1.0.0/src/data/default.json"), "{}");
-  write(path.join(site.root, "plugins/custom/1.0.0/data/private.json"), "private");
+  // Before: a bare `{id, version}` manifest made 1.0.0/ the walked root. After: Jini lists the package
+  // (manifest plus integrity files), so the fixture is a real installed plugin.
+  const installDir = path.join(site.root, "plugins");
+  installSitePlugin({ installDir, id: "custom", version: "1.0.0", package: { "src/data/default.json": "{}" } }, { extra: { "data/private.json": "private" } });
   write(path.join(site.root, "overrides/header.html"), "override");
   write(path.join(site.root, "themes/static/demo/.env.local"), "private");
   write(path.join(site.root, "agent-plugins/ws/workspace-local/composio/memory/private/secret.md"), "private");
-  const result = await collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, themes: true, plugins: true } }, { profile: "share" });
+  const result = await collectSiteBackupFiles({ sources: { ...site.sources, sitePlugins: jiniSitePlugins({ installDir }) }, include: { ...NONE, themes: true, plugins: true } }, { profile: "share" });
   assert.ok(paths(result.files).includes("overrides/header.html"));
-  // The installed version is walked as the package root, so its paths carry no version folder.
-  assert.ok(paths(result.files).includes("plugins/custom/src/data/default.json"));
+  // A site plugin file is walked as its archive path, with no version folder.
+  assert.ok(paths(result.files).includes("plugins/custom/package/src/data/default.json"), "plugin source");
   assert.equal(paths(result.files).some(file => file.endsWith("data/private.json")), false);
   assert.equal(paths(result.files).includes("themes/static/demo/.env.local"), false);
   // A v2 share carries a plugin's memory notes and learned facts; every other memory folder is private.

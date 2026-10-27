@@ -27,18 +27,17 @@ const shipped = (files: Record<string, string>): PackageFileInventory => new Map
 const LABELS = `"API token": "Token de API"`;
 
 for (const path of [
-  // A flat (unversioned) plugin's own data/ is runtime data too (lot export-leftovers); an installed
-  // version is walked as `plugins/<id>/...`, so the same root covers it (share-site-plugin-versions).
-  "plugins/static/a/data/x", "plugins/a/data", "plugins/a/data/x", "plugins/a/memory/private/x.md", "agent-plugins/ws/w/data/x", "agent-plugins/ws/w/staging",
+  // Site plugin paths are not here: the share walks only Jini's package listing (share-site-plugin-versions).
+  "agent-plugins/ws/w/data/x", "agent-plugins/ws/w/staging",
   "agent-plugins/ws/w/p/data", "agent-plugins/ws/w/p/memory/x", "uploads/chat-attachments", "uploads/chat-attachments/a.png",
   "Uploads/Chat-Attachments/a.png", "themes/.env", "themes/.env.production", "themes/chat.db", "settings/chat.db-wal", "settings/chat.db.bak",
 ]) {
   test(`'${path}' is a known private location and is excluded`, () => { assert.equal(excludedSharePath({ path }), true); });
 }
 
-// RED (green-1027): a flat plugin's src/data was read as a version folder's data/ and dropped from the export.
-// A folder name never makes a version (design 2026-10-27): `1.0.0/data/x` here is a flat plugin's content.
-for (const path of ["plugins/a/1.0.0/src/data/x", "plugins/a/1.0.0/data/x", "plugins/a/2fa/data/x", "plugins/a/memory/notes/x.md", "plugins/a/src/data/x", "plugins/a/lib/memory/x", "agent-plugins/ws/w/p/q/data", "uploads/chat-attachmentsx", "themes/chat.dbx", "themes/site/index.html"]) {
+// RED (green-1027): a package's src/data was read as runtime data/ and dropped from the export. Package files
+// Jini lists keep every folder name, `data` included (design 2026-10-27 P1).
+for (const path of ["plugins/a/package/src/data/x", "plugins/a/package/data/x", "plugins/a/package/1.0.0/data/x", "plugins/a/package/lib/memory/x", "agent-plugins/ws/w/p/q/data", "uploads/chat-attachmentsx", "themes/chat.dbx", "themes/site/index.html"]) {
   test(`'${path}' is ordinary content and is kept`, () => { assert.equal(excludedSharePath({ path }), false); });
 }
 
