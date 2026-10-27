@@ -123,7 +123,7 @@ test('catalog event uses installation identity; unknown and visitor events are d
       { name: 'app_started', userId: INSTALL, properties: {} },
     ]);
     assert.deepEqual(f.inputs, [{ config: CONFIG, release: f.required.release, attribution: { attributes: {
-      source: 'desktop', release: f.required.release, os: process.platform, arch: process.arch, process: 'server',
+      source: 'desktop', release: f.required.release, environment: 'desktop', 'service.version': f.required.release, 'deployment.environment': 'desktop', os: process.platform, arch: process.arch, process: 'server',
     }, groups: {} } }]);
     assert.deepEqual(product.crashUpload, { submitURL: 'https://crash.example.test/upload', globalExtra: { release: f.required.release } });
     await product.dispose();
@@ -284,4 +284,25 @@ test('catalog is frozen; declared free-text enum values and unknown identity fie
   assert.deepEqual(projectProductEvent({ installationId: INSTALL, event: { name: 'desktop_action', userId: 'private', properties: { action: 'private action' } } }),
     { name: 'desktop_action', userId: INSTALL, properties: {} });
   assert.equal(projectProductEvent({ installationId: INSTALL, event: { name: 'toString', userId: 'private' } }), undefined);
+});
+
+test('maker errors discard site trace IDs and arbitrary attributes while preserving permitted context', async () => {
+  const f = await fixture();
+  try {
+    const product = await bootProductTelemetry(f.required, { ...f.options, readConsent: () => granted });
+    const trace = { traceId: 'a'.repeat(32), spanId: 'b'.repeat(16) };
+    const report: ErrorReport = { error: new Error('safe failure'), context: {
+      operation: 'admin.browser.error', level: 'warning', trace,
+      attributes: { process: 'server', code: 503, signal: 'SIGTERM', route: '/admin/posts/private-slug?private=query',
+        traceId: trace.traceId, spanId: trace.spanId, siteId: 'private-site', projectId: 'private-project',
+        principalId: 'private-principal', arbitrary: 'private-value' },
+    } };
+    product.observability.reportError(report);
+    assert.equal(f.errors.length, 1);
+    assert.deepEqual(f.errors[0]!.context, { operation: 'admin.browser.error', level: 'warning',
+      attributes: { process: 'server', code: 503, signal: 'SIGTERM', route: '/admin/posts' } });
+    assert.equal(JSON.stringify(f.errors[0]!.context).includes('private'), false);
+    assert.deepEqual(report.context.trace, trace, 'site error context remains untouched for its own providers');
+    await product.dispose();
+  } finally { await f.close(); }
 });

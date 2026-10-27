@@ -24,6 +24,7 @@ import { setReadinessSnapshot } from "./server/runtime/lifecycle/readiness-state
 import { registerPluginSdkResolver } from "./server/runtime/boot/plugin-sdk-resolver.js";
 import { installProcessErrorReporting, installUnhandledRejectionGuard, reportFatalBootFailure } from "./server/runtime/boot/process-error-guards.js";
 import { attachServerLogFile, installServerLogCapture, serverLogFilePaths } from "./platform/server-logs/index.js";
+import { processBuildRelease, telemetryEnvironment } from './server/runtime/composition/build-release.js';
 import { shutdownAssistantDaemon, startAssistantDaemon } from "./server/inbound/assistant/index.js";
 import { closeStoreOnShutdown, stopServingWithinGrace } from "./server/runtime/lifecycle/close-store-on-shutdown.js";
 import { ensureAgentDaemonPortResolved } from "./server/runtime/lifecycle/agent-daemon-port.js";
@@ -130,7 +131,7 @@ async function prepareSiteBoot(
   // Server log capture (gap A-04): keeps recent console output in memory, redacted, so the admin
   // server-logs route and the `system_read_server_logs` chat tool can show recent errors. Installed
   // right after the rejection guard so boot-time failures are captured too.
-  installServerLogCapture();
+  installServerLogCapture({ release: processBuildRelease({}), environment: telemetryEnvironment({ env: process.env }) });
   // Persist it to `<site>/ops/logs/server.log` (L2) so errors survive a restart, and read the agent
   // daemon's `daemon.log` alongside it. A memory-DB run has no site of its own to write into.
   if (!useMemory) {

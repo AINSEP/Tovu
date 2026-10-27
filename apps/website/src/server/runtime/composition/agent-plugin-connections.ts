@@ -14,7 +14,9 @@ import { loadFormDestinationRegistry } from "#src/features/form-destinations/reg
 import { readFormDeliveryBindings, writeFormDeliveryBindings } from "#src/features/settings/index";
 
 import { createRateLimiter, type RateLimitProfile } from "#src/contracts/core/rate-limit/rate-limit";
-import { createApiConnectionHost, type ApiConnectionHost, type ApiConnectionRuntime } from "#src/features/api-connections/host";
+import { createApiConnectionHost, type ApiConnectionHost } from "#src/features/api-connections/host";
+import { resolveApiConnectionRuntime } from '../../../contracts/core/runtime-mode.js';
+export { resolveApiConnectionRuntime };
 import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
 import type { AgentPluginExecutableToolHost } from "#src/features/agent-plugins/executable-tools/register";
 import { createAgentPluginToolCapabilities, createFrozenConnectionAccounts, createGuardedPluginHttp } from "#src/features/agent-plugins/executable-tools/host-capabilities";
@@ -48,15 +50,6 @@ import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
  * calls here.
  */
 export const AGENT_PLUGIN_OUTBOUND_BUDGET: RateLimitProfile = { windowSeconds: 60, max: 240, burst: 40 };
-
-/**
- * Installed-app (desktop) or hosted. The desktop shell starts this server with Electron's own Node
- * (`ELECTRON_RUN_AS_NODE=1`); every other launch is a hosted site with a public callback.
- * @complexity O(1).
- */
-export function resolveApiConnectionRuntime(required: { readonly env: Readonly<Record<string, string | undefined>> }, _optional: Record<string, never> = {}): ApiConnectionRuntime {
-  return required.env.ELECTRON_RUN_AS_NODE === "1" ? "desktop" : "hosted";
-}
 
 /**
  * The origin the hosted callback is built on: an operator-set `TOVU_PUBLIC_URL` wins, the derived

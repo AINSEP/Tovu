@@ -160,6 +160,7 @@ import { registerFederationReloadRoute } from "./federation-reload-route.js";
 import { createAgentDaemonRouteDeps, startPluginActivationPolling } from "../../runtime/composition/agent-daemon-deps.js";
 import { installProcessErrorReporting, installUnhandledRejectionGuard } from "../../runtime/boot/process-error-guards.js";
 import { attachServerLogFile, installServerLogCapture, serverLogFilePaths } from "../../../platform/server-logs/index.js";
+import { processBuildRelease, telemetryEnvironment } from '../../runtime/composition/build-release.js';
 import { siteDir } from "../../runtime/composition/deps.js";
 import { registerInstalledExtensionTools } from "../../runtime/composition/installed-extension-tools.js";
 import { installFirstPartyToolContributors } from "../../runtime/composition/tool-catalog-manifest.js";
@@ -392,7 +393,7 @@ installUnhandledRejectionGuard();
 // piped stderr cannot tell its `console.error` breadcrumbs from real errors) in
 // `<site>/ops/logs/daemon.log`, and `system_read_server_logs`, which runs HERE on the daemon chat
 // path, reads it merged with the main server's `server.log`. Terminal output is unchanged.
-installServerLogCapture({ source: "daemon" });
+installServerLogCapture({ source: "daemon", release: processBuildRelease({}), environment: telemetryEnvironment({ env: process.env }) });
 if (process.env.TOVU_DB !== "memory") {
   const logFiles = serverLogFilePaths({ siteDir: siteDir() });
   attachServerLogFile({ filePath: logFiles.daemon }, { alsoRead: [logFiles.server] });

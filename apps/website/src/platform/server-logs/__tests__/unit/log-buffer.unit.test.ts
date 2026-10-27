@@ -8,6 +8,27 @@ const identity = (text: string) => text;
 const tovuRedact = (text: string) => redactSecretShapes({ text }).text;
 const fixedClock = () => new Date("2026-10-05T12:00:00.000Z");
 
+test('metadata is captured per record, survives eviction, and never borrows an inactive trace', () => {
+  let trace: { traceId: string; spanId: string } | undefined;
+  const buffer = createLogBuffer({ redact: identity }, { maxEntries: 1,
+    metadata: () => ({ release: 'tovu@1.2.3+abcdef0', environment: 'local', ...trace }),
+  });
+  buffer.append({ level: 'info', source: 'server', message: 'boot' });
+  trace = { traceId: 'a'.repeat(32), spanId: 'b'.repeat(16) };
+  const active = buffer.append({ level: 'error', source: 'daemon', message: 'failed' });
+  assert.equal(active.release, 'tovu@1.2.3+abcdef0');
+  assert.equal(active.environment, 'local');
+  assert.equal(active.traceId, trace.traceId);
+  assert.equal(active.spanId, trace.spanId);
+  trace = undefined;
+  const outside = buffer.append({ level: 'info', source: 'daemon', message: 'outside' });
+  assert.equal(outside.traceId, undefined);
+  assert.equal(outside.spanId, undefined);
+  assert.equal(outside.release, active.release);
+  assert.equal(buffer.entries().length, 1);
+  assert.equal(active.traceId, 'a'.repeat(32), 'later context changes cannot rewrite a record');
+});
+
 test("overflow drops the oldest entries first and keeps seq monotonic", () => {
   const buffer = createLogBuffer({ redact: identity }, { maxEntries: 3, now: fixedClock });
   for (const message of ["a", "b", "c", "d", "e"]) buffer.append({ level: "info", source: "server", message });

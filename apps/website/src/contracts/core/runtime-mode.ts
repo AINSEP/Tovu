@@ -21,3 +21,12 @@ export function resolveRuntimeMode(options?: ResolveRuntimeModeOptions): Runtime
   const env = options === undefined ? process.env : options.env ?? {};
   return env.TOVU_RUNTIME_MODE === "production" ? "production" : "local";
 }
+
+/**
+ * Installed-app (desktop) or hosted. The desktop shell starts this server with Electron's own Node
+ * (`ELECTRON_RUN_AS_NODE=1`); every other launch is a hosted site with a public callback.
+ * @complexity O(1).
+ */
+export function resolveApiConnectionRuntime(required: { readonly env: Readonly<Record<string, string | undefined>> }, _optional: Record<string, never> = {}): 'desktop' | 'hosted' {
+  return required.env.ELECTRON_RUN_AS_NODE === '1' ? 'desktop' : 'hosted';
+}

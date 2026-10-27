@@ -33,10 +33,17 @@ let processBuffer: ServerLogBuffer | null = null;
 let uninstallCapture: (() => void) | null = null;
 let readFilePaths: readonly string[] = [];
 let detachFile: (() => void) | null = null;
+let identity = { release: 'tovu@unknown-dev', environment: 'local' };
+let traceIds: () => { traceId: string; spanId: string } | undefined = () => undefined;
+
+/** Composition supplies a live site tracing reader; IDs are read at append time, never generated. */
+export function setServerLogTraceReader(required: { traceIds: () => { traceId: string; spanId: string } | undefined }, _optional = {}): void {
+  traceIds = required.traceIds;
+}
 
 /** Created lazily so a test or tool that only reads gets an empty buffer, never a crash. */
 export function getServerLogBuffer(): ServerLogBuffer {
-  processBuffer ??= createLogBuffer({ redact: text => redactSecretShapes({ text }).text });
+  processBuffer ??= createLogBuffer({ redact: text => redactSecretShapes({ text }).text }, { metadata: () => ({ ...identity, ...traceIds() }) });
   return processBuffer;
 }
 
@@ -53,8 +60,9 @@ export function isServerLogCaptureInstalled(): boolean {
  * @returns Uninstall (tests only; production keeps capture for the process lifetime).
  * @complexity O(1).
  */
-export function installServerLogCapture(optional: { source?: ServerLogSource } = {}): () => void {
+export function installServerLogCapture(optional: { source?: ServerLogSource; release?: string; environment?: string } = {}, _options: Record<string, never> = {}): () => void {
   if (uninstallCapture === null) {
+    identity = { release: optional.release ?? identity.release, environment: optional.environment ?? identity.environment };
     const source = optional.source ?? "server";
     const buffer = getServerLogBuffer();
     const untee = installConsoleTee({ buffer }, { source, redact: text => redactSecretShapes({ text }).text });
