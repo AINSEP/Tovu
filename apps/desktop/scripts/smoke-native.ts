@@ -17,7 +17,7 @@
  *
  * Usage: node scripts/smoke-native.ts --platform-dir <dir-containing-mac-or-win-unpacked-output>
  * Exit codes: 0 = better-sqlite3, sharp, and argon2 all round-tripped inside the packaged binary,
- *                 every static entry import resolved, and owner-store status returned ready.
+ *                 every static entry import resolved, and owner-store status found no legacy owner store.
  *             1 = any check failed, the executable/node_modules could not be located or spawned,
  *                 or the child's output could not be parsed.
  */
@@ -130,11 +130,11 @@ async function runGate({ targets, directory, ports }: { targets: SmokeTargets; d
   checkEntryImports(targets, ports);
   const reply = await ports.ownerStatus({ targets, directory });
   assertPackagedOwnerStoreStatus({ reply });
-  ports.out("smoke-native: OK — packaged owner-store status ready in an empty temporary profile\n");
+  ports.out("smoke-native: OK — packaged owner-store status: no legacy owner store in an empty temporary profile\n");
 }
 
 /** Exercise S3's real CLI transport under the shipped Electron binary, never the runner's Node.
- * The isolation owner removes directory (including owner.db/key) even when this check fails.
+ * The isolation owner removes directory even when this check fails; status never creates owner.db.
  * @param input Isolated packaged targets and disposable parent directory from the existing gate.
  * @param options Injectable CLI/spawn for tests; only OS process essentials enter the child env.
  * @returns Metadata-only status; the transport owns stdin, timeout and diagnostic suppression.

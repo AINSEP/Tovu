@@ -3,7 +3,7 @@ import test from 'node:test';
 import { act } from 'react';
 import { renderHook, settle } from './dom-hook-harness.js';
 import { useSharedKeys } from './SharedKeys.hooks.js';
-import type { OwnerStoreBridge, OwnerStoreEntry, OwnerStoreReply } from '../contracts/owner-store.js';
+import type { LegacyImportPending, OwnerStoreBridge, OwnerStoreEntry, OwnerStoreReply } from '../contracts/owner-store.js';
 
 const entry: OwnerStoreEntry = { id: 'entry-a', kind: 'vendor', label: 'Deployment key', provider: 'hosting',
   revision: 3, configured: true, isDefault: false, worksFor: ['hosting'] };
@@ -11,22 +11,33 @@ const entry: OwnerStoreEntry = { id: 'entry-a', kind: 'vendor', label: 'Deployme
 /** Only metadata listing is needed: a hook cannot silently attach/copy a key through this fake. */
 function fixture() {
   let reads = 0;
-  let list = async (): Promise<OwnerStoreReply<'list'>> => ({ version: 1, ok: true, action: 'list', data: { entries: [entry], grants: [] } });
+  let list = async (): Promise<OwnerStoreReply<'list'>> => ({ version: 1, ok: true, action: 'list', data: { entries: [entry] } });
   const bridge = { list: async (input) => { assert.deepEqual(input, { store: 'project' }); reads++; return list(); } } as OwnerStoreBridge;
   return { bridge, reads: () => reads, setList: (next: typeof list) => { list = next; } };
 }
 
-test('loads metadata and preserves committed save feedback when a site-copy row fails', async t => {
+// Before: 'loads metadata and preserves committed save feedback when a site-copy row fails'. Saves
+// no longer copy into sites, so the reply has no sync rows; import feedback is what counts now.
+test('loads metadata; import feedback counts imported keys and mentions kept site copies', async t => {
   const f = fixture();
   const hook = renderHook(t, () => useSharedKeys({ bridge: f.bridge }));
   await settle();
   assert.deepEqual(hook.current().entries, [entry]);
   assert.equal(hook.current().loaded, true);
-  await act(async () => { await hook.current().run({ action: async () => ({ version: 1, ok: true, action: 'put',
-    data: { entry }, sync: [{ siteId: 'site-a', reply: { version: 1, ok: true, action: 'sync',
-      data: { consumerId: 'site-a', results: [{ id: entry.id, kind: 'vendor', status: 'failed' }] } } }] }) }); });
-  assert.equal(hook.current().message, 'Saved. Some existing site copies could not be updated. Refresh before retrying.');
-  assert.equal(f.reads(), 2);
+  const imported = (status: 'imported' | 'already-imported', pending: LegacyImportPending[] = [], applied = true): OwnerStoreReply<'import'> =>
+    ({ version: 1, ok: true, action: 'import', data: { applied, pending, items: [{ id: entry.id, label: entry.label, kind: 'vendor', provider: 'hosting', status }] } });
+  for (const [reply, message] of [
+    [imported('imported', [{ entryId: entry.id, site: '/sites/blog', reason: 'keeps-copy' }]), 'Imported 1 key. Sites that had copies keep them.'],
+    [imported('imported'), 'Imported 1 key.'],
+    [imported('already-imported', [], false), 'Nothing new to import.'],
+    [{ version: 1, ok: true, action: 'import', data: { applied: false, items: [], pending: [] } }, 'Nothing new to import.'],
+  ] as const) {
+    await act(async () => { await hook.current().run({ action: async () => reply }); });
+    assert.equal(hook.current().message, message);
+  }
+  await act(async () => { await hook.current().run({ action: async () => ({ version: 1, ok: false, action: 'import', error: { code: 'cancelled', message: 'unused' } }) }); });
+  assert.equal(hook.current().error, 'The import was cancelled.');
+  assert.equal(f.reads(), 5, 'a cancelled import does not refresh; every completed one does');
 });
 
 test('same-turn double submit performs one action and one refresh', async t => {
@@ -61,12 +72,12 @@ test('failed inventory reads clear old entries; unmounted completions do not rea
   const hook = renderHook(t, () => useSharedKeys({ bridge: f.bridge })); await settle();
   f.setList(async () => ({ version: 1, ok: false, action: 'list', error: { code: 'recovery-required', message: 'unused' } }));
   await act(async () => { await hook.current().run(); });
-  assert.equal(hook.current().error, 'Restore the original owner.key, or restore an encrypted backup into an empty owner store.');
+  assert.equal(hook.current().error, 'The older key store needs its original owner.key. Restore it, or import a backup.');
   assert.deepEqual(hook.current().entries, []);
-  let finish!: (reply: OwnerStoreReply<'export'>) => void;
+  let finish!: (reply: OwnerStoreReply<'import'>) => void;
   act(() => { void hook.current().run({ action: () => new Promise(resolve => { finish = resolve; }) }); });
   hook.unmount();
-  finish({ version: 1, ok: true, action: 'export', data: { exported: true } }); await settle();
+  finish({ version: 1, ok: true, action: 'import', data: { applied: false, items: [], pending: [] } }); await settle();
   assert.equal(f.reads(), 2);
 });
 

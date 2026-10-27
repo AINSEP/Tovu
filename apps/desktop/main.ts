@@ -149,7 +149,7 @@ import { registerProductTelemetryIpc } from './src/product-telemetry-ipc.ts';
 import { startProductMemoryTelemetry } from './src/product-memory-telemetry.ts';
 import { registerResourcesIpc } from "./src/resources-ipc.ts";
 import { runOwnerStoreCli } from "./src/owner-store-cli.ts";
-import { createOwnerStoreController, registerOwnerStoreIpc } from "./src/owner-store-ipc.ts";
+import { createOwnerStoreController, importConfirmation, registerOwnerStoreIpc, settleLegacyOwnerStore } from "./src/owner-store-ipc.ts";
 import { listProcessUsage } from "@jini-ai/platform/process";
 import { totalmem } from "node:os";
 import { createUpdateCheckNow, registerUpdateCheckIpc } from "./src/update-check-now.ts";
@@ -365,25 +365,40 @@ const sharedSites = createSitesWorkspace({}, { cwd: PAYLOAD_ROOT, sourceRoots: a
 let siteDiscoveryAbort: AbortController | undefined;
 let siteValidationAbort: AbortController | undefined;
 
-// Only the payload child opens owner.db. Electron chooses the profile (Roaming on Windows),
-// canonical tracked destinations and native backup pickers; none come from renderer paths.
+// Only the payload child opens project.db or a legacy owner.db. Electron chooses the profile
+// (Roaming on Windows) and the native backup picker; no path comes from the renderer.
+const runOwnerStore: Parameters<typeof createOwnerStoreController>[0]["run"] = (input) =>
+  runOwnerStoreCli({ ...input, repoRoot: PAYLOAD_ROOT, userDataDir: app.getPath("userData") }, { cliMode: resolveCliMode() });
 const ownerStore = createOwnerStoreController({
-  run: (input) => runOwnerStoreCli({ ...input, repoRoot: PAYLOAD_ROOT, userDataDir: app.getPath("userData") }, { cliMode: resolveCliMode() }),
-  listSites: () => readTrackedSites(sitesFilePath(app.getPath("userData"))).map(row => {
-    let siteDir = row.siteDir;
-    try { siteDir = fs.realpathSync(siteDir); } catch { /* Retain missing rows so sync reports failure. */ }
-    return { id: row.siteDir, siteDir };
-  }),
-  pickBackup: async ({ action }) => {
+  run: runOwnerStore,
+  pickBackup: async () => {
     const filters = [{ name: "Tovu shared keys backup", extensions: ["tovu-owner-backup"] }];
-    if (action === "export") {
-      const pick = await dialog.showSaveDialog({ title: "Export shared keys", defaultPath: "shared-keys.tovu-owner-backup", filters });
-      return pick.canceled ? null : pick.filePath ?? null;
-    }
-    const pick = await dialog.showOpenDialog({ title: "Restore shared keys", filters, properties: ["openFile"] });
+    const pick = await dialog.showOpenDialog({ title: "Import shared keys", filters, properties: ["openFile"] });
     return pick.canceled ? null : pick.filePaths[0] ?? null;
   },
+  confirmImport: async ({ report }) => {
+    const parent = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+    const options = { type: "question" as const, buttons: ["Import", "Cancel"], defaultId: 0, cancelId: 1, ...importConfirmation({ report }) };
+    const { response } = parent ? await dialog.showMessageBox(parent, options) : await dialog.showMessageBox(options);
+    return response === 0;
+  },
 });
+
+/** Desktop start: an empty legacy owner store (and its key, -wal, -shm) is deleted; one holding
+ * keys is kept and the existing native notice says an import is available.
+ */
+function settleLegacyOwnerStoreOnStart(): void {
+  const userData = app.getPath("userData");
+  void settleLegacyOwnerStore({
+    run: runOwnerStore,
+    removeFiles: () => {
+      for (const file of ["owner.db", "owner.db-wal", "owner.db-shm", "owner.key"]) fs.rmSync(path.join(userData, file), { force: true });
+    },
+    notify: () => showDesktopNotice({ type: "info", message: "Shared keys from an older version can be imported",
+      detail: "Open Shared keys and choose Import from this computer. You see what imports before anything changes." }),
+    log: (message) => console.warn(message),
+  });
+}
 
 
 /**
@@ -811,7 +826,7 @@ async function startSiteBackend(siteDir: string, ctx: SiteOpenCtx, options: Site
   const attached = attachRunningSite({ workspace: sharedSites, dir: siteDir });
   if (attached) {
     rememberSharedSiteOpen({ workspace: sharedSites, dir: siteDir });
-    return finishStartedSite({ siteDir, server: attached, partition });
+    return { server: attached, partition };
   }
 
   // ALWAYS emitted (DS-01). `emitBootToken` is what makes `server.bootToken` non-null below — see
@@ -849,7 +864,7 @@ async function startSiteBackend(siteDir: string, ctx: SiteOpenCtx, options: Site
     captureBridge.close();
     // A simultaneous Web start can win between our preflight and the child's database claim.
     const attached = attachRunningSite({ workspace: sharedSites, dir: siteDir });
-    if (attached) return finishStartedSite({ siteDir, server: attached, partition });
+    if (attached) return { server: attached, partition };
     throw error;
   }
   server.onExit(() => captureBridge.close());
@@ -879,24 +894,6 @@ async function startSiteBackend(siteDir: string, ctx: SiteOpenCtx, options: Site
 
   announceDesktopToolsToSite(server, partition);
 
-  return finishStartedSite({ siteDir, server, partition });
-}
-
-/** Catch up granted keys after boot/migrations and before navigation, also for external attaches.
- * @returns The existing backend/partition even if shared keys need retrying; diagnostics stay fixed.
- * @complexity O(grants + copied bytes), delegated to the bounded CLI transport.
- */
-async function finishStartedSite({ siteDir, server, partition }: {
-  siteDir: string; server: TovuServerHandle; partition: string;
-}, _options = {}): Promise<{ server: TovuServerHandle; partition: string }> {
-  try {
-    const synced = await ownerStore.syncOnStart({ siteDir: fs.realpathSync(siteDir) });
-    if (synced && (!synced.ok || synced.data.results.some(row => row.status === "failed"))) {
-      console.warn("tovu desktop: shared keys could not sync to the started site; retry from Shared keys.");
-    }
-  } catch {
-    console.warn("tovu desktop: shared keys could not sync to the started site; retry from Shared keys.");
-  }
   return { server, partition };
 }
 
@@ -1645,13 +1642,16 @@ const updateCheck = createUpdateCheckNow({
   async showReadyPrompt({ version }) {
     if (await promptUpdateReady(version)) autoUpdate?.requestRestart();
   },
-  notify({ type, message, detail }) {
-    const parent = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
-    const options = { type, message, detail, buttons: ["OK"] };
-    void (parent ? dialog.showMessageBox(parent, options) : dialog.showMessageBox(options));
-  },
+  notify: showDesktopNotice,
   log: ({ message }) => console.log(`[tovu-desktop] ${message}`),
 });
+
+/** One native message box: the update check's notices and the legacy shared-key import notice. */
+function showDesktopNotice({ type, message, detail }: { type: "info" | "error"; message: string; detail: string }): void {
+  const parent = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+  const options = { type, message, detail, buttons: ["OK"] };
+  void (parent ? dialog.showMessageBox(parent, options) : dialog.showMessageBox(options));
+}
 
 function desktopPreferencesPath(): string {
   return path.join(app.getPath("userData"), "desktop-preferences.json");
@@ -1975,6 +1975,7 @@ app
         allowed: (url) => url === pathToFileURL(SITES_RENDERER_PATH).href,
         controller: ownerStore,
       });
+      settleLegacyOwnerStoreOnStart();
       registerUpdateCheckIpc({ ipcMain, checkNow: updateCheck.checkNow });
       registerRunnerIpcStubs({ ipcMain });
       // Global, not per-window: see `registerGuestNavigationPolicy`'s own doc for why one

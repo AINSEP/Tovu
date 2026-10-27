@@ -36,10 +36,9 @@ test('new vendor save is unattached, clears its password input and never renders
   let saved: OwnerStoreInput['put'] | undefined;
   let inventory: OwnerStoreEntry[] = [];
   const bridge = {
-    list: async () => ({ version: 1, ok: true, action: 'list', data: { entries: inventory, grants: [] } }),
+    list: async () => ({ version: 1, ok: true, action: 'list', data: { entries: inventory } }),
     put: async (input: OwnerStoreInput['put']) => { saved = input; inventory = [entry]; return { version: 1, ok: true, action: 'put', data: { entry } }; },
-    grant: async () => assert.fail('saving must never attach'),
-    sync: async () => assert.fail('saving must never copy from the renderer'),
+    import: async () => assert.fail('saving must never import'),
   } as unknown as OwnerStoreBridge;
   const { host, dom } = mount(t, bridge); await settle();
   const form = host.querySelector<HTMLFormElement>('form')!;
@@ -53,52 +52,58 @@ test('new vendor save is unattached, clears its password input and never renders
   assert.equal(host.innerHTML.includes(secret), false);
   assert.ok(host.textContent!.includes('Saved — site usage unavailable'));
   assert.equal(host.textContent!.includes('used by every site'), false);
-  const restore = host.querySelectorAll<HTMLFieldSetElement>('fieldset')[2]!;
-  assert.equal(restore.disabled, false, 'project keys do not establish whether the owner store is empty');
+  // Before: the third fieldset (restore) stayed enabled; the one import fieldset replaces export/restore.
+  const fieldsets = host.querySelectorAll<HTMLFieldSetElement>('fieldset');
+  assert.equal(fieldsets.length, 2);
+  assert.equal(fieldsets[1]!.disabled, false, 'an import is offered whatever the project holds; the CLI plans it');
 });
 
-test('legacy restore with project keys delegates the empty-owner-store check to the CLI', async t => {
+// Before: 'legacy restore with project keys delegates the empty-owner-store check to the CLI'. Restore
+// is gone; the backup import sends only its source and passphrase, and refusals use fixed copy.
+test('backup import sends only the source and passphrase, clears it, and shows fixed feedback', async t => {
   const calls: unknown[] = [];
-  let ownerEmpty = true;
+  let refuse = false;
   const bridge = {
     list: async (input: unknown) => {
       assert.deepEqual(input, { store: 'project' });
-      return { version: 1, ok: true, action: 'list', data: { entries: [entry], grants: [] } };
+      return { version: 1, ok: true, action: 'list', data: { entries: [entry] } };
     },
-    restore: async (input: OwnerStoreInput['restore'], options: unknown) => {
+    import: async (input: OwnerStoreInput['import'], options: unknown) => {
       calls.push({ input, options });
-      return ownerEmpty
-        ? { version: 1, ok: true, action: 'restore', data: { restored: 1 } }
-        : { version: 1, ok: false, action: 'restore', error: { code: 'not-empty', message: 'unused' } };
+      return refuse
+        ? { version: 1, ok: false, action: 'import', error: { code: 'invalid-backup', message: (input as { passphrase: string }).passphrase } }
+        : { version: 1, ok: true, action: 'import', data: { applied: true, pending: [],
+          items: [{ id: 'k', label: 'Mail', kind: 'vendor', provider: 'resend', status: 'imported' }] } };
     },
   } as unknown as OwnerStoreBridge;
   const { host, dom } = mount(t, bridge); await settle();
   const form = [...host.querySelectorAll<HTMLFormElement>('form')].find(form =>
-    form.querySelector('h3')?.textContent === 'Restore legacy owner backup')!;
-  const passphrase = ['fixture', 'restore', String(246)].join('-');
-  for (const empty of [true, false]) {
-    ownerEmpty = empty;
+    form.querySelector('h3')?.textContent === 'Import older shared keys')!;
+  const passphrase = ['fixture', 'import', String(246)].join('-');
+  for (const refused of [false, true]) {
+    refuse = refused;
     assert.equal(form.querySelector('fieldset')!.disabled, false);
     (form.elements.namedItem('passphrase') as HTMLInputElement).value = passphrase;
     act(() => { form.dispatchEvent(new dom.Event('submit', { bubbles: true, cancelable: true })); });
     assert.equal((form.elements.namedItem('passphrase') as HTMLInputElement).value, '');
     await settle();
     assert.equal(host.innerHTML.includes(passphrase), false);
-    if (empty) assert.equal(host.querySelector('[role="status"]')!.textContent, 'Encrypted backup restored.');
+    if (!refused) assert.equal(host.querySelector('[role="status"]')!.textContent, 'Imported 1 key.');
   }
-  assert.deepEqual(calls, [{ input: { passphrase }, options: {} }, { input: { passphrase }, options: {} }]);
+  const sent = { input: { source: 'backup', passphrase }, options: {} };
+  assert.deepEqual(calls, [sent, sent]);
   assert.equal(host.querySelector('[role="status"]')!.textContent, '');
-  assert.equal(host.querySelector('[role="alert"]')!.textContent, 'Restore requires an empty owner store.');
+  assert.equal(host.querySelector('[role="alert"]')!.textContent, 'Check the encrypted backup and passphrase.');
 });
 
-test('replace carries the displayed revision and export/restore send only passphrases', async t => {
+// Before: 'replace carries the displayed revision and export/restore send only passphrases'.
+test('replace carries the displayed revision; importing from this computer sends only the source', async t => {
   const calls: unknown[] = [];
   let inventory = [entry];
   const bridge = {
-    list: async () => ({ version: 1, ok: true, action: 'list', data: { entries: inventory, grants: [{ entry_id: entry.id, consumer_id: '/legacy-copy', created_at: '' }] } }),
+    list: async () => ({ version: 1, ok: true, action: 'list', data: { entries: inventory } }),
     put: async (input: OwnerStoreInput['put']) => { calls.push(input); return { version: 1, ok: true, action: 'put', data: { entry } }; },
-    export: async (input: { passphrase: string }) => { calls.push(input); return { version: 1, ok: true, action: 'export', data: { exported: true } }; },
-    restore: async (input: { passphrase: string }) => { calls.push(input); return { version: 1, ok: false, action: 'restore', error: { code: 'invalid-backup', message: input.passphrase } }; },
+    import: async (input: OwnerStoreInput['import']) => { calls.push(input); return { version: 1, ok: true, action: 'import', data: { applied: false, items: [], pending: [] } }; },
   } as unknown as OwnerStoreBridge;
   const { host, dom } = mount(t, bridge); await settle();
   const replace = [...host.querySelectorAll('button')].find(button => button.textContent === 'Replace key')!;
@@ -108,16 +113,9 @@ test('replace carries the displayed revision and export/restore send only passph
   act(() => { form.dispatchEvent(new dom.Event('submit', { bubbles: true, cancelable: true })); }); await settle();
   assert.equal((calls[0] as OwnerStoreInput['put']).entry.id, entry.id);
   assert.equal((calls[0] as OwnerStoreInput['put']).entry.expectedRevision, 7);
-  assert.equal(host.textContent!.includes('/legacy-copy'), false, 'legacy copy destinations are not attachment evidence');
   inventory = [];
   act(() => [...host.querySelectorAll('button')].find(button => button.textContent === 'Refresh')!.click()); await settle();
-  const passphrase = ['fixture', 'backup', String(789)].join('-');
-  for (const backup of [...host.querySelectorAll<HTMLFormElement>('form')].slice(1)) {
-    (backup.elements.namedItem('passphrase') as HTMLInputElement).value = passphrase;
-    act(() => { backup.dispatchEvent(new dom.Event('submit', { bubbles: true, cancelable: true })); }); await settle();
-    assert.equal((backup.elements.namedItem('passphrase') as HTMLInputElement).value, '');
-  }
-  assert.deepEqual(calls.slice(1), [{ passphrase }, { passphrase }]);
-  assert.equal(host.querySelector('[role="alert"]')!.textContent, 'Check the encrypted backup and passphrase.');
-  assert.equal(host.innerHTML.includes(passphrase), false);
+  act(() => [...host.querySelectorAll('button')].find(button => button.textContent === 'Import from this computer')!.click()); await settle();
+  assert.deepEqual(calls.slice(1), [{ source: 'owner-store' }]);
+  assert.equal(host.querySelector('[role="status"]')!.textContent, 'Nothing new to import.');
 });

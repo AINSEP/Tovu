@@ -1,6 +1,6 @@
 /** Metadata-only Shared Keys state. Secrets are passed through once and never enter React state. */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { OwnerStoreBridge, OwnerStoreEntry, OwnerStoreReply } from '../contracts/owner-store.js';
+import type { LegacyImportReport, OwnerStoreBridge, OwnerStoreEntry, OwnerStoreReply } from '../contracts/owner-store.js';
 import { ownerStoreBridge } from './runner-api.js';
 
 const FAILED = 'The shared-key operation failed. Refresh and try again.';
@@ -10,27 +10,31 @@ const FAILED = 'The shared-key operation failed. Refresh and try again.';
  */
 function failureText({ code }: { code: string }, _options = {}): string {
   const messages: Record<string, string> = {
-    'recovery-required': 'Restore the original owner.key, or restore an encrypted backup into an empty owner store.',
+    'recovery-required': 'The older key store needs its original owner.key. Restore it, or import a backup.',
     'invalid-backup': 'Check the encrypted backup and passphrase.',
-    'not-empty': 'Restore requires an empty owner store.',
     conflict: 'This key changed. Refresh before replacing it.',
-    cancelled: 'The backup dialog was cancelled.',
+    cancelled: 'The import was cancelled.',
     timeout: 'The operation timed out. Refresh before retrying.',
   };
   return messages[code] ?? FAILED;
 }
 
-/** Preserve committed saves when a legacy site copy fails; never claim propagation succeeded.
- * @complexity O(s+r) for s site replies and r copy results; no effects or payload reads.
+/** Import feedback counts the report; sites never change, so their copies are only mentioned.
+ * @complexity O(i) for i report items; no effects or payload reads.
+ */
+function importText({ report }: { report: LegacyImportReport }, _options = {}): string {
+  const imported = report.items.filter(item => item.status === 'imported').length;
+  if (!report.applied || imported === 0) return 'Nothing new to import.';
+  const keys = `Imported ${imported} key${imported === 1 ? '' : 's'}.`;
+  return report.pending.length ? `${keys} Sites that had copies keep them.` : keys;
+}
+
+/** Fixed copy per action; a save never claims any site uses or received the key.
+ * @complexity O(i) for an import report; O(1) otherwise.
  */
 function successText({ reply }: { reply: Extract<OwnerStoreReply, { ok: true }> }, _options = {}): string {
-  const copyFailed = reply.sync?.some(attempt => !attempt.reply.ok || attempt.reply.data.results.some(row => row.status === 'failed'));
-  if (reply.syncError || copyFailed) return 'Saved. Some existing site copies could not be updated. Refresh before retrying.';
-  const messages: Partial<Record<OwnerStoreReply['action'], string>> = {
-    put: 'Saved to your project. Site usage is unavailable in this version.',
-    export: 'Encrypted backup exported.', restore: 'Encrypted backup restored.',
-  };
-  return messages[reply.action] ?? 'Done.';
+  if (reply.action === 'import') return importText({ report: reply.data as LegacyImportReport });
+  return reply.action === 'put' ? 'Saved to your project. Site usage is unavailable in this version.' : 'Done.';
 }
 
 /** One inventory read per open/refresh; one in-flight action, including refresh after mutations.

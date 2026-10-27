@@ -1,22 +1,17 @@
-/** Browser-safe S3 contract. Values/passphrases travel only toward main; replies are metadata. */
+/** Browser-safe S3 contract. Values/passphrases travel only toward main; replies are metadata.
+ * Shared keys are project references; the old owner store survives only as a read-only import source.
+ */
 export const OWNER_STORE_CHANNELS = {
   status: 'runner:owner-store:status', list: 'runner:owner-store:list',
-  put: 'runner:owner-store:put', delete: 'runner:owner-store:delete',
-  grant: 'runner:owner-store:grant', revoke: 'runner:owner-store:revoke',
-  sync: 'runner:owner-store:sync', export: 'runner:owner-store:export',
-  restore: 'runner:owner-store:restore',
+  put: 'runner:owner-store:put', import: 'runner:owner-store:import',
 } as const;
 export type OwnerStoreAction = keyof typeof OWNER_STORE_CHANNELS;
-export type OwnerStoreKind = 'vendor' | 'site-assistant' | 'media-provider' | 'publish-peer' | 'source-control';
+export type OwnerStoreKind = 'vendor' | 'site-assistant' | 'media-provider' | 'publish-peer' | 'source-control' | 'database-destination';
 
 /** The CLI's safe inventory view; no payload, arbitrary meta, envelope or key hints. */
 export interface OwnerStoreEntry {
   id: string; kind: OwnerStoreKind; label: string; provider: string | null;
   revision: number; configured: boolean; isDefault: boolean; worksFor: string[];
-}
-export interface OwnerStoreGrant { entry_id: string; consumer_id: string; created_at: string }
-export interface OwnerStoreCopyResult {
-  id: string; kind: OwnerStoreKind; status: 'copied' | 'skipped' | 'failed'; reasonCode?: string;
 }
 export interface OwnerStorePutEntry {
   id?: string; kind?: OwnerStoreKind; label: string; provider: string;
@@ -25,33 +20,44 @@ export interface OwnerStorePutEntry {
   expectedRevision: number | null;
 }
 
+/** backup: a passphrase file main picks; owner-store: this profile's legacy owner.db. */
+export type LegacyImportSource = 'backup' | 'owner-store';
+/** new → imported on apply. already-imported: same id and same secret. conflict: same id with a
+ * different secret, or the label is taken. unsupported: a kind or owner project keys cannot hold.
+ */
+export interface LegacyImportItem {
+  id: string; label: string; kind: OwnerStoreKind; provider: string | null;
+  status: 'new' | 'imported' | 'already-imported' | 'conflict' | 'unsupported';
+  reason?: 'different-secret' | 'label-taken' | 'kind' | 'owner';
+}
+/** A site the legacy store copied a key to. Import never touches sites: each keeps its own copy. */
+export interface LegacyImportPending { entryId: string; site: string; reason: 'keeps-copy' | 'revoked-copy' }
+export interface LegacyImportReport { applied: boolean; items: LegacyImportItem[]; pending: LegacyImportPending[] }
+/** none: no owner.db. empty: no entries or grants, safe to delete. available: entries the project
+ * lacks. settled: entries exist but nothing new would import.
+ */
+export type LegacyOwnerState = 'none' | 'empty' | 'available' | 'settled';
+
 /** CLI fields exclude userDataDir: main supplies Electron's resolved profile on every call. */
 export interface OwnerStoreCliFields {
   status: {}; list: { store?: 'project' }; put: { entry: OwnerStorePutEntry; store?: 'project' };
-  delete: { entryId: string; expectedRevision: number };
-  grant: { entryId: string; consumerId: string }; revoke: { entryId: string }; sync: {};
-  export: { filePath: string; passphrase: string }; restore: { filePath: string; passphrase: string };
+  import: { source: LegacyImportSource; apply: boolean; filePath?: string; passphrase?: string };
 }
 export interface OwnerStoreData {
-  status: { ready: boolean; entries: number; grants: number };
-  list: { entries: OwnerStoreEntry[]; grants: OwnerStoreGrant[] };
-  put: { entry: OwnerStoreEntry }; delete: { deleted: boolean };
-  grant: { granted: boolean; consumerId: string }; revoke: { revoked: boolean; consumerId: string };
-  sync: { consumerId: string; results: OwnerStoreCopyResult[] };
-  export: { exported: boolean }; restore: { restored: number };
+  status: { legacy: LegacyOwnerState; entries: number; grants: number };
+  list: { entries: OwnerStoreEntry[] };
+  put: { entry: OwnerStoreEntry };
+  import: LegacyImportReport;
 }
 export interface OwnerStoreError { code: string; message: string }
-/** A committed put/grant can succeed while individual site copies need retrying. */
-export interface OwnerStoreSyncAttempt { siteId: string; reply: OwnerStoreReply<'sync'> }
 export type OwnerStoreReply<A extends OwnerStoreAction = OwnerStoreAction> =
-  | { version: 1; ok: true; action: A; data: OwnerStoreData[A]; sync?: OwnerStoreSyncAttempt[]; syncError?: OwnerStoreError }
+  | { version: 1; ok: true; action: A; data: OwnerStoreData[A] }
   | { version: 1; ok: false; action: A; error: OwnerStoreError };
 
-/** Renderer selects tracked IDs and supplies secrets; main alone chooses filesystem paths. */
+/** Renderer supplies secrets and picks a source; main alone chooses filesystem paths. */
 export interface OwnerStoreInput {
-  status: {}; list: OwnerStoreCliFields['list']; put: OwnerStoreCliFields['put']; delete: OwnerStoreCliFields['delete'];
-  grant: { entryId: string; siteId: string }; revoke: { entryId: string; siteId: string };
-  sync: { siteId: string }; export: { passphrase: string }; restore: { passphrase: string };
+  status: {}; list: OwnerStoreCliFields['list']; put: OwnerStoreCliFields['put'];
+  import: { source: LegacyImportSource; passphrase?: string };
 }
 /** Exposed as window.tovuOwnerStore. Example: await bridge.list({}, {}). */
 export type OwnerStoreBridge = {

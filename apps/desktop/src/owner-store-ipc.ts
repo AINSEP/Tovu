@@ -1,24 +1,25 @@
-/** S3 trusted sites-home bridge. The CLI owns persistence; main owns destinations and scheduling. */
+/** S3 trusted sites-home bridge. The CLI owns persistence; main owns dialogs, files and scheduling.
+ * Shared keys are project references: nothing here copies a key into a site or opens an owner store.
+ */
 import { createKeyedSerializer } from './keyed-serializer.ts';
 import { ownerStoreFailure } from './owner-store-cli.ts';
-import { OWNER_STORE_CHANNELS, type OwnerStoreAction, type OwnerStoreCliFields,
-  type OwnerStoreReply, type OwnerStoreSyncAttempt } from './contracts/owner-store.ts';
+import { OWNER_STORE_CHANNELS, type LegacyImportReport, type LegacyImportSource, type OwnerStoreAction,
+  type OwnerStoreCliFields, type OwnerStoreReply } from './contracts/owner-store.ts';
 
 type OwnerStoreRun = <A extends OwnerStoreAction>(input: {
-  action: A; fields: OwnerStoreCliFields[A]; siteDir?: string;
+  action: A; fields: OwnerStoreCliFields[A];
 }, options?: {}) => Promise<OwnerStoreReply<A>>;
-interface OwnerStoreSite { id: string; siteDir: string }
 interface OwnerStorePorts {
   run: OwnerStoreRun;
-  /** Fresh tracked rows with canonical directories, including stopped and external sites. */
-  listSites: () => OwnerStoreSite[];
-  pickBackup: (input: { action: 'export' | 'restore' }) => Promise<string | null>;
+  /** Native open dialog for a legacy backup; never a renderer-supplied path. */
+  pickBackup: () => Promise<string | null>;
+  /** Native confirmation listing the dry run; true imports. */
+  confirmImport: (input: { report: LegacyImportReport }) => Promise<boolean>;
 }
 interface OwnerStoreEvent { senderFrame: { url: string; parent: unknown } | null }
 type Serialize = <T>(work: () => Promise<T>) => Promise<T>;
 export interface OwnerStoreController {
   execute: (input: { action: OwnerStoreAction; input: unknown }, options?: {}) => Promise<OwnerStoreReply>;
-  syncOnStart: (input: { siteDir: string }, options?: {}) => Promise<OwnerStoreReply<'sync'> | null>;
 }
 
 /** Small strict outer request: destination paths/profile/unknown fields cannot become CLI options.
@@ -28,102 +29,46 @@ export interface OwnerStoreController {
 function requestInput({ action, input }: { action: OwnerStoreAction; input: unknown }, _options = {}): Record<string, unknown> {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Invalid shared-key request.');
   const fields: Record<OwnerStoreAction, readonly string[]> = { status: [], list: ['store'], put: ['entry', 'store'],
-    delete: ['entryId', 'expectedRevision'], grant: ['entryId', 'siteId'], revoke: ['entryId', 'siteId'],
-    sync: ['siteId'], export: ['passphrase'], restore: ['passphrase'] };
+    import: ['source', 'passphrase'] };
   if (Object.keys(input).some(field => !fields[action].includes(field))) throw new Error('Invalid shared-key request.');
   if ('store' in input && input.store !== 'project') throw new Error('Invalid shared-key request.');
   if (Buffer.byteLength(JSON.stringify(input)) > 64 * 1024) throw new Error('Invalid shared-key request.');
   return input as Record<string, unknown>;
 }
 
-/** Resolve a renderer ID against fresh tracked rows; arbitrary directories cannot receive a key.
- * @throws A fixed error for unknown IDs. @complexity O(tracked sites), no database I/O.
- */
-function targetSite({ siteId, ports }: { siteId: unknown; ports: OwnerStorePorts }, _options = {}): OwnerStoreSite {
-  if (typeof siteId !== 'string') throw new Error('Invalid shared-key site.');
-  const site = ports.listSites().find(row => row.id === siteId);
-  if (!site) throw new Error('Invalid shared-key site.');
-  return site;
-}
-
-/** Copy a deduplicated grant set sequentially: no unbounded child-process fan-out.
- * Missing tracked folders become explicit failed outcomes; one failure never skips later sites.
- * @complexity O(tracked sites + grants), one bounded CLI process per distinct destination.
- */
-async function syncConsumers({ consumerIds, ports }: {
-  consumerIds: string[]; ports: OwnerStorePorts;
-}, _options = {}): Promise<OwnerStoreSyncAttempt[]> {
-  let rows: OwnerStoreSite[] = [];
-  try { rows = ports.listSites(); } catch { /* Every requested destination is reported below. */ }
-  const sites = new Map(rows.map(site => [site.siteDir, site]));
-  const attempts: OwnerStoreSyncAttempt[] = [];
-  for (const consumerId of new Set(consumerIds)) {
-    const site = sites.get(consumerId);
-    let reply: OwnerStoreReply<'sync'>;
-    if (site) reply = await safeRun({ ports, input: { action: 'sync', fields: {}, siteDir: site.siteDir } });
-    else reply = ownerStoreFailure({ action: 'sync', code: 'site-unavailable' });
-    attempts.push({ siteId: site?.id ?? consumerId, reply });
-  }
-  return attempts;
-}
-
-/** Save before copying; preserve committed success even if reading grants/copying needs a retry.
- * @complexity O(grants + destinations); each copy uses the CLI's deadline and byte limits.
- */
-async function putAndSync({ request, ports }: {
-  request: Record<string, unknown>; ports: OwnerStorePorts;
-}, _options = {}): Promise<OwnerStoreReply<'put'>> {
-  // Project attachments reference the original row; they must never create legacy site copies.
-  if (request.store === 'project') return ports.run({ action: 'put', fields: { store: 'project', entry: request.entry as OwnerStoreCliFields['put']['entry'] } });
-  const reply = await ports.run({ action: 'put', fields: { entry: request.entry as OwnerStoreCliFields['put']['entry'] } });
-  if (!reply.ok) return reply;
-  const inventory = await safeRun({ ports, input: { action: 'list', fields: {} } });
-  if (!inventory.ok) return { ...reply, syncError: inventory.error };
-  const consumers = inventory.data.grants.filter(grant => grant.entry_id === reply.data.entry.id).map(grant => grant.consumer_id);
-  return { ...reply, sync: await syncConsumers({ consumerIds: consumers, ports }) };
-}
-
-/** Isolate opaque transport failures so a committed put/grant keeps its success and retry details. */
-async function safeRun<A extends OwnerStoreAction>({ ports, input }: {
-  ports: OwnerStorePorts; input: { action: A; fields: OwnerStoreCliFields[A]; siteDir?: string };
-}, _options = {}): Promise<OwnerStoreReply<A>> {
-  try { return await ports.run(input); }
-  catch { return ownerStoreFailure({ action: input.action, code: 'operation-failed' }); }
-}
-
-/** Main maps ID to path, then lets the existing CLI grant/revoke/sync sequence own the copy.
- * @complexity O(tracked sites) plus at most two CLI calls. No renderer path is forwarded.
- */
-async function targetRequest({ action, request, ports }: {
-  action: 'grant' | 'revoke' | 'sync'; request: Record<string, unknown>; ports: OwnerStorePorts;
-}, _options = {}): Promise<OwnerStoreReply> {
-  const site = targetSite({ siteId: request.siteId, ports });
-  if (action === 'sync') return ports.run({ action, fields: {}, siteDir: site.siteDir });
-  const entryId = requiredString({ value: request.entryId });
-  if (action === 'revoke') return ports.run({ action, fields: { entryId }, siteDir: site.siteDir });
-  const reply = await ports.run({ action, fields: { entryId, consumerId: site.siteDir } });
-  if (!reply.ok) return reply;
-  return { ...reply, sync: await syncConsumers({ consumerIds: [site.siteDir], ports }) };
-}
-
-/** Native dialogs choose the portable backup, never owner.key/db or a renderer-supplied path.
- * The dialog can stay open indefinitely, so only the CLI call joins the queue: an open picker must
- * not stall site-start sync or other shared-key operations.
- * @complexity One dialog plus one bounded CLI call; cancellation never spawns a child.
- */
-async function backupRequest({ action, request, ports, serialize }: {
-  action: 'export' | 'restore'; request: Record<string, unknown>; ports: OwnerStorePorts; serialize: Serialize;
-}, _options = {}): Promise<OwnerStoreReply> {
-  const passphrase = requiredString({ value: request.passphrase });
-  const filePath = await ports.pickBackup({ action });
-  if (filePath === null) return ownerStoreFailure({ action, code: 'cancelled' });
-  return serialize(() => ports.run({ action, fields: { filePath, passphrase } }));
-}
-
 /** Validate required string fields without exposing content in thrown errors. */
 function requiredString({ value }: { value: unknown }, _options = {}): string {
   if (typeof value !== 'string' || !value.trim() || value.includes('\0')) throw new Error('Invalid shared-key request.');
   return value;
+}
+
+/** The import's fixed source fields: a backup needs a passphrase and a main-picked file. */
+async function importFields({ request, ports }: { request: Record<string, unknown>; ports: OwnerStorePorts }, _options = {}): Promise<Omit<OwnerStoreCliFields['import'], 'apply'> | null> {
+  const source = request.source as LegacyImportSource;
+  if (source === 'owner-store') {
+    if (request.passphrase !== undefined) throw new Error('Invalid shared-key request.');
+    return { source };
+  }
+  if (source !== 'backup') throw new Error('Invalid shared-key request.');
+  const passphrase = requiredString({ value: request.passphrase });
+  const filePath = await ports.pickBackup();
+  return filePath === null ? null : { source, filePath, passphrase };
+}
+
+/** Dry run first, always; the native confirmation lists it; only a confirmed run writes.
+ * The dialogs can stay open indefinitely, so only the CLI calls join the queue: an open picker or
+ * confirmation must not stall other shared-key operations. The passphrase lives only in this call.
+ * @complexity Two bounded CLI calls at most; cancelling either dialog never writes.
+ */
+async function importRequest({ request, ports, serialize }: {
+  request: Record<string, unknown>; ports: OwnerStorePorts; serialize: Serialize;
+}, _options = {}): Promise<OwnerStoreReply<'import'>> {
+  const fields = await importFields({ request, ports });
+  if (fields === null) return ownerStoreFailure({ action: 'import', code: 'cancelled' });
+  const dryRun = await serialize(() => ports.run({ action: 'import', fields: { ...fields, apply: false } }));
+  if (!dryRun.ok || !dryRun.data.items.some(item => item.status === 'new')) return dryRun;
+  if (!await ports.confirmImport({ report: dryRun.data })) return ownerStoreFailure({ action: 'import', code: 'cancelled' });
+  return serialize(() => ports.run({ action: 'import', fields: { ...fields, apply: true } }));
 }
 
 /** Fixed-action dispatch; vault payload/revision validation stays with the CLI's existing owner.
@@ -133,53 +78,88 @@ async function executeRequest({ action, input, ports, serialize }: {
   action: OwnerStoreAction; input: unknown; ports: OwnerStorePorts; serialize: Serialize;
 }): Promise<OwnerStoreReply> {
   const request = requestInput({ action, input });
-  // A total Record keeps the exhaustiveness check without a ten-way switch.
+  // A total Record keeps the exhaustiveness check without a switch.
   const handlers: Record<OwnerStoreAction, () => Promise<OwnerStoreReply>> = {
-    status: () => ports.run({ action: 'status', fields: {} }),
-    list: () => ports.run({ action: 'list', fields: request.store === 'project' ? { store: 'project' } : {} }),
-    put: () => putAndSync({ request, ports }),
-    delete: () => ports.run({ action: 'delete', fields: { entryId: requiredString({ value: request.entryId }), expectedRevision: request.expectedRevision as number } }),
-    grant: () => targetRequest({ action: 'grant', request, ports }),
-    revoke: () => targetRequest({ action: 'revoke', request, ports }),
-    sync: () => targetRequest({ action: 'sync', request, ports }),
-    export: () => backupRequest({ action: 'export', request, ports, serialize }),
-    restore: () => backupRequest({ action: 'restore', request, ports, serialize }),
+    status: () => serialize(() => ports.run({ action: 'status', fields: {} })),
+    list: () => serialize(() => ports.run({ action: 'list', fields: request.store === 'project' ? { store: 'project' } : {} })),
+    // Project attachments reference the original row; a save never creates a site copy.
+    put: () => serialize(() => ports.run({ action: 'put', fields: { store: 'project', entry: request.entry as OwnerStoreCliFields['put']['entry'] } })),
+    import: () => importRequest({ request, ports, serialize }),
   };
   return handlers[action]();
 }
 
-/** Serialize mutations and startup copies using the shell's existing keyed queue.
- * @param ports CLI, current tracked inventory and native backup picker; all effects are injected.
- * @returns Execute and startup-sync ports. Opaque I/O errors become fixed wire failures.
- * @complexity O(grants + destinations) per operation; copies run sequentially, no parallel fan-out.
- * @example const store = createOwnerStoreController({ run, listSites, pickBackup });
+/** Serialize CLI work using the shell's existing keyed queue.
+ * @param ports CLI, native backup picker and import confirmation; all effects are injected.
+ * @returns The execute port. Opaque I/O errors become fixed wire failures.
+ * @complexity One bounded CLI call per operation (two for a confirmed import).
+ * @example const store = createOwnerStoreController({ run, pickBackup, confirmImport });
  */
 export function createOwnerStoreController(ports: OwnerStorePorts, _options = {}): OwnerStoreController {
   const queue = createKeyedSerializer();
+  const serialize: Serialize = work => queue.run('owner-store', work);
   return {
-    execute: ({ action, input }, _options = {}) => {
-      const serialize: Serialize = work => queue.run('owner-store', work);
-      const work = async (): Promise<OwnerStoreReply> => {
-        try { return await executeRequest({ action, input, ports, serialize }); }
-        catch { return ownerStoreFailure({ action, code: 'operation-failed' }); }
-      };
-      // Backups queue only their CLI call (backupRequest); everything else runs wholly serialized.
-      return action === 'export' || action === 'restore' ? work() : serialize(work);
+    execute: async ({ action, input }, _options = {}) => {
+      try { return await executeRequest({ action, input, ports, serialize }); }
+      catch { return ownerStoreFailure({ action, code: 'operation-failed' }); }
     },
-    syncOnStart: ({ siteDir }, _options = {}) => queue.run('owner-store', async () => {
-      try {
-        const inventory = await ports.run({ action: 'list', fields: {} });
-        if (!inventory.ok) return ownerStoreFailure({ action: 'sync', code: inventory.error.code });
-        if (!inventory.data.grants.some(grant => grant.consumer_id === siteDir)) return null;
-        return await ports.run({ action: 'sync', fields: {}, siteDir });
-      } catch { return ownerStoreFailure({ action: 'sync', code: 'operation-failed' }); }
-    }),
   };
 }
 
-/** Register nine fixed channels before opening sites home; refuse subframes and navigated pages.
+const SKIPPED: Record<NonNullable<LegacyImportReport['items'][number]['reason']>, string> = {
+  'different-secret': 'a different key already uses its id',
+  'label-taken': 'another project key already uses its name',
+  kind: 'this kind of key cannot be a project key yet',
+  owner: 'it belongs to another app',
+};
+
+/** The native confirmation's text for a dry run: what imports, what does not and why, which sites
+ * keep their own copies. Labels/providers/site folders are metadata; no secret is in the report.
+ * @complexity O(items + pending); pure.
+ * @example const { message, detail } = importConfirmation({ report });
+ */
+export function importConfirmation({ report }: { report: LegacyImportReport }, _options = {}): { message: string; detail: string } {
+  const name = (item: LegacyImportReport['items'][number]) => item.provider ? `${item.label} (${item.provider})` : item.label;
+  const fresh = report.items.filter(item => item.status === 'new');
+  const skipped = report.items.filter(item => item.reason !== undefined);
+  const same = report.items.filter(item => item.status === 'already-imported').length;
+  const lines = [`Imports into your project:`, ...fresh.map(item => `• ${name(item)}`)];
+  if (skipped.length) lines.push('', 'Not imported:', ...skipped.map(item => `• ${name(item)}: ${SKIPPED[item.reason!]}`));
+  if (same) lines.push('', `Already in your project: ${same}`);
+  if (report.pending.length) {
+    lines.push('', 'These sites keep their own copies. To use the project key there, attach it on that site\'s Keys screen:',
+      ...[...new Set(report.pending.map(row => row.site))].map(site => `• ${site}`));
+  }
+  lines.push('', 'No site is changed, no default key changes, and the source is never modified.');
+  return { message: `Import ${fresh.length} key${fresh.length === 1 ? '' : 's'} into your project?`, detail: lines.join('\n') };
+}
+
+/** Desktop start: delete a legacy owner store only when a read-only check finds it empty (0 entries
+ * AND 0 grants); keep one that holds anything and say an import is available. Nothing creates an
+ * owner store any more, so an empty one is only a leftover of an older start.
+ * @param required The status CLI call, the four-file removal and the existing native notice.
+ * @returns What it found; failures keep every file and stay silent beyond the log.
+ * @complexity One bounded CLI call; at most four file removals.
+ * @example await settleLegacyOwnerStore({ run, removeFiles, notify, log });
+ */
+export async function settleLegacyOwnerStore({ run, removeFiles, notify, log }: {
+  run: OwnerStoreRun; removeFiles: () => void; notify: () => void; log: (message: string) => void;
+}, _options = {}): Promise<'none' | 'removed' | 'available' | 'settled' | 'failed'> {
+  try {
+    const reply = await run({ action: 'status', fields: {} });
+    if (!reply.ok) { log('tovu desktop: the older shared-key store could not be checked; it was left in place.'); return 'failed'; }
+    if (reply.data.legacy === 'empty') { removeFiles(); return 'removed'; }
+    if (reply.data.legacy === 'available') notify();
+    return reply.data.legacy;
+  } catch {
+    log('tovu desktop: the older shared-key store could not be checked; it was left in place.');
+    return 'failed';
+  }
+}
+
+/** Register the fixed channels before opening sites home; refuse subframes and navigated pages.
  * @param required Main IPC registration, exact trusted URL predicate, controller execution port.
- * @returns Nothing; untrusted senders throw before parsing, dialogs, inventory or CLI work.
+ * @returns Nothing; untrusted senders throw before parsing, dialogs or CLI work.
  * @complexity O(1) registration and frame check; request processing is delegated.
  * @example registerOwnerStoreIpc({ ipcMain, allowed, controller });
  */

@@ -51,10 +51,11 @@ function success({ action, data }: { action: OwnerStoreAction; data: object }) {
   return { version: 1, ok: true, action, data };
 }
 
+// Before: the reply kept `grants: []`; legacy grants no longer cross IPC, so cleanData drops them.
 test('project store selection stays on stdin through the existing CLI transport', async () => {
-  const f = fixture({ output: success({ action: 'list', data: { entries: [], grants: [] } }) });
+  const f = fixture({ output: success({ action: 'list', data: { entries: [], grants: [{ entry_id: 'a', consumer_id: '/site' }] } }) });
   const result = await runOwnerStoreCli({ repoRoot, userDataDir, action: 'list', fields: { store: 'project' } }, f.options);
-  assert.deepEqual(result, success({ action: 'list', data: { entries: [], grants: [] } }));
+  assert.deepEqual(result, success({ action: 'list', data: { entries: [] } }));
   assert.deepEqual(JSON.parse(f.calls[0]!.stdin), { userDataDir, store: 'project' });
   assert.deepEqual(f.calls[0]!.args.slice(-3), ['owner-store', 'list', '--json']);
 });
@@ -75,15 +76,30 @@ test('S3 put sends the complete private request only on stdin; replies omit payl
   assert.equal(existsSync(call.env.TOVU_SITE_DIR!), false, 'temporary import directory is removed');
 });
 
-test('S3 sync/revoke supply only an absolute --site on argv, never an entry value', async () => {
-  const siteDir = path.join(tmpdir(), 'owner-store-target');
-  for (const action of ['sync', 'revoke'] as const) {
-    const data = action === 'sync' ? { consumerId: siteDir, results: [] } : { consumerId: siteDir, revoked: true };
-    const f = fixture({ output: success({ action, data }) });
-    const fields = action === 'sync' ? {} : { entryId: 'key-1' };
-    assert.equal((await runOwnerStoreCli({ repoRoot, userDataDir, action, fields, siteDir }, f.options)).ok, true);
-    assert.deepEqual(f.calls[0]!.args.slice(-5), ['owner-store', action, '--json', '--site', siteDir]);
+// Before: 'S3 sync/revoke supply only an absolute --site on argv, never an entry value'. No action
+// targets a site any more, so argv is the fixed action alone for every channel.
+test('S3 argv is only the fixed action and --json; no --site or request value ever reaches it', async () => {
+  for (const action of ['status', 'list', 'put', 'import'] as const) {
+    const f = fixture({ output: success({ action, data: {} }) });
+    await runOwnerStoreCli({ repoRoot, userDataDir, action, fields: {} as never }, f.options);
+    assert.deepEqual(f.calls[0]!.args.slice(-3), ['owner-store', action, '--json']);
+    assert.equal(f.calls[0]!.args.includes('--site'), false);
   }
+});
+
+test('status and import replies keep only the published fields, including an optional reason', async () => {
+  const status = fixture({ output: success({ action: 'status', data: { legacy: 'available', entries: 2, grants: 1, filePath: secret } }) });
+  assert.deepEqual(await runOwnerStoreCli({ repoRoot, userDataDir, action: 'status', fields: {} }, status.options),
+    success({ action: 'status', data: { legacy: 'available', entries: 2, grants: 1 } }));
+  const item = { id: 'a', label: 'Mail', kind: 'vendor', provider: 'resend', status: 'new' };
+  const f = fixture({ output: success({ action: 'import', data: { applied: false, secret,
+    items: [{ ...item, payload: { token: secret } }, { ...item, id: 'b', status: 'conflict', reason: 'different-secret', meta: { secret } }],
+    pending: [{ entryId: 'a', site: '/sites/blog', reason: 'keeps-copy', envelope: secret }] } }) });
+  const result = await runOwnerStoreCli({ repoRoot, userDataDir, action: 'import', fields: { source: 'owner-store', apply: false } }, f.options);
+  assert.deepEqual(result, success({ action: 'import', data: { applied: false,
+    items: [item, { ...item, id: 'b', status: 'conflict', reason: 'different-secret' }],
+    pending: [{ entryId: 'a', site: '/sites/blog', reason: 'keeps-copy' }] } }));
+  assert.ok(!JSON.stringify(result).includes(secret));
 });
 
 test('S3 recovery/CLI failure surfaces fixed codes without child messages or stderr', async () => {
@@ -100,8 +116,8 @@ test('S3 malformed, mismatched, extra-line and nonzero-success replies never lea
   for (const [output, code] of [
     [secret, 1],
     [success({ action: 'list', data: { entries: [], grants: [] } }), 0],
-    [`${JSON.stringify(success({ action: 'status', data: { ready: true } }))}\n${secret}`, 0],
-    [success({ action: 'status', data: { ready: true, entries: 0, grants: 0 } }), 1],
+    [`${JSON.stringify(success({ action: 'status', data: { legacy: 'none' } }))}\n${secret}`, 0],
+    [success({ action: 'status', data: { legacy: 'none', entries: 0, grants: 0 } }), 1],
     [{ version: 1, ok: false, action: 'status', error: { code: secret, message: secret } }, 1],
   ] as const) {
     const f = fixture({ output, code, stderr: secret });
@@ -111,26 +127,26 @@ test('S3 malformed, mismatched, extra-line and nonzero-success replies never lea
   }
 });
 
-test('S3 export/restore keep the passphrase and backup path exclusively on stdin', async () => {
+// Before: 'S3 export/restore keep the passphrase and backup path exclusively on stdin' (both actions).
+test('S3 a backup import keeps the passphrase and backup path exclusively on stdin', async () => {
   const filePath = path.join(tmpdir(), 'shared.tovu-owner-backup');
-  for (const action of ['export', 'restore'] as const) {
-    const data = action === 'export' ? { exported: true } : { restored: 2 };
-    const f = fixture({ output: success({ action, data }) });
-    assert.equal((await runOwnerStoreCli({ repoRoot, userDataDir, action, fields: { passphrase: secret, filePath } }, f.options)).ok, true);
-    assert.deepEqual(JSON.parse(f.calls[0]!.stdin), { userDataDir, passphrase: secret, filePath });
-    assert.ok(!JSON.stringify({ args: f.calls[0]!.args, env: f.calls[0]!.env }).includes(secret));
-    assert.ok(!f.calls[0]!.args.includes(filePath));
-  }
+  const f = fixture({ output: success({ action: 'import', data: { applied: false, items: [], pending: [] } }) });
+  const fields = { source: 'backup' as const, apply: false, passphrase: secret, filePath };
+  assert.equal((await runOwnerStoreCli({ repoRoot, userDataDir, action: 'import', fields }, f.options)).ok, true);
+  assert.deepEqual(JSON.parse(f.calls[0]!.stdin), { userDataDir, ...fields });
+  assert.ok(!JSON.stringify({ args: f.calls[0]!.args, env: f.calls[0]!.env }).includes(secret));
+  assert.ok(!f.calls[0]!.args.includes(filePath));
 });
 
-test('S3 caps UTF-8 stdin at 64 KiB before spawning and refuses invalid path/target combinations', async () => {
+// Before: also refused sync/status with bad siteDir combinations; siteDir and sync no longer exist,
+// so a removed action name is refused instead.
+test('S3 caps UTF-8 stdin at 64 KiB before spawning and refuses relative profiles and removed actions', async () => {
   const f = fixture();
   for (const input of [
     { repoRoot, userDataDir, action: 'put' as const, fields: { entry: { ...entry, payload: { token: 'é'.repeat(33_000) } } } },
     { repoRoot, userDataDir: 'relative-profile', action: 'status' as const, fields: {} },
-    { repoRoot, userDataDir, action: 'sync' as const, fields: {}, siteDir: 'relative-site' },
-    { repoRoot, userDataDir, action: 'sync' as const, fields: {} },
-    { repoRoot, userDataDir, action: 'status' as const, fields: {}, siteDir: userDataDir },
+    { repoRoot, userDataDir, action: 'sync' as never, fields: {} },
+    { repoRoot, userDataDir, action: 'restore' as never, fields: {} },
   ]) assert.equal((await runOwnerStoreCli(input, f.options)).ok, false);
   assert.equal(f.calls.length, 0);
 });
