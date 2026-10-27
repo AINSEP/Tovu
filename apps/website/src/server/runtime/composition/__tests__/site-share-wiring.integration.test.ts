@@ -6,7 +6,7 @@ import { mkdtemp, mkdir, readdir, rm, symlink, writeFile } from "node:fs/promise
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
-import { createSiteRouteDeps, defaultContentDbPath } from "../deps.js";
+import { createSiteRouteDeps, createSiteRouteDepsForWorkspace, defaultContentDbPath } from "../deps.js";
 
 // RED: mkdir/containment errors escaped composition and prevented the whole site booting.
 test("bad private share storage logs and disables only sharing", async t => {
@@ -72,6 +72,18 @@ test("boot refuses SQLite URI paths, which the driver opens as plain files", asy
     assert.throws(() => defaultContentDbPath(), namesFix, uri);
     await assert.rejects(createSiteRouteDeps(uri), namesFix, uri);
   }
+  assert.deepEqual(await readdir(directory), [], "nothing is created or opened");
+});
+
+// RED (Codex batch6): with a workspace override, the factory opened, migrated and seeded an explicit
+// `/db/a.db` before `createSiteRouteDeps` refused it. The refusal now comes first and leaves no files.
+test("the workspace-override factory refuses a database not named content.db before opening it", async t => {
+  const directory = await mkdtemp(path.join(tmpdir(), "share-boot-ws-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  await assert.rejects(
+    createSiteRouteDepsForWorkspace({ workspaceIdOverride: "workspace-local" }, { dbPath: path.join(directory, "a.db") }),
+    /own folder, named content\.db/,
+  );
   assert.deepEqual(await readdir(directory), [], "nothing is created or opened");
 });
 

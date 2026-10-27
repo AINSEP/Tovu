@@ -3218,6 +3218,8 @@ export async function createSiteRouteDepsForWorkspace(
     dbPath?: string; storeRole?: SiteStoreRole; onStoreOpened?: (store: SiteStore) => void;
   } = {}
 ): Promise<NewsletterRouteDeps & ByokToolSurfaceDeps> {
+  // Before the workspace check below opens, migrates and seeds the file.
+  assertContentDbFileName(dbPath);
   if (workspaceIdOverride === undefined) return await createSiteRouteDeps(dbPath, { onStoreOpened, storeRole });
   // Postgres/PGlite: no SQLite handle to pair the id with; the composition validates it against the
   // store it opens.
