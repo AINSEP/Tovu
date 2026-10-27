@@ -2,8 +2,12 @@
  * @file Tovu's implementation of the capability ports an executable Agent Plugin tool receives
  * (`AgentPluginToolCapabilitiesPort` from `@jini-ai/agent-plugins/lifecycle/tools`).
  *
- * Exists so plugin code never holds a credential store, a raw network client or another plugin's
- * budget: every capability is scoped here to the calling plugin and workspace.
+ * Exists so plugin code is never handed a credential store, a raw network client or another plugin's
+ * budget: every capability is scoped here to the calling plugin and workspace. That is a scope, not a
+ * sandbox: plugin code runs in this process with the site's own access (`globalThis.fetch`, the
+ * environment), so it is trusted first-party code. The boundaries that hold are against the model's
+ * tool arguments: Jini's ref binding, the account frozen at confirmation (below) and the token scan on
+ * results and errors. Third-party executable plugins need a process sandbox first.
  * - connections: delegated to the host's connection accessor, always with the calling plugin and
  *   workspace, so a plugin can only reach its own connections in this workspace. Jini's capability
  *   session already refuses any ref but the call's own top-level `connectionRef`; when the call was
