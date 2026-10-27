@@ -256,6 +256,16 @@ describe('CookieConsent: cookie-consent engine', () => {
     await waitFor(() => expect(publish).toHaveBeenCalledWith({ draftId: 'd2', expectedPublishedId: 'p1' }));
   });
 
+  it.each(['headless', 'off'] as const)('hides the CSS warnings when the banner mode is %s (no Jini banner to style)', async bannerMode => {
+    renderPage(fakeConsentPort({
+      get: async () => ({ ...cookieConsentSnapshot, draft: revision('d1', { ...CONSENT_CONFIG, bannerMode }) }),
+      preview: async () => ({ html: '<p>preview</p>', blockingProblems: [], warnings: [{ message: 'Selector was skipped.' }], revisionId: null }),
+    }), 'look');
+    await screen.findByTitle('Banner preview');
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });
+    expect(screen.queryByText('Selector was skipped.')).toBeNull();
+  });
+
   it('does not show the new CSS warnings under the old engine', async () => {
     renderPage(fakeConsentPort({ preview: async () => ({ html: '<p>preview</p>', blockingProblems: [], warnings: [{ message: 'New engine warning.' }], revisionId: null }) }), 'look');
     await screen.findByTitle('Banner preview');
