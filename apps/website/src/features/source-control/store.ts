@@ -513,8 +513,8 @@ async function findDefaultOpened(deps: { repo: SourceControlCredentialSetRepoPor
     if (!selected) continue;
     // The attached-only inventory can select a sole nondefault without changing the project's default.
     // Open by identity so the default-only reader does not reject that valid selection.
-    const resolved = await vault(scoped.deps).get({ ...credentialScope({ workspaceId: scoped.workspaceId, kind: "source-control" }), id: selected.id });
-    if (resolved && resolved.summary.provider !== input.providerId) throw new VaultError({ code: 'context' });
+    // The expected group makes Jini refuse a stale selection from another group before opening it.
+    const resolved = await vault(scoped.deps).get({ ...credentialScope({ workspaceId: scoped.workspaceId, kind: "source-control" }), id: selected.id }, { provider: input.providerId });
     if (resolved) return resolved;
   }
   return null;

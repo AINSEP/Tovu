@@ -258,8 +258,8 @@ test("commitSiteToSourceControl: a genuine decrypt failure (e.g. a boot with no 
 });
 
 /** Provider metadata is authoritative after a provider-only move (S3dr); sealed providerId may
- * retain its old value. The security invariant is that an indexed lookup cannot return a row
- * from another provider group. Jini checks that context before opening the envelope.
+ * retain its old value. The security invariant is that a stale selection (here the provider listing
+ * returns a row from another group) is never opened: Jini checks the group before the envelope.
  */
 test("commitSiteToSourceControl: a vault result from another provider group is rejected as NO_CREDENTIALS_CONFIGURED before opening or forwarding its token", async (t) => {
   const deps = testRouteDeps();
@@ -282,10 +282,9 @@ test("commitSiteToSourceControl: a vault result from another provider group is r
     createdAt: deps.clock.nowIso(),
     updatedAt: deps.clock.nowIso(),
   });
-  const vault = deps.sourceControlCredentialSetRepo.vault!;
-  const wrongGroup = await vault.find({ workspaceId, id });
-  assert.ok(wrongGroup);
-  const lookup = t.mock.method(vault, "findDefault", async () => wrongGroup, {});
+  const wrongGroup = await deps.sourceControlCredentialSetRepo.listByProvider({ workspaceId, providerId: "example-token" });
+  assert.equal(wrongGroup.length, 1);
+  const lookup = t.mock.method(deps.sourceControlCredentialSetRepo, "listByProvider", async () => wrongGroup, {});
   const open = t.mock.method(deps.siteAssistantSecretSealer, "open", async () => {
     assert.fail("a wrong-provider envelope must not be opened");
   });
@@ -300,7 +299,7 @@ test("commitSiteToSourceControl: a vault result from another provider group is r
   assert.equal(result.code, "NO_CREDENTIALS_CONFIGURED");
   assert.equal(result.message, "credential could not be resolved: The credential could not be saved or unlocked. Check the site credential store.");
   assert.equal(lookup.mock.callCount(), 1);
-  assert.deepEqual(lookup.mock.calls[0]!.arguments, [{ workspaceId, kind: "source-control", ownerKey: "tovu", principalId: null, binding: null, provider: "example-git" }]);
+  assert.deepEqual(lookup.mock.calls[0]!.arguments, [{ workspaceId, providerId: "example-git" }]);
   assert.equal(open.mock.callCount(), 0);
   assert.doesNotMatch(JSON.stringify(result), /evil-mismatched-token/);
 });
