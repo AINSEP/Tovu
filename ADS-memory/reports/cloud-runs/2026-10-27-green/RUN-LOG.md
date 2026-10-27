@@ -31,3 +31,6 @@ Sweep: 809/1263 done.
 
 ## 2026-10-27T19:09:45Z — PROGRESS
 Phase 2 extra steps (gem-leftovers, export-leftovers --extra) run; ALL-at-BASE check (15 files) and Jini-lots-at-BASE check (4 files) done, all restored clean. Sweep complete: 1263/1263 items, 24549 tests, 84 failing items (0 NEW). RESULTS.md written.
+
+## 2026-10-27T19:09:56Z — DONE
+DONE. All phases complete within caps (~97 min wall, no subagents). RESULTS.md pushed at 3127246b (branch cloud/green-1027-results). No process running, Tovu and Jini source trees clean (only untracked test artifacts chat.db, sites/tovu-dev/consent-receipts/ in Tovu root). Headline: 0 LOAD-FAIL; 178 RED-on-mutation-ok; 89 UNEXPECTED lot items (many 'passed under mutation' in export-followups/fed-security.jini/codex-isolation, plus phase-1 failures in gem-ip.I/J, all-clis-test, gemini-chat, export-followups); sweep 84 failing items (0 NEW, 11 ENV Postgres, 5 expected-by-fed-security, 24 pre-existing, 44 unsure).
