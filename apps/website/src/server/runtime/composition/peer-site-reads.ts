@@ -45,6 +45,7 @@ import { createSeoDeps } from '#src/features/seo/index';
 import { SqliteWidgetRegionBindingRepo } from '#src/features/widgets/repo.sqlite';
 import { SqliteTrashRepo } from '#src/features/trash/repo.sqlite';
 import { buildTrashRegistry } from '#src/features/trash/registry';
+import { REDIRECT_ENTITY_TYPE } from '#src/features/trash/index';
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from '#src/contracts/core/gated-mutations/composition';
 import { createAppPermissionGrants } from './app-permission-grants.js';
 import { registeredSources, isLocalTovuHost, type RegisteredSiteSource } from './registered-sites.js';
@@ -110,6 +111,9 @@ export const CROSS_SITE_EXCLUDED: Readonly<Record<string, string>> = {
   'admin-screen-link': 'Links refer to the active admin UI.',
   'external-mcp-reauth': 'Reauthentication belongs to the active UI and credentials.',
   consent: 'Consent readiness diagnoses the active site middleware and deploy gate; peer composition supplies no consent service.',
+  'visitor-tools': 'Visitor tool modes and limits are read on the active site only; peer composition supplies no visitor-tools service.',
+  'project-keys': 'Saved project keys are credential metadata for the active project.',
+  'provider-status': 'Provider status reads installed plugins and their live provider state in the active process.',
 };
 
 /** A dependency omitted by peer composition must fail visibly, never fall back to active data. */
@@ -273,6 +277,9 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
     newsletterReady: Promise.resolve(), newsletterCampaignRepo: new SqliteNewsletterCampaignRepo(kernel), newsletterListRepo: new SqliteNewsletterListRepo(kernel),
     newsletterSubscriptionRepo: new SqliteNewsletterSubscriptionRepo(kernel), newsletterAudienceSnapshotRepo: new SqliteNewsletterAudienceSnapshotRepo(kernel), newsletterSendRepo: new SqliteNewsletterSendRepo(kernel),
     redirectRepo: SqliteRedirectRepo({ store: kernel }, {}), originRegistry, seoDeps, seoReady: Promise.resolve(),
+    // redirects_list hides Trashed rules (03fb27a27) by reading the PEER's Trash rows; every write stays poisoned.
+    redirectsWriteDeps: readsOnly({ field: 'redirectsWriteDeps', reads: { isInTrash: async ({ workspaceId: id, id: entityId }: { workspaceId: string; id: string }) =>
+      (await trashRepo.findByEntity({ workspaceId: id, entityType: REDIRECT_ENTITY_TYPE, entityId })) !== null } }),
     widgetBindingRepo: new SqliteWidgetRegionBindingRepo(kernel), changeSets: new SqliteChangeSetRepo(kernel),
     registry: buildTrashRegistry(), trash: { list: trashRepo.list.bind(trashRepo) },
     databaseIntrospection: introspection, dbOps: { getCapabilities: dbOps.getCapabilities.bind(dbOps) },
@@ -285,6 +292,13 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
   // Spreading active deps would let a read silently return the ACTIVE site's data under another site's label.
   return new Proxy(bag, { get: (target, field, receiver) => Reflect.has(target, field)
     ? Reflect.get(target, field, receiver) : field === 'then' ? undefined : unavailable({ field: String(field) }) }) as unknown as AssistantToolRegistryDeps;
+}
+
+/** A peer port that exposes only the named reads; every other member is a CrossSiteUnavailable poison.
+ * @complexity O(1) per access. */
+function readsOnly({ field, reads }: { field: string; reads: Record<string, unknown> }, _options = {}): never {
+  return new Proxy(reads, { get: (target, key) => Reflect.has(target, key)
+    ? Reflect.get(target, key) : key === 'then' ? undefined : unavailable({ field: `${field}.${String(key)}` }) }) as never;
 }
 
 /** Reject invalid cache bounds before registry access or database opens. O(1). */
