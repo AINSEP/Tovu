@@ -27,6 +27,9 @@ import type { RouteDeps } from "../../../../routes/types.js";
  * copy of `fashion-modern` with one extra `landing.liquid` template, which has no route shape.
  */
 
+/** Through createApp the cookie-consent delivery (on by default) wraps every HTML page and marks it
+ *  `private, no-store`, which keeps the preview's own `no-store` and adds `private`. */
+const APP_PREVIEW_CACHE_CONTROL = "private, no-store";
 const REPO_THEMES = path.resolve(import.meta.dirname, "../../../../../../../../content/themes");
 
 function scratchTemplatedThemesRoot(t: import("node:test").TestContext): string {
@@ -65,7 +68,7 @@ test("static page route: a real page renders with Cache-Control: no-store, no se
   const res = await fetch(`${baseUrl}/theme-explore/basic-2/pricing`);
 
   assert.equal(res.status, 200);
-  assert.equal(res.headers.get("cache-control"), "no-store");
+  assert.equal(res.headers.get("cache-control"), APP_PREVIEW_CACHE_CONTROL);
   assert.match(res.headers.get("content-type") ?? "", /^text\/html/);
   assert.match(await res.text(), /<html/i);
 });
@@ -87,7 +90,7 @@ test("partial route: a real partial renders no-store; an unknown partial and a n
 
   const ok = await fetch(`${baseUrl}/theme-explore/basic-2/partial/nav`);
   assert.equal(ok.status, 200);
-  assert.equal(ok.headers.get("cache-control"), "no-store");
+  assert.equal(ok.headers.get("cache-control"), APP_PREVIEW_CACHE_CONTROL);
   assert.match(await ok.text(), /<html/i, "a partial is wrapped in a host document so it previews standalone");
 
   await expectText(await fetch(`${baseUrl}/theme-explore/basic-2/partial/no-such-partial`), 404, "partial 'no-such-partial' was not found in theme 'basic-2'");
@@ -118,7 +121,7 @@ test("templated route: 'entry' renders as the post route, no-store", async (t) =
   const res = await fetch(`${baseUrl}/theme-explore/fashion-modern/template/entry`, { headers: { cookie } });
 
   assert.equal(res.status, 200, await res.clone().text());
-  assert.equal(res.headers.get("cache-control"), "no-store");
+  assert.equal(res.headers.get("cache-control"), APP_PREVIEW_CACHE_CONTROL);
   assert.match(res.headers.get("content-type") ?? "", /^text\/html/);
 });
 
@@ -137,7 +140,7 @@ test("templated route: home, products and product templates each render with the
   for (const templateId of ["home", "products", "product"]) {
     const res = await fetch(`${baseUrl}/theme-explore/fashion-modern/template/${templateId}`, { headers: { cookie } });
     assert.equal(res.status, 200, `${templateId}: ${await res.clone().text()}`);
-    assert.equal(res.headers.get("cache-control"), "no-store", templateId);
+    assert.equal(res.headers.get("cache-control"), APP_PREVIEW_CACHE_CONTROL, templateId);
   }
 });
 
