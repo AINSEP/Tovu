@@ -648,7 +648,10 @@ export function defaultContentDbPath(): string {
  * @throws When a file database is named anything but `content.db`.
  */
 function assertContentDbFileName(dbPath: string): string {
-  if (isInMemoryDbPath(dbPath) || basename(dbPath) === "content.db") return dbPath;
+  // Only the driver's own in-memory names: better-sqlite3 opens with URI interpretation off, so
+  // `file:a.db?mode=memory` is a real disk file and gets the content.db rule like any other path.
+  if (dbPath === ":memory:" || dbPath === "") return dbPath;
+  if (!dbPath.startsWith("file:") && basename(dbPath) === "content.db") return dbPath;
   throw new Error(`Give each database its own folder, named content.db: move ${dbPath} to <its own folder>/content.db and point TOVU_CONTENT_DB at that file.`);
 }
 

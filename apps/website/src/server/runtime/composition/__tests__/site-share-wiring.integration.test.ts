@@ -53,6 +53,28 @@ test("boot refuses a content database not named content.db and names the fix", a
   assert.deepEqual(await readdir(directory), [], "nothing is created or opened");
 });
 
+// RED (Codex batch6): better-sqlite3 opens with URI interpretation off, so `file:a.db?mode=memory` and
+// `file:b.db?mode=memory` are two real disk files, yet both were exempted as in-memory and so shared
+// <site>/ops/shares. Only the driver's own in-memory names (`:memory:`, "") skip the content.db rule.
+test("boot refuses SQLite URI paths, which the driver opens as plain files", async t => {
+  const directory = await mkdtemp(path.join(tmpdir(), "share-boot-uri-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const previousCwd = process.cwd(), previous = process.env.TOVU_CONTENT_DB;
+  t.after(() => {
+    process.chdir(previousCwd);
+    if (previous === undefined) delete process.env.TOVU_CONTENT_DB; else process.env.TOVU_CONTENT_DB = previous;
+  });
+  // Relative URIs resolve against the cwd: keep anything a regression creates inside the temp folder.
+  process.chdir(directory);
+  const namesFix = /own folder, named content\.db/;
+  for (const uri of ["file:a.db?mode=memory", "file:b.db?mode=memory"]) {
+    process.env.TOVU_CONTENT_DB = uri;
+    assert.throws(() => defaultContentDbPath(), namesFix, uri);
+    await assert.rejects(createSiteRouteDeps(uri), namesFix, uri);
+  }
+  assert.deepEqual(await readdir(directory), [], "nothing is created or opened");
+});
+
 // A symlinked folder cannot split a site: the same content.db reached through a link is the same
 // physical folder, so it gets the same catalog.
 test("content.db reached through a symlinked folder keeps the same share catalog", async t => {
