@@ -119,6 +119,9 @@ export const CROSS_SITE_EXCLUDED: Readonly<Record<string, string>> = {
 /** Reads refused on a peer although their domain is cross-site; catalog tests pin each one. */
 export const CROSS_SITE_EXCLUDED_TOOLS: Readonly<Record<string, string>> = {
   comments_get_provider: 'The provider selection and its readiness come from the active process\'s installed provider adapters; a peer has no provider registry, so a vendor selection would read as wrong data.',
+  // No cross-site caller needs these (checked 2026-10-27); a per-key filter would have to track every provider/credential key.
+  settings_get_raw: 'Settings hold provider configuration (core.comments.provider, core.mail.provider); another site\'s provider setup is not readable from here.',
+  settings_get_effective: 'Settings hold provider configuration (core.comments.provider, core.mail.provider); another site\'s provider setup is not readable from here.',
 };
 
 /** A dependency omitted by peer composition must fail visibly, never fall back to active data. */

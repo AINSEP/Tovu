@@ -119,6 +119,15 @@ test('complete production catalog classifies every reader and exercises every sc
   }
 });
 
+test('settings reads refuse another site: they would hand back its provider configuration (core.comments.provider, core.mail.provider)', async t => {
+  const f = await peerFixture(t);
+  for (const id of ['settings_get_raw', 'settings_get_effective']) {
+    for (const namespace of ['core.comments', 'core.mail']) {
+      await assert.rejects(f.call(id, { namespace, key: 'provider', site: 'B' }), { message: `${id} can't read another site yet.` }, `${id} ${namespace}`);
+    }
+  }
+});
+
 test('mixed-scope card does not advertise a site supported by only one dispatch branch', () => {
   const registration = (id: string, site: boolean): ToolRegistration => ({
     descriptor: { id, readOnly: true, inputSchema: { type: 'object', properties: site ? { site: { type: 'string' } } : {} } },
