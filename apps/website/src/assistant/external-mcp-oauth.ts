@@ -742,7 +742,9 @@ async function selfConfigureConnection(
 
   const discovered = await discoverConnectionAuthorizationServer(deps, record);
   const discoveredEndpoints = toStoredEndpoints(discovered);
-  const endpoints: StoredOAuthEndpoints = mustDiscover ? discoveredEndpoints : { ...stored, resource: discoveredEndpoints.resource ?? stored.resource };
+  // Endpoints the operator typed win; discovery only fills the ones left blank (a typed token
+  // endpoint alone has no authorization endpoint to redirect to).
+  const endpoints: StoredOAuthEndpoints = mustDiscover ? discoveredEndpoints : { ...discoveredEndpoints, ...stored, resource: discoveredEndpoints.resource ?? stored.resource };
   const grant = selfConfiguredGrant({ record, discovered });
   const scopes = selfConfiguredScopes({ record, discovered });
 
