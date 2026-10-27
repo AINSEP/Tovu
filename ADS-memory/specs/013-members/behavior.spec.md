@@ -78,6 +78,21 @@ sort request either.
 **Invariant:** `InMemoryMemberRepo.list` must always return rows in ascending `id` order before
 applying the `afterId`/`limit` keyset window.
 
+### 2.2 Public Member Authentication Rate Limits (W-002/W-003)
+
+**Rule changed by owner 2026-10-26:** Check the IP limit first. If the IP is already rate-limited,
+return `429` without checking or charging the email or identity counters. This supersedes the
+previous "both counters are charged" rule so one abusive IP cannot lock a victim's email out of
+magic links or password resets. After IP admission, check the applicable email/identity limits;
+all applicable limits must pass before service work. Use the shared, app-boot-scoped limiter
+instances (C-015) and normalize email keys by trimming and lowercasing.
+
+`Retry-After` and `details.retryAfterSeconds` report the longest applicable wait among checked,
+denied counters. An IP refusal uses the IP wait alone because the other counters are not checked.
+
+**Test requirement:** An IP refusal leaves the victim's email/identity budget available from
+another IP; differing applicable denial waits produce the longest wait in both the header and JSON.
+
 ---
 
 ## 3. Default Values
@@ -100,7 +115,7 @@ applying the `afterId`/`limit` keyset window.
 | Member session TTL | 30 days | Domain (mint-time `expiresAt` computation only) | `resolveContext` compares `session.expiresAt <= nowIso` at read time — expiry is enforced on read, not by any background sweep/cleanup job (none exists). |
 | Member list page size | 100 (in-memory adapter hard cap) | Repo adapter (`Math.min(required.limit ?? DEFAULT_LIST_LIMIT, DEFAULT_LIST_LIMIT)`) | A caller-requested `limit` above 100 is silently clamped to 100, not rejected — differs from SPEC-007's reject-don't-clamp convention for out-of-range pagination values. |
 | Email format | `EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/` | Domain (`assertValidEmail` in `write-service.ts`) | A minimal regex, not a full RFC 5322 validator; case-folded and trimmed before the check. |
-| Rate limit: `requestSignInLink` | none | n/a | No limiter exists (`feature.spec.md` REQ-17); ADR-030 OQ-8 names this a hard pre-launch precondition, unmet in code. |
+| Rate limit: public sign-in / forgot-password requests | Shared `MAGIC_LINK_PER_IP` and `MAGIC_LINK_PER_EMAIL` profiles | HTTP (`checkMemberRequestLimits`) | W-002/W-003 changed by owner 2026-10-26: IP first; an IP refusal does not charge email/identity counters. Retry-After uses the longest applicable wait (see §2.2). |
 
 ---
 

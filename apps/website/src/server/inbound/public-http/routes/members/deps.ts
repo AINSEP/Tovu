@@ -148,26 +148,31 @@ export function memberStringBody(required: {
   return record as Record<string, string>;
 }
 
-/** Both counters are charged, including when the first denies. Shared by password/link/reset requests.
- * Both must pass before any service call (W-002/W-003), against shared, app-boot-scoped limiter
- * instances (C-015), never per-request ones. The email key is trimmed and lowercased like the service.
+/** W-002/W-003 changed by owner 2026-10-26: check the IP limit first. An already rate-limited
+ * IP gets 429 without charging email or identity counters, so it cannot exhaust a victim's budget.
+ * After IP admission, all applicable counters must pass before any service call. Retry-After and
+ * its JSON detail report the longest applicable wait among checked, denied counters.
+ * Shared by password/link/reset requests, against shared, app-boot-scoped limiter instances
+ * (C-015), never per-request ones. The email key is trimmed and lowercased like the service.
  */
 export async function checkMemberRequestLimits(required: MemberRequest & {
   email?: string; emailLimiter?: RateLimiter; ipLimiter: RateLimiter;
   identity?: { key: string; limiter: RateLimiter };
 }, _options = {}): Promise<boolean> {
   const { req, res, emailLimiter, email, ipLimiter } = required;
+  const ip = await ipLimiter.check({ key: resolveClientIp(req) });
+  if (!ip.allowed) return refuseMemberRequest({ res, retryAfterSeconds: ip.retryAfterSeconds });
   const checks = await Promise.all([
-    ipLimiter.check({ key: resolveClientIp(req) }),
     ...(emailLimiter ? [emailLimiter.check({ key: (email ?? "").trim().toLowerCase() || "<empty>" })] : []),
     ...(required.identity ? [required.identity.limiter.check({ key: required.identity.key })] : []),
   ]);
-  for (const result of checks) {
-    if (result.allowed) continue;
-    res.setHeader("Retry-After", String(result.retryAfterSeconds));
-    res.status(429).json({ error: "too many member authentication requests", code: "RATE_LIMIT_EXCEEDED",
-      details: { retryAfterSeconds: result.retryAfterSeconds } });
-    return false;
-  }
-  return true;
+  const waits = checks.flatMap(result => result.allowed ? [] : [result.retryAfterSeconds]);
+  return waits.length === 0 || refuseMemberRequest({ res, retryAfterSeconds: Math.max(...waits) });
+}
+
+function refuseMemberRequest({ res, retryAfterSeconds }: { res: MemberRequest["res"]; retryAfterSeconds: number }, _options = {}): false {
+  res.setHeader("Retry-After", String(retryAfterSeconds));
+  res.status(429).json({ error: "too many member authentication requests", code: "RATE_LIMIT_EXCEEDED",
+    details: { retryAfterSeconds } });
+  return false;
 }
