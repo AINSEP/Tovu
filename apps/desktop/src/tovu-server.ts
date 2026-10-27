@@ -51,6 +51,9 @@ const BOOT_TOKEN_LINE = /^tovu serve: bootToken=(\S+)$/m;
  *  puts in an error — see {@link redactBootToken}. */
 const BOOT_TOKEN_LINE_GLOBAL = /^tovu serve: bootToken=\S*\r?\n?/gm;
 
+/** The most child output one mirror write or one boot-failure message echoes. */
+const MAX_ECHOED_OUTPUT_CHARS = 2_000;
+
 /**
  * `text` with any boot-token line removed and remaining secret values redacted.
  *
@@ -61,7 +64,7 @@ const BOOT_TOKEN_LINE_GLOBAL = /^tovu serve: bootToken=\S*\r?\n?/gm;
  * @complexity O(n) in the text length.
  */
 function redactBootToken(text: string): string {
-  return redactLocalText({ text: redactSecretShapes({ text: text.replace(BOOT_TOKEN_LINE_GLOBAL, "") }).text }).slice(0, 2_000);
+  return redactLocalText({ text: redactSecretShapes({ text: text.replace(BOOT_TOKEN_LINE_GLOBAL, "") }).text });
 }
 
 /**
@@ -738,11 +741,14 @@ function killWin32Tree(child: SpawnedChild, killTree: (pid: number) => void): vo
   }
 }
 
-/** Compose the most useful failure message available: Tovu's own error line, else the raw tail. */
+/** Compose the most useful failure message available: Tovu's own error line, else the raw tail.
+ *  `output` is the whole (redacted) text: Tovu prints its error line last, so only the fallback
+ *  tail is capped (from its start, where a native fatal error names itself), never the text
+ *  searched for that line. */
 function describeBootFailure(output: string, fallback: string): string {
   const cliError = parseCliErrorLine(output);
   if (cliError !== null) return `tovu serve failed: ${cliError.code}: ${cliError.message}`;
-  const tail = output.trim().split("\n").slice(-5).join("\n");
+  const tail = output.trim().split("\n").slice(-5).join("\n").slice(0, MAX_ECHOED_OUTPUT_CHARS);
   return tail.length > 0 ? `${fallback}\n${tail}` : fallback;
 }
 
@@ -942,7 +948,7 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
 
     function readStream(stream: Readable, mirror: Writable): void {
       stream.setEncoding("utf8");
-      const safeMirror = createRedactedOutputSink({ sink: mirror, redact: redactBootToken });
+      const safeMirror = createRedactedOutputSink({ sink: mirror, redact: (text) => redactBootToken(text).slice(0, MAX_ECHOED_OUTPUT_CHARS) });
       stream.once("end", () => safeMirror.end());
       stream.on("data", (chunk) => {
         safeMirror.write(chunk);

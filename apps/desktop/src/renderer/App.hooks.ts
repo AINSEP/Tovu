@@ -91,9 +91,16 @@ export function useSitesPolling(
   projectsLoading: boolean;
   loadError: string | null;
 } {
-  const [projects, setProjects] = useState<readonly SiteRecord[]>([]);
+  const [projects, setProjectsState] = useState<readonly SiteRecord[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Bumped by every local write (create, delete, rename). A poll that started before one is an
+  // older snapshot: applying it would erase that write, and the one-time create notice with it.
+  const mutationEpoch = useRef(0);
+  const setProjects = useCallback<Dispatch<SetStateAction<readonly SiteRecord[]>>>((next) => {
+    mutationEpoch.current++;
+    setProjectsState(next);
+  }, []);
 
   useEffect(() => {
     const bridge = getBridge();
@@ -103,12 +110,13 @@ export function useSitesPolling(
     }
     let cancelled = false;
 
-    const load = () =>
-      bridge
+    const load = () => {
+      const startedAt = mutationEpoch.current;
+      return bridge
         .listSites()
         .then((result) => {
-          if (cancelled) return;
-          setProjects(result);
+          if (cancelled || startedAt !== mutationEpoch.current) return;
+          setProjectsState(result);
           setLoadError(null);
         })
         .catch(() => {
@@ -117,6 +125,7 @@ export function useSitesPolling(
         .finally(() => {
           if (!cancelled) setProjectsLoading(false);
         });
+    };
 
     void load();
     const stop = startInterval(() => void load(), 4000);

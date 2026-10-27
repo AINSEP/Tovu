@@ -621,7 +621,7 @@ function SiteWorkspaces({
   /** The admin page each tab was opened on (`useProjectTabs`). */
   adminPages: Readonly<Record<string, SiteAdminPage>>;
 }) {
-  if (!inSites) return null;
+  // Outside Websites every workspace is `hidden` (workspaceOnScreen), never unmounted: see above.
   return (
     <>
       {openSites.map((project) => (
