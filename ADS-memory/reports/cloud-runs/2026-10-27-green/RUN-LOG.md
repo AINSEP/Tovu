@@ -22,3 +22,6 @@ Phase 3: (d) rechecks all PASS (10/10 incl. T3 App.render 16 tests ok 2.5s; T38 
 
 ## 2026-10-27T18:13:17Z — HEARTBEAT
 Sweep in progress: 161 of 1263 queue items done, no mutation active. Tree clean.
+
+## 2026-10-27T18:29:48Z — HEARTBEAT
+Sweep: 421 queue items done (tier1, desktop tier2, 7 Jini full suites done; website tier2 in progress, slow cli integration tests).
