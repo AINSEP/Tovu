@@ -8,7 +8,12 @@ import ts from "typescript";
 
 import { openSiteStore } from "#src/server/runtime/composition/open-site-store";
 import type { StorageKernel } from "../../kernel/port.js";
-import { type ImportSiteDbDriver, openSiteDbClient, type SiteDbDrivers } from "../open-site-db-client.js";
+import {
+  type ImportSiteDbDriver,
+  openSiteDbClient,
+  type ResolvePostgresConnectionString,
+  type SiteDbDrivers,
+} from "../open-site-db-client.js";
 
 /**
  * @file The agent daemon's leaf DB client (memory plan §2.7, lane W1-L): it opens an
@@ -69,8 +74,7 @@ function resolveLocal(from: string, specifier: string): string | undefined {
 
 /**
  * Every local file `entry` loads: its static graph plus, for `entry` itself only, its `import()`s (the
- * driver loaders) and their static graphs. A deeper `import()` is a path the client never takes
- * (`storage-secret.ts` imports `ensureSiteKey` only for `tovu init`).
+ * driver loaders) and their static graphs. A deeper `import()` is a path the client never takes.
  */
 function reachableFiles(entry: string): Set<string> {
   const seen = new Set<string>([entry]);
@@ -90,11 +94,43 @@ function reachableFiles(entry: string): Set<string> {
 test("W1-L: the client's import graph (static, plus its driver import()s) reaches no migration, seed, repair, recovery or PGlite-owner module", () => {
   const reached = [...reachableFiles(CLIENT_FILE)].map((file) => path.relative(SRC_ROOT, file).split(path.sep).join("/"));
   // Sanity: the walk follows the lazily imported drivers, so a broken resolver cannot pass vacuously.
-  for (const expected of ["platform/db/kernel/drivers/sqlite.ts", "platform/db/kernel/drivers/postgres.ts", "server/runtime/composition/storage-secret.ts"]) {
+  for (const expected of ["platform/db/kernel/drivers/sqlite.ts", "platform/db/kernel/drivers/pglite-socket.ts", "platform/db/kernel/drivers/postgres.ts"]) {
     assert.ok(reached.includes(expected), `walk should reach ${expected}`);
   }
   const offenders = FORBIDDEN.flatMap(({ label, test: matches }) => reached.filter(matches).map((rel) => `${label}: ${rel}`));
   assert.deepEqual(offenders, []);
+});
+
+/** The module a node names, type-level included: an import/export declaration, `import()` or `typeof import()`. */
+function namedModule(node: ts.Node): string | undefined {
+  let literal: ts.Node | undefined;
+  if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) literal = node.moduleSpecifier;
+  else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) literal = node.arguments[0];
+  else if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument)) literal = node.argument.literal;
+  return literal !== undefined && ts.isStringLiteralLike(literal) ? literal.text : undefined;
+}
+
+/** Every module specifier in one file, type-only ones included. */
+function allSpecifiers(file: string): string[] {
+  const source = ts.createSourceFile(file, fs.readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true);
+  const specifiers: string[] = [];
+  const visit = (node: ts.Node): void => {
+    const named = namedModule(node);
+    if (named !== undefined) specifiers.push(named);
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return specifiers;
+}
+
+test("W1-L: platform never depends on server: the client names no server/ module, even in a type, and loads none", () => {
+  const isServer = (file: string) => path.relative(SRC_ROOT, file).split(path.sep).join("/").startsWith("server/");
+  const named = allSpecifiers(CLIENT_FILE).filter((specifier) => {
+    const target = resolveLocal(CLIENT_FILE, specifier);
+    return specifier.includes("/server/") || (target !== undefined && isServer(target));
+  });
+  assert.deepEqual(named, []);
+  assert.deepEqual([...reachableFiles(CLIENT_FILE)].filter(isServer), []);
 });
 
 function scratchSite(t: TestContext): { siteDir: string; dbPath: string; chatDbPath: string } {
@@ -106,18 +142,21 @@ function scratchSite(t: TestContext): { siteDir: string; dbPath: string; chatDbP
 /** The real loader, recording which kinds were asked for. */
 function spyingLoader(real?: ImportSiteDbDriver): { kinds: string[]; importDriver: ImportSiteDbDriver } {
   const kinds: string[] = [];
-  const importDriver: ImportSiteDbDriver = async (kind) => {
-    kinds.push(kind);
-    if (real) return real(kind);
-    throw new Error(`no driver for ${kind} in this test`);
+  const importDriver: ImportSiteDbDriver = async (required) => {
+    kinds.push(required.kind);
+    if (real) return real(required);
+    throw new Error(`no driver for ${required.kind} in this test`);
   };
   return { kinds, importDriver };
 }
 
-const realSqliteLoader: ImportSiteDbDriver = async (kind) => {
-  assert.equal(kind, "sqlite");
+const realSqliteLoader: ImportSiteDbDriver = async (required) => {
+  assert.equal(required.kind, "sqlite");
   return (await import("../../kernel/drivers/sqlite.js")) as never;
 };
+
+/** Non-Postgres kinds never read a connection string. */
+const unusedResolver: ResolvePostgresConnectionString = async () => assert.fail("only a Postgres site resolves a connection string");
 
 test("W1-L: sqlite opens an already-migrated site and reads a settings row and the chat tables, loading only the sqlite driver", async (t) => {
   const site = scratchSite(t);
@@ -129,7 +168,7 @@ test("W1-L: sqlite opens an already-migrated site and reads a settings row and t
   await owner.close();
 
   const { kinds, importDriver } = spyingLoader(realSqliteLoader);
-  const client = await openSiteDbClient({ storage: { kind: "sqlite" }, ...site }, { env: {}, importDriver });
+  const client = await openSiteDbClient({ storage: { kind: "sqlite" }, ...site, resolvePostgresConnectionString: unusedResolver }, { env: {}, importDriver });
   t.after(() => client.close());
   const row = await client.content.run((db) => db.selectFrom("setting_values_global").select("value_json")
     .where("setting_id", "=", "w1l.probe").executeTakeFirst());
@@ -143,7 +182,7 @@ test("W1-L: sqlite never migrates: an existing empty file stays empty (default d
   const site = scratchSite(t);
   fs.writeFileSync(site.dbPath, "");
   fs.writeFileSync(site.chatDbPath, "");
-  const client = await openSiteDbClient({ storage: { kind: "sqlite" }, ...site }, { env: {} });
+  const client = await openSiteDbClient({ storage: { kind: "sqlite" }, ...site, resolvePostgresConnectionString: unusedResolver }, { env: {} });
   const tables = (k: StorageKernel<unknown>) => k.run((db) => db.introspection.getTables());
   assert.deepEqual(await tables(client.content as StorageKernel<unknown>), []);
   assert.deepEqual(await tables(client.chat as StorageKernel<unknown>), []);
@@ -154,7 +193,7 @@ test("W1-L: sqlite refuses a missing file and creates nothing", async (t) => {
   const site = scratchSite(t);
   fs.writeFileSync(site.dbPath, "");
   await assert.rejects(
-    openSiteDbClient({ storage: { kind: "sqlite" }, ...site }, { env: {}, importDriver: realSqliteLoader }),
+    openSiteDbClient({ storage: { kind: "sqlite" }, ...site, resolvePostgresConnectionString: unusedResolver }, { env: {}, importDriver: realSqliteLoader }),
     { message: `${site.chatDbPath} does not exist: the site's API process creates and migrates it at boot; start the site, then retry` }
   );
   assert.deepEqual(fs.readdirSync(site.siteDir), ["content.db"]);
@@ -163,7 +202,8 @@ test("W1-L: sqlite refuses a missing file and creates nothing", async (t) => {
 test("W1-L: TOVU_DB=memory is refused before any driver loads", async () => {
   const { kinds, importDriver } = spyingLoader();
   await assert.rejects(
-    openSiteDbClient({ storage: { kind: "sqlite" }, dbPath: "content.db", chatDbPath: "chat.db" }, { env: { TOVU_DB: "memory" }, importDriver }),
+    openSiteDbClient({ storage: { kind: "sqlite" }, dbPath: "content.db", chatDbPath: "chat.db", resolvePostgresConnectionString: unusedResolver },
+      { env: { TOVU_DB: "memory" }, importDriver }),
     { message: "TOVU_DB=memory is unsupported for a site DB client: the in-memory store lives in the server process and cannot be shared" }
   );
   assert.deepEqual(kinds, []);
@@ -193,7 +233,7 @@ test("W1-L: pglite connects to the owner's socket from TOVU_PG_SOCKET, loading o
   };
   const { kinds, importDriver } = spyingLoader((async () => pglite) as never);
   const client = await openSiteDbClient(
-    { storage: { kind: "pglite" }, dbPath: "/site/content.db", chatDbPath: "/site/chat.db" },
+    { storage: { kind: "pglite" }, dbPath: "/site/content.db", chatDbPath: "/site/chat.db", resolvePostgresConnectionString: unusedResolver },
     { env: { TOVU_PG_SOCKET: " /run/tovu/.s.PGSQL.5432 " }, importDriver }
   );
   assert.deepEqual(kinds, ["pglite"]);
@@ -207,23 +247,26 @@ test("W1-L: pglite connects to the owner's socket from TOVU_PG_SOCKET, loading o
 test("W1-L: pglite without TOVU_PG_SOCKET is refused and never opens a data dir", async () => {
   const pglite = { openPgliteSocketKernel: () => assert.fail("must not connect") } as unknown as SiteDbDrivers["pglite"];
   await assert.rejects(
-    openSiteDbClient({ storage: { kind: "pglite" }, dbPath: "/site/content.db", chatDbPath: "/site/chat.db" },
+    openSiteDbClient({ storage: { kind: "pglite" }, dbPath: "/site/content.db", chatDbPath: "/site/chat.db", resolvePostgresConnectionString: unusedResolver },
       { env: { TOVU_PG_SOCKET: "  " }, importDriver: (async () => pglite) as never }),
     { message: "this site is stored on pglite and TOVU_PG_SOCKET is not set: the daemon supervisor passes the owner's socket" }
   );
 });
 
-test("W1-L: postgres resolves the site's connection string and opens one pool, loading only the postgres driver", async () => {
+test("W1-L: postgres resolves the site's connection string through the injected resolver and opens one pool, loading only the postgres driver", async () => {
   const fake = fakePgKernel();
   const env = { DATABASE_URL: "postgres://x" };
   const calls: unknown[] = [];
+  const resolvePostgresConnectionString: ResolvePostgresConnectionString = async (...args) => { calls.push(args); return "postgres://resolved"; };
   const postgres = {
-    resolvePostgresConnectionString: async (...args: unknown[]) => { calls.push(args); return "postgres://resolved"; },
     openPostgresKernel: (required: { connectionString: string }) => { calls.push(required); return fake.kernel; },
   } as unknown as SiteDbDrivers["postgres"];
   const { kinds, importDriver } = spyingLoader((async () => postgres) as never);
   const storage = { kind: "postgres", secretRef: { env: "DATABASE_URL" } } as const;
-  const client = await openSiteDbClient({ storage, dbPath: path.join("/site", "content.db"), chatDbPath: "/site/chat.db" }, { env, importDriver });
+  const client = await openSiteDbClient(
+    { storage, dbPath: path.join("/site", "content.db"), chatDbPath: "/site/chat.db", resolvePostgresConnectionString },
+    { env, importDriver }
+  );
   assert.deepEqual(kinds, ["postgres"]);
   assert.deepEqual(calls, [[storage, { siteDir: "/site" }, { env }], { connectionString: "postgres://resolved" }]);
   assert.equal(await schemaOf(client.chat as unknown as StorageKernel<unknown>), "ai_chat");

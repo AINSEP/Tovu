@@ -18,6 +18,8 @@ import type { SiteStorage } from "../../site-dir/types.js";
  * Postgres site never loads better-sqlite3 or the site-key sealer of another kind. The SQLite path
  * uses the driver's file kernel rather than `openSiteChatDb`/`openSqliteContentConnection`, because
  * both of those modules import the migration runner.
+ *
+ * Platform code never imports `server/`: composition injects the Postgres connection-string resolver.
  */
 
 /** The PGlite owner's socket, passed to the daemon by the supervisor (`PG_SOCKET_ENV` in `open-site-store.ts`). */
@@ -27,25 +29,33 @@ const PG_SOCKET_ENV = "TOVU_PG_SOCKET";
 export interface SiteDbDrivers {
   sqlite: typeof import("../kernel/drivers/sqlite.js");
   pglite: typeof import("../kernel/drivers/pglite-socket.js");
-  postgres: typeof import("../kernel/drivers/postgres.js") &
-    Pick<typeof import("../../../server/runtime/composition/storage-secret.js"), "resolvePostgresConnectionString">;
+  postgres: typeof import("../kernel/drivers/postgres.js");
 }
 
 /** Loads one storage kind's driver modules (a port, so tests can see which kind was loaded). */
-export type ImportSiteDbDriver = <K extends keyof SiteDbDrivers>(kind: K) => Promise<SiteDbDrivers[K]>;
+export type ImportSiteDbDriver = <K extends keyof SiteDbDrivers>(
+  required: { kind: K },
+  optional?: Record<string, never>
+) => Promise<SiteDbDrivers[K]>;
+
+/** Reads a Postgres site's connection string (composition passes `resolvePostgresConnectionString` from `storage-secret.ts`). */
+export type ResolvePostgresConnectionString = (
+  storage: Extract<SiteStorage, { kind: "postgres" }>,
+  required: { siteDir: string },
+  optional: { env?: NodeJS.ProcessEnv }
+) => Promise<string>;
 
 const DRIVER_IMPORTS: { [K in keyof SiteDbDrivers]: () => Promise<SiteDbDrivers[K]> } = {
   sqlite: () => import("../kernel/drivers/sqlite.js"),
   pglite: () => import("../kernel/drivers/pglite-socket.js"),
-  // The connection string is read exactly as server boot reads it: the sealed file or the env var (O3).
-  postgres: async () => ({
-    ...(await import("../kernel/drivers/postgres.js")),
-    ...(await import("../../../server/runtime/composition/storage-secret.js")),
-  }),
+  postgres: () => import("../kernel/drivers/postgres.js"),
 };
 
-function importDefaultDriver<K extends keyof SiteDbDrivers>(kind: K): Promise<SiteDbDrivers[K]> {
-  return DRIVER_IMPORTS[kind]();
+function importDefaultDriver<K extends keyof SiteDbDrivers>(
+  required: { kind: K },
+  _optional: Record<string, never> = {}
+): Promise<SiteDbDrivers[K]> {
+  return DRIVER_IMPORTS[required.kind]();
 }
 
 export interface SiteDbClient {
@@ -60,6 +70,11 @@ export interface OpenSiteDbClientRequired {
   /** `content.db` (SQLite), also the anchor for the site folder (Postgres' sealed connection string). */
   dbPath: string;
   chatDbPath: string;
+  /**
+   * Postgres only, never called for other kinds. Injected so the connection string is read exactly as
+   * server boot reads it (the sealed file or the env var, O3) without platform importing `server/`.
+   */
+  resolvePostgresConnectionString: ResolvePostgresConnectionString;
 }
 
 export interface OpenSiteDbClientOptional {
@@ -88,11 +103,11 @@ export async function openSiteDbClient(required: OpenSiteDbClientRequired, optio
   }
   const importDriver = optional.importDriver ?? importDefaultDriver;
   const { storage } = required;
-  if (storage.kind === "sqlite") return openSqliteClient(required, await importDriver("sqlite"));
+  if (storage.kind === "sqlite") return openSqliteClient(required, await importDriver({ kind: "sqlite" }));
   const base =
     storage.kind === "pglite"
-      ? openPgliteKernel({ env }, await importDriver("pglite"))
-      : await openPostgresKernel({ storage, dbPath: required.dbPath, env }, await importDriver("postgres"));
+      ? openPgliteKernel({ env }, await importDriver({ kind: "pglite" }))
+      : await openPostgresKernel({ ...required, storage, env }, await importDriver({ kind: "postgres" }));
   // The same connection(s), typed per history: content in `public`, chat in `ai_chat` (ADR-067).
   return { content: base as ContentKernel, chat: pgChatKernel(base), close: () => base.close() };
 }
@@ -133,10 +148,13 @@ function openPgliteKernel(required: { env: NodeJS.ProcessEnv }, driver: SiteDbDr
 }
 
 async function openPostgresKernel(
-  required: { storage: Extract<SiteStorage, { kind: "postgres" }>; dbPath: string; env: NodeJS.ProcessEnv },
+  required: Pick<OpenSiteDbClientRequired, "dbPath" | "resolvePostgresConnectionString"> & {
+    storage: Extract<SiteStorage, { kind: "postgres" }>;
+    env: NodeJS.ProcessEnv;
+  },
   driver: SiteDbDrivers["postgres"]
 ): Promise<StorageKernel<unknown>> {
-  const connectionString = await driver.resolvePostgresConnectionString(
+  const connectionString = await required.resolvePostgresConnectionString(
     required.storage,
     { siteDir: dirname(required.dbPath) },
     { env: required.env }
