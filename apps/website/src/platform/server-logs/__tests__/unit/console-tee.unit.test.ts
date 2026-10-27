@@ -225,3 +225,21 @@ test("child framing leaves an empty stream silent without invoking redaction", a
   assert.deepEqual(redacted, []);
   assert.deepEqual(output, []);
 });
+
+test("an unterminated final line still flushes when the child stream is piped with end:false", async () => {
+  // Jini's daemon adapter pipes with { end: false } so host sinks survive a respawn; the
+  // child's last line (often a native crash with no newline) must not wait for an end() that never comes.
+  const output: string[] = [];
+  const child = new PassThrough();
+  const stream = createRedactedOutputSink({
+    sink: { write: text => { output.push(String(text)); return true; } },
+    redact: text => text.replace("secret", "[REDACTED]"),
+  });
+  child.pipe(stream, { end: false });
+  child.write("FATAL ERROR: native load secret");
+  child.end();
+  await once(child, "end");
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(output, ["FATAL ERROR: native load [REDACTED]\n"]);
+  assert.equal(stream.writableEnded, false);
+});

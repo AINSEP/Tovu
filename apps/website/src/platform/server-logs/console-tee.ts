@@ -20,7 +20,7 @@ type ConsoleMethod = "debug" | "log" | "info" | "warn" | "error";
  * credential before redaction cannot expose a fragment. Redactor failures emit fixed copy.
  * @param required Parent sink and redaction policy; no process globals are read.
  * @param optional Input-line and rendered-line limits, in characters.
- * @returns A writable for one child stream; end it when that child stream ends.
+ * @returns A writable for one child stream; ending it, or its source unpiping at EOF, flushes the last line.
  * @complexity O(n) time for n input characters; O(maxLineLength) retained space.
  * @example child.stderr.pipe(createRedactedOutputSink({ sink: process.stderr, redact }));
  */
@@ -51,10 +51,15 @@ export function createRedactedOutputSink(
       start = newline + 1;
     }
   };
-  return new Writable({
+  const flush = () => { append(decoder.end()); if (pending || oversized) emit(); };
+  const writable = new Writable({
     write(chunk: Buffer, _encoding, done) { append(decoder.write(chunk)); done(); },
-    final(done) { append(decoder.end()); if (pending || oversized) emit(); done(); },
+    final(done) { flush(); done(); },
   });
+  // A source piped with { end: false } (Jini's daemon adapter keeps host sinks open across respawns)
+  // never calls end(); its EOF only unpipes, and the unterminated last line is often the native crash.
+  writable.on("unpipe", flush);
+  return writable;
 }
 
 const LEVEL_BY_METHOD: Record<ConsoleMethod, ServerLogLevel> = {
