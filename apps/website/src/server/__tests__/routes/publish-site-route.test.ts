@@ -62,7 +62,12 @@ const PUBLISH_PATH = "system/publish";
  *  dir; the two "concurrent trigger" tests below pass their OWN per-test dir instead, since they
  *  need a directory that outlives only that one test. */
 function testRouteDeps(publishOutputRootDir: string = publishOutputDir): ReturnType<typeof createRouteDeps> {
-  return { ...createRouteDeps(), publishOutputRootDir };
+  const deps = { ...createRouteDeps(), publishOutputRootDir };
+  // The banner is on by default for new sites (0e2090872), so the real preflight refuses every static
+  // publish of this fresh site with 409 CONSENT_REVIEW_REQUIRED. These tests are about the run itself;
+  // the consent 409 has its own test at the end of this file, which installs its own refusal.
+  if (deps.siteConsent) deps.siteConsent.deploymentCheck = async () => null;
+  return deps;
 }
 
 /** Restores an env var to exactly what it was, INCLUDING "it was unset" — `process.env.X = undefined`
