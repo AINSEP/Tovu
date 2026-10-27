@@ -101,6 +101,7 @@ export const toolMetadata = {
       queries: [
         "Can you add a new field to our existing form?",
         "I need to change who gets notified when this form is submitted.",
+        "Send this form's submissions to a different email address.",
         "Can you rename this form without changing its URL?",
         "How do I edit the fields on a form I already made?",
         "Can I remove a field from a form, or does that get blocked?",

@@ -348,7 +348,11 @@
     "visitor_tool_save": "visitor tool create update saved request api endpoint",
     "visitor_tool_delete": "visitor tool delete remove saved request permanently",
     "members_delete": "member delete remove trash revoke sessions restore",
-    "provider_status": "provider plugin status configured set up analytics product analytics error tracking errors observability tracing traces telemetry monitoring connected key saved"
+    "provider_status": "provider plugin status configured set up analytics product analytics error tracking errors observability tracing traces telemetry monitoring connected key saved",
+    "project_keys_list": "project keys saved credentials used sites attach",
+    "project_key_use": "apply use attach detach project saved key stop using site",
+    "site_restart": "restart site provider settings apply",
+    "observability_send_test_error": "observability telemetry test error Sentry OpenTelemetry analytics delivery"
   },
   "queries": {
     "media_replace_file": [
@@ -450,6 +454,7 @@
       "Rotate the token on an existing saved account without changing the username.",
       "Connect an image or video generation provider with an API key.",
       "Save a source control credential for a repository host for commits and site backups.",
+      "Set up repository backup credentials.",
       "Connect a static publishing host or object storage account.",
       "Use personal access token sign-in when a plugin OAuth connection cannot start."
     ],
@@ -971,6 +976,7 @@
     "forms_update_definition": [
       "Can you add a new field to our existing form?",
       "I need to change who gets notified when this form is submitted.",
+      "Send this form's submissions to a different email address.",
       "Can you rename this form without changing its URL?",
       "How do I edit the fields on a form I already made?",
       "Can I remove a field from a form, or does that get blocked?"
@@ -3601,6 +3607,23 @@
     "provider_status": {
       "class": "read",
       "confirmation": "direct"
+    },
+    "project_keys_list": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "project_key_use": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "site_restart": {
+      "class": "edit",
+      "confirmation": "plan",
+      "input": "human-form"
+    },
+    "observability_send_test_error": {
+      "class": "edit",
+      "confirmation": "direct"
     }
   },
   "policyConfirmationIds": [
@@ -3658,7 +3681,8 @@
     "search_reindex",
     "search_set_provider",
     "comments_set_provider",
-    "visitor_tool_configure"
+    "visitor_tool_configure",
+    "site_restart"
   ],
   "secretForms": {
     "credential_save": {
@@ -3753,7 +3777,8 @@
     "search_reindex",
     "search_set_provider",
     "comments_set_provider",
-    "visitor_tool_configure"
+    "visitor_tool_configure",
+    "site_restart"
   ],
   "exchangeOnlyIds": [
     "members_delete",
@@ -3815,7 +3840,8 @@
     "search_reindex",
     "search_set_provider",
     "comments_set_provider",
-    "visitor_tool_configure"
+    "visitor_tool_configure",
+    "site_restart"
   ],
   "chatPermanentDeletes": {
     "defaultEnabled": false,

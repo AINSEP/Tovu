@@ -76,13 +76,16 @@ const DYNAMIC_BINDINGS = new Map<string, ReadonlySet<string>>([
   ["features/identity/tool-registrations.ts", new Set(["registration.descriptor.id"])],
   ["features/permanent-delete/tool-registrations.ts", new Set(["toolId", "spec.name"])],
   ["features/database-transfer/tool-registrations.ts", new Set(["binding", "describeTransferApproval({ plan })"])],
+  // fc576483f: visitor Ask-first confirmations open on the site assistant's OWN exchange store
+  // (channel "visitor-tool-confirmation", principal "anonymous-visitor"); the MCP-UI admin route never sees them.
+  ["assistant/site/visitor-confirmations.ts", new Set(["binding.executionId"])],
 ]);
 
 // These open APIs operate on plugin sources, sealed credentials or filesystem watches, never surface exchanges.
 // Match the complete reviewed call and file: a different argument or receiver still fails closed.
-const NON_EXCHANGE_OPEN_CALLS = new Map([
+const NON_EXCHANGE_OPEN_CALLS = new Map<string, ReadonlySet<string>>([
   // c387a9b3e added the native theme watcher. Keep the full call reviewed, like the sealers below.
-  ["features/theme/theme-watcher.ts", `watchPort.open({
+  ["features/theme/theme-watcher.ts", new Set([`watchPort.open({
       themesDir: required.themesDir,
       onChange: (filename) => {
         if (closed || ignoredThemeWatchPath(filename)) return;
@@ -91,12 +94,18 @@ const NON_EXCHANGE_OPEN_CALLS = new Map([
         pending.unref();
       },
       onError: (error) => { stop(); onError({ error }); },
-    })`],
-  ["features/webhooks/secret-sealer.aesgcm.ts", "this.sealer.open(input, optional)"],
-  ["features/plugin-runtime/source-tools.ts", "port.open({ id: pluginId }, {})"],
-  ["features/vendor-credentials/vault-adapter.ts", "required.sealer.open(input, options)"],
-  ["server/runtime/composition/site-key-recovery.ts", "input.previous.open(required, options)"],
-  ["platform/secrets/vault-kinds.ts", "required.sealer.open(input, options)"],
+    })`])],
+  // 9abe6503d: the Tovu sealer opens through a per-call Jini sealer that wraps its keyring.
+  ["features/webhooks/secret-sealer.aesgcm.ts", new Set(["new JiniSecretSealer({ keyring }).open(input, optional)"])],
+  ["features/plugin-runtime/source-tools.ts", new Set(["port.open({ id: pluginId }, {})"])],
+  ["features/vendor-credentials/vault-adapter.ts", new Set(["required.sealer.open(input, options)"])],
+  ["server/runtime/composition/site-key-recovery.ts", new Set(["input.previous.open(required, options)"])],
+  ["platform/secrets/vault-kinds.ts", new Set(["required.sealer.open(input, options)"])],
+  // 2b0e2d7d9: member OIDC login unseals its redirect state and emailed-code continuation.
+  ["features/member-login/oidc-login.ts", new Set([
+    "stateless.open({ state: input.params.state, ownerKey, providerId: config.provider.id, redirectUri: config.redirectUri })",
+    "continuationCodec(deps, input, config.version).open({ state: input.continuation })",
+  ])],
 ]);
 
 function scanExchangeTexts(texts: readonly { file: string; text: string }[]): ExchangeScan {
@@ -157,7 +166,7 @@ function scanExchangeTexts(texts: readonly { file: string; text: string }[]): Ex
         const callee = node.expression;
         if (ts.isPropertyAccessExpression(callee) && callee.name.text === "open") {
           // Typed sealer delegations and source-folder openers have no exchange binding.
-          const isNonExchangeOpen = NON_EXCHANGE_OPEN_CALLS.get(relative) === node.getText(source);
+          const isNonExchangeOpen = NON_EXCHANGE_OPEN_CALLS.get(relative)?.has(node.getText(source)) === true;
           if (!isNonExchangeOpen && !property(node.arguments[0], "sealed")) record(property(node.arguments[0], "binding") ?? node.arguments[0], node);
         } else if (ts.isIdentifier(callee) && callee.text === "requireHumanConfirm") {
           record(property(node.arguments[0], "spec") ?? node.arguments[2], node);
@@ -222,8 +231,8 @@ test("the federated card adapter permits only its reviewed dynamic spec expressi
 
 test("the sealer adapter exemption leaves other unresolved open calls visible", () => {
   const fixture = scanExchangeTexts([{ file: path.join(SRC_ROOT, "features/webhooks/secret-sealer.aesgcm.ts"), text: `
-    this.sealer.open(input, optional);
-    this.sealer.open(otherInput, optional);
+    new JiniSecretSealer({ keyring }).open(input, optional);
+    new JiniSecretSealer({ keyring }).open(otherInput, optional);
     store.open({ binding, emit });
   ` }, { file: path.join(SRC_ROOT, "fixture.ts"), text: `
     this.sealer.open(input, optional);
@@ -236,7 +245,7 @@ test("the sealer adapter exemption leaves other unresolved open calls visible", 
 });
 
 test("reviewed non-exchange open calls do not hide new surface bindings in the same file", () => {
-  for (const [file, call] of NON_EXCHANGE_OPEN_CALLS) {
+  for (const [file, calls] of NON_EXCHANGE_OPEN_CALLS) for (const call of calls) {
     const fixture = scanExchangeTexts([{ file: path.join(SRC_ROOT, file), text: `${call};\nstore.open({ binding: { toolId: unknownId } });` }]);
     assert.deepEqual(fixture.toolIds.size, 0);
     assert.deepEqual(fixture.unresolved, [`${file}:${call.split("\n").length + 1}: unknownId`]);

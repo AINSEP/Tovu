@@ -801,7 +801,7 @@ const FEDERATION_WORKSPACE = "ws-federation-surface";
 /** One enabled `stdio` row allowlisting exactly `echo`, saved through the real store so admission
  *  goes through the real `readEnabledExternalMcpConfigs` -> `toResolvedFederatedConnections` path,
  *  not a hand-built `ResolvedFederatedConnection`. */
-async function saveEchoServerRow(repo: InMemoryExternalMcpServerRepo, sealer: AesGcmSecretSealer, keyring: InMemoryKeyring, allowedToolNames = "echo"): Promise<void> {
+async function saveEchoServerRow(repo: InMemoryExternalMcpServerRepo, sealer: AesGcmSecretSealer, keyring: InMemoryKeyring, allowedToolNames = "echo", writeAllowedToolNames = ""): Promise<void> {
   await saveExternalMcpServer(
     { repo, sealer, keyring, clock: createFakeClock({ startIso: "2026-09-24T00:00:00.000Z" }) },
     {
@@ -813,7 +813,7 @@ async function saveEchoServerRow(repo: InMemoryExternalMcpServerRepo, sealer: Ae
       command: "npx",
       args: "-y echo-mcp-server",
       allowedToolNames,
-      writeAllowedToolNames: "",
+      writeAllowedToolNames,
       principalId: "principal-federation-surface",
       env: "",
     },
@@ -870,12 +870,13 @@ test("BYOK federation: settled admitted tools execute with remote names and argu
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
-  await saveEchoServerRow(repo, sealer, keyring, "echo, write_ungranted");
+  await saveEchoServerRow(repo, sealer, keyring, "echo, write_ungranted, write_granted", "write_granted");
   const remoteResult = { content: [{ type: "text", text: "remote echo result" }] };
   const session = new InMemoryMcpSession({
     tools: [
       { name: "echo", inputSchema: { type: "object" }, annotations: { readOnlyHint: true } },
       { name: "write_ungranted", inputSchema: { type: "object" }, annotations: { readOnlyHint: false } },
+      { name: "write_granted", inputSchema: { type: "object" }, annotations: { readOnlyHint: false } },
       { name: "unlisted", inputSchema: { type: "object" }, annotations: { readOnlyHint: true } },
     ] }, {
     onCall: () => remoteResult });
@@ -894,13 +895,16 @@ test("BYOK federation: settled admitted tools execute with remote names and argu
   assert.equal(refused.isError, true);
   assert.equal(session.calls.length, 1);
   // Owner commit 6eac86229 (2026-10-01, trust.ts R3 "confirm only protected actions"): an allowlisted
-  // ordinary write runs with no card, and writeAllowedToolNames is reported, not a gate. The same
-  // config (readOnlyHint:false, empty write list) runs in mcp-federation/__tests__/
-  // confirmation-policy.unit.test.ts "n06: create_project ordinary call needs no card". Admission
-  // (the unlisted refusal above) and authorize() still decide whether it may run at all.
-  const write = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "mcp__echo-server__write_ungranted", input: {} }));
+  // ordinary write runs with no card. Since fed-security (green-1027, ba694cc16) Jini enforces
+  // "may write" per call: writeAllowedToolNames IS a gate, so an ungranted write is refused before
+  // the remote call and a granted one runs. Admission (the unlisted refusal above) and authorize()
+  // still decide whether it may run at all.
+  const ungranted = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "mcp__echo-server__write_ungranted", input: {} }));
+  assert.equal(ungranted.isError, true);
+  assert.equal(session.calls.length, 1);
+  const write = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "mcp__echo-server__write_granted", input: {} }));
   assert.notEqual(write.isError, true);
-  assert.deepEqual(session.calls, [{ name: "echo", arguments: { text: "hello" } }, { name: "write_ungranted", arguments: {} }]);
+  assert.deepEqual(session.calls, [{ name: "echo", arguments: { text: "hello" } }, { name: "write_granted", arguments: {} }]);
 });
 
 // `settled: true`, not `false`: with no federation there is nothing still connecting, and

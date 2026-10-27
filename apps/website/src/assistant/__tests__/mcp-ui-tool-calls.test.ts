@@ -177,6 +177,12 @@ const EXPECTED_ALLOWLIST = [
   "credential_copy_from_project",
   // 0f7305e84 — `confirmation: 'plan'` delete card (approvalToolHandler, digest-pinned); draft files only.
   "plugin_source_delete",
+  // b6c11b876 / 157b55145 — `confirmation: 'plan'` restart card (approvalToolHandler); exchange-only,
+  // so this endpoint only answers the parked card and never starts a restart itself.
+  "site_restart",
+  // e7b836bd5 — `confirmation: 'policy'`, class `trash` (restorable, no card opens). Policy ids are
+  // exchange-only, so with no parked exchange this endpoint can never run it.
+  "members_delete",
 
   "newsletter_send_campaign",
   "newsletter_schedule_campaign",

@@ -27,6 +27,7 @@ export const toolMetadata = {
         "Rotate the token on an existing saved account without changing the username.",
         "Connect an image or video generation provider with an API key.",
         "Save a source control credential for a repository host for commits and site backups.",
+        "Set up repository backup credentials.",
         "Connect a static publishing host or object storage account.",
         "Use personal access token sign-in when a plugin OAuth connection cannot start.",
       ],
