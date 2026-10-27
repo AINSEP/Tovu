@@ -355,6 +355,22 @@ async function assertLabelFreeOnSite(deps: CustomCredentialReadDeps, input: { ta
 }
 
 /**
+ * Translates a failed insert/update of row `id` into the domain duplicate-label error, else rethrows.
+ * @throws {CustomCredentialDuplicateLabelError} The store refused `label` as taken.
+ * @throws The original error otherwise.
+ */
+async function throwSaveError(deps: CustomCredentialReadDeps, input: { err: unknown; target: ScopedCredentialDeps<unknown>; id: UUID; label: string }): Promise<never> {
+  const { err, target, id, label } = input;
+  // Unattached project rows are hidden from the normal reader. Check metadata only to distinguish
+  // a duplicate label from a CAS conflict; never attach or open the existing credential.
+  const inventory = credentialDeletionRepo({ repo: deps.repo }).project;
+  const hiddenDuplicate = target.scope === "project" && err instanceof VaultError && err.code === "conflict"
+    && (await inventory!.repo.listByWorkspace({ workspaceId: target.workspaceId })).some(row => row.label === label && row.id !== id);
+  if (isUniqueLabelViolation(err) || hiddenDuplicate) throw target.scope === "project" ? new CustomCredentialDuplicateLabelError(`Your project already has a key named '${label}'. Use it here, or pick another name.`) : duplicateLabel(label);
+  throw err;
+}
+
+/**
  * Validates, seals, and inserts a new credential set. `id` is minted here (`deps.idGen`), not
  * caller-supplied.
  *
@@ -380,15 +396,7 @@ export async function createCustomCredential(deps: CustomCredentialWriteDeps, in
     payload: { token: connection.token }, hintToken: connection.token });
   const record = customVaultRecord({ row: prepared, expectedRevision: null });
   try { await target.deps.repo.insert(record); }
-  catch (err) {
-    // Unattached project rows are hidden from the normal reader. Check metadata only to distinguish
-    // a duplicate label from a CAS conflict; never attach or open the existing credential.
-    const inventory = credentialDeletionRepo({ repo: deps.repo }).project;
-    const hiddenDuplicate = target.scope === "project" && err instanceof VaultError && err.code === "conflict"
-      && (await inventory!.repo.listByWorkspace({ workspaceId: target.workspaceId })).some(row => row.label === label);
-    if (isUniqueLabelViolation(err) || hiddenDuplicate) throw target.scope === "project" ? new CustomCredentialDuplicateLabelError(`Your project already has a key named '${label}'. Use it here, or pick another name.`) : duplicateLabel(label);
-    throw err;
-  }
+  catch (err) { return throwSaveError(deps, { err, target, id, label }); }
   return toSummary(record, reportedScope(deps, target));
 }
 
@@ -465,6 +473,8 @@ export async function updateCustomCredential(deps: CustomCredentialWriteDeps, in
   const { scoped, record: existing } = located;
   const { label, category, baseUrl, additionalHosts } = updatedMetadata({ input, existing });
   const { connection, username } = updatedConnection({ input, existing });
+  // A rename gets the same site-label check as a create (`assertLabelFreeOnSite`).
+  if (label !== existing.label) await assertLabelFreeOnSite(deps, { target: scoped, workspaceId: input.workspaceId, label });
   const expectedRevision = existing.vaultRecord!.revision;
   const kind = existing.vaultRecord!.kind === "custom" ? "custom" : "vendor";
   const prepared = await customVault(scoped.deps, { kind }).prepare({ ...customVaultScope({ workspaceId: scoped.workspaceId, kind }), id: input.id,
@@ -473,10 +483,7 @@ export async function updateCustomCredential(deps: CustomCredentialWriteDeps, in
     ...(connection ? { payload: { token: connection.token }, hintToken: connection.token } : {}) });
   const record = customVaultRecord({ row: prepared, expectedRevision });
   try { await scoped.deps.repo.update(record); }
-  catch (err) {
-    if (isUniqueLabelViolation(err)) throw scoped.scope === "project" ? new CustomCredentialDuplicateLabelError(`Your project already has a key named '${label}'. Use it here, or pick another name.`) : duplicateLabel(label);
-    throw err;
-  }
+  catch (err) { return throwSaveError(deps, { err, target: scoped, id: input.id, label }); }
   return toSummary(record, reportedScope(deps, scoped));
 }
 
