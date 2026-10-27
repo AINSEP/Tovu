@@ -854,7 +854,8 @@ async function saveProposedCredential(required: {
   signal.throwIfAborted();
   const stored = existing
     ? await updatePublishCredential(writeDeps, { workspaceId: deps.workspaceId, id: existing.id, connection })
-    : await createPublishCredential(writeDeps, { workspaceId: deps.workspaceId, label: `${CUSTOM_PROVIDER_CREDENTIAL_ROW_LABEL}-${deps.idGen.newId()}`, connection });
+    : await createPublishCredential(writeDeps, { workspaceId: deps.workspaceId, label: `${CUSTOM_PROVIDER_CREDENTIAL_ROW_LABEL}-${deps.idGen.newId()}`, connection,
+      ...(deps.vendorCredentialSetRepo.project ? { isDefault: false } : {}) });
   return { credentialId: stored.id, tokenHint: stored.tokenHint ?? null, usedByThisSite: existing !== undefined || stored.scope !== "project" };
 }
 

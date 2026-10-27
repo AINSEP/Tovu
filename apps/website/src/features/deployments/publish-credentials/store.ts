@@ -360,8 +360,8 @@ export interface CreatePublishCredentialInput {
   label: unknown;
   connection: unknown;
   /** `true` makes this the vendor's default connection (clearing any previous one — see
-   *  `VendorCredentialSetRepoPort`'s own header). Omitted/`false` still auto-defaults if this turns
-   *  out to be the vendor's FIRST saved connection; Jini owns atomic auto-defaulting. */
+   *  `VendorCredentialSetRepoPort`'s own header). Omitted auto-defaults the vendor's FIRST saved
+   *  connection; explicit `false` opts out. Jini owns atomic auto-defaulting. */
   isDefault?: unknown;
   worksFor?: unknown;
   /** `"site"` = a site-owned key. Omitted (or `"project"`) = the project store when one is
@@ -398,7 +398,7 @@ export async function createPublishCredential(deps: PublishCredentialWriteDeps, 
   const label = validateLabel(input.label);
   const registry = await deps.loadDeployTargets(input.workspaceId);
   const validated = validateConnection(input.connection, registry);
-  const isDefault = optionalBoolean(input.isDefault, "isDefault") === true;
+  const isDefault = optionalBoolean(input.isDefault, "isDefault");
   const { providerId, ...fields } = validated.connection;
   // Project-first (`vendor-credentials/project-scope.ts`); "site" = only for this site.
   const target = credentialCreateTarget(deps, input, message => new PublishCredentialValidationError(message));
@@ -406,7 +406,7 @@ export async function createPublishCredential(deps: PublishCredentialWriteDeps, 
   const summary = await saveConnection({ deps: target.deps, providerId, input: {
     ...credentialScope({ workspaceId: target.workspaceId, kind: "vendor" }), id: deps.idGen.newId(), expectedRevision: null,
     provider: validated.spec.vendorId, label, meta: { credentialType: "vendor", worksFor: validatedWorksFor({ value: input.worksFor === undefined ? registry.get(providerId)?.module.defaultCredentialWorksFor ?? [validated.spec.vendorId] : input.worksFor }), accountLabel: null }, payload: { vendorId: validated.spec.vendorId, ...fields },
-    hintToken: fields[validated.spec.tokenField], isDefault,
+    hintToken: fields[validated.spec.tokenField], ...(isDefault === undefined ? {} : { isDefault }),
   } });
   // The project read view deliberately hides this new row until it is attached; use put's result.
   const publishHosts = publishHostsForCredential({ credential: summary, registry });

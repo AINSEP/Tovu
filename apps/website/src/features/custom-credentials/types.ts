@@ -1,7 +1,7 @@
 import type { CredentialTokenHint } from '../../contracts/core/credential-token.js';
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
-import type { VaultRecord, VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import type { VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import type { SealedSecret } from "@jini-ai/platform/secrets";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 
@@ -40,7 +40,7 @@ export interface CustomProviderConnectionInput {
 export interface CustomCredentialSetRecord {
   readonly worksFor?: readonly string[];
   /** Non-enumerable adapter context; not part of any public summary. */
-  readonly vaultRecord?: VaultRecord;
+  readonly vaultRecord?: Parameters<VaultRepoPort["put"]>[0]["record"];
   readonly vaultExpectedRevision?: number | null;
   readonly workspaceId: UUID;
   readonly id: UUID;
