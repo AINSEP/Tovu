@@ -8,6 +8,7 @@ import {
   InMemoryBlobStore,
   InMemoryMediaRepo,
   InMemoryTransformDefinitionRepo,
+  MediaConflictError,
   registerTransform,
   resolveMediaRendition,
   uploadMedia,
@@ -262,6 +263,21 @@ test("an explicit title and slug are honored", async () => {
 
   assert.equal(media.title, "Hero banner — mobile crop");
   assert.equal(media.slug, "hero-banner-mobile");
+});
+
+test("T10: a colliding slug override leaves no half-made media copy", async () => {
+  const { deps, mediaRepo } = fakeRouteDeps();
+  const source = await seedAsset(deps);
+  const before = await mediaRepo.list({ workspaceId: WORKSPACE_ID });
+
+  await assert.rejects(
+    call(duplicateTool(deps), { resource: "media", id: source.id, overrides: { slug: source.slug } }),
+    (error: unknown) => error instanceof MediaConflictError &&
+      error.message === `slug '${source.slug}' is already used by media '${source.id}'`,
+  );
+
+  assert.deepEqual(await mediaRepo.list({ workspaceId: WORKSPACE_ID }), before,
+    "a rejected duplicate must leave the library unchanged");
 });
 
 test("a source can be named by its slug, not only its id — media's own identity model", async () => {

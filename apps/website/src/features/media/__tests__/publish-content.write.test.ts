@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaContentTypeStore, InMemoryVersionedMediaRepo, type MediaRecord } from "#src/features/media/index";
+import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaContentTypeStore, InMemoryVersionedMediaRepo, LocalFsBlobStore, type BlobStorePort, type MediaRecord } from "#src/features/media/index";
 import type { PackedEntity, PublishContentDeps } from "#src/features/publish-content/type-registry";
 
 import { MediaApplyBlockedError, MediaApplyConflictError, contributeMediaPublish } from "../publish-content.js";
@@ -27,10 +30,10 @@ function photo(overrides: Partial<MediaRecord> = {}): MediaRecord {
     version: 1, width: null, height: null, cssClass: null, htmlAttributes: null, ...overrides };
 }
 
-async function fixture(input: { rows?: MediaRecord[]; staged?: boolean; sha256?: string } = {}) {
+async function fixture(input: { rows?: MediaRecord[]; staged?: boolean; sha256?: string; blobStore?: BlobStorePort } = {}) {
   const repo = new InMemoryVersionedMediaRepo(input.rows ?? []);
   const assetBlobRepo = new InMemoryAssetBlobRepo({}, { initialRows: [] });
-  const blobStore = new InMemoryBlobStore();
+  const blobStore = input.blobStore ?? new InMemoryBlobStore();
   const contentTypeStore = new InMemoryMediaContentTypeStore();
   if (input.staged ?? true) await blobStore.putIfAbsent({ workspaceId: WORKSPACE_ID, sha256: input.sha256 ?? PNG_SHA, bytes: PNG });
   const outbox = new InMemoryOutbox();
@@ -116,6 +119,42 @@ test("write returns a typed block on forged packed state with no source", async 
   const { source: _source, ...sourceless } = photo();
   await assert.rejects(apply(handler, sourceless), blocked("blocked:precondition",
     "media 'm1' cannot be applied — missing or malformed media source"));
+});
+
+test("T12: malformed bundle hashes are refused before any filesystem blob probe or read", async (t) => {
+  const rootDir = await mkdtemp(join(tmpdir(), "tovu-media-t12-"));
+  t.after(() => rm(rootDir, { recursive: true, force: true }));
+  // This traversal resolves to rootDir/outside, outside this workspace's blob folder.
+  // Use the real filesystem adapter: a missing file would hide an escaped get().
+  const traversal = "../../outside";
+  await writeFile(join(rootDir, "outside"), PNG);
+  const blobStore = new LocalFsBlobStore({ rootDir });
+  const { handler, repo } = await fixture({ blobStore });
+  const probes: Array<{ operation: string; storageKey: string }> = [];
+  const exists = blobStore.exists.bind(blobStore);
+  const get = blobStore.get.bind(blobStore);
+  blobStore.exists = async (input) => {
+    probes.push({ operation: "exists", storageKey: input.storageKey });
+    return exists(input);
+  };
+  blobStore.get = async (input) => {
+    probes.push({ operation: "get", storageKey: input.storageKey });
+    return get(input);
+  };
+
+  const forged = entity({ ...photo(), source: { sha256: traversal } });
+  // Validate the record and manifest independently so neither can mask the other.
+  const sourceRefusal = await handler.precheck({ ...forged, requiredBlobs: [] });
+  const manifestRefusal = await handler.precheck({ ...entity({ ...photo() }), requiredBlobs: [traversal] });
+  await assert.rejects(
+    handler.apply({ entity: forged, expectedVersion: undefined, principalId: "op", idempotencyKey: "t12" }),
+    (error: unknown) => error instanceof MediaApplyBlockedError && error.code === "blocked:precondition",
+  );
+
+  assert.deepEqual(probes, [], "malformed hashes must be rejected before blobStore.exists/get");
+  assert.notEqual(sourceRefusal, null, "a malformed source sha256 must fail precheck even with an empty manifest");
+  assert.notEqual(manifestRefusal, null, "a malformed requiredBlobs entry must fail precheck");
+  assert.deepEqual(await repo.list({ workspaceId: WORKSPACE_ID }), []);
 });
 
 // --- validate (precheck) -------------------------------------------------------------------------

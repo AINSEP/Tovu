@@ -6,7 +6,7 @@ import {
   type MediaToolDeps,
 } from "@jini-ai/cms/media";
 import { ToolInputError } from "@jini-ai/core";
-import { uploadMedia } from "@jini-ai/cms/media";
+import { rollbackUploadedMedia, uploadMedia } from "@jini-ai/cms/media";
 
 import type { DuplicateResourceHandlerContributor } from "#src/assistant/index";
 import type { MediaPublicUrlDeps } from "./tool-registrations.js";
@@ -164,6 +164,8 @@ async function applyCopiedMetadata(
  * @returns `{ media }` — the copy's own row.
  * @throws {ToolInputError} For an unsupported `status` override, a missing source, a trashed source,
  * or bytes that are no longer retrievable.
+ * @throws {MediaConflictError | MediaValidationError} A taken or invalid `slug` override; the copy is
+ * rolled back first.
  * @complexity O(1) repo/store calls plus one full read of the source's bytes.
  */
 export async function duplicateMediaAsset(
@@ -242,10 +244,18 @@ export async function duplicateMediaAsset(
   // content-type store has NO recorded type, and without this the copy would inherit that gap and
   // drop out of the admin's Images/Videos filter and the `/m/...` video URL branch. This is the
   // same store and method the HTTP upload route and `media_upload_asset` already write through.
-  await routeDeps.mediaContentTypeStore?.set({ workspaceId: routeDeps.workspaceId, sha256: created.source.sha256, contentType });
-
-  const media = await applyCopiedMetadata(routeDeps, created, source, { title, slug: input.overrides.slug });
-  return { media };
+  try {
+    await routeDeps.mediaContentTypeStore?.set({ workspaceId: routeDeps.workspaceId, sha256: created.source.sha256, contentType });
+    const media = await applyCopiedMetadata(routeDeps, created, source, { title, slug: input.overrides.slug });
+    return { media };
+  } catch (error) {
+    // uploadMedia already committed the copy: a refused override (a taken or invalid slug) must not
+    // leave a half-made `<slug>-copy` entry behind. The source still holds the bytes, so the
+    // rollback's blob tombstone check leaves them alone.
+    await rollbackUploadedMedia({ deps: { mediaRepo: routeDeps.mediaRepo, blobRepo: routeDeps.assetBlobRepo, renditionRepo: routeDeps.assetRenditionRepo, clock: routeDeps.clock },
+      input: { workspaceId: routeDeps.workspaceId, media: created } });
+    throw error;
+  }
 }
 
 /**
