@@ -2064,8 +2064,16 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    dock/sidebar width counts) passes 800px, and bounded by the shared content measure so a single
    count never becomes an unbounded box. */
 .dashboard-page { container-type: inline-size; }
-.dash-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); width: 100%; max-width: var(--content-measure); }
-@container (min-width: 800px) { .dash-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* 2026-10-27 (owner): the four counts are ONE card — cells split by 1px dividers (the grid gap shows
+   the card's `--border` background through) — with Appearance beside it on wide panes. Cells are 4x1
+   above 600px of pane, 2x2 below; Appearance drops under the card below 800px. */
+.dash-top { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); align-items: stretch; width: 100%; max-width: var(--content-measure); }
+@container (min-width: 800px) { .dash-top { grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr); } }
+.dash-stats {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; overflow: hidden;
+  background: var(--border); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
+}
+@container (min-width: 600px) { .dash-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
 /* The default-password nag: a compact one-row plain `.notice` (neutral surface + hairline), with
    the icon as its only `--warning` accent — owner: "cap the width" and "make it subtle". The link
@@ -2104,21 +2112,17 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    announces as a link, which the old div-with-a-nested-"manage"-link was not. */
 .dash-stat {
   display: flex; flex-direction: column; gap: var(--space-1);
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
-  padding: var(--space-4) var(--space-5); box-shadow: var(--shadow-sm);
-  transition: box-shadow 0.14s, border-color 0.14s, transform 0.14s;
+  background: var(--surface); padding: var(--space-4) var(--space-5);
+  transition: background 0.14s;
   color: inherit; text-decoration: none;
 }
-.dash-stat:hover {
-  border-color: var(--border-strong); box-shadow: var(--shadow-md);
-  text-decoration: none; transform: translateY(-1px);
-}
-@media (prefers-reduced-motion: reduce) { .dash-stat { transition: none; } .dash-stat:hover { transform: none; } }
+.dash-stat:hover { background: var(--surface-2); text-decoration: none; }
+@media (prefers-reduced-motion: reduce) { .dash-stat { transition: none; } }
 /* Phone padding for the 2-up stat grid above — after `.dash-stat` so it wins the cascade. */
 /* Container (2026-10-11): keyed on the pane, like the 4-up rule above, so the tight padding also
    applies when the nav + dock leave a phone-width pane on desktop. 456px ≈ the old 480px viewport
    minus a phone's page padding. */
-@container admin-content (max-width: 456px) { .dash-stats { gap: var(--space-3); } .dash-stat { padding: var(--space-3) var(--space-4); } }
+@container admin-content (max-width: 456px) { .dash-stat { padding: var(--space-3) var(--space-4); } }
 .dash-stat-label { font-size: var(--text-2xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
 /* `font-variant-numeric: tabular-nums` keeps a column of counts optically aligned as values change
    width (9 -> 10 -> 100) instead of the digits shifting under each other. */
@@ -2136,7 +2140,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 
 /* Everything that is not a single number. `minmax(0, …)` on both tracks lets a long title inside
    the activity list ellipsize instead of forcing the column wider than its share. */
-.dash-panels { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: var(--space-4); align-items: start; }
+.dash-panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); align-items: start; }
 /* Container (2026-10-11): 800px ≈ the old 1100px viewport minus the expanded nav and page padding
    (1100 − 232 − 80) — the width the two panels actually had when that breakpoint was picked. With
    the dock open the viewport query kept them side by side in a ~590px pane. */

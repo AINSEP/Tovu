@@ -274,40 +274,37 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
       {showSiteKeyBanner ? <SiteKeyWarningBanner message={siteKeyBannerMessage} /> : null}
       {showDefaultPasswordBanner ? <DefaultPasswordBanner onDismiss={dismissDefaultPasswordBanner} t={t} /> : null}
 
-      <div className="dash-stats">
-        <Stat
-          href="/admin/posts"
-          label={t("Posts")}
-          state={posts}
-          meta={postsStatMeta(published, t)}
-          agentHandleId="dashboard-stat-posts"
-        />
-        <Stat
-          href="/admin/pages"
-          label={t("Pages")}
-          state={pages}
-          meta={pagesStatMeta(drafts, t)}
-          agentHandleId="dashboard-stat-pages"
-        />
-        <Stat
-          href="/admin/media"
-          label={t("Media")}
-          state={media}
-          meta={t("items in the library")}
-          agentHandleId="dashboard-stat-media"
-        />
-        <Stat
-          href="/admin/comments"
-          label={t("Comments")}
-          state={comments}
-          meta={commentsStatMeta(comments.value, t)}
-          agentHandleId="dashboard-stat-comments"
-        />
-      </div>
-
-      <div className="dash-panels">
-        <RecentActivityPanel recent={recent} postsError={posts.error} pagesError={pages.error} t={t} />
-
+      <div className="dash-top">
+        <div className="dash-stats">
+          <Stat
+            href="/admin/posts"
+            label={t("Posts")}
+            state={posts}
+            meta={postsStatMeta(published, t)}
+            agentHandleId="dashboard-stat-posts"
+          />
+          <Stat
+            href="/admin/pages"
+            label={t("Pages")}
+            state={pages}
+            meta={pagesStatMeta(drafts, t)}
+            agentHandleId="dashboard-stat-pages"
+          />
+          <Stat
+            href="/admin/media"
+            label={t("Media")}
+            state={media}
+            meta={t("items in the library")}
+            agentHandleId="dashboard-stat-media"
+          />
+          <Stat
+            href="/admin/comments"
+            label={t("Comments")}
+            state={comments}
+            meta={commentsStatMeta(comments.value, t)}
+            agentHandleId="dashboard-stat-comments"
+          />
+        </div>
         <div className="dash-panel">
           <div className="dash-panel-head">
             <h2 className="dash-panel-title">{t("Appearance")}</h2>
@@ -319,6 +316,10 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
             <AppearanceBody themeError={themeError} themeName={themeName} t={t} />
           </div>
         </div>
+      </div>
+
+      <div className="dash-panels">
+        <RecentActivityPanel recent={recent} postsError={posts.error} pagesError={pages.error} t={t} />
       </div>
     </div>
   );
