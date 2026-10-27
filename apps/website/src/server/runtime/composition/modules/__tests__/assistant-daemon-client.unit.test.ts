@@ -408,16 +408,22 @@ test("fetchAgentDaemonEventStream: a daemon that starts listening AFTER the stre
 // reset one may already have reached the daemon, so only a read is resent and a write answers
 // 502 OUTCOME_UNKNOWN instead of running twice.
 
-/** A raw-socket daemon that RSTs the first `resets` connections the moment their request bytes
- *  arrive (so the daemon "received" the call), then answers `200 {}` on every later one. */
-async function startResettingDaemon(t: import("node:test").TestContext, resets: number): Promise<{ origin: string; hits: () => number }> {
+/** A raw-socket daemon that drops the first `resets` connections the moment their request bytes
+ *  arrive (so the daemon "received" the call), then answers `200 {}` on every later one. It drops
+ *  them with an RST by default; `graceful: true` closes them normally instead (FIN, no response),
+ *  which undici reports as `UND_ERR_SOCKET` rather than `ECONNRESET`. */
+async function startResettingDaemon(
+  t: import("node:test").TestContext,
+  resets: number,
+  { graceful = false }: { graceful?: boolean } = {},
+): Promise<{ origin: string; hits: () => number }> {
   let hits = 0;
   const sockets = new Set<net.Socket>();
   const server = net.createServer((socket) => {
     sockets.add(socket);
     socket.once("data", () => {
       hits += 1;
-      if (hits <= resets) return void socket.resetAndDestroy();
+      if (hits <= resets) return void (graceful ? socket.end() : socket.resetAndDestroy());
       socket.end("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}");
     });
   });
@@ -442,6 +448,32 @@ test("fetchAgentDaemon: a POST whose connection is reset is sent ONCE and answer
   assert.equal(sent.status, 502);
   assert.equal((sent.body as { code?: string }).code, "OUTCOME_UNKNOWN");
   assert.ok(Date.now() - started < 3000, `a reset write must answer at once (took ${Date.now() - started}ms)`);
+});
+
+test("fetchAgentDaemon: a POST whose connection the daemon closes normally (UND_ERR_SOCKET) is sent ONCE and answers 502 OUTCOME_UNKNOWN", async (t) => {
+  const daemon = await startResettingDaemon(t, Infinity, { graceful: true });
+  withEnv(t, { JINI_AGENT_DAEMON_URL: daemon.origin });
+  const { res, sent } = fakeRes();
+
+  const upstream = await fetchAgentDaemon(fakeReq({ originalUrl: "/api/runs", method: "POST" }), res, { body: { prompt: "delete page" } });
+
+  assert.equal(upstream, null);
+  assert.equal(daemon.hits(), 1, "a closed write must not be resent — the daemon may already have acted on it");
+  assert.equal(sent.status, 502);
+  assert.equal((sent.body as { code?: string }).code, "OUTCOME_UNKNOWN");
+});
+
+test("fetchAgentDaemon: a GET whose connection the daemon closes normally still answers 502 BAD_GATEWAY, not retried (unchanged)", async (t) => {
+  const daemon = await startResettingDaemon(t, Infinity, { graceful: true });
+  withEnv(t, { JINI_AGENT_DAEMON_URL: daemon.origin });
+  const { res, sent } = fakeRes();
+
+  const upstream = await fetchAgentDaemon(fakeReq({ originalUrl: "/api/runs", method: "GET" }), res);
+
+  assert.equal(upstream, null);
+  assert.equal(daemon.hits(), 1);
+  assert.equal(sent.status, 502);
+  assert.equal((sent.body as { code?: string }).code, "BAD_GATEWAY");
 });
 
 test("fetchAgentDaemon: a GET whose connection is reset is retried and answers from the next attempt", async (t) => {

@@ -97,9 +97,13 @@ function connectionErrorCode(error: unknown): unknown {
  *  the request, so resending a write could run it twice (plan §2.5, at-most-once). */
 const RESEND_AFTER_RESET_METHODS: ReadonlySet<string> = new Set(["GET", "HEAD"]);
 
-/** A connection reset on a verb that must not be resent: the call may already have run. */
+/** Socket codes meaning the connection dropped after the request may have reached the daemon: an
+ *  RST (`ECONNRESET`), or undici's "other side closed" (`UND_ERR_SOCKET`) for a normal close. */
+const DROPPED_AFTER_SEND_CODES: ReadonlySet<unknown> = new Set(["ECONNRESET", "UND_ERR_SOCKET"]);
+
+/** A dropped connection on a verb that must not be resent: the call may already have run. */
 function isUnsafeReset(attempt: { code: unknown; method: string }): boolean {
-  return attempt.code === "ECONNRESET" && !RESEND_AFTER_RESET_METHODS.has(attempt.method.toUpperCase());
+  return DROPPED_AFTER_SEND_CODES.has(attempt.code) && !RESEND_AFTER_RESET_METHODS.has(attempt.method.toUpperCase());
 }
 
 /** Set while a retry loop is in progress, so a page's worth of concurrent polls logs ONE line
