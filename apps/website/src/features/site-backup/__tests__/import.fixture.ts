@@ -20,17 +20,18 @@ import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import * as yauzl from "yauzl";
 import { openContentDb } from "../../../platform/db/sqlite/content-db.js";
 import { closeSqliteConnection } from "../../../platform/db/kernel/drivers/sqlite.js";
-import { sanitizeShareDatabase } from "../../../platform/db/sqlite/share-database.js";
+import { sanitizeShareDatabase, rewriteArchiveMedia } from "../../../platform/db/sqlite/share-database.js";
 import { rebuildImportDatabase } from "../../../platform/db/sqlite/import-database.js";
 import { runtimeSchemaVersion } from "../../../platform/site-dir/schema-guard.js";
 import { createSitesWorkspace } from "../../../platform/site-dir/sites-home.js";
 import { buildShareZip } from "../share-zip.js";
+import { fixtureArchivePlan, fixtureManifest } from "./archive.fixture.js";
 import { createSiteImportBackend } from "../import-backend.js";
 import { SiteImportRegistry } from "../import-registry.js";
 import { createShareArchiveReader } from "../import-archive-reader.js";
 import { SHARE_LIMITS } from "../share-policy.js";
 import { prepareShareContent } from "../share-preparation.js";
-import { buildSiteBackupManifest } from "../sources.js";
+
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 import { FIRST_PARTY_DATA_MODULES } from "../../plugins/data-modules.js";
 import { declareDataModule } from "../../plugins/data-module.js";
@@ -81,19 +82,20 @@ export async function importFixture(t: TestContext, placement: "inSite" | "appDa
     ["themes/static/site/pages/index.html", Buffer.from('<!doctype html><html><head><link rel="stylesheet" href="../css/styles.css" /></head><body>Portable</body></html>')],
     ["themes/static/site/css/styles.css", Buffer.from("body{margin:0}")],
     ["themes/static/site/js/site.js", Buffer.from("window.importedTheme = true;")],
-    ["themes/code/site/index.ts", Buffer.from("throw new Error('must never execute')")],
+    ["themes/code/executable/theme.json", Buffer.from('{"id":"executable","tier":"code"}')],
+    ["themes/code/executable/index.ts", Buffer.from("throw new Error('must never execute')")],
     ["plugins/custom/plugin.json", Buffer.from('{"id":"custom"}')],
-    ["agent-plugins/custom/mcp.json.example", Buffer.from('{"command":"never-execute"}')],
     ["skills/custom/SKILL.md", Buffer.from("Never execute on import")],
     ["settings/config.json", Buffer.from('{"name":"Portable","domain":null,"port":null}')],
   ]);
-  const plan: SiteSharePlanContent = {
+  const runtimePlan: SiteSharePlanContent = {
     target: { kind: "zip" }, profile: "share", createdAt: stamp, tovuVersion: "test", schema: runtimeSchemaVersion(),
     site: { name: "Portable", folderName: "portable" }, include: { database: true, media: true, themes: true, plugins: true, settings: true }, scopeNotes: {}, skipped: [],
     database: { bytes: safe.bytes, watermarkAtCapture: 0 }, files: [],
     bufferedFiles: [...files].filter(([name]) => name !== "database/content.db").map(([name, content]) => ({ path: name, content })),
     totalBytes: [...files.values()].reduce((n, bytes) => n + bytes.length, 0),
   };
+  const plan = fixtureArchivePlan({ plan: runtimePlan });
   const registry = new SiteImportRegistry({ directory: path.join(root, "private") });
   const started: string[] = [];
   const backendPorts = { registry, workspace, reader, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion(),
@@ -105,9 +107,9 @@ export async function importFixture(t: TestContext, placement: "inSite" | "appDa
   const archive = await buildShareZip({ plan, zip: zipFolderFiles });
   // Hostile fixtures bypass A's projection, but retain a schema-valid DB and exact ZIP hashes.
   const archiveWithDatabase = async (snapshot: Buffer) => {
-    const entries = new Map(files); entries.set("database/content.db", snapshot);
-    const inventory = [...entries].map(([path, bytes]) => ({ path, bytes: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") }));
-    entries.set("tovu-backup.json", Buffer.from(buildSiteBackupManifest({ ...plan, files: inventory })));
+    const nextPlan = fixtureArchivePlan({ plan: { ...runtimePlan, database: { bytes: snapshot, watermarkAtCapture: 0 } }, files });
+    const entries = new Map(nextPlan.bufferedFiles!.map(file => [file.path, file.content])); entries.set("content.db", snapshot);
+    entries.set("manifest.json", Buffer.from(fixtureManifest({ plan: nextPlan, files: entries })));
     const picked = [...entries].map(([name, bytes]) => {
       const file = new File([bytes as BlobPart], name.split("/").at(-1)!);
       Object.defineProperty(file, "webkitRelativePath", { value: "share/" + name });
@@ -128,7 +130,7 @@ export async function importFixture(t: TestContext, placement: "inSite" | "appDa
     const readKeys: string[] = [];
     const productionPlan = await prepareShareContent({
       sources: { siteDir, mediaUploadsDir: null, themesDir: path.join(siteDir, "themes"), skillsDir: path.join(siteDir, "skills"), agentPlugins: resolveAgentPluginLayout({ siteDir, env: {} }), tovuVersion: "test" },
-      sanitize: sanitizeShareDatabase,
+      sanitize: sanitizeShareDatabase, rewriteMedia: rewriteArchiveMedia, imageTransformer: { transform: async () => assert.fail("fixture media is not raster") },
       blobStore: { get: async ({ storageKey }) => { assert.equal(storageKey, STORAGE_KEY); readKeys.push(storageKey); return MEDIA; }, sizeOf: async ({ storageKey }) => { assert.equal(storageKey, STORAGE_KEY); return MEDIA.length; } },
       dbOps: { getCapabilities: async () => ({ restorePoint: { costClass: "cheap", kind: "file-snapshot" } }), captureRestorePoint: async () => {
         const artifactRef = path.join(root, "share-snapshot.db");

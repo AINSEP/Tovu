@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { statfs } from "node:fs/promises";
 import test, { type TestContext } from "node:test";
 import Database from "better-sqlite3";
+import { SITE_CONSENT_DEFAULTS } from "#src/features/consent/config";
 import { computeBlobStorageKey, MediaValidationError } from "#src/features/media/index";
 import { SHARE_LIMITS, SiteShareRefusal } from "#src/features/site-backup/share-policy";
 import { declareDataModule, type DataModuleDecl } from "#src/features/plugins/data-module";
@@ -243,7 +244,6 @@ test("asset blobs: orphans drop; media-only blobs travel unchanged; document or 
   insertBlob(sql, { id: "b-orphan", sha: "d".repeat(64) });
   const { rows, projection } = await share(t, sql);
   assert.deepEqual(rows("asset_blobs").map(row => [row.id, row.document_owned, row.created_by_principal]), [["b-a", 0, "owner"], ["b-b", 1, "share"], ["b-c", 1, "share"]]);
-  assert.deepEqual(projection.excludedBlobKeys, [blobKey("d".repeat(64))]);
 });
 
 test("asset blobs: a same-hash blob in another workspace is not owned by this workspace's media", async t => {
@@ -254,7 +254,6 @@ test("asset blobs: a same-hash blob in another workspace is not owned by this wo
   insertBlob(sql, { id: "b-a-other", sha: SHA_A, workspace: "ws-other", storageKey: "ws/ws-other/blobs/aa/other" });
   const { rows, projection } = await share(t, sql);
   assert.deepEqual(rows("asset_blobs").map(row => row.id), ["b-a"]);
-  assert.deepEqual(projection.excludedBlobKeys, ["ws/ws-other/blobs/aa/other"]);
 });
 
 test("an ordinary rendition may not reach document bytes whose only public-media owner is trashed", async t => {
@@ -281,7 +280,6 @@ test("slug history and renditions travel only with a retained owner; dropped key
   assert.deepEqual(rows("media_slug_history").map(row => row.slug), ["old"]);
   assert.deepEqual(rows("asset_renditions").map(row => row.id), ["r1"]);
   assert.deepEqual(projection.media, [{ storageKey: blobKey(SHA_A), sha256: SHA_A }, { storageKey: "ws/ws/renditions/r1" }]);
-  assert.deepEqual(projection.excludedBlobKeys, ["ws/ws/renditions/orphan"]);
 });
 
 test("an ordinary rendition pointing at a document-only blob refuses with INVALID_DOCUMENT", async t => {
@@ -311,7 +309,6 @@ test("a document keeps only its original rendition", async t => {
   insertRendition(sql, { id: "d1-thumb", assetId: "d1", storageKey: "ws/ws/renditions/thumb", transform: "thumb" });
   const { rows, projection } = await share(t, sql);
   assert.deepEqual(rows("asset_renditions").map(row => row.id), ["d1-original"]);
-  assert.deepEqual(projection.excludedBlobKeys, ["ws/ws/renditions/thumb"]);
   assert.deepEqual(projection.documents, [{ storageKey: blobKey(SHA_B), sha256: SHA_B, originalFilename: "d1.md" }]);
 });
 
@@ -346,6 +343,23 @@ test("a document whose filename has no allowed extension refuses through the doc
     assert.match(error.message, /^document type must be \.\w+/);
     return true;
   });
+});
+
+test("S6: shared sites preserve published cookie-banner settings and the separate draft", async t => {
+  const { sql } = sourceDb(t);
+  const published = { ...SITE_CONSENT_DEFAULTS, enabled: true, privacyPolicyUrl: "/privacy", title: "Published cookie choices", policyVersion: "published-policy" };
+  const draft = { ...published, enabled: false, title: "Draft cookie choices", policyVersion: "draft-policy" };
+  const insert = sql.prepare("INSERT INTO site_consent_revisions (workspace_id,id,config_json,actor_id,created_at) VALUES ('ws',?,?,'owner',?)");
+  insert.run("published-consent", JSON.stringify(published), stamp);
+  insert.run("draft-consent", JSON.stringify(draft), stamp);
+  sql.prepare("INSERT INTO site_consent_heads (workspace_id,draft_id,published_id) VALUES ('ws','draft-consent','published-consent')").run();
+
+  const { rows } = await share(t, sql);
+  assert.deepEqual(Object.fromEntries(rows("site_consent_revisions").map(row => [row.id, JSON.parse(String(row.config_json))])), {
+    "published-consent": published,
+    "draft-consent": draft,
+  });
+  assert.deepEqual(rows("site_consent_heads"), [{ workspace_id: "ws", draft_id: "draft-consent", published_id: "published-consent" }]);
 });
 
 // ---------------------------------------------------------------- copySettings

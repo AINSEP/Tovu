@@ -38,6 +38,7 @@ export function SiteImportTab({ t, useImport = useWiredSiteImport, showNewSiteLi
         </p>
       </div>
       <ImportProgress controller={controller} t={t} />
+      {controller.current?.warnings?.map(warning => <div className="notice" role="status" key={warning}>{warning}</div>)}
       <div className="onboarding-card">
         <ArchiveSource controller={controller} t={t} />
         <LiveWebsiteSource controller={controller} showNewSiteLink={showNewSiteLink} t={t} />

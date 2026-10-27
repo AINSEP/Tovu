@@ -1,3 +1,4 @@
+import type { ArchiveManifest } from "./archive-manifest.js";
 import { validateDocumentIngress } from "#src/features/media/index";
 import { createDocumentArchiveReader } from "#src/features/media/document-archive";
 import type { ShareDatabaseProjection } from "./share-policy.js";
@@ -19,22 +20,31 @@ export type DocumentAdmission = (required: { filename: string; bytes: Buffer }) 
  * @throws SiteShareRefusal (INVALID_ARCHIVE, UNSAFE_PATH) or the signal's reason.
  * @complexity O(files + media + documents × document validation).
  */
-export async function applyShareProjection(required: { files: Map<string, Buffer>; projection: ShareDatabaseProjection }, optional: { signal?: AbortSignal } = {}): Promise<void> {
+export async function applyShareProjection(required: { files: Map<string, Buffer>; projection: ShareDatabaseProjection; manifest: ArchiveManifest }, optional: { signal?: AbortSignal } = {}): Promise<void> {
   const { files, projection } = required;
+  placeArchiveMedia({ files, projection, manifest: required.manifest });
   const referencedMedia = new Set(projection.media.map(media => "uploads/" + media.storageKey));
-  pruneExcludedBlobs({ files, referencedMedia, excludedBlobKeys: projection.excludedBlobKeys ?? [] });
   for (const file of files.keys()) if (file.startsWith("uploads/") && !referencedMedia.has(file)) refuseArchive("Unreferenced uploads are outside the portable share media policy.");
   checkProjectedMedia({ files, projection });
   await admitProjectedDocuments({ files, documents: projection.documents ?? [] }, optional);
   applyDestinationMoves({ files, media: projection.media });
 }
 
-/** Source DB sidecars the projection omitted are dropped unless the database still references them. */
-function pruneExcludedBlobs(required: { files: Map<string, Buffer>; referencedMedia: ReadonlySet<string>; excludedBlobKeys: readonly string[] }): void {
-  for (const key of required.excludedBlobKeys) {
-    const file = "uploads/" + key;
-    validateSharePath({ path: file });
-    if (!required.referencedMedia.has(file)) required.files.delete(file);
+/** The DB already points at the one public copy; only its portable archive path changes. */
+function placeArchiveMedia(required: { files: Map<string, Buffer>; projection: ShareDatabaseProjection; manifest: ArchiveManifest }): void {
+  const byHash = new Map<string, string[]>();
+  for (const media of required.projection.media) {
+    if (media.sha256) byHash.set(media.sha256, [...(byHash.get(media.sha256) ?? []), media.storageKey]);
+  }
+  for (const copy of required.manifest.media) {
+    const keys = byHash.get(copy.sha256);
+    const bytes = required.files.get(copy.path);
+    if (!keys || !bytes) refuseArchive("Archive media is not referenced by the projected database.");
+    for (const key of keys) {
+      validateSharePath({ path: "uploads/" + key });
+      required.files.set("uploads/" + key, bytes);
+    }
+    required.files.delete(copy.path);
   }
 }
 

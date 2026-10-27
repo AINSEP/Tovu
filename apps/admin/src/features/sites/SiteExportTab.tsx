@@ -27,6 +27,7 @@ export function SiteExportTab({ t, useExport = useWiredSiteExport, publish }: Si
   return (
     <section className="site-transfer" aria-label={t("Export Site")}>
       <p className="onboarding-section-lead site-transfer-lead">{t("Makes a .tovu.zip copy of this site that another Tovu can import.")}</p>
+      <p className="site-transfer-lead">{t("Images are exported as web-optimized copies.")}</p>
       <div className="site-export-actions">
         <button
           type="button"

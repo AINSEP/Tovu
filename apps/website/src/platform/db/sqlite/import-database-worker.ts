@@ -8,31 +8,14 @@ import path from "node:path";
 import { openContentDb } from "./content-db.js";
 import { sqliteKernel, closeSqliteConnection, openNativeSqlite, openSqliteFileKernel, sqliteConnectionOf } from "../kernel/drivers/sqlite.js";
 import { listColumns } from "../kernel/dialect.js";
-import { sqliteForeignKeyCheckedTransaction, sqliteSchemaObjects, type SqliteSchemaObject } from "../kernel/sqlite-only.js";
+import { sqliteForeignKeyCheckedTransaction, sqliteSchemaObjects } from "../kernel/sqlite-only.js";
 import type { StorageKernel } from "../kernel/port.js";
 import { sanitizeShareDatabase, prepareSharePluginTables } from "./share-database.js";
 import { SHARE_TABLES } from "#src/features/site-backup/share-policy";
 import { readTemplate } from "#src/platform/site-dir/read-template";
-import { MEDIA_LIBRARY_STATEMENTS } from "../migrations/0014_media_library.js";
-import { documentBlobOwnershipStatements } from "../migrations/0015_document_blob_ownership.js";
 import { computeBlobStorageKey } from "#src/features/media/index";
 
 type ImportKernel = StorageKernel<Record<string, Record<string, unknown>>>;
-
-/** Derive historical schemas only from frozen trusted ADD COLUMN statements. No archived SQL
- * is executed or relaxed: all other table/index/trigger definitions must match byte-for-byte.
- * O(schema bytes) time/space, limited to the two additive Library predecessors.
- */
-function supportedSchema(required: { actual: SqliteSchemaObject[]; expected: SqliteSchemaObject[] }, _options: Record<string, never> = {}): boolean {
-  const withoutColumn = (objects: SqliteSchemaObject[], statement: string) => {
-    const match = /^ALTER TABLE (\w+) ADD COLUMN (.+)$/.exec(statement)!;
-    return objects.map(object => object.type === "table" && object.name === match[1] && object.sql
-      ? { ...object, sql: object.sql.replace(", " + match[2], "") } : object);
-  };
-  const beforeOwnership = withoutColumn(required.expected, documentBlobOwnershipStatements({ dialect: "sqlite" })[0]!);
-  const beforeLibrary = MEDIA_LIBRARY_STATEMENTS.reduce((objects, statement) => withoutColumn(objects, statement), beforeOwnership);
-  return [required.expected, beforeOwnership, beforeLibrary].some(expected => JSON.stringify(required.actual) === JSON.stringify(expected));
-}
 
 /** These portable relationships are application-owned rather than SQLite FKs. Identity actor
  * strings are intentionally excluded: the share policy omits source accounts, not attribution.
@@ -71,7 +54,9 @@ async function run(required: { root: string }, _options: Record<string, never> =
     const plugins = await prepareSharePluginTables({ target: sqliteKernel(trusted), present: new Set(actual.filter(object => object.type === "table").map(object => object.name)) });
     portablePluginTables = plugins.portable;
     const expected = await sqliteSchemaObjects({ kernel: sqliteKernel(trusted) });
-    if (!supportedSchema({ actual, expected })) throw new Error("Unsupported SQLite schema objects");
+    // No archived SQL is executed or relaxed: every table, index and trigger must match
+    // this build. Historical ADD COLUMN schema variants are not part of the v2 contract.
+    if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error("Unsupported SQLite schema objects");
     if ((await sourceKernel.query(sql`SELECT id FROM workspaces LIMIT 2`)).length !== 1) throw new Error("Import requires one workspace");
     // Source FKs may reference private rows omitted by projection; validate rebuilt FKs below.
     if (verifySqliteIntegrity({ db: source, quick: true }).issues.some(issue => issue.kind === "integrity")) throw new Error("Invalid SQLite integrity");
@@ -119,7 +104,6 @@ async function run(required: { root: string }, _options: Record<string, never> =
   await writeFile(path.join(required.root, "media.json"), JSON.stringify(media), { flag: "wx", mode: 0o600 });
   // sanitizeShareDatabase() always returns both lists; they are optional only on the shared projection type.
   await writeFile(path.join(required.root, "documents.json"), JSON.stringify(projection.documents!), { flag: "wx", mode: 0o600 });
-  await writeFile(path.join(required.root, "excluded-blobs.json"), JSON.stringify(projection.excludedBlobKeys!), { flag: "wx", mode: 0o600 });
 }
 
 run({ root: process.argv[2]! }).then(() => process.exit(0), () => process.exit(1));

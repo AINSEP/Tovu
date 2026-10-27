@@ -25,7 +25,7 @@ function harness(t: TestContext, projection: ShareDatabaseProjection = { bytes: 
   fs.mkdirSync(siteDir);
   const ports: Ports = {
     sources: { siteDir, themesDir: path.join(siteDir, "themes"), skillsDir: path.join(siteDir, "skills"), mediaUploadsDir: null, agentPlugins: resolveAgentPluginLayout({ siteDir, env: {} }), tovuVersion: "9.9.9" },
-    sanitize: async () => projection,
+    sanitize: async () => projection, rewriteMedia: async ({ bytes }) => bytes, imageTransformer: { transform: async () => assert.fail("not raster") },
     blobStore: blobStore ?? { sizeOf: async () => BLOB.length, get: async () => BLOB },
     dbOps: {
       getCapabilities: async () => ({ restorePoint: { kind: "file-snapshot", costClass: "cheap" } }),
@@ -35,7 +35,7 @@ function harness(t: TestContext, projection: ShareDatabaseProjection = { bytes: 
   };
   return { siteDir, ports, snapshot };
 }
-const withMedia = (media: ShareDatabaseProjection["media"], documents?: ShareDatabaseProjection["documents"]): ShareDatabaseProjection => ({ bytes: Buffer.from("projected"), media, ...(documents ? { documents } : {}) });
+const withMedia = (media: ShareDatabaseProjection["media"], documents?: ShareDatabaseProjection["documents"]): ShareDatabaseProjection => ({ bytes: Buffer.from("projected"), media, documents, archiveMedia: [...new Map(media.map(row => [row.storageKey, row])).values()].map(row => ({ ...row, sha256: row.sha256 ?? "", id: row.storageKey, slug: row.storageKey, workspaceId: "ws", kind: documents?.some(doc => doc.storageKey === row.storageKey) ? "document" : "media", originalFilename: documents?.find(doc => doc.storageKey === row.storageKey)?.originalFilename ?? null })) });
 const writeSetting = (siteDir: string, name: string, text: string) => fs.writeFileSync(path.join(siteDir, name), text);
 
 // Database ------------------------------------------------------------------------------------
@@ -57,7 +57,7 @@ test("the sanitizer receives the snapshot bytes and the caller's signal", async 
 });
 test("a projected database over the expanded cap is refused before media is read", async t => {
   const h = harness(t, { bytes: Buffer.allocUnsafeSlow(SHARE_LIMITS.maxExpandedBytes + 1), media: [] });
-  await assert.rejects(prepareShareContent(h.ports), { code: "LIMIT_EXCEEDED", message: "Share exceeds the v1 300 MiB expanded cap. Reduce the site or wait for streaming exports." });
+  await assert.rejects(prepareShareContent(h.ports), { code: "LIMIT_EXCEEDED", message: "Share exceeds the 300 MiB expanded cap. Reduce the site or wait for streaming exports." });
 });
 
 // Collected files ------------------------------------------------------------------------------
@@ -75,7 +75,7 @@ test("the plan lists collected non-settings files and buffers regenerated settin
   writeSetting(h.siteDir, "config.json", JSON.stringify({ name: "Shared Name", domain: "private.test", port: 1 }));
   const plan = await prepareShareContent(h.ports);
   assert.deepEqual(plan.files.map(file => [file.path, file.scope]), [["themes/static/site/index.html", "themes"]]);
-  assert.deepEqual(plan.bufferedFiles?.map(file => [file.path, file.content.toString()]), [["settings/config.json", '{"name":"Shared Name","domain":null,"port":null}'], ["settings/.site-meta.json", "{}"]]);
+  assert.deepEqual(plan.bufferedFiles?.map(file => [file.path, file.content.toString()]), [["settings.json", '{"name":"Shared Name","template":{}}']]);
   assert.deepEqual(plan.site, { name: "Shared Name", folderName: "my-site" });
   assert.deepEqual([plan.target, plan.profile, plan.include, plan.skipped, plan.scopeNotes, plan.tovuVersion, plan.database?.watermarkAtCapture], [{ kind: "zip" }, "share", { database: true, media: true, themes: true, plugins: true, settings: true }, [], {}, "9.9.9", 7]);
   assert.equal(plan.totalBytes, "<main/>".length + "projected".length + plan.bufferedFiles!.reduce((sum, file) => sum + file.content.length, 0));
@@ -95,7 +95,7 @@ test("repeated media keys are fetched and buffered once", async t => {
   const h = harness(t, withMedia([{ storageKey: "blob" }, { storageKey: "blob" }]), { sizeOf: async () => BLOB.length, get: async () => { fetches++; return BLOB; } });
   const plan = await prepareShareContent(h.ports);
   assert.equal(fetches, 1);
-  assert.deepEqual(plan.bufferedFiles?.filter(file => file.path.startsWith("uploads/")).map(file => [file.path, file.content]), [["uploads/blob", BLOB]]);
+  assert.deepEqual(plan.bufferedFiles?.filter(file => file.path.startsWith("media/")).map(file => [file.path, file.content]), [["media/blob.bin", BLOB]]);
 });
 test("a media key that is not a safe path is refused", async t => {
   const h = harness(t, withMedia([{ storageKey: "CON.txt" }]));
@@ -123,11 +123,11 @@ for (const size of [0, MAX_DOCUMENT_BYTES + 1]) {
 }
 test("an empty blob that is not a document is shared", async t => {
   const h = harness(t, withMedia([{ storageKey: "empty" }]), { sizeOf: async () => 0, get: async () => Buffer.alloc(0) });
-  assert.equal((await prepareShareContent(h.ports)).bufferedFiles?.find(file => file.path === "uploads/empty")?.content.length, 0);
+  assert.equal((await prepareShareContent(h.ports)).bufferedFiles?.find(file => file.path === "media/empty.bin")?.content.length, 0);
 });
 test("a blob over the ordinary-file cap is refused from its reported size", async t => {
   const h = harness(t, withMedia([{ storageKey: "big" }]), { sizeOf: async () => SHARE_LIMITS.maxFileBytes + 1, get: async () => assert.fail("must not fetch") });
-  await assert.rejects(prepareShareContent(h.ports), { code: "LIMIT_EXCEEDED", message: "Share file 'uploads/big' exceeds the 64 MiB ordinary-file cap." });
+  await assert.rejects(prepareShareContent(h.ports), { code: "LIMIT_EXCEEDED", message: "Share file 'media/blob' exceeds the 64 MiB ordinary-file cap." });
 });
 test("a blob whose bytes differ in length from its reported size is refused", async t => {
   const h = harness(t, withMedia([{ storageKey: "blob" }]), { sizeOf: async () => BLOB.length + 1, get: async () => BLOB });
@@ -139,7 +139,7 @@ test("a blob whose hash differs from the database is refused", async t => {
 });
 test("a blob whose hash matches the database is shared", async t => {
   const h = harness(t, withMedia([{ storageKey: "blob", sha256: sha(BLOB) }]));
-  assert.deepEqual((await prepareShareContent(h.ports)).bufferedFiles?.[0], { path: "uploads/blob", content: BLOB });
+  assert.deepEqual((await prepareShareContent(h.ports)).bufferedFiles?.[0], { path: "media/blob.bin", content: BLOB });
 });
 
 // Portable settings ------------------------------------------------------------------------------
@@ -153,12 +153,12 @@ test("site meta keeps only well-formed provenance values", async t => {
   const h = harness(t);
   writeSetting(h.siteDir, ".site-meta.json", JSON.stringify({ siteId: "private", templateId: "starter", templateVersion: "1.0+beta", schemaVersion: 0, schemaTag: "unsafe space" }));
   const plan = await prepareShareContent(h.ports);
-  assert.equal(plan.bufferedFiles?.find(file => file.path === "settings/.site-meta.json")?.content.toString(), '{"templateId":"starter","templateVersion":"1.0+beta","schemaVersion":0}');
+  assert.equal(JSON.stringify(JSON.parse(plan.bufferedFiles!.find(file => file.path === "settings.json")!.content.toString()).template), '{"templateId":"starter","templateVersion":"1.0+beta","schemaVersion":0}');
 });
 test("site meta drops negative, fractional and non-scalar provenance values", async t => {
   const h = harness(t);
   writeSetting(h.siteDir, ".site-meta.json", JSON.stringify({ templateId: -1, templateVersion: 0.5, schemaVersion: null, schemaTag: {} }));
-  assert.equal((await prepareShareContent(h.ports)).bufferedFiles?.find(file => file.path === "settings/.site-meta.json")?.content.toString(), "{}");
+  assert.equal(JSON.stringify(JSON.parse((await prepareShareContent(h.ports)).bufferedFiles!.find(file => file.path === "settings.json")!.content.toString()).template), "{}");
 });
 test("a settings file over 2 MiB is refused before it is read", async t => {
   const h = harness(t);
@@ -179,5 +179,5 @@ test("a settings file changed after collection is refused as a stale plan", asyn
 });
 test("regenerated settings that tip the share over the expanded cap are refused", async t => {
   const h = harness(t, { bytes: Buffer.allocUnsafeSlow(SHARE_LIMITS.maxExpandedBytes - 10), media: [] });
-  await assert.rejects(prepareShareContent(h.ports), { code: "LIMIT_EXCEEDED", message: "Share exceeds the v1 300 MiB expanded cap. Reduce the site or wait for streaming exports." });
+  await assert.rejects(prepareShareContent(h.ports), { code: "LIMIT_EXCEEDED", message: "Share exceeds the 300 MiB expanded cap. Reduce the site or wait for streaming exports." });
 });

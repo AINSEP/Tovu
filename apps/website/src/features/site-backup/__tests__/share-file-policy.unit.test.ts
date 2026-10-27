@@ -27,7 +27,7 @@ const shipped = (files: Record<string, string>): PackageFileInventory => new Map
 const LABELS = `"API token": "Token de API"`;
 
 for (const path of [
-  "plugins/a/1/data", "plugins/a/1/memory/learned.md", "agent-plugins/ws/w/data/x", "agent-plugins/ws/w/staging",
+  "plugins/a/1/data", "plugins/a/1/memory/private.md", "agent-plugins/ws/w/data/x", "agent-plugins/ws/w/staging",
   "agent-plugins/ws/w/p/data", "agent-plugins/ws/w/p/memory/x", "uploads/chat-attachments", "uploads/chat-attachments/a.png",
   "Uploads/Chat-Attachments/a.png", "themes/.env", "themes/.env.production", "themes/chat.db", "settings/chat.db-wal", "settings/chat.db.bak",
 ]) {
@@ -309,4 +309,11 @@ test("a sibling sharing a name prefix is not a collision", () => {
   claimSharePath({ path: "themes/file-a/x", directory: false, ...sets });
   claimSharePath({ path: "themes/file", directory: false, ...sets });
   assert.deepEqual([...sets.files], ["themes/file-a/x", "themes/file"]);
+});
+
+test("only notes and learned plugin memory travel, with the same credential scan", () => {
+  for (const path of ["agent-plugins/ws/w/p/memory/notes/note.md", "agent-plugins/ws/w/p/memory/learned/fact.md", "plugins/p/1.0.0/memory/notes/note.md"]) {
+    assert.equal(excludedSharePath({ path }), false);
+    assert.throws(() => requireShareSecretFree({ path, bytes: Buffer.from(providerKey()) }), { code: "SECRET_IN_CONTENT" });
+  }
 });

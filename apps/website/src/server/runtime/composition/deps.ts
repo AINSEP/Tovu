@@ -36,7 +36,7 @@ import { siteCreationBaseForBinding } from "#src/platform/site-dir/index";
 import { localSiteSupervisorForHost } from "../lifecycle/local-site-host.js";
 import { SiteShareRegistry } from "#src/features/site-backup/share-registry";
 import { prepareShareContent } from "#src/features/site-backup/share-preparation";
-import { sanitizeShareDatabase } from "#src/platform/db/sqlite/share-database";
+import { sanitizeShareDatabase, rewriteArchiveMedia } from "#src/platform/db/sqlite/share-database";
 import { createRuntimeShareDelivery, resolveShareDelivery } from "#src/features/site-backup/share-hosting";
 import { selectConnectedDestination } from "#src/features/publish-content/peers";
 import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
@@ -3055,7 +3055,7 @@ async function composeSiteRouteDeps(
         // Token-bearing verification requests use the guarded HTTP owner without telemetry. Never
         // infer a recipient-facing URL from localhost, Host, or ephemeral deployment storage.
         routeDeps.siteShareBackend = createSiteShareBackend({ registry, site: workspaceId, zip: zipFolderFiles,
-          prepare: ({ signal }) => prepareShareContent({ dbOps: routeDeps.dbOps, sources: routeDeps.siteBackupSources!, sanitize: sanitizeShareDatabase, blobStore }, { signal }),
+          prepare: ({ signal }) => prepareShareContent({ dbOps: routeDeps.dbOps, sources: routeDeps.siteBackupSources!, sanitize: sanitizeShareDatabase, blobStore, imageTransformer: routeDeps.imageTransformer!, rewriteMedia: rewriteArchiveMedia }, { signal, packageThemesRoot: routeDeps.packageThemesDir }),
           delivery: selection => resolveShareDelivery({
             http: guardedOutboundHttpClient,
             peer: async () => {

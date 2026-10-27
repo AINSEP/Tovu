@@ -3,7 +3,8 @@
  * identity or runtime state. Construct a NEW trusted database: deleting private rows from a
  * copied SQLite file leaves recoverable credentials in free pages. This policy is also the
  * import verifier's boundary; never broaden it from an archive's own schema or manifest.
- * Approved round17 v1 deliberately buffers; streaming belongs to v2.
+ * Approved round17 deliberately buffered; v2 keeps those bounds while changing the archive contract.
+ * Streaming remains a separate change.
  */
 export const SHARE_LIMITS = {
   maxArchiveBytes: 300 * 1024 * 1024,
@@ -42,17 +43,16 @@ export class SiteShareRefusal extends Error {
 
 /** Reject before allocating or uploading. No required content is silently skipped. O(n). */
 export function checkShareLimits(required: { files: readonly { path: string; bytes: number }[]; totalBytes?: number }, _optional: Record<string, never> = {}): void {
-  if (required.files.length > SHARE_LIMITS.maxFiles) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: "Share exceeds the v1 2,000-file cap. Reduce the site or wait for streaming exports." });
+  if (required.files.length > SHARE_LIMITS.maxFiles) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: "Share exceeds the 2,000-file cap. Reduce the site or wait for streaming exports." });
   const total = required.files.reduce((sum, file) => sum + file.bytes, 0);
-  if (Math.max(total, required.totalBytes ?? 0) > SHARE_LIMITS.maxExpandedBytes) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: "Share exceeds the v1 300 MiB expanded cap. Reduce the site or wait for streaming exports." });
-  const large = required.files.find(file => file.path !== "database/content.db" && file.bytes > SHARE_LIMITS.maxFileBytes);
+  if (Math.max(total, required.totalBytes ?? 0) > SHARE_LIMITS.maxExpandedBytes) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: "Share exceeds the 300 MiB expanded cap. Reduce the site or wait for streaming exports." });
+  const large = required.files.find(file => file.path !== "database/content.db" && file.path !== "content.db" && file.bytes > SHARE_LIMITS.maxFileBytes);
   if (large) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: `Share file '${large.path}' exceeds the 64 MiB ordinary-file cap.` });
 }
 
 export interface ShareDatabaseProjection {
+  readonly archiveMedia?: readonly import("./archive-media.js").ArchiveMediaSource[];
   readonly bytes: Buffer;
-  /** Source DB sidecars intentionally omitted by projection, never arbitrary ZIP uploads. */
-  readonly excludedBlobKeys?: readonly string[];
   readonly media: readonly { storageKey: string; sha256?: string; destinationStorageKey?: string }[];
   /** Original document policies travel separately from deduplicated blob references. */
   readonly documents?: readonly { storageKey: string; sha256: string; originalFilename: string }[];

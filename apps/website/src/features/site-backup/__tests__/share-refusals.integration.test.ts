@@ -162,7 +162,7 @@ function delivery(overrides: Partial<ShareDelivery["store"]> = {}): ShareDeliver
 }
 function plan(): SiteSharePlanContent {
   return { profile: "share", target: { kind: "zip" }, include: { database: true, media: true, themes: true, plugins: true, settings: true },
-    database: { bytes: Buffer.from("safe projected DB"), watermarkAtCapture: 5 }, files: [], bufferedFiles: [], skipped: [], scopeNotes: {}, totalBytes: 17,
+    database: { bytes: Buffer.from("safe projected DB"), watermarkAtCapture: 5 }, files: [], bufferedFiles: [{ path: "settings.json", content: Buffer.from("{}") }], skipped: [], scopeNotes: {}, totalBytes: 17,
     site: { name: "Site", folderName: "site" }, schema: { index: 1, tag: "one" }, tovuVersion: "test", createdAt: "2026-10-19T00:00:00Z" };
 }
 
@@ -396,14 +396,14 @@ test("zip surfaces encoding failures, translates size refusals, detects stale fi
   const content = { ...plan(), files: [{ path: "themes/page.html", absPath: disk, bytes: 4, mtimeMs: info.mtimeMs, scope: "themes" as const }] };
   const progress = { filesDone: 0, filesTotal: 3, bytesDone: 0, bytesTotal: 21 };
   let encoded = 0;
-  await buildShareZip({ plan: content, zip: async args => { encoded++; assert.equal(args.files.length, 3); return zipFolderFiles(args); } }, { progress });
-  assert.equal(encoded, 1); assert.equal(progress.filesDone, 2); assert.equal(progress.bytesDone, 21);
+  await buildShareZip({ plan: content, zip: async args => { encoded++; assert.equal(args.files.length, 4); return zipFolderFiles(args); } }, { progress });
+  assert.equal(encoded, 1); assert.equal(progress.filesDone, 3); assert.equal(progress.bytesDone, 23);
   fs.writeFileSync(disk, "changed");
   await assert.rejects(buildShareZip({ plan: content, zip: async () => assert.fail("stale plan must not encode") }), { code: "PLAN_STALE" });
 });
 test("portable paths enforce depth, dangerous filenames, content scanning and order-independent collisions", () => {
   for (const name of ["themes/" + Array(33).fill("x").join("/"), "themes/space /x", "themes/x?.txt", "themes/x<.txt", "themes/a:b", "themes/x\u007f"]) assert.throws(() => validateSharePath({ path: name }), { code: "UNSAFE_PATH" });
-  for (const name of ["uploads/chat-attachments/a", "agent-plugins/ws/ws/staging/x", "plugins/a/1/memory/learned/a", "themes/.env.production"]) assert.equal(excludedSharePath({ path: name }), true);
+  for (const name of ["uploads/chat-attachments/a", "agent-plugins/ws/ws/staging/x", "plugins/a/1/memory/private/a", "themes/.env.production"]) assert.equal(excludedSharePath({ path: name }), true);
   for (const name of ["themes/.git/a", "themes/.share-private/a", "themes/id_ed25519.pub", "themes/private_key.txt", "themes/foo.sqlite-wal", "themes/.mcp.a.json", "themes/restore-point-a", "themes/superseded-a"]) assert.throws(() => excludedSharePath({ path: name }), { code: "UNSAFE_FILE" });
   const bytes = Buffer.from("\u0000ghp_" + "x".repeat(36) + "\u0000");
   assert.throws(() => requireShareSecretFree({ path: "themes/a.png", bytes }), { code: "SECRET_IN_CONTENT" });
@@ -457,7 +457,7 @@ test("registry propagates broken directory/tombstone errors instead of treating 
 });
 
 test("ZIP refuses an oversized manifest before encoding and preserves non-Error encoder failures", async () => {
-  const oversized = { ...plan(), site: { name: "n".repeat(SHARE_LIMITS.maxManifestBytes - 100), folderName: "site" } };
+  const oversized = { ...plan(), schema: { index: 1, tag: "n".repeat(SHARE_LIMITS.maxManifestBytes) } };
   await assert.rejects(buildShareZip({ plan: oversized, zip: async () => assert.fail("oversized manifest must not encode") }), { code: "LIMIT_EXCEEDED", message: "Share manifest exceeds 2 MiB." });
-  await assert.rejects(buildShareZip({ plan: { ...plan(), database: null, bufferedFiles: undefined }, zip: async () => { throw "encoder disconnected"; } }), error => error === "encoder disconnected");
+  await assert.rejects(buildShareZip({ plan: plan(), zip: async () => { throw "encoder disconnected"; } }), error => error === "encoder disconnected");
 });

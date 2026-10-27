@@ -16,7 +16,7 @@ import type { SourceControlProvider } from "../../source-control/provider-module
 import express from "express";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { sanitizeShareDatabase } from "#src/platform/db/sqlite/share-database";
+import { sanitizeShareDatabase, rewriteArchiveMedia } from "#src/platform/db/sqlite/share-database";
 import { buildShareZip } from "../share-zip.js";
 import { SiteBackupPlanStore } from "../plan-store.js";
 import { SiteShareRegistry } from "../share-registry.js";
@@ -79,7 +79,7 @@ async function fixture(t: TestContext) {
 }
 
 function common(database: Buffer) {
-  return { include: { database: true, media: true, themes: true, plugins: true, settings: true }, database: { bytes: database, watermarkAtCapture: 0 }, files: [], skipped: [], scopeNotes: {}, totalBytes: database.length, site: { name: "Site", folderName: "site" }, schema: { index: 13, tag: "0013_unify_vault_credentials" }, tovuVersion: "test", createdAt: stamp };
+  return { bufferedFiles: [{ path: "settings.json", content: Buffer.from("{}") }], include: { database: true, media: true, themes: true, plugins: true, settings: true }, database: { bytes: database, watermarkAtCapture: 0 }, files: [], skipped: [], scopeNotes: {}, totalBytes: database.length, site: { name: "Site", folderName: "site" }, schema: { index: 13, tag: "0013_unify_vault_credentials" }, tovuVersion: "test", createdAt: stamp };
 }
 
 test("ZIP target uses the common plan/manifest; repository plans retain their original contract", async () => {
@@ -102,9 +102,9 @@ test("ZIP target uses the common plan/manifest; repository plans retain their or
       assert.equal(manifest.text.includes('"profile"'), false, "repository manifests keep their original format");
     }
   }
-  const zip = await buildShareZip({ plan: { ...common(bytes), profile: "share", target: { kind: "zip" }, bufferedFiles: [] }, zip: zipFolderFiles });
+  const zip = await buildShareZip({ plan: { ...common(bytes), profile: "share", target: { kind: "zip" }, bufferedFiles: [{ path: "settings.json", content: Buffer.from("{}") }] }, zip: zipFolderFiles });
   assert.ok(zip.includes(Buffer.from('"profile": "share"')));
-  assert.ok(zip.includes(Buffer.from('"sanitizationVersion": 1')));
+  assert.ok(zip.includes(Buffer.from('"formatVersion": 2')));
 });
 
 test("fresh share projection preserves drafts/schedules/autosaves, excludes private rows and secret bytes across the WHOLE zip", async (t) => {
@@ -118,12 +118,12 @@ test("fresh share projection preserves drafts/schedules/autosaves, excludes priv
   await write("plugins/site/1.0/src/notes/help.md", "Required plugin documentation");
   await write("themes/static/site/out/main.js", "console.log('required output')");
   await write("overrides/page.html", "<main>Page override</main>");
-  for (const file of ["themes/static/site/nested/.env.local", "plugins/site/1.0/data/oauth.json", "plugins/site/1.0/memory/learned/facts.md", "plugins/site/1.0/nested/chat.db-wal", "uploads/chat-attachments/private.txt"]) await write(file, sentinel);
+  for (const file of ["themes/static/site/nested/.env.local", "plugins/site/1.0/data/oauth.json", "plugins/site/1.0/memory/private/facts.md", "plugins/site/1.0/nested/chat.db-wal", "uploads/chat-attachments/private.txt"]) await write(file, sentinel);
   await write("config.json", JSON.stringify({ name: "Shared site", domain: "private.local", port: 1234, password: sentinel }));
   await write(".site-meta.json", JSON.stringify({ templateId: "starter", templateVersion: "1", schemaVersion: 13, siteId: sentinel, siteKeyId: sentinel, storage: sentinel }));
   const sources = { siteDir: dir, mediaUploadsDir: null, themesDir: path.join(dir, "themes"), agentPlugins: resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: path.join(dir, "agent-plugins") } }), skillsDir: path.join(dir, "skills"), tovuVersion: "test" };
   const readKeys: string[] = [];
-  const plan = await prepareShareContent({ sources, sanitize: sanitizeShareDatabase,
+  const plan = await prepareShareContent({ sources, sanitize: sanitizeShareDatabase, rewriteMedia: rewriteArchiveMedia, imageTransformer: { transform: async () => assert.fail("not raster") },
     blobStore: { get: async ({ storageKey: key }) => { readKeys.push(key); return mediaBytes; }, sizeOf: async () => mediaBytes.length },
     dbOps: { getCapabilities: async () => ({ restorePoint: { costClass: "cheap", kind: "file-snapshot" } }), captureRestorePoint: async () => { const artifactRef = path.join(dir, "snapshot.db"); await writeFile(artifactRef, sql.serialize()); return { artifactRef, watermarkAtCapture: 42 }; }, restoreFromArtifact: async () => { throw new Error("must never restore"); } },
   });
@@ -139,12 +139,12 @@ test("fresh share projection preserves drafts/schedules/autosaves, excludes priv
     for await (const chunk of entry.openReadStream({})) chunks.push(Buffer.from(chunk));
     entries.set(entry.entryPath, Buffer.concat(chunks));
   }
-  assert.equal(entries.get(`uploads/${storageKey}`)?.toString(), mediaBytes.toString());
-  assert.equal(createHash("sha256").update(entries.get(`uploads/${storageKey}`)!).digest("hex"), hash);
-  for (const file of ["themes/static/site/index.html", "themes/static/site/data/content.json", "plugins/site/1.0/plugin.json", "plugins/site/1.0/src/data/default.json", "plugins/site/1.0/src/notes/help.md", "themes/static/site/out/main.js", "overrides/page.html"]) assert.ok(entries.has(file), file);
-  assert.deepEqual(JSON.parse(entries.get("settings/config.json")!.toString()), { name: "Shared site", domain: null, port: null });
-  assert.deepEqual(Object.keys(JSON.parse(entries.get("settings/.site-meta.json")!.toString())).sort(), ["schemaVersion", "templateId", "templateVersion"]);
-  const shared = new Database(entries.get("database/content.db")!);
+  assert.equal(entries.get("media/media.bin")?.toString(), mediaBytes.toString());
+  assert.equal(createHash("sha256").update(entries.get("media/media.bin")!).digest("hex"), hash);
+  for (const file of ["themes/site/index.html", "themes/site/data/content.json", "plugins/site/package/plugin.json", "plugins/site/package/src/data/default.json", "plugins/site/package/src/notes/help.md", "themes/site/out/main.js", "themes/overrides/page.html"]) assert.ok(entries.has(file), file);
+  assert.deepEqual(JSON.parse(entries.get("settings.json")!.toString()), { name: "Shared site", template: { templateId: "starter", templateVersion: "1", schemaVersion: 13 } });
+  assert.deepEqual(Object.keys(JSON.parse(entries.get("settings.json")!.toString()).template).sort(), ["schemaVersion", "templateId", "templateVersion"]);
+  const shared = new Database(entries.get("content.db")!);
   t.after(() => shared.close());
   assert.deepEqual(shared.prepare("SELECT * FROM posts ORDER BY id").all(), sql.prepare("SELECT * FROM posts ORDER BY id").all());
   for (const table of ["media", "asset_blobs", "menus", "nav_location_bindings", "presentation_settings"]) assert.deepEqual(shared.prepare(`SELECT * FROM "${table}"`).all(), sql.prepare(`SELECT * FROM "${table}"`).all(), table);
@@ -230,11 +230,11 @@ test("ordinary prose, theme query strings and SEO defaults/values survive byte-f
   assert.equal((shared.prepare("SELECT default_json FROM setting_definitions WHERE setting_id = 'description'").get() as { default_json: string }).default_json, JSON.stringify(seo));
   assert.equal((shared.prepare("SELECT value_json FROM setting_values_workspace WHERE setting_id = 'description'").get() as { value_json: string }).value_json, JSON.stringify(prose));
   const js = 'const url = base + "?key="; // Basic usage';
-  const zip = await buildShareZip({ plan: { ...common(projected.bytes), profile: "share", target: { kind: "zip" }, bufferedFiles: [{ path: "themes/static/site/script.js", content: Buffer.from(js) }] }, zip: zipFolderFiles });
+  const zip = await buildShareZip({ plan: { ...common(projected.bytes), profile: "share", target: { kind: "zip" }, bufferedFiles: [...common(projected.bytes).bufferedFiles, { path: "themes/site/script.js", content: Buffer.from(js) }] }, zip: zipFolderFiles });
   const reader = createYauzlAgentPluginArchiveReader({ yauzl: yauzl as unknown as YauzlPort });
   let found = false;
   for await (const entry of reader.entries({ archive: zip })) {
-    if (entry.entryPath !== "themes/static/site/script.js" || entry.kind !== "file") continue;
+    if (entry.entryPath !== "themes/site/script.js" || entry.kind !== "file") continue;
     const chunks: Buffer[] = [];
     for await (const chunk of entry.openReadStream({})) chunks.push(Buffer.from(chunk));
     assert.equal(Buffer.concat(chunks).toString(), js);
@@ -244,7 +244,7 @@ test("ordinary prose, theme query strings and SEO defaults/values survive byte-f
 });
 
 test("share excludes only private locations; required nested data/notes/out survive and suspect names refuse", () => {
-  for (const file of ["plugins/site/1.0/data/oauth.json", "plugins/site/1.0/memory/learned/x.md", "agent-plugins/ws/ws/plugin/memory/notes/x.md", "themes/static/site/.env.local", "themes/static/site/nested/chat.db-wal"]) assert.equal(excludedSharePath({ path: file }), true, file);
+  for (const file of ["plugins/site/1.0/data/oauth.json", "plugins/site/1.0/memory/private/x.md", "themes/static/site/.env.local", "themes/static/site/nested/chat.db-wal"]) assert.equal(excludedSharePath({ path: file }), true, file);
   for (const file of ["themes/static/site/out/main.js", "themes/static/site/ops/help.md", "themes/static/site/staging/help.md", "plugins/site/1.0/src/data/default.json", "plugins/site/1.0/src/notes/help.md", "plugins/site/1.0/src/learned/help.md"]) assert.equal(excludedSharePath({ path: file }), false, file);
   for (const file of ["themes/static/site/key.pem", "plugins/site/1.0/src/credentials.json", "themes/static/site/vault/readme.md", "plugins/site/1.0/src/.npmrc"]) assert.throws(() => excludedSharePath({ path: file }), (error: unknown) => (error as { code: string }).code === "UNSAFE_FILE", file);
 });

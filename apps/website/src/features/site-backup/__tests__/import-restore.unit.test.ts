@@ -40,7 +40,7 @@ function activeThemes(dbPath: string): string[] {
 }
 async function restore(t: TestContext, files: Record<string, string>, options: { themes?: readonly string[]; before?: (h: Harness) => void } = {}): Promise<Harness> {
   const h = harness(t);
-  stageVerifiedImport({ root: h.root, verified: { name: "Copy", database: databaseBytes(options.themes ?? []), files: new Map(Object.entries(files).map(([file, text]) => [file, Buffer.from(text)])) } });
+  stageVerifiedImport({ root: h.root, verified: { warnings: [], modified: new Set(), plugins: [], trustedPlugins: [], name: "Copy", database: databaseBytes(options.themes ?? []), files: new Map(Object.entries(files).map(([file, text]) => [file, Buffer.from(text)])) } });
   options.before?.(h);
   await restoreStagedImport({ root: h.root, dir: h.dir, dbPath: h.dbPath });
   return h;
@@ -58,7 +58,7 @@ function compiledTheme(name: string, build: Record<string, unknown> = {}): Recor
 
 test("staging writes the projected database, every verified file and the inventory, all private", async t => {
   const h = harness(t), database = databaseBytes([]);
-  stageVerifiedImport({ root: h.root, verified: { name: "Copy", database, files: new Map([["uploads/a", Buffer.from("a")]]) } });
+  stageVerifiedImport({ root: h.root, verified: { warnings: [], modified: new Set(), plugins: [], trustedPlugins: [], name: "Copy", database, files: new Map([["uploads/a", Buffer.from("a")]]) } });
   assert.deepEqual(fs.readFileSync(path.join(h.root, "database/content.db")), database);
   assert.equal(fs.readFileSync(path.join(h.root, "uploads/a"), "utf8"), "a");
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(h.root, ".inventory.json"), "utf8")), ["uploads/a"]);
@@ -68,11 +68,11 @@ test("staging writes the projected database, every verified file and the invento
 test("staging refuses a stage folder that already exists", async t => {
   const h = harness(t);
   fs.mkdirSync(h.root);
-  assert.throws(() => stageVerifiedImport({ root: h.root, verified: { name: "Copy", database: Buffer.alloc(0), files: new Map() } }), { code: "EEXIST" });
+  assert.throws(() => stageVerifiedImport({ root: h.root, verified: { warnings: [], modified: new Set(), plugins: [], trustedPlugins: [], name: "Copy", database: Buffer.alloc(0), files: new Map() } }), { code: "EEXIST" });
 });
 test("staging refuses an unsafe file path before writing it", async t => {
   const h = harness(t);
-  assert.throws(() => stageVerifiedImport({ root: h.root, verified: { name: "Copy", database: Buffer.alloc(0), files: new Map([["uploads/CON.txt", Buffer.from("x")]]) } }), { code: "UNSAFE_PATH", message: "Share path 'uploads/CON.txt' is unsafe." });
+  assert.throws(() => stageVerifiedImport({ root: h.root, verified: { warnings: [], modified: new Set(), plugins: [], trustedPlugins: [], name: "Copy", database: Buffer.alloc(0), files: new Map([["uploads/CON.txt", Buffer.from("x")]]) } }), { code: "UNSAFE_PATH", message: "Share path 'uploads/CON.txt' is unsafe." });
   assert.equal(fs.existsSync(path.join(h.root, "uploads")), false);
 });
 
@@ -82,9 +82,9 @@ test("uploads are restored into the live site", async t => {
   assert.equal(live(await restore(t, { "uploads/blob": "media" }), "uploads/blob"), "media");
 });
 test("settings files are never restored, live or quarantined", async t => {
-  const h = await restore(t, { "settings/config.json": "{}" });
-  assert.equal(live(h, "settings/config.json"), null);
-  assert.equal(quarantined(h, "settings/config.json"), null);
+  const h = await restore(t, { "settings.json": "{}" });
+  assert.equal(live(h, "settings.json"), null);
+  assert.equal(quarantined(h, "settings.json"), null);
 });
 for (const file of ["plugins/custom/plugin.json", "overrides/custom.html", "skills/s/SKILL.md", "agent-plugins/ws/w/activations.json", "themes/code/site/index.ts"]) {
   test(`${file} is quarantined, never placed live`, async t => {
@@ -159,7 +159,7 @@ test("an active theme that was not placed live falls back to the starter theme",
 });
 test("restore refuses to overwrite an existing database file", async t => {
   const h = harness(t);
-  stageVerifiedImport({ root: h.root, verified: { name: "Copy", database: databaseBytes([]), files: new Map() } });
+  stageVerifiedImport({ root: h.root, verified: { warnings: [], modified: new Set(), plugins: [], trustedPlugins: [], name: "Copy", database: databaseBytes([]), files: new Map() } });
   fs.writeFileSync(h.dbPath, "existing");
   await assert.rejects(restoreStagedImport({ root: h.root, dir: h.dir, dbPath: h.dbPath }), { code: "EEXIST" });
   assert.equal(fs.readFileSync(h.dbPath, "utf8"), "existing");
@@ -170,7 +170,7 @@ test("restore refuses to overwrite an existing site file", async t => {
 test("a database without presentation settings fails the restore after closing the database", async t => {
   const h = harness(t), empty = new Database(":memory:"), bytes = empty.serialize();
   empty.close();
-  stageVerifiedImport({ root: h.root, verified: { name: "Copy", database: bytes, files: new Map() } });
+  stageVerifiedImport({ root: h.root, verified: { warnings: [], modified: new Set(), plugins: [], trustedPlugins: [], name: "Copy", database: bytes, files: new Map() } });
   await assert.rejects(restoreStagedImport({ root: h.root, dir: h.dir, dbPath: h.dbPath }), { message: /no such table: presentation_settings/ });
   fs.rmSync(h.dbPath);
 });
