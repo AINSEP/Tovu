@@ -47,28 +47,31 @@ test('a selected destructive or publish action needs approval, ordinary edits do
   assert.equal(replacement.approvals.length,2);assert.equal(replacement.calls(),0);
   const restore=fixture({description:'Restores a file.'});await restore.handler(ctx({action:'restore',overwrite:false}));assert.equal(restore.approvals.length,0);assert.equal(restore.calls(),1);
 });
-test('trash and restore run directly even when a remote marks every write destructive', async () => {
+// Host policy may ADD confirmation, never REMOVE one Jini requires (lot fed-security, 2026-10-27).
+// Was: Tovu's trash/restore classification answered Jini's destructive-hint card itself, so these
+// ran with no card. Now a tool Jini names as reversible (trash_item) runs directly, while a tool Jini
+// can only judge by its destructive hint keeps Jini's card whatever Tovu's description says.
+test('trash and restore keep Jini\'s card when a remote marks every write destructive; Jini-named trash runs directly', async () => {
   for (const description of ['Moves an item to the Trash.', 'Restores an item from the Trash.']) {
     const f = fixture({ description, annotations: { readOnlyHint: false, destructiveHint: true } });
     await f.handler(ctx());
-    assert.equal(f.approvals.length, 0, description);
-    assert.equal(f.calls(), 1, description);
+    assert.equal(f.approvals.length, 1, description);
+    assert.equal(f.calls(), 0, description);
   }
-  for (const name of ['trash_item', 'restore_item']) {
-    const named = fixture({ name, annotations: { destructiveHint: true } });
-    await named.handler(ctx());
-    assert.equal(named.approvals.length, 0, name);
-    assert.equal(named.calls(), 1, name);
-  }
+  const trash = fixture({ name: 'trash_item', annotations: { destructiveHint: true } });
+  await trash.handler(ctx());
+  assert.equal(trash.approvals.length, 0);
+  assert.equal(trash.calls(), 1);
+  const restore = fixture({ name: 'restore_item', annotations: { destructiveHint: true } });
+  await restore.handler(ctx());
+  assert.equal(restore.approvals.length, 1);
+  assert.equal(restore.calls(), 0);
   const f = fixture({ description: 'Operates on an item.', annotations: { destructiveHint: true } });
-  for (const action of ['trash', 'restore', 'trash', 'restore']) await f.handler(ctx({ action }));
-  assert.equal(f.approvals.length, 0);
-  assert.equal(f.calls(), 4);
-  await f.handler(ctx({ action: 'delete' }));
+  for (const action of ['trash', 'restore', 'delete']) await f.handler(ctx({ action }));
   await f.handler(ctx({ action: 'restore', overwrite: true }));
-  assert.equal(f.approvals.length, 2);
-  assert.equal(f.calls(), 4, 'permanent delete and overwrite must not reach the remote on cancellation');
-  // Removing approval for reversible actions must leave unclassified shared safety gates intact.
+  assert.equal(f.approvals.length, 4);
+  assert.equal(f.calls(), 0, 'nothing reaches the remote on cancellation');
+  // Unclassified shared safety gates stay intact.
   for (const [name, input] of [['execute_sql', { query: 'DELETE FROM records' }], ['send_email', {}]] as const) {
     const protectedTool = fixture({ name, description: 'Operates on data.' });
     await protectedTool.handler(ctx(input));
@@ -76,22 +79,28 @@ test('trash and restore run directly even when a remote marks every write destru
     assert.equal(protectedTool.calls(), 0, name);
   }
 });
-test('reversible federation runs without a confirmation channel but still checks permissions and liveness', async () => {
+// Was: an opaque destructive-hinted tool ran trash/restore with no confirmation channel at all.
+test('Jini-named reversible federation runs without a confirmation channel but still checks permissions and liveness', async () => {
   let calls = 0;
   const checks: string[] = [];
   let allowed = true;
   const built = buildFederatedMcpRegistrations({
-    tools: [{ name: 'action', description: 'Operates on an item.', annotations: { destructiveHint: true }, inputSchema: { type: 'object' } }],
-    config, nativeToolIds: new Set(),
+    tools: [{ name: 'trash_item', description: 'Moves an item to the Trash.', annotations: { destructiveHint: true }, inputSchema: { type: 'object' } },
+      { name: 'action', description: 'Operates on an item.', annotations: { destructiveHint: true }, inputSchema: { type: 'object' } }],
+    config: { ...config, allowedToolNames: ['trash_item', 'action'], writeAllowedToolNames: ['trash_item', 'action'] }, nativeToolIds: new Set(),
     session: { listTools: async () => [], close: async () => {}, callTool: async () => { calls++; return { content: [] }; } },
     deps: { workspaceId: 'ws', assertConnectionUsable: async () => { checks.push('liveness'); },
       authorize: async () => { checks.push('permission'); return { allowed, reason: allowed ? 'matched' : 'denied' }; } },
   });
-  for (const action of ['trash', 'restore']) await built.registrations[0].handler(ctx({ action }));
+  const [trash, opaque] = built.registrations;
+  for (const id of ['one', 'two']) await trash.handler(ctx({ id }));
   assert.equal(calls, 2);
   assert.deepEqual(checks, ['liveness', 'permission', 'liveness', 'permission']);
+  // Jini requires a card for the opaque destructive tool, so "trash" is not enough without a channel.
+  await assert.rejects(opaque.handler(ctx({ action: 'trash' })), { message: /EXTERNAL_MCP_NO_CONFIRMATION_CHANNEL/ });
+  assert.equal(calls, 2);
   allowed = false;
-  await assert.rejects(built.registrations[0].handler(ctx({ action: 'trash' })), {
+  await assert.rejects(trash.handler(ctx({ id: 'three' })), {
     message: "principal 'owner' is not authorized for 'admin.integrations.manage' (denied)",
   });
   assert.equal(calls, 2);

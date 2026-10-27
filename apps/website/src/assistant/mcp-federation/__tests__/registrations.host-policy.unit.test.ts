@@ -148,11 +148,24 @@ test("toJiniFederationDeps forwards confirmation as (context, request) and retur
 
 // ---- confirmation wrapper (calls Jini itself gates) ---------------------------------------------
 
-test("a Jini-gated reversible Trash action is confirmed without asking the host", async () => {
+test("a Jini-gated action Tovu classifies as a reversible Trash still asks the host — policy cannot remove Jini's card", async () => {
+  const h = harness({ name: "action", description: "Operates on an item.", inputSchema: schema, annotations: { destructiveHint: true } });
+  assert.deepEqual(await h.registration.handler(context({ action: "trash" })), { federated: { connectionId: "conn", tool: "action" }, ran: false, cancelled: true });
+  assert.equal(h.cards.length, 1);
+  assert.deepEqual(h.events, ["liveness", "permission", "card"]);
+});
+
+test("a Jini-gated assistant-access change Tovu classifies as an ordinary restore still asks the host", async () => {
+  const h = harness({ name: "agent_restore_permissions", inputSchema: schema });
+  await h.registration.handler(context({}));
+  assert.deepEqual(h.cards.map((card) => card.remoteName), ["agent_restore_permissions"]);
+  assert.deepEqual(h.session.calls, []);
+});
+
+test("a Jini-gated action Tovu classifies as a reversible Trash is refused, unsent, with no host confirmer", async () => {
   const h = harness({ name: "action", description: "Operates on an item.", inputSchema: schema, annotations: { destructiveHint: true } }, { confirm: null });
-  await h.registration.handler(context({ action: "trash" }));
-  assert.deepEqual(h.cards, []);
-  assert.deepEqual(h.events, ["liveness", "permission", "remote:action"]);
+  await assert.rejects(h.registration.handler(context({ action: "trash" })), { name: "ToolInputError", message: /EXTERNAL_MCP_NO_CONFIRMATION_CHANNEL/ });
+  assert.deepEqual(h.events, ["liveness", "permission"]);
 });
 
 test("a Jini-gated protected action with no host confirmer is refused before anything is sent", async () => {
@@ -215,7 +228,7 @@ test("a policy-gated call re-checks liveness and permission before asking, then 
   const h = harness(publisher, { confirm: confirming });
   await h.registration.handler(context({ title: "Home" }));
   assert.deepEqual(h.events, ["liveness", "permission", "card", "liveness", "permission", "remote:action"]);
-  assert.deepEqual(h.liveness[0], { connectionId: "conn", call: { remoteName: "action", declaredAnnotations: undefined, origin: undefined } });
+  assert.deepEqual(h.liveness[0], { connectionId: "conn", call: { remoteName: "action", declaredAnnotations: undefined, origin: undefined, requiresWriteGrant: true } });
   assert.deepEqual(h.authorizations[0], {
     principalId: "owner", permission: "admin.integrations.manage", workspaceId: "ws", entityType: "federated-mcp-connection", entityId: "conn",
   });

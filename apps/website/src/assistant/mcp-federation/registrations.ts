@@ -1,7 +1,7 @@
 import { ToolInputError } from "@jini-ai/core";
 import { federatedApprovalClassFor } from "../tool-approval-policy.js";
 import { approvalClassAsks, type ToolApprovalClass } from "../../contracts/headless/assistant-tool-approval-policy.js";
-import { FEDERATED_ENTITY_TYPE, FEDERATED_TOOL_PERMISSION, federatedCallConfirmationForAction, writeShapedInputNames } from "@jini-ai/mcp/federation";
+import { FEDERATED_ENTITY_TYPE, FEDERATED_TOOL_PERMISSION, federatedCallConfirmationForAction, federatedToolRequiresWriteGrant, writeShapedInputNames } from "@jini-ai/mcp/federation";
 import type { ToolRegistration, ToolExecutionContext, ToolExecutionOptions } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 import {
@@ -182,7 +182,7 @@ interface FederatedRegistrationParams {
 
 /** Tovu's CMS publication/trash approval policy, evaluated against the descriptors as enumerated. */
 interface HostApprovalPolicy {
-  readonly classify: (required: { name: string; input: unknown }, optional?: { fallbackClass?: ToolApprovalClass }) => ToolApprovalClass;
+  readonly classify: (required: { name: string; input: unknown }) => ToolApprovalClass;
   readonly needsApproval: (required: { name: string; input: unknown }) => boolean;
 }
 
@@ -192,21 +192,20 @@ type PolicyFederationDeps = FederationDeps & { readonly confirmCall: NonNullable
 /** @complexity O(t) to index the t enumerated tools; each classification is O(1) in the tool count. */
 function createHostApprovalPolicy({ tools }: { tools: readonly RemoteToolDescriptor[] }): HostApprovalPolicy {
   const toolByName = new Map(tools.map(tool => [tool.name, structuredClone(tool)]));
-  const classify: HostApprovalPolicy["classify"] = ({ name, input }, optional = {}) => federatedApprovalClassFor({ ...toolByName.get(name), input }, optional);
+  const classify: HostApprovalPolicy["classify"] = ({ name, input }) => federatedApprovalClassFor({ ...toolByName.get(name), input });
   return { classify, needsApproval: ({ name, input }) => approvalClassAsks({ class: classify({ name, input }) }) };
 }
 
-/** Wraps the host's confirmation port with the policy. Reads `hostDeps.confirmCall` per call.
+/** Wraps the host's confirmation port with the policy's card decoration; it never answers for the
+ * person. Reads `hostDeps.confirmCall` per call.
  * @throws ToolInputError `EXTERNAL_MCP_NO_CONFIRMATION_CHANNEL` when a protected action has no confirmer.
  */
 function policyConfirmCall({ policy, hostDeps }: { policy: HostApprovalPolicy; hostDeps: FederationDeps }): PolicyFederationDeps["confirmCall"] {
   return async (ctx, request) => {
-    // Jini still owns admission, liveness and authorization before this callback. Explicit
-    // trash/restore uses the native policy table even without a human confirmation channel.
-    // Unclassified SQL, delivery and access operations retain Jini's existing safety gate.
+    // Jini still owns admission, liveness and authorization before this callback, and only calls it
+    // when Jini itself requires a card. Host policy may ADD confirmation, never remove one Jini
+    // requires: a host-classified ordinary edit (e.g. "restore") still gets this card.
     const call = { name: request.remoteName, input: request.arguments };
-    const declaredClass = policy.classify(call, { fallbackClass: 'delete' });
-    if (!approvalClassAsks({ class: declaredClass })) return { confirmed: true };
     if (!hostDeps.confirmCall) throw new ToolInputError({ message: `EXTERNAL_MCP_NO_CONFIRMATION_CHANNEL: ${request.toolId}: this protected action requires confirmation, and nothing here can ask a person. Nothing was sent.` });
     // A mandatory destructive/publish approval must never be skipped by a remembered grant.
     return hostDeps.confirmCall(ctx, policy.needsApproval(call)
@@ -236,7 +235,8 @@ async function askHostPolicy(call: HostPolicyCall, _options = {}): Promise<{ rea
   if (!policy.needsApproval({ name: admitted.remoteName, input: args }) || sharedConfirmation !== 'none') return undefined;
   // Recheck before asking as well as inside the original handler after the answer. A
   // confirmation never substitutes for admission, liveness or the permission evaluator.
-  await deps.assertConnectionUsable?.(config.connectionId, { remoteName: admitted.remoteName, declaredAnnotations: admitted.declaredAnnotations, origin: config.origin });
+  await deps.assertConnectionUsable?.(config.connectionId, { remoteName: admitted.remoteName, declaredAnnotations: admitted.declaredAnnotations, origin: config.origin,
+    requiresWriteGrant: federatedToolRequiresWriteGrant({ remoteName: admitted.remoteName, annotations: admitted.declaredAnnotations }, { readList: config.readOnlyRemoteNames }) });
   await requireFederatedPermission({ deps, principalId: ctx.principal.id, permission: FEDERATED_TOOL_PERMISSION, entityType: FEDERATED_ENTITY_TYPE, entityId: config.connectionId });
   if (!hostDeps.confirmCall) throw new ToolInputError({ message: `EXTERNAL_MCP_NO_CONFIRMATION_CHANNEL: ${admitted.toolId}: this action requires human approval. Nothing was sent.` });
   const outcome = await deps.confirmCall({ ...ctx, ...options }, {

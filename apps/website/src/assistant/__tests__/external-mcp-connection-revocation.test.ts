@@ -234,7 +234,7 @@ test("T1-6: editing the URL of an admitted connection refuses as changed", async
   assert.equal(session.calls.length, 0);
 });
 
-test("T1-7 (G3): removing write_thing from the write list no longer revokes it — its per-call card is the gate now; read_thing still completes", async () => {
+test("T1-7: removing write_thing from the write list refuses it ('may write' is enforced); read_thing still completes", async () => {
   const { repo, sealer, deps } = makeStoreDeps(makeClock());
   await saveExternalMcpServer(deps, baseSaveInput());
   const { toolExecutor, session } = await boot({ repo, sealer });
@@ -242,14 +242,15 @@ test("T1-7 (G3): removing write_thing from the write list no longer revokes it �
   await saveExternalMcpServer(deps, baseSaveInput({ writeAllowedToolNames: "" }));
 
   const writeResult = await callWriteThing(toolExecutor);
-  assert.equal(writeResult.status, "completed", JSON.stringify(writeResult));
+  assert.equal(writeResult.status, "failed", JSON.stringify(writeResult));
+  assert.equal(writeResult.error, '"write_thing" on "Acme" is no longer allowed to make changes in Integrations → External MCP. Do not retry this tool.');
 
   const readResult = await callReadThing(toolExecutor);
   assert.equal(readResult.status, "completed", JSON.stringify(readResult));
 
   assert.deepEqual(
     session.calls.map((call) => call.name),
-    ["write_thing", "read_thing"],
+    ["read_thing"],
   );
 });
 

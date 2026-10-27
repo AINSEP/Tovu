@@ -104,10 +104,12 @@ test("rosterRefusalFor refuses a freshly saved (never authorized) OAuth connecti
   assert.equal(rosterRefusalFor(record, callFor(record, "query", true) as never), "disconnected");
 });
 
-test("rosterRefusalFor passes an allowlisted tool whatever its hints, and refuses one no longer allowlisted", async () => {
+test("rosterRefusalFor passes an allowlisted read tool, refuses a write tool with no write grant, and refuses one no longer allowlisted", async () => {
   const record = await storedRecord({ authMode: "none", allowed: "query", writeAllowed: "" });
   assert.equal(rosterRefusalFor(record, callFor(record, "query", true) as never), null);
-  // R3: a remote's own hints never refuse at call time — they only choose the confirmation card.
-  assert.equal(rosterRefusalFor(record, callFor(record, "query", false) as never), null);
+  // "May write" is a grant: a tool the remote declares as a write needs the write list.
+  assert.equal(rosterRefusalFor(record, callFor(record, "query", false) as never), "write-not-allowed");
   assert.equal(rosterRefusalFor(record, callFor(record, "drop_table", true) as never), "tool-not-allowed");
+  const granted = await storedRecord({ authMode: "none", allowed: "query", writeAllowed: "query" });
+  assert.equal(rosterRefusalFor(granted, callFor(granted, "query", false) as never), null);
 });

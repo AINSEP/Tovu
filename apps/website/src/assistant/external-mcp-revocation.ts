@@ -106,14 +106,16 @@ function isOAuthDisconnected(record: ExternalMcpServerRecord): boolean {
   return resolveExternalMcpAuthMode(record) === "oauth" && resolveExternalMcpOAuthStatus(record) === "disconnected";
 }
 
-/** {@link rosterRefusalFor}'s grant check: reapplies R2+R3 to the connection's CURRENT allowlist and
- *  write list — narrowing only, never granting, exactly as {@link refusalForAdmittedToolUnderCurrentGrants}
- *  documents. Maps the one grant-refusal reason that means "the remote itself declares a write" onto
+/** {@link rosterRefusalFor}'s grant check: reapplies R2 and "may write" to the connection's CURRENT
+ *  allowlist and write list — narrowing only, never granting, exactly as {@link refusalForAdmittedToolUnderCurrentGrants}
+ *  documents. Maps the one grant-refusal reason that means "a write tool without a write grant" onto
  *  the write-specific D3 message; every other reason (today, only `not-in-operator-allowlist`) maps
- *  to the generic one. @complexity O(1). */
+ *  to the generic one. @complexity O(a + w) in the two list lengths. */
 function grantRefusalFor(record: ExternalMcpServerRecord, call: FederatedCallTarget): ExternalMcpRevocationReason | null {
   const grants = readExternalMcpToolGrants(record);
-  const refusal = refusalForAdmittedToolUnderCurrentGrants({ tool: { remoteName: call.remoteName, declaredAnnotations: call.declaredAnnotations }, grants });
+  const refusal = refusalForAdmittedToolUnderCurrentGrants({ tool: {
+    remoteName: call.remoteName, declaredAnnotations: call.declaredAnnotations, requiresWriteGrant: call.requiresWriteGrant,
+  }, grants });
   if (refusal === null) return null;
   return refusal === "remote-declares-not-read-only" ? "write-not-allowed" : "tool-not-allowed";
 }
