@@ -54,8 +54,8 @@ export function sendMemberAuthError({ res, error }: { res: Response; error: unkn
 function completionCredential({ body, workspaceId }: { body: unknown; workspaceId: string }, _options = {}): MemberSignInInput | null {
   const token = memberStringBody({ body, kind: "token" });
   if (token?.token) return { workspaceId, token: token.token };
-  const code = memberStringBody({ body, kind: "code" });
-  if (code?.challengeId && /^\d{6}$/.test(code.code)) return { workspaceId, challengeId: code.challengeId, code: code.code };
+  const { challengeId, code } = memberStringBody({ body, kind: "code" }) ?? {};
+  if (challengeId && code !== undefined && /^\d{6}$/.test(code)) return { workspaceId, challengeId, code };
   return null;
 }
 

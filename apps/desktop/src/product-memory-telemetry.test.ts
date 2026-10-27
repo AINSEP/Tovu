@@ -54,12 +54,12 @@ test('one default-five-minute sample aggregates all kinds and reuses the Resourc
 test('consent off sends nothing and does not request an OS sample; usage and diagnostics are independent', async () => {
   const f = fixture(); f.rss(2400);
   f.consent({ crashes: false, usage: false, installationId: null });
-  await f.memory.tick(); assert.equal(f.reads(), 0); assert.deepEqual(f.metrics, []); assert.deepEqual(f.errors, []);
+  await f.memory.tick(); assert.equal(f.reads(), 0); assert.deepEqual(f.metrics, []); assert.equal(f.errors.length, 0);
   f.consent({ crashes: false, usage: true, installationId: 'FAKE_INSTALL' });
-  await f.memory.tick(); assert.equal(f.metrics.length, 10); assert.deepEqual(f.errors, []);
+  await f.memory.tick(); assert.equal(f.metrics.length, 10); assert.equal(f.errors.length, 0);
   f.consent({ crashes: true, usage: false, installationId: 'FAKE_INSTALL' });
   for (const minute of [5, 10, 15]) { f.at(minute * MINUTE); await f.memory.tick(); }
-  assert.deepEqual(f.errors, [], 'high readings shorter than the fifteen-minute floor span do not warn');
+  assert.equal(f.errors.length, 0, 'high readings shorter than the fifteen-minute floor span do not warn');
   f.at(20 * MINUTE); await f.memory.tick();
   assert.equal(f.metrics.length, 10); assert.equal(f.errors.length, 1);
   assert.equal(f.errors[0]!.context!.level, 'warning');
@@ -72,7 +72,7 @@ test('fake clock: slope is quiet before 60 minutes, then warns once/process/day 
   for (let index = 0; index < 12; index++) {
     f.at(index * 5 * MINUTE); f.rss(1000 + index * 34); await f.memory.tick();
   }
-  assert.deepEqual(f.errors, []);
+  assert.equal(f.errors.length, 0);
   f.at(60 * MINUTE); f.rss(1408); await f.memory.tick();
   assert.equal(f.errors.length, 1);
   assert.equal(f.errors[0]!.context!.attributes!.code, 'sustained-growth');
