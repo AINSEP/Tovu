@@ -2222,7 +2222,9 @@ async function emitStatusTransitionEvent(
     occurredAt: post.updatedAt,
     aggregateId: post.id,
     workspaceId: post.workspaceId,
-    payload: { entryId: post.id, contentType: post.kind, ...analytics },
+    // Omitted, not undefined: analytics fields are never fabricated, and an in-memory outbox must
+    // carry the same payload a persisted (JSON) one does.
+    payload: { entryId: post.id, contentType: post.kind, ...Object.fromEntries(Object.entries(analytics).filter(([, value]) => value !== undefined)) },
   });
 }
 

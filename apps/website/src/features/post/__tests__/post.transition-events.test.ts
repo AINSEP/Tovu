@@ -15,10 +15,11 @@ import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixtur
  * (tasks.md Named Risk #1).
  */
 
+/** Records only the public-transition (`entry.*`) events; `content.*` save telemetry is not under test. */
 class RecordingOutbox implements OutboxPort {
   enqueued: DomainEvent[] = [];
   async enqueue(event: DomainEvent): Promise<void> {
-    this.enqueued.push(event);
+    if (event.name.startsWith("entry.")) this.enqueued.push(event);
   }
   async claimPending(): Promise<never[]> {
     return [];

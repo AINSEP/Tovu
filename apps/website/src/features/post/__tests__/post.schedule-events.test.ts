@@ -29,10 +29,12 @@ function fakeClock(startIso: string) {
   return { nowMs: () => now, set: (iso: string) => { now = Date.parse(iso); } };
 }
 
-/** The ids of the events enqueued since the previous call (claiming marks them taken). */
+/** The ids of the public-transition (`entry.*`) events enqueued since the previous call (claiming
+ * marks them taken). The `content.*` save telemetry events are not what this file certifies.
+ */
 async function events(outbox: InMemoryOutbox): Promise<string[]> {
   const claimed = await outbox.claimPending({ batchSize: 100, nowIso: "2100-01-01T00:00:00.000Z" });
-  return claimed.map(({ event }: { event: DomainEvent }) => event.id);
+  return claimed.filter(({ event }: { event: DomainEvent }) => event.name.startsWith("entry.")).map(({ event }: { event: DomainEvent }) => event.id);
 }
 
 function setup(rows: PostRecord[] = []) {
