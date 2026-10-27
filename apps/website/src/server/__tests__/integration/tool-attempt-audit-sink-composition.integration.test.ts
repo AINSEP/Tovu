@@ -54,11 +54,8 @@ test("createSiteRouteDeps composes the SQLite audit sink itself, over the SAME c
   try {
     deps = await createSiteRouteDeps(dbPath);
 
-    assert.ok(
-      deps.toolAttemptAuditSink instanceof SqliteToolAttemptAuditSink,
-      "the real composition root must construct the SQLite sink itself, not hand a path to a consumer",
-    );
-
+    // The root wraps the SQLite sink (`withToolUseEvents`), so the class is not the contract: a write
+    // through the composed port landing in this content.db proves the root built the sink itself.
     await deps.toolAttemptAuditSink.append(APPENDED_EVENT);
 
     const rows = openContentDb(dbPath).select().from(agentToolAttempts).all();
