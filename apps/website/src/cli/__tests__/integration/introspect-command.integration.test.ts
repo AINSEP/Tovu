@@ -49,7 +49,9 @@ test("tovu introspect: exits 0 and prints valid JSON describing init/serve/expor
     // "storage move" (`cli/commands/storage-move.ts`, R1g) is registered right after `init`;
     // "theme sync-originals" (`cli/commands/theme/sync-originals.ts`) after `theme generate-index`.
     // "import" was registered first by 9412f4e8e; both formats must expose that capability.
-    ["import", "sites move-home", "plugin install", "plugin integrity", "init", "agent-plugins token-sign-in", "storage move", "adopt", "serve", "export", "theme validate", "theme migrate", "theme generate-index", "theme sync-originals", "theme normalize-build", "deploy config"],
+    // "owner-store status|list|put|import" (980a5fcbc, 788ba37b8; secrets only on stdin) and
+    // "site rename" (9e6fca547) are registered ahead of it.
+    ["owner-store status", "owner-store list", "owner-store put", "owner-store import", "site rename", "import", "sites move-home", "plugin install", "plugin integrity", "init", "agent-plugins token-sign-in", "storage move", "adopt", "serve", "export", "theme validate", "theme migrate", "theme generate-index", "theme sync-originals", "theme normalize-build", "deploy config"],
     "introspect must list the real registered commands (nested subcommands flattened to their full invocation path), and exclude itself/help"
   );
 
@@ -66,6 +68,11 @@ test("tovu introspect --format mcp: exits 0 and prints valid MCP tool definition
   assert.ok(Array.isArray(tools));
   const names = tools.map((t: { name: string }) => t.name);
   assert.deepEqual(names, [
+    "tovu_owner-store_status",
+    "tovu_owner-store_list",
+    "tovu_owner-store_put",
+    "tovu_owner-store_import",
+    "tovu_site_rename",
     "tovu_import",
     "tovu_sites_move-home",
     "tovu_plugin_install",
