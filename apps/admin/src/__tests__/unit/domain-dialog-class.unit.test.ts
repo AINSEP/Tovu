@@ -3,6 +3,7 @@ import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse } from "postcss";
 import { describe, expect, it } from "vitest";
+import { effectiveDeclarationsFor } from "./css-declarations.test-helper";
 
 /**
  * @file Regression (76ab3f05d): Tovu's dialogs moved from `tovu-domain-dialog` to Jini's
@@ -40,5 +41,13 @@ describe("domain dialogs use jini-domain-dialog", () => {
     const domain = selectors.filter((selector) => selector.includes("domain-dialog"));
     expect(domain).toContain(".settings-dialog.jini-domain-dialog");
     for (const selector of domain) expect(selector).toContain(".jini-domain-dialog");
+  });
+
+  // Seen in Chrome 2026-10-26: the OpenTelemetry settings body scrolled with a macOS overlay
+  // scrollbar drawn over the inputs' right edge. The body now reaches into the dialog padding.
+  it("a scrolling body keeps its scrollbar beside the fields, not over them", () => {
+    const body = effectiveDeclarationsFor(readFileSync(dialogsCss, "utf8"), ".jini-domain-dialog .jini-dialog-body");
+    expect(body).toMatch(/margin: -3px calc\(-1 \* var\(--space-3\)\);/);
+    expect(body).toMatch(/padding: 3px var\(--space-3\);/);
   });
 });

@@ -125,7 +125,8 @@ function EditorTab({ tab, page, port, translation, delays }: { tab: Exclude<Cons
       </div>
       <div className="card consent-preview-pane" ref={fit.ref} style={{ "--consent-preview-scale": fit.scale, "--consent-preview-desktop-width": `${CONSENT_PREVIEW_DESKTOP_WIDTH}px` } as CSSProperties}>
         {preview.error && <p className="notice error" role="alert">{preview.error}</p>}
-        <CssWarnings warnings={preview.warnings} enabled={Boolean(page.editor?.bannerModes)} t={translation.t} />
+        {/* "My own" and "None" render no Jini banner, so its skipped styles are noise there. */}
+        <CssWarnings warnings={preview.warnings} enabled={Boolean(page.editor?.bannerModes) && (value.bannerMode ?? "jini") === "jini"} t={translation.t} />
         <ConsentPreviewFrame html={preview.html} status={translation.t("Loading preview…")} dictionary={translation.dictionary} />
       </div>
     </div>
