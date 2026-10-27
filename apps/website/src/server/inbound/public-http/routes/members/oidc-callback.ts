@@ -22,6 +22,21 @@ function callbackParams({ req }: { req: Request }, _options = {}) {
   return { code, state };
 }
 
+/** The shared member delivery limits for this top-level browser page. The API routes answer a
+ * refusal with 429 JSON; here the one-time code is already spent, so a refusal becomes the fixed
+ * sign-in error redirect instead (the route's catch), and the limiter's own response is discarded.
+ * @throws {MemberLoginError} LOGIN_UNAVAILABLE when a limit refuses. @complexity O(1) limiter checks.
+ */
+async function assertEmailContinuationLimits(required: {
+  req: Request; deps: MemberOidcRouteDeps; email: string;
+}, _options = {}): Promise<void> {
+  const { req, deps, email } = required;
+  const discarded = { setHeader: () => discarded, status: () => discarded, json: () => discarded };
+  const allowed = await checkMemberRequestLimits({ req, res: discarded as unknown as Response, deps: deps.members, email,
+    emailLimiter: deps.members.magicLinkPerEmailLimiter, ipLimiter: deps.members.magicLinkPerIpLimiter });
+  if (!allowed) throw new MemberLoginError({ code: "LOGIN_UNAVAILABLE" });
+}
+
 /** Keep validated identity sealed and browser-bound while the existing challenge owner proves
  * a non-authoritative mailbox. Fragment data is removed by U1 before rendering; no OAuth tokens.
  * @complexity O(1) seal/challenge issuance, with shared IP/email delivery limits before mail.
@@ -31,8 +46,7 @@ async function continueByEmail(required: {
   login: CompletedOidcLogin; browserBinding: string; callbackUrl: string; email: string;
 }, _options = {}): Promise<void> {
   const { req, res, deps, input, login, browserBinding, callbackUrl, email } = required;
-  if (!await checkMemberRequestLimits({ req, res, deps: deps.members, email,
-    emailLimiter: deps.members.magicLinkPerEmailLimiter, ipLimiter: deps.members.magicLinkPerIpLimiter })) return;
+  await assertEmailContinuationLimits({ req, deps, email });
   const continuation = await sealLoginEmailContinuation({ deps: deps.protocol, input: { ...input, browserBinding }, login });
   const proof = await requestLoginEmailProof({ deps: deps.links, input: { workspaceId: input.workspaceId, email } });
   memberOidcCookie({ res, callbackUrl, kind: "proof", binding: browserBinding });
