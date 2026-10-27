@@ -82,7 +82,7 @@ test("a refused broad-root scan shows the exact remedy and keeps the existing pr
 
 test("the Projects header renders a Rescan control wired to that hook", () => {
   let calls = 0;
-  const header = sourceFunction(appTsx, 'MainHeader', { SitesFolders: () => null });
+  const header = sourceFunction(appTsx, 'MainHeader', { SitesFolders: () => null, SharedKeysLauncher: () => null });
   const button = elements(header({ activeId: 'projects', isCreating: false, activeLabel: 'Projects',
     onRescan: async () => { calls++; }, rescanning: false })).find((element) => element.type === 'button' && element.props.children === 'Rescan');
   assert.ok(button, 'the Rescan button must render');
