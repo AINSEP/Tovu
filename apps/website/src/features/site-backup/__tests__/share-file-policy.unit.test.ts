@@ -152,15 +152,17 @@ test("package manifest names stay exempt by name below any package root; their b
 test("the inventory is keyed by the digest the seeder's own packer gives each bundled source folder", async t => {
   const sourceRoot = await mkdtemp(join(tmpdir(), "share-package-inventory-"));
   t.after(() => rm(sourceRoot, { recursive: true, force: true }));
-  await mkdir(join(sourceRoot, "p", "__tests__"), { recursive: true });
+  // The packer leaves tests out of bundled archives (Jini 8b2b9b99a), so the credential-named file is shipped source.
+  const card = "src/credential-card.mjs";
+  await mkdir(join(sourceRoot, "p", "src"), { recursive: true });
   await writeFile(join(sourceRoot, "p", "plugin.json"), '{"name":"p"}');
-  await writeFile(join(sourceRoot, "p", CARD), CARD_TEXT);
+  await writeFile(join(sourceRoot, "p", card), CARD_TEXT);
   await writeFile(join(sourceRoot, "README.md"), "not a package folder");
   const packageFiles = await readBundledPackageFiles({}, { sourceRoot });
   const { sha256: digest } = await packAgentPluginDirectory(join(sourceRoot, "p"));
   assert.deepEqual([...packageFiles.keys()], [digest]);
-  assert.deepEqual(Object.fromEntries(packageFiles.get(digest)!), { [CARD]: sha256(CARD_TEXT), "plugin.json": sha256('{"name":"p"}') });
-  const path = `agent-plugins/ws/w/p/package/sha256/${digest}/${CARD}`;
+  assert.deepEqual(Object.fromEntries(packageFiles.get(digest)!), { [card]: sha256(CARD_TEXT), "plugin.json": sha256('{"name":"p"}') });
+  const path = `agent-plugins/ws/w/p/package/sha256/${digest}/${card}`;
   assert.equal(requireShareSecretFree({ path, bytes: Buffer.from(CARD_TEXT) }, { packageFiles }), undefined);
 });
 
