@@ -422,6 +422,8 @@ test('an accepted choice is durably written under the site receipts directory, c
   const res = await fetch(`${base}/api/site-consent`, { method: 'POST', redirect: 'manual', headers: { origin: base, 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ action: 'accept', policyVersion: `${f.config.policyVersion}:${f.revisionId}` }) });
   assert.ok(res.status < 400, `status ${res.status}`);
   assert.match(res.headers.get('set-cookie') ?? '', /jini_consent=/);
+  assert.match(res.headers.get('set-cookie') ?? '', /HttpOnly/);
+  assert.doesNotMatch(res.headers.get('set-cookie') ?? '', /jini_choices=/);
   const receipts = await fs.readdir(path.join(dir, CONSENT_RECEIPTS_DIR_NAME), { recursive: true });
   assert.ok(receipts.length > 0);
 });
