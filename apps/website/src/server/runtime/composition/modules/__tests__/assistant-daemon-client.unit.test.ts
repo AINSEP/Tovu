@@ -403,3 +403,83 @@ test("fetchAgentDaemonEventStream: a daemon that starts listening AFTER the stre
   assert.equal(sent.status, undefined, "nothing was written to res — the caller relays the stream");
   assert.deepEqual(daemon.seen.map((seen) => [seen.method, seen.url, seen.headers.authorization]), [["GET", "/api/runs/late/events", "Bearer tok-stream"]]);
 });
+
+// --- At-most-once (plan §2.5): a refused connection dispatched nothing, so any verb is retried; a
+// reset one may already have reached the daemon, so only a read is resent and a write answers
+// 502 OUTCOME_UNKNOWN instead of running twice.
+
+/** A raw-socket daemon that RSTs the first `resets` connections the moment their request bytes
+ *  arrive (so the daemon "received" the call), then answers `200 {}` on every later one. */
+async function startResettingDaemon(t: import("node:test").TestContext, resets: number): Promise<{ origin: string; hits: () => number }> {
+  let hits = 0;
+  const sockets = new Set<net.Socket>();
+  const server = net.createServer((socket) => {
+    sockets.add(socket);
+    socket.once("data", () => {
+      hits += 1;
+      if (hits <= resets) return void socket.resetAndDestroy();
+      socket.end("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}");
+    });
+  });
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", () => r()));
+  t.after(() => {
+    for (const s of sockets) s.destroy();
+    return new Promise<void>((r) => server.close(() => r()));
+  });
+  return { origin: `http://127.0.0.1:${(server.address() as net.AddressInfo).port}`, hits: () => hits };
+}
+
+test("fetchAgentDaemon: a POST whose connection is reset is sent ONCE and answers 502 OUTCOME_UNKNOWN, never retried", async (t) => {
+  const daemon = await startResettingDaemon(t, Infinity);
+  withEnv(t, { JINI_AGENT_DAEMON_URL: daemon.origin });
+  const { res, sent } = fakeRes();
+
+  const started = Date.now();
+  const upstream = await fetchAgentDaemon(fakeReq({ originalUrl: "/api/runs", method: "POST" }), res, { body: { prompt: "delete page" } });
+
+  assert.equal(upstream, null);
+  assert.equal(daemon.hits(), 1, "a reset write must not be resent — the daemon may already have acted on it");
+  assert.equal(sent.status, 502);
+  assert.equal((sent.body as { code?: string }).code, "OUTCOME_UNKNOWN");
+  assert.ok(Date.now() - started < 3000, `a reset write must answer at once (took ${Date.now() - started}ms)`);
+});
+
+test("fetchAgentDaemon: a GET whose connection is reset is retried and answers from the next attempt", async (t) => {
+  const daemon = await startResettingDaemon(t, 1);
+  withEnv(t, { JINI_AGENT_DAEMON_URL: daemon.origin });
+  const { res, sent } = fakeRes();
+
+  const upstream = await fetchAgentDaemon(fakeReq({ originalUrl: "/api/runs", method: "GET" }), res);
+
+  assert.ok(upstream);
+  assert.deepEqual(await upstream.json(), {});
+  assert.equal(daemon.hits(), 2);
+  assert.equal(sent.status, undefined);
+});
+
+test("fetchAgentDaemon: a POST to a daemon not yet listening is retried (refused = nothing dispatched) and sent once", async (t) => {
+  const port = await freePort();
+  withEnv(t, { JINI_AGENT_DAEMON_URL: `http://127.0.0.1:${port}` });
+  const { res, sent } = fakeRes();
+
+  const pending = fetchAgentDaemon(fakeReq({ originalUrl: "/api/runs", method: "POST" }), res, { body: { a: 1 } });
+  await new Promise((r) => setTimeout(r, 600));
+  const daemon = await startDaemon(t, (_s, r) => r.end("{}"), port);
+
+  assert.ok(await pending);
+  assert.equal(sent.status, undefined);
+  assert.deepEqual(daemon.seen.map((seen) => [seen.method, seen.body]), [["POST", '{"a":1}']]);
+});
+
+test("fetchAgentDaemonEventStream: a reset stream GET is still retried (GET only, behaviour unchanged)", async (t) => {
+  const daemon = await startResettingDaemon(t, 1);
+  withEnv(t, { JINI_AGENT_DAEMON_URL: daemon.origin });
+  const { res, sent } = fakeRes();
+
+  const open = await fetchAgentDaemonEventStream(fakeReq({ originalUrl: "/x", method: "GET" }), res, "/api/runs/r/events");
+
+  assert.equal(open?.statusCode, 200);
+  await open?.body.cancel();
+  assert.equal(daemon.hits(), 2);
+  assert.equal(sent.status, undefined);
+});

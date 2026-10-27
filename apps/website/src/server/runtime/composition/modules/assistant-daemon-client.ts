@@ -87,11 +87,19 @@ export function outboundHeaders(req: Request, res: Response): Record<string, str
 const DAEMON_CONNECT_RETRY_MS = 8_000;
 const DAEMON_CONNECT_RETRY_INTERVAL_MS = 250;
 
-/** True for the "nothing is listening on that port yet" shape specifically — NOT for a daemon that
- *  answered with an error, which is a real failure and must not be retried. */
-function isConnectionRefused(error: unknown): boolean {
-  const cause = (error as { cause?: { code?: unknown } } | undefined)?.cause;
-  return cause?.code === "ECONNREFUSED" || cause?.code === "ECONNRESET";
+/** The socket-level code (`ECONNREFUSED`, `ECONNRESET`, …) behind a failed `fetch` — `undefined` for a
+ *  daemon that answered with an error, which is a real failure and must not be retried. */
+function connectionErrorCode(error: unknown): unknown {
+  return (error as { cause?: { code?: unknown } } | undefined)?.cause?.code;
+}
+
+/** Verbs that are safe to send again after `ECONNRESET`. A reset can land AFTER the daemon received
+ *  the request, so resending a write could run it twice (plan §2.5, at-most-once). */
+const RESEND_AFTER_RESET_METHODS: ReadonlySet<string> = new Set(["GET", "HEAD"]);
+
+/** A connection reset on a verb that must not be resent: the call may already have run. */
+function isUnsafeReset(attempt: { code: unknown; method: string }): boolean {
+  return attempt.code === "ECONNRESET" && !RESEND_AFTER_RESET_METHODS.has(attempt.method.toUpperCase());
 }
 
 /** Set while a retry loop is in progress, so a page's worth of concurrent polls logs ONE line
@@ -185,9 +193,11 @@ function noteDaemonUnreachableWaiting(): void {
 
 /** True only for the "nothing is listening yet, and we're still inside the retry window" shape.
  *  Anything else — DNS, TLS, an abort, a daemon that answered badly, or a window that's expired —
- *  is a real failure and retrying would just delay the report. */
-function shouldRetryConnection(error: unknown, deadline: number): boolean {
-  return isConnectionRefused(error) && Date.now() < deadline;
+ *  is a real failure and retrying would just delay the report. `ECONNREFUSED` is retried for every
+ *  verb (nothing was dispatched); `ECONNRESET` only for a read (see {@link isUnsafeReset}). */
+function shouldRetryConnection(attempt: { code: unknown; method: string; deadline: number }): boolean {
+  const connectionFailed = attempt.code === "ECONNREFUSED" || attempt.code === "ECONNRESET";
+  return connectionFailed && !isUnsafeReset(attempt) && Date.now() < attempt.deadline;
 }
 
 /** Writes the terminal 502 for a genuinely unreachable daemon. The full error is kept here — this
@@ -196,6 +206,15 @@ function respondDaemonUnreachable(res: Response, error: unknown): null {
   console.error(`[assistant] agent daemon unreachable at ${getAgentDaemonUrl()}`, error);
   daemonUnreachableSince = null;
   res.status(502).json({ error: "assistant is unavailable", code: "BAD_GATEWAY" });
+  return null;
+}
+
+/** Writes the terminal 502 for a write whose connection was reset: the daemon may or may not have
+ *  run it, so the caller must check before repeating it — never resend it automatically. */
+function respondOutcomeUnknown(failure: { res: Response; error: unknown }): null {
+  console.error(`[assistant] agent daemon connection reset mid-request at ${getAgentDaemonUrl()}; outcome unknown`, failure.error);
+  daemonUnreachableSince = null;
+  failure.res.status(502).json({ error: "the assistant connection dropped; this may already be done — check before repeating it", code: "OUTCOME_UNKNOWN" });
   return null;
 }
 
@@ -231,7 +250,9 @@ export async function fetchAgentDaemon(
       markDaemonReachable();
       return upstream;
     } catch (error) {
-      if (!shouldRetryConnection(error, deadline)) return respondDaemonUnreachable(res, error);
+      const attempt = { code: connectionErrorCode(error), method, deadline };
+      if (isUnsafeReset(attempt)) return respondOutcomeUnknown({ res, error });
+      if (!shouldRetryConnection(attempt)) return respondDaemonUnreachable(res, error);
       noteDaemonUnreachableWaiting();
       await new Promise((r) => setTimeout(r, DAEMON_CONNECT_RETRY_INTERVAL_MS));
     }
@@ -324,12 +345,11 @@ export async function triggerFederationReload(optional: DaemonCallOptions = {}):
   }
 }
 
-/** True for the "nothing is listening on that port yet" shape from a raw `node:http` request error
- *  (`error.code` directly) — the `node:http` equivalent of {@link isConnectionRefused}, which reads
- *  `error.cause.code` because `fetch`'s own errors wrap the underlying cause one level deeper. */
-function isNodeConnectionRefused(error: unknown): boolean {
-  const code = (error as { code?: unknown } | undefined)?.code;
-  return code === "ECONNREFUSED" || code === "ECONNRESET";
+/** The socket-level code from a raw `node:http` request error (`error.code` directly) — the
+ *  `node:http` equivalent of {@link connectionErrorCode}, which reads `error.cause.code` because
+ *  `fetch`'s own errors wrap the underlying cause one level deeper. */
+function nodeConnectionErrorCode(error: unknown): unknown {
+  return (error as { code?: unknown } | undefined)?.code;
 }
 
 /** One `node:http` GET attempt against the daemon, settled instead of thrown so
@@ -363,9 +383,9 @@ function requestDaemonEventStream(
  * `ClientRequest` sets no such timeout by default, which is what a stream whose only real deadline is
  * the daemon's own exchange TTL needs.
  *
- * Same boot-window connection-refused retry as `fetchAgentDaemon`, mirrored here rather than shared,
- * because the underlying transport — and so its error shape (`error.code` vs `error.cause.code`) —
- * differs.
+ * Same boot-window retry rule as `fetchAgentDaemon` ({@link shouldRetryConnection}), with its own
+ * loop and error-code reader because the underlying transport — and so its error shape
+ * (`error.code` vs `error.cause.code`) — differs.
  */
 export async function fetchAgentDaemonEventStream(
   req: Request,
@@ -388,7 +408,8 @@ export async function fetchAgentDaemonEventStream(
       markDaemonReachable();
       return attempt;
     }
-    if (!isNodeConnectionRefused(attempt.error) || Date.now() >= deadline) {
+    // Same retry rule as `fetchAgentDaemon`; this stream is always a GET, so a reset is retried too.
+    if (!shouldRetryConnection({ code: nodeConnectionErrorCode(attempt.error), method: "GET", deadline })) {
       return respondDaemonUnreachable(res, attempt.error);
     }
     noteDaemonUnreachableWaiting();
