@@ -149,7 +149,7 @@ export async function registerAgentPluginExecutableTools(
       } catch { return 'deny' as const; }
     } } } : registration;
     const classified = withExtensionApprovalPolicy({ registration: { ...gated, descriptor: { ...descriptor, readOnly: !asks, sideEffects: owner.effect === 'destructive' ? 'deletes-durable-state' : asks ? 'mutates-durable-state' : 'none', ...(asks ? {} : { timeoutMs }) } }, family: APPROVAL_FAMILY_BY_EFFECT[owner.effect] });
-    return asks ? required.applyApproval({ registration: classified }, { disclose: ({ ctx }) => disclose({ ctx, toolId, pluginId: owner.pluginId, workspaceId }, { inputSchema: descriptor.inputSchema }) }) : classified;
+    return asks ? required.applyApproval({ registration: classified }, { disclose: ({ ctx }) => disclose({ ctx, toolId, pluginId: owner.pluginId, workspaceId }) }) : classified;
   };
   const scope = createToolRegistrationScope({ registry });
   const refresh = () => {

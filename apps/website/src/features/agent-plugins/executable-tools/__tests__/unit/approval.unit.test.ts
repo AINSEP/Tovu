@@ -101,12 +101,6 @@ test('a null or non-object input carries no connectionRef', async () => {
   assert.deepEqual(accountReads, []);
 });
 
-/** A schema whose connection sits one level down, the shape the T13 finding names. */
-const NESTED_SCHEMA = {
-  type: 'object',
-  properties: { target: { type: 'object', properties: { connectionRef: { type: 'string' }, table: { type: 'string' } } }, values: { type: 'object' } },
-} as const;
-
 /** The real frozen map and capability port behind a fake connection accessor that records token asks. */
 function enforcingHarness() {
   const tokenCalls: Array<{ target: AgentPluginConnectionTarget; optional: { expectedAccountId?: string } | undefined }> = [];
@@ -127,7 +121,7 @@ function enforcingHarness() {
 test('T13: an approval for nested connection A is refused when the call asks for nested connection B', async () => {
   const { disclose, capabilitiesFor, tokenCalls } = enforcingHarness();
   const signal = new AbortController().signal;
-  const rows = await disclose({ ctx: contextFor({ target: { connectionRef: 'conn-A', table: 'Orders' } }, signal), ...TARGET }, { inputSchema: NESTED_SCHEMA });
+  const rows = await disclose({ ctx: contextFor({ target: { connectionRef: 'conn-A', table: 'Orders' } }, signal), ...TARGET });
   assert.deepEqual(rows, [{ label: 'Account', value: 'Account conn-A' }]);
   const capabilities = capabilitiesFor(signal);
   await assert.rejects(capabilities.connections.getAccessToken({ connectionRef: 'conn-B' }), { message: UNAPPROVED_CONNECTION_MESSAGE });
@@ -138,36 +132,23 @@ test('T13: an approval for nested connection A is refused when the call asks for
 test('T13: a write tool whose input names no connection binds nothing and still runs', async () => {
   const { disclose, capabilitiesFor, tokenCalls } = enforcingHarness();
   const signal = new AbortController().signal;
-  const rows = await disclose({ ctx: contextFor({ target: { table: 'Orders' } }, signal), ...TARGET }, { inputSchema: NESTED_SCHEMA });
+  const rows = await disclose({ ctx: contextFor({ target: { table: 'Orders' } }, signal), ...TARGET });
   assert.deepEqual(rows, []);
   await capabilitiesFor(signal).connections.getAccessToken({ connectionRef: 'conn-default' });
   assert.deepEqual(tokenCalls, [{ target: { workspaceId: 'ws-1', pluginId: 'acme-office', connectionRef: 'conn-default' }, optional: {} }]);
 });
 
-test('T13: every connection the schema declares is bound, through arrays and anyOf branches', async () => {
+test('T13: every connection in the arguments is bound, through arrays and nested objects, the top-level one first', async () => {
   const { disclose, binds } = harness({ disclosure: { effect: 'write', resources: [] } });
-  const inputSchema = {
-    type: 'object',
-    properties: {
-      copies: { type: 'array', items: { anyOf: [{ type: 'object', properties: { connectionRef: { type: 'string' } } }, { type: 'string' }] } },
-      source: { type: 'object', properties: { connectionRef: { type: 'string' } } },
-    },
-  };
-  await disclose({ ctx: contextFor({ source: { connectionRef: 'conn-1' }, copies: [{ connectionRef: 'conn-2' }, 'plain', { connectionRef: 'conn-1' }] }), ...TARGET }, { inputSchema });
-  assert.deepEqual([...binds[0]!.accounts.keys()], ['conn-1', 'conn-2']);
+  await disclose({ ctx: contextFor({ source: { connectionRef: 'conn-1' }, copies: [{ connectionRef: 'conn-2' }, 'plain', { connectionRef: 'conn-1' }], connectionRef: 'conn-0' }), ...TARGET });
+  assert.deepEqual([...binds[0]!.accounts.keys()], ['conn-0', 'conn-1', 'conn-2']);
 });
 
-test('T13: a connectionRef key inside data the schema does not declare as one is the user\'s data, not a connection', async () => {
-  const { disclose, accountReads, binds } = harness();
-  await disclose({ ctx: contextFor({ target: { table: 'Orders' }, values: { connectionRef: 'typed-by-the-user' } }), ...TARGET }, { inputSchema: NESTED_SCHEMA });
-  assert.deepEqual(accountReads, []);
+test('T13: a connectionRef key inside free-form data is bound too, so an unconnected one refuses the call', async () => {
+  const { disclose, accountReads, binds } = harness({ account: null });
+  await assert.rejects(disclose({ ctx: contextFor({ target: { table: 'Orders' }, values: { connectionRef: 'typed-by-the-user' } }), ...TARGET }), { message: NOT_CONNECTED_MESSAGE });
+  assert.deepEqual(accountReads.map(target => target.connectionRef), ['typed-by-the-user']);
   assert.deepEqual(binds, []);
-});
-
-test('T13: without a schema every nested connectionRef is bound, so none is left unpinned', async () => {
-  const { disclose, binds } = harness();
-  await disclose({ ctx: contextFor({ target: { connectionRef: 'conn-1' }, rows: [{ connectionRef: 'conn-2' }] }), ...TARGET });
-  assert.deepEqual([...binds[0]!.accounts.keys()], ['conn-1', 'conn-2']);
 });
 
 test('T13: one unconnected connection among several refuses the call and freezes nothing', async () => {
@@ -184,40 +165,19 @@ test('T13: one unconnected connection among several refuses the call and freezes
   assert.deepEqual(binds, []);
 });
 
-test('T13: a connection declared through a local $ref is bound, so its approval cannot be used on another connection', async () => {
-  const { disclose, capabilitiesFor, tokenCalls } = enforcingHarness();
-  const signal = new AbortController().signal;
-  const inputSchema = {
-    type: 'object', properties: { target: { $ref: '#/definitions/Target' } },
-    definitions: { Target: { type: 'object', properties: { connectionRef: { type: 'string' }, table: { type: 'string' } } } },
-  };
-  await disclose({ ctx: contextFor({ target: { connectionRef: 'conn-A', table: 'Orders' } }, signal), ...TARGET }, { inputSchema });
-  await assert.rejects(capabilitiesFor(signal).connections.getAccessToken({ connectionRef: 'conn-B' }), { message: UNAPPROVED_CONNECTION_MESSAGE });
-  assert.deepEqual(tokenCalls, []);
-});
+/** Input shapes each JSON Schema construct allows. Binding reads the argument values, so none can hide a connection. */
+const SCHEMA_CONSTRUCT_INPUTS = {
+  '$ref (recursive)': { tree: { connectionRef: 'conn-1', children: [{ children: [{ connectionRef: 'conn-2' }] }] } },
+  patternProperties: { sheet_1: { connectionRef: 'conn-1' }, notes: { connectionRef: 'conn-2' } },
+  'prefixItems / tuple items': { pair: ['label', { connectionRef: 'conn-1' }, [{ connectionRef: 'conn-2' }]] },
+  'if / then / else': { mode: 'copy', destination: { connectionRef: 'conn-1' }, backup: { connectionRef: 'conn-2' } },
+  'dependentSchemas / not / unevaluatedProperties': { extra: { deep: { deeper: { connectionRef: 'conn-1' } } }, other: [[{ connectionRef: 'conn-2' }]] },
+} as const;
 
-test('T13: patternProperties declare connections; additionalProperties covers only keys no pattern matches', async () => {
-  const { disclose, binds } = harness({ disclosure: { effect: 'write', resources: [] } });
-  const inputSchema = {
-    type: 'object',
-    patternProperties: { '^sheet_': { type: 'object', properties: { connectionRef: { type: 'string' } } } },
-    additionalProperties: { type: 'object' },
-  };
-  await disclose({ ctx: contextFor({ sheet_1: { connectionRef: 'conn-1' }, notes: { connectionRef: 'typed-by-the-user' } }), ...TARGET }, { inputSchema });
-  assert.deepEqual([...binds[0]!.accounts.keys()], ['conn-1']);
-});
-
-test('T13: recursive and cyclic $refs end; a $ref the walk cannot resolve is scanned, so no connection is left unbound', async () => {
-  const { disclose, binds } = harness({ disclosure: { effect: 'write', resources: [] } });
-  const inputSchema = {
-    type: 'object',
-    properties: { tree: { $ref: '#/$defs/Node' }, loop: { $ref: '#/$defs/Loop' }, remote: { $ref: 'https://example.test/remote.json' } },
-    $defs: {
-      Node: { type: 'object', properties: { connectionRef: { type: 'string' }, children: { type: 'array', items: { $ref: '#/$defs/Node' } } } },
-      Loop: { anyOf: [{ $ref: '#/$defs/Loop' }] },
-    },
-  };
-  const input = { tree: { connectionRef: 'conn-1', children: [{ connectionRef: 'conn-2' }] }, loop: { connectionRef: 'typed-by-the-user' }, remote: { deep: { connectionRef: 'conn-3' } } };
-  await disclose({ ctx: contextFor(input), ...TARGET }, { inputSchema });
-  assert.deepEqual([...binds[0]!.accounts.keys()], ['conn-1', 'conn-2', 'conn-3']);
+test('T13: connections in input shaped by $ref, patternProperties, tuples, if/then/else and other constructs are all bound', async () => {
+  for (const [construct, input] of Object.entries(SCHEMA_CONSTRUCT_INPUTS)) {
+    const { disclose, binds } = harness({ disclosure: { effect: 'write', resources: [] } });
+    await disclose({ ctx: contextFor(input), ...TARGET });
+    assert.deepEqual([...binds[0]!.accounts.keys()], ['conn-1', 'conn-2'], construct);
+  }
 });
