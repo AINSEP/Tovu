@@ -43,6 +43,30 @@ function fakeStore(kind: SiteStorage["kind"], close: () => Promise<void>) {
   return { storage, close };
 }
 
+test("T47/runtime-0#3: beforeExit stops the daemon before closing its shared store", async () => {
+  const proc = new FakeProcess();
+  const order: string[] = [];
+  let releaseDaemon!: () => void;
+  let storeClosed!: () => void;
+  const daemonStopped = new Promise<void>((resolve) => { releaseDaemon = resolve; });
+  const closed = new Promise<void>((resolve) => { storeClosed = resolve; });
+  closeStoreOnShutdown({
+    store: fakeStore("sqlite", async () => { order.push("store"); storeClosed(); }),
+    onShutdown: () => { order.push("daemon"); return daemonStopped; },
+  }, { proc });
+
+  proc.emit("beforeExit");
+  try {
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.deepEqual(order, ["daemon"], "the store must stay open while the daemon is stopping");
+  } finally {
+    releaseDaemon();
+    await closed;
+  }
+  assert.deepEqual(order, ["daemon", "store"]);
+  assert.deepEqual(proc.exits, []);
+});
+
 test("real signals use the default process, close once across SIGTERM/SIGINT, and run the exit handler after closing", { timeout: 15_000 }, async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "shutdown-signals-"));
   const resultPath = path.join(dir, "result.json");
@@ -223,8 +247,11 @@ test("a normal exit (the event loop drains) closes the store without calling exi
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(closes, 1);
   assert.deepEqual(proc.exits, []);
-  proc.emit("exit");
+  // The drained loop stops the daemon before closing the shared store (T47/runtime-0#3)...
   assert.equal(daemonShutdowns, 1);
+  proc.emit("exit");
+  // ...and `exit` runs it again, as it does after a signal.
+  assert.equal(daemonShutdowns, 2);
 });
 
 test("a real PGlite owner: SIGINT releases the socket file and the owner lock before the process exits", async () => {

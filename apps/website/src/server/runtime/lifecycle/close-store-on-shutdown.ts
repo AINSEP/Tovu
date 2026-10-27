@@ -58,7 +58,7 @@ export function closeWithinBound(
 /**
  * Closes the store on SIGINT/SIGTERM/SIGHUP (then exits 0) and when the
  * event loop drains (`beforeExit`). `onShutdown` (the daemon supervisor's `shutdownAssistantDaemon`)
- * starts first on a signal and the store closes once it settles (bounded); it runs again on `exit`, covering an explicit
+ * starts first on a signal or a drained loop and the store closes once it settles (bounded); it runs again on `exit`, covering an explicit
  * `process.exit()` elsewhere. A store that fails or hangs on close is logged; the exit still happens.
  *
  * `optional.bootWork` returns the boot passes still reading the store (the legacy publish-credential
@@ -127,7 +127,11 @@ export function closeStoreOnShutdown(
   optional.stopOnEnd?.once("end", stop);
   // Flowing mode, or a paused stream never reports its end.
   optional.stopOnEnd?.resume();
-  proc.once("beforeExit", () => void closeBounded());
+  // The drained loop closes the same shared store, so the daemon goes first here too.
+  proc.once("beforeExit", () => {
+    daemonStopped ??= onShutdown();
+    void closeBounded();
+  });
   proc.once("exit", onShutdown);
   return true;
 }

@@ -93,7 +93,9 @@ export function createLocalSiteSupervisor(
   function crash(entry: Entry) {
     entry.state.status = "crashed";
     entry.cancel?.();
-    void serial(() => reap(entry, "crashed")).catch(() => {});
+    const child = entry.child;
+    // A Stop queued ahead of this reaper may already have reaped this child: its "stopped" stands.
+    void serial(async () => { if (entry.child === child) await reap(entry, "crashed"); }).catch(() => {});
   }
   function canProbe(entry: Entry) {
     return !closed && (entry.state.status === "starting" || entry.state.status === "running");

@@ -121,7 +121,7 @@ async function runStartStage(
 ): Promise<{ aborted: boolean }> {
   const ready: BootModule[] = [];
 
-  for (const module of prepared) {
+  for (const [index, module] of prepared.entries()) {
     try {
       await module.start();
       results.set(module.name, toReady(module));
@@ -129,7 +129,9 @@ async function runStartStage(
     } catch (err) {
       results.set(module.name, toFailed(module, err));
       if (module.criticality === "critical") {
-        await stopInReverse(ready);
+        // The modules after this one finished `prepare()` but never start: they hold prepare
+        // resources too, so they stop with the started ones (reverse array order overall).
+        await stopInReverse([...ready, ...prepared.slice(index + 1)]);
         return { aborted: true };
       }
     }

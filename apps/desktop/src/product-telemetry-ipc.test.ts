@@ -19,6 +19,22 @@ function fixture() {
     removed: () => removed, at: (next: number) => { at = next; } };
 }
 
+test('T46: telemetry from a frame disposed during delivery is dropped without throwing', (t) => {
+  const f = fixture();
+  t.after(f.dispose);
+  const disposedFrame = {
+    parent: null,
+    get url(): string { throw new Error('Render frame was disposed before WebFrameMain could be accessed'); },
+  };
+  const disposedSender = { getURL(): string { throw new Error('Object has been destroyed'); } };
+  const input = { kind: 'action', id: 'open_admin' };
+
+  assert.doesNotThrow(() => f.send(input, { ...f.trusted, senderFrame: disposedFrame }));
+  assert.doesNotThrow(() => f.send(input, { ...f.trusted, sender: disposedSender }));
+  assert.deepEqual(f.errors, []);
+  assert.deepEqual(f.events, []);
+});
+
 test('IPC drops wrong sender, subframe, unknown kind/id, extra keys, wrong types and oversized strings', () => {
   const f = fixture();
   const error = { kind: 'error', message: 'fake failure', stack: 'fake stack' };

@@ -29,6 +29,25 @@ function fakeModule(overrides: Partial<BootModule> & { name: string }): BootModu
   return module;
 }
 
+test("T45: critical start failure releases resources of modules prepared but not yet started", async () => {
+  const held = new Set<string>();
+  const resource = (name: string) => fakeModule({
+    name,
+    prepare: async () => { held.add(name); },
+    stop: async () => { held.delete(name); },
+  });
+  const ready = resource("ready");
+  const failing = fakeModule({ name: "failing", start: async () => { throw new Error("start failed"); } });
+  const preparedOnly = resource("prepared-only");
+
+  const result = await runBootLifecycle([ready, failing, preparedOnly]);
+
+  assert.equal(result.ok, false);
+  assert.equal(preparedOnly.calls.includes("start"), false);
+  assert.equal(failing.calls.includes("stop"), false, "the failing module still owns its partial-start cleanup");
+  assert.deepEqual([...held], [], "rollback must release prepare resources even when start was never reached");
+});
+
 test("runs prepare for every module, then start for every module, in array order", async () => {
   const order: string[] = [];
   const a = fakeModule({
