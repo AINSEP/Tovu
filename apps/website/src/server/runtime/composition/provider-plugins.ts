@@ -347,7 +347,9 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
     const old = slot.lease;
     try {
       const lease = input ? await host.initialize({ contract: slot.contract, id: slot.id,
-        input: { ...input, serviceName: required.serviceName, release, environment: required.site.environment,
+        // Host environment is only a default: a card's saved environment (Sentry) wins, and a blank one
+        // is already dropped by providerInputOf. Release stays host-owned; no card declares it.
+        input: { environment: required.site.environment, ...input, serviceName: required.serviceName, release,
           attribution: attributionFor({ contract: slot.contract, site: required.site }, { release }) } }, {
         factoryOptions: {
           reportTelemetry: (report: ProviderTelemetryReport) => delivery.report({ providerId: `${slot.pluginId}/${slot.id}`, report }),
