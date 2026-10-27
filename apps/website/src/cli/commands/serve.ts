@@ -20,6 +20,7 @@ import { startAssistantDaemon, shutdownAssistantDaemon } from "../../server/inbo
 import { ensureAgentDaemonPortResolved } from "../../server/runtime/lifecycle/agent-daemon-port.js";
 import { installProcessErrorReporting, installUnhandledRejectionGuard } from "../../server/runtime/boot/process-error-guards.js";
 import { attachServerLogFile, installServerLogCapture, serverLogFilePaths } from "../../platform/server-logs/index.js";
+import { processBuildRelease, telemetryEnvironment } from '../../server/runtime/composition/build-release.js';
 import { registerPluginSdkResolver } from "../../server/runtime/boot/plugin-sdk-resolver.js";
 import { ensureAgentDaemonToken } from "../../assistant/index.js";
 import { runProductionReadinessGateOrExit } from "../../server/runtime/boot/boot-readiness-gate.js";
@@ -181,7 +182,7 @@ export async function runServeCommand(input: RunServeCommandInput, optional: Run
   // Server log capture (gap A-04): keeps recent console output in memory, redacted, so the admin
   // server-logs route and the `system_read_server_logs` chat tool can show recent errors. Installed
   // right after the rejection guard so boot-time failures are captured too.
-  installServerLogCapture();
+  installServerLogCapture({ release: processBuildRelease({}), environment: telemetryEnvironment({ env: process.env }) });
 
   // Mints `TOVU_AGENT_DAEMON_TOKEN` (unless the operator already set one) into this process's env
   // so `startAssistantDaemon()` — called later, from inside `app.listen()`'s callback — hands it to

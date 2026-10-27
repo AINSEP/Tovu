@@ -14,6 +14,7 @@ import { sqlitePluginActivationRepoFor } from "#src/features/plugin-runtime/repo
 import { openProjectStore, projectIdFor } from "#src/server/runtime/composition/project-store";
 import { createSiteRouteDeps, siteIdentityFor } from "#src/server/runtime/composition/deps";
 import { ProviderStoreUnavailableError } from "#src/server/runtime/composition/provider-config-source";
+import { processBuildRelease } from '../build-release.js';
 
 /**
  * @file Codex wave-2 HIGH #1: a configured provider plugin must really boot through the REAL composition
@@ -140,7 +141,7 @@ test("two sites of one project: settings saved from site A land in project.db an
     assert.match(String((globalThis as { __providerBootFake?: string }).__providerBootFake), /^https:\/\/project-collector\.example\.test\|/);
     // Site attribution reaches the provider factory: which site, which project, which environment.
     assert.deepEqual((globalThis as { __providerBootAttribution?: unknown }).__providerBootAttribution, { attributes: {
-      "tovu.site.id": "uuid-of-site-b", "tovu.site.slug": "site-b", "deployment.environment": "local", "tovu.project.id": projectIdFor({ sitesHome }) } });
+      "tovu.site.id": "uuid-of-site-b", "tovu.site.slug": "site-b", "deployment.environment": "local", "tovu.project.id": projectIdFor({ sitesHome }), "service.version": processBuildRelease({}) } });
     await b2.deps.pluginRuntimeReady;
   } finally { await b2.close(); }
 });

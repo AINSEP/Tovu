@@ -76,6 +76,8 @@ import { dirname, join, resolve, sep } from "node:path";
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { instrumentStorageKernel, trackFetch } from "#src/platform/observability/index";
 import { bootProviderPlugins, legacyProviderCredentialCheck, type SiteIdentity } from "./provider-plugins.js";
+import { telemetryEnvironment } from './build-release.js';
+import { setServerLogTraceReader } from '../../../platform/server-logs/index.js';
 import { withToolUseEvents } from "./tool-use-events.js";
 import { createVaultProviderConfigSource, withAttachedProject, withUnavailableProject, withProviderSettingsMigrations, type ProviderConfigSource } from "./provider-config-source.js";
 import { openProjectStore, type ProjectStore, type ProjectVaultScope } from "./project-store.js";
@@ -1178,7 +1180,7 @@ function acceptedSiteId(value: string | undefined, source: string): string | und
  * only as a short token (`isSiteIdToken`); anything else is warned about and skipped.
  */
 export function siteIdentityFor({ workspaceId, binding, runtimeMode, projectId }: { workspaceId: string; binding: { name: string; dir: string }; runtimeMode: RuntimeMode; projectId: string | undefined }, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): SiteIdentity {
-  const environment = runtimeMode === "production" ? "fly" : resolveApiConnectionRuntime({ env }) === "desktop" ? "desktop" : "local";
+  const environment = telemetryEnvironment({ env, runtimeMode });
   const siteId = acceptedSiteId(readSiteMetaId(binding.dir), `${binding.dir}/.site-meta.json`)
     ?? acceptedSiteId(env.TOVU_SITE_ID || undefined, "TOVU_SITE_ID") ?? workspaceId;
   return { siteId, siteSlug: binding.name, environment, projectId: projectId ?? siteId };
@@ -2136,6 +2138,8 @@ async function composeSiteRouteDeps(
     readSite: () => siteProviderRevisions({ kernel: kernel as unknown as StorageKernel<unknown>, workspaceId }),
     reapply: input => providerPlugins.reapply(input) }));
   const { observability, tracker, aiTraceSink } = providerPlugins;
+  // Local logging reads only the current site tracing scope, through the live gated provider ports.
+  setServerLogTraceReader({ traceIds: () => observability.activeTraceIds?.() });
   lifecycleTracker = tracker;
   for (const [input, options] of pendingLifecycleEvents.splice(0)) tracker.capture(input, options);
   instrumentStorageKernel({ kernel, observability });

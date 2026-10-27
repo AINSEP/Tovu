@@ -4,8 +4,9 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { attachServerLogFile, getServerLogBuffer, installServerLogCapture, readProcessServerLogs, serverLogFilePaths } from "../../index.js";
+import { attachServerLogFile, getServerLogBuffer, installServerLogCapture, readProcessServerLogs, serverLogFilePaths, setServerLogTraceReader } from "../../index.js";
 import type { ServerLogEntry } from "../../log-buffer.js";
+import { createLogBuffer } from '../../log-buffer.js';
 import { createRotatingLogFileSink, nodeLogFileFs, readLogFileTail, type LogFileFsPort } from "../../log-file.js";
 
 /** In-memory files; `failAppend` simulates a full disk. */
@@ -32,6 +33,29 @@ function memoryFs(options: { failAppend?: boolean } = {}) {
 
 const entry = (seq: number, message = `line ${seq}`): ServerLogEntry => ({ seq, at: "2026-10-05T12:00:00.000Z", level: "error", source: "server", message });
 const lineBytes = Buffer.byteLength(`${JSON.stringify(entry(1))}\n`);
+
+test('each rotated record retains release/environment and its own active trace IDs', () => {
+  const mem = memoryFs();
+  const filePath = '/site/daemon.log';
+  let trace: { traceId: string; spanId: string } | undefined;
+  const logs = createLogBuffer({ redact: text => text }, { metadata: () => ({ release: 'tovu@1.2.3+abcdef0', environment: 'desktop', ...trace }) });
+  const sink = createRotatingLogFileSink({ filePath }, { fs: mem.port, maxBytes: 1 });
+  logs.subscribe(value => sink.write(value));
+  logs.append({ level: 'info', source: 'daemon', message: 'boot' });
+  trace = { traceId: 'a'.repeat(32), spanId: 'b'.repeat(16) };
+  logs.append({ level: 'error', source: 'daemon', message: 'active' });
+  trace = undefined;
+  logs.append({ level: 'info', source: 'daemon', message: 'outside' });
+  const records = readLogFileTail({ filePath }, { fs: mem.port })!;
+  assert.deepEqual(records.map(value => value.message), ['active', 'outside']);
+  assert.deepEqual(records.map(value => [value.release, value.environment]), [
+    ['tovu@1.2.3+abcdef0', 'desktop'], ['tovu@1.2.3+abcdef0', 'desktop'],
+  ]);
+  assert.equal(records[0]!.traceId, 'a'.repeat(32));
+  assert.equal(records[0]!.spanId, 'b'.repeat(16));
+  assert.equal(records[1]!.traceId, undefined);
+  assert.equal(records[1]!.spanId, undefined);
+});
 
 test("the sink writes JSON lines and creates the log directory first", () => {
   const mem = memoryFs();
@@ -141,15 +165,22 @@ test("through the real filesystem: files are owner-only, and a missing pair of f
 
 test("capture records a fatal uncaught exception without handling it, tagged with this process's source", () => {
   const listenersBefore = process.listenerCount("uncaughtExceptionMonitor");
-  const uninstall = installServerLogCapture({ source: "daemon" });
+  const trace = { traceId: 'a'.repeat(32), spanId: 'b'.repeat(16) };
+  setServerLogTraceReader({ traceIds: () => trace });
+  const uninstall = installServerLogCapture({ source: "daemon", release: 'tovu@1.2.3+abcdef0', environment: 'desktop' });
   try {
     Reflect.apply(process.emit, process, ["uncaughtExceptionMonitor", new Error(`fatal-${process.pid}`), "uncaughtException"]);
   } finally {
     uninstall();
+    setServerLogTraceReader({ traceIds: () => undefined });
   }
   const last = getServerLogBuffer().entries().at(-1)!;
   assert.equal(last.level, "error");
   assert.equal(last.source, "daemon");
+  assert.equal(last.release, 'tovu@1.2.3+abcdef0');
+  assert.equal(last.environment, 'desktop');
+  assert.equal(last.traceId, trace.traceId);
+  assert.equal(last.spanId, trace.spanId);
   assert.match(last.message, new RegExp(`^\\[uncaughtException\\] Error: fatal-${process.pid}`));
   assert.equal(process.listenerCount("uncaughtExceptionMonitor"), listenersBefore);
 });

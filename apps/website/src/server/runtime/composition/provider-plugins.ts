@@ -9,6 +9,7 @@ import { createPluginProviderHost, pluginProviderStartupGuidance, isProviderSett
 
 import type { ProviderConfigSource, ProviderPluginConfig } from "./provider-config-source.js";
 import { bootProductTelemetryFromEnv, type ProductTelemetry, type ProductTelemetryOptions } from './product-telemetry.js';
+import { processBuildRelease } from './build-release.js';
 
 /**
  * @file Provider plugins at boot (provider wave 2, 2026-10-25): observability, product analytics and
@@ -49,11 +50,11 @@ export interface SiteIdentity {
  * traces metadata plus a `site:<slug>` tag.
  * @complexity O(1).
  */
-export function attributionFor({ contract, site }: { contract: ProviderContract; site: SiteIdentity }): Readonly<Record<string, unknown>> {
+export function attributionFor({ contract, site }: { contract: ProviderContract; site: SiteIdentity }, { release = processBuildRelease({}) }: { release?: string } = {}): Readonly<Record<string, unknown>> {
   if (contract === "observability") {
-    return { attributes: { "tovu.site.id": site.siteId, "tovu.site.slug": site.siteSlug, "deployment.environment": site.environment, "tovu.project.id": site.projectId } };
+    return { attributes: { "tovu.site.id": site.siteId, "tovu.site.slug": site.siteSlug, "deployment.environment": site.environment, "tovu.project.id": site.projectId, "service.version": release } };
   }
-  const attributes = { site_id: site.siteId, site_slug: site.siteSlug, environment: site.environment, project_id: site.projectId };
+  const attributes = { site_id: site.siteId, site_slug: site.siteSlug, environment: site.environment, project_id: site.projectId, release };
   return contract === "product_analytics" ? { attributes, groups: { site: site.siteId } } : { attributes, tags: [`site:${site.siteSlug}`] };
 }
 
@@ -140,6 +141,8 @@ export interface ProviderPluginPorts {
 }
 
 export interface BootProviderPluginsRequired {
+  /** Build identity supplied once by the host; defaults to this running product's manifest. */
+  readonly release?: string;
   readonly processRole?: 'server' | 'daemon';
   readonly runtime: ProviderPluginRuntime;
   /** Saved settings per plugin. Read failures are treated as "not configured". */
@@ -309,6 +312,7 @@ function composePorts({ leases, consent, consentRevision, site, warn, product }:
  * @complexity O(p) settings reads plus one load and one bounded initialization per configured provider.
  */
 export async function bootProviderPlugins(required: BootProviderPluginsRequired, optional: BootProviderPluginsOptional = {}): Promise<ProviderPluginPorts> {
+  const release = required.release ?? processBuildRelease({});
   const warn = optional.warn ?? ((message: string) => console.warn(`[provider-plugins] ${message}`));
   const delivery = createTelemetryDeliveryMonitor({ warn });
   const testProbe = createTelemetryTestProbe({});
@@ -343,7 +347,8 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
     const old = slot.lease;
     try {
       const lease = input ? await host.initialize({ contract: slot.contract, id: slot.id,
-        input: { ...input, serviceName: required.serviceName, attribution: attributionFor({ contract: slot.contract, site: required.site }) } }, {
+        input: { ...input, serviceName: required.serviceName, release, environment: required.site.environment,
+          attribution: attributionFor({ contract: slot.contract, site: required.site }, { release }) } }, {
         factoryOptions: {
           reportTelemetry: (report: ProviderTelemetryReport) => delivery.report({ providerId: `${slot.pluginId}/${slot.id}`, report }),
           info: optional.info ?? ((message: string) => console.info(message)),

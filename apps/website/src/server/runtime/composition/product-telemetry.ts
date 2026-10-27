@@ -11,6 +11,7 @@ import { createNoopProductAnalytics, withProductAnalyticsGuards, type ProductAna
 import type { PluginDiscoveryRecord } from '@jini-ai/plugins/host/node';
 import { redactLocalText } from '#src/platform/server-logs/redact-local-text';
 import { productAdminScreen, projectProductEvent } from '#src/server/runtime/composition/product-events';
+import { processBuildRelease } from './build-release.js';
 
 export interface ProductConsent { crashes: boolean; usage: boolean; installationId: string | null; }
 export interface ProductTelemetry {
@@ -137,7 +138,7 @@ async function loadProductProviders(required: ProductProviderInput, _options = {
         importModule: createPluginModuleImporter({ manifest, source: 'built-in' }),
         coreDeps: { getCurrentEntry: unavailable, writeExtField: unavailable, attachFilter: unavailable } },
         contracts: PROVIDER_CONTRACTS, contract, id: provider.id,
-        input: { ...entry.input, release: required.release, attribution: required.attribution } }, { factoryOptions: { info() {} } });
+        input: { ...entry.input, release: required.release, environment: required.attribution.attributes.environment, attribution: required.attribution } }, { factoryOptions: { info() {} } });
       resources.push(resource);
       // The provider host validated the selected contract before returning its opaque port.
       Object.assign(result, { [key]: resource.port });
@@ -230,9 +231,10 @@ export async function bootProductTelemetry(required: ProductTelemetryRequired, o
   try {
     const config = configOf({ value: JSON.parse(await readFile(required.configPath, 'utf8')) });
     providers = await (options.loadProviders ?? loadProductProviders)({ config, release: required.release,
-      attribution: { attributes: { source: 'desktop', release: required.release, os: process.platform, arch: process.arch, process: required.processRole }, groups: {} } });
+      attribution: { attributes: { source: 'desktop', release: required.release, environment: 'desktop',
+        'service.version': required.release, 'deployment.environment': 'desktop', os: process.platform, arch: process.arch, process: required.processRole }, groups: {} } });
     const readConsent = options.readConsent ?? createProductConsentReader({ preferencePath: required.preferencePath });
-    const crashUpload = providers.observability.crashUpload?.({ release: required.release, environment: String(config.observability?.input.environment ?? 'production') });
+    const crashUpload = providers.observability.crashUpload?.({ release: required.release, environment: 'desktop' });
     return { active: true, observability: productObservability({ inner: providers.observability, readConsent }),
       productAnalytics: productAnalytics({ inner: providers.productAnalytics, readConsent }),
       ...(crashUpload ? { crashUpload } : {}), dispose: providers.dispose };
@@ -249,5 +251,5 @@ export async function bootProductTelemetryFromEnv({ env = process.env, processRo
   const configPath = env.TOVU_PRODUCT_TELEMETRY_CONFIG;
   const preferencePath = env.TOVU_PRODUCT_TELEMETRY_PREFS;
   if (!configPath || !preferencePath) return undefined;
-  return bootProductTelemetry({ configPath, preferencePath, processRole, release: env.TOVU_PRODUCT_RELEASE ?? '' }, options);
+  return bootProductTelemetry({ configPath, preferencePath, processRole, release: env.TOVU_PRODUCT_RELEASE || processBuildRelease({}) }, options);
 }

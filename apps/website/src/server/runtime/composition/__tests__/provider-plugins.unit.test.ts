@@ -13,6 +13,7 @@ import { createPluginContributionRegistry, type PluginProviderFactory, type Plug
 
 import { attributionFor, bootProviderPlugins, legacyProviderCredentialCheck, PROVIDER_CONTRACTS, providerInputOf, type SiteIdentity } from "../provider-plugins.js";
 import type { ProviderConfigSource, ProviderPluginConfig } from "../provider-config-source.js";
+import { processBuildRelease } from '../build-release.js';
 
 /**
  * @file Provider-plugin selection at boot, with DI fakes only (no vendor SDK, no network): a fake
@@ -81,6 +82,7 @@ const configOf = (configs: Record<string, ProviderPluginConfig>): ProviderConfig
   write: async () => {},
 });
 const SITE: SiteIdentity = { siteId: "site-123", siteSlug: "blog", environment: "local", projectId: "project-abc" };
+const RELEASE = processBuildRelease({});
 const OBS_ATTRIBUTION = attributionFor({ contract: "observability", site: SITE });
 const consentAlways = { consent: () => true, consentRevision: () => 0 };
 const quiet = () => {};
@@ -203,8 +205,8 @@ test("installed + enabled + configured OTel and Sentry: mapped inputs, one fanne
   } });
   const ports = await bootProviderPlugins({ runtime, config: configOf(CONFIGS), serviceName: "tovu", site: SITE, ...consentAlways }, { warn: quiet });
   assert.deepEqual(requested, [["observability-opentelemetry"], ["observability-sentry"]]);
-  assert.deepEqual(otel.inputs, [{ serviceName: "tovu", attribution: OBS_ATTRIBUTION, endpoint: "https://otlp.example.test/otlp", headers: "Authorization=Basic MTIzNDU2OmdsY190b2tlbg==" }]);
-  assert.deepEqual(sentry.inputs, [{ serviceName: "tovu", attribution: OBS_ATTRIBUTION, dsn: "https://public@sentry.example.test/1" }]);
+  assert.deepEqual(otel.inputs, [{ serviceName: "tovu", release: RELEASE, environment: SITE.environment, attribution: OBS_ATTRIBUTION, endpoint: "https://otlp.example.test/otlp", headers: "Authorization=Basic MTIzNDU2OmdsY190b2tlbg==" }]);
+  assert.deepEqual(sentry.inputs, [{ serviceName: "tovu", release: RELEASE, environment: SITE.environment, attribution: OBS_ATTRIBUTION, dsn: "https://public@sentry.example.test/1" }]);
   ports.observability.trackOperation({ name: "publish" }).end({ outcome: "completed", failed: false });
   ports.observability.reportError({ error: new Error("x"), context: { operation: "deploy" } });
   assert.deepEqual(seen, ["op:publish", "op:publish", "error:deploy", "error:deploy"]);
@@ -316,7 +318,7 @@ test("AI trace: a configured sink receives recorded events through the fan-out",
   const calls: Calls = { inputs: [], disposed: 0 };
   const { runtime } = fakeRuntime({ installed: ["ai-trace-langfuse"], factories: { "ai-trace-langfuse": { contract: "ai_trace", id: "langfuse", factory: fakeFactory({ calls, port: sink }) } } });
   const ports = await bootProviderPlugins({ runtime, config: configOf(CONFIGS), serviceName: "tovu", site: SITE, ...consentAlways }, { warn: quiet });
-  assert.deepEqual(calls.inputs, [{ serviceName: "tovu", attribution: attributionFor({ contract: "ai_trace", site: SITE }), publicKey: "pk-lf", secretKey: "sk-lf", baseUrl: "https://langfuse.example.test" }]);
+  assert.deepEqual(calls.inputs, [{ serviceName: "tovu", release: RELEASE, environment: SITE.environment, attribution: attributionFor({ contract: "ai_trace", site: SITE }), publicKey: "pk-lf", secretKey: "sk-lf", baseUrl: "https://langfuse.example.test" }]);
   const event = { kind: "run_finished", traceId: "t", at: 0, outcome: "succeeded", error: null, totals: { turns: 0, toolCalls: 0, toolErrors: 0, inputTokens: null, outputTokens: null, costUsd: null } } as const;
   ports.aiTraceSink!.record(event);
   assert.deepEqual(recorded, [event]);
@@ -413,8 +415,8 @@ test("a retired lease is never called again: after disable every contract's comp
 
 test("site attribution: each contract's factory receives the site in that contract's terms", () => {
   assert.deepEqual(attributionFor({ contract: "observability", site: SITE }), { attributes: {
-    "tovu.site.id": "site-123", "tovu.site.slug": "blog", "deployment.environment": "local", "tovu.project.id": "project-abc" } });
-  const attributes = { site_id: "site-123", site_slug: "blog", environment: "local", project_id: "project-abc" };
+    "tovu.site.id": "site-123", "tovu.site.slug": "blog", "deployment.environment": "local", "tovu.project.id": "project-abc", "service.version": RELEASE } });
+  const attributes = { site_id: "site-123", site_slug: "blog", environment: "local", project_id: "project-abc", release: RELEASE };
   assert.deepEqual(attributionFor({ contract: "product_analytics", site: SITE }), { attributes, groups: { site: "site-123" } });
   assert.deepEqual(attributionFor({ contract: "ai_trace", site: SITE }), { attributes, tags: ["site:blog"] });
 });
@@ -820,4 +822,84 @@ test("diagnostic receipts exclude noop metrics from Sentry and PostHog while ret
     ]);
   } finally { await providers.dispose({}); }
   assert.equal(providers.observability.supportsMetric, false);
+});
+
+test('host release and environment override saved provider metadata and the composed tracker delegates existing signals', async () => {
+  const release = 'tovu@1.2.3+abcdef0';
+  const seen: string[] = [];
+  const events: ProductEvent[] = [];
+  const observability: Calls = { inputs: [], disposed: 0 }, analytics: Calls = { inputs: [], disposed: 0 };
+  const { runtime } = fakeRuntime({ installed: ['observability-sentry', 'analytics-posthog'], factories: {
+    'observability-sentry': { contract: 'observability', id: 'errors', factory: fakeFactory({ calls: observability, port: recordingObservability(seen) }) },
+    'analytics-posthog': { contract: 'product_analytics', id: 'events', factory: fakeFactory({ calls: analytics, port: {
+      capture(event: ProductEvent) { events.push(event); }, identify() {},
+    } }) },
+  } });
+  // Declare the conflicting metadata as real settings so this checks host precedence, not filtering.
+  const hostRuntime = { ...runtime, async listProviderPlugins() {
+    return (await runtime.listProviderPlugins()).map(plugin => ({ ...plugin, providers: plugin.providers.map(provider => ({ ...provider,
+      settings: [...provider.settings, { name: 'release', label: 'Release' },
+        ...(provider.settings.some(field => field.name === 'environment') ? [] : [{ name: 'environment', label: 'Environment' }])],
+    })) }));
+  } };
+  const configs = {
+    'observability-sentry': { settings: { release: 'saved@0.0.0', environment: 'saved-environment' }, secrets: { dsn: 'https://public@sentry.example.test/1' } },
+    'analytics-posthog': { settings: { host: 'https://posthog.example.test', release: 'saved@0.0.0', environment: 'saved-environment' }, secrets: { apiKey: 'phc_key' } },
+  };
+  const ports = await bootProviderPlugins({ runtime: hostRuntime, config: configOf(configs), serviceName: 'tovu', release, site: SITE, ...consentAlways }, { warn: quiet, info: quiet });
+  try {
+    assert.deepEqual(observability.inputs, [{
+      dsn: 'https://public@sentry.example.test/1', serviceName: 'tovu', release, environment: 'local',
+      attribution: { attributes: { 'tovu.site.id': 'site-123', 'tovu.site.slug': 'blog', 'deployment.environment': 'local',
+        'tovu.project.id': 'project-abc', 'service.version': release } },
+    }]);
+    assert.deepEqual(analytics.inputs, [{
+      host: 'https://posthog.example.test', apiKey: 'phc_key', serviceName: 'tovu', release, environment: 'local',
+      attribution: { attributes: { site_id: 'site-123', site_slug: 'blog', environment: 'local', project_id: 'project-abc', release }, groups: { site: 'site-123' } },
+    }]);
+    events.length = 0;
+    await ports.tracker.capture({ name: 'site_created', userId: 'operator-123' }, { properties: { source: 'admin' } });
+    ports.tracker.metric({ name: 'process.count', value: 2 }, { kind: 'gauge' });
+    ports.tracker.error({ error: new Error('safe diagnostic') }, { context: { operation: 'fixture.failure' } });
+    const result = await ports.tracker.trace({ name: 'fixture.work', run: span => {
+      span.setOutcome({ outcome: 'completed', failed: false });
+      return 'application result';
+    } });
+    assert.equal(result, 'application result');
+    assert.deepEqual(events, [{ name: 'site_created', userId: 'operator-123', properties: { source: 'admin' } }]);
+    assert.deepEqual(seen, ['metric:process.count', 'error:fixture.failure', 'op:fixture.work']);
+  } finally { await ports.dispose({}); }
+  assert.deepEqual([observability.disposed, analytics.disposed], [1, 1]);
+});
+
+test('active trace IDs follow only the current observability lease and remain optional for legacy providers', async () => {
+  const trace = { traceId: 'a'.repeat(32), spanId: 'b'.repeat(16) };
+  let reads = 0;
+  const calls: Calls = { inputs: [], disposed: 0 };
+  const { runtime } = fakeRuntime({ installed: ['observability-opentelemetry'], factories: {
+    'observability-opentelemetry': { contract: 'observability', id: 'otel', factory: fakeFactory({ calls, port: {
+      ...recordingObservability([]), activeTraceIds() { reads++; return trace; },
+    } }) },
+  } });
+  const ports = await bootProviderPlugins({ runtime, config: configOf(CONFIGS), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet, info: quiet });
+  try {
+    assert.deepEqual(ports.observability.activeTraceIds?.(), trace);
+    assert.deepEqual(ports.tracker.activeTraceIds?.(), trace);
+    assert.equal(reads, 2);
+    runtime.providerContributions.detach({ pluginId: 'observability-opentelemetry' });
+    assert.equal(ports.observability.activeTraceIds?.(), undefined);
+    assert.equal(ports.tracker.activeTraceIds?.(), undefined);
+    assert.equal(reads, 2, 'retired providers cannot expose stale scope IDs');
+  } finally { await ports.dispose({}); }
+  assert.equal(ports.tracker.activeTraceIds?.(), undefined);
+  assert.equal(reads, 2);
+
+  const legacyPort = { ...recordingObservability([]) };
+  delete legacyPort.activeTraceIds;
+  const legacy = fakeRuntime({ installed: ['observability-sentry'], factories: {
+    'observability-sentry': { contract: 'observability', id: 'legacy', factory: fakeFactory({ calls: { inputs: [], disposed: 0 }, port: legacyPort }) },
+  } });
+  const legacyPorts = await bootProviderPlugins({ runtime: legacy.runtime, config: configOf(CONFIGS), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet, info: quiet });
+  try { assert.equal(legacyPorts.tracker.activeTraceIds?.(), undefined); }
+  finally { await legacyPorts.dispose({}); }
 });
