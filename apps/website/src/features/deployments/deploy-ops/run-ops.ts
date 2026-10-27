@@ -144,7 +144,9 @@ export async function boundContext(deps: DeployOpsToolDeps, platform: LoadedDepl
       transportTruncated = result.bodyTruncated === true;
       return result;
     } } };
-    const write = method === "GET" ? {} : { headers: { "content-type": "application/json", accept: "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) };
+    // `content-type` only with a body: some APIs refuse a bodyless DELETE/POST that claims JSON.
+    const write = method === "GET" ? {} : body === undefined ? { headers: { accept: "application/json" } }
+      : { headers: { "content-type": "application/json", accept: "application/json" }, body: JSON.stringify(body) };
     try { response = await makeCredentialedRequest(boundedDeps, { workspaceId: deps.workspaceId, label, method, url: rawUrl, ...write }); }
     catch (error) { throw requestFailure({ error, signal, method, host: url.hostname, label }, {}); }
     if (signal?.aborted) throw aborted();

@@ -139,7 +139,7 @@ export function readStaticPublishConfig(
   const config: Record<string, string> = { target: target.descriptor.id };
   for (const field of target.descriptor.configFields) {
     const value = raw[field.name];
-    if (value === undefined || (options.blankAsAbsent && (typeof value !== "string" || value.trim() === ""))) continue;
+    if (value === undefined || (options.blankAsAbsent && typeof value === "string" && value.trim() === "")) continue;
     if (typeof value !== "string") return { ok: false, message: `'${field.name}' must be a string` };
     config[field.name] = value;
   }

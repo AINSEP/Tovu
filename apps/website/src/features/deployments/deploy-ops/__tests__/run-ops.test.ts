@@ -1,9 +1,29 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ToolInputError } from "@jini-ai/core";
-import { runDeploy, runDeployOps, MAX_RESPONSE_CHARS } from "../run-ops.js";
+import { boundContext, runDeploy, runDeployOps, MAX_RESPONSE_CHARS } from "../run-ops.js";
 import { fixture } from "./example-ops-fixture.js";
 import { AT } from "./module-fixture.js";
+
+test("T20: bodyless POST and DELETE omit content-type while JSON writes retain it", async () => {
+  const f = await fixture();
+  const ctx = await boundContext(f.deps, f.registry.get("example-host")!, "ops", undefined, { allowDelete: true });
+  const url = "https://api.example-host.dev/v1/targets/shop/secrets/OLD_KEY";
+  await ctx.send({ method: "POST", url });
+  await ctx.send({ method: "DELETE", url });
+  await ctx.send({ method: "POST", url, body: { value: "replacement" } });
+
+  assert.deepEqual(f.calls.map(request => ({
+    method: request.method,
+    url: request.url,
+    body: request.body,
+    contentType: new Headers(request.headers).get("content-type"),
+  })), [
+    { method: "POST", url, body: undefined, contentType: null },
+    { method: "DELETE", url, body: undefined, contentType: null },
+    { method: "POST", url, body: '{"value":"replacement"}', contentType: "application/json" },
+  ]);
+});
 
 for (const runId of ["dep-abc123", "550e8400-e29b-41d4-a716-446655440000", "42", "A" + "_".repeat(127)]) {
   test(`deploy result preserves bounded run ID ${runId}`, async () => {
