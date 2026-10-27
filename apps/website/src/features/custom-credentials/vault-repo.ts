@@ -1,20 +1,22 @@
-import { VaultError, type VaultRecord, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import { VaultError, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import { byVaultLabel, parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
 import type { CustomCredentialCategoryId, CustomCredentialProjectScope, CustomCredentialSetRecord, CustomCredentialSetRepoPort } from "./types.js";
+
+type VaultPutRecord = Parameters<VaultRepoPort["put"]>[0]["record"];
 
 export function customVaultScope({ workspaceId, id, kind = "vendor" }: { workspaceId: string; id?: string; kind?: "vendor" | "custom" }, _options = {}) {
   return { workspaceId, kind, ownerKey: "tovu", principalId: null, binding: null,
     ...(id === undefined ? {} : { id }) };
 }
 
-function isCustomCredentialRow({ row }: { row: VaultRecord }, _options = {}): boolean {
+function isCustomCredentialRow({ row }: { row: VaultPutRecord }, _options = {}): boolean {
   return row.kind === "custom" || (row.kind === "vendor" && row.meta.credentialType === "custom");
 }
 
 /** Username belongs exclusively to metadata after normalization; no sealed fallback can resurrect
  * an explicit clear. The private envelope/revision never becomes a public summary field.
  */
-export function customVaultRecord({ row, expectedRevision }: { row: VaultRecord; expectedRevision?: number | null }, _options = {}): CustomCredentialSetRecord {
+export function customVaultRecord({ row, expectedRevision }: { row: VaultPutRecord; expectedRevision?: number | null }, _options = {}): CustomCredentialSetRecord {
   if (!isCustomCredentialRow({ row }) || row.ownerKey !== "tovu" || row.principalId !== null || row.binding !== null || row.provider !== null) {
     throw new VaultError({ code: "context" });
   }
@@ -64,7 +66,7 @@ export class CustomCredentialVaultRepo implements CustomCredentialSetRepoPort {
   /** Prepared records carry the caller's CAS; sealed DTO compatibility preserves hints only when
    * the envelope is unchanged. Label conflicts keep the historical raw UNIQUE error contract.
    */
-  private async write({ record, expectedRevision, existing }: { record: CustomCredentialSetRecord; expectedRevision: number | null; existing?: VaultRecord }, _options = {}): Promise<void> {
+  private async write({ record, expectedRevision, existing }: { record: CustomCredentialSetRecord; expectedRevision: number | null; existing?: VaultPutRecord }, _options = {}): Promise<void> {
     const prepared = preparedVaultRow({ record });
     const row = prepared ?? compatibilityVaultRow({ record, expectedRevision, existing });
     try { await this.vault.put({ record: row, expectedRevision }); }
@@ -81,9 +83,9 @@ export class CustomCredentialVaultRepo implements CustomCredentialSetRepoPort {
   }
 }
 
-type CompatibilityWrite = { record: CustomCredentialSetRecord; expectedRevision: number | null; existing?: VaultRecord };
+type CompatibilityWrite = { record: CustomCredentialSetRecord; expectedRevision: number | null; existing?: VaultPutRecord };
 
-function compatibilityVaultRow({ record, expectedRevision, existing }: CompatibilityWrite, _options = {}): VaultRecord {
+function compatibilityVaultRow({ record, expectedRevision, existing }: CompatibilityWrite, _options = {}): VaultPutRecord {
   const kind = existing?.kind === "custom" ? "custom" : "vendor";
   return { ...customVaultScope({ ...record, kind }), id: record.id, provider: null, label: record.label,
     sealed: record.sealed, isDefault: existing?.isDefault ?? false, revision: (expectedRevision ?? 0) + 1,
@@ -99,13 +101,13 @@ function compatibilityVaultMeta({ record, existing, kind }: Pick<CompatibilityWr
     additionalHosts: [...record.additionalHosts], username: record.username ?? null } });
 }
 
-function compatibilityTokenHints({ record, existing }: Pick<CompatibilityWrite, "record" | "existing">, _options = {}): Pick<VaultRecord, "last4" | "tokenLength"> {
+function compatibilityTokenHints({ record, existing }: Pick<CompatibilityWrite, "record" | "existing">, _options = {}): Pick<VaultPutRecord, "last4" | "tokenLength"> {
   const unchanged = existing?.sealed != null && existing.sealed.keyId === record.sealed.keyId &&
     existing.sealed.ciphertext === record.sealed.ciphertext && existing.sealed.nonce === record.sealed.nonce && existing.sealed.alg === record.sealed.alg;
   return { last4: unchanged ? existing!.last4 : null, tokenLength: unchanged ? existing!.tokenLength : null };
 }
 
-function preparedVaultRow({ record }: { record: CustomCredentialSetRecord }, _options = {}): VaultRecord | undefined {
+function preparedVaultRow({ record }: { record: CustomCredentialSetRecord }, _options = {}): VaultPutRecord | undefined {
   const prepared = record.vaultExpectedRevision === undefined ? undefined : record.vaultRecord;
   if (prepared) {
     customVaultRecord({ row: prepared });

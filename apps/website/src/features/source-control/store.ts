@@ -319,8 +319,8 @@ export interface CreateSourceControlCredentialInput {
   workspaceId: UUID;
   label: unknown;
   connection: unknown;
-  /** `true` makes this the provider's default connection. Omitted/`false` still auto-defaults if
-   *  this turns out to be the provider's FIRST saved connection; Jini owns atomic auto-defaulting. */
+  /** `true` makes this the provider's default connection. Omitted auto-defaults the provider's
+   *  FIRST saved connection; explicit `false` opts out. Jini owns atomic auto-defaulting. */
   isDefault?: unknown;
   /** `"site"` = a site-owned key. Omitted (or `"project"`) = the project store when one is
    *  attached, visible to attached sites only; this site's vault otherwise. */
@@ -349,14 +349,14 @@ export async function createSourceControlCredential(
 ): Promise<SourceControlCredentialSummary> {
   const label = validateLabel(input.label);
   const connection = validateConnection({ raw: input.connection, registry: await credentialRegistry({ deps, workspaceId: input.workspaceId }) });
-  const isDefault = optionalBoolean(input.isDefault, "isDefault") === true;
+  const isDefault = optionalBoolean(input.isDefault, "isDefault");
   // Project-first (`vendor-credentials/project-scope.ts`); "site" = only for this site.
   const target = credentialCreateTarget(deps, input, message => new SourceControlCredentialValidationError(message));
   await assertLabelFreeOnSite({ deps, target, workspaceId: input.workspaceId, providerId: connection.providerId, label });
   const id = deps.idGen.newId();
   const summary = await saveConnection({ deps: target.deps, input: { ...credentialScope({ workspaceId: target.workspaceId, kind: "source-control", id }),
     id, provider: connection.providerId, label, expectedRevision: null, payload: { ...connection }, hintToken: connection.token,
-    meta: { accountLabel: null }, isDefault } });
+    meta: { accountLabel: null }, ...(isDefault === undefined ? {} : { isDefault }) } });
   return { ...await probeSavedConnection({ deps: target.deps, summary, connection, workspaceId: input.workspaceId }), ...reportedScope(deps, target) };
 }
 

@@ -2,6 +2,8 @@ import { VaultError, type VaultBatchOp, type VaultRecord, type VaultRepoPort } f
 import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
 import type { MediaProviderCredentialRecord, MediaProviderCredentialRepoPort, MediaProviderCredentialReplacePlanner } from "./provider-credential-store.js";
 
+type VaultPutRecord = Parameters<VaultRepoPort["put"]>[0]["record"];
+
 /** Expected nonpersonal ownership, plus an exact provider filter when selecting a singleton. */
 export function mediaVaultScope({ workspaceId, providerId }: { workspaceId: string; providerId?: string }, _options = {}) {
   return { workspaceId, kind: "media-provider" as const, ownerKey: "tovu", principalId: null, binding: null,
@@ -27,7 +29,7 @@ export function mediaVaultId({ providerId }: { providerId: string }, _options = 
 }
 
 /** Expected ownership is this adapter's, never the row's: anything else is a context breach. */
-function ownedProviderId({ row }: { row: VaultRecord }, _options = {}): string {
+function ownedProviderId({ row }: { row: VaultPutRecord }, _options = {}): string {
   if (row.kind !== "media-provider" || row.ownerKey !== "tovu" || row.principalId !== null || row.binding !== null || row.provider === null) {
     throw new VaultError({ code: "context" });
   }
@@ -35,13 +37,13 @@ function ownedProviderId({ row }: { row: VaultRecord }, _options = {}): string {
 }
 
 /** Short/unknown-length tokens withhold their suffix; an unsealed row has no tail at all. */
-function keyTailOf({ row }: { row: VaultRecord }, _options = {}): string | null {
+function keyTailOf({ row }: { row: VaultPutRecord }, _options = {}): string | null {
   if (!row.sealed) return null;
   return row.tokenLength !== null && row.tokenLength >= 12 ? row.last4 ?? "" : "";
 }
 
 /** Historical DTO; vault identity/revision/hints remain private to the adapter, never API fields. */
-export function mediaVaultRecord({ row }: { row: VaultRecord }, _options = {}): MediaProviderCredentialRecord {
+export function mediaVaultRecord({ row }: { row: VaultPutRecord }, _options = {}): MediaProviderCredentialRecord {
   const providerId = ownedProviderId({ row });
   const meta = parseTovuStoreMeta({ kind: "media-provider", meta: row.meta });
   const record: MediaProviderCredentialRecord = { workspaceId: row.workspaceId, providerId,
@@ -60,7 +62,7 @@ function rowIdentity({ record, existing }: { record: MediaProviderCredentialReco
 }
 
 /** Safe hints describe one envelope: they survive only while every envelope field is unchanged. */
-function preservedHints({ hint, sealed }: { hint?: VaultRecord; sealed: VaultRecord["sealed"] }, _options = {}) {
+function preservedHints({ hint, sealed }: { hint?: VaultPutRecord; sealed: VaultPutRecord["sealed"] }, _options = {}) {
   const stored = hint?.sealed;
   const unchanged = stored != null && sealed !== null && stored.keyId === sealed.keyId &&
     stored.ciphertext === sealed.ciphertext && stored.nonce === sealed.nonce && stored.alg === sealed.alg;

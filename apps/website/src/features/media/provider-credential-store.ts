@@ -4,9 +4,11 @@ import { MEDIA_PROVIDERS } from "@jini-ai/integrations/media-providers/catalog";
 import type { Clock as ClockPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "../webhooks/index.js";
-import { type VaultRecord, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import { type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import { createTovuStoreVault } from "#src/platform/secrets/vault-kinds";
 import { mediaProviderVault, mediaVaultId, mediaVaultRecord, mediaVaultScope } from "./provider-credential-vault.js";
+
+type VaultPutRecord = Parameters<VaultRepoPort["put"]>[0]["record"];
 
 /**
  * @file Per-workspace media-generation vendor credentials — what the admin's Media → "Media
@@ -41,7 +43,7 @@ import { mediaProviderVault, mediaVaultId, mediaVaultRecord, mediaVaultScope } f
  *  the table's own CHECK — a row may legitimately hold only `baseUrl`/`model` with no key yet. */
 export interface MediaProviderCredentialRecord {
   /** Private adapter context; non-enumerable and never part of the view. */
-  readonly vaultRecord?: VaultRecord;
+  readonly vaultRecord?: VaultPutRecord;
   workspaceId: UUID;
   providerId: string;
   baseUrl: string | null;
@@ -286,8 +288,8 @@ function assertValidEntry(providerId: string, entry: MediaProviderCredentialInpu
 async function sealNewProviderKeys(
   deps: MediaProviderCredentialSaveDeps,
   input: SaveMediaProviderCredentialsInput,
-): Promise<Map<string, VaultRecord>> {
-  const fresh = new Map<string, VaultRecord>();
+): Promise<Map<string, VaultPutRecord>> {
+  const fresh = new Map<string, VaultPutRecord>();
   const vault = createTovuStoreVault({ ...deps, kind: "media-provider",
     storageError: () => new MediaProviderCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) });
   for (const [providerId, entry] of Object.entries(input.providers)) {
@@ -307,7 +309,7 @@ async function sealNewProviderKeys(
 /** Pure merge against the transaction's snapshot; hints and envelope travel as one private unit. */
 function buildProviderUpsertRow(input: {
   workspaceId: UUID; providerId: string; entry: MediaProviderCredentialInput;
-  existing?: MediaProviderCredentialRecord; fresh?: VaultRecord; now: ISODateTime;
+  existing?: MediaProviderCredentialRecord; fresh?: VaultPutRecord; now: ISODateTime;
 }, _options = {}): MediaProviderCredentialRecord {
   const { workspaceId, providerId, entry, existing, fresh, now } = input;
   const credential = fresh ? mediaVaultRecord({ row: fresh }) : existing;
