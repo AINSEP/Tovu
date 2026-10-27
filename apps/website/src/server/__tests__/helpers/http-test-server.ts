@@ -161,7 +161,8 @@ export interface DirectInvokeCapture {
 }
 
 /** A minimal `res` stand-in for {@link extractRouteHandler} callers: `status().json()`,
- *  `status().end()` for bodyless responses, and `locals`. This intentionally does not implement
+ *  `status().end()` for bodyless responses, `locals`, and `once()` for handlers that observe
+ *  `finish` (a direct call never emits it, so those listeners never run). This intentionally does not implement
  *  the rest of Express's `Response` surface. `statusCode` starts
  *  at 200 (real Express's own default when a handler calls `res.json()` without ever calling
  *  `res.status()` first, e.g. every one of these routes' success paths). */
@@ -178,6 +179,9 @@ export function createCapturingResponse(): { res: express.Response; capture: Dir
       return res;
     },
     end() {
+      return res;
+    },
+    once() {
       return res;
     },
   } as unknown as express.Response;
