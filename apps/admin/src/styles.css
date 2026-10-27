@@ -2066,9 +2066,10 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .dashboard-page { container-type: inline-size; }
 /* 2026-10-27 (owner): the four counts are ONE card — cells split by 1px dividers (the grid gap shows
    the card's `--border` background through) — with Appearance beside it on wide panes. Cells are 4x1
-   above 600px of pane, 2x2 below; Appearance drops under the card below 800px. */
-.dash-top { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); align-items: stretch; width: 100%; max-width: var(--content-measure); }
-@container (min-width: 800px) { .dash-top { grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr); } }
+   above 600px of pane, 2x2 below; Appearance drops under the card below 1040px. */
+/* Owner 10-27: both cards are capped (~10rem per count, Appearance 24rem beside) so they don't stretch across a wide pane. */
+.dash-top { display: grid; grid-template-columns: minmax(0, 40rem); justify-content: start; gap: var(--space-4); align-items: stretch; width: 100%; }
+@container (min-width: 1040px) { .dash-top { grid-template-columns: minmax(0, 40rem) minmax(0, 24rem); } }
 .dash-stats {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; overflow: hidden;
   background: var(--border); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
