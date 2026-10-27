@@ -765,17 +765,21 @@ test('env configured: product catalog projection is independent from site consen
     assert.deepEqual(siteErrors, ['error:site.error', 'error:product.error'], 'site observability remains independent of site analytics consent');
     assert.equal(productInputs[0]!.attribution.attributes.process, 'daemon');
     siteAllowed = true;
-    const catalogAndRejected: ProductEvent[] = [event,
+    const eventsToProject: ProductEvent[] = [event,
       { name: 'not_cataloged', userId: 'principal', properties: { arbitrary: 'private text' } },
       { name: 'form_submitted', userId: 'visitor', properties: { formId: 'private-form' } },
       { name: 'site_created', userId: 'principal', properties: { templateKind: 'private free text' } },
     ];
     siteEvents.length = 0; productEvents.length = 0;
-    for (const item of catalogAndRejected) await ports.tracker.capture({ name: item.name, userId: item.userId }, { properties: item.properties });
-    assert.deepEqual(siteEvents, catalogAndRejected, 'site gets every original event, identity and property');
-    assert.deepEqual(productEvents, [{ name: 'site_created', userId: install, properties: { templateKind: 'default', source: 'admin' } }]);
+    for (const item of eventsToProject) await ports.tracker.capture({ name: item.name, userId: item.userId }, { properties: item.properties });
+    assert.deepEqual(siteEvents, eventsToProject, 'site gets every original event, identity and property');
+    assert.deepEqual(productEvents, [
+      { name: 'site_created', userId: install, properties: { templateKind: 'default', source: 'admin' } },
+      // The second explicit site_created keeps its event but drops the unknown enum property.
+      { name: 'site_created', userId: install, properties: {} },
+    ]);
     await ports.tracker.capture({ name: 'admin_pageview', userId: 'principal' }, { properties: { route: '/admin/pages/about-us' } });
-    assert.deepEqual(productEvents[1], { name: 'admin_screen_viewed', userId: install, properties: { screen: '/admin/pages' } });
+    assert.deepEqual(productEvents[2], { name: 'admin_screen_viewed', userId: install, properties: { screen: '/admin/pages' } });
     assert.deepEqual(siteEvents.at(-1), { name: 'admin_pageview', userId: 'principal', properties: { route: '/admin/pages/about-us' } });
     assert.deepEqual(ports.browserAnalytics!({ surface: 'admin' }), []);
     const recorder = createAiTraceRecorder({ sink: ports.aiTraceSink!, runId: 'private-run', agentId: 'fixture' }, { provider: 'fixture', model: 'fixture-model' });
@@ -784,9 +788,9 @@ test('env configured: product catalog projection is independent from site consen
     recorder.finish({ outcome: 'succeeded' });
     await new Promise(resolve => setImmediate(resolve));
     assert.ok(generations.length > 0);
-    assert.equal(productEvents.length, 2);
+    assert.equal(productEvents.length, 3);
     await ports.visitorTracker!.capture({ name: 'assistant_message_sent', userId: 'visitor' }, { properties: { chatSurface: 'public', inputKind: 'text' } });
-    assert.equal(productEvents.length, 2, 'visitor consent cannot authorize install product events');
+    assert.equal(productEvents.length, 3, 'visitor consent cannot authorize install product events');
     const productErrorCount = productErrors.length;
     await ports.sendTelemetryTest!({ error: new Error('Tovu test error — safe to ignore') });
     assert.equal(siteErrors.at(-1), 'error:telemetry.test');

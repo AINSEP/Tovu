@@ -68,6 +68,8 @@ test("before-quit waits on in-flight teardowns, not only on openSites", async ()
   );
 
   const teardown = deferred();
+  const productDisposal = deferred();
+  const shutdownOrder: string[] = [];
   const pendingTeardowns = createShutdownTracker({});
   pendingTeardowns.track({ promise: teardown.promise });
   let onQuit!: (event: { preventDefault: () => void }) => void;
@@ -76,11 +78,13 @@ test("before-quit waits on in-flight teardowns, not only on openSites", async ()
   vm.runInNewContext(`${beforeQuitHandler()}\n});`, {
     app: {
       on: (_event: string, listener: typeof onQuit) => { onQuit = listener; },
-      quit: () => { finalQuits++; },
+      quit: () => { shutdownOrder.push("quit"); finalQuits++; },
       exit: () => { assert.fail("the pending teardown must settle before the deadline"); },
     },
-    siteThemePreviews: { dispose: () => {} },
-    desktopAgentRuntime: { dispose: async () => {} },
+    productDisposers: [() => { shutdownOrder.push("product-listeners"); }, () => { shutdownOrder.push("product-memory"); }],
+    desktopProduct: { dispose: () => { shutdownOrder.push("product"); return productDisposal.promise; } },
+    siteThemePreviews: { dispose: () => { shutdownOrder.push("previews"); } },
+    desktopAgentRuntime: { dispose: async () => { shutdownOrder.push("runtime"); } },
     siteDiscoveryAbort: undefined, siteValidationAbort: undefined,
     quitPhase: "idle", openSites: new Map(), pendingTeardowns,
     decideBeforeQuit, finalQuitHeldForUpdate: () => false,
@@ -91,12 +95,18 @@ test("before-quit waits on in-flight teardowns, not only on openSites", async ()
     await flush();
     assert.equal(prevented, 1);
     assert.equal(finalQuits, 0, "app.quit() must await a tracked teardown even with no open windows");
+    assert.deepEqual(shutdownOrder, ["product-listeners", "product-memory", "product", "runtime", "previews"]);
+    teardown.resolve();
+    await flush();
+    assert.equal(finalQuits, 0, "app.quit() must also await product telemetry after the site teardown finishes");
   } finally {
     teardown.resolve();
+    productDisposal.resolve();
     await pendingTeardowns.drain();
     await flush();
   }
   assert.equal(finalQuits, 1);
+  assert.deepEqual(shutdownOrder, ["product-listeners", "product-memory", "product", "runtime", "previews", "quit"]);
 });
 
 test("Quit during a card Stop waits for its tracked teardown after openSites becomes empty", async (t) => {
@@ -117,13 +127,16 @@ test("Quit during a card Stop waits for its tracked teardown after openSites bec
   let onQuit!: (event: { preventDefault: () => void }) => void;
   let finalQuits = 0;
   let prevented = 0;
+  const shutdownOrder: string[] = [];
   vm.runInNewContext(`${beforeQuitHandler()}\n});`, {
     app: {
       on: (_event: string, listener: typeof onQuit) => { onQuit = listener; },
-      quit: () => { finalQuits++; },
+      quit: () => { shutdownOrder.push("quit"); finalQuits++; },
       exit: () => assert.fail("Stop must settle before the quit deadline"),
     },
     siteThemePreviews: { dispose: () => {} }, desktopAgentRuntime: { dispose: async () => {} },
+    productDisposers: [() => { shutdownOrder.push("product-listeners"); }],
+    desktopProduct: { dispose: async () => { shutdownOrder.push("product"); } },
     siteDiscoveryAbort: undefined, siteValidationAbort: undefined,
     quitPhase: "idle", openSites, pendingTeardowns, decideBeforeQuit,
     finalQuitHeldForUpdate: () => false, setTimeout, clearTimeout, QUIT_DEADLINE_MS: 30_000,
@@ -138,6 +151,7 @@ test("Quit during a card Stop waits for its tracked teardown after openSites bec
     assert.equal(prevented, 2);
     assert.equal(finalQuits, 0, "Quit must not outrun the card's pending Stop");
     assert.equal(closedRows, 0, "the recovery row must outlive the child");
+    assert.deepEqual(shutdownOrder, ["product-listeners", "product"], "repeated quits dispose product telemetry once");
   } finally {
     stop.resolve();
     await stopping;
@@ -147,6 +161,7 @@ test("Quit during a card Stop waits for its tracked teardown after openSites bec
   }
   assert.equal(finalQuits, 1);
   assert.equal(closedRows, 1);
+  assert.deepEqual(shutdownOrder, ["product-listeners", "product", "quit"]);
 });
 
 test("termination signals route into the graceful quit, armed once the app is ready", () => {

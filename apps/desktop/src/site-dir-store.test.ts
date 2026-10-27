@@ -559,8 +559,11 @@ test("initSiteDir creates a complete blank site with the requested name through 
   assert.equal(JSON.parse(fs.readFileSync(path.join(target, "config.json"), "utf8")).name, "Created By Test");
   const db = new DatabaseSync(contentDbPath, { readOnly: true });
   try {
-    // Posts and pages share this table; a new site must contain neither kind of sample entry.
-    assert.deepEqual(db.prepare("SELECT id FROM posts").all(), []);
+    // Posts and pages share this table; only the template-owned Blog listing ships without
+    // sample content, so the starter's Blog links resolve (4889f880aa).
+    assert.deepEqual(db.prepare("SELECT id, kind, slug, template_choice FROM posts").all(), [
+      { id: "page-blog", kind: "page", slug: "blog", template_choice: "listing-default.html" },
+    ]);
   } finally {
     db.close();
   }

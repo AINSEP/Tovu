@@ -108,10 +108,13 @@ export class SecretOpenError extends Error {
 
 export class AesGcmSecretSealer implements SecretSealerPort {
   private readonly sealer: JiniSecretSealer;
+  // Desktop's site-migration import chain requires strip-only TypeScript syntax.
+  private readonly keyring: KeyringPort;
 
-  constructor(private readonly keyring: KeyringPort, optional: {
+  constructor(keyring: KeyringPort, optional: {
     randomBytesFn?: (input: { byteLength: number }) => Uint8Array;
   } = {}) {
+    this.keyring = keyring;
     // The host keyring satisfies Jini's port as-is; Jini calls only `keyring.derive` (as a method).
     this.sealer = new JiniSecretSealer({ keyring }, optional);
   }

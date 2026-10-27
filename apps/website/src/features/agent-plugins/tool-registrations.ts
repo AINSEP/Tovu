@@ -777,14 +777,14 @@ export interface AgentPluginSearchToolDeps {
 }
 
 const SEARCH_AGENT_PLUGIN_LOCAL_DESCRIPTION =
-  "Searches the Agent Plugins installed in THIS workspace — agent-plugins.org packages (plugin.json plus " +
-  "skills and an optional mcp.json) under this site's own agent-plugins directory. This is a DIFFERENT " +
-  "system from plugins_list, which lists the separate .tovu-plugin site/runtime plugin family — use this " +
-  "one to find an Agent Plugin, not a site plugin. Empty, omitted or whitespace query lists all installed " +
-  "Agent Plugins in plugin-id order, including enabled status. Nonblank queries return ranked matches. " +
+  "Find an Agent Plugin by the task, capability, skill or MCP server you need. Searches local " +
+  "agent-plugins.org packages (plugin.json, skills and optional mcp.json) in this workspace, including " +
+  "inactive packages. For the full plugin inventory, use content_read.plugin. Empty, omitted or " +
+  "whitespace query returns every local Agent Plugin in plugin-id order, including enabled status. " +
+  "Nonblank queries return ranked matches. " +
   "Results are byte-bounded: id, pluginId, enabled, maturity when declared, and a short description. " +
   "plugins_set_enabled with family 'agent-plugin' changes enabled status. " +
-  "Local installed packages only — never a marketplace or the web. Once you have the right id, call " +
+  "Local packages only — never a marketplace or the web. Once you have the right id, call " +
   "load_agent_plugin({ pluginId }) for that plugin's full guidance. Page with the returned nextOffset as offset, keeping query and limit unchanged.";
 
 const SEARCH_AGENT_PLUGIN_LOCAL_SCHEMA = {
