@@ -405,7 +405,7 @@ test("T33: the update body schema accepts an empty editor paragraph and preserve
     const registration = tool(registrationsFor(deps), "content_post_update");
     const schema = registration.descriptor.inputSchema as { properties: { bodyJson: Schema } };
     // Use MCP's own validator on the published body subschema, where its local $defs resolve.
-    // The enclosing tool schema also has unscoped #/$defs refs; don't let that separate defect mask T33.
+    // T33b covers the enclosing tool schema through MCP's own call path (embedded $defs scoping).
     const validation = new Validator(structuredClone(schema.properties.bodyJson), "2020-12", true).validate(bodyJson);
     // Expected RED: the schema requires paragraph.content and rejects the widget's styling attrs.
     assert.equal(validation.valid, true, JSON.stringify(validation.errors));
@@ -414,4 +414,21 @@ test("T33: the update body schema accepts an empty editor paragraph and preserve
     assert.equal(saved.title, "Retitled");
     assert.deepEqual(saved.bodyJson, bodyJson, "editing a title must preserve the editor's document and styling");
   });
+});
+
+test("T33b: a partial update with a TipTap body passes MCP's full tool-schema validation and reaches the handler", async () => {
+  const { buildToolIndex, handleToolCall } = await import("@jini-ai/mcp");
+  const { deps, postRepo } = fakeRouteDeps();
+  await seedPost(postRepo);
+  const registration = tool(registrationsFor(deps), "content_post_update");
+  let handlerCalls = 0;
+  const mcpTool = { name: "content_post_update", description: registration.descriptor.description!, inputSchema: registration.descriptor.inputSchema as import("@jini-ai/mcp").McpToolDef["inputSchema"],
+    handler: async ({ args }: { args: unknown }) => { handlerCalls++; return call(registration, args); } };
+  const bodyJson = { type: "doc", content: [{ type: "paragraph" }, { type: "paragraph", content: [{ type: "text", text: "Hi" }] }] };
+  // The body schema's `#/$defs/...` refs are scoped to bodyJson's own $defs, not the tool root's.
+  const reply = await handleToolCall({ name: mcpTool.name, tools: buildToolIndex({ tools: [mcpTool] }), ctx: { baseUrl: "http://unused.test", fetchImpl: async () => assert.fail("no network expected") } },
+    { rawArgs: { id: "p1", kind: "post", title: "Retitled", bodyJson, expectedVersion: 1 } });
+  assert.equal(reply.isError, undefined, JSON.stringify(reply.content));
+  assert.equal(handlerCalls, 1);
+  assert.deepEqual((await storedPost(postRepo)).bodyJson, bodyJson);
 });
