@@ -1,6 +1,7 @@
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
+import { createNoopTracker, type Tracker } from "@jini-ai/diagnostics/observability";
 import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
@@ -53,6 +54,7 @@ function executionContext(input: Record<string, unknown>): ToolExecutionContext 
 }
 
 function fakeRouteDeps() {
+  const captures: Parameters<Tracker["capture"]>[] = [];
   const mediaRepo = new InMemoryMediaRepo({});
   const assetBlobRepo = new InMemoryAssetBlobRepo({});
   const assetRenditionRepo = new InMemoryAssetRenditionRepo({});
@@ -63,6 +65,7 @@ function fakeRouteDeps() {
   const deps = {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     workspaceId: WORKSPACE_ID,
+    tracker: { ...createNoopTracker({}), capture: (...args: Parameters<Tracker["capture"]>) => { captures.push(args); } },
     clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     mediaRepo,
@@ -72,7 +75,7 @@ function fakeRouteDeps() {
     mediaContentTypeStore,
     transformDefinitionRepo,
   };
-  return { deps: deps as unknown as RegistryDepsWithoutLimiter, mediaContentTypeStore, mediaRepo };
+  return { captures, deps: deps as unknown as RegistryDepsWithoutLimiter, mediaContentTypeStore, mediaRepo };
 }
 
 function mediaRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
@@ -208,4 +211,15 @@ test("media_upload_asset still rejects a file over Tovu's own TOVU_MAX_UPLOAD_BY
     ),
     /exceeds/
   );
+});
+
+test("media_upload_asset attributes analytics to each caller even when bytes are shared", async () => {
+  const { deps, captures } = fakeRouteDeps();
+  const upload = wired("media_upload_asset", deps).handler;
+  await Promise.all(["owner-uploading", "plugin-uploading"].map(id => upload({
+    ...executionContext({ dataBase64: PNG_BYTES.toString("base64"), filename: `${id}.png`, contentType: "image/png", createdBy: "forged" }),
+    principal: { id },
+  })));
+  assert.deepEqual(captures.map(([event]) => event.userId).sort(), ["owner-uploading", "plugin-uploading"].sort());
+  assert.ok(captures.every(([event]) => event.name === "media_uploaded"));
 });

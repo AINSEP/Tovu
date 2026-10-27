@@ -5,6 +5,7 @@ import type { HttpResponse } from "#src/platform/http/index";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
+import { createNoopTracker, type Tracker } from "@jini-ai/diagnostics/observability";
 import test from "node:test";
 import { createHash } from "node:crypto";
 
@@ -118,6 +119,7 @@ function fakeRouteDeps(
   } = {}
 ) {
   const allow = options.allow ?? true;
+  const captures: Parameters<Tracker["capture"]>[] = [];
   const mediaRepo = new InMemoryMediaRepo({});
   const assetBlobRepo = new InMemoryAssetBlobRepo({});
   const assetRenditionRepo = new InMemoryAssetRenditionRepo({});
@@ -133,6 +135,7 @@ function fakeRouteDeps(
   let counter = 0;
   const deps = {
     workspaceId: WORKSPACE_ID,
+    tracker: { ...createNoopTracker({}), capture: (...args: Parameters<Tracker["capture"]>) => { captures.push(args); } },
     clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
     mediaRepo,
@@ -155,7 +158,7 @@ function fakeRouteDeps(
     },
   };
 
-  return { deps: deps as unknown as RegistryDepsWithoutLimiter, blobStore, assetBlobRepo, mediaContentTypeStore, mediaRepo, transformDefinitionRepo, mediaProviderCredentialRepo, siteAssistantSecretSealer, keyring, authorizeCalls, generateCalls };
+  return { captures, deps: deps as unknown as RegistryDepsWithoutLimiter, blobStore, assetBlobRepo, mediaContentTypeStore, mediaRepo, transformDefinitionRepo, mediaProviderCredentialRepo, siteAssistantSecretSealer, keyring, authorizeCalls, generateCalls };
 }
 
 /** Seeds a real, decryptable "openai" credential row through the actual write path
@@ -186,6 +189,7 @@ test("generated assets stamp the acting principal independently of the model and
   assert.ok(stored);
   assert.equal((stored as { createdBy?: string }).createdBy, PRINCIPAL_ID);
   assert.equal(stored.credit, "Editorial credit");
+  assert.deepEqual(fixture.captures.map(([event]) => event), [{ name: "media_uploaded", userId: PRINCIPAL_ID }]);
 });
 
 function catalogEntry(toolId: string): AgentToolDefinition {

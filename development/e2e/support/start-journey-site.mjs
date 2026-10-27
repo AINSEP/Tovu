@@ -29,6 +29,10 @@ const adminDist = ["packaged", "soak"].includes(target) ? undefined : await jour
 if (adminDist) process.env.TOVU_ADMIN_DIST = adminDist;
 if (!["packaged", "soak"].includes(target)) process.env.TOVU_SITE_CHAT_DIST = path.join(adminBuildOwner, "site-chat-dist");
 if (target === "soak") {
+  // Compiled serve and its daemon must use the same site layout, not fixture DB overrides.
+  delete process.env.TOVU_CHAT_DB;
+  delete process.env.TOVU_CONTENT_DB;
+  delete process.env.TOVU_DB;
   await startSoakSite({ site, repoRoot });
 } else if (target === "packaged") {
   // The released app's own server: `init` then `serve`, from a cwd outside the repo like Finder's.

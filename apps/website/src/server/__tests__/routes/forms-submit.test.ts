@@ -220,7 +220,7 @@ test("live timing: a consented fast refusal emits no analytics; its persisted re
   await processOutbox({ outbox, bus, clock: { nowMs: () => nowMs } });
   assert.deepEqual((await submissionRepo.listByDefinition({ workspaceId: WORKSPACE_ID, formDefinitionId: "def-1", limit: 10 })).items.map(row => row.data), [{ name: "Ada" }]);
   assert.deepEqual(events, [{ name: "form_submitted", userId: "visitor:id-2", properties: {
-    eventId: "id-4", formId: "def-1", deliveryMode: "live",
+    eventId: "id-4", formId: "def-1", formSlug: "contact", deliveryMode: "live",
   } }]);
 });
 
@@ -1056,6 +1056,6 @@ test("form analytics captures only a committed submission, never honeypots or du
   // The discarded request allocated only a request subject. The committed row/event then use
   // id-3/id-4; a duplicate's fresh provenance must never create a second conversion.
   assert.deepEqual(events, [{ name: "form_submitted", userId: "visitor:id-2", properties: {
-    eventId: "id-4", formId: "def-1", deliveryMode: "live",
+    eventId: "id-4", formId: "def-1", formSlug: "contact", deliveryMode: "live",
   } }]);
 });

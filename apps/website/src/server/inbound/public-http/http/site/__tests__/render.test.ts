@@ -2639,7 +2639,7 @@ test("renderSite (video/embed): width/height/class are each omitted independentl
 
   const videoMatch = html.match(/<video[^>]*>[^<]*<\/video>/);
   assert.ok(videoMatch, "expected exactly one <video> tag in the rendered page");
-  assert.equal(videoMatch![0], '<video src="/m/asset-1/original.mp4" controls>Your browser does not support the video tag.</video>');
+  assert.equal(videoMatch![0], '<video src="/m/asset-1/original.webm" controls>Your browser does not support the video tag.</video>');
 });
 
 /**

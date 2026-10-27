@@ -224,7 +224,7 @@ test('cached OFF cannot bypass consent after publishing ON when the next policy 
   app.get('/', (_req, res) => res.type('html').send(original));
   const base = await startTestServer(app, t);
   assert.equal(await (await fetch(base)).text(), original);
-  const on = await f.service.saveDraft({ principalId: 'owner', config: { ...f.config, regionMode: 'opt-out' }, expectedDraftId: off.revision.id });
+  const on = await f.service.saveDraft({ principalId: 'owner', config: { ...f.config, regionMode: 'auto' }, expectedDraftId: off.revision.id });
   await f.service.publish({ principalId: 'owner', draftId: on.revision.id, expectedPublishedId: off.revision.id });
   deps.consentStore = { ...f.store, read: async () => { throw new Error('sensitive policy storage path'); } };
   const response = await fetch(base);
@@ -286,15 +286,15 @@ test('a receipt save failure issues no cookie; cross-origin posts are refused be
 
 test('a missing or malformed receipt in opt-out mode still denies optional categories', async t => {
   const f = await publicFixture({ t });
-  const next = await f.service.saveDraft({ principalId: 'owner', config: { ...f.config, regionMode: 'opt-out' }, expectedDraftId: f.revisionId });
+  const next = await f.service.saveDraft({ principalId: 'owner', config: { ...f.config, regionMode: 'auto' }, expectedDraftId: f.revisionId });
   await f.service.publish({ principalId: 'owner', draftId: next.revision.id, expectedPublishedId: f.revisionId });
-  const ports = createSiteConsentPorts({ deps: f.deps });
+  const ports = createSiteConsentPorts({ deps: f.deps }, { trustedRegionHeader: 'x-region' });
   ports.records = { read: async () => null, save: async () => assert.fail('reading proof cannot write') };
   const app = express(); registerConsentHttp({ app, ports });
   app.get('/', (_req, res) => res.type('html').send('<html><head></head><body><script data-consent-category="analytics">window.optional=1</script></body></html>'));
   const base = await startTestServer(app, t);
   for (const cookie of ['jini_consent=short', 'jini_consent=missing_01234567890123456789']) {
-    const html = await (await fetch(base, { headers: { cookie } })).text();
+    const html = await (await fetch(base, { headers: { cookie, 'x-region': 'US' } })).text();
     const dom = new JSDOM(html);
     const state = JSON.parse(dom.window.document.querySelector('#jini-consent-config')!.textContent!);
     assert.deepEqual(state.choices, { necessary: true, functional: false, analytics: false, marketing: false });

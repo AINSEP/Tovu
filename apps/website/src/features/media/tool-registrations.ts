@@ -138,7 +138,8 @@ function buildRecordUploadContentType(
       await store.set({ workspaceId: routeDeps.workspaceId, sha256: media.source.sha256, contentType });
     }
     const family = contentType.split("/")[0];
-    captureMediaUploaded({ tracker: routeDeps.tracker, actorId: media.createdByPrincipal, byteLength: bytes.length,
+    // Jini calls this hook only for a fresh row stamped from this invocation's ctx.principal.id.
+    captureMediaUploaded({ tracker: routeDeps.tracker, actorId: media.createdBy!, byteLength: bytes.length,
       kind: family === "image" || family === "audio" || family === "video" ? family : "other", source: "assistant" });
   };
 }

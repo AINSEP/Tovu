@@ -314,3 +314,60 @@ test("0002 is recorded once; a pre-existing provider row is never auto-attached 
   try { assert.equal((db.prepare("SELECT count(*) AS n FROM tovu_project_migrations WHERE id='0002_site_key_attachments'").get() as { n: number }).n, 1); }
   finally { db.close(); }
 });
+
+test("a transient SQLITE_BUSY while enabling project WAL is retried before migration", async t => {
+  const input = dirs(t);
+  const pragma = Database.prototype.pragma;
+  let walAttempts = 0;
+  const sleeps: number[] = [];
+  t.mock.method(Atomics, "wait", (_view: Int32Array, _index: number, _value: number, timeout: number) => {
+    sleeps.push(timeout);
+    return "timed-out" as const;
+  });
+  t.mock.method(Database.prototype, "pragma", function (this: Database.Database, ...args: Parameters<Database.Database["pragma"]>) {
+    if (args[0] === "journal_mode = WAL" && ++walAttempts < 3) {
+      throw Object.assign(new Error("database is locked"), { code: "SQLITE_BUSY" });
+    }
+    return pragma.apply(this, args);
+  });
+  const store = await openProjectStore(input);
+  try {
+    assert.equal(walAttempts, 3, "fresh-project contention must not abort startup");
+    assert.deepEqual(sleeps, [50, 50]);
+    const raw = new Database(store.dbPath, { readonly: true });
+    try { assert.equal(raw.pragma("journal_mode", { simple: true }), "wal"); }
+    finally { raw.close(); }
+  } finally { store.close({}); }
+});
+
+test("project WAL retry is bounded and closes the failed handle", async t => {
+  const input = dirs(t);
+  const pragma = Database.prototype.pragma;
+  const busy = Object.assign(new Error("database is locked"), { code: "SQLITE_BUSY" });
+  let handle: Database.Database | undefined;
+  let walAttempts = 0;
+  let sleeps = 0;
+  t.mock.method(Atomics, "wait", () => { sleeps++; return "timed-out" as const; });
+  t.mock.method(Database.prototype, "pragma", function (this: Database.Database, ...args: Parameters<Database.Database["pragma"]>) {
+    if (args[0] === "journal_mode = WAL") { handle = this; walAttempts++; throw busy; }
+    return pragma.apply(this, args);
+  });
+  await assert.rejects(openProjectStore(input), error => error === busy);
+  assert.equal(walAttempts, 21, "one initial attempt plus at most twenty retries");
+  assert.equal(sleeps, 20);
+  assert.equal(handle?.open, false, "the original close-on-error contract survives exhaustion");
+});
+
+test("a non-busy project WAL error is propagated immediately and closes the handle", async t => {
+  const input = dirs(t);
+  const pragma = Database.prototype.pragma;
+  const failure = Object.assign(new Error("disk I/O failed"), { code: "SQLITE_IOERR" });
+  let handle: Database.Database | undefined;
+  t.mock.method(Atomics, "wait", () => assert.fail("only SQLITE_BUSY is retryable"));
+  t.mock.method(Database.prototype, "pragma", function (this: Database.Database, ...args: Parameters<Database.Database["pragma"]>) {
+    if (args[0] === "journal_mode = WAL") { handle = this; throw failure; }
+    return pragma.apply(this, args);
+  });
+  await assert.rejects(openProjectStore(input), error => error === failure);
+  assert.equal(handle?.open, false);
+});

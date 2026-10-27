@@ -171,7 +171,7 @@ test('audio shares player styling and forwarded marker attributes in widgets and
   assert.ok(!html.includes(' controls'));
   const meta = { slug: 'sound', width: null, height: null, cssClass: 'stored', htmlAttributes: 'data-kui="stored"', contentType: 'audio/wav' };
   const doc = renderDocNode({ type: 'media', attrs: { assetId: 'sound-id', transformName: 'public', cssClass: 'node', htmlAttributes: 'data-kui="node"' } }, new Map(), new Map(), new Map([['sound-id', meta]]));
-  assert.ok(doc.includes('<audio src="/m/sound/original.mp3" controls'));
+  assert.ok(doc.includes('<audio src="/m/sound/original.wav" controls'));
   assert.ok(doc.includes('class="node"'));
   assert.ok(doc.includes('data-kui="node"'));
 });

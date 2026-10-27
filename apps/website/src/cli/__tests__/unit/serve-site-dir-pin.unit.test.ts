@@ -1,12 +1,15 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import path from "node:path";
+import fs from "node:fs";
+import os from "node:os";
 import test from "node:test";
 
 import { pinPlainHttpIntoEnv, pinServedSiteDirIntoEnv } from "../../commands/serve.js";
 import { resolveDevTls } from "../../../server/runtime/boot/dev-tls.js";
 import { buildDaemonSpawnEnvOverrides } from "../../../server/runtime/lifecycle/daemon-supervisor.js";
-import { defaultContentDbPath, resolveSiteStoragePaths } from "../../../server/runtime/composition/deps.js";
+import { defaultChatDbPath, defaultContentDbPath, resolveSiteStoragePaths } from "../../../server/runtime/composition/deps.js";
+import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databases.js";
 import { resolveSiteRoot } from "../../../platform/site-dir/site-root.js";
 import { describeSiteBinding } from "../../../platform/site-dir/site-registry.js";
 import { resolveSitesDeps } from "../../../features/sites/deps.js";
@@ -149,4 +152,23 @@ test("pinPlainHttpIntoEnv makes dev TLS resolve inactive even when the cert pair
   pinPlainHttpIntoEnv(env);
   const existing = import.meta.filename;
   assert.deepEqual(resolveDevTls({ certPath: existing, keyPath: existing }, { env }), { active: false });
+});
+
+test("serve <dir> ignores legacy DB overrides so the web server and daemon share chat.db", t => {
+  const target = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-serve-chat-env-"));
+  t.after(() => fs.rmSync(target, { recursive: true, force: true }));
+  const apiEnv = { ...bareServeEnv(), TOVU_CHAT_DB: path.join(target, "wrong-chat.db"),
+    TOVU_CONTENT_DB: path.join(target, "wrong-content.db"), TOVU_DB: "memory" };
+  pinServedSiteDirIntoEnv(target, apiEnv);
+  // The web server explicitly passes these paths to composition; the daemon derives its defaults.
+  const webPaths = resolveSiteDatabasePaths({ dir: target });
+  const overrides = withProcessEnv(apiEnv, () => buildDaemonSpawnEnvOverrides({
+    workspaceId: "ws-chat-env", siteDir: target, daemonPortOverride: undefined,
+  }));
+  const childEnv = { ...apiEnv, ...overrides };
+  const daemonChatDb = withProcessEnv(childEnv, () => defaultChatDbPath());
+  assert.equal(daemonChatDb, webPaths.chatDbPath, "TOVU_CHAT_DB must not split web and daemon chat history");
+  assert.equal(withProcessEnv(childEnv, defaultContentDbPath), webPaths.contentDbPath);
+  for (const key of ["TOVU_CHAT_DB", "TOVU_CONTENT_DB", "TOVU_DB"]) assert.equal(key in childEnv, false);
+  assert.equal(fs.existsSync(path.join(target, "wrong-chat.db")), false);
 });

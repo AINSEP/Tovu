@@ -62,7 +62,7 @@ test('cookie-consent reports dropped CSS as preview warnings and still publishes
   f.ports.cookieConsent = true;
   // The service's page gate is an injected effect; CSS diagnostics still use the real Jini renderer.
   f.ports.consentGate = ({ html }) => html;
-  const good = '#jini-consent h2 { color: #000000; }';
+  const good = '#jini-consent h2 { font-size: 16px; }';
   const config = { ...f.config, customCss: good + '\n#jini-consent [data-x] { color: #000000; }' };
   const clean = await f.service.preview({ principalId: 'owner', config: { ...f.config, customCss: good } });
   assert.deepEqual(clean.warnings, []);

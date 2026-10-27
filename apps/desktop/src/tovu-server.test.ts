@@ -282,14 +282,15 @@ test("buildServeEnv with no desktopCredential still gets buildCliEnv's random TO
   assert.match(env.TOVU_ADMIN_PASSWORD!, /^[0-9a-f]{64}$/);
 });
 
-test("buildServeEnv drops inherited PORT, TOVU_DB and TOVU_CONTENT_DB", () => {
+test("buildServeEnv drops inherited PORT, TOVU_DB, TOVU_CONTENT_DB and TOVU_CHAT_DB", () => {
   const env = buildServeEnv({
     repoRoot: makeTempRepo(),
-    baseEnv: { PORT: "3000", TOVU_DB: "memory", TOVU_CONTENT_DB: "/somewhere/else.db" },
+    baseEnv: { PORT: "3000", TOVU_DB: "memory", TOVU_CONTENT_DB: "/somewhere/else.db", TOVU_CHAT_DB: "/somewhere/chat.db" },
   });
   assert.equal("PORT" in env, false);
   assert.equal("TOVU_DB" in env, false);
   assert.equal("TOVU_CONTENT_DB" in env, false);
+  assert.equal("TOVU_CHAT_DB" in env, false);
 });
 
 // REGRESSION: fails if `delete env.TOVU_PUBLIC_URL` is removed from buildServeEnv.

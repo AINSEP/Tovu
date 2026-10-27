@@ -3,6 +3,7 @@ import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-conte
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
+import { createNoopTracker, type Tracker } from "@jini-ai/diagnostics/observability";
 import { createHash } from "node:crypto";
 import test from "node:test";
 
@@ -128,6 +129,7 @@ function imageResponse(bytes: Uint8Array, overrides: Partial<HttpResponse> = {})
 
 function fakeRouteDeps(options: { allow?: boolean; responses?: (HttpResponse | Error)[] } = {}) {
   const allow = options.allow ?? true;
+  const captures: Parameters<Tracker["capture"]>[] = [];
   const mediaRepo = new InMemoryMediaRepo({});
   const assetBlobRepo = new InMemoryAssetBlobRepo({});
   const assetRenditionRepo = new InMemoryAssetRenditionRepo({});
@@ -140,6 +142,7 @@ function fakeRouteDeps(options: { allow?: boolean; responses?: (HttpResponse | E
   let counter = 0;
   const deps = testSiteLayoutContext({
     workspaceId: WORKSPACE_ID,
+    tracker: { ...createNoopTracker({}), capture: (...args: Parameters<Tracker["capture"]>) => { captures.push(args); } },
     clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: {
       newId: () => {
@@ -160,7 +163,7 @@ function fakeRouteDeps(options: { allow?: boolean; responses?: (HttpResponse | E
     },
   });
 
-  return { deps: deps as unknown as RegistryDepsWithoutLimiter, mediaRepo, assetBlobRepo, blobStore, mediaContentTypeStore, transformDefinitionRepo, mediaImportHttpClient, authorizeCalls };
+  return { captures, deps: deps as unknown as RegistryDepsWithoutLimiter, mediaRepo, assetBlobRepo, blobStore, mediaContentTypeStore, transformDefinitionRepo, mediaImportHttpClient, authorizeCalls };
 }
 
 async function seedPublicTransform(transformDefinitionRepo: InMemoryTransformDefinitionRepo): Promise<void> {
@@ -210,6 +213,10 @@ test("URL imports attribute each new row to its actor even when the source bytes
     assert.equal((stored as { createdBy?: string }).createdBy, actor);
   }
   assert.equal((await fixture.assetBlobRepo.list({ workspaceId: WORKSPACE_ID })).length, 1);
+  assert.deepEqual(fixture.captures.map(([event]) => event), [
+    { name: "media_uploaded", userId: "owner-importing" },
+    { name: "media_uploaded", userId: "plugin-api-key" },
+  ]);
 });
 
 function catalogEntry(toolId: string): AgentToolDefinition {

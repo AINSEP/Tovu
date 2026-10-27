@@ -217,8 +217,8 @@ export function resolveLocalImportRequest(
  * type, and returns the same media projection for either byte source. Storage failures propagate.
  * @complexity O(n) in the uploaded bytes for hashing/storage; fixed-count repository operations.
  */
-async function persistImportedMedia(required: { routeDeps: MediaImportToolDeps; input: UploadMediaInput; sourceUrl: string }): Promise<{ media: ImportedMediaView }> {
-  const { routeDeps, input, sourceUrl } = required;
+async function persistImportedMedia(required: { routeDeps: MediaImportToolDeps; input: UploadMediaInput; sourceUrl: string; actorId: string }, _optional: Record<string, never> = {}): Promise<{ media: ImportedMediaView }> {
+  const { routeDeps, input, sourceUrl, actorId } = required;
   const { media } = await uploadMedia({
     deps: {
       clock: routeDeps.clock, idGen: routeDeps.idGen, mediaRepo: routeDeps.mediaRepo,
@@ -230,7 +230,7 @@ async function persistImportedMedia(required: { routeDeps: MediaImportToolDeps; 
   // Identical recording discipline to the URL, generated-media and admin upload paths.
   const sniffed = sniffContentType({ bytes: input.bytes });
   await routeDeps.mediaContentTypeStore.set({ workspaceId: routeDeps.workspaceId, sha256: media.source.sha256, contentType: sniffed });
-          captureMediaUploaded({ tracker: routeDeps.tracker, actorId: media.createdByPrincipal, byteLength: input.bytes.byteLength, kind: "image", source: "assistant" });
+  captureMediaUploaded({ tracker: routeDeps.tracker, actorId, byteLength: input.bytes.byteLength, kind: "image", source: "assistant" });
   const urls = await resolveMediaPublicUrls(routeDeps, [media]);
   return {
     media: {
@@ -325,7 +325,7 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
           // an explicit editorial title keep its punctuation and spaces; this is never a disk path.
           const filename = title === undefined ? relativePath.split(/[\\/]/).at(-1)! : `${title}.imported`;
           return persistImportedMedia({
-            routeDeps,
+            routeDeps, actorId: ctx.principal.id,
             input: {
               workspaceId: routeDeps.workspaceId, bytes, filename, contentType,
               alt: optionalString({ input, key: "alt" }), caption: optionalString({ input, key: "caption" }),
@@ -357,7 +357,7 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
             const fetched = await fetchImage({ deps: { httpClient: routeDeps.mediaImportHttpClient, plainHttpTestOrigins: routeDeps.outboundTestOrigins }, url });
 
             return persistImportedMedia({
-              routeDeps,
+              routeDeps, actorId: ctx.principal.id,
               input: {
                 workspaceId: routeDeps.workspaceId,
                 bytes: fetched.bytes,
