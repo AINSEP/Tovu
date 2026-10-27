@@ -214,7 +214,9 @@ test("the composed plan and push back up THIS site: a credential sealed by the c
 
   await createCustomCredential(
     { repo: deps.customCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen },
-    { workspaceId: deps.workspaceId, label: "github", category: "source-control", baseUrl: "https://api.github.com", additionalHosts: [], connection: { token: "ghp_wiring_test_token_never_real" } },
+    // "site": a default save goes to the project store, attached to no site until the owner says so
+    // (b6c11b876), so this site would not see it. This test is about THIS site's own vault row.
+    { workspaceId: deps.workspaceId, label: "github", category: "source-control", baseUrl: "https://api.github.com", additionalHosts: [], connection: { token: "ghp_wiring_test_token_never_real" }, scope: "site" },
   );
 
   const github = new FakeGitHub();
