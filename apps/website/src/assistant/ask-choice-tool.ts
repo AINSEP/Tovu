@@ -230,7 +230,8 @@ const askChoiceMessages: AskChoiceMessages = {
 /** Normalize Tovu chat option spellings before Jini's closed-schema gate. The installed choice
  * renderer shows labels only, so option descriptions are folded into visible labels.
  * Dual id/value spellings are refused even when equal, as with region ids.
- * @returns A copied option, leaving malformed values for the shared parser to reject.
+ * @returns The same option when already canonical (so no false "normalized" note), else a copy,
+ * leaving malformed values for the shared parser to reject.
  * @throws ToolInputError when id and value coexist.
  * @complexity O(k) time/space in one option's keys; no I/O or caller mutation.
  */
@@ -240,6 +241,7 @@ function normalizeAskChoiceOption({ option }: { option: unknown }, _options = {}
   if (Object.hasOwn(record, "id") && Object.hasOwn(record, "value")) {
     throw new ToolInputError({ message: "Conflicting option inputs 'id' and 'value'. Send only 'value'." });
   }
+  if (Object.hasOwn(record, "value") && !Object.hasOwn(record, "description")) return option;
   const { id, description, ...rest } = record;
   const label = visibleOptionLabel({ label: record.label, description });
   // Keep the original label as the default submitted value; display copy is never an answer id.
