@@ -1,4 +1,4 @@
-import { editedArchiveWarnings } from "./archive-paths.js";
+import { archiveCodeUnit, editedArchiveWarnings, keptOffArchiveWarnings } from "./archive-paths.js";
 import fs from "node:fs";
 import path from "node:path";
 import { openSqliteFileKernel } from "#src/platform/db/kernel/drivers/sqlite";
@@ -13,8 +13,32 @@ export function stageVerifiedImport(required: { root: string; verified: Verified
   fs.mkdirSync(required.root, { mode: 0o700 });
   writeExclusive({ root: required.root, relative: "database/content.db", bytes: required.verified.database });
   for (const [relative, bytes] of required.verified.files) writeExclusive({ root: required.root, relative, bytes });
-  fs.writeFileSync(path.join(required.root, ".archive-state.json"), JSON.stringify({ plugins: required.verified.plugins, trustedPlugins: required.verified.trustedPlugins, modified: [...required.verified.modified] }), { flag: "wx", mode: 0o600 });
+  const keptOff = keptOffUnits({ root: required.root, verified: required.verified });
+  fs.writeFileSync(path.join(required.root, ".archive-state.json"), JSON.stringify({ plugins: required.verified.plugins, trustedPlugins: required.verified.trustedPlugins, modified: [...required.verified.modified], keptOff }), { flag: "wx", mode: 0o600 });
   fs.writeFileSync(path.join(required.root, ".inventory.json"), JSON.stringify([...required.verified.files.keys()]), { flag: "wx", mode: 0o600 });
+}
+
+/**
+ * Staged code units this install does not recognise, so restore keeps them switched off: every
+ * plugin, skill, override and theme tree except live static/declarative themes, trusted agent
+ * plugins, and edited units (those already carry their own notice). Reads the staged theme
+ * manifests, so it runs after the files are written.
+ * @complexity O(files + staged theme validation).
+ */
+function keptOffUnits(required: { root: string; verified: VerifiedSiteImport }): string[] {
+  const files = [...required.verified.files.keys()];
+  const live = liveThemeTrees({ files, findings: inspectThemeManifests({ root: required.root, files }) });
+  const recognised = new Set([...required.verified.modified, ...required.verified.trustedPlugins.map(plugin => "agent-plugins/" + plugin.id)]);
+  const units = new Set(files.map(file => stagedCodeUnit({ file, live })));
+  return [...units].filter((unit): unit is string => unit !== undefined && !recognised.has(unit));
+}
+
+/** The code unit of one staged (runtime-path) file; `undefined` for data, originals and live themes. */
+function stagedCodeUnit(required: { file: string; live: ReadonlySet<string> }): string | undefined {
+  const theme = /^themes\/([^/]+)\/([^/]+)\//.exec(required.file);
+  if (theme) return theme[1] === "__original-themes__" || required.live.has(theme[1] + "/" + theme[2]) ? undefined : "themes/" + theme[2];
+  if (required.file.startsWith("overrides/")) return "themes/overrides";
+  return archiveCodeUnit({ path: required.file });
 }
 
 /** Init's pre-commit restore port. Untrusted extensions never enter a discovery/activation root.
@@ -58,5 +82,5 @@ export function stagedImportWarnings(required: { root: string }, _optional = {})
   const file = path.join(required.root, ".archive-state.json");
   if (!fs.existsSync(file)) return [];
   const state = JSON.parse(fs.readFileSync(file, "utf8")) as ImportedExtensionState;
-  return editedArchiveWarnings({ units: state.modified });
+  return [...editedArchiveWarnings({ units: state.modified }), ...keptOffArchiveWarnings({ units: state.keptOff ?? [] })];
 }

@@ -133,7 +133,11 @@ for (const mode of ["no URL", "supervisor error"] as const) test(`owner creation
   const ready = await backend.completeOwner({ principalId: "owner", importId: pending.importId, adminPassword: OWNER_PASSWORD });
   assert.equal(ready.state, "ready"); assert.equal(ready.newSiteName, "imported-site"); assert.match(ready.error!, /Start it from Sites|start it from Sites/);
   assert.equal(fs.existsSync(h.registry.stagePath(pending)), false);
-  assert.deepEqual(await backend.completeOwner({ principalId: "owner", importId: pending.importId, adminPassword: OWNER_PASSWORD }), ready);
+  // Warnings are read from the import stage, which the commit removes (they never enter import
+  // history), so only the first ready response carries them; everything else repeats exactly.
+  const { warnings, ...committed } = ready;
+  assert.deepEqual(warnings, ["Plugin 'custom' isn't code this Tovu recognises. It was imported and kept switched off.", "Skill 'custom' isn't code this Tovu recognises. It was imported and kept switched off.", "Theme 'executable' isn't code this Tovu recognises. It was imported and kept switched off."]);
+  assert.deepEqual(await backend.completeOwner({ principalId: "owner", importId: pending.importId, adminPassword: OWNER_PASSWORD }), committed);
   assert.equal(starts, 1); assert.equal(h.workspace.registry({}).list({}).length, 1);
 });
 test("owner creation checks volume space before allocating and keeps staged data for retry", async t => {

@@ -11,7 +11,7 @@ import test, { type TestContext } from "node:test";
 import { createHash } from "node:crypto";
 import Database from "better-sqlite3";
 import { readTemplate } from "../../../platform/site-dir/read-template.js";
-import { restoreStagedImport, stageVerifiedImport } from "../import-restore.js";
+import { restoreStagedImport, stageVerifiedImport, stagedImportWarnings } from "../import-restore.js";
 import { writeExclusive } from "../import-restore-placement.js";
 
 const FALLBACK = readTemplate({ templateId: "starter" }).seed.presentation.activeThemeId;
@@ -74,6 +74,26 @@ test("staging refuses an unsafe file path before writing it", async t => {
   const h = harness(t);
   assert.throws(() => stageVerifiedImport({ root: h.root, verified: { warnings: [], modified: new Set(), plugins: [], trustedPlugins: [], name: "Copy", database: Buffer.alloc(0), files: new Map([["uploads/CON.txt", Buffer.from("x")]]) } }), { code: "UNSAFE_PATH", message: "Share path 'uploads/CON.txt' is unsafe." });
   assert.equal(fs.existsSync(path.join(h.root, "uploads")), false);
+});
+
+test("custom code that lands switched off gets one warning per unit; trusted, live and edited code do not", async t => {
+  const h = harness(t);
+  const files = {
+    "plugins/custom/package/plugin.json": "{}", "plugins/custom/package/index.js": "js",
+    "skills/notes/SKILL.md": "skill", "agent-plugins/mine/package/server.mjs": "js", "agent-plugins/shipped/package/server.mjs": "js",
+    "themes/code/fancy/theme.json": '{"tier":"code"}', "themes/static/safe/theme.json": '{"tier":"static"}', "themes/static/safe/index.html": "html",
+    "themes/__original-themes__/static/safe/index.html": "html", "themes/static/edited/index.html": "html", "overrides/custom.html": "html", "uploads/blob": "media",
+  };
+  const plugin = (id: string) => ({ kind: "agent" as const, id, version: "1.0.0", digest: "a".repeat(64), enabled: true, shipped: true });
+  stageVerifiedImport({ root: h.root, verified: { warnings: [], modified: new Set(["themes/edited"]), plugins: [plugin("mine"), plugin("shipped")], trustedPlugins: [plugin("shipped")], name: "Copy", database: databaseBytes([]), files: new Map(Object.entries(files).map(([file, text]) => [file, Buffer.from(text)])) } });
+  assert.deepEqual(stagedImportWarnings({ root: h.root }), [
+    "Theme 'edited' was edited. It was imported and kept switched off.",
+    "Agent plugin 'mine' isn't code this Tovu recognises. It was imported and kept switched off.",
+    "Plugin 'custom' isn't code this Tovu recognises. It was imported and kept switched off.",
+    "Skill 'notes' isn't code this Tovu recognises. It was imported and kept switched off.",
+    "Theme 'fancy' isn't code this Tovu recognises. It was imported and kept switched off.",
+    "Theme overrides aren't code this Tovu recognises. They were imported and kept switched off.",
+  ]);
 });
 
 // Placement ---------------------------------------------------------------------------------

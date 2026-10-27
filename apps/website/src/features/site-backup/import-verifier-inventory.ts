@@ -45,34 +45,52 @@ export function refuseArchive(message: string): never { throw new SiteShareRefus
 export function sha256Hex(bytes: Buffer): string { return createHash("sha256").update(bytes).digest("hex"); }
 
 /**
- * First pass, metadata only: claims every entry path, refuses links/special entries, collisions and
- * invalid declared sizes, enforces the entry and declared-size caps, and reads only the root
- * manifest (bounded). ZIP ordering is never trusted; the manifest may appear anywhere.
+ * First pass, metadata only: refuses links/special entries and enforces the entry cap, reads only
+ * the one manifest (bounded), then claims every entry path, refusing collisions, invalid declared
+ * sizes and the declared-size caps. ZIP ordering is never trusted; the manifest may appear anywhere.
  * @throws SiteShareRefusal (INVALID_ARCHIVE, UNSAFE_PATH, LIMIT_EXCEEDED) or the signal's reason.
  * @complexity O(entries × path depth + manifest bytes), at most 2,000 entries.
  */
 export async function scanArchiveMetadata(required: { archive: Buffer; reader: AgentPluginArchiveReaderPort }, optional: { signal?: AbortSignal } = {}): Promise<ArchiveScan> {
   const claims: EntryClaims = { aliases: new Map(), fileAliases: new Set(), directories: new Set(), sizes: [] };
   const entries: AgentPluginArchiveEntry[] = [];
-  let manifestBytes: Buffer | undefined;
-  let wrapper = "";
   let count = 0;
   for await (const entry of required.reader.entries({ archive: required.archive })) {
     optional.signal?.throwIfAborted();
     if (++count > SHARE_LIMITS.maxFiles) refuseArchive("Import exceeds the 2,000-entry cap.");
     const name = entry.entryPath.replace(/\/$/, "");
     validateRawEntry({ entry, name });
-    if (ignoredArchivePath({ path: name })) continue;
-    entries.push(entry);
-    if (isManifestEntry({ entry, name })) {
-      if (manifestBytes) refuseArchive("Exactly one v2 manifest is required.");
-      wrapper = name.slice(0, -SITE_BACKUP_MANIFEST_PATH.length);
-      manifestBytes = await readBounded({ entry: entry as FileEntry, maxBytes: SHARE_LIMITS.maxManifestBytes, signal: optional.signal });
-    }
+    if (!ignoredArchivePath({ path: name })) entries.push(entry);
   }
-  if (!manifestBytes) refuseArchive("A v2 manifest.json at root or inside one wrapper folder is required.");
+  const wrapper = sharedWrapperFolder({ entries });
+  const manifestBytes = await readManifest({ ...required, path: wrapper + SITE_BACKUP_MANIFEST_PATH }, optional);
   claimNormalizedEntries({ entries, claims, wrapper });
   return { manifestBytes, wrapper, fileAliases: claims.fileAliases, directories: claims.directories };
+}
+
+/**
+ * The Finder wrapper is the one top-level folder that holds every entry; any root file (the root
+ * manifest included) or a second top-level folder means there is no wrapper. Deciding it from the
+ * whole tree, never from where a `manifest.json` sits, keeps a media file named `manifest.json`
+ * from passing for a wrapped manifest. O(entries).
+ */
+function sharedWrapperFolder(required: { entries: readonly AgentPluginArchiveEntry[] }): string {
+  const tops = new Set(required.entries.map(entry => {
+    const parts = entry.entryPath.replace(/\/$/, "").split("/");
+    return parts.length > 1 || entry.kind === "directory" ? parts[0]! : "";
+  }));
+  const [top] = tops;
+  return tops.size === 1 && top ? top + "/" : "";
+}
+
+/** A separate pass for the manifest alone: the reader closes the ZIP when an iteration ends, so
+ * the bounded read happens inside it. */
+async function readManifest(required: { archive: Buffer; reader: AgentPluginArchiveReaderPort; path: string }, optional: { signal?: AbortSignal }): Promise<Buffer> {
+  for await (const entry of required.reader.entries({ archive: required.archive })) {
+    optional.signal?.throwIfAborted();
+    if (entry.kind === "file" && entry.entryPath === required.path) return readBounded({ entry, maxBytes: SHARE_LIMITS.maxManifestBytes, signal: optional.signal });
+  }
+  return refuseArchive("A v2 manifest.json at root, or inside one wrapper folder with nothing outside it, is required.");
 }
 
 /** Finder metadata is discarded identically in both passes, without decompressing it. */
@@ -210,9 +228,6 @@ function validateRawEntry(required: { entry: AgentPluginArchiveEntry; name: stri
   // extension are placeholders only during the pre-strip path check, never extraction paths.
   validateSharePath({ path: required.name.split("/").map(part => part === ".DS_Store" ? "finder-metadata" : part).join("/").replace(/(^|\/)content\.db$/, "$1content-database") });
   if (required.entry.kind !== "file" && required.entry.kind !== "directory") refuseArchive("ZIP links and special entries are forbidden.");
-}
-function isManifestEntry(required: { entry: AgentPluginArchiveEntry; name: string }): boolean {
-  return required.entry.kind === "file" && /^(?:[^/]+\/)?manifest\.json$/.test(required.name);
 }
 
 function claimNormalizedEntries(required: { entries: readonly AgentPluginArchiveEntry[]; claims: EntryClaims; wrapper: string }): void {

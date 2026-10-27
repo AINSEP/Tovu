@@ -23,7 +23,7 @@ import { buildShareZip } from "../../share-zip.js";
 import { verifySiteImport } from "../../import-verifier.js";
 import { createShareArchiveReader } from "../../import-archive-reader.js";
 import { readBundledPackageFiles } from "../../package-file-inventory.js";
-import { stageVerifiedImport, restoreStagedImport } from "../../import-restore.js";
+import { stageVerifiedImport, restoreStagedImport, stagedImportWarnings } from "../../import-restore.js";
 const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const stamp = "2026-10-26T00:00:00Z";
 const reader = createShareArchiveReader({ yauzl });
@@ -53,7 +53,11 @@ async function repack(files: ReadonlyMap<string, Buffer>): Promise<Buffer> {
 }
 async function fixture(t: TestContext) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-v2-"));
-  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  t.after(() => {
+    // Installed plugin packages are read-only; make the tree writable so it can be removed.
+    for (const entry of fs.readdirSync(root, { recursive: true }) as string[]) fs.chmodSync(path.join(root, entry), 0o700);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
   const siteDir = path.join(root, "source"), sourceRoot = path.join(root, "bundled");
   const sharp = (await import("sharp")).default;
   const pixels = { create: { width: 2, height: 2, channels: 3 as const, background: "red" } };
@@ -90,9 +94,10 @@ async function fixture(t: TestContext) {
   write(siteDir, "themes/__original-themes__/static/site/tokens.json", "{}");
   write(siteDir, "themes/__original-themes__/static/site/pages/index.html", '<!doctype html><html><head><link rel="stylesheet" href="../css/styles.css" /></head><body>Original</body></html>');
   write(siteDir, "themes/__original-themes__/static/site/css/styles.css", "body{margin:0}");
+  write(siteDir, "skills/ws/ws/notes/SKILL.md", "Site skill");
   write(siteDir, "config.json", JSON.stringify({ name: "Source", domain: "private.test", port: 9911, password: privateSentinel }));
   write(siteDir, ".site-meta.json", JSON.stringify({ templateId: "starter", siteId: privateSentinel }));
-  write(sourceRoot, "demo/plugin.json", '{"name":"demo","version":"1.0.0","description":"Fixture plugin"}');
+  write(sourceRoot, "demo/plugin.json", '{"$schema":"https://agent-plugins.org/schemas/1.1.0/plugin.schema.json","name":"demo","version":"1.0.0","description":"Fixture plugin"}');
   write(sourceRoot, "demo/skills/demo/SKILL.md", "Fixture skill");
   write(sourceRoot, "demo/server.mjs", "export const value = 1;");
   const layout = resolveAgentPluginLayout({ siteDir, env: {} });
@@ -132,6 +137,8 @@ test("v2 tree, one public media copy per item, no secrets and full content round
   assert.ok(files.has("themes/site/index.html") && files.has("themes/__originals__/site/index.html"));
   assert.ok(files.has("agent-plugins/demo/package/server.mjs"));
   assert.ok(files.has("agent-plugins/demo/memory/notes/note.md"));
+  assert.ok(files.has("skills/notes/SKILL.md"));
+  assert.equal([...files.keys()].some(path => path.includes("/ws/")), false);
   assert.equal([...files.keys()].some(path => /activations.json|bundled-digests.json/.test(path)), false);
   for (const bytes of files.values()) assert.equal(bytes.includes(Buffer.from(privateSentinel)), false);
   assert.deepEqual(JSON.parse(files.get("settings.json")!.toString()), { name: "Source", template: { templateId: "starter" } });
@@ -162,9 +169,10 @@ test("one Finder wrapper and metadata import; two wrappers and files outside the
   const wrapped = new Map([...files].map(([name, bytes]) => ["Source/" + name, bytes]));
   wrapped.set("__MACOSX/._Source", Buffer.from("Finder")); wrapped.set("Source/.DS_Store", Buffer.from("Finder"));
   assert.equal((await h.verify(await repack(wrapped))).name, "Source");
-  await assert.rejects(h.verify(await repack(new Map([...files].map(([name, bytes]) => ["Outer/Inner/" + name, bytes])))));
+  const noManifest = { code: "INVALID_ARCHIVE", message: /^A v2 manifest\.json at root, or inside one wrapper folder with nothing outside it/ };
+  await assert.rejects(h.verify(await repack(new Map([...files].map(([name, bytes]) => ["Outer/Inner/" + name, bytes])))), noManifest);
   wrapped.set("outside.txt", Buffer.from("outside"));
-  await assert.rejects(h.verify(await repack(wrapped)), /outside/);
+  await assert.rejects(h.verify(await repack(wrapped)), noManifest);
 });
 
 test("edited plugin and theme import with a warning and the whole unit kept off", async t => {
@@ -186,6 +194,31 @@ test("edited plugin and theme import with a warning and the whole unit kept off"
     const damaged = new Map(files); damaged.set(file, Buffer.from("damaged"));
     await assert.rejects(h.verify(await repack(damaged)));
   }
+});
+
+test("a built-in shipped by a different Tovu version keeps this install's own state; the imported copy stays off with a warning", async t => {
+  const h = await fixture(t), bundled = path.join(h.root, "bundled-next");
+  write(bundled, "demo/plugin.json", '{"$schema":"https://agent-plugins.org/schemas/1.1.0/plugin.schema.json","name":"demo","version":"1.1.0","description":"Fixture plugin"}');
+  write(bundled, "demo/skills/demo/SKILL.md", "Fixture skill");
+  write(bundled, "demo/server.mjs", "export const value = 2;");
+  const verified = await verifySiteImport({ archive: h.archive, reader, sanitize: sanitizeShareDatabase, schema: runtimeSchemaVersion() }, { packageFiles: await readBundledPackageFiles({}, { sourceRoot: bundled }) });
+  const stage = path.join(h.root, "skew-stage"), dir = path.join(h.root, "skew"), fresh = path.join(h.root, "fresh");
+  fs.mkdirSync(dir);
+  stageVerifiedImport({ root: stage, verified });
+  await restoreStagedImport({ root: stage, dir, dbPath: path.join(dir, "content.db") }, { pluginSourceRoot: bundled });
+  const workspaceId = readTemplate({ templateId: "starter" }).seed.workspace.id;
+  const activation = async (siteDir: string) => {
+    const layout = resolveAgentPluginLayout({ siteDir, env: {} }), lifecycle = createTovuAgentPluginLifecycle({ layout });
+    if (siteDir === fresh) await lifecycle.seedBundledAgentPlugins({ layout, workspaceId, sourceRoot: bundled });
+    const { updatedAt: _when, ...record } = (await lifecycle.readAgentPluginActivations({ workspaceRoot: layout.forWorkspace(workspaceId).root })).plugins.demo!;
+    return record;
+  };
+  // Same record a fresh seed writes: not an import-written "switched off" decision the seeder would then preserve.
+  assert.deepEqual(await activation(dir), await activation(fresh));
+  assert.deepEqual(stagedImportWarnings({ root: stage }), [
+    "Agent plugin 'demo' isn't code this Tovu recognises. It was imported and kept switched off.",
+    "Skill 'notes' isn't code this Tovu recognises. It was imported and kept switched off.",
+  ]);
 });
 
 test("the real public raster transformer strips GPS/EXIF before archive selection", async () => {

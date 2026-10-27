@@ -11,6 +11,9 @@ export function runtimeToArchivePath(required: { path: string }, _optional = {})
   const theme = /^themes\/(?:static|declarative|code)\/([^/]+)\/(.+)$/.exec(file);
   if (theme) return `themes/${theme[1]}/${theme[2]}`;
   if (file.startsWith("overrides/")) return "themes/" + file;
+  // Skills live per workspace (`skills/ws/<ws>/<skill>`); the archive keeps only the skill folder.
+  const skill = /^skills\/ws\/[^/]+\/(.+)$/.exec(file);
+  if (skill) return "skills/" + skill[1];
   return pluginArchivePath({ path: file });
 }
 
@@ -48,8 +51,7 @@ export function archiveToRuntimePath(required: { path: string; files: ReadonlyMa
 export function archiveCodeUnit(required: { path: string }, _optional = {}): string | undefined {
   const theme = /^themes\/(?:__originals__\/)?([^/]+)\//.exec(required.path);
   if (theme) return "themes/" + theme[1];
-  const skill = /^(skills\/(?:ws\/[^/]+\/)?[^/]+)\//.exec(required.path)?.[1];
-  return skill ?? /^(agent-plugins\/[^/]+|plugins\/[^/]+)\//.exec(required.path)?.[1];
+  return /^(skills\/[^/]+|agent-plugins\/[^/]+|plugins\/[^/]+)\//.exec(required.path)?.[1];
 }
 
 /** Retain the existing package scanner's proof: known bundled digest AND exact local file hash. */
@@ -66,11 +68,20 @@ function sitePluginArchivePath(required: { id: string; relative: string }): stri
   return `plugins/${required.id}/${area}${required.relative}`;
 }
 
+const UNIT_LABELS: Record<string, string> = { themes: "Theme", "agent-plugins": "Agent plugin", plugins: "Plugin", skills: "Skill" };
+function unitLabel(unit: string): string {
+  const parts = unit.split("/");
+  return `${UNIT_LABELS[parts[0]!] ?? "Extension"} '${parts.at(-1)}'`;
+}
+
 /** One warning per edited unit; multiple edited files must not duplicate notices. */
 export function editedArchiveWarnings(required: { units: Iterable<string> }, _optional = {}): string[] {
-  const labels: Record<string, string> = { themes: "Theme", "agent-plugins": "Agent plugin", plugins: "Plugin", skills: "Skill" };
-  return [...new Set(required.units)].sort().map(unit => {
-    const parts = unit.split("/"), kind = parts[0], id = parts.at(-1);
-    return `${labels[kind!] ?? "Extension"} '${id}' was edited. It was imported and kept switched off.`;
-  });
+  return [...new Set(required.units)].sort().map(unit => `${unitLabel(unit)} was edited. It was imported and kept switched off.`);
+}
+
+/** One warning per unit this install does not recognise as its own code, so it landed switched off. */
+export function keptOffArchiveWarnings(required: { units: Iterable<string> }, _optional = {}): string[] {
+  return [...new Set(required.units)].sort().map(unit => unit === "themes/overrides"
+    ? "Theme overrides aren't code this Tovu recognises. They were imported and kept switched off."
+    : `${unitLabel(unit)} isn't code this Tovu recognises. It was imported and kept switched off.`);
 }

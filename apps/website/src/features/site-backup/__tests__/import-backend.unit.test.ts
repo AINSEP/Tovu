@@ -149,7 +149,11 @@ test("site_imported fires exactly once after owner commit, including a repeated 
   const input = { principalId: "owner", importId: pending.importId, adminPassword: OWNER_PASSWORD };
   const ready = await backend.completeOwner(input);
   assert.equal(ready.state, "ready");
-  assert.deepEqual(await backend.completeOwner(input), ready);
+  // Warnings are read from the import stage, which the commit removes (they never enter import
+  // history), so only the first ready response carries them; everything else repeats exactly.
+  const { warnings, ...committed } = ready;
+  assert.deepEqual(warnings, ["Plugin 'custom' isn't code this Tovu recognises. It was imported and kept switched off.", "Skill 'custom' isn't code this Tovu recognises. It was imported and kept switched off.", "Theme 'executable' isn't code this Tovu recognises. It was imported and kept switched off."]);
+  assert.deepEqual(await backend.completeOwner(input), committed);
   assert.deepEqual(events, [{ name: "site_imported", userId: "owner", properties: {
     targetSiteId: ready.newSiteId!, operationId: pending.importId, eventId: `import:${pending.importId}`, source: "admin",
   } }]);
