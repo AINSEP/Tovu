@@ -6,6 +6,7 @@ import {
 import { startApiConnectionSignIn } from "./connect.js";
 import type { DeclaredApiConnection } from "./contribution.js";
 import type { ApiConnectionHost } from "./host.js";
+import { confirmedTokenOptions, type FrozenConnectionAccounts } from "../agent-plugins/executable-tools/host-capabilities.js";
 
 /**
  * @file Tovu's `connections` port for plugin admin-surface handlers (Jini's `AdminSurfaceConnections`):
@@ -31,6 +32,9 @@ export interface SurfaceConnectionsDeps {
   readonly host: ApiConnectionHost;
   /** Called with every authorization URL `begin` issued (the per-request registry the admin route reads). */
   readonly onSignInIssued?: (issued: IssuedSignIn) => void;
+  /** Accounts the assistant's confirmation froze (shared with the executable-tool registrar); with the
+   *  call's `signal`, an action run as an assistant tool gets only the account its card showed. */
+  readonly frozen?: FrozenConnectionAccounts;
 }
 
 /** The one refusal for an id the plugin does not declare here, a foreign workspace, or no admin. */
@@ -83,7 +87,7 @@ async function statusFrom(host: ApiConnectionHost, connection: DeclaredApiConnec
  * @complexity Each call: one contribution load plus one record read or one service call.
  */
 export function createSurfaceConnections(
-  required: SurfaceConnectionsDeps & { readonly pluginId: string; readonly workspaceId: string; readonly principalId?: string | undefined },
+  required: SurfaceConnectionsDeps & { readonly pluginId: string; readonly workspaceId: string; readonly principalId?: string | undefined; readonly signal?: AbortSignal | undefined },
   _optional: Record<string, never> = {},
 ): AdminSurfaceConnections {
   const { host, pluginId, workspaceId, principalId } = required;
@@ -128,7 +132,8 @@ export function createSurfaceConnections(
   return {
     async getAccessToken({ connectionId }) {
       const { connectionRef } = await forActor(connectionId);
-      return host.toolConnections.getAccessToken({ workspaceId, pluginId, connectionRef });
+      const pinned = required.frozen ? confirmedTokenOptions({ frozen: required.frozen, signal: required.signal, connectionRef }) : {};
+      return host.toolConnections.getAccessToken({ workspaceId, pluginId, connectionRef }, pinned);
     },
     async status({ connectionId }) {
       const { connection, connectionRef } = await resolve(connectionId);

@@ -39,7 +39,8 @@ export interface AgentPluginDisclosureSource {
  *   may use (the projection's `connections`, the same set Jini's capability session enforces) + one row
  *   per affected resource. The accounts are always bound, even when empty: a call naming no connection
  *   is then refused any token at execution.
- * @throws Error when the tool was withdrawn or a connection is not connected; ToolInputError for bad input.
+ * @throws Error when the tool was withdrawn or a connection is not connected (unless `skipUnconnected`:
+ *   an admin action may sign one in, and an unconnected connection, left unbound, gets no token); ToolInputError for bad input.
  * @complexity O(c + r) rows plus one disclosure hook call and one account read per connection.
  */
 export function createAgentPluginDisclosure(
@@ -48,7 +49,7 @@ export function createAgentPluginDisclosure(
 ) {
   return async (
     { ctx, toolId, pluginId, workspaceId }: { readonly ctx: ToolExecutionContext; readonly toolId: string; readonly pluginId: string; readonly workspaceId: string },
-    _optional: Record<string, never> = {},
+    optional: { readonly skipUnconnected?: boolean } = {},
   ): Promise<readonly SurfaceDetail[]> => {
     const disclosure = await required.source.describeAffectedResources({ toolId, input: ctx.input });
     if (!disclosure) throw new Error(TOOL_WITHDRAWN_MESSAGE);
@@ -56,6 +57,7 @@ export function createAgentPluginDisclosure(
     const accounts = new Map<string, string>();
     for (const connectionRef of disclosure.connections) {
       const account = await required.connections.readAccount({ workspaceId, pluginId, connectionRef });
+      if (!account && optional.skipUnconnected) continue;
       if (!account) throw new Error(NOT_CONNECTED_MESSAGE);
       accounts.set(connectionRef, account.accountId);
       rows.push({ label: 'Account', value: account.displayName });

@@ -12,6 +12,10 @@ import type { AuthorizeFn } from '../../../../contracts/core/commands/index.js';
 import { applyToolApprovalPolicy } from '../../../../assistant/tool-approval-policy.js';
 import { registerAgentPluginExecutableTools, type AgentPluginExecutableToolHost } from '../register.js';
 import { allowAll, fakeConnections, fakeHttp, PLUGIN, WORKSPACE, startConfirmingCall } from './fixtures.js';
+import { deriveApiConnectionKey } from '@jini-ai/integrations/api-connections';
+import { createSurfaceConnections } from '../../../api-connections/surface-connections.js';
+import type { ApiConnectionHost } from '../../../api-connections/host.js';
+import { createFrozenConnectionAccounts } from '../host-capabilities.js';
 
 const surface: LoadedAdminSurface = {
   plugin: { pluginId: PLUGIN, packageRoot: '/trusted/acme' },
@@ -143,4 +147,48 @@ test('refresh keeps still-listed admin tools; a disposed registration refuses to
   f.registered.dispose();
   assert.deepEqual(f.registry.list({}), []);
   await assert.rejects(() => f.registered.refresh(), /Plugin tool registration was disposed/);
+});
+
+test('security: an admin action whose account is switched while its approval waits is refused at token time', async () => {
+  const ref = deriveApiConnectionKey({ workspaceId: WORKSPACE, pluginId: PLUGIN, connectionId: 'acme' });
+  const account = { accountId: 'alice' };
+  const tokenRequests: (string | undefined)[] = [];
+  // The api-connections host as the surface connections port sees it: one declared connection, `account` switchable.
+  const connections = {
+    async readAccount(target: { connectionRef: string }) { return target.connectionRef === ref ? { accountId: account.accountId, displayName: `${account.accountId}@acme.test` } : null; },
+    async getAccessToken(target: { connectionRef: string }, optional: { expectedAccountId?: string } = {}) {
+      tokenRequests.push(optional.expectedAccountId);
+      if (target.connectionRef !== ref) throw new Error('connection not found');
+      if (optional.expectedAccountId !== undefined && optional.expectedAccountId !== account.accountId) throw new Error('account-changed');
+      return 'acme-token';
+    },
+  };
+  const apiHost = { workspaceId: WORKSPACE, listConnections: async () => [{ descriptor: { connectionId: 'acme' } }], toolConnections: connections } as unknown as ApiConnectionHost;
+  const frozen = createFrozenConnectionAccounts();
+  const synced: LoadedAdminSurface = { ...surface, descriptor: { ...surface.descriptor, connections: [{ id: 'acme', startParams: [], callbackFields: [] }],
+    actions: [{ name: 'sync', input: { type: 'object' }, result: { type: 'boolean' } }] } };
+  // The handler host's job, as composition wires it: the surface connections port for this call's scope.
+  const handlers = { sync: async ({ context }: { context: { workspaceId: string; principalId?: string; signal?: AbortSignal } }) => {
+    const port = createSurfaceConnections({ host: apiHost, pluginId: PLUGIN, workspaceId: context.workspaceId, principalId: context.principalId, signal: context.signal, frozen });
+    return (await port.getAccessToken({ connectionId: 'acme' })).length > 0;
+  } };
+  const registry = createToolRegistry({});
+  const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' }) };
+  const registered = await registerAgentPluginExecutableTools({ registry, workspaceId: WORKSPACE, authorize: allowAll, isActive: async () => true,
+    host: { loadContributions: async () => ({ items: [], refusals: [] }), connections, http: fakeHttp().http, limiter: { check: async () => ({ allowed: true }) },
+      state: () => ({ get: async () => null }), apiOrigins: async () => [], issuedTokens: createIssuedTokenMemories(), frozen,
+      adminSurfaces: { source: { list: async () => [synced] }, host: { refresh: async () => [], handlersFor: () => handlers, bootstrapData: async () => null } } },
+    applyApproval: ({ registration }, { disclose }) => applyToolApprovalPolicy({ registration, surfaces }, { disclose }),
+  });
+  try {
+    const f = { executor: createToolExecutor({ registry }), surfaces };
+    const call = await startConfirmingCall(f, 'p_acme_office__account_sync', { payload: {} });
+    assert.deepEqual(call.rows.filter(([label]) => label === 'Account'), [['Account', 'alice@acme.test']]);
+    account.accountId = 'mallory';
+    call.answer('confirm');
+    const result = await call.pending;
+    // The screen's dispatcher reports a handler failure as an outcome, never a token-bearing result.
+    assert.equal((result.output as { ok?: boolean } | undefined)?.ok, false, JSON.stringify(result));
+    assert.deepEqual(tokenRequests, ['alice'], 'the token request named the account the card showed');
+  } finally { registered.dispose(); }
 });

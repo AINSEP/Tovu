@@ -136,7 +136,10 @@ export function composeAgentPluginConnections(
   // One plugin-settings store: surfaces write it, tools (and later form delivery) only read it.
   const state = (scope: { readonly workspaceId: string; readonly pluginId: string }) => host.pluginState.readerFor(scope);
   const apiOrigins = host.apiOriginsFor;
-  const tools = createAgentPluginToolCapabilities({ connections, http, limiter, frozen: createFrozenConnectionAccounts(), state, apiOrigins });
+  // ONE frozen-account map: the executable-tool registrar binds a confirmed call's accounts, and the
+  // admin-surface connections port enforces them for an action the assistant ran.
+  const frozen = createFrozenConnectionAccounts();
+  const tools = createAgentPluginToolCapabilities({ connections, http, limiter, frozen, state, apiOrigins });
   // ONE token memory for both seams: a plugin's tools and surface handlers share module scope, so a
   // token a handler obtained must be withheld from a tool's output too, and the reverse.
   const issuedTokens = createIssuedTokenMemories();
@@ -151,8 +154,8 @@ export function composeAgentPluginConnections(
   const capabilities = createAdminSurfaceCapabilities({
     tools, publicConfig: createAdminSurfacePublicConfig({ env }),
     stateFor: (scope) => host.pluginState.forPlugin(scope),
-    connectionsFor: ({ pluginId, workspaceId: scopeWorkspaceId, principalId }) => createSurfaceConnections({
-      host, pluginId, workspaceId: scopeWorkspaceId, principalId, onSignInIssued: (issued) => signIns.record(issued),
+    connectionsFor: ({ pluginId, workspaceId: scopeWorkspaceId, principalId, signal }) => createSurfaceConnections({
+      host, pluginId, workspaceId: scopeWorkspaceId, principalId, signal, frozen, onSignInIssued: (issued) => signIns.record(issued),
     }),
   }, delivery && deliveryBindingsFor ? {
     deliveryBindingsFor,
@@ -166,7 +169,7 @@ export function composeAgentPluginConnections(
   const surfaceDefinition = defineAdminSurfaceContribution({ filename: ADMIN_SURFACES_FILENAME });
   return {
     apiConnections: { host },
-    agentPluginTools: { loadContributions, connections, http, limiter, state, apiOrigins, issuedTokens,
+    agentPluginTools: { loadContributions, connections, http, limiter, state, apiOrigins, issuedTokens, frozen,
       adminSurfaces: { host: adminSurfaceHost, source: {
         list: async ({ workspaceId: scopeWorkspaceId }) => (await loadContributions({ workspaceId: scopeWorkspaceId, definition: surfaceDefinition }, { requireActive: true, orderByPluginId: true })).items,
       } },

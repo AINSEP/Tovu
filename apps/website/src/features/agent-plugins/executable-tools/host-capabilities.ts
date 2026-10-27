@@ -81,6 +81,19 @@ export function createFrozenConnectionAccounts(_required: Record<string, never> 
   };
 }
 
+/**
+ * The token options one call's connection gets from its confirmation: the frozen account, nothing for
+ * a call that was never confirmed, and a refusal for a connection its approval did not show. Shared by
+ * tool calls and assistant-dispatched admin-surface actions (`api-connections/surface-connections.ts`).
+ * @throws Error(UNAPPROVED_CONNECTION_MESSAGE) when the call was frozen without this connection. @complexity O(1).
+ */
+export function confirmedTokenOptions(required: { readonly frozen: FrozenConnectionAccounts; readonly signal: AbortSignal | undefined; readonly connectionRef: string }, _optional: Record<string, never> = {}): { readonly expectedAccountId?: string } {
+  const expectedAccountId = required.frozen.lookup({ signal: required.signal, connectionRef: required.connectionRef });
+  // A confirmed call may only use the connections its approval froze, never an unpinned other one.
+  if (expectedAccountId === null) throw new Error(UNAPPROVED_CONNECTION_MESSAGE);
+  return expectedAccountId === undefined ? {} : { expectedAccountId };
+}
+
 /** Plugin HTTP through the guarded client: HTTPS only, no redirects, bounded body, never truncated.
  * @complexity O(response size). */
 async function guardedPluginFetch(http: HttpClientPort, url: string, options: AgentPluginHttpOptions = {}): Promise<Response> {
@@ -145,10 +158,7 @@ export function createAgentPluginToolCapabilities(
   const writer = optional.artifacts;
   return ({ pluginId, workspaceId, signal }): AgentPluginToolCapabilities => ({
     connections: { async getAccessToken({ connectionRef }) {
-      const expectedAccountId = frozen.lookup({ signal, connectionRef });
-      // A confirmed call may only use the connections its approval froze, never an unpinned other one.
-      if (expectedAccountId === null) throw new Error(UNAPPROVED_CONNECTION_MESSAGE);
-      return connections.getAccessToken({ workspaceId, pluginId, connectionRef }, expectedAccountId === undefined ? {} : { expectedAccountId });
+      return connections.getAccessToken({ workspaceId, pluginId, connectionRef }, confirmedTokenOptions({ frozen, signal, connectionRef }));
     } },
     http: declaredOriginsHttp(required.http, () => apiOrigins({ workspaceId, pluginId }), signal),
     // NUL cannot appear in a workspace or plugin id, so one plugin's key can never name another's budget.

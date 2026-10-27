@@ -18,6 +18,7 @@ import { adaptLegacyAuthorize, requireToolPermission } from '@jini-ai/cms/core';
 import { buildPluginContributionToolRegistrations, createPluginContributionRegistry, pluginToolIdFor } from '@jini-ai/plugins/host';
 import { createAgentPluginToolProjection, defineAgentPluginToolContribution, type AgentPluginToolEffect, type IssuedTokenMemories, type LoadedAgentPluginTool } from '@jini-ai/agent-plugins/lifecycle/tools';
 import { buildAdminSurfaceActionTools } from '@jini-ai/agent-plugins/admin-surfaces';
+import { deriveApiConnectionKey } from '@jini-ai/integrations/api-connections';
 import { ADMIN_SURFACE_ACTION_PERMISSION, withAdminSurfaceSignIns, type AdminSurfaceSource } from '../admin-surfaces/surfaces.js';
 import type { AgentPluginAdminSurfaceHandlers } from '../admin-surfaces/handlers.js';
 import type { SurfaceDetail } from '@jini-ai/ui/mcp-ui/surfaces';
@@ -27,7 +28,7 @@ import type { AuthorizeFn } from '../../../contracts/core/commands/index.js';
 import { APPROVAL_FAMILY_BY_EFFECT, createAgentPluginDisclosure } from './approval.js';
 import {
   createAgentPluginToolCapabilities, createFrozenConnectionAccounts,
-  type AgentPluginArtifactWriter, type AgentPluginConnectionAccess, type AgentPluginRateLimiter, type AgentPluginStateReaderFor, type AgentPluginApiOriginsFor,
+  type AgentPluginArtifactWriter, type AgentPluginConnectionAccess, type FrozenConnectionAccounts, type AgentPluginRateLimiter, type AgentPluginStateReaderFor, type AgentPluginApiOriginsFor,
 } from './host-capabilities.js';
 
 /** The file a plugin ships at its package root to contribute executable tools. */
@@ -54,6 +55,9 @@ export interface AgentPluginExecutableToolHost {
   /** The site's ONE token memory, shared with the admin-surface handler host: a plugin's tools and
    *  handlers share module scope, so a token either obtained must be withheld from both. */
   readonly issuedTokens: IssuedTokenMemories;
+  /** The accounts confirmations freeze, shared with the admin-surface connections port so an admin
+   *  action run as a tool is pinned like a tool call. Omitted, the registrar keeps its own. */
+  readonly frozen?: FrozenConnectionAccounts;
 }
 
 /** Wraps one registration in the approval owner (`applyToolApprovalPolicy`, injected by the composition root). */
@@ -93,7 +97,7 @@ export async function registerAgentPluginExecutableTools(
   _optional: Record<string, never> = {},
 ): Promise<{ readonly refusals: readonly string[]; refresh(): Promise<{ readonly refusals: readonly string[] }>; dispose(): void }> {
   const { registry, workspaceId, host } = required;
-  const frozen = createFrozenConnectionAccounts();
+  const frozen = host.frozen ?? createFrozenConnectionAccounts();
   const capabilities = createAgentPluginToolCapabilities({ connections: host.connections, http: host.http, limiter: host.limiter, frozen, state: host.state, apiOrigins: host.apiOrigins }, host.artifacts ? { artifacts: host.artifacts } : {});
   const contributions = createPluginContributionRegistry({});
   const projection = createAgentPluginToolProjection({ registry: contributions, toolIdFor: pluginToolIdFor, capabilities, issuedTokens: host.issuedTokens });
@@ -120,6 +124,7 @@ export async function registerAgentPluginExecutableTools(
       },
     }, {
       run: ({ dispatch }) => withAdminSurfaceSignIns({ host: admin.host, run: dispatch }),
+      connectionRefFor: ({ pluginId, connectionId }) => deriveApiConnectionKey({ workspaceId, pluginId, connectionId }),
     }) : [];
     return { loaded: load.items, refusals: load.refusals, additionalTools };
   }
@@ -149,7 +154,9 @@ export async function registerAgentPluginExecutableTools(
       } catch { return 'deny' as const; }
     } } } : registration;
     const classified = withExtensionApprovalPolicy({ registration: { ...gated, descriptor: { ...descriptor, readOnly: !asks, sideEffects: owner.effect === 'destructive' ? 'deletes-durable-state' : asks ? 'mutates-durable-state' : 'none', ...(asks ? {} : { timeoutMs }) } }, family: APPROVAL_FAMILY_BY_EFFECT[owner.effect] });
-    return asks ? required.applyApproval({ registration: classified }, { disclose: ({ ctx }) => disclose({ ctx, toolId, pluginId: owner.pluginId, workspaceId }) }) : classified;
+    // An admin action may be the one that signs a connection in, so its unconnected ones are left unbound.
+    const skipUnconnected = adminToolIds.has(toolId);
+    return asks ? required.applyApproval({ registration: classified }, { disclose: ({ ctx }) => disclose({ ctx, toolId, pluginId: owner.pluginId, workspaceId }, { skipUnconnected }) }) : classified;
   };
   const scope = createToolRegistrationScope({ registry });
   const refresh = () => {
