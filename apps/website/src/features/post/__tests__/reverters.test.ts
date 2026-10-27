@@ -48,14 +48,15 @@ test("T34: reverts record their new revision and preserve an edit committed afte
       id: "post-1", workspaceId: WS, title: "Current title", version: 4,
       deletedAt: operation === "delete" ? "2026-09-30T00:00:00.000Z" : null,
     });
-    const inversePayload = operation === "delete" ? { deletedAt: null } : {
+    type Item = Parameters<ReturnType<typeof createPostReverters>["update"]["applyInverse"]>[0]["item"];
+    const inversePayload: Item["inversePayload"] = operation === "delete" ? { deletedAt: null } : {
       title: "Prior title", slug: existing.slug, bodyJson: existing.bodyJson, status: existing.status,
     };
     const item = {
       id: "item-1", workspaceId: WS, changeSetId: "change-1", position: 0,
       entityType: "post", entityId: existing.id, operation, entityVersion: existing.version,
       inversePayload,
-    } as Parameters<ReturnType<typeof createPostReverters>["update"]["applyInverse"]>[0]["item"];
+    } as Item;
 
     await t.test(`${operation}: new revision is present in history`, async () => {
       const repo = new InMemoryPostRepo([existing]);
