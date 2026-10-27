@@ -149,7 +149,7 @@ export async function registerAgentPluginExecutableTools(
       } catch { return 'deny' as const; }
     } } } : registration;
     const classified = withExtensionApprovalPolicy({ registration: { ...gated, descriptor: { ...descriptor, readOnly: !asks, sideEffects: owner.effect === 'destructive' ? 'deletes-durable-state' : asks ? 'mutates-durable-state' : 'none', ...(asks ? {} : { timeoutMs }) } }, family: APPROVAL_FAMILY_BY_EFFECT[owner.effect] });
-    return asks ? required.applyApproval({ registration: classified }, { disclose: ({ ctx }) => disclose({ ctx, toolId, pluginId: owner.pluginId, workspaceId }) }) : classified;
+    return asks ? required.applyApproval({ registration: classified }, { disclose: ({ ctx }) => disclose({ ctx, toolId, pluginId: owner.pluginId, workspaceId }, { inputSchema: descriptor.inputSchema }) }) : classified;
   };
   const scope = createToolRegistrationScope({ registry });
   const refresh = () => {
@@ -164,13 +164,20 @@ export async function registerAgentPluginExecutableTools(
   refresh();
   const unsubscribe = contributions.subscribe({ onChanged: refresh });
   let disposed = false;
+  // One refresh at a time: an older load that finishes late would otherwise re-register the tools of
+  // a plugin a newer load already saw disabled.
+  let queue: Promise<unknown> = Promise.resolve();
   return {
     refusals,
-    async refresh() {
-      const next = await loadTools();
-      if (disposed) throw new Error('Plugin tool registration was disposed.');
-      adminToolIds = new Set(next.additionalTools.map(entry => pluginToolIdFor({ pluginId: entry.pluginId, name: entry.tool.name })));
-      return projection.sync(next);
+    refresh() {
+      const run = queue.then(async () => {
+        const next = await loadTools();
+        if (disposed) throw new Error('Plugin tool registration was disposed.');
+        adminToolIds = new Set(next.additionalTools.map(entry => pluginToolIdFor({ pluginId: entry.pluginId, name: entry.tool.name })));
+        return projection.sync(next);
+      });
+      queue = run.catch(() => undefined);
+      return run;
     },
     dispose() { disposed = true; unsubscribe(); scope.replace({ registrations: [] }); },
   };

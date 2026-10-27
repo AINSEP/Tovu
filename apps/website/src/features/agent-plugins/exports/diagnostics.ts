@@ -36,9 +36,13 @@ export function selectPluginExport(required: { packages: readonly PluginExportPa
  */
 export function checkPluginExportConfig(required: { selected: SelectedPluginExport; config: Readonly<Record<string, unknown>> }, _options = {}): PluginEmbedDiagnostic | undefined {
   const { definition } = required.selected;
+  // Version first: a retired or newer embed was written against another contract's props, so the
+  // current schema cannot judge them; it gets the savable version warning, not a blocking props error.
+  const versionDiagnostic = checkVersion({ definition, version: required.config.version === undefined ? 1 : required.config.version });
+  if (versionDiagnostic) return versionDiagnostic;
   const propsReason = validateAgentPluginExportProps({ definition, props: required.config.props === undefined ? {} : required.config.props });
   if (propsReason) return { code: "PLUGIN_EMBED_INVALID_PROPS", message: `Plugin component props are invalid: ${propsReason}. Nothing was written.` };
-  return checkVersion({ definition, version: required.config.version === undefined ? 1 : required.config.version });
+  return undefined;
 }
 
 /** Version compatibility is independent of props validity. No side effects. O(1). */

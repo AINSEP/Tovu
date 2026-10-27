@@ -22,6 +22,7 @@ import type { PlannedDiskFile, SiteBackupSources } from "../sources.js";
 import { initialPushProgress, uploadPlannedContent, CANCELLED, type PushFailure } from "../push-engine.js";
 import { buildSourceControlProviderForApi } from "../../source-control/provider-registry.js";
 import { SiteBackupPushJobs } from "../push-jobs.js";
+import { SiteShareRefusal } from "../share-policy.js";
 import { buildSiteBackupRegistrations, contributeSiteBackupTools, siteBackupAgentToolCatalog, siteBackupDerivedRisk, type PushResult, type SiteBackupToolDeps } from "../tool-registrations.js";
 import type { SourceControlProviderDescriptor } from "../../source-control/provider-registry.js";
 import type { SourceControlProviderOperations } from "../../source-control/provider-module.js";
@@ -60,6 +61,9 @@ const OTHER_PRINCIPAL = "principal-other";
 const NOW = "2026-09-21T12:00:00.000Z";
 const TOKEN = ("g" + "hp_site_backup_test_token_never_real");
 const PLAN_INPUT = { owner: "octo", repo: "backups" };
+/** The raw snapshot FakeDbOps captures. It must never reach the host (SEC-1). */
+const RAW_SNAPSHOT_BYTES = [0x53, 0x51, 0x4c, 0x00, 0xee, 0x02];
+/** What the harness's sanitizer returns for it: the only database bytes a backup uploads. */
 const DB_BYTES = [0x53, 0x51, 0x4c, 0x00, 0xff, 0x01];
 
 // ---------------------------------------------------------------------------
@@ -77,7 +81,7 @@ class FakeDbOps implements DbOpsPort {
   async captureRestorePoint(required: { scopeId: string }): Promise<{ artifactRef: string; watermarkAtCapture: number }> {
     this.captureCalls.push(required);
     const artifactRef = path.join(this.dir, `restore-point-${required.scopeId}-${this.captureCalls.length}.db`);
-    writeFileSync(artifactRef, Buffer.from(DB_BYTES));
+    writeFileSync(artifactRef, Buffer.from(RAW_SNAPSHOT_BYTES));
     return { artifactRef, watermarkAtCapture: 42 };
   }
   async restoreFromArtifact(): Promise<{ restartRequired: boolean }> {
@@ -182,6 +186,8 @@ function harness(t: TestContext, options: HarnessOptions = {}) {
   const planStore = new SiteBackupPlanStore(options.planNowMs ? { now: options.planNowMs } : {});
   /** Every retry wait the GitHub client asked for; none is slept. */
   const sleeps: number[] = [];
+  /** Every snapshot the backup handed its sanitizer. */
+  const sanitized: number[][] = [];
 
   const deps: SiteBackupToolDeps = {
     authorize: async (params) => {
@@ -202,6 +208,10 @@ function harness(t: TestContext, options: HarnessOptions = {}) {
     siteBackupNow: () => new Date(NOW),
     siteBackupPushJobs: new SiteBackupPushJobs<PushResult>(),
     siteBackupSleep: async (ms) => void sleeps.push(ms),
+    siteBackupSanitize: async ({ snapshot }) => {
+      sanitized.push([...snapshot]);
+      return { bytes: Buffer.from(DB_BYTES), media: [] };
+    },
     ...(options.pushWaitMs !== undefined ? { siteBackupPushWaitMs: options.pushWaitMs } : {}),
   };
   const writeDeps: CustomCredentialWriteDeps = {
@@ -227,6 +237,7 @@ function harness(t: TestContext, options: HarnessOptions = {}) {
     github,
     dbOps,
     sleeps,
+    sanitized,
     authorized,
     logLines,
     surfaceExchanges,
@@ -681,7 +692,9 @@ test("the push re-checks the repository, uploads only the database as a blob (te
     "POST /git/commits",
     "PATCH /git/refs/heads/main",
   ]);
-  assert.deepEqual(h.github.blobContents.map((bytes) => [...bytes]), [DB_BYTES], "only the database (it holds a NUL byte) is a blob; the plan's snapshot");
+  assert.deepEqual(h.github.blobContents.map((bytes) => [...bytes]), [DB_BYTES], "only the database (it holds a NUL byte) is a blob; the plan's sanitized database");
+  assert.deepEqual(h.sanitized, [RAW_SNAPSHOT_BYTES], "the raw snapshot went through the sanitizer once, at plan time");
+  assert.ok(h.github.blobContents.every((bytes) => !bytes.equals(Buffer.from(RAW_SNAPSHOT_BYTES))), "the raw snapshot never reaches the host");
   const folderTree = JSON.parse(Buffer.from(h.github.writes()[1]!.body ?? "{}").toString("utf8")) as { base_tree?: string; tree: { path: string; sha?: string; content?: string }[] };
   assert.equal(folderTree.base_tree, undefined, "the folder starts empty, so stale files in it disappear");
   assert.deepEqual(folderTree.tree.filter((entry) => entry.sha !== undefined).map((entry) => entry.path), ["database/content.db"]);
@@ -1182,6 +1195,19 @@ test("a database snapshot exceeding the host limit refuses the whole plan", asyn
   assert.equal(result.code, "LIMIT_EXCEEDED");
   assert.match(String(result.message), /database\/content.db/);
   assert.equal(h.dbOps.captureCalls.length, 1);
+  assert.deepEqual(h.github.writes(), []);
+});
+
+test("SEC-1: a share-policy refusal of the database is the plan's refusal, with nothing written", async t => {
+  const h = harness(t);
+  await h.seed();
+  const siteBackupSanitize: SiteBackupToolDeps["siteBackupSanitize"] = async () => {
+    throw new SiteShareRefusal({ code: "UNSUPPORTED_DATA", message: "Cannot share unsupported nonempty table 'p_x__rows'." });
+  };
+  const result = await call(overriddenTool(h, "site_backup_plan", { siteBackupSanitize }), PLAN_INPUT) as Result;
+  assert.equal(result.planned, false);
+  assert.equal(result.code, "UNSUPPORTED_DATA");
+  assert.match(String(result.message), /p_x__rows/);
   assert.deepEqual(h.github.writes(), []);
 });
 

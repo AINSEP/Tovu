@@ -1,3 +1,4 @@
+import path from "node:path";
 import { SqliteDbOpsAdapter as JiniSqliteDbOpsAdapter } from "@jini-ai/db/sqlite";
 
 import type { DbOpsPort, RestoreCapability } from "#src/contracts/core/gated-mutations/ports";
@@ -34,19 +35,24 @@ import type { ContentDb } from "./content-db.js";
 export class SqliteDbOpsAdapter implements DbOpsPort {
   // Online-backup, atomic replacement and restart rationale: Jini/packages/db/src/sqlite/db-ops.ts.
   private readonly inner: JiniSqliteDbOpsAdapter;
+  private readonly filePath: string;
+  /** The same adapter anchored at another database path; only its capture directory differs. */
+  private readonly adapterAt: (filePath: string) => JiniSqliteDbOpsAdapter;
 
   constructor(deps: { db: ContentDb; filePath: string }) {
-    this.inner = new JiniSqliteDbOpsAdapter({
+    this.adapterAt = (filePath) => new JiniSqliteDbOpsAdapter({
       // `$client` is the raw better-sqlite3 handle Drizzle already returns. The package takes the
       // driver connection directly rather than an object with a `$client` property, so Drizzle's
       // naming convention — and Drizzle itself — stays out of its surface entirely.
       connection: deps.db.$client,
-      filePath: deps.filePath,
+      filePath,
       // Read lazily per capture, not captured at construction — the watermark advances with
       // every gated write, and a restore point must be stamped with its value at capture time
       // (REQ-06), not at wiring time.
       readWatermark: () => readKernelWatermark(contentKernel(deps.db)),
     });
+    this.filePath = deps.filePath;
+    this.inner = this.adapterAt(deps.filePath);
   }
 
   /**
@@ -64,13 +70,18 @@ export class SqliteDbOpsAdapter implements DbOpsPort {
    * Captures a whole-file online-backup copy of `content.db` (never a partial/logical export,
    * AC-30), stamped with the watermark value at capture time (REQ-06).
    *
+   * `optional.directory` moves only where the copy lands. The Jini adapter writes beside its
+   * `filePath`, so a throwaway adapter anchored at `<directory>/<db name>` (same connection, same
+   * watermark) reuses its naming and backup code: Jini (read-only from here) has no directory option yet.
+   *
    * @complexity O(db size) — a full page-by-page backup copy.
    * @overallScore 100
    */
   async captureRestorePoint(required: {
     scopeId: string;
-  }): Promise<{ artifactRef: string; watermarkAtCapture: number }> {
-    return this.inner.captureRestorePoint(required);
+  }, optional: { directory?: string } = {}): Promise<{ artifactRef: string; watermarkAtCapture: number }> {
+    if (optional.directory === undefined) return this.inner.captureRestorePoint(required);
+    return this.adapterAt(path.join(optional.directory, path.basename(this.filePath))).captureRestorePoint(required);
   }
 
   /**

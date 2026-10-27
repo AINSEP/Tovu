@@ -123,7 +123,7 @@ test("fresh share projection preserves drafts/schedules/autosaves, excludes priv
   await write(".site-meta.json", JSON.stringify({ templateId: "starter", templateVersion: "1", schemaVersion: 13, siteId: sentinel, siteKeyId: sentinel, storage: sentinel }));
   const sources = { siteDir: dir, mediaUploadsDir: null, themesDir: path.join(dir, "themes"), agentPlugins: resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: path.join(dir, "agent-plugins") } }), skillsDir: path.join(dir, "skills"), tovuVersion: "test" };
   const readKeys: string[] = [];
-  const plan = await prepareShareContent({ sources, sanitize: sanitizeShareDatabase, rewriteMedia: rewriteArchiveMedia, imageTransformer: { transform: async () => assert.fail("not raster") },
+  const plan = await prepareShareContent({ snapshotRoot: tmpdir(), sources, sanitize: sanitizeShareDatabase, rewriteMedia: rewriteArchiveMedia, imageTransformer: { transform: async () => assert.fail("not raster") },
     blobStore: { get: async ({ storageKey: key }) => { readKeys.push(key); return mediaBytes; }, sizeOf: async () => mediaBytes.length },
     dbOps: { getCapabilities: async () => ({ restorePoint: { costClass: "cheap", kind: "file-snapshot" } }), captureRestorePoint: async () => { const artifactRef = path.join(dir, "snapshot.db"); await writeFile(artifactRef, sql.serialize()); return { artifactRef, watermarkAtCapture: 42 }; }, restoreFromArtifact: async () => { throw new Error("must never restore"); } },
   });
@@ -141,7 +141,7 @@ test("fresh share projection preserves drafts/schedules/autosaves, excludes priv
   }
   assert.equal(entries.get("media/media.bin")?.toString(), mediaBytes.toString());
   assert.equal(createHash("sha256").update(entries.get("media/media.bin")!).digest("hex"), hash);
-  for (const file of ["themes/site/index.html", "themes/site/data/content.json", "plugins/site/package/plugin.json", "plugins/site/package/src/data/default.json", "plugins/site/package/src/notes/help.md", "themes/site/out/main.js", "themes/overrides/page.html"]) assert.ok(entries.has(file), file);
+  for (const file of ["themes/site/index.html", "themes/site/data/content.json", "plugins/site/package/plugin.json", "plugins/site/package/src/data/default.json", "plugins/site/package/src/notes/help.md", "themes/site/out/main.js", "themes/__overrides__/page.html"]) assert.ok(entries.has(file), file);
   assert.deepEqual(JSON.parse(entries.get("settings.json")!.toString()), { name: "Shared site", template: { templateId: "starter", templateVersion: "1", schemaVersion: 13 } });
   assert.deepEqual(Object.keys(JSON.parse(entries.get("settings.json")!.toString()).template).sort(), ["schemaVersion", "templateId", "templateVersion"]);
   const shared = new Database(entries.get("content.db")!);

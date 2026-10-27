@@ -1,7 +1,8 @@
 /**
  * @file Unit tests for `approval.ts`: the effect → approval-family map and the disclosure step that
- * builds the card's extra rows and freezes the call's account. Typed fakes for the projection's
- * disclosure source, the connection accessor and the frozen-account map; vendor-neutral ids.
+ * builds the card's extra rows and freezes the call's accounts. Typed fakes for the projection's
+ * disclosure source, the connection accessor and the frozen-account map; the T13 cases run the real
+ * frozen map and capability port so a replay against another connection is refused end to end.
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -10,7 +11,10 @@ import type { ToolExecutionContext } from '@jini-ai/core';
 import type { AgentPluginToolDisclosure } from '@jini-ai/agent-plugins/lifecycle/tools';
 
 import { APPROVAL_FAMILY_BY_EFFECT, NOT_CONNECTED_MESSAGE, TOOL_WITHDRAWN_MESSAGE, createAgentPluginDisclosure, type AgentPluginDisclosureSource } from '../../approval.js';
-import type { AgentPluginConnectionAccess, AgentPluginConnectionTarget, FrozenConnectionAccounts } from '../../host-capabilities.js';
+import {
+  UNAPPROVED_CONNECTION_MESSAGE, createAgentPluginToolCapabilities, createFrozenConnectionAccounts,
+  type AgentPluginConnectionAccess, type AgentPluginConnectionTarget, type FrozenConnectionAccounts,
+} from '../../host-capabilities.js';
 
 const TARGET = { toolId: 'p_acme_office__append_rows', pluginId: 'acme-office', workspaceId: 'ws-1' } as const;
 
@@ -95,4 +99,87 @@ test('a null or non-object input carries no connectionRef', async () => {
   const { disclose, accountReads } = harness();
   for (const input of [null, 'conn-1', undefined]) await disclose({ ctx: contextFor(input), ...TARGET });
   assert.deepEqual(accountReads, []);
+});
+
+/** A schema whose connection sits one level down, the shape the T13 finding names. */
+const NESTED_SCHEMA = {
+  type: 'object',
+  properties: { target: { type: 'object', properties: { connectionRef: { type: 'string' }, table: { type: 'string' } } }, values: { type: 'object' } },
+} as const;
+
+/** The real frozen map and capability port behind a fake connection accessor that records token asks. */
+function enforcingHarness() {
+  const tokenCalls: Array<{ target: AgentPluginConnectionTarget; optional: { expectedAccountId?: string } | undefined }> = [];
+  const connections: AgentPluginConnectionAccess = {
+    async readAccount({ connectionRef }) { return { accountId: `acct-${connectionRef}`, displayName: `Account ${connectionRef}` }; },
+    async getAccessToken(target, optional) { tokenCalls.push({ target, optional }); return 'token-value'; },
+  };
+  const frozen = createFrozenConnectionAccounts();
+  const source: AgentPluginDisclosureSource = { async describeAffectedResources() { return { effect: 'write', resources: [] }; } };
+  const port = createAgentPluginToolCapabilities({
+    connections, http: { async send() { throw new Error('no HTTP in these cases'); } }, limiter: { check: async () => ({ allowed: true }) }, frozen,
+    state: () => ({ get: async () => null }), apiOrigins: async () => [],
+  });
+  const capabilitiesFor = (signal: AbortSignal) => port({ pluginId: TARGET.pluginId, workspaceId: TARGET.workspaceId, signal });
+  return { disclose: createAgentPluginDisclosure({ source, connections, frozen }), capabilitiesFor, tokenCalls };
+}
+
+test('T13: an approval for nested connection A is refused when the call asks for nested connection B', async () => {
+  const { disclose, capabilitiesFor, tokenCalls } = enforcingHarness();
+  const signal = new AbortController().signal;
+  const rows = await disclose({ ctx: contextFor({ target: { connectionRef: 'conn-A', table: 'Orders' } }, signal), ...TARGET }, { inputSchema: NESTED_SCHEMA });
+  assert.deepEqual(rows, [{ label: 'Account', value: 'Account conn-A' }]);
+  const capabilities = capabilitiesFor(signal);
+  await assert.rejects(capabilities.connections.getAccessToken({ connectionRef: 'conn-B' }), { message: UNAPPROVED_CONNECTION_MESSAGE });
+  await capabilities.connections.getAccessToken({ connectionRef: 'conn-A' });
+  assert.deepEqual(tokenCalls, [{ target: { workspaceId: 'ws-1', pluginId: 'acme-office', connectionRef: 'conn-A' }, optional: { expectedAccountId: 'acct-conn-A' } }]);
+});
+
+test('T13: a write tool whose input names no connection binds nothing and still runs', async () => {
+  const { disclose, capabilitiesFor, tokenCalls } = enforcingHarness();
+  const signal = new AbortController().signal;
+  const rows = await disclose({ ctx: contextFor({ target: { table: 'Orders' } }, signal), ...TARGET }, { inputSchema: NESTED_SCHEMA });
+  assert.deepEqual(rows, []);
+  await capabilitiesFor(signal).connections.getAccessToken({ connectionRef: 'conn-default' });
+  assert.deepEqual(tokenCalls, [{ target: { workspaceId: 'ws-1', pluginId: 'acme-office', connectionRef: 'conn-default' }, optional: {} }]);
+});
+
+test('T13: every connection the schema declares is bound, through arrays and anyOf branches', async () => {
+  const { disclose, binds } = harness({ disclosure: { effect: 'write', resources: [] } });
+  const inputSchema = {
+    type: 'object',
+    properties: {
+      copies: { type: 'array', items: { anyOf: [{ type: 'object', properties: { connectionRef: { type: 'string' } } }, { type: 'string' }] } },
+      source: { type: 'object', properties: { connectionRef: { type: 'string' } } },
+    },
+  };
+  await disclose({ ctx: contextFor({ source: { connectionRef: 'conn-1' }, copies: [{ connectionRef: 'conn-2' }, 'plain', { connectionRef: 'conn-1' }] }), ...TARGET }, { inputSchema });
+  assert.deepEqual([...binds[0]!.accounts.keys()], ['conn-1', 'conn-2']);
+});
+
+test('T13: a connectionRef key inside data the schema does not declare as one is the user\'s data, not a connection', async () => {
+  const { disclose, accountReads, binds } = harness();
+  await disclose({ ctx: contextFor({ target: { table: 'Orders' }, values: { connectionRef: 'typed-by-the-user' } }), ...TARGET }, { inputSchema: NESTED_SCHEMA });
+  assert.deepEqual(accountReads, []);
+  assert.deepEqual(binds, []);
+});
+
+test('T13: without a schema every nested connectionRef is bound, so none is left unpinned', async () => {
+  const { disclose, binds } = harness();
+  await disclose({ ctx: contextFor({ target: { connectionRef: 'conn-1' }, rows: [{ connectionRef: 'conn-2' }] }), ...TARGET });
+  assert.deepEqual([...binds[0]!.accounts.keys()], ['conn-1', 'conn-2']);
+});
+
+test('T13: one unconnected connection among several refuses the call and freezes nothing', async () => {
+  const binds: Array<ReadonlyMap<string, string>> = [];
+  const connections: AgentPluginConnectionAccess = {
+    async readAccount({ connectionRef }) { return connectionRef === 'conn-2' ? null : { accountId: 'acct-1', displayName: 'Alice' }; },
+    async getAccessToken() { throw new Error('the disclosure step must never request a token'); },
+  };
+  const disclose = createAgentPluginDisclosure({
+    source: { async describeAffectedResources() { return { effect: 'write', resources: [] }; } }, connections,
+    frozen: { bind: ({ accounts }) => { binds.push(accounts); }, lookup: () => undefined },
+  });
+  await assert.rejects(disclose({ ctx: contextFor({ a: { connectionRef: 'conn-1' }, b: { connectionRef: 'conn-2' } }), ...TARGET }), { message: NOT_CONNECTED_MESSAGE });
+  assert.deepEqual(binds, []);
 });

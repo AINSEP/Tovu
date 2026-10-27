@@ -313,7 +313,9 @@ function buildProviderUpsertRow(input: {
 }, _options = {}): MediaProviderCredentialRecord {
   const { workspaceId, providerId, entry, existing, fresh, now } = input;
   const credential = fresh ? mediaVaultRecord({ row: fresh }) : existing;
-  if (!credential?.sealed) throw new MediaProviderCredentialValidationError('Enter a token. Spaces alone are not a token.');
+  // Only a new provider must bring a key. A stored keyless row (migrated or recovered, metadata
+  // only) is re-sent by every whole-map save, so refusing it would block every other provider's edit.
+  if (!credential) throw new MediaProviderCredentialValidationError('Enter a token. Spaces alone are not a token.');
   const row: MediaProviderCredentialRecord = { workspaceId, providerId,
     baseUrl: trimmedOrNull(entry.baseUrl), model: trimmedOrNull(entry.model),
     sealed: credential.sealed, keyTail: credential.keyTail, aadVersion: credential.aadVersion,

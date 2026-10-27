@@ -18,7 +18,7 @@ export function protectProjectKeyDeletes({ vault, attachments, siteId, transacti
    * Clear only that promotion, preserving defaults attached to any site in this shared scope.
    */
   async function repairPromotion({ before, after }: { before: VaultRecord | null; after?: { provider: string | null } }, _optional = {}) {
-    if (!before || after?.provider === before.provider) return;
+    if (!before?.isDefault || after?.provider === before.provider) return;
     const promoted = vault.findDefault ? await vault.findDefault(before) : (await vault.list(before)).find(row => row.isDefault);
     if (!promoted || (await attachments.usersOf({ keyId: promoted.id })).length) return;
     await vault.put({ record: { ...promoted, isDefault: false, revision: promoted.revision + 1 }, expectedRevision: promoted.revision });

@@ -118,6 +118,17 @@ function toStored(ownership: Ownership, draft: AdminSurfaceDeliveryBindingDraft,
   };
 }
 
+/**
+ * `stored` keeping the form ids of `previous` this site's form list does not show (a trashed form):
+ * the plugin only ever saw the visible slugs, so a re-save must not drop a form that comes back.
+ * @complexity O(f) form ids.
+ */
+function keepHiddenFormIds(ownership: Ownership, stored: FormDeliveryBinding, previous: FormDeliveryBinding | undefined): FormDeliveryBinding {
+  if (stored.formIds === undefined || previous?.formIds === undefined) return stored;
+  const hidden = previous.formIds.filter((formId) => !ownership.slugByFormId.has(formId) && !stored.formIds!.includes(formId));
+  return hidden.length === 0 ? stored : { ...stored, formIds: [...stored.formIds, ...hidden] };
+}
+
 /** The index of one of this plugin's stored bindings. @throws AdminSurfaceActionError `binding-not-found`. @complexity O(b). */
 function ownIndex(ownership: Ownership, bindingId: string): number {
   const own = ownEntries(ownership).find((entry) => entry.binding.bindingId === bindingId);
@@ -193,8 +204,8 @@ export function createSurfaceDeliveryBindings(
       const callerPrincipalId = admin();
       const bindingId = draft.bindingId ?? required.newBindingId();
       return update({ callerPrincipalId, merge: (owned) => {
-        const stored = toStored(owned, draft, bindingId);
         const replaced = draft.bindingId === undefined ? owned.all.length : ownIndex(owned, draft.bindingId);
+        const stored = keepHiddenFormIds(owned, toStored(owned, draft, bindingId), owned.all[replaced]);
         return { value: [...owned.all.slice(0, replaced), stored, ...owned.all.slice(replaced + 1)], result: toView(owned, stored, draft.connectionId) };
       } });
     },

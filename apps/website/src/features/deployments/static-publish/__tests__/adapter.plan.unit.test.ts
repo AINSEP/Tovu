@@ -36,11 +36,20 @@ test("planStaticPublish returns the target and only a base path the module suppl
   assert.equal(missingRequiredFieldMessage(plain, config({ bucket: "b" })), null);
 });
 
-test("readStaticPublishConfig keeps declared string fields, refuses a non-string unless blanks count as absent, and drops unknown keys", () => {
+test("readStaticPublishConfig keeps declared string fields, refuses non-strings in JSON mode, and drops unknown keys", () => {
   const target = host();
   assert.deepEqual(readStaticPublishConfig(target, { bucket: "b", prefix: "", extra: "dropped" }, { blankAsAbsent: false }), { ok: true, config: { target: "fixture-host", bucket: "b", prefix: "" } });
   assert.deepEqual(readStaticPublishConfig(target, { bucket: "b", prefix: "" }, { blankAsAbsent: true }), { ok: true, config: { target: "fixture-host", bucket: "b" } });
   assert.deepEqual(readStaticPublishConfig(target, { bucket: 7 }, { blankAsAbsent: false }), { ok: false, message: "'bucket' must be a string" });
-  assert.deepEqual(readStaticPublishConfig(target, { bucket: 7 }, { blankAsAbsent: true }), { ok: true, config: { target: "fixture-host" } });
   assert.equal(unknownTargetMessage(registryOf(target), "x".repeat(80)), `publish target '${"x".repeat(64)}' is not available; choose one of: fixture-host`);
+});
+
+test("T24: blankAsAbsent refuses non-string declared fields instead of silently dropping them", () => {
+  const target = host();
+  for (const field of ["bucket", "prefix"]) {
+    assert.deepEqual(
+      readStaticPublishConfig(target, { bucket: "b", [field]: 7 }, { blankAsAbsent: true }),
+      { ok: false, message: `'${field}' must be a string` },
+    );
+  }
 });

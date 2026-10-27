@@ -18,7 +18,7 @@ export interface ProjectKeysPort {
   list(required: { cards?: readonly PluginCredentialCard[] }, optional?: Record<string, never>): Promise<ProjectKeyRow[]>;
   permissionFor(required: { keyId: string }, optional?: Record<string, never>): Promise<string>;
   use(required: { keyId: string; use: boolean }, optional?: Record<string, never>): Promise<{ keyId: string; usedByThisSite: boolean; usedBy: readonly string[]; appliesAt: "now" | "restart" | "failed"; message?: string }>;
-  savedResult(required: { result: unknown; label?: string }, optional?: Record<string, never>): Promise<unknown>;
+  savedResult(required: { result: unknown }, optional?: Record<string, never>): Promise<unknown>;
 }
 
 /** Permission follows the same domain that owns saving this row. Unknown kinds fail closed. */

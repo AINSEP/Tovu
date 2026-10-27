@@ -1449,6 +1449,10 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .sidebar-backdrop { position: fixed; inset: 0; background: var(--jini-overlay-bg-navigation); z-index: 45;
   backdrop-filter: var(--tovu-admin-scrim-backdrop, none);
 }
+/* The chat button (75) sat over the open drawer (50) and its backdrop, covering the last nav items
+   on a phone (owner, 2026-10-26). The drawer is modal, so the button hides while it is open, like
+   `.agent-plugin-source-modal`; the backdrop only renders while open, so closing brings it back. */
+.admin-layout:has(> .sidebar-backdrop) .chat-fab { display: none; }
 
 /* ============================================================
    SIDEBAR — grouped .cms-nav (replaces the WordPress-shaped menu)
@@ -2078,7 +2082,10 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   margin: 0; padding: 0.45rem 0.5rem 0.45rem 0.85rem;
   border-color: var(--border); box-shadow: var(--jini-panel-shadow-flat); font-size: var(--text-sm);
 }
-.dash-password-banner p { flex: 1 1 16rem; margin: 0; color: var(--fg-2); }
+/* The basis is capped at the row minus the 1rem icon and its column gap: under ~340px a bare 16rem
+   no longer fit beside the icon, so the icon sat alone on row 1 and the text jumped left onto
+   row 2 (owner, 320px, 2026-10-26). Wider rows still get 16rem, so they wrap as before. */
+.dash-password-banner p { flex: 1 1 min(16rem, calc(100% - 1rem - var(--space-3))); margin: 0; color: var(--fg-2); }
 .dash-password-banner-icon { display: inline-flex; color: var(--warning); }
 .dash-password-banner-action { font-weight: 600; color: var(--fg); white-space: nowrap; }
 .dash-password-banner-action:hover { color: var(--link); text-decoration: underline; }

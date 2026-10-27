@@ -1,6 +1,14 @@
 import { SiteShareRefusal } from "./share-policy.js";
 import { validateSharePath } from "./share-file-policy.js";
 
+/**
+ * Archive folder for the site's theme overrides. A theme id cannot hold `_` (`__originals__` relies on
+ * the same rule), so a theme named `overrides` keeps `themes/overrides/` and never meets this namespace.
+ */
+const OVERRIDES_ARCHIVE_PREFIX = "themes/__overrides__/";
+/** The code unit every override file belongs to, on both the archive and the staged side. */
+export const OVERRIDES_UNIT = "themes/__overrides__";
+
 /** Pure ZIP-only mapping. The repository collector and Git backup retain their runtime layout. */
 export function runtimeToArchivePath(required: { path: string }, _optional = {}): string | null {
   const file = required.path;
@@ -10,7 +18,7 @@ export function runtimeToArchivePath(required: { path: string }, _optional = {})
   if (original) return `themes/__originals__/${original[1]}/${original[2]}`;
   const theme = /^themes\/(?:static|declarative|code)\/([^/]+)\/(.+)$/.exec(file);
   if (theme) return `themes/${theme[1]}/${theme[2]}`;
-  if (file.startsWith("overrides/")) return "themes/" + file;
+  if (file.startsWith("overrides/")) return OVERRIDES_ARCHIVE_PREFIX + file.slice("overrides/".length);
   // Skills live per workspace (`skills/ws/<ws>/<skill>`); the archive keeps only the skill folder.
   const skill = /^skills\/ws\/[^/]+\/(.+)$/.exec(file);
   if (skill) return "skills/" + skill[1];
@@ -33,7 +41,7 @@ function pluginArchivePath({ path: file }: { path: string }): string | null {
 /** Restore a theme's tier from its own manifest; unknown/executable trees remain quarantine candidates. */
 export function archiveToRuntimePath(required: { path: string; files: ReadonlyMap<string, Buffer> }, _optional = {}): string {
   const file = required.path;
-  if (file.startsWith("themes/overrides/")) return file.slice("themes/".length);
+  if (file.startsWith(OVERRIDES_ARCHIVE_PREFIX)) return "overrides/" + file.slice(OVERRIDES_ARCHIVE_PREFIX.length);
   const theme = /^themes\/(?:(__originals__)\/)?([^/]+)\/(.+)$/.exec(file);
   if (!theme) return file;
   const prefix = theme[1] ? "themes/__originals__/" : "themes/";
@@ -54,13 +62,15 @@ export function archiveCodeUnit(required: { path: string }, _optional = {}): str
   return /^(skills\/[^/]+|agent-plugins\/[^/]+|plugins\/[^/]+)\//.exec(required.path)?.[1];
 }
 
-/** Retain the existing package scanner's proof: known bundled digest AND exact local file hash. */
+/** Retain the existing package scanner's proof: known bundled digest AND exact local file hash.
+ * Only an AGENT package maps into the content-addressed root. A site plugin's archive path is already
+ * its runtime path (`plugins/<id>/package/...`), so it keeps the ordinary name rules export applies:
+ * mapping it there let import accept `mcp.json` and credential-named files that export refuses. */
 export function archiveSecretScanPath(required: { path: string; plugins: readonly import("./archive-manifest.js").ArchivePlugin[] }, _optional = {}): string {
-  const match = /^(agent-plugins|plugins)\/([^/]+)\/package\/(.+)$/.exec(required.path);
+  const match = /^agent-plugins\/([^/]+)\/package\/(.+)$/.exec(required.path);
   if (!match) return required.path;
-  const kind = match[1] === "agent-plugins" ? "agent" : "site";
-  const plugin = required.plugins.find(plugin => plugin.kind === kind && plugin.id === match[2]);
-  return `agent-plugins/ws/archive/${match[2]}/package/sha256/${plugin?.digest ?? "0".repeat(64)}/${match[3]}`;
+  const plugin = required.plugins.find(plugin => plugin.kind === "agent" && plugin.id === match[1]);
+  return `agent-plugins/ws/archive/${match[1]}/package/sha256/${plugin?.digest ?? "0".repeat(64)}/${match[2]}`;
 }
 
 function sitePluginArchivePath(required: { id: string; relative: string }): string {
@@ -81,7 +91,7 @@ export function editedArchiveWarnings(required: { units: Iterable<string> }, _op
 
 /** One warning per unit this install does not recognise as its own code, so it landed switched off. */
 export function keptOffArchiveWarnings(required: { units: Iterable<string> }, _optional = {}): string[] {
-  return [...new Set(required.units)].sort().map(unit => unit === "themes/overrides"
+  return [...new Set(required.units)].sort().map(unit => unit === OVERRIDES_UNIT
     ? "Theme overrides aren't code this Tovu recognises. They were imported and kept switched off."
     : `${unitLabel(unit)} isn't code this Tovu recognises. It was imported and kept switched off.`);
 }

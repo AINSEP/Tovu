@@ -129,6 +129,7 @@ export async function importFixture(t: TestContext, placement: "inSite" | "appDa
     fs.writeFileSync(path.join(siteDir, ".site-meta.json"), JSON.stringify({ siteId: "source-site", schemaVersion: runtimeSchemaVersion().index }));
     const readKeys: string[] = [];
     const productionPlan = await prepareShareContent({
+      snapshotRoot: root,
       sources: { siteDir, mediaUploadsDir: null, themesDir: path.join(siteDir, "themes"), skillsDir: path.join(siteDir, "skills"), agentPlugins: resolveAgentPluginLayout({ siteDir, env: {} }), tovuVersion: "test" },
       sanitize: sanitizeShareDatabase, rewriteMedia: rewriteArchiveMedia, imageTransformer: { transform: async () => assert.fail("fixture media is not raster") },
       blobStore: { get: async ({ storageKey }) => { assert.equal(storageKey, STORAGE_KEY); readKeys.push(storageKey); return MEDIA; }, sizeOf: async ({ storageKey }) => { assert.equal(storageKey, STORAGE_KEY); return MEDIA.length; } },

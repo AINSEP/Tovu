@@ -102,9 +102,22 @@ test("POST /session with an active grant on a keyless instance answers 503 inste
   assert.deepEqual(sent.body, KEYLESS_BODY);
 });
 
+test("T43: a keyless session response does not disclose whether the source has a grant", async () => {
+  const handler = routes().get("POST /api/publish-trust/v1/session")!;
+  for (const sourceInstallationId of ["src-1", "unknown-source"]) {
+    const { res, sent } = fakeRes();
+    const body = { nonce: "n", sourceInstallationId, generation: 1,
+      capabilities: ["publish_content.apply"], signatureB64u: "s" };
+    await handler(fakeReq(body), res);
+    assert.equal(sent.status, 503, `keyless response must be independent of source ${sourceInstallationId}`);
+    assert.deepEqual(sent.body, KEYLESS_BODY);
+  }
+});
+
 test("POST /session answers 500 rather than hanging when the grant store throws", async () => {
   const { res, sent } = fakeRes();
   const handlers = routes({
+    targetInstallationId: Promise.resolve("dest-1"),
     grants: async () => {
       throw new Error("grant store exploded");
     },

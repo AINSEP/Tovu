@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import { Validator, type Schema } from "@cfworker/json-schema";
 
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
@@ -388,4 +389,29 @@ test("create results link to the public slug when published, and update removes 
     kind: "post", id: created.post.id, status: "draft",
   }) as { post: { publicUrl: string | null } };
   assert.equal(drafted.post.publicUrl, null);
+});
+
+test("T33: the update body schema accepts an empty editor paragraph and preserves existing widget styling", async (t) => {
+  const cases = [
+    { name: "empty paragraph without content", bodyJson: { type: "doc", content: [{ type: "paragraph" }] } },
+    { name: "widget cssClass and htmlAttributes", bodyJson: { type: "doc", content: [
+      { type: "widgetEmbed", attrs: { placementId: "placement-1", cssClass: "hero-widget", htmlAttributes: 'data-section="hero"' } },
+    ] } },
+  ];
+  for (const { name, bodyJson } of cases) await t.test(name, async () => {
+    const { deps, postRepo } = fakeRouteDeps();
+    // These are existing editor-authored documents, returned unchanged during a title edit.
+    await seedPost(postRepo, { bodyJson });
+    const registration = tool(registrationsFor(deps), "content_post_update");
+    const schema = registration.descriptor.inputSchema as { properties: { bodyJson: Schema } };
+    // Use MCP's own validator on the published body subschema, where its local $defs resolve.
+    // The enclosing tool schema also has unscoped #/$defs refs; don't let that separate defect mask T33.
+    const validation = new Validator(structuredClone(schema.properties.bodyJson), "2020-12", true).validate(bodyJson);
+    // Expected RED: the schema requires paragraph.content and rejects the widget's styling attrs.
+    assert.equal(validation.valid, true, JSON.stringify(validation.errors));
+    await call(registration, { id: "p1", kind: "post", title: "Retitled", bodyJson, expectedVersion: 1 });
+    const saved = await storedPost(postRepo);
+    assert.equal(saved.title, "Retitled");
+    assert.deepEqual(saved.bodyJson, bodyJson, "editing a title must preserve the editor's document and styling");
+  });
 });

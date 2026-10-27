@@ -14,9 +14,10 @@ import { addPortableSettings, captureProjectedDatabase, collectShareFiles, type 
  * Same consistent snapshot and collector as a repository backup, with a fresh DB projection and
  * regenerated portable settings. Media comes ONLY from snapshot records through the blob-store
  * owner, so object-storage sites work and unreferenced/chat upload bytes cannot ride along.
+ * `snapshotRoot` is the injected private folder the database snapshot lands in (never the source site).
  * @complexity O(site entries + snapshot + referenced blob bytes), bounded by archive caps.
  */
-export async function prepareShareContent(required: { dbOps: DbOpsPort; sources: SiteBackupSources; sanitize: ShareDatabaseSanitizer; blobStore: Pick<BlobStorePort, "get" | "sizeOf">; imageTransformer: ImageTransformerPort; rewriteMedia: ArchiveMediaRewriter }, optional: { signal?: AbortSignal; packageThemesRoot?: string } = {}): Promise<SiteSharePlanContent> {
+export async function prepareShareContent(required: { dbOps: DbOpsPort; snapshotRoot: string; sources: SiteBackupSources; sanitize: ShareDatabaseSanitizer; blobStore: Pick<BlobStorePort, "get" | "sizeOf">; imageTransformer: ImageTransformerPort; rewriteMedia: ArchiveMediaRewriter }, optional: { signal?: AbortSignal; packageThemesRoot?: string } = {}): Promise<SiteSharePlanContent> {
   optional.signal?.throwIfAborted();
   const { projected, watermarkAtCapture } = await captureProjectedDatabase(required, optional);
   const include = { database: true, media: true, themes: true, plugins: true, settings: true };

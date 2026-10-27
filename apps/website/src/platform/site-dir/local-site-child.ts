@@ -111,8 +111,12 @@ export async function runLocalSiteChild(
 ): Promise<void> {
   const ownerPid = ownerPidFrom({ env: proc.env });
   const reap = reapOwnTree ?? createOwnTreeReaper({ proc });
+  // Latched by the watchdog: a tree stop can settle before the OS ends this process, so a bundle
+  // build that finishes after the owner is gone must not go on to boot the site.
+  let ownerLost = false;
   const watchdog = timers.setInterval(() => {
     if (!parentGone({ proc, ownerPid })) return;
+    ownerLost = true;
     timers.clearInterval(watchdog); void reap();
   }, WATCHDOG_MS);
   watchdog.unref();
@@ -122,6 +126,7 @@ export async function runLocalSiteChild(
       runtimeDir: proc.env.TOVU_LOCAL_ADMIN_BUILD_ROOT!, repoRoot: proc.env.TOVU_REPO_ROOT!,
     }, { env: proc.env });
   }
+  if (ownerLost) return;
   await importEntry(siteEntry);
 }
 

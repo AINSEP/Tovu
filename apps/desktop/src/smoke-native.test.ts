@@ -296,10 +296,11 @@ test("native smoke malformed JSON and module errors expose only bounded redacted
   assert.ok(entries.unresolved[0]!.length <= 2_000);
 });
 
-test('owner-store status requires ready and zero entries/grants without echoing diagnostics', () => {
-  const status = { version: 1 as const, ok: true as const, action: 'status' as const, data: { ready: true, entries: 0, grants: 0 } };
+test('owner-store status requires no legacy owner store and zero entries/grants without echoing diagnostics', () => {
+  const status = { version: 1 as const, ok: true as const, action: 'status' as const, data: { legacy: 'none' as const, entries: 0, grants: 0 } };
   assert.doesNotThrow(() => assertPackagedOwnerStoreStatus({ reply: status }));
-  for (const data of [{ ready: false, entries: 0, grants: 0 }, { ready: true, entries: 1, grants: 0 }, { ready: true, entries: 0, grants: 1 }]) {
+  for (const data of [{ legacy: 'empty' as const, entries: 0, grants: 0 }, { legacy: 'available' as const, entries: 1, grants: 0 },
+    { legacy: 'settled' as const, entries: 1, grants: 1 }, { legacy: 'none' as const, entries: 0, grants: 1 }]) {
     assert.throws(() => assertPackagedOwnerStoreStatus({ reply: { ...status, data } }), {
       message: 'smoke-native: packaged owner-store status failed or profile was not empty',
     });

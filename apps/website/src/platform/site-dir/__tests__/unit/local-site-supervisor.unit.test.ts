@@ -123,6 +123,33 @@ function controllable(overrides: Partial<LocalSiteProcessPort> = {}, options: { 
 }
 const foreignState = (name: string): LocalSiteState => ({ name, status: "running", pid: 77, port: 3900, daemonPort: 3901, adminUrl: "http://localhost:3900/admin/", app: "Desktop", external: true });
 
+test("T47/site-dir-1#2: a crash queued behind Stop cannot overwrite the stopped state", async () => {
+  const f = controllable();
+  await f.supervisor.start({ name: "a" });
+  await f.supervisor.start({ name: "b" });
+  let release!: () => void;
+  let stopping!: () => void;
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  const entered = new Promise<void>((resolve) => { stopping = resolve; });
+  f.control.terminate = async () => { stopping(); await held; };
+  const stopB = f.supervisor.stop({ name: "b" });
+  await entered;
+
+  // B's tree stop holds the lane while Stop A and A's real exit arrive in that order.
+  const stopA = f.supervisor.stop({ name: "a" });
+  f.children[0]!.exit();
+  release();
+  try {
+    await Promise.all([stopB, stopA]);
+    // This mutation is queued after the crash reaper, so it also acts as a lane barrier.
+    await f.supervisor.withStoppedSite({ name: "a", task: async () => {} });
+    assert.equal(f.supervisor.list().find((site) => site.name === "a")?.status, "stopped");
+  } finally {
+    release();
+    await f.supervisor.shutdown();
+  }
+});
+
 for (const maxConcurrent of [0, 21, 1.5]) test(`a site limit of ${maxConcurrent} is refused`, () => {
   assert.throws(() => controllable({}, { maxConcurrent }), { name: "LocalSiteError", message: "INVALID_SITE_LIMIT" });
 });

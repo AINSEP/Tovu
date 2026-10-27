@@ -23,7 +23,7 @@ async function fixture() {
 }
 test("save attaches to this site immediately, and detach leaves the saved row", async () => {
   const { keys, inputs } = await fixture();
-  assert.deepEqual(await keys.savedResult({ result: { created: true, credential: { id: "key-a" } }, label: "Production" }), { created: true, credential: { id: "key-a" }, keyId: "key-a", usedByThisSite: true, usedBy: ["A"], appliesAt: "now" });
+  assert.deepEqual(await keys.savedResult({ result: { created: true, credential: { id: "key-a" } } }), { created: true, credential: { id: "key-a" }, keyId: "key-a", usedByThisSite: true, usedBy: ["A"], appliesAt: "now" });
   assert.deepEqual(await keys.use({ keyId: "key-a", use: true }), { keyId: "key-a", usedByThisSite: true, usedBy: ["A"], appliesAt: "now" });
   const b = createProjectKeys({ ...inputs, siteId: "uuid-b", siteName: "B" });
   assert.deepEqual(await b.list({}), [{ keyId: "key-a", name: "Production", kind: "vendor", usedByThisSite: false, usedBy: ["A"] }]);
@@ -128,7 +128,7 @@ test("a committed provider save attaches immediately and retains the restart out
       } },
   });
   assert.deepEqual(saved, { saved: true, configured: false, store: "project", usedByThisSite: false, usedBy: [], appliesAt: "restart" });
-  assert.deepEqual(await keys.savedResult({ result: { ...saved, keyId }, label: "Example" }), {
+  assert.deepEqual(await keys.savedResult({ result: { ...saved, keyId } }), {
     ...saved, keyId, usedByThisSite: true, usedBy: ["A"],
   });
   assert.equal(writes, 1);

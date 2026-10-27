@@ -28,6 +28,18 @@ export function shellTelemetryPayload({ input }: { input: unknown }, _options = 
   return record.kind === 'error' ? errorPayload({ record }) : catalogPayload({ record });
 }
 
+/** The trusted shell's main frame. A frame or sender torn down while its message was in flight
+ * throws on `url`/`getURL()`; inside an `ipcMain` listener that is a main-process error, so it reads
+ * as untrusted and the message is dropped. O(1). */
+function fromShellMainFrame({ event, isShellPage }: { event: TelemetryEvent; isShellPage: (url: string) => boolean }, _options = {}): boolean {
+  try {
+    const frame = event.senderFrame;
+    return !!frame && frame.parent === null && isShellPage(frame.url) && isShellPage(event.sender.getURL());
+  } catch {
+    return false;
+  }
+}
+
 /** Register before the shell opens. One rolling error budget for the whole shell (reloads cannot
  * reset it). Returns teardown; no per-sender registry can grow. O(1), at most ten timestamps.
  */
@@ -38,8 +50,7 @@ export function registerProductTelemetryIpc({ ipcMain, isShellPage, tracker }: {
 }, { now = Date.now }: { now?: () => number } = {}): () => void {
   let errors: number[] = [];
   const listener = (event: TelemetryEvent, input: unknown) => {
-    const frame = event.senderFrame;
-    if (!frame || frame.parent !== null || !isShellPage(frame.url) || !isShellPage(event.sender.getURL())) return;
+    if (!fromShellMainFrame({ event, isShellPage })) return;
     const payload = shellTelemetryPayload({ input });
     if (!payload) return;
     if (payload.kind === 'error') {

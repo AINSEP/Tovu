@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
@@ -154,4 +155,36 @@ test("a source the owner lock cannot even be taken on is an InternalError naming
     return true;
   });
   assert.equal(fs.existsSync(targetDataDir), false);
+});
+
+test("T38: a synchronous source-open failure releases the owner lock", async (t) => {
+  const root = fixture(t);
+  const sourceDataDir = path.join(root, "source");
+  const targetDataDir = path.join(root, "never-written");
+  fs.mkdirSync(sourceDataDir);
+  const lock = path.join(sourceDataDir, OWNER_LOCK_FILE);
+  const mkdir = fs.mkdirSync;
+  let lockedAtOpen = false;
+  // The real driver creates its data directory synchronously, after copySource takes the lock.
+  // Fail there before any PGlite instance starts; leave lock acquisition/release real.
+  const fault = t.mock.method(fs, "mkdirSync", ((...args: Parameters<typeof fs.mkdirSync>) => {
+    if (String(args[0]) === sourceDataDir) {
+      lockedAtOpen = fs.existsSync(lock);
+      throw Object.assign(new Error("source open failed"), { code: "EACCES" });
+    }
+    return mkdir(...args);
+  }) as typeof fs.mkdirSync);
+  syncBuiltinESMExports();
+  try {
+    await assert.rejects(duplicatePgliteStore({ sourceDataDir, targetDataDir }), {
+      name: "InternalError", message: `duplicatePgliteStore: copying to ${targetDataDir} failed: source open failed`,
+    });
+    assert.equal(lockedAtOpen, true, "the failure must occur after the real owner lock was acquired");
+    assert.equal(fs.existsSync(targetDataDir), false);
+    // Expected red: openPgliteKernel currently throws before entering copySource's try/finally.
+    assert.equal(fs.existsSync(lock), false, "a failed source open must not keep the site locked");
+  } finally {
+    fault.mock.restore();
+    syncBuiltinESMExports();
+  }
 });

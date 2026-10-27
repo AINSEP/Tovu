@@ -22,7 +22,7 @@ import { processBuildRelease } from '../build-release.js';
  * and the plugin SDK's construction asks for the plugin host — a lookup that used to read `routeDeps`
  * in its temporal dead zone (ReferenceError → noop). Here a fake provider plugin (no vendor) is
  * installed on disk in the site's plugin directory, enabled in content.db, and its declared settings saved
- * through the real settings port (sealed in the project vault and explicitly attached); the second boot must hand its port (not the
+ * through the real settings port (sealed and attached in the same project write); the second boot must hand its port (not the
  * noop) to RouteDeps, and its factory must have received the saved values.
  */
 
@@ -76,10 +76,9 @@ test("installed + enabled + configured provider plugin boots through the real co
   await sqlitePluginActivationRepoFor({ store: first.contentKernel! }).save({ workspaceId: first.workspaceId, pluginId: PLUGIN_ID, version, enabled: true, updatedAt: "2026-10-26" });
   // The retired-key check runs over the real credential listing (nothing saved the old way here).
   assert.equal(await first.legacyProviderCredential!({ pluginId: PLUGIN_ID }), false);
-  // Saved through the same port the admin settings card writes: sealed project rows need explicit attachment.
+  // Saved through the same port the admin settings card writes.
   await first.providerConfig!.write({ pluginId: PLUGIN_ID, config: { settings: { endpoint: "https://collector.example.test" }, secrets: { token: "sealed-token" } } });
-  assert.equal(await first.providerConfig!.readSettings({ pluginId: PLUGIN_ID }), null, "saving a key does not attach it");
-  await first.projectKeys!.use({ keyId: `plugin-state:${PLUGIN_ID}:provider.config`, use: true });
+  assert.deepEqual(await first.providerConfig!.usage({ pluginId: PLUGIN_ID }), { keyId: `plugin-state:${PLUGIN_ID}:provider.config`, store: "project", usedByThisSite: true, usedBy: ["site"] });
   assert.deepEqual(await first.providerConfig!.readSettings({ pluginId: PLUGIN_ID }), { settings: { endpoint: "https://collector.example.test" }, secretNames: ["token"] });
   await first.pluginRuntimeReady;
   await closeFirst();
@@ -125,7 +124,8 @@ test("two sites of one project: settings saved from site A land in project.db an
   };
   const a = await boot("site-a");
   await a.deps.providerConfig!.write({ pluginId: PLUGIN_ID, config: { settings: { endpoint: "https://project-collector.example.test" }, secrets: {} } });
-  assert.equal(await a.deps.providerConfig!.read({ pluginId: PLUGIN_ID }), null, "a new project row is not automatically used by its saving site");
+  assert.deepEqual(await a.deps.providerConfig!.read({ pluginId: PLUGIN_ID }), { settings: { endpoint: "https://project-collector.example.test" }, secrets: {} });
+  assert.deepEqual(await a.deps.providerConfig!.usage({ pluginId: PLUGIN_ID }), { keyId: `plugin-state:${PLUGIN_ID}:provider.config`, store: "project", usedByThisSite: true, usedBy: ["site-a"] });
   await a.close();
   const b1 = await boot("site-b");
   assert.equal(isNoopObservabilityPort(b1.deps.observability), true, "site B has not enabled the plugin yet");

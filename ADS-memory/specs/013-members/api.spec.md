@@ -33,7 +33,15 @@ No `MEMBERS_COMPLETE_SIGN_IN` endpoint exists — `completeSignIn` has zero HTTP
 ## 3) Rate Limit Profiles
 | Profile ID | Window Seconds | Max Requests | Burst Allowance | Keyed By | Notes |
 |---|---:|---:|---:|---|---|
-| `NONE` | n/a | n/a | n/a | n/a | No rate limiter exists for any member route (`feature.spec.md` REQ-17). `MEMBERS_REQUEST_MAGIC_LINK` in particular has no throttle despite ADR-030 OQ-8 naming one a hard pre-launch precondition — flagged, not built. |
+| `NONE` | n/a | n/a | n/a | n/a | Historical as-built profile; authentication throttling supersedes REQ-17 (see `traceability.spec.md`). Public member authentication follows the owner rule below. |
+
+**W-002/W-003 changed by owner 2026-10-26:** Public member authentication checks the IP limit
+first. An already rate-limited IP receives `429` with `code: "RATE_LIMIT_EXCEEDED"` without
+checking or charging email/identity counters, protecting a victim's magic-link and password-reset
+budget. After IP admission, all applicable email/identity limits must pass before service work.
+`Retry-After` and `details.retryAfterSeconds` contain the longest applicable wait among checked,
+denied counters; an IP refusal uses only its own wait. This supersedes "both counters are charged";
+see `behavior.spec.md` §2.2 for the ordering rule.
 
 ## 4) Request Contracts
 

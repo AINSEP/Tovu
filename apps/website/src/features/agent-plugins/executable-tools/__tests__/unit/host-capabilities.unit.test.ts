@@ -51,7 +51,7 @@ test('frozen accounts: a bound signal returns its account for that connectionRef
   const signal = new AbortController().signal;
   frozen.bind({ signal, accounts: new Map([['conn-1', 'acct-7']]) });
   assert.equal(frozen.lookup({ signal, connectionRef: 'conn-1' }), 'acct-7');
-  assert.equal(frozen.lookup({ signal, connectionRef: 'conn-2' }), undefined);
+  assert.equal(frozen.lookup({ signal, connectionRef: 'conn-2' }), null);
 });
 
 test('frozen accounts: another execution\'s signal sees nothing', () => {
@@ -146,4 +146,38 @@ test('tokens: a confirmed call asks for the account frozen against its own signa
   frozen.bind({ signal: SCOPE.signal, accounts: new Map([['conn-1', 'acct-7']]) });
   await port(SCOPE).connections.getAccessToken({ connectionRef: 'conn-1' });
   assert.deepEqual(tokenCalls[0]!.optional, { expectedAccountId: 'acct-7' });
+});
+
+test('T13: a confirmed call refuses a token for a connection absent from its frozen approval', async () => {
+  const { port, frozen, tokenCalls } = capabilitiesWith();
+  const signal = new AbortController().signal;
+  frozen.bind({ signal, accounts: new Map([['conn-1', 'acct-7']]) });
+
+  // The accessor accepts both refs as plugin-owned. Only conn-1 was approved for this call.
+  await assert.rejects(port({ ...SCOPE, signal }).connections.getAccessToken({ connectionRef: 'conn-2' }), Error);
+  assert.deepEqual(tokenCalls, [], 'an unapproved connection must be refused before requesting its token');
+});
+
+test('T23: aborting a tool propagates to its in-flight HTTP request even with a plugin signal', async () => {
+  const started = Promise.withResolvers<HttpRequest>();
+  const reply = Promise.withResolvers<HttpResponse>();
+  const http: HttpClientPort = { async send({ request }) { started.resolve(request); return reply.promise; } };
+  const { port } = capabilitiesWith({ http });
+  const tool = new AbortController();
+  const plugin = new AbortController();
+  const pending = port({ ...SCOPE, signal: tool.signal }).http.fetch(
+    { url: 'https://api.acme.test/v1/rows' }, { signal: plugin.signal },
+  );
+  try {
+    const request = await started.promise;
+    const reason = new Error('tool cancelled');
+    tool.abort(reason);
+
+    assert.equal(request.signal?.aborted, true);
+    assert.equal(request.signal?.reason, reason);
+    assert.equal(plugin.signal.aborted, false, 'cancelling the tool must not mutate the plugin controller');
+  } finally {
+    reply.resolve({ status: 200, headers: {}, bodyText: '{}' });
+    await pending;
+  }
 });

@@ -20,6 +20,7 @@ export const SHARE_TABLES = new Set([
   "content_types", "entries", "taxonomies", "terms", "entry_terms", "media",
   "media_slug_history", "asset_blobs", "asset_renditions", "transform_registry",
   "entry_refs", "widget_region_bindings", "form_definitions", "redirects", "member_tiers",
+  "site_consent_revisions", "site_consent_heads",
 ]);
 
 /** These obsolete/private tables can exist outside today's schema after an upgrade. */

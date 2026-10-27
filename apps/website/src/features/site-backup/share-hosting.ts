@@ -1,6 +1,6 @@
 import type { ArtifactStorePort } from "@jini-ai/devops/deploy";
 import { createHash } from "node:crypto";
-import type { HttpClientPort, HttpResponse } from "@jini-ai/core/primitives";
+import { createConsoleLogger, type HttpClientPort, type HttpResponse, type Logger } from "@jini-ai/core/primitives";
 import { callPeer, type PeerCallDeps } from "../publish-content/peer-transport.js";
 import { peerUrl } from "../publish-content/peer-url.js";
 import { SiteShareRefusal } from "./share-policy.js";
@@ -34,8 +34,8 @@ async function verifyServerShare(required: { http: HttpClientPort; key: string; 
 
 /** Public origin is an explicit operator capability, never inferred from a local request Host. */
 export function createRuntimeShareDelivery(required: { registry: SiteShareRegistry; site: string; publicOrigin: string; http: HttpClientPort }, _optional: Record<string, never> = {}): ShareDelivery {
-  const origin = new URL(required.publicOrigin);
-  if (origin.protocol !== "https:" || origin.username || origin.password || origin.pathname !== "/" || origin.search || origin.hash) throw new SiteShareRefusal({ code: "STORAGE_SETUP", message: "TOVU_SHARE_PUBLIC_ORIGIN must be a public HTTPS origin without a path or credentials." });
+  const origin = URL.parse(required.publicOrigin);
+  if (!origin || origin.protocol !== "https:" || origin.username || origin.password || origin.pathname !== "/" || origin.search || origin.hash) throw new SiteShareRefusal({ code: "STORAGE_SETUP", message: "TOVU_SHARE_PUBLIC_ORIGIN must be a public HTTPS origin without a path or credentials." });
   const store: ArtifactStorePort = {
     async upload({ key, bytes }, _optional = {}) {
       const { token, file } = parseArtifactKey(key);
@@ -83,6 +83,8 @@ type ShareDeliverySources = {
   http: HttpClientPort;
   objectStore: () => Promise<ShareDelivery | undefined>;
   runtime?: () => ShareDelivery;
+  /** Where a skipped runtime delivery is reported; defaults to the console. */
+  logger?: Pick<Logger, "warn">;
 };
 type SavedShareDelivery = { provider?: string; binding?: string };
 
@@ -97,8 +99,18 @@ async function resolveServerDelivery(required: ShareDeliverySources, optional: S
     const peer = await required.peer();
     if (peer && bindingMatches({ saved: optional.binding, actual: peer.credential.baseUrl })) return createPeerShareDelivery({ peer, http: required.http });
   } catch { /* An unavailable connection still permits the configured object-store/ZIP fallback. */ }
-  const runtime = required.runtime?.();
+  const runtime = runtimeDelivery(required);
   return runtime && bindingMatches({ saved: optional.binding, actual: runtime.binding }) ? runtime : undefined;
+}
+
+/** This server's runtime delivery; a misconfigured public origin leaves the object-store/ZIP fallback.
+ * The warning carries the refusal code only: the configured origin may hold credentials. */
+function runtimeDelivery(required: ShareDeliverySources): ShareDelivery | undefined {
+  try { return required.runtime?.(); } catch (error) {
+    const code = error instanceof SiteShareRefusal ? error.code : "UNEXPECTED";
+    (required.logger ?? createConsoleLogger({ prefix: "" })).warn({ message: "[site-share] runtime share delivery is misconfigured; falling back to object storage or a private ZIP." }, { meta: { code } });
+    return undefined;
+  }
 }
 
 /** The configured object-store delivery when its provider and binding match the saved ones. */

@@ -824,7 +824,7 @@ test("diagnostic receipts exclude noop metrics from Sentry and PostHog while ret
   assert.equal(providers.observability.supportsMetric, false);
 });
 
-test('host release and environment override saved provider metadata and the composed tracker delegates existing signals', async () => {
+test('1: saved provider environment wins over the host default; blank uses host and release stays host-owned', async () => {
   const release = 'tovu@1.2.3+abcdef0';
   const seen: string[] = [];
   const events: ProductEvent[] = [];
@@ -835,7 +835,7 @@ test('host release and environment override saved provider metadata and the comp
       capture(event: ProductEvent) { events.push(event); }, identify() {},
     } }) },
   } });
-  // Declare the conflicting metadata as real settings so this checks host precedence, not filtering.
+  // Declare conflicting metadata as settings so this checks precedence, not filtering.
   const hostRuntime = { ...runtime, async listProviderPlugins() {
     return (await runtime.listProviderPlugins()).map(plugin => ({ ...plugin, providers: plugin.providers.map(provider => ({ ...provider,
       settings: [...provider.settings, { name: 'release', label: 'Release' },
@@ -849,12 +849,12 @@ test('host release and environment override saved provider metadata and the comp
   const ports = await bootProviderPlugins({ runtime: hostRuntime, config: configOf(configs), serviceName: 'tovu', release, site: SITE, ...consentAlways }, { warn: quiet, info: quiet });
   try {
     assert.deepEqual(observability.inputs, [{
-      dsn: 'https://public@sentry.example.test/1', serviceName: 'tovu', release, environment: 'local',
+      dsn: 'https://public@sentry.example.test/1', serviceName: 'tovu', release, environment: 'saved-environment',
       attribution: { attributes: { 'tovu.site.id': 'site-123', 'tovu.site.slug': 'blog', 'deployment.environment': 'local',
         'tovu.project.id': 'project-abc', 'service.version': release } },
     }]);
     assert.deepEqual(analytics.inputs, [{
-      host: 'https://posthog.example.test', apiKey: 'phc_key', serviceName: 'tovu', release, environment: 'local',
+      host: 'https://posthog.example.test', apiKey: 'phc_key', serviceName: 'tovu', release, environment: 'saved-environment',
       attribution: { attributes: { site_id: 'site-123', site_slug: 'blog', environment: 'local', project_id: 'project-abc', release }, groups: { site: 'site-123' } },
     }]);
     events.length = 0;
@@ -868,8 +868,17 @@ test('host release and environment override saved provider metadata and the comp
     assert.equal(result, 'application result');
     assert.deepEqual(events, [{ name: 'site_created', userId: 'operator-123', properties: { source: 'admin' } }]);
     assert.deepEqual(seen, ['metric:process.count', 'error:fixture.failure', 'op:fixture.work']);
+    configs['observability-sentry'].settings.environment = '';
+    configs['analytics-posthog'].settings.environment = '';
+    assert.equal(await ports.reapply({ pluginId: 'observability-sentry' }), 'now');
+    assert.equal(await ports.reapply({ pluginId: 'analytics-posthog' }), 'now');
+    for (const calls of [observability, analytics]) {
+      assert.equal(calls.inputs.length, 2);
+      assert.equal(calls.inputs[1]!.environment, 'local');
+      assert.equal(calls.inputs[1]!.release, release);
+    }
   } finally { await ports.dispose({}); }
-  assert.deepEqual([observability.disposed, analytics.disposed], [1, 1]);
+  assert.deepEqual([observability.disposed, analytics.disposed], [2, 2]);
 });
 
 test('active trace IDs follow only the current observability lease and remain optional for legacy providers', async () => {

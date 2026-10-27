@@ -214,6 +214,34 @@ test("restore puts the captured bytes and mode back", async () => {
   } finally { f.cleanup(); }
 });
 
+test("T42: a completed file undo reclaims its backup and keeps another pending undo", async () => {
+  const f = fixture();
+  try {
+    const relPath = "assets/logo.txt";
+    const otherPath = "assets/other.txt";
+    fs.writeFileSync(path.join(f.siteDir, otherPath), "other original");
+    const inverse = await f.port.capture({ relPath });
+    const pending = await f.port.capture({ relPath: otherPath });
+    assert.ok(inverse.backupName);
+    assert.ok(pending.backupName);
+    const backup = path.join(f.siteDir, ".publish-previous", inverse.backupName);
+    const pendingBackup = path.join(f.siteDir, ".publish-previous", pending.backupName);
+    assert.equal(fs.readFileSync(backup, "utf8"), "logo bytes");
+    await f.port.replace({ relPath, bytes: Buffer.from("published logo"), mode: 0o600 });
+    await f.port.replace({ relPath: otherPath, bytes: Buffer.from("other published"), mode: 0o600 });
+
+    await f.port.restore({ inverse });
+
+    assert.equal(fs.readFileSync(path.join(f.siteDir, relPath), "utf8"), "logo bytes");
+    assert.equal(fs.statSync(path.join(f.siteDir, relPath)).mode & 0o777, 0o644);
+    assert.equal(fs.readFileSync(pendingBackup, "utf8"), "other original", "pending undo bytes must be retained");
+    // Expected red: restore reads the previous file but never removes the consumed backup.
+    assert.equal(fs.existsSync(backup), false, "completed undo must reclaim its previous-file bytes");
+    await f.port.restore({ inverse: pending });
+    assert.equal(fs.readFileSync(path.join(f.siteDir, otherPath), "utf8"), "other original");
+  } finally { f.cleanup(); }
+});
+
 test("restore refuses an unsafe backup name", async () => {
   const f = fixture();
   try {

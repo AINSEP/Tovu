@@ -95,7 +95,7 @@ for (const storage of ["local", "s3"] as const) test(`L3 ${storage}: share/impor
   const siteDir = path.join(h.root, "source");
   fs.mkdirSync(path.join(siteDir, "uploads/chat-attachments"), { recursive: true });
   fs.writeFileSync(path.join(siteDir, "uploads/chat-attachments/private.md"), "Temporary attachment");
-  const plan = await prepareShareContent({ sources: { siteDir, mediaUploadsDir: path.join(siteDir, "uploads"), themesDir: path.join(siteDir, "themes"), skillsDir: path.join(siteDir, "skills"), agentPlugins: resolveAgentPluginLayout({ siteDir, env: {} }), tovuVersion: "test" },
+  const plan = await prepareShareContent({ snapshotRoot: h.root, sources: { siteDir, mediaUploadsDir: path.join(siteDir, "uploads"), themesDir: path.join(siteDir, "themes"), skillsDir: path.join(siteDir, "skills"), agentPlugins: resolveAgentPluginLayout({ siteDir, env: {} }), tovuVersion: "test" },
     blobStore: await sourceStore(t, h, storage), sanitize: sanitizeShareDatabase, rewriteMedia: rewriteArchiveMedia, imageTransformer: { transform: async () => assert.fail("not raster") },
     dbOps: { getCapabilities: async () => ({ restorePoint: { costClass: "cheap", kind: "file-snapshot" } }), captureRestorePoint: async () => {
       const artifactRef = path.join(h.root, "source-snapshot.db"); fs.writeFileSync(artifactRef, h.db.$client.serialize()); return { artifactRef, watermarkAtCapture: 1 };

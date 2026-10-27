@@ -79,6 +79,20 @@ test("list: a form id whose form is gone is left out of the slugs", async () => 
   assert.deepEqual((await portFor(bindings).list())[0]?.formIds, ["contact"]);
 });
 
+test("T7: re-saving a binding preserves its temporarily hidden trashed form ids", async () => {
+  // The forms repository omits trashed forms from list(), but their stored bindings must survive.
+  const bindings = store([own("b1", { formIds: ["form-1", "form-trashed"] })]);
+  const port = portFor(bindings);
+  const [listed] = await port.list();
+  assert.ok(listed);
+  assert.deepEqual(listed.formIds, ["contact"]);
+
+  await port.save({ ...listed, enabled: false });
+
+  assert.equal(bindings.current()[0]!.enabled, false);
+  assert.deepEqual(bindings.current()[0]!.formIds, ["form-1", "form-trashed"]);
+});
+
 test("security: list leaves out another adapter's binding and a binding on another plugin's connection", async () => {
   const bindings = store([own("b1"), own("x1", { adapterId: "other-rows" }), own("x2", { connectionRef: FOREIGN_REF })]);
   assert.deepEqual((await portFor(bindings).list()).map((binding) => binding.bindingId), ["b1"]);

@@ -101,16 +101,25 @@ export async function downloadShareArchive(required: { http: HttpClientPort; url
 }
 
 /**
- * Only the lock holder may classify a creating row as interrupted, never a concurrent reader.
- * A row with an allocation is reconciled against the workspace; one without it failed.
+ * Only the lock holder may classify a verifying or creating row as interrupted, never a concurrent
+ * reader: both statuses exist only while the import lock is held, so the holder finding one means
+ * the previous holder crashed. A verifying row failed; a creating row with an allocation is
+ * reconciled against the workspace, one without it failed. Either way its stage is discarded.
  */
 export async function reconcileInterruptedImports(required: { registry: SiteImportRegistry; workspace: SitesWorkspace; put: (row: SiteImportRecord) => void }): Promise<void> {
   for (const row of required.registry.list({})) {
-    if (row.status !== "creating") continue;
-    const status = row.creation ? await reconcileSiteCreation({ allocation: row.creation, workspace: required.workspace }) : "failed";
-    required.put({ ...row, status, ...(status === "failed" ? { newSiteId: null, newSiteName: null, error: "Site creation was interrupted and rolled back. Import the archive again." } : {}) });
+    if (row.status === "verifying") required.put({ ...row, status: "failed", error: "Archive verification was interrupted. Import the archive again." });
+    else if (row.status === "creating") required.put(await reconcileCreatingRow({ row, workspace: required.workspace }));
+    else continue;
     fs.rmSync(required.registry.stagePath(row), { recursive: true, force: true });
   }
+}
+
+/** The settled row for an interrupted creation: kept when the workspace has the site, else failed. */
+async function reconcileCreatingRow(required: { row: SiteImportRecord; workspace: SitesWorkspace }): Promise<SiteImportRecord> {
+  const { row } = required;
+  const status = row.creation ? await reconcileSiteCreation({ allocation: row.creation, workspace: required.workspace }) : "failed";
+  return { ...row, status, ...(status === "failed" ? { newSiteId: null, newSiteName: null, error: "Site creation was interrupted and rolled back. Import the archive again." } : {}) };
 }
 
 /** A folder-safe site name from the display name; non-Latin names fall back to `imported-site`.

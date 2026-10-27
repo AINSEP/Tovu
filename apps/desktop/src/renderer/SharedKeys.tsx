@@ -51,8 +51,7 @@ export function SharedKeys({ onClose, bridge = ownerStoreBridge({}) }: {
         {state.entries.map(entry => <SavedKey key={`${entry.id}:${entry.revision}`} entry={entry} bridge={bridge} state={state} />)}
       </section>
       <KeyForm bridge={bridge} state={state} />
-      <BackupForm action="export" bridge={bridge} state={state} />
-      <BackupForm action="restore" bridge={bridge} state={state} />
+      <ImportForm bridge={bridge} state={state} />
     </>}
   </dialog>;
 }
@@ -112,26 +111,27 @@ function KeyForm({ bridge, state, entry }: { bridge: OwnerStoreBridge; state: St
   </form>;
 }
 
-/** Main owns the native destination picker; passphrases go only to the fixed preload action.
- * Project inventory cannot establish owner-store emptiness; the CLI owns that restore check.
+/** Main owns the native backup picker and the confirmation that lists the dry run; the passphrase
+ * goes only to the fixed preload action. Nothing is written before that confirmation.
  */
-function BackupForm({ action, bridge, state }: { action: 'export' | 'restore'; bridge: OwnerStoreBridge; state: StoreState }) {
-  const restore = action === 'restore';
+function ImportForm({ bridge, state }: { bridge: OwnerStoreBridge; state: StoreState }) {
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = event.currentTarget;
     const passphrase = String(new FormData(form).get('passphrase'));
     form.reset();
-    void state.run({ action: () => bridge[action]({ passphrase }, {}) });
+    void state.run({ action: () => bridge.import({ source: 'backup', passphrase }, {}) });
   };
   return <form className="shared-keys__form" onSubmit={submit}>
-    <h3>{restore ? 'Restore legacy owner backup' : 'Export legacy owner backup'}</h3>
-    <p>{restore ? 'Restore requires an empty owner store. It does not restore project keys.' : 'Keep the passphrase safe. This legacy backup does not include project keys or site backups.'}</p>
+    <h3>Import older shared keys</h3>
+    <p>You see what imports before anything changes. Sites keep their own copies.</p>
     <fieldset disabled={state.busy || !state.loaded}>
+      <button type="button" className="button button--quiet"
+        onClick={() => void state.run({ action: () => bridge.import({ source: 'owner-store' }, {}) })}>Import from this computer</button>
       <label className="create-field"><span>Backup passphrase</span>
         <input name="passphrase" type="password" required maxLength={8000} autoComplete="off" spellCheck={false} />
       </label>
-      <button type="submit" className="button button--quiet">{restore ? 'Choose backup to restore…' : 'Choose export destination…'}</button>
+      <button type="submit" className="button button--quiet">Choose backup to import…</button>
     </fieldset>
   </form>;
 }

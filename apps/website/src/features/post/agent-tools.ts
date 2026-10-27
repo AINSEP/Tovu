@@ -421,7 +421,7 @@ export const TIPTAP_DOC_SCHEMA = {
         {
           type: "object",
           additionalProperties: false,
-          required: ["type", "content"],
+          required: ["type"],
           properties: {
             type: { const: "paragraph" },
             attrs: {
@@ -432,12 +432,14 @@ export const TIPTAP_DOC_SCHEMA = {
             },
             content: { $ref: "#/$defs/inlineContent" },
           },
-          description: "A paragraph. Renders as <p>.",
+          // `content` is optional on the three inline-content blocks: the editor saves an empty one
+          // without it, and the MCP server validates strictly, so requiring it fails a valid document.
+          description: "A paragraph. Renders as <p>. Omit content for an empty paragraph.",
         },
         {
           type: "object",
           additionalProperties: false,
-          required: ["type", "content"],
+          required: ["type"],
           properties: {
             type: { const: "heading" },
             attrs: {
@@ -484,7 +486,7 @@ export const TIPTAP_DOC_SCHEMA = {
         {
           type: "object",
           additionalProperties: false,
-          required: ["type", "content"],
+          required: ["type"],
           properties: {
             type: { const: "codeBlock" },
             attrs: {
@@ -617,7 +619,14 @@ export const TIPTAP_DOC_SCHEMA = {
               type: "object",
               additionalProperties: false,
               required: ["placementId"],
-              properties: { placementId: { type: "string", description: "An existing embed placement id, as returned by widgets_insert_embed." }, content: { type: "object", description: "Optional per-placement Media content overriding saved config; slug items or raw HTML." } },
+              properties: {
+                placementId: { type: "string", description: "An existing embed placement id, as returned by widgets_insert_embed." },
+                content: { type: "object", description: "Optional per-placement Media content overriding saved config; slug items or raw HTML." },
+                // Listed so strict MCP validation keeps a node that already carries them (a model would
+                // otherwise strip them to pass, losing the post's styling); see the description below.
+                cssClass: { type: "string", description: "Optional per-post CSS class on the embed's wrapper. Keep it when present." },
+                htmlAttributes: { type: "string", description: "Optional per-post extra HTML attributes on the embed's wrapper, re-validated at render time. Keep them when present." },
+              },
             },
           },
           description:
@@ -627,8 +636,8 @@ export const TIPTAP_DOC_SCHEMA = {
             "render.ts's renderDocWidgetEmbed wraps the rendered widget in a <div class=\"widget-embed …\"> carrying them when set, or renders unwrapped when both are absent. htmlAttributes is re-validated " +
             "at render time against the SAME shared allowlist the media node uses (2026-09-23 widget-attrs plan, S1) — class/id/style/data-*/aria-* and more are kept; on* handlers, javascript:/vbscript:/data: " +
             "URLs and unsafe style values are dropped one token at a time (every other accepted token in the same htmlAttributes string still lands, e.g. data-x and style survive even when onclick is present); " +
-            "malformed text drops the whole string. Rejected tokens are silently omitted rather than rejected up front here. Not listed in this node's own properties above (additionalProperties: false) because " +
-            "authoring still goes through widgets_insert_embed, not this tool — this description exists only so the model recognizes and does not strip these attrs when it re-encounters a node that already carries them.",
+            "malformed text drops the whole string. Rejected tokens are silently omitted rather than rejected up front here. Listed in this node's attrs so a node that already carries them " +
+            "validates, but authoring still goes through widgets_insert_embed, not this tool — keep these attrs when you re-encounter a node that already carries them.",
         },
       ],
     },

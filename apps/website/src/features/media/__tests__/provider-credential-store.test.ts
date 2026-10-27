@@ -130,6 +130,31 @@ test("an entry with no apiKey keeps the stored key while editing other fields", 
   assert.equal(saved.openai?.model, "gpt-image-2");
 });
 
+test("T17: a legacy keyless provider does not block another provider's metadata edit", async () => {
+  const { repo, deps } = makeDeps();
+  await saveMediaProviderCredentials(deps, {
+    workspaceId: WORKSPACE, providers: { grok: { apiKey: "xai-existing-1234" } },
+  });
+  // New creates require a key, but migrated/recovered rows can legitimately have none.
+  await repo.upsert({
+    workspaceId: WORKSPACE, providerId: "openai", baseUrl: "https://api.openai.com/v1", model: null,
+    sealed: null, keyTail: null, aadVersion: 0, createdAt: clock.nowIso(), updatedAt: clock.nowIso(),
+  });
+  const before = await getMediaProviderCredentials(deps, { workspaceId: WORKSPACE });
+  assert.deepEqual(before.openai, { baseUrl: "https://api.openai.com/v1" });
+  const expected = { ...before, grok: { ...before.grok, model: "edited-model" } };
+
+  await assert.doesNotReject(async () => {
+    const saved = await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: expected });
+    assert.deepEqual(saved, expected);
+  }, "re-sending an existing keyless provider must not require a new token");
+
+  assert.deepEqual(await getMediaProviderCredentials(deps, { workspaceId: WORKSPACE }), expected);
+  assert.equal((await repo.listByWorkspaceId(WORKSPACE)).find(row => row.providerId === "openai")?.sealed, null);
+  assert.equal((await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "grok" }))?.apiKey,
+    "xai-existing-1234");
+});
+
 test("a blank apiKey is treated as absent, not as a clear", async () => {
   const { deps } = makeDeps();
   await saveMediaProviderCredentials(deps, {

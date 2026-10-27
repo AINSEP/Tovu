@@ -30,7 +30,7 @@ import { redactSecretShapes } from "#src/contracts/core/secret-redaction";
  * Reuses the existing redactor, bounded buffer and synchronous rotating sink. Native fatal errors
  * bypass console capture, so retain stderr until exit/pipe close, including split writes.
  * @returns A stderr sink, lifecycle observer and breadcrumb writer; no process policy changes.
- * @complexity O(chunk bytes) per write, at most 65536 raw characters retained; redact before
+ * @complexity O(chunk bytes) per write, at most the latest 65536 raw characters retained; redact before
  * taking the 4096-character diagnostic tail so a sliced vendor-token prefix cannot leak its suffix.
  */
 export function localSiteProcessLog({ name, siteDir }: { name: string; siteDir: string }, _options = {}) {
@@ -38,7 +38,8 @@ export function localSiteProcessLog({ name, siteDir }: { name: string; siteDir: 
   const buffer = createLogBuffer({ redact });
   const sink = createRotatingLogFileSink({ filePath: path.join(siteDir, "ops/logs/local-site.log") });
   let stderrText = "";
-  let oversized = false;
+  // A rolling window, never a latch: a native crash's tail comes last, after any verbose startup.
+  const retain = (text: string) => { stderrText = (stderrText + text).slice(-65_536); };
   const decoder = new StringDecoder("utf8");
   const record = ({ message, level = "info", includeStderr = false }: { message: string; level?: "info" | "error"; includeStderr?: boolean }, _optional = {}) => {
     const tail = includeStderr ? `; stderr tail=${redact(stderrText).slice(-4096)}` : "";
@@ -49,16 +50,11 @@ export function localSiteProcessLog({ name, siteDir }: { name: string; siteDir: 
   };
   const stderr = new Writable({
     write(chunk, _encoding, done) {
-      const text = decoder.write(chunk);
-      if (!oversized) {
-        oversized = stderrText.length + text.length > 65_536;
-        stderrText = oversized ? "[oversized stderr omitted]" : stderrText + text;
-      }
+      retain(decoder.write(chunk));
       done();
     },
     final(done) {
-      const finalText = decoder.end();
-      if (!oversized) stderrText += finalText;
+      retain(decoder.end());
       record({ message: "stderr closed", includeStderr: true }); done();
     },
   });

@@ -1,6 +1,7 @@
 import { createRepoPublishHandler, type FieldDisposition } from "#src/features/publish-content/repo-handler";
 import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
 import { collectMediaUrlKeys } from "#src/features/publish-content/media-references";
+import { isValidSha256Hex } from "#src/features/publish-content/blob-staging";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { PublishContentContributor, PublishContentPorts } from "#src/features/publish-content/type-registry";
 
@@ -136,6 +137,17 @@ async function assertPublishableMedia(
   }
 }
 
+/**
+ * A blob key is built from the hash, so a forged one (`../../x`) would probe outside this
+ * workspace's blob folder: every hash is shape-checked before any blob store call.
+ * @returns The refusal, or null when every given hash is a sha256. @complexity O(b) required blobs.
+ */
+function malformedHashRefusal({ sourceSha256, requiredBlobs }: { sourceSha256: string | undefined; requiredBlobs: readonly string[] }, _options = {}): string | null {
+  if (sourceSha256 && !isValidSha256Hex(sourceSha256)) return `malformed source sha256 '${sourceSha256}'`;
+  const malformed = requiredBlobs.find(sha256 => !isValidSha256Hex(sha256));
+  return malformed === undefined ? null : `required blob '${malformed}' is not a sha256 hash`;
+}
+
 /** `null` carries a missing staged object into `importMediaEntity`, which owns that refusal. */
 async function stagedBytes(
   { blobStore, workspaceId, record }: { blobStore: MediaPorts["blobStore"]; workspaceId: string; record: MediaRecord },
@@ -194,6 +206,8 @@ export const contributeMediaPublish = (): PublishContentContributor =>
     validate: async ({ ports, workspaceId, entity, existing }) => {
       if (isLibraryDocument({ kind: entity.state.kind, existing })) return LIBRARY_DOCUMENT_REFUSAL;
       const source = entity.state.source as { sha256?: string } | undefined;
+      const malformed = malformedHashRefusal({ sourceSha256: source?.sha256, requiredBlobs: entity.requiredBlobs });
+      if (malformed) return malformed;
       if (source?.sha256 && await isDocumentOnlyBlob({ deps: { mediaRepo: ports.repo, blobRepo: ports.assetBlobRepo }, input: { workspaceId, sha256: source.sha256 } })) return LIBRARY_DOCUMENT_REFUSAL;
       for (const sha256 of entity.requiredBlobs) {
         if (!(await ports.blobStore.exists({ storageKey: computeBlobStorageKey({ workspaceId, sha256 }) }))) {
@@ -206,6 +220,9 @@ export const contributeMediaPublish = (): PublishContentContributor =>
       await assertPublishableMedia({ ports, workspaceId, state, existing });
       const { repo: mediaRepo, assetBlobRepo, blobStore, contentTypeStore } = ports;
       const record = state as unknown as MediaRecord; // this handler's own pack() produced it
+      // Same shape check as `validate`, again here: apply must not trust that precheck ran.
+      const sha256 = record.source?.sha256;
+      if (sha256 && !isValidSha256Hex(sha256)) throw new MediaApplyBlockedError("blocked:precondition", `media '${id}' cannot be applied — malformed source sha256 '${sha256}'`);
       const bytes = await stagedBytes({ blobStore, workspaceId, record });
       const outcome = importedOrThrow({ id, outcome: await importMediaEntity({
         deps: { mediaRepo, assetBlobRepo, blobStore, clock: { nowIso: () => clockNowIso({ clock: deps.clock }) }, idGen: deps.idGen },

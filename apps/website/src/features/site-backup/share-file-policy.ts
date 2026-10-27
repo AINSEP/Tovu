@@ -18,6 +18,9 @@ function excludedRuntimeSharePath({ path, parts }: { path: string; parts: string
   // Plugin runtime data/memory have fixed roots. A package's src/data or docs/notes is content.
   const roots = [
     /^plugins\/[^/]+\/[^/]+\/(?:data(?:\/|$)|memory\/(?!notes(?:\/|$)|learned(?:\/|$)))/,
+    // An old flat-layout site plugin (`plugins/<id>/data/`, no version folder) has the same runtime
+    // data root (OAuth tokens); export maps it to `plugins/<id>/package/data/`, which import refuses.
+    /^plugins\/(?!static\/|declarative\/|code\/)[^/]+\/data(?:\/|$)/,
     /^agent-plugins\/ws\/[^/]+\/(?:data|staging)(?:\/|$)/,
     /^agent-plugins\/ws\/[^/]+\/[^/]+\/(?:data(?:\/|$)|memory\/(?!notes(?:\/|$)|learned(?:\/|$)))/,
     /^uploads\/chat-attachments(?:\/|$)/,

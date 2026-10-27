@@ -74,30 +74,81 @@ function appendListed(items: ZipItem[], additions: ZipItem[]): ZipItem[] {
     for (const item of additions) manifest.files.push({ path: item.name, bytes: item.bytes.length, sha256: createHash("sha256").update(item.bytes).digest("hex") });
   }), ...additions];
 }
+type PackageRecord = { kind: "agent" | "site"; id: string; digest?: string };
+/** A v2 package root needs its own manifest record, or plugin coverage refuses before the file policy runs. */
+function appendPackageFile(items: ZipItem[], addition: ZipItem, plugin?: PackageRecord): ZipItem[] {
+  const listed = appendListed(items, [addition]);
+  if (!plugin) return listed;
+  return mutateManifest(listed, manifest => {
+    manifest.plugins.push({ kind: plugin.kind, id: plugin.id, version: "1.0.0", digest: plugin.digest ?? "a".repeat(64), enabled: false, shipped: true });
+  });
+}
+async function importRefusal(h: Awaited<ReturnType<typeof importFixture>>, required: { archive: string; bytes: Buffer; plugin?: PackageRecord; code: string }): Promise<void> {
+  const archive = await pack(appendPackageFile(await archiveItems(h.archive), { name: required.archive, bytes: required.bytes }, required.plugin));
+  const upload = await h.backend.upload({ principalId: "recipient", archive });
+  await assert.rejects(h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } }), { code: required.code });
+  assert.deepEqual(h.workspace.registry({}).list({}), []);
+}
 
 test("package filename exceptions require the exact content-addressed root on export and import", async t => {
   const root = `agent-plugins/ws/ws/portable/package/sha256/${"a".repeat(64)}`;
-  for (const name of [
-    "themes/site/mcp.json", "plugins/portable/mcp.json",
-    "themes/site/tovu-credential-schemes.json",
-    `agent-plugins/ws/ws/portable/package/sha256/${"a".repeat(63)}/mcp.json`,
-    `agent-plugins/ws/ws/portable/package/sha256/${"a".repeat(65)}/mcp.json`,
-    `agent-plugins/ws/ws/portable/package/sha256/${"g".repeat(64)}/mcp.json`,
-    `themes/${root}/mcp.json`,
-    `agent-plugins/ws/mcp.json/portable/package/sha256/${"a".repeat(64)}/plugin.json`,
-    `${root}/.npmrc`, `${root}/nested/private-key.pem`, `${root}/vendor-credentials.json`,
-  ]) await t.test(name, async t => {
+  const agent: PackageRecord = { kind: "agent", id: "portable" };
+  // `runtime` is what export collects; `archive` is the same file in the v2 ZIP layout (no workspace,
+  // no digest folder: the digest is the manifest record's field). Each import refusal code is exact.
+  const cases: { runtime: string; archive: string; plugin?: PackageRecord; code: string }[] = [
+    { runtime: "themes/site/mcp.json", archive: "themes/site/mcp.json", code: "UNSAFE_FILE" },
+    { runtime: "plugins/portable/mcp.json", archive: "plugins/portable/package/mcp.json", plugin: { kind: "site", id: "portable" }, code: "UNSAFE_FILE" },
+    { runtime: "themes/site/tovu-credential-schemes.json", archive: "themes/site/tovu-credential-schemes.json", code: "UNSAFE_FILE" },
+    ...["a".repeat(63), "a".repeat(65), "g".repeat(64)].map(digest => ({
+      runtime: `agent-plugins/ws/ws/portable/package/sha256/${digest}/mcp.json`, archive: "agent-plugins/portable/package/mcp.json",
+      plugin: { ...agent, digest }, code: "INVALID_ARCHIVE",
+    })),
+    { runtime: `themes/${root}/mcp.json`, archive: `themes/${root}/mcp.json`, code: "UNSAFE_FILE" },
+    { runtime: `agent-plugins/ws/mcp.json/portable/package/sha256/${"a".repeat(64)}/plugin.json`, archive: "agent-plugins/mcp.json/package/plugin.json", plugin: { kind: "agent", id: "mcp.json" }, code: "UNSAFE_FILE" },
+    // B's tree-path gate refuses credential filenames (.npmrc, *.pem) before the file policy runs.
+    { runtime: `${root}/.npmrc`, archive: "agent-plugins/portable/package/.npmrc", plugin: agent, code: "UNSAFE_PATH" },
+    { runtime: `${root}/nested/private-key.pem`, archive: "agent-plugins/portable/package/nested/private-key.pem", plugin: agent, code: "UNSAFE_PATH" },
+    { runtime: `${root}/vendor-credentials.json`, archive: "agent-plugins/portable/package/vendor-credentials.json", plugin: agent, code: "UNSAFE_FILE" },
+  ];
+  for (const item of cases) await t.test(item.runtime, async t => {
     const h = await importFixture(t);
     const bytes = Buffer.from("{}");
-    h.files.set(name, bytes);
+    h.files.set(item.runtime, bytes);
     await assert.rejects(h.prepareProductionShare(), { code: "UNSAFE_FILE" });
     // B must independently reject a listed, correctly hashed file that bypassed A's collector.
-    // B's tree-path gate refuses credential filenames (.npmrc, *.pem) before the file policy runs.
-    const archive = await pack(appendListed(await archiveItems(h.archive), [{ name, bytes }]));
-    const upload = await h.backend.upload({ principalId: "recipient", archive });
-    await assert.rejects(h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } }), { code: /^(?:UNSAFE_(?:FILE|PATH)|INVALID_ARCHIVE)$/ });
-    assert.deepEqual(h.workspace.registry({}).list({}), []);
+    await importRefusal(h, { archive: item.archive, bytes, plugin: item.plugin, code: item.code });
   });
+});
+
+test("import refuses exactly what export refuses inside a site plugin package", async t => {
+  // Only an AGENT package's content-addressed root may ship MCP declarations and credential-named files;
+  // a site plugin package gets the ordinary name rules on both sides, with the same refusal code.
+  for (const filename of ["mcp.json", "tovu-credential-schemes.json", "vendor-credentials.json"]) await t.test(filename, async t => {
+    const h = await importFixture(t);
+    const name = `plugins/portable/package/${filename}`;
+    const bytes = Buffer.from("{}");
+    h.files.set(name, bytes);
+    const exported = await h.prepareProductionShare().then(() => "accepted", (error: { code?: string }) => error.code);
+    assert.equal(exported, "UNSAFE_FILE");
+    // Baseline RED: import mapped site plugins into the agent package root and accepted mcp.json.
+    await importRefusal(h, { archive: name, bytes, plugin: { kind: "site", id: "portable" }, code: exported });
+  });
+});
+
+test("an old flat-layout site plugin's data/ folder stays out of the export, which then imports cleanly", async t => {
+  // `plugins/custom/` (the fixture's flat plugin, no version folder) keeps its runtime data in `data/`,
+  // like `plugins/<id>/<version>/data/`: OAuth tokens, never content. One policy on both sides.
+  const h = await importFixture(t);
+  h.files.set("plugins/custom/data/state.json", Buffer.from('{"state":"plugin-runtime"}'));
+  const { archive } = await h.prepareProductionShare();
+  const names = (await archiveItems(archive)).map(item => item.name);
+  assert.ok(names.includes("plugins/custom/package/plugin.json"), "the plugin itself is exported");
+  // Baseline RED: export shipped `plugins/custom/package/data/state.json` and import refused the
+  // archive as private runtime data (INVALID_ARCHIVE).
+  assert.deepEqual(names.filter(name => name.startsWith("plugins/custom/") && name.includes("/data/")), []);
+  const upload = await h.backend.upload({ principalId: "recipient", archive });
+  const pending = await h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } });
+  assert.equal(typeof pending.importId, "string");
 });
 
 test("package manifest filename exceptions preserve secret scanning on export and import", async t => {
@@ -109,10 +160,7 @@ test("package manifest filename exceptions preserve secret scanning on export an
     // Baseline RED: UNSAFE_FILE masks the required byte-level SECRET_IN_CONTENT refusal.
     await assert.rejects(h.prepareProductionShare(), { code: "SECRET_IN_CONTENT" });
     assert.deepEqual(fs.readFileSync(path.join(h.root, "source", name)), bytes, "refusal must not damage package bytes");
-    const archive = await pack(appendListed(await archiveItems(h.archive), [{ name, bytes }]));
-    const upload = await h.backend.upload({ principalId: "recipient", archive });
-    await assert.rejects(h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } }), { code: /^(?:SECRET_IN_CONTENT|INVALID_ARCHIVE)$/ });
-    assert.deepEqual(h.workspace.registry({}).list({}), []);
+    await importRefusal(h, { archive: `agent-plugins/portable/package/${filename}`, bytes, plugin: { kind: "agent", id: "portable" }, code: "SECRET_IN_CONTENT" });
   });
 });
 

@@ -7,7 +7,7 @@ import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import type { ExternalMcpServerRepoPort } from "#src/assistant/index";
 
 
-import { createApplyConnectDefaults } from "./apply-connect-defaults.js";
+import { createApplyConnectDefaults, isPluginOffByOperator as defaultIsPluginOffByOperator, SEED_ACTOR } from "./apply-connect-defaults.js";
 import type { AgentPluginLayout } from "./layout.js";
 
 /**
@@ -27,8 +27,6 @@ import type { AgentPluginLayout } from "./layout.js";
  *   never touches an edited row.
  */
 
-/** `activation.ts`'s seeder actor: its disabled record is the default, not an operator decision. */
-const SEED_ACTOR = "system:seed";
 
 /** Recorded as `updatedBy` when this switches the plugin on — the same actor a first sign-in's
  *  connect defaults record (`apply-connect-defaults.ts`). */
@@ -55,14 +53,6 @@ export interface SwitchOnSavedTokenDeps {
   /** Injected for tests. Switches the plugin's activation on unless an operator turned it off; false
    *  when an operator's "off" stopped it. Defaults to {@link defaultSwitchPluginOn}. */
   readonly switchPluginOn?: (pluginId: string) => Promise<boolean>;
-}
-
-/** Whether `pluginId`'s activation record is a disabled one someone other than the seeder wrote. */
-async function defaultIsPluginOffByOperator(input: { workspaceId: string; agentPluginLayout: AgentPluginLayout; pluginId: string }, _options = {}): Promise<boolean> {
-  const activations = await readAgentPluginActivations({ workspaceRoot: input.agentPluginLayout.forWorkspace(input.workspaceId).root });
-  if (!Object.hasOwn(activations.plugins, input.pluginId)) return false;
-  const record = activations.plugins[input.pluginId];
-  return record?.enabled === false && record.updatedBy !== SEED_ACTOR;
 }
 
 /**

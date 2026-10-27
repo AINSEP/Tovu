@@ -203,6 +203,11 @@ export function registerPublishTrustHandshakeRoutes(app: Express, deps: PublishT
       return;
     }
 
+    // Before the grant lookup: a keyless site answers 503 whatever the source, so the status cannot
+    // tell a prober which installation ids hold a grant.
+    const targetInstallationId = await installationIdOrRefuse(res);
+    if (targetInstallationId === null) return;
+
     const grant = findGrantForSource(await deps.grants(), response.sourceInstallationId);
     // An absent grant is the ordinary state of a site nobody has paired with, not an error. It is
     // answered with the same refusal as a bad signature so this route cannot be used to ask
@@ -213,8 +218,6 @@ export function registerPublishTrustHandshakeRoutes(app: Express, deps: PublishT
       return;
     }
 
-    const targetInstallationId = await installationIdOrRefuse(res);
-    if (targetInstallationId === null) return;
     const verification = await verifyChallengeResponse(
       { store: deps.challengeStore, clock: deps.clock },
       { grant, targetInstallationId, response }

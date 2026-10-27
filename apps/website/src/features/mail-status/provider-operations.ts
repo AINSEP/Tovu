@@ -1,4 +1,5 @@
-import { createCustomCredential, updateCustomCredential, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
+import { createCustomCredential, describeCredential, updateCustomCredential, type CustomCredentialSummary, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
+import type { ProjectKeysPort } from "#src/features/project-keys/service";
 import type { MailProviderConfiguration, MailProviderConfigurationReport, MailProviderControl } from "#src/platform/mail/mail-status";
 
 /**
@@ -82,42 +83,47 @@ export interface MailProviderCredentialInput {
 }
 
 /**
- * Saves (creates or rotates) a provider's key WITHOUT activating it, then drops the resolver's
- * cached mailers so the next send uses it. HTTP only: assistant tools never carry a secret and
- * use `credential_save` with {@link planMailProviderCredential}'s label instead.
+ * Saves (creates or rotates) a provider's key WITHOUT activating it, attaches a project save through
+ * the shared card-save owner, then drops cached mailers so the next send uses it. HTTP only:
+ * assistant tools never carry a secret and use `credential_save` with
+ * {@link planMailProviderCredential}'s label instead.
  * @returns The provider's fresh configuration.
  * @throws {MailProviderOperationError} Plan refusals, or a create without a token; store
  *   validation errors (`CustomCredentialValidationError`, duplicates) propagate unchanged.
- * @complexity One plan, one store write, one describe.
+ * @complexity One plan, one store write, project attachment I/O, one describe.
  */
 export async function saveMailProviderCredential(
   required: { control: MailProviderControl | undefined; credentials: CustomCredentialWriteDeps; workspaceId: string; providerId: string; input: MailProviderCredentialInput },
-  _optional: Record<string, never> = {}
+  optional: { projectKeys?: Pick<ProjectKeysPort, "savedResult"> } = {}
 ): Promise<MailProviderConfiguration> {
   const { control, credentials, workspaceId, input } = required;
   const plan = await planMailProviderCredential({ control, providerId: required.providerId });
-  if (plan.credential.credentialId) await rotate({ credentials, workspaceId, id: plan.credential.credentialId, input });
-  else await create({ credentials, workspaceId, plan, input });
+  const credential = plan.credential.credentialId
+    ? await rotate({ credentials, workspaceId, id: plan.credential.credentialId, input })
+    : await create({ credentials, workspaceId, plan, input });
+  await optional.projectKeys?.savedResult({ result: { saved: true, credential } });
   control!.invalidate?.();
   const fresh = await readMailProviderConfigurations({ control });
   return fresh.providers.find((entry) => entry.id === plan.provider.id) ?? plan.provider;
 }
 
-async function create(required: { credentials: CustomCredentialWriteDeps; workspaceId: string; plan: MailProviderCredentialPlan; input: MailProviderCredentialInput }, _options: Record<string, never> = {}): Promise<void> {
+/** Creates the planned key and returns its safe identity for the shared save-result hook. */
+async function create(required: { credentials: CustomCredentialWriteDeps; workspaceId: string; plan: MailProviderCredentialPlan; input: MailProviderCredentialInput }, _options: Record<string, never> = {}): Promise<CustomCredentialSummary> {
   const { input, plan } = required;
   if (!input.token) throw new MailProviderOperationError({ code: "MAIL_PROVIDER_INPUT", message: `token is required to save the first key for '${plan.provider.id}'.` });
-  await createCustomCredential(required.credentials, {
+  return createCustomCredential(required.credentials, {
     workspaceId: required.workspaceId, label: plan.credential.label, category: plan.credential.category,
     baseUrl: input.baseUrl ?? plan.credential.baseUrl, connection: { token: input.token, ...(input.username ? { username: input.username } : {}) },
   });
 }
 
-/** Replacing the token resets the stored username unless one is passed, so the current one is carried. */
-async function rotate(required: { credentials: CustomCredentialWriteDeps; workspaceId: string; id: string; input: MailProviderCredentialInput }, _options: Record<string, never> = {}): Promise<void> {
+/** Replacing the token resets the stored username unless one is passed, so the effective site/project
+ * username is carried. Returns the saved identity. */
+async function rotate(required: { credentials: CustomCredentialWriteDeps; workspaceId: string; id: string; input: MailProviderCredentialInput }, _options: Record<string, never> = {}): Promise<CustomCredentialSummary> {
   const { credentials, workspaceId, id, input } = required;
-  const existing = input.token && input.username === undefined ? await credentials.repo.findById({ workspaceId, id }) : null;
+  const existing = input.token && input.username === undefined ? await describeCredential(credentials, { workspaceId, id }) : null;
   const username = input.username ?? existing?.username;
-  await updateCustomCredential(credentials, {
+  return updateCustomCredential(credentials, {
     workspaceId, id, ...(input.token ? { connection: { token: input.token } } : {}),
     ...(username !== undefined ? { username } : {}), ...(input.baseUrl ? { baseUrl: input.baseUrl } : {}),
   });

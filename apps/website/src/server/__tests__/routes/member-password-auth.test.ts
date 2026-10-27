@@ -276,7 +276,7 @@ test("malformed body shapes and missing IDs return 400 before repository access"
   for (const [path, body] of cases) assert.equal((await post(base, path, body)).status, 400, `${path}: ${JSON.stringify(body)}`);
 });
 
-test("strict password limiters both hit on normalized email and IP, including denied checks", async t => {
+test("T30: password limits check normalized email only after IP admission", async t => {
   for (const allowed of [true, false]) {
     const h = harness();
     const email = spyLimiter(allowed), ip = spyLimiter(allowed);
@@ -285,14 +285,14 @@ test("strict password limiters both hit on normalized email and IP, including de
     const base = await startTestServer(h.app, t);
     const response = await post(base, "password/sign-in", { email: " ADA@EXAMPLE.TEST ", password: "x" });
     assert.equal(response.status, allowed ? 401 : 429);
-    assert.deepEqual(email.keys, ["ada@example.test"]);
+    assert.deepEqual(email.keys, allowed ? ["ada@example.test"] : []);
     assert.equal(ip.keys.length, 1);
     assert.match(ip.keys[0], /(?:^|:)127\.0\.0\.1$/);
     if (!allowed) assert.equal(response.headers.get("retry-after"), "42");
   }
 });
 
-test("forgot and sign-in reuse both magic-link counters", async t => {
+test("T30: forgot and sign-in skip the shared email counter when their IP is denied", async t => {
   const h = harness();
   const email = spyLimiter(false), ip = spyLimiter(false);
   h.deps.magicLinkPerEmailLimiter = email.limiter;
@@ -303,7 +303,7 @@ test("forgot and sign-in reuse both magic-link counters", async t => {
     assert.equal(response.status, 429);
     assert.equal(response.headers.get("retry-after"), "42");
   }
-  assert.deepEqual(email.keys, ["ada@example.test", "ada@example.test"]);
+  assert.deepEqual(email.keys, []);
   assert.equal(ip.keys.length, 2);
   assert.equal(ip.keys[0], ip.keys[1]);
   assert.match(ip.keys[0], /(?:^|:)127\.0\.0\.1$/);

@@ -101,6 +101,44 @@ test("a project save whose label this site already uses is refused (the site row
   assert.deepEqual(await project.repo.listByWorkspace({ workspaceId: "project" }), []);
 });
 
+test("T6: project key renames refuse site-owned and unattached project labels", async (t) => {
+  const project = projectScope();
+  const attachments = fakeAttachments();
+  const site = siteDeps({ project: { ...project,
+    repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: project.repo.vault!, siteId: SITE_A, attachments }) }),
+    deletionRepo: project.repo,
+  } });
+  const siteKey = await save(site, SITE_A, "site-label", secret("site"), { scope: "site" });
+  const first = await save(site, SITE_A, "first-project-key", secret("first"));
+  const second = await save(site, SITE_A, "second-project-key", secret("second"));
+  const hidden = await save(site, SITE_A, "hidden-project-label", secret("hidden"));
+  await attachments.attach({ siteId: SITE_A, siteName: "A", keyId: first.id });
+  await attachments.attach({ siteId: SITE_A, siteName: "A", keyId: second.id });
+  assert.equal(await describeCredential(site, { workspaceId: SITE_A, id: hidden.id }), null);
+
+  await t.test("a site label collision is refused before it hides the renamed project key", async () => {
+    await assert.rejects(
+      updateCustomCredential(site, { workspaceId: SITE_A, id: first.id, label: siteKey.label }),
+      CustomCredentialDuplicateLabelError,
+    );
+    assert.equal((await describeCredentialByLabel(site, { workspaceId: SITE_A, label: first.label }))?.id, first.id);
+    assert.equal((await describeCredentialByLabel(site, { workspaceId: SITE_A, label: siteKey.label }))?.id, siteKey.id);
+    assert.equal((await project.repo.findById({ workspaceId: project.workspaceId, id: first.id }))?.label, first.label);
+  });
+
+  await t.test("an unattached project label collision is translated to the domain duplicate error", async () => {
+    await assert.rejects(
+      updateCustomCredential(site, { workspaceId: SITE_A, id: second.id, label: hidden.label }),
+      CustomCredentialDuplicateLabelError,
+    );
+    assert.equal((await describeCredentialByLabel(site, { workspaceId: SITE_A, label: second.label }))?.id, second.id);
+    assert.equal((await project.repo.findById({ workspaceId: project.workspaceId, id: second.id }))?.label, second.label);
+    assert.equal((await project.repo.findById({ workspaceId: project.workspaceId, id: hidden.id }))?.label, hidden.label);
+    assert.equal(await describeCredential(site, { workspaceId: SITE_A, id: hidden.id }), null);
+    assert.equal(await attachments.isAttached({ siteId: SITE_A, keyId: hidden.id }), false);
+  });
+});
+
 test("without a project store (Fly / production) saves go to the site vault and summaries carry no scope", async () => {
   const site = siteDeps();
   const saved = await save(site, SITE_A, "hosting", secret("fly"));

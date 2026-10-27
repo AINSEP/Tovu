@@ -36,6 +36,30 @@ function errno(code: string): NodeJS.ErrnoException {
   return Object.assign(new Error(code), { code });
 }
 
+test("T47/site-dir-1#3: owner loss during a pending bundle build prevents the later site import", async () => {
+  const { proc } = fakeProcess({ TOVU_LOCAL_SITE_OWNER_PID: String(OWNER),
+    TOVU_LOCAL_ADMIN_BUILD_ROOT: "/runtime", TOVU_REPO_ROOT: "/repo" });
+  const { timers, state } = fakeTimers();
+  let finishBuild!: (dist: string) => void;
+  const bundle = new Promise<string>((resolve) => { finishBuild = resolve; });
+  const imported: string[] = [];
+  let reaped = 0;
+  const boot = runLocalSiteChild({}, { proc, timers,
+    buildAdminBundle: () => bundle,
+    reapOwnTree: async () => { reaped++; },
+    importEntry: async (specifier) => { imported.push(specifier); },
+  });
+
+  // A tree-stop request can settle before the OS has finished terminating the process.
+  proc.ppid = 1;
+  state.tick!();
+  finishBuild("/runtime/admin-dist");
+  await boot;
+
+  assert.equal(reaped, 1);
+  assert.deepEqual(imported, [], "a completed bundle must not resume boot after the watchdog observed owner loss");
+});
+
 test("ownerPidFrom accepts only a positive integer owner pid", () => {
   assert.equal(ownerPidFrom({ env: { TOVU_LOCAL_SITE_OWNER_PID: "42" } }), 42);
   for (const value of [undefined, "", "abc", "1.5", "0", "-3"]) {

@@ -1,5 +1,6 @@
 import { FIELD_TYPE_REGISTRY, type FormDefinitionRecord, type FormDeliveryForm } from "@jini-ai/cms/forms";
 import { htmlSubmissionDefinition } from "@jini-ai/cms/forms/html";
+import { fieldMaxChars } from "./field-length-caps.js";
 
 /**
  * @file The compact form manifest a hosting target receives so it can accept the site's forms where
@@ -20,8 +21,15 @@ export interface FormDestinationManifestForm {
 export function buildFormDestinationManifest({ definitions }: { definitions: readonly FormDefinitionRecord[] }, _optional = {}): FormDestinationManifestForm[] {
   return definitions.filter((definition) => definition.status === "active").map((stored) => {
     const definition = htmlSubmissionDefinition({ definition: stored, body: {} });
-    return { slug: definition.slug, fields: definition.fields.map((field) => manifestField(field)) };
+    return { slug: definition.slug, fields: definition.fields.map((field) => ({ ...manifestField(field), ...submitCap(field) })) };
   });
+}
+
+/** The live submit path's cap (`field-length-caps.ts`), defaults included, so a static host refuses
+ *  the same over-long answers Tovu's own server would. @complexity O(1). */
+function submitCap(field: FormDefinitionRecord["fields"][number]): { maxLength?: number } {
+  const maxLength = fieldMaxChars({ field });
+  return maxLength === undefined ? {} : { maxLength };
 }
 
 /**

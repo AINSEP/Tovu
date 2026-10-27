@@ -245,18 +245,20 @@ test("the composed plan and push back up THIS site: a credential sealed by the c
   assert.equal(manifest.format, "tovu-site-backup");
   assert.deepEqual(manifest.files.map((f) => f.path).sort(), ["database/content.db", "settings/config.json", "themes/static/wired/theme.css"]);
 
-  // The committed database is a real SQLite snapshot of THIS site's content.db: it holds the very
-  // credential row the composed repo just wrote (sealed — the token itself is not in the bytes).
+  // The committed database is a real SQLite database of THIS site's content, rebuilt through the
+  // share policy (SEC-1): the credential row the composed repo just wrote, the owner account and
+  // its sessions all stay on the site, and the token is never in the bytes.
   const dbBytes = github.files.get("demo-site/database/content.db")!;
   assert.equal(dbBytes.subarray(0, 16).toString("latin1"), "SQLite format 3\0");
-  assert.ok(!dbBytes.includes(Buffer.from("ghp_wiring_test_token_never_real")), "the snapshot holds the token sealed, never in clear");
+  assert.ok(!dbBytes.includes(Buffer.from("ghp_wiring_test_token_never_real")), "the token never leaves the site");
   const copy = path.join(root, "pushed.db");
   fs.writeFileSync(copy, dbBytes);
   const snapshot = new Database(copy, { readonly: true });
   try {
-    // 1d96267e3 stores both credential types under kind 'vendor'; metadata keeps the distinction.
-    const labels = (snapshot.prepare("SELECT label FROM secrets_vault WHERE kind = 'vendor' AND json_extract(meta, '$.credentialType') = 'custom'").all() as { label: string }[]).map((r) => r.label);
-    assert.deepEqual(labels, ["github"]);
+    assert.deepEqual(snapshot.prepare("SELECT id FROM workspaces").all(), [{ id: deps.workspaceId }], "the site's own workspace travels");
+    for (const table of ["secrets_vault", "identity_users", "principals", "sessions", "members"]) {
+      assert.deepEqual(snapshot.prepare(`SELECT * FROM "${table}"`).all(), [], `${table} rows must not leave the site`);
+    }
   } finally {
     snapshot.close();
   }

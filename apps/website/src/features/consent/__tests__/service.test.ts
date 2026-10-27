@@ -7,7 +7,7 @@ import { createSiteConsentStore } from '../revisions.repo.js';
 import { SiteConsentConflict } from '../revisions.js';
 import { parseConsentConfig, consentConfigProblems } from '../validation.js';
 import { consentFixture } from './fixture.js';
-import { SITE_CONSENT_DEFAULT_CSS, SITE_CONSENT_DEFAULTS } from '../config.js';
+import { SITE_CONSENT_DEFAULT_CSS, SITE_CONSENT_DEFAULTS, SITE_CONSENT_TEXT_LIMITS } from '../config.js';
 
 test('draft saves preserve published enforcement; stale editors and stale publication are refused', async t => {
   const f = consentFixture({ t });
@@ -107,6 +107,52 @@ test('deployment refuses enabled, incomplete and unavailable consent, with two a
   assert.deepEqual(blocked?.choices.map(choice => choice.id), ['fix-now', 'publish-without-banner']);
   f.ports.store = undefined;
   assert.equal((await f.service.deploymentCheck({ principalId: 'owner', permission: 'system.publish' }))?.blockingProblems[0]?.code, 'CONSENT_UNAVAILABLE');
+});
+
+test('deployment accepts explicit OFF before validating legacy or published copy; enabled copy stays strict', async t => {
+  const f = consentFixture({ t });
+  for (const source of ['legacy', 'published']) {
+    for (const enabled of [false, true]) {
+      const config = { ...f.config, enabled, title: '', policyVersion: 'v'.repeat(80) };
+      f.ports.readLegacy = async () => config;
+      f.ports.store = { ...f.store, read: async () => ({ draft: null, published: source === 'published'
+        ? { id: 'legacy-copy', config, actorId: 'owner', createdAt: '2026-10-20T12:00:00.000Z' } : null }) };
+      const result = await f.service.deploymentCheck({ principalId: 'owner', permission: 'system.publish' });
+      if (enabled) assert.equal(result?.blockingProblems[0]?.code, 'CONSENT_UNAVAILABLE');
+      else assert.equal(result, null);
+      if (source === 'published') await assert.rejects(f.service.read({ principalId: 'owner' }));
+    }
+  }
+});
+
+test('legacy editor reads default only invalid text without changing activation or stored state', async t => {
+  const f = consentFixture({ t });
+  const limits = { ...SITE_CONSENT_TEXT_LIMITS, policyVersion: 64 };
+  for (const enabled of [false, true]) {
+    for (const field of Object.keys(limits) as (keyof typeof limits)[]) {
+      const invalid = field === 'secondaryLinkLabel' ? [' ', 'x'.repeat(limits[field] + 1)] : ['', ' ', 'x'.repeat(limits[field] + 1)];
+      for (const value of invalid) {
+        const legacy = { ...f.config, enabled, [field]: value };
+        const before = { ...legacy };
+        f.ports.readLegacy = async () => legacy;
+        const state = await f.service.read({ principalId: 'owner' });
+        assert.deepEqual(state.effective, { ...legacy, [field]: SITE_CONSENT_DEFAULTS[field], customCss: SITE_CONSENT_DEFAULT_CSS });
+        assert.deepEqual(legacy, before);
+        await assert.rejects(f.service.saveDraft({ principalId: 'owner', config: legacy, expectedDraftId: null }));
+      }
+    }
+  }
+  assert.deepEqual(await f.store.read({}), { draft: null, published: null });
+});
+
+test('legacy editor reads preserve valid text at each limit and an empty optional link label', async t => {
+  const f = consentFixture({ t });
+  const limits = { ...SITE_CONSENT_TEXT_LIMITS, policyVersion: 64 };
+  const legacy = { ...f.config, ...Object.fromEntries(Object.entries(limits).map(([field, max]) => [field, 'x'.repeat(max)])) };
+  f.ports.readLegacy = async () => legacy;
+  assert.deepEqual((await f.service.read({ principalId: 'owner' })).effective, { ...legacy, customCss: SITE_CONSENT_DEFAULT_CSS });
+  legacy.secondaryLinkLabel = '';
+  assert.equal((await f.service.read({ principalId: 'owner' })).effective.secondaryLinkLabel, '');
 });
 
 for (const patch of [ { enabled: 'yes' }, { categories: ['necessary'] }, { customCss: 'x'.repeat(16385) }, { appearance: [] }, { title: '' }, { message: 'x'.repeat(601) }, { policyVersion: '' }, { policyVersion: 'x'.repeat(65) }, { placement: 'center-modal' }, { regionMode: 'guess' } ]) {

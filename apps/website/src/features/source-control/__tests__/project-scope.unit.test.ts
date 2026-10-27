@@ -107,6 +107,48 @@ test("update and delete change a project row where it lives", async () => {
   assert.equal(await project.repo.findById({ workspaceId: "project", id: saved.id }), null);
 });
 
+test('T27: renaming a project credential refuses a label already claimed by this site', async () => {
+  const project = projectHalf();
+  const a = site(project);
+  const shared = await save(a, SITE_A, 'shared', secret('project'));
+  const own = await save(a, SITE_A, 'main', secret('site'), { scope: 'site' });
+
+  await assert.rejects(() => updateSourceControlCredential({ deps: a, input: {
+    workspaceId: SITE_A, id: shared.id, label: 'main',
+  } }), SourceControlCredentialDuplicateLabelError);
+  assert.equal((await describeCredential(a, { workspaceId: SITE_A, id: shared.id }))?.label, 'shared');
+  assert.deepEqual((await listSourceControlCredentials(a, { workspaceId: SITE_A })).map(row => row.id), [own.id, shared.id]);
+});
+
+test('T35: ambiguous site credentials never fall back to a shadowed project default', async () => {
+  const project = projectHalf();
+  const shared = await save(site(project), SITE_A, 'main', secret('project'));
+  const attachments = fakeAttachments();
+  await attachments.attach({ siteId: SITE_A, keyId: shared.id, siteName: 'A' });
+  const a = site({ ...project, repo: new InMemorySourceControlCredentialSetRepo({
+    vault: attachedOnlyVault({ vault: project.repo.vault!, siteId: SITE_A, attachments }),
+  }) });
+  const own = await createSourceControlCredential({ deps: a, input: {
+    workspaceId: SITE_A, scope: 'site', label: 'main', isDefault: false,
+    connection: { providerId: 'example-git', token: secret('site') },
+  } });
+  const other = await createSourceControlCredential({ deps: a, input: {
+    workspaceId: SITE_A, scope: 'site', label: 'other', isDefault: false,
+    connection: { providerId: 'example-git', token: secret('other') },
+  } });
+  assert.equal(shared.isDefault, true);
+  const visible = await listSourceControlCredentials(a, { workspaceId: SITE_A });
+  assert.deepEqual(new Set(visible.map(row => row.id)), new Set([own.id, other.id]));
+  assert.deepEqual(visible.map(row => row.isDefault), [false, false]);
+
+  const input = { workspaceId: SITE_A, providerId: 'example-git' };
+  const metadata = await findDefaultSourceControlCredential(a, input);
+  const opened = await resolveDefaultForSourceControl(a, input);
+  assert.deepEqual({ metadata: metadata?.id ?? null, opened: opened?.id ?? null }, {
+    metadata: null, opened: null,
+  });
+});
+
 test("no project store (Fly): tokens stay in the site vault and summaries carry no scope", async () => {
   const a = site();
   const saved = await save(a, SITE_A, "default", secret("fly"));

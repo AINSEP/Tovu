@@ -69,7 +69,7 @@ test("an upload over the archive cap is refused with the upload cap message", as
 });
 test("a fifth staged payload is refused with the staging budget message", async t => {
   const h = await importFixture(t);
-  for (let n = 0; n < 4; n++) fs.writeFileSync(h.registry.uploadPath({ uploadId: randomUUID() }), "staged");
+  for (let n = 0; n < 4; n++) { const uploadId = randomUUID(); fs.writeFileSync(h.registry.uploadPath({ uploadId }), "staged"); h.registry.saveUpload({ row: { uploadId, principalId: "owner", createdAt: Date.now() } }); }
   await assert.rejects(h.backend.upload({ principalId: "owner", archive: h.archive }), { code: "BUSY", message: "Four imports are staged. Complete owner setup or wait for expiry before uploading another." });
 });
 test("low private staging space is refused with the staging space message", async t => {
@@ -79,7 +79,7 @@ test("low private staging space is refused with the staging space message", asyn
 });
 test("a URL import checks the staging budget; an upload import does not", async t => {
   const h = await importFixture(t), upload = await h.backend.upload({ principalId: "owner", archive: h.archive });
-  for (let n = 0; n < 4; n++) fs.writeFileSync(h.registry.uploadPath({ uploadId: randomUUID() }), "staged");
+  for (let n = 0; n < 4; n++) { const uploadId = randomUUID(); fs.writeFileSync(h.registry.uploadPath({ uploadId }), "staged"); h.registry.saveUpload({ row: { uploadId, principalId: "owner", createdAt: Date.now() } }); }
   await assert.rejects(h.backend.importBackup({ principalId: "owner", source: URL_SOURCE }), { code: "BUSY", message: "Four imports are staged. Complete owner setup or wait for expiry before uploading another." });
   assert.equal((await h.backend.importBackup({ principalId: "owner", source: upload })).state, "needs-owner");
 });

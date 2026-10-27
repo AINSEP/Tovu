@@ -1,4 +1,4 @@
-/** S3 transport only: owner.db and all native dependencies stay in the Tovu CLI payload. */
+/** S3 transport only: project.db, any legacy owner.db and all native dependencies stay in the Tovu CLI payload. */
 import { spawn, type ChildProcessWithoutNullStreams, type SpawnOptions } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -15,7 +15,7 @@ export interface OwnerStoreCliOptions {
   cliMode?: CliMode; baseEnv?: NodeJS.ProcessEnv; spawnFn?: SpawnFn; timeoutMs?: number;
 }
 export interface OwnerStoreCliInput<A extends OwnerStoreAction = OwnerStoreAction> {
-  repoRoot: string; userDataDir: string; action: A; fields: OwnerStoreCliFields[A]; siteDir?: string;
+  repoRoot: string; userDataDir: string; action: A; fields: OwnerStoreCliFields[A];
 }
 
 /** Fixed errors only: even an unexpected child diagnostic may quote a credential.
@@ -26,16 +26,14 @@ export function ownerStoreFailure<A extends OwnerStoreAction>({ action, code }: 
 }, _options = {}): OwnerStoreReply<A> {
   const messages: Record<string, string> = {
     'invalid-input': 'Provide a valid shared-key request.',
-    'recovery-required': 'Restore the original owner.key, or restore an encrypted backup into an empty owner store.',
+    'recovery-required': 'The older shared-key store cannot be opened. Restore its original owner.key.',
     'invalid-backup': 'Check the encrypted backup and passphrase.',
-    'not-empty': 'Restore requires an empty owner store.',
-    'conflict': 'Refresh the shared-key inventory and revoke grants before deleting an entry.',
+    'conflict': 'This key changed. Refresh before retrying.',
     'context': 'The shared-key operation is outside the allowed credential scope.',
     'invalid-meta': 'The shared-key metadata is invalid.',
     'invalid-record': 'The shared-key entry is invalid.',
-    'cancelled': 'The backup dialog was cancelled.',
+    'cancelled': 'The import was cancelled.',
     'timeout': 'The shared-key operation timed out. Refresh before retrying.',
-    'site-unavailable': 'The granted site is unavailable. Locate its folder before retrying.',
   };
   const safeCode = Object.hasOwn(messages, code) ? code : 'operation-failed';
   return { version: 1, ok: false, action, error: { code: safeCode,
@@ -43,7 +41,7 @@ export function ownerStoreFailure<A extends OwnerStoreAction>({ action, code }: 
 }
 
 /** Run one bounded request under Electron-as-node, secrets exclusively on stdin.
- * @param input Payload root, resolved userData, fixed action and stdin fields; siteDir for sync/revoke.
+ * @param input Payload root, resolved userData, fixed action and stdin fields.
  * @param options Injectable spawn/env/mode/deadline. No request-derived env or logs.
  * @returns One metadata-only reply; spawn, pipe, timeout and protocol failures use fixed errors.
  * @complexity O(request + reply bytes) space/time, capped at 64 KiB/1 MiB; one child, 60s deadline.
@@ -57,7 +55,6 @@ export async function runOwnerStoreCli<A extends OwnerStoreAction>(input: OwnerS
     // Match agent-plugin-tokens: CLI imports require an isolated site selection even for status.
     scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'tovu-owner-store-'));
     const cliArgs = ['owner-store', input.action, '--json'];
-    if (input.siteDir) cliArgs.push('--site', input.siteDir);
     const plan = buildCliSpawnPlan({ repoRoot: input.repoRoot, cliMode: options.cliMode, cliArgs });
     const env = buildCliEnv({ baseEnv: options.baseEnv, siteDir: scratch }, { warn: () => {} });
     const spawnFn: SpawnFn = options.spawnFn ?? spawn;
@@ -76,15 +73,8 @@ export async function runOwnerStoreCli<A extends OwnerStoreAction>(input: OwnerS
  */
 function serializeRequest({ input }: { input: OwnerStoreCliInput }, _options = {}): string | null {
   if (!Object.hasOwn(OWNER_STORE_CHANNELS, input.action) || !path.isAbsolute(input.userDataDir)) return null;
-  if (!validTarget({ action: input.action, siteDir: input.siteDir })) return null;
   const request = JSON.stringify({ ...input.fields, userDataDir: input.userDataDir });
   return Buffer.byteLength(request) <= MAX_REQUEST_BYTES ? request : null;
-}
-
-/** Only sync/revoke accept a site argument; every such argument is a main-resolved absolute path. */
-function validTarget({ action, siteDir }: { action: OwnerStoreAction; siteDir?: string }, _options = {}): boolean {
-  if (action !== 'sync' && action !== 'revoke') return siteDir === undefined;
-  return typeof siteDir === 'string' && path.isAbsolute(siteDir);
 }
 
 /** Drain stderr without retaining it; finish on close so the final stdout bytes are included.
@@ -150,21 +140,19 @@ function singleLineJson({ output }: { output: string }, _options = {}): Record<s
 }
 
 /** Only named metadata fields cross IPC; never spread a child object into a renderer reply.
- * @complexity O(inventory + grants + results), bounded by the reply cap.
+ * @complexity O(inventory + import rows), bounded by the reply cap.
  */
 function cleanData<A extends OwnerStoreAction>({ action, data }: { action: A; data: Record<string, unknown> }, _options = {}): OwnerStoreData[A] {
   const fields: Record<OwnerStoreAction, readonly string[]> = {
-    status: ['ready', 'entries', 'grants'], list: ['entries', 'grants'], put: ['entry'],
-    delete: ['deleted'], grant: ['granted', 'consumerId'], revoke: ['revoked', 'consumerId'],
-    sync: ['consumerId', 'results'], export: ['exported'], restore: ['restored'],
+    status: ['legacy', 'entries', 'grants'], list: ['entries'], put: ['entry'], import: ['applied', 'items', 'pending'],
   };
   const out = pick({ value: data, fields: fields[action] });
-  if (action === 'list') {
-    out.entries = (data.entries as object[]).map(value => cleanEntry({ value }));
-    out.grants = (data.grants as object[]).map(value => pick({ value, fields: ['entry_id', 'consumer_id', 'created_at'] }));
-  }
+  if (action === 'list') out.entries = (data.entries as object[]).map(value => cleanEntry({ value }));
   if (action === 'put') out.entry = cleanEntry({ value: data.entry as object });
-  if (action === 'sync') out.results = (data.results as object[]).map(value => pick({ value, fields: ['id', 'kind', 'status', 'reasonCode'] }));
+  if (action === 'import') {
+    out.items = (data.items as object[]).map(value => pick({ value, fields: ['id', 'label', 'kind', 'provider', 'status', 'reason'] }));
+    out.pending = (data.pending as object[]).map(value => pick({ value, fields: ['entryId', 'site', 'reason'] }));
+  }
   return out as unknown as OwnerStoreData[A];
 }
 
@@ -172,7 +160,7 @@ function cleanData<A extends OwnerStoreAction>({ action, data }: { action: A; da
 function cleanEntry({ value }: { value: object }, _options = {}): Record<string, unknown> {
   return pick({ value, fields: ['id', 'kind', 'label', 'provider', 'revision', 'configured', 'isDefault', 'worksFor'] });
 }
-/** Copy only named DTO fields, preserving optional reasonCode without inventing values. */
+/** Copy only named DTO fields, preserving optional fields (reason) without inventing values. */
 function pick({ value, fields }: { value: object; fields: readonly string[] }, _options = {}): Record<string, unknown> {
   return Object.fromEntries(fields.filter(field => Object.hasOwn(value, field)).map(field => [field, (value as Record<string, unknown>)[field]]));
 }

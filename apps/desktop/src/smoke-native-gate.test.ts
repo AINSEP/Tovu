@@ -18,7 +18,7 @@ const SCRIPT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const NATIVE_OK = JSON.stringify({ betterSqlite3: { ok: true }, sharp: { ok: true }, argon2: { ok: true } });
 const ENTRIES_OK = JSON.stringify({ ok: true, unresolved: [] });
-const OWNER_OK: OwnerStoreReply<'status'> = { version: 1, ok: true, action: 'status', data: { ready: true, entries: 0, grants: 0 } };
+const OWNER_OK: OwnerStoreReply<'status'> = { version: 1, ok: true, action: 'status', data: { legacy: 'none', entries: 0, grants: 0 } };
 
 type Run = { status?: number | null; signal?: NodeJS.Signals | null; stdout?: string; stderr?: string; error?: Error };
 
@@ -62,7 +62,7 @@ test("a healthy package passes both checks, run as Node with no inherited NODE_P
   }
   assert.ok(fixture.out.some((line) => line.includes("better-sqlite3, sharp, and argon2 all round-tripped")));
   assert.ok(fixture.out.some(line => line.includes("every static import of the shell and server entries resolves")));
-  assert.equal(fixture.out.at(-1), "smoke-native: OK — packaged owner-store status ready in an empty temporary profile\n");
+  assert.equal(fixture.out.at(-1), "smoke-native: OK — packaged owner-store status: no legacy owner store in an empty temporary profile\n");
   assert.deepEqual(fixture.err, []);
 });
 

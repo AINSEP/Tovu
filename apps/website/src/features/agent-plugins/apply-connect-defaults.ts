@@ -14,7 +14,8 @@ import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
  * - both tool lists are still empty, so a row the operator already edited is never touched, and a
  *   second sign-in (lists now filled) is a no-op;
  * - the installed plugin still declares a server that maps to this row at the SAME url, so defaults
- *   written for one endpoint never land on a row an operator pointed somewhere else.
+ *   written for one endpoint never land on a row an operator pointed somewhere else;
+ * - no operator turned the plugin off (a seeder's default-off record does not count).
  *
  * Architectural role:
  * `features/agent-plugins` business rule, implementing `external-mcp-oauth.ts`'s `onConnected` port.
@@ -26,23 +27,39 @@ import {
   type ExternalMcpStoreDeps,
 } from "#src/assistant/index";
 
+import { agentPluginActivations } from "./activation-effects.js";
 import { findAgentPluginMcpServerDefaults, isEmptyJsonList, resolveAgentPluginMcpServers } from "./federate-mcp.js";
 import type { McpServerConfig } from "./mcp-metadata.js";
+import type { AgentPluginLayout } from "./layout.js";
 import { setAgentPluginEnabled } from "./set-enabled.js";
 
 /** Recorded as the plugin activation's `updatedBy` and the row's write-grant attribution: the grant
  *  came from the plugin's declaration, at a sign-in, not from a Settings save. */
 const CONNECT_DEFAULTS_ACTOR = "system:connect-defaults";
 
+/** `activation.ts`'s seeder actor: its disabled record is the default, not an operator decision. */
+export const SEED_ACTOR = "system:seed";
+
+/** Whether `pluginId`'s activation record is a disabled one someone other than the seeder wrote.
+ *  Shared with `switch-on-saved-token.ts`. @complexity One activations read. */
+export async function isPluginOffByOperator(input: { workspaceId: string; agentPluginLayout: AgentPluginLayout; pluginId: string }, _options = {}): Promise<boolean> {
+  const activations = await agentPluginActivations.readAgentPluginActivations({ workspaceRoot: input.agentPluginLayout.forWorkspace(input.workspaceId).root });
+  if (!Object.hasOwn(activations.plugins, input.pluginId)) return false;
+  const record = activations.plugins[input.pluginId];
+  return record?.enabled === false && record.updatedBy !== SEED_ACTOR;
+}
+
 export interface ApplyConnectDefaultsDeps extends Pick<ExternalMcpStoreDeps, "repo" | "clock"> {
   readonly workspaceId: string;
-  readonly agentPluginLayout: import("./layout.js").AgentPluginLayout;
+  readonly agentPluginLayout: AgentPluginLayout;
   /** Injected for tests. Defaults to `federate-mcp.ts`'s `resolveAgentPluginMcpServers`. */
   readonly resolveServers?: (input: { workspaceId: string; pluginId: string }) => Promise<Readonly<Record<string, McpServerConfig>>>;
   /** Injected for tests. Defaults to `set-enabled.ts`'s `setAgentPluginEnabled(…, enabled: true)`. */
   readonly enablePlugin?: (input: { workspaceId: string; pluginId: string; actor: string }) => Promise<unknown>;
   /** Injected for tests. Defaults to `notifyExternalMcpRosterChanged`. */
   readonly notifyRosterChanged?: () => Promise<void>;
+  /** Injected for tests. Defaults to {@link isPluginOffByOperator} on this workspace's activations. */
+  readonly isPluginOffByOperator?: (pluginId: string) => Promise<boolean>;
 }
 
 /**
@@ -57,6 +74,7 @@ export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps): (ser
   const enablePlugin =
     deps.enablePlugin ?? ((input: { workspaceId: string; pluginId: string; actor: string }) => setAgentPluginEnabled({ ...input, agentPluginLayout: deps.agentPluginLayout, enabled: true }));
   const notifyRosterChanged = deps.notifyRosterChanged ?? (() => notifyExternalMcpRosterChanged());
+  const isOff = deps.isPluginOffByOperator ?? ((pluginId: string) => isPluginOffByOperator({ workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, pluginId }));
 
   return async (serverId) => {
     const row = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId });
@@ -67,6 +85,9 @@ export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps): (ser
     const defaults = findAgentPluginMcpServerDefaults(await resolveServers({ workspaceId: deps.workspaceId, pluginId }), row);
     // A read-only declaration is classification, not permission to change sign-in grants.
     if (!defaults?.allow) return;
+    // A sign-in is not an "on" switch: an operator's explicit plugin-off stays off, exactly as on
+    // the saved-token path (`switch-on-saved-token.ts`). The sign-in itself still completes.
+    if (await isOff(pluginId)) return;
 
     // Plugin first: if this throws, nothing is written and the next sign-in tries again. The row
     // write is the step that makes a retry a no-op, so it goes last.

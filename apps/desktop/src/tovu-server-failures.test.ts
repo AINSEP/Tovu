@@ -43,6 +43,20 @@ function fixture({ t }: { t: TestContext }) {
     spawnFn: () => child, baseEnv: {}, mirror, readyTimeoutMs: 1000, stopGraceMs: 10_000 } };
 }
 
+test("T5: a boot failure after long startup logs reports the final CLI error", async (t) => {
+  const f = fixture({ t });
+  const started = startTovuServer(f.input);
+  f.child.stdout.write("Startup diagnostics\n".repeat(120)); // More than 2000 characters before the error.
+  f.child.stderr.write("tovu: PORT_IN_USE: Port 4321 is already in use.\n");
+  f.child.exitCode = 4;
+  f.child.emit("exit", 4, null);
+
+  await assert.rejects(started, {
+    name: "Error",
+    message: "tovu serve failed: PORT_IN_USE: Port 4321 is already in use.",
+  });
+});
+
 test("a native spawn error preserves its cause and rejects only after child cleanup", { timeout: 2000 }, async (t) => {
   const f = fixture({ t });
   const error = Object.assign(new Error("spawn fixture EACCES"), { code: "EACCES" });

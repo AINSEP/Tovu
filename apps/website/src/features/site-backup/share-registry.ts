@@ -1,4 +1,5 @@
 import { randomInt, randomUUID } from "node:crypto";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { mkdir, readFile, readdir, rename, statfs, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { SHARE_LIMITS, SiteShareRefusal } from "./share-policy.js";
@@ -25,6 +26,42 @@ export const SHARE_TOKEN_LENGTH = 16;
 export const SHARE_TOKEN_PATTERN = `[A-Za-z]{${SHARE_TOKEN_LENGTH}}`;
 export const SHARE_TOKEN = new RegExp(`^${SHARE_TOKEN_PATTERN}$`);
 export const SHARE_FILE = /^[a-z0-9][a-z0-9-]{0,79}\.tovu\.zip$/;
+
+/**
+ * Moves a share catalog from its old home (`ops/shares` beside the source site's database, used
+ * before 2026-10-27) to the private one outside the site, once, so existing links and revokes keep working.
+ * A copy then remove covers a move across volumes. No-op when the new folder exists or the old is absent.
+ * A share this server delivered itself saved its catalog folder as the binding; those are re-pointed at
+ * the new folder, or revoke would look for a remote delivery that no longer exists.
+ * @complexity O(catalog files).
+ */
+export function adoptLegacyShareDirectory(required: { from: string; to: string }, _optional: Record<string, never> = {}): void {
+  if (existsSync(required.to) || !existsSync(required.from)) return;
+  mkdirSync(path.dirname(required.to), { recursive: true, mode: 0o700 });
+  // The registry is built on real paths: the old binding is `realpath(from)`, the new one `realpath(to)`.
+  // Rewritten before the move, so an interrupted adoption leaves the old folder for the next boot to finish.
+  rebindLegacyRecords({ directory: required.from, from: realpathSync(required.from), to: path.join(realpathSync(path.dirname(required.to)), path.basename(required.to)) });
+  try { renameSync(required.from, required.to); }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EXDEV") throw error;
+    cpSync(required.from, required.to, { recursive: true });
+    rmSync(required.from, { recursive: true, force: true });
+  }
+}
+
+/** Re-points every record bound to this server's folder `from` at `to`; atomic per record, idempotent.
+ * @complexity O(catalog files). */
+function rebindLegacyRecords(required: { directory: string; from: string; to: string }): void {
+  for (const name of readdirSync(required.directory)) {
+    if (!name.endsWith(".json") || !ID.test(name.slice(0, -5))) continue;
+    const file = path.join(required.directory, name);
+    const row = JSON.parse(readFileSync(file, "utf8")) as SiteShareRecord;
+    if (row.storage?.provider !== "tovu-server" || row.storage.binding !== required.from) continue;
+    const temp = path.join(required.directory, `.${randomUUID()}.tmp`);
+    writeFileSync(temp, JSON.stringify({ ...row, storage: { ...row.storage, binding: required.to } }), { flag: "wx", mode: 0o600 });
+    renameSync(temp, file);
+  }
+}
 
 /**
  * Private per-site share catalog, outside every backup walk and public static root. One atomic

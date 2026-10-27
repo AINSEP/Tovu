@@ -261,9 +261,8 @@ function registerOwnerStoreCommands({ program }: { program: Command }, _options 
     const command = ownerStore.command(action)
       .description(`${action} shared keys; reads {userDataDir, ...request} JSON on stdin`)
       .option("--json", "print one JSON reply (the only format)");
-    if (action === "sync" || action === "revoke") command.requiredOption("--site <dir>", "existing local SQLite site directory");
-    command.action(async (options: { site?: string }) => {
-      await runOwnerStoreCommand({ action, site: options.site });
+    command.action(async () => {
+      await runOwnerStoreCommand({ action });
     });
   }
 }

@@ -13,14 +13,14 @@ const waitlist: FormDefinitionRecord = { ...base, id: "f1", slug: "waitlist", st
 ] };
 const disabled: FormDefinitionRecord = { ...waitlist, id: "f2", slug: "old", status: "disabled" };
 
-function setup({ failCreateOn }: { failCreateOn?: string } = {}) {
+function setup({ failCreateOn, definitions = [waitlist, disabled] }: { failCreateOn?: string; definitions?: FormDefinitionRecord[] } = {}) {
   const rows: FormSubmissionRecord[] = [];
   const events: { name: string; aggregateId: string; payload: unknown }[] = [];
   const receipts = new Map<string, string>();
   const lookups: string[] = [];
   let ids = 0;
   const deps: ImportRemoteSubmissionsDeps = {
-    definitionRepo: { findBySlug: async ({ slug }) => { lookups.push(slug); return [waitlist, disabled].find((d) => d.slug === slug) ?? null; } },
+    definitionRepo: { findBySlug: async ({ slug }) => { lookups.push(slug); return definitions.find((d) => d.slug === slug) ?? null; } },
     submissionRepo: {
       create: async (record) => { if (record.data.email === failCreateOn) throw new Error("disk full"); rows.push(record); },
       // Rolls back every write made inside `work` when it throws, like the store's real transaction.
@@ -54,7 +54,7 @@ test("valid rows become submissions with one received event each, keeping the ho
   const result = await importRemoteFormSubmissions({ deps: s.deps, workspaceId: "w", destinationKey: "host:https://a.example", items: [row("r1", { email: "a@b.co", note: "hi" })] });
   assert.deepEqual(result, { committedIds: ["r1"], imported: 1, duplicates: 0, invalid: [], skipped: [], forms: [{ formSlug: "waitlist", imported: 1, alreadyImported: 0, unmapped: 0 }] });
   assert.deepEqual(s.rows, [{ id: "id-1", workspaceId: "w", formDefinitionId: "f1", data: { email: "a@b.co", note: "hi" }, sourceIp: "203.0.113.9", submittedAt: "2026-10-19T10:00:00.000Z" }]);
-  assert.deepEqual(s.events, [{ id: "id-2", name: "form.submission.received", occurredAt: "2026-10-19T12:00:00.000Z", workspaceId: "w", aggregateId: "id-1", payload: { workspaceId: "w", formDefinitionId: "f1", submissionId: "id-1" } }]);
+  assert.deepEqual(s.events, [{ id: "id-2", name: "form.submission.received", occurredAt: "2026-10-19T12:00:00.000Z", workspaceId: "w", aggregateId: "id-1", payload: { workspaceId: "w", formDefinitionId: "f1", submissionId: "id-1", deliveryMode: "remote_import" } }]);
 });
 
 test("a row seen again (same destination and remote id) is acknowledged as a duplicate and writes nothing", async () => {
@@ -76,11 +76,56 @@ test("rows the live validator rejects are imported with declared text fields onl
     row("r2", { email: ["a", "b"], note: 7 }),
   ] });
   assert.equal(result.imported, 2);
-  assert.deepEqual(result.invalid.map(({ remoteId, submissionId }) => [remoteId, submissionId]), [["r1", "id-1"], ["r2", "id-3"]]);
+  assert.deepEqual(result.invalid.map(({ remoteId, submissionId }) => [remoteId, submissionId]), [["r1", "id-1"], ["r2", "id-2"]], "an invalid row draws no event id");
   assert.ok(result.invalid[0]!.fieldErrors.some((error) => error.field === "extra"), "unknown keys are reported");
-  assert.deepEqual(s.rows.map((stored) => stored.data), [{ email: "", note: "too long" }, { email: ["a", "b"] }]);
+  assert.deepEqual(s.rows.map((stored) => stored.data), [{ email: "", note: "too l" }, { email: ["a", "b"] }], "values are cut to the field's cap (note: maxLength 5)");
   assert.equal(s.rows[0]!.submittedAt, "2026-10-19T12:00:00.000Z", "an unusable host time falls back to the import time");
   assert.equal(s.rows[0]!.sourceIp, null);
+  assert.deepEqual(s.events, [], "invalid rows emit no received event");
+});
+
+test("T9: remote imports report the live submit path's default text-length violations", async () => {
+  const s = setup({ definitions: [{ ...waitlist, fields: [
+    waitlist.fields[0]!,
+    { id: "name", label: "Name", type: "text", required: false },
+    { id: "note", label: "Note", type: "textarea", required: false, maxLength: null },
+  ] }] });
+  const result = await importRemoteFormSubmissions({ deps: s.deps, workspaceId: "w", destinationKey: "d", items: [
+    row("below", { email: "a@b.co", name: "a".repeat(99), note: "m".repeat(1999) }),
+    row("at", { email: "a@b.co", name: "😀".repeat(100), note: "🎉".repeat(2000) }),
+    row("over", { email: "a@b.co", name: "a".repeat(101), note: "m".repeat(2001) }),
+  ] });
+
+  assert.deepEqual(result.committedIds, ["below", "at", "over"], "invalid remote rows remain available for admin review");
+  assert.deepEqual(result.invalid.map(({ remoteId, fieldErrors }) => ({ remoteId, fieldErrors })), [
+    { remoteId: "over", fieldErrors: [{ field: "name", reason: "too_long" }, { field: "note", reason: "too_long" }] },
+  ]);
+});
+
+test("T9: an invalid remote row is stored cut to the live text caps (100 one-line, 2000 long text) and nothing is lost", async () => {
+  const s = setup({ definitions: [{ ...waitlist, fields: [
+    waitlist.fields[0]!,
+    { id: "name", label: "Name", type: "text", required: false },
+    { id: "note", label: "Note", type: "textarea", required: false, maxLength: null },
+    { id: "size", label: "Size", type: "select", required: false, options: [{ label: "Small", value: "s" }] },
+  ] }] });
+  const result = await importRemoteFormSubmissions({ deps: s.deps, workspaceId: "w", destinationKey: "d", items: [
+    row("over", { email: "a@b.co", name: "😀".repeat(150), note: "m".repeat(5000), size: "x".repeat(3000) }),
+  ] });
+  assert.deepEqual(result.committedIds, ["over"], "the invalid row is still imported for review");
+  assert.equal(result.invalid.length, 1);
+  assert.deepEqual(s.rows.map((stored) => stored.data), [{ email: "a@b.co", name: "😀".repeat(100), note: "m".repeat(2000), size: "x".repeat(2000) }]);
+});
+
+test("T9: an invalid remote row emits no form.submission.received; a valid one beside it still does", async () => {
+  const s = setup();
+  const result = await importRemoteFormSubmissions({ deps: s.deps, workspaceId: "w", destinationKey: "d", items: [
+    row("bad", { email: "" }), row("good", { email: "a@b.co" }),
+  ] });
+  assert.deepEqual(result.invalid.map(({ remoteId }) => remoteId), ["bad"]);
+  assert.equal(s.rows.length, 2, "both rows are stored");
+  const good = s.rows.find((stored) => stored.data.email === "a@b.co")!;
+  assert.deepEqual(s.events.map(({ name, aggregateId }) => ({ name, aggregateId })), [{ name: "form.submission.received", aggregateId: good.id }]);
 });
 
 test("rows for a form that no longer exists are skipped and not acknowledged; a disabled form still imports", async () => {

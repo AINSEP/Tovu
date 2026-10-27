@@ -9,6 +9,11 @@ import type { PublishExecutionMode } from "../publish-credentials/execution-mode
 import type { DeployTargetCredential, DeployTargetCredentialSpec, DeployTargetEnvFallback, DeployTargetRegistry, LoadedDeployTarget } from "../deploy-targets/types.js";
 import type { PublishCredentialSource, ResolvedPublishCredentialSuccess, StaticPublishTargetId } from "./types.js";
 
+/** Readiness accepts the same optional saved-connection choice as resolution, without opening it. */
+interface PublishCredentialSourceWithChoice extends PublishCredentialSource {
+  isConfigured(input: Parameters<PublishCredentialSource["resolve"]>[0], options?: object): ReturnType<PublishCredentialSource["isConfigured"]>;
+}
+
 /** Keep provider explanations useful without exposing any declared credential secret.
  * Uses Jini's redactor for both publish and preview responses; does not mutate the credential.
  * @complexity O(fields + message bytes × secrets), delegated to the shared redactor. */
@@ -50,8 +55,8 @@ export function redactDeployTargetMessage({ message, credential, target }: {
  * Correction B) instead of the earlier "reject with 'ambiguous' when 2+ credentials are saved for one
  * provider" design — that design broke the whole point of named connections (saving a second one for
  * a provider) the first time someone actually used the feature as built. `is_default` is a real
- * server-owned invariant maintained by `publish-credentials/store.ts`'s write path, so "no default" is
- * the only "not configured" outcome this source can ever report — never "ambiguous, pick one".
+ * server-owned invariant maintained by `publish-credentials/store.ts`'s write path. Project keys may
+ * explicitly opt out: readiness must honor a chosen id even when implicit selection is ambiguous.
  *
  * `composePublishCredentialSource` is what `publish-site.ts`'s route and `publish-agent-tools.ts`'s
  * tool wiring actually construct: DB-backed always tried first (a workspace's own saved connection
@@ -118,7 +123,7 @@ export function createEnvPublishCredentialSource(
   workspaceId: UUID,
   loadDeployTargets: (workspaceId: string) => Promise<DeployTargetRegistry>,
   env: NodeJS.ProcessEnv = process.env
-): PublishCredentialSource {
+): PublishCredentialSourceWithChoice {
   /** The first set, non-blank var of `tokenVars` (blank counts as unset). The failure reason names
    *  every var the operator could have set, not just the first. */
   function readToken(target: StaticPublishTargetId, tokenVars: readonly string[]): { token: string } | { reason: string } {
@@ -171,8 +176,8 @@ export function createEnvPublishCredentialSource(
       const result = await readCredential(input.target, input.workspaceId, input.credentialId);
       return "token" in result ? { ok: true, token: result.token, ...result.fields } : { ok: false, reason: result.reason };
     },
-    async isConfigured(input) {
-      const result = await readCredential(input.target, input.workspaceId);
+    async isConfigured(input: Parameters<PublishCredentialSource["resolve"]>[0], _options = {}) {
+      const result = await readCredential(input.target, input.workspaceId, input.credentialId);
       return "token" in result ? { configured: true } : { configured: false, reason: result.reason };
     },
   };
@@ -224,13 +229,13 @@ export interface DbPublishCredentialSourceDeps {
 /**
  * Builds a `PublishCredentialSource` backed by the encrypted publish-credential store,
  * resolving each `(workspaceId, target)`'s DEFAULT saved connection (Contract v2 Correction B — see
- * this file's header). `resolve()` decrypts via `resolveDefaultForPublish`; `isConfigured()` reads
- * `hasDefaultForPublish` and never decrypts.
+ * this file's header), or the explicitly chosen compatible connection. `resolve()` decrypts via
+ * the store; `isConfigured()` uses the same metadata-only selection policy and never decrypts.
  *
- * @complexity O(1) DB read for `isConfigured`; `resolve` additionally pays one decrypt + `JSON.parse`
- *   (`resolveDefaultForPublish`'s own cost) only when a default exists.
+ * @complexity Metadata selection scans rows and host compatibility; `resolve` additionally opens
+ *   and parses one selected payload. Readiness never opens a secret.
  */
-export function createDbPublishCredentialSource(deps: DbPublishCredentialSourceDeps): PublishCredentialSource {
+export function createDbPublishCredentialSource(deps: DbPublishCredentialSourceDeps): PublishCredentialSourceWithChoice {
   const notConfiguredReason = (target: StaticPublishTargetId) =>
     `no default '${target}' credential is saved for this workspace yet — add one in the Static Site tab`;
 
@@ -278,9 +283,10 @@ export function createDbPublishCredentialSource(deps: DbPublishCredentialSourceD
       const projected = await project(input.workspaceId, resolved.connection);
       return projected.ok ? { ...projected, credentialId: resolved.id } : projected;
     },
-    async isConfigured(input) {
-      const configured = await hasDefaultForPublish(deps, { workspaceId: input.workspaceId, providerId: input.target });
-      return configured ? { configured: true } : { configured: false, reason: notConfiguredReason(input.target) };
+    async isConfigured(input: Parameters<PublishCredentialSource["resolve"]>[0], _options = {}) {
+      const configured = await hasDefaultForPublish(deps, { workspaceId: input.workspaceId, providerId: input.target, id: input.credentialId });
+      const reason = input.credentialId === undefined ? notConfiguredReason(input.target) : CHOSEN_CREDENTIAL_UNAVAILABLE_REASON;
+      return configured ? { configured: true } : { configured: false, reason };
     },
   };
 }
@@ -308,7 +314,7 @@ export interface ComposePublishCredentialSourceInput {
  *   (plus, in self-hosted mode, one more O(1) env read on a DB miss).
  * @overallScore 100
  */
-export function composePublishCredentialSource(input: ComposePublishCredentialSourceInput): PublishCredentialSource {
+export function composePublishCredentialSource(input: ComposePublishCredentialSourceInput): PublishCredentialSourceWithChoice {
   const dbSource = createDbPublishCredentialSource(input.dbDeps);
   if (input.executionMode === "hosted-api-only") {
     return dbSource;
@@ -326,9 +332,11 @@ export function composePublishCredentialSource(input: ComposePublishCredentialSo
       if (req.credentialId !== undefined) return fromDb;
       return envSource.resolve(req);
     },
-    async isConfigured(req) {
+    async isConfigured(req: Parameters<PublishCredentialSource["resolve"]>[0], _options = {}) {
       const fromDb = await dbSource.isConfigured(req);
       if (fromDb.configured) return fromDb;
+      // Readiness preserves the same chosen-account binding as resolve: env vars have no saved id.
+      if (req.credentialId !== undefined) return fromDb;
       return envSource.isConfigured(req);
     },
   };
