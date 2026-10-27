@@ -32,6 +32,7 @@ import { agentPluginActivations } from "./activation-effects.js";
 import { findAgentPluginMcpServerDefaults, isEmptyJsonList, resolveAgentPluginMcpServers } from "./federate-mcp.js";
 import type { McpServerConfig } from "./mcp-metadata.js";
 import type { AgentPluginLayout } from "./layout.js";
+import { setAgentPluginEnabled } from "./set-enabled.js";
 
 /** Recorded as the plugin activation's `updatedBy` and the row's write-grant attribution: the grant
  *  came from the plugin's declaration, at a sign-in, not from a Settings save. */
@@ -54,8 +55,12 @@ export async function isPluginOffByOperator(input: { workspaceId: string; agentP
  * record is switched on (decided under the activations lock, so an operator toggle racing it wins);
  * anyone else's disabled record is an operator's "off" and stays. Shared with `switch-on-saved-token.ts`,
  * which needs it on top of connect defaults (they skip a row an operator already set up and so never
- * reach the plugin's activation).
- * @returns false when an operator's "off" stopped it. @complexity One activations read, at most one locked write.
+ * reach the plugin's activation). The switch-on itself is `setAgentPluginEnabled`'s, so it keeps every
+ * check a switch has (installed, host-compatible, no pending update, not a provider plugin's linked face,
+ * whose provider's switch decides: `provider-plugin-link.ts`); only its write is the locked conditional one.
+ * @returns false when an operator's "off" stopped it.
+ * @throws What `setAgentPluginEnabled` refuses with (`AgentPluginLinkedError`, not installed, incompatible, pending update).
+ * @complexity One activations read, at most one locked write.
  */
 export async function switchPluginOnUnlessOperatorOff(input: { workspaceId: string; agentPluginLayout: AgentPluginLayout; pluginId: string }, _options = {}): Promise<boolean> {
   const workspaceRoot = input.agentPluginLayout.forWorkspace(input.workspaceId).root;
@@ -64,7 +69,8 @@ export async function switchPluginOnUnlessOperatorOff(input: { workspaceId: stri
   const record = activations.plugins[input.pluginId];
   if (!record || record.enabled) return true;
   if (record.updatedBy !== SEED_ACTOR) return false;
-  return (await agentPluginActivations.enableBundledAgentPluginUnlessOperatorDisabled({ workspaceRoot, pluginId: input.pluginId, actor: CONNECT_DEFAULTS_ACTOR })) !== "left-disabled-by-operator";
+  const result = await setAgentPluginEnabled({ workspaceId: input.workspaceId, agentPluginLayout: input.agentPluginLayout, pluginId: input.pluginId, enabled: true, actor: CONNECT_DEFAULTS_ACTOR }, { unlessOperatorDisabled: true });
+  return result.enabled;
 }
 
 export interface ApplyConnectDefaultsDeps extends Pick<ExternalMcpStoreDeps, "repo" | "clock"> {

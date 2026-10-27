@@ -242,6 +242,46 @@ test("an operator turning the plugin OFF after the off-check but before the enab
   }
 });
 
+/** Installs the plugin with `tovu` manifest extensions, seeder default-off, and signs in through real storage. */
+async function signInSeededOff(tovuExtension: Record<string, unknown>) {
+  const dir = await mkdtemp(path.join(tmpdir(), "tovu-connect-defaults-checks-"));
+  const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
+  process.env.TOVU_AGENT_PLUGINS_DIR = path.join(dir, "installed");
+  try {
+    const source = path.join(dir, "source");
+    await mkdir(source);
+    await writeFile(path.join(source, "plugin.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: PLUGIN, version: "1.0.0", extensions: { tovu: tovuExtension } }));
+    await writeFile(path.join(source, "mcp.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json", mcpServers: DECLARED }));
+    const packed = await packAgentPluginDirectory(source);
+    const layout = resolveAgentPluginLayout();
+    await installAgentPlugin({ archive: packed.bytes, expectedSha256: packed.sha256,
+      archiveReader: createBundledSourceArchiveReader(), layout, workspaceId: WORKSPACE });
+    const workspaceRoot = layout.forWorkspace(WORKSPACE).root;
+    await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN, enabled: false, actor: "system:seed" });
+    const h = await makeHarness({ provisionedByPluginId: PLUGIN, productionBindings: true });
+    await h.signIn();
+    const activation = (await agentPluginActivations.readAgentPluginActivations({ workspaceRoot })).plugins[PLUGIN];
+    return { activation, row: await h.readRow(), rosterNotifications: h.rosterNotifications() };
+  } finally {
+    if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
+    else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
+    await forceRemove(dir);
+  }
+}
+
+for (const [name, tovuExtension] of [
+  ["a provider plugin's linked face (its provider's switch decides)", { providerPlugin: "acme-provider" }],
+  ["a plugin this host is incompatible with", { hostRange: ">=999.0.0" }],
+] as const) {
+  test(`a sign-in never switches on ${name}, and grants nothing`, async () => {
+    const { activation, row, rosterNotifications } = await signInSeededOff(tovuExtension);
+    assert.deepEqual([activation?.enabled, activation?.updatedBy], [false, "system:seed"]);
+    assert.equal(row.oauthStatus, "connected");
+    assert.deepEqual([row.enabled, row.allowedToolNames, row.writeAllowedToolNames], [false, "[]", "[]"]);
+    assert.equal(rosterNotifications, 0);
+  });
+}
+
 test("a row the operator already edited is untouched by a sign-in", async () => {
   const h = await makeHarness({ provisionedByPluginId: PLUGIN, allowedToolNames: "list_projects" });
   const before = await h.readRow();

@@ -3,7 +3,7 @@ import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js
 import { agentPluginActivations } from "../../activation-effects.js";
 const { readAgentPluginActivations, recordBundledAgentPluginIfAbsent, setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
-import { mkdtemp } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import fs from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
@@ -17,7 +17,7 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 
 
 import { resolveAgentPluginLayout } from "../../layout.js";
-import { seedBundledAgentPlugins } from "../../lifecycle.js";
+import { createBundledSourceArchiveReader, installAgentPlugin, packAgentPluginDirectory, seedBundledAgentPlugins } from "../../lifecycle.js";
 import { AGENT_PLUGINS_SCREEN, describeSavedTokenSwitch, EXTERNAL_MCP_SCREEN, switchOnSavedTokenConnection } from "../../switch-on-saved-token.js";
 import { forceRemove } from "../fixtures/force-remove.js";
 
@@ -42,6 +42,19 @@ async function withAgentPluginsDir(fn: (workspaceRoot: string) => Promise<void>)
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
     else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
     await forceRemove(dir);
+  }
+}
+
+/** Installs a minimal PLUGIN package: switching a plugin on requires it to be installed here. */
+async function installPlugin(): Promise<void> {
+  const source = await mkdtemp(path.join(tmpdir(), "tovu-switch-on-src-"));
+  try {
+    await mkdir(source, { recursive: true });
+    await writeFile(path.join(source, "plugin.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: PLUGIN, version: "1.0.0" }));
+    const packed = await packAgentPluginDirectory(source);
+    await installAgentPlugin({ archive: packed.bytes, expectedSha256: packed.sha256, archiveReader: createBundledSourceArchiveReader(), layout: resolveAgentPluginLayout(), workspaceId: WORKSPACE });
+  } finally {
+    await forceRemove(source);
   }
 }
 
@@ -72,6 +85,7 @@ async function operatorEnabledRow() {
 
 test("the seeder's default 'off' is switched on with the row, and only then reported on", async () => {
   await withAgentPluginsDir(async (workspaceRoot) => {
+    await installPlugin();
     await recordBundledAgentPluginIfAbsent({ workspaceRoot, pluginId: PLUGIN });
     const outcome = await switchOnSavedTokenConnection(await operatorEnabledRow(), { pluginId: PLUGIN, connectionId: "remote" });
     assert.deepEqual(outcome, { state: "on" });
