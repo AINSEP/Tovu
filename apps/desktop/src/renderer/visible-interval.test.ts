@@ -119,9 +119,11 @@ test("the projects polling hook schedules its listSites callback every 4000ms", 
   let poll: (() => void) | undefined;
   let cleanup: (() => void) | undefined;
   let stopped = false;
-  const hook = new Function("useState", "useEffect", "runnerInventoryBridge", "startVisibleInterval", `${js}; return useSitesPolling;`)(
+  const hook = new Function("useState", "useEffect", "useRef", "useCallback", "runnerInventoryBridge", "startVisibleInterval", `${js}; return useSitesPolling;`)(
     (initial: unknown) => [initial, () => {}],
     (effect: () => () => void) => { cleanup = effect(); },
+    (initial: unknown) => ({ current: initial }),
+    (callback: unknown) => callback,
     () => ({ listSites: async () => { calls++; return []; } }),
     (tick: () => void, period: number) => { assert.equal(period, 4000); poll = tick; return () => { stopped = true; }; },
   );

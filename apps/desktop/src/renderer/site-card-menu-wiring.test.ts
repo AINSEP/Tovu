@@ -18,6 +18,10 @@ import { cardOpenClass, cardOpenProps, closeMenuThen, databaseLabel, deleteActio
 import { powerControl } from "./use-site-power.hooks.js";
 import { STATUS_LABEL } from "./site-status.js";
 import { siteCardStatus, sitePortPresentation } from "./site-port.rules.js";
+import { ResourceSiteFigure } from "./ResourcesPanel.js";
+
+// The real ResourcesPanel.tsx compiles to classic JSX under the bare tsx runner (same as ResourcesPanel.render.test.ts).
+Object.assign(globalThis, { React });
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -139,7 +143,7 @@ test("a running record with a local stopping status omits Open in browser throug
   }).join("\n");
   const executable = ts.transpileModule(declarations, { compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 } }).outputText;
   const deps = {
-    React, cardOpenClass, cardOpenProps, closeMenuThen, databaseLabel, deleteActionCopy, isCardOpenable, powerControl, STATUS_LABEL, sitePortPresentation, siteCardStatus,
+    React, cardOpenClass, cardOpenProps, closeMenuThen, databaseLabel, deleteActionCopy, isCardOpenable, powerControl, STATUS_LABEL, sitePortPresentation, siteCardStatus, ResourceSiteFigure,
     useSitePreview: () => null,
     useDismissibleDropdown: () => ({ open: true, setOpen: () => {}, containerRef: { current: null } }),
     MissingFolderNotice: () => null,

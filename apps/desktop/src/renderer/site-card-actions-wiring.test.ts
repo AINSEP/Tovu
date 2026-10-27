@@ -321,7 +321,8 @@ test("main's refreshed record reaches the grid, rather than waiting on the 4s po
   assert.match(app, /<SiteGrid [^>]*onSiteUpdated=\{onSiteUpdated\}/);
   assert.match(grid, /const power = usePower\(onSiteUpdated, \{ onStarted: onOpen \}\);/);
   for (const [component, callback] of [['MainArea', 'applySiteRecord'], ['MainContent', 'onSiteUpdated'], ['ProjectsBody', 'onSiteUpdated']]) {
-    assert.match(app, new RegExp(`<${component}\\b[^>]*onSiteUpdated=\\{${callback}\\}`), `${component} must forward the actual update callback`);
+    // `=>` is allowed inside the tag: arrow-function props (telemetry wrappers) sit before the callback.
+    assert.match(app, new RegExp(`<${component}\\b(?:=>|[^>])*onSiteUpdated=\\{${callback}\\}`), `${component} must forward the actual update callback`);
   }
   const harness = hookHarness();
   const useApply = sourceFunction(appHooks, 'useApplySiteRecord', harness.bindings);

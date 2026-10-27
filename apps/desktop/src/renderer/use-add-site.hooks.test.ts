@@ -204,9 +204,10 @@ test('the add hook suppresses picker cancellation and reports an absent bridge',
 
 test("the Projects header renders the Add Tovu Website button, wired and disableable", () => {
   assert.match(appTsx, /Add Tovu Website/);
-  assert.match(appTsx, /onClick=\{\(\) => void onAddSite\(\)\}/);
+  // The handler may report shell telemetry first; it must still call onAddSite in the same click.
+  assert.match(appTsx, /onClick=\{\(\) => \{[^\n]*?void onAddSite\(\); \}\}/);
   // Disabled while in flight, so a second folder picker cannot be opened over the first.
-  assert.match(appTsx, /onClick=\{\(\) => void onAddSite\(\)\} disabled=\{adding\}/);
+  assert.match(appTsx, /onClick=\{\(\) => \{[^\n]*?void onAddSite\(\); \}\} disabled=\{adding\}/);
 });
 
 test("the button sits between Rescan and Create website", () => {

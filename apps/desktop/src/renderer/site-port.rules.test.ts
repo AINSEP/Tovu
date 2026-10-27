@@ -1,14 +1,19 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
+import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { siteCardStatus, sitePortPresentation } from './site-port.rules.js';
 import { cardOpenClass, cardOpenProps, databaseLabel, deleteActionCopy, isCardOpenable } from './SiteGrid.hooks.js';
 import { STATUS_LABEL } from './site-status.js';
+import { ResourceSiteFigure } from './ResourcesPanel.js';
 import { sourceFunction } from './source-test-harness.js';
 import {
   createWorkspaceActions, initialSiteWorkspaceState, loadResetKey, siteSurfaceUrl, siteWorkspaceReducer, surfaceOfUrl,
 } from './use-site-workspace.hooks.js';
+
+// The real ResourcesPanel.tsx compiles to classic JSX under the bare tsx runner (same as ResourcesPanel.render.test.ts).
+Object.assign(globalThis, { React });
 
 // REGRESSION: fails if sitePortPresentation accepts port 0 or an absent port as running.
 test('zero, absent and invalid ports have no address or port number', () => {
@@ -47,7 +52,7 @@ const workspaceSource = fs.readFileSync(new URL('./use-site-workspace.hooks.ts',
 // REGRESSION: owner 2026-10-13 — the card's copy never shows the port; it lives in the status title.
 test('the rendered card keeps the running address in the status title, never in its copy', () => {
   const SiteCard = sourceFunction(gridSource, 'SiteCard', {
-    cardOpenClass, cardOpenProps, databaseLabel, deleteActionCopy, isCardOpenable, STATUS_LABEL, sitePortPresentation, siteCardStatus,
+    cardOpenClass, cardOpenProps, databaseLabel, deleteActionCopy, isCardOpenable, STATUS_LABEL, sitePortPresentation, siteCardStatus, ResourceSiteFigure,
     CardOverlays: sourceFunction(gridSource, 'CardOverlays'),
     useSitePreview: () => null, CardActions: () => null, SiteCardMenu: () => null, MissingFolderNotice: () => null,
   });
