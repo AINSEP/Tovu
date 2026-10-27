@@ -619,11 +619,18 @@ test('a pending old probe cannot overwrite a newer token rotation or label', asy
   assert.equal((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: 'example-git' }))?.connection.token === 'replacement-credential-b8G3', true);
 });
 
-test("vault default resolution never lists sibling credentials", async () => {
+// Selection reads the host's summaries (fdc875823: the sole attached row may be a non-default), but only the
+// chosen credential is ever opened; a sibling's envelope is never decrypted.
+test("vault default resolution opens only the selected credential, never a sibling", async () => {
   const deps = makeDeps({ loadSourceControlProviders: exampleProvidersWithoutProbe });
   const created = await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: "Default", connection: { providerId: "example-git", token: "default-secret" } } });
-  deps.repo.vault!.list = async () => { throw new Error("default reads must not list"); };
+  await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: "Sibling", connection: { providerId: "example-git", token: "sibling-secret" } } });
+  const open = deps.sealer.open.bind(deps.sealer);
+  const opened: string[] = [];
+  deps.sealer.open = async (input, options) => { const plaintext = await open(input, options); opened.push(plaintext); return plaintext; };
   assert.equal((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "example-git" }))?.id, created.id);
+  assert.equal(opened.length, 1);
+  assert.match(opened[0]!, /default-secret/);
 });
 
 test("vault summary hints require no per-row reads or opens and suppress short tails", async () => {
@@ -807,6 +814,44 @@ test('opaque metadata and canonical blank-token patches never load provider code
     await updateSourceControlCredential({ deps, input: { workspaceId: WORKSPACE, id: saved.id, label: 'renamed', connection } });
   }
   assert.equal((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: 'example-git' }))?.connection.token, 'saved-secret');
+});
+
+test('T26: token-only rotation retains the saved provider', async () => {
+  const deps = makeDeps({ loadSourceControlProviders: exampleProvidersWithoutProbe });
+  const saved = await createSourceControlCredential({ deps, input: {
+    workspaceId: WORKSPACE, label: 'rotation',
+    connection: { providerId: 'example-git', token: 'original-fixture-token' },
+  } });
+
+  await assert.doesNotReject(() => updateSourceControlCredential({ deps, input: {
+    workspaceId: WORKSPACE, id: saved.id, connection: { token: 'replacement-fixture-token' },
+  } }));
+  assert.deepEqual((await resolveDefaultForSourceControl(deps, {
+    workspaceId: WORKSPACE, providerId: 'example-git',
+  }))?.connection, { providerId: 'example-git', token: 'replacement-fixture-token' });
+});
+
+test('T36: blank-token patches refuse changes to other connection fields', async () => {
+  const base = exampleRegistry({ probe: false }).list()[0]!;
+  const loaded = { ...base, descriptor: { ...base.descriptor, credential: {
+    tokenField: 'token', fields: [
+      { name: 'token', label: 'Token', required: true, secret: true as const },
+      { name: 'baseUrl', label: 'API URL', required: false },
+    ],
+  } } };
+  const deps = makeDeps({ loadSourceControlProviders: async () => ({
+    list: () => [loaded], get: id => id === loaded.descriptor.id ? loaded : undefined, refusals: [],
+  }) });
+  const connection = { providerId: loaded.descriptor.id, token: 'saved-fixture-token', baseUrl: 'https://old.example.test' };
+  const saved = await createSourceControlCredential({ deps, input: { workspaceId: WORKSPACE, label: 'endpoint', connection } });
+
+  await assert.rejects(() => updateSourceControlCredential({ deps, input: {
+    workspaceId: WORKSPACE, id: saved.id,
+    connection: { providerId: loaded.descriptor.id, token: '', baseUrl: 'https://new.example.test' },
+  } }), SourceControlCredentialValidationError);
+  assert.deepEqual((await resolveDefaultForSourceControl(deps, {
+    workspaceId: WORKSPACE, providerId: loaded.descriptor.id,
+  }))?.connection, connection);
 });
 
 test('token-only providers without a credential form still use token admission; missing registry refuses new writes', async () => {

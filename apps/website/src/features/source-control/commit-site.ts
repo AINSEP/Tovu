@@ -6,7 +6,7 @@ import type { UUID } from "@jini-ai/core/primitives";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import { firstExportFailure, type ExportReport } from "#src/features/site-export/index";
 
-import type { CommitFile, RepositoryTargetValidator, SourceControlProvider } from "./provider-module.js";
+import type { CommitFile, RepositoryTargetValidator, SourceControlCommitResult, SourceControlProvider } from "./provider-module.js";
 import { repositoryTargetError } from "./repository-target.js";
 import { resolveDefaultForSourceControl } from "./store.js";
 import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "./types.js";
@@ -55,6 +55,14 @@ import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from
 /** Git branch name — permissive (real branch names allow far more), but refuses whitespace/control
  *  characters before the value reaches a URL path segment. */
 const BRANCH_PATTERN = /^[A-Za-z0-9._/-]{1,250}$/;
+
+/** Git's own ref-name rules for the parts the pattern allows: no `..` anywhere (it would let fetch
+ *  normalize `refs/heads/../../x` into another API path called with the user's token), no empty or
+ *  dot-led component and no `.lock` component. @complexity O(n) in the (≤250-char) name. */
+function isValidBranchName(branch: string): boolean {
+  return BRANCH_PATTERN.test(branch) && !branch.includes("..")
+    && !branch.split("/").some(part => part === "" || part.startsWith(".") || part.endsWith(".lock"));
+}
 const MAX_COMMIT_MESSAGE_LENGTH = 500;
 
 /**
@@ -77,7 +85,7 @@ export function validateCommitTarget(
 ): string | null {
   const targetError = repositoryTargetError({ owner: input.owner, repo: input.repo }, validateTarget);
   if (targetError !== null) return targetError;
-  if (input.branch !== undefined && !BRANCH_PATTERN.test(input.branch)) return `invalid branch name '${input.branch.slice(0, 60)}'`;
+  if (input.branch !== undefined && !isValidBranchName(input.branch)) return `invalid branch name '${input.branch.slice(0, 60)}'`;
   if (input.commitMessage.trim() === "" || input.commitMessage.length > MAX_COMMIT_MESSAGE_LENGTH) {
     return `commitMessage must be 1-${MAX_COMMIT_MESSAGE_LENGTH} characters`;
   }
@@ -425,14 +433,21 @@ export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: Com
     return { ok: false, code: "PROVIDER_ERROR", message: "no source control commit adapter is configured — this is a wiring bug, not a credential or network problem" };
   }
 
-  const result = await gitAdapter.commit({
-    token: credentialResult.credential.token,
-    owner: input.owner,
-    repo: input.repo,
-    ...(input.branch !== undefined ? { branch: input.branch } : {}),
-    commitMessage: input.commitMessage,
-    files: exportResult.files,
-  });
+  let result: SourceControlCommitResult;
+  try {
+    result = await gitAdapter.commit({
+      token: credentialResult.credential.token,
+      owner: input.owner,
+      repo: input.repo,
+      ...(input.branch !== undefined ? { branch: input.branch } : {}),
+      commitMessage: input.commitMessage,
+      files: exportResult.files,
+    });
+  } catch {
+    // Plugin code: its throw must not break this function's never-throw contract, and its raw
+    // message may carry provider detail, so a fixed message is returned instead.
+    return { ok: false, code: "PROVIDER_ERROR", message: "the source control provider failed while committing" };
+  }
 
   if (!result.ok) {
     const codeByAdapterCode = {
@@ -442,7 +457,7 @@ export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: Com
       "network-unreachable": "NETWORK_UNREACHABLE",
       "provider-error": "PROVIDER_ERROR",
     } as const;
-    return { ok: false, code: codeByAdapterCode[result.code], message: result.message };
+    return { ok: false, code: codeByAdapterCode[result.code] ?? "PROVIDER_ERROR", message: result.message };
   }
 
   return {

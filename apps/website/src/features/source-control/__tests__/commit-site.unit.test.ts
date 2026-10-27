@@ -135,6 +135,14 @@ test("validateCommitTarget rejects an invalid owner, repo, branch, or commit mes
   assert.equal(validateCommitTarget({ owner: "octo", repo: "my-site", commitMessage: "" }), "commitMessage must be 1-500 characters");
 });
 
+test('T28: commit targets reject traversal and malformed Git branch names', () => {
+  const target = { owner: 'octo', repo: 'my-site', commitMessage: 'content update' };
+  assert.equal(validateCommitTarget({ ...target, branch: 'release/2' }), null);
+  for (const branch of ['../../x', 'topic..name', 'release//2', '/main', 'main/', 'release.lock', 'release.lock/topic']) {
+    assert.match(validateCommitTarget({ ...target, branch }) ?? '', /invalid branch name/, branch);
+  }
+});
+
 /**
  * Branch-coverage fill (2026-09-04): `REPO_PATTERN`'s own regex-fails case and the exact `"."` literal
  * case are each their own `||` arm in `validateCommitTarget`'s repo check — the suite above only ever
@@ -301,7 +309,7 @@ test("commitSiteToSourceControl: a vault result from another provider group is r
 test("commitSiteToSourceControl: a vault repo throwing a non-Error value produces a safe NO_CREDENTIALS_CONFIGURED message without exposing adapter details", async (t) => {
   const deps = testRouteDeps();
   const failure = "raw string repo failure with private token fixture_adapter_detail";
-  const lookup = t.mock.method(deps.sourceControlCredentialSetRepo.vault!, "findDefault", async () => {
+  const lookup = t.mock.method(deps.sourceControlCredentialSetRepo.vault!, "list", async () => {
     // eslint-disable-next-line @typescript-eslint/no-throw-literal -- deliberate non-Error adapter failure.
     throw failure;
   }, {});
@@ -315,7 +323,7 @@ test("commitSiteToSourceControl: a vault repo throwing a non-Error value produce
   assert.equal(result.code, "NO_CREDENTIALS_CONFIGURED");
   assert.equal(result.message, "credential could not be resolved: The credential could not be saved or unlocked. Check the site credential store.");
   assert.equal(lookup.mock.callCount(), 1);
-  assert.deepEqual(lookup.mock.calls[0]!.arguments, [{ workspaceId: deps.workspaceId, kind: "source-control", ownerKey: "tovu", principalId: null, binding: null, provider: "example-git" }]);
+  assert.equal((lookup.mock.calls[0]!.arguments[0] as { provider?: string }).provider, "example-git");
   assert.equal(JSON.stringify(result).includes(failure), false);
   assert.doesNotMatch(JSON.stringify(result), /fixture_adapter_detail/);
 });
@@ -590,6 +598,30 @@ function controlledReport(outputDir: string, label = "canary"): ExportReport {
 function controlledInput(deps: RouteDeps, exportSiteBound: CommitSiteInput["exportSiteBound"]): CommitSiteInput {
   return { workspaceId: deps.workspaceId, sourceControlExportRootDir: exportDir, idGen: deps.idGen, exportSiteBound, owner: "octo", repo: "demo", branch: "release/2", commitMessage: "controlled commit" };
 }
+
+test('T37: plugin exceptions and unknown error codes become safe PROVIDER_ERROR outcomes', async () => {
+  const deps = await withExampleGitCredential(testRouteDeps());
+  const adapters: SourceControlCommitAdapter[] = [
+    { commit: async () => { throw new Error('fixture_adapter_detail: fixture_fake_token_never_real'); } },
+    { commit: async () => ({ ok: false, code: 'unexpected-plugin-code', message: 'Provider refused the commit.' } as unknown as SourceControlCommitResult) },
+  ];
+  const outcomes = await Promise.allSettled(adapters.map(gitAdapter => commitSiteToSourceControl({
+    providerId: 'example-git',
+    credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer },
+    gitAdapter,
+  }, controlledInput(deps, async ({ outputDir }) => controlledReport(outputDir)))));
+
+  assert.deepEqual(outcomes.map(outcome => outcome.status), ['fulfilled', 'fulfilled']);
+  for (const outcome of outcomes) {
+    assert.equal(outcome.status, 'fulfilled');
+    if (outcome.status !== 'fulfilled') throw new Error('commit must return a typed failure');
+    assert.equal(outcome.value.ok, false);
+    if (outcome.value.ok) throw new Error('a failed plugin must not report success');
+    assert.equal(outcome.value.code, 'PROVIDER_ERROR');
+    assert.ok(outcome.value.message.trim().length > 0);
+    assert.doesNotMatch(outcome.value.message, /fixture_adapter_detail|fixture_fake_token_never_real/);
+  }
+});
 
 test("previewCommitExport: counts UTF-8 route bytes and binary assets, sorts and caps paths at 50", async () => {
   const deps = testRouteDeps();

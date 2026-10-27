@@ -229,12 +229,28 @@ async function normalizeConnectionPatch({ raw, existing, registry }: {
   raw: unknown; existing: SourceControlProviderId; registry: () => Promise<SourceControlProviderRegistry>;
 }, _options = {}): Promise<Record<string, unknown> | undefined> {
   if (raw === undefined) return undefined;
-  const value = connectionObject({ raw });
+  // A patch that leaves out the host keeps the saved one (a token-only rotation names no provider).
+  const value = { ...connectionObject({ raw }) };
+  value.providerId ??= existing;
   if (value.token !== undefined || Object.keys(value).every(key => key === 'providerId' || key === 'token')) return value;
-  const providerId = value.providerId ?? existing;
   const loaded = await registry();
-  const descriptor = typeof providerId === 'string' ? loaded.get(providerId)?.descriptor : undefined;
+  const descriptor = typeof value.providerId === 'string' ? loaded.get(value.providerId)?.descriptor : undefined;
   return canonicalConnection({ value, descriptor });
+}
+
+/** A blank token keeps the sealed envelope, and the envelope cannot be rewritten without the token,
+ * so a blank patch carrying any other connection field is refused rather than dropping it silently.
+ * The provider's declared token name is a blank token too. @complexity O(k) patch keys; the registry
+ * loads only when the patch names a field besides `providerId`/`token`. */
+async function assertBlankPatchChangesNoField({ patch, registry }: {
+  patch: Record<string, unknown> | undefined; registry: () => Promise<SourceControlProviderRegistry>;
+}, _options = {}): Promise<void> {
+  const named = Object.keys(patch ?? {}).filter(key => key !== 'providerId' && key !== 'token');
+  if (named.length === 0) return;
+  const providerId = typeof patch?.providerId === 'string' ? patch.providerId : '';
+  const tokenField = (await registry()).get(providerId)?.descriptor.credential?.tokenField;
+  const changed = named.filter(key => key !== tokenField);
+  if (changed.length > 0) throw new SourceControlCredentialValidationError(`changing ${changed.join(', ')} requires a new token`);
 }
 /** A token-only host can move without opening the secret. Entering a host with required
  * paired fields needs a new connection; an envelope-only move cannot invent those fields.
@@ -339,6 +355,14 @@ async function assertLabelFreeOnSite({ deps, target, workspaceId, providerId, la
   }
 }
 
+/** A rename or host move of a project row is checked as a create is: a label this site's own row
+ * already uses would hide the moved row here. An unchanged label and host needs no check. */
+async function assertMoveFreeOnSite({ deps, scoped, existing, workspaceId, providerId, label }: { deps: SourceControlCredentialReadDeps;
+  scoped: ScopedCredentialDeps<unknown>; existing: SourceControlCredentialSetRecord; workspaceId: UUID; providerId: SourceControlProviderId; label: string }, _options = {}): Promise<void> {
+  if (label === existing.label && providerId === existing.providerId) return;
+  await assertLabelFreeOnSite({ deps, target: scoped, workspaceId, providerId, label });
+}
+
 /** Validate the loaded declaration, then make the secret durable before identity discovery.
  * @param required Explicit store ports and create input. @returns A summary with no secret fields.
  * @throws {SourceControlCredentialValidationError} Invalid or unavailable provider/fields.
@@ -421,12 +445,15 @@ export async function updateSourceControlCredential(
   const patch = await normalizeConnectionPatch({ raw: input.connection, existing: existing.providerId, registry: () => credentialRegistry({ deps, workspaceId: input.workspaceId }) });
   if (patch !== undefined && !isEmptyTokenPatch({ value: patch })) {
     const connection = validateConnection({ raw: patch, registry: await credentialRegistry({ deps, workspaceId: input.workspaceId }) });
+    await assertMoveFreeOnSite({ deps, scoped, existing, workspaceId: input.workspaceId, providerId: connection.providerId, label });
     const summary = await saveConnection({ deps: scoped.deps, input: { ...where, id: input.id,
       expectedRevision: row.revision, provider: connection.providerId, label, payload: { ...connection }, hintToken: connection.token,
       meta: { ...row.meta, accountLabel: null }, ...(requestedDefault === true ? { isDefault: true } : {}) } });
     return { ...await probeSavedConnection({ deps: scoped.deps, summary, connection, workspaceId: input.workspaceId }), ...reportedScope(deps, scoped) };
   }
+  await assertBlankPatchChangesNoField({ patch, registry: () => credentialRegistry({ deps, workspaceId: input.workspaceId }) });
   const provider = await preservedProvider({ raw: patch, existing: existing.providerId, registry: () => credentialRegistry({ deps, workspaceId: input.workspaceId }) });
+  await assertMoveFreeOnSite({ deps, scoped, existing, workspaceId: input.workspaceId, providerId: provider, label });
   // Omitting payload retains ciphertext/hints without a key; Jini owns both groups' defaults.
   const summary = await saveConnection({ deps: scoped.deps, input: { ...where, id: input.id,
     expectedRevision: row.revision, provider, label,
@@ -452,20 +479,26 @@ export async function deleteSourceControlCredential(deps: SourceControlCredentia
 
 /** Select from this view's inventory: a visible default wins, else exactly one eligible row.
  * A project-wide default may belong to another site. Never mutate it or guess among nondefaults.
+ * `claimed` holds the labels an earlier (site) store already has for this host: those project rows
+ * are overridden (as {@link listEffective} hides them), so they are never the fallback. This store's
+ * labels are added to it for the next store.
  * @complexity O(visible credentials); the attached read view enforces site eligibility.
  */
-async function selectSourceControlCredential({ repo, workspaceId, providerId }: {
-  repo: SourceControlCredentialSetRepoPort; workspaceId: UUID; providerId: SourceControlProviderId;
+async function selectSourceControlCredential({ repo, workspaceId, providerId, claimed }: {
+  repo: SourceControlCredentialSetRepoPort; workspaceId: UUID; providerId: SourceControlProviderId; claimed: Set<string>;
 }, _options = {}): Promise<SourceControlCredentialSetRecord | null> {
-  const rows = await repo.listByProvider({ workspaceId, providerId });
+  const all = await repo.listByProvider({ workspaceId, providerId });
+  const rows = all.filter(row => !claimed.has(row.label));
+  for (const row of all) claimed.add(row.label);
   return rows.find(row => row.isDefault) ?? (rows.length === 1 ? rows[0]! : null);
 }
 
 /** The selected credential's metadata for a host, never decrypted: this site's, else the project's. */
 export async function findDefaultSourceControlCredential(deps: SourceControlCredentialReadDeps,
   input: { workspaceId: UUID; providerId: SourceControlProviderId }): Promise<SourceControlCredentialSetRecord | null> {
+  const claimed = new Set<string>();
   for (const scoped of credentialScopes(deps, input.workspaceId)) {
-    const found = await selectSourceControlCredential({ repo: scoped.deps.repo, workspaceId: scoped.workspaceId, providerId: input.providerId });
+    const found = await selectSourceControlCredential({ repo: scoped.deps.repo, workspaceId: scoped.workspaceId, providerId: input.providerId, claimed });
     if (found) return found;
   }
   return null;
@@ -474,8 +507,9 @@ export async function findDefaultSourceControlCredential(deps: SourceControlCred
 /** The first store's selected credential for the host: this site's, else the attached project's.
  * @complexity O(attached inventory); opening retains the vault's context and authentication checks. */
 async function findDefaultOpened(deps: { repo: SourceControlCredentialSetRepoPort; sealer: SecretSealerPort }, input: { workspaceId: UUID; providerId: SourceControlProviderId }) {
+  const claimed = new Set<string>();
   for (const scoped of credentialScopes(deps, input.workspaceId)) {
-    const selected = await selectSourceControlCredential({ repo: scoped.deps.repo, workspaceId: scoped.workspaceId, providerId: input.providerId });
+    const selected = await selectSourceControlCredential({ repo: scoped.deps.repo, workspaceId: scoped.workspaceId, providerId: input.providerId, claimed });
     if (!selected) continue;
     // The attached-only inventory can select a sole nondefault without changing the project's default.
     // Open by identity so the default-only reader does not reject that valid selection.
