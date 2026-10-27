@@ -32,7 +32,7 @@ export function trackStartingBrowser(required: { readonly host: ApiConnectionHos
   };
   return {
     providerUrl(link) { return links.get(new URL(link).pathname.split("/").at(-1) ?? "") ?? link; },
-    cookieFor(url) {
+    cookieFor(url): Readonly<Record<string, string>> {
       const binding = bindings.get(new URL(url).searchParams.get("state") ?? "");
       return binding === undefined ? {} : { cookie: `${API_CONNECTION_BINDING_COOKIE}=${binding}` };
     },
