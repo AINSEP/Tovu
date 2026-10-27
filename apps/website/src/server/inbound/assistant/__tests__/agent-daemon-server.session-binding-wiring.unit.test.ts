@@ -63,7 +63,8 @@ function sessionHarness(coldStartContext?: string, options: { env?: Record<strin
     frontendControl: { bindOnStarted() {} }, customInstructionsCache: { refresh: async () => {} },
     resolveAttachmentRunFields: async () => ({}), resolveAgentPluginPromptPrefix: async () => "",
     buildCapabilityManifestPrefix: () => "", resolveCapabilityManifestArm: () => "off", toolExtensions: undefined,
-    routeDeps: { workspaceId: "ws-1", siteBinding: { dir: "/external/site" }, agentSessions: {
+    // Standalone runs report assistant_run_started/finished; telemetry is not under test here.
+    routeDeps: { workspaceId: "ws-1", siteBinding: { dir: "/external/site" }, tracker: { capture() {} }, agentSessions: {
       getSessionId: async ({ conversationId, agentId }: { conversationId: string; agentId: string }) => {
         return bindings.get(`${conversationId}:${agentId}`) ?? null;
       },

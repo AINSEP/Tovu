@@ -5,9 +5,13 @@ import { sniffContentType } from "#src/features/media/index";
 import { agentReceivesImageAttachments } from "../run-start-decisions.js";
 import { captureDaemonRun, daemonFunction, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 
+// Attachments are staged inside the site folder before delivery (site agents are confined to the
+// site), so the paths the agent sees are the staged copies, never the upload directory.
 test("the daemon exchanges both current-message refs for exact pixels and native CLI image paths", async () => {
   const claims: unknown[] = [];
   const reads: string[] = [];
+  const stagings: unknown[] = [];
+  const staged = "/site/.tovu/attachments/current-run";
   const resolve = evaluateDaemonExpression<(required: { run: { id: string }; attachmentIds: string[]; runLifecycle: unknown }, optional: {}) => Promise<unknown>>(
     daemonFunction("resolveAttachmentRunFields"), {
       attachmentStore: { claim: async (required: unknown) => {
@@ -17,6 +21,12 @@ test("the daemon exchanges both current-message refs for exact pixels and native
           { path: "/uploads/message/yellow.png", name: "yellow-square.png", kind: "image" },
         ] };
       } },
+      stageAttachmentClaim: (required: { claim: { attachments: { path: string; name: string; kind: string }[] }; filesystemRoot: string }) => {
+        stagings.push(required);
+        return Promise.resolve({ cleanup: async () => {}, claim: { batchDirectory: staged, attachments: required.claim.attachments.map(
+          (attachment) => ({ ...attachment, path: attachment.path.replace("/uploads/message", staged) })) } });
+      },
+      stagedAttachmentCleanupByRunId: new Map(), routeDeps: { siteBinding: { dir: "/site" } },
       prepareMessageAttachments, sniffContentType, agentReceivesImageAttachments, DEFAULT_AGENT_ID: "claude",
       getAgentDef: () => ({ imageDelivery: "prompt-path" }),
       readFile: async (path: string) => {
@@ -28,14 +38,15 @@ test("the daemon exchanges both current-message refs for exact pixels and native
     },
   );
   assert.deepEqual(await resolve({ run: { id: "current-run" }, attachmentIds: ["green-ref", "yellow-ref"], runLifecycle: {} }, {}), {
-    imagePaths: ["/uploads/message/green.png", "/uploads/message/yellow.png"],
+    imagePaths: [`${staged}/green.png`, `${staged}/yellow.png`],
     imageContents: [{ mimeType: "image/png", data: "iVBORw0KGgoB" }, { mimeType: "image/png", data: "iVBORw0KGgoC" }],
-    attachmentNotice: "", extraAllowedDirs: ["/uploads/message"], uploadRoot: "/uploads/message",
+    attachmentNotice: "", uploadRoot: staged,
   });
+  assert.equal((stagings as { filesystemRoot: string }[]).map((entry) => entry.filesystemRoot).join(), "/site");
   assert.deepEqual(claims, [{ runId: "current-run", attachments: [
     { path: "green-ref", name: "", kind: "file" }, { path: "yellow-ref", name: "", kind: "file" },
   ] }]);
-  assert.deepEqual(reads, ["/uploads/message/green.png", "/uploads/message/yellow.png"]);
+  assert.deepEqual(reads, [`${staged}/green.png`, `${staged}/yellow.png`]);
 });
 
 test("the daemon forwards prepared pixels and names a local video before executor dispatch", async () => {

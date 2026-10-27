@@ -135,10 +135,16 @@ export async function captureDaemonRun(
   }
 }
 
-/** Minimal lifecycle fakes predate onStarted's cancel subscription; real lifecycles keep their own. */
+/** Minimal lifecycle fakes predate onStarted's cancel subscription and its event stream (run
+ * telemetry, tool-gap audit); real lifecycles keep their own.
+ */
 function withCancelSubscription(lifecycle: unknown): unknown {
-  if (typeof (lifecycle as { onCancelRequested?: unknown }).onCancelRequested === "function") return lifecycle;
-  return Object.assign(Object.create(lifecycle as object), { onCancelRequested: () => () => {} });
+  const has = (name: string) => typeof (lifecycle as Record<string, unknown>)[name] === "function";
+  if (has("onCancelRequested") && has("stream")) return lifecycle;
+  return Object.assign(Object.create(lifecycle as object), {
+    ...(has("onCancelRequested") ? {} : { onCancelRequested: () => () => {} }),
+    ...(has("stream") ? {} : { stream: async () => {} }),
+  });
 }
 
 /** Select only direct statements: a commented-out or unreachable lookalike cannot satisfy a seam. */

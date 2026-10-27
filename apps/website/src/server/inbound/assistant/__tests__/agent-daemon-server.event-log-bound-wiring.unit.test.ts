@@ -18,7 +18,8 @@ const CODE_LINES = DAEMON_ENTRY_SOURCE.split("\n").filter((line) => !/^\s*(\/\/|
 
 test("agent-daemon-server.ts creates its run lifecycle with dropEventsOnEviction", () => {
   assert.ok(
-    CODE_LINES.some((line) => /^\s*const lifecycle\s*=\s*createRunLifecycle\(\{\s*eventLog\s*\},\s*\{\s*dropEventsOnEviction:\s*true\s*\}\);/.test(line)),
+    // The lifecycle may be wrapped (traceRunLifecycle); what matters is the factory's own options.
+    CODE_LINES.some((line) => /createRunLifecycle\(\{\s*eventLog\s*\},\s*\{\s*dropEventsOnEviction:\s*true\s*\}\)/.test(line)),
     "the daemon's lifecycle must drop a run's events when it evicts the run",
   );
 });
