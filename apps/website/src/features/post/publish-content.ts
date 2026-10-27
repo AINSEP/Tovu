@@ -305,6 +305,26 @@ function applyPorts(ports: PostPorts, deps: PublishContentDeps, kind: PostKind) 
   return { repo: ports.repo, clock: deps.clock, outbox: gatewayDeps(deps, kind).outbox, forgetRemoved };
 }
 
+/**
+ * Puts one post import back: the prior row is restored forward (see `restorePostForward`'s doc); a
+ * created row has no pre-image, so it must never have existed, and `hardDelete` removes it with the
+ * revision it appended and the slug it reserved (trashing it would leave a "restorable" row and keep
+ * the slug reserved against the retry). Shared by the gateway's `undo` and `write`'s own catch.
+ * @complexity O(1): one read plus one restore or delete.
+ */
+async function undoPostImport(
+  { ports, deps, kind, workspaceId, id, prior, principalId }: {
+    ports: PostPorts; deps: PublishContentDeps; kind: PostKind; workspaceId: string; id: string; prior: PostRow | null; principalId: string;
+  },
+  _options: Record<string, never> = {}
+): Promise<void> {
+  if (prior) {
+    await restorePostForward({ deps: applyPorts(ports, deps, kind), input: { prior, actorId: principalId } });
+    return;
+  }
+  if (await ports.repo.findById({ workspaceId, id })) await ports.repo.hardDelete({ workspaceId, id });
+}
+
 /** Why an entity of type `kind` is refused when its packed `kind` differs, or `null`. `kind` is
  *  transferred, so without this a `page` entity could create a post: a publishing grant limited to
  *  `page` authorizes through the `page` handler and would never see the post it wrote. */
@@ -368,19 +388,25 @@ function contributePostKind(kind: PostKind): PublishContentContributor {
         // The revision ledger's actor is the IMPORTING operator; the source author is on the record.
         input: { workspaceId, record: toImportableRecord({ state, workspaceId, id, existing }), expectedVersion, actorId: principalId },
       });
-      await terms.apply();
+      try {
+        await terms.apply();
+      } catch (error) {
+        // `executeCommand` compensates only a failed change-set record, never a failed `execute`, and
+        // the import above is already committed: undo it here (terms first, as on rollback) and
+        // rethrow. A revert failure must not hide the original error or skip the post's undo.
+        await terms.revert().catch(() => undefined);
+        await undoPostImport({ ports, deps, kind, workspaceId, id, prior: existing, principalId });
+        throw error;
+      }
       return { version: imported.post.version };
     },
     undo: {
-      // Forward, not verbatim: see `restorePostForward`'s doc.
-      restore: async ({ ports, deps, principalId }, prior) => {
-        await restorePostForward({ deps: applyPorts(ports, deps, kind), input: { prior, actorId: principalId } });
+      // Forward, not verbatim: see `restorePostForward`'s doc. A create's undo removes the row.
+      restore: async ({ ports, deps, workspaceId, id, principalId }, prior) => {
+        await undoPostImport({ ports, deps, kind, workspaceId, id, prior, principalId });
       },
-      // A create has no pre-image, so the row must never have existed: `hardDelete` removes it with
-      // the revision it appended and the slug it reserved (trashing it would leave a "restorable"
-      // row and keep the slug reserved against the retry).
-      remove: async ({ ports, workspaceId, id }) => {
-        if (await ports.repo.findById({ workspaceId, id })) await ports.repo.hardDelete({ workspaceId, id });
+      remove: async ({ ports, deps, workspaceId, id, principalId }) => {
+        await undoPostImport({ ports, deps, kind, workspaceId, id, prior: null, principalId });
       },
     },
     errors: { conflict: [PostConflictError, PostNotFoundError] },
@@ -509,7 +535,8 @@ function postRetireMethods(deps: PublishContentDeps, kind: PostKind) {
           if (contentHash(holder.kind, await stateOf(holder)) !== target.hash) {
             throw new PostConflictError(`the live ${target.entityType} at this address changed after this run's plan was built`);
           }
-          return { deletedAt: holder.deletedAt ?? null };
+          // The slug too: a retire renames it, so a revert from history must be able to move it back.
+          return { deletedAt: holder.deletedAt ?? null, slug: holder.slug };
         },
         execute: () =>
           retirePostForReplacement({

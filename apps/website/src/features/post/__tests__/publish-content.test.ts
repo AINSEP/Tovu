@@ -462,7 +462,8 @@ test(`apply() restores an existing destination forward when change-set recording
   assert.deepEqual(revisions[2]?.stateJson, restored);
   assert.equal(revisions[2]?.restoredFrom, revisions[0]?.id);
   assert.equal(revisions[2]?.actorId, "operator-1");
-  assert.deepEqual((await deps.outbox.claimPending({ batchSize: 10, nowIso: new Date(deps.clock.nowMs()).toISOString() })).map(row => row.event.name), ["entry.unpublished", "entry.published"]);
+  // The committed import announces its save (b46eb6e29 telemetry) and its unpublish; the forward restore republishes.
+  assert.deepEqual((await deps.outbox.claimPending({ batchSize: 10, nowIso: new Date(deps.clock.nowMs()).toISOString() })).map(row => row.event.name), ["content.saved", "entry.unpublished", "entry.published"]);
   assert.deepEqual(await deps.changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
 });
 }
@@ -575,6 +576,32 @@ test("retire() records a change set whose revert un-trashes the row", async () =
 
   const reverted = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" });
   assert.equal(isTrashed(reverted!), false, "the standard revert path (the same one every other publish write gets) must un-trash the retired row");
+});
+
+test("T32: reverting a retirement from history restores the holder's original free slug", async () => {
+  const holder = makePost({ slug: "about", version: 3, status: "published" });
+  const deps = makeApplyDeps([holder]);
+  const handler = contributePostPublish().build(deps);
+  const target: RetireTarget = {
+    entityType: "post", entityId: holder.id, entityLabel: holder.title,
+    hash: (await handler.inspect(holder.id))!.hash,
+  };
+  const { changeSetId } = await handler.retire!({ target, principalId: "operator-1", idempotencyKey: "T32" });
+  assert.equal((await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: holder.id }))?.slug, "about-replaced-20260918");
+
+  await revertChangeSet({
+    deps: {
+      changeSets: deps.changeSets, clock: deps.clock, idGen: deps.idGen,
+      registry: createPostRevertRegistry({ postRepo: deps.postRepo, clock: deps.clock, outbox: deps.outbox, forgetRemoved: deps.forgetRemovedPost }),
+    },
+    input: { workspaceId: WORKSPACE_ID, changeSetId },
+  });
+
+  const restored = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: holder.id });
+  assert.equal(isTrashed(restored!), false);
+  // Expected RED: retirement's inverse retains deletedAt but loses the original slug.
+  assert.equal(restored?.slug, "about");
+  assert.equal((await deps.postRepo.findBySlug({ workspaceId: WORKSPACE_ID, slug: "about" }))?.id, holder.id);
 });
 
 test("retire of an already-trashed holder: revert leaves it in the Trash", async () => {

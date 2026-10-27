@@ -22,7 +22,7 @@ import {
 import { registerPublishContentContributor, type PackedEntity } from "#src/features/publish-content/type-registry";
 
 import type { PostRecord } from "../post.js";
-import { contributePostPublish } from "../publish-content.js";
+import { contributePostPublish, toPublishableState } from "../publish-content.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 
 const at = "2026-09-01T00:00:00.000Z";
@@ -129,6 +129,37 @@ test("post termIds: a term missing at the destination blocks the row before the 
       err.rowOutcome === "blocked" && /^post 'p-tagged' is tagged with term 't-a', which is missing at this destination/.test(err.message)
   );
   assert.equal(await dst.posts.findById({ workspaceId: WORKSPACE_ID, id: "p-tagged" }), null);
+});
+
+test("T31: a term write failure after importing a post removes the unrecorded post", async () => {
+  const dst = sqliteContentSite();
+  try {
+    await seedTerms(dst);
+    const row = post({ id: "p-import", slug: "imported" });
+    const failure = new Error("term assignment storage failed");
+    dst.entryTerms.upsert = async () => {
+      assert.ok(await dst.posts.findById({ workspaceId: WORKSPACE_ID, id: row.id }), "inject the failure after the post lands");
+      throw failure;
+    };
+    const dest = makeSite(dst.ports);
+    const entity: PackedEntity = {
+      entityType: "post", id: row.id, schemaVersion: 2, contentHash: "unused", hashVersion: 1,
+      requiredBlobs: [], state: { ...toPublishableState(row), termIds: ["t-a"] },
+    };
+
+    await assert.rejects(
+      contributePostPublish().build(dest).apply({ entity, expectedVersion: undefined, principalId: "owner", idempotencyKey: "T31" }),
+      (error: unknown) => error === failure,
+    );
+
+    // Expected RED: terms.apply() throws after importPostEntity commits, outside the gateway's compensation boundary.
+    assert.equal(await dst.posts.findById({ workspaceId: WORKSPACE_ID, id: row.id }), null);
+    assert.deepEqual(await dst.posts.listRevisions({ workspaceId: WORKSPACE_ID, postId: row.id }), []);
+    assert.deepEqual(await assigned(dst, row.id), []);
+    assert.deepEqual(await dest.changeSets!.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
+  } finally {
+    dst.db.$client.close();
+  }
 });
 
 test("post termIds: without admin.taxonomy.manage a tag change is blocked and nothing is written", async () => {

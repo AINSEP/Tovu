@@ -5,7 +5,9 @@ import { createRevertRegistry, type EntityReverter, type RevertRegistry } from "
 import {
   emitPublicTransitionEvent,
   isTrashed,
+  PostVersionConflictError,
   presentScheduleFields,
+  SYSTEM_ACTOR_ID,
   type ForgetRemovedPostFn,
   type PostRecord,
   type PostRepoPort,
@@ -69,6 +71,59 @@ async function resolveCurrentActor(
   return matching ? matching.actorId : null;
 }
 
+/**
+ * The one write both reverters make, inside their transaction. Conditional on the version the
+ * pre-image was read against: an edit that lands between that read and this write owns the row,
+ * so the revert loses with a typed conflict instead of overwriting it. The new version gets its
+ * `post_revisions` row, so history shows the revert and {@link resolveCurrentActor} resolves it.
+ * A reverter is given no principal, so the row is attributed to {@link SYSTEM_ACTOR_ID}.
+ * @throws {PostVersionConflictError} when another write moved the row after `existing` was read.
+ * @complexity O(1): one conditional write and one append; one read only when the write is refused.
+ */
+async function saveRevertedPost(
+  { deps, existing, restored }: { deps: PostReverterDeps; existing: PostRecord; restored: PostRecord },
+  _options: Record<string, never> = {}
+): Promise<void> {
+  const { applied } = await deps.postRepo.saveIfVersion({ record: restored, ifVersion: existing.version });
+  if (!applied) {
+    const current = await deps.postRepo.findById({ workspaceId: restored.workspaceId, id: restored.id });
+    const currentVersion = current?.version ?? existing.version;
+    throw new PostVersionConflictError(
+      `post '${restored.id}' was modified while it was being reverted (expected version ${existing.version}, current version ${currentVersion})`,
+      existing.version,
+      currentVersion
+    );
+  }
+  await deps.postRepo.appendRevision({
+    postId: restored.id,
+    workspaceId: restored.workspaceId,
+    seq: restored.version,
+    op: "restore",
+    stateJson: restored,
+    actorId: SYSTEM_ACTOR_ID,
+    delegatedByWorkspaceId: null,
+    delegatedById: null,
+    recordedAt: restored.updatedAt,
+  });
+}
+
+/**
+ * The slug a delete revert puts back. `retire()`'s inverse also carries the holder's slug from
+ * before the retire renamed it (`x` -> `x-replaced-<date>`): without it, a revert un-trashes the row
+ * at the renamed address and `/x` stays dead. Restored only while no other row holds it (the
+ * replacement may still be live there); otherwise, and for an ordinary delete's `{deletedAt}`-only
+ * inverse, the current slug stays. `findBySlug` is trash-blind, so a trashed holder counts too.
+ * @complexity O(1): at most one indexed slug read.
+ */
+async function restorableSlug(
+  { deps, existing, priorSlug }: { deps: PostReverterDeps; existing: PostRecord; priorSlug: unknown },
+  _options: Record<string, never> = {}
+): Promise<string> {
+  if (typeof priorSlug !== "string" || priorSlug.length === 0 || priorSlug === existing.slug) return existing.slug;
+  const holder = await deps.postRepo.findBySlug({ workspaceId: existing.workspaceId, slug: priorSlug });
+  return holder && holder.id !== existing.id ? existing.slug : priorSlug;
+}
+
 /** Fields introduced after the original inverse payload: absence keeps current values. */
 function restoredPresentationFields(
   { inverse, currentPublishAt, currentFeatured }: {
@@ -97,7 +152,7 @@ function restoredPresentationFields(
  * Restores a post to the title/slug/bodyJson/status/ext captured before the edit.
  *
  * **SPEC-005 CIC U-005-B1 / SM2 transition (`ESCALATE_SECURITY`) — read before editing:** this
- * restore MUST write through `deps.postRepo.save()` directly and MUST NEVER route through
+ * restore MUST write through the repo directly (`saveRevertedPost`) and MUST NEVER route through
  * `updatePost`/`createPost`. A revert re-applies a stored pre-image; it is not a genuine save, so
  * it must not fire `content.entry.beforeSave` (BR-08). Routing it through `updatePost` — which is
  * exactly what this reverter did before SPEC-005 T023 — would let a plugin that happens to be
@@ -161,7 +216,7 @@ function createPostUpdateReverter(deps: PostReverterDeps): EntityReverter {
       };
 
       await deps.postRepo.transaction(async () => {
-        await deps.postRepo.save(restored);
+        await saveRevertedPost({ deps, existing, restored });
 
         // Preserved from the previous `updatePost`-based implementation, deliberately: BR-08 forbids
         // re-firing the plugin hook, not the status-transition event. SEO's sitemap-cache
@@ -182,7 +237,7 @@ function createPostUpdateReverter(deps: PostReverterDeps): EntityReverter {
  * `features/post/post.ts`'s `PostRecord.deletedAt`). A hard delete would leave this reverter with
  * nothing to restore.
  *
- * The inverse payload is `{ deletedAt }` and nothing more, deliberately: a soft-deleted row still
+ * The inverse payload is `{ deletedAt }` (plus `slug` from `retire()`, see {@link restorableSlug}), deliberately: a soft-deleted row still
  * carries every field it had, so there is no other pre-image to re-apply — only a marker to write
  * back. Capturing a redundant copy of title/slug/bodyJson/status would create a second source of
  * truth that could disagree with the row itself.
@@ -195,7 +250,7 @@ function createPostUpdateReverter(deps: PostReverterDeps): EntityReverter {
  * trashed, this is that case: the row already IS where it belongs, so this returns without writing
  * anything and without forgetting the Trash index row a human's earlier, unrelated trash still owns.
  *
- * Writes through `deps.postRepo.save()` directly, never through `updatePost`, for the identical
+ * Writes through the repo directly (`saveRevertedPost`), never through `updatePost`, for the identical
  * SPEC-005 BR-08 reason spelled out on {@link createPostUpdateReverter}: an undo re-applies stored
  * state and must not fire `content.entry.beforeSave`. `updatePost` would also refuse outright — it
  * treats a trashed row as not-found.
@@ -217,7 +272,8 @@ function createPostDeleteReverter(deps: PostReverterDeps): EntityReverter {
         throw new Error(`post '${item.entityId}' was not found`);
       }
 
-      const priorDeletedAt = (item.inversePayload as { deletedAt?: unknown } | undefined)?.deletedAt;
+      const inverse = item.inversePayload as { deletedAt?: unknown; slug?: unknown } | undefined;
+      const priorDeletedAt = inverse?.deletedAt;
 
       // The holder was already trashed before the change set being reverted ran (`retire()`'s own
       // "already-trashed" inverse) — it is already exactly where a revert should put it. Restoring
@@ -230,13 +286,14 @@ function createPostDeleteReverter(deps: PostReverterDeps): EntityReverter {
       const restored: PostRecord = {
         ...existing,
         deletedAt: null,
+        slug: await restorableSlug({ deps, existing, priorSlug: inverse?.slug }),
         // Bump and refresh, never restore the old number — INV-04, same as postUpdateReverter.
         updatedAt: clockNowIso({ clock: deps.clock }),
         version: existing.version + 1,
       };
 
       await deps.postRepo.transaction(async () => {
-        await deps.postRepo.save(restored);
+        await saveRevertedPost({ deps, existing, restored });
 
         // Symmetric to the marker clear above, and conditional on the same thing `restorePostForward`
         // tests: only a row that WAS trashed has an index row to forget. A revert of a change set
