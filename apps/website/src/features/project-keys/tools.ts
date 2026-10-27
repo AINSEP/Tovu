@@ -1,6 +1,6 @@
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInputError, type AgentToolDefinition, type ToolExecutionContext, type DerivedRiskByToolId } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import { requireHumanConfirm } from "../../contracts/core/human-confirm.js";
+import { approvalToolHandler } from "../../contracts/core/human-confirm.js";
 import { toolMetadata } from "../../contracts/core/tool-metadata/custom-credentials.js";
 import type { DevRestartPort } from "../../platform/dev-supervisor/dev-restart.js";
 import type { PluginCredentialCard } from "../custom-credentials/plugin-credential-card.js";
@@ -42,18 +42,23 @@ export function buildProjectKeyRegistrations({ keys, authorize, loadCards, surfa
         ctx.signal.throwIfAborted();
         return available().use({ keyId, use: input.use });
       },
-      site_restart: async (ctx, options = {}) => {
-        empty(ctx.input);
-        await authorize({ ctx, permission: "admin.plugins.enable" });
-        if (!restart) return { restarted: false, message: "Restart the site from the Sites list" };
-        const answer = await requireHumanConfirm({ ctx, surfaces, spec: { toolId: "site_restart", errorCode: "SITE_RESTART", title: "Restart this site?", warning: "Unsaved work and running chats will be lost.", details: [], confirmLabel: "Restart this site" } }, options);
-        if (!answer.confirmed) return { restarted: false, reason: answer.reason };
-        ctx.signal.throwIfAborted();
-        await authorize({ ctx, permission: "admin.plugins.enable" });
-        const decision = await restart.requestRestart({ reason: "provider-settings-live-apply" }, { awaitAcceptance: true });
-        if (!decision) return { restarted: false, reason: "The dev supervisor did not confirm the restart request." };
-        if (!decision.accepted) return { restarted: false, reason: decision.reason };
-        return { restartRequested: true, message: "The dev supervisor accepted the restart request." };
-      },
+      // The shared Jini approval lifecycle freezes the call and binds the actor; no supervisor = no card.
+      site_restart: approvalToolHandler({ surfaces,
+        prepare: async ({ ctx }) => {
+          empty(ctx.input);
+          await authorize({ ctx, permission: "admin.plugins.enable" });
+          return { restart };
+        },
+        describe: () => ({ toolId: "site_restart", errorCode: "SITE_RESTART", title: "Restart this site?", warning: "Unsaved work and running chats will be lost.", details: [], confirmLabel: "Restart this site" }),
+        run: async ({ ctx, prepared }) => {
+          if (!prepared.restart) return { restarted: false, message: "Restart the site from the Sites list" };
+          ctx.signal.throwIfAborted();
+          await authorize({ ctx, permission: "admin.plugins.enable" });
+          const decision = await prepared.restart.requestRestart({ reason: "provider-settings-live-apply" }, { awaitAcceptance: true });
+          if (!decision) return { restarted: false, reason: "The dev supervisor did not confirm the restart request." };
+          if (!decision.accepted) return { restarted: false, reason: decision.reason };
+          return { restartRequested: true, message: "The dev supervisor accepted the restart request." };
+        },
+      }, { ask: ({ prepared }) => prepared.restart !== null, declined: ({ reason }) => ({ restarted: false, reason }) }),
     } });
 }
