@@ -10,3 +10,6 @@ Node 24.22.0 installed. /root/Jini symlinked to /home/user/Jini (already on clou
 Setup done. Tovu: npm install with cookie-consent file: workaround (npm ci 404 path), restored package.json/lock. @tovu/sdk build: FIRST attempt FAILED before link (src/index.ts(164,76) TS2694 PluginProviderContribution not exported from @jini-ai/plugins/dist/host); ran link:jini then sdk build OK, then link:jini again (path: link, build, link). Desktop npm ci OK; 13 @jini-ai pkgs symlinked to /root/Jini. build:preload FAILS tsc (preload.mts references OwnerStoreBridge delete/grant/revoke/sync/export/restore absent from contracts/owner-store.ts) but dist/preload emitted. better-sqlite3/argon2 load OK. Typecheck (a) done: jini 2 errors (memory note-store.test.ts(134,42) TS2345; mcp fed-presets.unit.test.ts(45,50) TS2353); website tsconfig.json 1 (cli/commands/owner-store.ts(79,21) TS2322); tsconfig.tests.json 394; desktop 13 (all preload.mts owner-store bridge). Phase 1 lane A GREEN running.
 
 ## 2026-10-27T17:41:59Z — HEARTBEAT
+
+## 2026-10-27T17:47:35Z — HEARTBEAT
+Phase 1 lane A done (112 files). Phase 2 mutations running (orchestrator /tmp/p2.py).
