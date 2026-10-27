@@ -120,7 +120,8 @@ async function makeHarness(options: { script?: readonly ScriptStep[]; grant?: st
       command: "npx",
       args: "-y higgs-mcp",
       allowedToolNames: "generate_image",
-      writeAllowedToolNames: "",
+      // generate_image is an unannotated write, so the per-call grant check needs "may write".
+      writeAllowedToolNames: "generate_image",
       principalId: "principal-1",
       oauth: {
         providerId: PROVIDER.providerId,
@@ -1001,7 +1002,7 @@ test("the connection gate ignores a static_env server, which has no authorizatio
       command: "npx",
       args: "-y plain-mcp",
       allowedToolNames: "some_tool",
-      writeAllowedToolNames: "",
+      writeAllowedToolNames: "some_tool",
       principalId: "principal-1",
     },
   );
