@@ -153,7 +153,7 @@ export class SiteShareRegistry {
     return revoked;
   }
   async writeArtifact(required: { shareId: string; bytes: Buffer }, _optional: Record<string, never> = {}): Promise<void> {
-    if (required.bytes.length > SHARE_LIMITS.maxArchiveBytes) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: "Share exceeds the v1 300 MiB archive cap." });
+    if (required.bytes.length > SHARE_LIMITS.maxArchiveBytes) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: "Share exceeds the 300 MiB archive cap." });
     await mkdir(this.directory, { recursive: true, mode: 0o700 });
     const space = await statfs(this.directory);
     if (space.bavail * space.bsize < required.bytes.length + 16 * 1024 * 1024) throw new SiteShareRefusal({ code: "INSUFFICIENT_STORAGE", message: "Insufficient private storage for this ZIP and 16 MiB of working space." });
