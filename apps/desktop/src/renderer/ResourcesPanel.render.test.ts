@@ -107,7 +107,7 @@ test('panel Stop reaches the existing stop API once, applies main record and sho
 
 test('unavailable snapshot shows unavailable chip/cards, and stopped cards hide the previous figure', (t) => {
   const { host } = mount(t, createElement(ResourcesMonitor, {
-    projects: [SITE], onSiteUpdated() {}, useReadings: () => ({ ...SNAPSHOT, status: 'unavailable' }),
+    projects: [SITE], onSiteUpdated() {}, useReadings: (): ResourcesSnapshot => ({ ...SNAPSHOT, status: 'unavailable' }),
     children: createElement(React.Fragment, null, createElement(ResourcesChip),
       createElement(ResourceSiteFigure, { project: SITE }), createElement(ResourceSiteFigure, { project: { ...SITE, status: 'stopped' } })),
   }));

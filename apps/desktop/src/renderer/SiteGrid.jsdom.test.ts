@@ -16,6 +16,7 @@ import * as React from 'react';
 import { act, createElement } from 'react';
 
 import type { SiteRecord } from '../contracts/project.js';
+import type { ResourcesSnapshot } from '../contracts/resources.js';
 import { SiteGrid } from './SiteGrid.js';
 import { deleteActionCopy } from './SiteGrid.hooks.js';
 import { externalStopConfirm } from './use-site-power.hooks.js';
@@ -159,7 +160,7 @@ test('running cards join resource figures by site id even when names match; stop
   t.after(() => { act(() => root.unmount()); host.remove(); });
   act(() => root.render(createElement(ResourcesMonitor, {
     projects: records, onSiteUpdated() {},
-    useReadings: () => ({
+    useReadings: (): ResourcesSnapshot => ({
       status: 'available', sampledAt: 1, pollIntervalMs: 60_000, totalMemoryBytes: 8_000_000_000, approximate: true,
       total: metrics, app: { ...metrics, siteId: null, processes: [] },
       sites: [
