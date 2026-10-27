@@ -209,15 +209,15 @@ test('permission refusal performs no manifest I/O and a broken optional loader r
 });
 
 
-test("credential_save projects the shared attachment question for direct and plugin-owned saves", async () => {
+test("credential_save projects the shared attachment result for direct and plugin-owned saves", async () => {
   const f = fixture(); const seen: { result: unknown; label?: string }[] = [];
   const projectResult = { saved: true, credentialId: "key-a" };
   const adapters = { ...f.adapters, publishHost: async () => projectResult };
   const cards = [{ providerId: "hosting-card", saveKind: "publish-host" as const, saveTarget: "host", label: "Hosting", title: "Connect Hosting", category: "hosting", baseUrl: "" }];
   const [tool] = buildCredentialSaveRegistrations({ adapters, loadPluginCredentialCards: async () => cards,
-    authorizePluginProvider: async () => {}, savedResult: async input => { seen.push(input); return { ...input.result as object, keyId: "key-a", usedByThisSite: false, ask: "Apply this Hosting key to A?" }; } });
+    authorizePluginProvider: async () => {}, savedResult: async input => { seen.push(input); return { ...input.result as object, keyId: "key-a", usedByThisSite: true, usedBy: ["A"] }; } });
   for (const input of [{ kind: "publish-host", target: "host" }, { kind: "plugin-provider", target: "hosting-card" }]) {
-    assert.deepEqual(await tool!.handler({ ...f.context, input }), { ...projectResult, keyId: "key-a", usedByThisSite: false, ask: "Apply this Hosting key to A?" });
+    assert.deepEqual(await tool!.handler({ ...f.context, input }), { ...projectResult, keyId: "key-a", usedByThisSite: true, usedBy: ["A"] });
   }
   assert.deepEqual(seen, [{ result: projectResult, label: "Hosting" }, { result: projectResult, label: "Hosting" }]);
 });

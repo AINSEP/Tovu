@@ -283,7 +283,7 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
         workspaceId: deps.workspaceId,
         label: body.label,
         connection: body.connection,
-        isDefault: body.isDefault,
+        isDefault: body.isDefault ?? (body.scope === "site" ? undefined : false),
         worksFor: body.worksFor,
         // "site" = only for this site; omitted = the project store when one is attached.
         scope: body.scope,

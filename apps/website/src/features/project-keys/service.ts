@@ -30,7 +30,9 @@ export function projectKeyPermission({ row }: { row: VaultRecord }, _optional = 
   throw new ToolInputError({ message: "This kind of project key cannot be attached here." });
 }
 
-/** Metadata-only project inventory and explicit opt-in; no decrypt or secret projection. */
+/** Metadata-only project inventory; card saves and explicit opt-in share the attachment owner.
+ * No decrypt or secret projection. A failed attachment is propagated instead of reporting success.
+ */
 export function createProjectKeys({ vault, attachments, siteId, siteName, reapply, transaction, providerUsage }: {
   vault: VaultRepoPort; attachments: KeyAttachments; siteId: string; siteName: string;
   providerUsage: (input: { pluginId: string }) => Promise<ProviderKeyUsage>;
@@ -49,6 +51,21 @@ export function createProjectKeys({ vault, attachments, siteId, siteName, reappl
     const effective = pluginId ? await providerUsage({ pluginId }) : undefined;
     return { keyId, usedByThisSite: effective ? effective.store === "project" && effective.usedByThisSite : users.some(user => user.siteId === siteId), usedBy: users.map(user => user.siteName) };
   }
+  /** Shared attachment lifecycle for a submitted card or an explicit project-key choice.
+   * Commit the reference before reapplying a provider; restart/failure status retains the reference.
+   */
+  const use: ProjectKeysPort["use"] = async (input, _optional = {}) => {
+    if (!siteId) throw new ToolInputError({ message: "This site has no id yet; restart it." });
+    await transaction({ run: async () => {
+      await find(input);
+      if (input.use) await attachments.attach({ siteId, keyId: input.keyId, siteName });
+      else await attachments.detach({ siteId, keyId: input.keyId });
+    } });
+    const pluginId = providerPluginOf(input);
+    const result = pluginId ? await reapply({ pluginId }) : "now";
+    return { ...(await usage(input)), appliesAt: typeof result === "string" ? result : result.appliesAt,
+      ...(typeof result === "string" ? {} : { message: `${result.reason} ${result.action}` }) };
+  };
   return {
     async list({ cards = [] }) {
       const kinds = ["api-connection", "vendor", "custom", "source-control"] as const;
@@ -60,34 +77,23 @@ export function createProjectKeys({ vault, attachments, siteId, siteName, reappl
       }));
     },
     permissionFor: async input => projectKeyPermission({ row: await find(input) }),
-    async use(input) {
-      if (!siteId) throw new ToolInputError({ message: "This site has no id yet; restart it." });
-      await transaction({ run: async () => {
-        await find(input);
-        if (input.use) await attachments.attach({ siteId, keyId: input.keyId, siteName });
-        else await attachments.detach({ siteId, keyId: input.keyId });
-      } });
-      const pluginId = providerPluginOf(input);
-      const result = pluginId ? await reapply({ pluginId }) : "now";
-      return { ...(await usage(input)), appliesAt: typeof result === "string" ? result : result.appliesAt,
-        ...(typeof result === "string" ? {} : { message: `${result.reason} ${result.action}` }) };
-    },
-    async savedResult({ result, label }) {
+    use,
+    async savedResult({ result }, _optional = {}) {
       const identity = savedKeyIdentity({ result });
       if (!identity) return result;
       const { keyId, value } = identity;
       const row = await vault.find({ workspaceId: "project", id: keyId });
       if (!row) return result;
-      // Provider ids also exist in site vaults; a site-only save must never ask to attach its project sibling.
+      // Provider ids also exist in site vaults; a site-only save must never attach its project sibling.
       if (value.store === "site") return result;
       const current = await usage({ keyId });
-      return { ...value, ...current, ...(!current.usedByThisSite ? { ask: `Apply this ${label ?? row.label} key to ${siteName}?` } : {}) };
+      return { ...value, ...(current.usedByThisSite ? current : await use({ keyId, use: true })) };
     },
   };
 }
 
 
-/** Only successful, identifiable saves can acquire a project attachment question. */
+/** Only successful, identifiable saves can acquire a project attachment. */
 function savedKeyIdentity({ result }: { result: unknown }, _optional = {}): { keyId: string; value: Record<string, unknown> } | undefined {
   if (!result || typeof result !== "object") return undefined;
   const value = result as Record<string, unknown>;

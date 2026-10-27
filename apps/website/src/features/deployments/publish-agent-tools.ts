@@ -835,7 +835,6 @@ async function saveProposedCredential(required: {
   values: Readonly<Record<string, unknown>>; signal: AbortSignal;
 }, _optional = {}): Promise<{ credentialId: string; tokenHint: CredentialTokenHint | null; usedByThisSite: boolean }> {
   const { deps, targetId, credential, values, signal } = required;
-  // New project keys remain inert until the person accepts the attachment question.
   const connection = publishConnectionValues({ targetId, credential, values });
   const repo = abortGuardedCredentialRepo({ store: deps.vendorCredentialSetRepo, signal });
   const writeDeps: PublishCredentialWriteDeps = {
@@ -855,6 +854,7 @@ async function saveProposedCredential(required: {
   const stored = existing
     ? await updatePublishCredential(writeDeps, { workspaceId: deps.workspaceId, id: existing.id, connection })
     : await createPublishCredential(writeDeps, { workspaceId: deps.workspaceId, label: `${CUSTOM_PROVIDER_CREDENTIAL_ROW_LABEL}-${deps.idGen.newId()}`, connection,
+      // New project keys stay non-default while the shared save-result path attaches them to this site.
       ...(deps.vendorCredentialSetRepo.project ? { isDefault: false } : {}) });
   return { credentialId: stored.id, tokenHint: stored.tokenHint ?? null, usedByThisSite: existing !== undefined || stored.scope !== "project" };
 }
