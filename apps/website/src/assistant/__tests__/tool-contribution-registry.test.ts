@@ -179,6 +179,8 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "system-mail-providers",
     "system-mail-delivery",
     "system-server-logs",
+    // 2026-10-26 (b46eb6e29): `observability` telemetry tools (`features/observability`).
+    "observability",
     "identity-policy-list-permissions",
     "sites-list",
     "publish-content-disconnect",
@@ -266,6 +268,10 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     // 2026-10-11 (9b20083b6): copy saved keys between projects, registered right before `credential-save`.
     "credential-copy",
     "credential-save",
+    // 2026-10-25: `project-keys` (b6c11b876, saved keys attach per site) and `provider-status`
+    // (7c4469eb0, provider plugins set up from chat).
+    "project-keys",
+    "provider-status",
     "taxonomy",
     "themes",
     // 2026-09-24: `theme_set_active` (F7a, ca9f97328) and `change_sets_list`/`change_sets_revert`
