@@ -15,7 +15,8 @@ export interface LegacyImportItem {
   id: string; label: string; kind: string; provider: string | null; status: LegacyImportStatus; reason?: LegacyImportReason;
 }
 export interface LegacyImportPending { entryId: string; site: string; reason: "keeps-copy" | "revoked-copy" }
-export interface LegacyImportReport { applied: boolean; items: LegacyImportItem[]; pending: LegacyImportPending[] }
+// A type alias, not an interface: the CLI reply carries it as Record<string, unknown>.
+export type LegacyImportReport = { applied: boolean; items: LegacyImportItem[]; pending: LegacyImportPending[] };
 export const EMPTY_IMPORT: LegacyImportReport = Object.freeze({ applied: false, items: [], pending: [] }) as LegacyImportReport;
 
 /** Owner-store kinds project.db's schema admits (`0001_project_credential_kinds`). The legacy store

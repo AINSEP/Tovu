@@ -31,7 +31,7 @@ test('loads metadata; import feedback counts imported keys and mentions kept sit
     [imported('imported'), 'Imported 1 key.'],
     [imported('already-imported', [], false), 'Nothing new to import.'],
     [{ version: 1, ok: true, action: 'import', data: { applied: false, items: [], pending: [] } }, 'Nothing new to import.'],
-  ] as const) {
+  ] satisfies Array<[OwnerStoreReply<'import'>, string]>) {
     await act(async () => { await hook.current().run({ action: async () => reply }); });
     assert.equal(hook.current().message, message);
   }
