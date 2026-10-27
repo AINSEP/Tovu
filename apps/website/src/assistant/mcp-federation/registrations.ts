@@ -10,7 +10,7 @@ import {
 } from "@jini-ai/mcp/federation";
 import { McpAuthFailedError } from "@jini-ai/mcp/federation";
 import { tovuFederationMessages } from "./presets.js";
-import type { FederatedCallConfirmationOutcome, FederatedCallConfirmationRequest, FederatedCallTarget,
+import type { FederatedCallConfirmationOutcome, FederatedCallConfirmationRequest, FederatedCallTarget, FederatedGateVerdict,
   FederatedMcpConnectionConfig, McpSessionPort, RemoteToolDescriptor } from "@jini-ai/mcp/federation";
 import type { AdmittedFederatedTool, FederatedAdmissionReport } from "@jini-ai/mcp/federation";
 // Implementation and security rationale: Jini/packages/mcp/src/federation/{registrations,trust}.ts.
@@ -107,7 +107,7 @@ export interface FederationDeps {
    * model in words not to retry. For a revoked roster connection,
    * `assistant/external-mcp-revocation.ts`'s `ExternalMcpConnectionRevokedError`.
    */
-  readonly assertConnectionUsable?: (connectionId: string, call: FederatedCallTarget) => void | Promise<void>;
+  readonly assertConnectionUsable?: (connectionId: string, call: FederatedCallTarget) => void | FederatedGateVerdict | Promise<void | FederatedGateVerdict>;
   /**
    * Called when a live call throws {@link McpAuthFailedError} — the remote itself rejected our
    * authorization (HTTP 401), discovered mid-session rather than at boot. Optional; when absent,

@@ -6,7 +6,7 @@ import { formatAad } from "@jini-ai/platform/secrets";
 
 import type { KeyringPort, SecretSealerPort } from "../features/webhooks/index.js";
 import { ExternalMcpConnectionRevokedError, rosterRefusalFor } from "./external-mcp-revocation.js";
-import type { FederatedCallTarget } from "@jini-ai/mcp/federation";
+import type { FederatedCallTarget, FederatedGateVerdict } from "@jini-ai/mcp/federation";
 import {
   beginAuthorizationCode,
   beginDeviceAuthorization,
@@ -219,14 +219,18 @@ interface ExternalMcpConnectionGateDeps {
  *   reintroduce the cross-process invisibility this exists to close, and the read is far cheaper
  *   than the network round trip it guards.
  */
-export function createExternalMcpConnectionGate(deps: ExternalMcpConnectionGateDeps): (connectionId: string, call: FederatedCallTarget) => Promise<void> {
+export function createExternalMcpConnectionGate(deps: ExternalMcpConnectionGateDeps): (connectionId: string, call: FederatedCallTarget) => Promise<void | FederatedGateVerdict> {
   return async (connectionId, call) => {
     const record = await readConnectionRowOrRefuse(deps, connectionId);
-    const refusal = call.origin?.kind === "preset" ? null : rosterRefusalFor(record, call);
+    const isPreset = call.origin?.kind === "preset";
+    const refusal = isPreset ? null : rosterRefusalFor(record, call);
     if (refusal !== null) {
       throw new ExternalMcpConnectionRevokedError({ serverId: connectionId, label: record?.label ?? null, remoteName: call.remoteName, reason: refusal });
     }
     assertNotAwaitingReauth(record, connectionId);
+    // A roster call just passed `rosterRefusalFor`'s current-row grant check; tell Jini so its
+    // admitted-grants snapshot does not refuse a grant added since boot. A preset vouches for nothing.
+    return isPreset ? undefined : "current-grants-checked";
   };
 }
 
