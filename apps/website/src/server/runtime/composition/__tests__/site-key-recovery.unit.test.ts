@@ -78,10 +78,11 @@ for (const normalization of ["invalid-meta", ["conflict"]]) {
     const source = keyed(A);
     record.sealed = await source.sealer.seal({ plaintext: JSON.stringify({ value: ["files"] }), key: await source.keyring.activeKey(), aad: buildVaultAad(record) });
     await repo.put({ record, expectedRevision: null });
-    // why: the vault repo makes the first row of its kind/owner group the default on put, so the
-    // rollback is compared against the row as stored, not against the pre-put input.
+    // why: the rollback is compared against the row as stored, not against the pre-put input. The
+    // vault repo used to make the first row of its kind/owner group the default on put; since Jini
+    // 2598c2d29 an explicit isDefault:false (as here) is honoured and only an omitted flag auto-defaults.
     const stored = await repo.find(record);
-    assert.deepEqual(stored, { ...record, isDefault: true });
+    assert.deepEqual(stored, record);
     const recover = () => siteKeyRecovery.resealFrom({ siteDir: dir, contentKernel: kernel, hex: B, previousHex: A });
     if (typeof normalization !== "string") {
       await assert.rejects(recover(), { code: "invalid-meta" });
