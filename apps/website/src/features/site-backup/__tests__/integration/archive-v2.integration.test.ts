@@ -194,6 +194,27 @@ test("a theme named overrides and the site's theme overrides both round-trip wit
   } finally { restored.close(); }
 });
 
+// RED (lane A2, 2026-10-27): a flat site plugin's memory/private was exported (only a tier or version
+// folder's private memory was excluded) and import refuses it, so the exported site did not re-import.
+// A folder named like a version but not SemVer (2fa) was private runtime data to the exclusion rule but
+// package content to the archive mapping; the installer only creates SemVer folders, so it is content.
+test("a flat site plugin round-trips: its private memory never leaves, its notes and a 2fa/ folder do", async t => {
+  const h = await fixture(t, { siteFiles: {
+    "plugins/flat/plugin.json": '{"id":"flat","name":"Flat","version":"1.0.0"}',
+    "plugins/flat/memory/notes/n.md": "public note",
+    "plugins/flat/memory/private/secret.md": "private memory",
+    "plugins/flat/2fa/data/help.md": "plugin docs",
+    "plugins/versioned/1.0.0/plugin.json": '{"id":"versioned","name":"Versioned","version":"1.0.0"}',
+    "plugins/versioned/1.0.0/memory/private/secret.md": "private memory",
+  } });
+  const files = await unpack(h.archive);
+  assert.equal([...files.keys()].some(name => name.includes("memory/private")), false, "private memory never leaves the site");
+  assert.equal(files.get("plugins/flat/memory/notes/n.md")?.toString(), "public note");
+  assert.equal(files.get("plugins/flat/package/2fa/data/help.md")?.toString(), "plugin docs");
+  assert.ok(files.has("plugins/versioned/package/plugin.json"));
+  await h.restore(h.archive, "flat-copy");
+});
+
 test("one Finder wrapper and metadata import; two wrappers and files outside the wrapper refuse", async t => {
   const h = await fixture(t), files = await unpack(h.archive);
   const wrapped = new Map([...files].map(([name, bytes]) => ["Source/" + name, bytes]));

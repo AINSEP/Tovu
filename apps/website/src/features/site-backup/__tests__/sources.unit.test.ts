@@ -679,15 +679,15 @@ test("share plugin root lstat failures are never hidden as missing installations
 test("share collection omits only private runtime files and includes overrides and plugin source", async t => {
   const site = makeSite(); t.after(site.cleanup);
   rmSync(path.join(site.sources.themesDir, "static/demo/.git"), { recursive: true, force: true });
-  write(path.join(site.root, "plugins/custom/1/src/data/default.json"), "{}");
-  write(path.join(site.root, "plugins/custom/1/data/private.json"), "private");
+  write(path.join(site.root, "plugins/custom/1.0.0/src/data/default.json"), "{}");
+  write(path.join(site.root, "plugins/custom/1.0.0/data/private.json"), "private");
   write(path.join(site.root, "overrides/header.html"), "override");
   write(path.join(site.root, "themes/static/demo/.env.local"), "private");
   write(path.join(site.root, "agent-plugins/ws/workspace-local/composio/memory/private/secret.md"), "private");
   const result = await collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, themes: true, plugins: true } }, { profile: "share" });
   assert.ok(paths(result.files).includes("overrides/header.html"));
-  assert.ok(paths(result.files).includes("plugins/custom/1/src/data/default.json"));
-  assert.equal(paths(result.files).includes("plugins/custom/1/data/private.json"), false);
+  assert.ok(paths(result.files).includes("plugins/custom/1.0.0/src/data/default.json"));
+  assert.equal(paths(result.files).includes("plugins/custom/1.0.0/data/private.json"), false);
   assert.equal(paths(result.files).includes("themes/static/demo/.env.local"), false);
   // A v2 share carries a plugin's memory notes and learned facts; every other memory folder is private.
   assert.ok(paths(result.files).includes("agent-plugins/ws/workspace-local/composio/memory/notes/notes.md"));

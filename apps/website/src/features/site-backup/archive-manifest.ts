@@ -1,5 +1,5 @@
 import { SHARE_LIMITS, SiteShareRefusal } from "./share-policy.js";
-import { claimSharePath } from "./share-file-policy.js";
+import { claimSharePath, SHARED_PLUGIN_MEMORY } from "./share-file-policy.js";
 import type { SiteBackupInclude } from "./sources.js";
 
 export const ARCHIVE_MANIFEST_PATH = "manifest.json";
@@ -26,7 +26,7 @@ export interface ArchiveManifest {
 }
 const HASH = /^[a-f0-9]{64}$/;
 const ID = /^[a-z0-9]+(?:[-.][a-z0-9]+)*$/;
-const ROOT = /^(?:media\/[^/]+|themes\/.+|plugins\/[^/]+\/(?:package|memory\/(?:notes|learned))\/.+|agent-plugins\/[^/]+\/(?:package|memory\/(?:notes|learned))\/.+|skills\/.+)$/;
+const ROOT = new RegExp(String.raw`^(?:media\/[^/]+|themes\/.+|plugins\/[^/]+\/(?:package|${SHARED_PLUGIN_MEMORY})\/.+|agent-plugins\/[^/]+\/(?:package|${SHARED_PLUGIN_MEMORY})\/.+|skills\/.+)$`);
 
 function invalid(): never { throw new SiteShareRefusal({ code: "INVALID_ARCHIVE", message: "Invalid v2 share manifest, inventory or schema identity." }); }
 

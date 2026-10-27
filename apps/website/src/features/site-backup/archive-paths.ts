@@ -1,5 +1,5 @@
 import { SiteShareRefusal } from "./share-policy.js";
-import { validateSharePath } from "./share-file-policy.js";
+import { validateSharePath, PLUGIN_VERSION_FOLDER, SHARED_PLUGIN_MEMORY } from "./share-file-policy.js";
 
 /**
  * Archive folder for the site's theme overrides. A theme id cannot hold `_` (`__originals__` relies on
@@ -25,10 +25,14 @@ export function runtimeToArchivePath(required: { path: string }, _optional = {})
   return pluginArchivePath({ path: file });
 }
 
+const AGENT_PLUGIN_FILE = new RegExp(String.raw`^agent-plugins\/ws\/[^/]+\/([^/]+)\/(?:package\/sha256\/[a-f0-9]{64}|(${SHARED_PLUGIN_MEMORY}))\/(.+)$`);
+const VERSIONED_SITE_PLUGIN_FILE = new RegExp(String.raw`^plugins\/([^/]+)\/${PLUGIN_VERSION_FOLDER}\/(.+)$`);
+const SHARED_MEMORY_FILE = new RegExp(String.raw`^${SHARED_PLUGIN_MEMORY}\/`);
+
 function pluginArchivePath({ path: file }: { path: string }): string | null {
-  const agent = /^agent-plugins\/ws\/[^/]+\/([^/]+)\/(?:package\/sha256\/[a-f0-9]{64}|(memory\/(?:notes|learned)))\/(.+)$/.exec(file);
+  const agent = AGENT_PLUGIN_FILE.exec(file);
   if (agent) return `agent-plugins/${agent[1]}/${agent[2] ?? "package"}/${agent[3]}`;
-  const versionedSite = /^plugins\/([^/]+)\/\d+\.\d+(?:\.[^/]+)?\/(.+)$/.exec(file);
+  const versionedSite = VERSIONED_SITE_PLUGIN_FILE.exec(file);
   if (versionedSite) return sitePluginArchivePath({ id: versionedSite[1]!, relative: versionedSite[2]! });
   const site = /^plugins\/(?:static|declarative|code)\/([^/]+)\/(.+)$/.exec(file);
   if (site) return `plugins/${site[1]}/package/${site[2]}`;
@@ -74,7 +78,7 @@ export function archiveSecretScanPath(required: { path: string; plugins: readonl
 }
 
 function sitePluginArchivePath(required: { id: string; relative: string }): string {
-  const area = /^memory\/(?:notes|learned)\//.test(required.relative) ? "" : "package/";
+  const area = SHARED_MEMORY_FILE.test(required.relative) ? "" : "package/";
   return `plugins/${required.id}/${area}${required.relative}`;
 }
 

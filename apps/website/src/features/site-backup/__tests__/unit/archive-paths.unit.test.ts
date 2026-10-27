@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { runtimeToArchivePath, archiveToRuntimePath, archiveCodeUnit, OVERRIDES_UNIT } from "../../archive-paths.js";
+import { excludedSharePath } from "../../share-file-policy.js";
 test("theme tiers and original tiers round-trip from each staged manifest", () => {
   const files = new Map([["themes/roast/theme.json", Buffer.from('{"tier":"static"}')], ["themes/__originals__/roast/theme.json", Buffer.from('{"tier":"static"}')]]);
   for (const path of ["themes/static/roast/theme.json", "themes/__original-themes__/static/roast/theme.json", "overrides/style.css"]) {
@@ -35,4 +36,16 @@ test("skills flatten out of their workspace folder; a skill folder is one code u
   assert.equal(archiveCodeUnit({ path: "skills/ws/scripts/lib/run.sh" }), "skills/ws");
   // Imported skills always land in quarantine, so their archive path is kept as is.
   assert.equal(archiveToRuntimePath({ path: "skills/help/SKILL.md", files: new Map() }), "skills/help/SKILL.md");
+});
+
+// One version-folder rule (share-file-policy PLUGIN_VERSION_FOLDER) for the archive mapping and the private-data exclusion.
+test("a version-shaped folder is a site plugin version on both sides; any other folder is the flat plugin's own content", () => {
+  for (const version of ["1.0.0-beta.1", "1.2"]) {
+    assert.equal(runtimeToArchivePath({ path: `plugins/demo/${version}/index.js` }), "plugins/demo/package/index.js");
+    assert.equal(excludedSharePath({ path: `plugins/demo/${version}/data/token.json` }), true);
+  }
+  for (const folder of ["1", "2fa"]) {
+    assert.equal(runtimeToArchivePath({ path: `plugins/demo/${folder}/data/help.md` }), `plugins/demo/package/${folder}/data/help.md`);
+    assert.equal(excludedSharePath({ path: `plugins/demo/${folder}/data/help.md` }), false);
+  }
 });
