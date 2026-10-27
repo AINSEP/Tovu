@@ -9,7 +9,7 @@
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -39,9 +39,10 @@ function site(t: TestContext, optional: { pins?: Record<string, string> } = {}):
 }
 
 /** Archive path -> text of every plugin file the share ZIP would carry, and the plugins scope note. */
-async function exported(sources: SiteBackupSources): Promise<{ entries: Record<string, string>; note: string | undefined; plugins: readonly ArchivePlugin[] }> {
+async function exported(sources: SiteBackupSources, optional: { beforeEncode?: () => void } = {}): Promise<{ entries: Record<string, string>; note: string | undefined; plugins: readonly ArchivePlugin[] }> {
   const collected = await collectSiteBackupFiles({ sources, include: { database: false, media: false, themes: false, plugins: true, settings: false } }, { profile: "share" });
   const extensions = await prepareArchiveExtensions({ sources, files: collected.files });
+  optional.beforeEncode?.();
   const picked: File[] = [];
   const zip: typeof zipFolderFiles = async ({ files }) => { picked.push(...files); return new File(["zip"], "share.zip"); };
   // A v2 manifest always names every scope, a database and settings; tiny stand-ins keep the focus on plugins.
@@ -152,4 +153,49 @@ test("a FIFO where a manifest goes neither hangs the export nor ships the plugin
   if (outcome === "hung") await writeFile(fifo, "{}");
   assert.notEqual(outcome, "hung");
   assert.deepEqual((outcome as Awaited<ReturnType<typeof exported>>).entries, {});
+});
+
+// RED (P1 check, batch7): the ZIP reread a package file by size and mtime only, so a same-size file
+// swapped in with its mtime restored after the hash check shipped. The ZIP must carry the checked bytes.
+for (const file of ["src/data/default.json", "jini.plugin.json"]) {
+  test(`a same-size, same-mtime swap of ${file} after the check refuses the export instead of shipping it`, async t => {
+    const { sources, installDir } = site(t);
+    const target = path.join(installSitePlugin({ installDir, id: "swapped", version: "1.0.0", package: PACKAGE }), file);
+    utimesSync(target, 1_700_000_000, 1_700_000_000); // whole seconds, so restoring the mtime is exact
+    const before = statSync(target);
+    const swap = () => {
+      writeFileSync(target, "x".repeat(before.size));
+      utimesSync(target, 1_700_000_000, 1_700_000_000);
+      const after = statSync(target);
+      assert.deepEqual([after.size, after.mtimeMs], [before.size, before.mtimeMs], "the swap is invisible to size and mtime");
+    };
+    await assert.rejects(exported(sources, { beforeEncode: swap }), { code: "PLAN_STALE" });
+  });
+}
+
+// RED (P1 check, batch7): only the last path component was guarded, so a package folder replaced by a
+// symlink to a copy with matching bytes still shipped. A listed file reached through a link ships nothing.
+// Before collection the plugin is left out; after it (the plan is fixed) the export is refused. The
+// outside copy has the same bytes, size and mtime, so only the linked-folder check can tell.
+const linkSrcFolder = (root: string, outside: string) => {
+  utimesSync(path.join(root, "src/data/default.json"), 1_700_000_000, 1_700_000_000);
+  return () => {
+    mkdirSync(path.join(outside, "data"), { recursive: true });
+    writeFileSync(path.join(outside, "data/default.json"), PACKAGE["src/data/default.json"]);
+    utimesSync(path.join(outside, "data/default.json"), 1_700_000_000, 1_700_000_000);
+    rmSync(path.join(root, "src"), { recursive: true });
+    symlinkSync(outside, path.join(root, "src"));
+  };
+};
+test("a package folder replaced by a symlink keeps the plugin out, even when the bytes match", { skip: process.platform === "win32" }, async t => {
+  const { sources, installDir } = site(t);
+  linkSrcFolder(installSitePlugin({ installDir, id: "linkeddir", version: "1.0.0", package: PACKAGE }), path.join(path.dirname(installDir), "outside"))();
+  const { entries, note } = await exported(sources);
+  assert.deepEqual(entries, {});
+  assert.match(note ?? "", leftOut("linkeddir"));
+});
+test("a package folder replaced by a symlink after the check refuses the export, even when the bytes match", { skip: process.platform === "win32" }, async t => {
+  const { sources, installDir } = site(t);
+  const swap = linkSrcFolder(installSitePlugin({ installDir, id: "linkeddir", version: "1.0.0", package: PACKAGE }), path.join(path.dirname(installDir), "outside"));
+  await assert.rejects(exported(sources, { beforeEncode: swap }), { code: "PLAN_STALE" });
 });

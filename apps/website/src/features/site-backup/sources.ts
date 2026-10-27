@@ -2,7 +2,7 @@ import { excludedSharePath, validateSharePath } from "./share-file-policy.js";
 import { checkShareLimits, SiteShareRefusal } from "./share-policy.js";
 import { createHash } from "node:crypto";
 import { constants as fsConstants, type Dirent, type Stats } from "node:fs";
-import { lstat, mkdtemp, open, readdir, readFile, rm, stat, unlink } from "node:fs/promises";
+import { lstat, mkdtemp, open, readdir, readFile, realpath, rm, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
@@ -106,6 +106,10 @@ export interface PlannedDiskFile {
   readonly scope: SiteBackupScope;
   readonly absPath: string;
   readonly mtimeMs: number;
+  /** A share's site plugin package file: the sha256 hex of the bytes checked when it was planned, at an
+   *  `absPath` reached through no link. {@link readPlannedFile} then returns only those exact bytes, so
+   *  what ships is what was checked (size and mtime alone cannot tell a same-size swap). */
+  readonly sha256?: string;
 }
 
 export interface SkippedSiteBackupFile {
@@ -436,8 +440,10 @@ async function walkSitePlugins(required: { sink: WalkSink; sources: SiteBackupSo
   if (leftOut.length > 0) required.scopeNotes.plugins = `Left out because they aren't valid installed plugins (damaged manifest, version not installed, or changed files): ${leftOut.sort().map(name => `'${name}'`).join(", ")}.`;
 }
 
-/** One plugin's planned files, each through the walk's guards and checked against its integrity sha256;
- *  `null` when Jini will not list it or any listed file is missing, linked, excluded or changed. */
+/** One plugin's planned files, each through the walk's guards, read once through no linked folder and
+ *  checked against its integrity sha256, then pinned to the bytes read (the manifest too) so the ZIP
+ *  carries exactly them; `null` when Jini will not list it or any listed file is missing, linked,
+ *  excluded or changed. */
 async function sitePluginPackageFiles(required: { sink: WalkSink; installDir: string; record: PluginDiscoveryRecord }): Promise<PlannedDiskFile[] | null> {
   const { record } = required;
   const listed = await listSitePluginPackage({ installDir: required.installDir, record }).catch(() => null);
@@ -448,12 +454,19 @@ async function sitePluginPackageFiles(required: { sink: WalkSink; installDir: st
   }
   // addFile adds nothing for a missing, excluded, linked or non-regular file, so a short list is every refusal.
   if (staged.files.length !== listed.files.length) return null;
+  const pinned: PlannedDiskFile[] = [];
   for (const [index, planned] of staged.files.entries()) {
     const expected = listed.files[index]!.sha256;
-    const read = expected === null ? null : await readPlannedFile(planned);
-    if (read && (!read.ok || createHash("sha256").update(read.bytes).digest("hex") !== expected)) return null;
+    const read = await readDiskFile(planned, { unlinkedPath: true });
+    const sha256 = read.ok ? sha256Hex(read.bytes) : null;
+    if (sha256 === null || (expected !== null && sha256 !== expected)) return null;
+    pinned.push({ ...planned, sha256 });
   }
-  return staged.files;
+  return pinned;
+}
+
+function sha256Hex(bytes: Buffer): string {
+  return createHash("sha256").update(bytes).digest("hex");
 }
 
 export type DatabaseSnapshotResult = { ok: true; bytes: Buffer; watermarkAtCapture: number } | { ok: false; message: string; logDetail?: string };
@@ -589,17 +602,31 @@ export interface SiteBackupReadHandle {
   close(): Promise<void>;
 }
 
+type ReadPlannedFileOptions = { openFile?: (file: string, flags: number) => Promise<SiteBackupReadHandle> };
+
 /**
  * Reads a planned file at push time, refusing it if it is no longer the file the human reviewed.
  *
  * Opened with `O_NOFOLLOW` and checked through the SAME handle it is read from, so a file swapped
  * for a symlink after the plan cannot be followed, and the size/mtime compared are the bytes
- * actually read.
+ * actually read. A file planned with a `sha256` must also still be reached through no linked folder
+ * and hash to exactly that digest.
  *
- * @complexity O(file size) — one open, one fstat, one read.
+ * @complexity O(file size) — one open, one fstat, one read (plus one realpath and one hash when pinned).
  */
-export async function readPlannedFile(file: PlannedDiskFile, optional: { openFile?: (file: string, flags: number) => Promise<SiteBackupReadHandle> } = {}): Promise<ReadPlannedFileResult> {
-  const stale: ReadPlannedFileResult = { ok: false, message: `'${file.path}' changed since the plan was made. Call site_backup_plan again.` };
+export async function readPlannedFile(file: PlannedDiskFile, optional: ReadPlannedFileOptions = {}): Promise<ReadPlannedFileResult> {
+  const read = await readDiskFile(file, { ...optional, unlinkedPath: file.sha256 !== undefined });
+  return read.ok && file.sha256 !== undefined && sha256Hex(read.bytes) !== file.sha256 ? staleResult(file) : read;
+}
+
+function staleResult(file: PlannedDiskFile): ReadPlannedFileResult {
+  return { ok: false, message: `'${file.path}' changed since the plan was made. Call site_backup_plan again.` };
+}
+
+/** The one disk read behind planning checks and push: `unlinkedPath` also refuses an `absPath` whose
+ *  realpath differs, i.e. one reached through a linked folder (`O_NOFOLLOW` guards only the last name). */
+async function readDiskFile(file: PlannedDiskFile, optional: ReadPlannedFileOptions & { unlinkedPath?: boolean }): Promise<ReadPlannedFileResult> {
+  const stale = staleResult(file);
   let handle;
   try {
     handle = await (optional.openFile ?? open)(file.absPath, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0));
@@ -607,6 +634,7 @@ export async function readPlannedFile(file: PlannedDiskFile, optional: { openFil
     return stale;
   }
   try {
+    if (optional.unlinkedPath && (await realpath(file.absPath).catch(() => null)) !== file.absPath) return stale;
     const info = await handle.stat();
     if (!info.isFile() || info.size !== file.bytes || info.mtimeMs !== file.mtimeMs) return stale;
     const bytes = await handle.readFile();
