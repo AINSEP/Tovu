@@ -68,7 +68,9 @@ async function importRequest({ request, ports, serialize }: {
   const dryRun = await serialize(() => ports.run({ action: 'import', fields: { ...fields, apply: false } }));
   if (!dryRun.ok || !dryRun.data.items.some(item => item.status === 'new')) return dryRun;
   if (!await ports.confirmImport({ report: dryRun.data })) return ownerStoreFailure({ action: 'import', code: 'cancelled' });
-  return serialize(() => ports.run({ action: 'import', fields: { ...fields, apply: true } }));
+  // The CLI rereads the source; naming the confirmed dry run's digest refuses a source replaced meanwhile.
+  const expectedDigest = dryRun.data.sourceDigest;
+  return serialize(() => ports.run({ action: 'import', fields: { ...fields, apply: true, ...(expectedDigest === undefined ? {} : { expectedDigest }) } }));
 }
 
 /** Fixed-action dispatch; vault payload/revision validation stays with the CLI's existing owner.

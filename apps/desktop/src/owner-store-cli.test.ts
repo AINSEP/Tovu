@@ -92,11 +92,12 @@ test('status and import replies keep only the published fields, including an opt
   assert.deepEqual(await runOwnerStoreCli({ repoRoot, userDataDir, action: 'status', fields: {} }, status.options),
     success({ action: 'status', data: { legacy: 'available', entries: 2, grants: 1 } }));
   const item = { id: 'a', label: 'Mail', kind: 'vendor', provider: 'resend', status: 'new' };
-  const f = fixture({ output: success({ action: 'import', data: { applied: false, secret,
+  // sourceDigest crosses IPC: the confirmed apply must name it (a hash of the source the dry run read).
+  const f = fixture({ output: success({ action: 'import', data: { applied: false, secret, sourceDigest: 'a'.repeat(64),
     items: [{ ...item, payload: { token: secret } }, { ...item, id: 'b', status: 'conflict', reason: 'different-secret', meta: { secret } }],
     pending: [{ entryId: 'a', site: '/sites/blog', reason: 'keeps-copy', envelope: secret }] } }) });
   const result = await runOwnerStoreCli({ repoRoot, userDataDir, action: 'import', fields: { source: 'owner-store', apply: false } }, f.options);
-  assert.deepEqual(result, success({ action: 'import', data: { applied: false,
+  assert.deepEqual(result, success({ action: 'import', data: { applied: false, sourceDigest: 'a'.repeat(64),
     items: [item, { ...item, id: 'b', status: 'conflict', reason: 'different-secret' }],
     pending: [{ entryId: 'a', site: '/sites/blog', reason: 'keeps-copy' }] } }));
   assert.ok(!JSON.stringify(result).includes(secret));
@@ -110,6 +111,9 @@ test('S3 recovery/CLI failure surfaces fixed codes without child messages or std
   assert.equal(result.error.code, 'recovery-required');
   assert.match(result.error.message, /owner.key/);
   assert.ok(!JSON.stringify(result).includes(secret));
+  const changed = fixture({ output: { version: 1, action: 'import', ok: false, error: { code: 'source-changed', message: secret } }, code: 1 });
+  const refused = await runOwnerStoreCli({ repoRoot, userDataDir, action: 'import', fields: { source: 'owner-store', apply: true, expectedDigest: 'a'.repeat(64) } }, changed.options);
+  assert.ok(!refused.ok && refused.error.code === 'source-changed' && /changed/.test(refused.error.message));
 });
 
 test('S3 malformed, mismatched, extra-line and nonzero-success replies never leak diagnostics', async () => {

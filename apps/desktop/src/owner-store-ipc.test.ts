@@ -122,6 +122,23 @@ test('import is a dry run first; only a confirmed dry run applies, with the same
   assert.deepEqual(local.calls.map(call => call.fields), [{ source: 'owner-store', apply: false }, { source: 'owner-store', apply: true }]);
 });
 
+test('import: the apply names the confirmed dry run digest, so a source replaced during confirmation is refused', async () => {
+  let current = 'digest-reviewed';
+  const run: Run = async input => {
+    const fields = input.fields as { apply: boolean; expectedDigest?: string };
+    if (!fields.apply) return reply({ action: 'import', data: { ...report('new'), sourceDigest: current } }) as never;
+    // The CLI recomputes the digest from what it rereads: a mismatch refuses before any write.
+    return (fields.expectedDigest === current ? reply({ action: 'import', data: report('imported', true) }) : ownerStoreFailure({ action: 'import', code: 'source-changed' })) as never;
+  };
+  const replaced = fixture({ run, confirmImport: async () => { current = 'digest-swapped'; return true; } });
+  const result = await replaced.controller.execute({ action: 'import', input: { source: 'backup', passphrase: secret } });
+  assert.ok(!result.ok && result.error.code === 'source-changed');
+  assert.deepEqual(replaced.calls.at(-1)?.fields, { source: 'backup', filePath: backupPath, passphrase: secret, apply: true, expectedDigest: 'digest-reviewed' });
+  current = 'digest-reviewed';
+  const kept = fixture({ run });
+  assert.equal((await kept.controller.execute({ action: 'import', input: { source: 'owner-store' } })).ok, true);
+});
+
 test('import: cancelling the confirmation never applies; nothing new or a failed dry run skips the dialog', async () => {
   const cancelled = fixture({ confirmImport: async () => false });
   const result = await cancelled.controller.execute({ action: 'import', input: { source: 'owner-store' } });

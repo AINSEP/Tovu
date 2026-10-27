@@ -158,7 +158,8 @@ test("a legacy store imports only on apply, non-default, reports site copies, an
     const empty = await f.invoke({ action: "list", request: { store: "project" } });
     assert.ok(empty.ok);
     assert.deepEqual(empty.data.entries, [], "a dry run writes nothing");
-    const applied = await f.invoke({ action: "import", request: { source: "owner-store", apply: true } });
+    // Before: apply took no digest. An apply now names the dry run it confirms.
+    const applied = await f.invoke({ action: "import", request: { source: "owner-store", apply: true, expectedDigest: dryRun.data.sourceDigest } });
     assert.ok(applied.ok);
     assert.equal(applied.data.applied, true);
     assert.deepEqual(byId(applied.data.items), byId([item(0, "imported"), item(1, "imported")]));
@@ -183,13 +184,39 @@ test("an import whose label is already a project key reports label-taken and wri
     const project = await f.invoke({ action: "put", request: { store: "project", entry: entry({ value: "project-secret-1234567890" }) } });
     assert.ok(project.ok);
     const store = await legacyOwnerStore({ userDataDir: f.userDataDir, entries: [entry({ value: "legacy-secret-1234567890" })] });
-    const applied = await f.invoke({ action: "import", request: { source: "owner-store", apply: true } });
+    const dryRun = await f.invoke({ action: "import", request: { source: "owner-store", apply: false } });
+    assert.ok(dryRun.ok);
+    const applied = await f.invoke({ action: "import", request: { source: "owner-store", apply: true, expectedDigest: dryRun.data.sourceDigest } });
     assert.ok(applied.ok);
-    assert.deepEqual(applied.data, { applied: false, pending: [], items: [{ id: store.saved[0]!.id, label: "Deployment key", kind: "vendor",
+    assert.deepEqual(applied.data, { applied: false, pending: [], sourceDigest: dryRun.data.sourceDigest, items: [{ id: store.saved[0]!.id, label: "Deployment key", kind: "vendor",
       provider: "vercel", status: "conflict", reason: "label-taken" }] });
     const listed = await f.invoke({ action: "list", request: { store: "project" } });
     assert.ok(listed.ok);
     assert.deepEqual(listed.data.entries, [project.data.entry]);
+  } finally { await f.close(); }
+});
+
+test("an apply is bound to the dry run the user confirmed: a source replaced meanwhile, or no digest, is refused and writes nothing", async () => {
+  const f = await fixture();
+  try {
+    await legacyOwnerStore({ userDataDir: f.userDataDir, entries: [entry({ value: "reviewed-secret-1234567890" })] });
+    const dryRun = await f.invoke({ action: "import", request: { source: "owner-store", apply: false } });
+    assert.ok(dryRun.ok);
+    assert.match(String(dryRun.data.sourceDigest), /^[0-9a-f]{64}$/);
+    // Another profile's store (its own owner.key) replaces this one while the confirmation is open.
+    const other = path.join(f.home, "other-profile");
+    fs.mkdirSync(other);
+    await legacyOwnerStore({ userDataDir: other, entries: [entry({ value: "unreviewed-secret-1234567890", label: "Swapped key" })] });
+    for (const name of ["owner.db-wal", "owner.db-shm"]) fs.rmSync(path.join(f.userDataDir, name), { force: true });
+    for (const name of ["owner.db", "owner.key"]) fs.copyFileSync(path.join(other, name), path.join(f.userDataDir, name));
+    for (const request of [{ expectedDigest: dryRun.data.sourceDigest }, {}]) {
+      const applied = await f.invoke({ action: "import", request: { source: "owner-store", apply: true, ...request } });
+      assert.ok(!applied.ok);
+      assert.equal(applied.error.code, "source-changed");
+    }
+    const listed = await f.invoke({ action: "list", request: { store: "project" } });
+    assert.ok(listed.ok);
+    assert.deepEqual(listed.data.entries, [], "nothing unreviewed is imported");
   } finally { await f.close(); }
 });
 

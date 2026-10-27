@@ -32,7 +32,8 @@ export interface LegacyImportItem {
 }
 /** A site the legacy store copied a key to. Import never touches sites: each keeps its own copy. */
 export interface LegacyImportPending { entryId: string; site: string; reason: 'keeps-copy' | 'revoked-copy' }
-export interface LegacyImportReport { applied: boolean; items: LegacyImportItem[]; pending: LegacyImportPending[] }
+/** sourceDigest: set for a non-empty source; an apply must name the dry run's digest (else `source-changed`). */
+export interface LegacyImportReport { applied: boolean; items: LegacyImportItem[]; pending: LegacyImportPending[]; sourceDigest?: string }
 /** none: no owner.db. empty: no entries or grants, safe to delete. available: entries the project
  * lacks. settled: entries exist but nothing new would import.
  */
@@ -41,7 +42,7 @@ export type LegacyOwnerState = 'none' | 'empty' | 'available' | 'settled';
 /** CLI fields exclude userDataDir: main supplies Electron's resolved profile on every call. */
 export interface OwnerStoreCliFields {
   status: {}; list: { store?: 'project' }; put: { entry: OwnerStorePutEntry; store?: 'project' };
-  import: { source: LegacyImportSource; apply: boolean; filePath?: string; passphrase?: string };
+  import: { source: LegacyImportSource; apply: boolean; filePath?: string; passphrase?: string; expectedDigest?: string };
 }
 export interface OwnerStoreData {
   status: { legacy: LegacyOwnerState; entries: number; grants: number };

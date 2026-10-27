@@ -16,14 +16,17 @@ export interface LegacyImportItem {
 }
 export interface LegacyImportPending { entryId: string; site: string; reason: "keeps-copy" | "revoked-copy" }
 // A type alias, not an interface: the CLI reply carries it as Record<string, unknown>.
-export type LegacyImportReport = { applied: boolean; items: LegacyImportItem[]; pending: LegacyImportPending[] };
+// sourceDigest (the CLI adds it for a non-empty source): what an apply must name to confirm this plan.
+export type LegacyImportReport = { applied: boolean; items: LegacyImportItem[]; pending: LegacyImportPending[]; sourceDigest?: string };
 export const EMPTY_IMPORT: LegacyImportReport = Object.freeze({ applied: false, items: [], pending: [] }) as LegacyImportReport;
 
-/** Owner-store kinds project.db's schema admits (`0001_project_credential_kinds`). The legacy store
- * could also hold site-assistant and database-destination rows; the project CHECK rejects both, so
- * they are refused by name here rather than failing (or vanishing) inside the write.
+/** Owner-store kinds the import writes. The legacy store could also hold site-assistant and
+ * database-destination rows; the project CHECK (`0001_project_credential_kinds`) rejects both, so
+ * they are refused by name here rather than failing (or vanishing) inside the write. publish-peer and
+ * media-provider rows pass that CHECK, but no project reader or site key picker uses them yet, so
+ * they are listed as unsupported too instead of landing as keys nothing can select.
  */
-const PROJECT_KINDS: ReadonlySet<string> = new Set(["vendor", "source-control", "publish-peer", "media-provider"]);
+const PROJECT_KINDS: ReadonlySet<string> = new Set(["vendor", "source-control"]);
 
 interface ProjectTarget { vault: SecretsVaultService; workspaceId: string; transaction: ProjectKeyTransaction; rows: VaultSummary[] }
 
@@ -75,12 +78,12 @@ async function sameKey({ entry, existing, target }: { entry: LegacyOwnerEntry; e
   return isDeepStrictEqual(stored?.payload ?? null, entry.payload);
 }
 
-/** Conservative superset of the project's unique indexes: same kind and same name, or (media) the
- * same provider. A dry run reports it instead of letting the write's rollback fail every row.
+/** The project's vendor/source-control label index (`secrets_vault_group_label`): one label per kind
+ * and provider group (every imported row is host-owned and principal-free). A dry run reports it
+ * instead of letting the write's rollback fail every row.
  */
 function labelTaken({ entry, row }: { entry: LegacyOwnerEntry; row: VaultSummary }): boolean {
-  if (row.kind !== entry.kind) return false;
-  return row.label === entry.label || (entry.kind === "media-provider" && row.provider === entry.provider);
+  return row.kind === entry.kind && row.provider === entry.provider && row.label === entry.label;
 }
 
 /** Every recorded destination of an entry in this snapshot: active grants keep their copy, and a

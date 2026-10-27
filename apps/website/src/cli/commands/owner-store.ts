@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
@@ -20,7 +20,7 @@ import { EMPTY_IMPORT, importLegacyKeys, type LegacyImportReport } from "./owner
  * into a site. Requests never travel in argv/env.
  * S3 wire v1: one stdin object with userDataDir (Electron's resolved userData, Roaming on Windows),
  * one stdout JSON line {version:1,ok,action,data|error}. No secret values or key hints are returned.
- * put uses {entry}; import uses {source,apply,filePath?,passphrase?}; status reports the legacy owner.db.
+ * put uses {entry}; import uses {source,apply,filePath?,passphrase?,expectedDigest?} (an apply names its dry run's sourceDigest); status reports the legacy owner.db.
  */
 export const OWNER_STORE_ACTIONS = ["status", "list", "put", "import"] as const;
 export type OwnerStoreAction = typeof OWNER_STORE_ACTIONS[number];
@@ -32,7 +32,7 @@ export type OwnerStoreRequestByAction = {
   status: { userDataDir: string };
   list: { userDataDir: string; store?: 'project' };
   put: { userDataDir: string; store?: 'project'; entry: Pick<VaultPutInput, "id" | "expectedRevision" | "label" | "meta"> & { kind?: VaultKind; provider: string; payload: VaultMeta } };
-  import: { userDataDir: string; source: 'backup' | 'owner-store'; apply: boolean; filePath?: string; passphrase?: string };
+  import: { userDataDir: string; source: 'backup' | 'owner-store'; apply: boolean; filePath?: string; passphrase?: string; expectedDigest?: string };
 };
 
 /** Metadata exposed to S3. Deliberately excludes envelopes, payloads, arbitrary meta and last4. */
@@ -50,6 +50,9 @@ type ProjectTarget = Parameters<typeof importLegacyKeys>[0]["target"];
 class OwnerStoreInputError extends Error {
   constructor() { super("Provide a valid owner-store JSON request on stdin."); }
 }
+
+/** The import source no longer matches the dry run the apply names (replaced, or no digest given). */
+class ImportSourceChangedError extends Error {}
 
 /** Execute one private request, close all handles, and emit exactly one safe JSON line.
  * @param required Commander's action (never credentials).
@@ -131,14 +134,20 @@ async function legacyStatus({ userDataDir }: { userDataDir: string }, optional: 
 }
 
 /** Dry run or apply. An empty source (no owner.db, no entries, an empty backup) returns the empty
- * report before project.db is even opened, so it changes nothing anywhere.
+ * report before project.db is even opened, so it changes nothing anywhere. Each call rereads the
+ * source, so the dry run reports a digest of what it read and an apply must name it: a source
+ * replaced while the confirmation was open is refused instead of importing keys nobody reviewed.
  * @complexity O(entries + payload bytes); see importLegacyKeys.
  */
 async function importRequest({ request, userDataDir }: { request: Record<string, unknown>; userDataDir: string }, optional: Optional = {}): Promise<LegacyImportReport> {
   if (typeof request.apply !== 'boolean') throw new OwnerStoreInputError();
   const snapshot = request.source === 'owner-store' ? await legacyStore({ request, userDataDir }) : await legacyBackup({ request });
   if (snapshot === null || snapshot.entries.length === 0) return EMPTY_IMPORT;
-  return withProjectVault({ userDataDir, work: target => importLegacyKeys({ snapshot, target }, { apply: request.apply as boolean }) }, optional);
+  // The legacy readers order every row, so the same source always serializes the same way.
+  const sourceDigest = createHash('sha256').update(JSON.stringify(snapshot)).digest('hex');
+  if (request.apply && request.expectedDigest !== sourceDigest) throw new ImportSourceChangedError();
+  const report = await withProjectVault({ userDataDir, work: target => importLegacyKeys({ snapshot, target }, { apply: request.apply as boolean }) }, optional);
+  return { ...report, sourceDigest };
 }
 
 /** owner.db read-only; its key is only read. An empty store needs no key and yields nothing. */
@@ -173,7 +182,7 @@ function requestObject({ text }: { text: string | null }, _options = {}): Record
  */
 function assertRequestFields({ action, request }: { action: OwnerStoreAction; request: Record<string, unknown> }, _options = {}): void {
   const fields: Record<OwnerStoreAction, readonly string[]> = { status: [], list: ['store'], put: ["entry", 'store'],
-    import: ['source', 'apply', 'filePath', 'passphrase'] };
+    import: ['source', 'apply', 'filePath', 'passphrase', 'expectedDigest'] };
   assertFields({ record: request, fields: ["userDataDir", ...fields[action]] });
   if (request.store !== undefined && request.store !== 'project') throw new OwnerStoreInputError();
 }
@@ -259,6 +268,7 @@ function safeError({ error }: { error: unknown }, _options = {}): { code: string
   if (error instanceof OwnerStoreInputError) return { code: "invalid-input", message: error.message };
   if (error instanceof OwnerStoreRecoveryError) return { code: "recovery-required", message: "The older shared-key store cannot be opened. Restore its original owner.key." };
   if (error instanceof OwnerStoreBackupError) return { code: error.code, message: "Import requires a valid encrypted backup." };
+  if (error instanceof ImportSourceChangedError) return { code: "source-changed", message: "The import source changed after it was reviewed. Run the import again." };
   if (error instanceof VaultError) return { code: error.code, message: "The credential operation was refused. Refresh the inventory before retrying." };
   return { code: "operation-failed", message: "The shared-key operation failed. Check the backup passphrase before retrying." };
 }

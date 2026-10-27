@@ -97,15 +97,31 @@ test("the same id with a different secret, metadata or identity is a conflict an
   }
 });
 
-test("a taken name (same kind and label, or the same media provider) is a conflict; another kind is not", async () => {
+// Before: "a taken name (same kind and label, or the same media provider) is a conflict; another kind is not"
+// refused a vendor label any other vendor row used. The project index is per (kind, provider) group, so an
+// equal label under another provider imports; media-provider rows are now refused by kind (see below).
+test("a taken name (same kind, provider and label) is a conflict; another provider or kind is not", async () => {
   const vendor = legacy();
-  const media = legacy({ id: "photos", kind: "media-provider", label: "Photos", provider: "s3", meta: {} });
-  const sameLabelOtherKind = legacy({ id: "repo", kind: "source-control", label: "Deployment key", provider: "github" });
-  const rows = [row(legacy({ id: "other-deploy" })), row(legacy({ id: "other-media", kind: "media-provider", label: "Bucket", provider: "s3", meta: {} }))];
+  const otherProvider = legacy({ id: "netlify-deploy", provider: "netlify" });
+  const repo = legacy({ id: "repo", kind: "source-control", label: "Repo key", provider: "github" });
+  const repoOtherProvider = legacy({ id: "repo-gitlab", kind: "source-control", label: "Repo key", provider: "gitlab" });
+  const sameLabelOtherKind = legacy({ id: "repo-2", kind: "source-control", label: "Deployment key", provider: "github" });
+  const rows = [row(legacy({ id: "other-deploy" })), row(legacy({ id: "other-repo", kind: "source-control", label: "Repo key", provider: "github" }))];
   const f = target({ rows });
-  const report = await importLegacyKeys({ snapshot: snapshot([vendor, media, sameLabelOtherKind]), target: f.target }, { apply: true });
-  assert.deepEqual(report.items, [item(vendor, "conflict", "label-taken"), item(media, "conflict", "label-taken"), item(sameLabelOtherKind, "imported")]);
-  assert.deepEqual(f.puts.map(put => put.id), ["repo"]);
+  const report = await importLegacyKeys({ snapshot: snapshot([vendor, otherProvider, repo, repoOtherProvider, sameLabelOtherKind]), target: f.target }, { apply: true });
+  assert.deepEqual(report.items, [item(vendor, "conflict", "label-taken"), item(otherProvider, "imported"), item(repo, "conflict", "label-taken"),
+    item(repoOtherProvider, "imported"), item(sameLabelOtherKind, "imported")]);
+  assert.deepEqual(f.puts.map(put => put.id), ["netlify-deploy", "repo-gitlab", "repo-2"]);
+});
+
+test("media-provider and publish-peer keys are listed as unsupported, not imported: no project reader uses them yet", async () => {
+  const entries = [legacy({ id: "photos", kind: "media-provider", label: "Photos", provider: "s3", meta: {} }),
+    legacy({ id: "peer", kind: "publish-peer", label: "Staging peer", provider: null, meta: {} })];
+  const f = target();
+  const report = await importLegacyKeys({ snapshot: snapshot(entries), target: f.target }, { apply: true });
+  assert.deepEqual(report.items, entries.map(entry => item(entry, "unsupported", "kind")));
+  assert.equal(report.applied, false);
+  assert.deepEqual(f.events, []);
 });
 
 test("site-assistant and database-destination kinds are refused by name; plugin-owned rows by owner", async () => {

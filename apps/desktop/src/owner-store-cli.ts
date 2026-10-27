@@ -34,6 +34,7 @@ export function ownerStoreFailure<A extends OwnerStoreAction>({ action, code }: 
     'invalid-record': 'The shared-key entry is invalid.',
     'cancelled': 'The import was cancelled.',
     'timeout': 'The shared-key operation timed out. Refresh before retrying.',
+    'source-changed': 'The import source changed after it was reviewed. Run the import again.',
   };
   const safeCode = Object.hasOwn(messages, code) ? code : 'operation-failed';
   return { version: 1, ok: false, action, error: { code: safeCode,
@@ -144,7 +145,7 @@ function singleLineJson({ output }: { output: string }, _options = {}): Record<s
  */
 function cleanData<A extends OwnerStoreAction>({ action, data }: { action: A; data: Record<string, unknown> }, _options = {}): OwnerStoreData[A] {
   const fields: Record<OwnerStoreAction, readonly string[]> = {
-    status: ['legacy', 'entries', 'grants'], list: ['entries'], put: ['entry'], import: ['applied', 'items', 'pending'],
+    status: ['legacy', 'entries', 'grants'], list: ['entries'], put: ['entry'], import: ['applied', 'items', 'pending', 'sourceDigest'],
   };
   const out = pick({ value: data, fields: fields[action] });
   if (action === 'list') out.entries = (data.entries as object[]).map(value => cleanEntry({ value }));
