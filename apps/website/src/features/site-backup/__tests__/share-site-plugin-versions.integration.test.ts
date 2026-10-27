@@ -9,7 +9,7 @@
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -17,6 +17,7 @@ import test, { type TestContext } from "node:test";
 import type { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 import { prepareArchiveExtensions } from "../archive-extensions.js";
+import type { ArchivePlugin } from "../archive-manifest.js";
 import type { SiteSharePlanContent } from "../plan-store.js";
 import { buildShareZip } from "../share-zip.js";
 import { collectSiteBackupFiles, type SiteBackupSources } from "../sources.js";
@@ -38,7 +39,7 @@ function site(t: TestContext, optional: { pins?: Record<string, string> } = {}):
 }
 
 /** Archive path -> text of every plugin file the share ZIP would carry, and the plugins scope note. */
-async function exported(sources: SiteBackupSources): Promise<{ entries: Record<string, string>; note: string | undefined }> {
+async function exported(sources: SiteBackupSources): Promise<{ entries: Record<string, string>; note: string | undefined; plugins: readonly ArchivePlugin[] }> {
   const collected = await collectSiteBackupFiles({ sources, include: { database: false, media: false, themes: false, plugins: true, settings: false } }, { profile: "share" });
   const extensions = await prepareArchiveExtensions({ sources, files: collected.files });
   const picked: File[] = [];
@@ -54,7 +55,7 @@ async function exported(sources: SiteBackupSources): Promise<{ entries: Record<s
     const archivePath = (file as File & { webkitRelativePath?: string }).webkitRelativePath?.replace(/^share\//, "") ?? file.name;
     if (archivePath.startsWith("plugins/")) entries[archivePath] = await file.text();
   }
-  return { entries, note: collected.scopeNotes.plugins };
+  return { entries, note: collected.scopeNotes.plugins, plugins: extensions.plugins };
 }
 
 const PACKAGE = { "server/index.mjs": "export default {};", "src/data/default.json": "content" };
@@ -79,7 +80,10 @@ test("two retained versions export only the latest, or the pinned one", async t 
   for (const [pins, version] of [[{}, "1.1.0"], [{ multi: "1.0.0" }, "1.0.0"]] as const) {
     const { sources, installDir } = site(t, { pins });
     for (const v of ["1.0.0", "1.1.0"]) installSitePlugin({ installDir, id: "multi", version: v, package: { ...PACKAGE, "server/index.mjs": v } });
-    assert.deepEqual((await exported(sources)).entries, shipped("multi", version, { ...PACKAGE, "server/index.mjs": version }), version);
+    const { entries, plugins } = await exported(sources);
+    assert.deepEqual(entries, shipped("multi", version, { ...PACKAGE, "server/index.mjs": version }), version);
+    // The archive's plugin record names the shipped version, read from the manifest Jini listed.
+    assert.deepEqual(plugins.map(plugin => [plugin.kind, plugin.id, plugin.version]), [["site", "multi", version]]);
   }
 });
 
@@ -112,6 +116,19 @@ test("a package file that no longer matches its integrity hash keeps the whole p
   const { entries, note } = await exported(sources);
   assert.deepEqual(entries, {});
   assert.match(note ?? "", leftOut("tampered"));
+});
+
+// Mutation-proven (dropping the listed-vs-walked count check ships a partial package): a listed file the
+// walk does not add (deleted after install, or a symlink) keeps the whole plugin out.
+test("a package file deleted or replaced by a symlink after install keeps the whole plugin out", { skip: process.platform === "win32" }, async t => {
+  const { sources, installDir } = site(t);
+  rmSync(path.join(installSitePlugin({ installDir, id: "deleted", version: "1.0.0", package: PACKAGE }), "src/data/default.json"));
+  const linked = path.join(installSitePlugin({ installDir, id: "linked", version: "1.0.0", package: PACKAGE }), "src/data/default.json");
+  rmSync(linked);
+  symlinkSync(path.join(installDir, "deleted/1.0.0/server/index.mjs"), linked);
+  const { entries, note } = await exported(sources);
+  assert.deepEqual(entries, {});
+  assert.match(note ?? "", leftOut("deleted", "linked"));
 });
 
 // RED: flat and tier folders were walked as packages. They are not a Jini layout, so nothing ships.

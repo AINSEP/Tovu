@@ -446,7 +446,8 @@ async function sitePluginPackageFiles(required: { sink: WalkSink; installDir: st
   for (const file of listed.files) {
     await addFile(staged, { absPath: path.join(listed.rootDir, file.relativePath), relPath: `plugins/${record.id}/package/${file.relativePath}`, scope: "plugins" });
   }
-  if (staged.skipped.length > 0 || staged.files.length !== listed.files.length) return null;
+  // addFile adds nothing for a missing, excluded, linked or non-regular file, so a short list is every refusal.
+  if (staged.files.length !== listed.files.length) return null;
   for (const [index, planned] of staged.files.entries()) {
     const expected = listed.files[index]!.sha256;
     const read = expected === null ? null : await readPlannedFile(planned);
