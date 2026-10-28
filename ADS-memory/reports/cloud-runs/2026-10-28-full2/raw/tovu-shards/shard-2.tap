@@ -1,0 +1,74 @@
+TAP version 13
+# Subtest: SiteAssistantHeader
+    # Subtest: renders the public title and New thread without a workspace kicker
+    ok 1 - renders the public title and New thread without a workspace kicker
+      ---
+      duration_ms: 89.880821
+      type: 'test'
+      ...
+    # Subtest: resets immediately with no confirm step when the transcript is empty
+    ok 2 - resets immediately with no confirm step when the transcript is empty
+      ---
+      duration_ms: 50.659
+      type: 'test'
+      ...
+    # Subtest: shows a two-step confirm, without resetting yet, when the transcript has messages
+    ok 3 - shows a two-step confirm, without resetting yet, when the transcript has messages
+      ---
+      duration_ms: 22.96925
+      type: 'test'
+      ...
+    # Subtest: protects a typed draft in an empty transcript and restores focus after Cancel or Escape
+    ok 4 - protects a typed draft in an empty transcript and restores focus after Cancel or Escape
+      ---
+      duration_ms: 28.240942
+      type: 'test'
+      ...
+    # Subtest: autofocuses Cancel (the safe choice), not the destructive Discard button, once the confirm step appears
+    ok 5 - autofocuses Cancel (the safe choice), not the destructive Discard button, once the confirm step appears
+      ---
+      duration_ms: 13.850392
+      type: 'test'
+      ...
+    # Subtest: backs out on Cancel without resetting, restoring the plain New thread button
+    ok 6 - backs out on Cancel without resetting, restoring the plain New thread button
+      ---
+      duration_ms: 14.45906
+      type: 'test'
+      ...
+    # Subtest: resets and closes the confirm step when Discard is clicked
+    ok 7 - resets and closes the confirm step when Discard is clicked
+      ---
+      duration_ms: 58.635687
+      type: 'test'
+      ...
+    # Subtest: backs out on Escape (from anywhere in the pane) without resetting
+    ok 8 - backs out on Escape (from anywhere in the pane) without resetting
+      ---
+      duration_ms: 15.734439
+      type: 'test'
+      ...
+    # Subtest: keeps confirmation open on non-Escape keydown without resetting
+    ok 9 - keeps confirmation open on non-Escape keydown without resetting
+      ---
+      duration_ms: 14.928779
+      type: 'test'
+      ...
+    # Subtest: Escape is inert when the confirm step is not open (no listener attached, nothing to dismiss)
+    ok 10 - Escape is inert when the confirm step is not open (no listener attached, nothing to dismiss)
+      ---
+      duration_ms: 12.212932
+      type: 'test'
+      ...
+    # Subtest: removes its Escape listener on unmount — a later Escape after unmount touches nothing
+    ok 11 - removes its Escape listener on unmount — a later Escape after unmount touches nothing
+      ---
+      duration_ms: 21.489162
+      type: 'test'
+      ...
+    1..11
+ok 1 - SiteAssistantHeader
+  ---
+  duration_ms: 348.655031
+  type: 'suite'
+  ...

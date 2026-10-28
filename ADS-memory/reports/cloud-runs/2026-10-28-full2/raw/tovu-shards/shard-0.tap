@@ -1,0 +1,111 @@
+TAP version 13
+# Not implemented: navigation to another Document
+# Not implemented: Window's alert() method
+# Subtest: fail throws a BundleCheckError carrying the message
+ok 1 - fail throws a BundleCheckError carrying the message
+  ---
+  duration_ms: 1.326989
+  type: 'test'
+  ...
+# Subtest: isNavigationError recognises only jsdom's navigation report
+ok 2 - isNavigationError recognises only jsdom's navigation report
+  ---
+  duration_ms: 0.231399
+  type: 'test'
+  ...
+# Subtest: a bundle that mounts passes, with the page stubs real browsers provide in place
+ok 3 - a bundle that mounts passes, with the page stubs real browsers provide in place
+  ---
+  duration_ms: 232.147613
+  type: 'test'
+  ...
+# Subtest: a bundle that throws while evaluating fails before mounting is even checked
+ok 4 - a bundle that throws while evaluating fails before mounting is even checked
+  ---
+  duration_ms: 27.959732
+  type: 'test'
+  ...
+# Subtest: an error raised after evaluation is reported as a post-mount failure
+ok 5 - an error raised after evaluation is reported as a post-mount failure
+  ---
+  duration_ms: 14.281153
+  type: 'test'
+  ...
+# Subtest: a bundle that removes the mount point, or never renders into it, fails
+ok 6 - a bundle that removes the mount point, or never renders into it, fails
+  ---
+  duration_ms: 29.940282
+  type: 'test'
+  ...
+# Subtest: the poisoned and wrong-shaped transcript scenarios seed their keys and accept only a cleared or empty entry
+ok 7 - the poisoned and wrong-shaped transcript scenarios seed their keys and accept only a cleared or empty entry
+  ---
+  duration_ms: 73.024289
+  type: 'test'
+  ...
+# Subtest: the queue scenarios seed an entry and pass only once it was drained
+ok 8 - the queue scenarios seed an entry and pass only once it was drained
+  ---
+  duration_ms: 52.867414
+  type: 'test'
+  ...
+# Subtest: the highlight scenario needs the heading highlighted, scrolled exactly once, and the queue drained
+ok 9 - the highlight scenario needs the heading highlighted, scrolled exactly once, and the queue drained
+  ---
+  duration_ms: 52.984933
+  type: 'test'
+  ...
+# Subtest: the scroll_to scenario needs one scroll, no highlight, and the queue drained
+ok 10 - the scroll_to scenario needs one scroll, no highlight, and the queue drained
+  ---
+  duration_ms: 52.903632
+  type: 'test'
+  ...
+# Subtest: the rehydrated-directive scenario seeds an already-executed navigate and fails on any navigation attempt
+ok 11 - the rehydrated-directive scenario seeds an already-executed navigate and fails on any navigation attempt
+  ---
+  duration_ms: 15.116899
+  type: 'test'
+  ...
+# Subtest: checkBundleMounts runs every scenario in order and stops at the first failure
+ok 12 - checkBundleMounts runs every scenario in order and stops at the first failure
+  ---
+  duration_ms: 193.383103
+  type: 'test'
+  ...
+# Subtest: main reads the bundle, runs the check, and reports success as 0
+ok 13 - main reads the bundle, runs the check, and reports success as 0
+  ---
+  duration_ms: 0.633239
+  type: 'test'
+  ...
+# Subtest: main reports an unreadable bundle or a failed scenario on stderr with exit status 1
+ok 14 - main reports an unreadable bundle or a failed scenario on stderr with exit status 1
+  ---
+  duration_ms: 0.587984
+  type: 'test'
+  ...
+# Subtest: main's default reader reads the bundle file from disk
+ok 15 - main's default reader reads the bundle file from disk
+  ---
+  duration_ms: 1.78163
+  type: 'test'
+  ...
+# Subtest: isEntryPoint is true only when the module is the script node was started with
+ok 16 - isEntryPoint is true only when the module is the script node was started with
+  ---
+  duration_ms: 0.178621
+  type: 'test'
+  ...
+# Subtest: a bundle honouring every contract passes every scenario
+ok 17 - a bundle honouring every contract passes every scenario
+  ---
+  duration_ms: 343.824425
+  type: 'test'
+  ...
+# Subtest: run as a script against a missing bundle, it fails loudly with exit status 1
+ok 18 - run as a script against a missing bundle, it fails loudly with exit status 1
+  ---
+  duration_ms: 1139.716636
+  type: 'test'
+  ...

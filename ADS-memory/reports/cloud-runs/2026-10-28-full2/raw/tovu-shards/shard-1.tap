@@ -1,0 +1,25 @@
+TAP version 13
+# Subtest: React activation preserves page focus on closed mount and focuses explicit opens
+ok 1 - React activation preserves page focus on closed mount and focuses explicit opens
+  ---
+  duration_ms: 126.962936
+  type: 'test'
+  ...
+# Subtest: React activation preserves page focus on resume and focuses explicit opens
+ok 2 - React activation preserves page focus on resume and focuses explicit opens
+  ---
+  duration_ms: 132.416388
+  type: 'test'
+  ...
+# Subtest: React activation without a mount root still toggles, and touches no page element
+ok 3 - React activation without a mount root still toggles, and touches no page element
+  ---
+  duration_ms: 30.146642
+  type: 'test'
+  ...
+# Subtest: a focus request while already open and with no enabled composer leaves focus where it was
+ok 4 - a focus request while already open and with no enabled composer leaves focus where it was
+  ---
+  duration_ms: 25.048814
+  type: 'test'
+  ...
