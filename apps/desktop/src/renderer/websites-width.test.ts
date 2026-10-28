@@ -21,6 +21,8 @@ test('Websites fits at 375px with every nav control and header action inside the
     else Reflect.deleteProperty(globalThis, 'React');
   });
   const { SectionIcon, GearIcon } = await import('./icons.js');
+  const { ResourcesChip, ResourcesMonitor } = await import('./ResourcesPanel.js');
+  const { SharedKeysLauncher } = await import('./SharedKeys.js');
   const source = fs.readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
   const foldersSource = fs.readFileSync(new URL('./SitesFolders.tsx', import.meta.url), 'utf8');
   const settings = { folders: { roots: [], extraRoots: [], home: '' }, open: false, show() {}, close() {} };
@@ -37,11 +39,15 @@ test('Websites fits at 375px with every nav control and header action inside the
     useUpdateCheck: () => ({ available: false, checking: false, async checkForUpdates() {} }),
   });
   const TopNav = sourceFunction(source, 'TopNav', {
-    useAppVersion: () => ({ version: '0.1.13-preview-long-version', error: null }), visibleSections, NavLink, SettingsControl,
+    useAppVersion: () => ({ version: '0.1.13-preview-long-version', error: null }), visibleSections, NavLink, SettingsControl, ResourcesChip,
   });
-  const MainHeader = sourceFunction(source, 'MainHeader', { SitesFolders });
-  const nav = renderToStaticMarkup(createElement(TopNav, {
-    activeId: 'projects', onSitesHome: true, runningCount: 12, theme: 'light', onThemeChange() {}, onOpenAppearance() {}, onSelectSection() {},
+  const MainHeader = sourceFunction(source, 'MainHeader', { SitesFolders, SharedKeysLauncher });
+  // The real chip needs its monitor; without it, the control disappears from the width check.
+  const nav = renderToStaticMarkup(createElement(ResourcesMonitor, {
+    projects: [], onSiteUpdated() {}, useReadings: () => null,
+    children: createElement(TopNav, {
+      activeId: 'projects', onSitesHome: true, runningCount: 12, theme: 'light', onThemeChange() {}, onOpenAppearance() {}, onSelectSection() {},
+    }),
   }));
   const header = renderToStaticMarkup(createElement(MainHeader, {
     activeId: 'projects', isCreating: false, activeLabel: 'Websites', onCreateWebsite() {}, onRescan: async () => {},
@@ -60,6 +66,8 @@ test('Websites fits at 375px with every nav control and header action inside the
     <div class="card__body"><div class="card__head"><h2 class="card__name">${'LongWebsiteName'.repeat(12)}</h2><button>⋮</button></div>
     <div class="card__actions"><button class="button">Start</button><button class="button">Restart</button></div></div></article></div>
     </main></div>`);
+  assert.equal(await page.getByRole('button', { name: 'Memory: Unavailable', exact: true }).count(), 1);
+  assert.equal(await page.getByRole('button', { name: 'Shared keys', exact: true }).count(), 1);
   await page.evaluate(() => document.fonts.ready);
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => { document.documentElement.dataset.theme = value; }, theme);
@@ -67,14 +75,15 @@ test('Websites fits at 375px with every nav control and header action inside the
     type Bounds = Pick<DOMRect, 'left' | 'right' | 'width'>;
     const measured = await page.evaluate<{
       width: number; pageWidth: number; mainWidth: number; mainScroll: number;
-      nav: Bounds; gear: Bounds; actions: Bounds[]; links: Bounds[];
+      nav: Bounds; gear: Bounds; actions: Bounds[]; links: Bounds[]; tools: Bounds[];
     }>(`(() => {
       const nav = document.querySelector('.topnav'), gear = document.querySelector('[aria-label="Settings"]');
       const main = document.querySelector('.main');
       const bounds = (element) => { const rect = element.getBoundingClientRect(); return { left: rect.left, right: rect.right, width: rect.width }; };
       return { width: innerWidth, pageWidth: document.documentElement.scrollWidth, mainWidth: main.clientWidth, mainScroll: main.scrollWidth,
         nav: bounds(nav), gear: bounds(gear), actions: [...document.querySelectorAll('.main__tools button')].map(bounds),
-        links: [...document.querySelectorAll('.topnav__links button')].map(bounds) };
+        links: [...document.querySelectorAll('.topnav__links button')].map(bounds),
+        tools: [...document.querySelectorAll('.topnav__tools button')].map(bounds) };
     })()`);
     assert.equal(measured.width, 375);
     assert.ok(measured.pageWidth <= 375, `${theme}: page is ${measured.pageWidth}px wide`);
@@ -82,7 +91,7 @@ test('Websites fits at 375px with every nav control and header action inside the
     assert.ok(measured.nav.left >= 0 && measured.nav.right <= 375);
     assert.ok(measured.gear.width >= 34 && measured.gear.right <= measured.nav.right);
     assert.equal(measured.links.length, visibleSections().length);
-    for (const control of [...measured.links, ...measured.actions]) assert.ok(control.left >= 0 && control.right <= 375 && control.width > 0);
+    for (const control of [...measured.links, ...measured.actions, ...measured.tools]) assert.ok(control.left >= 0 && control.right <= 375 && control.width > 0);
   }
 });
 

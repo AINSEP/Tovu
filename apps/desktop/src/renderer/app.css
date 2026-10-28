@@ -185,6 +185,8 @@ button { font: inherit; color: inherit; }
   position: relative;
   z-index: 5;
   display: flex;
+  /* The memory chip can make a single row wider than the window. */
+  flex-wrap: wrap;
   align-items: center;
   /* Keep the pill's intrinsic desktop width, but let spacing and the brand yield before icons.
      Fixed gaps plus the version label previously made this 403px wide in a 375px window. */
@@ -320,7 +322,7 @@ button { font: inherit; color: inherit; }
   box-shadow: 0 0 0 2px var(--bg);
 }
 
-.topnav__tools { display: flex; align-items: center; flex: none; }
+.topnav__tools { display: flex; align-items: center; flex: none; max-width: 100%; }
 
 /* ---------- nav tooltip ---------- */
 
