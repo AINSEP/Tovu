@@ -8,6 +8,8 @@ export interface DockLeadingAccessoryProps {
   readonly warning: string | null;
   /** The folder-drop notice slot and its two actions (`useFolderDropBridge`). */
   readonly folderDrop: { readonly notice: FolderDropNoticeProps["notice"]; readonly dismiss: () => void; readonly retry: () => void };
+  /** Whether the composer's folder button is showing, so the paste hint can point at it. */
+  readonly canPickFolder?: boolean;
   /** The pinned Agent Plugin chips and their remove action. */
   readonly pluginChips: SelectedAgentPluginTrayProps["chips"];
   readonly onRemovePlugin: SelectedAgentPluginTrayProps["onRemove"];
@@ -34,7 +36,7 @@ export interface DockLeadingAccessoryProps {
  * @returns A fragment of the parts that currently apply; each tray renders nothing when empty.
  * @complexity O(n) in the number of chips.
  */
-export function DockLeadingAccessory({ note, warning, folderDrop, pluginChips, onRemovePlugin, skills, skillOnlySend }: DockLeadingAccessoryProps) {
+export function DockLeadingAccessory({ note, warning, folderDrop, canPickFolder = false, pluginChips, onRemovePlugin, skills, skillOnlySend }: DockLeadingAccessoryProps) {
   return (
     <>
       {note && <p className="assistant-agent-auth-warning" role="status">{note}</p>}
@@ -43,7 +45,7 @@ export function DockLeadingAccessory({ note, warning, folderDrop, pluginChips, o
       {warning ? (
         <p className="assistant-agent-auth-warning" role="status" aria-live="polite">{warning}</p>
       ) : null}
-      <FolderDropNotice notice={folderDrop.notice} onDismiss={folderDrop.dismiss} onRetry={folderDrop.retry} />
+      <FolderDropNotice notice={folderDrop.notice} onDismiss={folderDrop.dismiss} onRetry={folderDrop.retry} canPickFolder={canPickFolder} />
       <SelectedAgentPluginTray chips={pluginChips} onRemove={onRemovePlugin} />
       <SelectedAgentPluginTray chips={skills.chips} onRemove={skills.removeSkill} onSendSkills={skillOnlySend.canSendSkills ? skillOnlySend.sendSkills : undefined} />
     </>

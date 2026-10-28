@@ -28,6 +28,11 @@ describe("FolderDropNotice", () => {
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 
+  it("points at the folder button when this machine can open a folder dialog", () => {
+    render(<FolderDropNotice notice={{ kind: "path-unavailable" }} canPickFolder onDismiss={vi.fn()} onRetry={vi.fn()} />);
+    expect(screen.getByRole("status")).toHaveTextContent("Browsers can't share folder paths. Use the folder button, or paste the path (Finder: ⌥⌘C, Explorer: Ctrl+Shift+C).");
+  });
+
   it("renders FolderDropConfirmation for a confirmation notice", async () => {
     const onDismiss = vi.fn();
     const onRetry = vi.fn();

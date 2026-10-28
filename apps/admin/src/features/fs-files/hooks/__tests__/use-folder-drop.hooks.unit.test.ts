@@ -774,3 +774,25 @@ describe("useFolderDrop — real ChatPane composer", () => {
     expect(result.current.notice?.kind).toBe(fails ? "error" : "confirmation");
   });
 });
+
+describe("useFolderDrop — a path from the composer's folder button", () => {
+  it("inserts the picked path exactly like a desktop folder drop and points the custom root at it", async () => {
+    const composerHandle = fakeComposerHandle();
+    const setCustomRoot = vi.fn().mockResolvedValue({ path: "/Users/x/My Site" });
+    const { result } = renderHook(() =>
+      useFolderDrop({ composerHandle }, { getPort: () => null, setCustomRoot, getCustomRoot: vi.fn().mockResolvedValue({ path: null }) }),
+    );
+    act(() => result.current.insertFolderPath("/Users/x/My Site"));
+    expect(composerHandle.current?.insertText).toHaveBeenCalledExactlyOnceWith("/Users/x/My Site");
+    await waitFor(() => expect(result.current.notice).toMatchObject({ kind: "confirmation", path: "/Users/x/My Site" }));
+    expect(setCustomRoot).toHaveBeenCalledWith("/Users/x/My Site");
+  });
+
+  it("shows the paste-the-path hint on request", () => {
+    const { result } = renderHook(() =>
+      useFolderDrop({ composerHandle: fakeComposerHandle() }, { getPort: () => null, setCustomRoot: vi.fn(), getCustomRoot: vi.fn() }),
+    );
+    act(() => result.current.showPathHint());
+    expect(result.current.notice).toEqual({ kind: "path-unavailable" });
+  });
+});

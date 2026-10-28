@@ -2,7 +2,8 @@ import { isValidElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { PushToTalkMicButton } from "../../../features/voice-input/PushToTalkMicButton";
-import { optionalChatPaneProps, renameActiveConversation, voiceFooterAccessory } from "../assistant-dock-props";
+import { composerFooterLeading, optionalChatPaneProps, renameActiveConversation, voiceFooterAccessory } from "../assistant-dock-props";
+import { FolderPathButton } from "../FolderPathButton";
 
 /**
  * @file The pure prop builders `AssistantDock.tsx` hands to `ChatPane` and its header, on every
@@ -56,5 +57,24 @@ describe("renameActiveConversation", () => {
     const rename = vi.fn(async () => undefined);
     expect(renameActiveConversation({ activeId: null, rename })("Quarterly report")).toBeUndefined();
     expect(rename).not.toHaveBeenCalled();
+  });
+});
+
+describe("composerFooterLeading", () => {
+  const picker = { available: true, picking: false, pickFolder: vi.fn() };
+  const mic = <span>mic</span>;
+
+  it("passes only the mic (or nothing) through while the folder dialog is unavailable here", () => {
+    expect(composerFooterLeading({ folderPicker: { ...picker, available: false }, voice: mic })).toBe(mic);
+    expect(composerFooterLeading({ folderPicker: { ...picker, available: false }, voice: undefined })).toBeUndefined();
+  });
+
+  it("puts the folder button first, right after +, wired to the picker, then the mic", () => {
+    const slot = composerFooterLeading({ folderPicker: { ...picker, picking: true }, voice: mic });
+    const children = isValidElement<{ children: unknown[] }>(slot) ? slot.props.children : [];
+    const [button, voice] = children as [unknown, unknown];
+    expect(isValidElement(button) && button.type).toBe(FolderPathButton);
+    expect(isValidElement<{ picking: boolean; onPick: unknown }>(button) && [button.props.picking, button.props.onPick]).toEqual([true, picker.pickFolder]);
+    expect(voice).toBe(mic);
   });
 });

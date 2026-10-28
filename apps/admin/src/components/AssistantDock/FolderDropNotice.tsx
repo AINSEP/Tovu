@@ -17,11 +17,13 @@ export interface FolderDropNoticeProps {
   readonly notice: FolderDropNoticeState | null;
   readonly onDismiss: () => void;
   readonly onRetry: () => void;
+  /** Passed to `FolderDropPathHint`: whether the composer's folder button is available. */
+  readonly canPickFolder?: boolean;
 }
 
-export function FolderDropNotice({ notice, onDismiss, onRetry }: FolderDropNoticeProps) {
+export function FolderDropNotice({ notice, onDismiss, onRetry, canPickFolder = false }: FolderDropNoticeProps) {
   if (notice === null) return null;
-  if (notice.kind === "path-unavailable") return <FolderDropPathHint onDismiss={onDismiss} />;
+  if (notice.kind === "path-unavailable") return <FolderDropPathHint onDismiss={onDismiss} canPickFolder={canPickFolder} />;
   if (notice.kind === "confirmation") {
     return (
       <FolderDropConfirmation

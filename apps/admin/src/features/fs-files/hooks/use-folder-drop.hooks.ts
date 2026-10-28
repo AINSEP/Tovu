@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DragEvent } from "react";
 import type { ChatPaneComposerHandle } from "@jini-ai/chat/react";
-import { useFolderPathDropCapture } from "@jini-ai/ui";
+import { formatDroppedFolderPaths, useFolderPathDropCapture } from "@jini-ai/ui";
 
 import { api, ApiError } from "../../../lib/api";
 import { getFolderDropPort, type FolderDropPort } from "../folder-drop-port";
@@ -81,6 +81,12 @@ export interface UseFolderDrop {
    *  changes for the hook's lifetime (`useFolderPathDropCapture`), so `useFolderDropBridge`
    *  publishes it once per mount. */
   readonly handleDropCapture: (event: DragEvent<HTMLElement>) => void;
+  /** Handles a folder path that arrived without a drop (the composer's folder button) exactly as a
+   *  desktop folder drop: the path is inserted as text in the drop's own format, then becomes the
+   *  `custom` root with the same confirmation/error notice. */
+  readonly insertFolderPath: (path: string) => void;
+  /** Shows the `path-unavailable` notice (paste the path instead), replacing any other notice. */
+  readonly showPathHint: () => void;
 }
 
 export interface UseFolderDropInput {
@@ -247,6 +253,11 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
     },
   });
 
+  const showPathHint = useCallback(() => {
+    if (dismissTimer.current !== null) clearTimeout(dismissTimer.current);
+    setNotice({ kind: "path-unavailable" });
+  }, []);
+
   const handleDropCapture = useCallback((event: DragEvent<HTMLElement>) => {
     pathsInserted.current = false;
     capturePaths(event);
@@ -255,9 +266,14 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
     // per-file attachments (owner 2026-10-27: "You can attach at most 10 files to one message").
     event.preventDefault();
     event.stopPropagation();
-    if (dismissTimer.current !== null) clearTimeout(dismissTimer.current);
-    setNotice({ kind: "path-unavailable" });
-  }, [capturePaths]);
+    showPathHint();
+  }, [capturePaths, showPathHint]);
+
+  const { composerHandle } = input;
+  const insertFolderPath = useCallback((path: string) => {
+    composerHandle.current?.insertText(formatDroppedFolderPaths([path]));
+    void applyCustomRoot(path);
+  }, [composerHandle, applyCustomRoot]);
 
   const dismiss = useCallback(() => {
     if (dismissTimer.current !== null) clearTimeout(dismissTimer.current);
@@ -268,5 +284,5 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
     if (lastAttemptedPath.current !== null) void applyCustomRoot(lastAttemptedPath.current);
   }, [applyCustomRoot]);
 
-  return { notice, dismiss, retry, handleDropCapture };
+  return { notice, dismiss, retry, handleDropCapture, insertFolderPath, showPathHint };
 }

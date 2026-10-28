@@ -3543,6 +3543,11 @@ export const api = {
   getFsFilesCustomRoot: () => authenticatedAdminRequest<{ path: string | null }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/fs-files/custom-root` }),
   setFsFilesCustomRoot: (path: string) =>
     authenticatedAdminRequest<{ path: string }>({ method: "PUT", path: `/workspaces/${WORKSPACE_ID}/fs-files/custom-root`, body: { path } }),
+  // The composer's folder button. `GET` succeeds only when the server runs on this same machine
+  // (`apps/website`'s `routes/fs-files/folder-picker.ts`) — any rejection means "hide the button".
+  // `POST` opens the OS folder dialog there and resolves `{ path: null }` on Cancel.
+  getFolderPicker: () => authenticatedAdminRequest<{ available: true }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/fs-files/folder-picker` }),
+  pickFolder: () => authenticatedAdminRequest<{ path: string | null }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/fs-files/folder-picker` }),
   // The ADMIN's own agent daemon (Local CLI execution) — manual restart action for
   // `features/ai-assistant/AiAssistant.tsx`'s "Admin AI Assistant" tab. `server/routes/admin/system/
   // assistant-daemon.ts`'s route is synchronous and answers as soon as a restart is INITIATED, never
