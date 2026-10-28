@@ -64,6 +64,11 @@ the tool **before** building it — do not build against an assumed API. A new t
 `DERIVED_RISK_BY_TOOL_ID` entry or `assertToolIsWirable` throws at composition-root boot; that
 is a real cost, not a formality.
 
+Use `files_copy` for picked-folder, site, theme, media or URL assets, and `image_transform` for
+resize, crop, format conversion and favicon sets. Use these tools instead of Bash or Python for assets.
+Before reporting any theme done, check **every page** with `web_screenshot_page` at desktop and
+mobile (~375px), including pre-existing pages such as Blog and Privacy under the new theme.
+
 Part B also uses `assistant_ask_choice`, `media_import_local_file`, `theme_import_local_file`,
 `content_post_create`, `content_post_update` and `pages_write_html`. Load the shared mapping
 reference named in Part B directly; do not start site-import's public-URL questionnaire.

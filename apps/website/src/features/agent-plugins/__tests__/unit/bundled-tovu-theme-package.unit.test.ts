@@ -118,6 +118,13 @@ test("the compare loop is mandatory: source and own page, desktop and mobile, ca
   assert.match(skill, /Never report the theme done without a capture of its own page/);
 });
 
+test("theme guidance checks all pages at both sizes and uses asset tools", async () => {
+  const skill = await themeSkill();
+  for (const term of ["every page", "~375px", "Blog", "Privacy", "`web_screenshot_page`", "`files_copy`", "`image_transform`"]) {
+    assert.ok(skill.includes(term), `theme guidance needs ${term}`);
+  }
+});
+
 test("the header menu is wired by the menu marker's id, the way static themes resolve menus", async () => {
   const skill = await themeSkill();
   assert.match(skill, /"type":"menu","id":"<menu id>"/);
