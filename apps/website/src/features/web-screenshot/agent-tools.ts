@@ -31,7 +31,7 @@ export const WEB_SCREENSHOT_INPUT_SCHEMA = {
     themeId: { type: "string", minLength: 1, maxLength: 128, description: "sitePath only: render the page through this INSTALLED theme instead of the active one, WITHOUT activating it (visitors keep seeing the active theme). Use it to check a theme copy you are editing, e.g. 'luvira-copy'." },
     viewport: { type: "string", enum: VIEWPORT_NAMES, description: "desktop (1280x800, default), tablet (768x1024) or mobile (375x812)." },
     fullPage: { type: "boolean", description: `false (default): the first screen only. true: the whole page down to ${MAX_FULL_PAGE_HEIGHT_PX}px, returned as several images top to bottom (costs more tokens).` },
-    dismissCookieBanners: { type: "boolean", description: "Default false: leave cookie banners visible. Set true to click a common cookie accept/close control." },
+    dismissCookieBanners: { type: "boolean", description: "Default false: leave cookie banners visible. Set true to click a common cookie accept/close control. sitePath captures never show this site's own banner." },
     waitMs: { type: "integer", minimum: 0, maximum: MAX_WAIT_MS, description: `Settle time after DOM content loaded (never network idle) for late paint/animations, followed by a capped best-effort load wait. Default ${DEFAULT_WAIT_MS}.` },
   },
 } as const;
@@ -43,6 +43,7 @@ export const webScreenshotAgentToolCatalog: readonly AgentToolDefinition[] = [
       "THIS IS HOW TO SEE / LOOK AT HOW A WEB PAGE LOOKS: takes a screenshot of a page and returns the picture itself so you can see its layout, colors, fonts and images.",
       "Use it with url for any PUBLIC website (an existing site being imported or copied, a competitor or reference design), and with sitePath for THIS site's own page — capture both at the same viewport to compare visual parity side by side.",
       "themeId shows sitePath through an installed theme that is not active, without activating it.",
+      "sitePath captures leave out this site's cookie banner so the layout is visible; visitors still see it until they choose.",
       "Returns JPEG image(s) plus JSON { requestedUrl, finalUrl (or sitePath/finalPath, themeId), status, title, viewport, width, height, pageHeight, truncated, images [{index, top, height}], capturedAt, savedFiles }.",
       "Each capture is saved under the site's .captures/ folder; savedFiles gives the paths to cite.",
       "Public internet only for url: localhost, private-network and cloud-metadata addresses are refused, including via redirects and for every image/script the page loads. No cookies or logins are sent. One screenshot at a time; to read a JS page and see it together use web_fetch_page with render: true, screenshot: true.",

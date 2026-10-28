@@ -11,13 +11,18 @@ import { WEB_SCREENSHOT_TOOL_ID, type OpenOwnSite, type OwnSiteServer } from "./
  * falls back to the default theme for an unknown or invalid id, which is right for visitors but would
  * hand the agent a picture of the WRONG theme to compare against its reference (2026-10-08, the
  * "match a reference site" loop in tovu-theme Part C).
+ *
+ * Every capture's app also leaves out the cookie consent layer (`consentAudit`): with the banner on
+ * by default, each picture showed it over the page and the agent could not judge the layout
+ * (2026-10-27). The option belongs to this throwaway app only; visitors still get the banner.
  */
 
 /** The slice of a discovered theme this needs (`DiscoveredTheme` satisfies it structurally). */
 export interface RenderableTheme { manifest: { id: string }; status: string }
 
-/** Boots this site's app on a loopback origin; `optional.themeId` is the render override. */
-export type OpenLoopbackSite = (required: {}, optional: { themeId?: string }) => Promise<OwnSiteServer>;
+/** Boots this site's app on a loopback origin; `optional.themeId` is the render override and
+ * `optional.consentAudit` leaves out the cookie consent layer. */
+export type OpenLoopbackSite = (required: {}, optional: { themeId?: string; consentAudit?: true }) => Promise<OwnSiteServer>;
 
 function refusal(message: string): ToolInputError {
   return new ToolInputError({ message: `${WEB_SCREENSHOT_TOOL_ID}: ${message}` });
@@ -32,13 +37,13 @@ function refusal(message: string): ToolInputError {
  */
 export function createOwnSiteOpener({ themes, openLoopback }: { themes: readonly RenderableTheme[]; openLoopback: OpenLoopbackSite }): OpenOwnSite {
   return async (_required = {}, { themeId } = {}) => {
-    if (themeId === undefined) return openLoopback({}, {});
+    if (themeId === undefined) return openLoopback({}, { consentAudit: true });
     const theme = themes.find((candidate) => candidate.manifest.id === themeId);
     if (!theme) {
       const installed = themes.filter((candidate) => candidate.status === "valid").map((candidate) => candidate.manifest.id);
       throw refusal(`themeId '${themeId}' is not an installed theme. Installed themes: ${installed.join(", ") || "none"}.`);
     }
     if (theme.status !== "valid") throw refusal(`themeId '${themeId}' is installed but invalid (it fails theme validation), so the site would render a different theme instead. Fix the theme first.`);
-    return openLoopback({}, { themeId });
+    return openLoopback({}, { themeId, consentAudit: true });
   };
 }

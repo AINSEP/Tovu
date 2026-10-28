@@ -78,7 +78,7 @@ export interface SiteInspectionToolDeps extends SiteProfileSourceDeps, LiveOrigi
    * Node's `RequestListener` because that is all `fetchPublishedPage` does with it — see
    * `published-page.ts`'s `FetchPublishedPageDeps` for the full note.
    */
-  createSiteApp(optional?: { themeId?: string }): RequestListener;
+  createSiteApp(optional?: { themeId?: string; consentAudit?: true }): RequestListener;
   /** Passed through to `fetchPublishedPage` to trace its loopback render (`RouteDeps.observability`). */
   readonly observability?: ObservabilityPort;
   /**

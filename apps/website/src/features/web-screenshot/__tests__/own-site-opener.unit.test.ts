@@ -10,7 +10,8 @@ import { createOwnSiteOpener, type RenderableTheme } from "../own-site-opener.js
  * refused BEFORE a server is booted (the site render would otherwise silently fall back to the
  * default theme and the agent would compare the wrong picture), and a good one is handed to the
  * loopback server as a render override. The theme roster is read per call because discovery
- * mutates it in place.
+ * mutates it in place. Every capture is built without the site's cookie consent layer
+ * (`consentAudit`), so the agent judges the page itself, not the banner over it (2026-10-27).
  */
 
 function theme(id: string, status: "valid" | "invalid" = "valid"): RenderableTheme {
@@ -18,7 +19,7 @@ function theme(id: string, status: "valid" | "invalid" = "valid"): RenderableThe
 }
 
 function harness(themes: RenderableTheme[]) {
-  const opened: Array<{ themeId?: string }> = [];
+  const opened: Array<{ themeId?: string; consentAudit?: true }> = [];
   const open = createOwnSiteOpener({
     themes,
     openLoopback: async (_required, optional) => { opened.push(optional); return { origin: "http://127.0.0.1:1", close: async () => {} }; },
@@ -26,16 +27,16 @@ function harness(themes: RenderableTheme[]) {
   return { open, opened };
 }
 
-test("no themeId: the site opens with no override (its active theme)", async () => {
+test("no themeId: the site opens with no theme override (its active theme) and no consent banner", async () => {
   const { open, opened } = harness([theme("tovu-starter")]);
   await open();
-  assert.deepEqual(opened, [{}]);
+  assert.deepEqual(opened, [{ consentAudit: true }]);
 });
 
-test("an installed, valid themeId is passed through as the render override", async () => {
+test("an installed, valid themeId is passed through as the render override, still without the consent banner", async () => {
   const { open, opened } = harness([theme("tovu-starter"), theme("luvira-copy")]);
   await open({}, { themeId: "luvira-copy" });
-  assert.deepEqual(opened, [{ themeId: "luvira-copy" }]);
+  assert.deepEqual(opened, [{ themeId: "luvira-copy", consentAudit: true }]);
 });
 
 test("an unknown themeId is refused with the installed ids, and nothing is booted", async () => {
@@ -63,5 +64,5 @@ test("the roster is read at call time, so a theme duplicated after boot is accep
   const { open, opened } = harness(themes);
   themes.push(theme("fresh-copy"));
   await open({}, { themeId: "fresh-copy" });
-  assert.deepEqual(opened, [{ themeId: "fresh-copy" }]);
+  assert.deepEqual(opened, [{ themeId: "fresh-copy", consentAudit: true }]);
 });

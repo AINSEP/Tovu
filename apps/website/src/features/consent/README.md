@@ -57,6 +57,8 @@ Static publication still has no durable receipt backend. Deployment returns 409
 PUT of a disabled draft, POST to publish it, then a deployment retry. Explain that this also disables
 live-site enforcement and may allow optional scripts. No request flag bypasses the gate. The local
 renderer has a composition-only audit option; no header/query/cookie can select it.
+The assistant's own-site screenshots (`web_screenshot_page` sitePath) render through that same
+option, so its pictures show the page rather than the banner over it; visitors still see the banner.
 
 Node receipt storage remains Jini's immutable file adapter, with 180-day expiry and its 10k-record
 capacity/eviction behavior. A database receipt adapter and Worker/D1 lifecycle are phase 2, not a
