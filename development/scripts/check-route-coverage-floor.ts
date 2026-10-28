@@ -23,7 +23,7 @@
  */
 import { loadRouteCoverage, pct } from "./route-coverage-lib.js";
 
-const FLOOR = { line: 88, branch: 68, funcs: 93 };
+const FLOOR = { line: 99, branch: 68, funcs: 93 };
 
 function main(): void {
   const files = loadRouteCoverage();
