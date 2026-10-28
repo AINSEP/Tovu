@@ -59,6 +59,37 @@ test("issuance freezes exact constrained permissions, canonicalizes expiry and s
   assert.equal((await h.deps.apiKeys.findById({ workspaceId: WS, id: stored.id }))?.lastUsedAt, NOW);
 });
 
+test("concurrent issuances for one grantless principal cannot union distinct snapshots", async () => {
+  const h = await harness();
+  await h.deps.repos.policies.save({ id: "other-source", workspaceId: WS, name: "other-source", isBuiltin: false, isFrozen: false });
+  await h.deps.repos.policyPermissions.save({ id: "other-write", workspaceId: WS, policyId: "other-source", permission: "content.write", resourceType: null, constraintJson: null });
+  const attempts = await Promise.allSettled([
+    issueApiKey({ deps: h.deps, input: h.input }),
+    issueApiKey({ deps: h.deps, input: { ...h.input, policyIds: ["other-source"] } }),
+  ]);
+  assert.equal(attempts.filter(result => result.status === "fulfilled").length, 1);
+  const rejected = attempts.find(result => result.status === "rejected");
+  assert.ok(rejected?.status === "rejected");
+  assert.ok(rejected.reason instanceof IdentityValidationError);
+  assert.match(rejected.reason.message, /already carries grants/);
+  const keys = await h.deps.apiKeys.listByPrincipalId({ workspaceId: WS, principalId: h.principal.id });
+  assert.equal(keys.length, 1);
+  assert.equal((await h.deps.repos.principalPolicies.listByPrincipalId({ workspaceId: WS, principalId: h.principal.id })).length, 1);
+  const effective = await resolveEffectivePermissions({ deps: h.deps.repos, principalId: h.principal.id, workspaceId: WS });
+  const snapshot = await h.deps.repos.policyPermissions.listByPolicyId({ workspaceId: WS, policyId: keys[0]!.issuedPolicyId! });
+  assert.deepEqual(effective, snapshot);
+  assert.equal(effective.length, 1, "the losing request adds no permission");
+  assert.equal((await h.deps.repos.policies.list({ workspaceId: WS })).filter(policy => policy.isFrozen).length, 1);
+});
+
+test("failed key persistence rolls back all issuance snapshot writes", async () => {
+  const h = await harness();
+  h.deps.apiKeys.save = async () => { throw new Error("key persistence failed"); };
+  await assert.rejects(issueApiKey({ deps: h.deps, input: h.input }), /key persistence failed/);
+  assert.deepEqual(await h.deps.repos.principalPolicies.listByPrincipalId({ workspaceId: WS, principalId: h.principal.id }), []);
+  assert.deepEqual((await h.deps.repos.policies.list({ workspaceId: WS })).map(policy => policy.id).sort(), ["issuer-policy", "source"]);
+});
+
 for (const restriction of [{ resourceType: "entry", constraintJson: null }, { resourceType: null, constraintJson: '{"type":"recipe"}' }]) {
   test(`issuance refuses a permission the issuer holds only with ${JSON.stringify(restriction)}`, async () => {
     const h = await harness();

@@ -277,83 +277,87 @@ function readOptionalExpiry(value: unknown): ISODateTime | undefined {
 export async function issueApiKey(required: {
   deps: ApiKeyServiceDeps;
   input: IssueApiKeyInput;
-}): Promise<{ apiKey: ApiKeyRecord; rawKey: string }> {
+}, _optional: Record<string, never> = {}): Promise<{ apiKey: ApiKeyRecord; rawKey: string }> {
   const { deps, input } = required;
   const { workspaceId } = input;
 
-  await assertCallerMayManageApiKeys({
-    deps,
-    workspaceId,
-    callerPrincipalId: input.callerPrincipalId,
-  });
+  // The grantless read and every snapshot/key write share the existing workspace lock.
+  const execute = async () => {
+    await assertCallerMayManageApiKeys({
+      deps,
+      workspaceId,
+      callerPrincipalId: input.callerPrincipalId,
+    });
 
-  const label = requireBoundedName(input.label, "label");
-  const policyIds = requirePolicyIds(input.policyIds);
-  const expiresAt = readOptionalExpiry(input.expiresAt);
-  const boundPrincipalId = typeof input.principalId === "string" ? input.principalId.trim() : "";
-  if (boundPrincipalId.length === 0) {
-    throw new IdentityValidationError({ message: "'principalId' is required" });
-  }
+    const label = requireBoundedName(input.label, "label");
+    const policyIds = requirePolicyIds(input.policyIds);
+    const expiresAt = readOptionalExpiry(input.expiresAt);
+    const boundPrincipalId = typeof input.principalId === "string" ? input.principalId.trim() : "";
+    if (boundPrincipalId.length === 0) {
+      throw new IdentityValidationError({ message: "'principalId' is required" });
+    }
 
-  await findIssuableTargetOrThrow({ deps, workspaceId, principalId: boundPrincipalId });
-  const sourceRows = await collectSnapshotSourceRows({ deps, workspaceId, policyIds });
+    await findIssuableTargetOrThrow({ deps, workspaceId, principalId: boundPrincipalId });
+    const sourceRows = await collectSnapshotSourceRows({ deps, workspaceId, policyIds });
 
-  await assertGrantClamp({
-    deps,
-    workspaceId,
-    callerPrincipalId: input.callerPrincipalId,
-    conferredPermissions: sourceRows.map((row) => row.permission),
-  });
+    await assertGrantClamp({
+      deps,
+      workspaceId,
+      callerPrincipalId: input.callerPrincipalId,
+      conferredPermissions: sourceRows.map((row) => row.permission),
+    });
 
-  const keyId = deps.idGen.newId();
-  const snapshotPolicyId = deps.idGen.newId();
+    const keyId = deps.idGen.newId();
+    const snapshotPolicyId = deps.idGen.newId();
 
-  // The frozen snapshot: a machine-owned policy, 1:1 with this key. `name` embeds the key id so it
-  // is unique per workspace (the `policies` table's own uniqueness constraint) without a retry loop.
-  await deps.repos.policies.save({
-    id: snapshotPolicyId,
-    workspaceId,
-    name: `api-key:${keyId}`,
-    description: `Issuance snapshot for API key '${label}'`,
-    isBuiltin: false,
-    isFrozen: true,
-  });
+    // The frozen snapshot: a machine-owned policy, 1:1 with this key. `name` embeds the key id so it
+    // is unique per workspace (the `policies` table's own uniqueness constraint) without a retry loop.
+    await deps.repos.policies.save({
+      id: snapshotPolicyId,
+      workspaceId,
+      name: `api-key:${keyId}`,
+      description: `Issuance snapshot for API key '${label}'`,
+      isBuiltin: false,
+      isFrozen: true,
+    });
 
-  // Copied field-identically — `resourceType`/`constraintJson` are preserved per row and never
-  // widened. A snapshot that dropped a constraint would grant MORE than its source.
-  for (const row of sourceRows) {
-    await deps.repos.policyPermissions.save({
+    // Copied field-identically — `resourceType`/`constraintJson` are preserved per row and never
+    // widened. A snapshot that dropped a constraint would grant MORE than its source.
+    for (const row of sourceRows) {
+      await deps.repos.policyPermissions.save({
+        id: deps.idGen.newId(),
+        workspaceId,
+        policyId: snapshotPolicyId,
+        permission: row.permission,
+        resourceType: row.resourceType ?? null,
+        constraintJson: row.constraintJson ?? null,
+      });
+    }
+
+    await deps.repos.principalPolicies.save({
       id: deps.idGen.newId(),
       workspaceId,
+      principalId: boundPrincipalId,
       policyId: snapshotPolicyId,
-      permission: row.permission,
-      resourceType: row.resourceType ?? null,
-      constraintJson: row.constraintJson ?? null,
     });
-  }
 
-  await deps.repos.principalPolicies.save({
-    id: deps.idGen.newId(),
-    workspaceId,
-    principalId: boundPrincipalId,
-    policyId: snapshotPolicyId,
-  });
+    const minted = mintApiKey();
+    const apiKey: ApiKeyRecord = {
+      id: keyId,
+      workspaceId,
+      principalId: boundPrincipalId,
+      label,
+      keyHash: await deps.secretHasher.hash(minted.secret),
+      prefix: minted.prefix,
+      issuedPolicyId: snapshotPolicyId,
+      createdAt: new Date(deps.clock.nowMs()).toISOString(),
+      expiresAt,
+    };
+    await deps.apiKeys.save(apiKey);
 
-  const minted = mintApiKey();
-  const apiKey: ApiKeyRecord = {
-    id: keyId,
-    workspaceId,
-    principalId: boundPrincipalId,
-    label,
-    keyHash: await deps.secretHasher.hash(minted.secret),
-    prefix: minted.prefix,
-    issuedPolicyId: snapshotPolicyId,
-    createdAt: new Date(deps.clock.nowMs()).toISOString(),
-    expiresAt,
+    return { apiKey, rawKey: minted.rawKey };
   };
-  await deps.apiKeys.save(apiKey);
-
-  return { apiKey, rawKey: minted.rawKey };
+  return deps.repos.transactions.run({ workspaceId, execute });
 }
 
 /**
