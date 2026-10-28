@@ -30,4 +30,17 @@ export const toolMetadata = {
     },
     approval: { class: 'read', confirmation: 'direct' },
   },
+  // Owner 2026-10-27: the picked folder lies outside the site, so a write leaves it ('publish').
+  // 'policy' asks every time and makes the card's click exchange-only.
+  "fs_write_files": {
+    search: {
+      keywords: "folder directory local computer machine desktop picked write save create edit change update files",
+      queries: [
+        "Save these files into the folder I picked.",
+        "Write the new pages into my Desktop folder.",
+        "Update index.html in the folder on my computer.",
+      ],
+    },
+    approval: { class: 'publish', confirmation: 'policy' },
+  },
 } as const satisfies ToolMetadataById<ToolApprovalPolicy>;

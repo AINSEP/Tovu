@@ -80,9 +80,9 @@ export interface AssistantRuntimeGuidanceInput {
 }
 
 /** Owner 2026-10-27: the picked folder is readable (read-only) so the agent can build from its assets;
- * writes stay inside the site. Pure, O(1). */
+ * writes into it go only through the carded `fs_write_files` batch. Pure, O(1). */
 export function buildPickedFolderGuidance({ path }: { path: string }, _options = {}): string {
-  return `The person picked the folder "${path}" for this chat. You can read it (read-only); copy anything you need into the site folder and never write into the picked folder.`;
+  return `The person picked the folder "${path}" for this chat. You can read it (read-only); copy anything you need into the site folder. Never write into the picked folder with shell or edit tools; to create or change files there, call fs_write_files once with every file of the change, and the person approves the batch.`;
 }
 
 /** Spread verbatim into `AgentExecutor.run()`'s optional arguments. */

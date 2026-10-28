@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { ForbiddenError } from "@jini-ai/cms/core";
 
-import { getFsFilesAgentToolCatalog, FS_LIST_FILES_TOOL_ID, FS_READ_FILE_TOOL_ID } from "../agent-tools.js";
+import { getFsFilesAgentToolCatalog, FS_LIST_FILES_TOOL_ID, FS_READ_FILE_TOOL_ID, FS_WRITE_FILES_TOOL_ID } from "../agent-tools.js";
 import { FS_ROOT_IDS, type FsRootId } from "../layout.js";
 import { buildFsFilesRegistrations, fsFilesDerivedRisk, type FsFilesToolDeps, contributeFsFilesTools } from "../tool-registrations.js";
 
@@ -58,8 +58,9 @@ function handlerFor(registrations: ReturnType<typeof buildFsFilesRegistrations>,
 // 1. Catalog shape.
 // ---------------------------------------------------------------------------
 
-test("the catalog declares exactly the two documented tools, both read-only, both content.read-gated", () => {
-  const catalog = getFsFilesAgentToolCatalog();
+test("the catalog declares exactly the two documented read tools, both read-only, both content.read-gated, plus the carded picked-folder write", () => {
+  const catalog = getFsFilesAgentToolCatalog().filter((d) => d.name !== FS_WRITE_FILES_TOOL_ID);
+  assert.equal(getFsFilesAgentToolCatalog().length, 3);
   assert.equal(catalog.length, 2);
   for (const definition of catalog) {
     assert.equal(definition.sideEffects, "none");
@@ -72,7 +73,8 @@ test("the catalog declares exactly the two documented tools, both read-only, bot
   );
 });
 
-test("the catalog exposes no write/edit/delete/rename tool — this domain is read-only by design", () => {
+// Owner 2026-10-27: `fs_write_files` (picked folder only, one card per batch) is the one write.
+test("the catalog exposes no other write/edit/delete/rename tool", () => {
   const names = getFsFilesAgentToolCatalog().map((d) => d.name);
   for (const forbidden of ["fs_write_file", "fs_edit_file", "fs_delete_file", "fs_rename_file"]) {
     assert.ok(!names.includes(forbidden), `'${forbidden}' must not exist in this domain`);
