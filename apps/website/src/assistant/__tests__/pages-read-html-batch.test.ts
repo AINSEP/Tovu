@@ -10,29 +10,32 @@ import { contributePagesTools } from "../../features/pages/tool-registrations.js
 import { peerFixture } from "../../server/runtime/composition/__tests__/peer-site-reads.fixture.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "./fixtures/registry-deps.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { bindContentTargetInputs } from "../../server/runtime/composition/content-target-inputs.js";
 import type { BatchResult } from "../batch-tool-inputs.js";
 
 /** Real registry and page store, with authorization outcomes controlled per item. */
-async function harness() {
+async function harness({ resolveTargets = false } = {}) {
   const workspaceId = "page-batch", principalId = "page-reader";
   const clock = { nowMs: () => Date.parse("2026-10-17T00:00:00.000Z") };
   const repo = new InMemoryPostRepo([]);
   const pagesHtmlStore = (scope: { workspaceId: string; postId: string; actorId?: string }) =>
     new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
-  for (const id of ["first", "second", "third"]) {
-    await createPost({ deps: { repo, clock }, input: { workspaceId, id, title: id, kind: "page" } });
+  for (const id of ["first", "second", "third", "home"]) {
+    await createPost({ deps: { repo, clock }, input: { workspaceId, id, title: id, kind: "page", ...(id === "home" ? { slug: "/" } : {}) } });
     await pagesHtmlStore({ workspaceId, postId: id }).ensureHtmlFormat(`<main>${id}</main>`);
   }
   const checks: unknown[] = [];
   let deniedCheck = -1;
+  let denyAll = false;
   const contributions = {
+    ...(resolveTargets ? { contentTargetInputs: bindContentTargetInputs } : {}),
     contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
     derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
   };
   contributions.contributors.register({ contribution: contributePagesTools() });
   const deps = { workspaceId, clock, postRepo: repo, pagesHtmlStore, authorize: async (input: unknown) => {
     checks.push(input);
-    return { allowed: checks.length !== deniedCheck, reason: "batch fixture" };
+    return { allowed: !denyAll && checks.length !== deniedCheck, reason: "batch fixture" };
   } } as unknown as RegistryDepsWithoutLimiter;
   const registration = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions })
     .find(tool => tool.descriptor.id === "pages_read_html");
@@ -41,8 +44,24 @@ async function harness() {
     executionId: "page-batch", principal: { id: principalId }, run: { id: "run" }, input,
     signal: new AbortController().signal,
   } satisfies ToolExecutionContext);
-  return { registration, call, checks, denySecond: () => { deniedCheck = 2; } };
+  return { registration, call, checks, repo, denySecond: () => { deniedCheck = 2; }, denyAll: () => { denyAll = true; } };
 }
+
+test("pages_read_html resolves slash-prefixed slugs and home after authorization", async () => {
+  const h = await harness({ resolveTargets: true });
+  const result = await h.call({ items: [{ slug: "first" }, { slug: " /FIRST " }, { slug: "/" }] }) as BatchResult;
+  assert.deepEqual([result.succeeded, result.failed], [3, 0]);
+  assert.deepEqual(result.results.map(item => item.ok && (item.result as { id: string }).id), ["first", "first", "home"]);
+  assert.ok(h.checks.length >= 3);
+  const denied = await harness({ resolveTargets: true });
+  denied.denyAll();
+  const lookups: string[] = [];
+  const findBySlug = denied.repo.findBySlug.bind(denied.repo);
+  denied.repo.findBySlug = async input => { lookups.push(input.slug); return findBySlug(input); };
+  const blocked = await denied.call({ items: [{ slug: "/first" }, { slug: "/missing" }] }) as BatchResult;
+  assert.deepEqual([blocked.succeeded, blocked.failed], [0, 2]);
+  assert.deepEqual(lookups, [], "denied selectors must never reach slug lookup");
+});
 
 // Removing the pages_read_html opt-in must reject these calls on HEAD, before any batch result.
 test("pages_read_html returns three stored HTML documents in one batch", async () => {

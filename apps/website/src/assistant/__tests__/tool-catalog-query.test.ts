@@ -82,7 +82,7 @@ test("describe content_read lists only registered cards and their first authored
   const catalog = buildToolCatalogQuery({ list: () => [media, theme, ...DESCRIPTORS] });
   assert.deepEqual(catalog.describe({ id: "content_read" }), {
     id: "content_read", source: "content",
-    description: "Read-card family. Describe a card id below for its inputs, then call that card.\ncontent_read.media_asset — Lists media assets.\ncontent_read.theme — Reads themes.",
+    description: "Read-card family. content_read is not executable; do not invent ids such as content_read.page. Describe and call an exact registered card id below.\ncontent_read.media_asset — Lists media assets.\ncontent_read.theme — Reads themes.",
   });
   assert.equal(catalog.describe({ id: media.id })?.description, "Lists media assets. Includes trashed assets.");
   assert.deepEqual(catalog.describe({ id: media.id })?.inputSchema, media.inputSchema);

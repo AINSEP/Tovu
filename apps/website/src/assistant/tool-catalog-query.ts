@@ -71,7 +71,7 @@ function describeContentReadFamily(
     return `${entry.id} — ${purpose}`;
   });
   return { id: "content_read", source: sourceForToolId("content_read"),
-    description: ["Read-card family. Describe a card id below for its inputs, then call that card.", ...lines].join("\n"),
+    description: ["Read-card family. content_read is not executable; do not invent ids such as content_read.page. Describe and call an exact registered card id below.", ...lines].join("\n"),
   };
 }
 
