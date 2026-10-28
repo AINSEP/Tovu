@@ -1,0 +1,7 @@
+Processed 767 files (4.6s) (13 warnings)
+
+1) ../../core/dist/tool-input-normalization.d.ts > ../../core/dist/tool-registry.d.ts
+2) ../../ui/dist/features/panel-kit/helpers/standing-draft-local-backup.d.ts > ../../ui/dist/features/panel-kit/hooks/use-standing-draft-autosave.hooks.d.ts
+3) core/builtin-permissions.ts > core/permissions.ts
+4) react/users/Users.tsx > react/users/UserRowParts.tsx
+

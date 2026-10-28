@@ -1,0 +1,4 @@
+Processed 109 files (2s) (2 warnings)
+
+1) ../../core/dist/tool-input-normalization.d.ts > ../../core/dist/tool-registry.d.ts
+

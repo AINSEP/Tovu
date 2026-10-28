@@ -1,0 +1,15 @@
+Processed 1232 files (6.4s) (16 warnings)
+
+1) ../../agent-runtime/dist/types.d.ts > ../../agent-runtime/dist/model-discovery-types.d.ts
+2) ../../core/dist/tool-input-normalization.d.ts > ../../core/dist/tool-registry.d.ts
+3) ../../agent-runtime/dist/providers/anthropic-messages.d.ts > ../../agent-runtime/dist/providers/tool-turn-types.d.ts
+4) ../../agent-runtime/dist/providers/tool-turn-types.d.ts > ../../agent-runtime/dist/providers/azure-chat.d.ts > ../../agent-runtime/dist/providers/openai-chat.d.ts
+5) ../../agent-runtime/dist/providers/tool-turn-types.d.ts > ../../agent-runtime/dist/providers/azure-chat.d.ts
+6) ../../agent-runtime/dist/providers/tool-turn-types.d.ts > ../../agent-runtime/dist/providers/google-messages.d.ts
+7) ../../agent-runtime/dist/providers/tool-turn-types.d.ts > ../../agent-runtime/dist/providers/operation-schema.d.ts
+8) ../../ui/dist/features/panel-kit/helpers/standing-draft-local-backup.d.ts > ../../ui/dist/features/panel-kit/hooks/use-standing-draft-autosave.hooks.d.ts
+9) core/messages.ts > core/user-text-redaction.ts
+10) embed-widget/react/header.tsx > embed-widget/react/header.hooks.ts
+11) react/components/AttachmentGallery.hooks.ts > react/components/AttachmentGallery.rules.ts > react/components/AttachmentPreviewModal.hooks.ts
+12) react/components/ConversationList.tsx > react/components/ConversationList.hooks.ts
+

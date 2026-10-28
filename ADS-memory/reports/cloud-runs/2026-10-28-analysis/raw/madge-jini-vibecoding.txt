@@ -1,0 +1,6 @@
+Processed 95 files (1.5s) (2 warnings)
+
+1) ../../core/dist/tool-input-normalization.d.ts > ../../core/dist/tool-registry.d.ts
+2) html/edit.ts > html/regions.ts
+3) tools.ts > session.ts
+

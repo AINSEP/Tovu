@@ -1,0 +1,6 @@
+Processed 183 files (2.4s) (5 warnings)
+
+1) ../../core/dist/tool-input-normalization.d.ts > ../../core/dist/tool-registry.d.ts
+2) host/ports.ts > host/contributions.ts
+3) host/__tests__/support/fixture-sdk.ts > host/__tests__/support/fixture-hooks.ts
+

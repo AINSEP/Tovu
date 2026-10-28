@@ -1,0 +1,5 @@
+Processed 212 files (2.6s) (1 warning)
+
+1) tool-input-normalization.ts > tool-registry.ts
+2) settings/tool-registrations.ts > settings/agent-value-write-tools.ts
+

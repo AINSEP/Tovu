@@ -1,0 +1,5 @@
+Processed 246 files (3.3s) (9 warnings)
+
+1) ../../core/dist/tool-input-normalization.d.ts > ../../core/dist/tool-registry.d.ts
+2) media-providers/task-lifecycle.ts > media-providers/task-store.ts
+

@@ -1,0 +1,11 @@
+Nothing was cut for time; items below were NOT RUN or only partly run (counts):
+- Tovu `check-src-complexity-drift.ts`, `check-admin-complexity-drift.ts` — not run (plain eslint scan used instead; 413 findings, 169 prod).
+- Tovu typecheck: only root `tsc -p tsconfig.json` ran (exit 0). NOT RUN: `typecheck:e2e`, `typecheck:scripts`, `typecheck:tests`, admin/desktop/site-chat per-app tsc (3 configs + desktop's 4).
+- Jini root `tsc -p scripts/tsconfig.json`; Jini `examples/*` typecheck beyond `pnpm -r` (examples were included in `-r`).
+- Tovu shard 5 (349 files) timed out; re-run as shard 9 without the hanging file (348 files) — the hanging file was run alone (300 s limit, HANG). `site-chat` tests are inside the website globs.
+- Tovu failing tests were NOT individually re-run to decide FLAKY (only the hang file and all 12 Jini failing files were re-run). Tovu classes are from reading the error text, with a minority checked in code (marked above).
+- Step 2: Tovu `check-area-coverage-floor` could not run (floors json missing in repo). Per-route "no test at all" list not produced (see classify log: 100 TEST_GAP files). Jini routes/tools with no test: not computed.
+- Step 4: per-module "20 most tangled" ranking not computed numerically (fan-in×fan-out); cycle-membership list in §4 is derived from `check-architecture` output. Tovu "deep import past package exports" check was a single grep (1 hit). The `new X()` / process.env DI scan is grep-based on `apps/website/src` only (not admin/desktop/Jini src).
+- Cycle lists: only counts + shortest examples are in RESULTS; full madge outputs are in `raw/`.
+- Coverage numbers for Tovu `apps/admin` come from vitest; website coverage from node:test lcov only (no `development/coverage/lcov.info` from the official `test:cov` run).
+- Env notes: no Postgres server (≈60 `.postgres.*` failures), no chromium (render-form-layout ×3), scratch Tovu copy is not a git checkout (theme drift canary ×1; I `git init`-ed it only for the coverage script).

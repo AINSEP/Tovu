@@ -1,0 +1,19 @@
+Processed 1564 files (10.1s) (7 warnings)
+
+1) ../../agent-runtime/dist/types.d.ts > ../../agent-runtime/dist/model-discovery-types.d.ts
+2) ../../core/dist/tool-input-normalization.d.ts > ../../core/dist/tool-registry.d.ts
+3) ../../agent-runtime/dist/providers/anthropic-messages.d.ts > ../../agent-runtime/dist/providers/tool-turn-types.d.ts
+4) ../../agent-runtime/dist/providers/tool-turn-types.d.ts > ../../agent-runtime/dist/providers/azure-chat.d.ts > ../../agent-runtime/dist/providers/openai-chat.d.ts
+5) ../../agent-runtime/dist/providers/tool-turn-types.d.ts > ../../agent-runtime/dist/providers/azure-chat.d.ts
+6) ../../agent-runtime/dist/providers/tool-turn-types.d.ts > ../../agent-runtime/dist/providers/google-messages.d.ts
+7) ../../agent-runtime/dist/providers/tool-turn-types.d.ts > ../../agent-runtime/dist/providers/operation-schema.d.ts
+8) features/media-providers/react/components/MediaProvidersTab.tsx > features/media-providers/react/components/MediaProviderCard.tsx > features/media-providers/react/components/media-providers-tab-labels.ts
+9) features/resource-dashboard/react/components/ResourceBoardView.tsx > features/resource-dashboard/react/components/ResourceBoardViewParts.tsx
+10) features/resource-dashboard/react/components/ResourceRowListView.tsx > features/resource-dashboard/react/components/ResourceRowListViewParts.tsx
+11) features/skills/react/components/SkillDraftForm.tsx > features/skills/react/components/SkillDraftForm.labels.ts
+12) features/skills/react/components/SkillRow.tsx > features/skills/react/components/SkillRow.labels.ts
+13) features/skills/react/components/SkillsTab.tsx > features/skills/react/components/SkillsTab.labels.ts
+14) features/panel-kit/helpers/standing-draft-local-backup.ts > features/panel-kit/hooks/use-standing-draft-autosave.hooks.ts
+15) features/tab-strip/react/components/TabBar.hooks.tsx > features/tab-strip/react/components/TabBar.tsx
+16) renderers/annotation-canvas/react/hooks/useAnnotationCanvas.ts > renderers/annotation-canvas/react/hooks/useAnnotationCanvas.controller.ts
+

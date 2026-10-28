@@ -1,0 +1,10 @@
+Processed 671 files (5.2s) (11 warnings)
+
+1) ../../core/dist/tool-input-normalization.d.ts > ../../core/dist/tool-registry.d.ts
+2) taxonomy/write-service.ts > taxonomy/list.ts
+3) forms/field-registry.ts > forms/types.ts
+4) forms/forms.ts > forms/descriptor-rules.ts
+5) forms/ports.ts > forms/write-service.ts
+6) navigation/menu-service.ts > navigation/repo.memory.ts
+7) widgets/html/html-embeds.ts > widgets/html/plugin-export.ts
+

@@ -1,0 +1,5 @@
+Processed 222 files (2.6s) (5 warnings)
+
+1) ../../core/dist/tool-input-normalization.d.ts > ../../core/dist/tool-registry.d.ts
+2) admin-surfaces/protocol.ts > admin-surfaces/theme.ts
+

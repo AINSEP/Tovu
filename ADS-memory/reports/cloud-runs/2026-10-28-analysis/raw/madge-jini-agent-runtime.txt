@@ -1,0 +1,13 @@
+Processed 375 files (4.6s) (12 warnings)
+
+1) ../../core/dist/tool-input-normalization.d.ts > ../../core/dist/tool-registry.d.ts
+2) types.ts > model-discovery-types.ts
+3) providers/anthropic-messages.ts > providers/openai-chat.ts > providers/tool-turn-types.ts
+4) providers/openai-chat.ts > providers/tool-turn-types.ts > providers/azure-chat.ts
+5) providers/tool-turn-types.ts > providers/azure-chat.ts
+6) providers/openai-chat.ts > providers/tool-turn-types.ts > providers/google-messages.ts
+7) providers/tool-turn-types.ts > providers/google-messages.ts
+8) providers/openai-chat.ts > providers/tool-turn-types.ts
+9) providers/tool-turn-types.ts > providers/operation-schema.ts > providers/google-schema.ts
+10) providers/tool-turn-types.ts > providers/operation-schema.ts
+

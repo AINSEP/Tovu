@@ -1,0 +1,4 @@
+Processed 46 files (1s) (7 warnings)
+
+1) ../../chat/dist/core/messages.d.ts > ../../chat/dist/core/user-text-redaction.d.ts
+

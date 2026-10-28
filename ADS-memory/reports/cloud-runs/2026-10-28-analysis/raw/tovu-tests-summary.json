@@ -1,11 +1,11 @@
 {
- "shards": 4,
+ "shards": 8,
  "tot": {
-  "tests": 16359,
-  "pass": 16246,
-  "fail": 92,
-  "skipped": 21,
-  "cancelled": 0
+  "tests": 32833,
+  "pass": 32530,
+  "fail": 247,
+  "skipped": 37,
+  "cancelled": 19
  },
  "fails": [
   {
@@ -559,6 +559,1062 @@
    "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.edge-paths.route.test.ts",
    "test": "GET /_more/1/12?…: a see-more URL with a form-result query answers the batch as a private response",
    "err": "AssertionError [ERR_ASSERTION]: control: a plain batch is not private | at TestContext.<anonymous> (apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.edge-paths.route.test.ts:355:10) | at process.processTicksAndRejections (node:internal/process/task_queues:104:5) | at async Tes"
+  },
+  {
+   "shard": "shard6",
+   "file": "apps/website/src/features/__tests__/features-no-server-imports.boundary.test.ts",
+   "test": "no production file under src/features/ imports src/server/, Express, or the admin app",
+   "err": "AssertionError [ERR_ASSERTION]: src/features/INFO.md: features must not import server/framework code. Offending edges: | apps/website/src/features/analytics/jini-adapters.ts imports src/server/ via the #src subpath map: \"#src/server/inbound/public-http/visitor-analytics\" | + actual - expected | + [ "
+  },
+  {
+   "shard": "shard6",
+   "file": "apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts",
+   "test": "two connections migrating at once apply a step exactly once",
+   "err": "Error: failed to drop fixture database \"tovu_migrations_pg_fixture\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-"
+  },
+  {
+   "shard": "shard6",
+   "file": "apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts",
+   "test": "the content history through the current head applies on real Postgres",
+   "err": "Error: failed to drop fixture database \"tovu_migrations_pg_fixture\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-"
+  },
+  {
+   "shard": "shard6",
+   "file": "apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts",
+   "test": "the chat history lands in ai_chat with its own ledger there; public gets no chat table",
+   "err": "Error: failed to drop fixture database \"tovu_migrations_pg_fixture\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-"
+  },
+  {
+   "shard": "shard6",
+   "file": "apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts",
+   "test": "/tmp/claude-0/-home-user/ee957620-cd5a-5cb1-a649-f4397481f126/scratchpad/Tovu-an/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts",
+   "err": "Error: failed to drop fixture database \"tovu_migrations_pg_fixture\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at dropDatabase (/home/user/Jini/packages/db/src/pg-fixt"
+  },
+  {
+   "shard": "shard6",
+   "file": "apps/website/src/platform/site-dir/__tests__/integration/init-site.postgres.test.ts",
+   "test": "a Postgres database holding one foreign table is refused by name, before any folder is made",
+   "err": "Error: failed to drop fixture database \"tovu_init_site_occupied\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-fix"
+  },
+  {
+   "shard": "shard6",
+   "file": "apps/website/src/platform/site-dir/__tests__/integration/init-site.postgres.test.ts",
+   "test": "/tmp/claude-0/-home-user/ee957620-cd5a-5cb1-a649-f4397481f126/scratchpad/Tovu-an/apps/website/src/platform/site-dir/__tests__/integration/init-site.postgres.test.ts",
+   "err": "Error: failed to drop fixture database \"tovu_init_site_occupied\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at dropDatabase (/home/user/Jini/packages/db/src/pg-fixture"
+  },
+  {
+   "shard": "shard6",
+   "file": "apps/website/src/platform/site-dir/__tests__/unit/resolve-workspace.postgres.test.ts",
+   "test": "resolves the one workspace row and rejects an unknown explicit id",
+   "err": "Error: failed to drop fixture database \"tovu_resolve_workspace_pg_fixture\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/"
+  },
+  {
+   "shard": "shard6",
+   "file": "apps/website/src/server/__tests__/admin-post-update-rollback-ledger.test.ts",
+   "test": "PUT posts: a rolled-back publish does not leave an uncompensated entry.published event",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | [ | { | aggregateId: '9c6f3b8b-8a8c-431b-8148-c36a7188b85f',"
+  },
+  {
+   "shard": "shard6",
+   "file": "apps/website/src/server/__tests__/admin-post-update-rollback-ledger.test.ts",
+   "test": "PUT pages: a rolled-back publish does not leave an uncompensated entry.published event",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | [ | { | aggregateId: '6c1655c6-426a-4bdc-ac8b-027bdb7ba3ae',"
+  },
+  {
+   "shard": "shard6",
+   "file": "apps/website/src/server/__tests__/integration/create-app-event-subscriptions-once.integration.test.ts",
+   "test": "rebuilding the site app on the same RouteDeps (export, published-page fetch) adds no second copy of any event handler",
+   "err": "AssertionError [ERR_ASSERTION]: required subscribers are independent of the current registry | + actual - expected | { | 'entry.published': 1, | 'entry.unpublished': 1,"
+  },
+  {
+   "shard": "shard6",
+   "file": "apps/website/src/server/inbound/public-http/http/site/__tests__/form-field-types-style.unit.test.ts",
+   "test": "tovu-theme: both copies agree, skip range/file in the boxed rule, and style the switch after the checkbox size rule",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal: | + actual - expected | ... Skipped lines | '/* Tokens are NOT defined here — they live in tokens.json / tokens.light.json and are\\n' + | '   emitted into :root by the host at render time (or by build-preview.mjs for local\\n' +"
+  },
+  {
+   "shard": "shard6",
+   "file": "apps/website/src/server/inbound/public-http/http/site/__tests__/form-validation-friendly.test.ts",
+   "test": "every supported public-form locale supplies all validation instructions",
+   "err": "AssertionError [ERR_ASSERTION]: en | 6 !== 5 | at TestContext.<anonymous> (apps/website/src/server/inbound/public-http/http/site/__tests__/form-validation-friendly.test.ts:30:12) | at Test.runInAsyncScope (node:async_hooks:227:14)"
+  },
+  {
+   "shard": "shard6",
+   "file": "apps/website/src/server/inbound/public-http/http/site/__tests__/form-validation-i18n.unit.test.ts",
+   "test": "a regional tag falls back to its base language, bare pt to pt-BR, and an unknown language to English",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | [ | 'Please enter {label}.', | 'Please select {label}.',"
+  },
+  {
+   "shard": "shard6",
+   "file": "apps/website/src/server/inbound/public-http/http/site/__tests__/form-validation-i18n.unit.test.ts",
+   "test": "every locale row carries the four {label} templates plus a fallback field name",
+   "err": "AssertionError [ERR_ASSERTION]: en | 6 !== 5 | at TestContext.<anonymous> (apps/website/src/server/inbound/public-http/http/site/__tests__/form-validation-i18n.unit.test.ts:32:12) | at Test.runInAsyncScope (node:async_hooks:227:14)"
+  },
+  {
+   "shard": "shard6",
+   "file": "apps/website/src/server/runtime/composition/__tests__/open-site-store.postgres.test.ts",
+   "test": "a failed preparation closes the pool: no session on the site's database survives the rejection",
+   "err": "Error: failed to drop fixture database \"tovu_open_site_store_failure\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/p"
+  },
+  {
+   "shard": "shard6",
+   "file": "apps/website/src/server/runtime/composition/__tests__/open-site-store.postgres.test.ts",
+   "test": "/tmp/claude-0/-home-user/ee957620-cd5a-5cb1-a649-f4397481f126/scratchpad/Tovu-an/apps/website/src/server/runtime/composition/__tests__/open-site-store.postgres.test.ts",
+   "err": "TypeError [ERR_INVALID_ARG_TYPE]: The \"path\" argument must be of type string or an instance of Buffer or URL. Received undefined | at Object.rmSync (node:fs:1282:25) | at TestContext.<anonymous> (apps/website/src/server/runtime/composition/__tests__/open-site-store.postgres.test.ts:31:6) | at TestHo"
+  },
+  {
+   "shard": "shard6",
+   "file": "content/agent-plugins/google-workspace/__tests__/sheets.contract.test.mjs",
+   "test": "cancellation: sheets_get called with an aborted signal sends nothing and rejects with the abort",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | Error: This plugin call already finished or was stopped; capabilities kept from it no longer work. Use the capabilities of the current call. | at process.processTicksAndRejections ("
+  },
+  {
+   "shard": "shard6",
+   "file": "content/agent-plugins/google-workspace/__tests__/sheets.contract.test.mjs",
+   "test": "cancellation: sheets_get_by_data_filter called with an aborted signal sends nothing and rejects with the abort",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | Error: This plugin call already finished or was stopped; capabilities kept from it no longer work. Use the capabilities of the current call. | at process.processTicksAndRejections ("
+  },
+  {
+   "shard": "shard6",
+   "file": "content/agent-plugins/google-workspace/__tests__/sheets.contract.test.mjs",
+   "test": "cancellation: sheets_create called with an aborted signal sends nothing and rejects with the abort",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | Error: This plugin call already finished or was stopped; capabilities kept from it no longer work. Use the capabilities of the current call. | at process.processTicksAndRejections ("
+  },
+  {
+   "shard": "shard6",
+   "file": "content/agent-plugins/google-workspace/__tests__/sheets.contract.test.mjs",
+   "test": "cancellation: sheets_copy called with an aborted signal sends nothing and rejects with the abort",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | Error: This plugin call already finished or was stopped; capabilities kept from it no longer work. Use the capabilities of the current call. | at process.processTicksAndRejections ("
+  },
+  {
+   "shard": "shard6",
+   "file": "content/agent-plugins/google-workspace/__tests__/sheets.contract.test.mjs",
+   "test": "cancellation: sheets_copy_tab called with an aborted signal sends nothing and rejects with the abort",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | Error: This plugin call already finished or was stopped; capabilities kept from it no longer work. Use the capabilities of the current call. | at process.processTicksAndRejections ("
+  },
+  {
+   "shard": "shard6",
+   "file": "content/agent-plugins/google-workspace/__tests__/sheets.contract.test.mjs",
+   "test": "cancellation: sheets_values_get called with an aborted signal sends nothing and rejects with the abort",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | Error: This plugin call already finished or was stopped; capabilities kept from it no longer work. Use the capabilities of the current call. | at process.processTicksAndRejections ("
+  },
+  {
+   "shard": "shard6",
+   "file": "content/agent-plugins/google-workspace/__tests__/sheets.contract.test.mjs",
+   "test": "cancellation: sheets_values_batch_get called with an aborted signal sends nothing and rejects with the abort",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | Error: This plugin call already finished or was stopped; capabilities kept from it no longer work. Use the capabilities of the current call. | at process.processTicksAndRejections ("
+  },
+  {
+   "shard": "shard6",
+   "file": "content/agent-plugins/google-workspace/__tests__/sheets.contract.test.mjs",
+   "test": "cancellation: sheets_values_append called with an aborted signal sends nothing and rejects with the abort",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | Error: This plugin call already finished or was stopped; capabilities kept from it no longer work. Use the capabilities of the current call. | at process.processTicksAndRejections ("
+  },
+  {
+   "shard": "shard6",
+   "file": "content/agent-plugins/google-workspace/__tests__/sheets.contract.test.mjs",
+   "test": "cancellation: sheets_values_update called with an aborted signal sends nothing and rejects with the abort",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | Error: This plugin call already finished or was stopped; capabilities kept from it no longer work. Use the capabilities of the current call. | at process.processTicksAndRejections ("
+  },
+  {
+   "shard": "shard6",
+   "file": "content/agent-plugins/google-workspace/__tests__/sheets.contract.test.mjs",
+   "test": "cancellation: sheets_values_batch_update called with an aborted signal sends nothing and rejects with the abort",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | Error: This plugin call already finished or was stopped; capabilities kept from it no longer work. Use the capabilities of the current call. | at process.processTicksAndRejections ("
+  },
+  {
+   "shard": "shard6",
+   "file": "content/agent-plugins/google-workspace/__tests__/sheets.contract.test.mjs",
+   "test": "cancellation: sheets_values_clear called with an aborted signal sends nothing and rejects with the abort",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | Error: This plugin call already finished or was stopped; capabilities kept from it no longer work. Use the capabilities of the current call. | at process.processTicksAndRejections ("
+  },
+  {
+   "shard": "shard6",
+   "file": "content/agent-plugins/google-workspace/__tests__/sheets.contract.test.mjs",
+   "test": "cancellation: sheets_values_batch_clear called with an aborted signal sends nothing and rejects with the abort",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | Error: This plugin call already finished or was stopped; capabilities kept from it no longer work. Use the capabilities of the current call. | at process.processTicksAndRejections ("
+  },
+  {
+   "shard": "shard6",
+   "file": "content/agent-plugins/google-workspace/__tests__/sheets.contract.test.mjs",
+   "test": "cancellation: sheets_values_by_data_filter called with an aborted signal sends nothing and rejects with the abort",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | Error: This plugin call already finished or was stopped; capabilities kept from it no longer work. Use the capabilities of the current call. | at process.processTicksAndRejections ("
+  },
+  {
+   "shard": "shard6",
+   "file": "content/agent-plugins/google-workspace/__tests__/sheets.contract.test.mjs",
+   "test": "cancellation: sheets_find called with an aborted signal sends nothing and rejects with the abort",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | Error: This plugin call already finished or was stopped; capabilities kept from it no longer work. Use the capabilities of the current call. | at process.processTicksAndRejections ("
+  },
+  {
+   "shard": "shard6",
+   "file": "content/agent-plugins/google-workspace/__tests__/sheets.contract.test.mjs",
+   "test": "cancellation: sheets_find_replace called with an aborted signal sends nothing and rejects with the abort",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | Error: This plugin call already finished or was stopped; capabilities kept from it no longer work. Use the capabilities of the current call. | at process.processTicksAndRejections ("
+  },
+  {
+   "shard": "shard6",
+   "file": "content/agent-plugins/google-workspace/__tests__/sheets.contract.test.mjs",
+   "test": "cancellation: sheets_tab_modify called with an aborted signal sends nothing and rejects with the abort",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | Error: This plugin call already finished or was stopped; capabilities kept from it no longer work. Use the capabilities of the current call. | at process.processTicksAndRejections ("
+  },
+  {
+   "shard": "shard6",
+   "file": "content/agent-plugins/google-workspace/__tests__/sheets.contract.test.mjs",
+   "test": "cancellation: sheets_sort called with an aborted signal sends nothing and rejects with the abort",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | Error: This plugin call already finished or was stopped; capabilities kept from it no longer work. Use the capabilities of the current call. | at process.processTicksAndRejections ("
+  },
+  {
+   "shard": "shard6",
+   "file": "content/agent-plugins/google-workspace/__tests__/sheets.contract.test.mjs",
+   "test": "cancellation: sheets_basic_filter called with an aborted signal sends nothing and rejects with the abort",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | Error: This plugin call already finished or was stopped; capabilities kept from it no longer work. Use the capabilities of the current call. | at process.processTicksAndRejections ("
+  },
+  {
+   "shard": "shard6",
+   "file": "content/agent-plugins/google-workspace/__tests__/sheets.contract.test.mjs",
+   "test": "cancellation: sheets_filter_views called with an aborted signal sends nothing and rejects with the abort",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | Error: This plugin call already finished or was stopped; capabilities kept from it no longer work. Use the capabilities of the current call. | at process.processTicksAndRejections ("
+  },
+  {
+   "shard": "shard6",
+   "file": "content/agent-plugins/google-workspace/__tests__/sheets.contract.test.mjs",
+   "test": "cancellation: sheets_format called with an aborted signal sends nothing and rejects with the abort",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | Error: This plugin call already finished or was stopped; capabilities kept from it no longer work. Use the capabilities of the current call. | at process.processTicksAndRejections ("
+  },
+  {
+   "shard": "shard6",
+   "file": "content/agent-plugins/google-workspace/__tests__/sheets.contract.test.mjs",
+   "test": "cancellation: sheets_named_ranges called with an aborted signal sends nothing and rejects with the abort",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | Error: This plugin call already finished or was stopped; capabilities kept from it no longer work. Use the capabilities of the current call. | at process.processTicksAndRejections ("
+  },
+  {
+   "shard": "shard6",
+   "file": "content/agent-plugins/google-workspace/__tests__/sheets.contract.test.mjs",
+   "test": "cancellation: sheets_protected_ranges_get called with an aborted signal sends nothing and rejects with the abort",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | Error: This plugin call already finished or was stopped; capabilities kept from it no longer work. Use the capabilities of the current call. | at process.processTicksAndRejections ("
+  },
+  {
+   "shard": "shard6",
+   "file": "content/agent-plugins/google-workspace/__tests__/sheets.contract.test.mjs",
+   "test": "cancellation: sheets_developer_metadata called with an aborted signal sends nothing and rejects with the abort",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | Error: This plugin call already finished or was stopped; capabilities kept from it no longer work. Use the capabilities of the current call. | at process.processTicksAndRejections ("
+  },
+  {
+   "shard": "shard6",
+   "file": "content/agent-plugins/google-workspace/__tests__/sheets.contract.test.mjs",
+   "test": "cancellation: sheets_batch_update called with an aborted signal sends nothing and rejects with the abort",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | Error: This plugin call already finished or was stopped; capabilities kept from it no longer work. Use the capabilities of the current call. | at process.processTicksAndRejections ("
+  },
+  {
+   "shard": "shard6",
+   "file": "content/agent-plugins/google-workspace/__tests__/sheets.contract.test.mjs",
+   "test": "cancellation: sheets_export_csv called with an aborted signal sends nothing and rejects with the abort",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | Error: This plugin call already finished or was stopped; capabilities kept from it no longer work. Use the capabilities of the current call. | at process.processTicksAndRejections ("
+  },
+  {
+   "shard": "shard6",
+   "file": "content/agent-plugins/google-workspace/__tests__/sheets.contract.test.mjs",
+   "test": "cancellation: sheets_open_existing called with an aborted signal sends nothing and rejects with the abort",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | Error: This plugin call already finished or was stopped; capabilities kept from it no longer work. Use the capabilities of the current call. | at process.processTicksAndRejections ("
+  },
+  {
+   "shard": "shard6",
+   "file": "content/agent-plugins/google-workspace/__tests__/sheets.contract.test.mjs",
+   "test": "cancellation: account_info called with an aborted signal sends nothing and rejects with the abort",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | Error: This plugin call already finished or was stopped; capabilities kept from it no longer work. Use the capabilities of the current call. | at process.processTicksAndRejections ("
+  },
+  {
+   "shard": "shard6",
+   "file": "content/agent-plugins/s3-compatible/__tests__/credential-card.test.mjs",
+   "test": "non-secret connection fields are declared explicitly",
+   "err": "TypeError [Error]: Cannot read properties of undefined (reading 'map') | at TestContext.<anonymous> (file://content/agent-plugins/s3-compatible/__tests__/credential-card.test.mjs:20:33) | at Test.runInAsyncScope (node:async_hooks:227:14) | at Test.run (node:internal/test_runner/test:1402:25) | at Te"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/cli/__tests__/integration/serve-command.integration.test.ts",
+   "test": "Constitution Article VIII proof: a request against a REALLY SPAWNED `tovu serve` process — not the in-memory or SQLite composition-root tier, the actual packaged CLI boot path this whole groundwork report was worried an instrumentation plan could silently miss — exports a real span to the operator-configured OTLP collector",
+   "err": "AssertionError [ERR_ASSERTION]: the spawned tovu serve process must export at least one span to the OTLP collector configured via OTEL_EXPORTER_OTLP_ENDPOINT within 10s | at TestContext.<anonymous> (apps/website/src/cli/__tests__/integration/serve-command.integration.test.ts:700:12) | at async Test."
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/cli/__tests__/integration/storage-move.postgres.test.ts",
+   "test": "refuses a target other than postgres, and a --storage-env that is not set",
+   "err": "Error: failed to drop fixture database \"tovu_storage_move_cli_test\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/cli/__tests__/integration/storage-move.postgres.test.ts",
+   "test": "the program routes `storage move` to the command",
+   "err": "Error: failed to drop fixture database \"tovu_storage_move_cli_test\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/cli/__tests__/integration/storage-move.postgres.test.ts",
+   "test": "--storage-env moves the site and leaves the connection string in that variable",
+   "err": "Error: failed to drop fixture database \"tovu_storage_move_cli_test\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/cli/__tests__/integration/storage-move.postgres.test.ts",
+   "test": "/tmp/claude-0/-home-user/ee957620-cd5a-5cb1-a649-f4397481f126/scratchpad/Tovu-an/apps/website/src/cli/__tests__/integration/storage-move.postgres.test.ts",
+   "err": "Error: failed to drop fixture database \"tovu_storage_move_cli_test\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at dropDatabase (/home/user/Jini/packages/db/src/pg-fixt"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/features/deployments/deploy-targets/__tests__/no-vendor-in-core.boundary.test.ts",
+   "test": "real core tree has only reviewed pattern exceptions, each with its exact current total",
+   "err": "AssertionError [ERR_ASSERTION]: Vendor knowledge belongs in its plugin. Uncovered file/vendor/count pairs: | + actual - expected | + [ | +   'apps/admin/src/features/pages/lib/embed-placeholder.ts: google 2', | +   'apps/admin/src/features/pages/lib/embed-placeholder.ts: google-login 1',"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/features/entries/__tests__/integration/unreadable-owner-entries-repair.postgres.test.ts",
+   "test": "two processes booting at once: the mismatched rows go exactly once, one marker, readable rows survive",
+   "err": "Error: failed to drop fixture database \"tovu_unreadable_owner_entries_repair_pg_fixture\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jin"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/features/entries/__tests__/integration/unreadable-owner-entries-repair.postgres.test.ts",
+   "test": "/tmp/claude-0/-home-user/ee957620-cd5a-5cb1-a649-f4397481f126/scratchpad/Tovu-an/apps/website/src/features/entries/__tests__/integration/unreadable-owner-entries-repair.postgres.test.ts",
+   "err": "Error: failed to drop fixture database \"tovu_unreadable_owner_entries_repair_pg_fixture\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at dropDatabase (/home/user/Jini/pa"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/features/members/__tests__/member-external-identities.contract.ts",
+   "test": "[postgres] identity round-trip is scoped and independent of email or tokens",
+   "err": "Error: failed to drop fixture database \"tovu_member_external_identities_contract\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packa"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/features/members/__tests__/member-external-identities.contract.ts",
+   "test": "[postgres] both natural keys reserve ownership, including unlinked rows",
+   "err": "Error: failed to drop fixture database \"tovu_member_external_identities_contract\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packa"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/features/members/__tests__/member-external-identities.contract.ts",
+   "test": "[postgres] an id cannot move ownership, even during explicit reconnect",
+   "err": "Error: failed to drop fixture database \"tovu_member_external_identities_contract\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packa"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/features/members/__tests__/member-external-identities.contract.ts",
+   "test": "[postgres] unlink survives stale callbacks and is idempotent and workspace-scoped",
+   "err": "Error: failed to drop fixture database \"tovu_member_external_identities_contract\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packa"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/features/members/__tests__/member-external-identities.contract.ts",
+   "test": "[postgres] explicit connect reuses the marker row and can change the subject",
+   "err": "Error: failed to drop fixture database \"tovu_member_external_identities_contract\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packa"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/features/members/__tests__/member-external-identities.contract.ts",
+   "test": "[postgres] conflicting concurrent inserts produce exactly one owner",
+   "err": "Error: failed to drop fixture database \"tovu_member_external_identities_contract\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packa"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/features/members/__tests__/member-external-identities.contract.ts",
+   "test": "[postgres] listing orders multiple providers and active upserts retain a single row",
+   "err": "Error: failed to drop fixture database \"tovu_member_external_identities_contract\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packa"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/features/members/__tests__/member-external-identities.contract.ts",
+   "test": "[postgres] records cannot mutate storage through input or output references",
+   "err": "Error: failed to drop fixture database \"tovu_member_external_identities_contract\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packa"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts",
+   "test": "/tmp/claude-0/-home-user/ee957620-cd5a-5cb1-a649-f4397481f126/scratchpad/Tovu-an/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts",
+   "err": "Error: failed to drop fixture database \"tovu_member_external_identities_contract\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at dropDatabase (/home/user/Jini/packages/"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/features/post/__tests__/repo.postgres.test.ts",
+   "test": "two connections: a concurrent appendRevision waits for the open one and chains after it",
+   "err": "Error: failed to drop fixture database \"tovu_post_repo_pg_fixture\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-f"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/features/site-guide/__tests__/plugin-contributions.test.ts",
+   "test": "How Tovu works uses stable manifest identity and valid main topics with real workflow gates",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | ... Skipped lines | [ | 'how-tovu-works-content',"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/platform/db/kernel/__tests__/kernel.postgres.test.ts",
+   "test": "postgres: transactions commit, roll back and nest on a pooled connection",
+   "err": "Error: failed to drop fixture database \"tovu_kernel_pg_fixture\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixt"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/platform/db/kernel/__tests__/kernel.postgres.test.ts",
+   "test": "two connections WITHOUT lockKey: both appends read the same latest row (the hazard is real)",
+   "err": "Error: failed to drop fixture database \"tovu_kernel_pg_fixture\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixt"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/platform/db/kernel/__tests__/kernel.postgres.test.ts",
+   "test": "two connections WITH lockKey: the second append waits and chains after the first",
+   "err": "Error: failed to drop fixture database \"tovu_kernel_pg_fixture\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixt"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/platform/db/kernel/__tests__/ops.postgres.test.ts",
+   "test": "Postgres copyTo is refused with what to do instead",
+   "err": "Error: failed to drop fixture database \"tovu_kernel_ops_test\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixtur"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/platform/db/kernel/__tests__/ops.postgres.test.ts",
+   "test": "Postgres compactAndVerify refuses a missing ledger, then passes once it has a step",
+   "err": "Error: failed to drop fixture database \"tovu_kernel_ops_test\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixtur"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/platform/db/kernel/__tests__/ops.postgres.test.ts",
+   "test": "/tmp/claude-0/-home-user/ee957620-cd5a-5cb1-a649-f4397481f126/scratchpad/Tovu-an/apps/website/src/platform/db/kernel/__tests__/ops.postgres.test.ts",
+   "err": "TypeError [Error]: Cannot read properties of undefined (reading 'close') | at TestContext.<anonymous> (apps/website/src/platform/db/kernel/__tests__/ops.postgres.test.ts:31:16) | at TestHook.runInAsyncScope (node:async_hooks:227:14) | at TestHook.run (node:internal/test_runner/test:1402:25) | at Tes"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/platform/db/kernel/__tests__/postgres-pool-error.postgres.test.ts",
+   "test": "apps/website/src/platform/db/kernel/__tests__/postgres-pool-error.postgres.test.ts",
+   "err": "'test failed'"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/platform/mail/__tests__/integration/purpose-scoped-mailer-call-sites.integration.test.ts",
+   "test": "real call sites use distinct lanes through the production gate and sign-in waits for send completion",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | + [] | - [ | -   'member@example.com'"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/integration/files.integration.test.ts",
+   "test": "PLUGIN_FILES traversal: a manifest that declares a traversal id is refused with PLUGIN_ID_INVALID, not followed",
+   "err": "AssertionError [ERR_ASSERTION]: fixture precondition: discovery must surface the traversal id, got charts-recharts, content-analyzer, word-count, innocent-folder | at TestContext.<anonymous> (apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/integration/files.integration.test.ts:13"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/integration/pages-branch-coverage.integration.test.ts",
+   "test": "integration: GET / 500s with a generic 'Site error' when an unexpected exception is thrown",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal: | + actual - expected | + '<section id=\"jini-consent\" class=\"jini-consent\" data-has-record=\"false\" data-placement=\"bottom-right\" data-reopen=\"link\" aria-label=\"Cookie preferences\">\\n' + | +   '<div class=\"jini-consent-initial\"><h2"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/integration/taxonomy-render-surface.integration.test.ts",
+   "test": "integration: GET /:slug places the terms block right after the entry's content, inside the article and before the footer",
+   "err": "AssertionError [ERR_ASSERTION]: <html><meta http-equiv=\"Content-Security-Policy\" content=\"script-src &#39;self&#39; &#39;unsafe-inline&#39;; object-src &#39;none&#39;; style-src &#39;self&#39; &#39;unsafe-inline&#39;; font-src &#39;self&#39; data:; img-src &#39;self&#39; data: blob:; media-src &#39;"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.member-access.route.test.ts",
+   "test": "GET /:slug and / -- an unknown member cookie cannot expose gated content",
+   "err": "AssertionError [ERR_ASSERTION]: invalid sessions must get the anonymous denial | ... Skipped lines | '<section id=\"jini-consent\" class=\"jini-consent\" data-has-record=\"false\" data-placement=\"bottom-right\" data-reopen=\"link\" aria-label=\"Cookie preferences\">\\n' + | '<div class=\"jini-consent-initial\"><h"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.member-access.route.test.ts",
+   "test": "GET /:slug and / -- an expired member cookie cannot expose gated content",
+   "err": "AssertionError [ERR_ASSERTION]: invalid sessions must get the anonymous denial | ... Skipped lines | '<section id=\"jini-consent\" class=\"jini-consent\" data-has-record=\"false\" data-placement=\"bottom-right\" data-reopen=\"link\" aria-label=\"Cookie preferences\">\\n' + | '<div class=\"jini-consent-initial\"><h"
+  },
+  {
+   "shard": "shard7",
+   "file": "apps/website/src/server/runtime/boot/__tests__/bootstrap-reporting.unit.test.ts",
+   "test": "TW2: bundled preparation reports failures and retirements in order before tokens and renames",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | ... Skipped lines | [ | 'seed',"
+  },
+  {
+   "shard": "shard8",
+   "file": "apps/website/src/features/site-export/__tests__/site-exporter.test.ts",
+   "test": "live site: a request carrying the static-export marker gets no widget AND a never-store Cache-Control",
+   "err": "AssertionError [ERR_ASSERTION]: /: live comments stay private; other live pages stay publicly cacheable | + actual - expected | + 'private, no-store' | - 'public, max-age=60, stale-while-revalidate=300'"
+  },
+  {
+   "shard": "shard8",
+   "file": "apps/website/src/features/site-export/__tests__/site-exporter.test.ts",
+   "test": "exportSite: --base-path rewrites HTML hrefs, leaves the already-absolute sitemap <loc> entries and robots.txt's Sitemap line untouched, and never double-prefixes anything already prefixed",
+   "err": "AssertionError [ERR_ASSERTION]: no root-relative href may survive un-prefixed once a base path is set | true !== false | at TestContext.<anonymous> (apps/website/src/features/site-export/__tests__/site-exporter.test.ts:302:10) | at process.processTicksAndRejections (node:internal/process/task_queues"
+  },
+  {
+   "shard": "shard8",
+   "file": "apps/website/src/server/__tests__/identity-routes.test.ts",
+   "test": "REQ-07: AUTH_ME returns the owner principal with '*' in its effective permission set",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | [ | '*', | +   'visitor-tools.manage'"
+  },
+  {
+   "shard": "shard8",
+   "file": "apps/website/src/server/__tests__/route-async-guards.test.ts",
+   "test": "source-control-credentials: DELETE responds 500 (not a hang) when the repo throws an untyped error",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal: | 204 !== 500 | at TestContext.<anonymous> (apps/website/src/server/__tests__/route-async-guards.test.ts:178:10) | at process.processTicksAndRejections (node:internal/process/task_queues:104:5)"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/cli/__tests__/integration/init-storage.postgres.test.ts",
+   "test": "--storage-env: the site names the variable, keeps no secret, and its database is at head with the template",
+   "err": "Error: failed to drop fixture database \"tovu_r1f2_init_env\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture."
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/cli/__tests__/integration/init-storage.postgres.test.ts",
+   "test": "sealed: the connection string is sealed in the site folder (0600, no plaintext) and the site reopens from its meta",
+   "err": "Error: failed to drop fixture database \"tovu_r1f2_init_sealed\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixtu"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/cli/__tests__/integration/init-storage.postgres.test.ts",
+   "test": "a database that already holds a Tovu site is refused, before any folder, secret or key is made",
+   "err": "Error: failed to drop fixture database \"tovu_r1f2_init_taken\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixtur"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts",
+   "test": "the first site's copy lands in `tovu` with the same row count as SQLite for every copied core table, and leaves out logins and saved keys",
+   "err": "Error: postgres: psql request failed | at sql (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25) | at async recreateDatabase (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3) | at async TestHook.run (node:internal/test_runner/test:1409:7) | at async "
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts",
+   "test": "a re-copy replaces the site's own copy and never appends",
+   "err": "Error: postgres: psql request failed | at sql (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25) | at process.processTicksAndRejections (node:internal/process/task_queues:104:5) | at async recreateDatabase (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts",
+   "test": "cross-site wipe regression: a copy aimed at a schema holding ANOTHER site's copy is refused inside the transaction",
+   "err": "Error: postgres: psql request failed | at sql (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25) | at process.processTicksAndRejections (node:internal/process/task_queues:104:5) | at async recreateDatabase (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts",
+   "test": "a schema someone else made (no marker) is refused and left untouched, and a new site is given its own schema instead",
+   "err": "Error: postgres: psql request failed | at sql (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25) | at process.processTicksAndRejections (node:internal/process/task_queues:104:5) | at async recreateDatabase (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts",
+   "test": "two sites share one database: the second gets `tovu_<site>`, each re-copy replaces only its own, and a site keeps its schema after `tovu` frees up",
+   "err": "Error: postgres: psql request failed | at sql (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25) | at process.processTicksAndRejections (node:internal/process/task_queues:104:5) | at async recreateDatabase (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts",
+   "test": "a row Postgres rejects rolls the whole copy back and names only the table",
+   "err": "Error: postgres: psql request failed | at sql (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25) | at process.processTicksAndRejections (node:internal/process/task_queues:104:5) | at async recreateDatabase (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts",
+   "test": "a count mismatch or rejected replacement preserves the earlier rows and marker",
+   "err": "Error: postgres: psql request failed | at sql (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25) | at process.processTicksAndRejections (node:internal/process/task_queues:104:5) | at async recreateDatabase (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts",
+   "test": "a setting marked secret stays behind (values at every scope and its history); ordinary settings are copied",
+   "err": "Error: postgres: psql request failed | at sql (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25) | at process.processTicksAndRejections (node:internal/process/task_queues:104:5) | at async recreateDatabase (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts",
+   "test": "siteSchemaName: the readable per-site schema for every site after the first, a safe identifier of at most 63 bytes",
+   "err": "Error: postgres: psql request failed | at sql (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25) | at process.processTicksAndRejections (node:internal/process/task_queues:104:5) | at async recreateDatabase (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts",
+   "test": "T1: the copy carries the schema's indexes, foreign keys, checks, defaults and identity columns, and new rows number after the copied ones",
+   "err": "Error: postgres: psql request failed | at sql (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25) | at process.processTicksAndRejections (node:internal/process/task_queues:104:5) | at async recreateDatabase (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts",
+   "test": "T1: a source row whose parent is missing does not stop the copy; that foreign key is kept unvalidated and named in the result",
+   "err": "Error: postgres: psql request failed | at sql (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25) | at process.processTicksAndRejections (node:internal/process/task_queues:104:5) | at async recreateDatabase (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts",
+   "test": "T2: every table in the snapshot is copied or left out with a reason; a plugin's tables are copied from the snapshot's own layout",
+   "err": "Error: postgres: psql request failed | at sql (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25) | at process.processTicksAndRejections (node:internal/process/task_queues:104:5) | at async recreateDatabase (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts",
+   "test": "an unconfirmed first-copy plan cannot overwrite a copy created since planning",
+   "err": "Error: postgres: psql request failed | at sql (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25) | at process.processTicksAndRejections (node:internal/process/task_queues:104:5) | at async recreateDatabase (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts",
+   "test": "a Postgres site copy preserves publish backstop audit rows and their undo inverses",
+   "err": "Error: postgres: psql request failed | at sql (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25) | at process.processTicksAndRejections (node:internal/process/task_queues:104:5) | at async recreateDatabase (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts",
+   "test": "/tmp/claude-0/-home-user/ee957620-cd5a-5cb1-a649-f4397481f126/scratchpad/Tovu-an/apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts",
+   "err": "Error: postgres: psql request failed | at sql (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25) | at process.processTicksAndRejections (node:internal/process/task_queues:104:5) | at async dropDatabase (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:33:3"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/database-transfer/__tests__/tool-registrations.postgres.test.ts",
+   "test": "first copy runs headlessly; replacement waits for Copy; the password never shows",
+   "err": "Error: postgres: psql request failed | at sql (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25) | at async recreateDatabase (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3) | at async TestHook.run (node:internal/test_runner/test:1409:7)"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/database-transfer/__tests__/tool-registrations.postgres.test.ts",
+   "test": "Cancel writes nothing, and a used planId is gone",
+   "err": "Error: postgres: psql request failed | at sql (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25) | at async recreateDatabase (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3) | at async TestHook.run (node:internal/test_runner/test:1409:7)"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/database-transfer/__tests__/tool-registrations.postgres.test.ts",
+   "test": "the model never passes a connection string: no tool takes one, and the plan asks for the private form first",
+   "err": "Error: postgres: psql request failed | at sql (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25) | at async recreateDatabase (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3) | at async TestHook.run (node:internal/test_runner/test:1409:7)"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/database-transfer/__tests__/tool-registrations.postgres.test.ts",
+   "test": "the private form saves a reachable destination, and neither the form, its result nor the log shows the password",
+   "err": "Error: postgres: psql request failed | at sql (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25) | at async recreateDatabase (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3) | at async TestHook.run (node:internal/test_runner/test:1409:7)"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/database-transfer/__tests__/tool-registrations.postgres.test.ts",
+   "test": "a malformed or unreachable address is refused in the form, nothing is saved, and the password is never quoted",
+   "err": "Error: postgres: psql request failed | at sql (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25) | at async recreateDatabase (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3) | at async TestHook.run (node:internal/test_runner/test:1409:7)"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/database-transfer/__tests__/tool-registrations.postgres.test.ts",
+   "test": "database_transfer_status reports the saved destination, this process's last run and the copy found there",
+   "err": "Error: postgres: psql request failed | at sql (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25) | at async recreateDatabase (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3) | at async TestHook.run (node:internal/test_runner/test:1409:7)"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/database-transfer/__tests__/tool-registrations.postgres.test.ts",
+   "test": "/tmp/claude-0/-home-user/ee957620-cd5a-5cb1-a649-f4397481f126/scratchpad/Tovu-an/apps/website/src/features/database-transfer/__tests__/tool-registrations.postgres.test.ts",
+   "err": "Error: postgres: psql request failed | at sql (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25) | at process.processTicksAndRejections (node:internal/process/task_queues:104:5) | at async dropDatabase (apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:33:3"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/pages/__tests__/html-document-store.go-live.test.ts",
+   "test": "an HTML edit between go-live and the first sweep announces the go-live once",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | [ | +   'page-1-content.saved-2', | 'page-1-entry.updated-2',"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/pages/__tests__/html-document-store.go-live.test.ts",
+   "test": "an HTML edit before go-live announces nothing; the sweep still announces at go-live",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | [ | +   'page-1-content.saved-2', | 'page-1-entry.updated-2'"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/pages/__tests__/html-document-store.go-live.test.ts",
+   "test": "ensureHtmlFormat's conversion after go-live announces the pending go-live",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | [ | +   'page-1-content.saved-2', | 'page-1-entry.updated-2',"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/pages/__tests__/html-document-store.go-live.test.ts",
+   "test": "an HTML edit between go-live and the first sweep announces the go-live once",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | [ | +   'page-1-content.saved-2', | 'page-1-entry.updated-2',"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/pages/__tests__/html-document-store.go-live.test.ts",
+   "test": "an HTML edit before go-live announces nothing; the sweep still announces at go-live",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | [ | +   'page-1-content.saved-2', | 'page-1-entry.updated-2'"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/pages/__tests__/html-document-store.go-live.test.ts",
+   "test": "ensureHtmlFormat's conversion after go-live announces the pending go-live",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | [ | +   'page-1-content.saved-2', | 'page-1-entry.updated-2',"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/site-inspection/__tests__/tool-registrations.unit.test.ts",
+   "test": "fetch_published_page: renders a real route of this site through the real composition root",
+   "err": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value: | assert.ok(result.body.includes(\"This is your home page.\")) | at TestContext.<anonymous> (apps/website/src/features/site-inspection/__tests__/tool-registrations.unit.test.ts:286:10) | at process.processTicksAndRejections (no"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/site-search/__tests__/cms-search.test.ts",
+   "test": "an HTML page edit after the backfill finished reaches the index through the entry.updated it now emits",
+   "err": "AssertionError [ERR_ASSERTION]: one event for the published page's real change; none for an unchanged save or a draft | + actual - expected | [ | [ | +     'content.saved',"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/site-search/__tests__/cms-search.test.ts",
+   "test": "an HTML page converted from doc format emits entry.updated only when it is published",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | [ | [ | +     'content.saved',"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/site-search/__tests__/cms-search.test.ts",
+   "test": "an HTML page edit after the backfill finished reaches the index through the entry.updated it now emits",
+   "err": "AssertionError [ERR_ASSERTION]: one event for the published page's real change; none for an unchanged save or a draft | + actual - expected | [ | [ | +     'content.saved',"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/site-search/__tests__/cms-search.test.ts",
+   "test": "an HTML page converted from doc format emits entry.updated only when it is published",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | [ | [ | +     'content.saved',"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/theme/__tests__/set-active-theme-tool.test.ts",
+   "test": "a settings-write fault that is not a validation refusal propagates unchanged",
+   "err": "AssertionError [ERR_ASSERTION]: Missing expected rejection. | at async TestContext.<anonymous> (apps/website/src/features/theme/__tests__/set-active-theme-tool.test.ts:31:3) | at async Test.run (node:internal/test_runner/test:1409:7) | at async startSubtestAfterBootstrap (node:internal/test_runner/h"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/widgets/__tests__/unit/deps.unit.test.ts",
+   "test": "buildWidgetsDeps: maps every field to its write-path name, by identity, including the idGen -> ids rename",
+   "err": "AssertionError [ERR_ASSERTION]: Expected \"actual\" to be reference-equal to \"expected\": | + actual - expected | { | +   findById: [AsyncFunction: findById], | +   findBySlug: [AsyncFunction: findBySlug],"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/features/widgets/__tests__/unit/deps.unit.test.ts",
+   "test": "buildWidgetHostPorts: published-post lookups use the bound postRepo, and fall back to the caller's repo when none is bound",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal: | + actual - expected | + undefined | - 'bound-post'"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts",
+   "test": "FIXTURE_DB is namespaced by this run's own process.pid — two different pids can never compute the same fixture database name, which is the entire fix for the collision",
+   "err": "Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at sweepStaleFixtureDatabases (apps/website/src/platfor"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts",
+   "test": "sweepStaleFixtureDatabases: reclaims a fixture database whose owning pid has died, and leaves one whose pid is still alive completely untouched",
+   "err": "Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at sweepStaleFixtureDatabases (apps/website/src/platfor"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts",
+   "test": "sweepStaleFixtureDatabases: a non-canonical suffix Number() would coerce into a plausible dead pid is never touched, even though the pre-fix Number()-based guard would have dropped it",
+   "err": "Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at sweepStaleFixtureDatabases (apps/website/src/platfor"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts",
+   "test": "CANONICAL_PID_SUFFIX: matches only a bare decimal pid shape; rejects every adversarial suffix Number() would otherwise coerce",
+   "err": "Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at sweepStaleFixtureDatabases (apps/website/src/platfor"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts",
+   "test": "int4 rejects 2147483648 on a live server; int8 accepts the identical value",
+   "err": "Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at sweepStaleFixtureDatabases (apps/website/src/platfor"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts",
+   "test": "reseedSequenceSql, executed after a copy that preserved original ids, makes the next plain insert land at max+1 with no collision",
+   "err": "Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at sweepStaleFixtureDatabases (apps/website/src/platfor"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts",
+   "test": "reseedSequenceSql handles the empty-table edge case: reseeding an empty table still starts identity at 1",
+   "err": "Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at sweepStaleFixtureDatabases (apps/website/src/platfor"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts",
+   "test": "reseedSequenceSql: a table containing ONLY non-positive copied ids (0 and -1) reseeds to 1, not a collision and not a jump to 2",
+   "err": "Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at sweepStaleFixtureDatabases (apps/website/src/platfor"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts",
+   "test": "reseedSequenceSql: a mixed-sign table (some non-positive, some positive ids) still reseeds to max+1 — the non-positive-id fix does not regress the ordinary case",
+   "err": "Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at sweepStaleFixtureDatabases (apps/website/src/platfor"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts",
+   "test": "a plain INSERT naming an explicit identity-column value fails WITHOUT OVERRIDING SYSTEM VALUE, and succeeds WITH it",
+   "err": "Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at sweepStaleFixtureDatabases (apps/website/src/platfor"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts",
+   "test": "COPY accepts an explicit identity-column value with NO override syntax at all — the override clause this manifest exports must never be prepended to a COPY statement",
+   "err": "Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at sweepStaleFixtureDatabases (apps/website/src/platfor"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts",
+   "test": "a naive-local timestamp string casts to a DIFFERENT instant depending on the reading session's timezone; a UTC-offset string does not",
+   "err": "Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at sweepStaleFixtureDatabases (apps/website/src/platfor"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts",
+   "test": "string-collation ORDER BY on a text timestamp column disagrees with chronological ORDER BY when Z and offset forms mix — the concrete mechanism TIMESTAMP_ORDERING_REQUIRES_CANONICAL_Z documents",
+   "err": "Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at sweepStaleFixtureDatabases (apps/website/src/platfor"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts",
+   "test": "Postgres accepts a UTC offset up to and including ±15:59 and rejects ±16:00 and beyond, in both directions — the bound a UTC-offset check must enforce, not the ±23:59 Date.parse allows",
+   "err": "Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at sweepStaleFixtureDatabases (apps/website/src/platfor"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts",
+   "test": "a plain Postgres text column silently accepts malformed JSON — proving a json-text column needs a semantic check beyond either dialect's type system",
+   "err": "Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at sweepStaleFixtureDatabases (apps/website/src/platfor"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts",
+   "test": "publish backstop audit is workspace-scoped core data included once in the Postgres copy catalog",
+   "err": "Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at sweepStaleFixtureDatabases (apps/website/src/platfor"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts",
+   "test": "/tmp/claude-0/-home-user/ee957620-cd5a-5cb1-a649-f4397481f126/scratchpad/Tovu-an/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts",
+   "err": "Error: failed to drop fixture database \"tovu_migration_fixture_20664\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at dropDatabase (/home/user/Jini/packages/db/src/pg-fi"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/parity/vault-boundary-parity.test.ts",
+   "test": "a transfer copies the same tables as before minus the retired ones",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | ... Skipped lines | [ | 'agent_tool_attempts',"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts",
+   "test": "the transcript covers every golden key and nothing else",
+   "err": "'test did not finish before its parent and was cancelled'"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts",
+   "test": "site-assistant",
+   "err": "'test did not finish before its parent and was cancelled'"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts",
+   "test": "personal-execution",
+   "err": "'test did not finish before its parent and was cancelled'"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts",
+   "test": "media-provider",
+   "err": "'test did not finish before its parent and was cancelled'"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts",
+   "test": "custom",
+   "err": "'test did not finish before its parent and was cancelled'"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts",
+   "test": "publish-peer",
+   "err": "'test did not finish before its parent and was cancelled'"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts",
+   "test": "database-destination",
+   "err": "'test did not finish before its parent and was cancelled'"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts",
+   "test": "vendor (with the folded publish_credential_sets)",
+   "err": "'test did not finish before its parent and was cancelled'"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts",
+   "test": "source-control",
+   "err": "'test did not finish before its parent and was cancelled'"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts",
+   "test": "mcp-env (enabled configs)",
+   "err": "'test did not finish before its parent and was cancelled'"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts",
+   "test": "mcp-auth (server views)",
+   "err": "'test did not finish before its parent and was cancelled'"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts",
+   "test": "isolation: a second and an empty workspace see only their own rows",
+   "err": "'test did not finish before its parent and was cancelled'"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts",
+   "test": "isolation: personal keys stay per principal and per workspace",
+   "err": "'test did not finish before its parent and was cancelled'"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts",
+   "test": "order: custom-credential and peer lists",
+   "err": "'test did not finish before its parent and was cancelled'"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts",
+   "test": "order: vendor and source-control lists, defaults first-class",
+   "err": "'test did not finish before its parent and was cancelled'"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts",
+   "test": "order: MCP server views and enabled configs",
+   "err": "'test did not finish before its parent and was cancelled'"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts",
+   "test": "vault read parity [postgres]",
+   "err": "Error: failed to drop fixture database \"tovu_vault_parity\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.t"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts",
+   "test": "vendor group default repository lookup: one LIMIT 1 read on the default index, no group scan",
+   "err": "'test did not finish before its parent and was cancelled'"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts",
+   "test": "publish compatibility selection: one inventory per kind and one selected row read",
+   "err": "'test did not finish before its parent and was cancelled'"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts",
+   "test": "MCP server list: statement count does not grow with the number of servers",
+   "err": "'test did not finish before its parent and was cancelled'"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts",
+   "test": "vault hot paths [postgres]",
+   "err": "Error: failed to drop fixture database \"tovu_vault_parity\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.t"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts",
+   "test": "/tmp/claude-0/-home-user/ee957620-cd5a-5cb1-a649-f4397481f126/scratchpad/Tovu-an/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts",
+   "err": "Error: failed to drop fixture database \"tovu_vault_parity\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at dropDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:10"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/pg-fixture.unit.test.ts",
+   "test": "psql() returns ok:true with stdout for a successful query",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal: | false !== true | at TestContext.<anonymous> (apps/website/src/platform/db/__tests__/pg-fixture.unit.test.ts:30:10) | at Test.runInAsyncScope (node:async_hooks:227:14)"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/pg-fixture.unit.test.ts",
+   "test": "psql() returns ok:false with stderr populated, never throwing, for a failing statement",
+   "err": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /this_table_does_not_exist_xyz/. Input: | 'psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory\\n' + | '\\tIs the server running locally and accepting connections on that socke"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/pg-fixture.unit.test.ts",
+   "test": "recreateDatabase() throws the exact wrapped DROP message and never attempts CREATE when DROP fails",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal: | false !== true | at TestContext.<anonymous> (apps/website/src/platform/db/__tests__/pg-fixture.unit.test.ts:83:10) | at Test.runInAsyncScope (node:async_hooks:227:14)"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/__tests__/pg-fixture.unit.test.ts",
+   "test": "recreateDatabase() + dropDatabase() happy path round-trips a real throwaway database",
+   "err": "Error: failed to drop fixture database \"tovu_pg_fixture_unit_20746\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/platform/db/kernel/__tests__/no-raw-sqlite.boundary.test.ts",
+   "test": "no new raw SQLite outside the storage kernel (ratchet: the baseline only shrinks)",
+   "err": "AssertionError [ERR_ASSERTION]: New raw SQLite outside platform/db/kernel. Use the storage kernel (run/transaction + Drizzle, dialect.ts helpers) instead. | + actual - expected | + [ | +   'apps/website/src/features/project-keys/attachments.ts: insert-or 0 -> 1', | +   'apps/website/src/platform/db/"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/integration/uninstall.integration.test.ts",
+   "test": "path traversal (malicious manifest id): a discovered-but-invalid site record whose manifest id is a traversal path is refused 400 PLUGIN_ID_INVALID — never deletes outside installDir",
+   "err": "AssertionError [ERR_ASSERTION]: precondition failed: discovery must surface the malicious-id record for this test to mean anything | at TestContext.<anonymous> (apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/integration/uninstall.integration.test.ts:393:12) | at process.processT"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/server/runtime/composition/__tests__/move-site-storage.postgres.test.ts",
+   "test": "a running site is refused; nothing changes",
+   "err": "Error: failed to drop fixture database \"tovu_move_site_test\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/server/runtime/composition/__tests__/move-site-storage.postgres.test.ts",
+   "test": "a target that already holds data is refused; nothing changes",
+   "err": "Error: failed to drop fixture database \"tovu_move_site_test\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/server/runtime/composition/__tests__/move-site-storage.postgres.test.ts",
+   "test": "a row written to the target after the emptiness check refuses the copy; nothing is truncated",
+   "err": "Error: failed to drop fixture database \"tovu_move_site_test\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/server/runtime/composition/__tests__/move-site-storage.postgres.test.ts",
+   "test": "a failure after the copy rolls the target back and leaves the site on PGlite",
+   "err": "Error: failed to drop fixture database \"tovu_move_site_test\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/server/runtime/composition/__tests__/move-site-storage.postgres.test.ts",
+   "test": "the move copies every table, seals the secret, switches the meta last, and the site boots on Postgres",
+   "err": "Error: failed to drop fixture database \"tovu_move_site_test\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/server/runtime/composition/__tests__/move-site-storage.postgres.test.ts",
+   "test": "/tmp/claude-0/-home-user/ee957620-cd5a-5cb1-a649-f4397481f126/scratchpad/Tovu-an/apps/website/src/server/runtime/composition/__tests__/move-site-storage.postgres.test.ts",
+   "err": "Error: failed to drop fixture database \"tovu_move_site_test\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at dropDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:"
+  },
+  {
+   "shard": "shard9",
+   "file": "apps/website/src/server/runtime/composition/__tests__/process-root-parity.test.ts",
+   "test": "daemon dev mode passes bypass in the executor's options bag",
+   "err": "ReferenceError [Error]: pickedFolder is not defined | at eval (eval at evaluateDaemonExpression (file://apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2845), <anonymous>:32:9) | at evaluateDaemonExpression (apps/website/src/server/inbound/assistant/__tests__/helpers/d"
+  },
+  {
+   "shard": "shard9",
+   "file": "content/agent-plugins/s3-compatible/__tests__/env-declaration.test.mjs",
+   "test": "the bundled mapping is available without provider activation and preserves optional fields",
+   "err": "Error: Unknown TOVU_MEDIA_BLOB_STORE 's3' — expected 'local'. | at readMediaStoreEnv (apps/website/src/features/object-storage/media-store.ts:66:11) | at TestContext.<anonymous> (file://content/agent-plugins/s3-compatible/__tests__/env-declaration.test.mjs:16:20) | at Test.runInAsyncScope (node:asyn"
+  },
+  {
+   "shard": "shard9",
+   "file": "content/agent-plugins/s3-compatible/__tests__/env-declaration.test.mjs",
+   "test": "every missing-variable combination preserves the original error bytes and ordering synchronously",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | Comparison { | +   message: \"Unknown TOVU_MEDIA_BLOB_STORE 's3' — expected 'local'.\" | -   message: 'TOVU_MEDIA_BLOB_STORE=s3 requires TOVU_S3_BUCKET, TOVU_S3_REGION, TOVU_S3_ACCESS_KEY_ID, TOVU_S3_SEC"
   }
  ]
 }

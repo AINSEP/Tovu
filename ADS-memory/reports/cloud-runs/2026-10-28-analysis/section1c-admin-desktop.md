@@ -1,0 +1,10 @@
+
+### Tovu apps/admin (vitest, coverage) and apps/desktop (node:test)
+- **apps/admin:** 13,724 tests, **32 failed** in 14 files (27 suites reported failed); coverage 99.40 % lines / 98.45 % branches / 98.71 % functions. (Run without `--minWorkers`: the installed vitest rejects that flag — the brief's command line is invalid for admin.)
+  - Cross-repo drift, one cause (Jini UI changed the password-reveal control; button no longer named "Show password"): `credential-input-autocomplete`, `Users.autofill`, `Users.unit` (≥4 failures) — mirrors Jini `user-management/people.test.tsx` and `ui/agent-handles.test.tsx`. REAL contract drift between linked Jini and Tovu admin (or the Jini change is a regression).
+  - i18n: `untranslated-copy.unit.test.ts` (10, `ASSISTANT_DOCK_DICT` has untranslated es/… entries e.g. `"Normal"`), `trash-i18n`, `dictionary-lookup-sinks` — missing translations (REAL, small).
+  - `admin-screens-manifest.unit.test.ts`: `apps/website/…/admin-screens.generated.ts` drifted from `ADMIN_PANELS` — regenerate (REAL).
+  - `settings-tabs.test.ts` (4): telemetry keys order/set changed (`telemetry.content`, `telemetry.metrics` …) — STALE TEST or REAL.
+  - `assistant-transport.ag-ui` (4: START/END boundary markers now emit a `status` AgentEvent), `closed-stream`, `durable-run-subscription` (2), `shared-stream-adapters` (1): behaviour of AG-UI/durable run adapters changed vs tests (STALE TEST likely; matches Jini chat/agentic changes).
+  - `assistant-user-bubbles.unit.test.tsx` (2): `TypeError: not of type 'Element'` — test setup (jsdom) issue (ENV/STALE). `AssistantDock.chat-settings`: default-grant checkbox not checked (REAL or stale).
+- **apps/desktop:** 1,832 + 706 tests (two node:test invocations), **2 failures**: `src/renderer/websites-width.test.ts` "Websites fits at 375px…" → `ReferenceError: ResourcesChip is not defined` (REAL BUG: component referenced without import/definition); one dialog layout test "narrow collapsed multi-tab content fills the dialog…" (layout/jsdom, ENV-ish). Vitest was not used by desktop (no vitest dep).

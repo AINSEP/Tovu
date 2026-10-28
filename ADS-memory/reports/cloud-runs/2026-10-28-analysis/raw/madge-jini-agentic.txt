@@ -1,0 +1,6 @@
+Processed 132 files (2.5s) (1 warning)
+
+1) skills/install/ports.ts > skills/install/github.ts
+2) skills/install/ports.ts > skills/install/github.ts > skills/install/validation.ts
+3) core/dom/model-context.ts > core/dom/native-model-context.ts
+

@@ -1,0 +1,17 @@
+Processed 1201 files (7s) (19 warnings)
+
+1) ../../core/dist/tool-input-normalization.d.ts > ../../core/dist/tool-registry.d.ts
+2) ../../ui/dist/features/panel-kit/helpers/standing-draft-local-backup.d.ts > ../../ui/dist/features/panel-kit/hooks/use-standing-draft-autosave.hooks.d.ts
+3) seo/models.ts > seo/rules.ts
+4) comments/react/components/QueueSection.tsx > comments/react/hooks/QueueSection.hooks.ts
+5) comments/react/components/SettingsSection.tsx > comments/react/hooks/SettingsSection.hooks.ts
+6) comments/react/pages/CommentsPage.tsx > comments/react/hooks/CommentsPage.hooks.ts
+7) consent/react/ConsentFields.tsx > consent/react/ConsentSettingsPanel.tsx
+8) forms/react/components/FormEditorFieldsBody.tsx > forms/react/components/FormEditorFieldsBodyParts.tsx
+9) forms/react/components/FieldSettingsSection.tsx > forms/react/components/FieldSettingsRows.tsx > forms/react/hooks/forms-view.hooks.ts > forms/react/components/FormEditorFieldsBody.tsx > forms/react/components/FormEditorFieldsBodyParts.tsx > forms/react/components/FormFieldsEditor.tsx > forms/react/components/FieldAttributesDialog.tsx
+10) forms/react/hooks/forms-view.hooks.ts > forms/react/components/FormEditorFieldsBody.tsx > forms/react/components/FormEditorFieldsBodyParts.tsx > forms/react/components/FormFieldsEditor.tsx > forms/react/components/FieldAttributesDialog.tsx
+11) forms/react/hooks/forms-view.hooks.ts > forms/react/components/FormEditorFieldsBody.tsx > forms/react/components/FormEditorFieldsBodyParts.tsx > forms/react/components/FormFieldsEditor.tsx
+12) forms/react/hooks/forms-view.hooks.ts > forms/react/components/FormEditorFieldsBody.tsx > forms/react/components/FormEditorFieldsBodyParts.tsx
+13) forms/react/hooks/forms-view.hooks.ts > forms/react/components/FormEditorFieldsBody.tsx
+14) react/overlays.ts > react/OverlayHost.hooks.ts
+

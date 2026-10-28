@@ -1,0 +1,368 @@
+{
+ "totals": {
+  "lines": {
+   "covered": 284549,
+   "total": 318978,
+   "pct": 89.20646564966863
+  },
+  "branches": {
+   "covered": 65639,
+   "total": 87062,
+   "pct": 75.39339780845835
+  },
+  "functions": {
+   "covered": 21087,
+   "total": 33379,
+   "pct": 63.174451002127086
+  }
+ },
+ "neverLoaded": 1044,
+ "areas": [
+  {
+   "area": "apps/admin",
+   "files": 798,
+   "neverLoaded": 798,
+   "totals": {
+    "lines": {
+     "covered": 0,
+     "total": 23040,
+     "pct": 0
+    },
+    "branches": {
+     "covered": 0,
+     "total": 13830,
+     "pct": 0
+    },
+    "functions": {
+     "covered": 0,
+     "total": 8290,
+     "pct": 0
+    }
+   }
+  },
+  {
+   "area": "apps/desktop",
+   "files": 188,
+   "neverLoaded": 188,
+   "totals": {
+    "lines": {
+     "covered": 0,
+     "total": 8257,
+     "pct": 0
+    },
+    "branches": {
+     "covered": 0,
+     "total": 4518,
+     "pct": 0
+    },
+    "functions": {
+     "covered": 0,
+     "total": 2531,
+     "pct": 0
+    }
+   }
+  },
+  {
+   "area": "apps/site-chat",
+   "files": 29,
+   "neverLoaded": 5,
+   "totals": {
+    "lines": {
+     "covered": 2216,
+     "total": 2256,
+     "pct": 98.22695035460993
+    },
+    "branches": {
+     "covered": 580,
+     "total": 607,
+     "pct": 95.55189456342669
+    },
+    "functions": {
+     "covered": 219,
+     "total": 229,
+     "pct": 95.63318777292577
+    }
+   }
+  },
+  {
+   "area": "apps/website",
+   "files": 1892,
+   "neverLoaded": 3,
+   "totals": {
+    "lines": {
+     "covered": 269840,
+     "total": 271161,
+     "pct": 99.51283554788483
+    },
+    "branches": {
+     "covered": 59963,
+     "total": 62022,
+     "pct": 96.68021024797652
+    },
+    "functions": {
+     "covered": 19545,
+     "total": 20553,
+     "pct": 95.09560648080573
+    }
+   }
+  },
+  {
+   "area": "content",
+   "files": 145,
+   "neverLoaded": 50,
+   "totals": {
+    "lines": {
+     "covered": 12192,
+     "total": 13959,
+     "pct": 87.34150010745755
+    },
+    "branches": {
+     "covered": 5070,
+     "total": 6055,
+     "pct": 83.73245251857969
+    },
+    "functions": {
+     "covered": 1301,
+     "total": 1754,
+     "pct": 74.1733181299886
+    }
+   }
+  },
+  {
+   "area": "packages/sdk",
+   "files": 2,
+   "neverLoaded": 0,
+   "totals": {
+    "lines": {
+     "covered": 301,
+     "total": 305,
+     "pct": 98.68852459016394
+    },
+    "branches": {
+     "covered": 26,
+     "total": 30,
+     "pct": 86.66666666666667
+    },
+    "functions": {
+     "covered": 22,
+     "total": 22,
+     "pct": 100
+    }
+   }
+  }
+ ],
+ "top30": [
+  {
+   "file": "apps/desktop/main.ts",
+   "status": "NEVER-LOADED",
+   "unc": 535,
+   "tot": 535,
+   "pct": 0
+  },
+  {
+   "file": "apps/website/src/server/inbound/assistant/agent-daemon-server.ts",
+   "status": "NEVER-LOADED",
+   "unc": 487,
+   "tot": 487,
+   "pct": 0
+  },
+  {
+   "file": "apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts",
+   "status": "NEVER-LOADED",
+   "unc": 470,
+   "tot": 470,
+   "pct": 0
+  },
+  {
+   "file": "apps/desktop/src/renderer/App.hooks.ts",
+   "status": "NEVER-LOADED",
+   "unc": 461,
+   "tot": 461,
+   "pct": 0
+  },
+  {
+   "file": "apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx",
+   "status": "NEVER-LOADED",
+   "unc": 456,
+   "tot": 456,
+   "pct": 0
+  },
+  {
+   "file": "apps/admin/src/features/publish-content/hooks/use-publish-content-confirm.hooks.ts",
+   "status": "NEVER-LOADED",
+   "unc": 337,
+   "tot": 337,
+   "pct": 0
+  },
+  {
+   "file": "apps/desktop/src/project-ipc.ts",
+   "status": "NEVER-LOADED",
+   "unc": 336,
+   "tot": 336,
+   "pct": 0
+  },
+  {
+   "file": "apps/admin/src/App.hooks.ts",
+   "status": "NEVER-LOADED",
+   "unc": 286,
+   "tot": 286,
+   "pct": 0
+  },
+  {
+   "file": "apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts",
+   "status": "NEVER-LOADED",
+   "unc": 285,
+   "tot": 285,
+   "pct": 0
+  },
+  {
+   "file": "apps/admin/src/features/security/hooks/use-access-tokens.hooks.ts",
+   "status": "NEVER-LOADED",
+   "unc": 279,
+   "tot": 279,
+   "pct": 0
+  },
+  {
+   "file": "apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts",
+   "status": "NEVER-LOADED",
+   "unc": 250,
+   "tot": 250,
+   "pct": 0
+  },
+  {
+   "file": "apps/desktop/scripts/verify-find-in-page.ts",
+   "status": "NEVER-LOADED",
+   "unc": 212,
+   "tot": 212,
+   "pct": 0
+  },
+  {
+   "file": "apps/desktop/src/stage-payload-lib.ts",
+   "status": "NEVER-LOADED",
+   "unc": 212,
+   "tot": 212,
+   "pct": 0
+  },
+  {
+   "file": "apps/desktop/src/tovu-server.ts",
+   "status": "NEVER-LOADED",
+   "unc": 204,
+   "tot": 204,
+   "pct": 0
+  },
+  {
+   "file": "apps/desktop/src/smoke-packaged-chat-gate.ts",
+   "status": "NEVER-LOADED",
+   "unc": 181,
+   "tot": 181,
+   "pct": 0
+  },
+  {
+   "file": "apps/desktop/src/renderer/use-find-in-page.hooks.ts",
+   "status": "NEVER-LOADED",
+   "unc": 180,
+   "tot": 180,
+   "pct": 0
+  },
+  {
+   "file": "apps/admin/src/features/menus/hooks/use-menu-editor.hooks.ts",
+   "status": "NEVER-LOADED",
+   "unc": 177,
+   "tot": 177,
+   "pct": 0
+  },
+  {
+   "file": "apps/desktop/scripts/verify-site-power.ts",
+   "status": "NEVER-LOADED",
+   "unc": 175,
+   "tot": 175,
+   "pct": 0
+  },
+  {
+   "file": "apps/admin/src/features/security/rules.ts",
+   "status": "NEVER-LOADED",
+   "unc": 173,
+   "tot": 173,
+   "pct": 0
+  },
+  {
+   "file": "apps/admin/src/lib/api.ts",
+   "status": "NEVER-LOADED",
+   "unc": 167,
+   "tot": 167,
+   "pct": 0
+  },
+  {
+   "file": "apps/desktop/src/stage-payload-run.ts",
+   "status": "NEVER-LOADED",
+   "unc": 165,
+   "tot": 165,
+   "pct": 0
+  },
+  {
+   "file": "apps/admin/src/features/ai-assistant/hooks/use-visitor-credential-form.hooks.ts",
+   "status": "NEVER-LOADED",
+   "unc": 155,
+   "tot": 155,
+   "pct": 0
+  },
+  {
+   "file": "apps/admin/src/features/media/rules.ts",
+   "status": "NEVER-LOADED",
+   "unc": 153,
+   "tot": 153,
+   "pct": 0
+  },
+  {
+   "file": "apps/desktop/src/renderer/workspace-chat-transport.ts",
+   "status": "NEVER-LOADED",
+   "unc": 153,
+   "tot": 153,
+   "pct": 0
+  },
+  {
+   "file": "apps/admin/src/features/roles/hooks/use-roles.hooks.ts",
+   "status": "NEVER-LOADED",
+   "unc": 152,
+   "tot": 152,
+   "pct": 0
+  },
+  {
+   "file": "apps/admin/src/App.tsx",
+   "status": "NEVER-LOADED",
+   "unc": 150,
+   "tot": 150,
+   "pct": 0
+  },
+  {
+   "file": "apps/admin/src/components/WidgetConfigFields/media-content-rules.ts",
+   "status": "NEVER-LOADED",
+   "unc": 149,
+   "tot": 149,
+   "pct": 0
+  },
+  {
+   "file": "apps/desktop/src/tracked-sites.ts",
+   "status": "NEVER-LOADED",
+   "unc": 149,
+   "tot": 149,
+   "pct": 0
+  },
+  {
+   "file": "apps/desktop/src/site-process-registry.ts",
+   "status": "NEVER-LOADED",
+   "unc": 146,
+   "tot": 146,
+   "pct": 0
+  },
+  {
+   "file": "apps/desktop/src/site-dir-store.ts",
+   "status": "NEVER-LOADED",
+   "unc": 144,
+   "tot": 144,
+   "pct": 0
+  }
+ ],
+ "zero": 1044,
+ "nl": 1044
+}

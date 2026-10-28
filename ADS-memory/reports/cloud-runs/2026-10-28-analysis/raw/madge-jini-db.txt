@@ -1,0 +1,6 @@
+Processed 243 files (2.7s) (7 warnings)
+
+1) ../../core/dist/tool-input-normalization.d.ts > ../../core/dist/tool-registry.d.ts
+2) migrate/legacy-ledger.ts > migrate/runner.ts
+3) transfer/copy-engine.ts > transfer/plan.ts
+

@@ -1,0 +1,178 @@
+- Finding files
+Processed 2625 files (14.5s) (149 warnings)
+
+✖ Found 172 circular dependencies!
+
+1) ../../../../../../../../../home/user/Jini/packages/agent-runtime/dist/types.d.ts > ../../../../../../../../../home/user/Jini/packages/agent-runtime/dist/model-discovery-types.d.ts
+2) ../../../../../../../../../home/user/Jini/packages/core/dist/tool-input-normalization.d.ts > ../../../../../../../../../home/user/Jini/packages/core/dist/tool-registry.d.ts
+3) ../../../../../../../../../home/user/Jini/packages/agent-runtime/dist/providers/anthropic-messages.d.ts > ../../../../../../../../../home/user/Jini/packages/agent-runtime/dist/providers/tool-turn-types.d.ts
+4) ../../../../../../../../../home/user/Jini/packages/agent-runtime/dist/providers/tool-turn-types.d.ts > ../../../../../../../../../home/user/Jini/packages/agent-runtime/dist/providers/azure-chat.d.ts > ../../../../../../../../../home/user/Jini/packages/agent-runtime/dist/providers/openai-chat.d.ts
+5) ../../../../../../../../../home/user/Jini/packages/agent-runtime/dist/providers/tool-turn-types.d.ts > ../../../../../../../../../home/user/Jini/packages/agent-runtime/dist/providers/azure-chat.d.ts
+6) ../../../../../../../../../home/user/Jini/packages/agent-runtime/dist/providers/tool-turn-types.d.ts > ../../../../../../../../../home/user/Jini/packages/agent-runtime/dist/providers/google-messages.d.ts
+7) ../../../../../../../../../home/user/Jini/packages/agent-runtime/dist/providers/tool-turn-types.d.ts > ../../../../../../../../../home/user/Jini/packages/agent-runtime/dist/providers/operation-schema.d.ts
+8) ../../../../../../../../../home/user/Jini/packages/chat/dist/core/messages.d.ts > ../../../../../../../../../home/user/Jini/packages/chat/dist/core/user-text-redaction.d.ts
+9) ../../../../../../../../../home/user/Jini/packages/chat/dist/react/hooks/useUserTextGuard.d.ts > ../../../../../../../../../home/user/Jini/packages/chat/dist/react/index.d.ts
+10) ../../../../../../../../../home/user/Jini/packages/db/dist/migrate/legacy-ledger.d.ts > ../../../../../../../../../home/user/Jini/packages/db/dist/migrate/runner.d.ts
+11) ../../../../../../../../../home/user/Jini/packages/db/dist/transfer/copy-engine.d.ts > ../../../../../../../../../home/user/Jini/packages/db/dist/transfer/plan.d.ts
+12) ../../../../../../../../../home/user/Jini/packages/ui/dist/features/panel-kit/helpers/standing-draft-local-backup.d.ts > ../../../../../../../../../home/user/Jini/packages/ui/dist/features/panel-kit/hooks/use-standing-draft-autosave.hooks.d.ts
+13) ../../../packages/sdk/dist/hooks.d.ts > ../../../packages/sdk/dist/index.d.ts
+14) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/agent-plugins.ts
+15) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/analytics.ts
+16) ../../website/src/contracts/core/tool-metadata/assistant.ts > ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts
+17) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/change-sets.ts
+18) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/comments.ts
+19) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/consent.ts
+20) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/content-duplication.ts
+21) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/content-read.ts
+22) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/content-types.ts
+23) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/custom-credentials.ts
+24) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/database-transfer.ts
+25) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/database.ts
+26) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/deploy-ops.ts
+27) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/deployments.ts
+28) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/domain-dns.ts
+29) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/email-templates.ts
+30) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/entries.ts
+31) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/external-mcp.ts
+32) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/files-copy.ts
+33) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/forms.ts
+34) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/frontend-control.ts
+35) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/fs-files.ts
+36) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/identity.ts
+37) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/image-transform.ts
+38) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/mail-status.ts
+39) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/media-generation.ts
+40) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/media-import.ts
+41) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/media.ts
+42) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/members.ts
+43) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/navigation.ts
+44) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/newsletter.ts
+45) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/observability.ts
+46) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/pages.ts
+47) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/permanent-delete.ts
+48) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/plugin-runtime.ts
+49) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/post.ts
+50) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/publish-content.ts
+51) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/recovery.ts
+52) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/redirects.ts
+53) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/search.ts
+54) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/seo.ts
+55) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/server-logs.ts
+56) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/settings.ts
+57) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/site-backup.ts
+58) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/site-evidence.ts
+59) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/site-guide.ts
+60) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/site-inspection.ts
+61) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/sites.ts
+62) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/skills.ts
+63) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/source-control.ts
+64) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/taxonomy.ts
+65) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/theme.ts
+66) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/trash.ts
+67) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/visitor-tools.ts
+68) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/web-screenshot.ts
+69) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/web.ts
+70) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/webhooks.ts
+71) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/widgets.ts
+72) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts > ../../website/src/contracts/core/tool-metadata/workspace.ts
+73) ../../website/src/contracts/headless/assistant-tool-approval-policy.ts > ../../website/src/contracts/core/tool-metadata/index.ts
+74) ../../website/src/assistant/byok-tool-surface.ts > ../../website/src/assistant/external-mcp-connection-source.ts > ../../website/src/features/agent-plugins/federate-mcp.ts > ../../website/src/assistant/index.ts
+75) ../../website/src/platform/db/sqlite/content-db.ts > ../../website/src/platform/db/sqlite/fresh-content-db.ts
+76) ../../website/src/features/post/post.ts > ../../website/src/features/post/go-live.ts
+77) ../../website/src/features/media/index.ts > ../../website/src/features/media/bootstrap.ts
+78) ../../website/src/features/media/provider-credential-store.ts > ../../website/src/features/media/provider-credential-vault.ts
+79) ../../website/src/features/post/repo.ts > ../../website/src/features/post/search-index.ts
+80) ../../website/src/features/post/search-index.ts > ../../website/src/features/post/search-index.postgres.ts
+81) ../../website/src/features/post/search-index.ts > ../../website/src/features/post/search-index.sqlite.ts
+82) ../../website/src/platform/site-dir/sites-home.ts > ../../website/src/platform/site-dir/sites-project-references.ts
+83) ../../website/src/features/trash/entry-sql.ts > ../../website/src/features/trash/not-trashed.ts
+84) ../../website/src/features/navigation/index.ts > ../../website/src/features/navigation/reverters.ts
+85) ../../website/src/features/theme/theme.ts > ../../website/src/features/theme/render-contract.ts
+86) ../../website/src/features/theme/theme.ts > ../../website/src/features/theme/theme-files.ts
+87) ../../website/src/features/theme/entry-list-render.ts > ../../website/src/features/theme/static-render.ts
+88) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/assistant/content-read-tool.ts > ../../website/src/assistant/tool-search-keywords.ts > ../../website/src/features/agent-plugins/bundled-contribution-sources.ts > ../../website/src/features/agent-plugins/lifecycle.ts > ../../website/src/features/agent-plugins/layout.ts > ../../website/src/platform/site-dir/index.ts > ../../website/src/platform/site-dir/duplicate-site.ts > ../../website/src/platform/site-dir/init-site.ts > ../../website/src/server/runtime/composition/open-site-store.ts > ../../website/src/server/runtime/composition/open-site-content-db.ts > ../../website/src/server/runtime/configuration/seed.ts > ../../website/src/features/theme/index.ts > ../../website/src/features/theme/page-publish-tool.ts
+89) ../../website/src/features/agent-plugins/lifecycle.ts > ../../website/src/features/agent-plugins/memory.ts
+90) ../../website/src/assistant/tool-registrations.ts > ../../website/src/assistant/tool-contribution-registry.ts
+91) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/agent-plugins/tool-registrations.ts
+92) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/agent-plugins/tool-registrations.ts > ../../website/src/features/agent-plugins/access-token-tool.ts
+93) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/agent-plugins/tool-registrations.ts > ../../website/src/features/agent-plugins/access-token-tool.ts > ../../website/src/features/agent-plugins/connect-tool.ts
+94) ../../website/src/features/agent-plugins/federate-mcp.ts > ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/agent-plugins/tool-registrations.ts > ../../website/src/features/agent-plugins/access-token-tool.ts > ../../website/src/features/agent-plugins/connect-tool.ts
+95) ../../website/src/features/agent-plugins/federate-mcp.ts > ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/agent-plugins/tool-registrations.ts > ../../website/src/features/agent-plugins/access-token-tool.ts
+96) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/agent-plugins/tool-registrations.ts > ../../website/src/features/agent-plugins/access-token-tool.ts > ../../website/src/features/agent-plugins/switch-on-saved-token.ts
+97) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/agent-plugins/tool-registrations.ts > ../../website/src/features/agent-plugins/access-token-tool.ts > ../../website/src/features/agent-plugins/switch-on-saved-token.ts > ../../website/src/features/agent-plugins/apply-connect-defaults.ts
+98) ../../website/src/features/agent-plugins/federate-mcp.ts > ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/agent-plugins/tool-registrations.ts > ../../website/src/features/agent-plugins/access-token-tool.ts > ../../website/src/features/agent-plugins/switch-on-saved-token.ts > ../../website/src/features/agent-plugins/apply-connect-defaults.ts
+99) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/analytics/tool-registrations.ts
+100) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/change-sets/tool-registrations.ts
+101) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/comments/tool-registrations.ts
+102) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/consent/tool-registrations.ts
+103) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/content-types/tool-registrations.ts
+104) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/custom-credentials/tool-registrations.ts
+105) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/database/tool-registrations.ts
+106) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/deployments/deploy-ops/tool-registrations.ts
+107) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/deployments/publish-agent-tools.ts
+108) ../../website/src/features/deployments/publish-agent-tools.ts > ../../website/src/features/deployments/static-publish/domain-publish-tool.ts
+109) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/deployments/tool-registrations.ts
+110) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/entries/tool-registrations.ts
+111) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/external-mcp/deps.ts
+112) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/forms/tool-registrations.ts
+113) ../../website/src/features/forms/import-remote-submissions.ts > ../../website/src/features/forms/index.ts
+114) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/identity/tool-registrations.ts
+115) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/mail-status/tool-registrations.ts
+116) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/mail-status/tool-registrations.ts > ../../website/src/features/mail-status/provider-tool-registrations.ts
+117) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/media-generation/tool-registrations.ts
+118) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/media-generation/tool-registrations.ts > ../../website/src/features/media/tool-registrations.ts
+119) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/media-import/tool-registrations.ts
+120) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/members/tool-registrations.ts
+121) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/navigation/tool-registrations.ts
+122) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/newsletter/delivery/tool-registrations.ts
+123) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/newsletter/delivery/tool-registrations.ts > ../../website/src/features/newsletter/tool-registrations.ts
+124) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/observability/tool-registrations.ts
+125) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/pages/tool-registrations.ts
+126) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/permanent-delete/tool-registrations.ts
+127) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/plugin-runtime/tool-registrations.ts
+128) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/post/tool-registrations.ts
+129) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/post/tool-registrations.ts > ../../website/src/features/post/content-stats-tool.ts
+130) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/post/tool-registrations.ts > ../../website/src/features/post/preview-tool.ts
+131) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/publish-content/tool-registrations.ts
+132) ../../website/src/features/publish-content/backstop-audit.ts > ../../website/src/features/publish-content/backstop-ports.ts
+133) ../../website/src/features/publish-content/backstop-audit.ts > ../../website/src/features/publish-content/type-registry.ts
+134) ../../website/src/features/publish-content/tool-registrations.ts > ../../website/src/features/publish-content/publish-tool.ts
+135) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/recovery/tool-registrations.ts
+136) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/redirects/tool-registrations.ts
+137) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/seo/tool-registrations.ts
+138) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/settings/tool-registrations.ts
+139) ../../website/src/features/settings/tool-registrations.ts > ../../website/src/features/settings/chat-execution-write.ts
+140) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/settings/visitor-tools-registrations.ts
+141) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/site-backup/tool-registrations.ts
+142) ../../website/src/features/site-backup/share-policy.ts > ../../website/src/features/site-backup/archive-media.ts > ../../website/src/features/site-backup/archive-manifest.ts > ../../website/src/features/site-backup/share-file-policy.ts
+143) ../../website/src/features/site-backup/share-policy.ts > ../../website/src/features/site-backup/archive-media.ts > ../../website/src/features/site-backup/archive-manifest.ts
+144) ../../website/src/features/site-backup/share-policy.ts > ../../website/src/features/site-backup/archive-media.ts > ../../website/src/features/site-backup/archive-manifest.ts > ../../website/src/features/site-backup/sources.ts
+145) ../../website/src/features/site-backup/share-policy.ts > ../../website/src/features/site-backup/archive-media.ts
+146) ../../website/src/features/site-backup/share-policy.ts > ../../website/src/features/site-backup/archive-media.ts > ../../website/src/features/site-backup/share-preparation-steps.ts
+147) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/site-evidence/tool-registrations.ts
+148) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/site-inspection/index.ts > ../../website/src/features/site-inspection/tool-registrations.ts
+149) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/sites/index.ts > ../../website/src/features/sites/tool-registrations.ts
+150) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/skills/install-tool.ts
+151) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/source-control/tool-registrations.ts
+152) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/taxonomy/tool-registrations.ts
+153) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/theme/preview-switcher-tools.ts
+154) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/theme/preview-switcher-tools.ts > ../../website/src/features/theme/set-active-theme-tool.ts
+155) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/theme/tool-registrations.ts
+156) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/theme/trash-theme-tool.ts
+157) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/trash/tool-registrations.ts
+158) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/webhooks/tool-registrations.ts
+159) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/widgets/tool-registrations.ts
+160) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/features/workspace/tool-registrations.ts
+161) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/server/runtime/composition/assistant-history-tools.ts
+162) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/server/runtime/composition/assistant-history-tools.ts > ../../website/src/server/routes/types.ts
+163) ../../website/src/server/inbound/public-http/http/site/render.ts > ../../website/src/server/inbound/public-http/http/site/handlebars-sandbox.ts > ../../website/src/server/inbound/public-http/http/site/worker-sandbox.ts
+164) ../../website/src/assistant/index.ts > ../../website/src/assistant/duplicate-resource-registry.ts > ../../website/src/assistant/tool-registrations.ts > ../../website/src/server/runtime/composition/assistant-history-tools.ts > ../../website/src/server/routes/types.ts > ../../website/src/server/inbound/public-http/middleware/site-cookie-consent.ts > ../../website/src/server/inbound/public-http/middleware/site-consent.ts > ../../website/src/server/inbound/public-http/routes/site/pages.ts
+165) ../../website/src/server/routes/types.ts > ../../website/src/server/inbound/public-http/middleware/site-cookie-consent.ts > ../../website/src/server/inbound/public-http/middleware/site-consent.ts > ../../website/src/server/inbound/public-http/routes/site/pages.ts
+166) ../../website/src/server/routes/types.ts > ../../website/src/server/inbound/public-http/middleware/site-cookie-consent.ts > ../../website/src/server/inbound/public-http/middleware/site-consent.ts
+167) ../../website/src/server/routes/types.ts > ../../website/src/server/inbound/public-http/middleware/site-cookie-consent.ts
+168) ../../website/src/assistant/tool-registrations.ts > ../../website/src/server/runtime/composition/assistant-history-tools.ts > ../../website/src/server/routes/types.ts > ../../website/src/server/runtime/composition/peer-site-reads.ts
+169) ../../website/src/assistant/site/visitor-executor.ts > ../../website/src/assistant/site/visitor-confirmation-gate.ts
+170) ../../website/src/server/runtime/composition/product-telemetry.ts > ../../website/src/server/runtime/composition/provider-plugins.ts
+171) sites-mcp-tools.ts > add-site-pointer.ts > site-dir-store.ts > tovu-server.ts > sites-mcp-registration.ts
+172) renderer/use-site-workspace.hooks.ts > renderer/site-theme-preview.hooks.ts
+
