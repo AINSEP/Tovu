@@ -1,0 +1,21 @@
+**Setup/typecheck findings (all REAL, not test failures)**
+- `npm ci` in Tovu **fails** (E404 `@jini-ai/cookie-consent@^0.6.12` is not published on npm; package.json:134). Any registry-only install is broken. Analysis used a copy with cookie-consent → local `file:` path.
+- `@tovu/sdk` build against the registry `@jini-ai/plugins@0.6.10` fails typecheck (`PluginProviderContribution/Factory/Resource` not exported by `@jini-ai/plugins/host`; `packages/sdk/src/index.ts:155,164`) — SDK declares `^0.6.10` but uses newer exports.
+- `npm run typecheck` (root `tsc -p tsconfig.json`) after link: **exit 0**. (Admin/desktop/site-chat tsc configs, `typecheck:tests`, `typecheck:scripts` NOT RUN.)
+- Jini `pnpm -r typecheck`: **26 errors, all in `packages/provider-plugins`** — `src/analytics-posthog/consent-adapter.ts` uses `Document` and `src/__tests__/analytics-posthog-anonymous.test.ts` uses `document`/`location` but tsconfig has no DOM lib (14+3+2 errors), plus type errors in `telemetry-reporter.test.ts`, `observability-opentelemetry.test.ts`, `analytics-posthog-browser.test.ts`. Other packages typecheck clean. Root `tsc -p scripts/tsconfig.json` NOT RUN.
+- Jini `pnpm install --frozen-lockfile` OK; `pnpm -r build` OK for every package (0 failures).
+- Jini `pnpm run complexity:strict` as scripted **fails** (config error "sonarjs plugin not defined": CLI `--rule` object has no plugin; `package.json:20`) — it can never pass in this form. I used an equivalent scratch config.
+
+**Jini test failures: 16 failing tests in 12 files / 8 packages (+ 8 packages red only on coverage thresholds)** — all 12 failing files fail again when re-run alone ⇒ none FLAKY.
+Classification & likely cause:
+- STALE TEST — `platform/src/secrets/__tests__/exports.test.ts`: expects `@jini-ai/core: ^0.6.12`, manifest now `^0.6.13` (version bump 0.6.13 `f8056e2c`).
+- STALE TEST — `platform/src/__tests__/integration-contracts.test.ts:12`: expects some subpath `jini.entries` = "node", manifest says "universal" (new browser-safe entry not in the test's `browserSafeEntries`).
+- STALE TEST (or REAL regression) — `scripts/__tests__/coupling-isolation.test.ts` ×2: `packages/platform/src/shell.ts` now reaches process helper; `agent-runtime/src/core/model-discovery-shared.ts` moved (file moved to `core/`).
+- REAL BUG (manifest) — `scripts/__tests__/peer-range-compatibility.unit.test.ts`: `@jini-ai/db` peers `@jini-ai/infra ^0.3.4` conflict with chat/cms/commerce/daemon/integrations `^0.6.10` — no common version.
+- REAL BUG or STALE — agentic ×5 (`capability.l077…`, `page-executor.l077…`, `page-executor.test.ts`): `page.highlight` with NaN/Infinity `durationMs` now throws `"durationMs" must be a number, received number` instead of clamping to 3000 (`agentic/src/core/page-capabilities.ts:60` schema validation runs before the executor's clamp; driver doc `page-driver.ts:75` says the executor clamps). Also null-validation messages ("received null" vs "received object").
+- REAL/STALE — chat ×3 `store/__tests__/loads-without-driver.test.ts:79` (sqlite/pglite/postgres entries): subprocess import of a peer unexpectedly succeeds (`expect(status).not.toBe(0)`) — peers resolvable in the pnpm workspace; likely ENV (hoisting) or layering regression.
+- ENV likely — `desktop-host/src/__tests__/sidecar.test.ts:77` (SIGTERM vs SIGKILL timing on the container), `plugins/src/host/__tests__/unit/discovery.unit.test.ts` (rethrow of non-ENOENT read faults: running as root, no EACCES).
+- STALE TEST — `ui/.../agent-handles.test.tsx:204` toggle title "Hide" and `user-management/.../people.test.tsx` button name "Show new password" (label change `Show or hide Client secret` — see `agent-handles.ts`).
+- STALE/ENV — `provider-plugins/.../observability-sentry.test.ts` (extra `SpanStreaming` integration — Sentry SDK version), `platform/.../asset-cache-boundaries.test.ts` (415 vs `url is not a cacheable e…` error text — message changed).
+- Coverage-threshold failures (exit 1 with no failing test): agent-runtime (lines 99.89 < 99.9, funcs 99.7 < 100), diagnostics (lines 94.74 < 100, funcs 98.1), http-kit (branches 99.19 < 100), infra (branches 99.02 < 100), and others in table below.
+- Jini `test:scripts`: see §4.
