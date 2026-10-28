@@ -9,7 +9,8 @@ import type { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { buildShareZip } from "../share-zip.js";
 import { SHARE_LIMITS } from "../share-policy.js";
 import type { SiteSharePlanContent } from "../plan-store.js";
-import type { PlannedDiskFile } from "../sources.js";
+import { collectSiteBackupFiles, type PlannedDiskFile } from "../sources.js";
+import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 type ZipArgs = Parameters<typeof zipFolderFiles>[0];
 function plan(overrides: Partial<SiteSharePlanContent> = {}): SiteSharePlanContent {
   return { target: { kind: "zip" }, profile: "share", include: { database: true, media: true, themes: true, plugins: true, settings: true }, database: { bytes: Buffer.from("db"), watermarkAtCapture: 4 }, files: [], bufferedFiles: [{ path: "settings.json", content: Buffer.from("{}") }], media: [], plugins: [], skipped: [], scopeNotes: {}, totalBytes: 4, site: { name: "Site", folderName: "site" }, schema: { index: 1, tag: "test" }, tovuVersion: "test", createdAt: "2026-10-26", ...overrides };
@@ -24,6 +25,58 @@ function disk(t: TestContext, relative: string, text: string): PlannedDiskFile {
   const absPath = path.join(root, "file"); fs.writeFileSync(absPath, text);
   return { path: relative, bytes: Buffer.byteLength(text), scope: "themes", absPath, mtimeMs: fs.statSync(absPath).mtimeMs };
 }
+
+/** Uses the real share collector so these tests require planning to pin theme and override bytes. */
+async function plannedTheme(required: { t: TestContext; relative: string }): Promise<PlannedDiskFile> {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "v2-theme-plan-"));
+  required.t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const target = path.join(root, required.relative);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, "page");
+  fs.utimesSync(target, 1_700_000_000, 1_700_000_000);
+  const sources = { siteDir: root, themesDir: path.join(root, "themes"), mediaUploadsDir: null,
+    skillsDir: path.join(root, "skills"), tovuVersion: "test",
+    agentPlugins: resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "agent-plugins") } }) };
+  const collected = await collectSiteBackupFiles({ sources, include: { database: false, media: false, themes: true, plugins: false, settings: false } }, { profile: "share" });
+  assert.equal(collected.files.length, 1);
+  return collected.files[0]!;
+}
+
+for (const relative of ["themes/static/site/index.html", "overrides/site/index.html"]) {
+  test(`a same-size, same-mtime swap of ${relative} after planning refuses before encoding`, async t => {
+    const file = await plannedTheme({ t, relative });
+    const { zip, calls } = encoder();
+    // Prove the unchanged plan can ship before isolating the digest check from metadata checks.
+    await buildShareZip({ plan: plan({ files: [file] }), zip }, { packageFiles: new Map() });
+    assert.equal(await calls[0]!.files[2]!.text(), "page");
+    calls.length = 0;
+    fs.writeFileSync(file.absPath, "swap");
+    fs.utimesSync(file.absPath, 1_700_000_000, 1_700_000_000);
+    const after = fs.statSync(file.absPath);
+    assert.deepEqual([after.size, after.mtimeMs], [file.bytes, file.mtimeMs]);
+    await assert.rejects(buildShareZip({ plan: plan({ files: [file] }), zip }, { packageFiles: new Map() }), { code: "PLAN_STALE" });
+    assert.equal(calls.length, 0);
+  });
+
+  test(`a linked directory for ${relative} after planning refuses even with matching bytes`, { skip: process.platform === "win32" }, async t => {
+    const file = await plannedTheme({ t, relative });
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), "v2-theme-outside-"));
+    t.after(() => fs.rmSync(outside, { recursive: true, force: true }));
+    const replacement = path.join(outside, "index.html");
+    fs.writeFileSync(replacement, "page");
+    fs.utimesSync(replacement, 1_700_000_000, 1_700_000_000);
+    fs.rmSync(path.dirname(file.absPath), { recursive: true });
+    fs.symlinkSync(outside, path.dirname(file.absPath));
+    // Matching content defeats the digest alone; only the verified path rejects this substitution.
+    assert.equal(fs.readFileSync(file.absPath, "utf8"), "page");
+    const after = fs.statSync(file.absPath);
+    assert.deepEqual([after.size, after.mtimeMs], [file.bytes, file.mtimeMs]);
+    const { zip, calls } = encoder();
+    await assert.rejects(buildShareZip({ plan: plan({ files: [file] }), zip }, { packageFiles: new Map() }), { code: "PLAN_STALE" });
+    assert.equal(calls.length, 0);
+  });
+}
+
 test("root v2 inventory matches every actual entry and its mapped path", async t => {
   const { zip, calls } = encoder();
   const progress = { filesDone: 0, bytesDone: 0, filesTotal: 3, bytesTotal: 8 };

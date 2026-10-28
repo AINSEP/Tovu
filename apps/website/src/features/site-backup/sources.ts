@@ -106,7 +106,7 @@ export interface PlannedDiskFile {
   readonly scope: SiteBackupScope;
   readonly absPath: string;
   readonly mtimeMs: number;
-  /** A share's site plugin package file: the sha256 hex of the bytes checked when it was planned, at an
+  /** A share's theme or site plugin package file: the sha256 hex of the bytes checked when it was planned, at an
    *  `absPath` reached through no link. {@link readPlannedFile} then returns only those exact bytes, so
    *  what ships is what was checked (size and mtime alone cannot tell a same-size swap). */
   readonly sha256?: string;
@@ -362,8 +362,9 @@ const MEDIA_IN_OBJECT_STORAGE_NOTE =
  *
  * @returns `files` sorted by path, `skipped` (symlinks and non-regular files, each with its reason),
  *   and `scopeNotes` for a scope whose content could not be collected here at all.
- * @throws Only an unexpected filesystem error (a missing folder is treated as empty).
- * @complexity O(entries under every included scope's folder) filesystem calls, plus O(n log n) to sort.
+ * @throws SiteShareRefusal for unsafe share files or stale themes, or an unexpected filesystem error
+ *   (a missing folder is treated as empty).
+ * @complexity O(entries + shared theme bytes), plus O(n log n) to sort n files.
  */
 export async function collectSiteBackupFiles(input: { sources: SiteBackupSources; include: SiteBackupInclude }, optional: { fileSystem?: SiteBackupWalkFileSystem; profile?: "share" } = {}): Promise<CollectedSiteBackupFiles> {
   const { sources, include } = input;
@@ -373,7 +374,10 @@ export async function collectSiteBackupFiles(input: { sources: SiteBackupSources
   if (include.media) await collectMediaScope({ sink, sources, scopeNotes });
   if (include.themes) await walkTree(sink, { absDir: sources.themesDir, relDir: "themes", scope: "themes" });
   if (include.plugins) await collectPluginScope({ sink, sources });
-  if (sink.profile === "share") await collectShareOnlyTrees({ sink, sources, include, scopeNotes });
+  if (sink.profile === "share") {
+    await collectShareOnlyTrees({ sink, sources, include, scopeNotes });
+    await pinShareThemeFiles({ sink, siteDir: sources.siteDir });
+  }
   if (include.settings) {
     for (const name of ["config.json", ".site-meta.json"]) {
       await addFile(sink, { absPath: path.join(sources.siteDir, name), relPath: `settings/${name}`, scope: "settings" });
@@ -382,6 +386,27 @@ export async function collectSiteBackupFiles(input: { sources: SiteBackupSources
 
   sink.files.sort(byPath);
   return { files: sink.files, skipped: sink.skipped, scopeNotes };
+}
+
+/** Pins share themes and overrides through the same no-linked-ancestor read as site plugins.
+ *  Canonicalize only the trusted site root (macOS's /var can be a link), never the walked descendants.
+ *  @throws SiteShareRefusal PLAN_STALE when a theme cannot be read as planned.
+ *  @complexity O(files + theme bytes), one verified read and hash per theme; O(largest theme) bytes.
+ */
+async function pinShareThemeFiles(required: { sink: WalkSink; siteDir: string }): Promise<void> {
+  const { files } = required.sink;
+  if (!files.some(file => file.scope === "themes")) return;
+  const root = await realpath(required.siteDir);
+  const sitePrefix = path.resolve(required.siteDir) + path.sep;
+  for (const [index, file] of files.entries()) {
+    if (file.scope !== "themes") continue;
+    // Packaged originals can live outside the site; retain their own absolute path.
+    const absPath = file.absPath.startsWith(sitePrefix) ? path.join(root, file.absPath.slice(sitePrefix.length)) : file.absPath;
+    const planned = { ...file, absPath };
+    const read = await readDiskFile(planned, { unlinkedPath: true });
+    if (!read.ok) throw new SiteShareRefusal({ code: "PLAN_STALE", message: read.message });
+    files[index] = { ...planned, sha256: sha256Hex(read.bytes) };
+  }
 }
 
 /** Code-unit order: -1, 0 or 1, the same as `a < b ? -1 : a > b ? 1 : 0`. */
