@@ -1,0 +1,41 @@
+[guard] R13-model-fallback-freshness claude: MF3 compared 8 live id(s) against 20 fallback entr(ies).
+[guard] R13-model-fallback-freshness codex: MF3 SKIPPED — `codex debug models` unavailable (spawn codex ENOENT). Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness antigravity: MF3 SKIPPED — `agy models` unavailable (spawn agy ENOENT). Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness pi: MF3 SKIPPED — MF3 does not apply to `pi` — only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness aider: MF3 SKIPPED — MF3 does not apply to `aider` — only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2)
+[guard] R13-model-fallback-freshness opencode: MF3 SKIPPED — MF3 does not apply to `opencode` — only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF
+[guard] R8-package-metadata packages/cookie-consent/package.json: "exports" subpath "./client.min.js" has no matching jini.entries key — a package that declares per-ent
+[guard] R8-package-metadata packages/cookie-consent/package.json: "exports" subpath "./banner.css" has no matching jini.entries key — a package that declares per-entry 
+[guard] N1-consumer-identity packages/cookie-consent/src/client/dom.ts: forbidden source reference "Tovu" (comments included)
+[guard] N1-consumer-identity packages/cookie-consent/src/node/index.ts: forbidden source reference "Tovu" (comments included)
+[guard] N1-consumer-identity packages/cookie-consent/src/plugins.ts: forbidden source reference "Tovu" (comments included)
+[guard] N1-consumer-identity packages/cookie-consent/src/policy.ts: forbidden source reference "Tovu" (comments included)
+[guard] N1-consumer-identity packages/cookie-consent/src/render/base-css.ts: forbidden source reference "Tovu" (comments included)
+[guard] N1-consumer-identity packages/cookie-consent/src/render/css-parser.ts: forbidden source reference "Tovu" (comments included)
+[guard] N1-consumer-identity packages/cookie-consent/src/render/css.ts: forbidden source reference "Tovu" (comments included)
+[guard] N1-consumer-identity packages/cookie-consent/src/server/receipt.ts: forbidden source reference "Tovu" (comments included)
+[guard] N1-consumer-identity packages/daemon/src/agent-executor/launch.ts: forbidden source reference "Tovu" (comments included)
+[guard] N1-consumer-identity packages/daemon/src/tool-recovery/observability.ts: forbidden source reference "Tovu" (comments included)
+[guard] L0-unlisted-package packages/cookie-consent/package.json: package missing from the approved layer table
+[guard] L1-layer-edge packages/diagnostics/package.json: diagnostics → @jini-ai/analytics: L2 cannot depend on L4
+[guard] L1-layer-edge packages/diagnostics/src/observability/tracker-types.ts: diagnostics → @jini-ai/analytics/product: L2 cannot depend on L4
+[guard] L1-layer-edge packages/diagnostics/src/observability/tracker.ts: diagnostics → @jini-ai/analytics/product: L2 cannot depend on L4
+[guard] L0-unlisted-package packages/provider-plugins/src/analytics-posthog/consent-adapter.ts: provider-plugins → @jini-ai/cookie-consent/client: package missing from 
+[guard] L0-unlisted-package packages/provider-plugins/src/analytics-posthog/consent-adapter.ts: provider-plugins → @jini-ai/cookie-consent: package missing from the app
+[guard] L0-unlisted-package packages/provider-plugins/src/analytics-posthog/consent.ts: provider-plugins → @jini-ai/cookie-consent: package missing from the approved la
+[guard] L1-layer-edge packages/user-management/src/admin/react/components/UsersConfirmation.tsx: user-management → @jini-ai/ui: L4 cannot depend on L5
+[guard] SI-dependency packages/analytics/package.json: @jini-ai/agent-runtime is an install-time dependency used by 0/2 source closures; declare an optional peer and a de
+[guard] SI-domain packages/cookie-consent/src/client/index.ts: ./client (client) reaches src/policy.ts (policy) via ../policy.js
+[guard] SI-domain packages/cookie-consent/src/client/index.ts: ./client (client) reaches src/plugins.ts (plugins) via ../plugins.js
+[guard] SI-resolution packages/cookie-consent/package.json: ./client.min.js: no source file for ./dist/client.min.js
+[guard] SI-domain packages/cookie-consent/src/server/receipt.ts: ./server (server) reaches src/policy.ts (policy) via ../policy.js
+[guard] SI-domain packages/cookie-consent/src/node/index.ts: ./node (node) reaches src/policy.ts (policy) via ../policy.js
+[guard] SI-dependency packages/daemon/package.json: smol-toml is an install-time dependency used by 2/14 source closures; declare an optional peer and a development depen
+[guard] SI-domain packages/db/src/owner-store/migrations/0000_owner_store.ts: ./owner-store (owner-store) reaches src/migrate/ddl.ts (migrate) via ../../migrate/ddl.js
+[guard] SI-dependency packages/devops/package.json: parse5 is an install-time dependency used by 2/17 source closures; declare an optional peer and a development dependen
+[guard] SI-dependency packages/diagnostics/package.json: @jini-ai/analytics is an install-time dependency used by 1/7 source closures; declare an optional peer and a deve
+[guard] HW3-module-state packages/cookie-consent/src/client/dom.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may 
+[guard] HW3-module-state packages/cookie-consent/src/render/css.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may 
+[guard] HW3-module-state packages/desktop-host/src/electron/electron-url-capture.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path
+[guard] HW3-module-state packages/devops/src/static-export/html-url-locations.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-ke
+[guard] HW3-module-state packages/diagnostics/src/observability/delivery.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed l
