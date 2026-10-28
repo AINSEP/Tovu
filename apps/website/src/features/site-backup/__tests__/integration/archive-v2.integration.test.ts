@@ -9,7 +9,7 @@ import Database from "better-sqlite3";
 import * as yauzl from "yauzl";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { sanitizeShareDatabase, rewriteArchiveMedia } from "#src/platform/db/sqlite/share-database";
+import { sanitizeShareDatabase, rewriteArchiveMedia } from "#src/server/runtime/composition/site-portability";
 import { runtimeSchemaVersion } from "#src/platform/site-dir/index";
 import { readTemplate } from "#src/platform/site-dir/read-template";
 import { computeBlobStorageKey, SharpImageTransformer } from "#src/features/media/index";

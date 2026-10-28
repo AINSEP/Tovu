@@ -11,7 +11,8 @@ import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { PostRecord, PostRepoPort } from "./post.js";
 import { extractPostPlainText } from "./search.js";
 import { extractPlainTextFromHtml } from "./html-plain-text.js";
-import { sniffContentType, type MediaContentTypeStorePort } from "../media/index.js";
+import { sniffContentType } from "@jini-ai/cms/media";
+import type { MediaContentTypeStorePort } from "../media/index.js";
 
 /** Read ports only; structural projections also permit small in-memory fixtures. */
 export interface ContentStatsToolDeps {

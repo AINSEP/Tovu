@@ -188,6 +188,7 @@ test("generated assets stamp the acting principal independently of the model and
   const stored = await fixture.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: result.media.id });
   assert.ok(stored);
   assert.equal((stored as { createdBy?: string }).createdBy, PRINCIPAL_ID);
+  assert.deepEqual(stored.source.provenance, { kind: 'generated' });
   assert.equal(stored.credit, "Editorial credit");
   assert.deepEqual(fixture.captures.map(([event]) => event), [{ name: "media_uploaded", userId: PRINCIPAL_ID }]);
 });
@@ -300,7 +301,7 @@ test("with a saved credential: generates through the injected seam, uploads the 
   const storedBytes = await blobStore.get({ storageKey: blob.storageKey });
   assert.deepEqual(Buffer.from(storedBytes), FAKE_PNG_BYTES, "binary renderer bytes survive the upload unchanged");
   assert.equal(createHash("sha256").update(storedBytes).digest("hex"), out.media.sha256);
-  assert.equal(out.media.publicUrl, `/m/${out.media.slug}/public.v1/image.webp`);
+  assert.equal(out.media.publicUrl, `/m/${out.media.slug}/public.v1/image.webp?v=${out.media.sha256.slice(0, 12)}`);
   assert.equal(out.media.placeholder, false, "a real (non-stub) generation must report placeholder:false");
   assert.deepEqual(Object.keys(out.media).sort(), ["alt", "caption", "createdBy", "credit", "id", "placeholder", "publicUrl", "sha256", "slug", "status", "title", "version"]);
   assert.equal(out.media.createdBy, PRINCIPAL_ID, "the view carries the acting principal, like media_upload_asset's");

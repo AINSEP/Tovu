@@ -399,6 +399,33 @@ function parseArgs(argv) {
   return overrides;
 }
 
+function reportRegistryResult({ result }, _options = {}) {
+  console.log(`\n--- ${result.project.label} ---`);
+  if (result.status === "skipped") {
+    console.log(`  SKIP  ${result.reason}`);
+    return false;
+  }
+  if (result.status === "install-error") {
+    console.log("  FAIL  could not install the pinned @jini-ai/* versions from the registry:");
+    console.log(indent(result.output));
+    return true;
+  }
+  const versionLines = Object.entries(result.versions)
+    .map(([name, version]) => `    ${name}@${version}`)
+    .join("\n");
+  if (result.status === "pass") {
+    console.log(`  PASS  ${Object.keys(result.versions).length} package(s) type-check clean against the registry:`);
+    console.log(versionLines);
+    if (result.note) console.log(`  (note: ${result.note})`);
+  } else {
+    console.log("  FAIL  source uses a @jini-ai/* symbol not present in the registry-published version:");
+    console.log(versionLines);
+    console.log("");
+    console.log(indent(result.output));
+  }
+  return result.status !== "pass";
+}
+
 async function main() {
   const overrides = parseArgs(process.argv.slice(2));
   // Safe to run in parallel: each project's shadow lives under its OWN directory
@@ -410,40 +437,16 @@ async function main() {
 
   let failed = false;
   for (const result of results) {
-    console.log(`\n--- ${result.project.label} ---`);
-    if (result.status === "skipped") {
-      console.log(`  SKIP  ${result.reason}`);
-      continue;
-    }
-    if (result.status === "install-error") {
-      failed = true;
-      console.log("  FAIL  could not install the pinned @jini-ai/* versions from the registry:");
-      console.log(indent(result.output));
-      continue;
-    }
-    const versionLines = Object.entries(result.versions)
-      .map(([name, version]) => `    ${name}@${version}`)
-      .join("\n");
-    if (result.status === "pass") {
-      console.log(`  PASS  ${Object.keys(result.versions).length} package(s) type-check clean against the registry:`);
-      console.log(versionLines);
-      if (result.note) console.log(`  (note: ${result.note})`);
-    } else {
-      failed = true;
-      console.log("  FAIL  source uses a @jini-ai/* symbol not present in the registry-published version:");
-      console.log(versionLines);
-      console.log("");
-      console.log(indent(result.output));
-    }
+    if (reportRegistryResult({ result })) failed = true;
   }
 
   console.log("");
   if (failed) {
     console.error(
       "[check-jini-registry-drift] one or more @jini-ai/* symbols used in Tovu's source are not " +
-        "in the REGISTRY-published version pinned in package.json. Either bump the pin once the " +
-        "fix is actually published, or the change was never published at all — this is the exact " +
-        "failure class that broke 5 deploys on 2026-09-03 (see this script's header comment).",
+      "in the REGISTRY-published version pinned in package.json. Either bump the pin once the " +
+      "fix is actually published, or the change was never published at all — this is the exact " +
+      "failure class that broke 5 deploys on 2026-09-03 (see this script's header comment).",
     );
     process.exitCode = 1;
   } else {

@@ -1,3 +1,4 @@
+import { containAgentPluginStatePath } from "#src/features/agent-plugins/lifecycle";
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile, rm, readFile } from "node:fs/promises";
 import os from "node:os";
@@ -23,8 +24,8 @@ test("MCP adapter retains stdio, optional remote fields, declared invalid ids an
     ["invalid", { type: "unknown" }],
   ]);
   const result = parseAgentPluginMcpConfig({ value: { $schema: schema, mcpServers: servers } });
+  if (!result.ok) assert.fail(result.errors.join("; "));
   assert.equal(result.ok, true);
-  if (!result.ok) throw new Error(result.errors.join("; "));
   assert.equal(Object.getPrototypeOf(result.config.servers), null);
   assert.deepEqual(result.config.serverIds, ["stdio", "full", "__proto__", "invalid"]);
   assert.deepEqual(result.config.servers.stdio, servers.stdio);
@@ -54,10 +55,10 @@ test("site migration handles a missing workspace directory and propagates a non-
   const root = await mkdtemp(path.join(os.tmpdir(), "tw2-L224-missing-"));
   try {
     const layout = resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "plugins") } });
-    assert.deepEqual(await migrateSiteAgentPluginLayouts({ layout, workspaceId: "active" }), { complete: true, moved: 0 });
+    assert.deepEqual(await migrateSiteAgentPluginLayouts({ contain: containAgentPluginStatePath, layout, workspaceId: "active" }), { complete: true, moved: 0 });
     await rm(layout.workspacesDir, { recursive: true, force: true });
     await writeFile(layout.workspacesDir, "file");
-    await assert.rejects(migrateSiteAgentPluginLayouts({ layout, workspaceId: "active" }), { code: "ENOTDIR" });
+    await assert.rejects(migrateSiteAgentPluginLayouts({ contain: containAgentPluginStatePath, layout, workspaceId: "active" }), { code: "ENOTDIR" });
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
@@ -73,7 +74,7 @@ test("site migration skips files and invalid workspace folders, deduplicates act
     const warnings = t.mock.method(console, "warn", (..._args: unknown[]) => {});
     const calls: string[] = [];
     const tracked = { ...layout, forWorkspace: (id: string) => { calls.push(id); return layout.forWorkspace(id); } };
-    assert.deepEqual(await migrateSiteAgentPluginLayouts({ layout: tracked, workspaceId: "active" }), { complete: true, moved: 0 });
+    assert.deepEqual(await migrateSiteAgentPluginLayouts({ contain: containAgentPluginStatePath, layout: tracked, workspaceId: "active" }), { complete: true, moved: 0 });
     assert.equal(calls.filter(id => id === "active").length, 2);
     assert.equal(warnings.mock.calls.filter(call => call.arguments[0] === "[agent-plugins:migration-failed] invalid legacy workspace folder bad_id").length, 1);
     assert.equal(await readFile(path.join(layout.forWorkspace("other").root, "example", "memory", "notes", "note.md"), "utf8"), "preserve");

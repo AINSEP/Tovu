@@ -1,4 +1,4 @@
-import Database from "better-sqlite3";
+import { openNativeSqlite } from "../platform/db/kernel/drivers/sqlite.js";
 import { toolRegistryRevision, withoutBatchGuidance, type ToolRegistry } from "@jini-ai/core";
 import type { Clock } from "@jini-ai/core/primitives";
 import type { ToolCatalogQuery } from "@jini-ai/daemon/http";
@@ -6,7 +6,7 @@ import { buildToolCatalogQuery as buildCatalogSnapshot, listToolCatalogEntries a
 import { createSqliteCatalogStoreFactory } from "@jini-ai/registry/tool-catalog-builder/sqlite";
 
 import { indexedDescriptionFor, stripSearchKeywords } from "./tool-search-keywords.js";
-import { PAGE_HTML_CONTRACT } from "../features/pages/agent-tools.js";
+import { PAGE_HTML_CONTRACT } from "../contracts/core/page-html.js";
 
 /**
  * @file Backs `@jini-ai/daemon/http`'s `GET /api/tools/search` / `GET /api/tools/:id` with Tovu's own
@@ -99,7 +99,7 @@ export function buildToolCatalogQuery(
    *  make its improvement attributable rather than asserted. Production always wants the default. */
   options: { readonly includeSearchKeywords?: boolean; readonly includeDoc2query?: boolean; readonly clock?: Clock } = {},
 ): ToolCatalogQuery {
-  const db = new Database(":memory:");
+  const db = openNativeSqlite(":memory:");
   // Indexed text, not the raw description — see `tool-search-keywords.ts` for why. Short
   // version: BM25 can only rank words that are in the index, and this catalog's descriptions
   // are written in the codebase's nouns while operators search in theirs.

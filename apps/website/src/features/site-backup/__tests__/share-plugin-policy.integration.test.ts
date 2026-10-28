@@ -4,8 +4,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import Database from "better-sqlite3";
 import { importFixture, seedPluginShareData } from "./import.fixture.js";
-import { sanitizeShareDatabase } from "../../../platform/db/sqlite/share-database.js";
-import { rebuildImportDatabase } from "../../../platform/db/sqlite/import-database.js";
+import { sanitizeShareDatabase } from "#src/server/runtime/composition/site-portability";
+import { rebuildImportDatabase } from "../import-database.js";
 
 test("populated undeclared plugin tables still refuse by name beside declared tables", async t => {
   const h = await importFixture(t);

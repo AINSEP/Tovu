@@ -3,7 +3,7 @@ import {
   type FormDeliveryJob, type FormDeliveryPlan, type FormDeliveryPlanPort,
   type FormPullClaim, type FormPullLeasePort, type FormPullRefusal, formDeliveryStatusFromOutbox,
 } from "@jini-ai/cms/forms";
-import { DELIVERY_STATUS_MAX_LIMIT, type FormDeliveryStatusRow } from "#src/features/forms/index";
+import { DELIVERY_STATUS_MAX_LIMIT, type FormDeliveryStatusRow } from "#src/contracts/headless/form-delivery-status";
 
 import type { Kysely } from "kysely";
 

@@ -2,12 +2,11 @@
  * @file Contracts for the static-site exporter's route enumeration step (2026-08-15).
  *
  * Purpose:
- * `RouteManifestPort` is the ONE place that knows "what URLs does this workspace's public site
- * actually serve" — deliberately its own port rather than a hand-rolled list inside the exporter
- * engine, so a future incremental/scheduled exporter (or an admin "N routes will be exported"
- * preview) can depend on the interface without pulling in the HTTP-driving writer.
+ * `buildRouteManifest` owns "what URLs does this workspace's public site actually serve" —
+ * separately from the HTTP-driving writer, so export and preview callers share enumeration
+ * rather than maintaining hand-rolled route lists inside the exporter engine.
  *
- * `Jini/packages/cms/src/seo/sitemap.ts`'s `buildSitemap` is NOT this port and must never be mistaken for it: it
+ * `Jini/packages/cms/src/seo/sitemap.ts`'s `buildSitemap` is NOT this enumerator and must never be mistaken for it: it
  * enumerates only published, indexable posts, silently omitting home, products, theme-owned static
  * pages, redirects, and 404 — an SEO index and a deployable manifest answer different questions
  * (`development/docs/deployment/deployment-constraints.md` §3).
@@ -93,9 +92,4 @@ export interface RouteManifest {
   skipped: ManifestSkip[];
   /** Set only when a valid theme was resolved (absent in the `no-theme` `skipped` case). */
   activeTheme?: ManifestActiveTheme;
-}
-
-/** Enumerates every publicly reachable URL for one workspace's active theme + content. */
-export interface RouteManifestPort {
-  build(): Promise<RouteManifest>;
 }

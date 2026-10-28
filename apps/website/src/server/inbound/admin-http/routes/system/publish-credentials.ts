@@ -108,6 +108,12 @@ export type AdminPublishCredentialsDeps = Pick<
 
 const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/system/publish/credentials";
 
+/** Only a project-bound create starts non-default (attached next); a site row, including every
+ * create where no project store is open, keeps Jini's first-row auto-default. */
+function initialPublishDefault({ body, deps }: { body: Record<string, unknown>; deps: AdminPublishCredentialsDeps }, _optional = {}): unknown {
+  return body.isDefault ?? (body.scope !== "site" && deps.vendorCredentialSetRepo.project ? false : undefined);
+}
+
 function credentialUpdateFields({ body }: { body: Record<string, unknown> }, _optional = {}): Omit<UpdatePublishCredentialInput, "workspaceId" | "id"> {
   return {
     ...(body.label !== undefined ? { label: body.label } : {}),
@@ -283,9 +289,7 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
         workspaceId: deps.workspaceId,
         label: body.label,
         connection: body.connection,
-        // Only a project-bound create starts non-default (attached next); a site row, including every
-        // create where no project store is open, keeps Jini's first-row auto-default.
-        isDefault: body.isDefault ?? (body.scope !== "site" && deps.vendorCredentialSetRepo.project ? false : undefined),
+        isDefault: initialPublishDefault({ body, deps }),
         worksFor: body.worksFor,
         // "site" = only for this site; omitted = the project store when one is attached.
         scope: body.scope,

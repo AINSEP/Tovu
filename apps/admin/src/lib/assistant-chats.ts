@@ -1,5 +1,4 @@
 import type { ChatMessage } from "@jini-ai/chat/core";
-import * as sharedMessages from "@jini-ai/chat/transports/http";
 import { ApiError, authenticatedAdminRequest, type AuthenticatedAdminRequestOptions } from "./api";
 
 /**
@@ -8,7 +7,7 @@ import { ApiError, authenticatedAdminRequest, type AuthenticatedAdminRequestOpti
  * The interesting decision here is *when* to write. `ChatPane` calls `onMessagesChange` on every
  * streamed delta, and persisting each one would mean a database write per token: Open Design does
  * the equivalent (a full read-modify-write of the whole events array per token) and it is O(n) per
- * token on a transcript that only grows. {@link persistableMessages} instead selects the messages
+ * token on a transcript that only grows. Jini's `persistableMessages` instead selects the messages
  * that have reached a settled state — every user turn, and assistant turns whose run has finished
  * — so a streaming reply is written once, when it is done.
  *
@@ -96,9 +95,3 @@ export async function saveMessage(conversationId: string, message: ChatMessage):
     CHAT_REQUEST_OPTIONS,
   );
 }
-/** Compatibility adapter; shared message selection is owned by Jini. */
-export function persistableMessages(messages: ChatMessage[]): ChatMessage[]  { return sharedMessages.persistableMessages({ messages }, {}); }
-/** Compatibility adapter; shared message selection is owned by Jini. */
-export function messageWriteKey(message: Pick<ChatMessage, "id" | "runId">): string  { return sharedMessages.messageWriteKey({ message }, {}); }
-/** Compatibility adapter; shared message selection is owned by Jini. */
-export function activeRunStub(messages: ChatMessage[]): ChatMessage | null  { return sharedMessages.activeRunStub({ messages }, {}); }

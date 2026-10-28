@@ -1,6 +1,5 @@
 import type { UUID } from "@jini-ai/core/primitives";
 import type { AuthorizeFn } from "@jini-ai/cms/core";
-import type { resolveAgentPluginReadOnlyRemoteNames } from "../features/agent-plugins/federate-mcp.js";
 
 import type { SecretSealerPort } from "../features/webhooks/index.js";
 
@@ -31,6 +30,15 @@ export interface StoredExternalMcpConnectionFailure {
   readonly reason: string;
 }
 
+/** Local manifest lookup port; remote annotations never grant read authority. */
+type ResolvePluginReadOnlyRemoteNames = (input: {
+  readonly agentPluginLayout: import("../features/agent-plugins/layout.js").AgentPluginLayout;
+  readonly workspaceId: string;
+  readonly pluginId: string;
+  readonly serverId: string;
+  readonly url: string;
+}, optional?: Record<string, never>) => Promise<ReadonlySet<string>>;
+
 export interface StoredExternalMcpConnectionSourceDeps {
   readonly agentPluginLayout: import("../features/agent-plugins/layout.js").AgentPluginLayout;
   readonly repo: ExternalMcpServerRepoPort;
@@ -42,7 +50,7 @@ export interface StoredExternalMcpConnectionSourceDeps {
   /** Log-line prefix (`"[agent-daemon]"`, `"[assistant-byok]"`, ...) identifies the composition root. */
   readonly log: string;
   /** Local manifest lookup, never remote annotations. Injected to exercise roster reloads. */
-  readonly resolvePluginReadOnlyRemoteNames?: typeof resolveAgentPluginReadOnlyRemoteNames;
+  readonly resolvePluginReadOnlyRemoteNames?: ResolvePluginReadOnlyRemoteNames;
 }
 
 export interface StoredExternalMcpConnectionSource {
@@ -104,8 +112,8 @@ export function createStoredExternalMcpConnectionSource(
 // Defer the plugin adapter until roster resolution: its provisioning half reaches the
 // assistant barrel, so importing it eagerly would make this module part of that boot cycle.
 async function loadPluginReadOnlyRemoteNames(
-  input: Parameters<typeof resolveAgentPluginReadOnlyRemoteNames>[0],
-): ReturnType<typeof resolveAgentPluginReadOnlyRemoteNames> {
+  input: Parameters<ResolvePluginReadOnlyRemoteNames>[0],
+): ReturnType<ResolvePluginReadOnlyRemoteNames> {
   return (await import("../features/agent-plugins/federate-mcp.js")).resolveAgentPluginReadOnlyRemoteNames(input);
 }
 
@@ -113,7 +121,7 @@ async function loadPluginReadOnlyRemoteNames(
  * @complexity O(c) configs plus one manifest lookup per plugin-provisioned remote connection. */
 async function pluginReadOnlyNames({ deps, configs, resolvePluginReads }: {
   deps: StoredExternalMcpConnectionSourceDeps; configs: readonly ExternalMcpServerConfig[];
-  resolvePluginReads: typeof resolveAgentPluginReadOnlyRemoteNames;
+  resolvePluginReads: ResolvePluginReadOnlyRemoteNames;
 }, _options = {}): Promise<Map<string, ReadonlySet<string>>> {
   const readOnlyNames = new Map<string, ReadonlySet<string>>();
   for (const config of configs) {

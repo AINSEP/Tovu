@@ -279,30 +279,33 @@ export function bindVercel(kit) {
       const cause = err?.cause?.message || err?.cause?.code;
       return new DeployError(`Vercel file upload failed: ${err?.message ?? err}${cause ? ` (${cause})` : ''}`, 502);
   }
+  async function tryVercelFileUpload({ config, sha, data, attempt }, _options = {}) {
+      try {
+          return await fetchWithTimeout(`${VERCEL_API}/v2/files${vercelTeamQuery(config)}`, redirectGuardInit({
+              method: 'POST',
+              headers: {
+                  Authorization: `Bearer ${config.token}`,
+                  'Content-Type': 'application/octet-stream',
+                  'Content-Length': String(data.length),
+                  'x-vercel-digest': sha,
+              },
+              body: data,
+          }), { timeoutMs: FETCH_TIMEOUT_MS.UPLOAD });
+      }
+      catch (err) {
+          // A dropped connection is retried like a 5xx (the first real plannie publish lost one of
+          // ~200 uploads that way); a timeout is not, since each try already waited the full bound.
+          if (attempt < VERCEL_UPLOAD_ATTEMPTS && !/timed out/i.test(String(err?.message))) {
+              await sleep(1000 * attempt);
+              return undefined;
+          }
+          throw vercelUploadTransportError({ err });
+      }
+  }
   async function uploadVercelFile(config, sha, data) {
       for (let attempt = 1; ; attempt += 1) {
-          let resp;
-          try {
-              resp = await fetchWithTimeout(`${VERCEL_API}/v2/files${vercelTeamQuery(config)}`, redirectGuardInit({
-                  method: 'POST',
-                  headers: {
-                      Authorization: `Bearer ${config.token}`,
-                      'Content-Type': 'application/octet-stream',
-                      'Content-Length': String(data.length),
-                      'x-vercel-digest': sha,
-                  },
-                  body: data,
-              }), { timeoutMs: FETCH_TIMEOUT_MS.UPLOAD });
-          }
-          catch (err) {
-              // A dropped connection is retried like a 5xx (the first real plannie publish lost one of
-              // ~200 uploads that way); a timeout is not, since each try already waited the full bound.
-              if (attempt < VERCEL_UPLOAD_ATTEMPTS && !/timed out/i.test(String(err?.message))) {
-                  await sleep(1000 * attempt);
-                  continue;
-              }
-              throw vercelUploadTransportError({ err });
-          }
+          const resp = await tryVercelFileUpload({ config, sha, data, attempt });
+          if (resp === undefined) continue;
           assertNotRedirected(resp, 'Vercel file upload');
           if (resp.ok) {
               // Drain the small JSON ack so the connection goes back to the pool.

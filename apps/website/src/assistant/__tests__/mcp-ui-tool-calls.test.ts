@@ -234,10 +234,22 @@ const EXPECTED_ALLOWLIST = [
   // 2026-10-21 — site search: the reindex and provider-switch cards (`server/runtime/composition/site-search-tools.ts`).
   "search_reindex",
   "search_set_provider",
+  // de2fa37fe / 66c5fa625: exact file batches park on principal-bound policy cards.
+  "fs_write_files",
+  "files_copy",
+  "image_transform",
 ];
 
 test("SECURITY-CRITICAL: the allowlist is exactly this set — widening it cannot happen silently", () => {
   assert.deepEqual([...MCP_UI_REDEEMABLE_TOOL_IDS].sort(), [...EXPECTED_ALLOWLIST].sort());
+});
+
+test("file-batch callbacks can only answer parked exchanges, never start fresh writes", () => {
+  for (const id of ["fs_write_files", "files_copy", "image_transform"]) {
+    assert.equal(isMcpUiToolCallAllowed(id), true);
+    assert.equal(isMcpUiToolCallPermitted(id, false), false, id);
+    assert.equal(isMcpUiToolCallPermitted(id, true), true, id);
+  }
 });
 
 test("SECURITY-CRITICAL: isMcpUiToolCallAllowed admits a tool id if and ONLY if it is on that set", () => {

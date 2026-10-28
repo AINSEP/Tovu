@@ -1,3 +1,5 @@
+export type { VisitorExecutionPorts } from "./visitor-execution-ports.js";
+import type { VisitorExecutionPorts } from "./visitor-execution-ports.js";
 /** Tovu's anonymous execution adapter. No admin registry, catalog, invoker or plugin port exists. */
 import { createToolRegistry } from "@jini-ai/core";
 import { createToolExecutor, type ToolExecutionResult } from "@jini-ai/daemon";
@@ -14,23 +16,6 @@ export interface VisitorCapabilityContract extends VisitorToolPresentation {
   /** A site grant never adds eligibility: the reviewed contract must explicitly opt in. */
   readonly visitorOfferable: true;
   readonly execute: (required: { input: unknown }, optional?: Record<string, never>) => Promise<{ readonly result: unknown; readonly directive?: ClientDirective }>;
-}
-export interface VisitorExecutionPorts {
-  readonly initialPolicy: VisitorToolPolicy | null;
-  /** Re-read at each invocation, including Off changes during a running model turn. */
-  readonly readPolicy: () => Promise<VisitorToolPolicy | null>;
-  /** Value-row revision from the settings owner; required to execute Ask, optional for legacy Auto. */
-  readonly readSnapshot?: () => Promise<{ policy: VisitorToolPolicy | null; revision: string }>;
-  readonly confirmation?: VisitorConfirmations & { readonly emit: (directive: ToolConfirmationDirective) => void };
-  readonly budgets: VisitorToolBudgets;
-  readonly ip: string;
-  readonly workspaceId: string;
-  readonly runId: string;
-  readonly clock: { nowMs(): number; nowIso(): string };
-  readonly ids: { newId(): string };
-  readonly sink: ToolAttemptAuditSink;
-  readonly reportError: (error: unknown) => void;
-  readonly signal?: AbortSignal;
 }
 
 /** Uniform visitor-safe refusal keeps denied and unknown capabilities indistinguishable. */

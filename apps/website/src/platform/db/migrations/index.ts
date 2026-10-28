@@ -1,3 +1,5 @@
+import { mediaSourceMetadata } from './0037_media_source_metadata.js';
+import { publishHistoryConfigJsonb } from "./0036_publish_history_config_jsonb.js";
 import { memberExternalIdentities } from "./0035_member_external_identities.js";
 import { memberAuth } from "./0034_member_auth.js";
 import { mailActivityMessage } from "./0033_mail_activity_message.js";
@@ -101,6 +103,8 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [
   mailActivityMessage({ checksum: pinned("0033_mail_activity_message") }),
   memberAuth({ checksum: pinned("0034_member_auth") }),
   memberExternalIdentities({ checksum: pinned("0035_member_external_identities") }),
+  publishHistoryConfigJsonb({ checksum: pinned("0036_publish_history_config_jsonb") }),
+  mediaSourceMetadata({ checksum: pinned('0037_media_source_metadata') }),
 ];
 
 export const CHAT_MIGRATIONS: readonly MigrationStep[] = [

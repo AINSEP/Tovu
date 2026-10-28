@@ -92,13 +92,17 @@ function validatePlugins({ plugins, files }: { plugins: any[]; files: Map<string
     if (!validPluginIdentity({ row })) invalid();
     const key = row.kind + "/" + row.id;
     if (ids.has(key)) invalid();
-    if (!validPluginVersion({ row })) invalid();
-    if (typeof row.enabled !== "boolean" || row.shipped !== true) invalid();
-    const root = (row.kind === "agent" ? "agent-plugins/" : "plugins/") + row.id + "/package/";
-    if (![...files.keys()].some(path => path.startsWith(root))) invalid();
+    validatePluginPackage({ row, files });
     ids.add(key);
   }
   requirePluginCoverage({ files, ids });
+}
+
+function validatePluginPackage({ row, files }: { row: any; files: Map<string, ArchiveFile> }, _options = {}): void {
+  if (!validPluginVersion({ row })) invalid();
+  if (typeof row.enabled !== "boolean" || row.shipped !== true) invalid();
+  const root = (row.kind === "agent" ? "agent-plugins/" : "plugins/") + row.id + "/package/";
+  if (![...files.keys()].some(path => path.startsWith(root))) invalid();
 }
 
 function validateSiteName(required: { name: unknown }): void {

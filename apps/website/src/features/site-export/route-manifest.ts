@@ -8,10 +8,10 @@ import { postPublicPath } from "#src/platform/routing/adapter";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import type { PresentationSettingsRepoPort } from "#src/features/presentation/index";
 import type { RedirectRecord, RedirectRepoPort } from "@jini-ai/cms/redirects";
-import type { ManifestRoute, ManifestSkip, RouteManifest, RouteManifestPort } from "./ports.js";
+import type { ManifestRoute, ManifestSkip, RouteManifest } from "./ports.js";
 
 /**
- * @file The one implementation of {@link RouteManifestPort} (`ports.ts`).
+ * @file The public-site route enumerator, shared by the exporter and theme previews.
  *
  * Reuses the SAME selection logic the real public routes render with — rather than re-deriving
  * "which theme is active" or "which products are live" a second time, so a manifest built from
@@ -335,10 +335,4 @@ export async function buildRouteManifest(deps: RouteManifestDeps): Promise<Route
   routes.push({ path: chooseNotFoundProbePath(claimedPaths), kind: "not-found", label: "404" });
 
   return { routes, skipped, activeTheme };
-}
-
-/** Constructs a {@link RouteManifestPort} bound to one workspace's deps — the DI seam callers
- *  (the exporter engine, the CLI command, tests) depend on instead of the free function above. */
-export function createRouteManifestReader(deps: RouteManifestDeps): RouteManifestPort {
-  return { build: () => buildRouteManifest(deps) };
 }

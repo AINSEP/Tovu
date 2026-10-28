@@ -171,9 +171,7 @@ export function readBundledObjectStoreEnvDeclarations(required: { readonly sourc
   for (const plugin of bundledContributionSources({ ...required, filename: OBJECT_STORES_FILENAME })) {
     const parsed = parseObjectStoresFile({ raw: readFileSync(path.join(plugin.packageRoot, OBJECT_STORES_FILENAME), "utf8") });
     if (!parsed.ok) throw new Error(`Object store env declarations from '${plugin.pluginId}' were not loaded: ${parsed.reason}`);
-    for (const descriptor of parsed.descriptors) {
-      if (descriptor.env) entries.push({ ...descriptor.env, providerId: descriptor.id });
-    }
+    appendDeclaredEnvironments({ descriptors: parsed.descriptors, entries });
   }
   const selectors = new Set<string>();
   for (const entry of entries) {
@@ -181,4 +179,10 @@ export function readBundledObjectStoreEnvDeclarations(required: { readonly sourc
     selectors.add(entry.selector);
   }
   return entries;
+}
+
+function appendDeclaredEnvironments({ descriptors, entries }: { descriptors: readonly ObjectStoreDescriptor[]; entries: ObjectStoreEnvDeclaration[] }, _options = {}): void {
+  for (const descriptor of descriptors) {
+    if (descriptor.env) entries.push({ ...descriptor.env, providerId: descriptor.id });
+  }
 }

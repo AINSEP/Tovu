@@ -166,7 +166,15 @@ test("source-control-credentials: GET responds 500 (not a hang) when the repo th
 
 test("source-control-credentials: DELETE responds 500 (not a hang) when the repo throws an untyped error", async (t) => {
   const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
-  deps.sourceControlCredentialSetRepo = withThrowingMethods(deps.sourceControlCredentialSetRepo as SourceControlCredentialSetRepoPort, ["delete"]);
+  // Deletion locates the row first (e0b8274c08); a missing id is an intentional 204 no-op.
+  await deps.sourceControlCredentialSetRepo.insert({
+    workspaceId: deps.workspaceId, id: "some-id", providerId: "fixture-git", label: "Saved connection",
+    sealed: { alg: "aes-256-gcm", keyId: "opaque-key", nonce: "opaque-nonce", ciphertext: "opaque-ciphertext" },
+    isDefault: true, accountLabel: null, createdAt: deps.clock.nowIso(), updatedAt: deps.clock.nowIso(),
+  });
+  const remove = t.mock.method(deps.sourceControlCredentialSetRepo, "delete", async () => {
+    throw new Error("simulated repo failure in delete");
+  });
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -175,6 +183,7 @@ test("source-control-credentials: DELETE responds 500 (not a hang) when the repo
     headers: { cookie },
     signal: AbortSignal.timeout(3000),
   });
+  assert.equal(remove.mock.callCount(), 1, "the existing row must reach the failing delete");
   assert.equal(res.status, 500);
   await assertOpaqueInternalError(res);
 });

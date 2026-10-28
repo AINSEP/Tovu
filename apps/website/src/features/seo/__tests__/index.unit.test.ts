@@ -63,7 +63,7 @@ test("createSeoDeps: static bindings, clock/transform receivers and public-acces
   assert.equal(seo.originRegistry, deps.originRegistry);
   assert.equal(typeof seo.rootSlug, "string");
   assert.equal(seo.clock.nowIso(), "bound:2026-09-12T00:00:00.000Z", "nowIso keeps its receiver");
-  await seo.media.transformDefinitionRepo.listByName("og");
+  await seo.media.transformDefinitionRepo.listByName({ workspaceId: "ws", name: "og" });
   assert.deepEqual(listedNames, ["transform-repo:og"], "listByName keeps its receiver");
 
   assert.equal(seo.isPubliclyAccessible({ post: { memberAccessJson: null } } as never), true);

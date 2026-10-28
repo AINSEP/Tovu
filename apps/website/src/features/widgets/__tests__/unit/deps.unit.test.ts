@@ -13,8 +13,8 @@ import { PostNotFoundError, PostVersionConflictError, type PostRepoPort } from "
  * throw" but "does every field land under the RIGHT name" — `idGen` -> `ids` is a rename, not a
  * passthrough, and that exact class of mismatch (a route's own field shape silently not matching
  * what the domain function destructures) is what caused the outbox bug this file's header cites.
- * So every assertion below pins field IDENTITY (`assert.equal`, same object reference) rather than
- * just "truthy" or "defined".
+ * Fields retain IDENTITY (`assert.equal`, same object reference), except the kind-filtered public
+ * post reader introduced by 4ccffe630: its assertions exercise reads through the supplied repo.
  */
 
 function makeRouteDeps(): WidgetsRouteDeps {
@@ -36,8 +36,10 @@ function makeRouteDeps(): WidgetsRouteDeps {
   };
 }
 
-test("buildWidgetsDeps: maps every field to its write-path name, by identity, including the idGen -> ids rename", () => {
+test("buildWidgetsDeps: maps write-path fields by identity and narrows post reads, including the idGen -> ids rename", async (t) => {
   const routeDeps = makeRouteDeps();
+  const seen: string[] = [];
+  routeDeps.postRepo = postLookupRepo("mapped", seen);
   const result = buildWidgetsDeps(routeDeps);
 
   assert.equal(result.entryRepo, routeDeps.entryRepo);
@@ -48,7 +50,20 @@ test("buildWidgetsDeps: maps every field to its write-path name, by identity, in
   assert.equal(result.outbox, routeDeps.outbox);
   // The one rename in this mapping: `routeDeps.idGen` becomes `result.ids`.
       assert.equal(result.ids, routeDeps.idGen);
-      assert.equal(result.postRepo, routeDeps.postRepo);
+      const post = await result.postRepo.findById({ workspaceId: "ws-1", id: "p-1" });
+      assert.ok(post);
+      assert.equal(post.id, "mapped-post");
+      assert.equal((await result.postRepo.findBySlug({ workspaceId: "ws-1", slug: "s-1" }))?.slug, "mapped-slug");
+      assert.deepEqual(await result.postRepo.list({ workspaceId: "ws-1" }), [post]);
+      assert.deepEqual(seen, ["mapped:findById:p-1", "mapped:findBySlug:s-1", "mapped:list"]);
+      // The public reader must not expose email templates, even if storage marks them published.
+      const template = { ...post, kind: "email-template" as const };
+      t.mock.method(routeDeps.postRepo, "findById", async () => template);
+      t.mock.method(routeDeps.postRepo, "findBySlug", async () => template);
+      t.mock.method(routeDeps.postRepo, "list", async () => [post, template]);
+      assert.equal(await result.postRepo.findById({ workspaceId: "ws-1", id: "p-1" }), null);
+      assert.equal(await result.postRepo.findBySlug({ workspaceId: "ws-1", slug: "s-1" }), null);
+      assert.deepEqual(await result.postRepo.list({ workspaceId: "ws-1" }), [post]);
       assert.equal(result.forgetRemovedPost, routeDeps.forgetRemovedPost);
       assert.equal(result.changeSets, routeDeps.changeSets);
       assert.equal(result.beforeSaveHook, routeDeps.pluginBeforeSaveHook);
@@ -90,10 +105,11 @@ test("widget composition retains one state per entry store across write, embed, 
 
 /** A live post row as `findPublishedPost*` reads it, served by whichever repo the host port picks. */
 function postLookupRepo(label: string, seen: string[]): PostRepoPort {
-  const row = { id: `${label}-post`, slug: `${label}-slug`, status: "published", publishedAt: "2026-01-01T00:00:00.000Z", trashedAt: null, deletedAt: null };
+  const row = { id: `${label}-post`, kind: "post", slug: `${label}-slug`, status: "published", publishedAt: "2026-01-01T00:00:00.000Z", trashedAt: null, deletedAt: null };
   return {
     findById: async ({ id }: { id: string }) => { seen.push(`${label}:findById:${id}`); return row; },
     findBySlug: async ({ slug }: { slug: string }) => { seen.push(`${label}:findBySlug:${slug}`); return row; },
+    list: async () => { seen.push(`${label}:list`); return [row]; },
   } as unknown as PostRepoPort;
 }
 

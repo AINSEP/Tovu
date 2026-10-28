@@ -1,3 +1,4 @@
+import { containAgentPluginStatePath } from "#src/features/agent-plugins/lifecycle";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -32,7 +33,7 @@ test("L025b memory pairs pin scoped read/write schemas, validation and revocatio
   assert.deepEqual(await read!.handler(ctx), { pluginId: "pinned", entries: [{ relativePath: "account.md", text: "Learned context" }] });
   const listed = await executeRegisteredTool({ registration: read!, input: {} });
   assert.equal(listed.status, "completed", "the execution gate must accept list mode too");
-  const sibling = pluginMemory({ workspaceId: "workspace-local", pluginId: "sibling" }, { layout });
+  const sibling = pluginMemory({ contain: containAgentPluginStatePath, workspaceId: "workspace-local", pluginId: "sibling" }, { layout });
   await sibling.learned.write({ entryPath: "private.md", text: "other plugin's context" });
   assert.deepEqual(await read!.handler({ ...ctx, input: { entryPath: "private.md" } }), { pluginId: "pinned", entryPath: "private.md", exists: false });
   const directory = path.join(layout.forWorkspace("workspace-local").pluginMemoryDir({ pluginId: "pinned", kind: "learned" }), "not-a-file");

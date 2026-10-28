@@ -15,7 +15,7 @@ import { registerAdminAssistantTestAgentRoute } from "../test-agent.js";
 
 const agent: DetectedAgent = {
   id: "fixture-cli", name: "Fixture CLI", bin: "fixture-cli", versionArgs: ["--version"],
-  streamFormat: "text", available: true, authStatus: "ok", models: [{ id: "model-a", label: "Model A" }],
+  streamFormat: "text", available: true, authStatus: "ok", modelsSource: "live", models: [{ id: "model-a", label: "Model A" }],
 };
 
 function dependencies({ overrides = {} }: { overrides?: Partial<AssistantExecutionRouteDeps> }, _options = {}): AssistantExecutionRouteDeps {

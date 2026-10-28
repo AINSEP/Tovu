@@ -1,3 +1,4 @@
+import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 import assert from "node:assert/strict";
 import test from "node:test";
 import sharp from "sharp";
@@ -13,7 +14,7 @@ const png = (width: number, height: number) =>
   sharp({ create: { width, height, channels: 4, background: { r: 200, g: 40, b: 40, alpha: 1 } } }).png().toBuffer();
 
 const render = async (source: Buffer, outputs: unknown[], limits = {}) =>
-  renderOutputs({ source, outputs: normalizeOutputs({ outputs }) }, { limits });
+  renderOutputs({ source, imageCodec: new SharpImageTransformer(), outputs: normalizeOutputs({ outputs }) }, { limits });
 
 /** Reads an ICO directory: count, then each entry's width and its PNG payload's signature. */
 function readIco(bytes: Buffer): { sizes: number[]; pngs: boolean[] } {
@@ -95,12 +96,12 @@ test("source caps: bytes and pixel count refuse before any output; non-images ar
   await assert.rejects(() => render(source, [{ path: "a.png", format: "png" }], { maxSourceBytes: 10 }), /larger than 10 bytes/);
   await assert.rejects(() => render(source, [{ path: "a.png", format: "png" }], { maxInputPixels: 9_999 }), /pixels|pixel limit/i);
   await assert.rejects(() => render(Buffer.from("not an image"), [{ path: "a.png", format: "png" }]), ImageTransformError);
-  await assert.rejects(() => inspectImage({ source: Buffer.from("%PDF-1.4 nope") }), /not a supported image/);
+  await assert.rejects(() => inspectImage({ imageCodec: new SharpImageTransformer(), source: Buffer.from("%PDF-1.4 nope") }), /not a supported image/);
 });
 
 test("inspect reports format, oriented size, alpha and bytes", async () => {
   const source = await png(120, 80);
-  assert.deepEqual(await inspectImage({ source }), { format: "png", width: 120, height: 80, hasAlpha: true, bytes: source.length });
+  assert.deepEqual(await inspectImage({ source, imageCodec: new SharpImageTransformer() }), { format: "png", width: 120, height: 80, hasAlpha: true, bytes: source.length });
 });
 
 
@@ -126,4 +127,31 @@ test("invalid nested option shapes, missing crop fields and duplicate ICO sizes 
   const output = { path: "a.png", format: "png" };
   for (const extra of [{ resize: { width: "20" } }, { resize: { fit: "bogus" } }, { extract: { left: 0, top: 0 } }, { flip: "false" }, { stripMetadata: "false" }]) assert.throws(() => normalizeOutputs({ outputs: [{ ...output, ...extra }] }), ImageTransformError);
   assert.throws(() => normalizeOutputs({ outputs: [{ path: "a.ico", format: "ico", icoSizes: [16, 16] }] }), /icoSizes/);
+});
+
+
+test("rendering delegates to the injected codec with the same limits and metadata policy", async () => {
+  const source = Buffer.from("fake source");
+  const calls: unknown[] = [];
+  const imageCodec: import("@jini-ai/cms/media").ImageCodecPort = {
+    async inspect(input, limits) {
+      calls.push(["inspect", input, limits]);
+      return { format: "png", width: 20, height: 10, hasAlpha: true, autoOrient: { width: 20, height: 10 } };
+    },
+    async encode(input, limits) {
+      calls.push(["encode", input, limits]);
+      return { bytes: Buffer.from("fake encoded"), width: 10, height: 5 };
+    },
+    async encodeTiles() { throw new Error("unexpected tile encode"); },
+  };
+  const outputs = normalizeOutputs({ outputs: [{ path: "test.jpg", format: "jpeg", resize: { width: 10 }, stripMetadata: false }] });
+  const rendered = await renderOutputs({ source, outputs, imageCodec });
+  assert.deepEqual(rendered, [{ path: "test.jpg", format: "jpeg", width: 10, height: 5, bytes: Buffer.from("fake encoded") }]);
+  assert.deepEqual(calls, [
+    ["inspect", { source }, IMAGE_LIMITS],
+    ["encode", { source, ...outputs[0], autoOrient: true, flatten: { background: "#ffffff" } }, IMAGE_LIMITS],
+  ]);
+  calls.length = 0;
+  await assert.rejects(() => renderOutputs({ source, outputs: normalizeOutputs({ outputs: [{ path: "wide.png", format: "png", resize: { width: 8192, height: 8192, fit: "outside" } }] }), imageCodec }), /8192/);
+  assert.deepEqual(calls, [["inspect", { source }, IMAGE_LIMITS]], "oversized predicted geometry must never encode");
 });

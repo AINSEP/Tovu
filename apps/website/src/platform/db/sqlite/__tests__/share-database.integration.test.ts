@@ -11,7 +11,7 @@ import { NEWSLETTER_DATA_MODULE } from "#src/features/newsletter/data-module-man
 import { sqliteKernel } from "../../kernel/drivers/sqlite.js";
 import { listColumns, listTables } from "../../kernel/dialect.js";
 import { openContentDb } from "../content-db.js";
-import { prepareSharePluginTables, sanitizeShareDatabase, type StagingSpacePort } from "../share-database.js";
+import { prepareSharePluginTables, sanitizeShareDatabase, type StagingSpacePort } from "#src/server/runtime/composition/site-portability";
 
 /**
  * @file Boundary pins for the share projection (`../share-database.ts`) against real in-memory

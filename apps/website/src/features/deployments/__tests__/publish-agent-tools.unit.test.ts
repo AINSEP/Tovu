@@ -370,6 +370,18 @@ test("preview/execute schemas name no host: target is any id the capabilities to
   }
 });
 
+test('preview/execute schemas provide concise approval field titles without dropping agent guidance', () => {
+  for (const name of ['deployment_preview_static_publish', 'deployment_execute_static_publish']) {
+    const entry = staticPublishAgentToolCatalog.find(tool => tool.name === name)!;
+    const schema = entry.inputSchema as { properties: Record<string, { title?: string; description: string }> };
+    assert.equal(schema.properties.projectName!.title, 'Project name');
+    assert.equal(schema.properties.target!.title, 'Hosting provider');
+    assert.equal(schema.properties.credentialId!.title, 'Saved connection');
+    assert.match(schema.properties.projectName!.description, /preview|Human-facing/);
+    assert.match(schema.properties.target!.description, /deployment_get_static_publish_capabilities/);
+  }
+});
+
 test("deployment_preview_static_publish refuses a field its host does not declare (a credential can never ride in as config)", async () => {
   const { deps } = fakeDeps({ credentialSource: { async resolve() { throw new Error("must not be called"); }, async isConfigured() { return { configured: true }; } } });
   const preview = tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), "deployment_preview_static_publish");

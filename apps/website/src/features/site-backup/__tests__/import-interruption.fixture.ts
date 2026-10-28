@@ -2,8 +2,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createSitesWorkspace } from "../../../platform/site-dir/sites-home.js";
-import { createSite } from "../../../platform/site-dir/site-registry.js";
-import { rebuildImportDatabase } from "../../../platform/db/sqlite/import-database.js";
+import { createSite } from "#src/server/runtime/composition/site-dir";
+import { rebuildImportDatabase } from "../import-database.js";
 import { runtimeSchemaVersion } from "../../../platform/site-dir/schema-guard.js";
 import { createSiteImportBackend } from "../import-backend.js";
 import { SiteImportRegistry } from "../import-registry.js";
@@ -17,7 +17,7 @@ const die = () => {
   fs.writeFileSync(path.join(root, "interruption.json"), JSON.stringify(registry.get({ importId, principalId: "recipient" })));
   process.kill(process.pid, "SIGKILL");
 };
-const backend = createSiteImportBackend({ registry, workspace, reader: createShareArchiveReader({ yauzl }), sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion(), creationOptions: options,
+const backend = createSiteImportBackend({ registry, workspace, createSite, reader: createShareArchiveReader({ yauzl }), sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion(), creationOptions: options,
   http: { send: async () => { throw new Error("unexpected download"); } }, startSite: async () => { throw new Error("must stop before supervisor"); },
 }, { createSite: async (input, creation) => {
   const result = await createSite(input, { ...creation,

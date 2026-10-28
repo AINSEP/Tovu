@@ -1,6 +1,6 @@
 import { VaultError, type VaultBatchOp, type VaultRecord, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
-import type { MediaProviderCredentialRecord, MediaProviderCredentialRepoPort, MediaProviderCredentialReplacePlanner } from "./provider-credential-store.js";
+import type { MediaProviderCredentialRecord, MediaProviderCredentialRepoPort, MediaProviderCredentialReplacePlanner } from "./provider-credential-contracts.js";
 
 type VaultPutRecord = Parameters<VaultRepoPort["put"]>[0]["record"];
 

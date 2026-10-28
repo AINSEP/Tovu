@@ -14,8 +14,8 @@ import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 import { createApp } from "#src/server/runtime/composition/app";
 
 import { defaultPgliteSocketDir, PGLITE_SOCKET_FILE, PgliteOwnerLockedError } from "#src/platform/db/kernel/drivers/pglite-owner";
-import { bootSiteDir, closeSiteDirBoot, type BootSiteDirResult } from "#src/platform/site-dir/boot-site-dir";
-import { initSite } from "#src/platform/site-dir/init-site";
+import { closeSiteDirBoot, type BootSiteDirResult } from "#src/platform/site-dir/boot-site-dir";
+import { bootSiteDir, initSite } from "#src/server/runtime/composition/site-dir";
 import { SITE_META_FILENAME } from "#src/platform/site-dir/site-storage";
 import type { NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { commitQueuedSave } from "@jini-ai/ui/panel-kit";
 import { act, renderHook } from "@testing-library/react";
 import { subscribeToSettingsRefresh } from "@/lib/settings-refresh-bus";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -6,7 +7,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   SAVE_DEBOUNCE_MS,
   canAcceptRefresh,
-  commitQueuedSave,
   mergeSaveStates,
   useSettingsSlice,
   type SaveState,
@@ -821,43 +821,43 @@ describe("commitQueuedSave", () => {
 
   it("paints 'saved' when runSave writes at least one key and the ticket is still current", async () => {
     const d = deps({ runSave: async () => ["field"] });
-    await commitQueuedSave(1, d);
+    await commitQueuedSave({ ticket: 1, deps: d }, {});
     expect(d.setSaveState).toHaveBeenCalledWith({ status: "saved" });
   });
 
   it("paints 'idle' when runSave writes nothing — an empty diff is not a save", async () => {
     const d = deps({ runSave: async () => [] });
-    await commitQueuedSave(1, d);
+    await commitQueuedSave({ ticket: 1, deps: d }, {});
     expect(d.setSaveState).toHaveBeenCalledWith({ status: "idle" });
   });
 
   it("paints nothing when a newer ticket has already taken over", async () => {
     const d = deps({ runSave: async () => ["field"], currentTicket: () => 2 });
-    await commitQueuedSave(1, d);
+    await commitQueuedSave({ ticket: 1, deps: d }, {});
     expect(d.setSaveState).not.toHaveBeenCalled();
   });
 
   it("paints nothing on success when a newer edit is already queued behind this one — stays 'saving'", async () => {
     const d = deps({ runSave: async () => ["field"], hasUnsavedEdits: () => true });
-    await commitQueuedSave(1, d);
+    await commitQueuedSave({ ticket: 1, deps: d }, {});
     expect(d.setSaveState).not.toHaveBeenCalled();
   });
 
   it("paints an error, stringified from the thrown Error, when runSave rejects and the ticket is current", async () => {
     const d = deps({ runSave: async () => { throw new Error("write failed"); } });
-    await commitQueuedSave(1, d);
+    await commitQueuedSave({ ticket: 1, deps: d }, {});
     expect(d.setSaveState).toHaveBeenCalledWith({ status: "error", message: "write failed" });
   });
 
   it("stringifies a non-Error rejection the same way runSave's own callers do", async () => {
     const d = deps({ runSave: async () => { throw "plain string failure"; } });
-    await commitQueuedSave(1, d);
+    await commitQueuedSave({ ticket: 1, deps: d }, {});
     expect(d.setSaveState).toHaveBeenCalledWith({ status: "error", message: "plain string failure" });
   });
 
   it("swallows a stale ticket's rejection too — a newer save already owns the status", async () => {
     const d = deps({ runSave: async () => { throw new Error("too late"); }, currentTicket: () => 2 });
-    await commitQueuedSave(1, d);
+    await commitQueuedSave({ ticket: 1, deps: d }, {});
     expect(d.setSaveState).not.toHaveBeenCalled();
   });
 
@@ -886,7 +886,7 @@ describe("commitQueuedSave", () => {
       currentTicket: () => ticket,
     });
 
-    await commitQueuedSave(1, d);
+    await commitQueuedSave({ ticket: 1, deps: d }, {});
 
     // Committed behaviour must reflect the NEW value (2 !== the ticket this call owns, 1) — a
     // snapshot taken at schedule time would still read 1 here and incorrectly paint "saved".
@@ -905,7 +905,7 @@ describe("commitQueuedSave", () => {
       hasUnsavedEdits: () => edited,
     });
 
-    await commitQueuedSave(1, d);
+    await commitQueuedSave({ ticket: 1, deps: d }, {});
 
     // A snapshot taken at schedule time would still read `false` here and incorrectly paint
     // "saved" over an edit the operator made while the write was still in flight.

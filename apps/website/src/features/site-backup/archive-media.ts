@@ -1,19 +1,13 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
-import { sniffContentType, sanitizeSvg, computeBlobStorageKey, mimeForTransformFormat, type BlobStorePort, type ImageTransformerPort, type TransformParams } from "#src/features/media/index";
-import { SiteShareRefusal } from "./share-policy.js";
+import { sniffContentType, sanitizeSvg, computeBlobStorageKey, mimeForTransformFormat, type BlobStorePort, type ImageTransformerPort } from "#src/features/media/index";
+import { SiteShareRefusal, type ArchiveMediaSource } from "./share-policy.js";
 import { sharePathAlias, validateSharePath } from "./share-file-policy.js";
 import { addBuffered, reportedBlobSize, fetchVerifiedBlob, type ShareLedger } from "./share-preparation-steps.js";
 import type { ArchiveMedia } from "./archive-manifest.js";
 
-/** Snapshot-owned metadata, never a read from mutable live media repositories. */
-export interface ArchiveMediaSource {
-  readonly id: string; readonly workspaceId: string; readonly slug: string;
-  readonly originalFilename: string | null; readonly kind: string;
-  readonly storageKey: string; readonly sha256: string;
-  readonly documentOwned?: boolean;
-  readonly public?: { readonly storageKey?: string; readonly sha256?: string; readonly version: number; readonly params: TransformParams };
-}
+export type { ArchiveMediaSource } from "./share-policy.js";
+
 export interface ArchiveMediaCopy extends ArchiveMedia {
   readonly workspaceId: string; readonly storageKey: string; readonly contentType: string;
   readonly publicVersion?: number;

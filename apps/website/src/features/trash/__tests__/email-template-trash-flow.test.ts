@@ -42,7 +42,7 @@ function harness(_required = {}, _options = {}) {
   });
   const granted = new Set(["pages.edit_html"]);
   const authorize = async ({ permission }: { permission: string }) => ({ allowed: granted.has(permission), reason: "test grant" });
-  const routeDeps = { registry, trash, db: trashDb, authorize, clock };
+  const routeDeps = { workspaceId: WS, registry, trash, db: trashDb, authorize, clock };
   const move = ({ id, workspaceId = WS }: { id: string; workspaceId?: string }, _optional = {}) => moveToTrash({ workspaceId, entityType: "email-template", entityId: id, actor: ACTOR }, routeDeps);
   return { db, deps, routeDeps, trash, granted, move };
 }

@@ -15,8 +15,8 @@ import { getEffective, type AuthorizeFn } from "@jini-ai/core/settings";
 
 import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 import { createSettingsPrincipalLookup, MAIL_SENDER_EMAIL_KEY, MAIL_SENDER_NAME_KEY, MAIL_SENDER_NAMESPACE, set } from "#src/features/settings/index";
-import { bootSiteDir, closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
-import { initSite } from "#src/platform/site-dir/init-site";
+import { closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
+import { bootSiteDir, initSite } from "#src/server/runtime/composition/site-dir";
 
 const FALLBACK = { email: "no-reply@members.local", name: "Members" } as const;
 

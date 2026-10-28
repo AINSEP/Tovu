@@ -1,7 +1,7 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/database-transfer.js';
 import { requireHumanConfirm } from "../../contracts/core/human-confirm.js";
 import { createDestinationExchangeReporter } from './destination-exchange.js';
-import { resolveOperatorLocale, type OperatorLocaleDeps } from '../agent-plugins/operator-locale.js';
+import { resolveOperatorLocale, type OperatorLocaleDeps } from '../../contracts/headless/operator-locale.js';
 import { assertCredentialToken, CredentialInputError } from '../../contracts/core/credential-token.js';
 import { readFile } from "node:fs/promises";
 

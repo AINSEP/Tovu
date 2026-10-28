@@ -1,4 +1,4 @@
-import type { PostRecord } from "../post.js";
+import type { PostRecord, PublicPostRecord } from "../post.js";
 
 /**
  * @file The one shared `PostRecord` builder for tests.
@@ -18,6 +18,8 @@ import type { PostRecord } from "../post.js";
  * @returns a fresh record; nested `bodyJson` is not shared between calls.
  * @complexity O(fields), one spread.
  */
+export function buildPostRecord(fields?: Partial<PublicPostRecord>): PublicPostRecord;
+export function buildPostRecord(fields: Partial<PostRecord>): PostRecord;
 export function buildPostRecord(fields: Partial<PostRecord> = {}): PostRecord {
   return {
     id: "post-1",

@@ -1,5 +1,5 @@
 import type { ToolMetadataById } from "@jini-ai/core";
-import type { ToolApprovalPolicy } from "../../headless/assistant-tool-approval-policy.js";
+import type { ToolApprovalPolicy } from "./approval-policy.js";
 
 /** Configure's branded approval handler decides the tier from the frozen service plan. */
 export const toolMetadata = {

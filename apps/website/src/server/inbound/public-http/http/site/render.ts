@@ -229,6 +229,7 @@ export interface SiteRenderContext {
 /** One resolved asset's public-render sizing override — see `SiteRenderContext.mediaAssetMetadata`'s
  * own doc. `null` on any field means "not set", not "zero"/"empty string". */
 export interface MediaAssetRenderMeta {
+  sha256?: string | undefined;
   width: number | null;
   height: number | null;
   cssClass: string | null;
@@ -878,6 +879,7 @@ function mergeMediaExtraAttributes(
 const MEDIA_IMAGE_FIXED_ATTRIBUTE_NAMES: ReadonlySet<string> = new Set(["class", "alt", "width", "height", "loading"]);
 
 function renderImageTag(props: {
+  readonly sha256?: string | undefined;
   /** The `/m/...` path segment to serve this asset at — its slug when it has one, otherwise its id.
    *  Built by every caller via `mediaUrlKey` (readable-slugs S3); this function only templates
    *  whatever key it is handed, same as before this field was renamed from `assetId`. */
@@ -893,7 +895,7 @@ function renderImageTag(props: {
   /** Gallery responsive candidate uses the real resolved rendition, without inventing transforms. */
   readonly responsive?: boolean;
 }): string {
-  const src = mediaPublicPath(props.urlKey, { kind: "transform", name: props.transformName, version: props.version, ext: "jpg" });
+  const src = mediaPublicPath({ key: props.urlKey, sha256: props.sha256, variant: { kind: "transform", name: props.transformName, version: props.version, ext: "jpg" } });
   const markerAttributes = props.markerAttributes ?? NO_MARKER_ATTRIBUTES;
   const altAttr = mediaAltAttrValue(props.alt, markerAttributes);
   const widthAttr = mediaDimensionAttr("width", props.width, markerAttributes);
@@ -946,6 +948,7 @@ const MEDIA_VIDEO_FIXED_ATTRIBUTE_NAMES: ReadonlySet<string> = new Set(["class",
 // Mediawidget audio extends this existing player owner, retaining shared class/attribute
 // precedence, controls and the canonical original-byte URL instead of copying a video lifecycle.
 function renderVideoTag(props: {
+  readonly sha256?: string | undefined;
   readonly kind?: "video" | "audio";
   readonly contentType: string;
   /** Same `mediaUrlKey`-built `/m/...` key {@link renderImageTag}'s own `urlKey` documents —
@@ -964,7 +967,7 @@ function renderVideoTag(props: {
   readonly controls?: boolean;
 }): string {
   const tag = props.kind ?? "video";
-  const src = mediaPublicPath(props.urlKey, { kind: "original", contentType: props.contentType });
+  const src = mediaPublicPath({ key: props.urlKey, sha256: props.sha256, variant: { kind: "original", contentType: props.contentType } });
   const markerAttributes = props.markerAttributes ?? NO_MARKER_ATTRIBUTES;
   const controlsAttr = (props.controls ?? true) ? " controls" : "";
   const widthAttr = tag === "video" ? mediaDimensionAttr("width", props.width, markerAttributes) : "";
@@ -1406,7 +1409,7 @@ function tryRenderRefImage(
       }
     : assetOverrides;
   const urlKey = mediaUrlKey({ id: ids.assetId, slug: meta?.slug ?? null });
-  return renderImageTag({ urlKey, transformName: ids.transformName, version, alt, ...overrides });
+  return renderImageTag({ urlKey, sha256: meta?.sha256, transformName: ids.transformName, version, alt, ...overrides });
 }
 
 /**
@@ -1541,6 +1544,7 @@ function renderDocMediaPlayer(
 ): string | null {
   const style = {
     urlKey: mediaUrlKey({ id: assetId, slug: meta.slug }),
+    sha256: meta.sha256,
     alt,
     cssClass: mediaNodeStyleOverride(nodeStyle.cssClass, meta.cssClass),
     htmlAttributes: mediaNodeStyleOverride(nodeStyle.htmlAttributes, meta.htmlAttributes),
@@ -2661,12 +2665,13 @@ function renderWidgetMediaImage(props: JsonObject): string {
   // branches) stashes the resolved record's `slug` onto the IR alongside `assetId` — same
   // `mediaUrlKey` fallback-to-id rule every other emitter here uses.
   const urlKey = mediaUrlKey({ id: assetId, slug: typeof props.slug === "string" ? props.slug : null });
+  const sha256 = typeof props.sha256 === "string" ? props.sha256 : undefined;
 
   if (typeof props.contentType === "string" && props.contentType.startsWith("audio/")) {
-    return renderVideoTag({ kind: "audio", contentType: props.contentType, urlKey, alt, width: null, height: null, cssClass, htmlAttributes, markerAttributes, controls });
+    return renderVideoTag({ kind: "audio", contentType: props.contentType, sha256, urlKey, alt, width: null, height: null, cssClass, htmlAttributes, markerAttributes, controls });
   }
   if (typeof props.contentType === "string" && props.contentType.startsWith("video/")) {
-    return renderVideoTag({ contentType: props.contentType, urlKey, alt, width, height, cssClass, htmlAttributes, markerAttributes, controls });
+    return renderVideoTag({ contentType: props.contentType, sha256, urlKey, alt, width, height, cssClass, htmlAttributes, markerAttributes, controls });
   }
 
   const transformName = plausibleMediaRefId(props.transformName);
@@ -2674,7 +2679,7 @@ function renderWidgetMediaImage(props: JsonObject): string {
   if (!transformName || typeof version !== "number") {
     return renderWidgetPlaceholder();
   }
-  return renderImageTag({ urlKey, transformName, version, alt, width, height, cssClass, htmlAttributes, markerAttributes, responsive: props.galleryResponsive === true });
+  return renderImageTag({ urlKey, sha256, transformName, version, alt, width, height, cssClass, htmlAttributes, markerAttributes, responsive: props.galleryResponsive === true });
 }
 
 /** Gallery image adapter: managed media uses the canonical renderer; URL images retain the
@@ -2787,6 +2792,7 @@ function parseMediaAssetMeta(raw: JsonValue): MediaAssetRenderMeta | null {
     contentType: typeof raw.contentType === "string" ? raw.contentType : null,
     // Readable-slugs S3: same reconstruction, same "missing/wrong-typed degrades to null" rule.
     slug: typeof raw.slug === "string" ? raw.slug : null,
+    sha256: typeof raw.sha256 === "string" ? raw.sha256 : undefined,
   };
 }
 
@@ -3084,7 +3090,7 @@ export function featuredImageView(
   if (!meta || version === undefined) return null;
   const urlKey = mediaUrlKey({ id: cover.mediaId, slug: meta.slug });
   return {
-    url: mediaPublicPath(urlKey, { kind: "transform", name: FEATURED_IMAGE_TRANSFORM, version, ext: "jpg" }),
+    url: mediaPublicPath({ key: urlKey, sha256: meta.sha256, variant: { kind: "transform", name: FEATURED_IMAGE_TRANSFORM, version, ext: "jpg" } }),
     alt: cover.alt,
     width: meta.width,
     height: meta.height,

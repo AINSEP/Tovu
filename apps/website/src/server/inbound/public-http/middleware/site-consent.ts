@@ -123,6 +123,13 @@ async function isDefaultOnlyConsent({ deps }: { deps: RouteDeps }, _options = {}
   return (await resolveSiteConsentActivation({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId })).source === "default";
 }
 
+function readHtmlChunk({ chunk, type }: { chunk: unknown; type: string }, _optional = {}): string | undefined {
+  if ((typeof chunk === 'string' || Buffer.isBuffer(chunk)) && (!type || type.includes('text/html'))) {
+    return Buffer.isBuffer(chunk) ? chunk.toString('utf8') : chunk;
+  }
+  return undefined;
+}
+
 /**
  * Register consent for this app. The exporter's crawl (`x-tovu-static-export`) gets the engine's
  * static delivery: explicitly enabled consent returns gated HTML with 200, the banner and a reopen
@@ -159,8 +166,8 @@ export function applySiteConsent({ app, deps }: { app: Express; deps: RouteDeps 
     // Inspect that output rather than rereading config: lastGood remains Jini's sole authority.
     res.end = function (this: typeof res, chunk?: unknown, encoding?: BufferEncoding | (() => void), callback?: () => void) {
       const type = String(res.getHeader('content-type') ?? '');
-      if ((typeof chunk === 'string' || Buffer.isBuffer(chunk)) && (!type || type.includes('text/html'))) {
-        const html = Buffer.isBuffer(chunk) ? chunk.toString('utf8') : chunk;
+      const html = readHtmlChunk({ chunk, type });
+      if (html !== undefined) {
         let linked = withSiteConsentSettingsLink({ html });
         // Only the delivered consent runtime can release a live-site contribution. Preview,
         // administrative HTML and exports do not inherit the crawling operator's choice.

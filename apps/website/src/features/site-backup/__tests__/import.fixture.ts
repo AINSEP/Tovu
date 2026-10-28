@@ -1,3 +1,4 @@
+import { createSite } from "#src/server/runtime/composition/site-dir";
 /** Real A→B fixtures, isolated catalog/home and real SQLite; no owner files or running server. */
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import fs from "node:fs";
@@ -20,8 +21,8 @@ import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import * as yauzl from "yauzl";
 import { openContentDb } from "../../../platform/db/sqlite/content-db.js";
 import { closeSqliteConnection } from "../../../platform/db/kernel/drivers/sqlite.js";
-import { sanitizeShareDatabase, rewriteArchiveMedia } from "../../../platform/db/sqlite/share-database.js";
-import { rebuildImportDatabase } from "../../../platform/db/sqlite/import-database.js";
+import { sanitizeShareDatabase, rewriteArchiveMedia } from "#src/server/runtime/composition/site-portability";
+import { rebuildImportDatabase } from "../import-database.js";
 import { runtimeSchemaVersion } from "../../../platform/site-dir/schema-guard.js";
 import { createSitesWorkspace } from "../../../platform/site-dir/sites-home.js";
 import { buildShareZip } from "../share-zip.js";
@@ -34,7 +35,7 @@ import { prepareShareContent } from "../share-preparation.js";
 
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 import { removeFrozenPackageTree } from "../../agent-plugins/lifecycle.js";
-import { FIRST_PARTY_DATA_MODULES } from "../../plugins/data-modules.js";
+import { FIRST_PARTY_DATA_MODULES } from "../../../server/runtime/composition/data-modules.js";
 import { declareDataModule } from "../../plugins/data-module.js";
 import { ensureDefaultList } from "../../newsletter/lists.js";
 import { SqliteNewsletterListRepo } from "../../newsletter/repo.sqlite.js";
@@ -131,7 +132,7 @@ export async function importFixture(t: TestContext, placement: "inSite" | "appDa
   const plan = fixtureArchivePlan({ plan: runtimePlan });
   const registry = new SiteImportRegistry({ directory: path.join(root, "private") });
   const started: string[] = [];
-  const backendPorts = { registry, workspace, reader, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion(),
+  const backendPorts = { registry, workspace, reader, createSite, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion(),
     http: { send: async () => { throw new Error("unexpected network"); } },
     startSite: async ({ name }: { name: string }) => { started.push(name); return { adminUrl: "http://localhost:3101/admin", status: "running" }; },
     creationOptions: options,

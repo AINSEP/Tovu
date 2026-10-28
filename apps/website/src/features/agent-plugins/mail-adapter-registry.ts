@@ -173,10 +173,12 @@ export function parseMailAdaptersFile(raw: string): ParseResult {
   }
   if (!isPlainObject(value) || (value.schemaVersion !== 1 && value.schemaVersion !== 2)) return { ok: false, reason: "schemaVersion must be 1 or 2" };
   if (!Array.isArray(value.adapters)) return { ok: false, reason: "adapters must be an array" };
-  const version = value.schemaVersion;
+  return parseAdapterDescriptors({ adapters: value.adapters, version: value.schemaVersion });
+}
 
+function parseAdapterDescriptors({ adapters, version }: { adapters: unknown[]; version: number }, _options = {}): ParseResult {
   const descriptors: MailAdapterDescriptor[] = [];
-  for (const [index, entry] of value.adapters.entries()) {
+  for (const [index, entry] of adapters.entries()) {
     const result = version === 1 ? parseDescriptor(entry, `adapters[${index}]`) : parseDescriptorV2({ entry, at: `adapters[${index}]` });
     if (typeof result === "string") return { ok: false, reason: result };
     if (descriptors.some((seen) => seen.id === result.id)) return { ok: false, reason: `adapters[${index}].id '${result.id}' is declared twice` };

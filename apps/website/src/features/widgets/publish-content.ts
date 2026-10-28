@@ -1,4 +1,4 @@
-import { WIDGET_REGION_BINDINGS_TABLE } from "./repo.sqlite.js";
+import { WIDGET_REGION_BINDINGS_TABLE } from "../../contracts/core/widget-tables.js";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import { collectPlacementReferences } from "#src/features/publish-content/content-references";
 import { collectMediaConfigKeys, collectMediaUrlKeys } from "#src/features/publish-content/media-references";

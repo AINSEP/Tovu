@@ -20,7 +20,7 @@ import { captureDaemonRun } from '../../server/inbound/assistant/__tests__/helpe
 import { buildAgentPluginSearchRegistrations } from '../../features/agent-plugins/tool-registrations.js';
 import { resolveAgentPluginRefs } from '../../features/agent-plugins/lifecycle.js';
 import { setAgentPluginEnabled } from '../../features/agent-plugins/set-enabled.js';
-import { createAutomaticPluginRuns, type AutomaticPluginRun } from '../automatic-agent-plugins.js';
+import { createAutomaticPluginRuns, type AutomaticPluginRun } from '../../features/agent-plugins/automatic-agent-plugins.js';
 
 // Real catalog, activation, ranker, skill resolution and effective settings. No daemon boot.
 async function fixture(t: TestContext, { pluginId = 'synthetic-author', count = 1, trusted = true, maturity }: { pluginId?: string; count?: number; trusted?: boolean; maturity?: 'untested' | 'soon' } = {}) {

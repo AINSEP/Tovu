@@ -26,7 +26,7 @@ test('Gallery in a TipTap post uses the HTML gallery renderer and preserves data
   const embeds = await resolveHtmlPageEmbeds({ deps, input: { workspaceId, html } });
   assert.equal(renderWidgetIr(ir), renderHtmlPageBody(html, embeds));
   const rendered = renderDocNode(node, widgets.inlineResolved);
-  assert.ok(rendered.includes('data-kui="carousel target photos"')); assert.ok(rendered.includes('/m/photo-one/public.v1/image.jpg'));
+  assert.ok(rendered.includes('data-kui="carousel target photos"')); assert.ok(rendered.includes('/m/photo-one/public.v1/image.jpg?v=aaaaaaaaaaaa'));
   assert.ok(!rendered.includes('onclick')); assert.ok(!rendered.includes('javascript:'));
 });
 

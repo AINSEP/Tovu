@@ -6,7 +6,7 @@ import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-conte
 import { serverLogsAgentToolCatalog } from "../../features/server-logs/agent-tools.js";
 import { catalog as mediaVideoCatalog } from "../../features/media/view-video-tool.js";
 import { catalog as agentPluginsInstallCatalog } from "../../features/agent-plugins/install-tool.js";
-import { createAutomaticPluginRuns, agentPluginGuidanceCatalog, agentPluginGuidanceRisk } from "../automatic-agent-plugins.js";
+import { createAutomaticPluginRuns, agentPluginGuidanceCatalog, agentPluginGuidanceRisk } from "../../features/agent-plugins/automatic-agent-plugins.js";
 import { buildConfirmedAssistantToolRegistrations } from "./fixtures/confirmed-registrations.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
@@ -92,7 +92,7 @@ import { setActiveThemeAgentToolCatalog } from "../../features/theme/set-active-
 import { previewSwitcherAgentToolCatalog } from "../../features/theme/preview-switcher-tools.js";
 import { duplicateThemeAgentToolCatalog } from "../../features/theme/duplicate-theme-tool.js";
 import { importThemeFileAgentToolCatalog } from "../../features/theme/import-theme-file-tool.js";
-import { filesCopyAgentToolCatalog } from "../../features/fs-files/copy-tool.js";
+import { filesCopyAgentToolCatalog } from "../../features/asset-transfer/copy-tool.js";
 import { imageTransformAgentToolCatalog } from "../../features/image-transform/tool.js";
 import { getChangeSetsAgentToolCatalog } from "../../features/change-sets/agent-tools.js";
 import { mediaAgentToolCatalog } from "../../features/media/index.js";

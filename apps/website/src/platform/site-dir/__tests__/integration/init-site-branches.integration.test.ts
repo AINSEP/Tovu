@@ -9,7 +9,8 @@ import test, { type TestContext } from "node:test";
 
 import Database from "better-sqlite3";
 
-import { cleanupAndRethrow, initSite, type InitSiteRestorePort } from "../../init-site.js";
+import { cleanupAndRethrow, type InitSiteRestorePort } from "../../init-site.js";
+import { initSite } from "#src/server/runtime/composition/site-dir";
 import { InitDirNotEmptyError, InternalError, ValidationError } from "../../errors.js";
 import { createSitesWorkspace } from "../../sites-home.js";
 

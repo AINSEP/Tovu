@@ -37,7 +37,7 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
  * whichever theme tier (declarative/templated/handlebars/static/code) is active and whatever
  * worker-thread sandbox a templated/handlebars theme renders inside (`render.ts:2002-2044`).
  *
- * Not a `Port` (unlike `route-manifest.ts`'s `RouteManifestPort`): there is exactly one way to
+ * Not a `Port`: there is exactly one way to
  * "boot the real app and fetch it" — no second implementation is ever expected, so wrapping this in
  * a swappable interface would be ceremony with no seam behind it.
  *

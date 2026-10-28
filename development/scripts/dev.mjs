@@ -292,7 +292,7 @@ function start(name, command, args, env) {
     }
     console.error(
       `\ntovu dev: ${name} exited (code ${code ?? "none"}, signal ${signal ?? "none"}) — ` +
-        "shutting the other half down so you don't get a half-running stack.\n"
+      "shutting the other half down so you don't get a half-running stack.\n"
     );
     shutdown(code === 0 ? 1 : (code ?? 1));
   });
@@ -454,6 +454,12 @@ export function createApiRestarter(deps, _options = {}) {
   };
 }
 
+async function stopWindowsTree({ child, snapshots, stop }, _options = {}) {
+  const pids = collectProcessTreePids(await snapshots(), [child.pid]);
+  const result = await stop(pids);
+  if (result.remainingPids.length) throw new Error("API watcher processes are still running");
+}
+
 /** Stop the watcher tree before releasing ports. Windows has no negative-pid group signals,
  * so reuse platform's process snapshots/tree collection and termination owner there.
  * @returns A promise resolved after termination; errors propagate to switch recovery.
@@ -463,9 +469,7 @@ export async function stopChildGroup({ child }, { graceMs = 8000, platform = pro
   snapshots = listProcessSnapshots, stop = stopProcesses } = {}) {
   if (!child.pid || child.exitCode !== null || child.signalCode !== null) return;
   if (platform === "win32") {
-    const pids = collectProcessTreePids(await snapshots(), [child.pid]);
-    const result = await stop(pids);
-    if (result.remainingPids.length) throw new Error("API watcher processes are still running");
+    await stopWindowsTree({ child, snapshots, stop });
     return;
   }
   return new Promise((resolve) => {
@@ -611,6 +615,22 @@ export function buildAdminViteEnv({ apiPort, vitePort, apiScheme = "http" }) {
   };
 }
 
+
+function ownerSigninEnv({ env }, _options = {}) {
+  return {
+    // Passwordless local owner sessions are safe only on a loopback listener. Keep an explicit
+    // production/LAN setting so the server's hard guard refuses it and explains the misconfiguration.
+    // Default OFF: a header-stripping tunnel is indistinguishable from a local client, and curl
+    // can forge fetch metadata. Opt-in is for a single-human dev origin, never a tunneled site.
+    // Pin development only for that opt-in; ordinary dev API consumers keep their prior NODE_ENV.
+    ...(env.NODE_ENV !== undefined || env.TOVU_DEV_OWNER_SIGNIN === "1"
+      ? { NODE_ENV: env.NODE_ENV ?? "development" } : {}),
+    ...(env.TOVU_HOST !== undefined || env.TOVU_DEV_OWNER_SIGNIN === "1"
+      ? { TOVU_HOST: env.TOVU_HOST ?? "127.0.0.1" } : {}),
+    TOVU_DEV_OWNER_SIGNIN: env.TOVU_DEV_OWNER_SIGNIN ?? "0",
+  };
+}
+
 /**
  * Env for the API child, layered over this process's own `process.env` by `start(...)`. Extracted
  * (like {@link buildAdminViteEnv}) so a test can assert on it without spawning anything.
@@ -629,16 +649,7 @@ export function buildApiEnv({ scheme, apiPort, vitePort, supervisorPid }, { env 
     // hitting any other TLS port with a raw HTTP request would.
     TOVU_ADMIN_DEV_PROXY_URL: `${scheme}://localhost:${vitePort}`,
     PORT: String(apiPort),
-    // Passwordless local owner sessions are safe only on a loopback listener. Keep an explicit
-    // production/LAN setting so the server's hard guard refuses it and explains the misconfiguration.
-    // Default OFF: a header-stripping tunnel is indistinguishable from a local client, and curl
-    // can forge fetch metadata. Opt-in is for a single-human dev origin, never a tunneled site.
-    // Pin development only for that opt-in; ordinary dev API consumers keep their prior NODE_ENV.
-    ...(env.NODE_ENV !== undefined || env.TOVU_DEV_OWNER_SIGNIN === "1"
-      ? { NODE_ENV: env.NODE_ENV ?? "development" } : {}),
-    ...(env.TOVU_HOST !== undefined || env.TOVU_DEV_OWNER_SIGNIN === "1"
-      ? { TOVU_HOST: env.TOVU_HOST ?? "127.0.0.1" } : {}),
-    TOVU_DEV_OWNER_SIGNIN: env.TOVU_DEV_OWNER_SIGNIN ?? "0",
+    ...ownerSigninEnv({ env }),
     // Backs `apps/website/src/index.ts`'s own parent watchdog (see that file's `startOwnParentWatchdog()` for the
     // full rationale). Deliberately this process's own pid, not left for the child to infer via its
     // OS `ppid`: `tsx watch` is a Node-based wrapper that does not exec-replace, so the API's real
@@ -717,17 +728,20 @@ export function announceRunningDevSite({ record }, { log = console.log } = {}) {
   return url;
 }
 
+function openRunningSite({ record }, _options = {}) {
+  const url = announceRunningDevSite({ record });
+  if (url) {
+    const opener = process.platform === "darwin" ? "open" : process.platform === "win32" ? "explorer.exe" : "xdg-open";
+    spawn(opener, [url], { stdio: "ignore" }).on("error", () => console.warn(`Open this website at ${url}`));
+  }
+}
+
 async function main() {
   warnInheritedAdminPassword({ env: process.env });
   const selectedSite = devSitesHome({ repoRoot: REPO_ROOT });
   if (selectedSite.warning) console.warn(`tovu dev: ${selectedSite.warning.message} Open admin Sites settings to choose appData or ${selectedSite.warning.localHome}.`);
   if (selectedSite.running) {
-    const record = selectedSite.running;
-    const url = announceRunningDevSite({ record });
-    if (url) {
-      const opener = process.platform === "darwin" ? "open" : process.platform === "win32" ? "explorer.exe" : "xdg-open";
-      spawn(opener, [url], { stdio: "ignore" }).on("error", () => console.warn(`Open this website at ${url}`));
-    }
+    openRunningSite({ record: selectedSite.running });
     return;
   }
   preflight();
@@ -743,9 +757,9 @@ async function main() {
 
   console.log(
     `tovu dev: starting API on ${scheme}://localhost:${API_PORT} (compiling TypeScript, ~5-10s)…\n` +
-      `tovu dev: admin will be served at ${scheme}://localhost:${API_PORT}/admin/ once the API is up ` +
-      `(same-origin proxy to Vite; Vite itself stays directly reachable at ${scheme}://localhost:${VITE_PORT}/admin/).\n` +
-      `tovu dev: Ctrl-C stops everything.\n`
+    `tovu dev: admin will be served at ${scheme}://localhost:${API_PORT}/admin/ once the API is up ` +
+    `(same-origin proxy to Vite; Vite itself stays directly reachable at ${scheme}://localhost:${VITE_PORT}/admin/).\n` +
+    `tovu dev: Ctrl-C stops everything.\n`
   );
 
   const apiEnv = buildApiEnv({ scheme, apiPort: API_PORT, vitePort: VITE_PORT, supervisorPid: process.pid });
@@ -810,13 +824,13 @@ async function main() {
   if (!(await waitForPort(API_PORT))) {
     console.warn(
       `\ntovu dev: API did not come up within 30s — starting the admin anyway.\n` +
-        `tovu dev: expect proxy errors on :${VITE_PORT} until it does.\n`
+      `tovu dev: expect proxy errors on :${VITE_PORT} until it does.\n`
     );
   }
   if (!shuttingDown) {
     console.log(
       `tovu dev: API is up. Open ${scheme}://localhost:${API_PORT}/admin/` +
-        ` (Vite direct: ${scheme}://localhost:${VITE_PORT}/admin/)\n`
+      ` (Vite direct: ${scheme}://localhost:${VITE_PORT}/admin/)\n`
     );
     startAdminVite({ apiPort: API_PORT, vitePort: VITE_PORT, apiScheme: scheme, extraCaCerts });
   }

@@ -1,14 +1,7 @@
 import { nativeToolMetadata } from '../core/tool-metadata/index.js';
 import type { ToolRegistration } from '@jini-ai/core';
-/** Owner policy: classify the action rather than the input's write-shaped fields.
- * ONE reviewed declaration per owning domain. Reversible actions run directly: read, edit (which
- * includes publishing or unpublishing on this site) and trash (restorable from the Trash).
- * Only what cannot be undone from here asks — see {@link approvalClassAsks}.
- * `publish` means the action leaves this site: the live site, a deploy, a git host, an email.
- * Plan entries describe domain facts through Jini; human forms stay on their secret-card engine.
- * New native registrations fail closed until their owner declares an action policy. */
-export type ToolApprovalClass = 'read' | 'edit' | 'trash' | 'delete' | 'restore-over-existing' | 'publish' | 'replace-secret' | 'escalation';
-export interface ToolApprovalPolicy { readonly class: ToolApprovalClass; readonly confirmation: 'direct' | 'policy' | 'plan'; readonly input?: 'human-form'; readonly rule?: 'http-method' | 'page-control' | 'export-commit' | 'plugin-enable' | 'execution-setting' }
+import type { ToolApprovalClass, ToolApprovalPolicy } from '../core/tool-metadata/approval-policy.js';
+export type { ToolApprovalClass, ToolApprovalPolicy } from '../core/tool-metadata/approval-policy.js';
 /** Owner rule (2026-09-24, restated 2026-10-08 after a site import asked once per page): no
  * per-item confirmation for anything the owner can undo. Permanent deletes, overwrites of current
  * data, secret replacement, permission escalation and actions that leave this site still ask. */

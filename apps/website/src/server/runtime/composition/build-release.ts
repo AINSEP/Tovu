@@ -36,6 +36,6 @@ export function processBuildRelease(_required: Record<string, never>, _optional:
 }
 
 /** The existing site attribution's bounded host environment, also used before site boot for logs. */
-export function telemetryEnvironment({ env, runtimeMode = resolveRuntimeMode({ env }) }: { env: NodeJS.ProcessEnv; runtimeMode?: RuntimeMode }, _optional = {}): 'local' | 'desktop' | 'fly' {
-  return runtimeMode === 'production' ? 'fly' : resolveApiConnectionRuntime({ env }) === 'desktop' ? 'desktop' : 'local';
+export function telemetryEnvironment({ env, runtimeMode = resolveRuntimeMode({ env }) }: { env: NodeJS.ProcessEnv; runtimeMode?: RuntimeMode }, _optional = {}): 'local' | 'desktop' | 'production' {
+  return runtimeMode === 'production' ? 'production' : resolveApiConnectionRuntime({ env }) === 'desktop' ? 'desktop' : 'local';
 }

@@ -1,5 +1,5 @@
 import { ToolInputError } from "@jini-ai/core";
-import type { PublishContentToolDeps } from "./tool-registrations.js";
+import type { PublishContentToolDeps } from "./tool-deps.js";
 import { resolvePublishDestinationCredential } from "./destination-credential.js";
 import { selectConnectedDestination } from "./peers.js";
 import { canPublishToLive, PUBLISH_FROM_LIVE_SITE_ERROR } from "./live-site-policy.js";

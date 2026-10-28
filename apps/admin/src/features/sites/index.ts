@@ -9,7 +9,6 @@ export { Sites } from "./Sites";
 // renders these screens as they are; they stay here with the transfer hooks they share.
 export { SiteExportTab } from "./SiteExportTab";
 export { SiteImportTab } from "./SiteImportTab";
-export { SitePublishButton } from "./SitePublishButton";
 export { ExportSiteIcon, ImportSiteIcon } from "./sites-visuals";
 // The Sites dictionary, not the transfer one alone: these screens also read words it owns (New
 // site, Open, Ready…), so the Import & Export page translates them exactly as Sites did.

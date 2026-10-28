@@ -17,7 +17,7 @@ import { startTestServer } from "../../../__tests__/helpers/http-test-server.js"
 function recording(): { port: ObservabilityPort; reports: ErrorReport[] } {
   const reports: ErrorReport[] = [];
   // The operation tracker must be a real (non-noop) one so `trackAsyncOperation` reports.
-  return { reports, port: { ...createNoopObservabilityPort({}), trackOperation: () => ({ end: () => {} }), reportError: (report) => { reports.push(report); } } };
+  return { reports, port: { ...createNoopObservabilityPort({}), trackOperation: () => ({ run: fn => fn(), end: () => {} }), reportError: (report) => { reports.push(report); } } };
 }
 
 // Built at runtime so no secret-shaped literal sits in the repo.

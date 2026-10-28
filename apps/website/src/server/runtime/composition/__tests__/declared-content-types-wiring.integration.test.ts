@@ -15,8 +15,8 @@ import { fileURLToPath } from "node:url";
 import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 
 import { setPluginEnabled } from "@jini-ai/plugins/host";
-import { bootSiteDir, closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
-import { initSite } from "#src/platform/site-dir/init-site";
+import { closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
+import { bootSiteDir, initSite } from "#src/server/runtime/composition/site-dir";
 
 const SAMPLE_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../features/plugin-runtime/samples/testimonials-faq");
 

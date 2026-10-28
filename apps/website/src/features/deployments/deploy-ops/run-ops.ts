@@ -1,5 +1,5 @@
 import type { PublishHistoryStore } from "../static-publish/publish-history.js";
-import type { OperatorLocaleDeps } from "#src/features/agent-plugins/operator-locale";
+import type { OperatorLocaleDeps } from "#src/contracts/headless/operator-locale";
 import { issueCredentialSetup, type ToolFailureDiagnostic } from "#src/contracts/core/tool-failure-diagnostics";
 import { nowIso } from "@jini-ai/core/primitives";
 import { ToolInputError } from "@jini-ai/core";

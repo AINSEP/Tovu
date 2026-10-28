@@ -21,7 +21,7 @@ import {
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { ensureVaultRepoFixture } from "#src/platform/db/repos/__tests__/vault-repo.fixture";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { SqlitePublishContentPeerRepo } from "#src/platform/db/sqlite/publish-content-peer-repo.sqlite";
+import { SqlitePublishContentPeerRepo } from "#src/features/publish-content/publish-content-peer-repo.sqlite";
 import { workspaces } from "#src/platform/db/schema.sqlite";
 
 /**

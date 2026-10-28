@@ -5,7 +5,7 @@ import { computeCoreTableCopyOrder, DERIVED_OBJECTS } from "../../platform/db/mi
 import * as pgSchema from "../../platform/db/schema.postgres.js";
 import { EXCLUDED_CORE_TABLES, PARTIALLY_EXCLUDED_TABLES, SECRET_COLUMN_PATTERN, TRANSFER_EXCLUSION_REASON_TEXT } from "./exclusions.js";
 import type { SourceColumn, SourceTableLayout, TransferSource } from "./sqlite-source.js";
-import { quoteIdent } from "./postgres-ddl.js";
+import { quoteIdent } from "@jini-ai/db/transfer";
 
 /**
  * @file What a copy carries: every table in the site's snapshot is either a {@link TransferTable}
@@ -20,6 +20,7 @@ import { quoteIdent } from "./postgres-ddl.js";
  */
 
 // Transfer types and affinity/exclusion rationale now live in @jini-ai/db/transfer.
+// DDL and constraint rationale live there too; identifier quoting uses the shared owner directly.
 export type { TransferColumn, TransferIndex, TransferForeignKey, TransferCheck, TransferTable, SnapshotTablePlan } from "@jini-ai/db/transfer";
 import { planSnapshotTables as planGenericSnapshot, introspectedTable, type TransferColumn, type TransferIndex, type TransferTable, type SnapshotTablePlan } from "@jini-ai/db/transfer";
 const dialect = new PgDialect();
@@ -58,7 +59,7 @@ function coreIndexes(cfg: ReturnType<typeof getTableConfig>): TransferIndex[] {
     // Drizzle's index rendering omits table qualifiers. Only the developer-owned schema supplies
     // expressions; introspected plugin expressions remain excluded by Jini's snapshot planner.
     ...(index.config.columns.some(column => is(column, SQL)) ? { expressions: index.config.columns.map(column =>
-      is(column, SQL) ? `(${dialect.sqlToQuery(new SQL(column.queryChunks).inlineParams(), "indexes").sql})` : quoteIdent((column as IndexedColumn).name!)) } : {}),
+      is(column, SQL) ? `(${dialect.sqlToQuery(new SQL(column.queryChunks).inlineParams(), "indexes").sql})` : quoteIdent({ name: (column as IndexedColumn).name! })) } : {}),
     unique: index.config.unique,
     // Only the developer-owned Postgres schema supplies SQL; plugin predicates stay excluded.
     ...(index.config.where === undefined ? {} : { where: dialect.sqlToQuery(index.config.where).sql }),

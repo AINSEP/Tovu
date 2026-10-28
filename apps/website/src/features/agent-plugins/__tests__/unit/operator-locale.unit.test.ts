@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { SettingsRepoPort } from "@jini-ai/core/settings";
 import { operatorLocaleLedger } from "../fixtures/operator-locale-ledger.js";
-import { resolveOperatorLocale, type GetEffectiveSetting } from "../../operator-locale.js";
+import { resolveOperatorLocale, type GetEffectiveSetting } from "../../../../contracts/headless/operator-locale.js";
 
 /** @file The operator's admin locale for Agent Plugin dialogs: the per-user `core.language.locale` read and its English fallbacks. */
 

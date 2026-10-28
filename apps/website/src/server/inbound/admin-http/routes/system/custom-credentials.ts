@@ -109,6 +109,15 @@ async function attachAddedProjectKey({ credential, keys }: { credential: CustomC
   return { ...credential, usedBy: usage.usedBy, usedByThisSite: usage.usedByThisSite };
 }
 
+function optionalCreateFields({ body }: { body: Record<string, unknown> }, _optional = {}) {
+  return {
+    ...(body.additionalHosts !== undefined ? { additionalHosts: body.additionalHosts } : {}),
+    ...(body.worksFor !== undefined ? { worksFor: body.worksFor } : {}),
+    // "site" = only for this site; omitted = the project store when one is attached (store.ts).
+    ...(body.scope !== undefined ? { scope: body.scope } : {}),
+  };
+}
+
 export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCustomCredentialsDeps): void {
   const readDeps = { repo: deps.customCredentialSetRepo, sealer: deps.siteAssistantSecretSealer };
   const writeDeps = {
@@ -175,10 +184,7 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
         category: body.category,
         baseUrl: body.baseUrl,
         connection: body.connection,
-        ...(body.additionalHosts !== undefined ? { additionalHosts: body.additionalHosts } : {}),
-        ...(body.worksFor !== undefined ? { worksFor: body.worksFor } : {}),
-        // "site" = only for this site; omitted = the project store when one is attached (store.ts).
-        ...(body.scope !== undefined ? { scope: body.scope } : {}),
+        ...optionalCreateFields({ body }),
       });
       if (registry && deps.publishCredentialVerificationCache) invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, after: credential });
       res.status(201).json({ credential: await attachAddedProjectKey({ credential, keys: deps.projectKeys }) });

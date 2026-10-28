@@ -3,7 +3,7 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
-import sharp from "sharp";
+import type { ImageCodecPort } from "@jini-ai/cms/media";
 
 import type { ToolContributor } from "#src/assistant/index";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
@@ -57,6 +57,7 @@ export interface MediaViewImageToolDeps {
   mediaRepo: MediaRepoPort;
   assetBlobRepo: AssetBlobRepoPort;
   blobStore: BlobStorePort;
+  imageCodec: ImageCodecPort;
 }
 
 /** Mirrors each domain's own local catalog interface (see `assistant/demo-image-tool.ts`). */
@@ -118,7 +119,7 @@ async function findAsset({ deps, mediaId }: { deps: MediaViewImageToolDeps; medi
  * @complexity O(bytes) storage read; capped callers require the blob store's size port.
  * @example await readStoredBytes({ deps, asset }, { maxBytes: 25 * 1024 * 1024 });
  */
-export async function readStoredBytes({ deps, asset }: { deps: MediaViewImageToolDeps; asset: MediaRecord }, { maxBytes }: { maxBytes?: number } = {}): Promise<Uint8Array> {
+export async function readStoredBytes({ deps, asset }: { deps: Pick<MediaViewImageToolDeps, "assetBlobRepo" | "blobStore" | "workspaceId">; asset: MediaRecord }, { maxBytes }: { maxBytes?: number } = {}): Promise<Uint8Array> {
   const blob = await deps.assetBlobRepo.findByHash({ workspaceId: deps.workspaceId, sha256: asset.source.sha256 });
   if (!blob) throw refusal(`media asset '${asset.id}' has no stored file, so there is nothing to show.`);
   if (maxBytes !== undefined) {
@@ -149,20 +150,17 @@ function isQuarterTurn(orientation: number | undefined): boolean {
  * @throws {ToolInputError} When `sharp` cannot decode the bytes.
  * @complexity O(pixels) — one decode and one encode, bounded by the host's upload size cap.
  */
-async function renderForModel(asset: MediaRecord, bytes: Uint8Array, contentType: string): Promise<RenderedImage> {
+async function renderForModel({ asset, bytes, contentType, imageCodec }: { asset: MediaRecord; bytes: Uint8Array; contentType: string; imageCodec: ImageCodecPort }, _options = {}): Promise<RenderedImage> {
   try {
     const source = Buffer.from(bytes);
-    const metadata = await sharp(source).metadata();
-    const { data, info } = await sharp(source)
-      .rotate()
-      .resize({ width: VIEW_IMAGE_MAX_EDGE_PX, height: VIEW_IMAGE_MAX_EDGE_PX, fit: "inside", withoutEnlargement: true })
-      .webp({ quality: WEBP_QUALITY })
-      .toBuffer({ resolveWithObject: true });
+    const metadata = await imageCodec.inspect({ source });
+    const encoded = await imageCodec.encode({ source, autoOrient: true, format: "webp", quality: WEBP_QUALITY,
+      resize: { width: VIEW_IMAGE_MAX_EDGE_PX, height: VIEW_IMAGE_MAX_EDGE_PX, fit: "inside", withoutEnlargement: true } });
     const swap = isQuarterTurn(metadata.orientation);
     return {
-      data: data.toString("base64"),
-      width: info.width,
-      height: info.height,
+      data: Buffer.from(encoded.bytes).toString("base64"),
+      width: encoded.width,
+      height: encoded.height,
       // sharp's `Metadata.width`/`height` are always set for a decodable raster image (typed
       // non-optional), so the original dimensions need no fallback to the encoded output's.
       originalWidth: swap ? metadata.height : metadata.width,
@@ -204,7 +202,7 @@ export function buildMediaViewImageRegistrations(deps: MediaViewImageToolDeps): 
       const bytes = await readStoredBytes({ deps, asset });
       const contentType = sniffContentType({ bytes });
       assertStillImage(asset, contentType);
-      const rendered = await renderForModel(asset, bytes, contentType);
+      const rendered = await renderForModel({ asset, bytes, contentType, imageCodec: deps.imageCodec });
 
       const metadata = {
         id: asset.id,

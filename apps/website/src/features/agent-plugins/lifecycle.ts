@@ -102,7 +102,7 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
     // Hosting now seeds disabled; retirement still preserves an enabled deploy decision.
     // `owner` is bound below; this runs only at seed time, after it exists.
     migrateBeforeSeed: async ({ layout, workspaceId }) => {
-      const migration = await migrateSiteAgentPluginLayouts({ layout: hostLayout(layout), workspaceId });
+      const migration = await migrateSiteAgentPluginLayouts({ contain: ({ root, entryPath }) => owner.assertContainedOnDisk({ packageRoot: root, entryPath }), layout: hostLayout(layout), workspaceId });
       if (migration.complete) {
         const required = { workspaceRoot: layout.forWorkspace({ workspaceId }).root, activations: owner };
         await carryCloudflareActivation(required);
@@ -230,3 +230,8 @@ export const explicitRootAgentPluginActivations = {
   resolveAgentPluginActivation: explicitRootLifecycle.resolveAgentPluginActivation,
   normalizeActivations: explicitRootLifecycle.normalizeActivations,
 };
+
+/** Object-shaped state containment port over the existing lifecycle path guard. @complexity O(path depth). */
+export function containAgentPluginStatePath(required: { root: string; entryPath: string }, _optional: Record<string, never> = {}): Promise<string> {
+  return explicitRootLifecycle.assertContainedOnDisk(required.root, required.entryPath);
+}

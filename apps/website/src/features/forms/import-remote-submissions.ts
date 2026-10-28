@@ -1,4 +1,4 @@
-import type { FormAnalyticsProvenance } from "./index.js";
+import type { FormAnalyticsProvenance } from "./analytics-provenance.js";
 import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
 import { validateSubmissionPayload, type FieldError, type FormAnswer, type FormDefinitionRecord, type FormDefinitionRepoPort, type FormOutboxPort, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
 import type { FormPullRefusal } from "@jini-ai/cms/forms";

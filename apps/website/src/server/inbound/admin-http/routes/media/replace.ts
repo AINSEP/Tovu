@@ -11,14 +11,14 @@ import { toStoredMediaResponse } from './stored-media-response.js';
 
 /** The declared content type and base64 payload, refused unless the filename, type and payload are
  *  all non-empty strings. @complexity O(1). */
-function readReplacementFields({ body }: { body: unknown }): { contentType: string; dataBase64: string } {
+function readReplacementFields({ body }: { body: unknown }): { filename: string; contentType: string; dataBase64: string } {
   const values = (body ?? {}) as Record<string, unknown>;
   const { filename, contentType, dataBase64 } = values;
   if (typeof filename !== 'string' || !filename.trim() || typeof contentType !== 'string' || !contentType ||
     typeof dataBase64 !== 'string' || !dataBase64) {
     throw new MediaValidationError({ message: 'filename, contentType, and dataBase64 are required' });
   }
-  return { contentType, dataBase64 };
+  return { filename, contentType, dataBase64 };
 }
 
 /** Decodes and verifies the replacement bytes: strict base64, within the host upload cap, and an
@@ -26,7 +26,7 @@ function readReplacementFields({ body }: { body: unknown }): { contentType: stri
  *  payload always decodes to at least one byte, and `replaceMediaFile` refuses empty bytes too.
  *  @complexity O(n) in the payload length. */
 function parseReplacement({ body }: { body: unknown }) {
-  const { contentType, dataBase64 } = readReplacementFields({ body });
+  const { filename, contentType, dataBase64 } = readReplacementFields({ body });
   const bytes = decodeStrictBase64(dataBase64);
   if (!bytes) throw new MediaValidationError({ message: 'dataBase64 is not valid base64' });
   if (bytes.byteLength > TOVU_MAX_UPLOAD_BYTES) {
@@ -36,7 +36,7 @@ function parseReplacement({ body }: { body: unknown }) {
   if (!DEFAULT_ALLOWED_MIME_TYPES.has(verified)) {
     throw new MediaValidationError({ message: `content type '${verified}' is not allowed for upload` });
   }
-  return { bytes, contentType: verified };
+  return { bytes, contentType: verified, provenance: { kind: 'upload' as const, path: filename } };
 }
 
 /** Loads the asset to replace, or writes the refusal and returns `null`: 404 when it does not exist,

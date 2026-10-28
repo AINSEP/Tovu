@@ -126,23 +126,7 @@ const singleIdCases: Case[] = [
     () => api.listPolicyPermissions(SLASH_ID),
     `${BASE_WORKSPACE}/policies/${ENC}/permissions`,
   ],
-  ["getForm", () => api.getForm(SLASH_ID), `${BASE_WORKSPACE}/forms/${ENC}`],
-  ["updateForm", () => api.updateForm({ id: SLASH_ID }), `${BASE_WORKSPACE}/forms/${ENC}`],
-  [
-    "listFormSubmissions",
-    () => api.listFormSubmissions({ formId: SLASH_ID }),
-    `${BASE_WORKSPACE}/forms/${ENC}/submissions`,
-  ],
-  ["getSeoEntry", () => api.getSeoEntry(SLASH_ID), `${BASE_WORKSPACE}/seo/entries/${ENC}`],
-  ["putSeoEntry", () => api.putSeoEntry({ entryId: SLASH_ID }), `${BASE_WORKSPACE}/seo/entries/${ENC}`],
-  [
-    "getSeoEntryAnalyze",
-    () => api.getSeoEntryAnalyze(SLASH_ID),
-    `${BASE_WORKSPACE}/seo/entries/${ENC}/analyze`,
-  ],
-  ["updateRedirect", () => api.updateRedirect({ id: SLASH_ID }), `${BASE_WORKSPACE}/redirects/${ENC}`],
-  ["tombstoneRedirect", () => api.tombstoneRedirect(SLASH_ID), `${BASE_WORKSPACE}/redirects/${ENC}`],
-  ["getRedirectHits", () => api.getRedirectHits(SLASH_ID), `${BASE_WORKSPACE}/redirects/${ENC}/hits`],
+
   [
     "updateContentTypeFields",
     () => api.updateContentTypeFields({ key: SLASH_ID, fields: [], expectedVersion: 1 }),
@@ -184,29 +168,9 @@ const singleIdCases: Case[] = [
     () => api.executeMergeTerm({ fromTermId: SLASH_ID, intoTermId: "t2", confirmationToken: "tok" }),
     `${BASE_API}/taxonomy/terms/${ENC}/merge/execute`,
   ],
-  [
-    "moderateComment (commentId segment)",
-    () => api.moderateComment({ commentId: SLASH_ID, action: "approve", expectedVersion: 1 }),
-    `${BASE_WORKSPACE}/comments/${ENC}/approve`,
-  ],
-  ["purgeComment", () => api.purgeComment({ commentId: SLASH_ID }), `${BASE_WORKSPACE}/comments/${ENC}/purge`],
+
   ["getWidget", () => api.getWidget(SLASH_ID), `${BASE_WORKSPACE}/widgets/${ENC}`],
-  [
-    "updateWidget",
-    () => api.updateWidget({ id: SLASH_ID, baseVersion: 1, config: {} }),
-    `${BASE_WORKSPACE}/widgets/${ENC}`,
-  ],
-  ["getWidgetRegion", () => api.getWidgetRegion(SLASH_ID), `${BASE_WORKSPACE}/widgets/regions/${ENC}`],
-  [
-    "mutateWidgetRegionPlacements",
-    () => api.mutateWidgetRegionPlacements({ regionKey: SLASH_ID, baseVersion: 1, placements: [] }),
-    `${BASE_WORKSPACE}/widgets/regions/${ENC}`,
-  ],
-  [
-    "insertWidgetEmbed",
-    () => api.insertWidgetEmbed({ hostEntryId: SLASH_ID, baseVersion: 1, widgetEntryId: "w1" }),
-    `${BASE_WORKSPACE}/entries/${ENC}/widget-embeds`,
-  ],
+
   [
     "setPluginEnabled",
     () => api.setPluginEnabled(SLASH_ID, { enabled: true }),
@@ -276,22 +240,4 @@ test("removePolicyPermission encodes both policyId and policyPermissionId", asyn
   expect(calls[0].url).toBe(`${BASE_WORKSPACE}/policies/${ENC}/permissions/${ENC2}`);
 });
 
-test("getFormSubmission encodes both formId and submissionId", async () => {
-  const { calls } = stubFetchCapturing();
-  await api.getFormSubmission({ formId: SLASH_ID, submissionId: SECOND_ID });
-  expect(calls[0].url).toBe(`${BASE_WORKSPACE}/forms/${ENC}/submissions/${ENC2}`);
-});
-
-test("removeWidgetEmbed encodes both hostEntryId and placementId", async () => {
-  const { calls } = stubFetchCapturing();
-  await api.removeWidgetEmbed({ hostEntryId: SLASH_ID, placementId: SECOND_ID, baseVersion: 1 });
-  expect(calls[0].url).toBe(`${BASE_WORKSPACE}/entries/${ENC}/widget-embeds/${ENC2}`);
-});
-
 // --- Deliberately-unencoded sibling segment ---------------------------------
-
-test("moderateComment leaves the action segment (a closed literal union) unencoded", async () => {
-  const { calls } = stubFetchCapturing();
-  await api.moderateComment({ commentId: "c1", action: "approve", expectedVersion: 1 });
-  expect(calls[0].url).toBe(`${BASE_WORKSPACE}/comments/c1/approve`);
-});

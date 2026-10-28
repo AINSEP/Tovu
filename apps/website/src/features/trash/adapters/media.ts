@@ -12,7 +12,7 @@
  * orphaning bytes.
  */
 import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
-import { MediaStillReferencedError } from "../../media/index.js";
+import { MediaStillReferencedError } from "@jini-ai/cms/media";
 import { flipMarker, lazyKernel, type MarkerStore } from "./marker-sql.js";
 
 export const MEDIA_ENTITY_TYPE = "media";

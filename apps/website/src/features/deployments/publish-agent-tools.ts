@@ -1,3 +1,6 @@
+export type { StaticPublishToolDeps } from "./publish-tool-deps.js";
+import type { StaticPublishToolDeps } from "./publish-tool-deps.js";
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import type { LoadInstalledDeployTargets, InstalledDeployTarget } from "./deploy-targets/types.js";
 import { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-repo.js";
 export { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-repo.js";
@@ -12,7 +15,7 @@ import { defineSecretCardTool, type SecretCardField, type SecretCardForm } from 
 import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
 import { assertCredentialFreeField, type CredentialTokenHint } from '../../contracts/core/credential-token.js';
 import { credentialText, formatCredentialHint, translateCredentialMessage } from '../../contracts/core/credential-copy.js';
-import { resolveOperatorLocale, type OperatorLocaleDeps } from '../agent-plugins/operator-locale.js';
+import { resolveOperatorLocale, type OperatorLocaleDeps } from '../../contracts/headless/operator-locale.js';
 import { PublishCredentialDuplicateLabelError, PublishCredentialValidationError } from './publish-credentials/store.js';
 import { summarizeCredentialSources, type CredentialCopyToolDeps } from '../custom-credentials/index.js';
 import { verifyPublishCredentialById, verifySubmittedPublishCredential } from './static-publish/verify.js';
@@ -78,13 +81,7 @@ import {
   type StaticPublishTargetId,
 } from "./static-publish/index.js";
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+export type AgentToolDefinition = SharedAgentToolDefinition;
 
 /** No arguments — parameterless read tool. Matches `agent-tools.ts`'s own `NO_INPUT_SCHEMA` exactly;
  *  declared separately here rather than imported from that sibling file, per this file's own
@@ -146,10 +143,11 @@ const PREVIEW_STATIC_PUBLISH_SCHEMA = {
   additionalProperties: { type: "string" },
   required: ["target"],
   properties: {
-    projectName: { type: "string", description: "Use the same project label at preview and execute. Required for authenticated provider resource/domain inspection." },
-    credentialId: { type: "string", description: "Optional saved connection chosen by the person; preview and execute use this exact connection." },
+    projectName: { type: "string", title: "Project name", description: "Use the same project label at preview and execute. Required for authenticated provider resource/domain inspection." },
+    credentialId: { type: "string", title: "Saved connection", description: "Optional saved connection chosen by the person; preview and execute use this exact connection." },
     target: {
       type: "string",
+      title: "Hosting provider",
       description:
         "Which host to publish to: one of the providerId values deployment_get_static_publish_capabilities lists. Pass that host's configFields as top-level string fields next to target (for example { target, <fieldName>: '<value>' }); a field the host does not declare is refused. The base path is computed from the host and the config, never passed in.",
     },
@@ -168,6 +166,7 @@ const EXECUTE_STATIC_PUBLISH_SCHEMA = {
     ...PREVIEW_STATIC_PUBLISH_SCHEMA.properties,
     projectName: {
       type: "string",
+      title: "Project name",
       description: "Human-facing label for this publish run: the host uses it as the commit message or the project-name seed. 1-200 characters.",
     },
   },
@@ -272,75 +271,6 @@ export const staticPublishDerivedRisk: DerivedRiskByToolId = new Map<string, Age
   // credential). No write, no network call, no decrypt.
   ["deployment_generate_bucket_hosting_setup", "none"],
 ]);
-
-/** Composition-root-bound export operation, typed locally to avoid cross-feature type coupling.
- * The composition root closes over full application dependencies; this feature passes only options.
- */
-type ExportSiteBoundFn = (options: { outputDir: string; clean?: boolean; basePath?: string }) => Promise<ExportReport>;
-
-/** Only ports the tool handlers read, declared structurally without importing RouteDeps.
- * A real publish needs the full application graph for export; exportSiteBound captures it at the
- * composition root, so that requirement does not widen this feature's dependency contract.
- * Every other field is a direct port type, never indexed from the composition root's wide bag.
- */
-export interface StaticPublishToolDeps extends OperatorLocaleDeps {
-  readonly loadPluginCredentialCards?: LoadPluginCredentialCards;
-  readonly siteConsent?: Pick<SiteConsentService, "deploymentCheck">;
-  /** Existing shared gateway; required when publishing with infrastructure changes. */
-  readonly gatedMutations?: { readonly gatewayDeps: GatewayDeps };
-  readonly hostKit?: StaticPublishDeps["hostKit"];
-  /** `RouteDeps.formDestination`: the site's forms and receiver key, for a host that receives submissions. */
-  readonly formDestination?: StaticPublishDeps["formDestination"];
-  readonly localCredentialCopy?: CredentialCopyToolDeps['localCredentialCopy'];
-  readonly ownerPrincipalId?: Promise<string>;
-  readonly authorize: AuthorizeFn;
-  readonly workspaceId: string;
-  readonly clock: Clock;
-  readonly idGen: { newId(): string };
-  readonly siteAssistantSecretSealer: SecretSealerPort;
-  readonly siteAssistantSecretKeyring: KeyringPort;
-  readonly publishExecutionMode: PublishExecutionMode;
-  readonly publishHistoryStore: PublishHistoryStore;
-  readonly publishCredentialVerificationCache: PublishCredentialVerificationCache;
-  readonly vendorCredentialSetRepo: VendorCredentialSetRepoPort;
-  /** `RouteDeps.publishOutputRootDir`, threaded down for the same reason `exportSiteBound` above is —
-   *  `publishStaticSite`'s `StaticPublishInput.publishOutputRootDir` needs it directly. */
-  readonly publishOutputRootDir: string;
-  /** The pre-bound export call — see {@link ExportSiteBoundFn}'s own doc above for what it is and why
-   *  it replaces the `routeDeps: RouteDeps` field this interface used to carry (via `extends RouteDeps`). */
-  readonly exportSiteBound: ExportSiteBoundFn;
-  /** Test-only override — when supplied, replaces the composed `PublishCredentialSource` entirely
-   *  (DB-backed + env-fallback composition, `vendorCredentialSetRepo`/`siteAssistantSecretSealer`/
-   *  `publishExecutionMode` are all ignored). Production never sets this. */
-  credentialSource?: PublishCredentialSource;
-  /** Test-only override for `publishStaticSite`'s own `StaticPublishDeps.buildTarget` — lets a test
-   *  substitute a fake `DeployTarget` so `deployment_execute_static_publish`'s CONFIRMED path can be
-   *  exercised end-to-end without ever constructing a real host plugin's
-   *  client or touching `fetch` (mirrors `static-publish/adapter.ts`'s own test-injection seam,
-   *  "adapter tests with a faked deploy target — do not hit real providers in tests"). Production
-   *  never sets this — `publishStaticSite`'s own default (the real Jini adapters) applies. */
-  buildTarget?: StaticPublishDeps["buildTarget"];
-  /** `RouteDeps.loadDeployTargets` — this workspace's deploy registry, which decides which config
-   *  fields a target takes and judges them. Production composition injects the installed deploy Agent Plugin
-   *  (`loadDeployTargetRegistry`); a test injects a registry read from the plugin's source. */
-  loadDeployTargets: (workspaceId: string) => Promise<DeployTargetRegistry>;
-  /** Installed metadata; production binds the data contribution loader, never executable discovery. */
-  readonly loadInstalledDeployTargets?: LoadInstalledDeployTargets;
-  /** Post-save connection checks share the verifier's HTTP seam; fixtures never need real egress. */
-  readonly fetchFn?: typeof fetch;
-  /** Test-only override for `RouteDeps.publishHistoryStore` (2026-08-16 rework — that field is now
-   *  the real, DB-backed `SqlitePublishHistoryStore` in production; see `routes/types.ts`'s own doc)
-   *  — lets a test inject an `InMemoryPublishHistoryStore` so it can assert on a recorded publish (or
-   *  a capabilities read) without touching a real database. Passed straight through to
-   *  `runPublishAndAwait` on a confirmed publish AND used by the capabilities handler's own read, so a
-   *  test sees one consistent store on both sides. Production never sets this; both paths fall back to
-   *  `deps.publishHistoryStore`, so a real publish's history is visible to this tool with no wiring
-   *  change outside this domain (see `publish-run.ts`'s header, "Publish history"). */
-  historyStore?: PublishHistoryStore;
-  /** `RouteDeps.observability`, forwarded so a confirmed publish's deploy egress is traced. */
-  readonly observability?: ObservabilityPort;
-  readonly tracker?: import("@jini-ai/diagnostics/observability").Tracker;
-}
 
 /** {@link StaticPublishToolDeps.loadDeployTargets}, bound by composition to installed plugins or trusted source. */
 function deployTargetsLoader(deps: StaticPublishToolDeps): (workspaceId: string) => Promise<DeployTargetRegistry> {
@@ -923,6 +853,11 @@ function credentialConnectionStatus({ verification }: {
   return verification?.message === credentialText({ id: 'timeout' }) ? 'timeout' : 'unreachable';
 }
 
+/** All blocked assistant publishes report the same event and product source. */
+function trackBlockedToolPublish({ deps, principalId, target, reasonClass }: { deps: StaticPublishToolDeps; principalId: string; target: string; reasonClass: "config" | "consent" | "busy" }, _options = {}): void {
+  deps.tracker?.capture({ name: "site_publish_blocked", userId: principalId }, { properties: { target, reasonClass, source: "assistant" } });
+}
+
 /** Consent remains a fail-closed preflight before credential reads or publishing. */
 async function checkToolPublishConsent({ deps, principalId }: {
   deps: StaticPublishToolDeps; principalId: string;
@@ -1099,12 +1034,12 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
 
       const { config, plan, detailRows } = planToolPublish(registry, raw, loaded);
       if (!plan.ok) {
-        deps.tracker?.capture({ name: "site_publish_blocked", userId: ctx.principal.id }, { properties: { target, reasonClass: "config", source: "assistant" } });
+        trackBlockedToolPublish({ deps, principalId: ctx.principal.id, target, reasonClass: "config" });
         throw new ToolInputError({ message: `deployment_execute_static_publish: ${plan.message}` });
       }
       const consent = await checkToolPublishConsent({ deps, principalId: ctx.principal.id });
       if (consent) {
-        deps.tracker?.capture({ name: "site_publish_blocked", userId: ctx.principal.id }, { properties: { target, reasonClass: "consent", source: "assistant" } });
+        trackBlockedToolPublish({ deps, principalId: ctx.principal.id, target, reasonClass: "consent" });
         return { published: false, cancelled: false, ...consent };
       }
 
@@ -1117,7 +1052,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       // Refuse unavailable credentials before starting an export.
       const readiness = await credentialSource.isConfigured({ workspaceId: deps.workspaceId, target, ...toolCredentialChoice({ raw }) });
       if (!readiness.configured) {
-        deps.tracker?.capture({ name: "site_publish_blocked", userId: ctx.principal.id }, { properties: { target, reasonClass: "config", source: "assistant" } });
+        trackBlockedToolPublish({ deps, principalId: ctx.principal.id, target, reasonClass: "config" });
         return {
           published: false,
           cancelled: false,
@@ -1129,7 +1064,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
 
       if (ctx.signal.aborted) return { published: false, cancelled: false, reason: "abandoned" };
       if (getPublishRunSnapshot().status === "running") {
-        deps.tracker?.capture({ name: "site_publish_blocked", userId: ctx.principal.id }, { properties: { target, reasonClass: "busy", source: "assistant" } });
+        trackBlockedToolPublish({ deps, principalId: ctx.principal.id, target, reasonClass: "busy" });
         return { published: false, cancelled: false, code: "ALREADY_RUNNING", message: "A publish is already running. Wait for it to finish before publishing again." };
       }
       const outcome = await runPublishAndAwait(

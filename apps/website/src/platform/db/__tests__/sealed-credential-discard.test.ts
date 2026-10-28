@@ -3,12 +3,21 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { sql } from "kysely";
 import { buildVaultAad, SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
-import { countVaultCredentialsOpening, discardVaultCredentialsNotOpening, resealVaultCredentialsOpeningUnder } from "../vault-credential-recovery.js";
+import { discardVaultCredentialsNotOpening, resealVaultCredentialsOpeningUnder, type SealedCredentialKeyDeps } from "../vault-credential-recovery.js";
+import { opensVaultCredential, snapshotVaultCredentials } from "../vault-credential-inventory.js";
 import { eachDialect } from "../kernel/__tests__/dialect-matrix.js";
 import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
 import { recoveryAad } from "#src/server/runtime/composition/site-key-recovery";
 import { createSqlDeviceAuthorizationStore } from "../repos/oauth-pending-store.js";
 import { fixture, keyPair, WS, NOW } from "./vault-credential.fixture.js";
+
+/** Sealed counts exclude metadata-only configurations. */
+async function countVaultCredentialsOpening(deps: SealedCredentialKeyDeps, _options = {}): Promise<{ sealed: number; opens: number }> {
+  const { values } = await snapshotVaultCredentials(deps);
+  let opens = 0;
+  for (const value of values) if (await opensVaultCredential({ value, sealer: deps.sealer })) opens += 1;
+  return { sealed: values.length, opens };
+}
 
 /** @file S5 recovery contracts: clear/delete policy, PK+revision races, unlinking, defaults and rollback. */
 for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel })) {

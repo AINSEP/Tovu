@@ -50,7 +50,7 @@ test("featfallback: body cover reaches OG/Twitter/JSON-LD, featured wins, empty 
   for (const featuredMediaId of [null, "featured"] as const) {
     const elements = await head(buildPostRecord({ bodyJson, featuredMediaId }));
     const selected = featuredMediaId ?? "body";
-    const expected = `https://site.example/m/${selected}/og.v2/image.jpg`;
+    const expected = `https://site.example/m/${selected}/og.v2/image.jpg?v=${selected.padEnd(12, "a")}`;
     assert.equal(url(og(elements)), expected);
     assert.equal(url(twitter(elements)), expected);
     const json = jsonImage(elements);
@@ -68,8 +68,8 @@ test("featfallback: body cover reaches OG/Twitter/JSON-LD, featured wins, empty 
 test("featfallback: HTML media and img use the library, overrides win and body cover outranks site default", async () => {
   for (const bodyHtml of ["<img src='/m/body/public.v1/image.jpg' alt='HTML alt'>", `<figure data-embed-config='{"type":"media","id":"body"}'></figure>`]) {
     const elements = await head(buildPostRecord({ bodyFormat: "html", bodyJson: {}, bodyHtml }), { defaultOgImage: "https://site.example/default.jpg" });
-    assert.equal(url(og(elements)), "https://site.example/m/body/og.v2/image.jpg");
-    assert.equal(url(twitter(elements)), "https://site.example/m/body/og.v2/image.jpg");
+    assert.equal(url(og(elements)), "https://site.example/m/body/og.v2/image.jpg?v=bodyaaaaaaaa");
+    assert.equal(url(twitter(elements)), "https://site.example/m/body/og.v2/image.jpg?v=bodyaaaaaaaa");
   }
   const overridden = await head(buildPostRecord({ bodyJson, seoExtJson: JSON.stringify({ ogImage: "https://site.example/override.jpg", twitterImage: "https://site.example/twitter.jpg" }) }));
   assert.equal(url(og(overridden)), "https://site.example/override.jpg");
@@ -78,12 +78,12 @@ test("featfallback: HTML media and img use the library, overrides win and body c
   const json = jsonImage(custom);
   assert.ok(json?.kind === "jsonld");
   assert.equal(json.data["@type"], "BlogPosting");
-  assert.equal(json.data.image, "https://site.example/m/body/og.v2/image.jpg");
+  assert.equal(json.data.image, "https://site.example/m/body/og.v2/image.jpg?v=bodyaaaaaaaa");
 });
 
 test("featfallback: skip video/trashed media; absolute HTTPS external body URLs reach OG and Twitter but not JSON-LD", async () => {
   const elements = await head(buildPostRecord({ bodyJson: { type: "doc", content: [{ type: "media", attrs: { assetId: "video" } }, ...bodyJson.content] } }));
-  assert.equal(url(og(elements)), "https://site.example/m/body/og.v2/image.jpg");
+  assert.equal(url(og(elements)), "https://site.example/m/body/og.v2/image.jpg?v=bodyaaaaaaaa");
   assert.equal(og(await head(buildPostRecord({ bodyJson }), { trashBody: true })), undefined);
   for (const src of ["https://external.example/a.jpg", "http://external.example/a.jpg", "//external.example/a.jpg"]) {
     const external = await head(buildPostRecord({ bodyJson: { type: "doc", content: [{ type: "image", attrs: { src } }] } }));

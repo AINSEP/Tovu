@@ -350,13 +350,6 @@ function validatedConnectionField({ value, field, spec, providerId }: {
   return normalized;
 }
 
-/** True iff `err` is the label's UNIQUE `(workspace_id, vendor_id, label)` index rejecting a
- *  duplicate, on any database (`isUniqueViolation`, storage kernel: SQLite's code/message, Postgres
- *  SQLSTATE 23505). */
-export function isUniqueLabelViolation(err: unknown): boolean {
-  return isUniqueViolation(err);
-}
-
 export interface CreatePublishCredentialInput {
   workspaceId: UUID;
   label: unknown;
@@ -392,7 +385,9 @@ async function saveConnection({ deps, target, input, providerId }: { deps: Publi
     // Unattached project rows are hidden from normal reads. Use only deletion metadata to
     // distinguish a duplicate label from a CAS conflict; never attach or open the existing key.
     const labelRepo = target.scope === "project" ? credentialDeletionRepo({ repo: deps.repo }).project!.repo : target.deps.repo;
-    const duplicate = isUniqueLabelViolation(error) || error instanceof VaultError && error.code === "conflict" &&
+    // The storage kernel recognizes UNIQUE (workspace_id, vendor_id, label) via SQLite's
+    // code/message or Postgres SQLSTATE 23505.
+    const duplicate = isUniqueViolation(error) || error instanceof VaultError && error.code === "conflict" &&
       (await labelRepo.listByVendor({ workspaceId: input.workspaceId, vendorId: input.provider! })).some(row => row.id !== input.id && row.label === input.label);
     if (duplicate) throw new PublishCredentialDuplicateLabelError(input.workspaceId === 'project' ? `Your project already has a key named '${input.label}'. Use it here, or pick another name.` : `a '${providerId}' credential labeled '${input.label}' already exists in this workspace`);
     throw error;

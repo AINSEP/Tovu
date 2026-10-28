@@ -9,7 +9,7 @@ import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/secret-form-ca
 import { withCustomCredentialSetup, type CredentialSetupFailure } from "./credential-recovery.js";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
 import { credentialText, formatCredentialHint, translateCredentialMessage } from '../../contracts/core/credential-copy.js';
-import { resolveOperatorLocale, type OperatorLocaleDeps } from '../agent-plugins/operator-locale.js';
+import { resolveOperatorLocale, type OperatorLocaleDeps } from '../../contracts/headless/operator-locale.js';
 import type { Clock } from "@jini-ai/core/primitives";
 import { buildAuthorizationHeader } from "@jini-ai/integrations/credentialed-http";
 import type { ToolExecutionContext, ToolExecutionOptions } from "@jini-ai/core";

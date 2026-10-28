@@ -147,9 +147,13 @@ describeEachDialect("CMS search source + access", { tables: ["posts", "post_revi
     const draft = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "g2" }, { kernel: s.kernel, clock: storeClock, outbox });
     await draft.read();
     await draft.write("<p>Changed draft</p>");
-    assert.deepEqual(events.map(event => [event.name, event.aggregateId, event.id]), [["entry.updated", "g1", "g1-entry.updated-4"]],
-      "one event for the published page's real change; none for an unchanged save or a draft");
-    assert.deepEqual(events[0]!.payload, { entryId: "g1", contentType: "page" });
+    // b46eb6e29 adds save telemetry for drafts too; unchanged HTML still emits nothing.
+    assert.deepEqual(events.map(event => [event.name, event.aggregateId, event.id]), [
+      ["content.saved", "g1", "g1-content.saved-4"],
+      ["entry.updated", "g1", "g1-entry.updated-4"],
+      ["content.saved", "g2", "g2-content.saved-4"],
+    ], "one update for the published change, save telemetry for both changes, none for the unchanged save");
+    assert.deepEqual(events[1]!.payload, { entryId: "g1", contentType: "page" });
 
     // The backfill's watermark is complete, so only the event can carry the edit.
     assert.equal((await indexer.backfill({ siteId: SITE, workspaceId: WS })).written, 0);
@@ -157,6 +161,7 @@ describeEachDialect("CMS search source + access", { tables: ["posts", "post_revi
     for (const event of events) await indexer.handleEvent({ event });
     assert.deepEqual(await titlesFor("quokka"), ["g1"]);
     assert.deepEqual(await titlesFor("zephyr"), [], "the removed text is no longer served");
+    assert.deepEqual(await titlesFor("draft"), [], "draft save telemetry never exposes a draft in search");
   });
 
   test("an HTML page converted from doc format emits entry.updated only when it is published", async () => {
@@ -168,7 +173,11 @@ describeEachDialect("CMS search source + access", { tables: ["posts", "post_revi
     const storeClock = { nowMs: () => T0 + 120_000 };
     for (const postId of ["g3", "g4"]) await new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId }, { kernel: s.kernel, clock: storeClock, outbox }).ensureHtmlFormat("<p>Seeded</p>");
     await new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "g3" }, { kernel: s.kernel, clock: storeClock }).ensureHtmlFormat("<p>Seeded</p>");
-    assert.deepEqual(events.map(event => [event.name, event.aggregateId, event.id]), [["entry.updated", "g3", "g3-entry.updated-4"]]);
+    assert.deepEqual(events.map(event => [event.name, event.aggregateId, event.id]), [
+      ["content.saved", "g3", "g3-content.saved-4"],
+      ["entry.updated", "g3", "g3-entry.updated-4"],
+      ["content.saved", "g4", "g4-content.saved-4"],
+    ]);
   });
 
   test("load: draft, trashed, other kind, other workspace and missing rows load as null with an outranking revision", async () => {

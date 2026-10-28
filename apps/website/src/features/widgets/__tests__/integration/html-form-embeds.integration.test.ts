@@ -41,7 +41,8 @@ test("form slug, form id and widget spellings resolve identically and fill plain
   assert.equal((rendered.match(/action="\/forms\/contact\/submit"/g) ?? []).length, 3);
   assert.match(rendered, /method="post"/);
   // `toolparam*` since 98ccfc6e0: published forms are WebMCP tools, one param per field.
-  assert.match(rendered, /<label for="form-contact-email">Email \*<\/label><input type="email" id="form-contact-email" name="email" data-tovu-field="email" toolparamtitle="Email" toolparamdescription="Email" aria-describedby="form-contact-email-error" required class="theme-input" placeholder="Email" data-custom="value">/);
+  // d6d0618b0 also stamps the server's default one-line answer cap onto the public input.
+  assert.match(rendered, /<label for="form-contact-email">Email \*<\/label><input type="email" id="form-contact-email" name="email" data-tovu-field="email" toolparamtitle="Email" toolparamdescription="Email" aria-describedby="form-contact-email-error" required class="theme-input" placeholder="Email" data-custom="value" maxlength="100">/);
   assert.match(rendered, /name="_hp"/);
   // The form carries the theme hook; the shared field renderer preserves descriptor classes and error hooks.
   assert.equal((rendered.match(/<form class="tovu-form" data-tovu-form="contact"/g) ?? []).length, 3);

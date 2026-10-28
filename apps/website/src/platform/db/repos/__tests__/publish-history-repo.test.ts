@@ -7,7 +7,7 @@ import type { PublishHistoryEntry } from "#src/features/deployments/static-publi
 import type { ContentKernel } from "../../content-kernel.js";
 import type { PublishHistoryTable } from "../../content-database.generated.js";
 import { describeEachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { publishHistoryStoreFor } from "../publish-history-repo.js";
+import { SqlPublishHistoryStore } from "../publish-history-repo.js";
 
 /**
  * @file `SqlPublishHistoryStore` against a real, migrated content database on every dialect
@@ -58,7 +58,7 @@ function make(base: ContentKernel) {
     await base.run((db) => db.insertInto("workspaces").values([WS, OTHER].map((id) => ({ id, name: id, slug: id, created_at: AT }))).execute());
   })();
   const kernel = heldUntil(base, seeded);
-  return { kernel, store: publishHistoryStoreFor(kernel) };
+  return { kernel, store: new SqlPublishHistoryStore(kernel) };
 }
 
 /** A row written around the store, for shapes `recordSuccess` can no longer produce (a legacy NULL kind). */

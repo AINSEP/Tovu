@@ -51,6 +51,26 @@ function ObservabilityStatusCard({
   );
 }
 
+function ObservabilityDiagnostics({ controller }: { controller: ObservabilityStatusController }) {
+  const { status, t } = controller;
+  return <>
+    {status?.canSendTestError && controller.sendTestError ? (
+      <button type="button" className="jini-button" disabled={controller.sendingTestError}
+        onClick={() => { void controller.sendTestError?.(); }}
+        {...agentHandle({ handle: "observability-send-test-error" }, { role: "button", label: "Send test error" })}>
+        {t(controller.sendingTestError ? "Sending test error…" : "Send test error")}
+      </button>
+    ) : null}
+    {controller.testError ? <p role="alert">{controller.testError}</p> : null}
+    {controller.testResult ? <p role="status">
+      {controller.testResult.providers.length
+        ? `${t("Accepted locally by")}: ${controller.testResult.providers.map(provider => `${provider.providerId} (${provider.signals.map(signal => t(signal)).join(", ")})`).join("; ")}.`
+        : t("No provider accepted the diagnostic yet.")}
+      {" "}{t("Remote delivery is confirmed by export status and your provider. Analytics requires telemetry consent.")}
+    </p> : null}
+  </>;
+}
+
 /**
  * Overview tab: explains OpenTelemetry in plain language for an operator who does not already
  * know what it is, then reports this install's REAL current state — read from
@@ -91,20 +111,7 @@ function OverviewPanel({ controller }: { controller: ObservabilityStatusControll
         </p>
       ))}
       {controller.refresh ? <button type="button" className="jini-button" onClick={controller.refresh}>{t("Refresh")}</button> : null}
-      {status?.canSendTestError && controller.sendTestError ? (
-        <button type="button" className="jini-button" disabled={controller.sendingTestError}
-          onClick={() => { void controller.sendTestError?.(); }}
-          {...agentHandle({ handle: "observability-send-test-error" }, { role: "button", label: "Send test error" })}>
-          {t(controller.sendingTestError ? "Sending test error…" : "Send test error")}
-        </button>
-      ) : null}
-      {controller.testError ? <p role="alert">{controller.testError}</p> : null}
-      {controller.testResult ? <p role="status">
-        {controller.testResult.providers.length
-          ? `${t("Accepted locally by")}: ${controller.testResult.providers.map(provider => `${provider.providerId} (${provider.signals.map(signal => t(signal)).join(", ")})`).join("; ")}.`
-          : t("No provider accepted the diagnostic yet.")}
-        {" "}{t("Remote delivery is confirmed by export status and your provider. Analytics requires telemetry consent.")}
-      </p> : null}
+      <ObservabilityDiagnostics controller={controller} />
 
       <p className="jini-field-hint">
         <a

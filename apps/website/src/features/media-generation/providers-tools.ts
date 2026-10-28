@@ -2,7 +2,7 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/media-generatio
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/secret-form-cards.js";
 import { assertCredentialFreeField, CREDENTIAL_MESSAGES, type CredentialTokenHint } from '../../contracts/core/credential-token.js';
 import { credentialText, formatCredentialHint } from '../../contracts/core/credential-copy.js';
-import { resolveOperatorLocale, type OperatorLocaleDeps } from '../agent-plugins/operator-locale.js';
+import { resolveOperatorLocale, type OperatorLocaleDeps } from '../../contracts/headless/operator-locale.js';
 import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireNoInput, requireString, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";

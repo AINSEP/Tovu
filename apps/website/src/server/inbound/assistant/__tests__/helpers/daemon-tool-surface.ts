@@ -18,7 +18,7 @@ import { createLiveRunTracker } from "#src/assistant/agent-session-preset";
 import { readChatPermanentDeletesPolicy } from "#src/assistant/permanent-delete-settings";
 import { createChatDeleteScope, ALL_CHAT_DELETE_TOOLS } from "#src/assistant/permanent-delete-tool-gate";
 import { isChatToolAllowed } from "#src/contracts/headless/assistant-permanent-deletes-policy";
-import { createAutomaticPluginRuns } from "#src/assistant/automatic-agent-plugins";
+import { createAutomaticPluginRuns } from "#src/features/agent-plugins/automatic-agent-plugins";
 
 
 /** Execute the real daemon's base construction and installed-extension seam. Federation is

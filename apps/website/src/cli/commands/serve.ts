@@ -9,7 +9,8 @@ import { pinSiteListenerOrigin } from "../../server/runtime/boot/site-listener-o
 import { ValidationError, type ConfigJson } from "../../platform/site-dir/index.js";
 import { SITE_BINDING_NOT_SWITCHABLE_ENV } from "../../platform/site-dir/site-registry.js";
 import { mintBootSessionToken } from "#src/features/identity/boot-session-token";
-import { bootSiteDir, closeSiteDirBoot, type BootSiteDirResult } from "../../platform/site-dir/boot-site-dir.js";
+import { closeSiteDirBoot, type BootSiteDirResult } from "../../platform/site-dir/boot-site-dir.js";
+import { bootSiteDir } from "#src/server/runtime/composition/site-dir";
 import type { SiteStore } from "../../server/runtime/composition/open-site-store.js";
 import { awaitBootWorkWithinBound } from "../../server/runtime/lifecycle/await-boot-work.js";
 import { closeStoreOnShutdown, stopServingWithinGrace } from "../../server/runtime/lifecycle/close-store-on-shutdown.js";

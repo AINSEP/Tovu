@@ -50,13 +50,8 @@ import { createIdentityTransactions } from "./repo.js";
  * identity repos — see `inbound/admin-http/dev-auth.ts`.
  */
 
-/**
- * SPEC-022 §4.2 / `production-readiness-gate.ts` — the literal owner-password default this
- * module seeds when `TOVU_ADMIN_PASSWORD` is unset. Exported (not inlined below) so
- * `runBootGateOrExit()` in `src/index.ts` can compare the configured password against the exact
- * same value this seeder falls back to, with no second copy of the string to drift out of sync.
- */
-export const DEFAULT_OWNER_PASSWORD = "tovu-dev";
+import { DEFAULT_OWNER_PASSWORD } from "#src/platform/site-dir/new-site-owner";
+export { DEFAULT_OWNER_PASSWORD } from "#src/platform/site-dir/new-site-owner";
 
 /** The first-boot owner login `seedIdentity` creates when no owner exists yet. */
 export interface OwnerCredentials {

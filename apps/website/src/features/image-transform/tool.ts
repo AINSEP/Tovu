@@ -7,8 +7,8 @@ import { FS_FILES_READ_PERMISSION } from "../fs-files/agent-tools.js";
 import { FsFilePathError } from "../fs-files/fs-files.js";
 import { FsWriteInputError } from "../fs-files/write-files.js";
 import { describeWriteBatch } from "../fs-files/tool-registrations.js";
-import { ASSET_SOURCE_SCHEMA, readAssetSource } from "../fs-files/asset-sources.js";
-import { requireAssetDestination, prepareAssetWrites, writeAssetFiles, type AssetToolDeps, type PreparedAssets } from "../fs-files/asset-destinations.js";
+import { ASSET_SOURCE_SCHEMA, readAssetSource } from "../asset-transfer/asset-sources.js";
+import { requireAssetDestination, prepareAssetWrites, writeAssetFiles, type AssetToolDeps, type PreparedAssets } from "../asset-transfer/asset-destinations.js";
 import { isShapeRejection as isThemeShapeRejection } from "../theme/tool-registrations.js";
 import { isImportShapeRejection } from "../media-import/tool-registrations.js";
 import { ImageTransformError, OUTPUT_SCHEMA, IMAGE_LIMITS, inspectImage, normalizeOutputs, renderOutputs, type RenderedImage } from "./image-ops.js";
@@ -27,7 +27,7 @@ import { ImageTransformError, OUTPUT_SCHEMA, IMAGE_LIMITS, inspectImage, normali
  */
 
 export const IMAGE_TRANSFORM_TOOL_ID = "image_transform";
-export type ImageTransformToolDeps = AssetToolDeps;
+export type ImageTransformToolDeps = AssetToolDeps & { imageCodec: import("@jini-ai/cms/media").ImageCodecPort };
 
 const CATALOG: AgentToolDefinition = {
   name: IMAGE_TRANSFORM_TOOL_ID,
@@ -64,7 +64,7 @@ async function prepare({ routeDeps, ctx }: { routeDeps: ImageTransformToolDeps; 
   // An inspect needs no destination; it cannot reach a writer.
   const destination = outputs ? await requireAssetDestination({ deps: routeDeps, ctx, input: input.destination }) : undefined;
   const { bytes } = await readAssetSource({ deps: routeDeps, ctx, input: input.source, maxBytes: IMAGE_LIMITS.maxSourceBytes });
-  const prepared: Prepared = { source: await inspectImage({ source: bytes }), rendered: outputs ? await renderOutputs({ source: bytes, outputs }) : [] };
+  const prepared: Prepared = { source: await inspectImage({ source: bytes, imageCodec: routeDeps.imageCodec }), rendered: outputs ? await renderOutputs({ source: bytes, outputs, imageCodec: routeDeps.imageCodec }) : [] };
   if (destination) prepared.assets = prepareAssetWrites({ deps: routeDeps, destination, files: prepared.rendered });
   return prepared;
 }

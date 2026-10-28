@@ -16,7 +16,7 @@ async function fixture({ previous = false, requireAcknowledgment }: { previous?:
     principals: { findActiveById: async () => null }, ensureSettingDefinitions }, { systemPrincipalId: "system" });
   const deps = { workspaceId: "ws", settingsReady: Promise.resolve(), settingsUiTabsReady: Promise.resolve(),
     settingsRepo: repo, clock, idGen, getEffective, ownerPrincipalId: Promise.resolve("owner"),
-    principalRepo: { findById: async () => null } as AssistantOwnerGrantDeps["principalRepo"],
+    principalRepo: { findById: async () => null, findActiveById: async () => null, list: async () => [], save: async () => {} },
     authorize: async () => ({ allowed: true, reason: "pin" }),
   } satisfies AssistantOwnerGrantDeps;
   const app = express();

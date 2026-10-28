@@ -1818,6 +1818,7 @@ export async function resolveMediaAssetMetadataForRender(
         cssClass: meta.cssClass,
         htmlAttributes: meta.htmlAttributes,
         slug: meta.slug,
+        sha256: meta.sha256,
         contentType: contentTypes.get(meta.sha256) ?? null,
       },
     ])

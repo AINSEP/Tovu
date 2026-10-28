@@ -282,7 +282,7 @@ function recordingPort(): { port: ObservabilityPort; log: string[] } {
   return { log, port: { ...noop,
     trackOperation: ({ name, attributes }) => {
       log.push(`start:${name}:${JSON.stringify(attributes ?? {})}`);
-      return { end: ({ outcome, failed }) => { log.push(`end:${name}:${outcome}:${failed}`); } };
+      return { ...noop.trackOperation({ name, attributes }), end: ({ outcome, failed }) => { log.push(`end:${name}:${outcome}:${failed}`); } };
     },
     reportError: ({ context }) => { log.push(`error:${context.operation}`); },
   } };

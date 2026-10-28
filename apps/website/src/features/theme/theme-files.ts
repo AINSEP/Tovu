@@ -21,8 +21,8 @@ import {
 import { randomUUID } from "node:crypto";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
-import { ENGINE_SUBFOLDERS, THEME_CATALOG_DIR, type ThemeManifest } from "./theme.js";
-import { resolveThemeLayout } from "./theme-layout.js";
+import type { ThemeManifest } from "./render-contract.js";
+import { resolveThemeLayout, ENGINE_SUBFOLDERS, THEME_CATALOG_DIR } from "./theme-layout.js";
 
 /**
  * @file Path containment and file I/O for the `themes` agent-tool domain

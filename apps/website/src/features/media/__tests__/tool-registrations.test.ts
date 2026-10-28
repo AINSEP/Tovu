@@ -110,7 +110,7 @@ test("media_upload_asset records the SNIFFED content type (not the caller's decl
   assert.ok(stored);
   assert.equal(stored.slug, "logo");
   assert.equal(out.media.slug, stored.slug);
-  assert.equal(out.media.publicUrl, "/m/logo/public.v1/image.webp");
+  assert.equal(out.media.publicUrl, `/m/logo/public.v1/image.webp?v=${out.media.sha256.slice(0, 12)}`);
 });
 
 test("two uploads of different bytes each get their own recorded content type", async () => {

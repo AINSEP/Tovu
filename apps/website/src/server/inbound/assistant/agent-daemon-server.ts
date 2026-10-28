@@ -2,7 +2,7 @@ import { buildAssistantFilesystemNotices } from "./assistant-filesystem-notices.
 import { buildLibrarySaveAttachmentTool } from "#src/features/media/library-save-attachment";
 import { createDocumentArchiveReader } from "#src/features/media/document-archive";
 import { MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
-import { createAutomaticPluginRuns } from "../../../assistant/automatic-agent-plugins.js";
+import { createAutomaticPluginRuns } from "../../../features/agent-plugins/automatic-agent-plugins.js";
 import { readLoginShellEnvironment } from "@jini-ai/platform/child-environment";
 import { resolveFullCliAccess, resolveAssistantCliPermissions } from "#src/contracts/core/assistant-native-fallbacks";
 import { resolveBundledHostSignals } from "#src/features/agent-plugins/host-signals";
@@ -980,6 +980,9 @@ async function resolveAttachmentRunFields(
 const captureEarlySession = createEarlySessionCapture({ sessions: routeDeps.agentSessions, durable: routeDeps.chatRunLedger.durable, readStart: readProcessStart }, {});
 
 const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) => {
+  function noteFullRunInput({ runId, input }: { runId: string; input: string }, _optional = {}): void {
+    if (routeDeps.aiTraceSink?.capture === "full") tracing.noteRunInput({ runId, input });
+  }
   let prompt: string;
   let coldStartContext: string | undefined;
   let principal: Principal;
@@ -1005,7 +1008,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     const decoded = parseRunStartContextRef(request.contextRef);
     coldStartContext = decoded.coldStartContext;
     prompt = decoded.prompt;
-    if (routeDeps.aiTraceSink?.capture === "full") tracing.noteRunInput({ runId: run.id, input: prompt });
+    noteFullRunInput({ runId: run.id, input: prompt });
     principal = { id: decoded.principalId };
     attachmentIds = decoded.attachmentIds;
     pluginRefIds = decoded.pluginRefIds;

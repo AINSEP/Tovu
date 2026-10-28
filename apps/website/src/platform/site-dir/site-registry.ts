@@ -3,7 +3,7 @@ import { withFileLock, type DirectoryRecord, type DirectoryRunningRecord } from 
 import path from "node:path";
 
 import { ValidationError, InitDirNotEmptyError } from "./errors.js";
-import { initSite, type InitSiteResult, type InitSiteRestorePort } from "./init-site.js";
+import type { InitSitePort, InitSiteResult, InitSiteRestorePort } from "./init-site.js";
 import { resolveSiteDatabasePaths } from "./site-databases.js";
 import { readSiteDir } from "./read-site-dir.js";
 import { resolveSiteRoot, SITE_SELECTION_PINNED_ENV, type ResolveSiteRootOptional } from "./site-root.js";
@@ -178,11 +178,15 @@ export interface CreateSiteResult extends InitSiteResult {
   name: string;
 }
 
+export type CreateSiteOptions = ListSitesOptional & { initSite?: InitSitePort; workspace?: SitesWorkspace; verifiedRestore?: InitSiteRestorePort; collisionSafe?: boolean; onAllocated?: (required: SiteCreationAllocation) => void; beforeRegister?: (required: CreateSiteResult) => void };
+export type CreateSitePort = (required: CreateSiteRequired, optional?: CreateSiteOptions) => Promise<CreateSiteResult>;
+
 /**
  * Create a new site under `sites/<name>/` through the SAME `initSite` orchestration `tovu init`
  * uses (BR-01's 8-step ordering, commit-marker discipline included) — never a parallel
  * implementation. `name` doubles as both the folder name and `config.json`'s display-name default
  * (`initSite`'s own `resolveSiteName` falls back to the target's basename, which is `name` here).
+ * @param required.deps - the initializer bound by the embedding host.
  *
  * @throws {ValidationError} an invalid `name` (this function's own folder-name format check, run
  *   BEFORE `initSite` is even called — nothing is written for a malformed name).
@@ -192,7 +196,7 @@ export interface CreateSiteResult extends InitSiteResult {
  * @complexity initSite's byte cost plus O(sites + name collisions) for collision-safe imports;
  *   name selection is bounded to 10,000 candidates under a shared home lock.
  */
-export async function createSite(required: CreateSiteRequired, optional: ListSitesOptional & { initSite?: typeof initSite; workspace?: SitesWorkspace; verifiedRestore?: InitSiteRestorePort; collisionSafe?: boolean; onAllocated?: (required: SiteCreationAllocation) => void; beforeRegister?: (required: CreateSiteResult) => void } = {}): Promise<CreateSiteResult> {
+export async function createSite(required: CreateSiteRequired & { deps: { initSite: InitSitePort } }, optional: CreateSiteOptions = {}): Promise<CreateSiteResult> {
   const name = validateSiteName({ name: required.name });
   const workspace = optional.workspace ?? createSitesWorkspace({}, optional);
   const home = workspace.home({});
@@ -202,7 +206,7 @@ export async function createSite(required: CreateSiteRequired, optional: ListSit
     const dir = path.join(home, picked);
     return withFileLock({ lockPath: `${dir}.creation.lock`, run: async () => {
       if (optional.collisionSafe && fs.existsSync(dir)) throw new InitDirNotEmptyError("Import target was occupied while waiting for its creation lock.");
-      const result = await (optional.initSite ?? initSite)({ dir, name: required.displayName ?? picked, adminPassword: required.adminPassword }, { workspace, onAllocated: allocation => optional.onAllocated?.({ ...allocation, name: picked }), ...(optional.verifiedRestore ? { verifiedRestore: optional.verifiedRestore } : {}) });
+      const result = await (optional.initSite ?? required.deps.initSite)({ dir, name: required.displayName ?? picked, adminPassword: required.adminPassword }, { workspace, onAllocated: allocation => optional.onAllocated?.({ ...allocation, name: picked }), ...(optional.verifiedRestore ? { verifiedRestore: optional.verifiedRestore } : {}) });
       try {
         optional.beforeRegister?.({ ...result, name: picked });
         workspace.registry({}).merge({ entries: [{ id: result.siteId, name: picked, path: result.dir, createdBy: "Web", lastOpened: null }] });
@@ -462,7 +466,9 @@ function isUnderSwitcherSitesRoot(dir: string, optional: ListSitesOptional): boo
  * Windows compares resolved paths without case/separator differences. No filesystem probes.
  * @complexity O(n × path length) for n catalog entries.
  */
-export function isInSitesWorkspace({ dir, workspace }: { dir: string; workspace: Pick<SitesWorkspace, "home" | "registry"> }, { platform = process.platform }: { platform?: NodeJS.Platform } = {}): boolean {
+export function isInSitesWorkspace({ dir, workspace }: { dir: string; workspace: Pick<SitesWorkspace, "home"> & {
+  registry(required: Record<string, never>): { list(required: Record<string, never>): readonly Pick<DirectoryRecord, "path">[] };
+} }, { platform = process.platform }: { platform?: NodeJS.Platform } = {}): boolean {
   const paths = platform === "win32" ? path.win32 : path.posix;
   const canonical = (value: string) => platform === "win32" ? paths.resolve(value).toLowerCase() : paths.resolve(value);
   return canonical(paths.dirname(paths.resolve(dir))) === canonical(workspace.home({})) ||

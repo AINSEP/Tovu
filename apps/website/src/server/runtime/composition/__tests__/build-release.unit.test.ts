@@ -17,6 +17,6 @@ test('release uses the running manifest version and short SHA, with bounded dev 
 test('telemetry environment retains the host bounded runtime selection', () => {
   assert.equal(telemetryEnvironment({ env: {} }), 'local');
   assert.equal(telemetryEnvironment({ env: { ELECTRON_RUN_AS_NODE: '1' } }), 'desktop');
-  assert.equal(telemetryEnvironment({ env: { ELECTRON_RUN_AS_NODE: '1', TOVU_RUNTIME_MODE: 'production' } }), 'fly');
+  assert.equal(telemetryEnvironment({ env: { ELECTRON_RUN_AS_NODE: '1', TOVU_RUNTIME_MODE: 'production' } }), 'production');
   assert.equal(telemetryEnvironment({ env: { NODE_ENV: 'production', TOVU_RUNTIME_MODE: 'anything' } }), 'local');
 });

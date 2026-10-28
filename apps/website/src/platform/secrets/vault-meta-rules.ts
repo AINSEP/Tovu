@@ -1,6 +1,6 @@
 import { VaultError, type VaultJson, type VaultKind, type VaultMeta, type VaultMetaParsers } from "@jini-ai/platform/secrets/credential-sets";
 import { assertCredentialFreeField } from "#src/contracts/core/credential-token";
-import { CUSTOM_CREDENTIAL_CATEGORIES } from "#src/features/custom-credentials/types";
+import { CUSTOM_CREDENTIAL_CATEGORIES } from "#src/contracts/core/custom-credential-categories";
 import { parseApiConnectionMeta } from "./vault-api-connection-meta.js";
 
 /** Tovu's host rules for vault metadata, run inside Jini's complete-shape parsers by `createTovuVaultKinds`.

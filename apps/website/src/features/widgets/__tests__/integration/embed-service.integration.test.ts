@@ -12,7 +12,7 @@ import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner, registerContentType } from "#src/features/content-types/index";
 import { createEntry } from "#src/features/entries/index";
 import { memoryWidgetTrash } from "../support/memory-widget-trash.js";
-import { InMemoryPostRepo } from "#src/features/post/index";
+import { InMemoryPostRepo, createPublicPostReader } from "#src/features/post/index";
 import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
 import { insertWidgetEmbed, removeWidgetEmbed, reorderWidgetEmbeds, WidgetEmbedReorderCountMismatchError, type EmbedServiceDeps } from "@jini-ai/cms/widgets";
 import { WidgetEmbedGuardrailError, WidgetEmbedPlacementNotFoundError, WidgetInstanceNotFoundError, WidgetVersionConflictError } from "@jini-ai/cms/widgets";
@@ -135,8 +135,9 @@ function makeSharedRepos() {
 
 let idCounter = 0;
 function makeDeps(repos: ReturnType<typeof makeSharedRepos>, overrides: Partial<EmbedServiceDeps> = {}): EmbedServiceDeps {
-  return { host: buildWidgetHostPorts({}, {}),
+  return { host: buildWidgetHostPorts({ postRepo: repos.postRepo }, {}),
     ...repos,
+    postRepo: createPublicPostReader({ repo: repos.postRepo }),
     // Required by `rollback`'s `restorePostForward`; nothing here trashes a post, so it never fires.
     forgetRemovedPost: async () => {},
     clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") },
@@ -148,7 +149,7 @@ function makeDeps(repos: ReturnType<typeof makeSharedRepos>, overrides: Partial<
 }
 
 function widgetWriteDeps(repos: ReturnType<typeof makeSharedRepos>): WidgetTrashDeps {
-  return { host: buildWidgetHostPorts({}, {}),
+  return { host: buildWidgetHostPorts({ postRepo: repos.postRepo }, {}),
     ...repos,
     remove: repos.trash.remove,
     clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") },

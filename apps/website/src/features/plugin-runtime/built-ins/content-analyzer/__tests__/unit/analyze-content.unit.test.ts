@@ -4,7 +4,6 @@ import test from "node:test";
 import {
   analyzeContent,
   countSyllables,
-  slugifyHeading,
   type CheckId,
   type ContentAnalysisReport,
   type ContentBlock,
@@ -271,20 +270,10 @@ test("sentence splitting: terminators followed by space/end split; no terminator
   assert.equal(r.sentenceCount, 4 + 1 + 2);
 });
 
-test("reading time: ceil(words / 200) by default, at least 1 when there are words; wordsPerMinute overrides", () => {
+test("reading time: ceil(words / 200), at least 1 when there are words", () => {
   assert.equal(analyzeContent({ title: OK_TITLE, blocks: [text("hi")] }).readingTimeMinutes, 1);
   assert.equal(analyzeContent({ title: OK_TITLE, blocks: [text(words(200))] }).readingTimeMinutes, 1);
   assert.equal(analyzeContent({ title: OK_TITLE, blocks: [text(words(201))] }).readingTimeMinutes, 2);
-  assert.equal(analyzeContent({ title: OK_TITLE, blocks: [text(words(201))] }, { wordsPerMinute: 100 }).readingTimeMinutes, 3);
-});
-
-test("wordsPerMinute: non-positive or non-finite is a RangeError", () => {
-  for (const bad of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
-    assert.throws(() => analyzeContent({ title: OK_TITLE, blocks: [] }, { wordsPerMinute: bad }), {
-      name: "RangeError",
-      message: `wordsPerMinute must be a positive finite number, got ${bad}`,
-    });
-  }
 });
 
 test("toc: every heading with text, in order, with slug anchors de-duplicated -2, -3 (never colliding with a literal)", () => {
@@ -309,10 +298,19 @@ test("toc: every heading with text, in order, with slug anchors de-duplicated -2
   ]);
 });
 
-test("slugifyHeading: uses the renderer transliteration and leaves unanchorable headings empty", () => {
-  assert.equal(slugifyHeading("  Hello,  World!  "), "hello-world");
-  assert.equal(slugifyHeading("Ünïcödé"), "uenicoede");
-  assert.equal(slugifyHeading("—"), "");
+test("toc: uses the renderer transliteration and omits unanchorable headings", () => {
+  const report = analyzeContent({
+    title: OK_TITLE,
+    blocks: [
+      { kind: "heading", level: 2, text: "  Hello,  World!  " },
+      { kind: "heading", level: 2, text: "Ünïcödé" },
+      { kind: "heading", level: 2, text: "—" },
+    ],
+  });
+  assert.deepEqual(report.toc, [
+    { level: 2, text: "Hello,  World!", anchor: "hello-world" },
+    { level: 2, text: "Ünïcödé", anchor: "uenicoede" },
+  ]);
 });
 
 test("countSyllables: vowel groups, silent trailing e, consonant+le keeps its syllable, min 1", () => {

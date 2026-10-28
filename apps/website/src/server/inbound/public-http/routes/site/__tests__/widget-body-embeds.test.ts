@@ -2,7 +2,7 @@ import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-h
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PostRecord } from "#src/features/post/index";
+import type { PublicPostRecord } from "#src/features/post/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { renderHtmlPageBody, renderSite } from "#src/server/inbound/public-http/http/site/render";
@@ -23,7 +23,7 @@ async function fixture(kind: "page" | "post" = "page", marker = LEGACY_MARKER) {
     fieldsJson: { ext: { widget: { payload: JSON.stringify({ status: "active", widgetType: "text", config: { body: "Widget & body" } }) } } },
     publishedAt: NOW, createdAt: NOW, updatedAt: NOW, version: 1,
   });
-  const post: PostRecord = {
+  const post: PublicPostRecord = {
     id: "body-page", workspaceId: deps.workspaceId, slug: "body-page", title: "Body page",
     status: "published", kind, bodyFormat: "html", bodyJson: { type: "doc", content: [] },
     bodyHtml: `<section id="widget-regression"><p>before</p>${marker}<p>after</p></section>`,

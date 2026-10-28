@@ -70,6 +70,7 @@ export {
   type ListSitesOptional,
   type CreateSiteRequired,
   type CreateSiteResult,
+  type CreateSitePort,
 } from "./site-registry.js";
 export {
   persistActiveSite,
@@ -99,3 +100,6 @@ export { runtimeSchemaVersion, type RuntimeSchemaVersion } from "./schema-guard.
 export { findSiteKeyDependentData } from "./site-key-dependent-data.js";
 /** Activation observes the same lease owner as server boot, through this domain's public door. */
 export { readSiteRunning, runningSiteUrl } from "./site-running.js";
+
+// Archive rebuilding reads the same trusted starter template as site creation.
+export { readTemplate } from "./read-template.js";

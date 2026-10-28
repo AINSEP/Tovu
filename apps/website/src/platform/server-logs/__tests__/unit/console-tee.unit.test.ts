@@ -117,7 +117,7 @@ test("uninstall restores exactly the original methods", () => {
 
 test("a throwing buffer never breaks the console call", () => {
   const { target, calls } = fakeConsole();
-  const broken = { append: () => { throw new Error("full"); }, entries: () => [], appendedCount: () => 0, subscribe: () => () => {} };
+  const broken = { append: () => { throw new Error("full"); }, entries: () => [], subscribe: () => () => {} };
   installConsoleTee({ buffer: broken }, { target });
   assert.doesNotThrow(() => target.error("still printed"));
   assert.deepEqual(calls, [["error", ["still printed"]]]);

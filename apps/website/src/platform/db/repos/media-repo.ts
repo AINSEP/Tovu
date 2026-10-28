@@ -62,7 +62,7 @@ function toMediaRecord(row: Selectable<MediaTable> & { created_by?: string | nul
     alt: row.alt,
     caption: row.caption,
     credit: row.credit,
-    source: { sha256: row.source_sha256 },
+    source: { sha256: row.source_sha256, ...(row.source_metadata_json ? JSON.parse(row.source_metadata_json) : {}) },
     status: row.status as MediaStatus,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -81,7 +81,7 @@ function toMediaRecord(row: Selectable<MediaTable> & { created_by?: string | nul
  *
  * @complexity O(1) — a fixed field-by-field copy, no iteration.
  */
-function toMediaRow(record: MediaRecord): Omit<MediaTable, "created_by" | "kind" | "original_filename"> {
+function toMediaRow(record: MediaRecord): Omit<MediaTable, "created_by" | "kind" | "original_filename" | "source_metadata_json"> {
   return {
     id: record.id,
     workspace_id: record.workspaceId,
@@ -168,8 +168,9 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
     this.kernel = kernel;
   }
 
-  /** Only creation writes stamp provenance, privacy kind and original filename. Metadata/Trash
+  /** Creation stamps provenance/MIME, privacy kind and original filename. Metadata/Trash
    * updates omit those columns so stale drafts cannot publicize a document or rename its source.
+   * Only explicit file replacement restamps provenance/MIME to describe the current bytes.
    * Use the existing dialect port to inspect the
    * optional column before INSERT, avoiding a failed statement that would abort a PG transaction.
    * Do not cache absence: the owner can install the staged migration while this repo is alive. */
@@ -177,7 +178,8 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
     Promise<Omit<MediaTable, "created_by" | "kind" | "original_filename"> & { created_by?: string | null; kind: string; original_filename: string | null }> {
     const { record } = required;
     const columns = await listColumns(this.kernel, "media");
-    return { ...toMediaRow(record), kind: record.kind ?? "media", original_filename: record.originalFilename ?? null, ...(columns.some(column => column.name === "created_by")
+    return { ...toMediaRow(record), source_metadata_json: JSON.stringify({ provenance: record.source.provenance, contentType: record.source.contentType }),
+      kind: record.kind ?? "media", original_filename: record.originalFilename ?? null, ...(columns.some(column => column.name === "created_by")
       ? { created_by: record.createdBy ?? null } : {}) };
   }
 
@@ -344,7 +346,7 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
    * intact. Ordinary metadata/import writes retain their existing source policy. */
   async replaceFileIfVersion(required: {
     workspaceId: UUID; id: UUID; ifVersion: number; sha256: string; storageKey: string;
-    originalRenditionId: UUID; updatedAt: string;
+    originalRenditionId: UUID; updatedAt: string; contentType: string; provenance: NonNullable<MediaRecord['source']['provenance']>;
   }, _optional: Record<string, never> = {}): Promise<{ applied: boolean }> {
     return this.kernel.transaction(async () => {
       await this.kernel.lockKey(slugLockKey(required.workspaceId));
@@ -354,6 +356,7 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
           .where('storage_key', '=', required.storageKey).where('status', '=', 'active').executeTakeFirst();
         if (!blob) return { applied: false };
         const rows = await db.updateTable('media').set({ source_sha256: required.sha256,
+          source_metadata_json: JSON.stringify({ contentType: required.contentType, provenance: required.provenance }),
           version: required.ifVersion + 1, updated_at: required.updatedAt })
           .where('workspace_id', '=', required.workspaceId).where('id', '=', required.id)
           .where('version', '=', required.ifVersion).where('status', '=', 'active')

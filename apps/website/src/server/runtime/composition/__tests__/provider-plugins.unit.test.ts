@@ -396,14 +396,14 @@ test("a retired lease is never called again: after disable every contract's comp
   } });
   const ports = await bootProviderPlugins({ runtime, config: configOf(CONFIGS), serviceName: "tovu", site: SITE, ...consentAlways }, { warn: quiet });
   const event = { kind: "run_finished", traceId: "t", at: 0, outcome: "succeeded", error: null, totals: { turns: 0, toolCalls: 0, toolErrors: 0, inputTokens: null, outputTokens: null, costUsd: null } } as const;
-  ports.observability.trackOperation({ name: "before" }).end({ outcome: "ok" });
+  ports.observability.trackOperation({ name: "before" }).end({ outcome: "ok", failed: false });
   ports.tracker.capture({ name: "before", userId: "p-1" });
   ports.aiTraceSink!.record(event);
   assert.deepEqual(seen, ["capture:provider_initialized", "capture:provider_initialized", "capture:provider_initialized", "op:before", "capture:before"]);
   assert.equal(sinkEvents.length, 1);
   for (const pluginId of ["observability-sentry", "analytics-posthog", "ai-trace-langfuse"]) runtime.providerContributions.detach({ pluginId });
   // Synchronously after detach — before the host's queued disposal — the lease is already not current.
-  ports.observability.trackOperation({ name: "after" }).end({ outcome: "ok" });
+  ports.observability.trackOperation({ name: "after" }).end({ outcome: "ok", failed: false });
   ports.observability.reportError({ error: new Error("x"), context: { operation: "after" } } as never);
   ports.tracker.capture({ name: "after", userId: "p-1" });
   ports.aiTraceSink!.record(event);

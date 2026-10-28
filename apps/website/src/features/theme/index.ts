@@ -99,7 +99,6 @@ export {
   resolveTemplateBranchChoice,
   type TemplateBranchChoice,
   scanMenuEmbedIds,
-  scanPostPreviewsLimit,
   postPreviewsBatchSize,
   isPagedPostPreviewsMarker,
   type StaticPostPreviewsPage,

@@ -56,8 +56,10 @@ export type MediaPublicPathVariant =
  *
  * @complexity O(1).
  */
-export function mediaPublicPath(key: string, variant: MediaPublicPathVariant): string {
+export function mediaPublicPath({ key, variant, sha256 }: { key: string; variant: MediaPublicPathVariant; sha256?: string | null | undefined }, _optional: Record<string, never> = {}): string {
   const encodedKey = encodeURIComponent(key);
-  if (variant.kind === "original") return `/m/${encodedKey}/original.${mediaFileExtension({ contentType: variant.contentType })}`;
-  return `/m/${encodedKey}/${encodeURIComponent(variant.name)}.v${variant.version}/image.${variant.ext}`;
+  // Source replacement keeps identity; the source hash makes newly rendered URLs select new bytes.
+  const suffix = sha256 ? `?v=${encodeURIComponent(sha256.slice(0, 12))}` : "";
+  if (variant.kind === "original") return `/m/${encodedKey}/original.${mediaFileExtension({ contentType: variant.contentType })}${suffix}`;
+  return `/m/${encodedKey}/${encodeURIComponent(variant.name)}.v${variant.version}/image.${variant.ext}${suffix}`;
 }

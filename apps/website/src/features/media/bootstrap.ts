@@ -1,6 +1,6 @@
 import type { UUID } from "@jini-ai/core/primitives";
 
-import { getLatestTransformDefinition, registerTransform, type RegisterTransformDeps, type TransformDefinitionRecord } from "./index.js";
+import { getLatestTransformDefinition, registerTransform, type RegisterTransformDeps, type TransformDefinitionRecord } from "@jini-ai/cms/media";
 
 /**
  * @file Boot-time registration of the core transforms this host needs before the public `/m/`

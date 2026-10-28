@@ -57,7 +57,7 @@ export function createSeoFeaturedImagePort({ deps }: { deps: FeaturedImageDeps }
   return {
     findMediaByIdOrSlug: (input) => findMediaByIdOrSlug({ deps, input }),
     mediaUrlKey: ({ asset }) => mediaUrlKey(asset),
-    mediaPublicPath: ({ key, variant }) => mediaPublicPath(key, variant),
+    mediaPublicPath: (input) => mediaPublicPath(input),
     resolveFeaturedImageRef: (input) => resolveFeaturedImageRef({ deps, input }),
   };
 }

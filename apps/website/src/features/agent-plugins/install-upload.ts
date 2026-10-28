@@ -1,3 +1,4 @@
+import { containAgentPluginStatePath } from "#src/features/agent-plugins/lifecycle";
 import { createTovuAgentPluginLifecycle } from "./lifecycle.js";
 import { planAgentPluginUpdate, AgentPluginUpdateError, type AgentPluginMcpProvisioningPort } from "@jini-ai/agent-plugins/lifecycle";
 import { readInstalledAgentPluginIdentity } from "./identity.js";
@@ -211,7 +212,7 @@ export async function installUploadedAgentPlugin(
         upgradeFrom = existing.flatMap(entry => entry.version ? [entry.version] : []);
         const staged: StagedTree[] = [];
         const packagesDir = workspaceLayout.pluginPackagesDir({ pluginId });
-        await assertOwnedPluginPath({ workspaceRoot: workspaceLayout.root, entryPath: path.relative(workspaceLayout.root, packagesDir) });
+        await assertOwnedPluginPath({ contain: containAgentPluginStatePath, workspaceRoot: workspaceLayout.root, entryPath: path.relative(workspaceLayout.root, packagesDir) });
         let installed: InstalledAgentPlugin;
         try {
           for (const previous of existing) staged.push(await stageForRemoval({ packagesDir, packageRoot: previous.packageRoot }));

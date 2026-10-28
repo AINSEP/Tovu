@@ -3,8 +3,10 @@ import type { Express, Request } from "express";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
 import { createAnalyticsForwardLimiter, ingestHit } from "@jini-ai/analytics";
-import { createAnalyticsIngestBinding, type AnalyticsIngestRouteDeps } from "#src/features/analytics/jini-adapters";
+import { createAnalyticsIngestBinding, type AnalyticsIngestRouteDeps as IngestDeps } from "#src/features/analytics/jini-adapters";
 import type { IngestBeacon, IngestContext } from "#src/features/analytics/index";
+
+type AnalyticsIngestRouteDeps = IngestDeps<Request>;
 
 /**
  * @file Public ingest beacon route for the `analytics` library (ADR-035 §5).

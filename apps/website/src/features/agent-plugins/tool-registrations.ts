@@ -1,10 +1,11 @@
+import { containAgentPluginStatePath } from "#src/features/agent-plugins/lifecycle";
 import { projectAgentPluginSearchPage, describeAgentPluginCompatibility, agentPluginDependentWarnings } from "@jini-ai/agent-plugins/lifecycle";
 import { readInstalledAgentPluginIdentity, UNTESTED_PLUGIN_GUIDANCE, type PluginMaturity } from "./identity.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/agent-plugins.js';
 import { withExtensionApprovalPolicy } from '../../contracts/headless/assistant-tool-approval-policy.js';
 import { buildPluginMemoryRegistrations } from "./memory-tools.js";
 import { WRITE_PLUGIN_NOTE, pluginNoteCatalog, pluginNoteRisk, pluginNoteHandler } from "./write-note-tool.js";
-import type { OperatorLocaleDeps } from "./operator-locale.js";
+import type { OperatorLocaleDeps } from "../../contracts/headless/operator-locale.js";
 import { appendPluginNotes } from "./memory.js";
 
 // Jini owns activation lifecycle; this host binding owns its effects.
@@ -680,7 +681,7 @@ export async function registerInstalledAgentPluginTools(
     const handler = registration.handler;
     registry.register({ ...registration, handler: async (execution, optional) => {
       const result = await handler(execution, optional) as { pluginId: string; guidance: string };
-      return { ...result, guidance: await appendPluginNotes({
+      return { ...result, guidance: await appendPluginNotes({ contain: containAgentPluginStatePath,
         workspaceRoot: ctx.agentPluginLayout.forWorkspace(ctx.workspaceId).root,
         pluginId: result.pluginId, guidance: result.guidance,
       }) };

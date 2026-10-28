@@ -63,11 +63,19 @@ const LATER_TABLES: Record<string, { before: string | null; classes: Record<stri
     lease_expires_at: "utc-timestamp-text", last_started_at: "utc-timestamp-text" } },
   form_submission_remote_receipts: { before: "form_submissions", classes: { workspace_id: "plain-text", destination_key: "plain-text",
     remote_id: "plain-text", submission_id: "plain-text", imported_at: "utc-timestamp-text" } },
+  // 8bfa8b040 (0035): provider subject associations, with no bearer credentials.
+  member_external_identities: { before: "member_revisions", classes: { id: "plain-text", workspace_id: "plain-text",
+    member_id: "plain-text", provider_id: "plain-text", issuer: "plain-text", subject: "plain-text",
+    linked_at: "utc-timestamp-text", unlinked_at: "utc-timestamp-text" } },
 };
 
 // Classified but never copied (`member_magic_tokens` is a login table in `database-transfer/exclusions.ts`),
 // so only the classification parity sees it. 0032 (new-address sign-in challenge email).
-const LATER_UNCOPIED_COLUMNS: Record<string, Record<string, string>> = { member_magic_tokens: { email: "plain-text" } };
+// b9d3b37b3 (0034) adds member passwords and code challenges; members now stays behind in a copy.
+const LATER_UNCOPIED_COLUMNS: Record<string, Record<string, string>> = {
+  members: { password_hash: "plain-text" },
+  member_magic_tokens: { email: "plain-text", code_hash: "plain-text", failed_attempts: "plain-integer" },
+};
 
 const golden = JSON.parse(readFileSync(join(import.meta.dirname, "__fixtures__/commerce-strip-parity.golden.json"), "utf8")) as {
   transfer: Record<string, string[]>; classes: Record<string, Record<string, string>>;
@@ -189,7 +197,7 @@ describe("catalogs against the pre-strip tree (4570fce9d)", () => {
   test("the transfer catalog loses exactly the six commerce tables and gains the named later columns", () => {
     for (const name of COMMERCE) assert.ok(name in golden.transfer, `pre-strip copied ${name}`);
     const actual = Object.fromEntries(collectTransferTables().map(table => [table.name, table.columns.map(column => column.name)]));
-    const expected = without(golden.transfer, COMMERCE);
+    const expected = without(golden.transfer, [...COMMERCE, "members"]);
     for (const [table, addition] of Object.entries(LATER_COLUMNS)) {
       const columns = [...expected[table]];
       const at = columns.indexOf(addition.before);

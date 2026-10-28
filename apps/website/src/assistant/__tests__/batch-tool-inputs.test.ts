@@ -306,7 +306,7 @@ test("local theme asset batches inherit root/theme, allow item overrides and con
   fs.writeFileSync(path.join(root, "icon.ico"), icon);
   const permissions: string[] = [];
   const registrations = buildImportThemeFileRegistrations({
-    workspaceId: "ws-batch-local", themesDir: root, siteBinding: { dir: root },
+    workspaceId: "ws-batch-local", themesDir: root, siteBinding: { dir: root }, resolveActiveThemeId: async () => "plain",
     themes: discoverAllBuiltInThemes({ dir: root, source: "built-in" }),
     resolveRoots: () => ({ repo: root, site: root, custom: root }),
     authorize: async (request) => { permissions.push(request.permission); return { allowed: true, reason: "matched" }; },

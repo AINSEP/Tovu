@@ -119,7 +119,7 @@ for (const action of ["invalid", "refuse"] as const) {
     const { sealConnectionStringForNewSite } = await import("../storage-secret.js");
     await assert.rejects(
       sealConnectionStringForNewSite({ siteDir: dir, siteKeyId: "k1", connectionString: URL }, {
-        ensure: async (input) => { asked.push({ siteDir: input.siteDir, siteKeyId: input.siteKeyId, dependent: await input.findSiteKeyDependentData!() }); return action === "invalid" ? { action, perSiteFilePath: "x", reason: "bad" } as never : { action, perSiteFilePath: "x" } as never; },
+        ensure: async (input) => { asked.push({ siteDir: input.siteDir, siteKeyId: input.siteKeyId, dependent: await input.findSiteKeyDependentData!(input.siteDir) }); return action === "invalid" ? { action, perSiteFilePath: "x", reason: "bad" } as never : { action, perSiteFilePath: "x" } as never; },
         sealerFor: () => { throw new Error("must not build a sealer after a refusal"); },
       }),
       (error: unknown) => error instanceof StorageSecretError && error.message === `could not prepare this site's key to seal its Postgres connection string (${action}); fix the site key, then retry`,

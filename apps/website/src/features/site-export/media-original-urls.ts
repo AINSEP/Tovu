@@ -12,7 +12,7 @@ export interface ExportMediaUrlDeps extends ContentTypeDeps {
 
 // Match complete local media paths in HTML, CSS, XML and JSON, retaining query/fragment tails.
 // Check absolute URLs against the configured origin: another site's /m/ namespace is not ours.
-const ORIGINAL_URL = /(?<![\w/.:%-])((?:https?:)?\/\/[^/\s"'<>\\()]+)?\/m\/([^/\s"'<>\\()?#]+)\/original(?=[\s"'<>\\()?#,;]|$)/g;
+const ORIGINAL_URL = /(?<![\w/.:%-])((?:https?:)?\/\/[^/\s"'<>\\()]+)?\/m\/([^/\s"'<>\\()?#]+)\/original(?=[\s"'<>\\()?#,;]|$)(?:\?[^\s"'<>\\()#]*)?/g;
 
 /** Same origin as the configured site; an unparsable URL is never ours. */
 function sameOrigin({ url, origin }: { url: string; origin: string }): boolean {
@@ -50,17 +50,15 @@ export async function rewriteMediaOriginalUrls(
   const locations = exportUrlLocations({ body, contentType });
   const paths = await localOriginalPaths({ body, deps, locations });
   if (paths.size === 0) return body;
-  const records = new Map<string, NonNullable<Awaited<ReturnType<typeof findMediaByIdOrSlug>>>>();
-  for (const [url, { key }] of paths) {
-    const record = await findMediaByIdOrSlug({ deps, input: { workspaceId: deps.workspaceId, idOrSlug: key } });
-    if (record && record.status === "active" && record.kind !== "document") records.set(url, record);
-  }
+  const records = await exportableMediaRecords({ paths, deps });
   const contentTypes = await resolveContentTypes(deps, [...records.values()]);
   const replacements = new Map<string, string>();
   for (const [url, record] of records) {
     const type = contentTypes.get(record.source.sha256);
     const { prefix, key } = paths.get(url)!;
-    if (type) replacements.set(url, prefix + mediaPublicPath(key, { kind: "original", contentType: type }));
+    const query = new URL(url, "https://export.invalid").searchParams;
+    query.delete("v");
+    if (type) replacements.set(url, prefix + mediaPublicPath({ key, sha256: record.source.sha256, variant: { kind: "original", contentType: type } }) + (query.size ? `&${query}` : ""));
   }
   const output: string[] = [];
   let offset = 0;
@@ -71,6 +69,16 @@ export async function rewriteMediaOriginalUrls(
   }
   output.push(body.slice(offset));
   return output.join('');
+}
+
+/** Missing, inactive and document records keep their original URL; lookups remain sequential. */
+async function exportableMediaRecords({ paths, deps }: { paths: ReadonlyMap<string, { key: string }>; deps: ExportMediaUrlDeps }, _options = {}) {
+  const records = new Map<string, NonNullable<Awaited<ReturnType<typeof findMediaByIdOrSlug>>>>();
+  for (const [url, { key }] of paths) {
+    const record = await findMediaByIdOrSlug({ deps, input: { workspaceId: deps.workspaceId, idOrSlug: key } });
+    if (record && record.status === "active" && record.kind !== "document") records.set(url, record);
+  }
+  return records;
 }
 
 /** Rewrite textual responses before the existing exporter writes AND crawls them. Binary responses

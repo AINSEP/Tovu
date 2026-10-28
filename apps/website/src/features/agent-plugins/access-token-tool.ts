@@ -2,7 +2,7 @@ import { probeCredentialConnection } from "../custom-credentials/credentialed-re
 import { findPluginCredentialCard, type PluginCredentialCard, type LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/secret-form-cards.js";
 import { credentialText, translateCredentialMessage } from '../../contracts/core/credential-copy.js';
-import { resolveOperatorLocale, type OperatorLocaleDeps } from './operator-locale.js';
+import { resolveOperatorLocale, type OperatorLocaleDeps } from '../../contracts/headless/operator-locale.js';
 import { assertCredentialToken, CredentialInputError } from '../../contracts/core/credential-token.js';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { requireToolPermission } from "@jini-ai/cms/core";

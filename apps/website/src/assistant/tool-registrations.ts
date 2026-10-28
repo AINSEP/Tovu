@@ -91,7 +91,7 @@ import type { SeoToolDeps } from "../features/seo/tool-registrations.js";
 import type { SiteEvidenceToolDeps } from "../features/site-evidence/tool-registrations.js";
 import type { WidgetsToolDeps } from "../features/widgets/tool-registrations.js";
 import { applyTargetScope, isReadOnlyTool, ToolInputError, assertToolIsWirable, mergeDerivedRiskMaps, type DerivedRiskByToolId, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
-import type { PeerSiteReads } from "../server/runtime/composition/peer-site-reads.js";
+import type { PeerSiteReads, ProviderConfigSource, AssistantHistoryHostDeps } from "./host-contracts.js";
 import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
 import { createSystemClock, createRandomUuidGenerator, nowIso } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
@@ -118,9 +118,9 @@ export type AssistantToolRegistryDeps = import("../features/consent/tool-registr
     projectKeys?: import("../features/project-keys/service.js").ProjectKeysPort;
     providerAppliesAt?: (required: { pluginId: string }) => "now" | "restart" | "failed";
     reapplyProvider?: (required: { pluginId: string }) => Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult>;
-    providerConfig?: import("../server/runtime/composition/provider-config-source.js").ProviderConfigSource;
+    providerConfig?: ProviderConfigSource;
   } &
-  import("../server/runtime/composition/assistant-history-tools.js").AssistantHistoryHostDeps &
+  AssistantHistoryHostDeps &
   import("../features/post/tool-registrations.js").ContentStatsToolDeps &
   import("../features/mail-status/tool-registrations.js").MailStatusToolDeps &
   DeployOpsToolDeps & CommentsToolDeps &
@@ -155,6 +155,7 @@ export type AssistantToolRegistryDeps = import("../features/consent/tool-registr
   IdentityToolDeps &
   IntegrationsToolDeps &
   MediaToolDeps &
+  Pick<import("../features/image-transform/tool.js").ImageTransformToolDeps, "imageCodec"> &
   MediaTrashToolDeps &
   MediaGenerationToolDeps &
   MediaImportToolDeps &

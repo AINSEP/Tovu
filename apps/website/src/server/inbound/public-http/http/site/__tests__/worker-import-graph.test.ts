@@ -42,13 +42,19 @@ const FORBIDDEN_IN_WORKER = [
   "/node_modules/@jini-ai/http-kit/",
 ];
 
-/** Match both source-checkout and installed-package graphs, including every forms repo adapter. */
-const FORBIDDEN_FORM_SERVICES = /\/(?:Jini\/packages\/cms|node_modules\/@jini-ai\/cms)\/(?:src|dist)\/forms\/(?:write-service\.|submit-service\.|repo[./])/;
+/** Match both source-checkout and installed-package graphs, including submission/descriptor validation.
+ * Render-time attribute rules live in the shared field registry, not the submission validator. */
+const FORBIDDEN_FORM_SERVICES = /\/(?:packages\/cms|node_modules\/@jini-ai\/cms)\/(?:src|dist)\/forms\/(?:write-service\.|submit-service\.|repo[./]|forms\.|descriptor-rules\.)/;
 
-/** Measured rendering modules: 146 Handlebars / 104 Liquid; leave a few modules of headroom. */
+/** Cloud 2026-10-28: 161 Handlebars / 119 Liquid, before removing forms/descriptor-rules above.
+ * Added render dependencies: theme font-links/public-page-security-headers and their resource
+ * contract (0e3cd2128), site-timezone date-label (70fdeb1a9), form field-length-caps (d6d0618b0),
+ * and CMS plugin-export/consent-category/server-fragment (9ed0d7d5d). They produce or validate
+ * rendered HTML; retain a small margin for them while banning non-rendering forms code explicitly.
+ */
 const WORKER_MODULE_BUDGETS = {
-  "handlebars-worker.ts": 150,
-  "liquid-worker.ts": 110,
+  "handlebars-worker.ts": 165,
+  "liquid-worker.ts": 125,
 } as const;
 
 function loadWorkerGraph(workerFile: string): { entryError: string; modules: string[] } {

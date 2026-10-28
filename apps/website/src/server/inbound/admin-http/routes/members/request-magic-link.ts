@@ -99,16 +99,19 @@ export const registerAdminMemberRequestMagicLinkRoute: RouteRegistrar = (app, ro
 
       res.json(result);
     } catch (err) {
-      if (err instanceof MemberSignInUnavailableError || err instanceof SenderIdentityNotConfiguredError) {
-        res.status(503).json({ error: err instanceof SenderIdentityNotConfiguredError ? "Member sign-in is unavailable: email is not set up for this site." : err.message, code: "MEMBER_SIGN_IN_UNAVAILABLE" });
-        return;
-      }
-      if (err instanceof MemberValidationError) {
-        res.status(400).json({ error: err.message });
-        return;
-      }
-
-      res.status(500).json({ error: "internal error" });
+      sendMagicLinkError({ res, err });
     }
   });
 };
+
+function sendMagicLinkError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
+  if (err instanceof MemberSignInUnavailableError || err instanceof SenderIdentityNotConfiguredError) {
+    res.status(503).json({ error: err instanceof SenderIdentityNotConfiguredError ? "Member sign-in is unavailable: email is not set up for this site." : err.message, code: "MEMBER_SIGN_IN_UNAVAILABLE" });
+    return;
+  }
+  if (err instanceof MemberValidationError) {
+    res.status(400).json({ error: err.message });
+    return;
+  }
+  res.status(500).json({ error: "internal error" });
+}

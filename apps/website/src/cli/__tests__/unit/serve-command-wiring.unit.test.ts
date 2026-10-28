@@ -176,11 +176,13 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
   function module(relative: string, namedExports: Record<string, unknown>): void {
     moduleStubs.set(new URL(relative, import.meta.url).href, namedExports);
   }
-  module("../../../platform/site-dir/boot-site-dir.ts", {
+  module("../../../server/runtime/composition/site-dir.ts", {
     bootSiteDir: async ({ dir }: { dir: string }) => {
       assert.equal(process.env.TOVU_SITE_DIR, dir, "site must be pinned before boot reads it");
       return bootResult;
     },
+  });
+  module("../../../platform/site-dir/boot-site-dir.ts", {
     closeSiteDirBoot: async (boot: unknown, store: unknown) => {
       assert.equal(boot, bootResult);
       assert.equal(store, composedStore);

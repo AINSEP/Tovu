@@ -1,10 +1,11 @@
+import { containAgentPluginStatePath } from "#src/features/agent-plugins/lifecycle";
 import { DEFAULT_PLUGIN_MEMORY_LIMITS } from "@jini-ai/agent-plugins/persistent-state";
 import { normalizePackageEntryPath } from "./lifecycle.js";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { requireInputRecord, requireString, type AgentToolDefinition, type DerivedRiskByToolId, type ToolHandler } from "@jini-ai/core";
 import { pluginMemory } from "./memory.js";
 import type { AgentPluginLayout } from "./layout.js";
-import { type OperatorLocaleDeps } from "./operator-locale.js";
+import { type OperatorLocaleDeps } from "../../contracts/headless/operator-locale.js";
 import { listInstalledPlugins } from "./lifecycle.js";
 import type { AgentPluginAccessTokenToolDeps } from "./access-token-tool.js";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
@@ -44,6 +45,6 @@ export function pluginNoteHandler(
     const installed = async () => (await listInstalledPlugins(layout.forWorkspace(workspaceId).root)).some(plugin => plugin.pluginId === pluginId);
     if (!(await installed())) throw new Error("Agent Plugin is not installed");
     if (ctx.signal.aborted) return { saved: false, reason: "abandoned" };
-    return { saved: true, ...await pluginMemory({ workspaceId, pluginId }, { layout }).writeNote({ entryPath, text }) };
+    return { saved: true, ...await pluginMemory({ contain: containAgentPluginStatePath, workspaceId, pluginId }, { layout }).writeNote({ entryPath, text }) };
   };
 }

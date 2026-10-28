@@ -4,8 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { initSite } from "../../init-site.js";
-import { createSite } from "../../site-registry.js";
+import { initSite, createSite } from "#src/server/runtime/composition/site-dir";
 import { resolveNewSiteAdminPassword } from "../../new-site-owner.js";
 import { assertSiteOwnerLogin } from "../helpers/assert-site-owner-login.js";
 

@@ -371,8 +371,11 @@ test("overlapping writes to one index are serialized: the second decides only af
     provider.remove(ctx, { tombstones: [{ key: keyOf("a"), revision: 5 }] }),
     provider.upsert(ctx, { documents: [docOf("a", 3)] }),
   ]);
-  assert.equal(safe(tombstone).status === "ok" && tombstone.value.outcomes[0]?.status, "pending");
-  assert.deepEqual(safe(upsert).status === "ok" && upsert.value, { outcomes: [{ key: keyOf("a"), revision: 3, status: "stale" }] });
+  safe(tombstone); safe(upsert);
+  assert.equal(tombstone.status, "ok");
+  assert.equal(upsert.status, "ok");
+  assert.equal(tombstone.value.outcomes[0]?.status, "pending");
+  assert.deepEqual(upsert.value, { outcomes: [{ key: keyOf("a"), revision: 3, status: "stale" }] });
   assert.deepEqual(emulator.documents(INDEX)?.map((doc) => [doc.revision, doc.deleted]), [[5, true]]);
 });
 

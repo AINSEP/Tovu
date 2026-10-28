@@ -1,7 +1,7 @@
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import { loadDeployOpsRegistry } from "#src/features/deployments/deploy-ops/registry";
 import { loadSourceControlProviderRegistry } from "#src/features/source-control/provider-registry";
-import { loadCredentialSchemeRegistry } from "#src/features/custom-credentials/auth-schemes";
+import { loadCredentialSchemeRegistry } from "#src/features/agent-plugins/auth-schemes";
 import type { RouteDeps } from "#src/server/routes/types";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { resolveSkillLayout } from "#src/features/skills/layout";

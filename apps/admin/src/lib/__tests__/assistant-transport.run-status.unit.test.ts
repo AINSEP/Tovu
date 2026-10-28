@@ -6,7 +6,7 @@ import type { ChatTransport, RunHandlers } from "@jini-ai/chat/react";
 import { useConversation } from "@jini-ai/chat/react";
 
 import { createTovuAssistantTransport, terminalFailureError } from "../assistant-transport";
-import { persistableMessages } from "../assistant-chats";
+import { persistableMessages } from "@jini-ai/chat/transports/http";
 import { shouldPublishOnMessagesChange } from "../../components/AssistantDock/hooks/AssistantDock.hooks";
 import { FakeEventSource, resetFakeEventSource } from "./assistant-transport.test-helpers";
 import { durableRunBindings } from "../durable-run-subscription";
@@ -245,7 +245,7 @@ describe("what the server's saved outcome displays (real useConversation, no moc
     expect(assistant.runStatus).toBe("failed");
 
     // Keep the terminal filtering contract, but the browser no longer owns the daemon write.
-    const persisted = persistableMessages(messages);
+    const persisted = persistableMessages({ messages: messages }, {});
     expect(persisted.map((m) => m.id)).toContain(assistant.id);
     expect(persisted.find((m) => m.id === assistant.id)!.runStatus).toBe("failed");
     expect(recoverRequests).toEqual([{ url: "/api/runs/run-1/recover", messageId: assistant.id }]);
@@ -273,7 +273,7 @@ describe("what the server's saved outcome displays (real useConversation, no moc
     expect(assistant.runStatus).not.toBe("failed");
     expect(assistant.runStatus).toBe("canceled");
     expect(isStreaming).toBe(false);
-    expect(persistableMessages(messages).find((message) => message.id === assistant.id)?.runStatus).toBe("canceled");
+    expect(persistableMessages({ messages: messages }, {}).find((message) => message.id === assistant.id)?.runStatus).toBe("canceled");
   });
 
   /**

@@ -4,8 +4,10 @@ import { createSearchEnricher } from '@jini-ai/registry/tool-catalog-builder';
 import { DOC2QUERY } from "./tool-search-doc2query.js";
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { bundledContributionSources } from '../features/agent-plugins/bundled-contribution-sources.js';
 import { resolveProductRoot } from '../platform/site-dir/product-root.js';
+
+/** Product-owned source enumeration; installed packages cannot contribute search authority. */
+export type BundledToolKeywordSources = (required: { sourceRoot: string; filename: string }, optional?: Record<string, never>) => readonly { pluginId: string; packageRoot: string }[];
 
 /**
  * Read search-only words from shipped manifests, including disabled plugins. Installed packages
@@ -17,12 +19,13 @@ import { resolveProductRoot } from '../platform/site-dir/product-root.js';
  * @complexity O(p + k) for p manifests and k keyword entries; one read per manifest.
  */
 export function readBundledToolKeywords(required: { sourceRoot: string }, optional: {
-  sources?: typeof bundledContributionSources;
+  sources?: BundledToolKeywordSources;
   readText?: (file: string) => string;
 } = {}): Record<string, string> {
   const keywords: Record<string, string> = Object.create(null);
-  let sources: ReturnType<typeof bundledContributionSources>;
-  try { sources = (optional.sources ?? bundledContributionSources)({ ...required, filename: 'plugin.json' }); }
+  let sources: ReturnType<BundledToolKeywordSources>;
+  if (!optional.sources) return keywords;
+  try { sources = optional.sources({ ...required, filename: 'plugin.json' }); }
   catch { return keywords; }
   for (const source of sources) {
     try {
@@ -46,9 +49,9 @@ function appendToolKeywords({ keywords, declaration }: { keywords: Record<string
 
 let bundledKeywords: Record<string, string> | undefined;
 
-/** Load optional bundled vocabulary only when search needs it. @complexity O(p + k) once. */
+/** Read the caller-bound bundled vocabulary without selecting plugin sources. @complexity O(1). */
 function bundledToolKeywords(_required: Record<string, never>, _optional: Record<string, never> = {}): Record<string, string> {
-  return bundledKeywords ??= readBundledToolKeywords({ sourceRoot: path.join(resolveProductRoot(), 'content', 'agent-plugins') });
+  return bundledKeywords ?? {};
 }
 /**
  * @file Operator vocabulary for tool search — the words a human uses that a tool's own description
@@ -78,7 +81,12 @@ let searchKeywords: Readonly<Record<string, string>> | undefined;
 
 /** Merge search-only declarations on first use. Optional manifest failures contribute no words.
  * @complexity O(p + k) manifests and keyword entries once, then O(1). */
-export function toolSearchKeywords(_required: Record<string, never>, _optional: Record<string, never> = {}): Readonly<Record<string, string>> {
+export function toolSearchKeywords(_required: Record<string, never>, optional: { sources?: BundledToolKeywordSources } = {}): Readonly<Record<string, string>> {
+  if (optional.sources && !bundledKeywords) {
+    bundledKeywords = readBundledToolKeywords({ sourceRoot: path.join(resolveProductRoot(), 'content', 'agent-plugins') }, optional);
+    searchKeywords = undefined;
+    enricher = undefined;
+  }
   if (searchKeywords) return searchKeywords;
   const bundled = bundledToolKeywords({});
   searchKeywords = Object.fromEntries(

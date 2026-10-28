@@ -2,7 +2,7 @@
 import express from 'express';
 import { createServer } from 'node:http';
 import { openContentDb } from '../../../platform/db/sqlite/content-db.js';
-import { SqliteExternalMcpServerRepo } from '../../../platform/db/sqlite/external-mcp-repo.sqlite.js';
+import { SqliteExternalMcpServerRepo } from '../../../assistant/external-mcp-repo.sqlite.js';
 import { InMemoryExternalMcpToolApprovalRepo } from '../../../assistant/external-mcp-tool-approval-adapters.js';
 import { InMemoryKeyring } from '../../webhooks/keyring.memory.js';
 import { AesGcmSecretSealer } from '../../webhooks/secret-sealer.aesgcm.js';

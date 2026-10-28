@@ -30,8 +30,8 @@ test('gallery resolves real media and renders ordered figures, captions, respons
   assert.ok(rendered.includes('jini-gallery-grid'));
   assert.ok(rendered.includes('jini-gallery-carousel'));
   assert.ok(rendered.includes('tabindex="0"'));
-  assert.ok(rendered.includes('src="/m/photo-one/public.v1/image.jpg"'));
-  assert.ok(rendered.includes('srcset="/m/photo-one/public.v1/image.jpg 1x"'));
+  assert.ok(rendered.includes('src="/m/photo-one/public.v1/image.jpg?v=aaaaaaaaaaaa"'));
+  assert.ok(rendered.includes('srcset="/m/photo-one/public.v1/image.jpg?v=aaaaaaaaaaaa 1x"'));
   assert.ok(rendered.includes('alt="Author alt"'));
   assert.ok(rendered.includes('alt=""'));
   assert.ok(rendered.includes('<figcaption>&lt;first&gt;</figcaption>'));

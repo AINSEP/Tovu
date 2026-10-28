@@ -8,7 +8,8 @@ import { readSiteMetaJson } from "#src/features/webhooks/site-key-sources";
 import { bootLocalOwnerSignIn } from "../boot/local-owner-signin.js";
 import { detectDeploymentSignals } from "../boot/boot-readiness-warnings.js";
 
-export type RegisteredSiteSource = { siteId: string; name: string; dir: string };
+import type { RegisteredSiteSource } from '#src/assistant/host-contracts';
+export type { RegisteredSiteSource } from '#src/assistant/host-contracts';
 type RegisteredEntry = RegisteredSiteSource & { registeredId: string };
 
 /** Recognize desktop/local hosts without deployment signals. Never reads a site registry.

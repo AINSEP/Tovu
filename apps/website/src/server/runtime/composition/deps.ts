@@ -10,7 +10,7 @@ import { createPluginExportSource } from "#src/features/agent-plugins/exports/so
 import { readSiteListenerOrigin } from "../boot/site-listener-origin.js";
 import { loadDeployWorkflowFiles } from "#src/features/deployments/index";
 import { createPluginAccountTokenResolver } from "../boot/mail-plugin-account-token.js";
-import { createCommentsCapability, ensureCommentsProviderDefinition } from '#src/features/comments/provider-selection';
+import { createCommentsCapability } from '#src/features/comments/provider-selection';
 import { composeVisitorToolsManagement } from "./visitor-tools-management.js";
 import { createCommentTargetLookup } from '#src/features/comments/comment-targets';
 import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
@@ -25,18 +25,20 @@ import { registerContentAnalytics } from './content-events.js';
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { createSiteShareBackend } from "#src/features/site-backup/share-backend";
 import { createSiteImportBackend } from "#src/features/site-backup/import-backend";
-import { rebuildImportDatabase } from "#src/platform/db/sqlite/import-database";
+import { rebuildImportDatabase } from "#src/server/runtime/composition/site-portability";
 import { runtimeSchemaVersion } from "#src/platform/site-dir/schema-guard";
 import { startLocalSiteWhenRunning } from "#src/platform/site-dir/local-site-supervisor";
 import { SiteImportRegistry } from "#src/features/site-backup/import-registry";
 import { createShareArchiveReader } from "#src/features/site-backup/import-archive-reader";
+import { createUnpdfDocumentTextExtractor } from "@jini-ai/cms/media/plugins/document-text/unpdf";
+import { createMammothDocumentTextExtractor } from "@jini-ai/cms/media/plugins/document-text/mammoth";
 import * as importYauzl from "yauzl";
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { siteCreationBaseForBinding } from "#src/platform/site-dir/index";
 import { localSiteSupervisorForHost } from "../lifecycle/local-site-host.js";
 import { SiteShareRegistry } from "#src/features/site-backup/share-registry";
 import { prepareShareContent } from "#src/features/site-backup/share-preparation";
-import { sanitizeShareDatabase, rewriteArchiveMedia } from "#src/platform/db/sqlite/share-database";
+import { sanitizeShareDatabase, rewriteArchiveMedia } from "#src/server/runtime/composition/site-portability";
 import { createRuntimeShareDelivery, resolveShareDelivery } from "#src/features/site-backup/share-hosting";
 import { selectConnectedDestination } from "#src/features/publish-content/peers";
 import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
@@ -106,10 +108,10 @@ import { resolveSkillLayout } from "#src/features/skills/layout";
 import type { SiteBackupSources } from "#src/features/site-backup/sources";
 import { SqlitePublishHistoryStore } from "#src/platform/db/sqlite/publish-history-repo.sqlite";
 import { SqlitePublishContentBundleRepo } from "#src/platform/db/sqlite/publish-content-bundle-repo.sqlite";
-import { SqlitePublishContentPeerRepo } from "#src/platform/db/sqlite/publish-content-peer-repo.sqlite";
+import { SqlitePublishContentPeerRepo } from "#src/features/publish-content/publish-content-peer-repo.sqlite";
 import { SqlitePublishContentBaselineRepo } from "#src/platform/db/sqlite/publish-content-baseline-repo.sqlite";
 import { SqlitePublishContentRunRepo } from "#src/platform/db/sqlite/publish-content-run-repo.sqlite";
-import { publishTrustRevocationStoreFor } from "#src/platform/db/repos/publish-trust-revocations";
+import { publishTrustRevocationStoreFor } from "#src/features/publish-trust/publish-trust-revocations";
 import { type ContentKernel, contentKernel } from "#src/platform/db/content-kernel";
 import { createPublishContentApplyPort, toPublishContentApplyDeps } from "#src/features/publish-content/apply-loop";
 import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
@@ -121,7 +123,7 @@ import { composeFormDeliveryDeliverer } from "#src/server/runtime/composition/fo
 import { SqlFormDeliveryRepo, SqlFormPullLeaseRepo } from "#src/platform/db/repos/form-delivery-repo";
 import { ensureFormDeliverySettings, ensureMailSenderSettings, readMailSenderSetting } from "#src/features/settings/index";
 import { createSqlitePublishContentSeedHash } from "./publish-content-seed-hash.js";
-import { SqliteCustomCredentialSetRepo } from "#src/platform/db/sqlite/custom-credential-repo.sqlite";
+import { SqliteCustomCredentialSetRepo } from "#src/features/custom-credentials/custom-credential-repo.sqlite";
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import { createTestOriginHttpClientFactory } from "#src/platform/http/test-origin-allowlist";
 import {
@@ -136,7 +138,7 @@ import { loadMailCredentialCards } from "../boot/mail-provider-catalog.js";
 import { createDomainBindingSweep } from "./dns-change-deps.js";
 import { DOMAIN_DNS_EGRESS_POLICY } from "./domain-dns-adapters.js";
 import { loadDeployOpsRegistry } from "#src/features/deployments/deploy-ops/registry";
-import { loadCredentialSchemeRegistry } from "#src/features/custom-credentials/auth-schemes";
+import { loadCredentialSchemeRegistry } from "#src/features/agent-plugins/auth-schemes";
 import { loadSourceControlProviderRegistry } from "#src/features/source-control/provider-registry";
 import { loadMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { loadMediaProviderRegistry } from "#src/features/media-generation/media-provider-registry";
@@ -144,8 +146,8 @@ import { createMailCaptureRepo, createMailSendLedgerRepo, createMailSuppressionR
 import { createMailActivityRepo } from "#src/features/mail/activity.repo";
 import { createMailSuppressionAdminRepo } from "#src/features/mail/suppression-admin.repo";
 import { ensureMailProviderSettings } from "#src/features/settings/mail-provider";
-import { SqliteSourceControlCredentialSetRepo } from "#src/platform/db/sqlite/source-control-credential-repo.sqlite";
-import { SqliteVendorCredentialSetRepo } from "#src/platform/db/sqlite/vendor-credential-repo.sqlite";
+import { SqliteSourceControlCredentialSetRepo } from "#src/features/source-control/source-control-credential-repo.sqlite";
+import { SqliteVendorCredentialSetRepo } from "#src/features/vendor-credentials/vendor-credential-repo.sqlite";
 import { executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
 import { InMemoryPublishCredentialVerificationCache } from "#src/features/deployments/static-publish/index";
 import { loadDeployTargetRegistry, loadInstalledDeployTargets } from "#src/features/deployments/deploy-targets/registry";
@@ -155,8 +157,6 @@ import {
   createChatRunLedger,
   createChatStoreFactory,
   createSqliteAgentSessionStore,
-  ensurePublicAssistantSettingDefinitions,
-  ensureExecutionSettingDefinitions,
 } from "#src/assistant/index";
 import { SqlitePresentationSettingsRepo, resolveActiveThemeId } from "#src/features/presentation/index";
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
@@ -171,6 +171,7 @@ import type { ContentDb, ContentDbOpenOptions } from "#src/platform/db/sqlite/co
 import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
 import { openSiteContentDb } from "./open-site-content-db.js";
 import { openSiteStore, type SiteStore, type SiteStoreRole } from "./open-site-store.js";
+import { createSite } from "./site-dir.js";
 import { storeBoundServicesFor } from "./store-bound-services.js";
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
 import { isInMemoryDbPath } from "#src/features/plugins/snapshot";
@@ -194,7 +195,7 @@ import { openDatabaseJournalDb } from "#src/platform/db/sqlite/database-journal-
 import { warnOnOrphanedChatRows } from "#src/platform/db/sqlite/chat-orphan-check";
 import { SqliteMigrationRunsRepo, SqliteDatabaseLedgerRepo } from "#src/platform/db/sqlite/database-journal-repo";
 import { createSitemapService } from "@jini-ai/cms/seo";
-import { createSeoDeps, ensureSeoSettingDefinitions } from "#src/features/seo/index";
+import { createSeoDeps } from "#src/features/seo/index";
 import { installNewsletterDataModule } from "#src/features/newsletter/data-module-manifest";
 import { ensureDefaultList } from "#src/features/newsletter/lists";
 import { createHookRegistry } from "#src/features/newsletter/hooks";
@@ -233,12 +234,12 @@ import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";
 import { isSiteIdToken, readSiteMetaId, resolveSiteKeyId, siteKeySources, siteKeyEnvOnlySources } from "#src/features/webhooks/site-key-sources";
 import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyring";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { SqliteSiteAssistantCredentialRepo } from "#src/platform/db/sqlite/site-credential-repo.sqlite";
+import { SqliteSiteAssistantCredentialRepo } from "#src/assistant/site-credential-repo.sqlite";
 import { SealedDatabaseDestinationStore } from "#src/features/database-transfer/destination-store";
 import { DatabaseDestinationRepo } from "#src/features/database-transfer/destination-repo";
-import { SqliteAdminExecutionCredentialRepo } from "#src/platform/db/sqlite/execution-credential-repo.sqlite";
-import { SqliteMediaProviderCredentialRepo } from "#src/platform/db/sqlite/media-provider-credential-repo.sqlite";
-import { SqliteExternalMcpServerRepo } from "#src/platform/db/sqlite/external-mcp-repo.sqlite";
+import { SqliteAdminExecutionCredentialRepo } from "#src/assistant/execution-credential-repo.sqlite";
+import { SqliteMediaProviderCredentialRepo } from "#src/features/media/media-provider-credential-repo.sqlite";
+import { SqliteExternalMcpServerRepo } from "#src/assistant/external-mcp-repo.sqlite";
 import { SqliteExternalMcpToolApprovalRepo } from "#src/platform/db/sqlite/external-mcp-tool-approval-repo.sqlite";
 import { createSqliteConversationToolApprovalStore } from "#src/assistant/persistence/conversation-tool-approval-store";
 import {
@@ -309,15 +310,13 @@ import { wireCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
 import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
 import { createNavMenuReadModel } from "#src/features/navigation/index";
 import { createCommentsModule, HeuristicSpamCheck } from "@jini-ai/cms/comments";
-import { createCommentsHostPorts, ensureCommentsSettingDefinitions } from "#src/features/comments/index";
+import { createCommentsHostPorts } from "#src/features/comments/index";
 import {
-  ensureSettingsUiTabDefinitions,
   getEffective,
   set,
-  ensureSettingDefinitions,
   INSTRUCTIONS_NAMESPACE,
 } from "#src/features/settings/index";
-import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "#src/features/analytics/config.settings";
+import { createSettingsAnalyticsConfig } from "#src/features/analytics/config.settings";
 import {
   ensureSiteTitleSettingDefinition,
   preserveLegacySiteTitles,
@@ -385,7 +384,7 @@ import { createSqliteDeviceAuthorizationStore } from "#src/platform/db/sqlite/oa
 // routing, page-head and event-subscription registries — exports and site inspection served no
 // redirects. `src/__tests__/no-first-party-require.boundary.test.ts` now forbids that pattern.
 import { exportSite } from "#src/features/site-export/index";
-import { createApp, siteAppBootWorkByDeps } from "./app.js";
+import { createApp, siteAppBootWorkByDeps, startSettingsRegistration } from "./app.js";
 
 /**
  * The one site folder this process serves — the root every other runtime path below derives from.
@@ -1439,94 +1438,20 @@ async function composeSiteRouteDeps(
   // settings boot sequence being ready.
   // Presentation remains the live owner; boot must not write a second active-theme value.
   const settingsReady = Promise.resolve();
-  // SPEC-008 (ADR-PIPE-008 Decision §3, T050) — idempotently registers the 8 `site.seo.*`
-  // definitions at boot, mirroring `settingsReady`'s fire-and-forget shape. Chained AFTER
-  // `settingsReady` resolves, not fired in parallel with it — both are SQLite writers on the
-  // SAME single better-sqlite3 connection, and `SettingsWriteService`'s chokepoint opens a real
-  // `BEGIN IMMEDIATE` transaction; two independent async chains racing to BEGIN on one connection
-  // throws "cannot start a transaction within a transaction" (caught directly, not theoretical).
-  const seoReady = settingsReady.then(() =>
-    ensureSeoSettingDefinitions(
-      { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
-      { workspaceId: workspaceId, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
-    ).then(() => undefined)
-  );
-
-  // SPEC-035 (ADR-028 Settings Layered Ledger wiring for Comments) — idempotently registers the 6
-  // `comments.*` definitions at boot, mirroring `seoReady`'s exact fire-and-forget shape. Chained
-  // AFTER `seoReady` resolves, not fired in parallel — same single-SQLite-connection transaction
-  // hazard `seoReady`'s own comment documents immediately above.
-  const commentsSettingsReady = seoReady.then(() =>
-    ensureCommentsSettingDefinitions(
-      { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
-      { workspaceId: workspaceId, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
-    ).then(() => ensureCommentsProviderDefinition({
-      deps: { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
-      systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
-    }))
-  );
-
-  // The visitor-facing assistant's master switch (`assistant/public-assistant-settings.ts`).
-  // Chained after `commentsSettingsReady`, not fired in parallel, for the same
-  // single-SQLite-connection transaction hazard `seoReady`'s comment above documents. Registering
-  // the definition does NOT enable anything: its default is `false`.
-  const assistantSettingsReady = commentsSettingsReady.then(() =>
-    ensurePublicAssistantSettingDefinitions(
-      {
-        settingsRepo,
-        clock,
-        ids: idGen,
-        principals: settingsPrincipals,
-        ensureSettingDefinitions,
-      },
-      { workspaceId: workspaceId, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
-    ).then(() => undefined)
-  );
-
-  // The admin "Execution mode" tab's `core.execution.*` definitions
-  // (`assistant/execution-mode-settings.ts`). Chained after `assistantSettingsReady` rather than
-  // fired in parallel, for the identical single-SQLite-connection-transaction reason `seoReady`'s
-  // own comment above documents. `ownerKind: "core"` (not "site"), so unlike the three bindings
-  // above this one does not pass a `workspaceId` into the registration call — see that file's
-  // header for the namespace-fence reasoning.
-  const executionSettingsReady = assistantSettingsReady.then(() =>
-    ensureExecutionSettingDefinitions(
-      { settingsRepo, clock, ids: idGen, principals: settingsPrincipals, ensureSettingDefinitions },
-      { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
-    ).then(() => undefined)
-  );
-
-  // The remaining ledger-only settings-dialog tabs (Instructions, Notifications, Privacy).
-  // Chained after `executionSettingsReady` rather than fired alongside it for the same
-  // single-SQLite-connection-transaction reason every registration above documents.
-  const settingsUiTabsReady = executionSettingsReady.then(() =>
-    ensureSettingsUiTabDefinitions(
-      { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
-      { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
-    ).then(() => undefined)
-  );
-
-  // The public analytics beacon's `core.analytics.*` definitions (`analytics/config.settings.ts`).
-  // Chained after `settingsUiTabsReady` rather than fired alongside it, for the identical
-  // single-SQLite-connection-transaction reason every registration above documents.
-  const analyticsSettingsReady = settingsUiTabsReady.then(() =>
-    ensureAnalyticsSettingDefinitions(
-      { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
-      { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
-    ).then(() => undefined)
-  );
+  // Serial writes avoid nested SQLite transactions; see startSettingsRegistration in app.ts.
+  const { seoReady, commentsSettingsReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady, analyticsSettingsReady } = startSettingsRegistration({
+    deps: { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
+    settingsReady,
+    workspaceId: workspaceId,
+    systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
+  });
 
   // SPEC-050 `core.site.title` (`features/settings/site-title.ts`): registration, then the one-time
   // pin for every workspace the marker migration recorded as pre-existing (REQ-06). Chained after
   // `analyticsSettingsReady` for the single-SQLite-connection-transaction reason every registration
   // above documents; the pin writes through the same ledger.
   const siteTitlePreservationStore = new SqliteSiteTitlePreservationStore(kernel);
-  const siteDisplayName = createSiteDisplayNameSource(dbPath, overrides.siteBinding?.dir);
-  // Bug D: post dates render in `core.site.timezone`, else the zone recorded when the site was created.
-  const siteTimeZone = createSiteTimeZonePort({
-    settingsRepo,
-    ...(dbPath === ":memory:" ? {} : { creationTimeZone: createSiteCreationTimeZone({ dir: resolveSiteDirForDatabase({ dbPath, siteDir: overrides.siteBinding?.dir }) }) }),
-  });
+  const { siteDisplayName, siteTimeZone } = compositionSiteDisplaySources({ dbPath, overrides, settingsRepo });
   const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: settingsPrincipals };
   const siteTitleReady = analyticsSettingsReady
     // `core.interface` (`features/settings/admin-interface.ts`), chained here for the same
@@ -2193,7 +2118,7 @@ async function composeSiteRouteDeps(
   // Local logging reads only the current site tracing scope, through the live gated provider ports.
   setServerLogTraceReader({ traceIds: () => observability.activeTraceIds?.() });
   lifecycleTracker = tracker;
-  for (const [input, options] of pendingLifecycleEvents.splice(0)) tracker.capture(input, options);
+  flushLifecycleEvents({ pending: pendingLifecycleEvents, tracker });
   instrumentStorageKernel({ kernel, observability });
   instrumentStorageKernel({ kernel: chat, observability });
   // `runtimeMode` itself is now resolved further up (see `newsletterKeyring`'s own hoisting
@@ -2440,6 +2365,7 @@ async function composeSiteRouteDeps(
   });
   const pluginExports = createPluginExportRuntime({ workspaceId: workspaceId, source: createPluginExportSource({ lifecycle: agentPluginLifecycle }), listProviders: createReadyLoginProviderList({ sourceRoot: defaultBundledSourceRoot({ env: process.env }), loadContributions: agentPluginLifecycle.loadPluginContributions, credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer } }) });
   const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {
+    siteBackupSanitize: sanitizeShareDatabase,
     pluginExports,
     assistantAgentInventory,
     workspaceId: workspaceId,
@@ -2592,8 +2518,7 @@ async function composeSiteRouteDeps(
     siteTitleReady,
     siteConsentReady,
     consentStore: createSiteConsentStore({ kernel, workspaceId }),
-    consentTrustedRegionHeader: process.env.TOVU_CONSENT_REGION_HEADER?.trim() || undefined,
-    cookieConsent: selectCookieConsent({ workspaceId, loadContributions: agentPluginLifecycle.loadPluginContributions }),
+    ...compositionConsentOptions({ workspaceId, loadContributions: agentPluginLifecycle.loadPluginContributions }, { env: process.env }),
     mailFeedbackRoute: createSiteMailFeedbackRoute({ db: kernel, workspaceId, credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer },
       loadAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }) }),
     siteTitlePreservationStore,
@@ -2632,6 +2557,7 @@ async function composeSiteRouteDeps(
     // the same cheap, side-effect-free env/path lookup, not a second filesystem walk.
     packageThemesDir: builtInThemesDir(),
     siteBinding: resolvedSiteBinding,
+    createSite,
     federatedMcpPresetRegistry,
     agentPluginLayout,
     agentPluginLifecycle,
@@ -2744,6 +2670,8 @@ async function composeSiteRouteDeps(
     assetRenditionRepo,
     mediaContentTypeStore,
     blobStore,
+    documentTextExtractors: [createUnpdfDocumentTextExtractor({}),
+      createMammothDocumentTextExtractor({ archiveReader: createShareArchiveReader({ yauzl: importYauzl }) })],
     // Boot-time blob hydration readiness — see the `blobHydrationReady` construction above (hoisted
     // alongside `blobStore` itself) for why this is fired independently and exposed here.
     blobHydrationReady,
@@ -2759,6 +2687,7 @@ async function composeSiteRouteDeps(
     // header for the still-real lazy-require rationale.
     transformDefinitionRepo,
     imageTransformer: new SharpImageTransformer(),
+    imageCodec: new SharpImageTransformer(),
     // SPEC-011 (Newsletter): real SQLite adapters for all 6 repo ports (the campaign pair is
     // Drizzle-backed; the 5 `p_newsletter__*` tables are raw-SQL, `declareDataModule()`-created —
     // see `newsletterReady` above). `membersConsentCapability` stays `null` (unbound) — Members has
@@ -3157,7 +3086,7 @@ async function composeSiteRouteDeps(
       // Import payloads live in app-data, outside every served/source tree, including app-data DBs.
       const registry = new SiteImportRegistry({ directory: join(workspace.config({}).appData, "site-imports", workspaceId) });
       const importHttp = createDefaultHttpClient(SITE_IMPORT_EGRESS_POLICY, { observability });
-      routeDeps.siteImportBackend = createSiteImportBackend({ registry, workspace, tracker, reader: createShareArchiveReader({ yauzl: importYauzl }), http: importHttp, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion(),
+      routeDeps.siteImportBackend = createSiteImportBackend({ registry, workspace, tracker, createSite, reader: createShareArchiveReader({ yauzl: importYauzl }), http: importHttp, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion(),
         // Wait for the new site to answer, so the import's "Open" link never points at a port still booting.
         startSite: async input => importSupervisor ? startLocalSiteWhenRunning({ supervisor: importSupervisor, name: input.name }) : { adminUrl: null, status: "stopped" },
         setupBase: "/api/admin/v1/workspaces/" + encodeURIComponent(workspaceId) + "/site-imports",
@@ -3165,6 +3094,42 @@ async function composeSiteRouteDeps(
     }
   }
   routeDeps.siteConsent = bindSiteConsentService({ deps: routeDeps });
+  configureVisitorConsentAnalytics({ routeDeps, workspaceId });
+  await registerContentAnalytics({ deps: { bus, tracker, workspaceId } });
+  return routeDeps;
+}
+
+function compositionSiteDisplaySources(
+  { dbPath, overrides, settingsRepo }: { dbPath: string; overrides: Partial<CreateSiteRouteDepsOverrides>; settingsRepo: RouteDeps["settingsRepo"] },
+  _optional = {},
+) {
+  const siteDisplayName = createSiteDisplayNameSource(dbPath, overrides.siteBinding?.dir);
+  // Bug D: post dates render in `core.site.timezone`, else the zone recorded when the site was created.
+  const siteTimeZone = createSiteTimeZonePort({
+    settingsRepo,
+    ...(dbPath === ":memory:" ? {} : { creationTimeZone: createSiteCreationTimeZone({ dir: resolveSiteDirForDatabase({ dbPath, siteDir: overrides.siteBinding?.dir }) }) }),
+  });
+  return { siteDisplayName, siteTimeZone };
+}
+
+function flushLifecycleEvents(
+  { pending, tracker }: { pending: Array<Parameters<RouteDeps['tracker']['capture']>>; tracker: RouteDeps['tracker'] },
+  _optional = {},
+): void {
+  for (const [input, options] of pending.splice(0)) tracker.capture(input, options);
+}
+
+function compositionConsentOptions(
+  { workspaceId, loadContributions }: Parameters<typeof selectCookieConsent>[0],
+  { env }: { env: NodeJS.ProcessEnv },
+) {
+  return {
+    consentTrustedRegionHeader: env.TOVU_CONSENT_REGION_HEADER?.trim() || undefined,
+    cookieConsent: selectCookieConsent({ workspaceId, loadContributions }),
+  };
+}
+
+function configureVisitorConsentAnalytics({ routeDeps, workspaceId }: { routeDeps: RouteDeps; workspaceId: string }, _optional = {}): void {
   const visitorConsentPorts = createSiteConsentPorts({ deps: routeDeps }, { trustedRegionHeader: routeDeps.consentTrustedRegionHeader });
   // Site analytics off, or this visitor excluded (DNT/GPC/IP/host rules), means no visitor capture.
   const analyticsExcluded = async (request: import('express').Request) => {
@@ -3181,8 +3146,6 @@ async function composeSiteRouteDeps(
   };
   routeDeps.visitorAnalyticsDeliveryAllowed = ({ proof }) => allowsAnalyticsProof({ ports: visitorConsentPorts, proof });
   if (routeDeps.cookieConsent) bindCookieConsentAnalyticsGate({ deps: routeDeps }, { isExcluded: ({ request }) => analyticsExcluded(request) });
-  await registerContentAnalytics({ deps: { bus, tracker, workspaceId } });
-  return routeDeps;
 }
 
 /**

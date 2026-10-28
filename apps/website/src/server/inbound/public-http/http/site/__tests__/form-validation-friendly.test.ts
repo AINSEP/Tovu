@@ -27,8 +27,9 @@ test("validation safely escapes labels, never echoes forged error text or unknow
 test("every supported public-form locale supplies all validation instructions", () => {
   assert.equal(Object.keys(FORM_VALIDATION_COPY).length, 22);
   for (const [locale, copy] of Object.entries(FORM_VALIDATION_COPY)) {
-    assert.equal(copy.length, 5, locale);
+    assert.equal(copy.length, 6, locale);
     for (const template of copy.slice(0, 4)) assert.ok(template.includes("{label}"), locale);
     assert.ok(copy[4].length > 0, locale);
+    assert.ok(copy[5].includes("{label}") && copy[5].includes("{max}"), locale);
   }
 });

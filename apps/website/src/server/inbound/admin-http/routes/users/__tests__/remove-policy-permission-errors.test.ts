@@ -47,7 +47,7 @@ async function grant(deps: ReturnType<typeof createRouteDeps>, suffix: string, p
 }
 
 async function targetPolicy(deps: ReturnType<typeof createRouteDeps>, permission: string, isBuiltin = false,
-  scope: { resourceType: string | null; constraintJson: unknown } = { resourceType: null, constraintJson: null }) {
+  scope: { resourceType: string | null; constraintJson: string | null } = { resourceType: null, constraintJson: null }) {
   const policy = { id: `rpp-target-${permission === "*" ? "wild" : permission}-${isBuiltin}-${scope.resourceType}-${scope.constraintJson === null}`, workspaceId: deps.workspaceId, name: `target ${permission} ${isBuiltin}`, isBuiltin, isFrozen: false };
   const row = { id: `${policy.id}-row`, workspaceId: deps.workspaceId, policyId: policy.id, permission, ...scope };
   await deps.policyRepo.save(policy);
@@ -106,7 +106,8 @@ test("a built-in parent policy is refused 400 VALIDATION_ERROR", async () => {
 test("absent policyId / policyPermissionId params resolve to 404 RESOURCE_NOT_FOUND, never a delete", async () => {
   const { deps, ownerId, invoke } = await harness();
   const { policy, row, read } = await targetPolicy(deps, "content.read");
-  for (const params of [{ policyPermissionId: row.id }, { policyId: policy.id }]) {
+  const missingParams: Record<string, string>[] = [{ policyPermissionId: row.id }, { policyId: policy.id }];
+  for (const params of missingParams) {
     const result = await invoke(ownerId, params as Record<string, string>);
     assert.equal(result.statusCode, 404, JSON.stringify(params));
     assert.equal((result.jsonBody as { code: string }).code, "RESOURCE_NOT_FOUND");
@@ -118,7 +119,7 @@ test("a SCOPED '*' row (resource type or constraint set) is not the owner wildca
   const { deps, invoke } = await harness();
   const callerId = await grant(deps, "manager3", ["role.manage"]);
   for (const scope of [{ resourceType: "post", constraintJson: null }, { resourceType: null, constraintJson: { slug: "news" } }]) {
-    const { policy, row, read } = await targetPolicy(deps, "*", false, scope as { resourceType: string | null; constraintJson: unknown });
+    const { policy, row, read } = await targetPolicy(deps, "*", false, scope as { resourceType: string | null; constraintJson: string | null });
     assert.deepEqual(await read(), [row]);
     assert.deepEqual(await invoke(callerId, { policyId: policy.id, policyPermissionId: row.id }), { statusCode: 204, jsonBody: undefined }, JSON.stringify(scope));
     assert.deepEqual(await read(), []);

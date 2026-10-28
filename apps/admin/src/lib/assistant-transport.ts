@@ -134,11 +134,6 @@ function jiniHostOptions(options: CreateTovuAssistantTransportOptions): JiniHost
   persistUserTurn: options.persistUserTurn && (({ conversationId, message }) => options.persistUserTurn!(conversationId, message)),
  };
 }
-export function historyForTranscript(history: readonly ChatMessage[]) { return client.historyForTranscript({ history }, {}); }
-export function undeliveredUserPrompt(history: readonly ChatMessage[]) { return client.undeliveredUserPrompt({ history }, {}); }
-export function buildLocalCliContextRef(input: StartRunInput, prompt: string, resolvedConversationId?: string) { return client.buildLocalCliContextRef({ input, prompt, resolvedConversationId }, {}); }
-export function handleByokFrame(frame: Parameters<typeof client.handleByokFrame>[0]["frame"], ctx: Parameters<typeof client.handleByokFrame>[0]["ctx"]) { return client.handleByokFrame({ frame, ctx }, {}); }
-export function consumeByokStream(body: ReadableStream<Uint8Array>, ctx: Parameters<typeof client.consumeByokStream>[0]["ctx"]) { return client.consumeByokStream({ body, ctx }, {}); }
 
 /** Provider dispatch receives an augmented copy; persistence/title derivation sees the original. */
 function withSelectedSkillGuidance(input: StartRunInput): StartRunInput {

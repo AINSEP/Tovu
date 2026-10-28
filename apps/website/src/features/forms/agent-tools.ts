@@ -47,6 +47,7 @@
  * and their rationale.
  */
 
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import {
   ATTRIBUTE_NAME_PATTERN,
   FIELD_ID_PATTERN,
@@ -60,24 +61,19 @@ import {
   MIN_MAX_LENGTH,
 } from "@jini-ai/cms/forms";
 import { MAX_NAME_LENGTH, MAX_NOTIFY_RECIPIENTS, SLUG_PATTERN } from "@jini-ai/cms/forms";
+import { DELIVERY_STATUS_MAX_LIMIT } from "#src/contracts/headless/form-delivery-status";
+export { DELIVERY_STATUS_MAX_LIMIT } from "#src/contracts/headless/form-delivery-status";
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
 
 export type AgentToolActorClassRule = "confirmer-must-equal-own-delegatedBy" | "user-only" | "none";
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  actorClassRule?: AgentToolActorClassRule;
-  /**
-   * JSON Schema for this tool's `input`, published to the model via `ToolDescriptor.inputSchema`
-   * (`assistant/tool-registrations.ts`, which refuses to wire any tool lacking one). Structurally
-   * identical to the content-types catalog's field of the same name.
-   */
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+/**
+ * JSON Schema for this tool's `input`, published to the model via `ToolDescriptor.inputSchema`
+ * (`assistant/tool-registrations.ts`, which refuses to wire any tool lacking one). Structurally
+ * identical to the content-types catalog's field of the same name.
+ */
+export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect };
 
 /** One entry of a `fields` array, as published to the model. Mirrors what `forms.ts`'s `validateFieldDescriptors` enforces. */
 const FIELD_DESCRIPTOR_SCHEMA = {
@@ -171,8 +167,6 @@ const FORM_ID_SCHEMA = {
  */
 const SUBMISSIONS_MIN_LIMIT = 1;
 const SUBMISSIONS_MAX_LIMIT = 100;
-/** `forms_delivery_status` lists at most this many unfinished deliveries (the status repo's own cap). */
-export const DELIVERY_STATUS_MAX_LIMIT = 50;
 
 const SUBMISSION_ID_SCHEMA = {
   type: "string",

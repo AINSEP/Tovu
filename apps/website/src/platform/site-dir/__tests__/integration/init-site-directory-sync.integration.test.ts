@@ -6,7 +6,7 @@ import path from "node:path";
 import test, { type TestContext } from "node:test";
 import { createNodeAtomicFilesystem, type AtomicFilesystemPort } from "@jini-ai/platform/fs";
 
-import { initSite } from "../../init-site.js";
+import { initSite } from "#src/server/runtime/composition/site-dir";
 import { readTemplate } from "../../read-template.js";
 import { runtimeSchemaVersion } from "../../schema-guard.js";
 import { resolveSiteDatabasePaths } from "../../site-databases.js";

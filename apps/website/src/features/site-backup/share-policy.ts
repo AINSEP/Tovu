@@ -1,3 +1,5 @@
+import type { TransformParams } from "@jini-ai/cms/media";
+
 /**
  * Why: a share is portable site content, including unpublished work, without the source's
  * identity or runtime state. Construct a NEW trusted database: deleting private rows from a
@@ -51,8 +53,17 @@ export function checkShareLimits(required: { files: readonly { path: string; byt
   if (large) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: `Share file '${large.path}' exceeds the 64 MiB ordinary-file cap.` });
 }
 
+/** Snapshot-owned metadata, never a read from mutable live media repositories. */
+export interface ArchiveMediaSource {
+  readonly id: string; readonly workspaceId: string; readonly slug: string;
+  readonly originalFilename: string | null; readonly kind: string;
+  readonly storageKey: string; readonly sha256: string;
+  readonly documentOwned?: boolean;
+  readonly public?: { readonly storageKey?: string; readonly sha256?: string; readonly version: number; readonly params: TransformParams };
+}
+
 export interface ShareDatabaseProjection {
-  readonly archiveMedia?: readonly import("./archive-media.js").ArchiveMediaSource[];
+  readonly archiveMedia?: readonly ArchiveMediaSource[];
   readonly bytes: Buffer;
   readonly media: readonly { storageKey: string; sha256?: string; destinationStorageKey?: string }[];
   /** Original document policies travel separately from deduplicated blob references. */

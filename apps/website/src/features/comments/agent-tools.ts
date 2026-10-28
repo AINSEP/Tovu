@@ -43,6 +43,7 @@
  * validators. Performs no I/O and no enforcement itself.
  */
 
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import { MAX_DEPTH_CEILING, MAX_PER_IP_PER_HOUR_CEILING } from "./settings.js";
 import { COMMENT_STATUSES } from "@jini-ai/cms/comments";
 
@@ -50,18 +51,11 @@ export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-toke
 
 export type AgentToolActorClassRule = "confirmer-must-equal-own-delegatedBy" | "user-only" | "none";
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  actorClassRule?: AgentToolActorClassRule;
-  /**
-   * JSON Schema for this tool's `input`, published to the model via `ToolDescriptor.inputSchema`
-   * (`assistant/tool-registrations.ts`, which refuses to wire any tool lacking one).
-   */
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+/**
+ * JSON Schema for this tool's `input`, published to the model via `ToolDescriptor.inputSchema`
+ * (`assistant/tool-registrations.ts`, which refuses to wire any tool lacking one).
+ */
+export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect };
 
 /** A comment's id, as returned by `content_read.comment_moderation_queue`'s `items[].id`. */
 const COMMENT_ID_SCHEMA = {

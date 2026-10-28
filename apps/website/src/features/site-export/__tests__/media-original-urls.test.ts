@@ -20,8 +20,15 @@ async function fixture() {
     input: { workspaceId: deps.workspaceId, bytes: SVG, filename: "logo.svg", contentType: "image/svg+xml", createdByPrincipal: "test" },
   });
   // Direct upload predates the host recording hook: exercise the real read-path backfill.
-  return { deps, media, old: `/m/${media.slug}/original`, canonical: `/m/${media.slug}/original.svg` };
+  return { deps, media, old: `/m/${media.slug}/original`, canonical: `/m/${media.slug}/original.svg?v=${media.source.sha256.slice(0, 12)}` };
 }
+
+// Guards rewriteMediaOriginalUrls's canonical helper call and replacement of a stale v query.
+test("export upgrades legacy originals with the current version while preserving unrelated query and fragment", async () => {
+  const { deps, media, old } = await fixture();
+  assert.equal(await rewriteMediaOriginalUrls({ body: `<img src="${old}?v=old&download=1#cover">`, deps }),
+    `<img src="${old}.svg?v=${media.source.sha256.slice(0, 12)}&download=1#cover">`);
+});
 
 test("export rewrites legacy original URLs in HTML, inline CSS, XML and JSON, preserving tails and external URLs", async () => {
   const { deps, media, old, canonical } = await fixture();
@@ -30,7 +37,7 @@ test("export rewrites legacy original URLs in HTML, inline CSS, XML and JSON, pr
   const body = `<header><img src="${old}?v=1#mark"></header><footer style="background:url(${old})"></footer>` +
     `<link rel="icon" href="${old}"><image:loc>${origin}${old}</image:loc>{"src":"${old}"}` +
     `<img src="https://foreign.invalid${old}"><img src="${old}.svg"><img src="${old}-other">`;
-  const expected = `<header><img src="${canonical}?v=1#mark"></header><footer style="background:url(${canonical})"></footer>` +
+  const expected = `<header><img src="${canonical}#mark"></header><footer style="background:url(${canonical})"></footer>` +
     `<link rel="icon" href="${canonical}"><image:loc>${origin}${old}</image:loc>{"src":"${old}"}` +
     `<img src="https://foreign.invalid${old}"><img src="${old}.svg"><img src="${old}-other">`;
   assert.equal(await rewriteMediaOriginalUrls({ body, deps }), expected);
@@ -84,7 +91,7 @@ for (const basePath of [undefined, "/preview"]) {
       input: { workspaceId: deps.workspaceId, bytes: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><circle r="2"/></svg>'), filename: "background.svg", contentType: "image/svg+xml", createdByPrincipal: "test" },
     });
     const cssOld = `/m/${cssOnly.slug}/original`;
-    const cssCanonical = `${cssOld}.svg`;
+    const cssCanonical = `${cssOld}.svg?v=${cssOnly.source.sha256.slice(0, 12)}`;
     const app = express();
     app.get("/", (_req, res) => res.type("html").send(`<html><head><link rel="icon" href="${old}"><link rel="stylesheet" href="/theme-assets/test/main.css"><link rel="manifest" href="/theme-assets/test/site.webmanifest"></head><body><header><img src="${old}"></header><footer><img src="/m/${media.id}/original"></footer></body></html>`));
     app.get("/theme-assets/test/main.css", (_req, res) => res.type("css").send(`body{background:url(${cssOld})}`));
@@ -100,16 +107,16 @@ for (const basePath of [undefined, "/preview"]) {
       assert.deepEqual(report.assets.failed, []);
       const read = (file: string) => readFileSync(path.join(outputDir, file), "utf8");
       const prefix = basePath ?? "";
-      assert.match(read("index.html"), new RegExp(`src="${prefix}${canonical}"`));
-      assert.match(read("index.html"), new RegExp(`href="${prefix}${canonical}"`));
-      assert.match(read("index.html"), new RegExp(`src="${prefix}/m/${media.id}/original\\.svg"`));
+      assert.ok(read("index.html").includes(`src="${prefix}${canonical}"`));
+      assert.ok(read("index.html").includes(`href="${prefix}${canonical}"`));
+      assert.ok(read("index.html").includes(`src="${prefix}/m/${media.id}/original.svg?v=${media.source.sha256.slice(0, 12)}"`));
       assert.equal(read("theme-assets/test/main.css"), `body{background:url(${prefix}${cssCanonical})}`);
       assert.deepEqual(JSON.parse(read("theme-assets/test/site.webmanifest")), { icons: [{ src: prefix + canonical }] });
       assert.equal(read("sitemap.xml"), `<urlset><image:loc>${prefix}${canonical}</image:loc></urlset>`);
-      for (const url of [canonical, `/m/${media.id}/original.svg`, cssCanonical]) {
+      for (const url of [canonical, `/m/${media.id}/original.svg?v=${media.source.sha256.slice(0, 12)}`, cssCanonical.split("?")[0]!]) {
         const asset = report.assets.succeeded.find(asset => asset.url === url);
         assert.ok(asset, `missing exported original ${url}`);
-        assert.equal(asset.outputFile, url.slice(1));
+        assert.equal(asset.outputFile, url.slice(1).split("?")[0]);
         assert.equal(asset.contentType, "image/svg+xml");
         assert.deepEqual(readFileSync(path.join(outputDir, asset.outputFile)), asset.data);
         assert.equal(existsSync(path.join(outputDir, asset.outputFile.replace(/\.svg$/, ""))), false);

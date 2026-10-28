@@ -1,3 +1,4 @@
+import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import { InMemoryVersionedMediaRepo, InMemoryMediaContentTypeStore } from '../index.js';
 import { InMemoryBlobStore, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryTransformDefinitionRepo, InMemoryImageTransformer } from '@jini-ai/cms/media';
@@ -13,7 +14,7 @@ export function libraryFixture() {
     workspaceId: 'site-a', authorize: async () => ({ allowed: !denied, reason: denied ? 'denied' : 'matched' }),
     clock: { nowMs: () => Date.parse('2026-10-18T00:00:00Z'), nowIso: () => '2026-10-18T00:00:00.000Z' }, idGen: { newId: () => `id-${++id}` },
     mediaRepo, assetBlobRepo: new InMemoryAssetBlobRepo({}), assetRenditionRepo: new InMemoryAssetRenditionRepo({}), blobStore: new InMemoryBlobStore(),
-    mediaContentTypeStore: new InMemoryMediaContentTypeStore(), transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}), imageTransformer: new InMemoryImageTransformer(),
+    mediaContentTypeStore: new InMemoryMediaContentTypeStore(), transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}), imageTransformer: new InMemoryImageTransformer(), imageCodec: new SharpImageTransformer(),
     removeMedia: async input => {
       const row = await mediaRepo.findById({ workspaceId: input.workspaceId, id: input.id });
       if (!row) return { ok: false, reason: 'not-found' };

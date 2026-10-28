@@ -39,7 +39,7 @@ export type ProviderContract = "observability" | "product_analytics" | "ai_trace
 export interface SiteIdentity {
   readonly siteId: string;
   readonly siteSlug: string;
-  readonly environment: "local" | "desktop" | "fly";
+  readonly environment: "local" | "desktop" | "production";
   readonly projectId: string;
 }
 

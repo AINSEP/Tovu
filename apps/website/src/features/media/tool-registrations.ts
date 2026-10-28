@@ -51,10 +51,10 @@ function resolveOneAssetPublicUrl(
 ): string | null {
   const key = mediaUrlKey(asset);
   const contentType = contentTypes.get(asset.source.sha256);
-  if (contentType === "image/svg+xml" || contentType?.startsWith("video/") || contentType?.startsWith("audio/")) return mediaPublicPath(key, { kind: "original", contentType });
+  if (contentType === "image/svg+xml" || contentType?.startsWith("video/") || contentType?.startsWith("audio/")) return mediaPublicPath({ key, sha256: asset.source.sha256, variant: { kind: "original", contentType } });
   if (!latest) return null;
   const ext = EXT_BY_TRANSFORM_FORMAT[latest.params.format] ?? latest.params.format;
-  return mediaPublicPath(key, { kind: "transform", name: CORE_PUBLIC_TRANSFORM_NAME, version: latest.version, ext });
+  return mediaPublicPath({ key, sha256: asset.source.sha256, variant: { kind: "transform", name: CORE_PUBLIC_TRANSFORM_NAME, version: latest.version, ext } });
 }
 
 /**
@@ -253,6 +253,7 @@ export function buildMediaRegistrationsForTovu(
   // Jini binds creation attribution to each invocation's authenticated principal, so parallel
   // agent/user uploads and chat promotions never share mutable actor state.
   const registrations = buildMediaRegistrations(routeDeps, {
+    listContentTypes: routeDeps.mediaContentTypeStore,
     resolvePublicUrls: ({ assets }) => resolveMediaPublicUrls(routeDeps, assets),
     recordUploadContentType: buildRecordUploadContentType(routeDeps),
     maxUploadBytes: TOVU_MAX_UPLOAD_BYTES,

@@ -203,6 +203,8 @@ export function bootstrapFreshContentDb(
     "0035_member_external_identities": () => {
       for (const statement of MEMBER_EXTERNAL_IDENTITIES_STATEMENTS) client.exec(statement);
     },
+    "0036_publish_history_config_jsonb": () => {}, // Postgres-only conversion; SQLite retains 0016's text column.
+    "0037_media_source_metadata": () => client.exec("ALTER TABLE media ADD COLUMN \"source_metadata_json\" text"),
     "0018_form_submission_remote_receipts": () => {
       for (const statement of FORM_SUBMISSION_REMOTE_RECEIPTS_STATEMENTS) client.exec(statement);
     },

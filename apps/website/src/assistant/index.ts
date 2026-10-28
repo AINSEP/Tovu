@@ -165,13 +165,14 @@ export { AGENT_DAEMON_EXIT_CODE } from "./daemon-exit-codes.js";
 // remains public so the supervisor and its tests share crash-loop/backoff decisions.
 export { createRespawnPolicy } from "./daemon-respawn-policy.js";
 export type { RespawnDecision, RespawnPolicy } from "./daemon-respawn-policy.js";
-export { getLiveClaudeModels, unionModels } from "./live-model-cache.js";
+export { createLiveModelDiscovery, fetchLiveClaudeModels, unionModels } from "./live-model-cache.js";
+export type { LiveModelDiscovery } from "./live-model-cache.js";
 export { isMcpUiToolCallAllowed, isMcpUiToolCallPermitted } from "./mcp-ui-tool-calls.js";
 export { MCP_UI_TOOL_CALLS_PATH, isTypedSurfaceAnswer } from "./mcp-ui-tool-calls-route.js";
 // `UIResource`/`MCP_UI_MIME_TYPE` are the MCP-UI wire-format contract `mcp-ui.ts` declares —
 // `features/post`'s own agent-tools tests build/assert against this exact shape to verify their
 // tool output conforms to it, the same "consumer needs the port's own type" reasoning as any other
-// cross-module port. The rest of `mcp-ui.ts` (`createUIResource`, `buildUIToolResult`, etc.) stays
+// cross-module port. The rest of `mcp-ui.ts` (`buildUIToolResult`, etc.) stays
 // un-re-exported — no external caller constructs a `UIResource` today, only reads/asserts on one.
 export { MCP_UI_MIME_TYPE } from "./mcp-ui.js";
 export type { UIResource } from "./mcp-ui.js";
@@ -253,7 +254,6 @@ export type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 // `adapter.stdio.ts` stays unexported and unreached from here: D-7 restricts the probe to hosted
 // connections only, so nothing outside `assistant/` needs the stdio transport's spawn path.
 export { connectMcpHttpSession, createFetchMcpHttpExchange } from "./mcp-federation/adapter.http.js";
-export { registerFederatedMcpPreset } from "./mcp-federation/presets.js";
 
 // Roster-change fan-out: the seam that lets `put.ts`/`oauth-callback.ts`/
 // `features/external-mcp/tool-registrations.ts` announce a saved or newly connected row without
@@ -291,7 +291,7 @@ export type { DuplicateResourceHandler, DuplicateResourceHandlerContributor } fr
 // Category 3, an ADR-006 composition root selecting an adapter, not a leak. Consumed by
 // `server/app.ts` and `server/deps.ts`.
 // ---------------------------------------------------------------------------------------------
-export { createChatStoreFactory, createInMemoryChatHistory, createInMemoryChatStoreFactory } from "./persistence/store-factory.js";
+export { createChatStoreFactory, createInMemoryChatHistory } from "./persistence/store-factory.js";
 export { createChatRunLedger, type ChatRunLedger, type RunSettlement } from "./persistence/run-ledger.js";
 export type { ChatStoreFactory } from "./persistence/tenant-scope.js";
 

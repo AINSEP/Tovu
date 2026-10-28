@@ -377,6 +377,7 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
               caption: optionalString({ input: input, key: "caption" }),
               credit: optionalString({ input: input, key: "credit" }),
               createdByPrincipal: ctx.principal.id,
+              provenance: { kind: 'generated' },
             },
           }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
 

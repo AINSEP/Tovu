@@ -583,23 +583,3 @@ export class SqlTaxonomyRevisionRepo implements TaxonomyRevisionRepoPort {
     }));
   }
 }
-
-/** The taxonomy repo for `kernel`, scoped to `workspaceId`. */
-export function taxonomyRepoFor(kernel: ContentKernel, workspaceId: string): SqlTaxonomyRepo {
-  return new SqlTaxonomyRepo(kernel, workspaceId);
-}
-
-/** The term repo for `kernel`, scoped to `workspaceId`. */
-export function termRepoFor(kernel: ContentKernel, workspaceId: string): SqlTermRepo {
-  return new SqlTermRepo(kernel, workspaceId);
-}
-
-/** The entry-term repo for `kernel`, scoped to `workspaceId`. */
-export function entryTermRepoFor(kernel: ContentKernel, workspaceId: string): SqlEntryTermRepo {
-  return new SqlEntryTermRepo(kernel, workspaceId);
-}
-
-/** The taxonomy-revision repo for `kernel`, scoped to `workspaceId`. */
-export function taxonomyRevisionRepoFor(kernel: ContentKernel, workspaceId: string): SqlTaxonomyRevisionRepo {
-  return new SqlTaxonomyRevisionRepo(kernel, workspaceId);
-}

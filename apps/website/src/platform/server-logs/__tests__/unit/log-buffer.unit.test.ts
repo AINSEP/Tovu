@@ -33,7 +33,6 @@ test("overflow drops the oldest entries first and keeps seq monotonic", () => {
   const buffer = createLogBuffer({ redact: identity }, { maxEntries: 3, now: fixedClock });
   for (const message of ["a", "b", "c", "d", "e"]) buffer.append({ level: "info", source: "server", message });
   assert.deepEqual(buffer.entries().map(e => [e.seq, e.message]), [[3, "c"], [4, "d"], [5, "e"]]);
-  assert.equal(buffer.appendedCount(), 5);
 });
 
 test("the byte cap evicts old lines but always keeps the newest one", () => {
@@ -70,7 +69,6 @@ test("a long live tail survives eviction before and after compaction", () => {
   for (let i = 0; i < 5_000; i += 1) buffer.append({ level: "info", source: "server", message: String(i) });
   assert.deepEqual(buffer.entries().map(e => [e.seq, e.message]),
     Array.from({ length: 2_048 }, (_, i) => [2_953 + i, String(2_952 + i)]));
-  assert.equal(buffer.appendedCount(), 5_000);
 });
 
 test("omitting options uses the current clock and the default retention and message limits", t => {

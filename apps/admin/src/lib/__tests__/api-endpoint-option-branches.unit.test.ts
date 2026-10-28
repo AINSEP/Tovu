@@ -278,60 +278,7 @@ test("setSetting merges principalId into the body when the caller passes it", as
   expect(body()).toEqual({ namespace: "core", key: "k", scope: "user", valueJson: 1, principalId: "p1" });
 });
 
-test("clearSetting merges principalId into the body when the caller passes it", async () => {
-  const { body } = stubFetchCapturing();
-  await api.clearSetting({ namespace: "core", key: "k", scope: "user" }, { principalId: "p1" });
-  expect(body()).toEqual({ namespace: "core", key: "k", scope: "user", principalId: "p1" });
-});
-
 // --- Forms -----------------------------------------------------------------
-
-test("createForm omits notify from the body when the caller doesn't pass one", async () => {
-  const { body } = stubFetchCapturing();
-  await api.createForm({ name: "Contact", slug: "contact", fields: [] });
-  expect(body()).toEqual({ name: "Contact", slug: "contact", fields: [] });
-});
-
-test("createForm includes notify when the caller passes it", async () => {
-  const { body } = stubFetchCapturing();
-  const notify = { enabled: true, recipients: ["a@b.com"] };
-  await api.createForm({ name: "Contact", slug: "contact", fields: [] }, { notify });
-  expect(body()).toEqual({ name: "Contact", slug: "contact", fields: [], notify });
-});
-
-test("updateForm sends an empty body when the caller passes no options", async () => {
-  const { body } = stubFetchCapturing();
-  await api.updateForm({ id: "f1" });
-  expect(body()).toEqual({});
-});
-
-test("listFormSubmissions has no query string when no options are given", async () => {
-  const { calls } = stubFetchCapturing();
-  await api.listFormSubmissions({ formId: "f1" });
-  expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/forms/f1/submissions`);
-});
-
-test("listFormSubmissions sets cursor in the query when given", async () => {
-  const { calls } = stubFetchCapturing();
-  await api.listFormSubmissions({ formId: "f1" }, { cursor: "c1" });
-  expect(calls[0].url).toContain("cursor=c1");
-});
-
-test("listFormSubmissions sets limit in the query when given", async () => {
-  const { calls } = stubFetchCapturing();
-  await api.listFormSubmissions({ formId: "f1" }, { limit: 10 });
-  expect(new URL(calls[0].url, "http://localhost").searchParams.get("limit")).toBe("10");
-});
-
-test("getFormSubmission sends the same request whether or not the unused options arg is passed", async () => {
-  const { calls: a } = stubFetchCapturing();
-  await api.getFormSubmission({ formId: "f1", submissionId: "s1" });
-  vi.unstubAllGlobals();
-  const { calls: b } = stubFetchCapturing();
-  await api.getFormSubmission({ formId: "f1", submissionId: "s1" }, {});
-  expect(b[0].url).toBe(a[0].url);
-  expect(a[0].url).toContain("/forms/f1/submissions/s1");
-});
 
 // --- AI Assistant -----------------------------------------------------------------
 
@@ -369,47 +316,7 @@ test("restartAssistantDaemon resolves { ok: false, reason } for a 409 refusal, i
 
 // --- SEO -----------------------------------------------------------------
 
-test("setSeoSettings sends an empty body when the caller passes no options", async () => {
-  const { body } = stubFetchCapturing();
-  await api.setSeoSettings();
-  expect(body()).toEqual({});
-});
-
-test("putSeoEntry sends an empty body when the caller passes no options", async () => {
-  const { body } = stubFetchCapturing();
-  await api.putSeoEntry({ entryId: "e1" });
-  expect(body()).toEqual({});
-});
-
 // --- Redirects -----------------------------------------------------------------
-
-test("createRedirect sends only the input fields when the caller passes no options", async () => {
-  const { body } = stubFetchCapturing();
-  await api.createRedirect({ matchType: "exact", fromPattern: "/a", toTarget: "/b", statusCode: 301 });
-  expect(body()).toEqual({ matchType: "exact", fromPattern: "/a", toTarget: "/b", statusCode: 301 });
-});
-
-test("createRedirect merges override/priority into the body when given", async () => {
-  const { body } = stubFetchCapturing();
-  await api.createRedirect(
-    { matchType: "exact", fromPattern: "/a", toTarget: "/b", statusCode: 301 },
-    { override: true, priority: 5 }
-  );
-  expect(body()).toEqual({
-    matchType: "exact",
-    fromPattern: "/a",
-    toTarget: "/b",
-    statusCode: 301,
-    override: true,
-    priority: 5,
-  });
-});
-
-test("updateRedirect sends an empty body when the caller passes no options", async () => {
-  const { body } = stubFetchCapturing();
-  await api.updateRedirect({ id: "r1" });
-  expect(body()).toEqual({});
-});
 
 // --- Collections/Entries -----------------------------------------------------------------
 
@@ -495,30 +402,6 @@ test("listCommentsQueue sets limit in the query when given", async () => {
   expect(new URL(calls[0].url, "http://localhost").searchParams.get("limit")).toBe("20");
 });
 
-test("moderateComment omits note from the body when the caller doesn't pass one", async () => {
-  const { body } = stubFetchCapturing();
-  await api.moderateComment({ commentId: "c1", action: "approve", expectedVersion: 1 });
-  expect(body()).toEqual({ expectedVersion: 1 });
-});
-
-test("moderateComment includes note when the caller passes one", async () => {
-  const { body } = stubFetchCapturing();
-  await api.moderateComment({ commentId: "c1", action: "spam", expectedVersion: 1 }, { note: "obvious spam" });
-  expect(body()).toEqual({ expectedVersion: 1, note: "obvious spam" });
-});
-
-test("purgeComment omits note from the body when the caller doesn't pass one", async () => {
-  const { body } = stubFetchCapturing();
-  await api.purgeComment({ commentId: "c1" });
-  expect(body()).toEqual({});
-});
-
-test("putCommentsSettings sends an empty body when the caller passes no options", async () => {
-  const { body } = stubFetchCapturing();
-  await api.putCommentsSettings();
-  expect(body()).toEqual({});
-});
-
 // --- Widgets -----------------------------------------------------------------
 
 test("listWidgets has no query string when no options are given", async () => {
@@ -549,61 +432,6 @@ test("createWidget includes slug when the caller passes one", async () => {
   const { body } = stubFetchCapturing();
   await api.createWidget({ widgetType: "text", title: "My widget", config: {} }, { slug: "my-widget" });
   expect(body()).toEqual({ widgetType: "text", title: "My widget", config: {}, slug: "my-widget" });
-});
-
-test("updateWidget sends the same request whether or not the unused options arg is passed", async () => {
-  const { calls: a } = stubFetchCapturing();
-  await api.updateWidget({ id: "w1", baseVersion: 1, config: {} });
-  vi.unstubAllGlobals();
-  const { calls: b } = stubFetchCapturing();
-  await api.updateWidget({ id: "w1", baseVersion: 1, config: {} }, {});
-  expect(b[0].init?.body).toBe(a[0].init?.body);
-  expect(a[0].init?.method).toBe("PUT");
-});
-
-test("mutateWidgetRegionPlacements sends the same request whether or not the unused options arg is passed", async () => {
-  const placements = [{ placementId: "pl1", widgetEntryId: "w1", enabled: true }];
-  const { calls: a } = stubFetchCapturing();
-  await api.mutateWidgetRegionPlacements({ regionKey: "sidebar", baseVersion: 1, placements });
-  vi.unstubAllGlobals();
-  const { calls: b } = stubFetchCapturing();
-  await api.mutateWidgetRegionPlacements({ regionKey: "sidebar", baseVersion: 1, placements }, {});
-  expect(b[0].init?.body).toBe(a[0].init?.body);
-  for (const call of [a[0], b[0]]) {
-    expect(call.init?.method).toBe("PUT");
-    expect(JSON.parse(String(call.init?.body))).toEqual({ baseVersion: 1, placements });
-    expect(call.url).toBe("/api/admin/v1/workspaces/workspace-local/widgets/regions/sidebar");
-  }
-});
-
-test("insertWidgetEmbed sends the same request whether or not the unused options arg is passed", async () => {
-  const { calls: a } = stubFetchCapturing();
-  await api.insertWidgetEmbed({ hostEntryId: "e1", baseVersion: 1, widgetEntryId: "w1" });
-  vi.unstubAllGlobals();
-  const { calls: b } = stubFetchCapturing();
-  await api.insertWidgetEmbed({ hostEntryId: "e1", baseVersion: 1, widgetEntryId: "w1" }, {});
-  expect(b[0].init?.body).toBe(a[0].init?.body);
-  expect(a[0].init?.method).toBe("POST");
-  for (const call of [a[0], b[0]]) {
-    expect(call.init?.method).toBe("POST");
-    expect(JSON.parse(String(call.init?.body))).toEqual({ baseVersion: 1, widgetEntryId: "w1" });
-    expect(call.url).toBe("/api/admin/v1/workspaces/workspace-local/entries/e1/widget-embeds");
-  }
-});
-
-test("removeWidgetEmbed sends the same request whether or not the unused options arg is passed", async () => {
-  const { calls: a } = stubFetchCapturing();
-  await api.removeWidgetEmbed({ hostEntryId: "e1", placementId: "pl1", baseVersion: 1 });
-  vi.unstubAllGlobals();
-  const { calls: b } = stubFetchCapturing();
-  await api.removeWidgetEmbed({ hostEntryId: "e1", placementId: "pl1", baseVersion: 1 }, {});
-  expect(b[0].init?.body).toBe(a[0].init?.body);
-  expect(a[0].init?.method).toBe("DELETE");
-  for (const call of [a[0], b[0]]) {
-    expect(call.init?.method).toBe("DELETE");
-    expect(JSON.parse(String(call.init?.body))).toEqual({ baseVersion: 1 });
-    expect(call.url).toBe("/api/admin/v1/workspaces/workspace-local/entries/e1/widget-embeds/pl1");
-  }
 });
 
 // --- Deployment / static export / publish -----------------------------------------------------------------

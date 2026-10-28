@@ -1,8 +1,7 @@
 import type { UUID } from "@jini-ai/core/primitives";
 import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
-import type { PostKind, PostStatus } from "./post.js";
-import type { PostSearchProjection } from "./repo.js";
+import type { PostSearchDialect, SearchProjectionTables } from "./search-index.contract.js";
 import { toPostSearchDocument, type PostSearchHit, type PostSearchPort, type PostSearchQuery } from "./search.js";
 import { pgPostSearch } from "./search-index.postgres.js";
 import { sqlitePostSearch } from "./search-index.sqlite.js";
@@ -19,43 +18,7 @@ import { sqlitePostSearch } from "./search-index.sqlite.js";
  * semantics. Their agreement is gated by the eval set in `__tests__/search.eval.ts`.
  */
 
-/** One dialect's post search: the repo's projection writes plus the ranked query. */
-export interface PostSearchDialect extends PostSearchProjection {
-  search(kernel: ContentKernel, query: PostSearchQuery): Promise<PostSearchHit[]>;
-}
-
-/** `post_search_document` as both dialects share it (the Postgres one adds a `search` tsvector). It
- *  is not in the generated `ContentDatabase` types: SQLite builds it in drizzle migration 0022,
- *  Postgres in migration step `0001_post_search`. */
-export type SearchProjectionTables = {
-  post_search_document: { post_id: string; title: string; slug: string; body_text: string };
-};
-
-/** One ranked row, before projection into a {@link PostSearchHit}. */
-export interface PostSearchRow {
-  id: string;
-  kind: string;
-  title: string;
-  slug: string;
-  status: string;
-  updated_at: string;
-  snippet: string;
-  /** Higher is better (each dialect converts its own scale). */
-  score: number;
-}
-
-export function toPostSearchHit(row: PostSearchRow): PostSearchHit {
-  return {
-    id: row.id as UUID,
-    kind: row.kind as PostKind,
-    title: row.title,
-    slug: row.slug,
-    status: row.status as PostStatus,
-    updatedAt: row.updated_at,
-    snippet: row.snippet,
-    score: Number(row.score),
-  };
-}
+export { toPostSearchHit, type PostSearchDialect, type PostSearchRow, type SearchProjectionTables } from "./search-index.contract.js";
 
 /** The post search for `kernel`'s dialect. */
 export function postSearchFor(kernel: ContentKernel): PostSearchDialect {

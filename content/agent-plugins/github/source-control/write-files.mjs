@@ -108,6 +108,14 @@ function isGitHubRateLimited({ response, status }, _options = {}) {
   return status === 429 || (status === 403 && (headerOf(response, "retry-after") !== undefined || headerOf(response, "x-ratelimit-remaining") === "0" || SECONDARY_RATE_LIMIT_PATTERN.test(response.bodyText)));
 }
 
+/** @param {{ response: HttpResponse, retryAfter: number, policy: RetryPolicy }} required */
+function gitHubRateLimitDelay({ response, retryAfter, policy }, _options = {}) {
+  if (Number.isFinite(retryAfter) && retryAfter >= 0) return retryAfter * 1000;
+  const reset = Number(headerOf(response, "x-ratelimit-reset"));
+  if (headerOf(response, "x-ratelimit-remaining") === "0" && Number.isFinite(reset)) return Math.max(0, reset * 1000 - Date.now()) + 1000;
+  return policy.rateLimitWaitMs;
+}
+
 /**
  * How long to wait before retrying a request GitHub may answer differently next time, or
  * `undefined` when it will not: an egress refusal, or a 4xx that is not a rate limit, is final.
@@ -127,10 +135,7 @@ export function retryDelayMs(result, attempt, policy) {
   const retryAfter = Number(headerOf(result.response, "retry-after"));
   const rateLimited = isGitHubRateLimited({ response: result.response, status });
   if (!rateLimited) return status >= 500 && status <= 599 ? backoff : undefined;
-  if (Number.isFinite(retryAfter) && retryAfter >= 0) return retryAfter * 1000;
-  const reset = Number(headerOf(result.response, "x-ratelimit-reset"));
-  if (headerOf(result.response, "x-ratelimit-remaining") === "0" && Number.isFinite(reset)) return Math.max(0, reset * 1000 - Date.now()) + 1000;
-  return policy.rateLimitWaitMs;
+  return gitHubRateLimitDelay({ response: result.response, retryAfter, policy });
 }
 
 /**
@@ -296,6 +301,22 @@ export function createFileWriter(git) {
     return { ok: true };
   }
 
+  /** @param {{ target: Target, branch: string, dir: string, dirFiles: WriteFile[], stateByPath: Map<string, { path: string, exists: boolean }> }} required */
+  async function checkDirectoryFileExistence({ target, branch, dir, dirFiles, stateByPath }, _options = {}) {
+    const listUrl = `${repoPathOf(target)}/contents${dir ? `/${encPath(dir)}` : ""}?ref=${enc(branch)}`;
+    const listResult = await git.getJson(target, listUrl, `GitHub directory lookup of '${dir}' failed`);
+    if (!listResult.ok) return listResult;
+    if (!listResult.found) {
+      for (const file of dirFiles) stateByPath.set(file.path, { path: file.path, exists: false });
+      return { ok: true };
+    }
+    const entries = listResult.json;
+    if (!Array.isArray(entries)) {
+      return { ok: false, code: "provider-error", message: `'${dir}' is a file on the branch, not a directory` };
+    }
+    return resolveDirectoryFileStates({ target, branch, dirFiles, entries, stateByPath });
+  }
+
   /** One directory listing per distinct parent directory, falling back to a per-file lookup only when
    *  a listing may be truncated. @param {Target} target @param {string} branch @param {readonly WriteFile[]} files */
   async function checkFileExistence(target, branch, files) {
@@ -304,18 +325,7 @@ export function createFileWriter(git) {
     /** @type {Map<string, { path: string, exists: boolean }>} */
     const stateByPath = new Map();
     for (const [dir, dirFiles] of filesByDir) {
-      const listUrl = `${repoPathOf(target)}/contents${dir ? `/${encPath(dir)}` : ""}?ref=${enc(branch)}`;
-      const listResult = await git.getJson(target, listUrl, `GitHub directory lookup of '${dir}' failed`);
-      if (!listResult.ok) return listResult;
-      if (!listResult.found) {
-        for (const file of dirFiles) stateByPath.set(file.path, { path: file.path, exists: false });
-        continue;
-      }
-      const entries = listResult.json;
-      if (!Array.isArray(entries)) {
-        return { ok: false, code: "provider-error", message: `'${dir}' is a file on the branch, not a directory` };
-      }
-      const resolved = await resolveDirectoryFileStates({ target, branch, dirFiles, entries, stateByPath });
+      const resolved = await checkDirectoryFileExistence({ target, branch, dir, dirFiles, stateByPath });
       if (!resolved.ok) return resolved;
     }
     return { ok: true, fileStates: files.map((file) => stateByPath.get(file.path)) };
@@ -361,6 +371,28 @@ export function createFileWriter(git) {
     return entry.type === "tree" && typeof entry.sha === "string" && !!entry.sha;
   }
 
+  /** @param {{ entry: any, path: string }} required */
+  function modeFromBlobEntry({ entry, path }, _options = {}) {
+    if (entry.type !== "blob" || !["100644", "100755"].includes(entry.mode)) return notRegularFileFailure(path);
+    return { ok: true, mode: entry.mode };
+  }
+
+  /** @param {{ target: Target, baseTreeSha: string, file: WriteFile, trees: Map<string, any[]> }} required */
+  async function readFileMode({ target, baseTreeSha, file, trees }, _options = {}) {
+    let treeSha = baseTreeSha;
+    const segments = file.path.split("/");
+    for (let index = 0; index < segments.length; index++) {
+      const loaded = await readModeTree({ target, treeSha, trees });
+      if (!loaded.ok) return loaded;
+      const entry = loaded.tree.find(entry => entry.path === segments[index]);
+      if (!entry) break;
+      if (index === segments.length - 1) return modeFromBlobEntry({ entry, path: file.path });
+      if (!isModeDirectory({ entry })) return notRegularFileFailure(file.path);
+      treeSha = entry.sha;
+    }
+    return { ok: true, mode: "100644" };
+  }
+
   /** Read each directory of the CONFIRMED tree, never the mutable branch. Non-recursive
    * lookups avoid GitHub's recursive-tree truncation limit and preserve executable blobs.
    * @param {{ target: Target, baseTreeSha: string, files: readonly WriteFile[] }} required */
@@ -370,35 +402,15 @@ export function createFileWriter(git) {
     /** @type {Map<string, string>} */
     const modes = new Map();
     for (const file of files) {
-      let treeSha = baseTreeSha;
-      const segments = file.path.split("/");
-      for (let index = 0; index < segments.length; index++) {
-        const loaded = await readModeTree({ target, treeSha, trees });
-        if (!loaded.ok) return loaded;
-        const tree = loaded.tree;
-        const entry = tree.find(entry => entry.path === segments[index]);
-        if (!entry) { modes.set(file.path, "100644"); break; }
-        if (index < segments.length - 1) {
-          if (!isModeDirectory({ entry })) return notRegularFileFailure(file.path);
-          treeSha = entry.sha;
-        } else {
-          if (entry.type !== "blob" || !["100644", "100755"].includes(entry.mode)) return notRegularFileFailure(file.path);
-          modes.set(file.path, entry.mode);
-        }
-      }
+      const result = await readFileMode({ target, baseTreeSha, file, trees });
+      if (!result.ok) return result;
+      modes.set(file.path, result.mode);
     }
     return { ok: true, modes };
   }
 
-  /**
-   * @param {Target & { branch: string, commitMessage: string, files: readonly WriteFile[] }} input
-   * @param {{ parentCommitSha: string, baseTreeSha: string }} plan
-   */
-  async function commitFiles(input, plan) {
-    const repoPath = repoPathOf(input);
-    const fileModes = await readFileModes({ target: input, baseTreeSha: plan.baseTreeSha, files: input.files });
-    if (!fileModes.ok) return fileModes;
-
+  /** @param {{ input: Target & { files: readonly WriteFile[] }, modes: Map<string, string> }} required */
+  async function buildWriteBlobEntries({ input, modes }, _options = {}) {
     /** @type {Map<string, string>} */
     const blobShaByHash = new Map();
     /** @type {Record<string, unknown>[]} */
@@ -412,10 +424,23 @@ export function createFileWriter(git) {
         blobSha = blobResult.sha;
         blobShaByHash.set(hash, blobSha);
       }
-      entries.push({ path: file.path, mode: fileModes.modes.get(file.path), type: "blob", sha: blobSha });
+      entries.push({ path: file.path, mode: modes.get(file.path), type: "blob", sha: blobSha });
     }
+    return { ok: true, entries };
+  }
 
-    const treeResult = await git.postJson(input, `${repoPath}/git/trees`, { tree: entries, base_tree: plan.baseTreeSha }, "GitHub tree creation failed");
+  /**
+   * @param {Target & { branch: string, commitMessage: string, files: readonly WriteFile[] }} input
+   * @param {{ parentCommitSha: string, baseTreeSha: string }} plan
+   */
+  async function commitFiles(input, plan) {
+    const repoPath = repoPathOf(input);
+    const fileModes = await readFileModes({ target: input, baseTreeSha: plan.baseTreeSha, files: input.files });
+    if (!fileModes.ok) return fileModes;
+    const blobs = await buildWriteBlobEntries({ input, modes: fileModes.modes });
+    if (!blobs.ok) return blobs;
+
+    const treeResult = await git.postJson(input, `${repoPath}/git/trees`, { tree: blobs.entries, base_tree: plan.baseTreeSha }, "GitHub tree creation failed");
     if (!treeResult.ok) return treeResult;
     const newTreeSha = extractStringField(treeResult.json, "sha");
     if (!newTreeSha) return { ok: false, code: "provider-error", message: "GitHub tree creation response did not include a sha" };

@@ -55,7 +55,7 @@ class RecordingVault implements VaultRepoPort {
 class NoBatchVault implements VaultRepoPort {
   async find() { return null; }
   async list() { return [vaultRow()]; }
-  async put(input: { record: VaultRecord }) { return input.record; }
+  async put(input: Parameters<VaultRepoPort["put"]>[0]) { return { ...input.record, isDefault: input.record.isDefault ?? false }; }
   async patchMeta() { return vaultRow(); }
   async delete() { return true; }
 }

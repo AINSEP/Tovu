@@ -315,7 +315,7 @@ test("route-param guard: a handler reached without a :serverId param forwards an
   const routed = buildApp({
     oauth: fakeOAuthService(async (input) => {
       seen.push({ serverId: input.serverId, redirectUri: input.redirectUri });
-      throw new ExternalMcpValidationError("no such server");
+      throw new ExternalMcpValidationError("no such server", "id");
     }),
     callbackLimiter: fixedRateLimiter({ allowed: true }),
   });

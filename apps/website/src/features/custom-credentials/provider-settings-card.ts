@@ -43,13 +43,20 @@ export type ProviderSettingsSaveResult =
 const CUSTOM = "__custom";
 const customName = (name: string) => `${name}__custom`;
 
+/** All controls retain the provider's conditional requirement metadata. */
+function fieldRequirements({ field }: { field: PluginProviderSettingField }, _options = {}) {
+  return {
+    ...(field.requiredUnless ? { requiredUnless: field.requiredUnless } : {}),
+    ...(field.requiredWhen ? { requiredWhen: field.requiredWhen } : {}),
+  };
+}
+
 /** A declared public field with choices: a select (plus "Custom…" and its text field when allowed). */
 function choiceFields({ field, value }: { field: PluginProviderSettingField; value?: string }): SecretCardField[] {
   const options = field.options ?? [];
   const custom = Boolean(value) && !options.some((option) => option.value === value);
   const select: SecretCardField = { kind: "enum", name: field.name, label: field.label, required: field.required === true,
-    ...(field.requiredUnless ? { requiredUnless: field.requiredUnless } : {}),
-    ...(field.requiredWhen ? { requiredWhen: field.requiredWhen } : {}),
+    ...fieldRequirements({ field }),
     options: [...options, ...(field.allowCustom ? [{ value: CUSTOM, label: "Custom…" }] : [])], value: custom && field.allowCustom ? CUSTOM : value ?? field.default };
   if (!field.allowCustom) return [select];
   return [select, { kind: "string", name: customName(field.name), label: `Custom ${field.label.toLowerCase()}`, ...(field.hint ? { hint: field.hint } : {}), ...(custom ? { value } : {}) }];
@@ -73,8 +80,8 @@ function formFieldsOf({ field, saved }: { field: PluginProviderSettingField; sav
   const value = saved?.settings[field.name] || undefined;
   if (field.options?.length) return choiceFields({ field, value });
   const initial = value ?? field.default;
-  return [{ kind: "string", name: field.name, label: field.label, required, ...(field.requiredUnless ? { requiredUnless: field.requiredUnless } : {}),
-    ...(field.requiredWhen ? { requiredWhen: field.requiredWhen } : {}), ...(field.hint ? { hint: field.hint } : {}), ...(initial ? { value: initial } : {}) }];
+  return [{ kind: "string", name: field.name, label: field.label, required, ...fieldRequirements({ field }),
+    ...(field.hint ? { hint: field.hint } : {}), ...(initial ? { value: initial } : {}) }];
 }
 
 /** The declared card's help, key-entry hint and purposes; values never come from saved settings. */

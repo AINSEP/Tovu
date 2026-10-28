@@ -3,7 +3,7 @@ import test from "node:test";
 import express from "express";
 import Database from "better-sqlite3";
 import { contentKernel } from "#src/platform/db/content-kernel";
-import { createRawRowSqlitePort } from "#src/platform/db/sqlite/publish-backstop-row.sqlite";
+import { createRawRowSqlitePort } from "#src/features/publish-content/publish-backstop-row.sqlite";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { buildGatewayDeps } from "#src/contracts/core/gated-mutations/composition";
 import { InMemoryPublishContentBundleRepo, stageBundle } from "#src/features/publish-content/bundle-staging";

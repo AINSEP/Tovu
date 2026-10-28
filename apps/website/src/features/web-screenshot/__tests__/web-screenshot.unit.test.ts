@@ -1,10 +1,11 @@
+import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import sharp from "sharp";
 import { ToolInputError } from "@jini-ai/core";
 
-import { encodeScreenshotTiles } from "../screenshot-image.js";
+import { createScreenshotTileEncoder } from "../screenshot-image.js";
 import {
   captureRelativePaths,
   createWebScreenshotService,
@@ -18,6 +19,8 @@ import {
   type WebScreenshotEvent,
   type WebScreenshotPorts,
 } from "../web-screenshot.js";
+
+const encodeScreenshotTiles = createScreenshotTileEncoder({ imageCodec: new SharpImageTransformer() });
 
 /**
  * @file `web_screenshot_page`'s domain: input rules, viewport presets, size caps (tiles), the

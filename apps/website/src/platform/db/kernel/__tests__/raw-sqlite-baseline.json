@@ -1,12 +1,6 @@
 {
-  "apps/website/src/assistant/tool-catalog-query.ts": {
-    "better-sqlite3-import": 1
-  },
   "apps/website/src/contracts/core/human-confirm.ts": {
     "prepare": 1
-  },
-  "apps/website/src/features/database-transfer/sqlite-source.ts": {
-    "better-sqlite3-import": 1
   },
   "apps/website/src/features/permanent-delete/tool-registrations.ts": {
     "prepare": 1
@@ -29,12 +23,11 @@
     "autoincrement": 12
   },
   "apps/website/src/platform/db/sqlite/chat-db.ts": {
-    "better-sqlite3-import": 1,
     "pragma": 3
   },
   "apps/website/src/platform/db/sqlite/content-db.ts": {
     "$client": 1,
-    "better-sqlite3-import": 3,
+    "better-sqlite3-import": 2,
     "pragma": 4
   },
   "apps/website/src/platform/db/sqlite/database-journal-db.ts": {
@@ -51,10 +44,5 @@
     "sqlite-json": 2,
     "sync-terminal": 4,
     "sync-transaction": 1
-  },
-  "apps/website/src/platform/site-dir/move-sites-home.ts": {
-    "begin-transaction": 1,
-    "better-sqlite3-import": 1,
-    "pragma": 1
   }
 }
