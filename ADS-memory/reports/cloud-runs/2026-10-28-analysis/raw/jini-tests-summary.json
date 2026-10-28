@@ -1,0 +1,791 @@
+{
+ "pk": {
+  "examples_minimal-host": {
+   "tests": 3,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 4
+  },
+  "examples_nlweb-demo": {
+   "tests": 18,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 4
+  },
+  "examples_reference-desktop": {
+   "tests": 4,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 2
+  },
+  "examples_reference-web": {
+   "tests": 46,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 19
+  },
+  "packages_admin": {
+   "tests": 2814,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 700
+  },
+  "packages_agent-plugins": {
+   "tests": 1485,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 234
+  },
+  "packages_agent-runtime": {
+   "tests": 4246,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 916
+  },
+  "packages_agentic": {
+   "tests": 1479,
+   "failed": 5,
+   "suitesFailed": 6,
+   "total": 241
+  },
+  "packages_analytics": {
+   "tests": 193,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 22
+  },
+  "packages_artifacts": {
+   "tests": 204,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 45
+  },
+  "packages_capability-providers": {
+   "tests": 197,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 42
+  },
+  "packages_chat": {
+   "tests": 3741,
+   "failed": 3,
+   "suitesFailed": 1,
+   "total": 811
+  },
+  "packages_cli": {
+   "tests": 575,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 90
+  },
+  "packages_cms": {
+   "tests": 4286,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 484
+  },
+  "packages_commerce": {
+   "tests": 4,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 4
+  },
+  "packages_cookie-consent": {
+   "tests": 142,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 40
+  },
+  "packages_core": {
+   "tests": 1524,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 226
+  },
+  "packages_daemon": {
+   "tests": 3723,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 675
+  },
+  "packages_db": {
+   "tests": 697,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 145
+  },
+  "packages_desktop-host": {
+   "tests": 678,
+   "failed": 1,
+   "suitesFailed": 2,
+   "total": 141
+  },
+  "packages_devops": {
+   "tests": 1024,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 160
+  },
+  "packages_diagnostics": {
+   "tests": 873,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 99
+  },
+  "packages_http-kit": {
+   "tests": 534,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 88
+  },
+  "packages_infra": {
+   "tests": 144,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 22
+  },
+  "packages_integrations": {
+   "tests": 1939,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 323
+  },
+  "packages_mcp": {
+   "tests": 1427,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 209
+  },
+  "packages_memory": {
+   "tests": 332,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 70
+  },
+  "packages_oauth": {
+   "tests": 707,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 69
+  },
+  "packages_platform": {
+   "tests": 2834,
+   "failed": 3,
+   "suitesFailed": 4,
+   "total": 332
+  },
+  "packages_plugins": {
+   "tests": 743,
+   "failed": 1,
+   "suitesFailed": 2,
+   "total": 85
+  },
+  "packages_protocol": {
+   "tests": 92,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 16
+  },
+  "packages_provider-plugins": {
+   "tests": 258,
+   "failed": 1,
+   "suitesFailed": 1,
+   "total": 29
+  },
+  "packages_registry": {
+   "tests": 349,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 65
+  },
+  "packages_sandbox": {
+   "tests": 125,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 39
+  },
+  "packages_search": {
+   "tests": 320,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 43
+  },
+  "packages_server": {
+   "tests": 459,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 93
+  },
+  "packages_sidecar": {
+   "tests": 209,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 28
+  },
+  "packages_sqlite": {
+   "tests": 8,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 5
+  },
+  "packages_ui-kit": {
+   "tests": 203,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 44
+  },
+  "packages_ui": {
+   "tests": 8707,
+   "failed": 1,
+   "suitesFailed": 2,
+   "total": 2161
+  },
+  "packages_user-management": {
+   "tests": 1104,
+   "failed": 1,
+   "suitesFailed": 2,
+   "total": 226
+  },
+  "packages_vibecoding": {
+   "tests": 301,
+   "failed": 0,
+   "suitesFailed": 0,
+   "total": 56
+  }
+ },
+ "fails": [
+  {
+   "pkg": "packages_agentic",
+   "file": "packages/agentic/src/core/__tests__/capability.l077.characterization.test.ts",
+   "test": "L077 input validation order and shallow semantics validates {\"name\":null} as \"name\" must be a string, received object",
+   "msg": "AssertionError: expected '\"name\" must be a string, received null' to be '\"name\" must be a string, received obj…' // Object.is equality |     at /home/user/Jini/packages/agentic/src/core/__tests__/capability.l077.characterization.test.ts:26:61 |     at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:629:21 |     at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14 |     at file:/"
+  },
+  {
+   "pkg": "packages_agentic",
+   "file": "packages/agentic/src/core/__tests__/capability.l077.characterization.test.ts",
+   "test": "L077 input validation order and shallow semantics accepts null for an object schema because validation is shallow (reported, not fixed)",
+   "msg": "AssertionError: expected '\"data\" must be a object, received null' to be null |     at /home/user/Jini/packages/agentic/src/core/__tests__/capability.l077.characterization.test.ts:41:85 |     at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14 |     at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11 |     at runWithTimeout (file:///home/user/Jini/node_modules/.pnpm/@vites"
+  },
+  {
+   "pkg": "packages_agentic",
+   "file": "packages/agentic/src/core/__tests__/page-executor.l077.characterization.test.ts",
+   "test": "L077 remaining page verbs clamps highlight duration NaN to 3000",
+   "msg": "Error: promise rejected \"Error: page.highlight: \"durationMs\" must …\" instead of resolving |     at _Assertion.__VITEST_RESOLVES__ (file:///home/user/Jini/node_modules/.pnpm/@vitest+expect@2.1.9/node_modules/@vitest/expect/dist/index.js:1746:21) |     at _Assertion.propertyGetter (file:///home/user/Jini/node_modules/.pnpm/chai@5.3.3/node_modules/chai/index.js:1557:27) |     at Reflect.get (<anonymous>) |     at Object.proxyGetter [as get] (file:///home/user/Jini/node_modules/.pnpm/chai@5.3.3/node"
+  },
+  {
+   "pkg": "packages_agentic",
+   "file": "packages/agentic/src/core/__tests__/page-executor.l077.characterization.test.ts",
+   "test": "L077 remaining page verbs clamps highlight duration Infinity to 3000",
+   "msg": "Error: promise rejected \"Error: page.highlight: \"durationMs\" must …\" instead of resolving |     at _Assertion.__VITEST_RESOLVES__ (file:///home/user/Jini/node_modules/.pnpm/@vitest+expect@2.1.9/node_modules/@vitest/expect/dist/index.js:1746:21) |     at _Assertion.propertyGetter (file:///home/user/Jini/node_modules/.pnpm/chai@5.3.3/node_modules/chai/index.js:1557:27) |     at Reflect.get (<anonymous>) |     at Object.proxyGetter [as get] (file:///home/user/Jini/node_modules/.pnpm/chai@5.3.3/node"
+  },
+  {
+   "pkg": "packages_agentic",
+   "file": "packages/agentic/src/core/__tests__/page-executor.test.ts",
+   "test": "page.highlight falls back to the default for a nonsensical duration",
+   "msg": "Error: page.highlight: \"durationMs\" must be a number, received number. Expected input: {\"type\":\"object\",\"properties\":{\"handle\":{\"type\":\"string\",\"description\":\"The data-agent-element handle of the target, as returned by page.find_elements. Not a CSS selector.\"},\"durationMs\":{\"type\":\"number\",\"description\":\"How long the marker stays, in milliseconds. Defaults to a few seconds; capped by the host.\"}},\"required\":[\"handle\"],\"additionalProperties\":false} |     at validatePageCapability (/home/user/Jini"
+  },
+  {
+   "pkg": "packages_chat",
+   "file": "packages/chat/src/store/__tests__/loads-without-driver.test.ts",
+   "test": "sqlite entry loads with core, diagnostics, db and Kysely, validates invocation, and leaves neutral store usable",
+   "msg": "AssertionError: expected +0 not to be +0 // Object.is equality |     at /home/user/Jini/packages/chat/src/store/__tests__/loads-without-driver.test.ts:79:101 |     at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:633:57 |     at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14 |     at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/"
+  },
+  {
+   "pkg": "packages_chat",
+   "file": "packages/chat/src/store/__tests__/loads-without-driver.test.ts",
+   "test": "pglite entry loads with core, diagnostics, db and Kysely, validates invocation, and leaves neutral store usable",
+   "msg": "AssertionError: expected +0 not to be +0 // Object.is equality |     at /home/user/Jini/packages/chat/src/store/__tests__/loads-without-driver.test.ts:79:101 |     at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:633:57 |     at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14 |     at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/"
+  },
+  {
+   "pkg": "packages_chat",
+   "file": "packages/chat/src/store/__tests__/loads-without-driver.test.ts",
+   "test": "postgres entry loads with core, diagnostics, db and Kysely, validates invocation, and leaves neutral store usable",
+   "msg": "AssertionError: expected +0 not to be +0 // Object.is equality |     at /home/user/Jini/packages/chat/src/store/__tests__/loads-without-driver.test.ts:79:101 |     at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:633:57 |     at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14 |     at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/"
+  },
+  {
+   "pkg": "packages_desktop-host",
+   "file": "packages/desktop-host/src/__tests__/sidecar.test.ts",
+   "test": "createNodeSidecarLauncher shutdown force-kills a child that never exits on its own",
+   "msg": "AssertionError: expected 'SIGTERM' to be 'SIGKILL' // Object.is equality |     at /home/user/Jini/packages/desktop-host/src/__tests__/sidecar.test.ts:77:30 |     at processTicksAndRejections (node:internal/process/task_queues:104:5) |     at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5 |     at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11) |     at runSui"
+  },
+  {
+   "pkg": "packages_platform",
+   "file": "packages/platform/src/__tests__/asset-cache-boundaries.test.ts",
+   "test": "createAssetCache boundaries refuses an unsupported content-type with 415 naming the header value",
+   "msg": "AssertionError: expected AssetCacheError: url is not a cacheable e… { status: … } to match object { status: 415, …(1) } | (1 matching property omitted from actual) |     at _Assertion.<anonymous> (file:///home/user/Jini/node_modules/.pnpm/@vitest+expect@2.1.9/node_modules/@vitest/expect/dist/index.js:1134:13) |     at _Assertion.<anonymous> (file:///home/user/Jini/node_modules/.pnpm/@vitest+expect@2.1.9/node_modules/@vitest/expect/dist/index.js:972:17) |     at _Assertion.methodWrapper (file:///"
+  },
+  {
+   "pkg": "packages_platform",
+   "file": "packages/platform/src/__tests__/integration-contracts.test.ts",
+   "test": "each published subpath declares its intended runtime and preserves its targets",
+   "msg": "AssertionError: expected 'universal' to be 'node' // Object.is equality |     at /home/user/Jini/packages/platform/src/__tests__/integration-contracts.test.ts:12:42 |     at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14 |     at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11 |     at runWithTimeout (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_"
+  },
+  {
+   "pkg": "packages_platform",
+   "file": "packages/platform/src/secrets/__tests__/exports.test.ts",
+   "test": "retains published subpaths and declares adapter dependencies as optional peers",
+   "msg": "AssertionError: expected { '@jini-ai/core': '^0.6.13' } to deeply equal { '@jini-ai/core': '^0.6.12' } |     at /home/user/Jini/packages/platform/src/secrets/__tests__/exports.test.ts:17:35 |     at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14 |     at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11 |     at runWithTimeout (file:///home/user/Jini/node_modules/.pnpm/@"
+  },
+  {
+   "pkg": "packages_plugins",
+   "file": "packages/plugins/src/host/__tests__/unit/discovery.unit.test.ts",
+   "test": "site discovery edges falls back to the folder name for a non-object manifest and rethrows non-ENOENT read faults",
+   "msg": "Error: promise resolved \"[ { id: 'broken', …(7) }, …(3) ]\" instead of rejecting |     at _Assertion.__VITEST_REJECTS__ (file:///home/user/Jini/node_modules/.pnpm/@vitest+expect@2.1.9/node_modules/@vitest/expect/dist/index.js:1805:21) |     at _Assertion.propertyGetter (file:///home/user/Jini/node_modules/.pnpm/chai@5.3.3/node_modules/chai/index.js:1557:27) |     at Reflect.get (<anonymous>) |     at Object.proxyGetter [as get] (file:///home/user/Jini/node_modules/.pnpm/chai@5.3.3/node_modules/ch"
+  },
+  {
+   "pkg": "packages_provider-plugins",
+   "file": "packages/provider-plugins/src/__tests__/observability-sentry.test.ts",
+   "test": "release reaches the private client and delivered event without global initialization or default integrations",
+   "msg": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected |  | + [ | +   { | +     name: 'SpanStreaming',"
+  },
+  {
+   "pkg": "packages_ui",
+   "file": "packages/ui/src/features/source-config-list/agent-handles.test.tsx",
+   "test": "SourceConfigField markup labels the toggle by the field it reveals, so the label does not flip when it is clicked",
+   "msg": "Error: expect(element).toHaveAttribute(\"title\", \"Hide\") // element.getAttribute(\"title\") === \"Hide\" |  | Expected the element to have attribute: |   title=\"Hide\" | Received: |   title=\"Hide Client secret\""
+  },
+  {
+   "pkg": "packages_user-management",
+   "file": "packages/user-management/src/admin/react/__tests__/people.test.tsx",
+   "test": "composable users screen reset guards mismatch, preserves failures and reveals independently with autocomplete intact",
+   "msg": "TestingLibraryElementError: Unable to find an accessible element with the role \"button\" and name \"Show new password\" |  | Here are the accessible roles: |  |   banner: | "
+  }
+ ],
+ "cov": {
+  "examples_minimal-host": {
+   "lines": 5.55,
+   "branches": 66.66,
+   "functions": 66.66,
+   "ul": 204
+  },
+  "examples_nlweb-demo": {
+   "lines": 100,
+   "branches": 100,
+   "functions": 100,
+   "ul": 0
+  },
+  "examples_reference-desktop": {
+   "lines": 22.76,
+   "branches": 80,
+   "functions": 85.71,
+   "ul": 207
+  },
+  "examples_reference-web": {
+   "lines": 9.97,
+   "branches": 71.51,
+   "functions": 47.91,
+   "ul": 2880
+  },
+  "packages_admin": {
+   "lines": 99.91,
+   "branches": 99.92,
+   "functions": 99.95,
+   "ul": 12
+  },
+  "packages_agent-plugins": {
+   "lines": 99.32,
+   "branches": 99.65,
+   "functions": 99.72,
+   "ul": 37
+  },
+  "packages_agent-runtime": {
+   "lines": 99.89,
+   "branches": 99.48,
+   "functions": 99.7,
+   "ul": 14
+  },
+  "packages_agentic": {
+   "lines": 100,
+   "branches": 100,
+   "functions": 100,
+   "ul": 0
+  },
+  "packages_analytics": {
+   "lines": 100,
+   "branches": 99.05,
+   "functions": 97.82,
+   "ul": 0
+  },
+  "packages_artifacts": {
+   "lines": 100,
+   "branches": 100,
+   "functions": 100,
+   "ul": 0
+  },
+  "packages_capability-providers": {
+   "lines": 100,
+   "branches": 100,
+   "functions": 100,
+   "ul": 0
+  },
+  "packages_chat": {
+   "lines": 100,
+   "branches": 99.7,
+   "functions": 100,
+   "ul": 0
+  },
+  "packages_cli": {
+   "lines": 100,
+   "branches": 100,
+   "functions": 100,
+   "ul": 0
+  },
+  "packages_cms": {
+   "lines": 99.97,
+   "branches": 99.75,
+   "functions": 100,
+   "ul": 5
+  },
+  "packages_commerce": {
+   "lines": 4.01,
+   "branches": 39.7,
+   "functions": 39.7,
+   "ul": 4016
+  },
+  "packages_cookie-consent": {
+   "lines": 99.79,
+   "branches": 99.88,
+   "functions": 99.37,
+   "ul": 2
+  },
+  "packages_core": {
+   "lines": 99,
+   "branches": 99.58,
+   "functions": 99.63,
+   "ul": 56
+  },
+  "packages_daemon": {
+   "lines": 99.89,
+   "branches": 99.17,
+   "functions": 99.31,
+   "ul": 12
+  },
+  "packages_db": {
+   "lines": 99.55,
+   "branches": 99.21,
+   "functions": 98.52,
+   "ul": 18
+  },
+  "packages_desktop-host": {
+   "lines": 99.91,
+   "branches": 99.3,
+   "functions": 100,
+   "ul": 2
+  },
+  "packages_devops": {
+   "lines": 100,
+   "branches": 100,
+   "functions": 100,
+   "ul": 0
+  },
+  "packages_diagnostics": {
+   "lines": 94.74,
+   "branches": 98.92,
+   "functions": 98.1,
+   "ul": 163
+  },
+  "packages_http-kit": {
+   "lines": 100,
+   "branches": 99.19,
+   "functions": 100,
+   "ul": 0
+  },
+  "packages_infra": {
+   "lines": 100,
+   "branches": 99.02,
+   "functions": 100,
+   "ul": 0
+  },
+  "packages_integrations": {
+   "lines": 99.98,
+   "branches": 99.92,
+   "functions": 99.82,
+   "ul": 1
+  },
+  "packages_mcp": {
+   "lines": 99.89,
+   "branches": 99.33,
+   "functions": 100,
+   "ul": 5
+  },
+  "packages_memory": {
+   "lines": 100,
+   "branches": 100,
+   "functions": 100,
+   "ul": 0
+  },
+  "packages_oauth": {
+   "lines": 100,
+   "branches": 99.89,
+   "functions": 100,
+   "ul": 0
+  },
+  "packages_platform": {
+   "lines": 99.97,
+   "branches": 99.73,
+   "functions": 99.64,
+   "ul": 2
+  },
+  "packages_plugins": {
+   "lines": 98.97,
+   "branches": 98.57,
+   "functions": 98.97,
+   "ul": 34
+  },
+  "packages_protocol": {
+   "lines": 100,
+   "branches": 98.8,
+   "functions": 100,
+   "ul": 0
+  },
+  "packages_provider-plugins": {
+   "lines": 2.07,
+   "branches": 96.6,
+   "functions": 94.79,
+   "ul": 46341
+  },
+  "packages_registry": {
+   "lines": 100,
+   "branches": 100,
+   "functions": 100,
+   "ul": 0
+  },
+  "packages_sandbox": {
+   "lines": 99.78,
+   "branches": 98.59,
+   "functions": 100,
+   "ul": 1
+  },
+  "packages_search": {
+   "lines": 100,
+   "branches": 100,
+   "functions": 100,
+   "ul": 0
+  },
+  "packages_server": {
+   "lines": 99.73,
+   "branches": 97.96,
+   "functions": 94.19,
+   "ul": 9
+  },
+  "packages_sidecar": {
+   "lines": 100,
+   "branches": 100,
+   "functions": 100,
+   "ul": 0
+  },
+  "packages_sqlite": {
+   "lines": 100,
+   "branches": 100,
+   "functions": 100,
+   "ul": 0
+  },
+  "packages_ui": {
+   "lines": 99.8,
+   "branches": 99.99,
+   "functions": 99.93,
+   "ul": 86
+  },
+  "packages_ui-kit": {
+   "lines": 96.68,
+   "branches": 99.83,
+   "functions": 99.28,
+   "ul": 29
+  },
+  "packages_user-management": {
+   "lines": 100,
+   "branches": 100,
+   "functions": 100,
+   "ul": 0
+  },
+  "packages_vibecoding": {
+   "lines": 96.41,
+   "branches": 92.09,
+   "functions": 91.61,
+   "ul": 63
+  }
+ },
+ "zero": 102,
+ "top30": [
+  {
+   "file": "packages/provider-plugins/plugins/observability-opentelemetry/0.6.13/server/index.mjs",
+   "unc": 19732,
+   "pct": 0,
+   "tot": 19732
+  },
+  {
+   "file": "packages/provider-plugins/plugins/observability-sentry/0.6.13/server/index.mjs",
+   "unc": 12828,
+   "pct": 0,
+   "tot": 12828
+  },
+  {
+   "file": "packages/provider-plugins/plugins/analytics-posthog/0.6.13/server/index.mjs",
+   "unc": 9439,
+   "pct": 0,
+   "tot": 9439
+  },
+  {
+   "file": "packages/provider-plugins/plugins/ai-trace-langfuse/0.6.13/server/index.mjs",
+   "unc": 4162,
+   "pct": 0,
+   "tot": 4162
+  },
+  {
+   "file": "examples/reference-web/src/daemon.ts",
+   "unc": 510,
+   "pct": 0,
+   "tot": 510
+  },
+  {
+   "file": "packages/commerce/src/payments/ledger/rows.ts",
+   "unc": 362,
+   "pct": 0,
+   "tot": 362
+  },
+  {
+   "file": "examples/reference-web/src/WebMcpLab.tsx",
+   "unc": 322,
+   "pct": 0,
+   "tot": 322
+  },
+  {
+   "file": "packages/commerce/src/payments/ledger/repo.memory.ts",
+   "unc": 317,
+   "pct": 0,
+   "tot": 317
+  },
+  {
+   "file": "examples/reference-web/src/A2uiLab.tsx",
+   "unc": 293,
+   "pct": 0,
+   "tot": 293
+  },
+  {
+   "file": "packages/commerce/src/payments/ledger/repo.sql.ts",
+   "unc": 293,
+   "pct": 0,
+   "tot": 293
+  },
+  {
+   "file": "examples/reference-web/src/AgentLab.tsx",
+   "unc": 271,
+   "pct": 0,
+   "tot": 271
+  },
+  {
+   "file": "packages/commerce/src/payments/accounting/apply-evidence.ts",
+   "unc": 246,
+   "pct": 0,
+   "tot": 246
+  },
+  {
+   "file": "examples/reference-web/src/McpUiLabHost.tsx",
+   "unc": 238,
+   "pct": 0,
+   "tot": 238
+  },
+  {
+   "file": "packages/commerce/src/catalog/repo.ts",
+   "unc": 233,
+   "pct": 0,
+   "tot": 233
+  },
+  {
+   "file": "examples/reference-web/src/LabExpense.tsx",
+   "unc": 226,
+   "pct": 12.74,
+   "tot": 259
+  },
+  {
+   "file": "examples/minimal-host/src/index.ts",
+   "unc": 204,
+   "pct": 0,
+   "tot": 204
+  },
+  {
+   "file": "examples/reference-web/src/LabPages.tsx",
+   "unc": 190,
+   "pct": 0,
+   "tot": 190
+  },
+  {
+   "file": "examples/reference-web/src/daemon-transport.ts",
+   "unc": 180,
+   "pct": 21.05,
+   "tot": 228
+  },
+  {
+   "file": "packages/commerce/src/catalog/repo.rows.ts",
+   "unc": 165,
+   "pct": 0,
+   "tot": 165
+  },
+  {
+   "file": "packages/commerce/src/payments/accounting/plan-evidence.ts",
+   "unc": 154,
+   "pct": 0,
+   "tot": 154
+  },
+  {
+   "file": "examples/reference-web/src/App.tsx",
+   "unc": 149,
+   "pct": 0,
+   "tot": 149
+  },
+  {
+   "file": "packages/commerce/src/payments/ledger/migrations/0001_payments_ledger.ts",
+   "unc": 148,
+   "pct": 0,
+   "tot": 148
+  },
+  {
+   "file": "packages/provider-plugins/plugins/payments-stripe/0.6.13/server/index.mjs",
+   "unc": 147,
+   "pct": 0,
+   "tot": 147
+  },
+  {
+   "file": "packages/commerce/src/payments/ingest/worker.ts",
+   "unc": 137,
+   "pct": 0,
+   "tot": 137
+  },
+  {
+   "file": "packages/commerce/src/payments/ops/common.ts",
+   "unc": 125,
+   "pct": 0,
+   "tot": 125
+  },
+  {
+   "file": "examples/reference-desktop/src/main.ts",
+   "unc": 123,
+   "pct": 0,
+   "tot": 123
+  },
+  {
+   "file": "packages/commerce/src/payments/ops/capture-void.ts",
+   "unc": 123,
+   "pct": 0,
+   "tot": 123
+  },
+  {
+   "file": "examples/reference-web/mcpui-view-src/mcp-app.ts",
+   "unc": 119,
+   "pct": 0,
+   "tot": 119
+  },
+  {
+   "file": "packages/commerce/src/payments/ops/intent.ts",
+   "unc": 110,
+   "pct": 0,
+   "tot": 110
+  },
+  {
+   "file": "packages/commerce/src/payments/ops/refund.ts",
+   "unc": 110,
+   "pct": 0,
+   "tot": 110
+  }
+ ]
+}

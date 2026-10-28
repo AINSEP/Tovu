@@ -1,0 +1,12 @@
+agentic src/core/__tests__/capability.l077.characterization.test.ts rerun=1
+agentic src/core/__tests__/page-executor.l077.characterization.test.ts rerun=1
+agentic src/core/__tests__/page-executor.test.ts rerun=1
+chat src/store/__tests__/loads-without-driver.test.ts rerun=1
+desktop-host src/__tests__/sidecar.test.ts rerun=1
+platform src/__tests__/asset-cache-boundaries.test.ts rerun=1
+platform src/__tests__/integration-contracts.test.ts rerun=1
+platform src/secrets/__tests__/exports.test.ts rerun=1
+plugins src/host/__tests__/unit/discovery.unit.test.ts rerun=1
+provider-plugins src/__tests__/observability-sentry.test.ts rerun=1
+ui src/features/source-config-list/agent-handles.test.tsx rerun=1
+user-management src/admin/react/__tests__/people.test.tsx rerun=1

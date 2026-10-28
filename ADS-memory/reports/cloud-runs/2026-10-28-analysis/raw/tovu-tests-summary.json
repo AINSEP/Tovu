@@ -1,0 +1,564 @@
+{
+ "shards": 4,
+ "tot": {
+  "tests": 16359,
+  "pass": 16246,
+  "fail": 92,
+  "skipped": 21,
+  "cancelled": 0
+ },
+ "fails": [
+  {
+   "shard": "shard1",
+   "file": "apps/website/src/assistant/__tests__/batch-tool-inputs.test.ts",
+   "test": "guard: every production pure read batches; other tools retain explicit write opt-outs",
+   "err": "AssertionError [ERR_ASSERTION]: a tool that asks per call would ask once per item: opt it out | + actual - expected | + [ | +   'fs_write_files' | + ]"
+  },
+  {
+   "shard": "shard1",
+   "file": "apps/website/src/features/theme/__tests__/shipped-site-theme-drift.canary.test.ts",
+   "test": "release stock matches the tracked site reference, without promoting local drafts",
+   "err": "Error: Command failed: git ls-files -z -- content/themes/__original-themes__/static/tovu-theme | fatal: not a git repository (or any of the parent directories): .git | at genericNodeError (node:internal/errors:986:15) | at wrappedFn (node:internal/errors:540:14) | at checkExecSyncError (node:child_p"
+  },
+  {
+   "shard": "shard1",
+   "file": "apps/website/src/features/theme/__tests__/shipped-theme-original-drift.canary.test.ts",
+   "test": "canary: shipped theme static/tovu-theme's committed original matches what the generator produces from it",
+   "err": "AssertionError [ERR_ASSERTION]: content/themes/__original-themes__/static/tovu-theme no longer matches what 'tovu theme sync-originals' generates from content/themes/static/tovu-theme. | generated but not committed: (none) | committed but not generated: (none) | byte-different: css/theme.css | Run '"
+  },
+  {
+   "shard": "shard1",
+   "file": "apps/website/src/platform/db/migrations/__tests__/postgres-baseline.test.ts",
+   "test": "applies on an empty database and matches schema.postgres.ts at head",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | ... Skipped lines | [ | 'agent_tool_attempts',"
+  },
+  {
+   "shard": "shard1",
+   "file": "apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts",
+   "test": "bootSiteDir on a postgres site opens the store (migrated, workspace resolved) without a content.db",
+   "err": "Error: failed to drop fixture database \"tovu_r1f_boot_site_dir\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixt"
+  },
+  {
+   "shard": "shard1",
+   "file": "apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts",
+   "test": "bootSiteDir honors an explicit Postgres workspace instead of the oldest",
+   "err": "Error: failed to drop fixture database \"tovu_r1f_boot_site_dir\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixt"
+  },
+  {
+   "shard": "shard1",
+   "file": "apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts",
+   "test": "createSiteRouteDeps reuses the store bootSiteDir opened (serve/export pass it as overrides.store)",
+   "err": "Error: failed to drop fixture database \"tovu_r1f_boot_site_dir\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixt"
+  },
+  {
+   "shard": "shard1",
+   "file": "apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts",
+   "test": "bootSiteDir on a postgres site rejects an unknown --workspace and closes the store it opened",
+   "err": "Error: failed to drop fixture database \"tovu_r1f_boot_site_dir\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixt"
+  },
+  {
+   "shard": "shard1",
+   "file": "apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts",
+   "test": "createSiteRouteDeps refuses overrides.store without workspaceId (the pair rule covers the store too)",
+   "err": "Error: failed to drop fixture database \"tovu_r1f_boot_site_dir\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixt"
+  },
+  {
+   "shard": "shard1",
+   "file": "apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts",
+   "test": "/tmp/claude-0/-home-user/ee957620-cd5a-5cb1-a649-f4397481f126/scratchpad/Tovu-an/apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts",
+   "err": "TypeError [ERR_INVALID_ARG_TYPE]: The \"path\" argument must be of type string or an instance of Buffer or URL. Received undefined | at Object.rmSync (node:fs:1282:25) | at TestContext.<anonymous> (apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:58:6) | at TestH"
+  },
+  {
+   "shard": "shard1",
+   "file": "apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts",
+   "test": "handlebars-worker.ts loads no database, blob-store or agent packages",
+   "err": "AssertionError [ERR_ASSERTION]: handlebars-worker.ts pulled in forms services: /home/user/Jini/packages/cms/dist/forms/write-service.js, /home/user/Jini/packages/cms/dist/forms/submit-service.js, /home/user/Jini/packages/cms/dist/forms/repo.memory.js | + actual - expected | + [ | +   '/home/user/Jin"
+  },
+  {
+   "shard": "shard1",
+   "file": "apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts",
+   "test": "liquid-worker.ts loads no database, blob-store or agent packages",
+   "err": "AssertionError [ERR_ASSERTION]: liquid-worker.ts pulled in forms services: /home/user/Jini/packages/cms/dist/forms/write-service.js, /home/user/Jini/packages/cms/dist/forms/submit-service.js, /home/user/Jini/packages/cms/dist/forms/repo.memory.js | + actual - expected | + [ | +   '/home/user/Jini/pa"
+  },
+  {
+   "shard": "shard1",
+   "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/commerce-strip-parity.test.ts",
+   "test": "the transfer catalog loses exactly the six commerce tables and gains the named later columns",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | ... Skipped lines | [ | ["
+  },
+  {
+   "shard": "shard1",
+   "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/commerce-strip-parity.test.ts",
+   "test": "the manifest classifies every other table's columns as before",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | ... Skipped lines | { | agent_tool_attempts: {"
+  },
+  {
+   "shard": "shard1",
+   "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.route.test.ts",
+   "test": "GET / 500s with a generic 'Site error' when an unexpected exception is thrown",
+   "err": "AssertionError [ERR_ASSERTION]: the exact bare fallback body, not merely a 500 status | + actual - expected | + '<section id=\"jini-consent\" class=\"jini-consent\" data-has-record=\"false\" data-placement=\"bottom-right\" data-reopen=\"link\" aria-label=\"Cookie preferences\">\\n' + | +   '<div class=\"jini-cons"
+  },
+  {
+   "shard": "shard1",
+   "file": "packages/sdk/src/__tests__/unit/sdk-public-api.unit.test.ts",
+   "test": "SDK external type contracts are declared package dependencies for standalone consumers",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal: | + actual - expected | + '^0.6.10' | - '^0.4.0 || ^0.5.0' | ^"
+  },
+  {
+   "shard": "shard2",
+   "file": "apps/website/src/features/database-transfer/__tests__/exclusions.unit.test.ts",
+   "test": "every core table with a secret-shaped column is excluded from the copy",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | + [ | +   'members (password_hash)' | + ]"
+  },
+  {
+   "shard": "shard2",
+   "file": "apps/website/src/features/entries/__tests__/integration/repo.compare-and-set.postgres.test.ts",
+   "test": "postgres: two writers on the same base version, B blocked on A's row lock — A lands, B gets the version conflict",
+   "err": "Error: failed to drop fixture database \"tovu_entry_cas_pg_fixture\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-f"
+  },
+  {
+   "shard": "shard2",
+   "file": "apps/website/src/features/entries/__tests__/integration/repo.compare-and-set.postgres.test.ts",
+   "test": "postgres: two import-as-creates of one id, B blocked on A's uncommitted insert — one row, one revision, one event; B is a version conflict",
+   "err": "Error: failed to drop fixture database \"tovu_entry_cas_pg_fixture\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-f"
+  },
+  {
+   "shard": "shard2",
+   "file": "apps/website/src/platform/site-dir/__tests__/unit/site-key-dependent-data.postgres.test.ts",
+   "test": "findSiteKeyDependentData: Postgres (env) site — a clean database is no data; a sealed row is data",
+   "err": "Error: failed to drop fixture database \"tovu_site_key_dependent_data_test\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/"
+  },
+  {
+   "shard": "shard2",
+   "file": "apps/website/src/platform/site-dir/__tests__/unit/site-key-dependent-data.postgres.test.ts",
+   "test": "/tmp/claude-0/-home-user/ee957620-cd5a-5cb1-a649-f4397481f126/scratchpad/Tovu-an/apps/website/src/platform/site-dir/__tests__/unit/site-key-dependent-data.postgres.test.ts",
+   "err": "Error: failed to drop fixture database \"tovu_site_key_dependent_data_test\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at dropDatabase (/home/user/Jini/packages/db/src/"
+  },
+  {
+   "shard": "shard2",
+   "file": "apps/website/src/server/__tests__/integration/credentials-real-composition.unrun.integration.test.ts",
+   "test": "[unrun] publish credentials [sqlite]: the token is sealed into the store and unsealed for verification, never returned, and DELETE removes it",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | { | +   isDefault: false, | -   isDefault: true,"
+  },
+  {
+   "shard": "shard2",
+   "file": "apps/website/src/server/__tests__/integration/credentials-real-composition.unrun.integration.test.ts",
+   "test": "[unrun] publish credentials [sqlite]: a duplicate (provider, label) is the mapped 409 DUPLICATE_LABEL with the exact detail, and one row remains",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | { | +   detail: \"Your project already has a key named 'Shared'. Use it here, or pick another name.\", | -   detail: \"a 'netlify' credential labeled 'Shared' already exists in this workspace\","
+  },
+  {
+   "shard": "shard2",
+   "file": "apps/website/src/server/__tests__/integration/credentials-real-composition.unrun.integration.test.ts",
+   "test": "[unrun] source-control credentials [sqlite]: create → rename keeps the sealed token → a duplicate label is 409 → delete",
+   "err": "Error: expected HTTP 201, got 400: {\"error\":\"VALIDATION\",\"detail\":\"connection.providerId must be one of: \"} | at expectJson (apps/website/src/server/__tests__/helpers/unrun-site-boot.ts:132:36) | at process.processTicksAndRejections (node:internal/process/task_queues:104:5) | at async TestContext.<a"
+  },
+  {
+   "shard": "shard2",
+   "file": "apps/website/src/server/__tests__/integration/credentials-real-composition.unrun.integration.test.ts",
+   "test": "[unrun] publish credentials [pglite]: the token is sealed into the store and unsealed for verification, never returned, and DELETE removes it",
+   "err": "Error: expected HTTP 201, got 409: {\"error\":\"DUPLICATE_LABEL\",\"detail\":\"Your project already has a key named 'Unrun Netlify'. Use it here, or pick another name.\"} | at expectJson (apps/website/src/server/__tests__/helpers/unrun-site-boot.ts:132:36) | at process.processTicksAndRejections (node:intern"
+  },
+  {
+   "shard": "shard2",
+   "file": "apps/website/src/server/__tests__/integration/credentials-real-composition.unrun.integration.test.ts",
+   "test": "[unrun] publish credentials [pglite]: a duplicate (provider, label) is the mapped 409 DUPLICATE_LABEL with the exact detail, and one row remains",
+   "err": "Error: expected HTTP 201, got 409: {\"error\":\"DUPLICATE_LABEL\",\"detail\":\"Your project already has a key named 'Shared'. Use it here, or pick another name.\"} | at expectJson (apps/website/src/server/__tests__/helpers/unrun-site-boot.ts:132:36) | at process.processTicksAndRejections (node:internal/proc"
+  },
+  {
+   "shard": "shard2",
+   "file": "apps/website/src/server/__tests__/integration/credentials-real-composition.unrun.integration.test.ts",
+   "test": "[unrun] source-control credentials [pglite]: create → rename keeps the sealed token → a duplicate label is 409 → delete",
+   "err": "Error: expected HTTP 201, got 400: {\"error\":\"VALIDATION\",\"detail\":\"connection.providerId must be one of: \"} | at expectJson (apps/website/src/server/__tests__/helpers/unrun-site-boot.ts:132:36) | at process.processTicksAndRejections (node:internal/process/task_queues:104:5) | at async TestContext.<a"
+  },
+  {
+   "shard": "shard2",
+   "file": "apps/website/src/server/inbound/public-http/http/site/__tests__/form-theme-colours.test.ts",
+   "test": "tovu-theme: the form submit matches the theme's own .btn/.btn-solid, fields sit on --bg, and both shipped copies match the fixture",
+   "err": "AssertionError [ERR_ASSERTION]: content/themes/__original-themes__/static/tovu-theme/css/theme.css drifted from content/themes/static/tovu-theme/css/theme.css | + actual - expected | ... Skipped lines | '/* Tokens are NOT defined here — they live in tokens.json / tokens.light.json and are\\n' + | '  "
+  },
+  {
+   "shard": "shard2",
+   "file": "apps/website/src/server/inbound/public-http/http/site/__tests__/render-form-layout.test.ts",
+   "test": "a successful contact form is hidden by the emitted stylesheet in a browser",
+   "err": "browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell | ╔════════════════════════════════════════════════════════════╗ | ║ Looks like Playwright was just installed or updated.       ║ | ║ Please run the follo"
+  },
+  {
+   "shard": "shard2",
+   "file": "apps/website/src/server/inbound/public-http/http/site/__tests__/render-form-layout.test.ts",
+   "test": "contact form fallback error and success colors apply in both modes without theme tokens",
+   "err": "browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell | ╔════════════════════════════════════════════════════════════╗ | ║ Looks like Playwright was just installed or updated.       ║ | ║ Please run the follo"
+  },
+  {
+   "shard": "shard2",
+   "file": "apps/website/src/server/inbound/public-http/http/site/__tests__/render-form-layout.test.ts",
+   "test": "checkbox fields render inline before their label with only the emitted stylesheet",
+   "err": "browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell | ╔════════════════════════════════════════════════════════════╗ | ║ Looks like Playwright was just installed or updated.       ║ | ║ Please run the follo"
+  },
+  {
+   "shard": "shard2",
+   "file": "apps/website/src/server/runtime/composition/__tests__/create-site-route-deps.postgres.test.ts",
+   "test": "Postgres composition boot sequence preserves data across env, sealed-secret and wrong-key boots",
+   "err": "Error: failed to drop fixture database \"tovu_r1f_create_site_route_deps\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/sr"
+  },
+  {
+   "shard": "shard2",
+   "file": "apps/website/src/server/runtime/composition/__tests__/create-site-route-deps.postgres.test.ts",
+   "test": "/tmp/claude-0/-home-user/ee957620-cd5a-5cb1-a649-f4397481f126/scratchpad/Tovu-an/apps/website/src/server/runtime/composition/__tests__/create-site-route-deps.postgres.test.ts",
+   "err": "TypeError [ERR_INVALID_ARG_TYPE]: The \"path\" argument must be of type string or an instance of Buffer or URL. Received undefined | at Object.rmSync (node:fs:1282:25) | at TestContext.<anonymous> (apps/website/src/server/runtime/composition/__tests__/create-site-route-deps.postgres.test.ts:58:6) | at"
+  },
+  {
+   "shard": "shard2",
+   "file": "content/agent-plugins/fly/deploy-configs/__tests__/fly.test.mjs",
+   "test": "the production workflow's generation command uses the plugin and emits the parity config without npm or a built CLI",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal: | + actual - expected | ... Skipped lines | 'app = \"tovu\"\\n' + | 'primary_region = \"iad\"\\n' +"
+  },
+  {
+   "shard": "shard3",
+   "file": "apps/website/src/assistant/__tests__/credential-setup-search.test.ts",
+   "test": "t10 credential_save ranks top 3 for credential setup requests",
+   "err": "AssertionError [ERR_ASSERTION]: credential_save search misses: save a repository host source control credential: source_control_get_capabilities, site_backup_plan, source_control_execute_commit | + actual - expected | + [ | +   'save a repository host source control credential: source_control_get_ca"
+  },
+  {
+   "shard": "shard3",
+   "file": "apps/website/src/assistant/__tests__/mcp-ui-tool-calls.test.ts",
+   "test": "SECURITY-CRITICAL: the allowlist is exactly this set — widening it cannot happen silently",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | ... Skipped lines | [ | 'agent_plugin_connect',"
+  },
+  {
+   "shard": "shard3",
+   "file": "apps/website/src/assistant/durable-runs/__tests__/recover.unit.test.ts",
+   "test": "a stale uncertain executor still finalizes with saved work",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal: | + actual - expected | + 'waiting' | - 'finalized'"
+  },
+  {
+   "shard": "shard3",
+   "file": "apps/website/src/features/forms/__tests__/repo.postgres.test.ts",
+   "test": "postgres: racing creates of one slug persist one winner and give the loser FormSlugConflictError",
+   "err": "Error: failed to drop fixture database \"tovu_forms_repo_pg_fixture\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-"
+  },
+  {
+   "shard": "shard3",
+   "file": "apps/website/src/features/identity/__tests__/wiring.test.ts",
+   "test": "createInMemoryIdentityRouteDeps: identityReady grants pages.edit_html to the built-in admin policy and to no other built-in policy (SPEC-047 REQ-9)",
+   "err": "AssertionError [ERR_ASSERTION]: the owner policy stays exactly its seeded wildcard | + actual - expected | [ | '*', | +   'visitor-tools.manage'"
+  },
+  {
+   "shard": "shard3",
+   "file": "apps/website/src/features/identity/__tests__/wiring.test.ts",
+   "test": "createSqliteIdentityRouteDeps: identityReady grants pages.edit_html to admin in a pre-theme.edit workspace (SPEC-047 REQ-9)",
+   "err": "AssertionError [ERR_ASSERTION]: the owner policy stays exactly its seeded wildcard | + actual - expected | [ | '*', | +   'visitor-tools.manage'"
+  },
+  {
+   "shard": "shard3",
+   "file": "apps/website/src/features/navigation/__tests__/repo.compare-and-set.postgres.test.ts",
+   "test": "postgres: two writers on the same base version, B blocked on A's row lock — A lands, B gets the version conflict",
+   "err": "Error: failed to drop fixture database \"tovu_menu_cas_pg_fixture\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-fi"
+  },
+  {
+   "shard": "shard3",
+   "file": "apps/website/src/features/navigation/__tests__/repo.compare-and-set.postgres.test.ts",
+   "test": "postgres: two creates of one id, B blocked on A's uncommitted insert — A lands, B gets the version conflict",
+   "err": "Error: failed to drop fixture database \"tovu_menu_cas_pg_fixture\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db/src/pg-fi"
+  },
+  {
+   "shard": "shard3",
+   "file": "apps/website/src/features/widgets/__tests__/integration/html-form-embeds.integration.test.ts",
+   "test": "form slug, form id and widget spellings resolve identically and fill plain POST actions",
+   "err": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /<label for=\"form-contact-email\">Email \\*<\\/label><input type=\"email\" id=\"form-contact-email\" name=\"email\" data-tovu-field=\"email\" toolparamtitle=\"Email\" toolparamdescription=\"Email\" aria-describedby=\"form-contact-email-e"
+  },
+  {
+   "shard": "shard3",
+   "file": "apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts",
+   "test": "runner-to-head, then prepare twice: one watermark row, one seeded workspace with its posts and presentation",
+   "err": "Error: failed to drop fixture database \"tovu_seed_content_store_pg_fixture_twice\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packa"
+  },
+  {
+   "shard": "shard3",
+   "file": "apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts",
+   "test": "a restart never overwrites operator edits: edited, deleted and re-themed rows survive a second prepare byte for byte",
+   "err": "Error: failed to drop fixture database \"tovu_seed_content_store_pg_fixture_edits\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packa"
+  },
+  {
+   "shard": "shard3",
+   "file": "apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts",
+   "test": "an existing workspace with the seed's SLUG but a different id is never seeded over: no second workspace, no demo posts",
+   "err": "Error: failed to drop fixture database \"tovu_seed_content_store_pg_fixture_same_slug\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/p"
+  },
+  {
+   "shard": "shard3",
+   "file": "apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts",
+   "test": "two processes booting at once: the second prepare WAITS on the seed lock the first holds, then seeds nothing twice",
+   "err": "Error: failed to drop fixture database \"tovu_seed_content_store_pg_fixture_concurrent\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/"
+  },
+  {
+   "shard": "shard3",
+   "file": "apps/website/src/server/__tests__/integration/agent-daemon-outbox-event-loss.integration.test.ts",
+   "test": "an outbox drain in the agent daemon no longer swallows events: both the daemon's own event and the serving process's pending row reach the serving process's subscriber",
+   "err": "AssertionError [ERR_ASSERTION]: the daemon's drain claimed these rows and published them to its own subscriber-less bus, so the serving process never saw them | + actual - expected | [ | +   'dbf603e6-abca-48a3-ae71-171ef76bfae6-entry.updated-2', | 'evt-daemon-edit-1',"
+  },
+  {
+   "shard": "shard3",
+   "file": "apps/website/src/server/__tests__/integration/create-sqlite-route-deps-for-workspace.integration.test.ts",
+   "test": "workspaceIdOverride supplied: the db opened for validation is the SAME handle the returned deps read from (not a second, divergent connection)",
+   "err": "ReferenceError [Error]: assertContentDbFileName is not defined | at createSiteRouteDepsForWorkspace (evalmachine.<anonymous>:3:5) | at TestContext.<anonymous> (apps/website/src/server/__tests__/integration/create-sqlite-route-deps-for-workspace.integration.test.ts:140:18) | at Test.runInAsyncScope ("
+  },
+  {
+   "shard": "shard3",
+   "file": "apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts",
+   "test": "runtime: cold and resumed CLI cwd defaults to the site directory",
+   "err": "AssertionError [ERR_ASSERTION]: The assistant could not start this execution attempt. | at failRunBeforeStart (apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:99:76) | at evalmachine.<anonymous>:333:14 { | generatedMessage: false, | code: '"
+  },
+  {
+   "shard": "shard3",
+   "file": "apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts",
+   "test": "runtime: cold and resumed CLI cwd ignores TOVU_AGENT_CWD (owner 2026-10-23)",
+   "err": "AssertionError [ERR_ASSERTION]: The assistant could not start this execution attempt. | at failRunBeforeStart (apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:99:76) | at evalmachine.<anonymous>:333:14 | at process.processTicksAndRejections"
+  },
+  {
+   "shard": "shard3",
+   "file": "apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts",
+   "test": "runtime: a new CLI session receives prior conversation context, while a resumed session keeps its compact prompt",
+   "err": "AssertionError [ERR_ASSERTION]: The assistant could not start this execution attempt. | at failRunBeforeStart (apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:99:76) | at evalmachine.<anonymous>:333:14 | at process.processTicksAndRejections"
+  },
+  {
+   "shard": "shard3",
+   "file": "apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts",
+   "test": "runtime: first switches, A→B→A repeats and lost sessions select one transcript and isolate conversations",
+   "err": "AssertionError [ERR_ASSERTION]: The assistant could not start this execution attempt. | at failRunBeforeStart (apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:99:76) | at evalmachine.<anonymous>:333:14 | at process.processTicksAndRejections"
+  },
+  {
+   "shard": "shard3",
+   "file": "apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts",
+   "test": "runtime: a cold dispatch waits for durable persistence and resumes that exact executor session next turn",
+   "err": "AssertionError [ERR_ASSERTION]: The assistant could not start this execution attempt. | at failRunBeforeStart (apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:99:76) | at evalmachine.<anonymous>:333:14 { | generatedMessage: false, | code: '"
+  },
+  {
+   "shard": "shard3",
+   "file": "apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts",
+   "test": "runtime: concurrent dispatches serialize the lookup and pending write, minting only one session",
+   "err": "AssertionError [ERR_ASSERTION]: The assistant could not start this execution attempt. | at failRunBeforeStart (apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:99:76) | at evalmachine.<anonymous>:333:14 { | generatedMessage: false, | code: '"
+  },
+  {
+   "shard": "shard3",
+   "file": "apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts",
+   "test": "the dispatch-time write is awaited, so the binding is durable before the CLI is ever spawned",
+   "err": "AssertionError [ERR_ASSERTION]: the awaited agentExecutor.run call must exist | at TestContext.<anonymous> (apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:272:12) | at Test.runInAsyncScope (node:async_hooks:227:14) | at Test.run (node:inte"
+  },
+  {
+   "shard": "shard3",
+   "file": "apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts",
+   "test": "the minted id is both persisted and handed to AgentExecutor.run — one id, not two",
+   "err": "AssertionError [ERR_ASSERTION]: the mint decision must be made before agentExecutor.run is called | at TestContext.<anonymous> (apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:298:12) | at Test.runInAsyncScope (node:async_hooks:227:14) | at"
+  },
+  {
+   "shard": "shard3",
+   "file": "apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts",
+   "test": "the stored-session lookup AND the dispatch-time write both run inside the lock",
+   "err": "AssertionError [ERR_ASSERTION]: the lock must be entered before agentExecutor.run is reached | at TestContext.<anonymous> (apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:338:12) | at Test.runInAsyncScope (node:async_hooks:227:14) | at Test"
+  },
+  {
+   "shard": "shard3",
+   "file": "apps/website/src/server/runtime/composition/modules/__tests__/route-modules.unit.test.ts",
+   "test": "module 'agent-plugins': registers exactly its routes, in order, and nothing else",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | ... Skipped lines | [ | 'GET /api/admin/v1/workspaces/:workspaceId/agent-plugins',"
+  },
+  {
+   "shard": "shard3",
+   "file": "apps/website/src/server/runtime/composition/modules/__tests__/route-modules.unit.test.ts",
+   "test": "module 'members': registers exactly its routes, in order, and nothing else",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | ... Skipped lines | [ | 'GET /api/admin/v1/workspaces/:workspaceId/members',"
+  },
+  {
+   "shard": "shard3",
+   "file": "apps/website/src/server/runtime/composition/modules/__tests__/route-modules.unit.test.ts",
+   "test": "module 'plugins': registers exactly its routes, in order, and nothing else",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | [ | 'GET /api/admin/v1/workspaces/:workspaceId/chart-providers', | 'GET /api/admin/v1/workspaces/:workspaceId/chart-providers/assets/:pluginId/:version/:digest/:asset',"
+  },
+  {
+   "shard": "shard3",
+   "file": "content/agent-plugins/s3-compatible/__tests__/media-store.integration.test.mjs",
+   "test": "env-selected S3 media store end to end: uploadMedia() writes to S3-compatible storage, and the real /m/... route serves the rendition back",
+   "err": "Error: Unknown TOVU_MEDIA_BLOB_STORE 's3' — expected 'local'. | at readMediaStoreEnv (apps/website/src/features/object-storage/media-store.ts:66:11) | at createMediaBlobStore (apps/website/src/features/object-storage/media-store.ts:96:18) | at buildEnvS3MediaStore (file://content/agent-plugins/s3-co"
+  },
+  {
+   "shard": "shard3",
+   "file": "content/agent-plugins/s3-compatible/__tests__/media-store.integration.test.mjs",
+   "test": "env-selected S3 media store exports one CLIENT span per object call through the host's wrapFetch: status, never bucket, key or signature",
+   "err": "Error: Unknown TOVU_MEDIA_BLOB_STORE 's3' — expected 'local'. | at readMediaStoreEnv (apps/website/src/features/object-storage/media-store.ts:66:11) | at createMediaBlobStore (apps/website/src/features/object-storage/media-store.ts:96:18) | at buildEnvS3MediaStore (file://content/agent-plugins/s3-co"
+  },
+  {
+   "shard": "shard3",
+   "file": "content/agent-plugins/s3-compatible/__tests__/media-store.integration.test.mjs",
+   "test": "env-selected S3 media store records a transport failure on its span by error type",
+   "err": "Error: Unknown TOVU_MEDIA_BLOB_STORE 's3' — expected 'local'. | at readMediaStoreEnv (apps/website/src/features/object-storage/media-store.ts:66:11) | at createMediaBlobStore (apps/website/src/features/object-storage/media-store.ts:96:18) | at buildEnvS3MediaStore (file://content/agent-plugins/s3-co"
+  },
+  {
+   "shard": "shard4",
+   "file": "apps/website/src/__tests__/index-boot.characterization.test.ts",
+   "test": "boot pins memory preparation and HTTP listener order",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | ReferenceError: processBuildRelease is not defined | at async TestContext.<anonymous> (apps/website/src/__tests__/index-boot.characterization.test.ts:104:7)"
+  },
+  {
+   "shard": "shard4",
+   "file": "apps/website/src/__tests__/index-boot.characterization.test.ts",
+   "test": "boot pins memory preparation and HTTPS listener order",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | ReferenceError: processBuildRelease is not defined | at async TestContext.<anonymous> (apps/website/src/__tests__/index-boot.characterization.test.ts:104:7)"
+  },
+  {
+   "shard": "shard4",
+   "file": "apps/website/src/__tests__/index-boot.characterization.test.ts",
+   "test": "boot pins disk preparation and HTTP listener order",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | ReferenceError: processBuildRelease is not defined | at async TestContext.<anonymous> (apps/website/src/__tests__/index-boot.characterization.test.ts:104:7)"
+  },
+  {
+   "shard": "shard4",
+   "file": "apps/website/src/__tests__/index-boot.characterization.test.ts",
+   "test": "boot pins disk preparation and HTTPS listener order",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | ReferenceError: processBuildRelease is not defined | at async TestContext.<anonymous> (apps/website/src/__tests__/index-boot.characterization.test.ts:104:7)"
+  },
+  {
+   "shard": "shard4",
+   "file": "apps/website/src/__tests__/index-boot.characterization.test.ts",
+   "test": "disk schema refusal exits before key creation and listener reservation",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | ReferenceError: processBuildRelease is not defined | at async TestContext.<anonymous> (apps/website/src/__tests__/index-boot.characterization.test.ts:121:3)"
+  },
+  {
+   "shard": "shard4",
+   "file": "apps/website/src/__tests__/index-boot.characterization.test.ts",
+   "test": "boot diagnoses port collision and exits",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | ReferenceError: processBuildRelease is not defined | at async TestContext.<anonymous> (apps/website/src/__tests__/index-boot.characterization.test.ts:131:5)"
+  },
+  {
+   "shard": "shard4",
+   "file": "apps/website/src/__tests__/index-boot.characterization.test.ts",
+   "test": "boot rethrows unexpected listener failure",
+   "err": "AssertionError [ERR_ASSERTION]: The validation function is expected to return \"true\". Received false | Caught error: | ReferenceError: processBuildRelease is not defined | at async TestContext.<anonymous> (apps/website/src/__tests__/index-boot.characterization.test.ts:131:5)"
+  },
+  {
+   "shard": "shard4",
+   "file": "apps/website/src/platform/db/repos/__tests__/form-delivery-repo.postgres.test.ts",
+   "test": "postgres: two pulls racing for one receiver admit exactly one; the other is already-running",
+   "err": "Error: failed to drop fixture database \"tovu_form_delivery_repo_pg_fixture\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db"
+  },
+  {
+   "shard": "shard4",
+   "file": "apps/website/src/platform/db/repos/__tests__/form-delivery-repo.postgres.test.ts",
+   "test": "postgres: a purge during an in-flight attempt is final; the attempt's outcome neither revives nor resends the job",
+   "err": "Error: failed to drop fixture database \"tovu_form_delivery_repo_pg_fixture\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at recreateDatabase (/home/user/Jini/packages/db"
+  },
+  {
+   "shard": "shard4",
+   "file": "apps/website/src/platform/db/repos/__tests__/form-delivery-repo.postgres.test.ts",
+   "test": "/tmp/claude-0/-home-user/ee957620-cd5a-5cb1-a649-f4397481f126/scratchpad/Tovu-an/apps/website/src/platform/db/repos/__tests__/form-delivery-repo.postgres.test.ts",
+   "err": "Error: failed to drop fixture database \"tovu_form_delivery_repo_pg_fixture\": psql: error: connection to server on socket \"/tmp/.s.PGSQL.5432\" failed: No such file or directory | Is the server running locally and accepting connections on that socket? | at dropDatabase (/home/user/Jini/packages/db/src"
+  },
+  {
+   "shard": "shard4",
+   "file": "apps/website/src/server/__tests__/integration/member-magic-link-real-composition.unrun.integration.test.ts",
+   "test": "[unrun] member magic link [sqlite]: request mails one link, complete activates the member and persists the session behind tovu_member_session",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | { | accepted: true, | +   challengeId: '66d4c803-f9b1-41ac-a264-3149b18a585f'"
+  },
+  {
+   "shard": "shard4",
+   "file": "apps/website/src/server/__tests__/integration/member-magic-link-real-composition.unrun.integration.test.ts",
+   "test": "[unrun] member magic link [sqlite]: a link is single-use, and an unknown token is refused",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | { | accepted: true, | +   challengeId: '220981e5-c6e5-4b34-bebc-791c9b2276b6'"
+  },
+  {
+   "shard": "shard4",
+   "file": "apps/website/src/server/__tests__/integration/member-magic-link-real-composition.unrun.integration.test.ts",
+   "test": "[unrun] member magic link [sqlite]: known, unknown and disabled emails get byte-identical responses; only the disabled one is not mailed",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | { | accepted: true, | +   challengeId: 'c88a30fb-2e33-4cab-a8bd-975742cb1d03'"
+  },
+  {
+   "shard": "shard4",
+   "file": "apps/website/src/server/__tests__/integration/member-magic-link-real-composition.unrun.integration.test.ts",
+   "test": "[unrun] member magic link [sqlite]: the sixth request for one email within the hour is 429 with Retry-After, case-insensitively; another email still passes",
+   "err": "AssertionError [ERR_ASSERTION]: limit@example.com | + actual - expected | { | accepted: true, | +   challengeId: '19c8b88b-9efc-4371-b35b-d9a73c173de6'"
+  },
+  {
+   "shard": "shard4",
+   "file": "apps/website/src/server/__tests__/integration/member-magic-link-real-composition.unrun.integration.test.ts",
+   "test": "[unrun] member magic link [sqlite]: a signed-in member never gets admin access, even holding the \"*\" grant and a hand-minted operator session (F3144)",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | { | accepted: true, | +   challengeId: '2c1b290a-d98d-4b5c-8abc-977bbb0826ca'"
+  },
+  {
+   "shard": "shard4",
+   "file": "apps/website/src/server/__tests__/integration/member-magic-link-real-composition.unrun.integration.test.ts",
+   "test": "[unrun] member magic link [pglite]: request mails one link, complete activates the member and persists the session behind tovu_member_session",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | { | accepted: true, | +   challengeId: '9cf869ad-80de-4eb8-b18a-5646a5018b98'"
+  },
+  {
+   "shard": "shard4",
+   "file": "apps/website/src/server/__tests__/integration/member-magic-link-real-composition.unrun.integration.test.ts",
+   "test": "[unrun] member magic link [pglite]: a link is single-use, and an unknown token is refused",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | { | accepted: true, | +   challengeId: '88d42b46-7eec-44ba-9ff9-43b698ea053c'"
+  },
+  {
+   "shard": "shard4",
+   "file": "apps/website/src/server/__tests__/integration/member-magic-link-real-composition.unrun.integration.test.ts",
+   "test": "[unrun] member magic link [pglite]: known, unknown and disabled emails get byte-identical responses; only the disabled one is not mailed",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | { | accepted: true, | +   challengeId: 'e8a1c1a7-8c42-47de-ab73-09bf277fae2f'"
+  },
+  {
+   "shard": "shard4",
+   "file": "apps/website/src/server/__tests__/integration/member-magic-link-real-composition.unrun.integration.test.ts",
+   "test": "[unrun] member magic link [pglite]: the sixth request for one email within the hour is 429 with Retry-After, case-insensitively; another email still passes",
+   "err": "AssertionError [ERR_ASSERTION]: limit@example.com | + actual - expected | { | accepted: true, | +   challengeId: 'f793126a-7c7a-44bd-be64-7359bab722a9'"
+  },
+  {
+   "shard": "shard4",
+   "file": "apps/website/src/server/__tests__/integration/member-magic-link-real-composition.unrun.integration.test.ts",
+   "test": "[unrun] member magic link [pglite]: a signed-in member never gets admin access, even holding the \"*\" grant and a hand-minted operator session (F3144)",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal: | + actual - expected | { | accepted: true, | +   challengeId: '4884b6e8-a276-4e3f-9470-98879f29a31f'"
+  },
+  {
+   "shard": "shard4",
+   "file": "apps/website/src/server/__tests__/integration/widgets-regions-real-composition.unrun.integration.test.ts",
+   "test": "[unrun] widgets [sqlite]: a theme-declared region renders its enabled widgets in stored order on the public home; reorder, disable and trash show up on the next request",
+   "err": "AssertionError [ERR_ASSERTION]: fixture: initSite seeds no authored pages | + actual - expected | + [ | +   { | +     post: {"
+  },
+  {
+   "shard": "shard4",
+   "file": "apps/website/src/server/__tests__/integration/widgets-regions-real-composition.unrun.integration.test.ts",
+   "test": "[unrun] widgets [pglite]: a theme-declared region renders its enabled widgets in stored order on the public home; reorder, disable and trash show up on the next request",
+   "err": "AssertionError [ERR_ASSERTION]: fixture: initSite seeds no authored pages | + actual - expected | + [ | +   { | +     post: {"
+  },
+  {
+   "shard": "shard4",
+   "file": "apps/website/src/server/__tests__/visitor-assistant-safety.integration.test.ts",
+   "test": "visitor provider policy is structurally locked even with owner Full CLI access and both env switches ON",
+   "err": "AssertionError [ERR_ASSERTION]: Bash | at TestContext.<anonymous> (apps/website/src/server/__tests__/visitor-assistant-safety.integration.test.ts:304:12) | at process.processTicksAndRejections (node:internal/process/task_queues:104:5) | at async Test.run (node:internal/test_runner/test:1409:7) | at "
+  },
+  {
+   "shard": "shard4",
+   "file": "apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-resume-wiring.unit.test.ts",
+   "test": "hasConcurrentLiveRun gates whether this run may read/pass a stored resumeSessionId",
+   "err": "AssertionError [ERR_ASSERTION]: this test's own anchor (the agentExecutor.run call) must still exist verbatim | at TestContext.<anonymous> (apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-resume-wiring.unit.test.ts:161:12) | at Test.runInAsyncScope (node:async_hooks:2"
+  },
+  {
+   "shard": "shard4",
+   "file": "apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-resume-wiring.unit.test.ts",
+   "test": "the context-loss check runs, and refuses the run (finish + return), strictly before agentExecutor.run is called",
+   "err": "AssertionError [ERR_ASSERTION]: this test's own anchor (the agentExecutor.run call) must still exist verbatim | at TestContext.<anonymous> (apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-resume-wiring.unit.test.ts:218:12) | at Test.runInAsyncScope (node:async_hooks:2"
+  },
+  {
+   "shard": "shard4",
+   "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.edge-paths.route.test.ts",
+   "test": "GET /: a failing lookup of the page claiming / answers the generic 500",
+   "err": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal: | + actual - expected | + '<section id=\"jini-consent\" class=\"jini-consent\" data-has-record=\"false\" data-placement=\"bottom-right\" data-reopen=\"link\" aria-label=\"Cookie preferences\">\\n' + | +   '<div class=\"jini-consent-initial\"><h2"
+  },
+  {
+   "shard": "shard4",
+   "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.edge-paths.route.test.ts",
+   "test": "GET /: a members-only page claiming / is not shown to an anonymous visitor, who gets the default home",
+   "err": "AssertionError [ERR_ASSERTION]: Values have same structure but are not reference-equal: | ... Skipped lines | '<!doctype html>\\n' + | '<html lang=\"en\" data-theme=\"dark\">\\n' + | '<head><meta http-equiv=\"Content-Security-Policy\" content=\"script-src &#39;self&#39; &#39;unsafe-inline&#39;; object-src &#"
+  },
+  {
+   "shard": "shard4",
+   "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.edge-paths.route.test.ts",
+   "test": "GET /_more/1/12?…: a see-more URL with a form-result query answers the batch as a private response",
+   "err": "AssertionError [ERR_ASSERTION]: control: a plain batch is not private | at TestContext.<anonymous> (apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.edge-paths.route.test.ts:355:10) | at process.processTicksAndRejections (node:internal/process/task_queues:104:5) | at async Tes"
+  }
+ ]
+}
