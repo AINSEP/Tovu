@@ -6,12 +6,12 @@ appearance; do not add stats just to animate them.
 
 ## Load once
 
-Reuse the theme's vendored `scripts/vendor/kuinetic.all.js` and its license. When starting from
+Reuse the theme's vendored `scripts/vendor/kuinetic.all.min.js` and its license. When starting from
 scratch, copy them from an installed stock theme such as `tovu-starter`; never fetch a CDN copy.
 Keep one plain synchronous tag at the end of the shared footer used by each page:
 
 ```html
-<script src="/theme-assets/<theme-id>/scripts/vendor/kuinetic.all.js"></script>
+<script src="/theme-assets/<theme-id>/scripts/vendor/kuinetic.all.min.js"></script>
 ```
 
 Use the new theme's actual id. Each footer variant carries the tag, but a page includes only

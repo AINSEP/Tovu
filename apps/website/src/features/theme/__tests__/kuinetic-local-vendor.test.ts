@@ -66,12 +66,12 @@ test("stock theme pages carry no kUInetic tag or document.write of their own", (
 test("each stock footer partial loads the theme's local kUInetic exactly once", () => {
   for (const themeDir of stockThemeDirs()) {
     const id = path.basename(themeDir);
-    assert.ok(fs.existsSync(path.join(themeDir, "scripts/vendor/kuinetic.all.js")), `${id}: vendored kuinetic.all.js is shipped`);
+    assert.ok(fs.existsSync(path.join(themeDir, "scripts/vendor/kuinetic.all.min.js")), `${id}: vendored kuinetic.all.min.js is shipped`);
     assert.ok(fs.existsSync(path.join(themeDir, "scripts/vendor/kuinetic-LICENSE.md")), `${id}: its LICENSE ships next to it`);
     for (const partial of ["footer.html", "footer-minimal.html"]) {
       const markup = loadMarkup(path.join(themeDir, "render/partials", partial));
       const tags = [...markup.matchAll(/<script\b[^>]*src=["']([^"']*kuinetic[^"']*)["'][^>]*>/gi)].map((m) => m[1]);
-      assert.deepEqual(tags, [`/theme-assets/${id}/scripts/vendor/kuinetic.all.js`], `${id}/${partial}: one local kUInetic tag`);
+      assert.deepEqual(tags, [`/theme-assets/${id}/scripts/vendor/kuinetic.all.min.js`], `${id}/${partial}: one local kUInetic tag`);
       assert.doesNotMatch(markup, /<script\b[^>]*src=["']https?:/i, `${id}/${partial}: no remote script`);
       assert.ok(!markup.includes("document.write("), `${id}/${partial}: no document.write`);
     }
@@ -85,7 +85,7 @@ test("every rendered stock page runs exactly one kUInetic script, the theme's lo
     for (const pageId of Object.keys(theme.pages)) {
       const html = renderStaticPage({ theme, pageId, menus: {} }) ?? "";
       const tags = [...html.replace(/<!--[\s\S]*?-->/g, "").matchAll(/<script\b[^>]*src=["']([^"']*kuinetic[^"']*)["']/gi)].map((m) => m[1]);
-      assert.deepEqual(tags, [`/theme-assets/${id}/scripts/vendor/kuinetic.all.js`], `${id}/${pageId}`);
+      assert.deepEqual(tags, [`/theme-assets/${id}/scripts/vendor/kuinetic.all.min.js`], `${id}/${pageId}`);
       assert.ok(!html.includes("document.write("), `${id}/${pageId}: no document.write`);
     }
   }

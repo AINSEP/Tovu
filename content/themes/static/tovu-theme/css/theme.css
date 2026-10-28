@@ -105,7 +105,7 @@ p { margin: 0; color: var(--muted); }
    NOT `--kui-pin-offset`: kUInetic's docs (https://kuinetic.com/docs/catalog.md) say a pinning
    effect's `offset-top:` defaults to `var(--kui-pin-offset, 0px)`, which reads as "answer the
    header offset once via that token." That default genuinely exists in the vendored bundle
-   (`stickyParams`, `kuinetic.all.js`) — but only for the sticky/pin effects (`pin-section`/
+   (`stickyParams`, `kuinetic.all.min.js`) — but only for the sticky/pin effects (`pin-section`/
    `pin-until`/`pin-spacer`/`stacking-cards`), none of which this theme uses anywhere. `posts-
    sidebar.html` used to drive its docs sidebar with kUInetic's container-form scroll-spy
    (`data-kui="scroll-spy ..."` on `.docs-layout`) — a different code path
@@ -207,7 +207,7 @@ p { margin: 0; color: var(--muted); }
 /* ---------- scroll reveal ----------
    Deliberately NO default `opacity: 0` here — and none arrives from anywhere else
    either. Reveals are declared per element as `data-kui="fade-up ..."` and driven by
-   the vendored `scripts/vendor/kuinetic.all.js` (MIT, see
+   the vendored `scripts/vendor/kuinetic.all.min.js` (MIT, see
    `scripts/vendor/kuinetic-LICENSE.md`), which injects its entire stylesheet itself at
    load. So if that script is blocked or fails, no kUInetic CSS exists at all and every
    element renders in its normal, fully visible resting state: the hidden state lives

@@ -27,7 +27,7 @@ Everything else below is convention or optional.
     vendor/<lib>.css         # convention for a vendored third-party stylesheet, not enforced
   scripts/
     <name>.js
-    vendor/<lib>.js          # convention, e.g. basic's scripts/vendor/kuinetic.all.js
+    vendor/<lib>.js          # convention, e.g. basic's scripts/vendor/kuinetic.all.min.js
   render/
     pages/*.html             # one file per route; index.html is required
     partials/*.html           # nav/footer/etc. fragments, referenced by theme.json's `slots`
@@ -39,7 +39,7 @@ Everything else below is convention or optional.
 ```
 
 A vendored runtime such as kUInetic is loaded ONCE, from the shared footer partial every page
-includes (`<script src="/theme-assets/<theme-id>/scripts/vendor/kuinetic.all.js"></script>` — the
+includes (`<script src="/theme-assets/<theme-id>/scripts/vendor/kuinetic.all.min.js"></script>` — the
 absolute form, because partials expand after the page's `../scripts/` rewrite). Never from a CDN
 tag or a `document.write` fallback, and never repeated per page.
 

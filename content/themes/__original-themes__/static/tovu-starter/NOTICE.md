@@ -123,3 +123,9 @@ of `render/partials/footer.html` and `footer-minimal.html`, which every page inc
 synchronous: kUInetic defers its own boot to `DOMContentLoaded` while the page is parsing, so it
 still arms after `main.js`/`docs-toc.js`, and `window.kuinetic` still exists before `lightbox.js`.
 Updating kUInetic means re-vendoring the file by hand.
+
+## kUInetic ships minified (2026-10-27)
+
+`scripts/vendor/kuinetic.all.js` is replaced by `scripts/vendor/kuinetic.all.min.js`, the same
+kUInetic build's minified dist (494 KB vs 991 KB, ~119 KB vs ~231 KB gzipped). Earlier sections
+that name `kuinetic.all.js` describe the file as it was then.
