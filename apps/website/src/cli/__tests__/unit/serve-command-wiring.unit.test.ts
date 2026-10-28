@@ -226,7 +226,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
   module("../../../platform/site-dir/site-running.ts", { claimSiteRunning: (claim: unknown) => (leaseClaims.push(claim), { ready: () => { if (leaseReadyError) throw leaseReadyError; }, release: () => {} }) });
   module("../../../server/runtime/boot/plugin-sdk-resolver.ts", { registerPluginSdkResolver: () => {} });
   module("../../../server/runtime/boot/process-error-guards.ts", { installUnhandledRejectionGuard: () => {} });
-  module("../../../server/runtime/boot/boot-readiness-gate.ts", { runProductionReadinessGateOrExit: async () => {} });
+  module("../../../server/runtime/boot/boot-readiness-gate.ts", { runProductionReadinessGateOrExit: async () => {}, assertSafeOwnerCredentialBeforeListen: async () => {} });
   module("../../../server/runtime/boot/site-key-boot-notice.ts", { warnIfNoSiteKeyAtBoot: () => {} });
   module("../../../features/webhooks/site-key-ensure.ts", { ensureSiteKeyForBoot: async () => {} });
   module("../../../server/runtime/boot/bootstrap.ts", { buildBootModules: () => [], logCriticalBootFailures: (result: unknown) => { criticalFailureLogs.push(result); } });

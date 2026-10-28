@@ -23,7 +23,7 @@ import { attachServerLogFile, installServerLogCapture, serverLogFilePaths } from
 import { processBuildRelease, telemetryEnvironment } from '../../server/runtime/composition/build-release.js';
 import { registerPluginSdkResolver } from "../../server/runtime/boot/plugin-sdk-resolver.js";
 import { ensureAgentDaemonToken, ensureToolExecToken } from "../../assistant/index.js";
-import { runProductionReadinessGateOrExit } from "../../server/runtime/boot/boot-readiness-gate.js";
+import { assertSafeOwnerCredentialBeforeListen, runProductionReadinessGateOrExit } from "../../server/runtime/boot/boot-readiness-gate.js";
 import { warnIfNoSiteKeyAtBoot } from "../../server/runtime/boot/site-key-boot-notice.js";
 import { ensureSiteKeyForBoot } from "../../features/webhooks/site-key-ensure.js";
 import { findSiteKeyDependentData } from "../../platform/site-dir/site-key-dependent-data.js";
@@ -351,6 +351,7 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
   // allocate — this instance's daemon origin BEFORE `createApp()` wires the assistant proxy's
   // routes, so no inbound request can ever reach `getAgentDaemonUrl()` before it has something to
   // return. See this file's own header and `agent-daemon-port.ts`'s for the full contract.
+  await assertSafeOwnerCredentialBeforeListen({ deps, host: host });
   await ensureAgentDaemonPortResolved();
   // `createServingApp`, not bare `createApp`: it also starts the background outbox drainer (after
   // `createApp` has attached every subscriber), Trash auto-purge sweeper, theme watcher, the

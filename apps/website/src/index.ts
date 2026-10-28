@@ -10,7 +10,7 @@ import { createServingApp } from "./server/runtime/composition/serving-app.js";
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "./server/runtime/boot/dev-tls.js";
 import { createSiteRouteDeps, defaultContentDbPath, siteDir } from "./server/runtime/composition/deps.js";
 import type { SiteStore } from "./server/runtime/composition/open-site-store.js";
-import { runProductionReadinessGateOrExit } from "./server/runtime/boot/boot-readiness-gate.js";
+import { assertSafeOwnerCredentialBeforeListen, runProductionReadinessGateOrExit } from "./server/runtime/boot/boot-readiness-gate.js";
 import { warnIfNoSiteKeyAtBoot } from "./server/runtime/boot/site-key-boot-notice.js";
 import { ensureSiteKeyForBoot } from "./features/webhooks/site-key-ensure.js";
 import { findSiteKeyDependentData } from "./platform/site-dir/site-key-dependent-data.js";
@@ -282,6 +282,7 @@ async function main(): Promise<void> {
   // `JINI_AGENT_DAEMON_PORT` is set, allocate — the daemon's origin BEFORE `createApp()` wires the
   // assistant proxy's routes, so no inbound request can ever reach `getAgentDaemonUrl()` before it
   // has something to return. See `agent-daemon-port.ts`'s own header for the full contract.
+  await assertSafeOwnerCredentialBeforeListen({ deps, host: bindHost });
   await ensureAgentDaemonPortResolved();
 
   // `createServingApp`, not bare `createApp`: it also starts the background outbox drainer, after
