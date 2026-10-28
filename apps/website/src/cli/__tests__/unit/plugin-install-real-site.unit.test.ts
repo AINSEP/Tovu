@@ -5,7 +5,7 @@ import { mkdtemp, mkdir, writeFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { initSite } from "#src/platform/site-dir/init-site";
+import { initSite } from "#src/server/runtime/composition/site-dir";
 import { resolveSiteRoot } from "#src/platform/site-dir/site-root";
 import { runPluginInstallCommand } from "../../commands/plugin/install.js";
 import { runPluginIntegrityCommand } from "../../commands/plugin/integrity.js";

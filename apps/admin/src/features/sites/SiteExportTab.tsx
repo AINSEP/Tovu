@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { DataTable } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { formatTimestamp, type Translate } from "@jini-ai/ui/panel-kit";
@@ -17,12 +16,9 @@ export interface SiteExportTabProps {
   t: Translate;
   /** Test seam, same convention as `SitesProps.useSitesHook`. */
   useExport?: typeof useWiredSiteExport;
-  /** Sits beside "Export this site" (owner, 2026-10-18). The Import & Export page passed the Publish
-   *  button here until the owner removed it on 2026-10-25; nothing passes one now. */
-  publish?: ReactNode;
 }
 
-export function SiteExportTab({ t, useExport = useWiredSiteExport, publish }: SiteExportTabProps) {
+export function SiteExportTab({ t, useExport = useWiredSiteExport }: SiteExportTabProps) {
   const controller = useExport({ t });
   return (
     <section className="site-transfer" aria-label={t("Export Site")}>
@@ -40,7 +36,6 @@ export function SiteExportTab({ t, useExport = useWiredSiteExport, publish }: Si
           {controller.exporting ? <span className="site-transfer-spinner" aria-hidden="true" /> : null}
           {controller.exporting ? t("Exporting…") : t("Export this site")}
         </button>
-        {publish}
       </div>
       {controller.exportError ? <div className="notice error" role="alert">{controller.exportError}</div> : null}
       {controller.zipOnly ? (

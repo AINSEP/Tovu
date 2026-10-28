@@ -431,8 +431,9 @@ const GUARDED_MODULES = [
 // flag as a `no-deep-imports` violation) rather than tracking the move.
 const COMPOSITION_ROOTS = [
   "^apps/website/src/index\\.ts$",
-  "^apps/website/src/server/runtime/composition/deps\\.ts$",
-  "^apps/website/src/server/runtime/composition/app\\.ts$",
+  // app/deps now delegate wiring to modules and helpers in this directory. Keep inbound
+  // handlers and runtime lifecycle code outside this composition-only exemption.
+  "^apps/website/src/server/runtime/composition/",
   // `adopt.ts` joined 2026-09-06 for the identical reason `export.ts` did: it is one more CLI
   // composition root of the same shape, reaching `site-dir/repair-site.ts`'s
   // `repairSite`/`planRepairSite`/`classifySiteMarkers` and `site-dir/resolve-install-dir-target.ts`
@@ -440,6 +441,10 @@ const COMPOSITION_ROOTS = [
   // deliberately does not re-export them (see `site-dir/index.ts`'s own header).
   "^apps/website/src/cli/commands/(serve|init|introspect|export|adopt)\\.ts$",
 ];
+
+// Tests need concrete internals to exercise implementations. Match the architecture checker's
+// __tests__ / .test. / .spec. scope, including colocated tests, without exempting test-helpers.ts.
+const TEST_FILES = "(^|/)__tests__/|\\.(test|spec)\\.";
 
 // db/sqlite adapters implement other modules' port interfaces by definition (ports-and-adapters).
 // They legitimately need the port TYPE from wherever it's declared, even when that declaration
@@ -668,6 +673,7 @@ function noDeepImportRules(mod) {
         path: "^apps/website/src",
         pathNot: [
           modPath,
+          TEST_FILES,
           DB_SQLITE,
           ...COMPOSITION_ROOTS,
           TOOL_REGISTRATION_SEAM_FROM,
@@ -697,7 +703,7 @@ function noDeepImportRules(mod) {
       name: `no-deep-value-imports-from-db-sqlite:${mod}`,
       severity: "warn",
       comment: `db/sqlite adapters may deep-import ${mod}'s port TYPES (the contract they implement) but never a runtime value.`,
-      from: { path: DB_SQLITE, pathNot: ".*/__tests__/.*" },
+      from: { path: DB_SQLITE, pathNot: TEST_FILES },
       to: { path: internals, pathNot: extraToExempt, dependencyTypesNot: ["type-only"] },
     },
     {

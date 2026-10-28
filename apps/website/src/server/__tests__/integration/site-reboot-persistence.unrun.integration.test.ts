@@ -14,8 +14,8 @@ import { createApp } from "#src/server/runtime/composition/app";
 import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 import { PG_SOCKET_ENV, PGLITE_DATA_DIR_NAME, type SiteStore } from "#src/server/runtime/composition/open-site-store";
 import { defaultPgliteSocketDir, OWNER_LOCK_FILE, PGLITE_SOCKET_FILE } from "#src/platform/db/kernel/drivers/pglite-owner";
-import { bootSiteDir, closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
-import { initSite } from "#src/platform/site-dir/init-site";
+import { closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
+import { bootSiteDir, initSite } from "#src/server/runtime/composition/site-dir";
 import { loginAsOwner } from "../helpers/http-test-server.js";
 import { drainBootReadiness, expectJson, send, SITE_DIALECTS, type SiteDialect } from "../helpers/unrun-site-boot.js";
 

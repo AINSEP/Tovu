@@ -1,3 +1,4 @@
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import { toolMetadata } from '../../contracts/core/tool-metadata/domain-dns.js';
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
@@ -12,7 +13,6 @@ import {
   type PublicDnsResolver,
   type TlsStatus,
 } from "@jini-ai/diagnostics/domain-dns";
-import type { ToolContributor } from "#src/assistant/index";
 import type { AuthorizeFn } from "#src/contracts/core/commands/index";
 
 // These types remain on the registration adapter's public surface until r15 redirects the
@@ -30,13 +30,7 @@ export interface DomainDnsToolDeps {
   listExpectedHosts(required: Record<string, never>): Promise<string[]>;
   probeTls(input: { domain: string }): Promise<TlsStatus>;
 }
-interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema: Readonly<Record<string, unknown>>;
-}
+type AgentToolDefinition = SharedAgentToolDefinition & { inputSchema: Readonly<Record<string, unknown>> };
 const domainSchema = { type: "string", minLength: 1, maxLength: 254, description: "Public DNS hostname, such as example.com or www.example.com; no URL, IP, port, or path." };
 export const domainDnsAgentToolCatalog: AgentToolDefinition[] = [
   {
@@ -172,17 +166,4 @@ export function buildDomainDnsRegistrations(deps: DomainDnsToolDeps): ToolRegist
       return toolInputBoundary({ check: () => checks.tlsStatus({ domain: input.domain }) });
     },
   } });
-}
-
-/**
- * Supplies Tovu's ports from the composition root without constructing network clients here.
- * @param required Host dependency factory; invoked only during tool catalog assembly.
- * @returns The domain contributor and its unchanged derived-risk map.
- * @complexity O(1).
- * @example contributeDomainDnsTools({ createDeps });
- */
-export function contributeDomainDnsTools({ createDeps }: {
-  createDeps: (routeDeps: Parameters<ToolContributor["build"]>[0]) => DomainDnsToolDeps;
-}): ToolContributor {
-  return { domain: "domain-dns", build: routeDeps => buildDomainDnsRegistrations(createDeps(routeDeps)), risk: domainDnsDerivedRisk };
 }

@@ -10,6 +10,7 @@ import { InMemoryMenuRepo, NAV_DOC_TYPE } from "#src/features/navigation/index";
 import type { NavMenuEntry } from "#src/features/navigation/index";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import { assertDefaultConsentPage } from "#src/server/__tests__/helpers/default-consent-page";
 import { resolveHtmlEmbedsForRender, resolveMediaAssetMetadataForRender } from "#src/server/inbound/public-http/routes/site/pages";
 import type { RouteDeps } from "#src/server/routes/types";
 
@@ -328,7 +329,7 @@ test("integration: GET / 500s with a generic 'Site error' when an unexpected exc
 
   const res = await fetch(baseUrl);
   assert.equal(res.status, 500);
-  assert.equal(await res.text(), "<h1>Site error</h1>");
+  assert.equal(assertDefaultConsentPage({ html: await res.text() }).contentHtml, "<h1>Site error</h1>");
 });
 
 /** Mirrors `pages.route.test.ts`'s unit-tier `staticThemeWithEmptyPage`/empty-page test -- see that

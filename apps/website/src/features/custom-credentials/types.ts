@@ -116,7 +116,7 @@ export function allowedOriginsFor(record: { readonly baseUrl: string; readonly a
 
 /** Workspace-scoped persistence for {@link CustomCredentialSetRecord} (ADR-007 §1). `insert`
  *  assumes the caller already checked/accepted the `(workspaceId, label)` UNIQUE constraint may
- *  reject it — see `store.ts`'s `isUniqueLabelViolation`. */
+ *  reject it — `store.ts` uses the storage kernel's `isUniqueViolation`. */
 export interface CustomCredentialSetRepoPort {
   readonly vault?: VaultRepoPort;
   /** The project store this site's rows fall back to (`store.ts`'s scope rule: site first, then

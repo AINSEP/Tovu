@@ -6,11 +6,7 @@ import { HttpError, type AssistantConversation } from "../../lib/assistant-chats
 import { createFakeAssistantChatsPort, defaultAssistantChatsPort } from "../assistant-chats-dependencies.hooks";
 import type { AssistantChatsPort } from "../assistant-chats-port.hooks";
 import {
-  attemptSave,
-  giveUpOutcome,
-  handleSaveFailure,
   sharedPort,
-  summarizeFlushOutcomes,
   useAssistantChats,
   useWiredAssistantChats,
 } from "../use-assistant-chats.hooks";
@@ -79,143 +75,13 @@ const message = (id: string, content: string) => ({
 });
 
 /**
- * `giveUpOutcome` / `handleSaveFailure` / `attemptSave` — pulled out of `saveWithRetry`'s loop body
- * (2026-08-06, complexity pass, sixth pass; this extraction is what disproved that function's
- * earlier `@complexityExemption`, see its own doc). The `describe("a failed message write is
- * retried"...)` and `describe("guards proven necessary by deleting them"...)` blocks further down
- * already exercise all five {@link SaveOutcome} paths end to end through a mounted hook; these pin
- * each extracted unit's own contract directly, no hook, no `onMessagesChange` involved.
+ * Jini owns write classification and settled-batch decisions, with direct tests in
+ * `assistant-chats.pure.cov-j2.test.ts`. The retry and guard cases below exercise those decisions
+ * through the host's HttpError status port and a mounted hook.
+ *
+ * A rejected fetch has no HttpError status and is transient. A 3xx HttpError is neither transient
+ * (404/429/5xx) nor permanent (other 4xx), so it exhausts without retrying.
  */
-describe("giveUpOutcome", () => {
-  it("classifies a 404 as missing", () => {
-    expect(giveUpOutcome(new HttpError(404, "Not Found"))).toBe("missing");
-  });
-
-  it("classifies anything else (a non-HttpError, or a different status) as exhausted", () => {
-    expect(giveUpOutcome(new HttpError(503, "Service Unavailable"))).toBe("exhausted");
-    expect(giveUpOutcome(new TypeError("network down"))).toBe("exhausted");
-  });
-});
-
-describe("handleSaveFailure", () => {
-  const isDisposed = () => false;
-
-  it("returns permanent for a 400-class error, without touching the retry ladder", async () => {
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const result = await handleSaveFailure(new HttpError(400, "Bad Request"), "c1", message("m1", "x"), 0, isDisposed);
-    expect(result).toEqual({ done: true, outcome: "permanent" });
-    expect(errorSpy).toHaveBeenCalledTimes(1);
-    errorSpy.mockRestore();
-  });
-
-  it("returns exhausted immediately for an HttpError status that is neither transient nor permanent", async () => {
-    // `isTransient` treats any non-HttpError as transient (a rejected fetch with no status at all
-    // is exactly the retryable case) — so the only way to reach the `!isTransient` branch is an
-    // HttpError whose status falls outside BOTH classifications: not 404/429/5xx (transient) and
-    // not 400-499-except-404/429 (permanent). A 3xx is the narrow gap between them.
-    const result = await handleSaveFailure(new HttpError(300, "weird"), "c1", message("m1", "x"), 0, isDisposed);
-    expect(result).toEqual({ done: true, outcome: "exhausted" });
-  });
-
-  it("gives up immediately (no sleep) once the retry ladder is exhausted (delay undefined)", async () => {
-    const result = await handleSaveFailure(new HttpError(503, "Service Unavailable"), "c1", message("m1", "x"), 3, isDisposed);
-    expect(result).toEqual({ done: true, outcome: "exhausted" });
-  });
-
-  it("gives up immediately when already disposed, without sleeping", async () => {
-    const result = await handleSaveFailure(new HttpError(503, "Service Unavailable"), "c1", message("m1", "x"), 0, () => true);
-    expect(result).toEqual({ done: true, outcome: "exhausted" });
-  });
-
-  it("sleeps the backoff delay, then signals retry (done: false) when still transient and not disposed", async () => {
-    vi.useFakeTimers();
-    const promise = handleSaveFailure(new HttpError(503, "Service Unavailable"), "c1", message("m1", "x"), 0, isDisposed);
-    await vi.advanceTimersByTimeAsync(1_000);
-    expect(await promise).toEqual({ done: false });
-  });
-
-  it("re-checks isDisposed AFTER the sleep too — torn down mid-backoff still gives up", async () => {
-    vi.useFakeTimers();
-    let disposed = false;
-    const promise = handleSaveFailure(new HttpError(503, "Service Unavailable"), "c1", message("m1", "x"), 0, () => disposed);
-    disposed = true;
-    await vi.advanceTimersByTimeAsync(1_000);
-    expect(await promise).toEqual({ done: true, outcome: "exhausted" });
-  });
-
-  it("reports missing (not exhausted) when the ladder gives up against a 404", async () => {
-    const result = await handleSaveFailure(new HttpError(404, "Not Found"), "c1", message("m1", "x"), 3, isDisposed);
-    expect(result).toEqual({ done: true, outcome: "missing" });
-  });
-});
-
-describe("attemptSave", () => {
-  it("returns saved once port.saveMessage resolves", async () => {
-    const port = createFakeAssistantChatsPort({ conversations: [{ id: "c1", title: null, titleSource: "fallback", messageCount: 0, createdAt: 1, updatedAt: 1 }] });
-    const result = await attemptSave(port, "c1", message("m1", "hi"), 0, () => false);
-    expect(result).toEqual({ done: true, outcome: "saved" });
-  });
-
-  it("delegates a thrown failure to handleSaveFailure rather than rejecting", async () => {
-    const port = createFakeAssistantChatsPort({
-      conversations: [{ id: "c1", title: null, titleSource: "fallback", messageCount: 0, createdAt: 1, updatedAt: 1 }],
-      onSaveMessage: () => {
-        throw new HttpError(400, "Bad Request");
-      },
-    });
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const result = await attemptSave(port, "c1", message("m1", "hi"), 0, () => false);
-    expect(result).toEqual({ done: true, outcome: "permanent" });
-    errorSpy.mockRestore();
-  });
-});
-
-/**
- * `summarizeFlushOutcomes` — pulled out of `flush`'s `Promise.all(...).then(...)` continuation
- * (2026-08-06, complexity pass). Directly assertable with a plain array of outcomes, no port, no
- * timers, no React state — the same reduction the "re-reads the list when a write keeps 404ing"
- * and "does not retry a 400" integration tests further down exercise indirectly through a full
- * mounted hook; these pin the decision itself.
- */
-describe("summarizeFlushOutcomes", () => {
-  const outcome = (id: string, outcome: "saved" | "exhausted" | "permanent" | "missing") => ({
-    message: message(id, "x"),
-    outcome,
-  });
-
-  it("releases exhausted and missing ids for retry, but not saved or permanent ones", () => {
-    const { idsToRelease } = summarizeFlushOutcomes(
-      [outcome("saved-1", "saved"), outcome("exhausted-1", "exhausted"), outcome("permanent-1", "permanent"), outcome("missing-1", "missing")],
-      true,
-    );
-    expect(idsToRelease.sort()).toEqual(["exhausted-1", "missing-1"]);
-  });
-
-  it("refreshes when any message saved, regardless of the conversation's active state", () => {
-    expect(summarizeFlushOutcomes([outcome("m1", "saved")], false).shouldRefresh).toBe(true);
-    expect(summarizeFlushOutcomes([outcome("m1", "saved")], true).shouldRefresh).toBe(true);
-  });
-
-  it("refreshes on a missing outcome only while the conversation is still the active one", () => {
-    expect(summarizeFlushOutcomes([outcome("m1", "missing")], true).shouldRefresh).toBe(true);
-    expect(summarizeFlushOutcomes([outcome("m1", "missing")], false).shouldRefresh).toBe(false);
-  });
-
-  it("does not refresh on exhausted-only or permanent-only outcomes", () => {
-    expect(summarizeFlushOutcomes([outcome("m1", "exhausted")], true).shouldRefresh).toBe(false);
-    expect(summarizeFlushOutcomes([outcome("m1", "permanent")], true).shouldRefresh).toBe(false);
-  });
-
-  it("a mix of saved and missing still refreshes exactly once — the OR, not a double-trigger", () => {
-    const result = summarizeFlushOutcomes([outcome("m1", "saved"), outcome("m2", "missing")], true);
-    expect(result.shouldRefresh).toBe(true);
-    expect(result.idsToRelease).toEqual(["m2"]);
-  });
-
-  it("an empty batch releases nothing and does not refresh", () => {
-    expect(summarizeFlushOutcomes([], true)).toEqual({ idsToRelease: [], shouldRefresh: false });
-  });
-});
 
 describe("typing with no conversation selected", () => {
   it("creates one and persists the messages instead of discarding them", async () => {

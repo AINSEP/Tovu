@@ -74,7 +74,8 @@ test("REQ-07: AUTH_ME returns the owner principal with '*' in its effective perm
     canManageUserTrash: boolean;
   };
   assert.equal(body.user.username, "admin");
-  assert.deepEqual(body.effectivePermissions, ["*"]);
+  // ffb1cd102 adds an explicit owner/admin visitor-tools grant alongside the owner's wildcard.
+  assert.deepEqual(body.effectivePermissions, ["*", "visitor-tools.manage"]);
   // Delete-user plan v2 (2026-09-24), Slice 4: the seeded owner always passes
   // `callerMayManageUserTrash` (the unconstrained `*` branch), independent of any role assignment —
   // the admin Users screen's row-menu Delete item reads this to decide whether to render at all.

@@ -14,7 +14,9 @@ import { getTableConfig, type PgTable } from "drizzle-orm/pg-core";
 import { getTableConfig as getSqliteTableConfig } from "drizzle-orm/sqlite-core";
 
 import * as pgSchema from "#src/platform/db/schema.postgres";
-import { collectTransferTables, countPartialExclusions, countSourceRows, DEFAULT_TRANSFER_SCHEMA, inspectTarget, planSnapshotTables, runCopy, siteSchemaName, type CopyResult } from "../copy-engine.js";
+import { countSourceRows, inspectTarget, runCopy, type CopyResult } from "@jini-ai/db/transfer";
+import { collectTransferTables, countPartialExclusions, DEFAULT_TRANSFER_SCHEMA, planSnapshotTables, TRANSFER_NAMING } from "../copy-engine.js";
+import { TOVU_TRANSFER_MESSAGES } from "../transfer-messages.js";
 import { EXCLUDED_CORE_TABLES } from "../exclusions.js";
 import { createPsqlPostgresTarget } from "../postgres-target.js";
 import { openSqliteSnapshotSource } from "../sqlite-source.js";
@@ -86,14 +88,15 @@ async function count(table: string, schema: string): Promise<number> {
   return Number(await sql(FIXTURE_DB, `SELECT count(*) FROM "${schema}"."${table}"`));
 }
 
-/** What the tools do: inspect the destination for this site's schema, then copy into it. */
+/** Inspect the destination for this site's schema, then copy into it.
+ * These fixtures remain single-source; the tools use Jini's multi-source API directly. */
 async function copyAs(site: string, snapshotAt: string, bytes: Buffer = fixtureSnapshot()): Promise<{ schema: string; result: CopyResult }> {
-  const inspected = await inspectTarget(TARGET(), site);
+  const inspected = await inspectTarget({ target: TARGET(), site, naming: TRANSFER_NAMING });
   assert.ok(inspected.ok && inspected.schema !== null, JSON.stringify(inspected));
   const source = openSqliteSnapshotSource(bytes);
   try {
-    const { tables } = planSnapshotTables(source);
-    const result = await runCopy({ source, target: TARGET(), tables, counts: countSourceRows(source, tables), schema: inspected.schema, marker: { site, snapshotAt }, replaceExisting: inspected.lastCopy !== null });
+    const { tables, leftOut } = planSnapshotTables(source);
+    const result = await runCopy({ sources: [{ name: "content.db", source, tables, counts: countSourceRows({ source, tables }, { messages: TOVU_TRANSFER_MESSAGES }), leftOut }], target: TARGET(), naming: TRANSFER_NAMING, schema: inspected.schema, marker: { site, snapshotAt }, replaceExisting: inspected.lastCopy !== null }, { messages: TOVU_TRANSFER_MESSAGES });
     return { schema: inspected.schema, result };
   } finally {
     source.close();
@@ -104,8 +107,8 @@ async function copyAs(site: string, snapshotAt: string, bytes: Buffer = fixtureS
 async function copyInto(schema: string, site: string): Promise<CopyResult> {
   const source = openSqliteSnapshotSource(fixtureSnapshot());
   try {
-    const tables = collectTransferTables();
-    return await runCopy({ source, target: TARGET(), tables, counts: countSourceRows(source, tables), schema, marker: { site, snapshotAt: "x" }, replaceExisting: false });
+    const { tables, leftOut } = planSnapshotTables(source);
+    return await runCopy({ sources: [{ name: "content.db", source, tables, counts: countSourceRows({ source, tables }, { messages: TOVU_TRANSFER_MESSAGES }), leftOut }], target: TARGET(), naming: TRANSFER_NAMING, schema, marker: { site, snapshotAt: "x" }, replaceExisting: false }, { messages: TOVU_TRANSFER_MESSAGES });
   } finally {
     source.close();
   }
@@ -125,11 +128,11 @@ test("the first site's copy lands in `tovu` with the same row count as SQLite fo
   assert.deepEqual(tables.map((table) => table.name).sort(), expectedNames.sort());
   assert.ok(!tables.some((table) => table.name in EXCLUDED_CORE_TABLES));
 
-  const before = await inspectTarget(TARGET(), SITE);
+  const before = await inspectTarget({ target: TARGET(), site: SITE, naming: TRANSFER_NAMING });
   assert.deepEqual(before.ok && [before.schemaState, before.schema, before.lastCopy], ["absent", DEFAULT_TRANSFER_SCHEMA, null]);
 
   const source = openSqliteSnapshotSource(fixtureSnapshot());
-  const counts = countSourceRows(source, tables);
+  const counts = countSourceRows({ source, tables }, { messages: TOVU_TRANSFER_MESSAGES });
   source.close();
   const { schema, result } = await copyAs(SITE, "2026-09-27T12:00:00.000Z");
   assert.equal(schema, "tovu");
@@ -143,7 +146,7 @@ test("the first site's copy lands in `tovu` with the same row count as SQLite fo
   assert.equal(await sql(FIXTURE_DB, `SELECT overrides_theme_page FROM tovu.posts`), "t");
   assert.equal(await sql(FIXTURE_DB, `SELECT to_regclass('tovu.identity_users') IS NULL`), "t", "an excluded table must not be created");
 
-  const after = await inspectTarget(TARGET(), SITE);
+  const after = await inspectTarget({ target: TARGET(), site: SITE, naming: TRANSFER_NAMING });
   assert.deepEqual(after.ok && [after.schemaState, after.schema, after.lastCopy], ["ours", "tovu", { site: SITE, snapshotAt: "2026-09-27T12:00:00.000Z" }]);
 });
 
@@ -179,7 +182,7 @@ test("a schema someone else made (no marker) is refused and left untouched, and 
   assert.equal(await sql(FIXTURE_DB, `SELECT v FROM tovu_someone.theirs`), "keep me");
   assert.equal(await sql(FIXTURE_DB, `SELECT to_regclass('tovu_someone.menus') IS NULL`), "t");
 
-  const inspected = await inspectTarget(TARGET(), "someone");
+  const inspected = await inspectTarget({ target: TARGET(), site: "someone", naming: TRANSFER_NAMING });
   assert.equal(inspected.ok && inspected.schemaState, "absent");
   assert.match(inspected.ok ? String(inspected.schema) : "", /^tovu_someone_[0-9a-f]{8}$/, "the readable name is taken, so the hashed one is used");
 });
@@ -199,7 +202,7 @@ test("two sites share one database: the second gets `tovu_<site>`, each re-copy 
   assert.equal(await count("menus", "tovu_other_site"), 3, "re-copying site A must not touch site B's schema");
 
   await sql(FIXTURE_DB, `DROP SCHEMA tovu CASCADE`);
-  const again = await inspectTarget(TARGET(), "other-site");
+  const again = await inspectTarget({ target: TARGET(), site: "other-site", naming: TRANSFER_NAMING });
   assert.deepEqual(again.ok && [again.schemaState, again.schema, again.lastCopy], ["ours", "tovu_other_site", { site: "other-site", snapshotAt: "2026-09-27T14:00:00.000Z" }]);
 });
 
@@ -226,10 +229,10 @@ test("a count mismatch or rejected replacement preserves the earlier rows and ma
   await sql(FIXTURE_DB, "UPDATE tovu.menus SET title = 'original sentinel' WHERE id = 'menu-1'");
   const replacement = fixtureSnapshot();
   const source = openSqliteSnapshotSource(replacement);
-  const tables = collectTransferTables();
   try {
-    const counts = countSourceRows(source, tables).map((entry) => entry.table.name === "menus" ? { ...entry, rows: entry.rows + 1 } : entry);
-    const result = await runCopy({ source, target: TARGET(), tables, counts, schema: "tovu", marker: { site: SITE, snapshotAt: "replacement" }, replaceExisting: true });
+    const { tables, leftOut } = planSnapshotTables(source);
+    const counts = countSourceRows({ source, tables }, { messages: TOVU_TRANSFER_MESSAGES }).map((entry) => entry.table.name === "menus" ? { ...entry, rows: entry.rows + 1 } : entry);
+    const result = await runCopy({ sources: [{ name: "content.db", source, tables, counts, leftOut }], target: TARGET(), naming: TRANSFER_NAMING, schema: "tovu", marker: { site: SITE, snapshotAt: "replacement" }, replaceExisting: true }, { messages: TOVU_TRANSFER_MESSAGES });
     assert.equal(!result.ok && result.code, "COUNT_MISMATCH");
     assert.match(!result.ok ? result.message : "", /menus/);
   } finally {
@@ -276,7 +279,7 @@ test("a setting marked secret stays behind (values at every scope and its histor
     c.close();
   }
   const source = openSqliteSnapshotSource(bytes);
-  const counts = countSourceRows(source, collectTransferTables());
+  const counts = countSourceRows({ source, tables: collectTransferTables() }, { messages: TOVU_TRANSFER_MESSAGES });
   assert.equal(counts.find((entry) => entry.table.name === "setting_values_global")?.rows, 1);
   assert.equal(counts.find((entry) => entry.table.name === "setting_revisions")?.rows, 0);
   for (const scope of ["workspace", "user"]) assert.equal(counts.find((entry) => entry.table.name === `setting_values_${scope}`)?.rows, 1);
@@ -295,21 +298,6 @@ test("a setting marked secret stays behind (values at every scope and its histor
   }
   assert.equal(await count("setting_revisions", schema), 0);
   assert.equal(await count("setting_definitions", schema), 2, "definitions are not secret; only their values are");
-});
-
-test("siteSchemaName: the readable per-site schema for every site after the first, a safe identifier of at most 63 bytes", () => {
-  assert.equal(siteSchemaName("tovu-dev"), "tovu_tovu_dev");
-  assert.equal(siteSchemaName("My Site"), "tovu_my_site");
-  assert.equal(siteSchemaName("other-site"), "tovu_other_site");
-  const long = "a-very-long-site-name-".repeat(5);
-  assert.equal(siteSchemaName(long), siteSchemaName(long), "stable");
-  assert.match(siteSchemaName(long), /^tovu_a_very_long_site_name_a_very_long_site_name_a_ver_[0-9a-f]{8}$/);
-  assert.ok(Buffer.byteLength(siteSchemaName(long)) <= 63);
-  assert.notEqual(siteSchemaName(long), siteSchemaName(`${long}x`), "a truncated name keeps a hash of the whole name");
-  assert.match(siteSchemaName("---"), /^tovu_[0-9a-f]{8}$/);
-  assert.match(siteSchemaName("café"), /^tovu_caf_[0-9a-f]{8}$/, "a name that loses characters keeps a hash, so 'café' and 'caf' differ");
-  assert.match(siteSchemaName("My Site!"), /^tovu_my_site_[0-9a-f]{8}$/);
-  assert.notEqual(siteSchemaName("public"), "public");
 });
 
 /** The Postgres schema's own declarations for the tables a copy carries, for comparison. */
@@ -338,6 +326,20 @@ test("T1: the copy carries the schema's indexes, foreign keys, checks, defaults 
   assert.deepEqual(result.unvalidatedConstraints, []);
   const copied = new Set(result.tables.map((table) => table.name));
   const declared = declaredFor(copied);
+  const coreNames = new Set(collectCoreTables().map(({ table }) => getSqliteTableConfig(table).name));
+  const source = openSqliteSnapshotSource(bytes);
+  try {
+    // Migration-only tables have no Drizzle declaration; their source layout is the reference.
+    for (const name of [...copied].filter(name => !coreNames.has(name))) {
+      const layout = source.layout(name);
+      assert.ok(layout, `source layout for ${name}`);
+      // These tables have text/composite primary keys, whose indexes SQLite also lists.
+      declared.indexes += layout.indexes.length;
+      declared.foreignKeys += layout.foreignKeys.filter(fk => copied.has(fk.foreignTable)).length;
+    }
+  } finally {
+    source.close();
+  }
   const q = (text: string) => sql(FIXTURE_DB, text);
   assert.equal(Number(await q(`SELECT count(*) FROM pg_indexes WHERE schemaname = '${schema}' AND tablename <> '_tovu_transfer'`)), declared.indexes);
   assert.equal(Number(await q(`SELECT count(*) FROM pg_constraint WHERE connamespace = '${schema}'::regnamespace AND contype = 'f'`)), declared.foreignKeys);
@@ -347,9 +349,15 @@ test("T1: the copy carries the schema's indexes, foreign keys, checks, defaults 
   assert.equal(await q(`SELECT is_identity || ' ' || identity_generation FROM information_schema.columns WHERE table_schema = '${schema}' AND table_name = 'agent_tool_attempts' AND column_name = 'id'`), "YES ALWAYS");
   assert.equal(await q(`INSERT INTO "${schema}".agent_tool_attempts (attempt_id, workspace_id, run_id, tool_id, principal_id, phase, at) VALUES ('new', 'ws', 'r', 't', 'p', 'start', 'x') RETURNING id`), "8");
   assert.equal([...copied].some(name => name.startsWith("commerce_")), false, "retired core commerce is absent from the snapshot and target");
-  await assert.rejects(q(`INSERT INTO "${schema}".publish_backstop_log
+  const invalidDirectionInsert = `INSERT INTO "${schema}".publish_backstop_log
     (id, workspace_id, direction, actor_id, destination, reason, at, items_json, gap_labels_json, result, details_json, inverses_json)
-    VALUES ('invalid', 'ws', 'sideways', 'owner', 'peer', 'check', 'x', '[]', '[]', 'success', '{}', '[]')`), /violates check constraint/);
+    VALUES ('invalid', 'ws', 'sideways', 'owner', 'peer', 'check', 'x', '[]', '[]', 'success', '{}', '[]')`;
+  // c5fded4b redacts psql diagnostics. An otherwise identical valid row proves the refusal is
+  // specific to direction, rather than a connection/DDL failure hidden by the generic message.
+  await assert.rejects(q(invalidDirectionInsert), { message: `${FIXTURE_DB}: psql request failed` });
+  assert.equal(await q(`SELECT count(*) FROM "${schema}".publish_backstop_log WHERE id = 'invalid'`), "0");
+  await q(invalidDirectionInsert.replace("'sideways'", "'source'"));
+  assert.equal(await q(`SELECT direction FROM "${schema}".publish_backstop_log WHERE id = 'invalid'`), "source");
 });
 
 test("T1: a source row whose parent is missing does not stop the copy; that foreign key is kept unvalidated and named in the result", async () => {

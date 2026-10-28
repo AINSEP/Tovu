@@ -1,3 +1,4 @@
+import { parseSmtpEndpoint } from "@jini-ai/platform/mail";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -12,7 +13,7 @@ import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/ht
 import type { SmtpMailPayload, SmtpTransport } from "#src/platform/mail/index";
 import type { CustomCredentialSetRecord, CustomCredentialSetRepoPort } from "#src/features/custom-credentials/index";
 import type { MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
-import { createResolvedMailer, parseSmtpEndpoint, MAIL_SMTP_CREDENTIAL_LABEL, type MailProviderSettingPort, type ResolveMailerDeps } from "../resolve-mailer.js";
+import { createResolvedMailer, MAIL_SMTP_CREDENTIAL_LABEL, type MailProviderSettingPort, type ResolveMailerDeps } from "../resolve-mailer.js";
 import type { MailProviderSetting } from "@jini-ai/platform/mail";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
@@ -145,9 +146,9 @@ async function saveSmtpKey(credentialDeps: CustomCredentialWriteDeps, connection
 }
 
 test("parseSmtpEndpoint: explicit 465/443 are secure, 587 and other ports are not, and a portless https URL defaults to 443", () => {
-  assert.deepEqual(parseSmtpEndpoint("https://smtp.example.com:465"), { host: "smtp.example.com", port: 465, secure: true });
-  assert.deepEqual(parseSmtpEndpoint("https://smtp.example.com:587"), { host: "smtp.example.com", port: 587, secure: false });
-  assert.deepEqual(parseSmtpEndpoint("https://smtp.example.com"), { host: "smtp.example.com", port: 443, secure: true });
+  assert.deepEqual(parseSmtpEndpoint({ baseUrl: "https://smtp.example.com:465" }), { host: "smtp.example.com", port: 465, secure: true });
+  assert.deepEqual(parseSmtpEndpoint({ baseUrl: "https://smtp.example.com:587" }), { host: "smtp.example.com", port: 587, secure: false });
+  assert.deepEqual(parseSmtpEndpoint({ baseUrl: "https://smtp.example.com" }), { host: "smtp.example.com", port: 443, secure: true });
 });
 
 test("first boot with a saved hosted-API key stays unconfigured without calling the provider", async () => {

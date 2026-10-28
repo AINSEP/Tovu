@@ -12,9 +12,9 @@ import { copyRowsIntoOlderSchema, migrateToBeforeSiteTitleMarker } from "#src/pl
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { seedContentStore } from "#src/platform/db/prepare-content-store";
 import { hydrateContentDbFromSeed } from "#src/platform/db/sqlite/hydrate-content-db-from-seed";
-import { bootSiteDir, closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
+import { closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
+import { bootSiteDir, initSite } from "#src/server/runtime/composition/site-dir";
 import { duplicateSite } from "#src/platform/site-dir/duplicate-site";
-import { initSite } from "#src/platform/site-dir/init-site";
 import { removeFrozenPackageTree } from "#src/features/agent-plugins/lifecycle";
 import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
 import { readTemplate } from "#src/platform/site-dir/read-template";

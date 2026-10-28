@@ -120,44 +120,7 @@ function resolveTovuSha(repoRoot) {
 }
 
 
-function main() {
-  const repoRoot = path.resolve(import.meta.dirname, "..", "..");
-  const rootPkgPath = path.join(repoRoot, "package.json");
-  const tsconfigPath = path.join(repoRoot, "tsconfig.json");
-  const distDir = path.join(repoRoot, "dist");
-
-  const rootPkg = JSON.parse(readFileSync(rootPkgPath, "utf8"));
-
-  if (rootPkg.imports === undefined) {
-    throw new Error(
-      `No "imports" field in ${rootPkgPath}. The #src/* subpath mapping is required for the ` +
-        `compiled output to resolve; refusing to emit a dist/package.json that would silently ` +
-        `resolve nothing.`,
-    );
-  }
-
-  const tsconfig = JSON.parse(readFileSync(tsconfigPath, "utf8"));
-  const rootDir = tsconfig.compilerOptions?.rootDir;
-  if (rootDir === undefined) {
-    throw new Error(
-      `No compilerOptions.rootDir in ${tsconfigPath}. dist/package.json's imports mapping needs ` +
-        `it to know where tsc's compiled output actually lands relative to dist/.`,
-    );
-  }
-
-  const distPkg = {
-    name: `${rootPkg.name}-dist`,
-    version: rootPkg.version,
-    private: true,
-    type: rootPkg.type ?? "commonjs",
-    imports: deriveDistImports(rootPkg.imports, rootDir),
-  };
-
-  mkdirSync(distDir, { recursive: true });
-  writeFileSync(path.join(distDir, "package.json"), `${JSON.stringify(distPkg, null, 2)}\n`, "utf8");
-
-  console.log(`Wrote dist/package.json (imports: ${Object.keys(distPkg.imports).join(", ")})`);
-
+function emitRuntimeManifest({ repoRoot, rootPkgPath, rootPkg, distDir }, _options = {}) {
   if (rootPkg.bin?.tovu === undefined) {
     throw new Error(`No "bin.tovu" field in ${rootPkgPath}. runtime-manifest.json's cliEntry has nowhere to read from.`);
   }
@@ -183,6 +146,47 @@ function main() {
   writeFileSync(path.join(distDir, "runtime-manifest.json"), `${JSON.stringify(runtimeManifest, null, 2)}\n`, "utf8");
 
   console.log(`Wrote dist/runtime-manifest.json (cliEntry: ${runtimeManifest.cliEntry}, tovuVersion: ${runtimeManifest.tovuVersion})`);
+}
+
+function main() {
+  const repoRoot = path.resolve(import.meta.dirname, "..", "..");
+  const rootPkgPath = path.join(repoRoot, "package.json");
+  const tsconfigPath = path.join(repoRoot, "tsconfig.json");
+  const distDir = path.join(repoRoot, "dist");
+
+  const rootPkg = JSON.parse(readFileSync(rootPkgPath, "utf8"));
+
+  if (rootPkg.imports === undefined) {
+    throw new Error(
+      `No "imports" field in ${rootPkgPath}. The #src/* subpath mapping is required for the ` +
+      `compiled output to resolve; refusing to emit a dist/package.json that would silently ` +
+      `resolve nothing.`,
+    );
+  }
+
+  const tsconfig = JSON.parse(readFileSync(tsconfigPath, "utf8"));
+  const rootDir = tsconfig.compilerOptions?.rootDir;
+  if (rootDir === undefined) {
+    throw new Error(
+      `No compilerOptions.rootDir in ${tsconfigPath}. dist/package.json's imports mapping needs ` +
+      `it to know where tsc's compiled output actually lands relative to dist/.`,
+    );
+  }
+
+  const distPkg = {
+    name: `${rootPkg.name}-dist`,
+    version: rootPkg.version,
+    private: true,
+    type: rootPkg.type ?? "commonjs",
+    imports: deriveDistImports(rootPkg.imports, rootDir),
+  };
+
+  mkdirSync(distDir, { recursive: true });
+  writeFileSync(path.join(distDir, "package.json"), `${JSON.stringify(distPkg, null, 2)}\n`, "utf8");
+
+  console.log(`Wrote dist/package.json (imports: ${Object.keys(distPkg.imports).join(", ")})`);
+
+  emitRuntimeManifest({ repoRoot, rootPkgPath, rootPkg, distDir });
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {

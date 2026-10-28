@@ -470,8 +470,11 @@ export interface StaticPostPreview {
   readonly featuredImage?: StaticFeaturedImage | null;
 }
 
-/** One marker's batch size — what {@link scanPostPreviewsLimit} fetches, what
- *  {@link injectPostPreviewsEmbeds} shows, and a see-more listing's batch size, so they never disagree. */
+/** One marker's batch size — what the route fetches, what {@link injectPostPreviewsEmbeds} shows,
+ *  and a see-more listing's batch size, so they never disagree.
+ *  The route scans only the current page: unlike shared menu chrome, post listings are page-scoped,
+ *  so pages without a marker must not query posts. Plain markers share one bounded query at the
+ *  widest clamped size; each marker slices its own limit. Keyed/paged listings resolve separately. */
 export function postPreviewsBatchSize(marker: Pick<EmbedMarker, "config">): number {
   return parseListingBatchSize({ config: marker.config }, { fallback: LEGACY_POST_PREVIEWS_LIMIT });
 }
@@ -563,30 +566,6 @@ function renderPagedPostPreviews(
 ): string | undefined {
   if (page.items.length === 0) return undefined;
   return withInnerContent({ marker, inner: page.items.map(renderPostPreviewCard).join("") }) + page.nav;
-}
-
-/**
- * Every `{"type":"post-previews"}` marker's own `limit` in `html` — the CURRENT page about to
- * render, not the whole theme. Unlike {@link scanMenuEmbedIds}, a post-previews marker's data is
- * PAGE-scoped, not shared chrome: scanning every page/partial the way the menu scan does would fetch
- * posts on every request regardless of whether the page actually being rendered carries the marker,
- * which is exactly the query cost REQ 2 (route layer supplies posts when, and only when, the marker
- * is present) rules out.
- *
- * Returns `undefined` when `html` carries no such marker at all — the route layer's signal to skip
- * the bounded query entirely. When multiple markers appear on one page, returns the WIDEST clamped
- * limit found: `Jini/packages/cms/src/widgets/resolvers/recent-entries.ts`'s own "one batched query bounded to the widest
- * requested max; each instance's own smaller value then slices the already-fetched result" discipline
- * (REQ-24/25), so N markers with different limits on the same page still cost exactly one bounded
- * query — {@link injectPostPreviewsEmbeds} does that per-marker slicing.
- *
- * @complexity O(n) over `html`'s length for the marker scan, plus O(m) over the small, fixed number
- * of post-previews markers a real page carries.
- */
-export function scanPostPreviewsLimit(html: string): number | undefined {
-  const markers = markersOfType({ html: html, type: POST_PREVIEWS_MARKER_TYPE });
-  if (markers.length === 0) return undefined;
-  return markers.reduce((widest, marker) => Math.max(widest, postPreviewsBatchSize(marker)), 0);
 }
 
 /**
@@ -939,7 +918,7 @@ function warnUnrewrittenAssetPaths(required: { html: string; theme: DiscoveredTh
  * {@link injectMenuEmbeds}.
  *
  * `postPreviews` (post-previews marker, 2026-09-03): the route layer's already-bounded,
- * visibility-filtered result — see {@link scanPostPreviewsLimit}/{@link StaticPostPreview}'s own
+ * visibility-filtered result — see {@link postPreviewsBatchSize}/{@link StaticPostPreview}'s own
  * docs for how it decides whether to fetch anything at all. Omitted (or empty) leaves every
  * `{"type":"post-previews"}` marker's authored fallback untouched, see
  * {@link injectPostPreviewsEmbeds} — same "absent input, absent effect" contract `menus` already has.

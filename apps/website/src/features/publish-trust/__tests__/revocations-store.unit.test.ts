@@ -2,23 +2,19 @@ import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ProvisioningFileIo } from "../provisioning.js";
 import {
-  createFileRevocations,
   createInMemoryRevocations,
   MAX_REVOCATIONS,
   parseRevocationDocument,
-  serializeRevocationDocument,
   type PublishTrustRevocation,
 } from "../revocations.js";
 
 /**
- * @file Branch-by-branch pins for the revocation parser and both revocation adapters: every reason
- * verbatim, the ORDER checks run in, and exactly when an adapter writes. The deny list is the half
- * of publish-trust that must fail closed, so "which reason wins" and "nothing was written" are pinned.
+ * @file Branch-by-branch pins for the revocation parser and in-memory adapter: every reason
+ * verbatim, the ORDER checks run in, and when the store changes. The deny list is the half of
+ * publish-trust that must fail closed, so "which reason wins" and no-op edits are pinned.
  */
 
-const PATH = "/state/disconnected.json";
 const NOW = "2026-09-19T12:00:00.000Z";
 
 function entry(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -32,21 +28,6 @@ function reasonFor(text: string): string | null {
 
 function entryReason(value: unknown): string | null {
   return reasonFor(JSON.stringify([value]));
-}
-
-/** A typed file double that records every write. */
-function recordingIo(initial: string | null = null): ProvisioningFileIo & { writes: string[]; contents(): string | null } {
-  let stored = initial;
-  const writes: string[] = [];
-  return {
-    writes,
-    contents: () => stored,
-    read: async () => stored,
-    write: async (_path, text) => {
-      writes.push(text);
-      stored = text;
-    },
-  };
 }
 
 function revocations(count: number): PublishTrustRevocation[] {
@@ -139,63 +120,6 @@ test("the first bad record decides the reason", () => {
   assert.equal(reasonFor(JSON.stringify([entry(), entry({ revokedAt: "never" }), null])), "each revocation needs an ISO-8601 'revokedAt'");
 });
 
-test("the file adapter exposes its path and reads a missing file as an empty list", async () => {
-  const port = createFileRevocations({ io: recordingIo(), path: PATH });
-  assert.equal(port.path, PATH);
-  assert.deepEqual(await port.list(), { ok: true, revocations: [] });
-});
-
-test("a file revoke appends the record and writes the serialized list once", async () => {
-  const io = recordingIo();
-  const result = await createFileRevocations({ io, path: PATH }).revoke({ sourceInstallationId: "src-a", nowIso: NOW, note: "stolen" });
-  const expected = [{ sourceInstallationId: "src-a", revokedAt: NOW, note: "stolen" }];
-  assert.deepEqual(result, { ok: true, revocations: expected, changed: true });
-  assert.deepEqual(io.writes, [serializeRevocationDocument(expected)]);
-});
-
-test("a file revoke of an already revoked computer keeps the first record and writes nothing", async () => {
-  const stored = [{ sourceInstallationId: "src-a", revokedAt: "2026-01-01T00:00:00.000Z", note: null }];
-  const io = recordingIo(serializeRevocationDocument(stored));
-  const result = await createFileRevocations({ io, path: PATH }).revoke({ sourceInstallationId: "src-a", nowIso: NOW });
-  assert.deepEqual(result, { ok: true, revocations: stored, changed: false });
-  assert.deepEqual(io.writes, []);
-});
-
-test("a file restore removes the record and writes the shorter list", async () => {
-  const io = recordingIo(serializeRevocationDocument(revocations(2)));
-  const result = await createFileRevocations({ io, path: PATH }).restore({ sourceInstallationId: "src-0" });
-  assert.deepEqual(result, { ok: true, revocations: [revocations(2)[1]], changed: true });
-  assert.deepEqual(io.writes, [serializeRevocationDocument([revocations(2)[1]])]);
-});
-
-test("a file restore of a computer never revoked writes nothing", async () => {
-  const io = recordingIo(serializeRevocationDocument(revocations(1)));
-  const result = await createFileRevocations({ io, path: PATH }).restore({ sourceInstallationId: "src-9" });
-  assert.deepEqual(result, { ok: true, revocations: revocations(1), changed: false });
-  assert.deepEqual(io.writes, []);
-});
-
-test("a file revoke past the bound is refused and writes nothing", async () => {
-  const io = recordingIo(serializeRevocationDocument(revocations(MAX_REVOCATIONS)));
-  const result = await createFileRevocations({ io, path: PATH }).revoke({ sourceInstallationId: "src-new", nowIso: NOW });
-  assert.deepEqual(result, { ok: false, reason: "this site already lists 64 disconnected computers" });
-  assert.deepEqual(io.writes, []);
-});
-
-test("a file revoke at the bound of an already revoked computer is a no-op, not a refusal", async () => {
-  const io = recordingIo(serializeRevocationDocument(revocations(MAX_REVOCATIONS)));
-  const result = await createFileRevocations({ io, path: PATH }).revoke({ sourceInstallationId: "src-0", nowIso: NOW });
-  assert.equal(result.ok && result.changed, false);
-});
-
-test("a file edit over an unreadable list returns the read failure and writes nothing", async () => {
-  const io = recordingIo("{oops");
-  const result = await createFileRevocations({ io, path: PATH }).restore({ sourceInstallationId: "src-a" });
-  assert.equal(result.ok, false);
-  assert.equal(!result.ok && result.reason.startsWith("revocation list is not valid JSON: "), true);
-  assert.deepEqual(io.writes, []);
-});
-
 test("the in-memory adapter has no path and starts empty", async () => {
   const port = createInMemoryRevocations();
   assert.equal("path" in port, false);
@@ -233,6 +157,8 @@ test("an in-memory no-op hands back the stored list itself", async () => {
 test("an in-memory revoke past the bound is refused and stores nothing", async () => {
   const port = createInMemoryRevocations();
   for (let i = 0; i < MAX_REVOCATIONS; i += 1) await port.revoke({ sourceInstallationId: `src-${i}`, nowIso: NOW });
+  const again = await port.revoke({ sourceInstallationId: "src-0", nowIso: NOW });
+  assert.equal(again.ok && again.changed, false, "a repeat revoke at the bound is a no-op, not a refusal");
   assert.deepEqual(await port.revoke({ sourceInstallationId: "src-new", nowIso: NOW }), {
     ok: false,
     reason: "this site already lists 64 disconnected computers",

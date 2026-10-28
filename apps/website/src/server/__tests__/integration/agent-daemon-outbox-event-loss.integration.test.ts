@@ -76,6 +76,14 @@ test("an outbox drain in the agent daemon no longer swallows events: both the da
   roots.push(server);
   // Same ordering as the real boot: `index.ts` spawns the daemon only after these settle.
   await settle(server);
+
+  const daemon = await createAgentDaemonRouteDeps({ env: { TOVU_WORKSPACE: server.workspaceId } }, { dbPath });
+  roots.push(daemon);
+  await settle(daemon);
+
+  // c5e98fea6 creates the Privacy Policy at boot and enqueues its published-page events.
+  // Deliver those before observing this scenario, retaining the exact two-event assertion below.
+  await processOutbox({ outbox: server.outbox, bus: server.bus, clock: server.clock });
   const received: string[] = [];
   await server.bus.subscribe({ eventName: "entry.updated", handler: async (event) => {
     received.push(event.id);
@@ -84,10 +92,6 @@ test("an outbox drain in the agent daemon no longer swallows events: both the da
     received.push(event.id);
   } });
 
-  const daemon = await createAgentDaemonRouteDeps({ env: { TOVU_WORKSPACE: server.workspaceId } }, { dbPath });
-  roots.push(daemon);
-  await settle(daemon);
-
   const now = server.clock.nowIso();
   const serverPending = makeEvent("evt-server-pending-1", "comments.approved", server.workspaceId, now);
   const daemonEdit = makeEvent("evt-daemon-edit-1", "entry.updated", server.workspaceId, now);
@@ -95,7 +99,8 @@ test("an outbox drain in the agent daemon no longer swallows events: both the da
   await daemon.outbox.enqueue(daemonEdit);
 
   // The exact drain every post tool runs after its write, here with the daemon's deps.
-  await processOutbox({ outbox: daemon.outbox, bus: daemon.bus, clock: daemon.clock });
+  assert.equal(await processOutbox({ outbox: daemon.outbox, bus: daemon.bus, clock: daemon.clock }), 0);
+  assert.deepEqual(received, [], "the daemon must leave delivery to the serving process");
   // The serving process's drain (the background drainer makes this same call).
   await processOutbox({ outbox: server.outbox, bus: server.bus, clock: server.clock });
 

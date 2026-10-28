@@ -224,10 +224,13 @@ for (const dialect of SITE_DIALECTS) {
     assert.ok(rescan.availableThemeIds.includes("unrun-regions"), "the copied theme loads as valid");
     await expectJson(await send(site, "PATCH", `${site.ws}/presentation`, { activeThemeId: "unrun-regions" }), 200);
 
-    // Since 6f664cd19, initSite starts without authored pages: no root Page claims "/", so the
-    // theme's home template exercises the declared region without trashing a seeded placeholder.
+    // Since 6f664cd19, initSite starts without authored pages; 0a91f0115 retains the template's
+    // Blog listing; c5e98fea6 also seeds the consent Privacy Policy. No root Page claims "/",
+    // so the theme's home template exercises the region without trashing a seeded placeholder.
     const pages = await expectJson<{ posts: Array<{ post: { id: string; slug: string } }> }>(await send(site, "GET", `${site.ws}/pages`), 200);
-    assert.deepEqual(pages.posts, [], "fixture: initSite seeds no authored pages");
+    assert.deepEqual(pages.posts.map(({ post }) => post.slug).sort(), ["blog", "privacy"],
+      "fixture: the Blog listing and consent Privacy Policy are seeded; no Page claims the home route");
+    assert.equal(pages.posts.find(({ post }) => post.slug === "blog")?.post.id, "page-blog");
 
     const first = await createTextWidget(site, "Unrun First", "Unrun first widget");
     const second = await createTextWidget(site, "Unrun Second", "Unrun second widget");

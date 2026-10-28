@@ -128,14 +128,18 @@ async function main(): Promise<void> {
   // fully evaluated (see `admin-media-provider-routes.test.ts`'s "an empty map clears everything
   // over the wire").
   const mediaProviderOps = new Set(["get_media_providers", "replace_media_providers"]);
-  for (const op of operations) {
-    if (mediaProviderOps.has(op.operationId)) continue;
-    if (op.method === "get") {
-      captured.push(await capture(op, server.baseUrl, ownerCookie, undefined));
-    } else if (isCollectionCreate(op)) {
-      captured.push(await capture(op, server.baseUrl, ownerCookie, "{}"));
+  const captureSweep = async (_required: Record<string, never>, _options = {}): Promise<void> => {
+    for (const op of operations) {
+      if (mediaProviderOps.has(op.operationId)) continue;
+      if (op.method === "get") {
+        captured.push(await capture(op, server.baseUrl, ownerCookie, undefined));
+      } else if (isCollectionCreate(op)) {
+        captured.push(await capture(op, server.baseUrl, ownerCookie, "{}"));
+      }
     }
-  }
+
+  };
+  await captureSweep({});
 
   await server.close();
   console.log(`check:openapi-secret-leaks — collected ${captured.length} real response bodies (1 GET/create-eligible pass + the canary pair)\n`);
@@ -148,17 +152,21 @@ async function main(): Promise<void> {
     for (const match of scanForSecrets(c.body)) findings.push(classify(c, match));
   }
 
-  console.log("=".repeat(78));
-  console.log(`CANARY CHECK — injected via PUT ${providersUrl}, searched all ${captured.length} captured bodies`);
-  console.log("=".repeat(78));
-  if (canaryLeaks.length === 0) {
-    console.log("OK: the injected canary secret never appeared in any captured response body.");
-  } else {
-    console.log(`LEAK: the injected canary secret appeared in ${canaryLeaks.length} response(s):`);
-    for (const c of canaryLeaks) {
-      console.log(`  - ${c.op.file} :: ${c.op.operationId} (${c.op.method.toUpperCase()} ${c.requestedUrl}, status ${c.status})`);
+  const reportCanaryLeaks = (_required: Record<string, never>, _options = {}): void => {
+    console.log("=".repeat(78));
+    console.log(`CANARY CHECK — injected via PUT ${providersUrl}, searched all ${captured.length} captured bodies`);
+    console.log("=".repeat(78));
+    if (canaryLeaks.length === 0) {
+      console.log("OK: the injected canary secret never appeared in any captured response body.");
+    } else {
+      console.log(`LEAK: the injected canary secret appeared in ${canaryLeaks.length} response(s):`);
+      for (const c of canaryLeaks) {
+        console.log(`  - ${c.op.file} :: ${c.op.operationId} (${c.op.method.toUpperCase()} ${c.requestedUrl}, status ${c.status})`);
+      }
     }
-  }
+
+  };
+  reportCanaryLeaks({});
 
   console.log(`\n${"=".repeat(78)}`);
   console.log(`GENERIC PATTERN SWEEP — ${findings.length} finding(s) across ${captured.length} captured bodies`);

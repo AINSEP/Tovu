@@ -308,9 +308,6 @@ export async function buildSourceControlProviderForApi(input: {
   }, { missingProviderMessage: ({ origin, baseUrl }) => `No enabled Agent Plugin provides source control for ${origin ?? baseUrl}.` });
 }
 
-/** The origin of `url`, or `undefined` when it does not parse. */
-export function originOf(url: string): string | undefined { return sourceControl.originOf({ url }); }
-
 /** Adapt the installed-plugin ABI without changing provider operation signatures. */
 function sharedRegistry(registry: SourceControlProviderRegistry) {
   return { ...registry, list: (_required: Record<string, never>) => registry.list(), get: ({ providerId }: { providerId: string }) => registry.get(providerId) };

@@ -229,8 +229,15 @@ test("a positively live quiet attempt keeps waiting on its approval beyond thirt
 });
 
 for (const probe of ["dead", "uncertain"] as const) {
-  test(`a stale ${probe} executor still finalizes with saved work`, async () => {
+  test(`a stale ${probe} executor requires verified death before finalization with saved work`, async () => {
     const h = harness({ lastProgressAt: TIME - 30 * 60_000 }); h.setProbe(probe);
+    // Jini bf73324c6: staleness cannot turn a transport failure into proof of process death.
+    if (probe === "uncertain") {
+      assert.equal(await h.recovery.recover({ messageId: "answer", trigger: "timeout" }, {}), "waiting");
+      assert.equal(h.settlements.length, 0); assert.equal(h.canceled.length, 0); assert.equal(h.launches.length, 0);
+      assert.deepEqual(h.attached, ["old"]); assert.equal(h.run()!.message.runStatus, "running");
+      h.setProbe("dead");
+    }
     assert.equal(await h.recovery.recover({ messageId: "answer", trigger: "timeout" }, {}), "finalized");
     assert.equal(h.settlements[0]!.content, INCIDENT_PARTIAL);
     assert.deepEqual(h.settlements[0]!.events.at(-1), { kind: "status", label: SAVED_WORK_NOTICE });

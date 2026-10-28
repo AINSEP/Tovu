@@ -343,6 +343,24 @@ export interface AssistantByokModuleHandle extends ServerModuleHandle {
  */
 type ByokTurnInputs = { messages: ByokChatMessage[]; principal: Principal; credential: ResolvedByokCredential };
 
+/** BYOK bypasses the daemon lifecycle, but publishes the same normalized model/tool events.
+ * Reuse its recorder so both execution modes report generations with the same semantics. */
+function startByokTrace(
+  { routeDeps, run, credential, messages }: { routeDeps: Pick<RouteDeps, "aiTraceSink">; run: { id: string }; credential: ResolvedByokCredential; messages: ByokChatMessage[] },
+  _optional = {},
+) {
+  const trace = routeDeps.aiTraceSink ? createAiTraceRecorder({ sink: routeDeps.aiTraceSink, runId: run.id, agentId: credential.protocol },
+    { provider: credential.protocol, model: credential.model, exactSecrets: [credential.apiKey] }) : undefined;
+  trace?.start(routeDeps.aiTraceSink?.capture === "full" ? { input: messages.at(-1)?.content ?? null } : {});
+  return trace;
+}
+
+function byokTraceOutcome({ aborted, reportedError }: { aborted: boolean; reportedError: boolean }, _optional = {}): "cancelled" | "failed" | "succeeded" {
+  const { status } = byokTurnOutcome({ aborted, reportedError });
+  if (status === "canceled") return "cancelled";
+  return status === "succeeded" ? "succeeded" : "failed";
+}
+
 /**
  * The two gates `handleTurn` must clear before it opens a stream: the client-supplied history must
  * resolve to a non-empty, user-ending message list, and a usable BYOK credential (request-supplied
@@ -601,17 +619,23 @@ export function createAssistantByokModule(
     // One agent-run span per turn (its own trace root); the turn runs inside it, so its tool calls'
     // DB and outbound spans nest under the run rather than the long-lived request.
     return routeDeps.tracker.trace({ name: "assistant.run", run: async (span) => {
-      // BYOK bypasses the daemon lifecycle, but publishes the same normalized model/tool events.
-      // Reuse its recorder so both execution modes report generations with the same semantics.
-      const aiTrace = routeDeps.aiTraceSink ? createAiTraceRecorder({ sink: routeDeps.aiTraceSink, runId: run.id, agentId: credential.protocol },
-        { provider: credential.protocol, model: credential.model, exactSecrets: [credential.apiKey] }) : undefined;
-      aiTrace?.start(routeDeps.aiTraceSink?.capture === "full" ? { input: messages.at(-1)?.content ?? null } : {});
+      const aiTrace = startByokTrace({ routeDeps, run, credential, messages });
       routeDeps.tracker.capture({ name: "assistant_run_started", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, eventId: `assistant-start:${run.id}` } });
       let reportedError = false;
       // A failed turn (a provider error event or a throw, not an owner's cancel) is an incident for
       // the error tracker too: the protocol and run id only, the key blanked even without a known shape.
       const reportRunFailure = (error: unknown) => routeDeps.tracker.error({ error: error instanceof Error ? error : redactedError({ error }) }, { context: { operation: "assistant.run", attributes: { agent: credential.protocol, runId: run.id }, exactSecrets: [credential.apiKey] } });
       const stampUsage = createByokUsageTimer({ startedAt: Date.now() });
+      function finishFailedTurn({ error }: { error: unknown }, _optional = {}): void {
+        aiTrace?.observe({ type: "error", message: error instanceof Error ? error.message : String(error) });
+        aiTrace?.finish({ outcome: abort.signal.aborted ? "cancelled" : "failed" });
+        routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, outcome: abort.signal.aborted ? "cancelled" : "failed", eventId: `assistant-finish:${run.id}` } });
+        span.setOutcome(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }, { thrown: { error } }));
+        if (!abort.signal.aborted && !reportedError) reportRunFailure(error);
+        sse(res, "error", { type: "error", message: error instanceof Error ? error.message : String(error) });
+        sse(res, "end", { reason: "error" });
+        res.end();
+      }
       let result: ByokProviderTurnResult;
       try {
         result = await runByokProviderTurn({
@@ -646,20 +670,13 @@ export function createAssistantByokModule(
           },
         });
       } catch (error) {
-        aiTrace?.observe({ type: "error", message: error instanceof Error ? error.message : String(error) });
-        aiTrace?.finish({ outcome: abort.signal.aborted ? "cancelled" : "failed" });
-        routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, outcome: abort.signal.aborted ? "cancelled" : "failed", eventId: `assistant-finish:${run.id}` } });
-        span.setOutcome(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }, { thrown: { error } }));
-        if (!abort.signal.aborted && !reportedError) reportRunFailure(error);
-        sse(res, "error", { type: "error", message: error instanceof Error ? error.message : String(error) });
-        sse(res, "end", { reason: "error" });
-        res.end();
+        finishFailedTurn({ error });
         return;
       }
 
       span.setOutcome(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }));
-      aiTrace?.finish({ outcome: abort.signal.aborted ? "cancelled" : reportedError ? "failed" : "succeeded" });
-      routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, outcome: abort.signal.aborted ? "cancelled" : reportedError ? "failed" : "succeeded", eventId: `assistant-finish:${run.id}` } });
+      aiTrace?.finish({ outcome: byokTraceOutcome({ aborted: abort.signal.aborted, reportedError }) });
+      routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, outcome: byokTraceOutcome({ aborted: abort.signal.aborted, reportedError }), eventId: `assistant-finish:${run.id}` } });
       sse(res, "end", { reason: result.stopReason ?? "stop" });
       res.end();
     } }, { agent: { runId: run.id, agentName: credential.protocol } });

@@ -13,7 +13,7 @@ import { resolveExecutionCredential, type AdminExecutionCredentialRepoPort } fro
  * `ADS-memory/reports/local-cli-live-model-discovery-design-2026-08-05.md` §3.1/§3.5.
  *
  * Two independent concerns, deliberately not folded into one function:
- * - {@link getLiveClaudeModels} — the "never a gate" credential branch. Resolves the admin's own
+ * - {@link LiveModelDiscovery.getLiveClaudeModels} — the "never a gate" credential branch. Resolves the admin's own
  *   `admin_execution_credentials` row and returns immediately, with NO network call, whenever
  *   there is no row, no key, or a protocol other than `anthropic`. Only a resolved `anthropic`
  *   credential reaches the cache/network path below.
@@ -43,6 +43,22 @@ interface DiscoveryOutcome {
   readonly models: readonly ProviderModelOption[];
 }
 export interface LiveModelDiscovery {
+  /**
+   * Resolves the admin's stored execution credential for `(workspaceId, principalId)` and, only
+   * when it is a usable `anthropic` credential, returns Claude's live model catalog (cached — see
+   * this file's header). Returns `null` for every other outcome: no row, no key, wrong protocol, or
+   * a failed/timed-out live call. `null` is not an error signal — the caller's contract
+   * (`unionModels`) is to treat it as "nothing to enrich with" and leave the static fallback list
+   * exactly as it was, which is what makes this a strict enrichment layer rather than a dependency
+   * the picker can be blocked or degraded by.
+   *
+   * No network call is made at all on the `null`/wrong-protocol paths — verified directly by this
+   * file's own tests stubbing `globalThis.fetch` to throw. That is the "never a gate" invariant a
+   * Max-subscription admin with no stored key depends on: zero added latency, by construction, not
+   * by a cache that merely answers fast.
+   *
+   * @complexity O(1) plus, at most, one cached network call.
+   */
   getLiveClaudeModels(key: { workspaceId: string; principalId: string }): Promise<readonly ProviderModelOption[] | null>;
 }
 
@@ -89,26 +105,14 @@ export function createLiveModelDiscovery(
   };
 }
 
-/** Compatibility at the existing host boundary, until composition injects createLiveModelDiscovery.
- * Each repo/sealer/clock tuple owns an instance; unrelated applications cannot share a process-wide
- * model slot. Weak ownership avoids retaining disposed hosts. The cache engine is entirely Jini's.
- */
-let hostDiscoveries = new WeakMap<AdminExecutionCredentialRepoPort, WeakMap<SecretSealerPort, WeakMap<() => number, LiveModelDiscovery>>>();
-
-/** Test-only reset: dependency-owned instances would otherwise survive tests using the same ports
- * and workspace/principal. Composition-owned factory instances do not depend on this registry. */
-export function resetLiveModelCacheForTesting(): void {
-  hostDiscoveries = new WeakMap();
-}
-
 /**
- * The one network call this module makes, isolated so {@link getLiveClaudeModels} above it stays
+ * The one network call this module makes, isolated so {@link LiveModelDiscovery.getLiveClaudeModels} stays
  * readable. `listProviderModels` returns expected auth, network, timeout and malformed-response failures
  * as `{ok: false, ...}`. The package cache also catches unexpected discovery rejections and records
  * a null result for the same TTL, so a rejected promise never poisons the slot.
  *
  * Logs on `!result.ok` — deliberately the ONLY log line in this module. A live call only reaches
- * this function once {@link getLiveClaudeModels} has already resolved a real `anthropic`
+ * this function once {@link LiveModelDiscovery.getLiveClaudeModels} has already resolved a real `anthropic`
  * credential, so a failure here means an admin who set up BYOK for Claude is silently getting the
  * static fallback list instead of the live one they configured — worth an operator seeing, unlike
  * the no-credential/wrong-protocol paths (expected, quiet by design). One line, not a stack: the
@@ -130,47 +134,6 @@ export async function fetchLiveClaudeModels(
     return null;
   }
   return result.models ?? null;
-}
-
-/**
- * Resolves the admin's stored execution credential for `(workspaceId, principalId)` and, only
- * when it is a usable `anthropic` credential, returns Claude's live model catalog (cached — see
- * this file's header). Returns `null` for every other outcome: no row, no key, wrong protocol, or
- * a failed/timed-out live call. `null` is not an error signal — the caller's contract
- * (`unionModels`) is to treat it as "nothing to enrich with" and leave the static fallback list
- * exactly as it was, which is what makes this a strict enrichment layer rather than a dependency
- * the picker can be blocked or degraded by.
- *
- * No network call is made at all on the `null`/wrong-protocol paths — verified directly by this
- * file's own tests stubbing `globalThis.fetch` to throw. That is the "never a gate" invariant a
- * Max-subscription admin with no stored key depends on: zero added latency, by construction, not
- * by a cache that merely answers fast.
- *
- * @param key.now - Injectable host clock for legacy TTL tests; defaults to `Date.now`.
- * New composition uses createLiveModelDiscovery with an explicit core Clock port.
- * @complexity O(1) plus, at most, one cached network call.
- */
-export async function getLiveClaudeModels(
-  deps: LiveModelHostDependencies,
-  key: { workspaceId: string; principalId: string; now?: () => number },
-): Promise<readonly ProviderModelOption[] | null> {
-  const now = key.now ?? Date.now;
-  let bySealer = hostDiscoveries.get(deps.repo);
-  if (!bySealer) {
-    bySealer = new WeakMap();
-    hostDiscoveries.set(deps.repo, bySealer);
-  }
-  let byClock = bySealer.get(deps.sealer);
-  if (!byClock) {
-    byClock = new WeakMap();
-    bySealer.set(deps.sealer, byClock);
-  }
-  let discovery = byClock.get(now);
-  if (!discovery) {
-    discovery = createLiveModelDiscovery({ ...deps, clock: { nowMs: now }, discover: fetchLiveClaudeModels });
-    byClock.set(now, discovery);
-  }
-  return discovery.getLiveClaudeModels({ workspaceId: key.workspaceId, principalId: key.principalId });
 }
 
 /**

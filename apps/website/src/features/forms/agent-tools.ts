@@ -47,6 +47,7 @@
  * and their rationale.
  */
 
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import {
   ATTRIBUTE_NAME_PATTERN,
   FIELD_ID_PATTERN,
@@ -65,19 +66,12 @@ export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-toke
 
 export type AgentToolActorClassRule = "confirmer-must-equal-own-delegatedBy" | "user-only" | "none";
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  actorClassRule?: AgentToolActorClassRule;
-  /**
-   * JSON Schema for this tool's `input`, published to the model via `ToolDescriptor.inputSchema`
-   * (`assistant/tool-registrations.ts`, which refuses to wire any tool lacking one). Structurally
-   * identical to the content-types catalog's field of the same name.
-   */
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+/**
+ * JSON Schema for this tool's `input`, published to the model via `ToolDescriptor.inputSchema`
+ * (`assistant/tool-registrations.ts`, which refuses to wire any tool lacking one). Structurally
+ * identical to the content-types catalog's field of the same name.
+ */
+export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect };
 
 /** One entry of a `fields` array, as published to the model. Mirrors what `forms.ts`'s `validateFieldDescriptors` enforces. */
 const FIELD_DESCRIPTOR_SCHEMA = {

@@ -9,7 +9,6 @@ import { listSiteTrash } from "#src/platform/site-dir/site-trash";
 import type { Express, Request, Response } from "express";
 
 import {
-  type createSite as createSiteReal,
   includeServingSite,
   listSites as listSitesReal,
   listSitesForBinding,
@@ -122,7 +121,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * key into its folder and applied on that site's first boot
  * (`composition/pending-agent-plugin-tokens.ts`). Leaving it out creates the site exactly as before.
  */
-export type AdminSitesDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "siteBinding"> & {
+export type AdminSitesDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "siteBinding" | "createSite"> & {
   tracker?: RouteDeps["tracker"];
   sitesWorkspace?: SitesWorkspace;
   localSiteSupervisor?: LocalSitesRouteDeps["localSiteSupervisor"];
@@ -139,7 +138,6 @@ export type AdminSitesDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "site
   /** Injectable so a route test proves both branches without touching the real filesystem or
    *  `sites/`. Each defaults to the real `site-dir`/`site-switcher-enabled` implementation. */
   listSites?: (optional?: Parameters<typeof listSitesReal>[0]) => readonly SiteListEntry[];
-  createSite?: typeof createSiteReal;
   persistActiveSite?: typeof persistActiveSiteReal;
   readSiteRunning?: typeof readSiteRunning;
   isSiteSwitcherEnabled?: typeof isSiteSwitcherEnabledReal;

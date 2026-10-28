@@ -191,9 +191,13 @@ function cardIdentity({ value }: { value: RecordValue }, _options = {}): { targe
 function validateCardFields({ value, fields = [], baseUrl }: { value: RecordValue; fields?: readonly PluginCredentialField[]; baseUrl?: string }, _options = {}): void {
   if (!isApiCard({ value }) && fields.length) throw new Error('Only API cards may declare fields; domain forms own their inputs');
   // A provider-settings card's fields and destinations are the provider plugin's declared settings.
-  if (value.saveKind === 'provider-settings') { if (value.saveTarget === undefined || baseUrl) throw new Error('provider-settings cards need a saveTarget and no baseUrl'); return; }
+  if (value.saveKind === 'provider-settings') return validateProviderSettingsDestination({ value, baseUrl });
   if (!baseUrl && !fields.some(field => field.name === 'baseUrl' && field.required)) throw new Error('baseUrl or a required baseUrl field is required');
   if (isApiCard({ value }) && fields.some(field => !['username', 'baseUrl'].includes(field.name))) throw new Error('API cards support only username and baseUrl public fields');
+}
+
+function validateProviderSettingsDestination({ value, baseUrl }: { value: RecordValue; baseUrl?: string }, _options = {}): void {
+  if (value.saveTarget === undefined || baseUrl) throw new Error('provider-settings cards need a saveTarget and no baseUrl');
 }
 
 /** Missing saveKind retains the original API-card contract. */

@@ -48,6 +48,14 @@ const THEMES: readonly ThemePreference[] = ['light', 'system', 'dark'];
 // Admin first because that is where a workspace opens. See `SiteWorkspace` for why.
 const SITE_SURFACES: readonly SiteSurface[] = ['admin', 'site'];
 
+function appScreen({ appearanceOpen, showSitesHome, isCreating, activeId }: {
+  appearanceOpen: boolean; showSitesHome: boolean; isCreating: boolean; activeId: RunnerSectionId;
+}, _options = {}) {
+  if (appearanceOpen) return 'appearance';
+  if (!showSitesHome) return null;
+  return isCreating ? 'create_website' : activeId;
+}
+
 // "Import site" opens a site's own admin on its Import & Export > Import tab; hidden when there is no site.
 function createImportSiteAction(
   { projects, openProjectTab }: {
@@ -157,7 +165,7 @@ export function App({
 
   const runningCount = countRunningSites(projects);
   const active = findSection(activeId);
-  useProductScreen({ screen: appearanceOpen ? 'appearance' : showSitesHome ? (isCreating ? 'create_website' : activeId) : null });
+  useProductScreen({ screen: appScreen({ appearanceOpen, showSitesHome, isCreating, activeId }) });
 
   return (
     <ResourcesMonitor projects={projects} onSiteUpdated={applySiteRecord}>

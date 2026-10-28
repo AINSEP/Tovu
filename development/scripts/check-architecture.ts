@@ -308,15 +308,17 @@ interface CruiseModule {
   dependencies: { resolved: string; dependencyTypes: string[] }[];
 }
 
-/** True for an edge that is ONLY an `import type { X } from "..."` — erased by `tsc`, never
+/** True for an edge that is ONLY an `import type { X } from "..."` or `import("...").X`
+ * type query — erased by `tsc`, never
  * emitted into the built JS, and therefore incapable of participating in a real runtime
  * require/import cycle. dependency-cruiser's `--ts-pre-compilation-deps` tags these in
  * `dependencyTypes` (confirmed empirically: `npx depcruise <file> --ts-pre-compilation-deps
  * --output-type json` on a known `import type`-only edge returns
  * `dependencyTypes: ["local", "type-only", "import"]`). A mixed import
- * (`import { foo, type Bar } from "./x"`) carries a real value too, so it is NOT type-only here. */
+ * (`import { foo, type Bar } from "./x"`) carries a real value too, so it is NOT type-only here.
+ * Inline type queries carry `type-import` instead of `type-only`; both must be excluded. */
 function isTypeOnlyDependency(dep: { dependencyTypes: string[] }): boolean {
-  return dep.dependencyTypes.includes("type-only");
+  return dep.dependencyTypes.includes("type-only") || dep.dependencyTypes.includes("type-import");
 }
 
 /** `src/index.ts` (the package entrypoint) and everything under `src/cli/**` are callers OF the
@@ -387,19 +389,22 @@ function cruise(): CruiseModule[] {
  */
 function buildFileGraph(modules: CruiseModule[], opts: { runtimeOnly: boolean }): Map<string, Set<string>> {
   const inScope = (file: string): boolean => file.startsWith(`${SRC_ROOT}/`);
+  const isGraphFile = ({ file }: { file: string }, _options = {}): boolean =>
+    inScope(file) && (INCLUDE_TESTS || !isTestFile(file));
   const forward = new Map<string, Set<string>>();
-  for (const mod of modules) {
-    if (!inScope(mod.source)) continue;
-    if (!INCLUDE_TESTS && isTestFile(mod.source)) continue;
-    if (!forward.has(mod.source)) forward.set(mod.source, new Set());
+  const addDependencies = ({ mod }: { mod: CruiseModule }, _options = {}): void => {
     for (const dep of mod.dependencies) {
-      if (!inScope(dep.resolved)) continue;
-      if (!INCLUDE_TESTS && isTestFile(dep.resolved)) continue;
+      if (!isGraphFile({ file: dep.resolved })) continue;
       if (dep.resolved === mod.source) continue;
       if (opts.runtimeOnly && isTypeOnlyDependency(dep)) continue;
       forward.get(mod.source)!.add(dep.resolved);
       if (!forward.has(dep.resolved)) forward.set(dep.resolved, new Set());
     }
+  };
+  for (const mod of modules) {
+    if (!isGraphFile({ file: mod.source })) continue;
+    if (!forward.has(mod.source)) forward.set(mod.source, new Set());
+    addDependencies({ mod });
   }
   return forward;
 }
@@ -535,6 +540,30 @@ function backEdgesIntoServer(forward: Map<string, Set<string>>): { total: number
   return { total, byTarget };
 }
 
+function externalModuleTargets(
+  { fromModule, targets }: { fromModule: string; targets: Set<string> },
+  _options = {},
+): Array<{ to: string; toModule: string }> {
+  const out: Array<{ to: string; toModule: string }> = [];
+  for (const to of targets) {
+    const toModule = moduleOf(to);
+    if (toModule && toModule !== fromModule) out.push({ to, toModule });
+  }
+  return out;
+}
+
+function recordDeepImport(
+  { byModule, toModule, to }: {
+    byModule: Map<string, { edges: number; files: Set<string> }>; toModule: string; to: string;
+  },
+  _options = {},
+): void {
+  if (!byModule.has(toModule)) byModule.set(toModule, { edges: 0, files: new Set() });
+  const entry = byModule.get(toModule)!;
+  entry.edges += 1;
+  entry.files.add(to);
+}
+
 /** Metric 4: cross-module edges whose resolved target isn't the target module's `index.ts` —
  * i.e. imports that reach past whatever public surface a module has declared. */
 function deepImports(
@@ -545,15 +574,10 @@ function deepImports(
   for (const [from, targets] of forward) {
     const fromModule = moduleOf(from);
     if (!fromModule) continue;
-    for (const to of targets) {
-      const toModule = moduleOf(to);
-      if (!toModule || toModule === fromModule) continue;
+    for (const { to, toModule } of externalModuleTargets({ fromModule, targets })) {
       if (to === `${SRC_ROOT}/${toModule}/index.ts`) continue;
       total += 1;
-      if (!byModule.has(toModule)) byModule.set(toModule, { edges: 0, files: new Set() });
-      const entry = byModule.get(toModule)!;
-      entry.edges += 1;
-      entry.files.add(to);
+      recordDeepImport({ byModule, toModule, to });
     }
   }
   return { total, byModule };
@@ -566,9 +590,7 @@ function buildModuleAdjacency(forward: Map<string, Set<string>>): Map<string, Se
     const fromModule = moduleOf(from);
     if (!fromModule) continue;
     if (!adjacency.has(fromModule)) adjacency.set(fromModule, new Set());
-    for (const to of targets) {
-      const toModule = moduleOf(to);
-      if (!toModule || toModule === fromModule) continue;
+    for (const { to, toModule } of externalModuleTargets({ fromModule, targets })) {
       adjacency.get(fromModule)!.add(toModule);
       if (!adjacency.has(toModule)) adjacency.set(toModule, new Set());
     }
@@ -637,6 +659,11 @@ function pad(label: string, width: number): string {
   return label.length >= width ? label : label + " ".repeat(width - label.length);
 }
 
+
+function relativeDeltaText({ relPct }: { relPct: number | null }, _options = {}): string {
+  return relPct === null ? "n/a" : `${relPct > 0 ? "+" : ""}${relPct}%`;
+}
+
 /** Formats a metric's baseline→current move for the trade report: the raw delta in the metric's
  * own unit, plus the relative percent change. Both are shown because they read very differently
  * on the same number — "+5 points" on a percentage metric is a much bigger deal than "+5%" on a
@@ -649,7 +676,7 @@ function formatDelta(current: number, baseline: number, unit: "pct" | "count"): 
   const rawDelta = unit === "pct" ? roundPct(current - baseline) : current - baseline;
   const deltaStr = `${rawDelta > 0 ? "+" : ""}${rawDelta}${unit === "pct" ? " pts" : ""}`;
   const relPct = baseline === 0 ? null : roundPct((rawDelta / Math.abs(baseline)) * 100);
-  const relStr = relPct === null ? "n/a" : `${relPct > 0 ? "+" : ""}${relPct}%`;
+  const relStr = relativeDeltaText({ relPct });
   const valueStr = unit === "pct" ? `${baseline.toFixed(2)} → ${current.toFixed(2)}` : `${baseline} → ${current}`;
   return `${valueStr}  (${deltaStr}, ${relStr})`;
 }
@@ -676,17 +703,23 @@ function main(): void {
   const priorBaseline: Baseline | null = fs.existsSync(BASELINE_PATH)
     ? (JSON.parse(fs.readFileSync(BASELINE_PATH, "utf8")) as Baseline)
     : null;
-  const frozenMedians = priorBaseline?.bidirectionalHubs?.medians ?? null;
-  const useFrozen = !UPDATE && frozenMedians !== null;
-  if (!UPDATE && priorBaseline !== null && frozenMedians === null) {
-    console.warn(
-      `\n  WARNING: baseline predates frozen hub medians — falling back to this run's own medians,\n` +
+  const warnMissingHubMedians = ({ frozenMedians }: { frozenMedians: NonNullable<Baseline["bidirectionalHubs"]>["medians"] | null }, _options = {}): void => {
+    if (!UPDATE && priorBaseline !== null && frozenMedians === null) {
+      console.warn(
+        `\n  WARNING: baseline predates frozen hub medians — falling back to this run's own medians,\n` +
         `  which is the pre-2026-08-20 floating-threshold behaviour. Run --update to freeze them.`,
-    );
-  }
-  const { bidirectionalHubs, hubMembers } = useFrozen
-    ? hubsAtThresholds(hubDegrees, frozenMedians!)
-    : { bidirectionalHubs: freshHubs, hubMembers: freshHubMembers };
+      );
+    }
+  };
+  const resolveHubThresholds = (_required: Record<string, never>, _options = {}) => {
+    const frozenMedians = priorBaseline?.bidirectionalHubs?.medians ?? null;
+    const useFrozen = !UPDATE && frozenMedians !== null;
+    warnMissingHubMedians({ frozenMedians });
+    return useFrozen
+      ? hubsAtThresholds(hubDegrees, frozenMedians!)
+      : { bidirectionalHubs: freshHubs, hubMembers: freshHubMembers };
+  };
+  const { bidirectionalHubs, hubMembers } = resolveHubThresholds({});
   const backEdges = backEdgesIntoServer(forwardAll);
   const backEdgesRuntime = backEdgesIntoServer(forwardRuntime);
   const deep = deepImports(forwardAll);
@@ -712,77 +745,92 @@ function main(): void {
     bidirectionalHubs: freshHubs,
   };
 
-  const scope = INCLUDE_TESTS ? "including tests" : "production files only";
-  console.log(`check:architecture — ${fileCount} files, ${moduleAdjacency.size} modules, ${scope}\n`);
+  const reportMetricSummary = (_required: Record<string, never>, _options = {}): void => {
+    const scope = INCLUDE_TESTS ? "including tests" : "production files only";
+    console.log(`check:architecture — ${fileCount} files, ${moduleAdjacency.size} modules, ${scope}\n`);
 
-  const rows: { label: string; value: string }[] = [
-    { label: "propagation cost (all-import)", value: `${propagationCostPct.toFixed(2)}%` },
-    { label: "propagation cost (runtime-only)", value: `${propagationCostRuntimePct.toFixed(2)}%` },
-    { label: "back-edges into composition root", value: `${backEdges.total}` },
-    { label: "  └ back-edges, runtime-only (informational)", value: `${backEdgesRuntime.total}` },
-    { label: "module cycles (mutual pairs, runtime-only)", value: `${pairs.length}` },
-    { label: "largest strongly-connected component (runtime-only)", value: `${largestScc}` },
-    { label: "module API surface (files exposed)", value: `${apiSurfaceFiles}` },
-    { label: "  └ deep-import edges (informational)", value: `${deep.total}` },
-    { label: "bidirectional hub count", value: `${bidirectionalHubs.pct.toFixed(2)}% (${bidirectionalHubs.count}/${bidirectionalHubs.total})` },
-  ];
-  const labelWidth = Math.max(...rows.map((r) => r.label.length)) + 2;
-  for (const row of rows) console.log(`  ${pad(row.label, labelWidth)}${row.value}`);
-  console.log(`\n  Martin instability: informational, not ratcheted — pass --list for the per-module gradient.`);
+    const rows: { label: string; value: string }[] = [
+      { label: "propagation cost (all-import)", value: `${propagationCostPct.toFixed(2)}%` },
+      { label: "propagation cost (runtime-only)", value: `${propagationCostRuntimePct.toFixed(2)}%` },
+      { label: "back-edges into composition root", value: `${backEdges.total}` },
+      { label: "  └ back-edges, runtime-only (informational)", value: `${backEdgesRuntime.total}` },
+      { label: "module cycles (mutual pairs, runtime-only)", value: `${pairs.length}` },
+      { label: "largest strongly-connected component (runtime-only)", value: `${largestScc}` },
+      { label: "module API surface (files exposed)", value: `${apiSurfaceFiles}` },
+      { label: "  └ deep-import edges (informational)", value: `${deep.total}` },
+      { label: "bidirectional hub count", value: `${bidirectionalHubs.pct.toFixed(2)}% (${bidirectionalHubs.count}/${bidirectionalHubs.total})` },
+    ];
+    const labelWidth = Math.max(...rows.map((r) => r.label.length)) + 2;
+    for (const row of rows) console.log(`  ${pad(row.label, labelWidth)}${row.value}`);
+    console.log(`\n  Martin instability: informational, not ratcheted — pass --list for the per-module gradient.`);
 
-  if (LIST) {
-    console.log(`\n--- back-edges into src/server/**, by target file (all-import) ---`);
-    for (const [target, count] of [...backEdges.byTarget.entries()].sort((a, b) => b[1] - a[1])) {
-      console.log(`    ${count} → ${target}`);
-    }
-
-    console.log(`\n--- same, runtime-only (informational — shows which of the above are real coupling vs. type-only noise) ---`);
-    for (const [target, count] of [...backEdgesRuntime.byTarget.entries()].sort((a, b) => b[1] - a[1])) {
-      console.log(`    ${count} → ${target}`);
-    }
-
-    console.log(`\n--- module cycles (runtime-only graph) ---`);
-    for (const pair of pairs) console.log(`    ${pair}`);
-    if (sccs.length > 0) {
-      console.log(`\n  strongly-connected components (mutually inseparable modules):`);
-      for (const component of sccs.sort((a, b) => b.length - a.length)) {
-        console.log(`    [${component.length}] ${component.join(", ")}`);
+  };
+  reportMetricSummary({});
+  const reportDetailedMetrics = (_required: Record<string, never>, _options = {}): void => {
+    if (LIST) {
+      console.log(`\n--- back-edges into src/server/**, by target file (all-import) ---`);
+      for (const [target, count] of [...backEdges.byTarget.entries()].sort((a, b) => b[1] - a[1])) {
+        console.log(`    ${count} → ${target}`);
       }
+
+      console.log(`\n--- same, runtime-only (informational — shows which of the above are real coupling vs. type-only noise) ---`);
+      for (const [target, count] of [...backEdgesRuntime.byTarget.entries()].sort((a, b) => b[1] - a[1])) {
+        console.log(`    ${count} → ${target}`);
+      }
+
+      const reportModuleCycles = (_required: Record<string, never>, _options = {}): void => {
+        console.log(`\n--- module cycles (runtime-only graph) ---`);
+        for (const pair of pairs) console.log(`    ${pair}`);
+        if (sccs.length > 0) {
+          console.log(`\n  strongly-connected components (mutually inseparable modules):`);
+          for (const component of sccs.sort((a, b) => b.length - a.length)) {
+            console.log(`    [${component.length}] ${component.join(", ")}`);
+          }
+        }
+
+      };
+      reportModuleCycles({});
+      console.log(`\n--- deep imports bypassing index.ts, by target module (all-import) ---`);
+      for (const [mod, entry] of [...deep.byModule.entries()].sort((a, b) => b[1].edges - a[1].edges)) {
+        console.log(`    ${entry.edges} edges, ${entry.files.size} distinct file(s) → ${mod}`);
+      }
+
+      console.log(`\n--- Martin instability (stable → unstable, all-import) ---`);
+      for (const row of instability) {
+        console.log(
+          `    I=${row.instability.toFixed(2)}  Ca=${String(row.ca).padStart(4)} Ce=${String(row.ce).padStart(4)}  ${row.module}`,
+        );
+      }
+
+      const reportHubMembership = (_required: Record<string, never>, _options = {}): void => {
+        // Membership for "bidirectional hub count" (formerly "core size") — every file above-median in
+        // BOTH transitive fan-in and transitive fan-out, all-import graph. Printing this was the whole
+        // point of the 2026-08-19 rename: the old name implied `src/core` membership, but nothing about
+        // the check ever tested that, and no version of this script printed which files it counted.
+        console.log(`\n--- bidirectional hubs (fan-in > median AND fan-out > median, all-import), by combined degree ---`);
+        for (const hub of hubMembers) {
+          console.log(
+            `    fanIn=${String(hub.fanIn).padStart(4)} fanOut=${String(hub.fanOut).padStart(4)}  [${hub.module ?? "(no module)"}]  ${hub.file}`,
+          );
+        }
+
+        console.log(`\n--- bidirectional hub membership by module ---`);
+        const hubsByModule = new Map<string, number>();
+        for (const hub of hubMembers) {
+          const key = hub.module ?? "(no module)";
+          hubsByModule.set(key, (hubsByModule.get(key) ?? 0) + 1);
+        }
+        for (const [mod, count] of [...hubsByModule.entries()].sort((a, b) => b[1] - a[1])) {
+          console.log(`    ${count}  ${mod}`);
+        }
+
+      };
+      reportHubMembership({});
+
     }
 
-    console.log(`\n--- deep imports bypassing index.ts, by target module (all-import) ---`);
-    for (const [mod, entry] of [...deep.byModule.entries()].sort((a, b) => b[1].edges - a[1].edges)) {
-      console.log(`    ${entry.edges} edges, ${entry.files.size} distinct file(s) → ${mod}`);
-    }
-
-    console.log(`\n--- Martin instability (stable → unstable, all-import) ---`);
-    for (const row of instability) {
-      console.log(
-        `    I=${row.instability.toFixed(2)}  Ca=${String(row.ca).padStart(4)} Ce=${String(row.ce).padStart(4)}  ${row.module}`,
-      );
-    }
-
-    // Membership for "bidirectional hub count" (formerly "core size") — every file above-median in
-    // BOTH transitive fan-in and transitive fan-out, all-import graph. Printing this was the whole
-    // point of the 2026-08-19 rename: the old name implied `src/core` membership, but nothing about
-    // the check ever tested that, and no version of this script printed which files it counted.
-    console.log(`\n--- bidirectional hubs (fan-in > median AND fan-out > median, all-import), by combined degree ---`);
-    for (const hub of hubMembers) {
-      console.log(
-        `    fanIn=${String(hub.fanIn).padStart(4)} fanOut=${String(hub.fanOut).padStart(4)}  [${hub.module ?? "(no module)"}]  ${hub.file}`,
-      );
-    }
-
-    console.log(`\n--- bidirectional hub membership by module ---`);
-    const hubsByModule = new Map<string, number>();
-    for (const hub of hubMembers) {
-      const key = hub.module ?? "(no module)";
-      hubsByModule.set(key, (hubsByModule.get(key) ?? 0) + 1);
-    }
-    for (const [mod, count] of [...hubsByModule.entries()].sort((a, b) => b[1] - a[1])) {
-      console.log(`    ${count}  ${mod}`);
-    }
-  }
+  };
+  reportDetailedMetrics({});
 
   if (UPDATE) {
     fs.writeFileSync(BASELINE_PATH, `${JSON.stringify(current, null, 2)}\n`);
@@ -797,22 +845,27 @@ function main(): void {
 
   const baseline: Baseline = priorBaseline!;
 
-  const introducedPairs = pairs.filter((p) => !baseline.moduleCycles.pairs.includes(p));
-  const removedPairs = baseline.moduleCycles.pairs.filter((p) => !pairs.includes(p));
-  const sccVerdict = compare(largestScc, baseline.moduleCycles.largestScc);
-  const cyclesRegressed = introducedPairs.length > 0 || sccVerdict === "regressed";
-  const cyclesImproved = (removedPairs.length > 0 || sccVerdict === "improved") && !cyclesRegressed;
+  const evaluateCycles = (_required: Record<string, never>, _options = {}) => {
+    const introducedPairs = pairs.filter((p) => !baseline.moduleCycles.pairs.includes(p));
+    const removedPairs = baseline.moduleCycles.pairs.filter((p) => !pairs.includes(p));
+    const sccVerdict = compare(largestScc, baseline.moduleCycles.largestScc);
+    const cyclesRegressed = introducedPairs.length > 0 || sccVerdict === "regressed";
+    const cyclesImproved = (removedPairs.length > 0 || sccVerdict === "improved") && !cyclesRegressed;
 
-  const cyclesLabel = "module cycles / SCC (runtime-only)";
-  const cyclesTier = tierOf(cyclesLabel);
-  const cyclesTradeDetail =
-    [
-      introducedPairs.length > 0 ? `+${introducedPairs.length} cycle pair(s)` : null,
-      removedPairs.length > 0 ? `-${removedPairs.length} cycle pair(s)` : null,
-      sccVerdict !== "same" ? `largest SCC ${baseline.moduleCycles.largestScc} → ${largestScc}` : null,
-    ]
-      .filter((s): s is string => s !== null)
-      .join(", ") || "no change";
+    const cyclesLabel = "module cycles / SCC (runtime-only)";
+    const cyclesTier = tierOf(cyclesLabel);
+    const cyclesTradeDetail =
+      [
+        introducedPairs.length > 0 ? `+${introducedPairs.length} cycle pair(s)` : null,
+        removedPairs.length > 0 ? `-${removedPairs.length} cycle pair(s)` : null,
+        sccVerdict !== "same" ? `largest SCC ${baseline.moduleCycles.largestScc} → ${largestScc}` : null,
+      ]
+        .filter((s): s is string => s !== null)
+        .join(", ") || "no change";
+
+    return { introducedPairs, removedPairs, sccVerdict, cyclesRegressed, cyclesImproved, cyclesLabel, cyclesTier, cyclesTradeDetail };
+  };
+  const { introducedPairs, removedPairs, sccVerdict, cyclesRegressed, cyclesImproved, cyclesLabel, cyclesTier, cyclesTradeDetail } = evaluateCycles({});
 
   const checks: { label: string; verdict: Verdict; current: number; baseline: number; unit: "pct" | "count"; tier: MetricTier }[] = [
     { label: "propagation cost (all-import)", verdict: compare(propagationCostPct, baseline.propagationCostPct), current: propagationCostPct, baseline: baseline.propagationCostPct, unit: "pct", tier: tierOf("propagation cost (all-import)") },
@@ -838,87 +891,108 @@ function main(): void {
   const regressed = checks.filter((c) => c.verdict === "regressed");
   const improved = checks.filter((c) => c.verdict === "improved");
 
-  // ENFORCE_HARD_CONSTRAINT_TIERS is true (today's default, since 2026-08-19). If it were false,
-  // these would be identical to `regressed`/`cyclesRegressed` — every metric blocking, no WARNING tier.
-  const blockingRegressed = ENFORCE_HARD_CONSTRAINT_TIERS ? regressed.filter((c) => c.tier === "hard") : regressed;
-  const warnOnlyRegressed = ENFORCE_HARD_CONSTRAINT_TIERS ? regressed.filter((c) => c.tier === "ratchet") : [];
-  const blockingCyclesRegressed = ENFORCE_HARD_CONSTRAINT_TIERS ? cyclesRegressed && cyclesTier === "hard" : cyclesRegressed;
-  const warnOnlyCyclesRegressed = ENFORCE_HARD_CONSTRAINT_TIERS ? cyclesRegressed && cyclesTier === "ratchet" : false;
+  const applyMetricTiers = (_required: Record<string, never>, _options = {}) => {
+    // ENFORCE_HARD_CONSTRAINT_TIERS is true (today's default, since 2026-08-19). If it were false,
+    // these would be identical to `regressed`/`cyclesRegressed` — every metric blocking, no WARNING tier.
+    const blockingRegressed = ENFORCE_HARD_CONSTRAINT_TIERS ? regressed.filter((c) => c.tier === "hard") : regressed;
+    const warnOnlyRegressed = ENFORCE_HARD_CONSTRAINT_TIERS ? regressed.filter((c) => c.tier === "ratchet") : [];
+    const blockingCyclesRegressed = ENFORCE_HARD_CONSTRAINT_TIERS ? cyclesRegressed && cyclesTier === "hard" : cyclesRegressed;
+    const warnOnlyCyclesRegressed = ENFORCE_HARD_CONSTRAINT_TIERS ? cyclesRegressed && cyclesTier === "ratchet" : false;
 
-  if (introducedPairs.length > 0) {
-    console.error(`\n  module cycles — ${introducedPairs.length} new pair(s) introduced:`);
-    for (const pair of introducedPairs) console.error(`    + ${pair}`);
-  }
-  if (sccVerdict === "regressed") {
-    console.error(`\n  largest strongly-connected component grew: ${baseline.moduleCycles.largestScc} → ${largestScc}`);
-  }
-  if (removedPairs.length > 0) {
-    console.log(`\n  module cycles — ${removedPairs.length} pair(s) removed since baseline:`);
-    for (const pair of removedPairs) console.log(`    - ${pair}`);
-  }
-  if (sccVerdict === "improved") {
-    console.log(`\n  largest strongly-connected component shrank: ${baseline.moduleCycles.largestScc} → ${largestScc}`);
-  }
+    return { blockingRegressed, warnOnlyRegressed, blockingCyclesRegressed, warnOnlyCyclesRegressed };
+  };
+  const { blockingRegressed, warnOnlyRegressed, blockingCyclesRegressed, warnOnlyCyclesRegressed } = applyMetricTiers({});
 
-  for (const check of regressed) {
-    if (warnOnlyRegressed.includes(check)) {
-      console.warn(`\n  WARNING (ratchet, non-blocking): ${check.label} regressed: ${check.baseline} → ${check.current}`);
-    } else {
-      console.error(`\n  ${check.label} regressed: ${check.baseline} → ${check.current}`);
+  const reportMetricMoves = (_required: Record<string, never>, _options = {}): void => {
+    const reportCycleMoves = (_required: Record<string, never>, _options = {}): void => {
+      if (introducedPairs.length > 0) {
+        console.error(`\n  module cycles — ${introducedPairs.length} new pair(s) introduced:`);
+        for (const pair of introducedPairs) console.error(`    + ${pair}`);
+      }
+      if (sccVerdict === "regressed") {
+        console.error(`\n  largest strongly-connected component grew: ${baseline.moduleCycles.largestScc} → ${largestScc}`);
+      }
+      if (removedPairs.length > 0) {
+        console.log(`\n  module cycles — ${removedPairs.length} pair(s) removed since baseline:`);
+        for (const pair of removedPairs) console.log(`    - ${pair}`);
+      }
+      if (sccVerdict === "improved") {
+        console.log(`\n  largest strongly-connected component shrank: ${baseline.moduleCycles.largestScc} → ${largestScc}`);
+      }
+
+    };
+    reportCycleMoves({});
+    for (const check of regressed) {
+      if (warnOnlyRegressed.includes(check)) {
+        console.warn(`\n  WARNING (ratchet, non-blocking): ${check.label} regressed: ${check.baseline} → ${check.current}`);
+      } else {
+        console.error(`\n  ${check.label} regressed: ${check.baseline} → ${check.current}`);
+      }
     }
-  }
-  for (const check of improved) {
-    console.log(`\n  ${check.label} improved: ${check.baseline} → ${check.current}`);
-  }
+    for (const check of improved) {
+      console.log(`\n  ${check.label} improved: ${check.baseline} → ${check.current}`);
+    }
 
+  };
+  reportMetricMoves({});
   // TRADE DETECTED: this run moved metrics in both directions. This is easy to miss in the
   // per-metric lines above — e.g. a barrel-file cleanup that shrinks API surface while raising
   // propagation cost is a net loss on the metric that actually costs something, but reads as
   // "3 improved, 1 regressed" if you're skimming. Make that unmissable.
   const hasTrade = (regressed.length > 0 || cyclesRegressed) && (improved.length > 0 || cyclesImproved);
   if (hasTrade) {
-    const tradeLines: { verdict: "regressed" | "improved"; label: string; detail: string }[] = [
-      ...regressed.map((c) => ({ verdict: "regressed" as const, label: c.label, detail: formatDelta(c.current, c.baseline, c.unit) })),
-      ...(cyclesRegressed ? [{ verdict: "regressed" as const, label: cyclesLabel, detail: cyclesTradeDetail }] : []),
-      ...improved.map((c) => ({ verdict: "improved" as const, label: c.label, detail: formatDelta(c.current, c.baseline, c.unit) })),
-      ...(cyclesImproved ? [{ verdict: "improved" as const, label: cyclesLabel, detail: cyclesTradeDetail }] : []),
-    ];
-    const tradeLabelWidth = Math.max(...tradeLines.map((l) => l.label.length)) + 2;
-    const bar = "=".repeat(72);
-    console.error(`\n${bar}`);
-    console.error(`  TRADE DETECTED — this run bought improvement on one metric with regression on another`);
-    console.error(bar);
-    for (const line of tradeLines) {
-      const tag = line.verdict === "regressed" ? "regressed:" : "improved: ";
-      console.error(`  ${tag} ${pad(line.label, tradeLabelWidth)}${line.detail}`);
+    const reportTrade = (_required: Record<string, never>, _options = {}): void => {
+      const tradeLines: { verdict: "regressed" | "improved"; label: string; detail: string }[] = [
+        ...regressed.map((c) => ({ verdict: "regressed" as const, label: c.label, detail: formatDelta(c.current, c.baseline, c.unit) })),
+        ...(cyclesRegressed ? [{ verdict: "regressed" as const, label: cyclesLabel, detail: cyclesTradeDetail }] : []),
+        ...improved.map((c) => ({ verdict: "improved" as const, label: c.label, detail: formatDelta(c.current, c.baseline, c.unit) })),
+        ...(cyclesImproved ? [{ verdict: "improved" as const, label: cyclesLabel, detail: cyclesTradeDetail }] : []),
+      ];
+      const tradeLabelWidth = Math.max(...tradeLines.map((l) => l.label.length)) + 2;
+      const bar = "=".repeat(72);
+      console.error(`\n${bar}`);
+      console.error(`  TRADE DETECTED — this run bought improvement on one metric with regression on another`);
+      console.error(bar);
+      for (const line of tradeLines) {
+        const tag = line.verdict === "regressed" ? "regressed:" : "improved: ";
+        console.error(`  ${tag} ${pad(line.label, tradeLabelWidth)}${line.detail}`);
+      }
+      console.error(bar);
+
+    };
+    reportTrade({});
+
+  }
+
+  const reportVerdict = (_required: Record<string, never>, _options = {}): void => {
+    const totalBlocking = blockingRegressed.length + Number(blockingCyclesRegressed);
+
+    if (totalBlocking > 0) {
+      console.error(
+        `\ncheck:architecture — FAILED: ${totalBlocking} metric(s) regressed against ${ENFORCE_HARD_CONSTRAINT_TIERS ? "a hard constraint" : "the baseline"}.`,
+      );
+      console.error(`Either fix the regression or, if genuinely intended, run with --update to move the baseline.`);
+      process.exit(1);
     }
-    console.error(bar);
-  }
 
-  const totalBlocking = blockingRegressed.length + (blockingCyclesRegressed ? 1 : 0);
+    if (ENFORCE_HARD_CONSTRAINT_TIERS && (warnOnlyRegressed.length > 0 || warnOnlyCyclesRegressed)) {
+      const warnCount = warnOnlyRegressed.length + Number(warnOnlyCyclesRegressed);
+      console.warn(
+        `\ncheck:architecture — OK: hard constraints hold, but ${warnCount} ratchet metric(s) regressed. Not blocking, but worth fixing before it compounds.`,
+      );
+      return;
+    }
 
-  if (totalBlocking > 0) {
-    console.error(
-      `\ncheck:architecture — FAILED: ${totalBlocking} metric(s) regressed against ${ENFORCE_HARD_CONSTRAINT_TIERS ? "a hard constraint" : "the baseline"}.`,
-    );
-    console.error(`Either fix the regression or, if genuinely intended, run with --update to move the baseline.`);
-    process.exit(1);
-  }
+    if (improved.length > 0 || cyclesImproved) {
+      console.log(`\ncheck:architecture — OK, and ahead of baseline. Run with --update to lock in the improvement.`);
+      return;
+    }
 
-  if (ENFORCE_HARD_CONSTRAINT_TIERS && (warnOnlyRegressed.length > 0 || warnOnlyCyclesRegressed)) {
-    const warnCount = warnOnlyRegressed.length + (warnOnlyCyclesRegressed ? 1 : 0);
-    console.warn(
-      `\ncheck:architecture — OK: hard constraints hold, but ${warnCount} ratchet metric(s) regressed. Not blocking, but worth fixing before it compounds.`,
-    );
-    return;
-  }
+    console.log(`\ncheck:architecture — OK: at baseline.`);
 
-  if (improved.length > 0 || cyclesImproved) {
-    console.log(`\ncheck:architecture — OK, and ahead of baseline. Run with --update to lock in the improvement.`);
-    return;
-  }
+  };
+  reportVerdict({});
 
-  console.log(`\ncheck:architecture — OK: at baseline.`);
 }
 
 main();

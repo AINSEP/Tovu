@@ -244,7 +244,7 @@ describe("onAssignRole / onAttachPolicy — shared grantSaving/grantError", () =
     const { result } = await renderLoaded();
     const callsBefore = fetchMock.mock.calls.length;
     await act(async () => {
-      await result.current.onAssignRole(USER_A.principalId);
+      await result.current.onAssignRole({ principalId: USER_A.principalId });
     });
     expect(fetchMock.mock.calls.length).toBe(callsBefore);
   });
@@ -260,7 +260,7 @@ describe("onAssignRole / onAttachPolicy — shared grantSaving/grantError", () =
       .mockResolvedValueOnce(jsonResponse({ policies: [POLICY] }));
 
     await act(async () => {
-      await result.current.onAssignRole(USER_A.principalId);
+      await result.current.onAssignRole({ principalId: USER_A.principalId });
     });
 
     const writes = fetchMock.mock.calls.filter(([, init]) => init?.method === "POST");
@@ -281,7 +281,7 @@ describe("onAssignRole / onAttachPolicy — shared grantSaving/grantError", () =
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "nope", code: "GRANT_EXCEEDS_ISSUER" }, 403));
 
     await act(async () => {
-      await result.current.onAssignRole(USER_A.principalId);
+      await result.current.onAssignRole({ principalId: USER_A.principalId });
     });
 
     expect(result.current.grantError).toBe("You cannot grant a permission you do not hold.");
@@ -294,7 +294,7 @@ describe("onAssignRole / onAttachPolicy — shared grantSaving/grantError", () =
     act(() => result.current.setPendingRoleId(ROLE.id));
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "nope", code: "FORBIDDEN" }, 403));
     await act(async () => {
-      await result.current.onAssignRole(USER_A.principalId);
+      await result.current.onAssignRole({ principalId: USER_A.principalId });
     });
     expect(result.current.grantError).not.toBeNull();
 
@@ -306,7 +306,7 @@ describe("onAssignRole / onAttachPolicy — shared grantSaving/grantError", () =
       .mockResolvedValueOnce(jsonResponse({ policies: [POLICY] }));
 
     await act(async () => {
-      await result.current.onAttachPolicy(USER_A.principalId);
+      await result.current.onAttachPolicy({ principalId: USER_A.principalId });
     });
 
     // The stale error from the earlier onAssignRole failure is gone — same shared slot, cleared by
@@ -336,7 +336,7 @@ describe("onSaveEmail", () => {
     });
 
     await act(async () => {
-      await result.current.onSaveEmail(USER_A.principalId);
+      await result.current.onSaveEmail({ principalId: USER_A.principalId });
     });
 
     const writes = fetchMock.mock.calls.filter(([, init]) => init?.method === "PATCH");
@@ -355,7 +355,7 @@ describe("onSaveEmail", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "bad", code: "VALIDATION_ERROR" }, 400));
 
     await act(async () => {
-      await result.current.onSaveEmail(USER_A.principalId);
+      await result.current.onSaveEmail({ principalId: USER_A.principalId });
     });
 
     // `VALIDATION_ERROR`'s override is `e.message || "Please correct the highlighted fields."` — a
@@ -650,15 +650,15 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     await waitFor(() => expect(result.current.users).not.toBeNull());
 
     act(() => result.current.setPendingRoleId(ROLE.id));
-    await act(async () => result.current.onAssignRole(USER_B.principalId));
+    await act(async () => result.current.onAssignRole({ principalId: USER_B.principalId }));
     expect(assign).toHaveBeenCalledWith({ principalId: USER_B.principalId, roleId: ROLE.id });
 
     act(() => result.current.setPendingPolicyId(POLICY.id));
-    await act(async () => result.current.onAttachPolicy(USER_B.principalId));
+    await act(async () => result.current.onAttachPolicy({ principalId: USER_B.principalId }));
     expect(attach).toHaveBeenCalledWith({ principalId: USER_B.principalId, policyId: POLICY.id });
 
     act(() => result.current.setEditEmail("bob+edited@example.com"));
-    await act(async () => result.current.onSaveEmail(USER_B.principalId));
+    await act(async () => result.current.onSaveEmail({ principalId: USER_B.principalId }));
     expect(update).toHaveBeenCalledWith({ principalId: USER_B.principalId }, { email: "bob+edited@example.com" });
 
     act(() => result.current.openResetPassword(USER_B));
@@ -679,7 +679,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
     act(() => result.current.setPendingRoleId(ROLE.id));
     await act(async () => {
-      await result.current.onAssignRole(USER_A.principalId);
+      await result.current.onAssignRole({ principalId: USER_A.principalId });
     });
 
     expect(result.current.grantError).toBe("boom");
@@ -760,7 +760,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     act(() => result.current.toggleExpanded(USER_A));
     act(() => result.current.setPendingRoleId(ROLE.id));
     act(() => {
-      void result.current.onAssignRole(USER_A.principalId);
+      void result.current.onAssignRole({ principalId: USER_A.principalId });
     });
     await waitFor(() => expect(port.assignRole).toHaveBeenCalledTimes(1));
 
@@ -823,7 +823,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     act(() => result.current.setPendingRoleId(ROLE.id));
     let p!: Promise<void>;
     act(() => {
-      p = result.current.onAssignRole(USER_A.principalId);
+      p = result.current.onAssignRole({ principalId: USER_A.principalId });
     });
     await waitFor(() => expect(port.assignRole).toHaveBeenCalledTimes(1));
 
@@ -858,7 +858,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     act(() => result.current.setPendingRoleId(ROLE.id));
     let pA!: Promise<void>;
     act(() => {
-      pA = result.current.onAssignRole(USER_A.principalId);
+      pA = result.current.onAssignRole({ principalId: USER_A.principalId });
     });
     await waitFor(() => expect(port.assignRole).toHaveBeenCalledTimes(1));
 
@@ -867,7 +867,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     act(() => result.current.setPendingRoleId(ROLE.id));
     let pB!: Promise<void>;
     act(() => {
-      pB = result.current.onAssignRole(USER_B.principalId);
+      pB = result.current.onAssignRole({ principalId: USER_B.principalId });
     });
     await waitFor(() => expect(port.assignRole).toHaveBeenCalledTimes(2));
     expect(result.current.grantSaving).toBe(true);
@@ -898,7 +898,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     act(() => result.current.setPendingRoleId(ROLE.id));
     let pA!: Promise<void>;
     act(() => {
-      pA = result.current.onAssignRole(USER_A.principalId);
+      pA = result.current.onAssignRole({ principalId: USER_A.principalId });
     });
     await waitFor(() => expect(port.assignRole).toHaveBeenCalledTimes(1));
     expect(result.current.grantSaving).toBe(true);

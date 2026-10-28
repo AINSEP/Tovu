@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { initSite } from "../../init-site.js";
+import { initSite } from "#src/server/runtime/composition/site-dir";
 import { openSiteStore } from "#src/server/runtime/composition/open-site-store";
 import { createProgram } from "#src/cli/program";
 

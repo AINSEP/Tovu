@@ -6,7 +6,7 @@ import { boolean, check, ForeignKeyBuilder, index, integer, jsonb, pgTable, prim
 
 import { openSqliteSnapshotSource } from "../sqlite-source.js";
 import { collectSchemaTables, collectTransferTables, planChatSnapshotTables, planSnapshotTables } from "../table-catalog.js";
-import { indexSql } from "../postgres-ddl.js";
+import { indexSql } from "@jini-ai/db/transfer";
 
 test("the host schema retains the submission-IP retention index's partial predicate", () => {
   const submissions = collectSchemaTables().find(table => table.name === "form_submissions");
@@ -19,7 +19,7 @@ test("the host schema retains the submission-IP retention index's partial predic
 test("the full schema retains vault expression indexes with unqualified column references", () => {
   const vault = collectSchemaTables().find(table => table.name === "secrets_vault");
   assert.ok(vault);
-  const ddl = indexSql("public", vault);
+  const ddl = indexSql({ schema: "public", table: vault });
   assert.ok(ddl.includes('CREATE UNIQUE INDEX "secrets_vault_default" ON "public"."secrets_vault" ("workspace_id", "kind", "owner_key", (("principal_id" IS NULL)), (coalesce("principal_id",\'\')), (("provider" IS NULL)), (coalesce("provider",\'\'))) WHERE is_default = true;'));
   assert.doesNotMatch(ddl, /"secrets_vault"\."(?:principal_id|provider)"/);
 });

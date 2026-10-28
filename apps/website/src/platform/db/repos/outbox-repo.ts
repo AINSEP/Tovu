@@ -154,8 +154,3 @@ export class SqlOutboxAdapter implements OutboxPort {
     );
   }
 }
-
-/** The outbox on `kernel`'s database, whichever dialect. */
-export function outboxFor(kernel: ContentKernel, optional: { claimLeaseMs?: number } = {}): OutboxPort {
-  return new SqlOutboxAdapter(kernel, optional);
-}

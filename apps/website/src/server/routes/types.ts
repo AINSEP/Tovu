@@ -11,7 +11,7 @@ import type { SiteProduct } from "../inbound/public-http/http/site/render.js";
 import type { ExportReport } from "#src/features/site-export/index";
 import type { ObservabilityPort } from "#src/platform/observability/index";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import type { PeerSiteReads } from "#src/server/runtime/composition/peer-site-reads";
+import type { PeerSiteReads } from "#src/assistant/host-contracts";
 import type { LocalCredentialCopy } from "#src/server/runtime/composition/local-credential-copy";
 import type { SiteSearchRuntime } from "#src/server/runtime/composition/modules/site-search";
 import type { SiteBinding } from "#src/platform/site-dir/index";
@@ -967,10 +967,10 @@ export interface EventBusDeps {
  */
 export interface ObservabilityDeps {
   /** Enabled analytics plugins supply trusted browser code; core never names the vendor. */
-  browserAnalytics?: (required: { surface: 'site' | 'admin' }) => readonly import('@jini-ai/analytics/product').BrowserAnalyticsContribution[];
+  browserAnalytics?: import('#src/features/analytics/contracts').BrowserAnalyticsSource;
   /** Existing visitor receipt/GPC decision; absent means public event capture is disabled. */
-  visitorAnalyticsProof?: import('#src/server/inbound/public-http/visitor-analytics').VisitorAnalyticsDeps['visitorAnalyticsProof'];
-  visitorAnalyticsDeliveryAllowed?: import('#src/server/inbound/public-http/visitor-analytics').VisitorAnalyticsDeps['visitorAnalyticsDeliveryAllowed'];
+  visitorAnalyticsProof?: import('#src/features/analytics/contracts').VisitorAnalyticsDeps['visitorAnalyticsProof'];
+  visitorAnalyticsDeliveryAllowed?: import('#src/features/analytics/contracts').VisitorAnalyticsDeps['visitorAnalyticsDeliveryAllowed'];
   /** Infrastructure integration only; request, error and feature signals use the facade below. */
   observability: ObservabilityPort;
   /** One facade for product events, redacted/deduplicated errors and scoped tracing.
@@ -990,7 +990,7 @@ export interface ObservabilityDeps {
   projectKeys?: import("#src/features/project-keys/service").ProjectKeysPort;
   providerAppliesAt?: (required: { pluginId: string }) => "now" | "restart" | "failed";
   reapplyProvider?: (required: { pluginId: string }) => Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult>;
-  providerConfig?: import("#src/server/runtime/composition/provider-config-source").ProviderConfigSource;
+  providerConfig?: import("@jini-ai/plugins/host").ProviderConfigSource;
   /** Whether a provider key was saved the retired way (API credential `plugin:<id>`); label lookup only, never decrypted. */
   legacyProviderCredential?: (required: { pluginId: string }) => Promise<boolean>;
   /**
@@ -1480,6 +1480,8 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * writes tied to the same site tree.
    */
   siteBinding: SiteBinding;
+  /** Site creation with host-owned repair and storage operations bound at composition. */
+  createSite: import("#src/platform/site-dir/index").CreateSitePort;
   /**
    * The served site's on-disk storage paths, resolved ONCE at boot from the same values the
    * composition root actually opened (`createSiteRouteDeps`'s `dbPath` and its blob store's uploads

@@ -24,11 +24,7 @@ const port = toJiniUsersPort({ port: defaultUsersPort });
 export function Users({ useUsersHook = useWiredUsers, openOwnPasswordReset }: UsersProps = {}) {
   function useController(): JiniController {
     const controller = useUsersHook({ openOwnPasswordReset });
-    return { ...controller, translate: controller.t,
-      onAssignRole: ({ principalId }) => controller.onAssignRole(principalId),
-      onAttachPolicy: ({ principalId }) => controller.onAttachPolicy(principalId),
-      onSaveEmail: ({ principalId }) => controller.onSaveEmail(principalId),
-    };
+    return { ...controller, translate: controller.t };
   }
   return <JiniUsers port={port} queryScope={WORKSPACE_ID}
     useUsersHook={useController} renderServerLabel={({ value }) => <ServerLabel value={value} />} />;

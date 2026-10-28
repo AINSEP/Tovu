@@ -163,22 +163,7 @@ test("deleteRole DELETEs /roles/:id", async () => {
 
 // --- Settings -----------------------------------------------------------------
 
-test("resetSettingsNamespace POSTs { namespace, scope } to /settings/reset", async () => {
-  const { calls, body } = stubFetchCapturing();
-  await api.resetSettingsNamespace({ namespace: "core", scope: "workspace" });
-  expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/settings/reset`);
-  expect(calls[0].init?.method).toBe("POST");
-  expect(body()).toEqual({ namespace: "core", scope: "workspace" });
-});
-
 // --- Workspace -----------------------------------------------------------------
-
-test("deleteWorkspace DELETEs the bare /workspaces/:id path (no sub-resource)", async () => {
-  const { calls } = stubFetchCapturing();
-  await api.deleteWorkspace();
-  expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local`);
-  expect(calls[0].init?.method).toBe("DELETE");
-});
 
 // --- Plugins -----------------------------------------------------------------
 
@@ -191,7 +176,6 @@ test("setPluginEnabled PATCHes { enabled } to /plugins/:id", async () => {
 });
 
 // --- Deployments -----------------------------------------------------------------
-
 
 test("getExternalMcpAdmissions hits GET /mcp-servers/admissions", async () => {
   const { calls } = stubFetchCapturing();
@@ -401,27 +385,6 @@ test("getDatabaseSchemaState hits GET /database/schema-state", async () => {
   expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
 
-test("listDatabaseRestorePoints hits GET /database/restore-points", async () => {
-  const { calls } = stubFetchCapturing();
-  await api.listDatabaseRestorePoints();
-  expect(calls[0].url).toBe(`/api/admin/v1/database/restore-points`);
-  expect(calls[0].init?.method ?? "GET").toBe("GET");
-});
-
-test("createDatabaseRestorePoint POSTs the options verbatim (empty by default) to /database/restore-points", async () => {
-  const { calls, body } = stubFetchCapturing();
-  await api.createDatabaseRestorePoint();
-  expect(calls[0].url).toBe(`/api/admin/v1/database/restore-points`);
-  expect(calls[0].init?.method).toBe("POST");
-  expect(body()).toEqual({});
-});
-
-test("createDatabaseRestorePoint sends trigger/costAck when given", async () => {
-  const { body } = stubFetchCapturing();
-  await api.createDatabaseRestorePoint({ trigger: "pre-migrate", costAck: true });
-  expect(body()).toEqual({ trigger: "pre-migrate", costAck: true });
-});
-
 test("planMigrateForward POSTs with no body at all", async () => {
   const { calls } = stubFetchCapturing();
   await api.planMigrateForward();
@@ -616,14 +579,6 @@ test("probeExternalMcpServer POSTs (no body) to /mcp-servers/:id/probe", async (
 // never exercised anywhere in that suite or `SettingsSection.unit.test.tsx`'s controller-fake
 // tests. `putCommentsSettings` already gets a real assertion in
 // `api-endpoint-option-branches.unit.test.ts`.
-
-test("getCommentsSettings hits GET /comments/settings", async () => {
-  const { calls } = stubFetchCapturing();
-  await api.getCommentsSettings();
-  expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/comments/settings`);
-  expect(calls[0].init?.method ?? "GET").toBe("GET");
-});
-
 
 test("presentation requests identify each editor's template kind", async () => {
   const { calls } = stubFetchCapturing();

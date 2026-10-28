@@ -8,7 +8,8 @@ import { formatPluginToolPointer } from '../features/agent-plugins/bundled-catal
 import type { PluginMaturity } from '../features/agent-plugins/identity.js';
 import { createSettingsPrincipalLookup } from '../features/settings/index.js';
 import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY } from '../features/settings/admin-interface.js';
-import type { RouteDeps } from '#src/server/routes/types';
+import type { AutomaticPluginDeps } from './host-contracts.js';
+export type { AutomaticPluginDeps } from './host-contracts.js';
 import { resolveAgentPluginGuidance, rankInstalledAgentPlugins } from '../features/agent-plugins/lifecycle.js';
 import { toolMetadata } from '../contracts/core/tool-metadata/agent-plugins.js';
 import { askAgentPluginChoice } from './ask-choice-tool.js';
@@ -23,7 +24,6 @@ export const agentPluginGuidanceCatalog = [{
 
 export const agentPluginGuidanceRisk = new Map<string, AgentToolSideEffect>([['load_agent_plugin', 'none']]);
 
-export type AutomaticPluginDeps = Pick<RouteDeps, 'workspaceId' | 'agentPluginLayout' | 'settingsRepo' | 'getEffective' | 'set' | 'siteTitleReady' | 'authorize' | 'principalRepo' | 'clock' | 'idGen'>;
 export interface AutomaticPluginRun {
   principal: Principal; conversationId: string; state: ChatAgentPluginState; query: string; pinned: readonly string[];
   signal: AbortSignal; emitSurface: SurfaceEmitter;

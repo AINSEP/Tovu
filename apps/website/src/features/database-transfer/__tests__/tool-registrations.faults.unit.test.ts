@@ -22,7 +22,7 @@ const description = { host: "fixture", port: "5432", database: "fixture", user: 
 function harness(options: { allow?: boolean; ttl?: number; version?: string; canCreate?: string } = {}, overrides: Partial<DatabaseTransferToolDeps> = {}) {
   const destinations = new InMemoryDatabaseDestinationStore();
   let now = 0;
-  const plans = new DatabaseTransferPlanStore({ now: () => now });
+  const plans = new DatabaseTransferPlanStore({}, { now: () => now });
   const surfaces = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: options.ttl ?? 100 });
   let captures = 0;
   let targetCalls = 0;

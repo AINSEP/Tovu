@@ -9,7 +9,6 @@ import type { OutboxPort } from "@jini-ai/cms/core";
 import { isTrashed } from "../../contracts/core/soft-delete.js";
 import { currentIso, isLiveAt } from "../../contracts/core/scheduled-publish.js";
 import { announcePendingGoLive } from "./go-live.js";
-import { toSlug } from "#src/platform/html/slug";
 import { postPublicPath } from "#src/platform/routing/adapter";
 import { type SlugChangeCapture } from '@jini-ai/cms/routing';
 
@@ -1107,24 +1106,6 @@ export const MAX_TITLE_LENGTH = 200;
  * reason as {@link MAX_TITLE_LENGTH}. */
 export { MAX_SLUG_LENGTH } from "./slug.js";
 
-/**
- * Room a derived slug keeps under {@link MAX_SLUG_LENGTH} for `createPost`'s collision suffix
- * (numbered suffixes, BR-02's bound): a derived slug must itself pass the rule every `updatePost`
- * applies, or the post it names can never be saved again.
- */
-// The shared slug rules export DERIVED_SLUG_SUFFIX_ROOM for this policy and the editor.
-
-/**
- * The base `createPost` derives from a title when the caller sent no slug: {@link toSlug}, cut to
- * leave {@link DERIVED_SLUG_SUFFIX_ROOM}, with any dash the cut leaves at the end dropped, or
- * `"untitled"` when nothing usable remains.
- *
- * @complexity O(n) in the title's length.
- */
-function deriveSlugBase(title: string): string {
-  return derivePostSlugBase({ title });
-}
-
 export { SLUG_FORMAT_PATTERN } from "./slug.js";
 
 /**
@@ -1575,7 +1556,7 @@ function validateUpdatePostInput(
 
   if (!title) throw new PostValidationError("title is required");
   // An UNCHANGED title or slug is not re-validated: a row stored before these bounds existed (or a
-  // slug derived before `deriveSlugBase` bounded it) would otherwise refuse every unrelated edit —
+  // slug derived before `derivePostSlugBase` bounded it) would otherwise refuse every unrelated edit —
   // a body-only save, and in the Page editor the HTML save that follows its metadata write.
   if (title !== existing.title) assertTitleWithinLimit(title);
   // `existing.kind` is immutable (PostKind's own doc: "Fixed at creation; v1 has no post<->page
@@ -1874,11 +1855,18 @@ function slugTakenMessage({ base }: { base: string }): string {
   return `slug '${base}' already exists`;
 }
 
-/** Reuse the platform collision search with post numbering from 1 and page numbering from 2. */
+/**
+ * Reuse the platform collision search with post numbering from 1 and page numbering from 2.
+ * `derivePostSlugBase` slugifies the title, drops trailing dashes after cutting to leave
+ * {@link DERIVED_SLUG_SUFFIX_ROOM}, or uses `"untitled"` when nothing usable remains. This room
+ * under {@link MAX_SLUG_LENGTH} is for `createPost`'s numbered collision suffix (BR-02's bound):
+ * a derived slug must pass the rule every `updatePost` applies, or the post can never be saved again.
+ * The shared slug rules export DERIVED_SLUG_SUFFIX_ROOM for this policy and the editor.
+ */
 async function availablePostSlug(required: { repo: PostRepoPort; workspaceId: UUID; title: string; kind: PostKind; selfId?: UUID }, _optional: Record<string, never> = {}) {
   let trashedHolder: PostRecord | null = null;
   const slug = await deriveAvailableName({
-    base: deriveSlugBase(required.title),
+    base: derivePostSlugBase({ title: required.title }),
     isTaken: async ({ candidate }) => {
       if (RESERVED_SEGMENTS.has(candidate.toLowerCase())) return true;
       const holder = await required.repo.findBySlug({ workspaceId: required.workspaceId, slug: candidate });

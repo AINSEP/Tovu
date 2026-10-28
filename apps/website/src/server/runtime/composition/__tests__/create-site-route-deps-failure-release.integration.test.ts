@@ -6,7 +6,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 
 import { sqliteClientOf, sqliteConnectionOf } from "#src/platform/db/kernel/drivers/sqlite";
-import { initSite } from "#src/platform/site-dir/init-site";
+import { initSite } from "#src/server/runtime/composition/site-dir";
 import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 import { openSiteStore, PG_SOCKET_ENV, type SiteStore } from "../open-site-store.js";
 

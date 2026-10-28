@@ -75,8 +75,3 @@ export class SqlPublishContentRunRepo implements PublishContentRunRepoPort {
     return row ? toRecord(row) : null;
   }
 }
-
-/** The publish-content run repo on `kernel`'s database, whichever dialect. */
-export function publishContentRunRepoFor(kernel: ContentKernel): PublishContentRunRepoPort {
-  return new SqlPublishContentRunRepo(kernel);
-}

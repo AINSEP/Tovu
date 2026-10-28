@@ -11,7 +11,7 @@ import Database from "better-sqlite3";
 import { openChatDb } from "../../../db/sqlite/chat-db.js";
 import { duplicateSite } from "../../duplicate-site.js";
 import { InitDirNotEmptyError, InternalError, SiteDirInvalidError, ValidationError } from "../../errors.js";
-import { initSite } from "../../init-site.js";
+import { initSite } from "#src/server/runtime/composition/site-dir";
 import { readSiteDir } from "../../read-site-dir.js";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";

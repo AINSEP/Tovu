@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildRouteManifest, createRouteManifestReader, ExportOutputNotEmptyError, exportSite, firstExportFailure } from "../index.js";
-import { buildRouteManifest as directBuildRouteManifest, createRouteManifestReader as directCreateRouteManifestReader } from "../route-manifest.js";
+import { buildRouteManifest, ExportOutputNotEmptyError, exportSite, firstExportFailure } from "../index.js";
+import { buildRouteManifest as directBuildRouteManifest } from "../route-manifest.js";
 import {
   ExportOutputNotEmptyError as DirectExportOutputNotEmptyError,
   exportSite as directExportSite,
@@ -22,7 +22,6 @@ import {
 
 test("index.ts re-exports the same function/class references as route-manifest.ts and site-exporter.ts, not copies", () => {
   assert.equal(buildRouteManifest, directBuildRouteManifest);
-  assert.equal(createRouteManifestReader, directCreateRouteManifestReader);
   assert.equal(exportSite, directExportSite);
   assert.equal(firstExportFailure, directFirstExportFailure);
   assert.equal(ExportOutputNotEmptyError, DirectExportOutputNotEmptyError);

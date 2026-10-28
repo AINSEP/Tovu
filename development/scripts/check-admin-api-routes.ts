@@ -25,14 +25,17 @@ function readLiteral(src: string, start: number): { body: string; end: number } 
   const quote = src[start]!;
   let i = start + 1;
   let depth = 0;
+  const consumeExpression = ({ c }: { c: string }, _options = {}): void => {
+    if (c === "{") depth++;
+    else if (c === "}") depth--;
+    i++;
+  };
   while (i < src.length) {
     const c = src[i]!;
     if (c === "\\") { i += 2; continue; }
     if (quote === "`" && depth === 0 && c === "$" && src[i + 1] === "{") { depth = 1; i += 2; continue; }
     if (depth > 0) {
-      if (c === "{") depth++;
-      else if (c === "}") depth--;
-      i++;
+      consumeExpression({ c });
       continue;
     }
     if (c === quote) return { body: src.slice(start + 1, i), end: i + 1 };
@@ -44,6 +47,29 @@ function readLiteral(src: string, start: number): { body: string; end: number } 
 /** Placeholders that name a route VERB rather than an id, with one real value each. */
 const SAMPLE_SEGMENTS: ReadonlyMap<string, string> = new Map([["action", "approve"]]);
 
+function interpolationEnd({ body, start }: { body: string; start: number }, _options = {}): number {
+  let depth = 1;
+  let j = start;
+  while (j < body.length && depth > 0) {
+    if (body[j] === "{") depth++;
+    else if (body[j] === "}") depth--;
+    j++;
+  }
+  return j;
+}
+
+function concreteExpression(
+  { expr, helpers }: { expr: string; helpers: ReadonlyMap<string, string> },
+  _options = {},
+): string {
+  const helper = /^([A-Za-z_]\w*)\(/.exec(expr)?.[1];
+  if (expr === "WORKSPACE_ID") return "workspace-local";
+  else if (SAMPLE_SEGMENTS.has(expr)) return SAMPLE_SEGMENTS.get(expr)!;
+  else if (helper && helpers.has(helper)) return concretise(helpers.get(helper)!, helpers);
+  else if (/[?:]/.test(expr) && /["'`][?/]/.test(expr)) return "";
+  else return "x1";
+}
+
 /** Replaces each balanced `${...}` with a concrete segment; one that starts with `?` or `/` content
  *  inside a conditional (a query string or optional suffix) is dropped. */
 function concretise(body: string, helpers: ReadonlyMap<string, string>): string {
@@ -51,20 +77,9 @@ function concretise(body: string, helpers: ReadonlyMap<string, string>): string 
   let i = 0;
   while (i < body.length) {
     if (body[i] === "$" && body[i + 1] === "{") {
-      let depth = 1;
-      let j = i + 2;
-      while (j < body.length && depth > 0) {
-        if (body[j] === "{") depth++;
-        else if (body[j] === "}") depth--;
-        j++;
-      }
+      const j = interpolationEnd({ body, start: i + 2 });
       const expr = body.slice(i + 2, j - 1).trim();
-      const helper = /^([A-Za-z_]\w*)\(/.exec(expr)?.[1];
-      if (expr === "WORKSPACE_ID") out += "workspace-local";
-      else if (SAMPLE_SEGMENTS.has(expr)) out += SAMPLE_SEGMENTS.get(expr)!;
-      else if (helper && helpers.has(helper)) out += concretise(helpers.get(helper)!, helpers);
-      else if (/[?:]/.test(expr) && /["'`][?/]/.test(expr)) out += "";
-      else out += "x1";
+      out += concreteExpression({ expr, helpers });
       i = j;
     } else {
       out += body[i];

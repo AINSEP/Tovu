@@ -1,3 +1,4 @@
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import type { LoadInstalledDeployTargets, InstalledDeployTarget } from "./deploy-targets/types.js";
 import { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-repo.js";
 export { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-repo.js";
@@ -78,13 +79,7 @@ import {
   type StaticPublishTargetId,
 } from "./static-publish/index.js";
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+export type AgentToolDefinition = SharedAgentToolDefinition;
 
 /** No arguments — parameterless read tool. Matches `agent-tools.ts`'s own `NO_INPUT_SCHEMA` exactly;
  *  declared separately here rather than imported from that sibling file, per this file's own
@@ -923,6 +918,11 @@ function credentialConnectionStatus({ verification }: {
   return verification?.message === credentialText({ id: 'timeout' }) ? 'timeout' : 'unreachable';
 }
 
+/** All blocked assistant publishes report the same event and product source. */
+function trackBlockedToolPublish({ deps, principalId, target, reasonClass }: { deps: StaticPublishToolDeps; principalId: string; target: string; reasonClass: "config" | "consent" | "busy" }, _options = {}): void {
+  deps.tracker?.capture({ name: "site_publish_blocked", userId: principalId }, { properties: { target, reasonClass, source: "assistant" } });
+}
+
 /** Consent remains a fail-closed preflight before credential reads or publishing. */
 async function checkToolPublishConsent({ deps, principalId }: {
   deps: StaticPublishToolDeps; principalId: string;
@@ -1099,12 +1099,12 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
 
       const { config, plan, detailRows } = planToolPublish(registry, raw, loaded);
       if (!plan.ok) {
-        deps.tracker?.capture({ name: "site_publish_blocked", userId: ctx.principal.id }, { properties: { target, reasonClass: "config", source: "assistant" } });
+        trackBlockedToolPublish({ deps, principalId: ctx.principal.id, target, reasonClass: "config" });
         throw new ToolInputError({ message: `deployment_execute_static_publish: ${plan.message}` });
       }
       const consent = await checkToolPublishConsent({ deps, principalId: ctx.principal.id });
       if (consent) {
-        deps.tracker?.capture({ name: "site_publish_blocked", userId: ctx.principal.id }, { properties: { target, reasonClass: "consent", source: "assistant" } });
+        trackBlockedToolPublish({ deps, principalId: ctx.principal.id, target, reasonClass: "consent" });
         return { published: false, cancelled: false, ...consent };
       }
 
@@ -1117,7 +1117,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       // Refuse unavailable credentials before starting an export.
       const readiness = await credentialSource.isConfigured({ workspaceId: deps.workspaceId, target, ...toolCredentialChoice({ raw }) });
       if (!readiness.configured) {
-        deps.tracker?.capture({ name: "site_publish_blocked", userId: ctx.principal.id }, { properties: { target, reasonClass: "config", source: "assistant" } });
+        trackBlockedToolPublish({ deps, principalId: ctx.principal.id, target, reasonClass: "config" });
         return {
           published: false,
           cancelled: false,
@@ -1129,7 +1129,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
 
       if (ctx.signal.aborted) return { published: false, cancelled: false, reason: "abandoned" };
       if (getPublishRunSnapshot().status === "running") {
-        deps.tracker?.capture({ name: "site_publish_blocked", userId: ctx.principal.id }, { properties: { target, reasonClass: "busy", source: "assistant" } });
+        trackBlockedToolPublish({ deps, principalId: ctx.principal.id, target, reasonClass: "busy" });
         return { published: false, cancelled: false, code: "ALREADY_RUNNING", message: "A publish is already running. Wait for it to finish before publishing again." };
       }
       const outcome = await runPublishAndAwait(

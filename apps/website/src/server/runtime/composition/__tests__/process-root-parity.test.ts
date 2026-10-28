@@ -379,7 +379,7 @@ test("daemon dev mode passes bypass in the executor's options bag", async () => 
     resolvePermissionMode: () => mode,
     resolveAssistantDisallowedTools: () => ["Bash"], subagentsEnabled: false, ASSISTANT_SETTING_SOURCES: [],
     // This expression runs outside onStarted; supply the locked launch snapshot it closes over.
-    nativeToolAccess: false, nativeCapabilities: assistantCliPermissions({ enabled: false }).capabilities, parityEnv: undefined,
+    nativeToolAccess: false, nativeCapabilities: assistantCliPermissions({ enabled: false }).capabilities, parityEnv: undefined, pickedFolder: undefined,
     resolveAssistantRunSettings: () => undefined, homedir: () => "/tmp/dev-home", existsSync: () => false,
     model: undefined, reasoning: undefined, attachmentRunFields: {},
     // Chrome/subagent preferences resolve before the run; OFF contributes no options here.

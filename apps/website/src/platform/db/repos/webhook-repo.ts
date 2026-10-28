@@ -378,13 +378,3 @@ export class SqlWebhookDeliveryRepo implements WebhookDeliveryRepoPort, Delivery
     return JSON.parse(row.payload_json) as WebhookEventEnvelope;
   }
 }
-
-/** The webhook subscription repo on `kernel`'s database, whichever dialect. */
-export function webhookSubscriptionRepoFor(kernel: ContentKernel): WebhookSubscriptionRepoPort {
-  return new SqlWebhookSubscriptionRepo(kernel);
-}
-
-/** The webhook delivery repo (and envelope store) on `kernel`'s database, whichever dialect. */
-export function webhookDeliveryRepoFor(kernel: ContentKernel): SqlWebhookDeliveryRepo {
-  return new SqlWebhookDeliveryRepo(kernel);
-}

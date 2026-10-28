@@ -1,6 +1,6 @@
+import type { InitSiteDeps } from "./ports.js";
 import { resolveSiteDatabasePaths } from "./site-databases.js";
 import { createSitesWorkspace, type SitesWorkspace } from "./sites-home.js";
-import { runBootDataRepairs } from "#src/server/runtime/composition/boot-data-repairs";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -21,8 +21,6 @@ import { runtimeSchemaVersion } from "./schema-guard.js";
 import type { ConfigJson, SiteMetaJson, SiteStorage } from "./types.js";
 import type { ContentDbSeedData } from "../db/sqlite/content-db.js";
 import { nonEmptyTables } from "#src/features/database-transfer/pg-store-copy";
-import { openSiteStore } from "#src/server/runtime/composition/open-site-store";
-import { sealConnectionStringForNewSite } from "#src/server/runtime/composition/storage-secret";
 import { createSqliteIdentityRouteDeps } from "../../features/identity/wiring.js";
 import { createPermissionGrantRegistry } from "../../features/identity/permission-grants.js";
 import { resolveNewSiteAdminPassword } from "./new-site-owner.js";
@@ -75,6 +73,7 @@ function stockThemesDir(): string {
 }
 
 export interface InitSiteRequired {
+  deps: InitSiteDeps;
   dir: string;
   /** Explicit new owner password; omission means tovu-dev, independently of process env. */
   adminPassword?: string;
@@ -99,6 +98,9 @@ export interface InitSiteResult {
   siteId: string;
   dir: string;
 }
+
+/** Site creation after the embedding host has bound its operations. */
+export type InitSitePort = (required: Omit<InitSiteRequired, "deps">, optional?: InitSiteOptions) => Promise<InitSiteResult>;
 
 /**
  * BR-03: `--name` (trimmed) when provided, else the target directory's basename. A
@@ -191,6 +193,7 @@ export interface InitSiteRestorePort {
  *
  * @param required.dir - the install dir path; resolved once (path/symlink containment, CIC
  *   U-004) into the single `target` every write below derives from.
+ * @param required.deps - host-owned repairs, store opening and connection-string sealing.
  * @param required.name - site display name; defaults to the target directory's basename (BR-03).
  * @param options.withSampleContent - Explicit demo/fixture opt-in; default creation has no entries.
  * @param options.workspace - Site catalog and database placement; defaults to the host workspace.
@@ -208,7 +211,7 @@ export interface InitSiteRestorePort {
  * @overallScore 100
  */
 export async function initSite(required: InitSiteRequired, options: InitSiteOptions = {}): Promise<InitSiteResult> {
-  const { dir, name } = required;
+  const { dir, name, deps } = required;
   assertVerifiedImportInput(required, options);
   const adminPassword = resolveNewSiteAdminPassword(required);
   const target = resolveInstallDirTarget(dir);
@@ -223,7 +226,7 @@ export async function initSite(required: InitSiteRequired, options: InitSiteOpti
   const workspace = options.workspace ?? createSitesWorkspace({});
   const dbPaths = resolveSiteDatabasePaths({ dir: target, siteId }, { workspace, placement: workspace.config({}).databases });
   const externalDbDir = storage.kind === "sqlite" && !dbPaths.contentDbPath.startsWith(target + path.sep) ? path.dirname(dbPaths.contentDbPath) : undefined;
-  const site: NewSite = { target, siteId, createdAt: new Date().toISOString(), resolvedName, storage, postgres, template, seed, adminPassword, dbPath: dbPaths.contentDbPath, externalDbDir };
+  const site: NewSite = { deps, target, siteId, createdAt: new Date().toISOString(), resolvedName, storage, postgres, template, seed, adminPassword, dbPath: dbPaths.contentDbPath, externalDbDir };
   const progress: InitProgress = { wroteAnything: false, createdExternalDbDir: false };
 
   try {
@@ -235,7 +238,7 @@ export async function initSite(required: InitSiteRequired, options: InitSiteOpti
   }
 }
 
-type InitSiteOptions = ReadTemplateOptional & {
+export type InitSiteOptions = ReadTemplateOptional & {
   workspace?: SitesWorkspace;
   filesystem?: AtomicFilesystemPort;
   verifiedRestore?: InitSiteRestorePort;
@@ -248,6 +251,7 @@ const detectProcessTimeZone = (): string => Intl.DateTimeFormat().resolvedOption
 
 /** Everything `initSite` resolved before its first write; every path derives from `target` or the allocated database path. */
 interface NewSite {
+  deps: InitSiteDeps;
   target: string;
   siteId: string;
   createdAt: string;
@@ -308,7 +312,7 @@ async function createSiteContents(site: NewSite, options: InitSiteOptions, progr
   // chat runner (`openSiteChatDb`), which takes no copy either.
   // PGlite/Postgres: the store is created (runner to head, content + ai_chat) and seeded instead.
   if (site.storage.kind === "sqlite") await createSqliteSiteStore(site, options, progress);
-  else await createPgSiteStore({ target, storage: site.storage, seed: site.seed, siteKeyId: siteId, postgres: site.postgres, adminPassword: site.adminPassword });
+  else await createPgSiteStore({ deps: site.deps, target, storage: site.storage, seed: site.seed, siteKeyId: siteId, postgres: site.postgres, adminPassword: site.adminPassword });
 
   // Step 8: .site-meta.json write — the commit marker, and the physically LAST write on
   // success (CIC U-003-ORD1), gated on every prior step having already succeeded.
@@ -336,7 +340,7 @@ function createSiteFolders({ target, resolvedName }: Pick<NewSite, "target" | "r
 }
 
 /** Steps 6-7 for SQLite: create (or, for a verified import, restore) content.db, migrate it, repair and seed its owner. */
-async function createSqliteSiteStore({ target, siteId, seed, adminPassword, dbPath, externalDbDir }: NewSite, { verifiedRestore }: Pick<InitSiteOptions, "verifiedRestore">, progress: InitProgress): Promise<void> {
+async function createSqliteSiteStore({ deps, target, siteId, seed, adminPassword, dbPath, externalDbDir }: NewSite, { verifiedRestore }: Pick<InitSiteOptions, "verifiedRestore">, progress: InitProgress): Promise<void> {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   progress.createdExternalDbDir = Boolean(externalDbDir);
   await verifiedRestore?.restore({ dir: target, dbPath, siteId });
@@ -347,7 +351,7 @@ async function createSqliteSiteStore({ target, siteId, seed, adminPassword, dbPa
     if (!verifiedRestore) await prepareContentStore(contentKernel(db), { seed });
     // A freshly initialized site must already carry current repair markers, so its first boot
     // does not mutate content.db merely to record a no-op repair. Older sites still repair on boot.
-    await runBootDataRepairs({ kernel: contentKernel(db) });
+    await deps.runBootDataRepairs({ kernel: contentKernel(db) });
     await seedNewSiteOwner({ kernel: contentKernel(db), seed, adminPassword });
     verifiedRestore?.signal?.throwIfAborted();
   } finally {
@@ -449,6 +453,7 @@ async function assertPostgresTargetEmpty(postgres: PostgresTarget | undefined): 
  * histories to head and seeds the template, and close it.
  */
 async function createPgSiteStore(required: {
+  deps: InitSiteDeps;
   adminPassword: string;
   target: string;
   storage: Exclude<SiteStorage, { kind: "sqlite" }>;
@@ -456,11 +461,11 @@ async function createPgSiteStore(required: {
   siteKeyId: string;
   postgres: PostgresTarget | undefined;
 }): Promise<void> {
-  const { target, storage, seed, siteKeyId, postgres } = required;
+  const { deps, target, storage, seed, siteKeyId, postgres } = required;
   const sealed = postgres?.sealed
-    ? await sealConnectionStringForNewSite({ siteDir: target, siteKeyId, connectionString: postgres.url })
+    ? await deps.sealConnectionStringForNewSite({ siteDir: target, siteKeyId, connectionString: postgres.url })
     : undefined;
-  const store = await openSiteStore(
+  const store = await deps.openSiteStore(
     { storage, dbPath: path.join(target, "content.db"), chatDbPath: path.join(target, "chat.db"), role: "owner" },
     { seed, sealer: sealed?.sealer }
   );

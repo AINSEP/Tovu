@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { ensureVaultRepoFixture } from "./vault-repo.fixture.js";
 
-import { createCustomCredential, updateCustomCredential, describeCredential, resolveCustomCredentialByLabel, isUniqueLabelViolation } from "#src/features/custom-credentials/store";
+import { createCustomCredential, updateCustomCredential, describeCredential, resolveCustomCredentialByLabel } from "#src/features/custom-credentials/store";
+import { isUniqueViolation } from "#src/platform/db/kernel/dialect";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import type { CustomCredentialSetRecord } from "#src/features/custom-credentials/types";
@@ -276,7 +277,7 @@ describeEachDialect(
         (err: unknown) => {
           assert.ok(err instanceof Error);
           assert.match((err as Error).message, /UNIQUE constraint failed|violates unique constraint/);
-          assert.ok(isUniqueLabelViolation(err), "the store must recognise the violation to translate it");
+          assert.ok(isUniqueViolation(err), "the store must recognise the violation to translate it");
           return true;
         }
       );

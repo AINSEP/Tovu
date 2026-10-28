@@ -277,11 +277,15 @@ function cmdList(): void {
   for (const tier of ENGINE_SUBFOLDERS) {
     const dir = join(THEMES_ROOT, tier);
     if (!existsSync(dir)) continue;
-    for (const id of readdirSync(dir)) {
-      const manifest = existsSync(join(dir, id, "theme.json")) ? readManifest(join(dir, id)) : {};
-      const lineage = manifest.lineage as { from?: string } | undefined;
-      console.log(`  ${tier}/${id}${lineage?.from ? `  ← copied from '${lineage.from}'` : ""}`);
-    }
+    listInstalledTier({ dir, tier });
+  }
+}
+
+function listInstalledTier({ dir, tier }: { dir: string; tier: string }, _options = {}): void {
+  for (const id of readdirSync(dir)) {
+    const manifest = existsSync(join(dir, id, "theme.json")) ? readManifest(join(dir, id)) : {};
+    const lineage = manifest.lineage as { from?: string } | undefined;
+    console.log(`  ${tier}/${id}${lineage?.from ? `  ← copied from '${lineage.from}'` : ""}`);
   }
 }
 
@@ -319,31 +323,37 @@ function main(argv: string[]): void {
   const [command, ...rest] = argv;
   const tier = flag(argv, "tier") ?? "static";
 
-  switch (command) {
-    case "copy":
+  const commands = new Map<string, () => void>([
+    ["copy", () => {
       if (rest.length < 2) fail("usage: copy <catalog-id> <new-id> [--tier static]");
       return cmdCopy(rest[0], rest[1], tier);
-    case "page:duplicate":
+    }],
+    ["page:duplicate", () => {
       if (rest.length < 3) fail("usage: page:duplicate <theme> <src-page> <new-page>");
       return cmdPageDuplicate(rest[0], rest[1], rest[2]);
-    case "page:delete":
+    }],
+    ["page:delete", () => {
       if (rest.length < 2) fail("usage: page:delete <theme> <page>");
       return cmdPageDelete(rest[0], rest[1]);
-    case "slot:add":
+    }],
+    ["slot:add", () => {
       if (rest.length < 2) fail("usage: slot:add <theme> <slot-id> [source.html]");
       return cmdSlotAdd(rest[0], rest[1], rest[2]?.startsWith("--") ? undefined : rest[2]);
-    case "page:slot:add":
+    }],
+    ["page:slot:add", () => {
       if (rest.length < 3) fail("usage: page:slot:add <theme> <page> <slot-id> [--before <slot>|--after <slot>]");
       return cmdPageSlotAdd(rest[0], rest[1], rest[2], parseAnchor(argv));
-    case "page:slot:remove":
+    }],
+    ["page:slot:remove", () => {
       if (rest.length < 3) fail("usage: page:slot:remove <theme> <page> <slot-id>");
       return cmdPageSlotRemove(rest[0], rest[1], rest[2]);
-    case "list":
-      return cmdList();
-    default:
-      console.log(USAGE);
-      if (command !== undefined && command !== "--help") process.exitCode = 1;
-  }
+    }],
+    ["list", cmdList],
+  ]);
+  const run = commands.get(command);
+  if (run) return run();
+  console.log(USAGE);
+  if (command !== undefined && command !== "--help") process.exitCode = 1;
 }
 
 try {

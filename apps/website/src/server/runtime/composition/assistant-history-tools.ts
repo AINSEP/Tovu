@@ -1,9 +1,8 @@
 import { ToolInputError, type ToolRegistration } from '@jini-ai/core';
 import { buildAssistantHistoryRegistrations, assistantHistoryDerivedRisk } from '@jini-ai/chat/store/runtime';
 import type { ToolContributor } from '#src/assistant/index';
-import type { RouteDeps } from '#src/server/routes/types';
-
-export type AssistantHistoryHostDeps = Pick<RouteDeps, 'workspaceId' | 'authorize' | 'chatHistory'>;
+import type { AssistantHistoryHostDeps } from '#src/assistant/host-contracts';
+export type { AssistantHistoryHostDeps } from '#src/assistant/host-contracts';
 
 /** Bind history to the execution principal in the supplied site's dependencies.
  * @returns Jini registrations; generic target scoping supplies peer deps/principals.

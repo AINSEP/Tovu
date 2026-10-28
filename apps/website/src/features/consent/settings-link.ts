@@ -51,6 +51,12 @@ function lastRow({ footer }: { footer: Element }, _options = {}): Element {
   }
 }
 
+/** Keep the footer whose content ends last, including implicitly closed markup. */
+function laterFooter({ node, footer }: { node: Element; footer: Element | null }, _options = {}): Element | null {
+  if (node.tagName !== 'footer') return footer;
+  return contentEnd({ node }) > (footer ? contentEnd({ node: footer }) : -1) ? node : footer;
+}
+
 /** Locate the live engine UI and the theme's footer/body insertion point in one parse.
  * The last-ending footer is the page footer: article/card footers close before it. A theme that
  * already ships its own live control keeps it alone, so the page never shows two links. */
@@ -63,7 +69,7 @@ function linkPlacement({ html }: { html: string }, { engine = 'legacy' }: { engi
     const attrs = new Map(node.attrs.map(attr => [attr.name, attr.value]));
     if (ownControl({ engine, tag: node.tagName, attrs })) return { enabled: false, offset: 0, inline: false };
     enabled = legacyReopensByLink({ engine, tag: node.tagName, attrs }) ?? enabled;
-    if (node.tagName === 'footer' && contentEnd({ node }) > (footer ? contentEnd({ node: footer }) : -1)) footer = node;
+    footer = laterFooter({ node, footer });
     if (node.tagName === 'body') bodyEnd = contentEnd({ node }, { fallback: bodyEnd });
   }
   if (!footer) return { enabled, offset: bodyEnd, inline: false };

@@ -1,4 +1,4 @@
-import type { VisitorAnalyticsDeps } from "#src/server/inbound/public-http/visitor-analytics";
+import type { BrowserAnalyticsSource, VisitorAnalyticsDeps } from "./contracts.js";
 /** Tovu ports/presets around the shared ingestion engine; no normalization or buffer logic lives here. */
 import {
   createFanOutAnalyticsSink,
@@ -39,7 +39,7 @@ export const analyticsSaltContext: AnalyticsSaltContext = {
 export interface AnalyticsIngestRouteDeps extends IngestDeps, VisitorAnalyticsDeps {
   resolveWorkspaceForHost: (host: string) => Promise<string | null> | string | null;
   analyticsSeed: string;
-  browserAnalytics?: import('#src/server/routes/types').RouteDeps['browserAnalytics'];
+  browserAnalytics?: BrowserAnalyticsSource;
   /**
    * Per-request vendor forwarders (site `core.analytics.sink` + visitor consent, `forwarding.ts`).
    * Absent or empty → the built-in sink alone, exactly the pre-forwarding path.

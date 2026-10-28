@@ -13,14 +13,17 @@ async function collect(entries: readonly DropEntry[]) {
   const files: File[] = [], paths: string[] = [];
   let total = 0, visited = 0, sawSkill = false;
   const limit = (message: string) => sawSkill ? new Error(message) : NOT_A_SKILL;
+  async function collectFile({ entry }: { entry: DropEntry }, _options = {}): Promise<void> {
+    if (entry.name === "SKILL.md") sawSkill = true;
+    const file = await new Promise<File>((resolve, reject) => entry.file!(resolve, reject));
+    total += file.size;
+    if (files.length >= 256 || total > 8 * 1024 * 1024) throw limit("Choose up to 256 files, 8 MiB total.");
+    files.push(file); paths.push(entry.fullPath.replace(/^\/+/, ""));
+  }
   async function walk(entry: DropEntry, depth: number): Promise<void> {
     if (++visited > 512 || depth > 16) throw limit("Skill folder has too many entries or is too deep.");
     if (entry.isFile) {
-      if (entry.name === "SKILL.md") sawSkill = true;
-      const file = await new Promise<File>((resolve, reject) => entry.file!(resolve, reject));
-      total += file.size;
-      if (files.length >= 256 || total > 8 * 1024 * 1024) throw limit("Choose up to 256 files, 8 MiB total.");
-      files.push(file); paths.push(entry.fullPath.replace(/^\/+/, ""));
+      await collectFile({ entry });
       return;
     }
     if (!entry.isDirectory) return;

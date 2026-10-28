@@ -229,13 +229,7 @@ function floodFillComponent(px, tile, label, id, seedX, seedY) {
   label[seedY * px.width + seedX] = id;
   const box = { x0: seedX, y0: seedY, x1: seedX, y1: seedY };
   let count = 0;
-  while (stack.length) {
-    const [cx, cy] = stack.pop();
-    count++;
-    box.x0 = Math.min(box.x0, cx);
-    box.x1 = Math.max(box.x1, cx);
-    box.y0 = Math.min(box.y0, cy);
-    box.y1 = Math.max(box.y1, cy);
+  const enqueueGoldNeighbors = ({ cx, cy }, _options = {}) => {
     for (const [nx, ny] of [[cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]]) {
       if (!insideTile(tile, nx, ny)) continue;
       const nidx = ny * px.width + nx;
@@ -245,6 +239,15 @@ function floodFillComponent(px, tile, label, id, seedX, seedY) {
       label[nidx] = id;
       stack.push([nx, ny]);
     }
+  };
+  while (stack.length) {
+    const [cx, cy] = stack.pop();
+    count++;
+    box.x0 = Math.min(box.x0, cx);
+    box.x1 = Math.max(box.x1, cx);
+    box.y0 = Math.min(box.y0, cy);
+    box.y1 = Math.max(box.y1, cy);
+    enqueueGoldNeighbors({ cx, cy });
   }
   return { count, box };
 }
@@ -336,7 +339,7 @@ const GHOST_HALO_RADIUS = 3;
 /** Grows `mask` outward by one 4-connected pixel per iteration, `radius` times, within `tile`. */
 function dilateMask(mask, tile, width, radius) {
   let current = mask;
-  for (let iter = 0; iter < radius; iter++) {
+  const dilateOnce = ({ current }, _options = {}) => {
     const next = new Uint8Array(current.length);
     for (let y = tile.y0; y <= tile.y1; y++) {
       for (let x = tile.x0; x <= tile.x1; x++) {
@@ -351,6 +354,10 @@ function dilateMask(mask, tile, width, radius) {
         next[idx] = touchesMarked ? 1 : 0;
       }
     }
+    return next;
+  };
+  for (let iter = 0; iter < radius; iter++) {
+    const next = dilateOnce({ current });
     current = next;
   }
   return current;
@@ -372,6 +379,11 @@ function buildSimplifiedSource(px, componentLabel, letterId, tile, fillColor) {
   }
   const mask = dilateMask(toRemove, tile, px.width, GHOST_HALO_RADIUS);
 
+  const out = repaintMask({ px, tile, mask, fillColor });
+  return sharp(out, { raw: { width: px.width, height: px.height, channels: px.channels } }).png().toBuffer();
+}
+
+function repaintMask({ px, tile, mask, fillColor }, _options = {}) {
   const out = Buffer.from(px.data);
   for (let y = tile.y0; y <= tile.y1; y++) {
     for (let x = tile.x0; x <= tile.x1; x++) {
@@ -383,7 +395,7 @@ function buildSimplifiedSource(px, componentLabel, letterId, tile, fillColor) {
       out[i + 2] = fillColor.b;
     }
   }
-  return sharp(out, { raw: { width: px.width, height: px.height, channels: px.channels } }).png().toBuffer();
+  return out;
 }
 
 /**

@@ -317,12 +317,6 @@ function validateConnection(raw: unknown): CustomProviderConnectionInput {
   return { token, ...(username !== undefined ? { username } : {}) };
 }
 
-/** True iff `err` is the label's UNIQUE `(workspace_id, …, label)` index rejecting a duplicate, on
- *  any database (`isUniqueViolation`, storage kernel). */
-export function isUniqueLabelViolation(err: unknown): boolean {
-  return isUniqueViolation(err);
-}
-
 export interface CreateCustomCredentialInput {
   workspaceId: UUID;
   label: unknown;
@@ -366,7 +360,8 @@ async function throwSaveError(deps: CustomCredentialReadDeps, input: { err: unkn
   const inventory = credentialDeletionRepo({ repo: deps.repo }).project;
   const hiddenDuplicate = target.scope === "project" && err instanceof VaultError && err.code === "conflict"
     && (await inventory!.repo.listByWorkspace({ workspaceId: target.workspaceId })).some(row => row.label === label && row.id !== id);
-  if (isUniqueLabelViolation(err) || hiddenDuplicate) throw target.scope === "project" ? new CustomCredentialDuplicateLabelError(`Your project already has a key named '${label}'. Use it here, or pick another name.`) : duplicateLabel(label);
+  // The storage kernel recognizes the label's UNIQUE (workspace_id, …, label) index on any database.
+  if (isUniqueViolation(err) || hiddenDuplicate) throw target.scope === "project" ? new CustomCredentialDuplicateLabelError(`Your project already has a key named '${label}'. Use it here, or pick another name.`) : duplicateLabel(label);
   throw err;
 }
 

@@ -2,7 +2,7 @@ import { createInterface } from "node:readline";
 import { Writable } from "node:stream";
 
 import { ValidationError } from "../../platform/site-dir/errors.js";
-import { initSite } from "../../platform/site-dir/init-site.js";
+import { initSite } from "#src/server/runtime/composition/site-dir";
 import { readSiteDir } from "../../platform/site-dir/read-site-dir.js";
 import type { SiteStorage } from "../../platform/site-dir/types.js";
 import { resolveNewSiteAdminPassword } from "../../platform/site-dir/new-site-owner.js";

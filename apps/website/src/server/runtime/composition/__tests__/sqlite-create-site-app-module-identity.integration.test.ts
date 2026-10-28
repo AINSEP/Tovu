@@ -13,8 +13,8 @@ import { createApp } from "#src/server/runtime/composition/app";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/memory-bus";
 import type { DomainEvent, EventBusPort } from "@jini-ai/cms/core";
-import { bootSiteDir, closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
-import { initSite } from "#src/platform/site-dir/init-site";
+import { closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
+import { bootSiteDir, initSite } from "#src/server/runtime/composition/site-dir";
 import { removeFrozenPackageTree } from "#src/features/agent-plugins/lifecycle";
 import { registerResolvePhase, runPreContentPhase } from "#src/platform/routing/adapter";
 import type { RedirectRecord, RedirectRevision } from "@jini-ai/cms/redirects";

@@ -20,15 +20,25 @@ function deps(presentationRepo: InMemoryPresentationSettingsRepo): SetActiveThem
   };
 }
 
-function seededRepo(): InMemoryPresentationSettingsRepo {
-  return new InMemoryPresentationSettingsRepo({}, { initialRows: [{ workspaceId: "ws", activeThemeId: "none", updatedAt: "2026-10-05T00:00:00.000Z" }] });
+function seededRepo({ activeThemeId = "none" } = {}): InMemoryPresentationSettingsRepo {
+  return new InMemoryPresentationSettingsRepo({}, { initialRows: [{ workspaceId: "ws", activeThemeId, updatedAt: "2026-10-05T00:00:00.000Z" }] });
 }
 
 test("a settings-write fault that is not a validation refusal propagates unchanged", async t => {
-  const repo = seededRepo();
+  // Jini 1ffa665a3 makes same-value writes a no-op; use a real transition to reach save.
+  const repo = seededRepo({ activeThemeId: "previous-theme" });
   const fault = new Error("presentation store offline");
   t.mock.method(repo, "save", async () => { throw fault; });
   await assert.rejects(applyActiveTheme({ routeDeps: deps(repo), themeId: "none" }), error => error === fault);
+  assert.equal((await repo.findByWorkspaceId({ workspaceId: "ws" }))?.activeThemeId, "previous-theme");
+});
+
+test("setting the active theme again preserves its timestamp without writing", async t => {
+  const repo = seededRepo();
+  const save = t.mock.method(repo, "save", async () => { assert.fail("same-value selection must not save"); });
+  assert.deepEqual(await applyActiveTheme({ routeDeps: deps(repo), themeId: "none" }), { previousThemeId: "none", activeThemeId: "none" });
+  assert.equal(save.mock.callCount(), 0);
+  assert.equal((await repo.findByWorkspaceId({ workspaceId: "ws" }))?.updatedAt, "2026-10-05T00:00:00.000Z");
 });
 
 test("an unknown id is refused as a ToolInputError naming the valid ids, and nothing is saved", async () => {

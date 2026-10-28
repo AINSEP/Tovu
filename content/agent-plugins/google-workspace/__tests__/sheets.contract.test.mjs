@@ -26,6 +26,7 @@ const SHEETS_HOST = 'sheets.googleapis.com';
 const DRIVE_HOST = 'www.googleapis.com';
 // Minted at runtime; not secret-shaped.
 const TOKEN = `fake-access-${'c'.repeat(24)}`;
+const CALL_ENDED_MESSAGE = 'This plugin call already finished or was stopped; capabilities kept from it no longer work. Use the capabilities of the current call.';
 
 /** The default metadata mask and the grid-data mask, pinned literally so a silent widening fails. */
 const DEFAULT_FIELDS = 'spreadsheetId,spreadsheetUrl,properties(title,locale,timeZone),sheets(properties(sheetId,title,index,sheetType,gridProperties(rowCount,columnCount,frozenRowCount,frozenColumnCount)))';
@@ -761,20 +762,20 @@ test('cancellation: the signal list covers all 26 Sheets tools', () => {
 });
 
 for (const [name, input] of SIGNAL_CALLS) {
-  test(`cancellation: ${name} called with an aborted signal sends nothing and rejects with the abort`, async () => {
+  test(`cancellation: ${name} called with an aborted signal sends nothing and rejects at the capability gate`, async () => {
     const controller = new AbortController();
     const reason = new Error('person cancelled');
     controller.abort(reason);
-    await assert.rejects(callTool(name, input, { signal: controller.signal }), (error) => error === reason || error?.cause === reason || error?.name === 'AbortError');
+    await assert.rejects(callTool(name, input, { signal: controller.signal }), { message: CALL_ENDED_MESSAGE });
     assert.equal(fake.requests.length, 0);
   });
 }
 
-test('cancellation: account_info called with an aborted signal sends nothing and rejects with the abort', async () => {
+test('cancellation: account_info called with an aborted signal sends nothing and rejects at the capability gate', async () => {
   const controller = new AbortController();
   const reason = new Error('person cancelled');
   controller.abort(reason);
-  await assert.rejects(callTool('account_info', {}, { signal: controller.signal }), (error) => error === reason);
+  await assert.rejects(callTool('account_info', {}, { signal: controller.signal }), { message: CALL_ENDED_MESSAGE });
   assert.equal(fake.requests.length, 0);
 });
 

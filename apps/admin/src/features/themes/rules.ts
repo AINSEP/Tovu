@@ -64,13 +64,6 @@ export function isStrandedActiveTheme(settings: PresentationSettings, themes: re
 export const THEME_FILES_RESOURCE = "theme-files";
 
 /**
- * ADR-020's fixed tier order. Mirrors `theme.ts`'s own `THEME_TIERS` (server-side, not imported
- * here — see `ThemeTier`'s own doc comment in `lib/api.ts` for why the client mirrors rather than
- * imports). No longer the Themes screen's tab order directly — see {@link ThemeTabGroup}.
- */
-export const THEME_TIERS: readonly ThemeTier[] = ["declarative", "templated", "handlebars", "static", "code"];
-
-/**
  * `themeId`'s tier, or `"declarative"` when `themeTiers` has no entry for it — the same
  * absent-tier fallback `theme.ts`'s `loadTheme` applies for a `theme.json` with no `tier` field.
  * Centralizes the fallback so a card's tab bucket and its tab-bar-default computation
@@ -107,8 +100,9 @@ const TIER_TAB_GROUP: Record<ThemeTier, ThemeTabGroup> = {
 /**
  * The Themes screen's tab order (2026-08-11 owner feedback: `static` reads before `templated`,
  * since Tovu ships a working static theme today and no templated one yet). Distinct from
- * {@link THEME_TIERS}'s ADR-020 order, which stays fixed — this is a display-only sequencing
- * concern, not a change to tier semantics.
+ * ADR-020's fixed tier order in server-side `theme.ts` — this is a display-only sequencing
+ * concern, not a change to tier semantics. The browser mirrors the tier wire contract through
+ * `ThemeTier` rather than importing server internals (see `lib/api.ts`).
  */
 export const THEME_TAB_GROUPS: readonly ThemeTabGroup[] = ["declarative", "static", "templated", "code"];
 

@@ -70,6 +70,7 @@ export {
   type ListSitesOptional,
   type CreateSiteRequired,
   type CreateSiteResult,
+  type CreateSitePort,
 } from "./site-registry.js";
 export {
   persistActiveSite,

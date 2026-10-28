@@ -1,16 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { ChatMessage } from "@jini-ai/chat/core";
+import { MID_RUN_USER_MESSAGE_EVENT_NAME, type ChatMessage } from "@jini-ai/chat/core";
 import type { SupervisorScheduler } from "@jini-ai/sidecar/supervisor";
 import { createNoopObservabilityPort } from "#src/platform/observability/index";
-import { EXHAUSTED_NOTICE } from "#src/assistant/durable-runs/recover";
 import { AWAITING_ANSWER_NOTICE } from "@jini-ai/chat/server/durable-runs";
 import { createSurfaceExchangeStore, DEFAULT_SURFACE_IDLE_TTL_MS } from "@jini-ai/daemon/surface-exchanges";
 import { ASK_CHOICE_TOOL_ID, askAgentPluginChoice } from "#src/assistant/ask-choice-tool";
 import { recoveryLedgerFixture } from "./durable-ledger.fixture.js";
 import { createAssistantRunFinalizer, createHttpRunDaemonClient, type RunDaemonClient } from "../runtime/composition/modules/assistant-run-finalizer.js";
 
-/** Uncertainty has a five-minute recovery budget; fresh live proof renews a watch. The previous
+/** Only verified death spends the recovery budget; uncertainty keeps watching. The previous
  * daemon may survive teardown or its PID may be reused, so HTTP ownership and process identity
  * stay separate evidence. All clocks, storage and daemon calls are injected ports. */
 async function flush() { for (let i = 0; i < 64; i++) await Promise.resolve(); }
@@ -68,9 +67,15 @@ for (const outcome of ["answered", "expired", "dead"] as const) {
       `event: ${kind}\ndata: ${JSON.stringify({ runId: "old", kind, payload })}\n\n`,
     ));
     let cards = 0;
+    let receipts = 0;
     const choice = askAgentPluginChoice({ surfaces: { surfaceExchanges: exchanges }, principalId: "owner",
       signal: abort.signal, matches: [{ id: "synthetic", name: "Synthetic", why: "Matches the task" }],
-      emitSurface: async emission => { cards++; send("agent", { type: "mcp-ui", resource: emission.payload.resource }); },
+      emitSurface: async emission => {
+        if (emission.channel === "mcp-ui") cards++;
+        else { assert.equal(emission.channel, MID_RUN_USER_MESSAGE_EVENT_NAME); receipts++; }
+        // A dead run's stream is canceled; its detached exchange can no longer append frames.
+        if (!dead) send("agent", { ...emission.payload, type: emission.channel });
+      },
     });
     await h.finalizer.reconcileInterrupted({}, {});
     await h.elapse({ ms: 128_000 }, {});
@@ -106,31 +111,52 @@ for (const outcome of ["answered", "expired", "dead"] as const) {
     assert.equal(h.message.runId, "old");
     assert.equal(h.message.events?.filter(event => event.kind === "ext" && event.name === "mcp-ui").length, 1);
     assert.equal(cards, 1); assert.equal(opened, 1); assert.equal(launches, 0);
+    assert.equal(receipts, outcome === "expired" ? 0 : 1);
     assert.equal(exchanges.size(), 0); assert.equal(h.finalizer.activeCount(), 0); assert.equal(h.timers.size, 0);
   });
 }
 
-test("a quiet stream without live proof waits five minutes, finalizes once and keeps its saved text", async () => {
+test("a quiet stream without live proof keeps watching through five minutes, then saves its terminal result", { timeout: 5000 }, async () => {
   let launches = 0;
-  const h = recoveryHarness({ daemon: { runStatus: async () => null, openEvents: async () => new Response(new ReadableStream()),
+  let controller!: ReadableStreamDefaultController<Uint8Array>;
+  const h = recoveryHarness({ daemon: { runStatus: async () => null,
+    openEvents: async () => new Response(new ReadableStream<Uint8Array>({ start(value) { controller = value; } })),
     launch: async () => { launches++; },
   } }, {});
   assert.equal(await h.finalizer.reconcileInterrupted({}, {}), 1);
   await h.elapse({ ms: 299_999 }, {}); assert.equal(h.message.runStatus, "running");
-  await h.elapse({ ms: 1 }, {}); await h.finalizer.idle();
-  assert.equal(h.message.runStatus, "failed"); assert.equal(h.message.content, "Partial answer");
-  assert.deepEqual(h.message.events, [{ kind: "text", text: "Partial answer" }, { kind: "status", label: EXHAUSTED_NOTICE, detail: "Recovery window ended" }]);
+  await h.elapse({ ms: 1 }, {});
+  // Jini bf73324c6: uncertainty reattaches; idle() cannot resolve until there is terminal evidence.
+  assert.equal(h.message.runStatus, "running"); assert.equal(h.finalizer.activeCount(), 1);
+  controller.enqueue(new TextEncoder().encode('event: end\ndata: {"payload":{"status":"succeeded","code":0}}\n\n'));
+  controller.close();
+  await h.finalizer.idle();
+  assert.equal(h.message.runStatus, "succeeded"); assert.equal(h.message.content, "Partial answer");
+  assert.deepEqual(h.message.events, [{ kind: "text", text: "Partial answer" }]);
   assert.equal(h.message.endedAt, 301_000); assert.equal(launches, 0); assert.equal(h.finalizer.activeCount(), 0); assert.equal(h.timers.size, 0);
 });
 
-test("a stalled boot status probe is bounded before adopting an uncertain attempt", async () => {
+test("a stalled boot status probe is bounded before adopting an uncertain attempt", { timeout: 5000 }, async () => {
   let launches = 0;
-  const h = recoveryHarness({ daemon: { runStatus: async () => new Promise(() => {}), openEvents: async () => new Promise(() => {}), launch: async () => { launches++; } } }, {});
+  let releaseEvents!: () => void;
+  const eventsReady = new Promise<void>((resolve) => { releaseEvents = resolve; });
+  const h = recoveryHarness({ daemon: {
+    runStatus: async () => new Promise(() => {}),
+    openEvents: async () => {
+      await eventsReady;
+      return new Response('event: end\ndata: {"payload":{"status":"succeeded","code":0}}\n\n');
+    },
+    launch: async () => { launches++; },
+  } }, {});
   const boot = h.finalizer.reconcileInterrupted({}, {});
   await h.elapse({ ms: 10 }, {}); assert.equal(await boot, 1);
   assert.equal(h.message.runStatus, "running"); assert.equal(h.finalizer.activeCount(), 1);
-  await h.elapse({ ms: 300_020 }, {}); await h.finalizer.idle();
-  assert.equal(h.message.runStatus, "failed"); assert.equal(h.message.content, "Partial answer"); assert.equal(launches, 0);
+  await h.elapse({ ms: 300_020 }, {});
+  assert.equal(h.message.runStatus, "running"); assert.equal(h.finalizer.activeCount(), 1);
+  releaseEvents();
+  await h.finalizer.idle();
+  assert.equal(h.message.runStatus, "succeeded"); assert.equal(h.message.content, "Partial answer"); assert.equal(launches, 0);
+  assert.equal(h.finalizer.activeCount(), 0); assert.equal(h.timers.size, 0);
 });
 
 test("fresh proof keeps a live quiet attempt watched beyond the recovery window until it completes", async () => {

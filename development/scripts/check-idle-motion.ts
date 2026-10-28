@@ -111,17 +111,84 @@ export function cssDeclarations(css: string): Array<{ selector: string; declarat
       stack.push(buffer.trim().replace(/[ \t]+/g, " ").replace(/\s*\n\s*/g, "\n"));
       buffer = "";
       start = i + 1;
+      continue;
     } else if (ch === ";" || ch === "}") {
       flush();
       if (ch === "}") stack.pop();
       buffer = "";
       start = i + 1;
-    } else {
-      if (buffer.trim() === "") start = i;
-      buffer += ch;
+      continue;
     }
+    if (buffer.trim() === "") start = i;
+    buffer += ch;
   }
   return out;
+}
+
+type MotionScan = {
+  rel: string; text: string; violations: IdleMotionViolation[]; seenAnimations: Set<string>;
+};
+
+function checkStylesheet({ rel, text, violations, seenAnimations }: MotionScan, _options = {}): void {
+  let allowedHere = false;
+  for (const { selector, declaration, index } of cssDeclarations(text)) {
+    if (!INFINITE_DECLARATION.test(declaration)) continue;
+    const key = `${rel}::${selector}`;
+    seenAnimations.add(key);
+    if (key in INFINITE_ANIMATION_ALLOWLIST) allowedHere = true;
+    else violations.push({ rule: "infinite-animation", file: rel, line: lineOf(text, index), detail: `${selector} { ${declaration} }` });
+  }
+  if (allowedHere && !text.includes("prefers-reduced-motion")) {
+    violations.push({ rule: "reduced-motion", file: rel, line: 1, detail: "has an infinite animation but no prefers-reduced-motion rule" });
+  }
+
+}
+
+function checkMarkupMotion({ rel, text, violations, seenAnimations }: MotionScan, _options = {}): void {
+  for (const match of text.matchAll(MEDIA_AUTOPLAY)) {
+    violations.push({ rule: "media-autoplay", file: rel, line: lineOf(text, match.index ?? 0), detail: match[0].slice(0, 80) });
+  }
+  for (const match of text.matchAll(TAILWIND_INFINITE)) {
+    const key = `${rel}::${match[0]}`;
+    seenAnimations.add(key);
+    if (!(key in INFINITE_ANIMATION_ALLOWLIST)) {
+      violations.push({ rule: "infinite-animation", file: rel, line: lineOf(text, match.index ?? 0), detail: match[0] });
+    }
+  }
+}
+
+function checkCodeMotion(
+  { rel, text, violations, seenAnimations, seenIntervals }: MotionScan & { seenIntervals: Set<string> },
+  _options = {},
+): void {
+  for (const pattern of THROTTLING_PATTERNS) {
+    const match = pattern.exec(text);
+    if (match) violations.push({ rule: "background-throttling", file: rel, line: lineOf(text, match.index), detail: match[0] });
+  }
+  if (MARKUP_EXT.test(rel)) {
+    checkMarkupMotion({ rel, text, violations, seenAnimations });
+  }
+  const interval = /\bsetInterval\(/.exec(text);
+  if (interval) {
+    seenIntervals.add(rel);
+    if (!(rel in INTERVAL_ALLOWLIST)) {
+      violations.push({ rule: "bare-interval", file: rel, line: lineOf(text, interval.index), detail: "setInterval( — use a visibility-aware timer or allowlist it with a reason" });
+    }
+  }
+}
+
+function checkStaleAllowlists(
+  { violations, seenAnimations, seenIntervals }: {
+    violations: IdleMotionViolation[]; seenAnimations: Set<string>; seenIntervals: Set<string>;
+  },
+  _options = {},
+): void {
+  for (const key of Object.keys(INFINITE_ANIMATION_ALLOWLIST)) {
+    if (!seenAnimations.has(key)) violations.push({ rule: "stale-allowlist", file: key.split("::")[0]!, line: 0, detail: `INFINITE_ANIMATION_ALLOWLIST entry matches nothing: ${key}` });
+  }
+  for (const key of Object.keys(INTERVAL_ALLOWLIST)) {
+    if (!seenIntervals.has(key)) violations.push({ rule: "stale-allowlist", file: key, line: 0, detail: "INTERVAL_ALLOWLIST entry matches nothing" });
+  }
 }
 
 /** Scan `repoRoot` and return every violation. */
@@ -140,51 +207,14 @@ export function checkIdleMotion(repoRoot: string): IdleMotionViolation[] {
     const text = stripComments(fs.readFileSync(abs, "utf8"), isCss);
 
     if (isCss) {
-      let allowedHere = false;
-      for (const { selector, declaration, index } of cssDeclarations(text)) {
-        if (!INFINITE_DECLARATION.test(declaration)) continue;
-        const key = `${rel}::${selector}`;
-        seenAnimations.add(key);
-        if (key in INFINITE_ANIMATION_ALLOWLIST) allowedHere = true;
-        else violations.push({ rule: "infinite-animation", file: rel, line: lineOf(text, index), detail: `${selector} { ${declaration} }` });
-      }
-      if (allowedHere && !text.includes("prefers-reduced-motion")) {
-        violations.push({ rule: "reduced-motion", file: rel, line: 1, detail: "has an infinite animation but no prefers-reduced-motion rule" });
-      }
+      checkStylesheet({ rel, text, violations, seenAnimations });
       continue;
     }
 
-    for (const pattern of THROTTLING_PATTERNS) {
-      const match = pattern.exec(text);
-      if (match) violations.push({ rule: "background-throttling", file: rel, line: lineOf(text, match.index), detail: match[0] });
-    }
-    if (MARKUP_EXT.test(rel)) {
-      for (const match of text.matchAll(MEDIA_AUTOPLAY)) {
-        violations.push({ rule: "media-autoplay", file: rel, line: lineOf(text, match.index ?? 0), detail: match[0].slice(0, 80) });
-      }
-      for (const match of text.matchAll(TAILWIND_INFINITE)) {
-        const key = `${rel}::${match[0]}`;
-        seenAnimations.add(key);
-        if (!(key in INFINITE_ANIMATION_ALLOWLIST)) {
-          violations.push({ rule: "infinite-animation", file: rel, line: lineOf(text, match.index ?? 0), detail: match[0] });
-        }
-      }
-    }
-    const interval = /\bsetInterval\(/.exec(text);
-    if (interval) {
-      seenIntervals.add(rel);
-      if (!(rel in INTERVAL_ALLOWLIST)) {
-        violations.push({ rule: "bare-interval", file: rel, line: lineOf(text, interval.index), detail: "setInterval( — use a visibility-aware timer or allowlist it with a reason" });
-      }
-    }
+    checkCodeMotion({ rel, text, violations, seenAnimations, seenIntervals });
   }
 
-  for (const key of Object.keys(INFINITE_ANIMATION_ALLOWLIST)) {
-    if (!seenAnimations.has(key)) violations.push({ rule: "stale-allowlist", file: key.split("::")[0]!, line: 0, detail: `INFINITE_ANIMATION_ALLOWLIST entry matches nothing: ${key}` });
-  }
-  for (const key of Object.keys(INTERVAL_ALLOWLIST)) {
-    if (!seenIntervals.has(key)) violations.push({ rule: "stale-allowlist", file: key, line: 0, detail: "INTERVAL_ALLOWLIST entry matches nothing" });
-  }
+  checkStaleAllowlists({ violations, seenAnimations, seenIntervals });
   return violations;
 }
 

@@ -50,11 +50,7 @@ export async function rewriteMediaOriginalUrls(
   const locations = exportUrlLocations({ body, contentType });
   const paths = await localOriginalPaths({ body, deps, locations });
   if (paths.size === 0) return body;
-  const records = new Map<string, NonNullable<Awaited<ReturnType<typeof findMediaByIdOrSlug>>>>();
-  for (const [url, { key }] of paths) {
-    const record = await findMediaByIdOrSlug({ deps, input: { workspaceId: deps.workspaceId, idOrSlug: key } });
-    if (record && record.status === "active" && record.kind !== "document") records.set(url, record);
-  }
+  const records = await exportableMediaRecords({ paths, deps });
   const contentTypes = await resolveContentTypes(deps, [...records.values()]);
   const replacements = new Map<string, string>();
   for (const [url, record] of records) {
@@ -71,6 +67,16 @@ export async function rewriteMediaOriginalUrls(
   }
   output.push(body.slice(offset));
   return output.join('');
+}
+
+/** Missing, inactive and document records keep their original URL; lookups remain sequential. */
+async function exportableMediaRecords({ paths, deps }: { paths: ReadonlyMap<string, { key: string }>; deps: ExportMediaUrlDeps }, _options = {}) {
+  const records = new Map<string, NonNullable<Awaited<ReturnType<typeof findMediaByIdOrSlug>>>>();
+  for (const [url, { key }] of paths) {
+    const record = await findMediaByIdOrSlug({ deps, input: { workspaceId: deps.workspaceId, idOrSlug: key } });
+    if (record && record.status === "active" && record.kind !== "document") records.set(url, record);
+  }
+  return records;
 }
 
 /** Rewrite textual responses before the existing exporter writes AND crawls them. Binary responses

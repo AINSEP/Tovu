@@ -77,7 +77,7 @@ function TransferTab({ tab, useTransferTranslate, useSitesAvailable }: {
   // on every host earlier on 2026-10-25 ("i should be able to publish media, posts, pages, etc"),
   // then removed the same day (owner: "lets remove it") because it republishes the WHOLE site and
   // read as publishing the zip. Publishing stays on the dashboard's "Publish All" and Deployment,
-  // both present on desktop too. `SitePublishButton` is kept, unmounted, for reuse.
+  // both present on desktop too.
   if (tab === "export") return <SiteExportTab t={t} />;
   return <SiteImportTab t={t} showNewSiteLink={sitesAvailable} />;
 }

@@ -1,15 +1,7 @@
 import type { Request } from "express";
-import type { Tracker } from "@jini-ai/diagnostics/observability";
 import type { ConsentAnalyticsProof } from "@jini-ai/cms/consent/express";
-
-/** Composition-bound public analytics ports. Missing consent or identity generation denies capture. */
-export interface VisitorAnalyticsDeps {
-  tracker?: Tracker;
-  visitorTracker?: Tracker;
-  idGen?: { newId(): string };
-  visitorAnalyticsProof?: (required: { request: Request }) => Promise<ConsentAnalyticsProof | undefined>;
-  visitorAnalyticsDeliveryAllowed?: (required: { proof: ConsentAnalyticsProof }) => Promise<boolean>;
-}
+import type { VisitorAnalyticsDeps } from '#src/features/analytics/contracts';
+export type { VisitorAnalyticsDeps } from '#src/features/analytics/contracts';
 
 /** Durable, minimal evidence carried beside a committed CMS event; never derived from form fields. */
 export interface VisitorAnalyticsProvenance {

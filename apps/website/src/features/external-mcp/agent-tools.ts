@@ -43,18 +43,14 @@
  * makes an attempt to pass one a loud, rejected call rather than a silently dropped field.
  */
 
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
+
 /** Mirrors the `AgentToolSideEffect` union every domain declares its own copy of — see
  *  `WirableToolDefinition`'s doc in `@jini-ai/cms/core` for why a shared import is deliberately not
  *  used here. */
 export type AgentToolSideEffect = "none" | "mutates-durable-state";
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect };
 
 /**
  * The same site-owner-level permission the HTTP routes gate on (`server/routes/admin/external-mcp/

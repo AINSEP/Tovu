@@ -283,7 +283,14 @@ test("fetch_published_page: renders a real route of this site through the real c
   assert.ok(result.status >= 200 && result.status < 500, `unexpected status ${result.status}`);
   assert.equal(result.status, 200);
   assert.match(result.body, /<!doctype html>/i);
-  assert.ok(result.body.includes("This is your home page."));
+  // 8801888ef intentionally caps raw HTML at 20 KB; the consent bootstrap precedes page content.
+  assert.equal(result.bodyBytes, 20_000);
+  assert.equal(result.truncated, true);
+  assert.ok(result.body.includes('id="jini-consent-config"'));
+  const text = await handler(ctxFor(await deps.ownerPrincipalId, { path: "/", textOnly: true, maxBytes: 20_000 })) as typeof result;
+  assert.equal(text.status, 200);
+  assert.equal(text.truncated, false);
+  assert.ok(text.body.includes("This is your home page."));
   assert.ok(typeof result.body === "string");
   assert.ok(Array.isArray(result.cookies));
   assert.equal(result.headers["set-cookie"], undefined, "raw set-cookie must never survive into the result");

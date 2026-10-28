@@ -66,6 +66,11 @@ function isPlainObject(value) {
   return typeof value === "object" && value !== null;
 }
 
+/** @param {{ err: unknown }} required */
+function isGitHubTimeout({ err }, _options = {}) {
+  return err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
+}
+
 /**
  * The commit operation, bound to one kit.
  *
@@ -86,7 +91,7 @@ export function createSiteCommitter(kit) {
       if (kit.isRedirectRefusal(err)) {
         return { kind: "provider-rejected", message: err instanceof Error ? err.message : String(err) };
       }
-      if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) {
+      if (isGitHubTimeout({ err })) {
         return { kind: "network-unreachable", message: `GitHub request to ${url} timed out after ${GITHUB_FETCH_TIMEOUT_MS}ms` };
       }
       return { kind: "network-unreachable", message: err instanceof Error ? err.message : String(err) };

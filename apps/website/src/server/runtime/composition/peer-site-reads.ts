@@ -9,6 +9,8 @@ import { constrainPrincipalToReadOnlyTools } from '@jini-ai/daemon/read-only-too
 import { SqliteDbOpsAdapter } from '@jini-ai/db/sqlite';
 import { OriginRegistry } from '@jini-ai/http-kit/verified-origin';
 import type { AssistantToolRegistryDeps } from '#src/assistant/tool-registrations';
+import type { PeerSiteReads } from '#src/assistant/host-contracts';
+export type { PeerSiteReads } from '#src/assistant/host-contracts';
 import { createChatStoreFactory } from '#src/assistant/persistence/store-factory';
 import type { ContentDatabase } from '#src/platform/db/content-database.generated';
 import type { JournalDatabase } from '#src/platform/db/journal-kernel';
@@ -146,23 +148,6 @@ function unavailable({ field }: { field: string }, _options = {}): never {
     get: (_target, key) => key === 'then' ? undefined : fail(),
     apply: fail, construct: fail,
   }) as never;
-}
-
-type BuildRegistrations = (deps: AssistantToolRegistryDeps) => ToolRegistration[];
-type PeerResolution = { handler: ToolRegistration['handler']; principal: Principal; site: RegisteredSiteSource };
-export interface PeerSiteReads {
-  /** Host-owned scope policy keeps the assistant free of runtime imports of server composition. */
-  readonly readDomains: ReadonlySet<string>;
-  /** Single reads refused inside an otherwise cross-site domain. */
-  readonly excludedReadTools?: ReadonlySet<string>;
-  /** Exact registry-name comparison; never opens a database. Throws a path-free local-host/registry refusal. */
-  isCurrentSite(required: { siteName: string }, optional?: Record<string, never>): boolean;
-  /** The caller adapter gates installation ownership. The builder must return only allowlisted
-   * read registrations; resolution supplies the target's attenuated owner and fixed refusals.
-   */
-  resolve(required: { siteName: string; toolId: string; callerPrincipalId: string; buildRegistrations: BuildRegistrations }, optional?: Record<string, never>): Promise<'current' | PeerResolution>;
-  /** Drain active handlers, cancel idle timers and close all cached handles. Idempotent. */
-  close(): Promise<void>;
 }
 
 type PeerBag = {

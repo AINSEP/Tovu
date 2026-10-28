@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 import { ensureSettingDefinitions, InMemorySettingsRepo, SCOPE_BIT } from "@jini-ai/core/settings";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { createTtlCache } from "#src/server/runtime/boot/mail-status-cache";
+import { createTtlCache } from "@jini-ai/platform/mail";
 import { readMailProviderSetting, ensureMailProviderSettings } from "#src/features/settings/mail-provider";
 import { registerAdminSettingsSetRoute } from "../set.js";
 import { registerAdminSettingsClearRoute } from "../clear.js";

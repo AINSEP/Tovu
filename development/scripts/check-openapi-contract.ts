@@ -245,36 +245,50 @@ async function main(): Promise<void> {
   const results: ProbeResult[] = [];
   const touched = new Set<string>();
 
+  const probeAuthErrors = async ({ op }: { op: OpenApiOperation }, _options = {}): Promise<void> => {
+    const key = `${op.file}#${op.operationId}`;
+    if (op.requiresAuth && op.statusCodes.includes("401")) {
+      results.push(await probeOperation({ probeType: "AUTH_401", op, baseUrl: server.baseUrl, headers: {} }));
+      touched.add(key);
+    }
+    if (op.requiresAuth && op.statusCodes.includes("403")) {
+      results.push(await probeOperation({ probeType: "PERM_403", op, baseUrl: server.baseUrl, headers: { cookie: bareCookie } }));
+      touched.add(key);
+    }
+
+  };
+  const probeMissingTargets = async ({ op }: { op: OpenApiOperation }, _options = {}): Promise<void> => {
+    const key = `${op.file}#${op.operationId}`;
+    if (op.pathParams.includes("workspaceId") && op.statusCodes.includes("404")) {
+      results.push(await probeOperation({ probeType: "WORKSPACE_404", op, baseUrl: server.baseUrl, headers: cookieHeader(op, ownerCookie) }));
+      touched.add(key);
+    }
+    if (op.pathParams.length >= 2 && op.statusCodes.includes("404")) {
+      results.push(await probeOperation({ probeType: "RESOURCE_404", op, baseUrl: server.baseUrl, headers: cookieHeader(op, ownerCookie) }));
+      touched.add(key);
+    }
+
+  };
+  const probeInvalidBody = async ({ op, formSlug }: { op: OpenApiOperation; formSlug: string }, _options = {}): Promise<void> => {
+    const key = `${op.file}#${op.operationId}`;
+    if (
+      ["post", "put", "patch"].includes(op.method) &&
+      op.requestBodyRequired &&
+      op.pathParams.length <= 1 &&
+      op.statusCodes.includes("400")
+    ) {
+      results.push(await probeOperation({ probeType: "VALIDATION_400", op, baseUrl: server.baseUrl, headers: cookieHeader(op, ownerCookie) }, { formSlug }));
+      touched.add(key);
+    }
+  };
+
   try {
     const formSlug = await seedContractProbeForm({ request: fetch, baseUrl: server.baseUrl, ownerCookie, workspaceId: WORKSPACE_ID });
 
     for (const op of operations) {
-      const key = `${op.file}#${op.operationId}`;
-      if (op.requiresAuth && op.statusCodes.includes("401")) {
-        results.push(await probeOperation({ probeType: "AUTH_401", op, baseUrl: server.baseUrl, headers: {} }));
-        touched.add(key);
-      }
-      if (op.requiresAuth && op.statusCodes.includes("403")) {
-        results.push(await probeOperation({ probeType: "PERM_403", op, baseUrl: server.baseUrl, headers: { cookie: bareCookie } }));
-        touched.add(key);
-      }
-      if (op.pathParams.includes("workspaceId") && op.statusCodes.includes("404")) {
-        results.push(await probeOperation({ probeType: "WORKSPACE_404", op, baseUrl: server.baseUrl, headers: cookieHeader(op, ownerCookie) }));
-        touched.add(key);
-      }
-      if (op.pathParams.length >= 2 && op.statusCodes.includes("404")) {
-        results.push(await probeOperation({ probeType: "RESOURCE_404", op, baseUrl: server.baseUrl, headers: cookieHeader(op, ownerCookie) }));
-        touched.add(key);
-      }
-      if (
-        ["post", "put", "patch"].includes(op.method) &&
-        op.requestBodyRequired &&
-        op.pathParams.length <= 1 &&
-        op.statusCodes.includes("400")
-      ) {
-        results.push(await probeOperation({ probeType: "VALIDATION_400", op, baseUrl: server.baseUrl, headers: cookieHeader(op, ownerCookie) }, { formSlug }));
-        touched.add(key);
-      }
+      await probeAuthErrors({ op });
+      await probeMissingTargets({ op });
+      await probeInvalidBody({ op, formSlug });
     }
 
     for (const target of IDEMPOTENCY_PROBES) {
@@ -285,38 +299,47 @@ async function main(): Promise<void> {
     await server.close();
   }
 
-  const byType = new Map<ProbeType, ProbeResult[]>();
-  for (const r of results) byType.set(r.probeType, [...(byType.get(r.probeType) ?? []), r]);
+  const reportMismatches = ({ failures }: { failures: ProbeResult[] }, _options = {}): void => {
+    if (failures.length > 0) {
+      console.log("=".repeat(78));
+      console.log(`MISMATCHES (${failures.length}) — spec says one status, live server returned another`);
+      console.log("=".repeat(78));
+      for (const f of failures) {
+        console.log(`\n[${f.probeType}] ${f.file} :: ${f.operationId} (${f.method} ${f.requestedUrl})`);
+        console.log(`  expected ${f.expectedStatus}, got ${f.actualStatus}`);
+        if (f.bodySnippet) console.log(`  body: ${f.bodySnippet}`);
+        const hint = mismatchHint(f);
+        if (hint) console.log(`  hint: ${hint}`);
+      }
+      console.log();
+    }
 
-  console.log("=".repeat(78));
-  console.log("RESULTS BY PROBE TYPE");
-  console.log("=".repeat(78));
-  for (const [type, rs] of byType) {
-    const pass = rs.filter((r) => r.pass).length;
-    console.log(`${type}: ${pass}/${rs.length} passed`);
-  }
+  };
+  const reportProbeResults = (_required: Record<string, never>, _options = {}): ProbeResult[] => {
+    const byType = new Map<ProbeType, ProbeResult[]>();
+    for (const r of results) byType.set(r.probeType, [...(byType.get(r.probeType) ?? []), r]);
 
-  const failures = results.filter((r) => !r.pass);
-  const hinted = failures.filter((f) => mismatchHint(f) !== undefined);
-  console.log(`\nTOTAL: ${results.length - failures.length}/${results.length} passed`);
-  if (failures.length > 0) {
-    console.log(`  ${failures.length - hinted.length} likely confirmed contract mismatch(es), ${hinted.length} flagged as a probable probe limitation (see hints below) — both still need a human look`);
-  }
-  console.log();
-
-  if (failures.length > 0) {
     console.log("=".repeat(78));
-    console.log(`MISMATCHES (${failures.length}) — spec says one status, live server returned another`);
+    console.log("RESULTS BY PROBE TYPE");
     console.log("=".repeat(78));
-    for (const f of failures) {
-      console.log(`\n[${f.probeType}] ${f.file} :: ${f.operationId} (${f.method} ${f.requestedUrl})`);
-      console.log(`  expected ${f.expectedStatus}, got ${f.actualStatus}`);
-      if (f.bodySnippet) console.log(`  body: ${f.bodySnippet}`);
-      const hint = mismatchHint(f);
-      if (hint) console.log(`  hint: ${hint}`);
+    for (const [type, rs] of byType) {
+      const pass = rs.filter((r) => r.pass).length;
+      console.log(`${type}: ${pass}/${rs.length} passed`);
+    }
+
+    const failures = results.filter((r) => !r.pass);
+    const hinted = failures.filter((f) => mismatchHint(f) !== undefined);
+    console.log(`\nTOTAL: ${results.length - failures.length}/${results.length} passed`);
+    if (failures.length > 0) {
+      console.log(`  ${failures.length - hinted.length} likely confirmed contract mismatch(es), ${hinted.length} flagged as a probable probe limitation (see hints below) — both still need a human look`);
     }
     console.log();
-  }
+
+    reportMismatches({ failures });
+
+    return failures;
+  };
+  const failures = reportProbeResults({});
 
   const gaps = coverageGaps(operations, touched);
   console.log("=".repeat(78));

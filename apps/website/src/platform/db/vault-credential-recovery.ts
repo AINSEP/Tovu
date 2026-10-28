@@ -18,13 +18,6 @@ export interface ResealCredentialsDeps extends VaultCredentialKeyDeps {
 }
 const OPTIONAL_ENVELOPES = new Set(["site-assistant", "personal-execution", "media-provider", "publish-peer"]);
 
-/** Sealed counts exclude metadata-only configurations. */
-export async function countVaultCredentialsOpening(deps: SealedCredentialKeyDeps, _options = {}): Promise<{ sealed: number; opens: number }> {
-  const { values } = await snapshotVaultCredentials(deps);
-  let opens = 0;
-  for (const value of values) if (await opensVaultCredential({ value, sealer: deps.sealer })) opens += 1;
-  return { sealed: values.length, opens };
-}
 /** Lock workspaces in a deterministic order, matching every Jini vault writer and boot normalization. */
 async function lockWorkspaces({ deps, values }: { deps: SealedCredentialKeyDeps; values: VaultCredentialValue[] }): Promise<void> {
   const workspaces = values.flatMap(value => value.record ? [value.record.workspaceId] : []);

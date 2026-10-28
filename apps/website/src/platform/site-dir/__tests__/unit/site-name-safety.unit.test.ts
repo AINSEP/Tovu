@@ -2,7 +2,8 @@ import "../helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { importSiteSlug } from "../../../../features/site-backup/import-backend-steps.js";
-import { createSite, isInSitesWorkspace } from "../../site-registry.js";
+import { isInSitesWorkspace } from "../../site-registry.js";
+import { createSite } from "#src/server/runtime/composition/site-dir";
 import type { SitesWorkspace } from "../../sites-home.js";
 
 const refusal = { name: "ValidationError", message: "Site names must not use Windows device names or end with a dot or space." };

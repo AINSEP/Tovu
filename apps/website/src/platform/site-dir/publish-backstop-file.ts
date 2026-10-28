@@ -94,6 +94,9 @@ export function createRawFileSitePort({ siteDir }: { siteDir: string }, { filesy
     const current = read(inverse.relPath);
     return current !== null && sha(current.bytes) === inverse.sha256;
   }
+  function removeCreatedFile({ relPath }: { relPath: string }, _optional = {}): void {
+    try { unlinkSync(target(relPath)); } catch (error) { if (!missing(error)) throw error; }
+  }
   function replace(relPath: string, bytes: Uint8Array, mode: number): void {
     target(relPath);
     if (bytes.byteLength > BACKSTOP_LIMITS.bytes) throw new Error("Choose files totaling at most 50 MB per send.");
@@ -122,7 +125,7 @@ export function createRawFileSitePort({ siteDir }: { siteDir: string }, { filesy
     replace: async ({ relPath, bytes, mode }) => replace(relPath, bytes, mode),
     restore: async ({ inverse }) => {
       if (inverse.backupName === null) {
-        try { unlinkSync(target(inverse.relPath)); } catch (error) { if (!missing(error)) throw error; }
+        removeCreatedFile({ relPath: inverse.relPath });
         return;
       }
       if (!/^[a-f0-9-]{36}$/.test(inverse.backupName)) throw new Error("The saved undo file has an unsafe address.");

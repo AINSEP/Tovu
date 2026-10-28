@@ -116,6 +116,20 @@ declare global {
   }
 }
 
+function selectedDockAgent({ mode, agents, agentId }: {
+  mode: string;
+  agents: readonly (AgentRuntimePreferenceSupport & { id: string })[] | undefined;
+  agentId: string;
+}, _options = {}) {
+  // Only a Local CLI run spawns the picked agent, so only then do its `supports*` flags apply. Each
+  // `/api/agents` entry carries them; `ChatPaneAgent` just does not declare them.
+  return mode === "local-cli" ? agents?.find((agent) => agent.id === agentId) : undefined;
+}
+
+function confirmedFolderPath({ notice }: { notice: ReturnType<typeof useFolderDropBridge>["notice"] }, _options = {}) {
+  return notice?.kind === "confirmation" ? notice.path : null;
+}
+
 /**
  * @file The global assistant dock (ADR-049) — every admin page gets the same chat pane on the
  * right, not a routed `/admin/assistant` page. Mounted once in `App.tsx`, outside the routed
@@ -376,11 +390,7 @@ export function AssistantDock({
   const runtimeAccess = executionPolicy.runtimeAccess(selectedAgentAuth.runtimeAccess);
   // The picker's instant list while `listAgents` is still in flight — see `useAgentsPlaceholder`.
   const agentsPlaceholder = executionPolicy.agents(useAgentsPlaceholderSeam(useRuntimeAccessOverride));
-  // Only a Local CLI run spawns the picked agent, so only then do its `supports*` flags apply. Each
-  // `/api/agents` entry carries them; `ChatPaneAgent` just does not declare them.
-  const selectedAgent = executionConfig.mode === "local-cli"
-    ? (agentsPlaceholder as readonly (AgentRuntimePreferenceSupport & { id: string })[] | undefined)?.find((agent) => agent.id === localCliSelection.agentId)
-    : undefined;
+  const selectedAgent = selectedDockAgent({ mode: executionConfig.mode, agents: agentsPlaceholder, agentId: localCliSelection.agentId });
   const runtime = { ...runtimePreferences, visible: visibleAssistantRuntimePreferences({ agent: selectedAgent }) };
   /**
    * The composer's discovery catalog, projected asynchronously (debate 2, "Composer slash
@@ -425,7 +435,7 @@ export function AssistantDock({
   // The composer's folder button: a picked path is handled exactly like a desktop folder drop; a
   // dialog that fails to open hides the button and falls back to the paste hint.
   const folderPicker = useNativeFolderPicker({ onPicked: folderDrop.insertFolderPath, onFailed: folderDrop.showPathHint });
-  const pickedFolder = usePickedFolder({ confirmedPath: folderDrop.notice?.kind === "confirmation" ? folderDrop.notice.path : null });
+  const pickedFolder = usePickedFolder({ confirmedPath: confirmedFolderPath({ notice: folderDrop.notice }) });
 
   const handleMessagesChange = useMessagesChangeHandler({ chats });
   const runContext = useRunContext({

@@ -3,7 +3,7 @@ import { describe, test } from "node:test";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { magicLinkTokenRepoFor, memberConsentRepoFor, memberRepoFor, memberSessionRepoFor, memberSubscriptionRepoFor, memberTierRepoFor } from "../repo.js";
+import { SqlMagicLinkTokenRepo, SqlMemberConsentRepo, SqlMemberRepo, SqlMemberSessionRepo, SqlMemberSubscriptionRepo, SqlMemberTierRepo } from "../repo.js";
 import type { MagicLinkTokenRecord, MemberConsentRecord, MemberConsentRevisionRecord, MemberRecord, MemberSessionRecord, MemberSubscriptionRecord, MemberTierRecord } from "../types.js";
 
 /**
@@ -153,12 +153,12 @@ function revision(
 function repos(kernel: ContentKernel) {
   return {
     kernel,
-    members: memberRepoFor(kernel),
-    tiers: memberTierRepoFor(kernel),
-    subs: memberSubscriptionRepoFor(kernel),
-    sessions: memberSessionRepoFor(kernel),
-    tokens: magicLinkTokenRepoFor(kernel),
-    consents: memberConsentRepoFor(kernel),
+    members: new SqlMemberRepo(kernel),
+    tiers: new SqlMemberTierRepo(kernel),
+    subs: new SqlMemberSubscriptionRepo(kernel),
+    sessions: new SqlMemberSessionRepo(kernel),
+    tokens: new SqlMagicLinkTokenRepo(kernel),
+    consents: new SqlMemberConsentRepo(kernel),
   };
 }
 

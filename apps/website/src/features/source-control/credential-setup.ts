@@ -88,16 +88,7 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
       // Saves write through `vault`, so it must be forwarded (omitting it fails every save) with the same guard.
       const vault = store.vault;
       const repo: SourceControlCredentialSetupDeps['sourceControlCredentialSetRepo'] = {
-        ...(vault ? { vault: {
-          find: (input, options) => vault.find(input, options),
-          list: (input, options) => vault.list(input, options),
-          put: (input, options) => { signal.throwIfAborted(); return vault.put(input, options); },
-          patchMeta: (input, options) => vault.patchMeta(input, options),
-          delete: (input, options) => vault.delete(input, options),
-          ...(vault.findDefault ? { findDefault: (input: Parameters<NonNullable<typeof vault.findDefault>>[0], options?: Parameters<NonNullable<typeof vault.findDefault>>[1]) => vault.findDefault!(input, options) } : {}),
-          ...(vault.findOne ? { findOne: (input: Parameters<NonNullable<typeof vault.findOne>>[0], options?: Parameters<NonNullable<typeof vault.findOne>>[1]) => vault.findOne!(input, options) } : {}),
-          ...(vault.applyBatch ? { applyBatch: (input: Parameters<NonNullable<typeof vault.applyBatch>>[0], options?: Parameters<NonNullable<typeof vault.applyBatch>>[1]) => { signal.throwIfAborted(); return vault.applyBatch!(input, options); } } : {}),
-        } satisfies NonNullable<typeof vault> } : {}),
+        ...(vault ? { vault: sourceControlSaveVault({ vault, signal }) } : {}),
         insert: record => { signal.throwIfAborted(); return store.insert(record); },
         update: record => store.update(record),
         findById: input => store.findById(input),
@@ -148,6 +139,20 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
     logFailure: metadata => console.warn(JSON.stringify(metadata)),
   });
   return card.handler({ surfaceExchanges: surfaces.surfaceExchanges, askThenReport })(ctx, optional);
+}
+
+/** Preserve this adapter's vault ABI and its write guards, including optional batch writes. */
+function sourceControlSaveVault({ vault, signal }: { vault: NonNullable<SourceControlCredentialSetupDeps['sourceControlCredentialSetRepo']['vault']>; signal: AbortSignal }, _options = {}): typeof vault {
+  return {
+    find: (input, options) => vault.find(input, options),
+    list: (input, options) => vault.list(input, options),
+    put: (input, options) => { signal.throwIfAborted(); return vault.put(input, options); },
+    patchMeta: (input, options) => vault.patchMeta(input, options),
+    delete: (input, options) => vault.delete(input, options),
+    ...(vault.findDefault ? { findDefault: (input: Parameters<NonNullable<typeof vault.findDefault>>[0], options?: Parameters<NonNullable<typeof vault.findDefault>>[1]) => vault.findDefault!(input, options) } : {}),
+    ...(vault.findOne ? { findOne: (input: Parameters<NonNullable<typeof vault.findOne>>[0], options?: Parameters<NonNullable<typeof vault.findOne>>[1]) => vault.findOne!(input, options) } : {}),
+    ...(vault.applyBatch ? { applyBatch: (input: Parameters<NonNullable<typeof vault.applyBatch>>[0], options?: Parameters<NonNullable<typeof vault.applyBatch>>[1]) => { signal.throwIfAborted(); return vault.applyBatch!(input, options); } } : {}),
+  };
 }
 
 /** Keep provider-defined names on the human form and canonical `token` on the store contract.

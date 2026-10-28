@@ -1,3 +1,5 @@
+import type { BootSiteDirDeps } from "./ports.js";
+import type { SiteStore } from "./site-store.js";
 import type { SitesWorkspace } from "./sites-home.js";
 import { resolveSiteDatabasePaths } from "./site-databases.js";
 import fs from "node:fs";
@@ -8,9 +10,6 @@ import { contentKernel } from "../db/content-kernel.js";
 import { closeSqliteConnection } from "../db/kernel/index.js";
 import { prepareContentStore } from "../db/prepare-content-store.js";
 import { type ContentDb, migrateSqliteContentFile, openSqliteContentConnection } from "../db/sqlite/content-db.js";
-import { normalizeSiteVaultAtBoot } from "#src/server/runtime/composition/vault-boot";
-import { runBootDataRepairs } from "#src/server/runtime/composition/boot-data-repairs";
-import { openSiteStore, type SiteStore } from "#src/server/runtime/composition/open-site-store";
 import { writeJsonFileAtomic } from "./atomic-write.js";
 import { SiteCorruptError, SiteDirInvalidError } from "./errors.js";
 import { completeKeyOnlySiteMeta } from "./key-only-site-meta.js";
@@ -40,6 +39,7 @@ import type { ConfigJson, SiteMetaJson, SiteStorage } from "./types.js";
  */
 
 export interface BootSiteDirRequired {
+  deps: BootSiteDirDeps;
   dir: string;
 }
 
@@ -94,6 +94,7 @@ export async function closeSiteDirBoot(boot: BootSiteDirResult, composed?: Pick<
  * Validate, guard, migrate, stamp, and resolve the workspace for `serve` (BR-05).
  *
  * @param required.dir - the install dir path; resolved once (CIC U-004) into `target`.
+ * @param required.deps - host-owned repairs, store opening and vault normalization.
  * @param options.workspaceId - when supplied, resolve exactly this workspace id instead of the
  *   default (oldest) — threaded from `tovu serve --workspace <id>`.
  * @returns (as a promise; every failure below is a rejection) `{ storage, db | store, workspaceId,
@@ -114,7 +115,7 @@ export async function closeSiteDirBoot(boot: BootSiteDirResult, composed?: Pick<
  * @overallScore 100
  */
 export async function bootSiteDir(required: BootSiteDirRequired, options: BootSiteDirOptions = {}): Promise<BootSiteDirResult> {
-  const { dir } = required;
+  const { dir, deps } = required;
   const target = resolveInstallDirTarget(dir);
 
   // A dev site's `.site-meta.json` may hold only its site-key fields (`npm run dev` mints that
@@ -125,7 +126,7 @@ export async function bootSiteDir(required: BootSiteDirRequired, options: BootSi
   // BR-05 steps 1-2: dir/config/meta validation (SiteDirInvalidError).
   const { config, meta } = readSiteDir({ dir: target });
   const storage = parseSiteStorage(meta.storage);
-  if (storage.kind !== "sqlite") return bootStoreSiteDir({ target, storage, config, meta }, options);
+  if (storage.kind !== "sqlite") return bootStoreSiteDir({ deps, target, storage, config, meta }, options);
 
   const dbPath = resolveSiteDatabasePaths({ dir: target, siteId: meta.siteId }, { workspace: options.workspace }).contentDbPath;
   if (!fs.existsSync(dbPath)) {
@@ -153,7 +154,7 @@ export async function bootSiteDir(required: BootSiteDirRequired, options: BootSi
     // The stored-data repairs every other store opener runs. The CLI hands this handle to the
     // composition as `overrides.db`, which skips `openSiteContentDb` (where SQLite runs them), so
     // without this `tovu serve <dir>`/`tovu export <dir>` never repaired a SQLite install.
-    await runBootDataRepairs({ kernel: contentKernel(db) });
+    await deps.runBootDataRepairs({ kernel: contentKernel(db) });
 
     // BR-05 step 5 / BR-06 / CIC U-002-B2/ORD1: the stamp rewrite happens ONLY when a migration
     // was actually needed, both fields together, in one atomic operation, and only AFTER
@@ -169,7 +170,7 @@ export async function bootSiteDir(required: BootSiteDirRequired, options: BootSi
     const workspace = await resolveWorkspace({ kernel: contentKernel(db) }, { workspaceId: options.workspaceId });
 
     // Folder-only consumers (export/plugin operations) also need normalized credential payloads.
-    await normalizeSiteVaultAtBoot({ kernel: contentKernel(db), workspaceId: workspace.id, siteDir: target,
+    await deps.normalizeSiteVaultAtBoot({ kernel: contentKernel(db), workspaceId: workspace.id, siteDir: target,
       clock: { nowMs: () => Date.now() } });
 
     // EC-07: an unrecognized templateId is provenance-only — warn, never block serving.
@@ -196,11 +197,11 @@ export async function bootSiteDir(required: BootSiteDirRequired, options: BootSi
  *   closed before any rejection.
  */
 async function bootStoreSiteDir(
-  required: { target: string; storage: StoreSiteDirBoot["storage"]; config: ConfigJson; meta: SiteMetaJson },
+  required: { deps: BootSiteDirDeps; target: string; storage: StoreSiteDirBoot["storage"]; config: ConfigJson; meta: SiteMetaJson },
   options: BootSiteDirOptions
 ): Promise<StoreSiteDirBoot> {
-  const { target, storage, config, meta } = required;
-  const store = await openSiteStore({
+  const { deps, target, storage, config, meta } = required;
+  const store = await deps.openSiteStore({
     storage,
     dbPath: path.join(target, "content.db"),
     chatDbPath: path.join(target, "chat.db"),
@@ -208,7 +209,7 @@ async function bootStoreSiteDir(
   });
   try {
     const workspace = await resolveWorkspace({ kernel: store.content }, { workspaceId: options.workspaceId });
-    await normalizeSiteVaultAtBoot({ kernel: store.content, workspaceId: workspace.id, siteDir: target,
+    await deps.normalizeSiteVaultAtBoot({ kernel: store.content, workspaceId: workspace.id, siteDir: target,
       clock: { nowMs: () => Date.now() } });
     if (meta.templateId !== "starter") {
       // eslint-disable-next-line no-console

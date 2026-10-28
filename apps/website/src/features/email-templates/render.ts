@@ -129,10 +129,15 @@ function* elementsIn(root: ParentNode, _options: Record<string, never> = {}): Ge
     // Array length checks do not narrow pop() or indexed reads under the desktop config.
     if (node === undefined) continue;
     if (isElement(node)) yield node;
-    for (let i = node.childNodes.length - 1; i >= 0; i--) {
-      const child = node.childNodes[i];
-      if (child !== undefined && "childNodes" in child) pending.push(child);
-    }
+    queueChildParents({ node, pending });
+  }
+}
+
+/** Reverse insertion preserves document order on the traversal's stack. */
+function queueChildParents({ node, pending }: { node: ParentNode; pending: ParentNode[] }, _options = {}): void {
+  for (let i = node.childNodes.length - 1; i >= 0; i--) {
+    const child = node.childNodes[i];
+    if (child !== undefined && "childNodes" in child) pending.push(child);
   }
 }
 

@@ -980,6 +980,9 @@ async function resolveAttachmentRunFields(
 const captureEarlySession = createEarlySessionCapture({ sessions: routeDeps.agentSessions, durable: routeDeps.chatRunLedger.durable, readStart: readProcessStart }, {});
 
 const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) => {
+  function noteFullRunInput({ runId, input }: { runId: string; input: string }, _optional = {}): void {
+    if (routeDeps.aiTraceSink?.capture === "full") tracing.noteRunInput({ runId, input });
+  }
   let prompt: string;
   let coldStartContext: string | undefined;
   let principal: Principal;
@@ -1005,7 +1008,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     const decoded = parseRunStartContextRef(request.contextRef);
     coldStartContext = decoded.coldStartContext;
     prompt = decoded.prompt;
-    if (routeDeps.aiTraceSink?.capture === "full") tracing.noteRunInput({ runId: run.id, input: prompt });
+    noteFullRunInput({ runId: run.id, input: prompt });
     principal = { id: decoded.principalId };
     attachmentIds = decoded.attachmentIds;
     pluginRefIds = decoded.pluginRefIds;

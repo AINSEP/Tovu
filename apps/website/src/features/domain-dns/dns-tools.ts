@@ -6,6 +6,7 @@
  * DNS: there is no apply engine in v1, so `dns_instructions` hands a person copyable rows and
  * `dns_verify` checks the zone's authoritative nameservers afterwards.
  */
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import { ToolInputError, buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import type { DomainRecordRequirement } from "@jini-ai/core/provider-registry";
 import type { AuthoritativeDnsPort, DnsPlanRequirement, DnsProviderContext, DnsProviderRegistry } from "@jini-ai/devops/dns";
@@ -74,13 +75,7 @@ const includeSchema = {
 };
 const inputSchema = { type: "object", additionalProperties: false, required: ["hostname"], properties: { hostname: hostnameSchema, requirements: requirementsSchema, include: includeSchema } };
 
-interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema: Readonly<Record<string, unknown>>;
-}
+type AgentToolDefinition = SharedAgentToolDefinition & { inputSchema: Readonly<Record<string, unknown>> };
 export const dnsChangeAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "dns_plan",
@@ -230,6 +225,7 @@ export function buildDnsChangeRegistrations(deps: DnsChangeToolDeps): ToolRegist
 /**
  * One `domain-dns` contributor for the read-only diagnostics, the DNS change tools and the two
  * mail DNS status tools (`mail-dns-tools.ts`).
+ * Supplies Tovu's ports from the composition root without constructing network clients here.
  * @param required Host dependency factories; invoked only during tool catalog assembly.
  * @complexity O(1).
  * @example contributeDomainDnsAndChangeTools({ createDeps, createDnsDeps })

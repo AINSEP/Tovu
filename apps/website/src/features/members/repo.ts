@@ -592,33 +592,3 @@ export class SqlMemberConsentRepo implements MemberConsentRepoPort {
     return this.kernel.transaction(fn);
   }
 }
-
-/** The member repo for `kernel`. */
-export function memberRepoFor(kernel: ContentKernel): SqlMemberRepo {
-  return new SqlMemberRepo(kernel);
-}
-
-/** The member-tier repo for `kernel`. */
-export function memberTierRepoFor(kernel: ContentKernel): SqlMemberTierRepo {
-  return new SqlMemberTierRepo(kernel);
-}
-
-/** The member-subscription repo for `kernel`. */
-export function memberSubscriptionRepoFor(kernel: ContentKernel): SqlMemberSubscriptionRepo {
-  return new SqlMemberSubscriptionRepo(kernel);
-}
-
-/** The member-session repo for `kernel`. */
-export function memberSessionRepoFor(kernel: ContentKernel): SqlMemberSessionRepo {
-  return new SqlMemberSessionRepo(kernel);
-}
-
-/** The magic-link token repo for `kernel`. */
-export function magicLinkTokenRepoFor(kernel: ContentKernel): SqlMagicLinkTokenRepo {
-  return new SqlMagicLinkTokenRepo(kernel);
-}
-
-/** The member-consent repo for `kernel`. */
-export function memberConsentRepoFor(kernel: ContentKernel): SqlMemberConsentRepo {
-  return new SqlMemberConsentRepo(kernel);
-}

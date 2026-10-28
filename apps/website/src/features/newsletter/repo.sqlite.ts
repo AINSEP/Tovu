@@ -1,9 +1,9 @@
 /**
  * @file The six newsletter repos on a site's SQLite `content.db`: the one Kysely query body in
  * `repo.ts` (`SqlNewsletter…Repo`) behind their historical `SqliteNewsletter…Repo` names, so the
- * composition root's construction sites stay as they are; new code calls the `newsletter…RepoFor`
- * factories. The campaign pair lives in the migrated core schema; the other five tables are the
- * `p_newsletter__*` dataModule tables `declareDataModule()` creates (`data-module-manifest.ts`,
+ * composition root's construction sites stay as they are; new code constructs `SqlNewsletter…Repo`
+ * with a kernel directly. The campaign pair lives in the migrated core schema; the other five tables
+ * are the `p_newsletter__*` dataModule tables `declareDataModule()` creates (`data-module-manifest.ts`,
  * ADR-023 §7/§8).
  */
 import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";

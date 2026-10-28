@@ -1,58 +1,10 @@
-import { type FederatedMcpPresetRegistry, defaultFederationMessages, type FederationMessages } from "@jini-ai/mcp/federation";
-import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
+import { defaultFederationMessages, type FederationMessages } from "@jini-ai/mcp/federation";
 
 /**
- * @file The core-owned, plugin-populated registry of federated MCP presets — the seam that lets a
- * concrete vendor integration live OUTSIDE `src/assistant/` while still being part of the default
- * boot.
- *
- * Presets announce themselves to core; bootstrap never imports vendors by name. Adding a vendor
- * therefore changes composition, not federation code, and keeps dependencies pointing into core.
- *
- * The shape is the one this codebase already uses for exactly this problem: a module-level ordered
- * list plus a typed `register*` function, a `reset*ForTests`, and a fold/resolve function —
- * `page-head.ts`'s `registerPageHeadContributor`/`foldPageHead` and `routing.ts`'s
- * `registerResolvePhase`/`registerNamedRoute`. Per ADR-006/ADR-009 §3, hooks and registries are
- * exempt from the rule-of-two, so this is deliberately NOT a port with two adapters.
- *
- * This is NOT the SPEC-005 plugin runtime. That mechanism exists to load sandboxed third-party code
- * at runtime; this one wires a first-party module that ships in the repo and is imported by a
- * composition root at boot. A preset here is ordinary reviewed code in this repository — the seam
- * buys module-boundary honesty, not isolation.
- *
- * Architectural role:
- * Per-host registry supplied by composition. No I/O; resolution is delegated to whatever a
- * preset registered. The module-level list above describes the original precedent; the ordered
- * registry and its replacement rationale now live in Jini `mcp/federation/presets.ts`.
+ * @file Host-owned federation identity and operator-facing messages. Ordered per-host preset
+ * registration, replacement and null/throw resolution contracts live in Jini's
+ * `mcp/federation/presets.ts`: vendors register there so bootstrap never imports them by name.
  */
-
-/**
- * A preset's resolver: read the operator's environment and either produce a connection or decline.
- *
- * `null` means "the operator has not configured this one", and is the expected, silent, overwhelming
- * majority case — federation is off unless a site owner turns it on. THROWING means "the operator
- * asked for this connection and got the settings wrong", which is an error worth surfacing; a preset
- * must never paper over a half-configured connection by returning a broader one. `bootstrap.ts`
- * isolates and logs a throw per preset so one vendor's typo cannot disable another's working
- * connection.
- */
-export type FederatedMcpPresetResolver = (env: NodeJS.ProcessEnv) => ResolvedFederatedConnection | null;
-
-export interface FederatedMcpPreset {
-  /** Stable identity of the PRESET MODULE (not of the connection it resolves). Used to keep a
-   * double import from registering the same vendor twice; see Jini createFederatedMcpPresetRegistry().register. */
-  readonly presetId: string;
-  readonly resolve: FederatedMcpPresetResolver;
-}
-
-/** Replacement/order rationale lives on Jini createFederatedMcpPresetRegistry().register. */
-export function registerFederatedMcpPreset(preset: FederatedMcpPreset, { registry }: { registry: FederatedMcpPresetRegistry }): void {
-  registry.register({ preset: { presetId: preset.presetId, resolve: ({ env }) => preset.resolve(env) } });
-}
-export function listFederatedMcpPresets({ registry }: { registry: FederatedMcpPresetRegistry }): readonly FederatedMcpPreset[] {
-  return registry.list({}).map(preset => ({ presetId: preset.presetId, resolve: env => preset.resolve({ env }) }));
-}
-export function resetFederatedMcpPresetsForTests({ registry }: { registry: FederatedMcpPresetRegistry }): void { registry.reset({}); }
 
 /** The desktop/website wire identity stays host-owned; the transport advertises no capabilities. */
 export const TOVU_MCP_CLIENT_INFO = { name: "tovu-assistant", version: "0.1.0" } as const;

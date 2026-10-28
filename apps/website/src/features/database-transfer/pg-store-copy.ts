@@ -14,5 +14,4 @@ const scope: copy.StoreCopyScope = {
 };
 export const readCatalog = (kernel: StorageKernel<unknown>) => copy.readCatalog({ kernel, scope });
 export const nonEmptyTables = (kernel: StorageKernel<unknown>) => copy.nonEmptyTables({ kernel, scope });
-export const assertLedgersAgree = (source: StorageKernel<unknown>, target: StorageKernel<unknown>) => copy.assertLedgersAgree({ source, target, scope });
 export const copyPgStore = (source: StorageKernel<unknown>, target: StorageKernel<unknown>, optional: { onCopied?: () => Promise<void> } = {}) => copy.copyPgStore({ source, target, scope }, optional);

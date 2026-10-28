@@ -1,3 +1,4 @@
+import { createSite } from "#src/server/runtime/composition/site-dir";
 /** Real A→B fixtures, isolated catalog/home and real SQLite; no owner files or running server. */
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import fs from "node:fs";
@@ -131,7 +132,7 @@ export async function importFixture(t: TestContext, placement: "inSite" | "appDa
   const plan = fixtureArchivePlan({ plan: runtimePlan });
   const registry = new SiteImportRegistry({ directory: path.join(root, "private") });
   const started: string[] = [];
-  const backendPorts = { registry, workspace, reader, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion(),
+  const backendPorts = { registry, workspace, reader, createSite, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion(),
     http: { send: async () => { throw new Error("unexpected network"); } },
     startSite: async ({ name }: { name: string }) => { started.push(name); return { adminUrl: "http://localhost:3101/admin", status: "running" }; },
     creationOptions: options,

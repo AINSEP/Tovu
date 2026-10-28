@@ -1,3 +1,4 @@
+import { createSite } from "./site-dir.js";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import { createPluginExportRuntime } from "#src/features/agent-plugins/exports/runtime";
 import { createPluginExportSource } from "#src/features/agent-plugins/exports/source";
@@ -43,7 +44,7 @@ import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/contracts/
 import { createNoopObservabilityPort } from "#src/platform/observability/index";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { SITEMAP_INVALIDATED_EVENT, createSitemapService } from "@jini-ai/cms/seo";
-import { createSeoDeps, ensureSeoSettingDefinitions } from "#src/features/seo/index";
+import { createSeoDeps, ensureSeoSettingDefinitions, type EnsureSeoSettingDefinitionsDeps } from "#src/features/seo/index";
 import { createSeoPageHeadHook } from "#src/features/seo/page-head-contributor";
 import { registerPageHeadContributor, resetPageHeadRegistry } from "../../inbound/public-http/http/site/page-head.js";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
@@ -130,9 +131,10 @@ import { InMemoryPresentationSettingsRepo, resolveActiveThemeId } from "#src/fea
 import {
   InMemorySettingsRepo,
   ensureSettingsUiTabDefinitions,
+  ensureSettingDefinitions,
+  type EnsureSettingDefinitionsDeps,
   getEffective,
   set,
-  ensureSettingDefinitions,
   INSTRUCTIONS_NAMESPACE,
 } from "#src/features/settings/index";
 import { discoverAllBuiltInThemes, rescanThemes } from "#src/features/theme/index";
@@ -492,81 +494,13 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // Presentation remains the live owner; boot must not write a second active-theme value.
   const settingsReady = Promise.resolve();
 
-  // SPEC-008 (ADR-PIPE-008 Decision §3, T050) — idempotently registers the 8 `site.seo.*`
-  // definitions at boot, mirroring `settingsReady`'s fire-and-forget shape. Chained AFTER
-  // `settingsReady` resolves (not fired in parallel) — see `deps.ts`'s identical fix for why:
-  // two independent writers opening the settings chokepoint's transaction concurrently on the
-  // SQLite composition root throws; chaining keeps both composition roots' boot sequence identical.
-  const seoReady = settingsReady.then(() =>
-    ensureSeoSettingDefinitions(
-      { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
-      { workspaceId: seededWorkspace.id, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
-    ).then(() => undefined)
-  );
-
-  // SPEC-035 (ADR-028 Settings Layered Ledger wiring for Comments) — idempotently registers the 6
-  // `comments.*` definitions at boot, mirroring `seoReady`'s exact fire-and-forget shape. Chained
-  // AFTER `seoReady` resolves (not fired in parallel) for the identical reason `seoReady` itself
-  // chains after `settingsReady` — see that binding's comment immediately above.
-  const commentsSettingsReady = seoReady.then(() =>
-    ensureCommentsSettingDefinitions(
-      { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
-      { workspaceId: seededWorkspace.id, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
-    ).then(() => ensureCommentsProviderDefinition({
-      deps: { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
-      systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
-    }))
-  );
-
-  // The visitor-facing assistant's master switch (`assistant/public-assistant-settings.ts`).
-  // Chained after `commentsSettingsReady` rather than fired in parallel, for the identical reason
-  // that binding chains after `seoReady` — see `seoReady`'s own comment above. Registering the
-  // definition does NOT enable anything: its default is `false`.
-  const assistantSettingsReady = commentsSettingsReady.then(() =>
-    ensurePublicAssistantSettingDefinitions(
-      {
-        settingsRepo,
-        clock,
-        ids: idGen,
-        principals: settingsPrincipals,
-        ensureSettingDefinitions,
-      },
-      { workspaceId: seededWorkspace.id, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
-    ).then(() => undefined)
-  );
-
-  // The admin "Execution mode" tab's `core.execution.*` definitions
-  // (`assistant/execution-mode-settings.ts`). Chained after `assistantSettingsReady` rather than
-  // fired in parallel, for the identical single-SQLite-connection-transaction reason `seoReady`'s
-  // own comment above documents. `ownerKind: "core"` (not "site"), so unlike the three bindings
-  // above this one does not pass a `workspaceId` into the registration call — see that file's
-  // header for the namespace-fence reasoning.
-  const executionSettingsReady = assistantSettingsReady.then(() =>
-    ensureExecutionSettingDefinitions(
-      { settingsRepo, clock, ids: idGen, principals: settingsPrincipals, ensureSettingDefinitions },
-      { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
-    ).then(() => undefined)
-  );
-
-  // The remaining ledger-only settings-dialog tabs (Instructions, Notifications, Privacy).
-  // Chained after `executionSettingsReady` rather than fired alongside it for the same
-  // single-SQLite-connection-transaction reason every registration above documents.
-  const settingsUiTabsReady = executionSettingsReady.then(() =>
-    ensureSettingsUiTabDefinitions(
-      { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
-      { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
-    ).then(() => undefined)
-  );
-
-  // The public analytics beacon's `core.analytics.*` definitions (`analytics/config.settings.ts`).
-  // Chained after `settingsUiTabsReady` rather than fired alongside it, for the identical
-  // single-SQLite-connection-transaction reason every registration above documents.
-  const analyticsSettingsReady = settingsUiTabsReady.then(() =>
-    ensureAnalyticsSettingDefinitions(
-      { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
-      { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
-    ).then(() => undefined)
-  );
+  // Serial writes avoid nested SQLite transactions; see startSettingsRegistration below.
+  const { seoReady, commentsSettingsReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady, analyticsSettingsReady } = startSettingsRegistration({
+    deps: { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
+    settingsReady,
+    workspaceId: seededWorkspace.id,
+    systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
+  });
 
   // SPEC-050 `core.site.title` (`features/settings/site-title.ts`): registration, then the one-time
   // pin for workspaces that existed before the setting. This root always seeds fresh, so it records
@@ -1395,6 +1329,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     themes: siteThemes,
     themesDir: builtInThemesDir(),
     siteBinding,
+    createSite,
     federatedMcpPresetRegistry,
     agentPluginLayout,
     agentPluginLifecycle,
@@ -1972,6 +1907,15 @@ function applyPublicMiddleware(
   app.use(parsePublicJsonBody);
 }
 
+function registerAdminSpa({ app, routeDeps }: { app: Express; routeDeps: RouteDeps }, _optional = {}): void {
+  // Built admin SPA (apps/admin/dist) at /admin; helpful 503 when unbuilt. Walked up to, not a fixed
+  // `../` count: the source and compiled (`dist/src/...`) trees sit at different depths.
+  applyAdminBrowserAnalytics({ app, deps: routeDeps });
+  registerAdminStatic(app, {
+    distDir: process.env.TOVU_ADMIN_DIST ?? resolveAppDistDir("admin"),
+  });
+}
+
 export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = createRouteDeps(), options: CreateAppOptions = {}) {
   // `page-head.ts`'s `contributors` registry is a process-wide singleton, but `createApp()` still
   // runs more than once per process: every test that calls it directly, and every
@@ -2397,12 +2341,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // only; answers 503 `not_configured` in a composition without `siteSearch`.
   registerSiteSearchRoute(app, routeDeps);
 
-  // Built admin SPA (apps/admin/dist) at /admin; helpful 503 when unbuilt. Walked up to, not a fixed
-  // `../` count: the source and compiled (`dist/src/...`) trees sit at different depths.
-  applyAdminBrowserAnalytics({ app, deps: routeDeps });
-  registerAdminStatic(app, {
-    distDir: process.env.TOVU_ADMIN_DIST ?? resolveAppDistDir("admin"),
-  });
+  registerAdminSpa({ app, routeDeps });
 
   // ADR-049 — `@jini-ai/chat-react`'s runtime picker requests agent icons from `/agent-icons/*`
   // at the site root (hardcoded, no `ChatPaneProps` override exists to relocate it — verified
@@ -2560,4 +2499,76 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   app.use(captureRouteError);
 
   return app;
+}
+
+/** Tovu's shared boot order; feature modules retain ownership of their definitions.
+ * Both roots expose the intermediate promises while keeping their later registrations separate.
+ * Rejections propagate through the same serial chain; callers observe its tail.
+ * @complexity O(1) registrations and readiness promises; no parallel settings writers.
+ */
+export function startSettingsRegistration(required: {
+  deps: EnsureSeoSettingDefinitionsDeps & EnsureSettingDefinitionsDeps;
+  settingsReady: Promise<void>;
+  workspaceId: string;
+  systemPrincipalId: string;
+}, _options = {}) {
+  const { deps, settingsReady, workspaceId, systemPrincipalId } = required;
+  // SPEC-008 (ADR-PIPE-008 Decision §3, T050) — idempotently registers the 8 `site.seo.*`
+  // definitions at boot, mirroring `settingsReady`'s fire-and-forget shape. Chained AFTER
+  // `settingsReady` resolves, not fired in parallel with it — both are SQLite writers on the
+  // SAME single better-sqlite3 connection, and `SettingsWriteService`'s chokepoint opens a real
+  // `BEGIN IMMEDIATE` transaction; two independent async chains racing to BEGIN on one connection
+  // throws "cannot start a transaction within a transaction" (caught directly, not theoretical).
+  const seoReady = settingsReady.then(() =>
+    ensureSeoSettingDefinitions(deps, { workspaceId, systemPrincipalId }).then(() => undefined)
+  );
+
+  // SPEC-035 (ADR-028 Settings Layered Ledger wiring for Comments) — idempotently registers the 6
+  // `comments.*` definitions at boot, mirroring `seoReady`'s exact fire-and-forget shape. Chained
+  // AFTER `seoReady` resolves, not fired in parallel — same single-SQLite-connection transaction
+  // hazard `seoReady`'s own comment documents immediately above.
+  const commentsSettingsReady = seoReady.then(() =>
+    ensureCommentsSettingDefinitions(deps, { workspaceId, systemPrincipalId })
+      .then(() => ensureCommentsProviderDefinition({ deps, systemPrincipalId }))
+  );
+
+  // The visitor-facing assistant's master switch (`assistant/public-assistant-settings.ts`).
+  // Chained after `commentsSettingsReady`, not fired in parallel, for the same
+  // single-SQLite-connection transaction hazard `seoReady`'s comment above documents. Registering
+  // the definition does NOT enable anything: its default is `false`.
+  const assistantSettingsReady = commentsSettingsReady.then(() =>
+    ensurePublicAssistantSettingDefinitions(
+      { ...deps, ensureSettingDefinitions },
+      { workspaceId, systemPrincipalId }
+    ).then(() => undefined)
+  );
+
+  // The admin "Execution mode" tab's `core.execution.*` definitions
+  // (`assistant/execution-mode-settings.ts`). Chained after `assistantSettingsReady` rather than
+  // fired in parallel, for the identical single-SQLite-connection-transaction reason `seoReady`'s
+  // own comment above documents. `ownerKind: "core"` (not "site"), so unlike the three bindings
+  // above this one does not pass a `workspaceId` into the registration call — see that file's
+  // header for the namespace-fence reasoning.
+  const executionSettingsReady = assistantSettingsReady.then(() =>
+    ensureExecutionSettingDefinitions(
+      { ...deps, ensureSettingDefinitions },
+      { systemPrincipalId }
+    ).then(() => undefined)
+  );
+
+  // The remaining ledger-only settings-dialog tabs (Instructions, Notifications, Privacy).
+  // Chained after `executionSettingsReady` rather than fired alongside it for the same
+  // single-SQLite-connection-transaction reason every registration above documents.
+  const settingsUiTabsReady = executionSettingsReady.then(() =>
+    ensureSettingsUiTabDefinitions(deps, { systemPrincipalId }).then(() => undefined)
+  );
+
+  // The public analytics beacon's `core.analytics.*` definitions (`analytics/config.settings.ts`).
+  // Chained after `settingsUiTabsReady` rather than fired alongside it, for the identical
+  // single-SQLite-connection-transaction reason every registration above documents.
+  const analyticsSettingsReady = settingsUiTabsReady.then(() =>
+    ensureAnalyticsSettingDefinitions(deps, { systemPrincipalId }).then(() => undefined)
+  );
+
+  return { seoReady, commentsSettingsReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady, analyticsSettingsReady };
 }

@@ -32,12 +32,12 @@ test("default capture is installed once, records server errors and can be uninst
 test("fatal capture never masks a failure while formatting the original error", (t) => {
   const uninstall = installServerLogCapture({});
   t.after(uninstall);
-  const count = getServerLogBuffer().appendedCount();
+  const seq = getServerLogBuffer().entries().at(-1)?.seq ?? 0;
   const unformattable = { [inspect.custom]() { throw new Error("inspection failed"); } };
   assert.doesNotThrow(() => Reflect.apply(process.emit, process, ["uncaughtExceptionMonitor", unformattable, "uncaughtException"]));
-  assert.equal(getServerLogBuffer().appendedCount(), count);
+  assert.equal(getServerLogBuffer().entries().at(-1)?.seq ?? 0, seq);
   Reflect.apply(process.emit, process, ["uncaughtExceptionMonitor", new Error("capture still works"), "uncaughtException"]);
-  assert.equal(getServerLogBuffer().appendedCount(), count + 1);
+  assert.equal(getServerLogBuffer().entries().at(-1)!.seq, seq + 1);
   assert.match(getServerLogBuffer().entries().at(-1)!.message, /^\[uncaughtException\] Error: capture still works/);
 });
 
