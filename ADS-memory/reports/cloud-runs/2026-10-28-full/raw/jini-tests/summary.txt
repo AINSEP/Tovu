@@ -1,0 +1,7 @@
+admin exit 0
+agent-plugins exit 0
+agent-runtime exit 1
+agentic exit 0
+analytics exit 0
+artifacts NOTESTS
+capability-providers exit 0

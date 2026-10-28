@@ -1,0 +1,2416 @@
+TAP version 13
+# Subtest: AC-02 / U-002-B1: stampWatermark rejects when called outside an open transaction
+ok 1 - AC-02 / U-002-B1: stampWatermark rejects when called outside an open transaction
+  ---
+  duration_ms: 2.089924
+  type: 'test'
+  ...
+# Subtest: behavior.spec.md §4: watermark per-transaction increment limit is exactly 1 per stampWatermark call
+ok 2 - behavior.spec.md §4: watermark per-transaction increment limit is exactly 1 per stampWatermark call
+  ---
+  duration_ms: 0.360852
+  type: 'test'
+  ...
+# Subtest: stampWatermark rejects a closed non-null transaction before incrementing
+ok 3 - stampWatermark rejects a closed non-null transaction before incrementing
+  ---
+  duration_ms: 0.285944
+  type: 'test'
+  ...
+# Subtest: createRateLimiter: requests under the max all pass
+ok 4 - createRateLimiter: requests under the max all pass
+  ---
+  duration_ms: 14.803554
+  type: 'test'
+  ...
+# Subtest: createRateLimiter: the (max+1)th request in the window is rejected with a positive integer retryAfterSeconds
+ok 5 - createRateLimiter: the (max+1)th request in the window is rejected with a positive integer retryAfterSeconds
+  ---
+  duration_ms: 11.878466
+  type: 'test'
+  ...
+# Subtest: createRateLimiter: different IPs have independent counters
+ok 6 - createRateLimiter: different IPs have independent counters
+  ---
+  duration_ms: 4.070025
+  type: 'test'
+  ...
+# Subtest: createRateLimiter: the window resets once windowSeconds elapses
+ok 7 - createRateLimiter: the window resets once windowSeconds elapses
+  ---
+  duration_ms: 6.294058
+  type: 'test'
+  ...
+# Subtest: createRateLimiter: a profile's burst allowance extends the effective ceiling (forward-compat shape for WRITE_STANDARD/READ_STANDARD)
+ok 8 - createRateLimiter: a profile's burst allowance extends the effective ceiling (forward-compat shape for WRITE_STANDARD/READ_STANDARD)
+  ---
+  duration_ms: 0.369497
+  type: 'test'
+  ...
+# Subtest: resolveClientIp: without Express req.ip or a trusted-proxy list, uses the socket peer address
+ok 9 - resolveClientIp: without Express req.ip or a trusted-proxy list, uses the socket peer address
+  ---
+  duration_ms: 0.415181
+  type: 'test'
+  ...
+# Subtest: resolveClientIp: uses Express's resolved client IP when no explicit proxy matches
+ok 10 - resolveClientIp: uses Express's resolved client IP when no explicit proxy matches
+  ---
+  duration_ms: 0.175559
+  type: 'test'
+  ...
+# Subtest: resolveClientIp: handles array forwarded headers, exact mapped-IPv6 peers, and missing addresses
+ok 11 - resolveClientIp: handles array forwarded headers, exact mapped-IPv6 peers, and missing addresses
+  ---
+  duration_ms: 0.20047
+  type: 'test'
+  ...
+# Subtest: resolveClientIp: an untrusted peer's X-Forwarded-For header is never honored
+ok 12 - resolveClientIp: an untrusted peer's X-Forwarded-For header is never honored
+  ---
+  duration_ms: 0.175127
+  type: 'test'
+  ...
+# Subtest: resolveClientIp: a trusted peer's X-Forwarded-For header is honored (first hop)
+ok 13 - resolveClientIp: a trusted peer's X-Forwarded-For header is honored (first hop)
+  ---
+  duration_ms: 0.194909
+  type: 'test'
+  ...
+# Subtest: resolveClientIp: a trusted peer with no forwarded-for header falls back to the socket peer address
+ok 14 - resolveClientIp: a trusted peer with no forwarded-for header falls back to the socket peer address
+  ---
+  duration_ms: 0.13619
+  type: 'test'
+  ...
+# Subtest: T010: MAGIC_LINK_PER_EMAIL — the 6th request within the window for the same email is denied with retryAfterSeconds
+ok 15 - T010: MAGIC_LINK_PER_EMAIL — the 6th request within the window for the same email is denied with retryAfterSeconds
+  ---
+  duration_ms: 0.523709
+  type: 'test'
+  ...
+# Subtest: T010: MAGIC_LINK_PER_EMAIL — the window resets correctly
+ok 16 - T010: MAGIC_LINK_PER_EMAIL — the window resets correctly
+  ---
+  duration_ms: 0.415751
+  type: 'test'
+  ...
+# Subtest: T011: MAGIC_LINK_PER_IP — the 21st request within the window for the same IP is denied
+ok 17 - T011: MAGIC_LINK_PER_IP — the 21st request within the window for the same IP is denied
+  ---
+  duration_ms: 4.181598
+  type: 'test'
+  ...
+# Subtest: T012: MAGIC_LINK_COMPLETE_ATTEMPT — the 26th attempt within 60s from one IP is denied
+ok 18 - T012: MAGIC_LINK_COMPLETE_ATTEMPT — the 26th attempt within 60s from one IP is denied
+  ---
+  duration_ms: 3.303521
+  type: 'test'
+  ...
+# Subtest: SPEC-046 REQ-7: SITE_ASSISTANT_PER_IP — the 11th request within the window for the same IP is denied with retryAfterSeconds
+ok 19 - SPEC-046 REQ-7: SITE_ASSISTANT_PER_IP — the 11th request within the window for the same IP is denied with retryAfterSeconds
+  ---
+  duration_ms: 2.147571
+  type: 'test'
+  ...
+# Subtest: SPEC-046 REQ-7: SITE_ASSISTANT_PER_IP — the 5-minute window resets correctly
+ok 20 - SPEC-046 REQ-7: SITE_ASSISTANT_PER_IP — the 5-minute window resets correctly
+  ---
+  duration_ms: 0.424827
+  type: 'test'
+  ...
+# Subtest: SPEC-046 REQ-7: SITE_ASSISTANT_PER_IP — different IPs have independent counters
+ok 21 - SPEC-046 REQ-7: SITE_ASSISTANT_PER_IP — different IPs have independent counters
+  ---
+  duration_ms: 0.379695
+  type: 'test'
+  ...
+# Subtest: SPEC-046 REQ-8: expired windows are evicted once the sweep interval elapses, shrinking the store
+ok 22 - SPEC-046 REQ-8: expired windows are evicted once the sweep interval elapses, shrinking the store
+  ---
+  duration_ms: 8.030658
+  type: 'test'
+  ...
+# Subtest: SPEC-046 REQ-8: eviction does not change the outcome for a key whose own window just expired
+ok 23 - SPEC-046 REQ-8: eviction does not change the outcome for a key whose own window just expired
+  ---
+  duration_ms: 0.538675
+  type: 'test'
+  ...
+# Subtest: REQ-3: strict TypeScript checking enforces this file's error directives and exhaustiveness proofs
+ok 24 - REQ-3: strict TypeScript checking enforces this file's error directives and exhaustiveness proofs
+  ---
+  duration_ms: 14762.680033
+  type: 'test'
+  ...
+# Subtest: REQ-3: constructing Tiptap props from the un-narrowed AdminPost union is a type error — an html-format row must be excluded by the type system, not a forgettable runtime check
+ok 25 - REQ-3: constructing Tiptap props from the un-narrowed AdminPost union is a type error — an html-format row must be excluded by the type system, not a forgettable runtime check
+  ---
+  duration_ms: 0.488064
+  type: 'test'
+  ...
+# Subtest: REQ-3: narrowing on bodyFormat === 'doc' is what makes the doc branch constructible at all — the union is restrictive, not broken
+ok 26 - REQ-3: narrowing on bodyFormat === 'doc' is what makes the doc branch constructible at all — the union is restrictive, not broken
+  ---
+  duration_ms: 2.439681
+  type: 'test'
+  ...
+# Subtest: REQ-3: exhaustive switch over bodyFormat — a third format value would be a compile error at the 'never' branch below, matching the spec's own exhaustiveness claim
+ok 27 - REQ-3: exhaustive switch over bodyFormat — a third format value would be a compile error at the 'never' branch below, matching the spec's own exhaustiveness claim
+  ---
+  duration_ms: 0.357093
+  type: 'test'
+  ...
+# Subtest: page clicks with missing or malformed handles require approval
+ok 28 - page clicks with missing or malformed handles require approval
+  ---
+  duration_ms: 2.470146
+  type: 'test'
+  ...
+# Subtest: a declared non-direct capability still requires approval
+ok 29 - a declared non-direct capability still requires approval
+  ---
+  duration_ms: 0.298833
+  type: 'test'
+  ...
+# Subtest: descriptor policy takes precedence over a native tool's default policy
+ok 30 - descriptor policy takes precedence over a native tool's default policy
+  ---
+  duration_ms: 0.811985
+  type: 'test'
+  ...
+# Subtest: a metadata object without an approval falls back to native classification
+ok 31 - a metadata object without an approval falls back to native classification
+  ---
+  duration_ms: 0.912817
+  type: 'test'
+  ...
+# Subtest: an unclassified descriptor with metadata still fails closed
+ok 32 - an unclassified descriptor with metadata still fails closed
+  ---
+  duration_ms: 0.813744
+  type: 'test'
+  ...
+# Subtest: extension classification preserves unrelated metadata without mutating the registration
+ok 33 - extension classification preserves unrelated metadata without mutating the registration
+  ---
+  duration_ms: 8.544292
+  type: 'test'
+  ...
+# Subtest: an extension descriptor with no metadata receives its family's classification
+ok 34 - an extension descriptor with no metadata receives its family's classification
+  ---
+  duration_ms: 0.399967
+  type: 'test'
+  ...
+# Subtest: an executable plugin tool in family agent-plugin-read is classified read/direct
+ok 35 - an executable plugin tool in family agent-plugin-read is classified read/direct
+  ---
+  duration_ms: 0.24194
+  type: 'test'
+  ...
+# Subtest: an executable plugin tool in family agent-plugin-write is classified publish/policy
+ok 36 - an executable plugin tool in family agent-plugin-write is classified publish/policy
+  ---
+  duration_ms: 0.241521
+  type: 'test'
+  ...
+# Subtest: an executable plugin tool in family agent-plugin-destructive is classified delete/policy
+ok 37 - an executable plugin tool in family agent-plugin-destructive is classified delete/policy
+  ---
+  duration_ms: 0.152704
+  type: 'test'
+  ...
+# Subtest: a publishing chat title preserves the complete named post
+ok 38 - a publishing chat title preserves the complete named post
+  ---
+  duration_ms: 3.430354
+  type: 'test'
+  ...
+# Subtest: a long named post gets a complete action title within the limit
+ok 39 - a long named post gets a complete action title within the limit
+  ---
+  duration_ms: 0.400591
+  type: 'test'
+  ...
+# Subtest: other prompts still use Jini and resource slugs stay intact
+ok 40 - other prompts still use Jini and resource slugs stay intact
+  ---
+  duration_ms: 2.537875
+  type: 'test'
+  ...
+# Subtest: CMS titles strip markdown before extracting a complete named page
+ok 41 - CMS titles strip markdown before extracting a complete named page
+  ---
+  duration_ms: 0.396118
+  type: 'test'
+  ...
+# Subtest: unquoted CMS names retain domains and versions but stop at sentence punctuation
+ok 42 - unquoted CMS names retain domains and versions but stop at sentence punctuation
+  ---
+  duration_ms: 0.401313
+  type: 'test'
+  ...
+# Subtest: single-quoted article names and quoted names without an introducer stay complete
+ok 43 - single-quoted article names and quoted names without an introducer stay complete
+  ---
+  duration_ms: 0.194766
+  type: 'test'
+  ...
+# Subtest: long content names use a complete write or edit action
+ok 44 - long content names use a complete write or edit action
+  ---
+  duration_ms: 0.459745
+  type: 'test'
+  ...
+# Subtest: dangling name introducers are removed from the fallback title
+ok 45 - dangling name introducers are removed from the fallback title
+  ---
+  duration_ms: 0.407319
+  type: 'test'
+  ...
+# Subtest: an empty quoted name does not become a content title
+ok 46 - an empty quoted name does not become a content title
+  ---
+  duration_ms: 0.853425
+  type: 'test'
+  ...
+# Subtest: resource slugs longer than the limit delegate to the fallback
+ok 47 - resource slugs longer than the limit delegate to the fallback
+  ---
+  duration_ms: 0.685204
+  type: 'test'
+  ...
+# Subtest: L079: named CMS title includes exactly eighty characters and prioritizes publish for long names
+ok 48 - L079: named CMS title includes exactly eighty characters and prioritizes publish for long names
+  ---
+  duration_ms: 0.182961
+  type: 'test'
+  ...
+# Subtest: the headless barrel exposes exactly the owning modules' runtime values
+ok 49 - the headless barrel exposes exactly the owning modules' runtime values
+  ---
+  duration_ms: 4.542542
+  type: 'test'
+  ...
+# Subtest: fxpid: plugin-host.ts has no imports or re-exports into feature/server/app layers
+ok 50 - fxpid: plugin-host.ts has no imports or re-exports into feature/server/app layers
+  ---
+  duration_ms: 232.716079
+  type: 'test'
+  ...
+# Subtest: fxpid: plugin-install-source.ts has no imports or re-exports into feature/server/app layers
+ok 51 - fxpid: plugin-install-source.ts has no imports or re-exports into feature/server/app layers
+  ---
+  duration_ms: 236.129872
+  type: 'test'
+  ...
+# Subtest: fxpid: chat-attachment.ts has no imports or re-exports into feature/server/app layers
+ok 52 - fxpid: chat-attachment.ts has no imports or re-exports into feature/server/app layers
+  ---
+  duration_ms: 14.839699
+  type: 'test'
+  ...
+# Subtest: fxpid: moved attachment vocabulary still validates and reads opaque install refs
+ok 53 - fxpid: moved attachment vocabulary still validates and reads opaque install refs
+  ---
+  duration_ms: 10.373918
+  type: 'test'
+  ...
+# Subtest: install rejects a non-object source: undefined
+ok 54 - install rejects a non-object source: undefined
+  ---
+  duration_ms: 0.369334
+  type: 'test'
+  ...
+# Subtest: install rejects a non-object source: null
+ok 55 - install rejects a non-object source: null
+  ---
+  duration_ms: 0.152469
+  type: 'test'
+  ...
+# Subtest: install rejects a non-object source: "zip"
+ok 56 - install rejects a non-object source: "zip"
+  ---
+  duration_ms: 0.193576
+  type: 'test'
+  ...
+# Subtest: install rejects a non-object source: []
+ok 57 - install rejects a non-object source: []
+  ---
+  duration_ms: 0.137203
+  type: 'test'
+  ...
+# Subtest: install request refuses {"kind":"tar","path":"/tmp/plugin"}
+ok 58 - install request refuses {"kind":"tar","path":"/tmp/plugin"}
+  ---
+  duration_ms: 0.240908
+  type: 'test'
+  ...
+# Subtest: install request refuses {"kind":"zip"}
+ok 59 - install request refuses {"kind":"zip"}
+  ---
+  duration_ms: 0.153988
+  type: 'test'
+  ...
+# Subtest: install request refuses {"kind":"zip","path":"/tmp/plugin.zip","attachmentRef":"attachment:12345678"}
+ok 60 - install request refuses {"kind":"zip","path":"/tmp/plugin.zip","attachmentRef":"attachment:12345678"}
+  ---
+  duration_ms: 0.086854
+  type: 'test'
+  ...
+# Subtest: install request refuses {"kind":"folder","attachmentRef":"attachment:12345678"}
+ok 61 - install request refuses {"kind":"folder","attachmentRef":"attachment:12345678"}
+  ---
+  duration_ms: 0.141822
+  type: 'test'
+  ...
+# Subtest: install request refuses {"kind":"zip","attachmentRef":12345678}
+ok 62 - install request refuses {"kind":"zip","attachmentRef":12345678}
+  ---
+  duration_ms: 0.113702
+  type: 'test'
+  ...
+# Subtest: install request refuses {"kind":"zip","path":42}
+ok 63 - install request refuses {"kind":"zip","path":42}
+  ---
+  duration_ms: 0.086651
+  type: 'test'
+  ...
+# Subtest: install request refuses {"kind":"zip","path":"~/plugin.zip"}
+ok 64 - install request refuses {"kind":"zip","path":"~/plugin.zip"}
+  ---
+  duration_ms: 0.080539
+  type: 'test'
+  ...
+# Subtest: install preserves absolute folder and ZIP paths and only accepts boolean replacement
+ok 65 - install preserves absolute folder and ZIP paths and only accepts boolean replacement
+  ---
+  duration_ms: 0.426816
+  type: 'test'
+  ...
+# Subtest: install refuses unavailable attachments without interpreting their refs as disk paths
+ok 66 - install refuses unavailable attachments without interpreting their refs as disk paths
+  ---
+  duration_ms: 5.07164
+  type: 'test'
+  ...
+# Subtest: local archive reads accept the byte limit and reject missing and oversized files
+ok 67 - local archive reads accept the byte limit and reject missing and oversized files
+  ---
+  duration_ms: 37.716713
+  type: 'test'
+  ...
+# Subtest: local archive reads grown bytes before the final size refusal (reported, not fixed)
+ok 68 - local archive reads grown bytes before the final size refusal (reported, not fixed)
+  ---
+  duration_ms: 0.622949
+  type: 'test'
+  ...
+# Subtest: L079: invalid kind precedes source exclusivity and invalid path precedes replacement
+ok 69 - L079: invalid kind precedes source exclusivity and invalid path precedes replacement
+  ---
+  duration_ms: 0.296302
+  type: 'test'
+  ...
+# Subtest: L079: oversized stat prevents allocation and read failures propagate unchanged
+ok 70 - L079: oversized stat prevents allocation and read failures propagate unchanged
+  ---
+  duration_ms: 4.601445
+  type: 'test'
+  ...
+# Subtest: upgrade grants only the seven reviewed tools; future ids and prototype names start Off
+ok 71 - upgrade grants only the seven reviewed tools; future ids and prototype names start Off
+  ---
+  duration_ms: 5.571289
+  type: 'test'
+  ...
+# Subtest: explicit Off and Ask survive reads; limits normalize without mutating the input
+ok 72 - explicit Off and Ask survive reads; limits normalize without mutating the input
+  ---
+  duration_ms: 7.423866
+  type: 'test'
+  ...
+# Subtest: malformed policy fails closed: null
+ok 73 - malformed policy fails closed: null
+  ---
+  duration_ms: 0.885249
+  type: 'test'
+  ...
+# Subtest: malformed policy fails closed: []
+ok 74 - malformed policy fails closed: []
+  ---
+  duration_ms: 0.132258
+  type: 'test'
+  ...
+# Subtest: malformed policy fails closed: false
+ok 75 - malformed policy fails closed: false
+  ---
+  duration_ms: 0.937972
+  type: 'test'
+  ...
+# Subtest: malformed policy fails closed: "{}"
+ok 76 - malformed policy fails closed: "{}"
+  ---
+  duration_ms: 0.169129
+  type: 'test'
+  ...
+# Subtest: malformed policy fails closed: {}
+ok 77 - malformed policy fails closed: {}
+  ---
+  duration_ms: 0.124058
+  type: 'test'
+  ...
+# Subtest: malformed policy fails closed: {"version":2,"tools":{}}
+ok 78 - malformed policy fails closed: {"version":2,"tools":{}}
+  ---
+  duration_ms: 0.094006
+  type: 'test'
+  ...
+# Subtest: malformed policy fails closed: {"version":1,"tools":null}
+ok 79 - malformed policy fails closed: {"version":1,"tools":null}
+  ---
+  duration_ms: 2.68539
+  type: 'test'
+  ...
+# Subtest: malformed policy fails closed: {"version":1,"tools":{},"admin":true}
+ok 80 - malformed policy fails closed: {"version":1,"tools":{},"admin":true}
+  ---
+  duration_ms: 0.159956
+  type: 'test'
+  ...
+# Subtest: malformed policy fails closed: {"version":1,"tools":{"../admin":{"mode":"auto"}}}
+ok 81 - malformed policy fails closed: {"version":1,"tools":{"../admin":{"mode":"auto"}}}
+  ---
+  duration_ms: 0.135024
+  type: 'test'
+  ...
+# Subtest: malformed policy fails closed: {"version":1,"tools":{"a":null}}
+ok 82 - malformed policy fails closed: {"version":1,"tools":{"a":null}}
+  ---
+  duration_ms: 0.183285
+  type: 'test'
+  ...
+# Subtest: malformed policy fails closed: {"version":1,"tools":{"a":{"mode":"allow"}}}
+ok 83 - malformed policy fails closed: {"version":1,"tools":{"a":{"mode":"allow"}}}
+  ---
+  duration_ms: 0.10163
+  type: 'test'
+  ...
+# Subtest: malformed policy fails closed: {"version":1,"tools":{"a":{"mode":"auto","endpoint":"secret"}}}
+ok 84 - malformed policy fails closed: {"version":1,"tools":{"a":{"mode":"auto","endpoint":"secret"}}}
+  ---
+  duration_ms: 0.819436
+  type: 'test'
+  ...
+# Subtest: malformed policy fails closed: {"version":1,"tools":{"a0":{"mode":"off"},"a1":{"mode":"off"},"a2":{"mode":"off"},"a3":{"mode":"off"
+ok 85 - malformed policy fails closed: {"version":1,"tools":{"a0":{"mode":"off"},"a1":{"mode":"off"},"a2":{"mode":"off"},"a3":{"mode":"off"
+  ---
+  duration_ms: 0.120487
+  type: 'test'
+  ...
+# Subtest: invalid limits: null
+ok 86 - invalid limits: null
+  ---
+  duration_ms: 0.20425
+  type: 'test'
+  ...
+# Subtest: invalid limits: []
+ok 87 - invalid limits: []
+  ---
+  duration_ms: 3.463159
+  type: 'test'
+  ...
+# Subtest: invalid limits: {}
+ok 88 - invalid limits: {}
+  ---
+  duration_ms: 0.137711
+  type: 'test'
+  ...
+# Subtest: invalid limits: {"perIpPerHour":1}
+ok 89 - invalid limits: {"perIpPerHour":1}
+  ---
+  duration_ms: 0.128747
+  type: 'test'
+  ...
+# Subtest: invalid limits: {"perIpPerHour":0,"perSitePerDay":1}
+ok 90 - invalid limits: {"perIpPerHour":0,"perSitePerDay":1}
+  ---
+  duration_ms: 0.087689
+  type: 'test'
+  ...
+# Subtest: invalid limits: {"perIpPerHour":9007199254740992,"perSitePerDay":1}
+ok 91 - invalid limits: {"perIpPerHour":9007199254740992,"perSitePerDay":1}
+  ---
+  duration_ms: 0.107056
+  type: 'test'
+  ...
+# Subtest: invalid limits: {"perIpPerHour":1,"perSitePerDay":null}
+ok 92 - invalid limits: {"perIpPerHour":1,"perSitePerDay":null}
+  ---
+  duration_ms: 0.193185
+  type: 'test'
+  ...
+# Subtest: invalid limits: {"perIpPerHour":1.5,"perSitePerDay":1}
+ok 93 - invalid limits: {"perIpPerHour":1.5,"perSitePerDay":1}
+  ---
+  duration_ms: 0.114831
+  type: 'test'
+  ...
+# Subtest: invalid limits: {"perIpPerHour":"1","perSitePerDay":1}
+ok 94 - invalid limits: {"perIpPerHour":"1","perSitePerDay":1}
+  ---
+  duration_ms: 0.07948
+  type: 'test'
+  ...
+# Subtest: invalid limits: {"perIpPerHour":1,"perSitePerDay":1,"extra":true}
+ok 95 - invalid limits: {"perIpPerHour":1,"perSitePerDay":1,"extra":true}
+  ---
+  duration_ms: 0.138831
+  type: 'test'
+  ...
+# Subtest: positive safe limits including approved widening round-trip without mode loss
+ok 96 - positive safe limits including approved widening round-trip without mode loss
+  ---
+  duration_ms: 41.551139
+  type: 'test'
+  ...
+# Subtest: no production file under src/features/ imports src/server/, Express, or the admin app
+not ok 97 - no production file under src/features/ imports src/server/, Express, or the admin app
+  ---
+  duration_ms: 18809.595273
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/__tests__/features-no-server-imports.boundary.test.ts:1:2689'
+  failureType: 'testCodeFailure'
+  error: |-
+    src/features/INFO.md: features must not import server/framework code. Offending edges:
+      apps/website/src/features/analytics/contracts.ts imports the express package: "express"
+    + actual - expected
+    
+    + [
+    +   'apps/website/src/features/analytics/contracts.ts imports the express package: "express"'
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0: 'apps/website/src/features/analytics/contracts.ts imports the express package: "express"'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/__tests__/features-no-server-imports.boundary.test.ts:120:10)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.start (node:internal/test_runner/test:1262:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+  ...
+# Subtest: the boundary scanner sees bare, static, re-export, dynamic and require imports
+ok 98 - the boundary scanner sees bare, static, re-export, dynamic and require imports
+  ---
+  duration_ms: 7.231926
+  type: 'test'
+  ...
+# Subtest: the collector scans JavaScript and module extensions while excluding test fixtures
+ok 99 - the collector scans JavaScript and module extensions while excluding test fixtures
+  ---
+  duration_ms: 6.195148
+  type: 'test'
+  ...
+# Subtest: identity_policy_list_permissions: risk/readOnly matches the actual service effects
+ok 100 - identity_policy_list_permissions: risk/readOnly matches the actual service effects
+  ---
+  duration_ms: 12.780655
+  type: 'test'
+  ...
+# Subtest: identity_policy_list_permissions: denied permission prevents every service call
+ok 101 - identity_policy_list_permissions: denied permission prevents every service call
+  ---
+  duration_ms: 3.743951
+  type: 'test'
+  ...
+# Subtest: sites_list: risk/readOnly matches the actual service effects
+ok 102 - sites_list: risk/readOnly matches the actual service effects
+  ---
+  duration_ms: 8819.104838
+  type: 'test'
+  ...
+# Subtest: sites_list: denied permission prevents every service call
+ok 103 - sites_list: denied permission prevents every service call
+  ---
+  duration_ms: 3.434147
+  type: 'test'
+  ...
+# Subtest: publish_content_disconnect: risk/readOnly matches the actual service effects
+ok 104 - publish_content_disconnect: risk/readOnly matches the actual service effects
+  ---
+  duration_ms: 266.768799
+  type: 'test'
+  ...
+# Subtest: publish_content_disconnect: denied permission prevents every service call
+ok 105 - publish_content_disconnect: denied permission prevents every service call
+  ---
+  duration_ms: 7.877899
+  type: 'test'
+  ...
+# Subtest: theme_set_page_published: risk/readOnly matches the actual service effects
+ok 106 - theme_set_page_published: risk/readOnly matches the actual service effects
+  ---
+  duration_ms: 2.856792
+  type: 'test'
+  ...
+# Subtest: theme_set_page_published: denied permission prevents every service call
+ok 107 - theme_set_page_published: denied permission prevents every service call
+  ---
+  duration_ms: 0.662011
+  type: 'test'
+  ...
+# Subtest: policy permissions: scoped read, empty result and not-found refusal
+ok 108 - policy permissions: scoped read, empty result and not-found refusal
+  ---
+  duration_ms: 7.034388
+  type: 'test'
+  ...
+# Subtest: sites list: reports served site even when unregistered and switching is disabled
+ok 109 - sites list: reports served site even when unregistered and switching is disabled
+  ---
+  duration_ms: 18.364091
+  type: 'test'
+  ...
+# Subtest: sites list: registered active site and pending choice stay distinct
+ok 110 - sites list: registered active site and pending choice stay distinct
+  ---
+  duration_ms: 1.322395
+  type: 'test'
+  ...
+# Subtest: disconnect: removes connected destination, reverses grant, and is idempotent
+ok 111 - disconnect: removes connected destination, reverses grant, and is idempotent
+  ---
+  duration_ms: 21.01352
+  type: 'test'
+  ...
+# Subtest: disconnect: failed grant reversal restores peer and exposes an actionable refusal
+ok 112 - disconnect: failed grant reversal restores peer and exposes an actionable refusal
+  ---
+  duration_ms: 7.775869
+  type: 'test'
+  ...
+# Subtest: page publish: first toggle only publishes selected page, refreshes runtime and preserves fresh edits
+ok 113 - page publish: first toggle only publishes selected page, refreshes runtime and preserves fresh edits
+  ---
+  duration_ms: 109.993067
+  type: 'test'
+  ...
+# Subtest: page publish: wrong types, missing themes, non-static tiers, shells and traversal refuse before writing
+ok 114 - page publish: wrong types, missing themes, non-static tiers, shells and traversal refuse before writing
+  ---
+  duration_ms: 19.589311
+  type: 'test'
+  ...
+# Subtest: parseAnalyticsProvidersFile accepts valid manifests and names the first fault
+ok 115 - parseAnalyticsProvidersFile accepts valid manifests and names the first fault
+  ---
+  duration_ms: 3.349353
+  type: 'test'
+  ...
+# Subtest: loadAnalyticsProviders registers forwarders, collects hooks in order, and merges every refusal
+ok 116 - loadAnalyticsProviders registers forwarders, collects hooks in order, and merges every refusal
+  ---
+  duration_ms: 2.785899
+  type: 'test'
+  ...
+# Subtest: loadAnalyticsProviders with no contributing plugins is empty
+ok 117 - loadAnalyticsProviders with no contributing plugins is empty
+  ---
+  duration_ms: 0.334448
+  type: 'test'
+  ...
+# Subtest: an unreadable manifest or a throwing module is one plugin's refusal; healthy plugins still load
+ok 118 - an unreadable manifest or a throwing module is one plugin's refusal; healthy plugins still load
+  ---
+  duration_ms: 0.785016
+  type: 'test'
+  ...
+# Subtest: X1: a second process's write during a first process's paused rename is not erased once the write is locked cross-process
+ok 119 - X1: a second process's write during a first process's paused rename is not erased once the write is locked cross-process
+  ---
+  duration_ms: 2890.025607
+  type: 'test'
+  ...
+# Subtest: X2: an 80-write burst across two processes loses nothing and leaves no lock behind
+ok 120 - X2: an 80-write burst across two processes loses nothing and leaves no lock behind
+  ---
+  duration_ms: 2808.276143
+  type: 'test'
+  ...
+# [agent-plugins] removed a stale activations.json lock left by pid 13032 on vm (acquired 2026-10-28T20:40:01.933Z): /tmp/tovu-activation-xproc-69A6Pw/activations.json.lock
+# Subtest: X3: a lock left by a SIGKILLed holder is recovered by liveness, not by waiting out the age threshold
+ok 121 - X3: a lock left by a SIGKILLed holder is recovered by liveness, not by waiting out the age threshold
+  ---
+  duration_ms: 1182.872473
+  type: 'test'
+  ...
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Subtest: install -> parse mcp.json -> read installed files through the containment guarantee, end to end, for a plugin with both a skill and an MCP server
+ok 122 - install -> parse mcp.json -> read installed files through the containment guarantee, end to end, for a plugin with both a skill and an MCP server
+  ---
+  duration_ms: 354.632227
+  type: 'test'
+  ...
+# Subtest: the surface under test is the real, fully-installed catalog — not a skeleton that would pass every ranking assertion for free
+ok 123 - the surface under test is the real, fully-installed catalog — not a skeleton that would pass every ranking assertion for free
+  ---
+  duration_ms: 317.054692
+  type: 'test'
+  ...
+# [assistant-byok] plugin capability tools could not be registered, continuing without them — deps.discoverPlugins is not a function
+# [assistant-byok] plugin capability tools could not be registered, continuing without them — deps.discoverPlugins is not a function
+# Subtest: search_agent_plugin_local IS registered in the real catalog and describable via describe_tool
+ok 124 - search_agent_plugin_local IS registered in the real catalog and describable via describe_tool
+  ---
+  duration_ms: 225.886796
+  type: 'test'
+  ...
+# [assistant-byok] plugin capability tools could not be registered, continuing without them — deps.discoverPlugins is not a function
+# Subtest: search_agent_plugin_local lists installed plugins when query is omitted, for single calls and batch items
+ok 125 - search_agent_plugin_local lists installed plugins when query is omitted, for single calls and batch items
+  ---
+  duration_ms: 257.93486
+  type: 'test'
+  ...
+# [assistant-byok] plugin capability tools could not be registered, continuing without them — deps.discoverPlugins is not a function
+# [agent-plugin-search-discovery] query="is there a plugin for deploying to fly.io" (top 5):
+#   1. search_agent_plugin_local  (score 15.968)
+#   2. deployment_ops_status  (score 14.792)
+#   3. credential_save  (score 9.796)
+#   4. deployment_ops_deploy  (score 9.389)
+#   5. deployment_ops_list_targets  (score 8.633)
+# Subtest: search_tools surfaces search_agent_plugin_local in the top 5 for 'is there a plugin for deploying to fly.io'
+ok 126 - search_tools surfaces search_agent_plugin_local in the top 5 for 'is there a plugin for deploying to fly.io'
+  ---
+  duration_ms: 194.722841
+  type: 'test'
+  ...
+# [assistant-byok] plugin capability tools could not be registered, continuing without them — deps.discoverPlugins is not a function
+# [agent-plugin-search-discovery] query="find a plugin that can do accessibility review" (top 5):
+#   1. search_agent_plugin_local  (score 15.697)
+#   2. content_read.comment_moderation_queue  (score 7.567)
+#   3. agent_plugin_connect  (score 5.188)
+#   4. agent_plugin_write_note  (score 5.137)
+#   5. site_guide  (score 5.024)
+# Subtest: search_tools surfaces search_agent_plugin_local in the top 5 for 'find a plugin that can do accessibility review'
+ok 127 - search_tools surfaces search_agent_plugin_local in the top 5 for 'find a plugin that can do accessibility review'
+  ---
+  duration_ms: 131.168309
+  type: 'test'
+  ...
+# [assistant-byok] plugin capability tools could not be registered, continuing without them — deps.discoverPlugins is not a function
+# [agent-plugin-search-discovery] query="search installed agent plugins for gdpr compliance" (top 5):
+#   1. search_agent_plugin_local  (score 20.482)
+#   2. agent_plugins_install  (score 14.452)
+#   3. skills_install  (score 12.726)
+#   4. plugins_set_enabled  (score 12.144)
+#   5. agent_plugins_update  (score 11.906)
+# Subtest: search_tools surfaces search_agent_plugin_local in the top 5 for 'search installed agent plugins for gdpr compliance'
+ok 128 - search_tools surfaces search_agent_plugin_local in the top 5 for 'search installed agent plugins for gdpr compliance'
+  ---
+  duration_ms: 98.659702
+  type: 'test'
+  ...
+# [assistant-byok] plugin capability tools could not be registered, continuing without them — deps.discoverPlugins is not a function
+# [agent-plugin-search-discovery] query="do I have an installed plugin that covers cookie consent" (top 5):
+#   1. search_agent_plugin_local  (score 20.587)
+#   2. content_read.plugin  (score 12.843)
+#   3. consent_update_settings  (score 12.663)
+#   4. consent_get_settings  (score 12.613)
+#   5. consent_get_readiness  (score 12.435)
+# Subtest: search_tools surfaces search_agent_plugin_local in the top 5 for 'do I have an installed plugin that covers cookie consent'
+ok 129 - search_tools surfaces search_agent_plugin_local in the top 5 for 'do I have an installed plugin that covers cookie consent'
+  ---
+  duration_ms: 281.364412
+  type: 'test'
+  ...
+# [assistant-byok] plugin capability tools could not be registered, continuing without them — deps.discoverPlugins is not a function
+# [agent-plugin-search-discovery] query="what agent plugins are available in this workspace" (top 5):
+#   1. search_agent_plugin_local  (score 12.343)
+#   2. plugins_uninstall  (score 11.084)
+#   3. content_read.plugin  (score 8.933)
+#   4. agent_plugins_install  (score 8.890)
+#   5. skills_install  (score 8.859)
+# Subtest: search_tools surfaces search_agent_plugin_local in the top 5 for 'what agent plugins are available in this workspace'
+ok 130 - search_tools surfaces search_agent_plugin_local in the top 5 for 'what agent plugins are available in this workspace'
+  ---
+  duration_ms: 152.654216
+  type: 'test'
+  ...
+# [assistant-byok] plugin capability tools could not be registered, continuing without them — deps.discoverPlugins is not a function
+# [assistant-byok] plugin capability tools could not be registered, continuing without them — deps.discoverPlugins is not a function
+# [assistant-byok] plugin capability tools could not be registered, continuing without them — deps.discoverPlugins is not a function
+# [assistant-byok] plugin capability tools could not be registered, continuing without them — deps.discoverPlugins is not a function
+# [assistant-byok] plugin capability tools could not be registered, continuing without them — deps.discoverPlugins is not a function
+# Subtest: CRUX: at least one realistic operator phrasing surfaces search_agent_plugin_local in the top 10 of the real catalog
+ok 131 - CRUX: at least one realistic operator phrasing surfaces search_agent_plugin_local in the top 10 of the real catalog
+  ---
+  duration_ms: 886.376743
+  type: 'test'
+  ...
+# [assistant-byok] plugin capability tools could not be registered, continuing without them — deps.discoverPlugins is not a function
+# [agent-plugin-search-discovery] query="what plugins do I have installed" (top 10):
+#   1. search_agent_plugin_local  (score 10.925)
+#   2. content_read.plugin  (score 9.937)
+#   3. agent_plugins_install  (score 7.827)
+#   4. agent_plugins_update  (score 7.596)
+#   5. plugins_set_enabled  (score 7.217)
+#   6. plugins_install  (score 7.131)
+#   7. mail_list_providers  (score 6.909)
+#   8. plugins_uninstall  (score 6.867)
+#   9. skills_install  (score 6.516)
+#   10. plugin_source_seal  (score 6.509)
+# Subtest: ambiguous 'what plugins do I have installed' — finds at least one of the two plugin families
+ok 132 - ambiguous 'what plugins do I have installed' — finds at least one of the two plugin families
+  ---
+  duration_ms: 153.576929
+  type: 'test'
+  ...
+# [assistant-byok] plugin capability tools could not be registered, continuing without them — deps.discoverPlugins is not a function
+# [agent-plugin-search-discovery] query="What plugins are installed on the site?" (top 5):
+#   1. content_read.plugin  (score 9.028)
+#   2. search_agent_plugin_local  (score 8.420)
+#   3. agent_plugins_install  (score 8.004)
+#   4. plugins_install  (score 7.665)
+#   5. plugins_set_enabled  (score 7.603)
+# Subtest: negative control: 'What plugins are installed on the site?' still ranks content_read.plugin first — search_agent_plugin_local did not cannibalize it
+ok 133 - negative control: 'What plugins are installed on the site?' still ranks content_read.plugin first — search_agent_plugin_local did not cannibalize it
+  ---
+  duration_ms: 126.700867
+  type: 'test'
+  ...
+# [assistant-byok] plugin capability tools could not be registered, continuing without them — deps.discoverPlugins is not a function
+# [agent-plugin-search-discovery] query="Can you show me which plugins are enabled versus disabled?" (top 5):
+#   1. content_read.plugin  (score 18.473)
+#   2. content_read.identity_user  (score 11.556)
+#   3. content_read.form_definition  (score 10.672)
+#   4. agent_plugins_install  (score 10.499)
+#   5. plugins_uninstall  (score 9.777)
+# Subtest: negative control: 'Can you show me which plugins are enabled versus disabled?' still ranks content_read.plugin first — search_agent_plugin_local did not cannibalize it
+ok 134 - negative control: 'Can you show me which plugins are enabled versus disabled?' still ranks content_read.plugin first — search_agent_plugin_local did not cannibalize it
+  ---
+  duration_ms: 186.610778
+  type: 'test'
+  ...
+# [assistant-byok] plugin capability tools could not be registered, continuing without them — deps.discoverPlugins is not a function
+# [agent-plugin-search-discovery] query="Can you turn on this plugin?" (top 5):
+#   1. plugins_set_enabled  (score 8.800)
+#   2. plugins_install  (score 7.286)
+#   3. settings_set_value  (score 6.657)
+#   4. visitor_tool_configure  (score 5.156)
+#   5. collections_content_type_reactivate  (score 5.130)
+# Subtest: negative control: 'Can you turn on this plugin?' still ranks plugins_set_enabled first — search_agent_plugin_local did not cannibalize it
+ok 135 - negative control: 'Can you turn on this plugin?' still ranks plugins_set_enabled first — search_agent_plugin_local did not cannibalize it
+  ---
+  duration_ms: 189.874723
+  type: 'test'
+  ...
+# [assistant-byok] plugin capability tools could not be registered, continuing without them — deps.discoverPlugins is not a function
+# [agent-plugin-search-discovery] query="How do I disable a plugin we don't want running?" (top 5):
+#   1. plugins_set_enabled  (score 17.714)
+#   2. collections_content_type_deprecate  (score 16.187)
+#   3. newsletter_archive_list  (score 12.597)
+#   4. redirects_tombstone  (score 9.849)
+#   5. deployment_ops_status  (score 9.699)
+# Subtest: negative control: 'How do I disable a plugin we don't want running?' still ranks plugins_set_enabled first — search_agent_plugin_local did not cannibalize it
+ok 136 - negative control: 'How do I disable a plugin we don't want running?' still ranks plugins_set_enabled first — search_agent_plugin_local did not cannibalize it
+  ---
+  duration_ms: 184.836011
+  type: 'test'
+  ...
+# Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+# Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+# Subtest: search results carry host maturity untested
+ok 137 - search results carry host maturity untested
+  ---
+  duration_ms: 427.245605
+  type: 'test'
+  ...
+# Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+# Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+# Subtest: search results carry host maturity soon
+ok 138 - search results carry host maturity soon
+  ---
+  duration_ms: 87.339423
+  type: 'test'
+  ...
+# Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+# Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+# Subtest: search results carry host maturity (absent)
+ok 139 - search results carry host maturity (absent)
+  ---
+  duration_ms: 209.790185
+  type: 'test'
+  ...
+# Subtest: the catalog carries exactly one tool, search_agent_plugin_local, with optional 'query' and 'limit'
+ok 140 - the catalog carries exactly one tool, search_agent_plugin_local, with optional 'query' and 'limit'
+  ---
+  duration_ms: 15.059643
+  type: 'test'
+  ...
+# Subtest: the description sends the model to plugins_set_enabled's 'agent-plugin' family — it no longer claims that tool manages only .tovu-plugin site plugins
+ok 141 - the description sends the model to plugins_set_enabled's 'agent-plugin' family — it no longer claims that tool manages only .tovu-plugin site plugins
+  ---
+  duration_ms: 5.861019
+  type: 'test'
+  ...
+# Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+# Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+# Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+# Subtest: finds a real installed plugin by keyword, with compact discovery and full metadata retained by the detail loader
+ok 142 - finds a real installed plugin by keyword, with compact discovery and full metadata retained by the detail loader
+  ---
+  duration_ms: 65.284704
+  type: 'test'
+  ...
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Subtest: a query matching nothing still reports totalInstalled, distinguishing 'nothing installed' from 'nothing matched'
+ok 143 - a query matching nothing still reports totalInstalled, distinguishing 'nothing installed' from 'nothing matched'
+  ---
+  duration_ms: 19.650185
+  type: 'test'
+  ...
+# Subtest: an empty workspace (nothing installed) returns zero matches and totalInstalled 0, no throw
+ok 144 - an empty workspace (nothing installed) returns zero matches and totalInstalled 0, no throw
+  ---
+  duration_ms: 2.175704
+  type: 'test'
+  ...
+# Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+# Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+# Subtest: a DISABLED plugin is still found (unlike the dynamic agent_plugin_<id> tools) — search must not gate on activation
+ok 145 - a DISABLED plugin is still found (unlike the dynamic agent_plugin_<id> tools) — search must not gate on activation
+  ---
+  duration_ms: 42.485358
+  type: 'test'
+  ...
+# Plugin 'example-host-deploy' has no publisher-qualified id; using 'unknown/example-host-deploy'.
+# Plugin 'example-host-deploy' has no publisher-qualified id; using 'unknown/example-host-deploy'.
+# Plugin 'example-host-deploy' has no publisher-qualified id; using 'unknown/example-host-deploy'.
+# Subtest: MCP server ids stay on the detail path, while discovery omits transport config
+ok 146 - MCP server ids stay on the detail path, while discovery omits transport config
+  ---
+  duration_ms: 59.288082
+  type: 'test'
+  ...
+# Plugin 'no-mcp-plugin' has no publisher-qualified id; using 'unknown/no-mcp-plugin'.
+# Plugin 'no-mcp-plugin' has no publisher-qualified id; using 'unknown/no-mcp-plugin'.
+# Plugin 'no-mcp-plugin' has no publisher-qualified id; using 'unknown/no-mcp-plugin'.
+# Subtest: a plugin with no mcp.json remains discoverable and has no servers on the detail path
+ok 147 - a plugin with no mcp.json remains discoverable and has no servers on the detail path
+  ---
+  duration_ms: 27.539893
+  type: 'test'
+  ...
+# Subtest: SINK: a plugin whose SKILL.md is no longer readable does not take another installed plugin's search entry down with it
+ok 148 - SINK: a plugin whose SKILL.md is no longer readable does not take another installed plugin's search entry down with it # SKIP root bypasses chmod read permissions
+  ---
+  duration_ms: 0.377305
+  type: 'test'
+  ...
+# Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+# Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+# Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+# Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+# Subtest: two installed digests of the same plugin id do not crash search — unlike the dynamic tool loader's refusal
+ok 149 - two installed digests of the same plugin id do not crash search — unlike the dynamic tool loader's refusal
+  ---
+  duration_ms: 58.44883
+  type: 'test'
+  ...
+# Plugin 'compliance-tool-0' has no publisher-qualified id; using 'unknown/compliance-tool-0'.
+# Plugin 'compliance-tool-1' has no publisher-qualified id; using 'unknown/compliance-tool-1'.
+# Plugin 'compliance-tool-2' has no publisher-qualified id; using 'unknown/compliance-tool-2'.
+# Plugin 'compliance-tool-3' has no publisher-qualified id; using 'unknown/compliance-tool-3'.
+# Plugin 'compliance-tool-4' has no publisher-qualified id; using 'unknown/compliance-tool-4'.
+# Plugin 'compliance-tool-5' has no publisher-qualified id; using 'unknown/compliance-tool-5'.
+# Plugin 'compliance-tool-6' has no publisher-qualified id; using 'unknown/compliance-tool-6'.
+# Plugin 'compliance-tool-7' has no publisher-qualified id; using 'unknown/compliance-tool-7'.
+# Plugin 'compliance-tool-8' has no publisher-qualified id; using 'unknown/compliance-tool-8'.
+# Plugin 'compliance-tool-9' has no publisher-qualified id; using 'unknown/compliance-tool-9'.
+# Plugin 'compliance-tool-10' has no publisher-qualified id; using 'unknown/compliance-tool-10'.
+# Plugin 'compliance-tool-11' has no publisher-qualified id; using 'unknown/compliance-tool-11'.
+# Plugin 'compliance-tool-12' has no publisher-qualified id; using 'unknown/compliance-tool-12'.
+# Plugin 'compliance-tool-13' has no publisher-qualified id; using 'unknown/compliance-tool-13'.
+# Plugin 'compliance-tool-14' has no publisher-qualified id; using 'unknown/compliance-tool-14'.
+# Plugin 'compliance-tool-15' has no publisher-qualified id; using 'unknown/compliance-tool-15'.
+# Plugin 'compliance-tool-16' has no publisher-qualified id; using 'unknown/compliance-tool-16'.
+# Plugin 'compliance-tool-17' has no publisher-qualified id; using 'unknown/compliance-tool-17'.
+# Plugin 'compliance-tool-18' has no publisher-qualified id; using 'unknown/compliance-tool-18'.
+# Plugin 'compliance-tool-19' has no publisher-qualified id; using 'unknown/compliance-tool-19'.
+# Plugin 'compliance-tool-20' has no publisher-qualified id; using 'unknown/compliance-tool-20'.
+# Plugin 'compliance-tool-21' has no publisher-qualified id; using 'unknown/compliance-tool-21'.
+# Plugin 'compliance-tool-22' has no publisher-qualified id; using 'unknown/compliance-tool-22'.
+# Plugin 'compliance-tool-23' has no publisher-qualified id; using 'unknown/compliance-tool-23'.
+# Plugin 'compliance-tool-24' has no publisher-qualified id; using 'unknown/compliance-tool-24'.
+# Plugin 'compliance-tool-25' has no publisher-qualified id; using 'unknown/compliance-tool-25'.
+# Plugin 'compliance-tool-26' has no publisher-qualified id; using 'unknown/compliance-tool-26'.
+# Plugin 'compliance-tool-27' has no publisher-qualified id; using 'unknown/compliance-tool-27'.
+# Plugin 'compliance-tool-28' has no publisher-qualified id; using 'unknown/compliance-tool-28'.
+# Plugin 'compliance-tool-29' has no publisher-qualified id; using 'unknown/compliance-tool-29'.
+# Plugin 'compliance-tool-30' has no publisher-qualified id; using 'unknown/compliance-tool-30'.
+# Plugin 'compliance-tool-31' has no publisher-qualified id; using 'unknown/compliance-tool-31'.
+# Plugin 'compliance-tool-32' has no publisher-qualified id; using 'unknown/compliance-tool-32'.
+# Plugin 'compliance-tool-33' has no publisher-qualified id; using 'unknown/compliance-tool-33'.
+# Plugin 'compliance-tool-34' has no publisher-qualified id; using 'unknown/compliance-tool-34'.
+# Plugin 'compliance-tool-35' has no publisher-qualified id; using 'unknown/compliance-tool-35'.
+# Plugin 'compliance-tool-36' has no publisher-qualified id; using 'unknown/compliance-tool-36'.
+# Plugin 'compliance-tool-37' has no publisher-qualified id; using 'unknown/compliance-tool-37'.
+# Plugin 'compliance-tool-38' has no publisher-qualified id; using 'unknown/compliance-tool-38'.
+# Plugin 'compliance-tool-39' has no publisher-qualified id; using 'unknown/compliance-tool-39'.
+# Plugin 'compliance-tool-40' has no publisher-qualified id; using 'unknown/compliance-tool-40'.
+# Plugin 'compliance-tool-41' has no publisher-qualified id; using 'unknown/compliance-tool-41'.
+# Plugin 'compliance-tool-42' has no publisher-qualified id; using 'unknown/compliance-tool-42'.
+# Plugin 'compliance-tool-43' has no publisher-qualified id; using 'unknown/compliance-tool-43'.
+# Plugin 'compliance-tool-44' has no publisher-qualified id; using 'unknown/compliance-tool-44'.
+# Plugin 'compliance-tool-45' has no publisher-qualified id; using 'unknown/compliance-tool-45'.
+# Plugin 'compliance-tool-46' has no publisher-qualified id; using 'unknown/compliance-tool-46'.
+# Plugin 'compliance-tool-47' has no publisher-qualified id; using 'unknown/compliance-tool-47'.
+# Plugin 'compliance-tool-48' has no publisher-qualified id; using 'unknown/compliance-tool-48'.
+# Plugin 'compliance-tool-49' has no publisher-qualified id; using 'unknown/compliance-tool-49'.
+# Plugin 'compliance-tool-50' has no publisher-qualified id; using 'unknown/compliance-tool-50'.
+# Plugin 'compliance-tool-0' has no publisher-qualified id; using 'unknown/compliance-tool-0'.
+# Plugin 'compliance-tool-1' has no publisher-qualified id; using 'unknown/compliance-tool-1'.
+# Plugin 'compliance-tool-10' has no publisher-qualified id; using 'unknown/compliance-tool-10'.
+# Plugin 'compliance-tool-11' has no publisher-qualified id; using 'unknown/compliance-tool-11'.
+# Plugin 'compliance-tool-12' has no publisher-qualified id; using 'unknown/compliance-tool-12'.
+# Plugin 'compliance-tool-13' has no publisher-qualified id; using 'unknown/compliance-tool-13'.
+# Plugin 'compliance-tool-14' has no publisher-qualified id; using 'unknown/compliance-tool-14'.
+# Plugin 'compliance-tool-15' has no publisher-qualified id; using 'unknown/compliance-tool-15'.
+# Plugin 'compliance-tool-16' has no publisher-qualified id; using 'unknown/compliance-tool-16'.
+# Plugin 'compliance-tool-17' has no publisher-qualified id; using 'unknown/compliance-tool-17'.
+# Plugin 'compliance-tool-18' has no publisher-qualified id; using 'unknown/compliance-tool-18'.
+# Plugin 'compliance-tool-19' has no publisher-qualified id; using 'unknown/compliance-tool-19'.
+# Plugin 'compliance-tool-2' has no publisher-qualified id; using 'unknown/compliance-tool-2'.
+# Plugin 'compliance-tool-20' has no publisher-qualified id; using 'unknown/compliance-tool-20'.
+# Plugin 'compliance-tool-21' has no publisher-qualified id; using 'unknown/compliance-tool-21'.
+# Plugin 'compliance-tool-22' has no publisher-qualified id; using 'unknown/compliance-tool-22'.
+# Plugin 'compliance-tool-23' has no publisher-qualified id; using 'unknown/compliance-tool-23'.
+# Plugin 'compliance-tool-24' has no publisher-qualified id; using 'unknown/compliance-tool-24'.
+# Plugin 'compliance-tool-25' has no publisher-qualified id; using 'unknown/compliance-tool-25'.
+# Plugin 'compliance-tool-26' has no publisher-qualified id; using 'unknown/compliance-tool-26'.
+# Plugin 'compliance-tool-27' has no publisher-qualified id; using 'unknown/compliance-tool-27'.
+# Plugin 'compliance-tool-28' has no publisher-qualified id; using 'unknown/compliance-tool-28'.
+# Plugin 'compliance-tool-29' has no publisher-qualified id; using 'unknown/compliance-tool-29'.
+# Plugin 'compliance-tool-3' has no publisher-qualified id; using 'unknown/compliance-tool-3'.
+# Plugin 'compliance-tool-30' has no publisher-qualified id; using 'unknown/compliance-tool-30'.
+# Plugin 'compliance-tool-31' has no publisher-qualified id; using 'unknown/compliance-tool-31'.
+# Plugin 'compliance-tool-32' has no publisher-qualified id; using 'unknown/compliance-tool-32'.
+# Plugin 'compliance-tool-33' has no publisher-qualified id; using 'unknown/compliance-tool-33'.
+# Plugin 'compliance-tool-34' has no publisher-qualified id; using 'unknown/compliance-tool-34'.
+# Plugin 'compliance-tool-35' has no publisher-qualified id; using 'unknown/compliance-tool-35'.
+# Plugin 'compliance-tool-36' has no publisher-qualified id; using 'unknown/compliance-tool-36'.
+# Plugin 'compliance-tool-37' has no publisher-qualified id; using 'unknown/compliance-tool-37'.
+# Plugin 'compliance-tool-38' has no publisher-qualified id; using 'unknown/compliance-tool-38'.
+# Plugin 'compliance-tool-39' has no publisher-qualified id; using 'unknown/compliance-tool-39'.
+# Plugin 'compliance-tool-4' has no publisher-qualified id; using 'unknown/compliance-tool-4'.
+# Plugin 'compliance-tool-40' has no publisher-qualified id; using 'unknown/compliance-tool-40'.
+# Plugin 'compliance-tool-41' has no publisher-qualified id; using 'unknown/compliance-tool-41'.
+# Plugin 'compliance-tool-42' has no publisher-qualified id; using 'unknown/compliance-tool-42'.
+# Plugin 'compliance-tool-43' has no publisher-qualified id; using 'unknown/compliance-tool-43'.
+# Plugin 'compliance-tool-44' has no publisher-qualified id; using 'unknown/compliance-tool-44'.
+# Plugin 'compliance-tool-45' has no publisher-qualified id; using 'unknown/compliance-tool-45'.
+# Plugin 'compliance-tool-46' has no publisher-qualified id; using 'unknown/compliance-tool-46'.
+# Plugin 'compliance-tool-47' has no publisher-qualified id; using 'unknown/compliance-tool-47'.
+# Plugin 'compliance-tool-48' has no publisher-qualified id; using 'unknown/compliance-tool-48'.
+# Plugin 'compliance-tool-49' has no publisher-qualified id; using 'unknown/compliance-tool-49'.
+# Plugin 'compliance-tool-5' has no publisher-qualified id; using 'unknown/compliance-tool-5'.
+# Plugin 'compliance-tool-50' has no publisher-qualified id; using 'unknown/compliance-tool-50'.
+# Plugin 'compliance-tool-6' has no publisher-qualified id; using 'unknown/compliance-tool-6'.
+# Plugin 'compliance-tool-7' has no publisher-qualified id; using 'unknown/compliance-tool-7'.
+# Plugin 'compliance-tool-8' has no publisher-qualified id; using 'unknown/compliance-tool-8'.
+# Plugin 'compliance-tool-9' has no publisher-qualified id; using 'unknown/compliance-tool-9'.
+# Plugin 'compliance-tool-0' has no publisher-qualified id; using 'unknown/compliance-tool-0'.
+# Plugin 'compliance-tool-1' has no publisher-qualified id; using 'unknown/compliance-tool-1'.
+# Plugin 'compliance-tool-10' has no publisher-qualified id; using 'unknown/compliance-tool-10'.
+# Plugin 'compliance-tool-11' has no publisher-qualified id; using 'unknown/compliance-tool-11'.
+# Plugin 'compliance-tool-12' has no publisher-qualified id; using 'unknown/compliance-tool-12'.
+# Plugin 'compliance-tool-13' has no publisher-qualified id; using 'unknown/compliance-tool-13'.
+# Plugin 'compliance-tool-14' has no publisher-qualified id; using 'unknown/compliance-tool-14'.
+# Plugin 'compliance-tool-15' has no publisher-qualified id; using 'unknown/compliance-tool-15'.
+# Plugin 'compliance-tool-16' has no publisher-qualified id; using 'unknown/compliance-tool-16'.
+# Plugin 'compliance-tool-17' has no publisher-qualified id; using 'unknown/compliance-tool-17'.
+# Plugin 'compliance-tool-18' has no publisher-qualified id; using 'unknown/compliance-tool-18'.
+# Plugin 'compliance-tool-19' has no publisher-qualified id; using 'unknown/compliance-tool-19'.
+# Plugin 'compliance-tool-2' has no publisher-qualified id; using 'unknown/compliance-tool-2'.
+# Plugin 'compliance-tool-20' has no publisher-qualified id; using 'unknown/compliance-tool-20'.
+# Plugin 'compliance-tool-21' has no publisher-qualified id; using 'unknown/compliance-tool-21'.
+# Plugin 'compliance-tool-22' has no publisher-qualified id; using 'unknown/compliance-tool-22'.
+# Plugin 'compliance-tool-23' has no publisher-qualified id; using 'unknown/compliance-tool-23'.
+# Plugin 'compliance-tool-24' has no publisher-qualified id; using 'unknown/compliance-tool-24'.
+# Plugin 'compliance-tool-25' has no publisher-qualified id; using 'unknown/compliance-tool-25'.
+# Plugin 'compliance-tool-26' has no publisher-qualified id; using 'unknown/compliance-tool-26'.
+# Plugin 'compliance-tool-27' has no publisher-qualified id; using 'unknown/compliance-tool-27'.
+# Plugin 'compliance-tool-28' has no publisher-qualified id; using 'unknown/compliance-tool-28'.
+# Plugin 'compliance-tool-29' has no publisher-qualified id; using 'unknown/compliance-tool-29'.
+# Plugin 'compliance-tool-3' has no publisher-qualified id; using 'unknown/compliance-tool-3'.
+# Plugin 'compliance-tool-30' has no publisher-qualified id; using 'unknown/compliance-tool-30'.
+# Plugin 'compliance-tool-31' has no publisher-qualified id; using 'unknown/compliance-tool-31'.
+# Plugin 'compliance-tool-32' has no publisher-qualified id; using 'unknown/compliance-tool-32'.
+# Plugin 'compliance-tool-33' has no publisher-qualified id; using 'unknown/compliance-tool-33'.
+# Plugin 'compliance-tool-34' has no publisher-qualified id; using 'unknown/compliance-tool-34'.
+# Plugin 'compliance-tool-35' has no publisher-qualified id; using 'unknown/compliance-tool-35'.
+# Plugin 'compliance-tool-36' has no publisher-qualified id; using 'unknown/compliance-tool-36'.
+# Plugin 'compliance-tool-37' has no publisher-qualified id; using 'unknown/compliance-tool-37'.
+# Plugin 'compliance-tool-38' has no publisher-qualified id; using 'unknown/compliance-tool-38'.
+# Plugin 'compliance-tool-39' has no publisher-qualified id; using 'unknown/compliance-tool-39'.
+# Plugin 'compliance-tool-4' has no publisher-qualified id; using 'unknown/compliance-tool-4'.
+# Plugin 'compliance-tool-40' has no publisher-qualified id; using 'unknown/compliance-tool-40'.
+# Plugin 'compliance-tool-41' has no publisher-qualified id; using 'unknown/compliance-tool-41'.
+# Plugin 'compliance-tool-42' has no publisher-qualified id; using 'unknown/compliance-tool-42'.
+# Plugin 'compliance-tool-43' has no publisher-qualified id; using 'unknown/compliance-tool-43'.
+# Plugin 'compliance-tool-44' has no publisher-qualified id; using 'unknown/compliance-tool-44'.
+# Plugin 'compliance-tool-45' has no publisher-qualified id; using 'unknown/compliance-tool-45'.
+# Plugin 'compliance-tool-46' has no publisher-qualified id; using 'unknown/compliance-tool-46'.
+# Plugin 'compliance-tool-47' has no publisher-qualified id; using 'unknown/compliance-tool-47'.
+# Plugin 'compliance-tool-48' has no publisher-qualified id; using 'unknown/compliance-tool-48'.
+# Plugin 'compliance-tool-49' has no publisher-qualified id; using 'unknown/compliance-tool-49'.
+# Plugin 'compliance-tool-5' has no publisher-qualified id; using 'unknown/compliance-tool-5'.
+# Plugin 'compliance-tool-50' has no publisher-qualified id; using 'unknown/compliance-tool-50'.
+# Plugin 'compliance-tool-6' has no publisher-qualified id; using 'unknown/compliance-tool-6'.
+# Plugin 'compliance-tool-7' has no publisher-qualified id; using 'unknown/compliance-tool-7'.
+# Plugin 'compliance-tool-8' has no publisher-qualified id; using 'unknown/compliance-tool-8'.
+# Plugin 'compliance-tool-9' has no publisher-qualified id; using 'unknown/compliance-tool-9'.
+# Subtest: limit is clamped, not rejected — an out-of-range value still returns a result within [1, 50]
+ok 150 - limit is clamped, not rejected — an out-of-range value still returns a result within [1, 50]
+  ---
+  duration_ms: 5603.788977
+  type: 'test'
+  ...
+# Plugin 'zeta' has no publisher-qualified id; using 'unknown/zeta'.
+# Plugin 'alpha' has no publisher-qualified id; using 'unknown/alpha'.
+# Plugin 'alpha' has no publisher-qualified id; using 'unknown/alpha'.
+# Plugin 'zeta' has no publisher-qualified id; using 'unknown/zeta'.
+# Plugin 'alpha' has no publisher-qualified id; using 'unknown/alpha'.
+# Plugin 'zeta' has no publisher-qualified id; using 'unknown/zeta'.
+# Plugin 'alpha' has no publisher-qualified id; using 'unknown/alpha'.
+# Plugin 'zeta' has no publisher-qualified id; using 'unknown/zeta'.
+# Subtest: blank queries list the existing loader's enabled and disabled plugins
+ok 151 - blank queries list the existing loader's enabled and disabled plugins
+  ---
+  duration_ms: 73.636614
+  type: 'test'
+  ...
+# Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+# Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+# Subtest: SECURITY: no absolute host path leaks into the response, even for a matched plugin
+ok 152 - SECURITY: no absolute host path leaks into the response, even for a matched plugin
+  ---
+  duration_ms: 19.660206
+  type: 'test'
+  ...
+# Plugin 'only-in-other' has no publisher-qualified id; using 'unknown/only-in-other'.
+# Subtest: workspace isolation: a search in workspace A finds nothing installed only under a different workspace
+ok 153 - workspace isolation: a search in workspace A finds nothing installed only under a different workspace
+  ---
+  duration_ms: 15.65878
+  type: 'test'
+  ...
+# Plugin 'minimal-pinned' has no publisher-qualified id; using 'unknown/minimal-pinned'.
+# Plugin 'bad-pinned' has no publisher-qualified id; using 'unknown/bad-pinned'.
+# Plugin 'minimal-pinned' has no publisher-qualified id; using 'unknown/minimal-pinned'.
+# Subtest: L025b search projection preserves optional metadata and isolates invalid identities
+ok 154 - L025b search projection preserves optional metadata and isolates invalid identities
+  ---
+  duration_ms: 32.565096
+  type: 'test'
+  ...
+# Plugin 'paged-tool-0' has no publisher-qualified id; using 'unknown/paged-tool-0'.
+# Plugin 'paged-tool-1' has no publisher-qualified id; using 'unknown/paged-tool-1'.
+# Plugin 'paged-tool-2' has no publisher-qualified id; using 'unknown/paged-tool-2'.
+# Plugin 'paged-tool-0' has no publisher-qualified id; using 'unknown/paged-tool-0'.
+# Plugin 'paged-tool-1' has no publisher-qualified id; using 'unknown/paged-tool-1'.
+# Plugin 'paged-tool-2' has no publisher-qualified id; using 'unknown/paged-tool-2'.
+# Plugin 'paged-tool-0' has no publisher-qualified id; using 'unknown/paged-tool-0'.
+# Plugin 'paged-tool-1' has no publisher-qualified id; using 'unknown/paged-tool-1'.
+# Plugin 'paged-tool-2' has no publisher-qualified id; using 'unknown/paged-tool-2'.
+# Subtest: offset pages the ranked catalog; a negative or fractional offset is an input error
+ok 155 - offset pages the ranked catalog; a negative or fractional offset is an input error
+  ---
+  duration_ms: 71.638288
+  type: 'test'
+  ...
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Subtest: a plugin disabled through setAgentPluginEnabled — the composition BOTH the admin toggle and plugins_set_enabled call — stops answering in the already-running daemon, with no restart
+ok 156 - a plugin disabled through setAgentPluginEnabled — the composition BOTH the admin toggle and plugins_set_enabled call — stops answering in the already-running daemon, with no restart
+  ---
+  duration_ms: 448.121209
+  type: 'test'
+  ...
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Subtest: revocation follows the activation RECORD, not the caller: a bare setAgentPluginActivation write revokes the live tool too
+ok 157 - revocation follows the activation RECORD, not the caller: a bare setAgentPluginActivation write revokes the live tool too
+  ---
+  duration_ms: 92.256397
+  type: 'test'
+  ...
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Subtest: uninstalling a DISABLED plugin must not re-admit its revoked tool — deleting the activation record is not consent
+ok 158 - uninstalling a DISABLED plugin must not re-admit its revoked tool — deleting the activation record is not consent
+  ---
+  duration_ms: 408.359212
+  type: 'test'
+  ...
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Subtest: uninstalling an ENABLED plugin revokes its live tool too — uninstall alone is a revocation, not just a disk operation
+ok 159 - uninstalling an ENABLED plugin revokes its live tool too — uninstall alone is a revocation, not just a disk operation
+  ---
+  duration_ms: 301.882224
+  type: 'test'
+  ...
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Subtest: the gate's INSTALLED half stands on its own: the package bytes disappearing revokes the tool even while the record still says enabled
+ok 160 - the gate's INSTALLED half stands on its own: the package bytes disappearing revokes the tool even while the record still says enabled
+  ---
+  duration_ms: 84.430453
+  type: 'test'
+  ...
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'tea-roastery' has no publisher-qualified id; using 'unknown/tea-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'tea-roastery' has no publisher-qualified id; using 'unknown/tea-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'tea-roastery' has no publisher-qualified id; using 'unknown/tea-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'tea-roastery' has no publisher-qualified id; using 'unknown/tea-roastery'.
+# Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+# Plugin 'tea-roastery' has no publisher-qualified id; using 'unknown/tea-roastery'.
+# Subtest: revocation is scoped to the plugin and workspace in an already-booted registry
+ok 161 - revocation is scoped to the plugin and workspace in an already-booted registry
+  ---
+  duration_ms: 152.519635
+  type: 'test'
+  ...
+# Subtest: the plugin tool IS present in registry.list({}) and describable by exact id — the registration mechanism itself works, and collapsing 7 skills into 1 guidance tool (plus the Layout B memory pair) shows up as exactly +3 in the real catalog
+not ok 162 - the plugin tool IS present in registry.list({}) and describable by exact id — the registration mechanism itself works, and collapsing 7 skills into 1 guidance tool (plus the Layout B memory pair) shows up as exactly +3 in the real catalog
+  ---
+  duration_ms: 138.435416
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-search-ranking.integration.test.ts:46:202'
+  failureType: 'testCodeFailure'
+  error: 'fresh content bootstrap is behind CONTENT_MIGRATIONS; update its fresh-only operations and schema parity guard'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    bootstrapFreshContentDb (/home/user/Tovu/apps/website/src/platform/db/sqlite/fresh-content-db.ts:231:11)
+    openContentDb (/home/user/Tovu/apps/website/src/platform/db/sqlite/content-db.ts:141:10)
+    <anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/app.ts:582:55)
+    Object.get (/home/user/Tovu/apps/website/src/server/runtime/composition/app.ts:437:36)
+    contentKernel (/home/user/Tovu/apps/website/src/platform/db/content-kernel.ts:20:51)
+    new SqliteTermRepo (/home/user/Tovu/apps/website/src/features/taxonomy/repo.sqlite.ts:30:11)
+    createRouteDeps (/home/user/Tovu/apps/website/src/server/runtime/composition/app.ts:593:36)
+    buildRealNativeOnlySurface (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-search-ranking.integration.test.ts:160:21)
+    <anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-search-ranking.integration.test.ts:195:44)
+    withAgentPluginsDir (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-search-ranking.integration.test.ts:81:18)
+  ...
+# Subtest: CRUX: realistic operator queries against the full real catalog (~150 native tools + 1 collapsed plugin tool) — reports actual ranks, does not tune to force a pass
+not ok 163 - CRUX: realistic operator queries against the full real catalog (~150 native tools + 1 collapsed plugin tool) — reports actual ranks, does not tune to force a pass
+  ---
+  duration_ms: 56.640479
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-search-ranking.integration.test.ts:46:1265'
+  failureType: 'testCodeFailure'
+  error: 'fresh content bootstrap is behind CONTENT_MIGRATIONS; update its fresh-only operations and schema parity guard'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    bootstrapFreshContentDb (/home/user/Tovu/apps/website/src/platform/db/sqlite/fresh-content-db.ts:231:11)
+    openContentDb (/home/user/Tovu/apps/website/src/platform/db/sqlite/content-db.ts:141:10)
+    <anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/app.ts:582:55)
+    Object.get (/home/user/Tovu/apps/website/src/server/runtime/composition/app.ts:437:36)
+    contentKernel (/home/user/Tovu/apps/website/src/platform/db/content-kernel.ts:20:51)
+    new SqliteTermRepo (/home/user/Tovu/apps/website/src/features/taxonomy/repo.sqlite.ts:30:11)
+    createRouteDeps (/home/user/Tovu/apps/website/src/server/runtime/composition/app.ts:593:36)
+    buildRealSurfaceWithPluginTool (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-search-ranking.integration.test.ts:173:21)
+    <anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-search-ranking.integration.test.ts:217:31)
+    withAgentPluginsDir (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-search-ranking.integration.test.ts:81:18)
+  ...
+# Subtest: owner 2026-10-09: search_tools finds author keywords and provides absent from skill prose
+ok 164 - owner 2026-10-09: search_tools finds author keywords and provides absent from skill prose
+  ---
+  duration_ms: 139.983158
+  type: 'test'
+  ...
+# Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+# Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+# Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+# [agent-plugins] 'operator-plugin': plugins_uninstall (family agent-plugin) refused — agent-plugin activation: could not take the write lock (/tmp/tovu-agent-plugin-uninstall-busy-test-xfWglQ/ws/88888888-8888-4888-8888-888888888888/activations.json.lock) within 15s — held by pid 9301 on otherhost since 2026-10-28T20:42:31.905Z. Nothing was written, so no recorded enable/disable decision was changed. This clears by itself when the other host process (server, agent daemon, or the agent-plugin:activation CLI) finishes; a lock left by a crashed process is removed automatically once that process is gone or the lock is older than 10s. If it persists, stop every host process for this workspace and delete /tmp/tovu-agent-plugin-uninstall-busy-test-xfWglQ/ws/88888888-8888-4888-8888-888888888888/activations.json.lock.
+# Subtest: t91 R2: a lock already busy before the call still raises the confirmation dialog — preview takes no lock — and only refuses the actual delete on confirm
+ok 165 - t91 R2: a lock already busy before the call still raises the confirmation dialog — preview takes no lock — and only refuses the actual delete on confirm
+  ---
+  duration_ms: 148.35298
+  type: 'test'
+  ...
+# Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+# Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+# Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+# [agent-plugins] 'operator-plugin': plugins_uninstall (family agent-plugin) refused — agent-plugin activation: could not take the write lock (/tmp/tovu-agent-plugin-uninstall-busy-test-DAOOoy/ws/88888888-8888-4888-8888-888888888888/activations.json.lock) within 15s — held by pid 9302 on otherhost since 2026-10-28T20:42:32.038Z. Nothing was written, so no recorded enable/disable decision was changed. This clears by itself when the other host process (server, agent daemon, or the agent-plugin:activation CLI) finishes; a lock left by a crashed process is removed automatically once that process is gone or the lock is older than 10s. If it persists, stop every host process for this workspace and delete /tmp/tovu-agent-plugin-uninstall-busy-test-DAOOoy/ws/88888888-8888-4888-8888-888888888888/activations.json.lock.
+# Subtest: t91 R2: a lock that goes busy while the dialog is open removes nothing on confirm, and the package survives
+ok 166 - t91 R2: a lock that goes busy while the dialog is open removes nothing on confirm, and the package survives
+  ---
+  duration_ms: 136.008765
+  type: 'test'
+  ...
+# Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+# Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+# [agent-plugins] 'operator-plugin': plugins_uninstall (family agent-plugin) refused — exclusive file lock timed out after 15000ms
+# Subtest: Layout B: a busy per-plugin state lock on confirm is a not-removed RESULT (plugin-busy), never an opaque thrown error, and the package survives
+ok 167 - Layout B: a busy per-plugin state lock on confirm is a not-removed RESULT (plugin-busy), never an opaque thrown error, and the package survives
+  ---
+  duration_ms: 169.980098
+  type: 'test'
+  ...
+# Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+# Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+# Subtest: an unexpected failure of the confirmed delete propagates unchanged instead of being relabelled as bad input
+ok 168 - an unexpected failure of the confirmed delete propagates unchanged instead of being relabelled as bad input
+  ---
+  duration_ms: 77.56273
+  type: 'test'
+  ...
+# Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+# Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+# Subtest: a run aborted while the human was confirming removes nothing and reports the uninstall as abandoned
+ok 169 - a run aborted while the human was confirming removes nothing and reports the uninstall as abandoned
+  ---
+  duration_ms: 49.887496
+  type: 'test'
+  ...
+# Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+# Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+# Subtest: a run aborted during the post-confirmation permission re-check removes nothing and reports it abandoned
+ok 170 - a run aborted during the post-confirmation permission re-check removes nothing and reports it abandoned
+  ---
+  duration_ms: 207.870189
+  type: 'test'
+  ...
+# Subtest: the catalog's plugins_uninstall entry requires 'family' and 'pluginId', is classified deletes-durable-state, and says it asks the human
+ok 171 - the catalog's plugins_uninstall entry requires 'family' and 'pluginId', is classified deletes-durable-state, and says it asks the human
+  ---
+  duration_ms: 3.565902
+  type: 'test'
+  ...
+# Subtest: checks admin.plugins.enable for this run's principal, scoped to this workspace
+ok 172 - checks admin.plugins.enable for this run's principal, scoped to this workspace
+  ---
+  duration_ms: 735.119758
+  type: 'test'
+  ...
+# Subtest: the dialog's memory choices are in the calling operator's saved admin language
+ok 173 - the dialog's memory choices are in the calling operator's saved admin language
+  ---
+  duration_ms: 115.224236
+  type: 'test'
+  ...
+# Subtest: a denied principal is rejected before any dialog is raised, and nothing is removed from disk
+ok 174 - a denied principal is rejected before any dialog is raised, and nothing is removed from disk
+  ---
+  duration_ms: 97.990157
+  type: 'test'
+  ...
+# Subtest: an unknown pluginId is reclassified as ToolInputError before any dialog, not a redacted internal error
+ok 175 - an unknown pluginId is reclassified as ToolInputError before any dialog, not a redacted internal error
+  ---
+  duration_ms: 8.202807
+  type: 'test'
+  ...
+# Subtest: a bundled plugin is refused as ToolInputError before any dialog, naming plugins_set_enabled as the way to turn it off — and nothing is removed
+ok 176 - a bundled plugin is refused as ToolInputError before any dialog, naming plugins_set_enabled as the way to turn it off — and nothing is removed
+  ---
+  duration_ms: 282.431302
+  type: 'test'
+  ...
+# Subtest: t91 §7.1: a corrupt activations.json reaches the model through the real executor as a path-free result, not an opaque INTERNAL_ERROR; the detail goes to console.warn
+ok 177 - t91 §7.1: a corrupt activations.json reaches the model through the real executor as a path-free result, not an opaque INTERNAL_ERROR; the detail goes to console.warn
+  ---
+  duration_ms: 140.189152
+  type: 'test'
+  ...
+# Subtest: t91 §7.1: activations.json corrupted while the dialog is open: confirm removes nothing and returns the same path-free result
+ok 178 - t91 §7.1: activations.json corrupted while the dialog is open: confirm removes nothing and returns the same path-free result
+  ---
+  duration_ms: 92.122291
+  type: 'test'
+  ...
+# Subtest: FAILS CLOSED: with no interactive confirmation channel (no emitSurface) nothing is removed
+ok 179 - FAILS CLOSED: with no interactive confirmation channel (no emitSurface) nothing is removed
+  ---
+  duration_ms: 80.455427
+  type: 'test'
+  ...
+# Subtest: the dialog names the plugin and its version, targets plugins_uninstall, and carries no host path
+ok 180 - the dialog names the plugin and its version, targets plugins_uninstall, and carries no host path
+  ---
+  duration_ms: 72.076766
+  type: 'test'
+  ...
+# Subtest: confirm: uninstalls — package root gone, activation record deleted, and the result says a restart is needed
+ok 181 - confirm: uninstalls — package root gone, activation record deleted, and the result says a restart is needed
+  ---
+  duration_ms: 307.406281
+  type: 'test'
+  ...
+# Subtest: confirm: the result note says the plugin's provisioned external MCP connections were NOT removed
+ok 182 - confirm: the result note says the plugin's provisioned external MCP connections were NOT removed
+  ---
+  duration_ms: 151.922558
+  type: 'test'
+  ...
+# Subtest: cancel: nothing is removed and the result reports the cancellation, not an error
+ok 183 - cancel: nothing is removed and the result reports the cancellation, not an error
+  ---
+  duration_ms: 143.787231
+  type: 'test'
+  ...
+# Subtest: an archive installed for the same id while the dialog is open: confirm removes NOTHING and the result says it changed
+ok 184 - an archive installed for the same id while the dialog is open: confirm removes NOTHING and the result says it changed
+  ---
+  duration_ms: 70.514118
+  type: 'test'
+  ...
+# Subtest: a run that ends while the dialog is open closes it, reports 'abandoned', and removes nothing
+ok 185 - a run that ends while the dialog is open closes it, reports 'abandoned', and removes nothing
+  ---
+  duration_ms: 51.293033
+  type: 'test'
+  ...
+# Subtest: an interrupted update waiting for boot recovery refuses the uninstall as a path-free update-pending result, removing nothing
+ok 186 - an interrupted update waiting for boot recovery refuses the uninstall as a path-free update-pending result, removing nothing
+  ---
+  duration_ms: 52.597805
+  type: 'test'
+  ...
+# Subtest: an unreadable update recovery record refuses the uninstall with a manual-repair note, never 'restart', removing nothing
+ok 187 - an unreadable update recovery record refuses the uninstall with a manual-repair note, never 'restart', removing nothing
+  ---
+  duration_ms: 43.856812
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-higgsfield-media-Bky644/ws/44444444-4444-4444-8444-444444444444
+# Subtest: higgsfield-media seeds from the real bundled tree and is recorded INACTIVE, like every bundled plugin
+ok 188 - higgsfield-media seeds from the real bundled tree and is recorded INACTIVE, like every bundled plugin
+  ---
+  duration_ms: 6161.544825
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-higgsfield-media-gTdb1k/ws/44444444-4444-4444-8444-444444444444
+# Subtest: enabling it injects the REAL SKILL.md, carrying every claim an agent cannot infer
+ok 189 - enabling it injects the REAL SKILL.md, carrying every claim an agent cannot infer
+  ---
+  duration_ms: 7767.541878
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-higgsfield-media-hw2ECQ/ws/44444444-4444-4444-8444-444444444444
+# Subtest: disabling it again withholds the SKILL.md entirely
+ok 190 - disabling it again withholds the SKILL.md entirely
+  ---
+  duration_ms: 11398.849126
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-inactive-CbEBSH/ws/33333333-3333-4333-8333-333333333333
+# Subtest: seeding installs the real bundled package and records it INACTIVE
+ok 191 - seeding installs the real bundled package and records it INACTIVE
+  ---
+  duration_ms: 8496.383026
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-inactive-09Uy2u/ws/33333333-3333-4333-8333-333333333333
+# Subtest: every bundled plugin not seeded enabled is listed as switched off yet gets no tool and no prompt injection
+ok 192 - every bundled plugin not seeded enabled is listed as switched off yet gets no tool and no prompt injection
+  ---
+  duration_ms: 10512.834205
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-inactive-An4BbF/ws/33333333-3333-4333-8333-333333333333
+# Subtest: GATE 1 (tool registration): an inactive bundled plugin gets no agent_plugin_* tool
+ok 193 - GATE 1 (tool registration): an inactive bundled plugin gets no agent_plugin_* tool
+  ---
+  duration_ms: 11272.526835
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-inactive-2jQONI/ws/33333333-3333-4333-8333-333333333333
+# Subtest: GATE 2 (run-start injection): pinning an inactive plugin fails with 'not enabled', NOT 'not installed'
+ok 194 - GATE 2 (run-start injection): pinning an inactive plugin fails with 'not enabled', NOT 'not installed'
+  ---
+  duration_ms: 7170.015622
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-inactive-XisRsi/ws/33333333-3333-4333-8333-333333333333
+# Subtest: enabling the plugin opens both gates together
+ok 195 - enabling the plugin opens both gates together
+  ---
+  duration_ms: 10037.58796
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-inactive-VeZVW3/ws/33333333-3333-4333-8333-333333333333
+# Subtest: disabling it again closes them
+ok 196 - disabling it again closes them
+  ---
+  duration_ms: 8523.897463
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-inactive-UGGDnA/ws/33333333-3333-4333-8333-333333333333
+# Subtest: re-seeding is idempotent — same digest, no duplicate install, decision preserved
+ok 197 - re-seeding is idempotent — same digest, no duplicate install, decision preserved
+  ---
+  duration_ms: 15881.850404
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-inactive-XuoC98/ws/33333333-3333-4333-8333-333333333333
+# Subtest: every core, public and bundled guide tool pointer resolves to a currently registered tool
+not ok 198 - every core, public and bundled guide tool pointer resolves to a currently registered tool
+  ---
+  duration_ms: 8610.758874
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/integration/bundled-inactive-gating.integration.test.ts:1:8893'
+  failureType: 'testCodeFailure'
+  error: 'fresh content bootstrap is behind CONTENT_MIGRATIONS; update its fresh-only operations and schema parity guard'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    bootstrapFreshContentDb (/home/user/Tovu/apps/website/src/platform/db/sqlite/fresh-content-db.ts:231:11)
+    openContentDb (/home/user/Tovu/apps/website/src/platform/db/sqlite/content-db.ts:141:10)
+    <anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/app.ts:582:55)
+    Object.get (/home/user/Tovu/apps/website/src/server/runtime/composition/app.ts:437:36)
+    contentKernel (/home/user/Tovu/apps/website/src/platform/db/content-kernel.ts:20:51)
+    new SqliteTermRepo (/home/user/Tovu/apps/website/src/features/taxonomy/repo.sqlite.ts:30:11)
+    createRouteDeps (/home/user/Tovu/apps/website/src/server/runtime/composition/app.ts:593:36)
+    realToolCatalog (/home/user/Tovu/apps/website/src/assistant/__tests__/real-tool-catalog.fixture.ts:23:16)
+    <anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/integration/bundled-inactive-gating.integration.test.ts:220:32)
+    withSeededWorkspace (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/integration/bundled-inactive-gating.integration.test.ts:75:18)
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-zDhf8s/ws/44444444-4444-4444-8444-444444444444
+# Subtest: a bundled upgrade of an ENABLED plugin keeps its tool registered, on the NEW digest
+ok 199 - a bundled upgrade of an ENABLED plugin keeps its tool registered, on the NEW digest
+  ---
+  duration_ms: 20282.686387
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-0Ps2wg/ws/44444444-4444-4444-8444-444444444444
+# Subtest: a bundled upgrade of an ENABLED plugin keeps run-start injection working, with the NEW content
+ok 200 - a bundled upgrade of an ENABLED plugin keeps run-start injection working, with the NEW content
+  ---
+  duration_ms: 26303.112848
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-aLr3Ab/ws/44444444-4444-4444-8444-444444444444
+# Subtest: an edited bundled SKILL.md refreshes the site's installed copy even with NO version bump
+ok 201 - an edited bundled SKILL.md refreshes the site's installed copy even with NO version bump
+  ---
+  duration_ms: 34526.775137
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-cIgCr2/ws/44444444-4444-4444-8444-444444444444
+# Subtest: successful upgrade prunes superseded bytes and keeps the newly published digest
+ok 202 - successful upgrade prunes superseded bytes and keeps the newly published digest
+  ---
+  duration_ms: 19894.932466
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-rSKbEp/ws/44444444-4444-4444-8444-444444444444
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-OjC7q1/ws/44444444-4444-4444-8444-444444444444
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-2Fz2oB/ws/44444444-4444-4444-8444-444444444444
+# Subtest: the admin listing reports the version the RUNNING build ships, in EITHER seeding order
+ok 203 - the admin listing reports the version the RUNNING build ships, in EITHER seeding order
+  ---
+  duration_ms: 49451.239567
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-fxjj2z/ws/44444444-4444-4444-8444-444444444444
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-SNDBx8/ws/44444444-4444-4444-8444-444444444444
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-C05tkv/ws/44444444-4444-4444-8444-444444444444
+# Subtest: MCP federation reads the RUNNING build's package, in EITHER seeding order
+ok 204 - MCP federation reads the RUNNING build's package, in EITHER seeding order
+  ---
+  duration_ms: 52702.042825
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-QRLxHs/ws/44444444-4444-4444-8444-444444444444
+# Subtest: a bundled upgrade preserves an operator's disabled decision and keeps both gates closed
+ok 205 - a bundled upgrade preserves an operator's disabled decision and keeps both gates closed
+  ---
+  duration_ms: 16439.513305
+  type: 'test'
+  ...
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Subtest: approved dev.tovu.memory namespace retains package guidance while each site's learned memory starts empty
+ok 206 - approved dev.tovu.memory namespace retains package guidance while each site's learned memory starts empty
+  ---
+  duration_ms: 678.881611
+  type: 'test'
+  ...
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'second' has no publisher-qualified id; using 'unknown/second'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'second' has no publisher-qualified id; using 'unknown/second'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Subtest: Layout B isolates two packages and keeps mutable state outside the indexed/frozen package on update
+ok 207 - Layout B isolates two packages and keeps mutable state outside the indexed/frozen package on update
+  ---
+  duration_ms: 649.731486
+  type: 'test'
+  ...
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Subtest: uninstall keeps memory/data by default; reinstall resumes it; explicit preview-bound deletion removes the plugin folder
+ok 208 - uninstall keeps memory/data by default; reinstall resumes it; explicit preview-bound deletion removes the plugin folder
+  ---
+  duration_ms: 690.403192
+  type: 'test'
+  ...
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Subtest: notes autoload in pinned skill guidance; learned knowledge does not; package notes-seed is ignored
+ok 209 - notes autoload in pinned skill guidance; learned knowledge does not; package notes-seed is ignored
+  ---
+  duration_ms: 606.650705
+  type: 'test'
+  ...
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'second' has no publisher-qualified id; using 'unknown/second'.
+# Plugin 'staging' has no publisher-qualified id; using 'unknown/staging'.
+# Subtest: learned capability refuses traversal, sibling plugin aliases, notes writes, invalid UTF-8 and size overflows
+ok 210 - learned capability refuses traversal, sibling plugin aliases, notes writes, invalid UTF-8 and size overflows
+  ---
+  duration_ms: 363.909768
+  type: 'test'
+  ...
+# Subtest: memory tools cannot select a different plugin/kind and obey the per-call revocation gate
+ok 211 - memory tools cannot select a different plugin/kind and obey the per-call revocation gate
+  ---
+  duration_ms: 2.527854
+  type: 'test'
+  ...
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# [agent-plugins:migration-moved] /tmp/plugin-layout-b-iaoH41/ws/workspace-local/packages/sha256/56c599e7f172180854649e9e462e3b6cdc9416e1219bbd2e45a308e05e40bdae -> /tmp/plugin-layout-b-iaoH41/ws/workspace-local/example/package/sha256/56c599e7f172180854649e9e462e3b6cdc9416e1219bbd2e45a308e05e40bdae
+# [agent-plugins:migration-moved] /tmp/plugin-layout-b-iaoH41/ws/workspace-local/memory/example -> /tmp/plugin-layout-b-iaoH41/ws/workspace-local/example/memory
+# [agent-plugins:migration-moved] /tmp/plugin-layout-b-iaoH41/ws/workspace-local/data/example -> /tmp/plugin-layout-b-iaoH41/ws/workspace-local/example/data
+# [agent-plugins:migration-complete] /tmp/plugin-layout-b-iaoH41/ws/workspace-local
+# Subtest: migration moves legacy packages, Layout A memory and PLUGIN_DATA once, preserving frozen modes and activations
+ok 212 - migration moves legacy packages, Layout A memory and PLUGIN_DATA once, preserving frozen modes and activations
+  ---
+  duration_ms: 58.247662
+  type: 'test'
+  ...
+# Plugin 'first' has no publisher-qualified id; using 'unknown/first'.
+# Plugin 'second' has no publisher-qualified id; using 'unknown/second'.
+# Subtest: migration resumes after interruption, isolates malformed manifests, and serializes concurrent boots
+ok 213 - migration resumes after interruption, isolates malformed manifests, and serializes concurrent boots
+  ---
+  duration_ms: 67.688175
+  type: 'test'
+  ...
+# [agent-plugins:migration-quarantined] /tmp/plugin-layout-b-kNXMkP/ws/workspace-local/packages/sha256/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff -> /tmp/plugin-layout-b-kNXMkP/ws/workspace-local/staging/legacy-quarantine/2026-10-28T20-49-09.708Z-bc6b785e-39e7-44a3-a7ff-91312e9aad17/packages/sha256/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff: SyntaxError: Unexpected token 'b', "bad json" is not valid JSON
+# [agent-plugins:migration-complete] /tmp/plugin-layout-b-kNXMkP/ws/workspace-local
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Subtest: malformed legacy entries are quarantined once and bundled seeding proceeds on this boot and the next
+ok 214 - malformed legacy entries are quarantined once and bundled seeding proceeds on this boot and the next
+  ---
+  duration_ms: 345.076733
+  type: 'test'
+  ...
+# [agent-plugins:migration-moved] /tmp/plugin-layout-b-f7tlrg/ws/workspace-local/packages/sha256/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd -> /tmp/plugin-layout-b-f7tlrg/ws/workspace-local/example/package/sha256/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+# [agent-plugins:migration-complete] /tmp/plugin-layout-b-f7tlrg/ws/workspace-local
+# [agent-plugins:migration-moved] /tmp/plugin-layout-b-f7tlrg/ws/ws-second/packages/sha256/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd -> /tmp/plugin-layout-b-f7tlrg/ws/ws-second/example/package/sha256/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+# [agent-plugins:migration-complete] /tmp/plugin-layout-b-f7tlrg/ws/ws-second
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Subtest: site boot migrates every existing workspace before seeding the active one
+ok 215 - site boot migrates every existing workspace before seeding the active one
+  ---
+  duration_ms: 120.705458
+  type: 'test'
+  ...
+# Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+# Subtest: a crash after rename but before permission restoration never leaves the migrated package writable
+ok 216 - a crash after rename but before permission restoration never leaves the migrated package writable
+  ---
+  duration_ms: 143.331266
+  type: 'test'
+  ...
+# Subtest: withAgentPluginStateLock runs the critical section under a per-plugin lock and returns its result
+ok 217 - withAgentPluginStateLock runs the critical section under a per-plugin lock and returns its result
+  ---
+  duration_ms: 278.359604
+  type: 'test'
+  ...
+# Subtest: withAgentPluginStateLock refuses a plugin id that is not a safe path segment before locking
+ok 218 - withAgentPluginStateLock refuses a plugin id that is not a safe path segment before locking
+  ---
+  duration_ms: 9.030054
+  type: 'test'
+  ...
+# Subtest: a legacy package whose manifest is not a valid Agent Plugin manifest is quarantined, not migrated
+ok 219 - a legacy package whose manifest is not a valid Agent Plugin manifest is quarantined, not migrated
+  ---
+  duration_ms: 87.404753
+  type: 'test'
+  ...
+# Subtest: appendPluginNotes returns the guidance untouched when the plugin has no notes, and JSON-quotes them when it does
+ok 220 - appendPluginNotes returns the guidance untouched when the plugin has no notes, and JSON-quotes them when it does
+  ---
+  duration_ms: 39.608315
+  type: 'test'
+  ...
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+# Subtest: assistant tool-call transcript contains the installed ui-ux-design foundations reference
+ok 221 - assistant tool-call transcript contains the installed ui-ux-design foundations reference
+  ---
+  duration_ms: 444.79627
+  type: 'test'
+  ...
+# Subtest: read names survive parsing alongside independent write defaults
+ok 222 - read names survive parsing alongside independent write defaults
+  ---
+  duration_ms: 16.139499
+  type: 'test'
+  ...
+# Subtest: absent read defaults to an empty read list
+ok 223 - absent read defaults to an empty read list
+  ---
+  duration_ms: 0.703067
+  type: 'test'
+  ...
+# Subtest: read outside an explicitly provided allow list excludes the entire server
+ok 224 - read outside an explicitly provided allow list excludes the entire server
+  ---
+  duration_ms: 0.354644
+  type: 'test'
+  ...
+# Subtest: invalid read arrays and names exclude the entire server, including mixed valid/invalid lists
+ok 225 - invalid read arrays and names exclude the entire server, including mixed valid/invalid lists
+  ---
+  duration_ms: 0.615505
+  type: 'test'
+  ...
+# Subtest: read supports the same name grammar and exact 64-tool bound as allow
+ok 226 - read supports the same name grammar and exact 64-tool bound as allow
+  ---
+  duration_ms: 0.422838
+  type: 'test'
+  ...
+# Subtest: read-only declarations preserve the absence of sign-in defaults
+ok 227 - read-only declarations preserve the absence of sign-in defaults
+  ---
+  duration_ms: 0.763955
+  type: 'test'
+  ...
+# Subtest: bundled Higgsfield declares only the two evidenced read tools and no sign-in allow defaults
+ok 228 - bundled Higgsfield declares only the two evidenced read tools and no sign-in allow defaults
+  ---
+  duration_ms: 84.442336
+  type: 'test'
+  ...
+# Subtest: legacy mcp.json fields cannot supply operator read trust
+ok 229 - legacy mcp.json fields cannot supply operator read trust
+  ---
+  duration_ms: 0.567968
+  type: 'test'
+  ...
+# Subtest: an invalid plugin manifest cannot supply read trust
+ok 230 - an invalid plugin manifest cannot supply read trust
+  ---
+  duration_ms: 0.611527
+  type: 'test'
+  ...
+# Subtest: a plugin that is not installed is refused before any form or network call
+ok 231 - a plugin that is not installed is refused before any form or network call
+  ---
+  duration_ms: 40.075736
+  type: 'test'
+  ...
+# Subtest: a plugin whose servers declare no tovuTokenAuth is refused: there is no token form for it
+ok 232 - a plugin whose servers declare no tovuTokenAuth is refused: there is no token form for it
+  ---
+  duration_ms: 5.705187
+  type: 'test'
+  ...
+# Subtest: a plugin declaring two access-token sign-ins is refused rather than guessing which one the token is for
+ok 233 - a plugin declaring two access-token sign-ins is refused rather than guessing which one the token is for
+  ---
+  duration_ms: 7.980913
+  type: 'test'
+  ...
+# Subtest: a token-auth server whose key yields no connection id is refused, and a stdio server never counts as token-auth
+ok 234 - a token-auth server whose key yields no connection id is refused, and a stdio server never counts as token-auth
+  ---
+  duration_ms: 12.142854
+  type: 'test'
+  ...
+# Subtest: a row an operator pointed at another host is refused, so the token is never sent there
+ok 235 - a row an operator pointed at another host is refused, so the token is never sent there
+  ---
+  duration_ms: 7.122322
+  type: 'test'
+  ...
+# Subtest: INV-01: the token tool takes only a pluginId, so a token can never ride in on the model's own call
+ok 236 - INV-01: the token tool takes only a pluginId, so a token can never ride in on the model's own call
+  ---
+  duration_ms: 1.513924
+  type: 'test'
+  ...
+# Subtest: with no emitSurface the token tool fails closed with no exchange and no network call
+ok 237 - with no emitSurface the token tool fails closed with no exchange and no network call
+  ---
+  duration_ms: 6.879352
+  type: 'test'
+  ...
+# Subtest: the form names the plugin and displays its declared tokens page in the help text
+ok 238 - the form names the plugin and displays its declared tokens page in the help text
+  ---
+  duration_ms: 186.857553
+  type: 'test'
+  ...
+# Subtest: AC-10/EC-03/EC-04: a valid token is probed at the declared URL, sealed as the row's static token, and never echoed anywhere
+ok 239 - AC-10/EC-03/EC-04: a valid token is probed at the declared URL, sealed as the row's static token, and never echoed anywhere
+  ---
+  duration_ms: 120.892828
+  type: 'test'
+  ...
+# Subtest: EC-03/REQ-14: a token the vendor rejects is not stored, and the vendor's raw body is not relayed
+ok 240 - EC-03/REQ-14: a token the vendor rejects is not stored, and the vendor's raw body is not relayed
+  ---
+  duration_ms: 4.351199
+  type: 'test'
+  ...
+# Subtest: an unreachable vendor stores nothing and says the plugin is unavailable
+ok 241 - an unreachable vendor stores nothing and says the plugin is unavailable
+  ---
+  duration_ms: 4.66605
+  type: 'test'
+  ...
+# Subtest: a 403 refuses this purpose, names the plugin card keyHint and preserves an existing saved token
+ok 242 - a 403 refuses this purpose, names the plugin card keyHint and preserves an existing saved token
+  ---
+  duration_ms: 11.130692
+  type: 'test'
+  ...
+# Subtest: a 403 without optional plugin copy is still a refusal rather than an invalid token
+ok 243 - a 403 without optional plugin copy is still a refusal rather than an invalid token
+  ---
+  duration_ms: 4.068772
+  type: 'test'
+  ...
+# Subtest: a blank token is refused without a probe, and a cancel stores nothing
+ok 244 - a blank token is refused without a probe, and a cancel stores nothing
+  ---
+  duration_ms: 4.957101
+  type: 'test'
+  ...
+# Subtest: AC-12: once saved and enabled, the account-wide row carries the token only as a Bearer header
+ok 245 - AC-12: once saved and enabled, the account-wide row carries the token only as a Bearer header
+  ---
+  duration_ms: 6.86019
+  type: 'test'
+  ...
+# Subtest: AC-08: the generic token form's tool id is redeemable; every deleted Supabase tool id is not
+ok 246 - AC-08: the generic token form's tool id is redeemable; every deleted Supabase tool id is not
+  ---
+  duration_ms: 0.373494
+  type: 'test'
+  ...
+# Subtest: IRON RULE: saving a token on an untouched connection switches the plugin on, with no manual step
+ok 247 - IRON RULE: saving a token on an untouched connection switches the plugin on, with no manual step
+  ---
+  duration_ms: 6.962385
+  type: 'test'
+  ...
+# Subtest: a plugin an operator turned off keeps the token but stays off, and the result names the Agent Plugins screen
+ok 248 - a plugin an operator turned off keeps the token but stays off, and the result names the Agent Plugins screen
+  ---
+  duration_ms: 3.768995
+  type: 'test'
+  ...
+# Subtest: a failure switching on after the save still reports the token as saved, with a retry step
+ok 249 - a failure switching on after the save still reports the token as saved, with a retry step
+  ---
+  duration_ms: 3.698243
+  type: 'test'
+  ...
+# Subtest: permission denial raises no form, opens no exchange and leaves the token row unchanged
+ok 250 - permission denial raises no form, opens no exchange and leaves the token row unchanged
+  ---
+  duration_ms: 1.458355
+  type: 'test'
+  ...
+# Subtest: a rejected HTTP transport returns unavailable, saves nothing and closes the exchange
+ok 251 - a rejected HTTP transport returns unavailable, saves nothing and closes the exchange
+  ---
+  duration_ms: 2.898258
+  type: 'test'
+  ...
+# Subtest: a store failure after a successful probe is redacted and leaves the previous row intact
+ok 252 - a store failure after a successful probe is redacted and leaves the previous row intact
+  ---
+  duration_ms: 7.863323
+  type: 'test'
+  ...
+# Subtest: a pending form that is expired saves nothing and rejects late answers
+ok 253 - a pending form that is expired saves nothing and rejects late answers
+  ---
+  duration_ms: 4.101946
+  type: 'test'
+  ...
+# Subtest: a pending form that is abandoned saves nothing and rejects late answers
+ok 254 - a pending form that is abandoned saves nothing and rejects late answers
+  ---
+  duration_ms: 3.335494
+  type: 'test'
+  ...
+# Subtest: a pending form that is abort saves nothing and rejects late answers
+ok 255 - a pending form that is abort saves nothing and rejects late answers
+  ---
+  duration_ms: 3.297772
+  type: 'test'
+  ...
+# Subtest: credential validation precedes the agent-plugin probe (The token exceeds the 8192-character limit. Copy only the token.)
+ok 256 - credential validation precedes the agent-plugin probe (The token exceeds the 8192-character limit. Copy only the token.)
+  ---
+  duration_ms: 3.795817
+  type: 'test'
+  ...
+# Subtest: credential validation precedes the agent-plugin probe (Hosted tokens must use visible ASCII characters (0x21–0x7E).)
+ok 257 - credential validation precedes the agent-plugin probe (Hosted tokens must use visible ASCII characters (0x21–0x7E).)
+  ---
+  duration_ms: 3.790709
+  type: 'test'
+  ...
+# Subtest: credential validation precedes the agent-plugin probe (Hosted tokens must use visible ASCII characters (0x21–0x7E).)
+ok 258 - credential validation precedes the agent-plugin probe (Hosted tokens must use visible ASCII characters (0x21–0x7E).)
+  ---
+  duration_ms: 3.662352
+  type: 'test'
+  ...
+# Subtest: credential validation precedes the agent-plugin probe (Enter a token. Spaces alone are not a token.)
+ok 259 - credential validation precedes the agent-plugin probe (Enter a token. Spaces alone are not a token.)
+  ---
+  duration_ms: 3.199354
+  type: 'test'
+  ...
+# Subtest: an abort during the token probe prevents the sealed write and plugin activation
+ok 260 - an abort during the token probe prevents the sealed write and plugin activation
+  ---
+  duration_ms: 3.834807
+  type: 'test'
+  ...
+# Subtest: a run aborted before preparation opens no form and leaves the plugin row unchanged
+ok 261 - a run aborted before preparation opens no form and leaves the plugin row unchanged
+  ---
+  duration_ms: 1.383848
+  type: 'test'
+  ...
+# Subtest: a destination repointed while the token form is open cannot receive the submitted credential
+ok 262 - a destination repointed while the token form is open cannot receive the submitted credential
+  ---
+  duration_ms: 5.551619
+  type: 'test'
+  ...
+# Subtest: recordBundledAgentPluginIfAbsent refuses a corrupt file and never rewrites it
+ok 263 - recordBundledAgentPluginIfAbsent refuses a corrupt file and never rewrites it
+  ---
+  duration_ms: 50.18082
+  type: 'test'
+  ...
+# Subtest: setAgentPluginActivation refuses a corrupt file even when toggling an UNRELATED plugin
+ok 264 - setAgentPluginActivation refuses a corrupt file even when toggling an UNRELATED plugin
+  ---
+  duration_ms: 9.228257
+  type: 'test'
+  ...
+# Subtest: deleteAgentPluginActivation refuses a corrupt file rather than silently no-op'ing
+ok 265 - deleteAgentPluginActivation refuses a corrupt file rather than silently no-op'ing
+  ---
+  duration_ms: 7.552178
+  type: 'test'
+  ...
+# Subtest: a well-formed but unsupported schemaVersion is refused, not silently downgraded (and destroyed) into v1
+ok 266 - a well-formed but unsupported schemaVersion is refused, not silently downgraded (and destroyed) into v1
+  ---
+  duration_ms: 5.983813
+  type: 'test'
+  ...
+# Subtest: recordBundledAgentPluginIfAbsent for a DIFFERENT plugin preserves a malformed sibling entry byte-for-byte
+ok 267 - recordBundledAgentPluginIfAbsent for a DIFFERENT plugin preserves a malformed sibling entry byte-for-byte
+  ---
+  duration_ms: 30.132597
+  type: 'test'
+  ...
+# Subtest: recordBundledAgentPluginIfAbsent treats a present-but-malformed entry as an existing decision, and leaves it alone
+ok 268 - recordBundledAgentPluginIfAbsent treats a present-but-malformed entry as an existing decision, and leaves it alone
+  ---
+  duration_ms: 6.155812
+  type: 'test'
+  ...
+# Subtest: setAgentPluginActivation for a DIFFERENT plugin preserves a malformed sibling entry byte-for-byte
+ok 269 - setAgentPluginActivation for a DIFFERENT plugin preserves a malformed sibling entry byte-for-byte
+  ---
+  duration_ms: 17.077901
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-seed-corrupt-guard-DTcxDV/sites/tovu-dev/agent-plugins/ws/33333333-3333-4333-8333-333333333333
+# Plugin 'mini-bundled' has no publisher-qualified id; using 'unknown/mini-bundled'.
+# Plugin 'mini-bundled' has no publisher-qualified id; using 'unknown/mini-bundled'.
+# Plugin 'mini-bundled' has no publisher-qualified id; using 'unknown/mini-bundled'.
+# Plugin 'mini-bundled' has no publisher-qualified id; using 'unknown/mini-bundled'.
+# Plugin 'mini-bundled' has no publisher-qualified id; using 'unknown/mini-bundled'.
+# Plugin 'mini-bundled' has no publisher-qualified id; using 'unknown/mini-bundled'.
+# Subtest: GUARD: seedBundledAgentPlugins still seeds normally against an ABSENT file (first boot)
+ok 270 - GUARD: seedBundledAgentPlugins still seeds normally against an ABSENT file (first boot)
+  ---
+  duration_ms: 516.158319
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-seed-corrupt-n8RFPQ/sites/tovu-dev/agent-plugins/ws/33333333-3333-4333-8333-333333333333
+# Subtest: seedBundledAgentPlugins refuses a corrupt activations file: installs nothing, reports every bundled plugin failed
+ok 271 - seedBundledAgentPlugins refuses a corrupt activations file: installs nothing, reports every bundled plugin failed
+  ---
+  duration_ms: 173.202627
+  type: 'test'
+  ...
+# Plugin 'op-plugin' has no publisher-qualified id; using 'unknown/op-plugin'.
+# Plugin 'op-plugin' has no publisher-qualified id; using 'unknown/op-plugin'.
+# Plugin 'op-plugin' has no publisher-qualified id; using 'unknown/op-plugin'.
+# Plugin 'op-plugin' has no publisher-qualified id; using 'unknown/op-plugin'.
+# Subtest: previewAgentPluginUninstall and uninstallAgentPlugin both refuse a corrupt activations file, leaving the package installed
+ok 272 - previewAgentPluginUninstall and uninstallAgentPlugin both refuse a corrupt activations file, leaving the package installed
+  ---
+  duration_ms: 229.978818
+  type: 'test'
+  ...
+# Plugin 'op-plugin' has no publisher-qualified id; using 'unknown/op-plugin'.
+# Plugin 'op-plugin' has no publisher-qualified id; using 'unknown/op-plugin'.
+# Plugin 'op-plugin' has no publisher-qualified id; using 'unknown/op-plugin'.
+# Subtest: uninstallAgentPlugin refuses a corrupt file even when its (unreadable) content would have said the plugin is bundled
+ok 273 - uninstallAgentPlugin refuses a corrupt file even when its (unreadable) content would have said the plugin is bundled
+  ---
+  duration_ms: 262.826421
+  type: 'test'
+  ...
+# Subtest: two concurrent disables of DIFFERENT plugins both land — neither write erases the other
+ok 274 - two concurrent disables of DIFFERENT plugins both land — neither write erases the other
+  ---
+  duration_ms: 1093.000849
+  type: 'test'
+  ...
+# Subtest: a burst of concurrent operator toggles and seeder records in one process keeps every decision
+ok 275 - a burst of concurrent operator toggles and seeder records in one process keeps every decision
+  ---
+  duration_ms: 224.548375
+  type: 'test'
+  ...
+# [agent-plugins] removed a stale activations.json lock left by pid 29761 on vm (acquired 2026-10-28T20:50:08.092Z): /tmp/tovu-activation-corrupt-3AJEWU/activations.json.lock
+# Subtest: T17: a lock left by a dead pid does not block setAgentPluginActivation
+ok 276 - T17: a lock left by a dead pid does not block setAgentPluginActivation
+  ---
+  duration_ms: 184.28517
+  type: 'test'
+  ...
+# [agent-plugins] removed a stale activations.json lock with an unreadable holder: /tmp/tovu-activation-corrupt-PqgaAk/activations.json.lock
+# Subtest: T18: a 0-byte lock aged 60s does not block recordBundledAgentPluginIfAbsent
+ok 277 - T18: a 0-byte lock aged 60s does not block recordBundledAgentPluginIfAbsent
+  ---
+  duration_ms: 36.286735
+  type: 'test'
+  ...
+# [agent-plugins] removed a stale activations.json lock left by pid 29768 on vm (acquired 2026-10-28T20:50:08.442Z): /tmp/tovu-activation-corrupt-X61ebY/activations.json.lock
+# Subtest: T19: assertAgentPluginActivationsWritable removes a dead-holder lock, not merely tolerates it
+ok 278 - T19: assertAgentPluginActivationsWritable removes a dead-holder lock, not merely tolerates it
+  ---
+  duration_ms: 267.503403
+  type: 'test'
+  ...
+# Subtest: T20: a writer WAITS for a live foreign lock, and proceeds the moment it is released
+ok 279 - T20: a writer WAITS for a live foreign lock, and proceeds the moment it is released
+  ---
+  duration_ms: 82.740487
+  type: 'test'
+  ...
+# [agent-plugins] removed a stale activations.json lock left by pid 29775 on vm (acquired 2026-10-28T20:50:08.747Z): /tmp/tovu-activation-corrupt-dsXNrj/activations.json.lock
+# Subtest: T21: a corrupt file combined with a stale lock still rejects AgentPluginActivationsUnreadableError, and the lock is still released
+ok 280 - T21: a corrupt file combined with a stale lock still rejects AgentPluginActivationsUnreadableError, and the lock is still released
+  ---
+  duration_ms: 256.815117
+  type: 'test'
+  ...
+# Subtest: N1: setAgentPluginActivation refuses when the TARGET plugin's own entry is malformed, rather than rewriting it as operator-installed
+ok 281 - N1: setAgentPluginActivation refuses when the TARGET plugin's own entry is malformed, rather than rewriting it as operator-installed
+  ---
+  duration_ms: 11.562713
+  type: 'test'
+  ...
+# Subtest: D1: the temp file is fsync'd before the rename that publishes it
+ok 282 - D1: the temp file is fsync'd before the rename that publishes it
+  ---
+  duration_ms: 174.735142
+  type: 'test'
+  ...
+# Subtest: D2: the workspace directory is best-effort fsync'd AFTER the rename
+ok 283 - D2: the workspace directory is best-effort fsync'd AFTER the rename
+  ---
+  duration_ms: 55.062244
+  type: 'test'
+  ...
+# Subtest: D2: unsupported directory fsync does not reject a persisted activation
+ok 284 - D2: unsupported directory fsync does not reject a persisted activation
+  ---
+  duration_ms: 11.762088
+  type: 'test'
+  ...
+# Subtest: B1: setAgentPluginActivation maps a lock timeout to AgentPluginActivationsBusyError, writing nothing
+ok 285 - B1: setAgentPluginActivation maps a lock timeout to AgentPluginActivationsBusyError, writing nothing
+  ---
+  duration_ms: 152.499768
+  type: 'test'
+  ...
+# Subtest: B2: recordBundledAgentPluginIfAbsent maps a lock timeout to AgentPluginActivationsBusyError, writing nothing
+ok 286 - B2: recordBundledAgentPluginIfAbsent maps a lock timeout to AgentPluginActivationsBusyError, writing nothing
+  ---
+  duration_ms: 13.937946
+  type: 'test'
+  ...
+# Subtest: B3: deleteAgentPluginActivation maps a lock timeout to AgentPluginActivationsBusyError, writing nothing
+ok 287 - B3: deleteAgentPluginActivation maps a lock timeout to AgentPluginActivationsBusyError, writing nothing
+  ---
+  duration_ms: 8.263199
+  type: 'test'
+  ...
+# Subtest: B4: assertAgentPluginActivationsWritable maps a lock timeout to AgentPluginActivationsBusyError
+ok 288 - B4: assertAgentPluginActivationsWritable maps a lock timeout to AgentPluginActivationsBusyError
+  ---
+  duration_ms: 6.416341
+  type: 'test'
+  ...
+# Subtest: B5: a lock LOST right before the rename maps to AgentPluginActivationsBusyError with lost:true, and leaves no temp file
+ok 289 - B5: a lock LOST right before the rename maps to AgentPluginActivationsBusyError with lost:true, and leaves no temp file
+  ---
+  duration_ms: 32.252912
+  type: 'test'
+  ...
+# [agent-plugins:migration-complete] /tmp/tovu-seed-lock-busy-kJUWAU/sites/tovu-dev/agent-plugins/ws/44444444-4444-4444-8444-444444444444
+# Subtest: B6: a busy pre-flight fails every bundled plugin with a reason naming the write lock, installing nothing
+ok 290 - B6: a busy pre-flight fails every bundled plugin with a reason naming the write lock, installing nothing
+  ---
+  duration_ms: 109.723726
+  type: 'test'
+  ...
+# Subtest: B7: a REAL lock combined with a corrupt file rejects AgentPluginActivationsUnreadableError, not Busy — non-lock errors are not remapped
+ok 291 - B7: a REAL lock combined with a corrupt file rejects AgentPluginActivationsUnreadableError, not Busy — non-lock errors are not remapped
+  ---
+  duration_ms: 13.325385
+  type: 'test'
+  ...
+# Subtest: a plugin with NO record is active — an operator's own install keeps working
+ok 292 - a plugin with NO record is active — an operator's own install keeps working
+  ---
+  duration_ms: 24.320227
+  type: 'test'
+  ...
+# Subtest: an explicit enabled:false record makes a plugin inactive
+ok 293 - an explicit enabled:false record makes a plugin inactive
+  ---
+  duration_ms: 0.456205
+  type: 'test'
+  ...
+# Subtest: isAgentPluginActive: a plugin named for an Object.prototype member is active by absence, never an inherited value
+ok 294 - isAgentPluginActive: a plugin named for an Object.prototype member is active by absence, never an inherited value
+  ---
+  duration_ms: 0.219767
+  type: 'test'
+  ...
+# Subtest: filterActiveAgentPlugins drops exactly the disabled ones, keeping order
+ok 295 - filterActiveAgentPlugins drops exactly the disabled ones, keeping order
+  ---
+  duration_ms: 1.6959
+  type: 'test'
+  ...
+# Subtest: a workspace with no activations file reads as empty, not as an error
+ok 296 - a workspace with no activations file reads as empty, not as an error
+  ---
+  duration_ms: 65.355192
+  type: 'test'
+  ...
+# Subtest: a corrupt activations file reads as empty for DISCOVERY — but the boot seeder refuses to rewrite it
+ok 297 - a corrupt activations file reads as empty for DISCOVERY — but the boot seeder refuses to rewrite it
+  ---
+  duration_ms: 15.667223
+  type: 'test'
+  ...
+# Subtest: normalizeActivations drops malformed entries WITHOUT discarding the operator's good ones
+ok 298 - normalizeActivations drops malformed entries WITHOUT discarding the operator's good ones
+  ---
+  duration_ms: 0.99497
+  type: 'test'
+  ...
+# Subtest: a wrong schemaVersion reads as empty rather than being interpreted under this version's rules
+ok 299 - a wrong schemaVersion reads as empty rather than being interpreted under this version's rules
+  ---
+  duration_ms: 0.232526
+  type: 'test'
+  ...
+# Subtest: setAgentPluginActivation round-trips and leaves no temp file behind
+ok 300 - setAgentPluginActivation round-trips and leaves no temp file behind
+  ---
+  duration_ms: 16.09987
+  type: 'test'
+  ...
+# Subtest: deleteAgentPluginActivation removes the record entirely — a subsequent read has no key for it, not a disabled tombstone
+ok 301 - deleteAgentPluginActivation removes the record entirely — a subsequent read has no key for it, not a disabled tombstone
+  ---
+  duration_ms: 36.337486
+  type: 'test'
+  ...
+# Subtest: deleteAgentPluginActivation is a no-op, not an error, when no record exists
+ok 302 - deleteAgentPluginActivation is a no-op, not an error, when no record exists
+  ---
+  duration_ms: 5.996461
+  type: 'test'
+  ...
+# Subtest: deleteAgentPluginActivation rejects an invalid plugin id
+ok 303 - deleteAgentPluginActivation rejects an invalid plugin id
+  ---
+  duration_ms: 3.860058
+  type: 'test'
+  ...
+# Subtest: toggling preserves provenance — enabling a bundled plugin does not make it look operator-installed
+ok 304 - toggling preserves provenance — enabling a bundled plugin does not make it look operator-installed
+  ---
+  duration_ms: 25.27495
+  type: 'test'
+  ...
+# Subtest: recordBundledAgentPluginIfAbsent NEVER overwrites an existing decision — it runs on every boot
+ok 305 - recordBundledAgentPluginIfAbsent NEVER overwrites an existing decision — it runs on every boot
+  ---
+  duration_ms: 65.788677
+  type: 'test'
+  ...
+# Subtest: recordBundledAgentPluginIfAbsent { enabled: true } writes an ENABLED bundled record when none exists
+ok 306 - recordBundledAgentPluginIfAbsent { enabled: true } writes an ENABLED bundled record when none exists
+  ---
+  duration_ms: 15.757275
+  type: 'test'
+  ...
+# Subtest: recordBundledAgentPluginIfAbsent { enabled: true } upgrades the seeder's OWN untouched disabled record — existing sites need no action
+ok 307 - recordBundledAgentPluginIfAbsent { enabled: true } upgrades the seeder's OWN untouched disabled record — existing sites need no action
+  ---
+  duration_ms: 50.028343
+  type: 'test'
+  ...
+# Subtest: recordBundledAgentPluginIfAbsent { enabled: true } NEVER re-enables a plugin an operator switched off
+ok 308 - recordBundledAgentPluginIfAbsent { enabled: true } NEVER re-enables a plugin an operator switched off
+  ---
+  duration_ms: 68.291882
+  type: 'test'
+  ...
+# Subtest: a plugin id that is not valid Agent Plugins grammar is refused with an exact message
+ok 309 - a plugin id that is not valid Agent Plugins grammar is refused with an exact message
+  ---
+  duration_ms: 11.860248
+  type: 'test'
+  ...
+# Subtest: the written file is human-readable JSON an operator can inspect
+ok 310 - the written file is human-readable JSON an operator can inspect
+  ---
+  duration_ms: 27.877861
+  type: 'test'
+  ...
+# Subtest: resolveAgentPluginActivation: no file at all is ACTIVE — the 'absent means active' rule is untouched
+ok 311 - resolveAgentPluginActivation: no file at all is ACTIVE — the 'absent means active' rule is untouched
+  ---
+  duration_ms: 11.49934
+  type: 'test'
+  ...
+# Subtest: resolveAgentPluginActivation: a workspace root that does not exist at all is ACTIVE, not a fault
+ok 312 - resolveAgentPluginActivation: a workspace root that does not exist at all is ACTIVE, not a fault
+  ---
+  duration_ms: 1.130142
+  type: 'test'
+  ...
+# Subtest: resolveAgentPluginActivation: a well-formed file with no entry for THIS plugin is ACTIVE
+ok 313 - resolveAgentPluginActivation: a well-formed file with no entry for THIS plugin is ACTIVE
+  ---
+  duration_ms: 42.946692
+  type: 'test'
+  ...
+# Subtest: resolveAgentPluginActivation: an explicit record answers exactly what it says
+ok 314 - resolveAgentPluginActivation: an explicit record answers exactly what it says
+  ---
+  duration_ms: 63.242298
+  type: 'test'
+  ...
+# Subtest: resolveAgentPluginActivation: a file that is not valid JSON is UNDETERMINED — readAgentPluginActivations reads the same bytes as empty
+ok 315 - resolveAgentPluginActivation: a file that is not valid JSON is UNDETERMINED — readAgentPluginActivations reads the same bytes as empty
+  ---
+  duration_ms: 20.18297
+  type: 'test'
+  ...
+# Subtest: resolveAgentPluginActivation: a wrong-shape or wrong-version envelope is UNDETERMINED
+ok 316 - resolveAgentPluginActivation: a wrong-shape or wrong-version envelope is UNDETERMINED
+  ---
+  duration_ms: 15.434808
+  type: 'test'
+  ...
+# Subtest: resolveAgentPluginActivation: a malformed record for THIS plugin is UNDETERMINED, not 'dropped, therefore absent, therefore active'
+ok 317 - resolveAgentPluginActivation: a malformed record for THIS plugin is UNDETERMINED, not 'dropped, therefore absent, therefore active'
+  ---
+  duration_ms: 15.954688
+  type: 'test'
+  ...
+# Subtest: resolveAgentPluginActivation: an id that names an Object.prototype member is ACTIVE by absence, never an inherited value
+ok 318 - resolveAgentPluginActivation: an id that names an Object.prototype member is ACTIVE by absence, never an inherited value
+  ---
+  duration_ms: 15.63435
+  type: 'test'
+  ...
+# Subtest: EISDIR read errors remain undetermined, writers refuse, and existing bytes survive
+ok 319 - EISDIR read errors remain undetermined, writers refuse, and existing bytes survive
+  ---
+  duration_ms: 58.904313
+  type: 'test'
+  ...

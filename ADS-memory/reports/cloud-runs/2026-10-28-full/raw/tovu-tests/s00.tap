@@ -1,0 +1,4433 @@
+TAP version 13
+# Subtest: React activation preserves page focus on closed mount and focuses explicit opens
+ok 1 - React activation preserves page focus on closed mount and focuses explicit opens
+  ---
+  duration_ms: 353.206606
+  type: 'test'
+  ...
+# Subtest: React activation preserves page focus on resume and focuses explicit opens
+ok 2 - React activation preserves page focus on resume and focuses explicit opens
+  ---
+  duration_ms: 122.200148
+  type: 'test'
+  ...
+# Subtest: React activation without a mount root still toggles, and touches no page element
+ok 3 - React activation without a mount root still toggles, and touches no page element
+  ---
+  duration_ms: 337.676763
+  type: 'test'
+  ...
+# Subtest: a focus request while already open and with no enabled composer leaves focus where it was
+ok 4 - a focus request while already open and with no enabled composer leaves focus where it was
+  ---
+  duration_ms: 34.003025
+  type: 'test'
+  ...
+# Subtest: SiteAssistantHeader
+    # Subtest: renders the public title and New thread without a workspace kicker
+    ok 1 - renders the public title and New thread without a workspace kicker
+      ---
+      duration_ms: 395.723629
+      type: 'test'
+      ...
+    # Subtest: resets immediately with no confirm step when the transcript is empty
+    ok 2 - resets immediately with no confirm step when the transcript is empty
+      ---
+      duration_ms: 81.906229
+      type: 'test'
+      ...
+    # Subtest: shows a two-step confirm, without resetting yet, when the transcript has messages
+    ok 3 - shows a two-step confirm, without resetting yet, when the transcript has messages
+      ---
+      duration_ms: 55.511622
+      type: 'test'
+      ...
+    # Subtest: protects a typed draft in an empty transcript and restores focus after Cancel or Escape
+    ok 4 - protects a typed draft in an empty transcript and restores focus after Cancel or Escape
+      ---
+      duration_ms: 169.702177
+      type: 'test'
+      ...
+    # Subtest: autofocuses Cancel (the safe choice), not the destructive Discard button, once the confirm step appears
+    ok 5 - autofocuses Cancel (the safe choice), not the destructive Discard button, once the confirm step appears
+      ---
+      duration_ms: 32.558788
+      type: 'test'
+      ...
+    # Subtest: backs out on Cancel without resetting, restoring the plain New thread button
+    ok 6 - backs out on Cancel without resetting, restoring the plain New thread button
+      ---
+      duration_ms: 37.267327
+      type: 'test'
+      ...
+    # Subtest: resets and closes the confirm step when Discard is clicked
+    ok 7 - resets and closes the confirm step when Discard is clicked
+      ---
+      duration_ms: 74.23436
+      type: 'test'
+      ...
+    # Subtest: backs out on Escape (from anywhere in the pane) without resetting
+    ok 8 - backs out on Escape (from anywhere in the pane) without resetting
+      ---
+      duration_ms: 65.040076
+      type: 'test'
+      ...
+    # Subtest: keeps confirmation open on non-Escape keydown without resetting
+    ok 9 - keeps confirmation open on non-Escape keydown without resetting
+      ---
+      duration_ms: 56.494048
+      type: 'test'
+      ...
+    # Subtest: Escape is inert when the confirm step is not open (no listener attached, nothing to dismiss)
+    ok 10 - Escape is inert when the confirm step is not open (no listener attached, nothing to dismiss)
+      ---
+      duration_ms: 39.68455
+      type: 'test'
+      ...
+    # Subtest: removes its Escape listener on unmount — a later Escape after unmount touches nothing
+    ok 11 - removes its Escape listener on unmount — a later Escape after unmount touches nothing
+      ---
+      duration_ms: 63.769385
+      type: 'test'
+      ...
+    1..11
+ok 5 - SiteAssistantHeader
+  ---
+  duration_ms: 1090.395624
+  type: 'suite'
+  ...
+# Subtest: React held turn waits for visitor click allow=true, using the existing proposal strip
+ok 6 - React held turn waits for visitor click allow=true, using the existing proposal strip
+  ---
+  duration_ms: 1584.49927
+  type: 'test'
+  ...
+# Subtest: React held turn waits for visitor click allow=false, using the existing proposal strip
+ok 7 - React held turn waits for visitor click allow=false, using the existing proposal strip
+  ---
+  duration_ms: 882.81117
+  type: 'test'
+  ...
+# Subtest: a highlight directive scrolls to and highlights its target on this page
+ok 8 - a highlight directive scrolls to and highlights its target on this page
+  ---
+  duration_ms: 1721.403357
+  type: 'test'
+  ...
+# Subtest: a reply with no page action, or an action for a missing target, leaves the page alone
+ok 9 - a reply with no page action, or an action for a missing target, leaves the page alone
+  ---
+  duration_ms: 706.762287
+  type: 'test'
+  ...
+# Not implemented: navigation to another Document
+# Subtest: a proposed navigation waits for the visitor, then queues the bundled effect and navigates
+ok 10 - a proposed navigation waits for the visitor, then queues the bundled effect and navigates
+  ---
+  duration_ms: 724.285753
+  type: 'test'
+  ...
+# Not implemented: navigation to another Document
+# Subtest: a proposal with no bundled effect navigates without queueing anything
+ok 11 - a proposal with no bundled effect navigates without queueing anything
+  ---
+  duration_ms: 483.18981
+  type: 'test'
+  ...
+# Not implemented: navigation to another Document
+# Subtest: an auto navigation the visitor asked for queues its effect and navigates at once
+ok 12 - an auto navigation the visitor asked for queues its effect and navigates at once
+  ---
+  duration_ms: 618.431357
+  type: 'test'
+  ...
+# Not implemented: navigation to another Document
+# Subtest: an auto navigation with nothing bundled queues nothing
+ok 13 - an auto navigation with nothing bundled queues nothing
+  ---
+  duration_ms: 423.134119
+  type: 'test'
+  ...
+# Subtest: public widget dialog: empty greeting
+ok 14 - public widget dialog: empty greeting
+  ---
+  duration_ms: 2794.624454
+  type: 'test'
+  ...
+# Subtest: public widget dialog: restored thread
+ok 15 - public widget dialog: restored thread
+  ---
+  duration_ms: 2168.14537
+  type: 'test'
+  ...
+# Subtest: hook discards expiry, repeated clicks and teardown without posting an approval
+ok 16 - hook discards expiry, repeated clicks and teardown without posting an approval
+  ---
+  duration_ms: 314.503224
+  type: 'test'
+  ...
+# Subtest: lazy bundle uses the resolved-path admin import guard
+ok 17 - lazy bundle uses the resolved-path admin import guard
+  ---
+  duration_ms: 2.278961
+  type: 'test'
+  ...
+# Not implemented: navigation to another Document
+# Not implemented: Window's alert() method
+# Subtest: fail throws a BundleCheckError carrying the message
+ok 18 - fail throws a BundleCheckError carrying the message
+  ---
+  duration_ms: 2.514942
+  type: 'test'
+  ...
+# Subtest: isNavigationError recognises only jsdom's navigation report
+ok 19 - isNavigationError recognises only jsdom's navigation report
+  ---
+  duration_ms: 0.402518
+  type: 'test'
+  ...
+# Subtest: a bundle that mounts passes, with the page stubs real browsers provide in place
+ok 20 - a bundle that mounts passes, with the page stubs real browsers provide in place
+  ---
+  duration_ms: 292.154454
+  type: 'test'
+  ...
+# Subtest: a bundle that throws while evaluating fails before mounting is even checked
+ok 21 - a bundle that throws while evaluating fails before mounting is even checked
+  ---
+  duration_ms: 232.416681
+  type: 'test'
+  ...
+# Subtest: an error raised after evaluation is reported as a post-mount failure
+ok 22 - an error raised after evaluation is reported as a post-mount failure
+  ---
+  duration_ms: 101.529158
+  type: 'test'
+  ...
+# Subtest: a bundle that removes the mount point, or never renders into it, fails
+ok 23 - a bundle that removes the mount point, or never renders into it, fails
+  ---
+  duration_ms: 96.008803
+  type: 'test'
+  ...
+# Subtest: the poisoned and wrong-shaped transcript scenarios seed their keys and accept only a cleared or empty entry
+ok 24 - the poisoned and wrong-shaped transcript scenarios seed their keys and accept only a cleared or empty entry
+  ---
+  duration_ms: 197.444074
+  type: 'test'
+  ...
+# Subtest: the queue scenarios seed an entry and pass only once it was drained
+ok 25 - the queue scenarios seed an entry and pass only once it was drained
+  ---
+  duration_ms: 120.660796
+  type: 'test'
+  ...
+# Subtest: the highlight scenario needs the heading highlighted, scrolled exactly once, and the queue drained
+ok 26 - the highlight scenario needs the heading highlighted, scrolled exactly once, and the queue drained
+  ---
+  duration_ms: 91.978557
+  type: 'test'
+  ...
+# Subtest: the scroll_to scenario needs one scroll, no highlight, and the queue drained
+ok 27 - the scroll_to scenario needs one scroll, no highlight, and the queue drained
+  ---
+  duration_ms: 55.675033
+  type: 'test'
+  ...
+# Subtest: the rehydrated-directive scenario seeds an already-executed navigate and fails on any navigation attempt
+ok 28 - the rehydrated-directive scenario seeds an already-executed navigate and fails on any navigation attempt
+  ---
+  duration_ms: 89.538429
+  type: 'test'
+  ...
+# Subtest: checkBundleMounts runs every scenario in order and stops at the first failure
+ok 29 - checkBundleMounts runs every scenario in order and stops at the first failure
+  ---
+  duration_ms: 214.017244
+  type: 'test'
+  ...
+# Subtest: main reads the bundle, runs the check, and reports success as 0
+ok 30 - main reads the bundle, runs the check, and reports success as 0
+  ---
+  duration_ms: 0.799636
+  type: 'test'
+  ...
+# Subtest: main reports an unreadable bundle or a failed scenario on stderr with exit status 1
+ok 31 - main reports an unreadable bundle or a failed scenario on stderr with exit status 1
+  ---
+  duration_ms: 4.693226
+  type: 'test'
+  ...
+# Subtest: main's default reader reads the bundle file from disk
+ok 32 - main's default reader reads the bundle file from disk
+  ---
+  duration_ms: 15.971463
+  type: 'test'
+  ...
+# Subtest: isEntryPoint is true only when the module is the script node was started with
+ok 33 - isEntryPoint is true only when the module is the script node was started with
+  ---
+  duration_ms: 0.514724
+  type: 'test'
+  ...
+# Subtest: a bundle honouring every contract passes every scenario
+ok 34 - a bundle honouring every contract passes every scenario
+  ---
+  duration_ms: 703.371304
+  type: 'test'
+  ...
+# Subtest: run as a script against a missing bundle, it fails loudly with exit status 1
+ok 35 - run as a script against a missing bundle, it fails loudly with exit status 1
+  ---
+  duration_ms: 1495.899029
+  type: 'test'
+  ...
+# Subtest: isPageActionDirective
+    # Subtest: accepts a well-shaped navigate directive
+    ok 1 - accepts a well-shaped navigate directive
+      ---
+      duration_ms: 1.512772
+      type: 'test'
+      ...
+    # Subtest: accepts scroll_to and highlight directives
+    ok 2 - accepts scroll_to and highlight directives
+      ---
+      duration_ms: 0.414242
+      type: 'test'
+      ...
+    # Subtest: rejects a ui_surface directive — no Tier B runtime exists in this bundle
+    ok 3 - rejects a ui_surface directive — no Tier B runtime exists in this bundle
+      ---
+      duration_ms: 0.213876
+      type: 'test'
+      ...
+    # Subtest: rejects navigate missing the auto flag
+    ok 4 - rejects navigate missing the auto flag
+      ---
+      duration_ms: 0.17723
+      type: 'test'
+      ...
+    # Subtest: rejects a target missing a required field
+    ok 5 - rejects a target missing a required field
+      ---
+      duration_ms: 0.234424
+      type: 'test'
+      ...
+    # Subtest: rejects non-object, null, and unrelated shapes without throwing
+    ok 6 - rejects non-object, null, and unrelated shapes without throwing
+      ---
+      duration_ms: 0.412172
+      type: 'test'
+      ...
+    1..6
+ok 36 - isPageActionDirective
+  ---
+  duration_ms: 9.013629
+  type: 'suite'
+  ...
+# Subtest: isQueuedPageAction (SPEC-046 REQ-2's queued-action boundary)
+    # Subtest: accepts a bare, well-shaped PageAction — the shape SiteAssistantWidget.tsx actually enqueues
+    ok 1 - accepts a bare, well-shaped PageAction — the shape SiteAssistantWidget.tsx actually enqueues
+      ---
+      duration_ms: 0.285057
+      type: 'test'
+      ...
+    # Subtest: rejects a full ClientDirective envelope — that is not what gets enqueued
+    ok 2 - rejects a full ClientDirective envelope — that is not what gets enqueued
+      ---
+      duration_ms: 0.198811
+      type: 'test'
+      ...
+    # Subtest: rejects malformed and non-object entries without throwing (a poisoned queue entry, REQ-2)
+    ok 3 - rejects malformed and non-object entries without throwing (a poisoned queue entry, REQ-2)
+      ---
+      duration_ms: 0.417973
+      type: 'test'
+      ...
+    1..3
+ok 37 - isQueuedPageAction (SPEC-046 REQ-2's queued-action boundary)
+  ---
+  duration_ms: 6.821735
+  type: 'suite'
+  ...
+# Subtest: wrong-typed page actions at both trust boundaries
+    # Subtest: rejects a non-string slug: 5
+    ok 1 - rejects a non-string slug: 5
+      ---
+      duration_ms: 0.487829
+      type: 'test'
+      ...
+    # Subtest: rejects a non-string slug: {}
+    ok 2 - rejects a non-string slug: {}
+      ---
+      duration_ms: 0.135681
+      type: 'test'
+      ...
+    # Subtest: rejects a non-string slug: null
+    ok 3 - rejects a non-string slug: null
+      ---
+      duration_ms: 0.100696
+      type: 'test'
+      ...
+    # Subtest: rejects a non-string title: 5
+    ok 4 - rejects a non-string title: 5
+      ---
+      duration_ms: 0.109622
+      type: 'test'
+      ...
+    # Subtest: rejects a non-string title: {}
+    ok 5 - rejects a non-string title: {}
+      ---
+      duration_ms: 0.128535
+      type: 'test'
+      ...
+    # Subtest: rejects a non-string title: null
+    ok 6 - rejects a non-string title: null
+      ---
+      duration_ms: 0.142077
+      type: 'test'
+      ...
+    # Subtest: rejects a non-string path: 5
+    ok 7 - rejects a non-string path: 5
+      ---
+      duration_ms: 0.106783
+      type: 'test'
+      ...
+    # Subtest: rejects a non-string path: {}
+    ok 8 - rejects a non-string path: {}
+      ---
+      duration_ms: 0.098847
+      type: 'test'
+      ...
+    # Subtest: rejects a non-string path: null
+    ok 9 - rejects a non-string path: null
+      ---
+      duration_ms: 0.177366
+      type: 'test'
+      ...
+    # Subtest: rejects a non-boolean navigate auto flag at both boundaries
+    ok 10 - rejects a non-boolean navigate auto flag at both boundaries
+      ---
+      duration_ms: 0.244186
+      type: 'test'
+      ...
+    1..10
+ok 38 - wrong-typed page actions at both trust boundaries
+  ---
+  duration_ms: 2.260839
+  type: 'suite'
+  ...
+# Subtest: extractPageActions
+    # Subtest: returns [] for undefined events
+    ok 1 - returns [] for undefined events
+      ---
+      duration_ms: 4.83097
+      type: 'test'
+      ...
+    # Subtest: extracts client_directive ext events in order, skipping text/tool events
+    ok 2 - extracts client_directive ext events in order, skipping text/tool events
+      ---
+      duration_ms: 0.42085
+      type: 'test'
+      ...
+    # Subtest: skips an ext event under a different name and a malformed directive payload
+    ok 3 - skips an ext event under a different name and a malformed directive payload
+      ---
+      duration_ms: 0.202661
+      type: 'test'
+      ...
+    1..3
+ok 39 - extractPageActions
+  ---
+  duration_ms: 5.72984
+  type: 'suite'
+  ...
+# Subtest: splitPageActions
+    # Subtest: splits a navigate and a non-navigate action apart
+    ok 1 - splits a navigate and a non-navigate action apart
+      ---
+      duration_ms: 0.433801
+      type: 'test'
+      ...
+    # Subtest: navigate is null when no navigate action is present
+    ok 2 - navigate is null when no navigate action is present
+      ---
+      duration_ms: 2.338097
+      type: 'test'
+      ...
+    # Subtest: other is null when only a navigate action is present
+    ok 3 - other is null when only a navigate action is present
+      ---
+      duration_ms: 1.211653
+      type: 'test'
+      ...
+    # Subtest: both are null for an empty list
+    ok 4 - both are null for an empty list
+      ---
+      duration_ms: 0.328799
+      type: 'test'
+      ...
+    # Subtest: takes the FIRST of each kind — at most one navigate, at most one other, per turn
+    ok 5 - takes the FIRST of each kind — at most one navigate, at most one other, per turn
+      ---
+      duration_ms: 0.249877
+      type: 'test'
+      ...
+    1..5
+ok 40 - splitPageActions
+  ---
+  duration_ms: 4.996839
+  type: 'suite'
+  ...
+# Subtest: react: consent controls both the pre-load bubble and the mounted chat container
+ok 41 - react: consent controls both the pre-load bubble and the mounted chat container
+  ---
+  duration_ms: 900.407187
+  type: 'test'
+  ...
+# Subtest: vanilla: consent controls both the pre-load bubble and the mounted chat container
+ok 42 - vanilla: consent controls both the pre-load bubble and the mounted chat container
+  ---
+  duration_ms: 119.536947
+  type: 'test'
+  ...
+# Subtest: branding yields to the same consent state at desktop and stacked mobile widths
+ok 43 - branding yields to the same consent state at desktop and stacked mobile widths
+  ---
+  duration_ms: 1415.675881
+  type: 'test'
+  ...
+# An update to Root inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# Subtest: loader-entry binds the lazy loader to the page button; activating it loads the React widget assets
+ok 44 - loader-entry binds the lazy loader to the page button; activating it loads the React widget assets
+  ---
+  duration_ms: 204.786509
+  type: 'test'
+  ...
+# Subtest: vanilla-entry mounts the vanilla widget into the page root
+ok 45 - vanilla-entry mounts the vanilla widget into the page root
+  ---
+  duration_ms: 751.802475
+  type: 'test'
+  ...
+# An update to ChatPane inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# An update to ChatPane inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# An update to SiteAssistantWidget inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# An update to ChatPane inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# An update to ChatPane inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# An update to Root inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# An update to ChatPane inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# An update to ChatPane inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# An update to ChatPane inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# An update to ChatPane inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# Subtest: main mounts the React widget, runs a queued highlight, and creates its own root when a page has none
+ok 46 - main mounts the React widget, runs a queued highlight, and creates its own root when a page has none
+  ---
+  duration_ms: 3546.217992
+  type: 'test'
+  ...
+# Subtest: never resolves a vanilla widget title as a page entry
+ok 47 - never resolves a vanilla widget title as a page entry
+  ---
+  duration_ms: 446.862424
+  type: 'test'
+  ...
+# Subtest: findTargetElement
+    # Subtest: finds the exact-text-match heading
+    ok 1 - finds the exact-text-match heading
+      ---
+      duration_ms: 18.008742
+      type: 'test'
+      ...
+    # Subtest: falls back to a case-insensitive match
+    ok 2 - falls back to a case-insensitive match
+      ---
+      duration_ms: 16.241609
+      type: 'test'
+      ...
+    # Subtest: returns null when nothing matches
+    ok 3 - returns null when nothing matches
+      ---
+      duration_ms: 18.075101
+      type: 'test'
+      ...
+    # Subtest: returns null for an empty or whitespace-only title
+    ok 4 - returns null for an empty or whitespace-only title
+      ---
+      duration_ms: 24.361289
+      type: 'test'
+      ...
+    # Subtest: never returns an element inside the widget's own pane (SPEC-046 §4)
+    ok 5 - never returns an element inside the widget's own pane (SPEC-046 §4)
+      ---
+      duration_ms: 14.399668
+      type: 'test'
+      ...
+    # Subtest: accepts an explicit root, scoping the search below it
+    ok 6 - accepts an explicit root, scoping the search below it
+      ---
+      duration_ms: 27.028947
+      type: 'test'
+      ...
+    # Subtest: prefers an exact title-class match over an earlier case-insensitive heading
+    ok 7 - prefers an exact title-class match over an earlier case-insensitive heading
+      ---
+      duration_ms: 51.316934
+      type: 'test'
+      ...
+    1..7
+ok 48 - findTargetElement
+  ---
+  duration_ms: 170.678958
+  type: 'suite'
+  ...
+# Subtest: applyHighlight / clearHighlight
+    # Subtest: adds the highlight class to the target element
+    ok 1 - adds the highlight class to the target element
+      ---
+      duration_ms: 22.622522
+      type: 'test'
+      ...
+    # Subtest: clearHighlight removes the class and is idempotent
+    ok 2 - clearHighlight removes the class and is idempotent
+      ---
+      duration_ms: 15.191237
+      type: 'test'
+      ...
+    # Subtest: only one element is highlighted at a time — a second apply clears the first
+    ok 3 - only one element is highlighted at a time — a second apply clears the first
+      ---
+      duration_ms: 17.276736
+      type: 'test'
+      ...
+    # Subtest: re-applying to the already-highlighted element is a no-op, not a restart
+    ok 4 - re-applying to the already-highlighted element is a no-op, not a restart
+      ---
+      duration_ms: 31.137269
+      type: 'test'
+      ...
+    # Subtest: clears at the 21s fallback deadline when no animationend arrives
+    ok 5 - clears at the 21s fallback deadline when no animationend arrives
+      ---
+      duration_ms: 20.634012
+      type: 'test'
+      ...
+    # Subtest: cancels the old fallback so it cannot clear a newer highlight
+    ok 6 - cancels the old fallback so it cannot clear a newer highlight
+      ---
+      duration_ms: 22.39098
+      type: 'test'
+      ...
+    # Subtest: clears on the FADE animation's animationend, ignoring an earlier pulse animationend
+    ok 7 - clears on the FADE animation's animationend, ignoring an earlier pulse animationend
+      ---
+      duration_ms: 35.108141
+      type: 'test'
+      ...
+    1..7
+ok 49 - applyHighlight / clearHighlight
+  ---
+  duration_ms: 165.498076
+  type: 'suite'
+  ...
+# Subtest: scrollToElement
+    # Subtest: scrolls smoothly when the visitor has no reduced-motion preference
+    ok 1 - scrolls smoothly when the visitor has no reduced-motion preference
+      ---
+      duration_ms: 15.431517
+      type: 'test'
+      ...
+    # Subtest: scrolls without smooth animation under prefers-reduced-motion: reduce
+    ok 2 - scrolls without smooth animation under prefers-reduced-motion: reduce
+      ---
+      duration_ms: 15.424501
+      type: 'test'
+      ...
+    1..2
+ok 50 - scrollToElement
+  ---
+  duration_ms: 31.236881
+  type: 'suite'
+  ...
+# Subtest: loader host binds react assets only on demand and preserves open intent
+ok 51 - loader host binds react assets only on demand and preserves open intent
+  ---
+  duration_ms: 254.627476
+  type: 'test'
+  ...
+# Subtest: loader host binds vanilla assets only on demand and preserves open intent
+ok 52 - loader host binds vanilla assets only on demand and preserves open intent
+  ---
+  duration_ms: 62.012707
+  type: 'test'
+  ...
+# Subtest: explicit deep link /\#open-chat opens lazily
+ok 53 - explicit deep link /\#open-chat opens lazily
+  ---
+  duration_ms: 44.218955
+  type: 'test'
+  ...
+# Subtest: explicit deep link /?open-chat=1 opens lazily
+ok 54 - explicit deep link /?open-chat=1 opens lazily
+  ---
+  duration_ms: 56.129821
+  type: 'test'
+  ...
+# Subtest: react: pending destination effects preload only the lightweight widget while closed
+ok 55 - react: pending destination effects preload only the lightweight widget while closed
+  ---
+  duration_ms: 43.608535
+  type: 'test'
+  ...
+# Subtest: vanilla: pending destination effects preload only the lightweight widget while closed
+ok 56 - vanilla: pending destination effects preload only the lightweight widget while closed
+  ---
+  duration_ms: 13.101881
+  type: 'test'
+  ...
+# Subtest: React chat with queued=false inserts no assets until open, then loads CSS and the bundle once
+ok 57 - React chat with queued=false inserts no assets until open, then loads CSS and the bundle once
+  ---
+  duration_ms: 160.654761
+  type: 'test'
+  ...
+# Subtest: React chat with queued=true inserts no assets until open, then loads CSS and the bundle once
+ok 58 - React chat with queued=true inserts no assets until open, then loads CSS and the bundle once
+  ---
+  duration_ms: 50.153775
+  type: 'test'
+  ...
+# Subtest: an open-chat anchor activates after loading even when its hash is already selected
+ok 59 - an open-chat anchor activates after loading even when its hash is already selected
+  ---
+  duration_ms: 32.437384
+  type: 'test'
+  ...
+# Subtest: host passes the root as the mount-readiness boundary
+ok 60 - host passes the root as the mount-readiness boundary
+  ---
+  duration_ms: 15.032354
+  type: 'test'
+  ...
+# Subtest: loader requires both mount and button: <button data-jini-chat-loader></button>
+ok 61 - loader requires both mount and button: <button data-jini-chat-loader></button>
+  ---
+  duration_ms: 13.522258
+  type: 'test'
+  ...
+# Subtest: loader requires both mount and button: <div id="tovu-site-assistant-root"></div>
+ok 62 - loader requires both mount and button: <div id="tovu-site-assistant-root"></div>
+  ---
+  duration_ms: 11.491323
+  type: 'test'
+  ...
+# Subtest: loader requires both mount and button: 
+ok 63 - loader requires both mount and button: 
+  ---
+  duration_ms: 48.941364
+  type: 'test'
+  ...
+# Subtest: loader pins widget precedence and open/queue ordering: {"widget":"vanilla","compare":"react","open":false,"search":"?open-chat=0","hash":"","expected":"site-assistant","deep":false,"queued":false}
+ok 64 - loader pins widget precedence and open/queue ordering: {"widget":"vanilla","compare":"react","open":false,"search":"?open-chat=0","hash":"","expected":"site-assistant","deep":false,"queued":false}
+  ---
+  duration_ms: 39.971942
+  type: 'test'
+  ...
+# Subtest: loader pins widget precedence and open/queue ordering: {"widget":"react","compare":"vanilla","open":true,"search":"","hash":"","expected":"site-assistant-vanilla","deep":false,"queued":true}
+ok 65 - loader pins widget precedence and open/queue ordering: {"widget":"react","compare":"vanilla","open":true,"search":"","hash":"","expected":"site-assistant-vanilla","deep":false,"queued":true}
+  ---
+  duration_ms: 55.329328
+  type: 'test'
+  ...
+# Subtest: loader pins widget precedence and open/queue ordering: {"widget":"unknown","compare":"invalid","open":false,"search":"?open-chat=true","hash":"\#other","expected":"site-assistant","deep":false,"queued":false}
+ok 66 - loader pins widget precedence and open/queue ordering: {"widget":"unknown","compare":"invalid","open":false,"search":"?open-chat=true","hash":"\#other","expected":"site-assistant","deep":false,"queued":false}
+  ---
+  duration_ms: 82.115053
+  type: 'test'
+  ...
+# Subtest: loader pins widget precedence and open/queue ordering: {"widget":"vanilla","compare":"","open":false,"search":"?open-chat=1","hash":"","expected":"site-assistant-vanilla","deep":true,"queued":true}
+ok 67 - loader pins widget precedence and open/queue ordering: {"widget":"vanilla","compare":"","open":false,"search":"?open-chat=1","hash":"","expected":"site-assistant-vanilla","deep":true,"queued":true}
+  ---
+  duration_ms: 42.243882
+  type: 'test'
+  ...
+# Subtest: loader pins widget precedence and open/queue ordering: {"widget":"vanilla","compare":"","open":false,"search":"","hash":"","expected":"site-assistant-vanilla","deep":false,"queued":true}
+ok 68 - loader pins widget precedence and open/queue ordering: {"widget":"vanilla","compare":"","open":false,"search":"","hash":"","expected":"site-assistant-vanilla","deep":false,"queued":true}
+  ---
+  duration_ms: 41.581735
+  type: 'test'
+  ...
+# Subtest: loader defaults use the browser document, location, events and session state
+ok 69 - loader defaults use the browser document, location, events and session state
+  ---
+  duration_ms: 16.992653
+  type: 'test'
+  ...
+# Subtest: a later hash change to \#open-chat activates the loader; any other hash does not
+ok 70 - a later hash change to \#open-chat activates the loader; any other hash does not
+  ---
+  duration_ms: 26.644678
+  type: 'test'
+  ...
+# Subtest: a focused open still announces itself in a document with no window of its own
+ok 71 - a focused open still announces itself in a document with no window of its own
+  ---
+  duration_ms: 38.629373
+  type: 'test'
+  ...
+# Subtest: every asset gets its raw and gzip size, then the two widget totals
+ok 72 - every asset gets its raw and gzip size, then the two widget totals
+  ---
+  duration_ms: 26.104874
+  type: 'test'
+  ...
+# Subtest: the loader budget passes below 3 KB gzip and fails at it
+ok 73 - the loader budget passes below 3 KB gzip and fails at it
+  ---
+  duration_ms: 0.798631
+  type: 'test'
+  ...
+# Subtest: main reads each asset from the dist directory, prints the table, then enforces the budget
+ok 74 - main reads each asset from the dist directory, prints the table, then enforces the budget
+  ---
+  duration_ms: 8.869262
+  type: 'test'
+  ...
+# Subtest: run as a script against a dist directory, it prints the table; a missing dist fails
+ok 75 - run as a script against a dist directory, it prints the table; a missing dist fails
+  ---
+  duration_ms: 553.72637
+  type: 'test'
+  ...
+# Subtest: isEntryPoint is true only for the script node was started with
+ok 76 - isEntryPoint is true only for the script node was started with
+  ---
+  duration_ms: 0.353486
+  type: 'test'
+  ...
+# Subtest: installRemixIconOverride
+    # Subtest: does nothing when document is undefined (non-browser context)
+    ok 1 - does nothing when document is undefined (non-browser context)
+      ---
+      duration_ms: 1.635983
+      type: 'test'
+      ...
+    # Subtest: with a document present
+        # Subtest: appends a marked stylesheet link pointed at the real static asset URL
+        ok 1 - appends a marked stylesheet link pointed at the real static asset URL
+          ---
+          duration_ms: 459.554076
+          type: 'test'
+          ...
+        # Subtest: does not install a second link when the marker is already present
+        ok 2 - does not install a second link when the marker is already present
+          ---
+          duration_ms: 102.314271
+          type: 'test'
+          ...
+        # Subtest: defers to a pre-existing marked element even if it is not this module's own link
+        ok 3 - defers to a pre-existing marked element even if it is not this module's own link
+          ---
+          duration_ms: 235.235181
+          type: 'test'
+          ...
+        1..3
+    ok 2 - with a document present
+      ---
+      duration_ms: 797.732772
+      type: 'suite'
+      ...
+    1..2
+ok 77 - installRemixIconOverride
+  ---
+  duration_ms: 810.276602
+  type: 'suite'
+  ...
+# Subtest: transcript-storage
+    # Subtest: loadPersistedState — fail-soft rehydrate
+        # Subtest: returns the empty default when nothing is stored
+        ok 1 - returns the empty default when nothing is stored
+          ---
+          duration_ms: 8.271166
+          type: 'test'
+          ...
+        # Subtest: rehydrates a validly-shaped entry
+        ok 2 - rehydrates a validly-shaped entry
+          ---
+          duration_ms: 1.495156
+          type: 'test'
+          ...
+        # Subtest: clears the key and starts empty on malformed JSON
+        ok 3 - clears the key and starts empty on malformed JSON
+          ---
+          duration_ms: 0.521286
+          type: 'test'
+          ...
+        # Subtest: clears the key and starts empty when the envelope is not an object
+        ok 4 - clears the key and starts empty when the envelope is not an object
+          ---
+          duration_ms: 0.237981
+          type: 'test'
+          ...
+        # Subtest: clears the key and starts empty when open is the wrong type
+        ok 5 - clears the key and starts empty when open is the wrong type
+          ---
+          duration_ms: 0.265716
+          type: 'test'
+          ...
+        # Subtest: clears the whole entry when a message's id is not a string
+        ok 6 - clears the whole entry when a message's id is not a string
+          ---
+          duration_ms: 3.520789
+          type: 'test'
+          ...
+        # Subtest: clears the whole entry when a message's content is not a string
+        ok 7 - clears the whole entry when a message's content is not a string
+          ---
+          duration_ms: 0.355207
+          type: 'test'
+          ...
+        # Subtest: clears the whole entry when a message entry is not an object at all
+        ok 8 - clears the whole entry when a message entry is not an object at all
+          ---
+          duration_ms: 1.073481
+          type: 'test'
+          ...
+        # Subtest: clears the whole entry when even one message in the array is wrong-shaped
+        ok 9 - clears the whole entry when even one message in the array is wrong-shaped
+          ---
+          duration_ms: 0.427199
+          type: 'test'
+          ...
+        # Subtest: never throws when storage access itself throws
+        ok 10 - never throws when storage access itself throws
+          ---
+          duration_ms: 0.585953
+          type: 'test'
+          ...
+        1..10
+    ok 1 - loadPersistedState — fail-soft rehydrate
+      ---
+      duration_ms: 18.93706
+      type: 'suite'
+      ...
+    # Subtest: savePersistedState — bounded, oldest-dropped-first
+        # Subtest: round-trips through loadPersistedState
+        ok 1 - round-trips through loadPersistedState
+          ---
+          duration_ms: 2.386391
+          type: 'test'
+          ...
+        # Subtest: drops the oldest messages first once the count cap is exceeded
+        ok 2 - drops the oldest messages first once the count cap is exceeded
+          ---
+          duration_ms: 0.37787
+          type: 'test'
+          ...
+        # Subtest: drops oldest messages first once the byte cap is exceeded, even under the count cap
+        ok 3 - drops oldest messages first once the byte cap is exceeded, even under the count cap
+          ---
+          duration_ms: 6.399757
+          type: 'test'
+          ...
+        # Subtest: drops a single message larger than the byte cap while retaining pane state
+        ok 4 - drops a single message larger than the byte cap while retaining pane state
+          ---
+          duration_ms: 1.193476
+          type: 'test'
+          ...
+        # Subtest: enforces the UTF-8 byte cap for 界 transcripts
+        ok 5 - enforces the UTF-8 byte cap for 界 transcripts
+          ---
+          duration_ms: 3.584849
+          type: 'test'
+          ...
+        # Subtest: enforces the UTF-8 byte cap for 🙂 transcripts
+        ok 6 - enforces the UTF-8 byte cap for 🙂 transcripts
+          ---
+          duration_ms: 9.304344
+          type: 'test'
+          ...
+        # Subtest: never throws when the underlying setItem throws (e.g. quota exceeded)
+        ok 7 - never throws when the underlying setItem throws (e.g. quota exceeded)
+          ---
+          duration_ms: 0.449692
+          type: 'test'
+          ...
+        1..7
+    ok 2 - savePersistedState — bounded, oldest-dropped-first
+      ---
+      duration_ms: 24.357082
+      type: 'suite'
+      ...
+    # Subtest: clearPersistedState
+        # Subtest: removes the stored key
+        ok 1 - removes the stored key
+          ---
+          duration_ms: 0.343111
+          type: 'test'
+          ...
+        # Subtest: never throws when the underlying removeItem throws
+        ok 2 - never throws when the underlying removeItem throws
+          ---
+          duration_ms: 0.228766
+          type: 'test'
+          ...
+        1..2
+    ok 3 - clearPersistedState
+      ---
+      duration_ms: 0.729838
+      type: 'suite'
+      ...
+    1..3
+ok 78 - transcript-storage
+  ---
+  duration_ms: 49.804357
+  type: 'suite'
+  ...
+# Subtest: action-queue
+    # Subtest: drains null when nothing was queued
+    ok 1 - drains null when nothing was queued
+      ---
+      duration_ms: 0.257511
+      type: 'test'
+      ...
+    # Subtest: returns exactly what was enqueued
+    ok 2 - returns exactly what was enqueued
+      ---
+      duration_ms: 0.20697
+      type: 'test'
+      ...
+    # Subtest: deletes the entry from storage before drainQueuedAction returns — a reload can never re-fire it
+    ok 3 - deletes the entry from storage before drainQueuedAction returns — a reload can never re-fire it
+      ---
+      duration_ms: 0.326945
+      type: 'test'
+      ...
+    # Subtest: deletes before the JSON.parse step, so a corrupt entry cannot survive a failed drain
+    ok 4 - deletes before the JSON.parse step, so a corrupt entry cannot survive a failed drain
+      ---
+      duration_ms: 0.188205
+      type: 'test'
+      ...
+    # Subtest: later enqueueAction calls overwrite the pending slot rather than stacking a FIFO
+    ok 5 - later enqueueAction calls overwrite the pending slot rather than stacking a FIFO
+      ---
+      duration_ms: 0.138562
+      type: 'test'
+      ...
+    # Subtest: never throws when the underlying storage throws on every call
+    ok 6 - never throws when the underlying storage throws on every call
+      ---
+      duration_ms: 0.231207
+      type: 'test'
+      ...
+    # Subtest: fails closed (never returns the action) when removeItem itself throws, rather than risking a re-fire
+    ok 7 - fails closed (never returns the action) when removeItem itself throws, rather than risking a re-fire
+      ---
+      duration_ms: 0.297265
+      type: 'test'
+      ...
+    1..7
+ok 79 - action-queue
+  ---
+  duration_ms: 2.219648
+  type: 'suite'
+  ...
+# Subtest: real-sessionStorage-bound wrappers
+    # Subtest: react: a fresh unopened chat writes no browser storage and loads only after activation
+    ok 1 - react: a fresh unopened chat writes no browser storage and loads only after activation
+      ---
+      duration_ms: 767.628514
+      type: 'test'
+      ...
+    # Subtest: vanilla: a fresh unopened chat writes no browser storage and loads only after activation
+    ok 2 - vanilla: a fresh unopened chat writes no browser storage and loads only after activation
+      ---
+      duration_ms: 45.61604
+      type: 'test'
+      ...
+    # Subtest: checks queued effects without consuming them before the full widget loads
+    ok 3 - checks queued effects without consuming them before the full widget loads
+      ---
+      duration_ms: 48.22281
+      type: 'test'
+      ...
+    # Subtest: keeps the loader usable even when the browser storage getter itself throws
+    ok 4 - keeps the loader usable even when the browser storage getter itself throws
+      ---
+      duration_ms: 28.759461
+      type: 'test'
+      ...
+    # Subtest: loadSiteAssistantState reads through to the real sessionStorage, not a private store
+    ok 5 - loadSiteAssistantState reads through to the real sessionStorage, not a private store
+      ---
+      duration_ms: 22.538502
+      type: 'test'
+      ...
+    # Subtest: saveSiteAssistantState writes through to the real sessionStorage, not a private store
+    ok 6 - saveSiteAssistantState writes through to the real sessionStorage, not a private store
+      ---
+      duration_ms: 24.802862
+      type: 'test'
+      ...
+    # Subtest: clearSiteAssistantState removes the real sessionStorage entry
+    ok 7 - clearSiteAssistantState removes the real sessionStorage entry
+      ---
+      duration_ms: 43.397236
+      type: 'test'
+      ...
+    # Subtest: enqueuePageAction writes through to the real sessionStorage, not a private store
+    ok 8 - enqueuePageAction writes through to the real sessionStorage, not a private store
+      ---
+      duration_ms: 26.640728
+      type: 'test'
+      ...
+    # Subtest: drainQueuedPageAction reads and clears the real sessionStorage entry
+    ok 9 - drainQueuedPageAction reads and clears the real sessionStorage entry
+      ---
+      duration_ms: 37.948576
+      type: 'test'
+      ...
+    1..9
+ok 80 - real-sessionStorage-bound wrappers
+  ---
+  duration_ms: 1051.344909
+  type: 'suite'
+  ...
+# Subtest: the storage guard sees aliases and computed accesses, while ignoring comments
+ok 81 - the storage guard sees aliases and computed accesses, while ignoring comments
+  ---
+  duration_ms: 60.032789
+  type: 'test'
+  ...
+# Subtest: storage encapsulation guard
+    # Subtest: only session-store.ts (and this guard) names sessionStorage under apps/site-chat/src
+    ok 1 - only session-store.ts (and this guard) names sessionStorage under apps/site-chat/src
+      ---
+      duration_ms: 1695.542205
+      type: 'test'
+      ...
+    1..1
+ok 82 - storage encapsulation guard
+  ---
+  duration_ms: 1695.869572
+  type: 'suite'
+  ...
+# Subtest: visitorFacingError
+    # Subtest: keeps the server's reason and drops its trailing period so the sentence reads once
+    ok 1 - keeps the server's reason and drops its trailing period so the sentence reads once
+      ---
+      duration_ms: 1.594433
+      type: 'test'
+      ...
+    # Subtest: stringifies a non-Error reason
+    ok 2 - stringifies a non-Error reason
+      ---
+      duration_ms: 0.285952
+      type: 'test'
+      ...
+    # Subtest: falls back to a generic reason when the message is blank
+    ok 3 - falls back to a generic reason when the message is blank
+      ---
+      duration_ms: 0.302779
+      type: 'test'
+      ...
+    # Subtest: maps each browser's fetch network TypeError to one plain reason
+    ok 4 - maps each browser's fetch network TypeError to one plain reason
+      ---
+      duration_ms: 0.356595
+      type: 'test'
+      ...
+    # Subtest: passes a non-network TypeError's own message through
+    ok 5 - passes a non-network TypeError's own message through
+      ---
+      duration_ms: 0.171994
+      type: 'test'
+      ...
+    1..5
+ok 83 - visitorFacingError
+  ---
+  duration_ms: 13.901811
+  type: 'suite'
+  ...
+# Subtest: createSiteAssistantTransport
+    # Subtest: startRun
+        # Subtest: throws without calling fetch when history has no user turn
+        ok 1 - throws without calling fetch when history has no user turn
+          ---
+          duration_ms: 3.576694
+          type: 'test'
+          ...
+        # Subtest: posts the latest user message with no credentials or auth header
+        ok 2 - posts the latest user message with no credentials or auth header
+          ---
+          duration_ms: 49.140043
+          type: 'test'
+          ...
+        # Subtest: streams text and client_directive frames through onEvent and collects both for onDone
+        ok 3 - streams text and client_directive frames through onEvent and collects both for onDone
+          ---
+          duration_ms: 4.677358
+          type: 'test'
+          ...
+        # Subtest: preserves split frames, split delimiters, and split UTF-8 bytes
+        ok 4 - preserves split frames, split delimiters, and split UTF-8 bytes
+          ---
+          duration_ms: 1.899466
+          type: 'test'
+          ...
+        # Subtest: delivers text while the response is still open, before end or EOF
+        ok 5 - delivers text while the response is still open, before end or EOF
+          ---
+          duration_ms: 183.518559
+          type: 'test'
+          ...
+        # Subtest: drains multiple coalesced frames exactly once and in order
+        ok 6 - drains multiple coalesced frames exactly once and in order
+          ---
+          duration_ms: 1.157109
+          type: 'test'
+          ...
+        # Subtest: passes client_directive data through unvalidated, whatever shape it is
+        ok 7 - passes client_directive data through unvalidated, whatever shape it is
+          ---
+          duration_ms: 1.058702
+          type: 'test'
+          ...
+        # Subtest: surfaces an error frame via onError without ending the run, then still ends on a later end frame
+        ok 8 - surfaces an error frame via onError without ending the run, then still ends on a later end frame
+          ---
+          duration_ms: 2.156577
+          type: 'test'
+          ...
+        # Subtest: falls back to a generic error message when an error frame carries no message
+        ok 9 - falls back to a generic error message when an error frame carries no message
+          ---
+          duration_ms: 0.726138
+          type: 'test'
+          ...
+        # Subtest: ends the run when the stream closes with no explicit end frame
+        ok 10 - ends the run when the stream closes with no explicit end frame
+          ---
+          duration_ms: 1.56072
+          type: 'test'
+          ...
+        # Subtest: reports malformed JSON once, finishes once, and removes the active run
+        ok 11 - reports malformed JSON once, finishes once, and removes the active run
+          ---
+          duration_ms: 0.826965
+          type: 'test'
+          ...
+        # Subtest: skips a keep-alive comment frame (no data: line) without crashing or forwarding it
+        ok 12 - skips a keep-alive comment frame (no data: line) without crashing or forwarding it
+          ---
+          duration_ms: 0.672057
+          type: 'test'
+          ...
+        # Subtest: ignores a frame with no event: line (defaults to "message", matches no known kind)
+        ok 13 - ignores a frame with no event: line (defaults to "message", matches no known kind)
+          ---
+          duration_ms: 1.002085
+          type: 'test'
+          ...
+        # Subtest: reports onError with the server's parsed error body when the response is not ok
+        ok 14 - reports onError with the server's parsed error body when the response is not ok
+          ---
+          duration_ms: 2.957849
+          type: 'test'
+          ...
+        # Subtest: falls back to a status-coded message when a non-ok response body is not JSON
+        ok 15 - falls back to a status-coded message when a non-ok response body is not JSON
+          ---
+          duration_ms: 0.794608
+          type: 'test'
+          ...
+        # Subtest: throws 'no stream body' when the response has no body at all
+        ok 16 - throws 'no stream body' when the response has no body at all
+          ---
+          duration_ms: 0.528087
+          type: 'test'
+          ...
+        # Subtest: finishes with no onError when input.signal aborts before the response resolves
+        ok 17 - finishes with no onError when input.signal aborts before the response resolves
+          ---
+          duration_ms: 1.17179
+          type: 'test'
+          ...
+        # Subtest: finishes with no onError when stopRun aborts an in-flight request
+        ok 18 - finishes with no onError when stopRun aborts an in-flight request
+          ---
+          duration_ms: 0.512392
+          type: 'test'
+          ...
+        # Subtest: reports onError for a DOMException that is not an AbortError (e.g. a dropped stream)
+        ok 19 - reports onError for a DOMException that is not an AbortError (e.g. a dropped stream)
+          ---
+          duration_ms: 1.122281
+          type: 'test'
+          ...
+        # Subtest: wraps a non-Error stream rejection reason in an Error before reporting it
+        ok 20 - wraps a non-Error stream rejection reason in an Error before reporting it
+          ---
+          duration_ms: 0.593292
+          type: 'test'
+          ...
+        # Subtest: bounds the history sent to the server: excludes the latest turn, drops empty-content turns, keeps only the most recent 12 prior turns, and truncates any turn over 2000 chars
+        ok 21 - bounds the history sent to the server: excludes the latest turn, drops empty-content turns, keeps only the most recent 12 prior turns, and truncates any turn over 2000 chars
+          ---
+          duration_ms: 1.064067
+          type: 'test'
+          ...
+        1..21
+    ok 1 - startRun
+      ---
+      duration_ms: 263.961643
+      type: 'suite'
+      ...
+    # Subtest: startRun failure reporting (DI fetch)
+        # Subtest: reports an end-only stream (no text, no page action) as one no-reply error and still finishes
+        ok 1 - reports an end-only stream (no text, no page action) as one no-reply error and still finishes
+          ---
+          duration_ms: 0.693865
+          type: 'test'
+          ...
+        # Subtest: treats whitespace-only text that closes without an end frame as no reply
+        ok 2 - treats whitespace-only text that closes without an end frame as no reply
+          ---
+          duration_ms: 0.70056
+          type: 'test'
+          ...
+        # Subtest: accepts a page action with no text as a real reply (no error)
+        ok 3 - accepts a page action with no text as a real reply (no error)
+          ---
+          duration_ms: 1.007218
+          type: 'test'
+          ...
+        # Subtest: does not add a no-reply error on top of a server error frame
+        ok 4 - does not add a no-reply error on top of a server error frame
+          ---
+          duration_ms: 0.683218
+          type: 'test'
+          ...
+        # Subtest: stays silent for an error frame that arrives after the run already ended
+        ok 5 - stays silent for an error frame that arrives after the run already ended
+          ---
+          duration_ms: 8.42237
+          type: 'test'
+          ...
+        # Subtest: words a fetch network failure as an unreachable site
+        ok 6 - words a fetch network failure as an unreachable site
+          ---
+          duration_ms: 0.940525
+          type: 'test'
+          ...
+        # Subtest: times out a request that never answers: aborts fetch, reports once, finishes
+        ok 7 - times out a request that never answers: aborts fetch, reports once, finishes
+          ---
+          duration_ms: 21.202989
+          type: 'test'
+          ...
+        # Subtest: restarts the idle timer on every received chunk, so a slow but live reply is not cut off
+        ok 8 - restarts the idle timer on every received chunk, so a slow but live reply is not cut off
+          ---
+          duration_ms: 621.78421
+          type: 'test'
+          ...
+        1..8
+    ok 2 - startRun failure reporting (DI fetch)
+      ---
+      duration_ms: 656.886347
+      type: 'suite'
+      ...
+    # Subtest: reattachRun
+        # Subtest: resolves immediately by calling onDone with an empty event log, without calling fetch
+        ok 1 - resolves immediately by calling onDone with an empty event log, without calling fetch
+          ---
+          duration_ms: 0.527964
+          type: 'test'
+          ...
+        1..1
+    ok 3 - reattachRun
+      ---
+      duration_ms: 0.671241
+      type: 'suite'
+      ...
+    # Subtest: fetchRunStatus
+        # Subtest: always resolves null (no server-side run registry to query)
+        ok 1 - always resolves null (no server-side run registry to query)
+          ---
+          duration_ms: 0.383504
+          type: 'test'
+          ...
+        1..1
+    ok 4 - fetchRunStatus
+      ---
+      duration_ms: 0.488351
+      type: 'suite'
+      ...
+    # Subtest: stopRun
+        # Subtest: is a no-op for an unknown or already-finished runId
+        ok 1 - is a no-op for an unknown or already-finished runId
+          ---
+          duration_ms: 0.429696
+          type: 'test'
+          ...
+        1..1
+    ok 5 - stopRun
+      ---
+      duration_ms: 0.528846
+      type: 'suite'
+      ...
+    1..5
+ok 84 - createSiteAssistantTransport
+  ---
+  duration_ms: 923.603341
+  type: 'suite'
+  ...
+# Subtest: history scanning when the latest user turn is not the last entry
+    # Subtest: sends the latest user turn as the message and only the turns before it as history
+    ok 1 - sends the latest user turn as the message and only the turns before it as history
+      ---
+      duration_ms: 1.055396
+      type: 'test'
+      ...
+    1..1
+ok 85 - history scanning when the latest user turn is not the last entry
+  ---
+  duration_ms: 1.163557
+  type: 'suite'
+  ...
+# Subtest: wcmp: normal visitors get neither bridge nor a diagnostic listener
+ok 86 - wcmp: normal visitors get neither bridge nor a diagnostic listener
+  ---
+  duration_ms: 377.996951
+  type: 'test'
+  ...
+# Subtest: wcmp: React comparison relays the exact prompt to the existing ChatPane capability
+ok 87 - wcmp: React comparison relays the exact prompt to the existing ChatPane capability
+  ---
+  duration_ms: 33.403845
+  type: 'test'
+  ...
+# Subtest: wcmp: common-send adapters preserve exact failures, prevent concurrent sends, and remove listeners
+ok 88 - wcmp: common-send adapters preserve exact failures, prevent concurrent sends, and remove listeners
+  ---
+  duration_ms: 27.45401
+  type: 'test'
+  ...
+# Subtest: wcmp: comparison storage keys separate both panes from the real visitor thread
+ok 89 - wcmp: comparison storage keys separate both panes from the real visitor thread
+  ---
+  duration_ms: 52.395775
+  type: 'test'
+  ...
+# Subtest: wcmp: navigating inside the vanilla comparison frame keeps its widget and transcript namespace
+ok 90 - wcmp: navigating inside the vanilla comparison frame keeps its widget and transcript namespace
+  ---
+  duration_ms: 55.882526
+  type: 'test'
+  ...
+# Subtest: comparison root react wins before reading the parent
+ok 91 - comparison root react wins before reading the parent
+  ---
+  duration_ms: 18.2634
+  type: 'test'
+  ...
+# Subtest: comparison root vanilla wins before reading the parent
+ok 92 - comparison root vanilla wins before reading the parent
+  ---
+  duration_ms: 26.532515
+  type: 'test'
+  ...
+# Subtest: comparison frame variant=react, parent=/ordinary
+ok 93 - comparison frame variant=react, parent=/ordinary
+  ---
+  duration_ms: 54.513001
+  type: 'test'
+  ...
+# Subtest: comparison frame variant=vanilla, parent=/ordinary
+ok 94 - comparison frame variant=vanilla, parent=/ordinary
+  ---
+  duration_ms: 51.660037
+  type: 'test'
+  ...
+# Subtest: comparison frame variant=invalid, parent=/ordinary
+ok 95 - comparison frame variant=invalid, parent=/ordinary
+  ---
+  duration_ms: 134.606317
+  type: 'test'
+  ...
+# Subtest: comparison frame variant=, parent=/ordinary
+ok 96 - comparison frame variant=, parent=/ordinary
+  ---
+  duration_ms: 68.322567
+  type: 'test'
+  ...
+# Subtest: comparison frame variant=react, parent=/__compare/site-chat
+ok 97 - comparison frame variant=react, parent=/__compare/site-chat
+  ---
+  duration_ms: 41.544031
+  type: 'test'
+  ...
+# Subtest: comparison frame variant=vanilla, parent=/__compare/site-chat
+ok 98 - comparison frame variant=vanilla, parent=/__compare/site-chat
+  ---
+  duration_ms: 40.670816
+  type: 'test'
+  ...
+# Subtest: comparison frame variant=invalid, parent=/__compare/site-chat
+ok 99 - comparison frame variant=invalid, parent=/__compare/site-chat
+  ---
+  duration_ms: 203.83849
+  type: 'test'
+  ...
+# Subtest: comparison frame variant=, parent=/__compare/site-chat
+ok 100 - comparison frame variant=, parent=/__compare/site-chat
+  ---
+  duration_ms: 51.712763
+  type: 'test'
+  ...
+# Subtest: comparison rejects detached documents and comparison pages without a frame
+ok 101 - comparison rejects detached documents and comparison pages without a frame
+  ---
+  duration_ms: 42.374623
+  type: 'test'
+  ...
+# Subtest: comparison catches cross-origin parent access without enabling a channel
+ok 102 - comparison catches cross-origin parent access without enabling a channel
+  ---
+  duration_ms: 13.574197
+  type: 'test'
+  ...
+# Subtest: wcmp: malformed send requests are ignored, and a non-Error failure is reported as text
+ok 103 - wcmp: malformed send requests are ignored, and a non-Error failure is reported as text
+  ---
+  duration_ms: 17.566191
+  type: 'test'
+  ...
+# Subtest: wcmp: a React pane relays capability errors, and unmounting rejects a send still in flight
+ok 104 - wcmp: a React pane relays capability errors, and unmounting rejects a send still in flight
+  ---
+  duration_ms: 191.999011
+  type: 'test'
+  ...
+# Subtest: visitor copy covers every admin locale and binds to the page language
+ok 105 - visitor copy covers every admin locale and binds to the page language
+  ---
+  duration_ms: 203.133586
+  type: 'test'
+  ...
+# Subtest: fills Jini chat's {name} placeholders and keeps unknown ones
+ok 106 - fills Jini chat's {name} placeholders and keeps unknown ones
+  ---
+  duration_ms: 20.878523
+  type: 'test'
+  ...
+# Subtest: React automatic navigation authorizes before side effects
+ok 107 - React automatic navigation authorizes before side effects
+  ---
+  duration_ms: 5.895206
+  type: 'test'
+  ...
+# Subtest: React confirmed navigation authorizes before side effects
+ok 108 - React confirmed navigation authorizes before side effects
+  ---
+  duration_ms: 0.53823
+  type: 'test'
+  ...
+# Subtest: navigateSitePageAction assigns the page location by default
+ok 109 - navigateSitePageAction assigns the page location by default
+  ---
+  duration_ms: 0.437761
+  type: 'test'
+  ...
+# Subtest: only a bounded typed server directive narrows; text, malformed data and executable objects do not
+ok 110 - only a bounded typed server directive narrows; text, malformed data and executable objects do not
+  ---
+  duration_ms: 5.541412
+  type: 'test'
+  ...
+# Subtest: a click posts only ID and literal allow, relative with same-origin mode, no redirect or retry
+ok 111 - a click posts only ID and literal allow, relative with same-origin mode, no redirect or retry
+  ---
+  duration_ms: 59.843243
+  type: 'test'
+  ...
+# Subtest: live challenges stay out of events, completed transcripts and the next provider history
+ok 112 - live challenges stay out of events, completed transcripts and the next provider history
+  ---
+  duration_ms: 67.397537
+  type: 'test'
+  ...
+# Subtest: without a renderer a challenge remains non-persistent, and late challenges after end stay silent
+ok 113 - without a renderer a challenge remains non-persistent, and late challenges after end stay silent
+  ---
+  duration_ms: 71.847115
+  type: 'test'
+  ...
+# Subtest: public widget accent override beats the later injected user-bubble defaults
+ok 114 - public widget accent override beats the later injected user-bubble defaults
+  ---
+  duration_ms: 1122.473847
+  type: 'test'
+  ...
+# Subtest: vanilla adapters: ids, aborts, session persistence and the action queue
+ok 115 - vanilla adapters: ids, aborts, session persistence and the action queue
+  ---
+  duration_ms: 62.186802
+  type: 'test'
+  ...
+# Subtest: vanilla page actions: navigate through the port, scroll or highlight a found target, refuse the rest
+ok 116 - vanilla page actions: navigate through the port, scroll or highlight a found target, refuse the rest
+  ---
+  duration_ms: 50.277783
+  type: 'test'
+  ...
+# Not implemented: navigation to another Document
+# Subtest: vanilla frames run on the next animation frame and can be cancelled
+ok 117 - vanilla frames run on the next animation frame and can be cancelled
+  ---
+  duration_ms: 90.199124
+  type: 'test'
+  ...
+# Subtest: the default navigation port is the page location
+ok 118 - the default navigation port is the page location
+  ---
+  duration_ms: 36.277635
+  type: 'test'
+  ...
+# Subtest: mountSiteVanillaChat mounts into the page root with its open intent, and does nothing without one
+ok 119 - mountSiteVanillaChat mounts into the page root with its open intent, and does nothing without one
+  ---
+  duration_ms: 78.597249
+  type: 'test'
+  ...
+# Subtest: in the comparison frame, a send relays to the widget and reports busy and error states
+ok 120 - in the comparison frame, a send relays to the widget and reports busy and error states
+  ---
+  duration_ms: 35.89572
+  type: 'test'
+  ...
+# Subtest: real Jini vanilla widget holds the turn until visitor click allow=true
+ok 121 - real Jini vanilla widget holds the turn until visitor click allow=true
+  ---
+  duration_ms: 567.160073
+  type: 'test'
+  ...
+# Subtest: real Jini vanilla widget holds the turn until visitor click allow=false
+ok 122 - real Jini vanilla widget holds the turn until visitor click allow=false
+  ---
+  duration_ms: 158.721601
+  type: 'test'
+  ...
+# Subtest: visitor markdown supports GFM, escapes raw HTML and rejects executable links
+ok 123 - visitor markdown supports GFM, escapes raw HTML and rejects executable links
+  ---
+  duration_ms: 603.824194
+  type: 'test'
+  ...
+# Subtest: page effects accept only server-resolved same-origin absolute paths
+ok 124 - page effects accept only server-resolved same-origin absolute paths
+  ---
+  duration_ms: 19.703749
+  type: 'test'
+  ...
+# Subtest: model image https://evil.test/beacon?q=private never enters the rendered DOM
+ok 125 - model image https://evil.test/beacon?q=private never enters the rendered DOM
+  ---
+  duration_ms: 43.41276
+  type: 'test'
+  ...
+# Subtest: model image //evil.test/beacon never enters the rendered DOM
+ok 126 - model image //evil.test/beacon never enters the rendered DOM
+  ---
+  duration_ms: 23.339241
+  type: 'test'
+  ...
+# Subtest: model image data:image/png;base64,AAAA never enters the rendered DOM
+ok 127 - model image data:image/png;base64,AAAA never enters the rendered DOM
+  ---
+  duration_ms: 39.020698
+  type: 'test'
+  ...
+# Subtest: model image http://[invalid never enters the rendered DOM
+ok 128 - model image http://[invalid never enters the rendered DOM
+  ---
+  duration_ms: 48.382384
+  type: 'test'
+  ...
+# Subtest: encoded executable links and GFM footnotes cannot introduce active links or repeated IDs
+ok 129 - encoded executable links and GFM footnotes cannot introduce active links or repeated IDs
+  ---
+  duration_ms: 44.293867
+  type: 'test'
+  ...
+# Subtest: existing vanilla proposal strip click allow=true cannot activate navigation
+ok 130 - existing vanilla proposal strip click allow=true cannot activate navigation
+  ---
+  duration_ms: 275.269692
+  type: 'test'
+  ...
+# Subtest: existing vanilla proposal strip click allow=false cannot activate navigation
+ok 131 - existing vanilla proposal strip click allow=false cannot activate navigation
+  ---
+  duration_ms: 28.407499
+  type: 'test'
+  ...
+# Subtest: expiry, supersession, run teardown and open/close chrome changes clean listeners and focus
+ok 132 - expiry, supersession, run teardown and open/close chrome changes clean listeners and focus
+  ---
+  duration_ms: 31.092944
+  type: 'test'
+  ...
+# Subtest: a Jini chrome re-render (Escape close, outside-bubble reopen) cannot drop a pending prompt
+ok 133 - a Jini chrome re-render (Escape close, outside-bubble reopen) cannot drop a pending prompt
+  ---
+  duration_ms: 39.208913
+  type: 'test'
+  ...
+# Subtest: unmounted or incomplete host markup never creates a second proposal bar
+ok 134 - unmounted or incomplete host markup never creates a second proposal bar
+  ---
+  duration_ms: 55.012512
+  type: 'test'
+  ...
+# Could not parse CSS @import URL "./site-chat-theme.css" relative to base URL "about:blank"
+# Could not parse CSS @import URL "./page-actions.css" relative to base URL "about:blank"
+# Subtest: the visitor message list keeps the composer-height reserve as its bottom padding
+ok 135 - the visitor message list keeps the composer-height reserve as its bottom padding
+  ---
+  duration_ms: 531.235849
+  type: 'test'
+  ...
+# Subtest: boot pins memory preparation and HTTP listener order
+ok 136 - boot pins memory preparation and HTTP listener order
+  ---
+  duration_ms: 354.525446
+  type: 'test'
+  ...
+# Subtest: boot pins memory preparation and HTTPS listener order
+ok 137 - boot pins memory preparation and HTTPS listener order
+  ---
+  duration_ms: 119.559638
+  type: 'test'
+  ...
+# Subtest: boot pins disk preparation and HTTP listener order
+ok 138 - boot pins disk preparation and HTTP listener order
+  ---
+  duration_ms: 151.889356
+  type: 'test'
+  ...
+# Subtest: boot pins disk preparation and HTTPS listener order
+ok 139 - boot pins disk preparation and HTTPS listener order
+  ---
+  duration_ms: 171.093032
+  type: 'test'
+  ...
+# Subtest: disk schema refusal exits before key creation and listener reservation
+ok 140 - disk schema refusal exits before key creation and listener reservation
+  ---
+  duration_ms: 95.488409
+  type: 'test'
+  ...
+# Subtest: boot diagnoses port collision and exits
+ok 141 - boot diagnoses port collision and exits
+  ---
+  duration_ms: 78.768122
+  type: 'test'
+  ...
+# Subtest: boot rethrows unexpected listener failure
+ok 142 - boot rethrows unexpected listener failure
+  ---
+  duration_ms: 90.35757
+  type: 'test'
+  ...
+# Subtest: boot: an already-held port exits cleanly and names the port, instead of throwing an unhandled 'error'
+ok 143 - boot: an already-held port exits cleanly and names the port, instead of throwing an unhandled 'error'
+  ---
+  duration_ms: 18469.845368
+  type: 'test'
+  ...
+# Subtest: boot preserves non-EADDRINUSE listen errors and never reports a successful exit
+ok 144 - boot preserves non-EADDRINUSE listen errors and never reports a successful exit
+  ---
+  duration_ms: 297.815941
+  type: 'test'
+  ...
+# Subtest: detector: findFirstPartyRequires recognizes every require-call shape and ignores non-require lookalikes
+ok 145 - detector: findFirstPartyRequires recognizes every require-call shape and ignores non-require lookalikes
+  ---
+  duration_ms: 37.019965
+  type: 'test'
+  ...
+# Subtest: the source-file scanner includes JavaScript variants and excludes declarations/tests
+ok 146 - the source-file scanner includes JavaScript variants and excludes declarations/tests
+  ---
+  duration_ms: 6.120807
+  type: 'test'
+  ...
+# Subtest: the leaf scanner includes dynamic imports and first-party require loads
+ok 147 - the leaf scanner includes dynamic imports and first-party require loads
+  ---
+  duration_ms: 14.007022
+  type: 'test'
+  ...
+# Subtest: the only-copy guard resolves static imports, re-exports and dynamic imports to the leaf
+ok 148 - the only-copy guard resolves static imports, re-exports and dynamic imports to the leaf
+  ---
+  duration_ms: 18.905962
+  type: 'test'
+  ...
+# Subtest: no source file under apps/website/src require()s a first-party module except the allowlist
+ok 149 - no source file under apps/website/src require()s a first-party module except the allowlist
+  ---
+  duration_ms: 37299.452198
+  type: 'test'
+  ...
+# Subtest: every allowlist entry is still present and still a first-party-import-free leaf
+ok 150 - every allowlist entry is still present and still a first-party-import-free leaf
+  ---
+  duration_ms: 0.80176
+  type: 'test'
+  ...
+# Subtest: TEMP: full wired-tool catalog sanitizes cleanly for Gemini across all 5 classes
+not ok 151 - TEMP: full wired-tool catalog sanitizes cleanly for Gemini across all 5 classes
+  ---
+  duration_ms: 53.792525
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/assistant/__tests__/_tmp-full-sweep.test.ts:1:2293'
+  failureType: 'testCodeFailure'
+  error: 'fresh content bootstrap is behind CONTENT_MIGRATIONS; update its fresh-only operations and schema parity guard'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    bootstrapFreshContentDb (/home/user/Tovu/apps/website/src/platform/db/sqlite/fresh-content-db.ts:231:11)
+    openContentDb (/home/user/Tovu/apps/website/src/platform/db/sqlite/content-db.ts:141:10)
+    <anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/app.ts:582:55)
+    Object.get (/home/user/Tovu/apps/website/src/server/runtime/composition/app.ts:437:36)
+    contentKernel (/home/user/Tovu/apps/website/src/platform/db/content-kernel.ts:20:51)
+    new SqliteTermRepo (/home/user/Tovu/apps/website/src/features/taxonomy/repo.sqlite.ts:30:11)
+    createRouteDeps (/home/user/Tovu/apps/website/src/server/runtime/composition/app.ts:593:36)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/_tmp-full-sweep.test.ts:54:16)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+  ...
+# Subtest: rejects a call with no principal header — 401, and nothing is delivered
+ok 152 - rejects a call with no principal header — 401, and nothing is delivered
+  ---
+  duration_ms: 108.902848
+  type: 'test'
+  ...
+# Subtest: rejects a missing or empty exchangeId — 400
+ok 153 - rejects a missing or empty exchangeId — 400
+  ---
+  duration_ms: 28.138225
+  type: 'test'
+  ...
+# Subtest: rejects an invalid exchangeId even when a valid functionResponse has no surfaceId
+ok 154 - rejects an invalid exchangeId even when a valid functionResponse has no surfaceId
+  ---
+  duration_ms: 2.938163
+  type: 'test'
+  ...
+# Subtest: rejects a null or absent A2UI body with a validation error
+ok 155 - rejects a null or absent A2UI body with a validation error
+  ---
+  duration_ms: 0.434906
+  type: 'test'
+  ...
+# Subtest: rejects a message that fails A2UI's own renderer->agent schema — 400, with the schema's own reason
+ok 156 - rejects a message that fails A2UI's own renderer->agent schema — 400, with the schema's own reason
+  ---
+  duration_ms: 33.004523
+  type: 'test'
+  ...
+# Subtest: rejects a message whose declared surfaceId disagrees with the route's exchangeId
+ok 157 - rejects a message whose declared surfaceId disagrees with the route's exchangeId
+  ---
+  duration_ms: 27.819177
+  type: 'test'
+  ...
+# Subtest: delivers a matching action to the held-open exchange, and never needs a toolId
+ok 158 - delivers a matching action to the held-open exchange, and never needs a toolId
+  ---
+  duration_ms: 31.15257
+  type: 'test'
+  ...
+# Subtest: a functionResponse message (no surfaceId at all) delivers without tripping the cross-check
+ok 159 - a functionResponse message (no surfaceId at all) delivers without tripping the cross-check
+  ---
+  duration_ms: 18.45453
+  type: 'test'
+  ...
+# Subtest: an error message carrying surfaceId is cross-checked against exchangeId, same as an action
+ok 160 - an error message carrying surfaceId is cross-checked against exchangeId, same as an action
+  ---
+  duration_ms: 33.802796
+  type: 'test'
+  ...
+# Subtest: an error message declaring the WRONG surfaceId is rejected, just like a mismatched action
+ok 161 - an error message declaring the WRONG surfaceId is rejected, just like a mismatched action
+  ---
+  duration_ms: 20.196346
+  type: 'test'
+  ...
+# Subtest: a generic error message keyed by functionCallId (no surfaceId) delivers without tripping the cross-check
+ok 162 - a generic error message keyed by functionCallId (no surfaceId) delivers without tripping the cross-check
+  ---
+  duration_ms: 15.034465
+  type: 'test'
+  ...
+# Subtest: an unknown, expired, or already-closed exchange is 409, not 404 or a silent success
+ok 163 - an unknown, expired, or already-closed exchange is 409, not 404 or a silent success
+  ---
+  duration_ms: 13.66062
+  type: 'test'
+  ...
+# Subtest: an actually expired exchange rejects delivery with 409
+ok 164 - an actually expired exchange rejects delivery with 409
+  ---
+  duration_ms: 18.857275
+  type: 'test'
+  ...
+# Subtest: an answered exchange rejects a replay with 409 after the handler closes it
+ok 165 - an answered exchange rejects a replay with 409 after the handler closes it
+  ---
+  duration_ms: 19.600287
+  type: 'test'
+  ...
+# Subtest: an action from the wrong principal is refused and leaves the call still waiting
+ok 166 - an action from the wrong principal is refused and leaves the call still waiting
+  ---
+  duration_ms: 11.460969
+  type: 'test'
+  ...
+# Subtest: an A2UI post cannot answer or cancel a pending MCP-UI confirmation of the same principal
+ok 167 - an A2UI post cannot answer or cancel a pending MCP-UI confirmation of the same principal
+  ---
+  duration_ms: 9.197733
+  type: 'test'
+  ...
+# Subtest: admin parity tools rank in the top 3 of the real catalog
+not ok 168 - admin parity tools rank in the top 3 of the real catalog
+  ---
+  duration_ms: 157.297537
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/assistant/__tests__/admin-parity-search-discoverability.test.ts:1:828'
+  failureType: 'testCodeFailure'
+  error: 'fresh content bootstrap is behind CONTENT_MIGRATIONS; update its fresh-only operations and schema parity guard'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    bootstrapFreshContentDb (/home/user/Tovu/apps/website/src/platform/db/sqlite/fresh-content-db.ts:231:11)
+    openContentDb (/home/user/Tovu/apps/website/src/platform/db/sqlite/content-db.ts:141:10)
+    <anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/app.ts:582:55)
+    Object.get (/home/user/Tovu/apps/website/src/server/runtime/composition/app.ts:437:36)
+    contentKernel (/home/user/Tovu/apps/website/src/platform/db/content-kernel.ts:20:51)
+    new SqliteTermRepo (/home/user/Tovu/apps/website/src/features/taxonomy/repo.sqlite.ts:30:11)
+    createRouteDeps (/home/user/Tovu/apps/website/src/server/runtime/composition/app.ts:593:36)
+    realToolCatalog (/home/user/Tovu/apps/website/src/assistant/__tests__/real-tool-catalog.fixture.ts:23:16)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/admin-parity-search-discoverability.test.ts:17:29)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+  ...
+# Subtest: buildAdminScreenPath joins a bare segment under /admin with no query
+ok 169 - buildAdminScreenPath joins a bare segment under /admin with no query
+  ---
+  duration_ms: 3.201698
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath strips a leading slash the caller supplied
+ok 170 - buildAdminScreenPath strips a leading slash the caller supplied
+  ---
+  duration_ms: 0.390324
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath appends ?tab= for a tabbed screen, URL-encoded
+ok 171 - buildAdminScreenPath appends ?tab= for a tabbed screen, URL-encoded
+  ---
+  duration_ms: 0.365247
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath rejects a path that is nothing but slashes
+ok 172 - buildAdminScreenPath rejects a path that is nothing but slashes
+  ---
+  duration_ms: 0.888376
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath's rejection is a ToolInputError (400), not a bare Error (redacted 500)
+ok 173 - buildAdminScreenPath's rejection is a ToolInputError (400), not a bare Error (redacted 500)
+  ---
+  duration_ms: 0.23977
+  type: 'test'
+  ...
+# Subtest: the tool handler returns the relative path and no url when TOVU_PUBLIC_URL is unset
+ok 174 - the tool handler returns the relative path and no url when TOVU_PUBLIC_URL is unset
+  ---
+  duration_ms: 3.049195
+  type: 'test'
+  ...
+# Subtest: the tool handler includes an absolute url when TOVU_PUBLIC_URL is configured
+ok 175 - the tool handler includes an absolute url when TOVU_PUBLIC_URL is configured
+  ---
+  duration_ms: 13.472025
+  type: 'test'
+  ...
+# Subtest: the tool handler refuses a call with no path
+ok 176 - the tool handler refuses a call with no path
+  ---
+  duration_ms: 1.408671
+  type: 'test'
+  ...
+# Subtest: the tool handler refuses a non-object input
+ok 177 - the tool handler refuses a non-object input
+  ---
+  duration_ms: 0.856286
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath rejects an unsafe screen path: ../api
+ok 178 - buildAdminScreenPath rejects an unsafe screen path: ../api
+  ---
+  duration_ms: 0.530691
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath rejects an unsafe screen path: media?x=1
+ok 179 - buildAdminScreenPath rejects an unsafe screen path: media?x=1
+  ---
+  duration_ms: 0.120334
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath rejects an unsafe screen path: media\#top
+ok 180 - buildAdminScreenPath rejects an unsafe screen path: media\#top
+  ---
+  duration_ms: 0.179714
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath rejects an unsafe screen path: https://evil.example
+ok 181 - buildAdminScreenPath rejects an unsafe screen path: https://evil.example
+  ---
+  duration_ms: 0.360384
+  type: 'test'
+  ...
+# Subtest: buildAdminScreenPath rejects an unsafe screen path: %2e%2e/api
+ok 182 - buildAdminScreenPath rejects an unsafe screen path: %2e%2e/api
+  ---
+  duration_ms: 0.406339
+  type: 'test'
+  ...
+# Subtest: the tool normalizes a public origin with a trailing slash
+ok 183 - the tool normalizes a public origin with a trailing slash
+  ---
+  duration_ms: 2.064605
+  type: 'test'
+  ...
+# Subtest: an injected TOVU_PUBLIC_URL that is absent degrades to the relative path with no url
+ok 184 - an injected TOVU_PUBLIC_URL that is absent degrades to the relative path with no url
+  ---
+  duration_ms: 0.47559
+  type: 'test'
+  ...
+# Subtest: an injected TOVU_PUBLIC_URL that is blank degrades to the relative path with no url
+ok 185 - an injected TOVU_PUBLIC_URL that is blank degrades to the relative path with no url
+  ---
+  duration_ms: 0.395109
+  type: 'test'
+  ...
+# Subtest: an injected TOVU_PUBLIC_URL that is not a URL degrades to the relative path with no url
+ok 186 - an injected TOVU_PUBLIC_URL that is not a URL degrades to the relative path with no url
+  ---
+  duration_ms: 0.728754
+  type: 'test'
+  ...
+# Subtest: an injected TOVU_PUBLIC_URL that is a non-http(s) scheme degrades to the relative path with no url
+ok 187 - an injected TOVU_PUBLIC_URL that is a non-http(s) scheme degrades to the relative path with no url
+  ---
+  duration_ms: 0.432568
+  type: 'test'
+  ...
+# Subtest: an injected http (not only https) origin is accepted and joined with the path
+ok 188 - an injected http (not only https) origin is accepted and joined with the path
+  ---
+  duration_ms: 0.240504
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port exports exactly the documented runtime surface, no more and no less
+ok 189 - agent-daemon-port exports exactly the documented runtime surface, no more and no less
+  ---
+  duration_ms: 5.816928
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.listAssistantAgents is the owning module's own binding, defined and unwrapped
+ok 190 - agent-daemon-port.listAssistantAgents is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.503373
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.rescanAssistantAgents is the owning module's own binding, defined and unwrapped
+ok 191 - agent-daemon-port.rescanAssistantAgents is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.262478
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createCustomInstructionsCache is the owning module's own binding, defined and unwrapped
+ok 192 - agent-daemon-port.createCustomInstructionsCache is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.109164
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.DELEGATED_TOOL_CALLS_PATH is the owning module's own binding, defined and unwrapped
+ok 193 - agent-daemon-port.DELEGATED_TOOL_CALLS_PATH is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.210241
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.requireAgentDaemonToken is the owning module's own binding, defined and unwrapped
+ok 194 - agent-daemon-port.requireAgentDaemonToken is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.113184
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.AGENT_DAEMON_EXIT_CODE is the owning module's own binding, defined and unwrapped
+ok 195 - agent-daemon-port.AGENT_DAEMON_EXIT_CODE is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.239736
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.FRONTEND_CONTROL_CAPABILITIES is the owning module's own binding, defined and unwrapped
+ok 196 - agent-daemon-port.FRONTEND_CONTROL_CAPABILITIES is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.14387
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.withReadOnlyFrontendCapabilities is the owning module's own binding, defined and unwrapped
+ok 197 - agent-daemon-port.withReadOnlyFrontendCapabilities is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.195011
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.attachFederatedMcpTools is the owning module's own binding, defined and unwrapped
+ok 198 - agent-daemon-port.attachFederatedMcpTools is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.146042
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createFederationReloadCoordinator is the owning module's own binding, defined and unwrapped
+ok 199 - agent-daemon-port.createFederationReloadCoordinator is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.131483
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createLiveToolCatalogQuery is the owning module's own binding, defined and unwrapped
+ok 200 - agent-daemon-port.createLiveToolCatalogQuery is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.088242
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.buildFederatedRefusalPrefix is the owning module's own binding, defined and unwrapped
+ok 201 - agent-daemon-port.buildFederatedRefusalPrefix is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.084013
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.withFederatedRefusalDiagnosis is the owning module's own binding, defined and unwrapped
+ok 202 - agent-daemon-port.withFederatedRefusalDiagnosis is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.127396
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.readEnabledExternalMcpConfigs is the owning module's own binding, defined and unwrapped
+ok 203 - agent-daemon-port.readEnabledExternalMcpConfigs is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.080801
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.toResolvedFederatedConnections is the owning module's own binding, defined and unwrapped
+ok 204 - agent-daemon-port.toResolvedFederatedConnections is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.066826
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createDeviceAuthorizationStore is the owning module's own binding, defined and unwrapped
+ok 205 - agent-daemon-port.createDeviceAuthorizationStore is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.071167
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createExternalMcpConnectionGate is the owning module's own binding, defined and unwrapped
+ok 206 - agent-daemon-port.createExternalMcpConnectionGate is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.157459
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createExternalMcpOAuthService is the owning module's own binding, defined and unwrapped
+ok 207 - agent-daemon-port.createExternalMcpOAuthService is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.083884
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.registerA2uiActionsRoute is the owning module's own binding, defined and unwrapped
+ok 208 - agent-daemon-port.registerA2uiActionsRoute is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.061335
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.registerMcpUiToolCallsRoute is the owning module's own binding, defined and unwrapped
+ok 209 - agent-daemon-port.registerMcpUiToolCallsRoute is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.057192
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.resolveMcpJsonInjection is the owning module's own binding, defined and unwrapped
+ok 210 - agent-daemon-port.resolveMcpJsonInjection is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.125604
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createOwnedRunListHandler is the owning module's own binding, defined and unwrapped
+ok 211 - agent-daemon-port.createOwnedRunListHandler is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.077073
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createRunOwnerRegistry is the owning module's own binding, defined and unwrapped
+ok 212 - agent-daemon-port.createRunOwnerRegistry is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.061482
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.requireRunOwnership is the owning module's own binding, defined and unwrapped
+ok 213 - agent-daemon-port.requireRunOwnership is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.054732
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.RUN_PRINCIPAL_HEADER is the owning module's own binding, defined and unwrapped
+ok 214 - agent-daemon-port.RUN_PRINCIPAL_HEADER is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.051303
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.parseRunStartContextRef is the owning module's own binding, defined and unwrapped
+ok 215 - agent-daemon-port.parseRunStartContextRef is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.056064
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.buildPageContextPromptBlock is the owning module's own binding, defined and unwrapped
+ok 216 - agent-daemon-port.buildPageContextPromptBlock is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.105348
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.buildComponentCatalogQuery is the owning module's own binding, defined and unwrapped
+ok 217 - agent-daemon-port.buildComponentCatalogQuery is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.122175
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.chartCatalogManifests is the owning module's own binding, defined and unwrapped
+ok 218 - agent-daemon-port.chartCatalogManifests is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.074339
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.buildToolCatalogQuery is the owning module's own binding, defined and unwrapped
+ok 219 - agent-daemon-port.buildToolCatalogQuery is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.074632
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.listToolCatalogEntries is the owning module's own binding, defined and unwrapped
+ok 220 - agent-daemon-port.listToolCatalogEntries is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.054302
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.withToolAttemptAudit is the owning module's own binding, defined and unwrapped
+ok 221 - agent-daemon-port.withToolAttemptAudit is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.06424
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.withToolFailureRecovery is the owning module's own binding, defined and unwrapped
+ok 222 - agent-daemon-port.withToolFailureRecovery is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.330207
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.constrainPrincipalToReadOnlyTools is the owning module's own binding, defined and unwrapped
+ok 223 - agent-daemon-port.constrainPrincipalToReadOnlyTools is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.089096
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.withReadOnlyToolConstraint is the owning module's own binding, defined and unwrapped
+ok 224 - agent-daemon-port.withReadOnlyToolConstraint is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.16307
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.createAssistantToolExecutor is the owning module's own binding, defined and unwrapped
+ok 225 - agent-daemon-port.createAssistantToolExecutor is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.09436
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID is the owning module's own binding, defined and unwrapped
+ok 226 - agent-daemon-port.UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.187961
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID is the owning module's own binding, defined and unwrapped
+ok 227 - agent-daemon-port.UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.074607
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.withToolCatalogAudit is the owning module's own binding, defined and unwrapped
+ok 228 - agent-daemon-port.withToolCatalogAudit is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.052981
+  type: 'test'
+  ...
+# Subtest: agent-daemon-port.buildAssistantToolRegistrations is the owning module's own binding, defined and unwrapped
+ok 229 - agent-daemon-port.buildAssistantToolRegistrations is the owning module's own binding, defined and unwrapped
+  ---
+  duration_ms: 0.188445
+  type: 'test'
+  ...
+# Subtest: a policy confirmation card shows exactly the Tool and Input rows (pinned before G7)
+ok 230 - a policy confirmation card shows exactly the Tool and Input rows (pinned before G7)
+  ---
+  duration_ms: 27.970253
+  type: 'test'
+  ...
+# Subtest: existing extension approval families keep their classes (pinned before G7)
+ok 231 - existing extension approval families keep their classes (pinned before G7)
+  ---
+  duration_ms: 1.636083
+  type: 'test'
+  ...
+# Subtest: the MCP-UI callback never starts a fresh execution of a plugin tool (pinned before G7)
+ok 232 - the MCP-UI callback never starts a fresh execution of a plugin tool (pinned before G7)
+  ---
+  duration_ms: 0.552569
+  type: 'test'
+  ...
+# Subtest: owned inventories share settings/chat results within one host while two hosts stay isolated
+ok 233 - owned inventories share settings/chat results within one host while two hosts stay isolated
+  ---
+  duration_ms: 208.968958
+  type: 'test'
+  ...
+# Subtest: inventory disposal drains a queued background scan before clearing its runtime
+ok 234 - inventory disposal drains a queued background scan before clearing its runtime
+  ---
+  duration_ms: 13.479192
+  type: 'test'
+  ...
+# Subtest: an injected def registry's failureHints bridge is projected only for the def that declares it
+ok 235 - an injected def registry's failureHints bridge is projected only for the def that declares it
+  ---
+  duration_ms: 3.217942
+  type: 'test'
+  ...
+# Subtest: a non-waiting Rescan returns the retained inventory immediately while the forced scan is pending
+ok 236 - a non-waiting Rescan returns the retained inventory immediately while the forced scan is pending
+  ---
+  duration_ms: 13.318948
+  type: 'test'
+  ...
+# Subtest: with no detector and no test prober, the inventory delegates to the runtime's own detector
+ok 237 - with no detector and no test prober, the inventory delegates to the runtime's own detector
+  ---
+  duration_ms: 120.74061
+  type: 'test'
+  ...
+# Subtest: listAssistantAgents projects fallback models and reasoning options for claude
+ok 238 - listAssistantAgents projects fallback models and reasoning options for claude
+  ---
+  duration_ms: 108.331675
+  type: 'test'
+  ...
+# Subtest: listAssistantAgents' carriesOwnMemory exactly matches each def's own resumesSessionViaCli/resumesSessionViaAcpLoad declaration
+ok 239 - listAssistantAgents' carriesOwnMemory exactly matches each def's own resumesSessionViaCli/resumesSessionViaAcpLoad declaration
+  ---
+  duration_ms: 2.764366
+  type: 'test'
+  ...
+# Subtest: listAssistantAgents' supportsTools exactly matches each def's own runtimeSupportsExternalTools() result
+ok 240 - listAssistantAgents' supportsTools exactly matches each def's own runtimeSupportsExternalTools() result
+  ---
+  duration_ms: 0.473035
+  type: 'test'
+  ...
+# Subtest: listAssistantAgents' supportsSubagents/supportsClaudeInChrome exactly match each def's own runtime support helpers
+ok 241 - listAssistantAgents' supportsSubagents/supportsClaudeInChrome exactly match each def's own runtime support helpers
+  ---
+  duration_ms: 1.628575
+  type: 'test'
+  ...
+# Subtest: listAssistantAgents never returns an agent with an empty id/name
+ok 242 - listAssistantAgents never returns an agent with an empty id/name
+  ---
+  duration_ms: 0.697689
+  type: 'test'
+  ...
+# Subtest: listAssistantAgents memoizes — two back-to-back calls reuse the same in-flight/settled probe
+ok 243 - listAssistantAgents memoizes — two back-to-back calls reuse the same in-flight/settled probe
+  ---
+  duration_ms: 0.236896
+  type: 'test'
+  ...
+# Subtest: rescanAssistantAgents forces a fresh probe, and a later listAssistantAgents call picks up that fresh result
+ok 244 - rescanAssistantAgents forces a fresh probe, and a later listAssistantAgents call picks up that fresh result
+  ---
+  duration_ms: 77.927388
+  type: 'test'
+  ...
+# Subtest: assistantAgentDiscoveryPending reports the process inventory's forced scan only while it is in flight
+ok 245 - assistantAgentDiscoveryPending reports the process inventory's forced scan only while it is in flight
+  ---
+  duration_ms: 83.177327
+  type: 'test'
+  ...
+# Subtest: rescanAssistantAgents surfaces the live model list the prober returns for an available def
+ok 246 - rescanAssistantAgents surfaces the live model list the prober returns for an available def
+  ---
+  duration_ms: 79.438976
+  type: 'test'
+  ...
+# Subtest: known runtime capabilities retain their memory and tool semantics
+ok 247 - known runtime capabilities retain their memory and tool semantics
+  ---
+  duration_ms: 27.820472
+  type: 'test'
+  ...
+# Subtest: assistant inventory preserves dynamic catalog and resolved default for the chat picker
+ok 248 - assistant inventory preserves dynamic catalog and resolved default for the chat picker
+  ---
+  duration_ms: 127.478313
+  type: 'test'
+  ...
+# Subtest: assistant rescan forces model discovery and preserves an unresolved default without guessing
+ok 249 - assistant rescan forces model discovery and preserves an unresolved default without guessing
+  ---
+  duration_ms: 205.068884
+  type: 'test'
+  ...
+# Subtest: live discovery reissues on credential rotation inside the same TTL
+ok 250 - live discovery reissues on credential rotation inside the same TTL
+  ---
+  duration_ms: 35.001081
+  type: 'test'
+  ...
+# Subtest: live discovery contains rejection, keeps the failure TTL, then recovers at expiry
+ok 251 - live discovery contains rejection, keeps the failure TTL, then recovers at expiry
+  ---
+  duration_ms: 13.911179
+  type: 'test'
+  ...
+# Subtest: live discovery never calls the provider for absent, wrong-protocol or blank credentials
+ok 252 - live discovery never calls the provider for absent, wrong-protocol or blank credentials
+  ---
+  duration_ms: 3.840981
+  type: 'test'
+  ...
+# Subtest: live discovery instances own their state and delimiter-containing tenant IDs cannot collide
+ok 253 - live discovery instances own their state and delimiter-containing tenant IDs cannot collide
+  ---
+  duration_ms: 1.476735
+  type: 'test'
+  ...
+# Subtest: live discovery coalesces concurrent calls while the provider is still responding
+ok 254 - live discovery coalesces concurrent calls while the provider is still responding
+  ---
+  duration_ms: 40.846386
+  type: 'test'
+  ...
+# Subtest: live discovery retries a cached failure when the stored baseUrl changes
+ok 255 - live discovery retries a cached failure when the stored baseUrl changes
+  ---
+  duration_ms: 14.376202
+  type: 'test'
+  ...
+# Subtest: Settings and chat share one background inventory while both requests return cached data
+ok 256 - Settings and chat share one background inventory while both requests return cached data
+  ---
+  duration_ms: 65.383241
+  type: 'test'
+  ...
+# Subtest: human approval asking stays in the shared owner and its named host transports
+ok 257 - human approval asking stays in the shared owner and its named host transports
+  ---
+  duration_ms: 25551.752345
+  type: 'test'
+  ...
+# Subtest: a single-select question round-trips the model's own title and options, not a fixed sample
+ok 258 - a single-select question round-trips the model's own title and options, not a fixed sample
+  ---
+  duration_ms: 23.751294
+  type: 'test'
+  ...
+# Subtest: Tovuize's unchecked static opt-out submits true with empty selections and no choice
+ok 259 - Tovuize's unchecked static opt-out submits true with empty selections and no choice
+  ---
+  duration_ms: 24.044174
+  type: 'test'
+  ...
+# Subtest: a question with both fields returns both the choice and the selections
+ok 260 - a question with both fields returns both the choice and the selections
+  ---
+  duration_ms: 7.676808
+  type: 'test'
+  ...
+# Subtest: Cancel resolves the call immediately instead of stranding it until the TTL
+ok 261 - Cancel resolves the call immediately instead of stranding it until the TTL
+  ---
+  duration_ms: 1.878198
+  type: 'test'
+  ...
+# Subtest: an unanswered form returns an explicit no-answer result, not a hang or a throw
+ok 262 - an unanswered form returns an explicit no-answer result, not a hang or a throw
+  ---
+  duration_ms: 3.59408
+  type: 'test'
+  ...
+# Subtest: a cancelled run closes the exchange rather than holding the handler to the deadline
+ok 263 - a cancelled run closes the exchange rather than holding the handler to the deadline
+  ---
+  duration_ms: 1.212466
+  type: 'test'
+  ...
+# Subtest: with no emit seam the tool falls back to returning the surface, and opens no exchange
+ok 264 - with no emit seam the tool falls back to returning the surface, and opens no exchange
+  ---
+  duration_ms: 13.74373
+  type: 'test'
+  ...
+# Subtest: the fallback's second call still echoes the administrator's selections to the agent, when it carries the real ticket
+ok 265 - the fallback's second call still echoes the administrator's selections to the agent, when it carries the real ticket
+  ---
+  duration_ms: 1.186133
+  type: 'test'
+  ...
+# Subtest: a real fallback ticket refuses choices and selections outside its rendered options
+    # Subtest: {"choice":"never-offered"}
+    ok 1 - {"choice":"never-offered"}
+      ---
+      duration_ms: 13.831656
+      type: 'test'
+      ...
+    # Subtest: {"choice":"wait","selections":["never-offered"]}
+    ok 2 - {"choice":"wait","selections":["never-offered"]}
+      ---
+      duration_ms: 1.009816
+      type: 'test'
+      ...
+    # Subtest: {"selections":["never-offered"]}
+    ok 3 - {"selections":["never-offered"]}
+      ---
+      duration_ms: 0.919755
+      type: 'test'
+      ...
+    1..3
+ok 266 - a real fallback ticket refuses choices and selections outside its rendered options
+  ---
+  duration_ms: 17.161899
+  type: 'test'
+  ...
+# Subtest: a fallback ticket accepts only the choices and selections offered by its own form
+ok 267 - a fallback ticket accepts only the choices and selections offered by its own form
+  ---
+  duration_ms: 1.515911
+  type: 'test'
+  ...
+# Subtest: a fabricated second call with no ticket at all is refused, never reported as submitted
+ok 268 - a fabricated second call with no ticket at all is refused, never reported as submitted
+  ---
+  duration_ms: 0.651852
+  type: 'test'
+  ...
+# Subtest: a second call carrying an unknown ticket is refused the same way as no ticket
+ok 269 - a second call carrying an unknown ticket is refused the same way as no ticket
+  ---
+  duration_ms: 0.353148
+  type: 'test'
+  ...
+# Subtest: a ticket already redeemed once cannot be replayed
+ok 270 - a ticket already redeemed once cannot be replayed
+  ---
+  duration_ms: 0.826649
+  type: 'test'
+  ...
+# Subtest: a ticket minted for one administrator cannot be redeemed by another
+ok 271 - a ticket minted for one administrator cannot be redeemed by another
+  ---
+  duration_ms: 0.812145
+  type: 'test'
+  ...
+# Subtest: rejects a call with no title, decorated with the tool's own schema so the model can correct in one turn
+ok 272 - rejects a call with no title, decorated with the tool's own schema so the model can correct in one turn
+  ---
+  duration_ms: 0.853844
+  type: 'test'
+  ...
+# Subtest: rejects a call with neither singleSelect nor multiSelect
+ok 273 - rejects a call with neither singleSelect nor multiSelect
+  ---
+  duration_ms: 0.459291
+  type: 'test'
+  ...
+# Subtest: registers unconditionally, publishing its own catalog schema
+ok 274 - registers unconditionally, publishing its own catalog schema
+  ---
+  duration_ms: 192.575438
+  type: 'test'
+  ...
+# Subtest: normalization: real flat mingjie choice succeeds and mixed select shapes fail precisely
+ok 275 - normalization: real flat mingjie choice succeeds and mixed select shapes fail precisely
+  ---
+  duration_ms: 915.071349
+  type: 'test'
+  ...
+# Subtest: chat-input regression: option id aliases accept descriptions and remain the actual answer values
+ok 276 - chat-input regression: option id aliases accept descriptions and remain the actual answer values
+  ---
+  duration_ms: 16.4003
+  type: 'test'
+  ...
+# Subtest: chat-input regression: conflicting option ids fail before showing a form and unknown keys list accepted properties
+ok 277 - chat-input regression: conflicting option ids fail before showing a form and unknown keys list accepted properties
+  ---
+  duration_ms: 3.141784
+  type: 'test'
+  ...
+# Subtest: normalization: fallback answer tickets survive the closed input schema and still bind answers
+ok 278 - normalization: fallback answer tickets survive the closed input schema and still bind answers
+  ---
+  duration_ms: 4.113829
+  type: 'test'
+  ...
+# Subtest: delegated normalization: human fallback tickets survive transport and remain single use
+ok 279 - delegated normalization: human fallback tickets survive transport and remain single use
+  ---
+  duration_ms: 1244.228374
+  type: 'test'
+  ...
+# Subtest: delegated normalization: flat choice travels through the bridge, waits for a real exchange answer and returns it to the model
+ok 280 - delegated normalization: flat choice travels through the bridge, waits for a real exchange answer and returns it to the model
+  ---
+  duration_ms: 13.377743
+  type: 'test'
+  ...
+# Subtest: canonical flat questions use the catalog compatibility schema and keep authenticated answers unchanged
+ok 281 - canonical flat questions use the catalog compatibility schema and keep authenticated answers unchanged
+  ---
+  duration_ms: 2.515899
+  type: 'test'
+  ...
+# Subtest: a checklist's hint is rendered with the multi-select field it describes
+ok 282 - a checklist's hint is rendered with the multi-select field it describes
+  ---
+  duration_ms: 13.904403
+  type: 'test'
+  ...
+# Subtest: typed MCP + gate: owner input with title and flat option IDs renders and answers the intended card
+ok 283 - typed MCP + gate: owner input with title and flat option IDs renders and answers the intended card
+  ---
+  duration_ms: 40.26907
+  type: 'test'
+  ...
+# Subtest: typed MCP + gate: owner input with question, a distinct title and flat option IDs renders and answers the intended card
+ok 284 - typed MCP + gate: owner input with question, a distinct title and flat option IDs renders and answers the intended card
+  ---
+  duration_ms: 3.352488
+  type: 'test'
+  ...
+# Subtest: typed MCP + gate: owner input with question and label-only options with descriptions renders and answers the intended card
+ok 285 - typed MCP + gate: owner input with question and label-only options with descriptions renders and answers the intended card
+  ---
+  duration_ms: 3.525848
+  type: 'test'
+  ...
+# Subtest: typed MCP + gate: flat multiple flag and explicit label render a checklist and retain its answer values
+ok 286 - typed MCP + gate: flat multiple flag and explicit label render a checklist and retain its answer values
+  ---
+  duration_ms: 4.879586
+  type: 'test'
+  ...
+# Subtest: typed MCP + gate: an explicit false multiple flag renders radios using the question as label
+ok 287 - typed MCP + gate: an explicit false multiple flag renders radios using the question as label
+  ---
+  duration_ms: 9.514694
+  type: 'test'
+  ...
+# Subtest: typed MCP + gate: nested singleSelect renders descriptions and retains IDs and label-default answer values
+ok 288 - typed MCP + gate: nested singleSelect renders descriptions and retains IDs and label-default answer values
+  ---
+  duration_ms: 8.897199
+  type: 'test'
+  ...
+# Subtest: typed MCP + gate: nested multiSelect renders descriptions and retains IDs and label-default answer values
+ok 289 - typed MCP + gate: nested multiSelect renders descriptions and retains IDs and label-default answer values
+  ---
+  duration_ms: 15.76154
+  type: 'test'
+  ...
+# Subtest: typed MCP refuses malformed options, flags, unknown keys and model-authored answers before entering the gate
+ok 290 - typed MCP refuses malformed options, flags, unknown keys and model-authored answers before entering the gate
+  ---
+  duration_ms: 17.172889
+  type: 'test'
+  ...
+# Subtest: typed MCP passes declared aliases but the gate refuses conflicting IDs and mixed select shapes
+ok 291 - typed MCP passes declared aliases but the gate refuses conflicting IDs and mixed select shapes
+  ---
+  duration_ms: 9.209815
+  type: 'test'
+  ...
+# Subtest: the gate rejects malformed flat fields before normalization can discard them
+ok 292 - the gate rejects malformed flat fields before normalization can discard them
+  ---
+  duration_ms: 3.689376
+  type: 'test'
+  ...
+# Subtest: an HTML ui:// resource with text/html is accepted
+ok 293 - an HTML ui:// resource with text/html is accepted
+  ---
+  duration_ms: 87.291927
+  type: 'test'
+  ...
+# Subtest: an HTML ui:// resource with text/html;profile=mcp-app is accepted
+ok 294 - an HTML ui:// resource with text/html;profile=mcp-app is accepted
+  ---
+  duration_ms: 0.374874
+  type: 'test'
+  ...
+# Subtest: an HTML ui:// resource with text/html+skybridge is accepted
+ok 295 - an HTML ui:// resource with text/html+skybridge is accepted
+  ---
+  duration_ms: 0.222112
+  type: 'test'
+  ...
+# Subtest: null is not an ask-choice UI resource
+ok 296 - null is not an ask-choice UI resource
+  ---
+  duration_ms: 0.204434
+  type: 'test'
+  ...
+# Subtest: a string is not an ask-choice UI resource
+ok 297 - a string is not an ask-choice UI resource
+  ---
+  duration_ms: 0.96118
+  type: 'test'
+  ...
+# Subtest: an object without type is not an ask-choice UI resource
+ok 298 - an object without type is not an ask-choice UI resource
+  ---
+  duration_ms: 0.135539
+  type: 'test'
+  ...
+# Subtest: a non-resource type is not an ask-choice UI resource
+ok 299 - a non-resource type is not an ask-choice UI resource
+  ---
+  duration_ms: 0.195283
+  type: 'test'
+  ...
+# Subtest: an envelope without resource is not an ask-choice UI resource
+ok 300 - an envelope without resource is not an ask-choice UI resource
+  ---
+  duration_ms: 0.110028
+  type: 'test'
+  ...
+# Subtest: a null resource is not an ask-choice UI resource
+ok 301 - a null resource is not an ask-choice UI resource
+  ---
+  duration_ms: 0.474817
+  type: 'test'
+  ...
+# Subtest: a primitive resource is not an ask-choice UI resource
+ok 302 - a primitive resource is not an ask-choice UI resource
+  ---
+  duration_ms: 0.130801
+  type: 'test'
+  ...
+# Subtest: a resource without uri is not an ask-choice UI resource
+ok 303 - a resource without uri is not an ask-choice UI resource
+  ---
+  duration_ms: 0.141758
+  type: 'test'
+  ...
+# Subtest: a non-string uri is not an ask-choice UI resource
+ok 304 - a non-string uri is not an ask-choice UI resource
+  ---
+  duration_ms: 0.097465
+  type: 'test'
+  ...
+# Subtest: a non-ui:// uri is not an ask-choice UI resource
+ok 305 - a non-ui:// uri is not an ask-choice UI resource
+  ---
+  duration_ms: 2.575984
+  type: 'test'
+  ...
+# Subtest: a resource without mimeType is not an ask-choice UI resource
+ok 306 - a resource without mimeType is not an ask-choice UI resource
+  ---
+  duration_ms: 0.203843
+  type: 'test'
+  ...
+# Subtest: a non-HTML mimeType is not an ask-choice UI resource
+ok 307 - a non-HTML mimeType is not an ask-choice UI resource
+  ---
+  duration_ms: 3.723358
+  type: 'test'
+  ...
+# Subtest: a non-string mimeType is not an ask-choice UI resource
+ok 308 - a non-string mimeType is not an ask-choice UI resource
+  ---
+  duration_ms: 0.230956
+  type: 'test'
+  ...
+# Subtest: a resource without text is not an ask-choice UI resource
+ok 309 - a resource without text is not an ask-choice UI resource
+  ---
+  duration_ms: 0.101381
+  type: 'test'
+  ...
+# Subtest: a non-string text is not an ask-choice UI resource
+ok 310 - a non-string text is not an ask-choice UI resource
+  ---
+  duration_ms: 0.075564
+  type: 'test'
+  ...
+# Subtest: a valid rendered form becomes the standard UI tool result
+ok 311 - a valid rendered form becomes the standard UI tool result
+  ---
+  duration_ms: 4.910703
+  type: 'test'
+  ...
+# Subtest: an invalid rendered form is refused with the renderer error
+ok 312 - an invalid rendered form is refused with the renderer error
+  ---
+  duration_ms: 0.722473
+  type: 'test'
+  ...
+# Subtest: a throwing attempt-audit sink is reported on stderr and never breaks the call
+ok 313 - a throwing attempt-audit sink is reported on stderr and never breaks the call
+  ---
+  duration_ms: 82.413712
+  type: 'test'
+  ...
+# Subtest: assistantVaultRepo refuses a repository object with no vault property
+ok 314 - assistantVaultRepo refuses a repository object with no vault property
+  ---
+  duration_ms: 3.133411
+  type: 'test'
+  ...
+# Subtest: assistantVaultRepo refuses an undefined vault
+ok 315 - assistantVaultRepo refuses an undefined vault
+  ---
+  duration_ms: 0.54754
+  type: 'test'
+  ...
+# Subtest: assistantVaultRepo refuses a vault without singleton lookup
+ok 316 - assistantVaultRepo refuses a vault without singleton lookup
+  ---
+  duration_ms: 0.598007
+  type: 'test'
+  ...
+# Subtest: assistantVaultRepo returns the exposed vault port itself
+ok 317 - assistantVaultRepo returns the exposed vault port itself
+  ---
+  duration_ms: 0.418221
+  type: 'test'
+  ...
+# Subtest: assistantVaultContext pins Tovu ownership, no binding and a null principal by default
+ok 318 - assistantVaultContext pins Tovu ownership, no binding and a null principal by default
+  ---
+  duration_ms: 1.654731
+  type: 'test'
+  ...
+# Subtest: assistantVaultId encodes kind and principal as the migration's singleton ID
+ok 319 - assistantVaultId encodes kind and principal as the migration's singleton ID
+  ---
+  duration_ms: 0.282261
+  type: 'test'
+  ...
+# Subtest: createAssistantVault mints the singleton ID for new personal-execution records
+ok 320 - createAssistantVault mints the singleton ID for new personal-execution records
+  ---
+  duration_ms: 29.077326
+  type: 'test'
+  ...
+# Subtest: createAssistantVault without a sealer refuses to seal a payload
+ok 321 - createAssistantVault without a sealer refuses to seal a payload
+  ---
+  duration_ms: 9.650113
+  type: 'test'
+  ...
+# Subtest: createAssistantVault without a sealer refuses to open a stored envelope
+ok 322 - createAssistantVault without a sealer refuses to open a stored envelope
+  ---
+  duration_ms: 11.778878
+  type: 'test'
+  ...
+# Subtest: createAssistantVault maps a non-Error storage failure to invalid-record
+ok 323 - createAssistantVault maps a non-Error storage failure to invalid-record
+  ---
+  duration_ms: 11.603337
+  type: 'test'
+  ...
+# Subtest: createAssistantVault hands crypto failures to onSealFailure
+ok 324 - createAssistantVault hands crypto failures to onSealFailure
+  ---
+  duration_ms: 3.067152
+  type: 'test'
+  ...
+# Subtest: readAssistantVault returns an empty read when no singleton exists
+ok 325 - readAssistantVault returns an empty read when no singleton exists
+  ---
+  duration_ms: 0.554208
+  type: 'test'
+  ...
+# Subtest: readAssistantVault opens the stored envelope and derives the token hint
+ok 326 - readAssistantVault opens the stored envelope and derives the token hint
+  ---
+  duration_ms: 9.054915
+  type: 'test'
+  ...
+# Subtest: readAssistantVault uses a supplied snapshot instead of reading the repository
+ok 327 - readAssistantVault uses a supplied snapshot instead of reading the repository
+  ---
+  duration_ms: 10.391471
+  type: 'test'
+  ...
+# Subtest: readAssistantVault refuses a row whose identity is outside the requested scope
+ok 328 - readAssistantVault refuses a row whose identity is outside the requested scope
+  ---
+  duration_ms: 1.129731
+  type: 'test'
+  ...
+# Subtest: readAssistantVault keeps settings but drops the hint when the envelope cannot be opened
+ok 329 - readAssistantVault keeps settings but drops the hint when the envelope cannot be opened
+  ---
+  duration_ms: 6.706889
+  type: 'test'
+  ...
+# Subtest: readAssistantVault gives no hint when the opened payload has no string apiKey
+ok 330 - readAssistantVault gives no hint when the opened payload has no string apiKey
+  ---
+  duration_ms: 10.771653
+  type: 'test'
+  ...
+# Subtest: readAssistantVault does not open a keyless row
+ok 331 - readAssistantVault does not open a keyless row
+  ---
+  duration_ms: 9.466622
+  type: 'test'
+  ...
+# Subtest: readAssistantVault refuses a repository without singleton lookup
+ok 332 - readAssistantVault refuses a repository without singleton lookup
+  ---
+  duration_ms: 6.834425
+  type: 'test'
+  ...
+# Subtest: plugin ask-choice: checked matching options and use round trip
+ok 333 - plugin ask-choice: checked matching options and use round trip
+  ---
+  duration_ms: 23.169992
+  type: 'test'
+  ...
+# Subtest: plugin ask-choice: checked matching options and skip round trip
+ok 334 - plugin ask-choice: checked matching options and skip round trip
+  ---
+  duration_ms: 1.473102
+  type: 'test'
+  ...
+# Subtest: plugin ask-choice: checked matching options and auto round trip
+ok 335 - plugin ask-choice: checked matching options and auto round trip
+  ---
+  duration_ms: 0.801332
+  type: 'test'
+  ...
+# Subtest: plugin ask-choice rejects an unoffered selection even with the Auto action
+ok 336 - plugin ask-choice rejects an unoffered selection even with the Auto action
+  ---
+  duration_ms: 0.931216
+  type: 'test'
+  ...
+# Subtest: Auto preflight suggests metadata only; the first guarded write still loads real guidance once
+ok 337 - Auto preflight suggests metadata only; the first guarded write still loads real guidance once
+  ---
+  duration_ms: 162.139226
+  type: 'test'
+  ...
+# Subtest: pending Ask use: real recovery replaces the attempt without another card
+ok 338 - pending Ask use: real recovery replaces the attempt without another card
+  ---
+  duration_ms: 120.2895
+  type: 'test'
+  ...
+# Subtest: pending Ask use: process loss ends the turn and honours a late answer
+ok 339 - pending Ask use: process loss ends the turn and honours a late answer
+  ---
+  duration_ms: 53.3189
+  type: 'test'
+  ...
+# Subtest: pending Ask skip: real recovery replaces the attempt without another card
+ok 340 - pending Ask skip: real recovery replaces the attempt without another card
+  ---
+  duration_ms: 78.685646
+  type: 'test'
+  ...
+# Subtest: pending Ask skip: process loss ends the turn and honours a late answer
+ok 341 - pending Ask skip: process loss ends the turn and honours a late answer
+  ---
+  duration_ms: 80.688192
+  type: 'test'
+  ...
+# Subtest: controller identity binds principal and conversation; disposal removes every attempt alias
+ok 342 - controller identity binds principal and conversation; disposal removes every attempt alias
+  ---
+  duration_ms: 74.013593
+  type: 'test'
+  ...
+# Subtest: Don't ask again writes Auto only for the answering principal through the real setting service
+ok 343 - Don't ask again writes Auto only for the answering principal through the real setting service
+  ---
+  duration_ms: 28.787756
+  type: 'test'
+  ...
+# Subtest: CLI onStarted places the relevance note, without guidance bodies, into the executor prompt
+ok 344 - CLI onStarted places the relevance note, without guidance bodies, into the executor prompt
+  ---
+  duration_ms: 655.074182
+  type: 'test'
+  ...
+# Subtest: CLI preflight preserves the answer receipt channel in the durable run stream
+ok 345 - CLI preflight preserves the answer receipt channel in the durable run stream
+  ---
+  duration_ms: 272.120784
+  type: 'test'
+  ...
+# Subtest: load_agent_plugin carries maturity untested
+ok 346 - load_agent_plugin carries maturity untested
+  ---
+  duration_ms: 221.923058
+  type: 'test'
+  ...
+# Subtest: load_agent_plugin carries maturity soon
+ok 347 - load_agent_plugin carries maturity soon
+  ---
+  duration_ms: 93.651322
+  type: 'test'
+  ...
+# Subtest: load_agent_plugin carries maturity (absent)
+ok 348 - load_agent_plugin carries maturity (absent)
+  ---
+  duration_ms: 35.367844
+  type: 'test'
+  ...
+# Subtest: automatic tool guidance warns before actions for an untested plugin
+ok 349 - automatic tool guidance warns before actions for an untested plugin
+  ---
+  duration_ms: 31.349075
+  type: 'test'
+  ...
+# Subtest: load_agent_plugin uses the real resolver and publishes the loaded chip through the real executor
+ok 350 - load_agent_plugin uses the real resolver and publishes the loaded chip through the real executor
+  ---
+  duration_ms: 30.77127
+  type: 'test'
+  ...
+# Subtest: inactive Higgsfield returns the exact activation and retry calls without activating it
+ok 351 - inactive Higgsfield returns the exact activation and retry calls without activating it
+  ---
+  duration_ms: 364.124072
+  type: 'test'
+  ...
+# Subtest: the first theme write loads installed tovu-theme after a note-only preflight
+ok 352 - the first theme write loads installed tovu-theme after a note-only preflight
+  ---
+  duration_ms: 117.728996
+  type: 'test'
+  ...
+# Subtest: the loader cannot use another principal’s run, an excluded plugin, or a revoked activation
+ok 353 - the loader cannot use another principal’s run, an excluded plugin, or a revoked activation
+  ---
+  duration_ms: 55.752102
+  type: 'test'
+  ...
+# Subtest: 50 relevant ids are discoverable by paging the existing search tool and all load through the executor
+ok 354 - 50 relevant ids are discoverable by paging the existing search tool and all load through the executor
+  ---
+  duration_ms: 29739.862898
+  type: 'test'
+  ...
+# Subtest: explicit loader and guarded write refuse ask through the real executor
+ok 355 - explicit loader and guarded write refuse ask through the real executor
+  ---
+  duration_ms: 48.629366
+  type: 'test'
+  ...
+# Subtest: explicit loader and guarded write refuse off through the real executor
+ok 356 - explicit loader and guarded write refuse off through the real executor
+  ---
+  duration_ms: 14.087648
+  type: 'test'
+  ...
+# Subtest: explicit loader and guarded write refuse untrusted through the real executor
+ok 357 - explicit loader and guarded write refuse untrusted through the real executor
+  ---
+  duration_ms: 34.680141
+  type: 'test'
+  ...
+# Subtest: explicit loader and guarded write refuse unavailable through the real executor
+ok 358 - explicit loader and guarded write refuse unavailable through the real executor
+  ---
+  duration_ms: 23.676241
+  type: 'test'
+  ...
+# Subtest: a turn whose signal is already aborted registers no controller and returns no note
+ok 359 - a turn whose signal is already aborted registers no controller and returns no note
+  ---
+  duration_ms: 21.48935
+  type: 'test'
+  ...
+# Subtest: a tool without guidance capabilities loads no plugin guidance
+ok 360 - a tool without guidance capabilities loads no plugin guidance
+  ---
+  duration_ms: 36.968462
+  type: 'test'
+  ...
+# Subtest: a failing guidance preparation is logged without detail and yields no guidance
+ok 361 - a failing guidance preparation is logged without detail and yields no guidance
+  ---
+  duration_ms: 68.433612
+  type: 'test'
+  ...
+# Subtest: load_agent_plugin refuses unknown input keys
+ok 362 - load_agent_plugin refuses unknown input keys
+  ---
+  duration_ms: 36.006002
+  type: 'test'
+  ...
+# Subtest: a disposed Ask turn publishes nothing after its pending question is aborted
+ok 363 - a disposed Ask turn publishes nothing after its pending question is aborted
+  ---
+  duration_ms: 155.910353
+  type: 'test'
+  ...
+# Subtest: load_agent_plugin reads a supporting file after load without any per-plugin registration
+ok 364 - load_agent_plugin reads a supporting file after load without any per-plugin registration
+  ---
+  duration_ms: 293.453687
+  type: 'test'
+  ...
+# Subtest: a single call without items reaches the original handler untouched
+ok 365 - a single call without items reaches the original handler untouched
+  ---
+  duration_ms: 7.897187
+  type: 'test'
+  ...
+# Subtest: a batch runs every item in order with defaults < shared fields < the item's own fields
+ok 366 - a batch runs every item in order with defaults < shared fields < the item's own fields
+  ---
+  duration_ms: 3.215158
+  type: 'test'
+  ...
+# Subtest: a failing item does not stop the rest, and its error drops the appended schema
+ok 367 - a failing item does not stop the rest, and its error drops the appended schema
+  ---
+  duration_ms: 5.0873
+  type: 'test'
+  ...
+# Subtest: malformed items are refused with the exact message before any item runs
+ok 368 - malformed items are refused with the exact message before any item runs
+  ---
+  duration_ms: 3.695443
+  type: 'test'
+  ...
+# Subtest: a cancelled call stops before the next item
+ok 369 - a cancelled call stops before the next item
+  ---
+  duration_ms: 3.142253
+  type: 'test'
+  ...
+# Subtest: the published descriptor adds items and moves the top-level required list into its description
+ok 370 - the published descriptor adds items and moves the top-level required list into its description
+  ---
+  duration_ms: 1.137564
+  type: 'test'
+  ...
+# Subtest: a tool that already takes an 'items' field is refused at composition time
+ok 371 - a tool that already takes an 'items' field is refused at composition time
+  ---
+  duration_ms: 0.58305
+  type: 'test'
+  ...
+# Subtest: applyBatchInputs wraps only the listed tools and returns every other registration as the same object
+ok 372 - applyBatchInputs wraps only the listed tools and returns every other registration as the same object
+  ---
+  duration_ms: 0.664111
+  type: 'test'
+  ...
+# Subtest: a pure read with only optional selectors batches by default; native items stay unshadowed
+ok 373 - a pure read with only optional selectors batches by default; native items stay unshadowed
+  ---
+  duration_ms: 3.742115
+  type: 'test'
+  ...
+# Subtest: guard: every production pure read batches; other tools retain explicit write opt-outs
+not ok 374 - guard: every production pure read batches; other tools retain explicit write opt-outs
+  ---
+  duration_ms: 77.463957
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/assistant/__tests__/batch-tool-inputs.test.ts:1:8673'
+  failureType: 'testCodeFailure'
+  error: 'fresh content bootstrap is behind CONTENT_MIGRATIONS; update its fresh-only operations and schema parity guard'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    bootstrapFreshContentDb (/home/user/Tovu/apps/website/src/platform/db/sqlite/fresh-content-db.ts:231:11)
+    openContentDb (/home/user/Tovu/apps/website/src/platform/db/sqlite/content-db.ts:141:10)
+    <anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/app.ts:582:55)
+    Object.get (/home/user/Tovu/apps/website/src/server/runtime/composition/app.ts:437:36)
+    contentKernel (/home/user/Tovu/apps/website/src/platform/db/content-kernel.ts:20:51)
+    new SqliteTermRepo (/home/user/Tovu/apps/website/src/features/taxonomy/repo.sqlite.ts:30:11)
+    createRouteDeps (/home/user/Tovu/apps/website/src/server/runtime/composition/app.ts:593:36)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/batch-tool-inputs.test.ts:178:84)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+  ...
+# Subtest: the real composition: every default batchable tool publishes items with its cap
+not ok 375 - the real composition: every default batchable tool publishes items with its cap
+  ---
+  duration_ms: 34.514523
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/assistant/__tests__/batch-tool-inputs.test.ts:1:10580'
+  failureType: 'testCodeFailure'
+  error: 'fresh content bootstrap is behind CONTENT_MIGRATIONS; update its fresh-only operations and schema parity guard'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    bootstrapFreshContentDb (/home/user/Tovu/apps/website/src/platform/db/sqlite/fresh-content-db.ts:231:11)
+    openContentDb (/home/user/Tovu/apps/website/src/platform/db/sqlite/content-db.ts:141:10)
+    <anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/app.ts:582:55)
+    Object.get (/home/user/Tovu/apps/website/src/server/runtime/composition/app.ts:437:36)
+    contentKernel (/home/user/Tovu/apps/website/src/platform/db/content-kernel.ts:20:51)
+    new SqliteTermRepo (/home/user/Tovu/apps/website/src/features/taxonomy/repo.sqlite.ts:30:11)
+    createRouteDeps (/home/user/Tovu/apps/website/src/server/runtime/composition/app.ts:593:36)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/batch-tool-inputs.test.ts:201:53)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+  ...
+# Subtest: a real theme batch writes then reads several files in one call each, through the single-call handlers
+ok 376 - a real theme batch writes then reads several files in one call each, through the single-call handlers
+  ---
+  duration_ms: 57.576148
+  type: 'test'
+  ...
+# Subtest: approval runs per item, inside the batch: an item whose class asks is refused alone, the rest still run
+not ok 377 - approval runs per item, inside the batch: an item whose class asks is refused alone, the rest still run
+  ---
+  duration_ms: 71.409534
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/assistant/__tests__/batch-tool-inputs.test.ts:1:13924'
+  failureType: 'testCodeFailure'
+  error: 'fresh content bootstrap is behind CONTENT_MIGRATIONS; update its fresh-only operations and schema parity guard'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    bootstrapFreshContentDb (/home/user/Tovu/apps/website/src/platform/db/sqlite/fresh-content-db.ts:231:11)
+    openContentDb (/home/user/Tovu/apps/website/src/platform/db/sqlite/content-db.ts:141:10)
+    <anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/app.ts:582:55)
+    Object.get (/home/user/Tovu/apps/website/src/server/runtime/composition/app.ts:437:36)
+    contentKernel (/home/user/Tovu/apps/website/src/platform/db/content-kernel.ts:20:51)
+    new SqliteTermRepo (/home/user/Tovu/apps/website/src/features/taxonomy/repo.sqlite.ts:30:11)
+    createRouteDeps (/home/user/Tovu/apps/website/src/server/runtime/composition/app.ts:593:36)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/batch-tool-inputs.test.ts:267:93)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+  ...
+# Subtest: web fetch batches refuse screenshots from shared or item fields before rendering and continue other items
+ok 378 - web fetch batches refuse screenshots from shared or item fields before rendering and continue other items
+  ---
+  duration_ms: 4.913961
+  type: 'test'
+  ...
+# Subtest: local theme asset batches inherit root/theme, allow item overrides and continue after a refusal
+ok 379 - local theme asset batches inherit root/theme, allow item overrides and continue after a refusal
+  ---
+  duration_ms: 250.870155
+  type: 'test'
+  ...
+# Subtest: createRequestSuppliedExecutionCredentialPort resolves a valid request-supplied config
+ok 380 - createRequestSuppliedExecutionCredentialPort resolves a valid request-supplied config
+  ---
+  duration_ms: 13.596816
+  type: 'test'
+  ...
+# Subtest: createRequestSuppliedExecutionCredentialPort never reads a store — a missing apiKey resolves to null regardless of identity
+ok 381 - createRequestSuppliedExecutionCredentialPort never reads a store — a missing apiKey resolves to null regardless of identity
+  ---
+  duration_ms: 0.653789
+  type: 'test'
+  ...
+# Subtest: a request-supplied credential wins even when a stored one exists
+ok 382 - a request-supplied credential wins even when a stored one exists
+  ---
+  duration_ms: 15.330665
+  type: 'test'
+  ...
+# Subtest: falls back to the stored credential when the request omits apiKey
+ok 383 - falls back to the stored credential when the request omits apiKey
+  ---
+  duration_ms: 12.843551
+  type: 'test'
+  ...
+# Subtest: falls back to stored when the request supplies an empty apiKey (not just an omitted one)
+ok 384 - falls back to stored when the request supplies an empty apiKey (not just an omitted one)
+  ---
+  duration_ms: 4.731686
+  type: 'test'
+  ...
+# Subtest: resolves null when neither the request nor the stored row has a usable credential
+ok 385 - resolves null when neither the request nor the stored row has a usable credential
+  ---
+  duration_ms: 1.747615
+  type: 'test'
+  ...
+# Subtest: a stored row with no model set is treated as unusable, not returned with model missing
+ok 386 - a stored row with no model set is treated as unusable, not returned with model missing
+  ---
+  duration_ms: 4.66522
+  type: 'test'
+  ...
+# Subtest: a decrypt failure on the stored row degrades to null, it does not throw
+ok 387 - a decrypt failure on the stored row degrades to null, it does not throw
+  ---
+  duration_ms: 3.814328
+  type: 'test'
+  ...
+# Subtest: resolves the OTHER admin's stored row when that principal id is passed — proves the port is identity-scoped, not global
+ok 388 - resolves the OTHER admin's stored row when that principal id is passed — proves the port is identity-scoped, not global
+  ---
+  duration_ms: 4.214335
+  type: 'test'
+  ...
+# Subtest: a request-supplied config with an unknown protocol is not a usable credential
+ok 389 - a request-supplied config with an unknown protocol is not a usable credential
+  ---
+  duration_ms: 0.235361
+  type: 'test'
+  ...
+# Subtest: a request-supplied config with a non-string protocol is not a usable credential
+ok 390 - a request-supplied config with a non-string protocol is not a usable credential
+  ---
+  duration_ms: 0.099963
+  type: 'test'
+  ...
+# Subtest: a request-supplied config with a blank apiKey is not a usable credential
+ok 391 - a request-supplied config with a blank apiKey is not a usable credential
+  ---
+  duration_ms: 0.122208
+  type: 'test'
+  ...
+# Subtest: a request-supplied config with a non-string apiKey is not a usable credential
+ok 392 - a request-supplied config with a non-string apiKey is not a usable credential
+  ---
+  duration_ms: 0.974991
+  type: 'test'
+  ...
+# Subtest: a request-supplied config with a missing model is not a usable credential
+ok 393 - a request-supplied config with a missing model is not a usable credential
+  ---
+  duration_ms: 0.319838
+  type: 'test'
+  ...
+# Subtest: a request-supplied config with a blank model is not a usable credential
+ok 394 - a request-supplied config with a blank model is not a usable credential
+  ---
+  duration_ms: 0.171461
+  type: 'test'
+  ...
+# Subtest: a request-supplied baseUrl and positive maxTokens are carried; blank/non-positive ones are dropped
+ok 395 - a request-supplied baseUrl and positive maxTokens are carried; blank/non-positive ones are dropped
+  ---
+  duration_ms: 1.053389
+  type: 'test'
+  ...
+# Subtest: a stored row with no baseUrl and no maxTokens resolves without those keys
+ok 396 - a stored row with no baseUrl and no maxTokens resolves without those keys
+  ---
+  duration_ms: 3.747538
+  type: 'test'
+  ...
+# Subtest: a stored row whose protocol this adapter cannot dispatch is treated as unusable
+ok 397 - a stored row whose protocol this adapter cannot dispatch is treated as unusable
+  ---
+  duration_ms: 8.356188
+  type: 'test'
+  ...
+# Subtest: EVERY wired tool's outbound Gemini schema is structurally valid — the whole catalog, not a sample
+ok 398 - EVERY wired tool's outbound Gemini schema is structurally valid — the whole catalog, not a sample
+  ---
+  duration_ms: 227.89304
+  type: 'test'
+  ...
+# Subtest: the 3 meta-tool descriptors are structurally valid for Gemini too — they are what a BYOK turn actually sends
+ok 399 - the 3 meta-tool descriptors are structurally valid for Gemini too — they are what a BYOK turn actually sends
+  ---
+  duration_ms: 0.659979
+  type: 'test'
+  ...
+# Subtest: the meta-tool set is the payload reduction it claims to be, measured against the real catalog
+ok 400 - the meta-tool set is the payload reduction it claims to be, measured against the real catalog
+  ---
+  duration_ms: 128.810469
+  type: 'test'
+  ...
+# Subtest: SURFACE: execute_delegated_tool returns an image-bearing tool output as content blocks, not a JSON string
+ok 401 - SURFACE: execute_delegated_tool returns an image-bearing tool output as content blocks, not a JSON string
+  ---
+  duration_ms: 650.12485
+  type: 'test'
+  ...
+# Subtest: SURFACE: a tool whose output is plain JSON is still a JSON string, byte-identical to before
+ok 402 - SURFACE: a tool whose output is plain JSON is still a JSON string, byte-identical to before
+  ---
+  duration_ms: 63.656861
+  type: 'test'
+  ...
+# Subtest: ANTHROPIC: the tool_result block carries a real base64 image block
+ok 403 - ANTHROPIC: the tool_result block carries a real base64 image block
+  ---
+  duration_ms: 77.720916
+  type: 'test'
+  ...
+# Subtest: OPENAI: the image reaches the model as an image_url data URL part
+ok 404 - OPENAI: the image reaches the model as an image_url data URL part
+  ---
+  duration_ms: 17.234606
+  type: 'test'
+  ...
+# Subtest: AZURE: the image reaches the model as an image_url data URL part
+ok 405 - AZURE: the image reaches the model as an image_url data URL part
+  ---
+  duration_ms: 11.822091
+  type: 'test'
+  ...
+# Subtest: GOOGLE: the image reaches the model as an inlineData part
+ok 406 - GOOGLE: the image reaches the model as an inlineData part
+  ---
+  duration_ms: 13.497272
+  type: 'test'
+  ...
+# Subtest: a declined confirmation maps to the BYOK confirmation refusal naming the tool
+ok 407 - a declined confirmation maps to the BYOK confirmation refusal naming the tool
+  ---
+  duration_ms: 3.504794
+  type: 'test'
+  ...
+# Subtest: a failure with no error text falls back to a message naming the tool
+ok 408 - a failure with no error text falls back to a message naming the tool
+  ---
+  duration_ms: 0.342333
+  type: 'test'
+  ...
+# Subtest: a failure with error text passes that text through unchanged
+ok 409 - a failure with error text passes that text through unchanged
+  ---
+  duration_ms: 0.384932
+  type: 'test'
+  ...
+# Subtest: a time-out maps to a message naming the tool
+ok 410 - a time-out maps to a message naming the tool
+  ---
+  duration_ms: 0.18277
+  type: 'test'
+  ...
+# Subtest: a denial maps to the generic caller-denied message
+ok 411 - a denial maps to the generic caller-denied message
+  ---
+  duration_ms: 0.301448
+  type: 'test'
+  ...
+# Subtest: a completed run renders its output through ok
+ok 412 - a completed run renders its output through ok
+  ---
+  duration_ms: 0.417678
+  type: 'test'
+  ...
+# Subtest: err flags its message as an error result
+ok 413 - err flags its message as an error result
+  ---
+  duration_ms: 1.061699
+  type: 'test'
+  ...
+# Subtest: ok keeps an image-bearing envelope as provider content blocks
+ok 414 - ok keeps an image-bearing envelope as provider content blocks
+  ---
+  duration_ms: 0.606552
+  type: 'test'
+  ...
+# Subtest: ok renders a null output as the JSON text null
+ok 415 - ok renders a null output as the JSON text null
+  ---
+  duration_ms: 0.723556
+  type: 'test'
+  ...
+# Subtest: isRecord rejects arrays and null but accepts a plain object
+ok 416 - isRecord rejects arrays and null but accepts a plain object
+  ---
+  duration_ms: 0.498979
+  type: 'test'
+  ...
+# Subtest: resolveDelegatedInput treats a blank string as no input
+ok 417 - resolveDelegatedInput treats a blank string as no input
+  ---
+  duration_ms: 0.262792
+  type: 'test'
+  ...
+# Subtest: resolveDelegatedInput refuses an unparseable string, naming the fix
+ok 418 - resolveDelegatedInput refuses an unparseable string, naming the fix
+  ---
+  duration_ms: 0.214221
+  type: 'test'
+  ...
+# Subtest: resolveDelegatedInput refuses a boolean, naming its type
+ok 419 - resolveDelegatedInput refuses a boolean, naming its type
+  ---
+  duration_ms: 0.30754
+  type: 'test'
+  ...
+# Subtest: a cancellation maps to a message naming the tool
+ok 420 - a cancellation maps to a message naming the tool
+  ---
+  duration_ms: 0.263571
+  type: 'test'
+  ...
+# Subtest: ok renders a string output verbatim and a plain object as JSON text
+ok 421 - ok renders a string output verbatim and a plain object as JSON text
+  ---
+  duration_ms: 0.168345
+  type: 'test'
+  ...
+# Subtest: ok keeps text and image blocks together as provider content when at least one is an image
+ok 422 - ok keeps text and image blocks together as provider content when at least one is an image
+  ---
+  duration_ms: 0.889117
+  type: 'test'
+  ...
+# Subtest: ok falls back to JSON text when the content envelope has no image, an unknown block, or a malformed block
+ok 423 - ok falls back to JSON text when the content envelope has no image, an unknown block, or a malformed block
+  ---
+  duration_ms: 0.30104
+  type: 'test'
+  ...
+# Subtest: resolveDelegatedInput accepts absent input and a record, and parses a JSON-object string
+ok 424 - resolveDelegatedInput accepts absent input and a record, and parses a JSON-object string
+  ---
+  duration_ms: 0.20645
+  type: 'test'
+  ...
+# Subtest: resolveDelegatedInput refuses JSON that is not an object, and an array value, naming each
+ok 425 - resolveDelegatedInput refuses JSON that is not an object, and an array value, naming each
+  ---
+  duration_ms: 0.401274
+  type: 'test'
+  ...
+# Subtest: the adopted provider mapper preserves an adapter-reported tool error without a fold marker
+ok 426 - the adopted provider mapper preserves an adapter-reported tool error without a fold marker
+  ---
+  duration_ms: 6.433752
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema strips additionalProperties/$schema/$ref/$defs at the top level
+ok 427 - sanitizeGoogleSchema strips additionalProperties/$schema/$ref/$defs at the top level
+  ---
+  duration_ms: 1.037683
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema strips the same keys when nested in properties/items/anyOf, and preserves everything else
+ok 428 - sanitizeGoogleSchema strips the same keys when nested in properties/items/anyOf, and preserves everything else
+  ---
+  duration_ms: 1.961862
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema leaves non-schema values (primitives, empty object) untouched
+ok 429 - sanitizeGoogleSchema leaves non-schema values (primitives, empty object) untouched
+  ---
+  duration_ms: 0.246833
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema converts const to enum, top-level and nested
+ok 430 - sanitizeGoogleSchema converts const to enum, top-level and nested
+  ---
+  duration_ms: 0.453463
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema converts a const nested exactly 2 properties-levels deep, matching the owner's real error path (declaration[102].parameters.properties[4].value.properties[0].value)
+ok 431 - sanitizeGoogleSchema converts a const nested exactly 2 properties-levels deep, matching the owner's real error path (declaration[102].parameters.properties[4].value.properties[0].value)
+  ---
+  duration_ms: 0.431655
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema collapses a type array (JSON-Schema nullable idiom) to a single type plus nullable, top-level and nested
+ok 432 - sanitizeGoogleSchema collapses a type array (JSON-Schema nullable idiom) to a single type plus nullable, top-level and nested
+  ---
+  duration_ms: 0.495036
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema stringifies a numeric enum and forces type to string, top-level and nested
+ok 433 - sanitizeGoogleSchema stringifies a numeric enum and forces type to string, top-level and nested
+  ---
+  duration_ms: 0.400843
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema converts oneOf to anyOf, merging with a sibling anyOf if present, and preserving arbitrary property names inside each branch
+ok 434 - sanitizeGoogleSchema converts oneOf to anyOf, merging with a sibling anyOf if present, and preserving arbitrary property names inside each branch
+  ---
+  duration_ms: 1.221993
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema inlines a non-recursive $ref/$defs pointer by value
+ok 435 - sanitizeGoogleSchema inlines a non-recursive $ref/$defs pointer by value
+  ---
+  duration_ms: 0.394939
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema inlines a genuinely recursive $ref/$defs schema up to MAX_GOOGLE_REF_DEPTH, then substitutes a valid non-recursive stub instead of looping forever
+ok 436 - sanitizeGoogleSchema inlines a genuinely recursive $ref/$defs schema up to MAX_GOOGLE_REF_DEPTH, then substitutes a valid non-recursive stub instead of looping forever
+  ---
+  duration_ms: 0.52456
+  type: 'test'
+  ...
+# Subtest: sanitizeGoogleSchema, applied to the REAL menusAgentToolCatalog (@jini-ai/cms/navigation), postAgentToolCatalog, and getRedirectsAgentToolCatalog() (this repo), never emits a Gemini-unsupported key or shape anywhere
+ok 437 - sanitizeGoogleSchema, applied to the REAL menusAgentToolCatalog (@jini-ai/cms/navigation), postAgentToolCatalog, and getRedirectsAgentToolCatalog() (this repo), never emits a Gemini-unsupported key or shape anywhere
+  ---
+  duration_ms: 172.335514
+  type: 'test'
+  ...
+# Subtest: on the REAL redirects catalog: sanitizeGoogleSchema converts statusCode's numeric enum to strings, and findNumericEnumPaths finds exactly that field on both affected tools
+ok 438 - on the REAL redirects catalog: sanitizeGoogleSchema converts statusCode's numeric enum to strings, and findNumericEnumPaths finds exactly that field on both affected tools
+  ---
+  duration_ms: 1.519538
+  type: 'test'
+  ...
+# Subtest: coerceNumericEnumStringsToNumbers converts a numeric-looking string at a found path back to a number, and leaves everything else alone
+ok 439 - coerceNumericEnumStringsToNumbers converts a numeric-looking string at a found path back to a number, and leaves everything else alone
+  ---
+  duration_ms: 0.470725
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(google): the outbound Gemini request has additionalProperties/$schema stripped, top-level and nested
+ok 440 - runByokProviderTurn(google): the outbound Gemini request has additionalProperties/$schema stripped, top-level and nested
+  ---
+  duration_ms: 141.468421
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(anthropic): strict projection closes nested fields and preserves the authoritative schema
+ok 441 - runByokProviderTurn(anthropic): strict projection closes nested fields and preserves the authoritative schema
+  ---
+  duration_ms: 32.655572
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(google): a numeric-enum tool (redirects_create) round-trips end to end — Gemini sends back statusCode as a STRING, and the tool executor still receives a NUMBER
+ok 442 - runByokProviderTurn(google): a numeric-enum tool (redirects_create) round-trips end to end — Gemini sends back statusCode as a STRING, and the tool executor still receives a NUMBER
+  ---
+  duration_ms: 55.654078
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(azure): refuses with stopReason 'error' when no baseUrl is supplied, rather than attempting a request (every Azure OpenAI resource has its own endpoint — there is no sane global default)
+ok 443 - runByokProviderTurn(azure): refuses with stopReason 'error' when no baseUrl is supplied, rather than attempting a request (every Azure OpenAI resource has its own endpoint — there is no sane global default)
+  ---
+  duration_ms: 0.582394
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(openai): strict projection closes nested fields and retains required nullable omission guidance
+ok 444 - runByokProviderTurn(openai): strict projection closes nested fields and retains required nullable omission guidance
+  ---
+  duration_ms: 16.762532
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(openai): a failed tool result is folded into the outbound message with the [tool error] prefix, a successful one passes through unprefixed, and isError on the reported tool_result event is derived from that fold marker — not the adapter's own (nonexistent) isError field
+ok 445 - runByokProviderTurn(openai): a failed tool result is folded into the outbound message with the [tool error] prefix, a successful one passes through unprefixed, and isError on the reported tool_result event is derived from that fold marker — not the adapter's own (nonexistent) isError field
+  ---
+  duration_ms: 39.699685
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(anthropic): a tool descriptor with no description omits the description key entirely from the outbound request, rather than sending description: undefined
+ok 446 - runByokProviderTurn(anthropic): a tool descriptor with no description omits the description key entirely from the outbound request, rather than sending description: undefined
+  ---
+  duration_ms: 17.987255
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(openai): a tool descriptor with no description omits the description key entirely from the outbound request, rather than sending description: undefined
+ok 447 - runByokProviderTurn(openai): a tool descriptor with no description omits the description key entirely from the outbound request, rather than sending description: undefined
+  ---
+  duration_ms: 16.166145
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(azure): a tool descriptor with no description omits the description key entirely from the outbound request, rather than sending description: undefined
+ok 448 - runByokProviderTurn(azure): a tool descriptor with no description omits the description key entirely from the outbound request, rather than sending description: undefined
+  ---
+  duration_ms: 24.490222
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(google): a tool descriptor with no description omits the description key entirely from the outbound request, rather than sending description: undefined
+ok 449 - runByokProviderTurn(google): a tool descriptor with no description omits the description key entirely from the outbound request, rather than sending description: undefined
+  ---
+  duration_ms: 27.094205
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn(azure): the same [tool error]-prefix fold/derive as openai, in azure's own copy of that logic
+ok 450 - runByokProviderTurn(azure): the same [tool error]-prefix fold/derive as openai, in azure's own copy of that logic
+  ---
+  duration_ms: 33.140347
+  type: 'test'
+  ...
+# Subtest: anthropic preserves success and failure in the tool-result return leg and host events
+ok 451 - anthropic preserves success and failure in the tool-result return leg and host events
+  ---
+  duration_ms: 20.454833
+  type: 'test'
+  ...
+# (node:28618) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:28618) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+# Subtest: google preserves success and failure in the tool-result return leg and host events
+ok 452 - google preserves success and failure in the tool-result return leg and host events
+  ---
+  duration_ms: 24.911459
+  type: 'test'
+  ...
+# Subtest: T2 BYOK forwards the live snapshot: search → describe → strict typed call within one turn
+ok 453 - T2 BYOK forwards the live snapshot: search → describe → strict typed call within one turn
+  ---
+  duration_ms: 80.577931
+  type: 'test'
+  ...
+# Subtest: T2 BYOK strict-prefer fallback keeps open maps and reports only value-free reasons
+ok 454 - T2 BYOK strict-prefer fallback keeps open maps and reports only value-free reasons
+  ---
+  duration_ms: 23.251897
+  type: 'test'
+  ...
+# Subtest: resolveByokProtocol narrows a stored provider string to a dispatchable protocol, case- and whitespace-insensitively
+ok 455 - resolveByokProtocol narrows a stored provider string to a dispatchable protocol, case- and whitespace-insensitively
+  ---
+  duration_ms: 2.517814
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn forwards maxTokens and sends the live tool snapshot instead of the initial tools
+ok 456 - runByokProviderTurn forwards maxTokens and sends the live tool snapshot instead of the initial tools
+  ---
+  duration_ms: 34.522601
+  type: 'test'
+  ...
+# Subtest: runByokProviderTurn honours an already-aborted signal: no provider request is sent
+ok 457 - runByokProviderTurn honours an already-aborted signal: no provider request is sent
+  ---
+  duration_ms: 18.770595
+  type: 'test'
+  ...
+# Subtest: BYOK: site_describe_capabilities lists every tool this surface's describe_tool resolves, and only those
+ok 458 - BYOK: site_describe_capabilities lists every tool this surface's describe_tool resolves, and only those
+  ---
+  duration_ms: 607.359124
+  type: 'test'
+  ...
+# Subtest: BYOK: a caller-supplied listCatalogTools cannot replace the surface's own registry reader
+ok 459 - BYOK: a caller-supplied listCatalogTools cannot replace the surface's own registry reader
+  ---
+  duration_ms: 316.742882
+  type: 'test'
+  ...
+# {"timestamp":"2026-10-28T20:50:04.270Z","level":"info","service":"web","message":"web_fetch_page","context":{"origin":"http://127.0.0.1","durationMs":4,"outcome":"refused"}}
+# [tool-failure] ERR-8A90-4AA9-B5A7-770A tool=probe_audit_failure run=run-meta-tool execution=924f4746-3632-4158-91c3-eba490266f3a principal=principal-meta-tool redactions=0: probe failure
+# Subtest: the published meta-tool set is exactly the 3 staged-discovery tools, and nothing else reaches the provider
+ok 460 - the published meta-tool set is exactly the 3 staged-discovery tools, and nothing else reaches the provider
+  ---
+  duration_ms: 270.933357
+  type: 'test'
+  ...
+# Subtest: search_tools finds a real tool in the real catalog, and every hit it returns is one describe_tool can then resolve
+ok 461 - search_tools finds a real tool in the real catalog, and every hit it returns is one describe_tool can then resolve
+  ---
+  duration_ms: 581.103285
+  type: 'test'
+  ...
+# Subtest: search_tools clamps an out-of-range limit instead of spending a turn refusing it
+ok 462 - search_tools clamps an out-of-range limit instead of spending a turn refusing it
+  ---
+  duration_ms: 296.475202
+  type: 'test'
+  ...
+# Subtest: search_tools' limit description tells the model a miss at the default cutoff is weak evidence, not proof no tool exists, and to retry before giving up
+ok 463 - search_tools' limit description tells the model a miss at the default cutoff is weak evidence, not proof no tool exists, and to retry before giving up
+  ---
+  duration_ms: 8.79367
+  type: 'test'
+  ...
+# Subtest: search_tools' limit description names no coverage percentage — a hardcoded number here is the exact shape of the defect this fixes, regardless of whether the number happens to be true today
+ok 464 - search_tools' limit description names no coverage percentage — a hardcoded number here is the exact shape of the defect this fixes, regardless of whether the number happens to be true today
+  ---
+  duration_ms: 0.381291
+  type: 'test'
+  ...
+# Subtest: search_tools with a missing or empty query is a readable error, not an empty result set
+ok 465 - search_tools with a missing or empty query is a readable error, not an empty result set
+  ---
+  duration_ms: 256.367318
+  type: 'test'
+  ...
+# Subtest: a query that matches nothing reports that it matched nothing, rather than looking like a broken tool
+ok 466 - a query that matches nothing reports that it matched nothing, rather than looking like a broken tool
+  ---
+  duration_ms: 111.439237
+  type: 'test'
+  ...
+# Subtest: BYOK can find, describe and run web_fetch_page, and the wired client refuses a private address
+ok 467 - BYOK can find, describe and run web_fetch_page, and the wired client refuses a private address
+  ---
+  duration_ms: 269.80893
+  type: 'test'
+  ...
+# Subtest: describe_tool returns a real tool's input schema, and refuses an unknown id with a next step
+ok 468 - describe_tool returns a real tool's input schema, and refuses an unknown id with a next step
+  ---
+  duration_ms: 191.563786
+  type: 'test'
+  ...
+# Subtest: execute_delegated_tool with a HALLUCINATED tool id returns a recoverable error — it does not throw and kill the turn
+ok 469 - execute_delegated_tool with a HALLUCINATED tool id returns a recoverable error — it does not throw and kill the turn
+  ---
+  duration_ms: 213.336803
+  type: 'test'
+  ...
+# Subtest: execute_delegated_tool requires a toolId, and says so
+ok 470 - execute_delegated_tool requires a toolId, and says so
+  ---
+  duration_ms: 245.978477
+  type: 'test'
+  ...
+# Subtest: execute_delegated_tool accepts a JSON-ENCODED input string — the observed provider behavior that would otherwise make every input-taking tool uncallable
+ok 471 - execute_delegated_tool accepts a JSON-ENCODED input string — the observed provider behavior that would otherwise make every input-taking tool uncallable
+  ---
+  duration_ms: 173.070161
+  type: 'test'
+  ...
+# Subtest: execute_delegated_tool refuses an input that is neither an object nor JSON-parseable, naming what is wrong
+ok 472 - execute_delegated_tool refuses an input that is neither an object nor JSON-parseable, naming what is wrong
+  ---
+  duration_ms: 286.058573
+  type: 'test'
+  ...
+# Subtest: execute_delegated_tool supplies an empty object for omitted, null and blank input
+ok 473 - execute_delegated_tool supplies an empty object for omitted, null and blank input
+  ---
+  duration_ms: 173.808949
+  type: 'test'
+  ...
+# Subtest: execute_delegated_tool refuses a non-object, non-array, non-string input (e.g. a bare number), naming the actual type
+ok 474 - execute_delegated_tool refuses a non-object, non-array, non-string input (e.g. a bare number), naming the actual type
+  ---
+  duration_ms: 84.689792
+  type: 'test'
+  ...
+# Subtest: execute_delegated_tool maps a real tool's own thrown ForbiddenError (from ITS internal authorize check, not ToolPolicy) to a readable 'failed' error, not an uncaught throw
+ok 475 - execute_delegated_tool maps a real tool's own thrown ForbiddenError (from ITS internal authorize check, not ToolPolicy) to a readable 'failed' error, not an uncaught throw
+  ---
+  duration_ms: 53.029613
+  type: 'test'
+  ...
+# Subtest: execute_delegated_tool maps an already-aborted signal to a readable 'cancelled' error
+ok 476 - execute_delegated_tool maps an already-aborted signal to a readable 'cancelled' error
+  ---
+  duration_ms: 95.484768
+  type: 'test'
+  ...
+# Subtest: a model that calls a REAL tool id as the tool NAME is told how to reach it, not just that it failed
+ok 477 - a model that calls a REAL tool id as the tool NAME is told how to reach it, not just that it failed
+  ---
+  duration_ms: 62.38888
+  type: 'test'
+  ...
+# Subtest: READ-ONLY PARITY: a read-only-constrained principal cannot see or dispatch a write tool — the handler must never run
+ok 478 - READ-ONLY PARITY: a read-only-constrained principal cannot see or dispatch a write tool — the handler must never run
+  ---
+  duration_ms: 206.963499
+  type: 'test'
+  ...
+# Subtest: READ-ONLY PARITY: the identical dispatch from an UNCONSTRAINED principal is unaffected — byte-identical to before this gate existed
+ok 479 - READ-ONLY PARITY: the identical dispatch from an UNCONSTRAINED principal is unaffected — byte-identical to before this gate existed
+  ---
+  duration_ms: 89.269404
+  type: 'test'
+  ...
+# Subtest: INCIDENT FIX: a search_tools call through executeMetaTool is recorded with the caller's real principal/run and the query length, limit, and ranked hit ids — never the raw query text
+ok 480 - INCIDENT FIX: a search_tools call through executeMetaTool is recorded with the caller's real principal/run and the query length, limit, and ranked hit ids — never the raw query text
+  ---
+  duration_ms: 149.54945
+  type: 'test'
+  ...
+# Subtest: a describe_tool call through executeMetaTool is recorded with the requested id and whether it resolved
+ok 481 - a describe_tool call through executeMetaTool is recorded with the requested id and whether it resolved
+  ---
+  duration_ms: 105.882917
+  type: 'test'
+  ...
+# Subtest: without a toolAttemptAudit option, search_tools/describe_tool behave exactly as before and log nothing
+ok 482 - without a toolAttemptAudit option, search_tools/describe_tool behave exactly as before and log nothing
+  ---
+  duration_ms: 137.336026
+  type: 'test'
+  ...
+# Subtest: INCIDENT FIX: an execute_delegated_tool call through executeMetaTool is durably recorded — not just the search that found it
+ok 483 - INCIDENT FIX: an execute_delegated_tool call through executeMetaTool is durably recorded — not just the search that found it
+  ---
+  duration_ms: 110.481746
+  type: 'test'
+  ...
+# Subtest: ordinary successful and throwing delegated handlers record their complete audit trail
+ok 484 - ordinary successful and throwing delegated handlers record their complete audit trail
+  ---
+  duration_ms: 86.844255
+  type: 'test'
+  ...
+# Subtest: WIRING: a diagnostic-carrying execute_delegated_tool result goes through ask -> apply -> retry with NO toolAttemptAudit sink present — the un-audited composition path also works, not just the audited one
+ok 485 - WIRING: a diagnostic-carrying execute_delegated_tool result goes through ask -> apply -> retry with NO toolAttemptAudit sink present — the un-audited composition path also works, not just the audited one
+  ---
+  duration_ms: 133.079213
+  type: 'test'
+  ...
+# Subtest: WIRING: a successful first call is never retried and raises no recovery surface
+ok 486 - WIRING: a successful first call is never retried and raises no recovery surface
+  ---
+  duration_ms: 98.491511
+  type: 'test'
+  ...
+# Subtest: WIRING: no second recovery cycle — a retry whose OWN result also carries a fresh hint+remedyToolId is returned as-is, not looped on again
+ok 487 - WIRING: no second recovery cycle — a retry whose OWN result also carries a fresh hint+remedyToolId is returned as-is, not looped on again
+  ---
+  duration_ms: 119.393101
+  type: 'test'
+  ...
+# Subtest: WIRING: declining the recovery surface returns the ORIGINAL failure untouched, and the remedy tool is never called
+ok 488 - WIRING: declining the recovery surface returns the ORIGINAL failure untouched, and the remedy tool is never called
+  ---
+  duration_ms: 108.684301
+  type: 'test'
+  ...
+# Subtest: WIRING: a headless call (no emitSurface) with a diagnostic-carrying result returns it untouched instead of hanging
+ok 489 - WIRING: a headless call (no emitSurface) with a diagnostic-carrying result returns it untouched instead of hanging
+  ---
+  duration_ms: 160.700763
+  type: 'test'
+  ...
+# [tool-failure] ERR-B0A6-EB97-C905-4EF4 tool=fake_recoverable_retry_fails run=run-meta-tool execution=df4ce94a-6329-4fe5-a16d-78f6cdcd8998 principal=principal-meta-tool redactions=0: still broken after the fix
+# Subtest: WIRING: the failed retry still returns a coherent, exact error to the model — and does NOT recursively re-enter recovery
+ok 490 - WIRING: the failed retry still returns a coherent, exact error to the model — and does NOT recursively re-enter recovery
+  ---
+  duration_ms: 210.320243
+  type: 'test'
+  ...
+# [assistant-byok] mcp-federation: 'echo-server' registered 1 federated tool(s): mcp__echo-server__echo
+# [assistant-byok] mcp-federation: 'echo-server' registered 1 federated tool(s): mcp__echo-server__echo
+# [assistant-byok] mcp-federation: 'echo-server' registered 3 federated tool(s): mcp__echo-server__echo, mcp__echo-server__write_ungranted, mcp__echo-server__write_granted
+# [assistant-byok] mcp-federation: 'echo-server' refused remote tool 'unlisted' — not-in-operator-allowlist
+# [assistant-byok] mcp-federation: 'echo-server' admitted WRITE tool 'write_granted' (operator-authorized)
+# Subtest: WIRING: recovery composes OUTSIDE audit — original, remedy, and retry are each their own audited attempt (2 rows apiece), none lost or duplicated
+ok 491 - WIRING: recovery composes OUTSIDE audit — original, remedy, and retry are each their own audited attempt (2 rows apiece), none lost or duplicated
+  ---
+  duration_ms: 79.41417
+  type: 'test'
+  ...
+# Subtest: BYOK federation: awaitFederation boots the real stored roster and resolves {settled: true}
+ok 492 - BYOK federation: awaitFederation boots the real stored roster and resolves {settled: true}
+  ---
+  duration_ms: 130.618785
+  type: 'test'
+  ...
+# Subtest: BYOK federation: after awaitFederation settles, search_tools finds the newly federated tool
+ok 493 - BYOK federation: after awaitFederation settles, search_tools finds the newly federated tool
+  ---
+  duration_ms: 264.402036
+  type: 'test'
+  ...
+# Subtest: BYOK federation: settled admitted tools execute with remote names and arguments, while unlisted tools stay refused
+ok 494 - BYOK federation: settled admitted tools execute with remote names and arguments, while unlisted tools stay refused
+  ---
+  duration_ms: 258.552472
+  type: 'test'
+  ...
+# Subtest: BYOK federation: installExtensions: false leaves federation undefined and awaitFederation settled at once
+ok 495 - BYOK federation: installExtensions: false leaves federation undefined and awaitFederation settled at once
+  ---
+  duration_ms: 105.667279
+  type: 'test'
+  ...
+# [assistant-byok] mcp-federation: 'echo-server' registered 1 federated tool(s): mcp__echo-server__echo
+# Subtest: BYOK federation: execute_delegated_tool for a still-registering federated id gets 'still connecting', not a bare 'unknown tool' throw
+ok 496 - BYOK federation: execute_delegated_tool for a still-registering federated id gets 'still connecting', not a bare 'unknown tool' throw
+  ---
+  duration_ms: 128.441344
+  type: 'test'
+  ...
+# [assistant-byok] mcp-federation: 'echo-server' registered 1 federated tool(s): mcp__echo-server__echo
+# [assistant-byok] mcp-federation: 'echo-server' failed, continuing without its tools — connect ECONNREFUSED
+# Subtest: BYOK federation: execute_delegated_tool for a server that was never in the roster gets 'unknown tool', even while the boot pass is still mid-connect for a DIFFERENT server
+ok 497 - BYOK federation: execute_delegated_tool for a server that was never in the roster gets 'unknown tool', even while the boot pass is still mid-connect for a DIFFERENT server
+  ---
+  duration_ms: 344.54668
+  type: 'test'
+  ...
+# Subtest: BYOK federation: execute_delegated_tool for a connection that failed to connect gets that failure's own reason, once the boot pass has settled
+ok 498 - BYOK federation: execute_delegated_tool for a connection that failed to connect gets that failure's own reason, once the boot pass has settled
+  ---
+  duration_ms: 235.9581
+  type: 'test'
+  ...
+# Subtest: the BYOK discovery registry hides disallowed permanent deletes from both has and list
+ok 499 - the BYOK discovery registry hides disallowed permanent deletes from both has and list
+  ---
+  duration_ms: 132.867773
+  type: 'test'
+  ...
+# Subtest: owner discovery exposes permanent deletes with the site grant off, including credential and role deletes
+ok 500 - owner discovery exposes permanent deletes with the site grant off, including credential and role deletes
+  ---
+  duration_ms: 191.236682
+  type: 'test'
+  ...
+# Subtest: an owner delete executes through the assembled BYOK guard only after the confirmation click
+ok 501 - an owner delete executes through the assembled BYOK guard only after the confirmation click
+  ---
+  duration_ms: 85.949597
+  type: 'test'
+  ...
+# Subtest: a tool's plain-string output reaches the model verbatim, not JSON-quoted
+ok 502 - a tool's plain-string output reaches the model verbatim, not JSON-quoted
+  ---
+  duration_ms: 89.759651
+  type: 'test'
+  ...
+# Subtest: a tool's undefined output reaches the model as the JSON text null
+ok 503 - a tool's undefined output reaches the model as the JSON text null
+  ---
+  duration_ms: 134.733208
+  type: 'test'
+  ...
+# Subtest: a text-only content envelope stays one JSON string — only an image earns content blocks
+ok 504 - a text-only content envelope stays one JSON string — only an image earns content blocks
+  ---
+  duration_ms: 295.724006
+  type: 'test'
+  ...
+# Subtest: a content envelope with a non-object block stays one JSON string
+ok 505 - a content envelope with a non-object block stays one JSON string
+  ---
+  duration_ms: 296.372581
+  type: 'test'
+  ...
+# Subtest: a content envelope with an unknown block type stays one JSON string, image or not
+ok 506 - a content envelope with an unknown block type stays one JSON string, image or not
+  ---
+  duration_ms: 306.458994
+  type: 'test'
+  ...
+# Subtest: an image block missing its data stays one JSON string
+ok 507 - an image block missing its data stays one JSON string
+  ---
+  duration_ms: 306.795067
+  type: 'test'
+  ...
+# Subtest: a text block whose text is not a string stays one JSON string
+ok 508 - a text block whose text is not a string stays one JSON string
+  ---
+  duration_ms: 297.082288
+  type: 'test'
+  ...
+# Subtest: an output whose content is not an array stays one JSON string
+ok 509 - an output whose content is not an array stays one JSON string
+  ---
+  duration_ms: 275.118657
+  type: 'test'
+  ...
+# Subtest: execute_delegated_tool refuses a JSON-encoded input that parses to a non-object, naming the fix
+ok 510 - execute_delegated_tool refuses a JSON-encoded input that parses to a non-object, naming the fix
+  ---
+  duration_ms: 190.669508
+  type: 'test'
+  ...
+# Subtest: execute_delegated_tool refuses an array input by naming it an array
+ok 511 - execute_delegated_tool refuses an array input by naming it an array
+  ---
+  duration_ms: 117.840897
+  type: 'test'
+  ...
+# Subtest: execute_delegated_tool with a non-string toolId is the same readable refusal as a missing one
+ok 512 - execute_delegated_tool with a non-string toolId is the same readable refusal as a missing one
+  ---
+  duration_ms: 261.154683
+  type: 'test'
+  ...
+# Subtest: describe_tool with a non-string id is refused, naming the argument
+ok 513 - describe_tool with a non-string id is refused, naming the argument
+  ---
+  duration_ms: 199.537282
+  type: 'test'
+  ...
+# Subtest: describe_tool with a blank id is refused, naming the argument
+ok 514 - describe_tool with a blank id is refused, naming the argument
+  ---
+  duration_ms: 218.573548
+  type: 'test'
+  ...
+# Subtest: a meta-tool call whose input is not an object is read as no arguments at all
+ok 515 - a meta-tool call whose input is not an object is read as no arguments at all
+  ---
+  duration_ms: 98.286854
+  type: 'test'
+  ...
+# Subtest: search_tools falls back to the default limit for a non-numeric limit
+ok 516 - search_tools falls back to the default limit for a non-numeric limit
+  ---
+  duration_ms: 104.01208
+  type: 'test'
+  ...
+# [assistant-byok] mcp-federation: 'oauth-server' registered 1 federated tool(s): mcp__oauth-server__echo
+# [assistant-byok] mcp-federation: stored server 'oauth-server' skipped — this process was not wired with an OAuth token resolver, so its access token cannot be obtained
+# [assistant-byok] mcp-federation: 'echo-server' registered 1 federated tool(s): mcp__echo-server__echo
+# [assistant-byok] mcp-federation: 'wobble-server' registered 1 federated tool(s): mcp__wobble-server__wobble
+# [tool-failure] ERR-FF53-F43F-5A0C-3932 tool=t2_failure run=run-meta-tool execution=24460059-9f6f-4b1a-961a-c2469fb41568 principal=principal-meta-tool redactions=0: T2 expected failure
+# [tool-failure] ERR-5D41-1103-C3A6-539A tool=t2_failure run=run-meta-tool execution=7c3f0f86-fbe2-490f-9f6c-73f552cde10c principal=principal-meta-tool redactions=0: T2 expected failure
+# Subtest: a descriptor-confirmation tool parks until the turn's signal aborts, then reads as cancelled (reported, not fixed)
+ok 517 - a descriptor-confirmation tool parks until the turn's signal aborts, then reads as cancelled (reported, not fixed)
+  ---
+  duration_ms: 197.115609
+  type: 'test'
+  ...
+# Subtest: registerFederationPresets runs exactly once, while the surface is built
+ok 518 - registerFederationPresets runs exactly once, while the surface is built
+  ---
+  duration_ms: 191.046073
+  type: 'test'
+  ...
+# Subtest: prepareGuidance is handed to the executor and consulted for a guidance-capable tool
+ok 519 - prepareGuidance is handed to the executor and consulted for a guidance-capable tool
+  ---
+  duration_ms: 113.621691
+  type: 'test'
+  ...
+# Subtest: with no federation, an mcp__ id the registry does not know is reported as an unknown tool
+ok 520 - with no federation, an mcp__ id the registry does not know is reported as an unknown tool
+  ---
+  duration_ms: 178.210237
+  type: 'test'
+  ...
+# Subtest: an installed-skills refresh that reports a change makes a tool it registered searchable on the next call
+ok 521 - an installed-skills refresh that reports a change makes a tool it registered searchable on the next call
+  ---
+  duration_ms: 192.472198
+  type: 'test'
+  ...
+# Subtest: an installed-skills refresh that reports no change still leaves a tool it registered searchable
+ok 522 - an installed-skills refresh that reports no change still leaves a tool it registered searchable
+  ---
+  duration_ms: 186.992228
+  type: 'test'
+  ...
+# Subtest: BYOK federation: a stored OAuth row's access token is resolved through the wired OAuth service and reaches the connection
+ok 523 - BYOK federation: a stored OAuth row's access token is resolved through the wired OAuth service and reaches the connection
+  ---
+  duration_ms: 202.137001
+  type: 'test'
+  ...
+# Subtest: BYOK federation: without a wired OAuth service a connected OAuth row is skipped, never launched credential-free
+ok 524 - BYOK federation: without a wired OAuth service a connected OAuth row is skipped, never launched credential-free
+  ---
+  duration_ms: 193.787566
+  type: 'test'
+  ...
+# Subtest: BYOK federation: a reload that admits a new server makes its tools searchable without another awaitFederation
+ok 525 - BYOK federation: a reload that admits a new server makes its tools searchable without another awaitFederation
+  ---
+  duration_ms: 274.002748
+  type: 'test'
+  ...
+# Subtest: BYOK: the installed-extension registrar gets this surface's own exchange store as the plugin tools' confirmation transport
+ok 526 - BYOK: the installed-extension registrar gets this surface's own exchange store as the plugin tools' confirmation transport
+  ---
+  duration_ms: 164.111519
+  type: 'test'
+  ...
+# Subtest: T2 search → describe → typed execution publishes the concrete schema and retains legacy wrapper parity
+ok 527 - T2 search → describe → typed execution publishes the concrete schema and retains legacy wrapper parity
+  ---
+  duration_ms: 206.925161
+  type: 'test'
+  ...
+# Subtest: T2 concurrent runs and repeated descriptions cannot share exposure or lose promotions
+ok 528 - T2 concurrent runs and repeated descriptions cannot share exposure or lose promotions
+  ---
+  duration_ms: 277.740389
+  type: 'test'
+  ...
+# Subtest: T2 failed and budget-limited descriptions never publish a callable; wrappers remain usable
+ok 529 - T2 failed and budget-limited descriptions never publish a callable; wrappers remain usable
+  ---
+  duration_ms: 553.144962
+  type: 'test'
+  ...
+# Subtest: T2 typed dispatch rechecks authorization and cannot promote a hidden write for a constrained principal
+ok 530 - T2 typed dispatch rechecks authorization and cannot promote a hidden write for a constrained principal
+  ---
+  duration_ms: 227.340525
+  type: 'test'
+  ...
+# Subtest: T2 typed reads attenuate nested writes through the existing executor
+ok 531 - T2 typed reads attenuate nested writes through the existing executor
+  ---
+  duration_ms: 105.63455
+  type: 'test'
+  ...
+# Subtest: T2 typed calls preserve images, batches, failures and cancellation through the shared mapper
+ok 532 - T2 typed calls preserve images, batches, failures and cancellation through the shared mapper
+  ---
+  duration_ms: 518.962898
+  type: 'test'
+  ...
+# Subtest: T2 typed permanent deletes retain the existing held-open surface and confirmation
+ok 533 - T2 typed permanent deletes retain the existing held-open surface and confirmation
+  ---
+  duration_ms: 152.545416
+  type: 'test'
+  ...
+# Subtest: T2 a previously published delete loses visibility before execution when its owner grant changes
+ok 534 - T2 a previously published delete loses visibility before execution when its owner grant changes
+  ---
+  duration_ms: 167.825626
+  type: 'test'
+  ...
+# Subtest: T2 a typed confirmation park cancels without running its handler
+ok 535 - T2 a typed confirmation park cancels without running its handler
+  ---
+  duration_ms: 335.451481
+  type: 'test'
+  ...
+# Subtest: T2 real surface and shared provider mapper complete discovery and typed execution in one turn
+ok 536 - T2 real surface and shared provider mapper complete discovery and typed execution in one turn
+  ---
+  duration_ms: 131.340219
+  type: 'test'
+  ...
+# Subtest: launch permissions are read per site/owner and freshly on every turn
+ok 537 - launch permissions are read per site/owner and freshly on every turn
+  ---
+  duration_ms: 7.720937
+  type: 'test'
+  ...
+# Subtest: a missing owner snapshot preserves the existing boolean; failures and malformed snapshots deny all
+ok 538 - a missing owner snapshot preserves the existing boolean; failures and malformed snapshots deny all
+  ---
+  duration_ms: 1.021172
+  type: 'test'
+  ...
+# Subtest: cold and repeated requests return immediately while one background probe runs
+ok 539 - cold and repeated requests return immediately while one background probe runs
+  ---
+  duration_ms: 23.487417
+  type: 'test'
+  ...
+# Subtest: Rescan queues one forced refresh behind an in-flight probe and keeps the previous value
+ok 540 - Rescan queues one forced refresh behind an in-flight probe and keeps the previous value
+  ---
+  duration_ms: 11.641324
+  type: 'test'
+  ...
+# Subtest: failed background probes retain the cache and require an explicit Rescan to retry
+ok 541 - failed background probes retain the cache and require an explicit Rescan to retry
+  ---
+  duration_ms: 4.742673
+  type: 'test'
+  ...
+# Subtest: initial rejection retains the snapshot and retries after the supplied cooldown
+ok 542 - initial rejection retains the snapshot and retries after the supplied cooldown
+  ---
+  duration_ms: 3.885016
+  type: 'test'
+  ...
+# Subtest: post-expiry rejection retains the snapshot and retries after the supplied cooldown
+ok 543 - post-expiry rejection retains the snapshot and retries after the supplied cooldown
+  ---
+  duration_ms: 2.014144
+  type: 'test'
+  ...
+# Subtest: offline-fallback inventory refreshes lazily at its catalog expiry
+ok 544 - offline-fallback inventory refreshes lazily at its catalog expiry
+  ---
+  duration_ms: 4.529557
+  type: 'test'
+  ...
+# Subtest: fresh inventory refreshes lazily at its catalog expiry
+ok 545 - fresh inventory refreshes lazily at its catalog expiry
+  ---
+  duration_ms: 1.13894
+  type: 'test'
+  ...
+# Subtest: search finds the data-table providers by a capability-term match
+ok 546 - search finds the data-table providers by a capability-term match
+  ---
+  duration_ms: 2.577576
+  type: 'test'
+  ...
+# Subtest: step 5: live catalog preserves wire IDs and resolves each specific capability, then falls back after disable
+ok 547 - step 5: live catalog preserves wire IDs and resolves each specific capability, then falls back after disable
+  ---
+  duration_ms: 6.482928
+  type: 'test'
+  ...
+# Subtest: search returns an empty array, not an error, for no matches
+ok 548 - search returns an empty array, not an error, for no matches
+  ---
+  duration_ms: 1.341832
+  type: 'test'
+  ...
+# Subtest: search respects the limit argument
+ok 549 - search respects the limit argument
+  ---
+  duration_ms: 0.242194
+  type: 'test'
+  ...
+# Subtest: tabular searches prefer the styled table and retain the native fallback
+ok 550 - tabular searches prefer the styled table and retain the native fallback
+  ---
+  duration_ms: 0.661119
+  type: 'test'
+  ...
+# Subtest: describe steers tabular data to shadcn and documents native as the styled fallback
+ok 551 - describe steers tabular data to shadcn and documents native as the styled fallback
+  ---
+  duration_ms: 1.052662
+  type: 'test'
+  ...
+# Subtest: describe returns null for an unknown id
+ok 552 - describe returns null for an unknown id
+  ---
+  duration_ms: 0.292461
+  type: 'test'
+  ...
+# Subtest: describe returns the full entry, including a JSON-Schema propsSchema, for a known id
+ok 553 - describe returns the full entry, including a JSON-Schema propsSchema, for a known id
+  ---
+  duration_ms: 0.309279
+  type: 'test'
+  ...
+# Subtest: server-side chart providers keep each id/kind but refuse to load provider code
+ok 554 - server-side chart providers keep each id/kind but refuse to load provider code
+  ---
+  duration_ms: 1.826447
+  type: 'test'
+  ...
+# Subtest: a manifest with no description is searchable by its other fields and is projected without a description key
+ok 555 - a manifest with no description is searchable by its other fields and is projected without a description key
+  ---
+  duration_ms: 0.880005
+  type: 'test'
+  ...
+# Subtest: search_components defaults to 10 hits, clamps a low limit up to 1 and a high one down to 25
+ok 556 - search_components defaults to 10 hits, clamps a low limit up to 1 and a high one down to 25
+  ---
+  duration_ms: 5.043653
+  type: 'test'
+  ...
+# Subtest: describe_component returns a known entry and throws for an unknown id
+ok 557 - describe_component returns a known entry and throws for an unknown id
+  ---
+  duration_ms: 6.811953
+  type: 'test'
+  ...
+# Subtest: ordinary requested work is not sent through an extra choice confirmation
+ok 558 - ordinary requested work is not sent through an extra choice confirmation
+  ---
+  duration_ms: 15.59246
+  type: 'test'
+  ...
+# Subtest: known publishing accounts are used without reconfirming them
+ok 559 - known publishing accounts are used without reconfirming them
+  ---
+  duration_ms: 3136.04152
+  type: 'test'
+  ...
+# Subtest: resetting the visible conversation does not ask the operator for confirmation
+ok 560 - resetting the visible conversation does not ask the operator for confirmation
+  ---
+  duration_ms: 7.068481
+  type: 'test'
+  ...

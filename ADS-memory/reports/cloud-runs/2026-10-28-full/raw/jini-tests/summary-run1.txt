@@ -1,0 +1,39 @@
+admin NOTESTS
+agent-plugins NOTESTS
+agent-runtime exit 1
+agentic NOTESTS
+analytics NOTESTS
+artifacts NOTESTS
+capability-providers NOTESTS
+chat NOTESTS
+cli NOTESTS
+cms NOTESTS
+commerce NOTESTS
+cookie-consent NOTESTS
+core exit 0
+daemon NOTESTS
+db NOTESTS
+desktop-host NOTESTS
+devops NOTESTS
+diagnostics NOTESTS
+http-kit NOTESTS
+infra NOTESTS
+integrations NOTESTS
+mcp NOTESTS
+memory NOTESTS
+oauth NOTESTS
+platform NOTESTS
+plugins NOTESTS
+protocol NOTESTS
+provider-plugins NOTESTS
+registry NOTESTS
+sandbox NOTESTS
+search NOTESTS
+server NOTESTS
+sidecar NOTESTS
+sqlite NOTESTS
+ui-kit NOTESTS
+ui NOTESTS
+user-management NOTESTS
+vibecoding NOTESTS
+ALLDONE
