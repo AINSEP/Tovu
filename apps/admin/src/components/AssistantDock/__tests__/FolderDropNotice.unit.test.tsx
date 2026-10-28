@@ -19,6 +19,15 @@ describe("FolderDropNotice", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it("asks for a pasted path when a dropped folder's path could not be read", async () => {
+    const onDismiss = vi.fn();
+    const user = userEvent.setup();
+    render(<FolderDropNotice notice={{ kind: "path-unavailable" }} onDismiss={onDismiss} onRetry={vi.fn()} />);
+    expect(screen.getByRole("status")).toHaveTextContent("Browsers can't share folder paths. Paste the path instead (Finder: ⌥⌘C, Explorer: Ctrl+Shift+C).");
+    await user.click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
   it("renders FolderDropConfirmation for a confirmation notice", async () => {
     const onDismiss = vi.fn();
     const onRetry = vi.fn();

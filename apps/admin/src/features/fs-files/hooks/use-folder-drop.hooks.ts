@@ -54,10 +54,13 @@ import { useSerialWrites, useSettlementGeneration } from "@jini-ai/ui/panel-kit"
 /** Mirrors `errors.spec.md`'s `FolderDropError.reason` enum exactly. */
 export type FolderDropErrorReason = "not-a-directory" | "does-not-exist" | "endpoint-unreachable";
 
-/** One of `ui.spec.md`'s two notice shapes — never both at once (`useState` holds at most one). */
+/** One notice shape at a time (`useState` holds at most one). `path-unavailable`: a folder was
+ *  dropped but its OS path could not be read (a plain browser tab never exposes one), so the drop
+ *  was swallowed and the operator is asked to paste the path instead. */
 export type FolderDropNotice =
   | { readonly kind: "confirmation"; readonly path: string; readonly replacedPreviousPath: string | null }
-  | { readonly kind: "error"; readonly path: string; readonly reason: FolderDropErrorReason };
+  | { readonly kind: "error"; readonly path: string; readonly reason: FolderDropErrorReason }
+  | { readonly kind: "path-unavailable" };
 
 export interface UseFolderDrop {
   /** The notice to render (`FolderDropConfirmation`/`FolderDropError`), or `null` when neither
@@ -72,8 +75,9 @@ export interface UseFolderDrop {
   /** Pass through `AssistantDock`'s imperative handle to the wrapping `<aside onDropCapture={...}>`
    *  in `App.tsx` (capture phase, same reasoning as the desktop original: this must see the raw
    *  event before `@jini-ai/chat`'s own bubble-phase drop handling expands a folder into per-leaf
-   *  files). A no-op (falls through to the ordinary attachment-upload path) when running in a plain
-   *  browser tab (no `window.tovuFiles`) or when nothing dropped was a folder. Its identity never
+   *  files). A drop with no folder falls through to the ordinary attachment-upload path. A folder
+   *  whose path cannot be read (a plain browser tab has no `window.tovuFiles`) is still swallowed —
+   *  a folder drop never becomes an upload — and sets the `path-unavailable` notice. Its identity never
    *  changes for the hook's lifetime (`useFolderPathDropCapture`), so `useFolderDropBridge`
    *  publishes it once per mount. */
   readonly handleDropCapture: (event: DragEvent<HTMLElement>) => void;
@@ -132,6 +136,20 @@ function reasonForCustomRootError(err: unknown): FolderDropErrorReason {
   if (!(err instanceof ApiError) || err.code !== "INVALID_PATH") return "endpoint-unreachable";
   const message = typeof err.body?.error === "string" ? err.body.error : "";
   return message.includes("does not exist") ? "does-not-exist" : "not-a-directory";
+}
+
+/** `webkitGetAsEntry` is non-standard, so a drag item may not define it at all. */
+type DataTransferItemWithEntry = DataTransferItem & { webkitGetAsEntry?: () => FileSystemEntry | null };
+
+/**
+ * Whether a raw drop carries at least one folder, path or no path.
+ *
+ * @complexity Time: O(n) in the number of dragged items; space: O(n).
+ */
+function dropHasFolder(dataTransfer: DataTransfer): boolean {
+  return Array.from(dataTransfer.items ?? []).some(
+    (item) => item.kind === "file" && (item as DataTransferItemWithEntry).webkitGetAsEntry?.()?.isDirectory === true,
+  );
 }
 
 /**
@@ -214,16 +232,32 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
     [getCustomRoot, setCustomRoot, scheduleAutoDismiss, settlement, writes],
   );
 
-  const handleDropCapture = useFolderPathDropCapture({
+  // Set synchronously by `onFolderPaths` inside `capturePaths`, so `handleDropCapture` can tell a
+  // drop whose path was inserted from a folder drop whose path could not be read.
+  const pathsInserted = useRef(false);
+  const capturePaths = useFolderPathDropCapture({
     // See `defaultGetPort`'s doc for why reading the port at render is safe.
     port: getPort(),
     composer: input.composerHandle,
     onFolderPaths: (paths) => {
+      pathsInserted.current = true;
       // Called only for a swallowed drop, so `paths` is never empty. See this module's own doc
       // ("Multiple folders in one drop event") for why the LAST path becomes the custom root.
       void applyCustomRoot(paths[paths.length - 1] as string);
     },
   });
+
+  const handleDropCapture = useCallback((event: DragEvent<HTMLElement>) => {
+    pathsInserted.current = false;
+    capturePaths(event);
+    if (pathsInserted.current || !dropHasFolder(event.dataTransfer)) return;
+    // No path to insert, but a folder must never fall through to the uploader, which expands it into
+    // per-file attachments (owner 2026-10-27: "You can attach at most 10 files to one message").
+    event.preventDefault();
+    event.stopPropagation();
+    if (dismissTimer.current !== null) clearTimeout(dismissTimer.current);
+    setNotice({ kind: "path-unavailable" });
+  }, [capturePaths]);
 
   const dismiss = useCallback(() => {
     if (dismissTimer.current !== null) clearTimeout(dismissTimer.current);

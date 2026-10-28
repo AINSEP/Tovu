@@ -46,11 +46,17 @@ it("cancelling a chat file proposal persists nothing", async () => {
 });
 
 
-it("browser directories remain on Jini's folder-expanding attachment path", () => {
-  const root = directory([entry((new NativeFile(["notes"], "notes.md") as unknown as File), "/folder/notes.md")]);
-  const event = { dataTransfer: { items: [{ kind: "file", getAsFile: () => null, webkitGetAsEntry: () => root }], files: [], types: ["Files"] }, preventDefault: vi.fn(), stopPropagation: vi.fn() };
-  expect(captureSkillDrop({ event: event as never, proposeFiles: vi.fn(), fallback: vi.fn() }, { onError: vi.fn(), interceptFolders: false })).toBe(false);
-  expect(event.preventDefault).not.toHaveBeenCalled();
+it("a folder too big to be a skill, with no SKILL.md seen, keeps the host's folder action instead of a skill error", async () => {
+  // Owner 2026-10-27: a large assets folder dropped on the chat must reach the folder handler (path
+  // or paste hint), not report "Skill folder has too many entries".
+  const root = directory(Array.from({ length: 600 }, (_, i) => entry(new NativeFile(["x"], `a${i}.png`) as unknown as File, `/assets/a${i}.png`)));
+  const onError = vi.fn(), proposeFiles = vi.fn(), fallback = vi.fn();
+  const event = dropEvent(root);
+  await act(async () => { expect(captureSkillDrop({ event: event as never, proposeFiles, fallback }, { onError })).toBe(true); });
+  await waitFor(() => expect(fallback).toHaveBeenCalledTimes(1));
+  expect(event.preventDefault).toHaveBeenCalledTimes(1);
+  expect(onError).not.toHaveBeenCalled();
+  expect(proposeFiles).not.toHaveBeenCalled();
 });
 
 it.each(["site.zip", "agent.zip", "skill.zip", "SKILL.md"])("file-only %s drops reach the skill-aware attachment uploader", name => {
@@ -137,10 +143,13 @@ it("consumes a folder-read rejection when no error presenter is installed", asyn
 
 it.each(["entries", "depth", "files", "bytes"])("refuses folders exceeding the %s limit without forwarding a partial proposal", async limit => {
   let root: unknown;
-  if (limit === "entries") root = directory(Array.from({ length: 512 }, () => ({ isFile: false, isDirectory: false })));
+  // Each oversized folder shows a SKILL.md before the limit hits: without one it is not a skill and
+  // falls back to the folder handler instead (see the "too big to be a skill" case above).
+  if (limit === "entries") root = directory([entry(md, "/skill/SKILL.md"), ...Array.from({ length: 512 }, () => ({ isFile: false, isDirectory: false }))]);
   if (limit === "depth") {
     root = directory([]);
     for (let depth = 0; depth < 17; depth++) root = directory([root]);
+    root = directory([entry(md, "/skill/SKILL.md"), root]);
   }
   if (limit === "files") root = directory(Array.from({ length: 257 }, () => entry(md, "/skill/SKILL.md")));
   if (limit === "bytes") root = directory([entry(md, "/skill/SKILL.md"),

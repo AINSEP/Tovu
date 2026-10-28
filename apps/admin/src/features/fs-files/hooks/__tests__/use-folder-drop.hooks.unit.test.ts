@@ -111,7 +111,10 @@ describe("useFolderDrop", () => {
     expect(result.current.handleDropCapture).toBe(first);
   });
 
-  it("does nothing when no folder-drop port is available (plain browser tab, EC-05)", () => {
+  it("swallows a folder drop with no recoverable path and asks for a pasted path (plain browser tab)", () => {
+    // Owner 2026-10-27: a folder dragged onto the browser admin's chat was expanded into an upload
+    // ("You can attach at most 10 files"). A folder drop must never upload; with no path to insert,
+    // it shows the paste hint instead.
     const composerHandle = fakeComposerHandle();
     const { dataTransfer } = folderDataTransfer(["/Users/x/site"]);
     const setCustomRoot = vi.fn();
@@ -122,10 +125,37 @@ describe("useFolderDrop", () => {
     const event = fakeDropEvent(dataTransfer);
     act(() => result.current.handleDropCapture(event));
 
-    expect(event.preventDefault).not.toHaveBeenCalled();
-    expect(event.stopPropagation).not.toHaveBeenCalled();
+    expect(event.preventDefault).toHaveBeenCalledTimes(1);
+    expect(event.stopPropagation).toHaveBeenCalledTimes(1);
     expect(composerHandle.current?.insertText).not.toHaveBeenCalled();
     expect(setCustomRoot).not.toHaveBeenCalled();
+    expect(result.current.notice).toEqual({ kind: "path-unavailable" });
+  });
+
+  it("swallows a folder drop the desktop bridge cannot resolve (empty path) the same way", () => {
+    const composerHandle = fakeComposerHandle();
+    const { dataTransfer } = folderDataTransfer(["/Users/x/site"]);
+    const { result } = renderHook(() =>
+      useFolderDrop({ composerHandle }, { getPort: () => ({ getPathForFile: () => "" }), setCustomRoot: vi.fn(), getCustomRoot: vi.fn() }),
+    );
+
+    const event = fakeDropEvent(dataTransfer);
+    act(() => result.current.handleDropCapture(event));
+
+    expect(event.preventDefault).toHaveBeenCalledTimes(1);
+    expect(result.current.notice).toEqual({ kind: "path-unavailable" });
+  });
+
+  it("leaves a loose-file drop alone in a plain browser tab (it is an ordinary attachment)", () => {
+    const composerHandle = fakeComposerHandle();
+    const { result } = renderHook(() =>
+      useFolderDrop({ composerHandle }, { getPort: () => null, setCustomRoot: vi.fn(), getCustomRoot: vi.fn() }),
+    );
+
+    const event = fakeDropEvent(looseFileDataTransfer());
+    act(() => result.current.handleDropCapture(event));
+
+    expect(event.preventDefault).not.toHaveBeenCalled();
     expect(result.current.notice).toBeNull();
   });
 
