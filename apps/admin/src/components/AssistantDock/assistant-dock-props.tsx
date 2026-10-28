@@ -58,18 +58,21 @@ export function voiceFooterAccessory(input: { readonly enabled: boolean; readonl
 
 /**
  * Everything in the composer footer's `footerLeadingAccessory` slot, right after "+": the folder
- * button (only once the server confirmed it can open a folder dialog here), then the mic. `undefined`
+ * button (only once the server confirmed it can open a folder dialog here), the picked-folder chip
+ * (`PickedFolderChip`, while a folder is picked), then the mic. `undefined`
  * when neither shows, so the slot is omitted rather than rendered empty.
  *
  * @param input.folderPicker `useNativeFolderPicker`'s result.
  * @param input.voice `voiceFooterAccessory`'s result.
+ * @param input.pickedFolder The rendered `PickedFolderChip`, if any.
  * @complexity O(1).
  */
-export function composerFooterLeading(input: { readonly folderPicker: UseNativeFolderPicker; readonly voice: ReactNode | undefined }) {
-  if (!input.folderPicker.available) return input.voice;
+export function composerFooterLeading(input: { readonly folderPicker: UseNativeFolderPicker; readonly voice: ReactNode | undefined; readonly pickedFolder?: ReactNode }) {
+  if (!input.folderPicker.available && !input.pickedFolder) return input.voice;
   return (
     <>
-      <FolderPathButton picking={input.folderPicker.picking} onPick={input.folderPicker.pickFolder} />
+      {input.folderPicker.available && <FolderPathButton picking={input.folderPicker.picking} onPick={input.folderPicker.pickFolder} />}
+      {input.pickedFolder}
       {input.voice}
     </>
   );

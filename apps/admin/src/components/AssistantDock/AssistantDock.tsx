@@ -4,6 +4,8 @@ import { DockHeader } from "./DockHeader";
 import { DockLeadingAccessory } from "./DockLeadingAccessory";
 import { composerFooterLeading, optionalChatPaneProps, voiceFooterAccessory } from "./assistant-dock-props";
 import { useNativeFolderPicker } from "../../features/fs-files/hooks/use-native-folder-picker.hooks";
+import { usePickedFolder } from "../../features/fs-files/hooks/use-picked-folder.hooks";
+import { PickedFolderChip } from "./PickedFolderChip";
 import { dockSettingsMenuSections } from "./dock-header-rules";
 import { chatPaneDisplayProps } from "./chat-display-preferences";
 import { useChatDisplayPreferences } from "./chat-display-preferences.adapter";
@@ -423,6 +425,7 @@ export function AssistantDock({
   // The composer's folder button: a picked path is handled exactly like a desktop folder drop; a
   // dialog that fails to open hides the button and falls back to the paste hint.
   const folderPicker = useNativeFolderPicker({ onPicked: folderDrop.insertFolderPath, onFailed: folderDrop.showPathHint });
+  const pickedFolder = usePickedFolder({ confirmedPath: folderDrop.notice?.kind === "confirmation" ? folderDrop.notice.path : null });
 
   const handleMessagesChange = useMessagesChangeHandler({ chats });
   const runContext = useRunContext({
@@ -571,7 +574,7 @@ export function AssistantDock({
           //
           // The folder button (owner 2026-10-27: "a folder icon next to the plus button") rides the same
           // slot, ahead of the mic — see `composerFooterLeading`.
-          footerLeadingAccessory: composerFooterLeading({ folderPicker,
+          footerLeadingAccessory: composerFooterLeading({ folderPicker, pickedFolder: pickedFolder.path ? <PickedFolderChip path={pickedFolder.path} onClear={pickedFolder.clear} /> : undefined,
             voice: voiceFooterAccessory({ enabled: VOICE_INPUT_ENABLED, onTranscript: voiceInput.insertTranscript }) }),
         }}
         // Renders the pinned-plugin chip tray above the composer's textarea. NOT passed inside

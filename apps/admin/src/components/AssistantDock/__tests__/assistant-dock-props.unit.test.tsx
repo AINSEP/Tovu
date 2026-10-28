@@ -72,9 +72,17 @@ describe("composerFooterLeading", () => {
   it("puts the folder button first, right after +, wired to the picker, then the mic", () => {
     const slot = composerFooterLeading({ folderPicker: { ...picker, picking: true }, voice: mic });
     const children = isValidElement<{ children: unknown[] }>(slot) ? slot.props.children : [];
-    const [button, voice] = children as [unknown, unknown];
+    const [button, , voice] = children as [unknown, unknown, unknown];
     expect(isValidElement(button) && button.type).toBe(FolderPathButton);
     expect(isValidElement<{ picking: boolean; onPick: unknown }>(button) && [button.props.picking, button.props.onPick]).toEqual([true, picker.pickFolder]);
     expect(voice).toBe(mic);
+  });
+
+  it("puts the picked-folder chip after the folder button, before the mic, even with no folder dialog here", () => {
+    const chip = <span>chip</span>;
+    const children = (slot: unknown) => (isValidElement<{ children: unknown[] }>(slot) ? slot.props.children : []);
+    const [button, placed, voice] = children(composerFooterLeading({ folderPicker: picker, voice: mic, pickedFolder: chip })) as [unknown, unknown, unknown];
+    expect([isValidElement(button) && button.type, placed, voice]).toEqual([FolderPathButton, chip, mic]);
+    expect(children(composerFooterLeading({ folderPicker: { ...picker, available: false }, voice: mic, pickedFolder: chip }))).toEqual([false, chip, mic]);
   });
 });

@@ -3543,6 +3543,7 @@ export const api = {
   getFsFilesCustomRoot: () => authenticatedAdminRequest<{ path: string | null }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/fs-files/custom-root` }),
   setFsFilesCustomRoot: (path: string) =>
     authenticatedAdminRequest<{ path: string }>({ method: "PUT", path: `/workspaces/${WORKSPACE_ID}/fs-files/custom-root`, body: { path } }),
+  clearFsFilesCustomRoot: () => authenticatedAdminRequest<{ path: null }>({ method: "DELETE", path: `/workspaces/${WORKSPACE_ID}/fs-files/custom-root` }),
   // The composer's folder button. `GET` succeeds only when the server runs on this same machine
   // (`apps/website`'s `routes/fs-files/folder-picker.ts`) — any rejection means "hide the button".
   // `POST` opens the OS folder dialog there and resolves `{ path: null }` on Cancel.
