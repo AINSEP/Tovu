@@ -7,7 +7,8 @@
  * compromised `kuinetic` publish on the registry would have been silent code execution with that
  * bridge on the very next launch — nothing in this repo would have changed. The fix vendors the
  * exact pinned bytes into `public/vendor/kuinetic/` and adds a `script-src 'self'` CSP so a remote
- * `<script>` can never come back without failing this file first.
+ * `<script>` can never come back without failing this file first. (2026-10-28: the vendored copy
+ * was later removed — nothing in the renderer used it — but the CSP and this guard stay.)
  *
  * Every renderer `*.html` is scanned (`**\/*.html`, not just `index.html` by name), so a future
  * second HTML entry point is covered automatically instead of silently falling outside scope.
@@ -21,7 +22,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { createHash } from "node:crypto";
 import { parse, type DefaultTreeAdapterMap } from "parse5";
 import { fileURLToPath } from "node:url";
 
@@ -131,26 +131,4 @@ test("the HTML scanner detects remote resources with any quoting and protocol-re
   assert.deepEqual(remoteResourceUrls(html), [
     "https://cdn.invalid/single.js", "//cdn.invalid/unquoted.js", "//cdn.invalid/style.css", "https://cdn.invalid/entity.js",
   ]);
-});
-
-test("the vendored kuinetic files index.html points at actually exist on disk, at the version index.html's own comment claims", () => {
-  const html = fs.readFileSync(path.join(rendererRoot, "index.html"), "utf8");
-  assert.match(html, /public\/vendor\/kuinetic\//, "index.html's own comment should still name the vendor path, so a future bump is a deliberate, greppable edit");
-  assert.match(html, /0\.1\.4/, "index.html's own comment should still name the vendored kuinetic version");
-
-  // Pin the checked-in vendored baseline. A version bump must deliberately update these digests;
-  // an empty, modified or different-version asset cannot inherit the unchanged HTML comment.
-  const digests = {
-    "kuinetic.css": "53be899acde5b69d0a712d3cfc18873b161828b7c20ac2cc39944c98cf9a6b00",
-    "kuinetic.js": "7c82e8f7f1fd4e6f2327b6662b939e9460ceeda6815431fcc0237ca3dbda9f73",
-    LICENSE: "a5e4bcb52054b20c50420fac17c98df885694d26c52e220e6a2ac92882595faf",
-  };
-  const referenced = scriptAndLinkUrls(html);
-  for (const [name, digest] of Object.entries(digests)) {
-    const rel = `public/vendor/kuinetic/${name}`;
-    const full = path.join(rendererRoot, rel);
-    assert.ok(fs.existsSync(full), `${rel} must exist — index.html references it by a local path with no remote fallback`);
-    if (name !== "LICENSE") assert.ok(referenced.includes(`./vendor/kuinetic/${name}`), `${name} must be the asset index.html loads`);
-    assert.equal(createHash("sha256").update(fs.readFileSync(full)).digest("hex"), digest, `${rel} must match its pinned vendored bytes`);
-  }
 });
