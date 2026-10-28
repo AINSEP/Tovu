@@ -305,12 +305,16 @@ What this means in practice:
   filesystem copy, not a tool call.
 - **From a URL (Part C)** — a font, or an image the theme itself uses (logo, icon, favicon,
   background): `theme_import_file_from_url` into `assets/…`. A content image an editor should manage:
-  `media_import_from_url`, then its `publicUrl`. An SVG: `web_fetch_page` with `format: "raw"`, then
+  `media_import_from_url`, then reference it by slug (below). An SVG: `web_fetch_page` with `format: "raw"`, then
   `theme_write_file`.
 - **Local assets** — editable content images/video: `media_import_local_file { root, path }`
   returns their Media `publicUrl`; SVG is sanitized there. Theme fonts, raster images and ICO:
   `theme_import_local_file { themeId, path: "assets/…", root, sourcePath }`. Local SVG used only
   by a static theme: `fs_read_file` then `theme_write_file`. Video uses Media in either branch.
+- **Editor-managed images (logos, photos, posters) go in Media and are referenced BY SLUG** — never a
+  hard-coded `/m/…` publicUrl or `/theme-assets/…` path. Works in page bodies and theme partials:
+  `<figure data-embed-config='{"type":"media","content":{"mode":"media","items":[{"slug":"<slug>","alt":"…"}],"layout":"single"}}'></figure>`
+  Fonts, icons and favicons stay theme assets.
 - **Unsupported or refused assets** — name the exact source, intended destination and error.
   Report what remains; never fabricate a placeholder or claim an unsuccessful import worked.
   A text file rejected by the reader's binary sniff still needs a real filesystem copy.
@@ -558,7 +562,8 @@ Use its local-folder conventions; do not invoke the public-site crawl or scope q
 1. Complete the survey and shared bootstrap above; retain the source-path inventory and group
    real layout families. Import all referenced images (including logos/backgrounds) into Media
    with `media_import_local_file` in batches, retaining
-   source-path → `{id, publicUrl}` mappings. Rewrite HTML, CSS backgrounds and `srcset` candidates.
+   source-path → `{slug, publicUrl}` mappings. Rewrite `<img>`s to the media embed by slug (Assets
+   section); only CSS backgrounds and `srcset` candidates may use the `publicUrl`.
    Fonts/icons use `theme_import_local_file`; do not treat fonts as Media.
 2. Build the duplicated static-tier theme using B3's manifest, tokens, family partials and
    stylesheet/script rewrite rules. For each family, write a shell in `render/pages/` with
@@ -752,7 +757,7 @@ Role → token (names the themes and the page-HTML contract use; do not invent o
    end: `/* ===== reference: <host> ===== */`. Later rules win.
 4. **Header** — rewrite `render/partials/nav.html` from the source header:
    - Logo: SVG → `web_fetch_page` `format: "raw"` → `theme_write_file` `assets/logo.svg`;
-     raster → `media_import_from_url` → its `publicUrl`; text wordmark → markup + CSS.
+     raster → `media_import_from_url` → media embed by slug (Assets section); text wordmark → markup + CSS.
    - Menu: `<nav class="main-nav" data-embed-config='{"type":"menu","id":"<menu id>","variant":"tree"}'>`
      with the imported menu's id (`content_read.menu`). A static theme resolves a menu by the
      marker's id; `menus_assign_location` does not place a menu in a static theme.
