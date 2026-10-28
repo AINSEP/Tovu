@@ -75,6 +75,14 @@ export interface AssistantRuntimeGuidanceInput {
   preferSubagents: boolean;
   claudeInChrome: boolean;
   replyLength: AssistantRuntimePreferences["replyLength"];
+  /** The folder the person picked with the composer's folder control (the site's custom fs root). */
+  pickedFolder?: string;
+}
+
+/** Owner 2026-10-27: the picked folder is readable (read-only) so the agent can build from its assets;
+ * writes into it go only through the carded `fs_write_files` batch. Pure, O(1). */
+export function buildPickedFolderGuidance({ path }: { path: string }, _options = {}): string {
+  return `The person picked the folder "${path}" for this chat. You can read it (read-only); copy anything you need into the site folder. Never write into the picked folder with shell or edit tools; to create or change files there, call fs_write_files once with every file of the change, and the person approves the batch.`;
 }
 
 /** Spread verbatim into `AgentExecutor.run()`'s optional arguments. */
@@ -91,6 +99,7 @@ export function buildAssistantRuntimeGuidance({ input }: { input: AssistantRunti
     buildPreferSubagentsGuidance({ effective: input?.preferSubagents === true }),
     input?.claudeInChrome === true ? CLAUDE_IN_CHROME_GUIDANCE : "",
     buildReplyLengthGuidance({ replyLength: input?.replyLength }),
+    input?.pickedFolder ? buildPickedFolderGuidance({ path: input.pickedFolder }) : "",
   ].filter(text => text !== "").map(text => `${text} `).join("");
 }
 

@@ -217,7 +217,7 @@ export function resolveLocalImportRequest(
  * type, and returns the same media projection for either byte source. Storage failures propagate.
  * @complexity O(n) in the uploaded bytes for hashing/storage; fixed-count repository operations.
  */
-async function persistImportedMedia(required: { routeDeps: MediaImportToolDeps; input: UploadMediaInput; sourceUrl: string; actorId: string }, _optional: Record<string, never> = {}): Promise<{ media: ImportedMediaView }> {
+export async function persistImportedMedia(required: { routeDeps: MediaImportToolDeps; input: UploadMediaInput; sourceUrl: string; actorId: string }, _optional: Record<string, never> = {}): Promise<{ media: ImportedMediaView }> {
   const { routeDeps, input, sourceUrl, actorId } = required;
   const { media } = await uploadMedia({
     deps: {

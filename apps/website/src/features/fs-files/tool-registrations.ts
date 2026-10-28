@@ -1,18 +1,26 @@
+import { basename } from "node:path";
 import { toolMetadata } from '../../contracts/core/tool-metadata/fs-files.js';
 import { ToolInputError, buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
+import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 
 import type { ToolContributor } from "#src/assistant/index";
+import { approvalToolHandler, refuseUnexpectedKeys, type HumanConfirmSpec } from '#src/contracts/core/human-confirm';
 
 import {
   FS_FILES_READ_PERMISSION,
   FS_LIST_FILES_TOOL_ID,
   FS_READ_FILE_TOOL_ID,
+  FS_WRITE_FILES_TOOL_ID,
   getFsFilesAgentToolCatalog,
 } from "./agent-tools.js";
+import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "./custom-root-permission.js";
 import { FsFilePathError, listFsFiles, readFsFile } from "./fs-files.js";
 import { FS_ROOT_IDS, resolveFsRoots, type FsRootId } from "./layout.js";
 import { FsRootNotFoundError, resolveSiteFileRequest } from "./site-file-request.js";
+import { FsWriteInputError, prepareFileWrites, requirePickedFolder, writePreparedFiles, type PreparedFileWrite } from "./write-files.js";
 
 /**
  * @file Wires `fs_list_files`/`fs_read_file` into the assistant's tool catalog, through the same
@@ -24,8 +32,9 @@ import { FsRootNotFoundError, resolveSiteFileRequest } from "./site-file-request
  * both handlers below call `requireToolPermission` inline, ADR-021 §2's single evaluator located at
  * the handler rather than inside the domain function.
  *
- * No live-state coupling: unlike `theme_write_file`, nothing here writes anything or replaces an
- * in-memory `routeDeps` entry — both handlers are pure reads.
+ * No live-state coupling: unlike `theme_write_file`, nothing here replaces an in-memory `routeDeps`
+ * entry — both read handlers are pure reads, and `fs_write_files` (owner 2026-10-27) only writes
+ * files into the picked folder after the human approves the exact batch on one card.
  */
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: getFsFilesAgentToolCatalog() });
@@ -71,6 +80,8 @@ export const fsFilesDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTool
   [FS_LIST_FILES_TOOL_ID, "none"],
   // -> readFsFile(): one readFileSync under one allowed root, no writes.
   [FS_READ_FILE_TOOL_ID, "none"],
+  // -> writePreparedFiles(): creates or replaces files in the picked folder after one approval.
+  [FS_WRITE_FILES_TOOL_ID, "mutates-durable-state"],
 ]);
 
 /** Require the caller to choose a filesystem scope; never guess a root from an empty call.
@@ -96,7 +107,47 @@ function normalizeFsReadInput({ input }: { input: Record<string, unknown> }, _op
   return { input, notes: [] };
 }
 
-export function buildFsFilesRegistrations(routeDeps: FsFilesToolDeps): ToolRegistration[] {
+export interface PreparedWriteBatch { readonly folder: string; readonly writes: readonly PreparedFileWrite[] }
+
+const kb = (bytes: number) => (bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`);
+
+/** The existing approval card, one per batch: a line per file (new/overwrite, size, path) and the
+ * total. No `rememberKey`, so no "always allow" — every batch gets its own card. O(n) in files.
+ * `toolId` binds the card's answer to the calling tool (`image_transform`/`files_copy` reuse this card). */
+export function describeWriteBatch({ folder, writes }: PreparedWriteBatch, { toolId = FS_WRITE_FILES_TOOL_ID }: { toolId?: string } = {}): HumanConfirmSpec {
+  const overwrites = writes.filter((write) => write.overwrite).length;
+  const total = writes.reduce((sum, write) => sum + write.bytes.length, 0);
+  const lines = writes.map((write) => `${write.overwrite ? "overwrite" : "new      "}  ${kb(write.bytes.length).padStart(9)}  ${write.path}`);
+  return { toolId, errorCode: "FS_WRITE", title: `Write ${writes.length} file(s) to ${basename(folder)}?`,
+    details: [{ label: "Folder", value: folder }, { label: "Files", value: lines.join("\n"), format: "code" }, { label: "Total", value: kb(total) }],
+    ...(overwrites > 0 ? { warning: `Replaces ${overwrites} existing file(s). There is no undo.`, danger: true } : {}),
+    confirmLabel: "Write files" };
+}
+
+/** The picked folder's real path under the write rule; `files_copy`/`image_transform` read it through
+ * the same rule. @throws {FsWriteInputError} No folder or an unsafe folder. @complexity O(1) fs calls. */
+export function resolvePickedFolder({ routeDeps }: { routeDeps: FsFilesToolDeps }, _optional = {}): string {
+  const custom = (routeDeps.resolveRoots ?? (() => resolveFsRoots({ siteDir: routeDeps.siteBinding.dir, workspaceId: routeDeps.workspaceId })))().custom;
+  if (custom === undefined) throw new FsWriteInputError({ message: "No folder is picked — ask the person to pick one with the composer's folder button" });
+  return requirePickedFolder({ dir: custom, siteDir: routeDeps.siteBinding.dir });
+}
+
+/** Resolves the picked folder and validates one batch before its card; nothing is written.
+ * Shared with `image_transform`, so both write through one folder rule and one card.
+ * @throws {ToolInputError} No folder, an unsafe folder, or a refused file. @complexity O(n·depth). */
+export function preparePickedFolderBatch({ routeDeps, files }: { routeDeps: FsFilesToolDeps; files: unknown }, _optional = {}): PreparedWriteBatch {
+  try {
+    const folder = resolvePickedFolder({ routeDeps });
+    return { folder, writes: prepareFileWrites({ folder, files }) };
+  } catch (error) {
+    throw error instanceof FsWriteInputError ? new ToolInputError({ message: error.message }) : error;
+  }
+}
+
+export function buildFsFilesRegistrations(
+  routeDeps: FsFilesToolDeps,
+  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
+): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     [FS_LIST_FILES_TOOL_ID]: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
@@ -128,6 +179,21 @@ export function buildFsFilesRegistrations(routeDeps: FsFilesToolDeps): ToolRegis
         return { root, path: relativePath, content, bytes };
       } });
     },
+
+    [FS_WRITE_FILES_TOOL_ID]: approvalToolHandler<PreparedWriteBatch>({ surfaces,
+      prepare: async ({ ctx }) => {
+        const input = requireInputRecord({ input: ctx.input });
+        refuseUnexpectedKeys(input, ["files"]);
+        await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId,
+          principalId: ctx.principal.id, permission: FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION }, { entityType: "fs-root", entityId: "custom" });
+        return preparePickedFolderBatch({ routeDeps, files: input.files });
+      },
+      describe: ({ prepared }) => describeWriteBatch(prepared),
+      run: async ({ prepared }) => {
+        const outcome = writePreparedFiles(prepared);
+        return { applied: outcome.failed === undefined, ...outcome };
+      },
+    }, { flag: "applied" }),
   };
 
   return buildDomainRegistrations({ metadata: toolMetadata,

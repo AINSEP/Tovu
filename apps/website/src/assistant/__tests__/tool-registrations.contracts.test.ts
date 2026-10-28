@@ -92,6 +92,8 @@ import { setActiveThemeAgentToolCatalog } from "../../features/theme/set-active-
 import { previewSwitcherAgentToolCatalog } from "../../features/theme/preview-switcher-tools.js";
 import { duplicateThemeAgentToolCatalog } from "../../features/theme/duplicate-theme-tool.js";
 import { importThemeFileAgentToolCatalog } from "../../features/theme/import-theme-file-tool.js";
+import { filesCopyAgentToolCatalog } from "../../features/fs-files/copy-tool.js";
+import { imageTransformAgentToolCatalog } from "../../features/image-transform/tool.js";
 import { getChangeSetsAgentToolCatalog } from "../../features/change-sets/agent-tools.js";
 import { mediaAgentToolCatalog } from "../../features/media/index.js";
 import { mediaGenerationAgentToolCatalog } from "../../features/media-generation/agent-tools.js";
@@ -255,6 +257,8 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   "theme-preview-switcher": previewSwitcherAgentToolCatalog as unknown as AgentToolDefinition[],
   "theme-duplicate": duplicateThemeAgentToolCatalog as unknown as AgentToolDefinition[],
   "theme-import-file": importThemeFileAgentToolCatalog as unknown as AgentToolDefinition[],
+  "files-copy": filesCopyAgentToolCatalog as unknown as AgentToolDefinition[],
+  "image-transform": imageTransformAgentToolCatalog as unknown as AgentToolDefinition[],
   "change-sets": getChangeSetsAgentToolCatalog() as unknown as AgentToolDefinition[],
   "deploy-ops": deployOpsAgentToolCatalog as unknown as AgentToolDefinition[],
   deployments: deploymentsAgentToolCatalog as unknown as AgentToolDefinition[],

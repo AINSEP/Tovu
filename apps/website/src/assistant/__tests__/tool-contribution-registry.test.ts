@@ -206,6 +206,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "external-mcp",
     "external-mcp-operations",
     "fs-files",
+    "files-copy",
     "forms",
     "identity",
     "integrations",
@@ -213,6 +214,8 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     // 2026-10-01 (82d2be726): `media_view_image`, its own key so it does not replace `media`'s
     // `@jini-ai/cms`-owned catalog.
     "media-view",
+    // 2026-10-27: `image_transform` (resize/crop/convert/favicon), own key, right after `media-view`.
+    "image-transform",
     "media-video-view",
     "media-generation",
     // 2026-10-03 (landed in 5ec1a964d): media-generation provider tools, own key.

@@ -956,6 +956,19 @@ button.jini-composer-leading,
   cursor: pointer;
 }
 
+/* "+" and the folder button sit tighter than the send button: 28px boxes (still a fine touch target)
+   with a 2px gap instead of the footer's, so the leading controls take less of the composer row. */
+.admin-chat-dock .jini-chat-pane .jini-composer-footer .jini-composer-attach {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
+}
+
+.admin-chat-dock .jini-chat-pane .jini-composer-footer .tovu-composer-folder-path {
+  margin-left: -4px;
+}
+
 /* The leading slot contains notices and pinned trays, not just buttons. Jini caps it at 64px
    and gives children max-content widths; a sign-in warning must grow and wrap on the sheet too. */
 .admin-chat-dock .jini-chat-pane div.jini-composer-leading {

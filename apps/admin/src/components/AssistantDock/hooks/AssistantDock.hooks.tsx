@@ -2030,7 +2030,7 @@ export function useFolderDropBridge(
 ): UseFolderDrop {
   const folderDrop = useFolderDrop(input);
   const handleDropCapture = useCallback((event: DragEvent<HTMLElement>) => {
-    if (proposeSkillFiles && captureSkillDrop({ event, proposeFiles: proposeSkillFiles, fallback: folderDrop.handleDropCapture }, { ...(onSkillDropError ? { onError: onSkillDropError } : {}), interceptFolders: Boolean(window.tovuFiles) })) return;
+    if (proposeSkillFiles && captureSkillDrop({ event, proposeFiles: proposeSkillFiles, fallback: folderDrop.handleDropCapture }, onSkillDropError ? { onError: onSkillDropError } : {})) return;
     folderDrop.handleDropCapture(event);
   }, [proposeSkillFiles, folderDrop.handleDropCapture, onSkillDropError]);
   useEffect(() => { onReady?.(handleDropCapture); }, [onReady, handleDropCapture]);

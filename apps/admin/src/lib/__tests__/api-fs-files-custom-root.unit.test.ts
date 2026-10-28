@@ -38,3 +38,13 @@ test("setFsFilesCustomRoot PUTs the path verbatim in JSON and returns the canoni
 });
 
 // clearFsFilesCustomRoot (lib/api.ts) and its dedicated test case were deleted 2026-10-03: unused; see development/DELETED-CODE.md.
+
+test("getFolderPicker GETs and pickFolder POSTs the workspace folder-picker endpoint with no body", async () => {
+  const endpoint = "/api/admin/v1/workspaces/workspace-local/fs-files/folder-picker";
+  const fetchMock = stubFetch({ path: "/Users/la/Picked" });
+  await expect(api.getFolderPicker()).resolves.toEqual({ path: "/Users/la/Picked" });
+  await expect(api.pickFolder()).resolves.toEqual({ path: "/Users/la/Picked" });
+  const [[getUrl, getInit], [postUrl, postInit]] = fetchMock.mock.calls;
+  expect([getUrl, getInit?.method ?? "GET", postUrl, postInit?.method]).toEqual([endpoint, "GET", endpoint, "POST"]);
+  expect(postInit?.body).toBeUndefined();
+});

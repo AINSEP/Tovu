@@ -565,6 +565,19 @@ test("getAdminPostByIdOrSlug normalizes the slug fallback the same way getPublis
   assert.equal(post.id, "post-1");
 });
 
+test("getAdminPostByIdOrSlug accepts a leading slash while preserving home and slug-first lookup", async () => {
+  const page = buildPostRecord({ ...seedPost, id: "page-about", kind: "page", slug: "about" });
+  const home = buildPostRecord({ ...seedPost, id: "page-home", kind: "page", slug: "/" });
+  const collision = buildPostRecord({ ...seedPost, id: "/about", slug: "other" });
+  const repo = new InMemoryPostRepo([page, home, collision]);
+  for (const selector of ["about", "/about", " /ABOUT "]) {
+    const result = await getAdminPostByIdOrSlug({ deps: { repo }, input: { workspaceId: "workspace-1", idOrSlug: selector } });
+    assert.equal(result.post.id, page.id);
+  }
+  const result = await getAdminPostByIdOrSlug({ deps: { repo }, input: { workspaceId: "workspace-1", idOrSlug: "/" } });
+  assert.equal(result.post.id, home.id);
+});
+
 test("getAdminPostByIdOrSlug 404s, trash-blind, for a value that matches neither an id nor a slug", async () => {
   const repo = new InMemoryPostRepo([seedPost]);
 

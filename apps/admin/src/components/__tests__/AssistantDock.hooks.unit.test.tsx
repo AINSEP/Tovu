@@ -2176,6 +2176,31 @@ describe("useFolderDropBridge", () => {
     }
   });
 
+  it("in a plain browser, captures a dropped non-skill folder and hands it to the folder handler instead of the uploader", async () => {
+    // Owner 2026-10-27: a browser folder drop used to fall through to Jini's folder-expanding
+    // uploader. It must be captured exactly like the desktop's, and never reach the upload path.
+    const plainDrop = vi.fn();
+    mockUseFolderDrop.mockReturnValue({ notice: null, dismiss: vi.fn(), retry: vi.fn(), handleDropCapture: plainDrop });
+    const notes = new File(["notes"], "notes.md");
+    const leaf = { name: "notes.md", fullPath: "/assets/notes.md", isFile: true, isDirectory: false, file: (resolve: (file: File) => void) => resolve(notes) };
+    const folder = { name: "assets", fullPath: "/assets", isFile: false, isDirectory: true, createReader: () => {
+      let read = false;
+      return { readEntries: (resolve: (entries: unknown[]) => void) => { resolve(read ? [] : [leaf]); read = true; } };
+    } };
+    const event = {
+      dataTransfer: { items: [{ kind: "file", getAsFile: () => null, webkitGetAsEntry: () => folder }], files: [], types: ["Files"] },
+      preventDefault: vi.fn(), stopPropagation: vi.fn(),
+    } as unknown as Parameters<ReturnType<typeof useFolderDropBridge>["handleDropCapture"]>[0];
+    expect((window as unknown as { tovuFiles?: unknown }).tovuFiles).toBeUndefined();
+    const proposeSkillFiles = vi.fn();
+    const { result } = renderHook(() => useFolderDropBridge({ composerHandle: { current: null } }, undefined, proposeSkillFiles));
+    result.current.handleDropCapture(event);
+    expect(event.preventDefault).toHaveBeenCalledTimes(1);
+    expect(event.stopPropagation).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(plainDrop).toHaveBeenCalledTimes(1));
+    expect(proposeSkillFiles).not.toHaveBeenCalled();
+  });
+
   it("publishes handleDropCapture to onReady once it is available", () => {
     const handleDropCapture = vi.fn();
     mockUseFolderDrop.mockReturnValue({ notice: null, dismiss: vi.fn(), retry: vi.fn(), handleDropCapture });

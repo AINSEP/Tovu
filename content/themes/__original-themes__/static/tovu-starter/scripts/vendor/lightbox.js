@@ -1,6 +1,6 @@
 // Vendored from https://kuinetic.com/lightbox.js on 2026-09-23. Not part of the main
-// kuinetic.all.js bundle — a separate, self-contained script, included here directly
-// beside it under scripts/vendor/, same vendored-not-CDN rationale as kuinetic.all.js
+// kuinetic.all.min.js bundle — a separate, self-contained script, included here directly
+// beside it under scripts/vendor/, same vendored-not-CDN rationale as kuinetic.all.min.js
 // (see NOTICE.md). Prototype: click-to-enlarge lightbox for post/page body images.
 /**
  * lightbox.js — click any demo image to open it full-size over a lightly dimmed page.

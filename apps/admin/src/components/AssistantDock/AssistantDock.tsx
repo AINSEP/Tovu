@@ -2,7 +2,10 @@ import { onAdminSecretRedacted } from "@/lib/credential-card-guidance";
 import { ConfirmDialog, useConfirmRequest } from "@jini-ai/admin/react";
 import { DockHeader } from "./DockHeader";
 import { DockLeadingAccessory } from "./DockLeadingAccessory";
-import { optionalChatPaneProps, voiceFooterAccessory } from "./assistant-dock-props";
+import { composerFooterLeading, optionalChatPaneProps, voiceFooterAccessory } from "./assistant-dock-props";
+import { useNativeFolderPicker } from "../../features/fs-files/hooks/use-native-folder-picker.hooks";
+import { usePickedFolder } from "../../features/fs-files/hooks/use-picked-folder.hooks";
+import { PickedFolderChip } from "./PickedFolderChip";
 import { dockSettingsMenuSections } from "./dock-header-rules";
 import { chatPaneDisplayProps } from "./chat-display-preferences";
 import { useChatDisplayPreferences } from "./chat-display-preferences.adapter";
@@ -419,6 +422,10 @@ export function AssistantDock({
   // `composerHandle` (the same "insert text into the composer" seam a voice transcript already goes
   // through) rather than owning a second ref to the same `ChatPaneComposerHandle`.
   const folderDrop = useFolderDropBridge({ composerHandle: voiceInput.composerHandle }, onFolderDropCaptureReady, skillInstall.proposeFiles, skillInstall.fail);
+  // The composer's folder button: a picked path is handled exactly like a desktop folder drop; a
+  // dialog that fails to open hides the button and falls back to the paste hint.
+  const folderPicker = useNativeFolderPicker({ onPicked: folderDrop.insertFolderPath, onFailed: folderDrop.showPathHint });
+  const pickedFolder = usePickedFolder({ confirmedPath: folderDrop.notice?.kind === "confirmation" ? folderDrop.notice.path : null });
 
   const handleMessagesChange = useMessagesChangeHandler({ chats });
   const runContext = useRunContext({
@@ -564,7 +571,11 @@ export function AssistantDock({
           // `VOICE_INPUT_ENABLED` (`voice-input-config.ts`) is the reversible switch — `undefined`
           // here omits the slot entirely rather than rendering a disabled/hidden button, and
           // flipping that one constant back to `true` restores this exactly as it was.
-          footerLeadingAccessory: voiceFooterAccessory({ enabled: VOICE_INPUT_ENABLED, onTranscript: voiceInput.insertTranscript }),
+          //
+          // The folder button (owner 2026-10-27: "a folder icon next to the plus button") rides the same
+          // slot, ahead of the mic — see `composerFooterLeading`.
+          footerLeadingAccessory: composerFooterLeading({ folderPicker, pickedFolder: pickedFolder.path ? <PickedFolderChip path={pickedFolder.path} onClear={pickedFolder.clear} /> : undefined,
+            voice: voiceFooterAccessory({ enabled: VOICE_INPUT_ENABLED, onTranscript: voiceInput.insertTranscript }) }),
         }}
         // Renders the pinned-plugin chip tray above the composer's textarea. NOT passed inside
         // `composerSlots` above — verified live (2026-08-21) that `ChatPane`'s own
@@ -583,7 +594,7 @@ export function AssistantDock({
         // `DockLeadingAccessory`'s own doc carries the owner constraint on what renders here and
         // why it is a fragment (no DOM node of its own).
         leadingAccessory={
-          <DockLeadingAccessory note={executionPolicy.note} warning={selectedAgentAuth.warning} folderDrop={folderDrop}
+          <DockLeadingAccessory note={executionPolicy.note} warning={selectedAgentAuth.warning} folderDrop={folderDrop} canPickFolder={folderPicker.available}
             pluginChips={selectedPluginChips} onRemovePlugin={removePluginRef} skills={selectedSkills} skillOnlySend={skillOnlySend} />
         }
         // Populated by `ChatPane` itself on mount; `PushToTalkMicButton`'s transcript is written

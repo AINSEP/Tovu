@@ -64,6 +64,11 @@ the tool **before** building it — do not build against an assumed API. A new t
 `DERIVED_RISK_BY_TOOL_ID` entry or `assertToolIsWirable` throws at composition-root boot; that
 is a real cost, not a formality.
 
+Use `files_copy` for picked-folder, site, theme, media or URL assets, and `image_transform` for
+resize, crop, format conversion and favicon sets. Use these tools instead of Bash or Python for assets.
+Before reporting any theme done, check **every page** with `web_screenshot_page` at desktop and
+mobile (~375px), including pre-existing pages such as Blog and Privacy under the new theme.
+
 Part B also uses `assistant_ask_choice`, `media_import_local_file`, `theme_import_local_file`,
 `content_post_create`, `content_post_update` and `pages_write_html`. Load the shared mapping
 reference named in Part B directly; do not start site-import's public-URL questionnaire.
@@ -300,12 +305,16 @@ What this means in practice:
   filesystem copy, not a tool call.
 - **From a URL (Part C)** — a font, or an image the theme itself uses (logo, icon, favicon,
   background): `theme_import_file_from_url` into `assets/…`. A content image an editor should manage:
-  `media_import_from_url`, then its `publicUrl`. An SVG: `web_fetch_page` with `format: "raw"`, then
+  `media_import_from_url`, then reference it by slug (below). An SVG: `web_fetch_page` with `format: "raw"`, then
   `theme_write_file`.
 - **Local assets** — editable content images/video: `media_import_local_file { root, path }`
   returns their Media `publicUrl`; SVG is sanitized there. Theme fonts, raster images and ICO:
   `theme_import_local_file { themeId, path: "assets/…", root, sourcePath }`. Local SVG used only
   by a static theme: `fs_read_file` then `theme_write_file`. Video uses Media in either branch.
+- **Editor-managed images (logos, photos, posters) go in Media and are referenced BY SLUG** — never a
+  hard-coded `/m/…` publicUrl or `/theme-assets/…` path. Works in page bodies and theme partials:
+  `<figure data-embed-config='{"type":"media","content":{"mode":"media","items":[{"slug":"<slug>","alt":"…"}],"layout":"single"}}'></figure>`
+  Fonts, icons and favicons stay theme assets.
 - **Unsupported or refused assets** — name the exact source, intended destination and error.
   Report what remains; never fabricate a placeholder or claim an unsuccessful import worked.
   A text file rejected by the reader's binary sniff still needs a real filesystem copy.
@@ -553,7 +562,8 @@ Use its local-folder conventions; do not invoke the public-site crawl or scope q
 1. Complete the survey and shared bootstrap above; retain the source-path inventory and group
    real layout families. Import all referenced images (including logos/backgrounds) into Media
    with `media_import_local_file` in batches, retaining
-   source-path → `{id, publicUrl}` mappings. Rewrite HTML, CSS backgrounds and `srcset` candidates.
+   source-path → `{slug, publicUrl}` mappings. Rewrite `<img>`s to the media embed by slug (Assets
+   section); only CSS backgrounds and `srcset` candidates may use the `publicUrl`.
    Fonts/icons use `theme_import_local_file`; do not treat fonts as Media.
 2. Build the duplicated static-tier theme using B3's manifest, tokens, family partials and
    stylesheet/script rewrite rules. For each family, write a shell in `render/pages/` with
@@ -598,21 +608,23 @@ Create no CMS Page rows in this branch.
    everything else byte-for-byte — a theme page's job is to be a faithful, working copy.
 6. **Vendor scripts/stylesheets** the pages actually load (survey step 2's usage check) into
    `scripts/`/`css/` (or a `vendor/` subfolder for a clearly third-party library, matching
-   `basic`'s own `scripts/vendor/kuinetic.all.js` precedent) — copy via `fs_read_file`/
+   `basic`'s own `scripts/vendor/kuinetic.all.min.js` precedent) — copy via `fs_read_file`/
    `theme_write_file` for anything under the size/binary limits, flag anything that isn't
    (Rule 5's fetch-path check, and the Assets section). Import local theme images/fonts/icons
    with `theme_import_local_file` in `items` batches; rewrite their references only after checking
    each result. Video uses `media_import_local_file` and its returned `publicUrl`.
+   'kuinetic' always means the kUInetic library (kuinetic.com); never hand-roll motion or add another animation library.
    **kUInetic** (and any library the theme vendors) loads from the theme's OWN local vendor file,
    exactly once, from the shared partial every page already includes — the stock themes put a
-   single `<script src="/theme-assets/<theme-id>/scripts/vendor/kuinetic.all.js"></script>` at the
+   single `<script src="/theme-assets/<theme-id>/scripts/vendor/kuinetic.all.min.js"></script>` at the
    end of `render/partials/footer.html` (and each footer variant). Partials expand after the page's
    `../scripts/` rewrite, so a partial uses the absolute `/theme-assets/<theme-id>/` form, the same
    form its logo `<img>` uses (`theme_duplicate` rewrites the id). Never a CDN tag
    (`cdn.jsdelivr.net/npm/kuinetic…`, an `@0`/`latest` range, a CDN `preload`), never a
    `window.kuinetic||document.write(...)` fallback, and never a per-page copy of the tag. Keep it a
    plain synchronous tag (no `defer`/`async`): kUInetic defers its own boot to `DOMContentLoaded`,
-   so it still arms after the page's own end-of-body scripts. Ship the library's LICENSE beside it.
+   so it still arms after the page's own end-of-body scripts. Vendor the library's minified build
+   (`dist/kuinetic.all.min.js`), not the unminified one. Ship the library's LICENSE beside it.
 7. **`publishedPages`** (Rule 4): list every converted page id except `index`. Do this as its
    own explicit step, not a thing you remember while writing `theme.json` in step 2 — it's easy
    to write the manifest before the page inventory is final and forget to come back to it.
@@ -745,7 +757,7 @@ Role → token (names the themes and the page-HTML contract use; do not invent o
    end: `/* ===== reference: <host> ===== */`. Later rules win.
 4. **Header** — rewrite `render/partials/nav.html` from the source header:
    - Logo: SVG → `web_fetch_page` `format: "raw"` → `theme_write_file` `assets/logo.svg`;
-     raster → `media_import_from_url` → its `publicUrl`; text wordmark → markup + CSS.
+     raster → `media_import_from_url` → media embed by slug (Assets section); text wordmark → markup + CSS.
    - Menu: `<nav class="main-nav" data-embed-config='{"type":"menu","id":"<menu id>","variant":"tree"}'>`
      with the imported menu's id (`content_read.menu`). A static theme resolves a menu by the
      marker's id; `menus_assign_location` does not place a menu in a static theme.

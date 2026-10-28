@@ -361,6 +361,9 @@ import { registerAdminSourceControlCredentialsRoutes } from "../../inbound/admin
 import { registerAdminSiteKeyRoutes } from "../../inbound/admin-http/routes/system/site-key.js";
 import { siteKeyRecovery } from "./site-key-recovery.js";
 import { registerAdminFsFilesCustomRootRoutes } from "../../inbound/admin-http/routes/fs-files/custom-root.js";
+import { registerAdminFsFilesFolderPickerRoutes } from "../../inbound/admin-http/routes/fs-files/folder-picker.js";
+import { createNativeFolderPicker } from "#src/features/fs-files/native-folder-picker";
+import { isLocalTovuHost } from "./registered-sites.js";
 import { registerAdminPublishSiteRoutes } from "../../inbound/admin-http/routes/system/publish-site.js";
 import { createFormsAdminModule } from "./modules/forms-admin.js";
 import { createFormFileStorage } from "../../../features/forms/form-file-storage.js";
@@ -2180,6 +2183,11 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // folder `fs_list_files`/`fs_read_file` may reach outside `repo`/`site`. `content.read`-gated, the
   // same permission that gates those two tools themselves — see that route file's own header.
   registerAdminFsFilesCustomRootRoutes(app, routeDeps);
+  // Chat composer's folder button: opens the OS folder dialog on this machine and returns the path.
+  // Exists only on a local Tovu (`isLocalTovuHost`, the same decision credential copy uses) and only
+  // for a request from this machine — see that route file's own header.
+  registerAdminFsFilesFolderPickerRoutes({ app, deps: { workspaceId: routeDeps.workspaceId, authorize: routeDeps.authorize,
+    localHost: isLocalTovuHost({}, {}), folderPicker: createNativeFolderPicker({}) } });
   // ADR-046 Phase 3 (SPEC-040): the `comments-moderation` server module — 4 admin
   // moderation-queue/moderate/settings routes. Distinct from `createCommentsModule` above
   // (the ADR-031 backend composition) and from `registerCommentsSubmitRoute` below (the public,

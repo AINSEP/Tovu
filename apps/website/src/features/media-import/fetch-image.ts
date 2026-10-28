@@ -104,7 +104,8 @@ export const MEDIA_IMPORT_MAX_BYTES = TOVU_MAX_UPLOAD_BYTES;
  *  same relationship `custom-credentials`' `CREDENTIALED_REQUEST_TIMEOUT_MS` has to its own policy. */
 export const MEDIA_IMPORT_TIMEOUT_MS = 20_000;
 
-const IMPORT_POLICY = {
+/** Shared byte/type policy; bounded copy recipes may lower maxBytes without duplicating validation. */
+export const MEDIA_IMPORT_POLICY = {
   maxBytes: MEDIA_IMPORT_MAX_BYTES,
   allowedContentTypes: IMPORTABLE_CONTENT_TYPES,
   sniffer: { sniff: ({ bytes }: { bytes: Uint8Array }) => sniffContentType({ bytes }) },
@@ -151,7 +152,7 @@ function plainHttpTwin(url: string, origins: readonly string[] | undefined): { p
  */
 export function fetchImage(
   { deps, url }: { deps: FetchImageDeps; url: string },
-  { policy = IMPORT_POLICY, accept = "image/*, video/*" }: { policy?: ImageImportPolicy; accept?: string } = {},
+  { policy = MEDIA_IMPORT_POLICY, accept = "image/*, video/*" }: { policy?: ImageImportPolicy; accept?: string } = {},
 ): Promise<FetchedImage> {
   const twin = plainHttpTwin(url, deps.plainHttpTestOrigins);
   const fetched = fetchPackageImage({
@@ -184,5 +185,5 @@ export function validateImageBytes(
   required: { source: URL | string; bytes: Uint8Array; bytesTruncated: boolean },
   _optional: Record<string, never> = {},
 ): string {
-  return validatePackageImageBytes({ ...IMPORT_POLICY, ...required });
+  return validatePackageImageBytes({ ...MEDIA_IMPORT_POLICY, ...required });
 }

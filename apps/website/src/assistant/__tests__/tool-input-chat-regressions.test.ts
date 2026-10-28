@@ -144,7 +144,8 @@ test('chat-input regression: filesystem reads explain unsupported find and listi
   assert.match(found.error!, /Unknown input 'find'.*Accepted properties: root, path/);
   assert.match(found.error!, /"root":"site","path":".*"/);
   assert.match(found.error!, /full.*content/);
-  for (const registration of registrations) {
+  // fs_write_files takes no root: it writes only into the picked folder.
+  for (const registration of registrations.filter(tool => tool.descriptor.id !== 'fs_write_files')) {
     for (const root of [undefined, '', 42]) {
       const result = await executeRegisteredTool({ registration, input: { root } });
       assert.equal(result.errorKind, 'validation');

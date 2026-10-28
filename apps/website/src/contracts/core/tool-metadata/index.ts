@@ -21,6 +21,8 @@ import { toolMetadata as forms } from './forms.js';
 import { toolMetadata as frontend_control } from './frontend-control.js';
 import { toolMetadata as fs_files } from './fs-files.js';
 import { toolMetadata as identity } from './identity.js';
+import { toolMetadata as files_copy } from './files-copy.js';
+import { toolMetadata as image_transform } from './image-transform.js';
 import { toolMetadata as email_templates } from './email-templates.js';
 import { toolMetadata as mail_status } from './mail-status.js';
 import { toolMetadata as media } from './media.js';
@@ -87,6 +89,8 @@ export const nativeToolMetadata = projectToolMetadata<ToolApprovalPolicy>({ doma
   { domain: 'frontend-control', tools: frontend_control },
   { domain: 'fs-files', tools: fs_files },
   { domain: 'identity', tools: identity },
+  { domain: 'files-copy', tools: files_copy },
+  { domain: 'image-transform', tools: image_transform },
   { domain: 'mail-status', tools: mail_status },
   { domain: 'media', tools: media },
   { domain: 'media-generation', tools: media_generation },

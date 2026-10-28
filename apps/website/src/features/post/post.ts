@@ -2408,7 +2408,10 @@ export async function getAdminPostByIdOrSlug(
   _optional: GetPostOptional = {}
 ): Promise<{ post: PublicPostRecord }> {
   const { workspaceId, idOrSlug } = required.input;
-  const bySlug = await required.deps.repo.findBySlug({ workspaceId, slug: idOrSlug.trim().toLowerCase() });
+  const selector = idOrSlug.trim().toLowerCase();
+  // Page URL selectors share stored slugs; '/' remains the content-owned homepage.
+  const slug = selector === "/" ? selector : selector.replace(/^\/+/, "");
+  const bySlug = await required.deps.repo.findBySlug({ workspaceId, slug });
   const post = bySlug ?? (await required.deps.repo.findById({ workspaceId, id: idOrSlug }));
   if (!isPublicPost(post) || isTrashed(post)) throw new PostNotFoundError(`post '${idOrSlug}' was not found`);
   return { post };

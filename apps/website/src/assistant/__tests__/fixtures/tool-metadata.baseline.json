@@ -182,6 +182,7 @@
     "theme_rescan": "rescan themes refresh themes new theme folder not showing reload themes",
     "fs_list_files": "folder directory local computer machine desktop dropped path browse inside contents list files explore",
     "fs_read_file": "folder directory local computer machine desktop dropped path open view read show file contents text",
+    "fs_write_files": "folder directory local computer machine desktop picked write save create edit change update files",
     "theme_reset_file": "theme file reset restore revert original undo pristine default discard changes modified changed header footer template",
     "theme_rename_file": "theme file rename renaming move name change filename css template stylesheet",
     "theme_copy_file": "theme file copy duplicate clone branch variant new name",
@@ -352,7 +353,9 @@
     "project_keys_list": "project keys saved credentials used sites attach",
     "project_key_use": "apply use attach detach project saved key stop using site",
     "site_restart": "restart site provider settings apply",
-    "observability_send_test_error": "observability telemetry test error Sentry OpenTelemetry analytics delivery"
+    "observability_send_test_error": "observability telemetry test error Sentry OpenTelemetry analytics delivery",
+    "image_transform": "image picture photo logo icon favicon ico resize scale crop rotate flip convert webp avif png jpeg thumbnail social og 1200x630 apple-touch sizes compress optimize",
+    "files_copy": "files copy import assets folder picked custom local site theme media url glob overwrite rename fonts images transfer"
   },
   "queries": {
     "media_replace_file": [
@@ -1665,6 +1668,11 @@
       "What does the index.html in that folder contain?",
       "Read a text file from a directory on my machine."
     ],
+    "fs_write_files": [
+      "Save these files into the folder I picked.",
+      "Write the new pages into my Desktop folder.",
+      "Update index.html in the folder on my computer."
+    ],
     "theme_list_files": [
       "What files does this theme actually have?",
       "Can you show me the folder structure of a theme?",
@@ -2025,6 +2033,18 @@
       "Is analytics set up on my site?",
       "Is error tracking configured?",
       "Did my observability settings save?"
+    ],
+    "image_transform": [
+      "Make a favicon set from the site logo.",
+      "Resize this image to 1200x630 for social sharing.",
+      "Convert these images to webp.",
+      "Create thumbnails of a photo."
+    ],
+    "files_copy": [
+      "Copy images from the picked folder into my theme.",
+      "Import local assets into the site without Bash.",
+      "Copy a folder of fonts and images with a glob.",
+      "Download an image URL into the media library."
     ]
   },
   "approvals": {
@@ -2721,6 +2741,10 @@
     "fs_read_file": {
       "class": "read",
       "confirmation": "direct"
+    },
+    "fs_write_files": {
+      "class": "publish",
+      "confirmation": "policy"
     },
     "identity_policy_attach": {
       "class": "edit",
@@ -3624,6 +3648,14 @@
     "observability_send_test_error": {
       "class": "edit",
       "confirmation": "direct"
+    },
+    "image_transform": {
+      "class": "edit",
+      "confirmation": "policy"
+    },
+    "files_copy": {
+      "class": "edit",
+      "confirmation": "policy"
     }
   },
   "policyConfirmationIds": [
@@ -3682,7 +3714,10 @@
     "search_set_provider",
     "comments_set_provider",
     "visitor_tool_configure",
-    "site_restart"
+    "site_restart",
+    "fs_write_files",
+    "image_transform",
+    "files_copy"
   ],
   "secretForms": {
     "credential_save": {
@@ -3778,7 +3813,10 @@
     "search_set_provider",
     "comments_set_provider",
     "visitor_tool_configure",
-    "site_restart"
+    "site_restart",
+    "fs_write_files",
+    "image_transform",
+    "files_copy"
   ],
   "exchangeOnlyIds": [
     "members_delete",
@@ -3841,7 +3879,10 @@
     "search_set_provider",
     "comments_set_provider",
     "visitor_tool_configure",
-    "site_restart"
+    "site_restart",
+    "fs_write_files",
+    "image_transform",
+    "files_copy"
   ],
   "chatPermanentDeletes": {
     "defaultEnabled": false,

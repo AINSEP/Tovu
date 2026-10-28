@@ -71,7 +71,7 @@ function describeContentReadFamily(
     return `${entry.id} — ${purpose}`;
   });
   return { id: "content_read", source: sourceForToolId("content_read"),
-    description: ["content_read is a namespace, not a tool. Describe a card id below for its inputs, then call that exact id without a resource argument.", ...lines].join("\n"),
+    description: ["content_read is a namespace, not a tool; do not invent ids such as content_read.page. Describe a card id below for its inputs, then call that exact id without a resource argument.", ...lines].join("\n"),
   };
 }
 

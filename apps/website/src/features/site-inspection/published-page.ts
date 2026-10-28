@@ -120,7 +120,7 @@ export interface FetchPublishedPageDeps {
    * explicit `(req: http.IncomingMessage, res: http.ServerResponse)` call signature, which is
    * exactly why `createServer(app)` type-checked before this change and still does.
    */
-  createSiteApp(optional?: { themeId?: string }): RequestListener;
+  createSiteApp(optional?: { themeId?: string; consentAudit?: true }): RequestListener;
   /** Native server factory; injected fakes can exercise rendering without opening a socket. */
   readonly createServer?: (listener: RequestListener) => Server;
   /** HTTP transport; omitted, uses the global fetch read at call time. */
@@ -419,13 +419,15 @@ export interface LoopbackSiteServer {
  * @param optional.themeId - Render this site through that installed theme instead of the active one
  *   (`createSiteApp({ themeId })`); the caller checks it exists. Never reachable from a visitor: it is
  *   an option of this one throwaway app, not anything a request carries.
+ * @param optional.consentAudit - Build the app without the cookie consent layer, so a screenshot shows
+ *   the page rather than the banner over it. Same reach as `themeId`: this throwaway app only.
  * @complexity O(1) beyond one app construction.
  */
 export async function openLoopbackSiteServer(
   { deps }: { deps: Pick<FetchPublishedPageDeps, "createSiteApp" | "createServer"> },
-  { themeId }: { themeId?: string } = {},
+  { themeId, consentAudit }: { themeId?: string; consentAudit?: true } = {},
 ): Promise<LoopbackSiteServer> {
-  const server = (deps.createServer ?? createServer)(deps.createSiteApp(themeId === undefined ? {} : { themeId }));
+  const server = (deps.createServer ?? createServer)(deps.createSiteApp({ ...(themeId === undefined ? {} : { themeId }), ...(consentAudit ? { consentAudit } : {}) }));
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
   const address = server.address() as AddressInfo;

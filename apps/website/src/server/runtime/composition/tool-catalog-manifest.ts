@@ -73,6 +73,7 @@ import { contributeExternalMcpTools } from "#src/features/external-mcp/tool-regi
 import { contributeExternalMcpOperationsTools } from "#src/features/external-mcp/operations-tools";
 import { probeExternalMcpServer } from "#src/server/runtime/services/external-mcp-probe";
 import { fetchDaemonAdmissions } from "#src/server/runtime/services/external-mcp-admissions";
+import { contributeFilesCopyTools } from "#src/features/fs-files/copy-tool";
 import { contributeFsFilesTools } from "#src/features/fs-files/tool-registrations";
 import { contributePagesTools } from "#src/features/pages/tool-registrations";
 import { contributeEmailTemplatesTools } from "#src/features/email-templates/tool-registrations";
@@ -99,6 +100,7 @@ import { contributeWebhooksTools } from "#src/features/webhooks/tool-registratio
 import { contributeMediaTools } from "#src/features/media/tool-registrations";
 import { contributeMediaDuplicateHandlers } from "#src/features/media/duplicate-asset";
 import { contributeMediaViewImageTools } from "#src/features/media/view-image-tool";
+import { contributeImageTransformTools } from "#src/features/image-transform/tool";
 import { contributeMediaViewVideoTools, type MediaVideoToolPorts } from "#src/features/media/view-video-tool";
 import { createMediaVideoToolPorts } from "./media-video-ports.js";
 import { contributeMediaGenerationTools } from "#src/features/media-generation/tool-registrations";
@@ -419,11 +421,13 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeExternalMcpTools({ probe: probeExternalMcpServer }) });
   contributions.contributors.register({ contribution: contributeExternalMcpOperationsTools({ probe: probeExternalMcpServer, admissions: () => fetchAdmissions({ observability }) }) });
   contributions.contributors.register({ contribution: contributeFsFilesTools() });
+  contributions.contributors.register({ contribution: contributeFilesCopyTools() });
   contributions.contributors.register({ contribution: contributeFormsTools() });
   contributions.contributors.register({ contribution: contributeIdentityTools() });
   contributions.contributors.register({ contribution: contributeWebhooksTools() });
   contributions.contributors.register({ contribution: contributeMediaTools() });
   contributions.contributors.register({ contribution: contributeMediaViewImageTools() });
+  contributions.contributors.register({ contribution: contributeImageTransformTools() });
   contributions.contributors.register({ contribution: contributeMediaViewVideoTools(mediaVideoPorts, {}) });
   contributions.contributors.register({ contribution: contributeMediaGenerationTools() });
   contributions.contributors.register({ contribution: contributeMediaProviderTools() });

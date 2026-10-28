@@ -1,7 +1,7 @@
 import { assistantCliPermissions, type AssistantCliPermissions } from "../headless/assistant-subagents-policy.js";
 import { CORE_HOST_SIGNAL_FALLBACK, evaluateHostSignals, type HostSignalOptions } from "./host-signals.js";
 /** Product policy shared by the site daemon and Electron host. No I/O or framework imports. */
-export const TOOLS_FIRST_RULE = 'Use Tovu tools first. Before any Bash or direct file read/edit/write of site files (themes, content, config), call search_tools describing the job; if no candidate fits, retry with different phrasing or a higher limit. Only if those searches find no suitable Tovu tool may you use native fallbacks. Only after those searches, report the fallback in one line: `Tool gap: <what you needed> — no Tovu tool for it.` Include the queries you searched in <what you needed>.';
+export const TOOLS_FIRST_RULE = 'Use Tovu tools first. Before any Bash or direct file read/edit/write of site files (themes, content, config), call search_tools describing the job; if no candidate fits, retry with different phrasing or a higher limit. Only if those searches find no suitable Tovu tool may you use native fallbacks. Only after those searches, report the fallback in one line: `Tool gap: <what you needed> — no Tovu tool for it.` Include the queries you searched in <what you needed>. Reading theme or site files counts too: use theme_read_file (with find) or fs_read_file, never cat/grep/sed.';
 
 /** Hosted signals override every owner opt-in, including legacy permission-mode overrides.
  * The host injects validated platform facts; absent facts retain the core baseline without I/O.

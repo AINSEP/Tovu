@@ -80,6 +80,8 @@ export async function captureDaemonRun(
     resolveAssistantRuntimeLaunch, getAgentDef, assistantRuntimeGuidanceContext: new AsyncLocalStorage(),
     // A CLI whose `--help` lists `--chrome`; fixtures override it to model an older CLI.
     probeAssistantChrome: async () => true,
+    // No picked folder unless a fixture sets one (the run reads the site's custom fs root).
+    getCustomFsRoot: () => undefined,
     resolveFullCliAccess, resolveAssistantCliPermissions, resolveBundledHostSignals, assistantCliPermissions, createToolGapCollector, redactSecretShapes,
     readLoginShellEnvironment: async () => ({ PATH: "/test/login-shell" }),
     deleteScope: { fresh: ({ run }: { run: () => unknown }) => run() },
