@@ -1,0 +1,3 @@
+s02 exit 1
+s01 exit 1
+s00 exit 124

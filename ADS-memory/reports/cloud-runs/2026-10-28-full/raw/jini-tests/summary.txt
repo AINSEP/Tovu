@@ -5,3 +5,34 @@ agentic exit 0
 analytics exit 0
 artifacts NOTESTS
 capability-providers exit 0
+chat exit 0
+cli exit 0
+cms exit 0
+commerce exit 0
+cookie-consent exit 0
+daemon exit 0
+db exit 0
+desktop-host exit 1
+devops exit 0
+diagnostics exit 1
+http-kit exit 1
+infra exit 1
+integrations exit 1
+mcp exit 1
+memory exit 0
+oauth exit 0
+platform exit 1
+plugins NOTESTS
+protocol exit 0
+provider-plugins NOTESTS
+registry exit 0
+sandbox exit 1
+search exit 0
+server exit 1
+sidecar exit 0
+sqlite exit 0
+ui-kit exit 0
+ui exit 1
+user-management exit 0
+vibecoding exit 0
+ALLDONE

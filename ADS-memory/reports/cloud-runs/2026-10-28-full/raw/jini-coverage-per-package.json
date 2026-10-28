@@ -1,0 +1,212 @@
+{
+ "admin": {
+  "lines": 99.91,
+  "branches": 99.92,
+  "functions": 99.95,
+  "statements": 99.91
+ },
+ "agent-plugins": {
+  "lines": 99.32,
+  "branches": 99.65,
+  "functions": 99.72,
+  "statements": 99.32
+ },
+ "agent-runtime": {
+  "lines": 99.89,
+  "branches": 99.48,
+  "functions": 99.7,
+  "statements": 99.89
+ },
+ "agentic": {
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100
+ },
+ "analytics": {
+  "lines": 100,
+  "branches": 99.05,
+  "functions": 97.84,
+  "statements": 100
+ },
+ "capability-providers": {
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100
+ },
+ "chat": {
+  "lines": 100,
+  "branches": 99.7,
+  "functions": 100,
+  "statements": 100
+ },
+ "cli": {
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100
+ },
+ "cms": {
+  "lines": 99.97,
+  "branches": 99.75,
+  "functions": 100,
+  "statements": 99.97
+ },
+ "commerce": {
+  "lines": 4.01,
+  "branches": 39.7,
+  "functions": 39.7,
+  "statements": 4.01
+ },
+ "cookie-consent": {
+  "lines": 99.79,
+  "branches": 99.88,
+  "functions": 99.37,
+  "statements": 99.79
+ },
+ "core": {
+  "lines": 99.01,
+  "branches": 99.59,
+  "functions": 99.64,
+  "statements": 99.01
+ },
+ "daemon": {
+  "lines": 99.89,
+  "branches": 99.17,
+  "functions": 99.31,
+  "statements": 99.89
+ },
+ "db": {
+  "lines": 99.55,
+  "branches": 99.21,
+  "functions": 98.52,
+  "statements": 99.55
+ },
+ "desktop-host": {
+  "lines": 99.91,
+  "branches": 99.3,
+  "functions": 100,
+  "statements": 99.91
+ },
+ "devops": {
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100
+ },
+ "diagnostics": {
+  "lines": 94.74,
+  "branches": 98.92,
+  "functions": 98.1,
+  "statements": 94.74
+ },
+ "http-kit": {
+  "lines": 100,
+  "branches": 99.19,
+  "functions": 100,
+  "statements": 100
+ },
+ "infra": {
+  "lines": 100,
+  "branches": 99.01,
+  "functions": 100,
+  "statements": 100
+ },
+ "integrations": {
+  "lines": 99.98,
+  "branches": 99.92,
+  "functions": 99.82,
+  "statements": 99.98
+ },
+ "mcp": {
+  "lines": 99.88,
+  "branches": 99.33,
+  "functions": 100,
+  "statements": 99.88
+ },
+ "memory": {
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100
+ },
+ "oauth": {
+  "lines": 100,
+  "branches": 99.89,
+  "functions": 100,
+  "statements": 100
+ },
+ "platform": {
+  "lines": 99.97,
+  "branches": 99.73,
+  "functions": 99.64,
+  "statements": 99.97
+ },
+ "protocol": {
+  "lines": 100,
+  "branches": 98.8,
+  "functions": 100,
+  "statements": 100
+ },
+ "registry": {
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100
+ },
+ "sandbox": {
+  "lines": 99.78,
+  "branches": 98.59,
+  "functions": 100,
+  "statements": 99.78
+ },
+ "search": {
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100
+ },
+ "server": {
+  "lines": 99.73,
+  "branches": 97.96,
+  "functions": 94.19,
+  "statements": 99.73
+ },
+ "sidecar": {
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100
+ },
+ "sqlite": {
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100
+ },
+ "ui-kit": {
+  "lines": 96.68,
+  "branches": 99.83,
+  "functions": 99.28,
+  "statements": 96.68
+ },
+ "ui": {
+  "lines": 99.8,
+  "branches": 99.99,
+  "functions": 99.93,
+  "statements": 99.8
+ },
+ "user-management": {
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100
+ },
+ "vibecoding": {
+  "lines": 96.41,
+  "branches": 92.09,
+  "functions": 91.61,
+  "statements": 96.41
+ }
+}
