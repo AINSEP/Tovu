@@ -107,20 +107,41 @@ function normalizeFsReadInput({ input }: { input: Record<string, unknown> }, _op
   return { input, notes: [] };
 }
 
-interface PreparedWriteBatch { readonly folder: string; readonly writes: readonly PreparedFileWrite[] }
+export interface PreparedWriteBatch { readonly folder: string; readonly writes: readonly PreparedFileWrite[] }
 
 const kb = (bytes: number) => (bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`);
 
 /** The existing approval card, one per batch: a line per file (new/overwrite, size, path) and the
- * total. No `rememberKey`, so no "always allow" — every batch gets its own card. O(n) in files. */
-function describeWriteBatch({ folder, writes }: PreparedWriteBatch): HumanConfirmSpec {
+ * total. No `rememberKey`, so no "always allow" — every batch gets its own card. O(n) in files.
+ * `toolId` binds the card's answer to the calling tool (`image_transform`/`files_copy` reuse this card). */
+export function describeWriteBatch({ folder, writes }: PreparedWriteBatch, { toolId = FS_WRITE_FILES_TOOL_ID }: { toolId?: string } = {}): HumanConfirmSpec {
   const overwrites = writes.filter((write) => write.overwrite).length;
   const total = writes.reduce((sum, write) => sum + write.bytes.length, 0);
   const lines = writes.map((write) => `${write.overwrite ? "overwrite" : "new      "}  ${kb(write.bytes.length).padStart(9)}  ${write.path}`);
-  return { toolId: FS_WRITE_FILES_TOOL_ID, errorCode: "FS_WRITE", title: `Write ${writes.length} file(s) to ${basename(folder)}?`,
+  return { toolId, errorCode: "FS_WRITE", title: `Write ${writes.length} file(s) to ${basename(folder)}?`,
     details: [{ label: "Folder", value: folder }, { label: "Files", value: lines.join("\n"), format: "code" }, { label: "Total", value: kb(total) }],
     ...(overwrites > 0 ? { warning: `Replaces ${overwrites} existing file(s). There is no undo.`, danger: true } : {}),
     confirmLabel: "Write files" };
+}
+
+/** The picked folder's real path under the write rule; `files_copy`/`image_transform` read it through
+ * the same rule. @throws {FsWriteInputError} No folder or an unsafe folder. @complexity O(1) fs calls. */
+export function resolvePickedFolder({ routeDeps }: { routeDeps: FsFilesToolDeps }, _optional = {}): string {
+  const custom = (routeDeps.resolveRoots ?? (() => resolveFsRoots({ siteDir: routeDeps.siteBinding.dir, workspaceId: routeDeps.workspaceId })))().custom;
+  if (custom === undefined) throw new FsWriteInputError({ message: "No folder is picked — ask the person to pick one with the composer's folder button" });
+  return requirePickedFolder({ dir: custom, siteDir: routeDeps.siteBinding.dir });
+}
+
+/** Resolves the picked folder and validates one batch before its card; nothing is written.
+ * Shared with `image_transform`, so both write through one folder rule and one card.
+ * @throws {ToolInputError} No folder, an unsafe folder, or a refused file. @complexity O(n·depth). */
+export function preparePickedFolderBatch({ routeDeps, files }: { routeDeps: FsFilesToolDeps; files: unknown }, _optional = {}): PreparedWriteBatch {
+  try {
+    const folder = resolvePickedFolder({ routeDeps });
+    return { folder, writes: prepareFileWrites({ folder, files }) };
+  } catch (error) {
+    throw error instanceof FsWriteInputError ? new ToolInputError({ message: error.message }) : error;
+  }
 }
 
 export function buildFsFilesRegistrations(
@@ -165,14 +186,7 @@ export function buildFsFilesRegistrations(
         refuseUnexpectedKeys(input, ["files"]);
         await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId,
           principalId: ctx.principal.id, permission: FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION }, { entityType: "fs-root", entityId: "custom" });
-        const custom = (routeDeps.resolveRoots ?? (() => resolveFsRoots({ siteDir: routeDeps.siteBinding.dir, workspaceId: routeDeps.workspaceId })))().custom;
-        try {
-          if (custom === undefined) throw new FsWriteInputError({ message: "No folder is picked — ask the person to pick one with the composer's folder button" });
-          const folder = requirePickedFolder({ dir: custom, siteDir: routeDeps.siteBinding.dir });
-          return { folder, writes: prepareFileWrites({ folder, files: input.files }) };
-        } catch (error) {
-          throw error instanceof FsWriteInputError ? new ToolInputError({ message: error.message }) : error;
-        }
+        return preparePickedFolderBatch({ routeDeps, files: input.files });
       },
       describe: ({ prepared }) => describeWriteBatch(prepared),
       run: async ({ prepared }) => {

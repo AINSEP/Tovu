@@ -348,7 +348,9 @@
     "visitor_tool_configure": "visitor public assistant tools enable disable auto ask off mode limits rate budget",
     "visitor_tool_save": "visitor tool create update saved request api endpoint",
     "visitor_tool_delete": "visitor tool delete remove saved request permanently",
-    "members_delete": "member delete remove trash revoke sessions restore"
+    "members_delete": "member delete remove trash revoke sessions restore",
+    "image_transform": "image picture photo logo icon favicon ico resize scale crop rotate flip convert webp avif png jpeg thumbnail social og 1200x630 apple-touch sizes compress optimize",
+    "files_copy": "files copy import assets folder picked custom local site theme media url glob overwrite rename fonts images transfer"
   },
   "queries": {
     "media_replace_file": [
@@ -2019,6 +2021,18 @@
     ],
     "visitor_tool_delete": [
       "Delete a created visitor tool."
+    ],
+    "image_transform": [
+      "Make a favicon set from the site logo.",
+      "Resize this image to 1200x630 for social sharing.",
+      "Convert these images to webp.",
+      "Create thumbnails of a photo."
+    ],
+    "files_copy": [
+      "Copy images from the picked folder into my theme.",
+      "Import local assets into the site without Bash.",
+      "Copy a folder of fonts and images with a glob.",
+      "Download an image URL into the media library."
     ]
   },
   "approvals": {
@@ -3601,6 +3615,14 @@
     "members_delete": {
       "class": "trash",
       "confirmation": "policy"
+    },
+    "image_transform": {
+      "class": "edit",
+      "confirmation": "policy"
+    },
+    "files_copy": {
+      "class": "edit",
+      "confirmation": "policy"
     }
   },
   "policyConfirmationIds": [
@@ -3659,7 +3681,9 @@
     "search_set_provider",
     "comments_set_provider",
     "visitor_tool_configure",
-    "fs_write_files"
+    "fs_write_files",
+    "image_transform",
+    "files_copy"
   ],
   "secretForms": {
     "credential_save": {
@@ -3755,7 +3779,9 @@
     "search_set_provider",
     "comments_set_provider",
     "visitor_tool_configure",
-    "fs_write_files"
+    "fs_write_files",
+    "image_transform",
+    "files_copy"
   ],
   "exchangeOnlyIds": [
     "members_delete",
@@ -3818,7 +3844,9 @@
     "search_set_provider",
     "comments_set_provider",
     "visitor_tool_configure",
-    "fs_write_files"
+    "fs_write_files",
+    "image_transform",
+    "files_copy"
   ],
   "chatPermanentDeletes": {
     "defaultEnabled": false,

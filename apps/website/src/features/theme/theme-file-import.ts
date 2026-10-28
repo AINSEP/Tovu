@@ -76,7 +76,9 @@ export function sniffThemeImportType({ bytes }: { bytes: Uint8Array }): string {
   return sniffContentType({ bytes });
 }
 
-const IMPORT_POLICY = {
+/** Shared safe-fetch byte/type policy for theme asset imports, including files_copy. */
+export const THEME_IMPORT_ACCEPT = "font/woff2, font/woff, font/ttf, font/otf, image/*;q=0.8, */*;q=0.1";
+export const THEME_IMPORT_POLICY = {
   maxBytes: THEME_IMPORT_MAX_BYTES,
   allowedContentTypes: IMPORTABLE_TYPES,
   sniffer: { sniff: sniffThemeImportType },
@@ -155,7 +157,7 @@ export async function importThemeFileFromUrl(
 
   const fetched = await fetchImage(
     { deps: { httpClient, plainHttpTestOrigins }, url },
-    { policy: IMPORT_POLICY, accept: "font/woff2, font/woff, font/ttf, font/otf, image/*;q=0.8, */*;q=0.1" },
+    { policy: THEME_IMPORT_POLICY, accept: THEME_IMPORT_ACCEPT },
   );
   return { ...persistThemeImport({ themeDir, themesRoot, relativePath, bytes: fetched.bytes, source: fetched.url.href }), sourceUrl: fetched.url.href };
 }

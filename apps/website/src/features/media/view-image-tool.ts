@@ -113,11 +113,21 @@ async function findAsset({ deps, mediaId }: { deps: MediaViewImageToolDeps; medi
   return found;
 }
 
-/** @throws {ToolInputError} When the asset's blob row is gone. */
-async function readStoredBytes(deps: MediaViewImageToolDeps, asset: MediaRecord): Promise<Uint8Array> {
+/** Read an original through the media owner, optionally capped before fetching the blob.
+ * @returns Original bytes. @throws ToolInputError for missing/oversized/unknown-size capped blobs.
+ * @complexity O(bytes) storage read; capped callers require the blob store's size port.
+ * @example await readStoredBytes({ deps, asset }, { maxBytes: 25 * 1024 * 1024 });
+ */
+export async function readStoredBytes({ deps, asset }: { deps: MediaViewImageToolDeps; asset: MediaRecord }, { maxBytes }: { maxBytes?: number } = {}): Promise<Uint8Array> {
   const blob = await deps.assetBlobRepo.findByHash({ workspaceId: deps.workspaceId, sha256: asset.source.sha256 });
   if (!blob) throw refusal(`media asset '${asset.id}' has no stored file, so there is nothing to show.`);
-  return deps.blobStore.get({ storageKey: blob.storageKey });
+  if (maxBytes !== undefined) {
+    const size = await deps.blobStore.sizeOf?.({ storageKey: blob.storageKey });
+    if (size == null || size > maxBytes) throw refusal(`media asset '${asset.id}' has unknown size or exceeds ${maxBytes} bytes`);
+  }
+  const bytes = await deps.blobStore.get({ storageKey: blob.storageKey });
+  if (maxBytes !== undefined && bytes.byteLength > maxBytes) throw refusal(`media asset '${asset.id}' exceeds ${maxBytes} bytes`);
+  return bytes;
 }
 
 interface RenderedImage {
@@ -191,7 +201,7 @@ export function buildMediaViewImageRegistrations(deps: MediaViewImageToolDeps): 
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "media.read" }, { entityType: "media" });
 
       const asset = await findAsset({ deps, mediaId });
-      const bytes = await readStoredBytes(deps, asset);
+      const bytes = await readStoredBytes({ deps, asset });
       const contentType = sniffContentType({ bytes });
       assertStillImage(asset, contentType);
       const rendered = await renderForModel(asset, bytes, contentType);
