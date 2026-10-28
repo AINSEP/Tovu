@@ -124,6 +124,25 @@ test("revoking twice keeps the original timestamp and removes effective authorit
   assert.equal(await authenticateApiKey({ deps: h.deps, input: { workspaceId: WS, rawKey: issued.rawKey } }), null);
 });
 
+test("authentication racing revocation cannot make the key usable again", async () => {
+  const h = await harness();
+  const issued = await issueApiKey({ deps: h.deps, input: h.input });
+  const verify = h.deps.secretHasher.verify;
+  let revokeDuringVerification = true;
+  h.deps.secretHasher.verify = async (hash, secret) => {
+    if (revokeDuringVerification) {
+      revokeDuringVerification = false;
+      await revokeApiKey({ deps: h.deps, input: { workspaceId: WS, callerPrincipalId: "issuer", keyId: issued.apiKey.id } });
+    }
+    return verify(hash, secret);
+  };
+  await authenticateApiKey({ deps: h.deps, input: { workspaceId: WS, rawKey: issued.rawKey } });
+  const stored = await h.deps.apiKeys.findById({ workspaceId: WS, id: issued.apiKey.id });
+  assert.equal(stored?.revokedAt, NOW, "recording usage must preserve the concurrent revocation");
+  assert.equal(stored?.lastUsedAt, undefined, "a stale usage write must not update a revoked row");
+  assert.equal(await authenticateApiKey({ deps: h.deps, input: { workspaceId: WS, rawKey: issued.rawKey } }), null);
+});
+
 test("a future expiry expressed with an offset authenticates by instant and records usage", async () => {
   const h = await harness();
   const key: ApiKeyRecord = { id: "key", workspaceId: WS, principalId: h.principal.id, label: "Runner", keyHash: "digest:secret", prefix: "tovu_ak_0123456789ab", expiresAt: "2026-10-01T09:00:00-04:00", createdAt: NOW };

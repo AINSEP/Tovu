@@ -417,6 +417,21 @@ function runApiKeyRepoSuite(adapterName: string, makeRepo: () => ApiKeyRepoPort)
     assert.equal(await repo.findById({ workspaceId: WS2, id: "ak-1" }), null);
   });
 
+  test(`[${adapterName}] ApiKeyRepoPort: stale authentication writes cannot clear revocation`, async () => {
+    const repo = makeRepo();
+    await repo.save(row);
+    const stale = await repo.findById({ workspaceId: WS, id: row.id });
+    assert.ok(stale);
+    const revokedAt = "2026-01-03T00:00:00.000Z";
+    await repo.save({ ...stale, revokedAt });
+    await repo.save({ ...stale, lastUsedAt: "2026-01-03T01:00:00.000Z" });
+    const stored = await repo.findById({ workspaceId: WS, id: row.id });
+    assert.equal(stored?.revokedAt, revokedAt);
+    assert.equal(stored?.lastUsedAt, undefined);
+    await repo.save({ ...stale, revokedAt: "2026-01-04T00:00:00.000Z" });
+    assert.equal((await repo.findById({ workspaceId: WS, id: row.id }))?.revokedAt, revokedAt);
+  });
+
   test(`[${adapterName}] ApiKeyRepoPort: listByPrincipalId scopes by principal and workspace`, async () => {
     const repo = makeRepo();
     await repo.save(row);

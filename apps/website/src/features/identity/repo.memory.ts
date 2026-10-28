@@ -35,6 +35,8 @@ export class InMemoryApiKeyRepo implements ApiKeyRepoPort {
   }
 
   async save(record: ApiKeyRecord): Promise<void> {
+    // Match the SQL adapter's terminal revocation even when auth holds an older row snapshot.
+    if (this.rows.get(record.id)?.revokedAt) return;
     this.rows.set(record.id, { ...record });
   }
 }

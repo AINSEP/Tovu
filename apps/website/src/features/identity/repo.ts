@@ -704,6 +704,7 @@ export class SqlApiKeyRepo implements ApiKeyRepoPort {
       revoked_at: record.revokedAt ?? null,
     };
     await createIdentityTransactions({ kernel: this.kernel }).run({ workspaceId: record.workspaceId, execute: () => this.kernel.run((db) =>
-      db.insertInto("api_keys").values(row).onConflict((oc) => oc.column("id").doUpdateSet(row)).execute()) });
+      // Revocation is terminal: a stale authentication usage write must never clear it.
+      db.insertInto("api_keys").values(row).onConflict((oc) => oc.column("id").doUpdateSet(row).where("api_keys.revoked_at", "is", null)).execute()) });
   }
 }
