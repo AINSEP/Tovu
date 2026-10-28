@@ -12,6 +12,9 @@ import { initSite } from "../../../platform/site-dir/init-site.js";
 import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databases.js";
 import { createSiteImportBackend } from "../import-backend.js";
 import { SHARE_LIMITS } from "../share-policy.js";
+import { previewSitePluginInstall } from "@jini-ai/plugins/host/node";
+import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
+import { pluginHostBinding } from "../../plugin-runtime/host-binding.js";
 import { importFixture, OWNER_PASSWORD } from "./import.fixture.js";
 
 const { ZipFile } = createRequire(import.meta.url)("yazl");
@@ -149,6 +152,29 @@ test("an installed site plugin's data/ folder stays out of the export, which the
   const upload = await h.backend.upload({ principalId: "recipient", archive });
   const pending = await h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } });
   assert.equal(typeof pending.importId, "string");
+});
+
+// RED (P1 check, batch7): the fixture's tier-3 plugin shipped only index.js, which Jini's installer refuses
+// (server/index.mjs is required), so "installed" fixtures were packages that could never be installed.
+test("the fixture's installed site plugin is a package Jini's own installer accepts", async t => {
+  const h = await importFixture(t);
+  await h.prepareProductionShare();
+  const deps = { ...pluginHostBinding, installDir: path.join(h.root, "reinstall"), builtInIds: [], repo: new InMemoryPluginActivationRepo(), conflicts: async () => [] };
+  const preview = await previewSitePluginInstall({ sourceDir: path.join(h.root, "source/plugins/custom/1.0.0"), deps });
+  assert.deepEqual([preview.id, preview.version, preview.hasCode], ["custom", "1.0.0", true]);
+});
+
+// RED (P1 check, batch7): the fixture regenerated every site plugin manifest, so a hostile case's own
+// manifest (here: integrity that no longer matches the package) was silently repaired before export.
+test("a supplied site plugin manifest is installed as given: a stale integrity hash keeps the plugin out", async t => {
+  const h = await importFixture(t);
+  const manifestPath = "plugins/custom/package/jini.plugin.json";
+  const manifest = JSON.parse(h.files.get(manifestPath)!.toString("utf8")) as { integrity: Record<string, string> };
+  for (const key of Object.keys(manifest.integrity)) manifest.integrity[key] = "sha256-" + "0".repeat(64);
+  h.files.set(manifestPath, Buffer.from(JSON.stringify(manifest)));
+  const { archive, plan } = await h.prepareProductionShare();
+  assert.deepEqual((await archiveItems(archive)).map(item => item.name).filter(name => name.startsWith("plugins/custom/")), []);
+  assert.match(plan.scopeNotes.plugins ?? "", /'custom'/);
 });
 
 test("package manifest filename exceptions preserve secret scanning on export and import", async t => {

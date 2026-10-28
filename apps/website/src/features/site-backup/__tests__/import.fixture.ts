@@ -39,7 +39,7 @@ import { declareDataModule } from "../../plugins/data-module.js";
 import { ensureDefaultList } from "../../newsletter/lists.js";
 import { SqliteNewsletterListRepo } from "../../newsletter/repo.sqlite.js";
 import type { SiteSharePlanContent } from "../plan-store.js";
-import { installSitePlugin, jiniSitePlugins, sitePluginManifest } from "./fixtures/site-plugin.fixture.js";
+import { jiniSitePlugins, sitePluginManifest } from "./fixtures/site-plugin.fixture.js";
 
 export const OWNER_PASSWORD = "recipient-only-password";
 export const MEDIA = Buffer.from("import-media-fixture");
@@ -47,23 +47,33 @@ export const HASH = createHash("sha256").update(MEDIA).digest("hex");
 export const STORAGE_KEY = "ws/ws/blobs/" + HASH.slice(0, 2) + "/" + HASH;
 export const reader = createShareArchiveReader({ yauzl });
 export const stamp = "2026-10-18T00:00:00.000Z";
-const CUSTOM_PLUGIN = { id: "custom", version: "1.0.0", package: { "index.js": "export default {};" } };
+// Tier-3, so Jini's installer requires `server/index.mjs` (install.ts checkTierAndCode).
+const CUSTOM_PLUGIN = { id: "custom", version: "1.0.0", package: { "server/index.mjs": "export default {};" } };
 
 /**
- * The fixture's site plugin entries, installed the way Jini's installer lays them out: each
- * `plugins/<id>/package/<file>` goes into `<installDir>/<id>/1.0.0/` under a manifest whose integrity
- * lists them; any other `plugins/<id>/<file>` is runtime data beside the package in that version folder.
+ * The fixture's site plugin entries, laid out the way Jini's installer leaves them: each
+ * `plugins/<id>/package/<file>` goes into `<installDir>/<id>/1.0.0/`; any other `plugins/<id>/<file>`
+ * is runtime data beside the package in that version folder. Every file keeps its supplied bytes, the
+ * manifest too, so a hostile case's own manifest is never repaired; a plugin supplied without one gets
+ * the manifest whose integrity lists its package files.
  */
 function installFixtureSitePlugins(required: { installDir: string; files: ReadonlyMap<string, Buffer> }): void {
-  const plugins = new Map<string, { package: Record<string, string>; extra: Record<string, string> }>();
+  const plugins = new Map<string, { package: Record<string, Buffer>; extra: Record<string, Buffer> }>();
   for (const [name, bytes] of required.files) {
     const match = /^plugins\/([^/]+)\/(package\/)?(.+)$/.exec(name);
-    if (!match || (match[2] && match[3] === "jini.plugin.json")) continue;
+    if (!match) continue;
     const plugin = plugins.get(match[1]!) ?? { package: {}, extra: {} };
-    (match[2] ? plugin.package : plugin.extra)[match[3]!] = bytes.toString("utf8");
+    (match[2] ? plugin.package : plugin.extra)[match[3]!] = bytes;
     plugins.set(match[1]!, plugin);
   }
-  for (const [id, plugin] of plugins) installSitePlugin({ installDir: required.installDir, id, version: "1.0.0", package: plugin.package }, { extra: plugin.extra });
+  for (const [id, plugin] of plugins) {
+    const manifest = plugin.package["jini.plugin.json"] ?? Buffer.from(sitePluginManifest({ id, version: "1.0.0", package: plugin.package }));
+    for (const [relative, bytes] of Object.entries({ ...plugin.extra, ...plugin.package, "jini.plugin.json": manifest })) {
+      const target = path.join(required.installDir, id, "1.0.0", relative);
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(target, bytes);
+    }
+  }
 }
 
 export async function importFixture(t: TestContext, placement: "inSite" | "appData" = "inSite") {
@@ -107,7 +117,7 @@ export async function importFixture(t: TestContext, placement: "inSite" | "appDa
     ["themes/code/executable/index.ts", Buffer.from("throw new Error('must never execute')")],
     // An installed site plugin, as its archive carries it (manifest plus the files its integrity lists).
     ["plugins/custom/package/jini.plugin.json", Buffer.from(sitePluginManifest(CUSTOM_PLUGIN))],
-    ["plugins/custom/package/index.js", Buffer.from(CUSTOM_PLUGIN.package["index.js"])],
+    ["plugins/custom/package/server/index.mjs", Buffer.from(CUSTOM_PLUGIN.package["server/index.mjs"])],
     ["skills/custom/SKILL.md", Buffer.from("Never execute on import")],
     ["settings/config.json", Buffer.from('{"name":"Portable","domain":null,"port":null}')],
   ]);

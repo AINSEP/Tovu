@@ -10,7 +10,7 @@ import type { SiteBackupSources } from "../../sources.js";
  * Jini's own pinned discovery (what `deps.ts` wires from `pluginRuntime.discoverActivePlugins`).
  */
 
-const sha256 = (text: string): string => `sha256-${createHash("sha256").update(text).digest("hex")}`;
+const sha256 = (text: string | Buffer): string => `sha256-${createHash("sha256").update(text).digest("hex")}`;
 
 function writeAll(root: string, files: Record<string, string>): void {
   for (const [relative, text] of Object.entries(files)) {
@@ -20,7 +20,7 @@ function writeAll(root: string, files: Record<string, string>): void {
 }
 
 /** The manifest text {@link installSitePlugin} writes for `package`. */
-export function sitePluginManifest(required: { id: string; version: string; package: Record<string, string> }): string {
+export function sitePluginManifest(required: { id: string; version: string; package: Record<string, string | Buffer> }): string {
   const integrity = Object.fromEntries(Object.entries(required.package).map(([file, text]) => [file, sha256(text)]));
   return JSON.stringify({ id: required.id, name: required.id, version: required.version, sdkRange: "^0.1.0", engine: 1, tier: "tier-3", capabilities: [], hooks: [], fields: [], integrity });
 }
