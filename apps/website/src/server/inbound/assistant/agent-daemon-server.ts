@@ -153,6 +153,7 @@ import {
   resolveBashProhibitionEnabled,
 } from "./assistant-system-overlay.js";
 import { buildAssistantRuntimeGuidance, createAssistantChromeProbe, resolveAssistantRuntimeLaunch, type AssistantRuntimeGuidanceInput } from "./assistant-runtime-guidance.js";
+import { getCustomFsRoot } from "../../../features/fs-files/custom-root-store.js";
 import { registerFederationAdmissionsRoute } from "./federation-admissions-route.js";
 import { registerFederationReloadRoute } from "./federation-reload-route.js";
 import { createAgentDaemonRouteDeps, startPluginActivationPolling } from "../../runtime/composition/agent-daemon-deps.js";
@@ -1351,7 +1352,10 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       settingsReady: routeDeps.siteTitleReady, workspaceId: routeDeps.workspaceId }, principalId: principal.id, agentId: sessionBinding.agentId, subagentsEnabled, isOwner }, { getDef: getAgentDef, probeChrome: probeAssistantChrome });
     const parityEnv = nativeCapabilities.loginEnvironment ? await readLoginShellEnvironment({ baseEnv: process.env,
       excludedPrefixes: ["TOVU_", "JINI_"], excludedKeys: ["DATABASE_URL"], excludedSuffixes: ["_ROOT_KEY"] }, {}) : undefined;
-    await assistantRuntimeGuidanceContext.run(runtimeLaunch.guidance, () => assistantNativeToolsContext.run(nativeToolAccess, () => assistantCliCapabilitiesContext.run(nativeCapabilities, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({
+    // Owner 2026-10-27: the folder picked with the composer's folder control is readable, never writable.
+    const pickedFolder = getCustomFsRoot(routeDeps.workspaceId, { siteDir: routeDeps.siteBinding.dir });
+    const runGuidance = pickedFolder ? { ...runtimeLaunch.guidance, pickedFolder } : runtimeLaunch.guidance;
+    await assistantRuntimeGuidanceContext.run(runGuidance, () => assistantNativeToolsContext.run(nativeToolAccess, () => assistantCliCapabilitiesContext.run(nativeCapabilities, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({
       runId: run.id,
       agentId: sessionBinding.agentId,
       prompt,
@@ -1380,6 +1384,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       // def's own `buildArgs` options, which is where it becomes real argv.
       ...(reasoning !== undefined ? { reasoning } : {}),
       ...attachmentRunFields,
+      ...(pickedFolder ? { readOnlyExtraDirs: [pickedFolder] } : {}),
       // Both session fields at once — `resolveResumeSessionField(effectiveResumeSessionId)` for a
       // resumed turn and `resolveNewSessionField(hostMintedSessionId)` for a cold one. They are
       // mutually exclusive by construction (`resolveHostMintedSessionId` mints only when there is
