@@ -15,3 +15,29 @@ core exit 0 37s
 daemon exit 0 79s
 db exit 0 135s
 desktop-host exit 1 70s
+devops exit 0 32s
+diagnostics exit 1 12s
+http-kit exit 1 6s
+infra exit 1 8s
+integrations exit 1 23s
+mcp exit 1 23s
+memory exit 0 4s
+oauth exit 0 11s
+platform exit 1 40s
+plugins NOCONFIG
+plugins exit 0 37s
+protocol exit 0 2s
+provider-plugins NOCONFIG
+provider-plugins exit 0 44s
+registry exit 0 7s
+sandbox exit 1 6s
+search exit 0 4s
+server exit 1 31s
+sidecar exit 0 5s
+sqlite exit 0 19s
+ui-kit exit 0 10s
+ui exit 1 376s
+user-management exit 0 57s
+vibecoding exit 0 10s
+cms_forms exit 0 4s
+ALLDONE

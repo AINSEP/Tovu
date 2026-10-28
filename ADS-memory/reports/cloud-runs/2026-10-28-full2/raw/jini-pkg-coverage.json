@@ -1,0 +1,314 @@
+[
+ {
+  "pkg": "admin",
+  "lines": 99.91,
+  "branches": 99.92,
+  "functions": 99.95,
+  "statements": 99.91,
+  "linesUncov": 12
+ },
+ {
+  "pkg": "agent-plugins",
+  "lines": 99.32,
+  "branches": 99.65,
+  "functions": 99.72,
+  "statements": 99.32,
+  "linesUncov": 37
+ },
+ {
+  "pkg": "agent-runtime",
+  "lines": 99.89,
+  "branches": 99.49,
+  "functions": 99.7,
+  "statements": 99.89,
+  "linesUncov": 14
+ },
+ {
+  "pkg": "agentic",
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100,
+  "linesUncov": 0
+ },
+ {
+  "pkg": "analytics",
+  "lines": 100,
+  "branches": 99.05,
+  "functions": 97.84,
+  "statements": 100,
+  "linesUncov": 0
+ },
+ {
+  "pkg": "artifacts",
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100,
+  "linesUncov": 0
+ },
+ {
+  "pkg": "capability-providers",
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100,
+  "linesUncov": 0
+ },
+ {
+  "pkg": "chat",
+  "lines": 100,
+  "branches": 99.7,
+  "functions": 100,
+  "statements": 100,
+  "linesUncov": 0
+ },
+ {
+  "pkg": "cli",
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100,
+  "linesUncov": 0
+ },
+ {
+  "pkg": "cms",
+  "lines": 99.93,
+  "branches": 99.52,
+  "functions": 100,
+  "statements": 99.93,
+  "linesUncov": 11
+ },
+ {
+  "pkg": "cms_forms",
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100,
+  "linesUncov": 0
+ },
+ {
+  "pkg": "commerce",
+  "lines": 4.01,
+  "branches": 39.7,
+  "functions": 39.7,
+  "statements": 4.01,
+  "linesUncov": 4020
+ },
+ {
+  "pkg": "cookie-consent",
+  "lines": 99.79,
+  "branches": 99.88,
+  "functions": 99.37,
+  "statements": 99.79,
+  "linesUncov": 2
+ },
+ {
+  "pkg": "core",
+  "lines": 99.01,
+  "branches": 99.59,
+  "functions": 99.64,
+  "statements": 99.01,
+  "linesUncov": 56
+ },
+ {
+  "pkg": "daemon",
+  "lines": 99.89,
+  "branches": 99.17,
+  "functions": 99.31,
+  "statements": 99.89,
+  "linesUncov": 12
+ },
+ {
+  "pkg": "db",
+  "lines": 99.55,
+  "branches": 99.21,
+  "functions": 98.52,
+  "statements": 99.55,
+  "linesUncov": 18
+ },
+ {
+  "pkg": "desktop-host",
+  "lines": 99.91,
+  "branches": 99.3,
+  "functions": 100,
+  "statements": 99.91,
+  "linesUncov": 2
+ },
+ {
+  "pkg": "devops",
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100,
+  "linesUncov": 0
+ },
+ {
+  "pkg": "diagnostics",
+  "lines": 94.74,
+  "branches": 98.92,
+  "functions": 98.1,
+  "statements": 94.74,
+  "linesUncov": 163
+ },
+ {
+  "pkg": "http-kit",
+  "lines": 100,
+  "branches": 99.19,
+  "functions": 100,
+  "statements": 100,
+  "linesUncov": 0
+ },
+ {
+  "pkg": "infra",
+  "lines": 100,
+  "branches": 99.02,
+  "functions": 100,
+  "statements": 100,
+  "linesUncov": 0
+ },
+ {
+  "pkg": "integrations",
+  "lines": 99.98,
+  "branches": 99.92,
+  "functions": 99.82,
+  "statements": 99.98,
+  "linesUncov": 1
+ },
+ {
+  "pkg": "mcp",
+  "lines": 99.88,
+  "branches": 99.33,
+  "functions": 100,
+  "statements": 99.88,
+  "linesUncov": 5
+ },
+ {
+  "pkg": "memory",
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100,
+  "linesUncov": 0
+ },
+ {
+  "pkg": "oauth",
+  "lines": 100,
+  "branches": 99.89,
+  "functions": 100,
+  "statements": 100,
+  "linesUncov": 0
+ },
+ {
+  "pkg": "platform",
+  "lines": 99.97,
+  "branches": 99.73,
+  "functions": 99.65,
+  "statements": 99.97,
+  "linesUncov": 2
+ },
+ {
+  "pkg": "plugins",
+  "lines": 99.03,
+  "branches": 98.67,
+  "functions": 98.98,
+  "statements": 99.03,
+  "linesUncov": 32
+ },
+ {
+  "pkg": "protocol",
+  "lines": 100,
+  "branches": 98.8,
+  "functions": 100,
+  "statements": 100,
+  "linesUncov": 0
+ },
+ {
+  "pkg": "provider-plugins",
+  "lines": 2.08,
+  "branches": 96.74,
+  "functions": 94.82,
+  "statements": 2.09,
+  "linesUncov": 46345
+ },
+ {
+  "pkg": "registry",
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100,
+  "linesUncov": 0
+ },
+ {
+  "pkg": "sandbox",
+  "lines": 99.78,
+  "branches": 98.59,
+  "functions": 100,
+  "statements": 99.78,
+  "linesUncov": 1
+ },
+ {
+  "pkg": "search",
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100,
+  "linesUncov": 0
+ },
+ {
+  "pkg": "server",
+  "lines": 99.73,
+  "branches": 97.96,
+  "functions": 94.19,
+  "statements": 99.73,
+  "linesUncov": 9
+ },
+ {
+  "pkg": "sidecar",
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100,
+  "linesUncov": 0
+ },
+ {
+  "pkg": "sqlite",
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100,
+  "linesUncov": 0
+ },
+ {
+  "pkg": "ui",
+  "lines": 99.8,
+  "branches": 99.98,
+  "functions": 99.93,
+  "statements": 99.8,
+  "linesUncov": 86
+ },
+ {
+  "pkg": "ui-kit",
+  "lines": 96.68,
+  "branches": 99.83,
+  "functions": 99.28,
+  "statements": 96.68,
+  "linesUncov": 29
+ },
+ {
+  "pkg": "user-management",
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100,
+  "linesUncov": 0
+ },
+ {
+  "pkg": "vibecoding",
+  "lines": 96.41,
+  "branches": 92.09,
+  "functions": 91.61,
+  "statements": 96.41,
+  "linesUncov": 63
+ }
+]

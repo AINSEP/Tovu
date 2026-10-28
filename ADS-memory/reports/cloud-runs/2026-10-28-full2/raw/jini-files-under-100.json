@@ -1,0 +1,1746 @@
+[
+ {
+  "pkg": "admin",
+  "file": "packages/admin/src/browser/telemetry.ts",
+  "lines": 85,
+  "branches": 89.36,
+  "functions": 91.66,
+  "uncoveredLines": 12
+ },
+ {
+  "pkg": "admin",
+  "file": "packages/admin/src/consent/react/ConsentFields.tsx",
+  "lines": 100,
+  "branches": 98.33,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "agent-plugins",
+  "file": "packages/agent-plugins/core/persistent-state.d.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 25
+ },
+ {
+  "pkg": "agent-plugins",
+  "file": "packages/agent-plugins/src/admin-surfaces/action-tools.ts",
+  "lines": 100,
+  "branches": 90,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "agent-plugins",
+  "file": "packages/agent-plugins/src/lifecycle/activation.ts",
+  "lines": 99.17,
+  "branches": 99.5,
+  "functions": 98.11,
+  "uncoveredLines": 3
+ },
+ {
+  "pkg": "agent-plugins",
+  "file": "packages/agent-plugins/src/lifecycle/automatic-use.ts",
+  "lines": 100,
+  "branches": 99.37,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "agent-plugins",
+  "file": "packages/agent-plugins/src/lifecycle/bundled-source-archive.ts",
+  "lines": 100,
+  "branches": 98.5,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "agent-plugins",
+  "file": "packages/agent-plugins/src/lifecycle/resolve-agent-plugin-refs.ts",
+  "lines": 96.68,
+  "branches": 98.68,
+  "functions": 100,
+  "uncoveredLines": 5
+ },
+ {
+  "pkg": "agent-plugins",
+  "file": "packages/agent-plugins/src/lifecycle/set-enabled.ts",
+  "lines": 93.65,
+  "branches": 88.23,
+  "functions": 100,
+  "uncoveredLines": 4
+ },
+ {
+  "pkg": "agent-plugins",
+  "file": "packages/agent-plugins/src/lifecycle/tools/capabilities.ts",
+  "lines": 100,
+  "branches": 98.92,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "agent-runtime",
+  "file": "packages/agent-runtime/src/claude-filesystem-policy.ts",
+  "lines": 96.71,
+  "branches": 94.33,
+  "functions": 93.33,
+  "uncoveredLines": 5
+ },
+ {
+  "pkg": "agent-runtime",
+  "file": "packages/agent-runtime/src/agent-protocol/acp/models.ts",
+  "lines": 100,
+  "branches": 98.63,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "agent-runtime",
+  "file": "packages/agent-runtime/src/agent-protocol/acp/session.ts",
+  "lines": 100,
+  "branches": 99.73,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "agent-runtime",
+  "file": "packages/agent-runtime/src/ai-trace/capture.ts",
+  "lines": 92.3,
+  "branches": 84.21,
+  "functions": 100,
+  "uncoveredLines": 2
+ },
+ {
+  "pkg": "agent-runtime",
+  "file": "packages/agent-runtime/src/ai-trace/recorder.ts",
+  "lines": 96.46,
+  "branches": 89.51,
+  "functions": 93.1,
+  "uncoveredLines": 7
+ },
+ {
+  "pkg": "agent-runtime",
+  "file": "packages/agent-runtime/src/ai-trace/sinks.ts",
+  "lines": 100,
+  "branches": 76.74,
+  "functions": 94.11,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "agent-runtime",
+  "file": "packages/agent-runtime/src/defs/claude.ts",
+  "lines": 100,
+  "branches": 98.14,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "agent-runtime",
+  "file": "packages/agent-runtime/src/providers/anthropic-messages.ts",
+  "lines": 100,
+  "branches": 99.45,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "analytics",
+  "file": "packages/analytics/src/product/ai-generations.ts",
+  "lines": 100,
+  "branches": 92.3,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "analytics",
+  "file": "packages/analytics/src/product/browser.ts",
+  "lines": 100,
+  "branches": 95.65,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "analytics",
+  "file": "packages/analytics/src/product/index.ts",
+  "lines": 100,
+  "branches": 98.64,
+  "functions": 88.88,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "chat",
+  "file": "packages/chat/src/core/accepted-input.ts",
+  "lines": 100,
+  "branches": 99.08,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "chat",
+  "file": "packages/chat/src/core/turn-usage.ts",
+  "lines": 100,
+  "branches": 98.97,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "chat",
+  "file": "packages/chat/src/core/assistant-client/durable-run-subscription.ts",
+  "lines": 100,
+  "branches": 92.59,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "chat",
+  "file": "packages/chat/src/core/persistence/title.ts",
+  "lines": 100,
+  "branches": 96.87,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "cms",
+  "file": "packages/cms/src/consent/css.ts",
+  "lines": 100,
+  "branches": 98.58,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "cms",
+  "file": "packages/cms/src/consent/express/index.ts",
+  "lines": 100,
+  "branches": 98.02,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "cms",
+  "file": "packages/cms/src/consent/html/gate.ts",
+  "lines": 100,
+  "branches": 98.38,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "cms",
+  "file": "packages/cms/src/consent/html/resources.ts",
+  "lines": 100,
+  "branches": 98.3,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "cms",
+  "file": "packages/cms/src/consent/node/index.ts",
+  "lines": 99.28,
+  "branches": 99.07,
+  "functions": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "pkg": "cms",
+  "file": "packages/cms/src/forms/email-sender-fields.ts",
+  "lines": 95.34,
+  "branches": 96.55,
+  "functions": 100,
+  "uncoveredLines": 2
+ },
+ {
+  "pkg": "cms",
+  "file": "packages/cms/src/media/document-read.ts",
+  "lines": 100,
+  "branches": 98.43,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "cms",
+  "file": "packages/cms/src/media/image-transformer.sharp.ts",
+  "lines": 100,
+  "branches": 98,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "cms",
+  "file": "packages/cms/src/media/list-page.ts",
+  "lines": 100,
+  "branches": 90,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "cms",
+  "file": "packages/cms/src/media/provenance.ts",
+  "lines": 77.77,
+  "branches": 73.68,
+  "functions": 100,
+  "uncoveredLines": 6
+ },
+ {
+  "pkg": "cms",
+  "file": "packages/cms/src/media/tool-registrations.ts",
+  "lines": 100,
+  "branches": 94.44,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "cms",
+  "file": "packages/cms/src/media/plugins/document-text/unpdf.ts",
+  "lines": 100,
+  "branches": 85.71,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "cms",
+  "file": "packages/cms/src/navigation/tool-registrations.ts",
+  "lines": 98.57,
+  "branches": 98.38,
+  "functions": 100,
+  "uncoveredLines": 2
+ },
+ {
+  "pkg": "cms",
+  "file": "packages/cms/src/presentation/presentation.ts",
+  "lines": 100,
+  "branches": 90,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "cms",
+  "file": "packages/cms/src/redirects/path-key.ts",
+  "lines": 100,
+  "branches": 85.71,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "cms",
+  "file": "packages/cms/src/widgets/html/plugin-export.ts",
+  "lines": 100,
+  "branches": 91.54,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/vitest.kernel.config.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 2
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/index.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 1
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/tools.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 24
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/catalog/checkout.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 80
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/catalog/errors.ts",
+  "lines": 0,
+  "branches": 100,
+  "functions": 100,
+  "uncoveredLines": 26
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/catalog/index.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 7
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/catalog/repo.rows.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 165
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/catalog/repo.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 233
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/catalog/status.ts",
+  "lines": 0,
+  "branches": 100,
+  "functions": 100,
+  "uncoveredLines": 44
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/catalog/storefront.ts",
+  "lines": 0,
+  "branches": 100,
+  "functions": 100,
+  "uncoveredLines": 30
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/http/index.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 1
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/http/payments-webhook.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 60
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/money/money.ts",
+  "lines": 0,
+  "branches": 100,
+  "functions": 100,
+  "uncoveredLines": 49
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/kernel.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 1
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/plugin-contribution.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 60
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/provider-module-guard.ts",
+  "lines": 0,
+  "branches": 100,
+  "functions": 100,
+  "uncoveredLines": 47
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/provider-registry.ts",
+  "lines": 0,
+  "branches": 100,
+  "functions": 100,
+  "uncoveredLines": 28
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/accounting/apply-evidence.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 246
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/accounting/plan-evidence.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 154
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/contract/alerts.ts",
+  "lines": 0,
+  "branches": 100,
+  "functions": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/contract/provider.ts",
+  "lines": 0,
+  "branches": 100,
+  "functions": 100,
+  "uncoveredLines": 17
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/contract/risk.ts",
+  "lines": 0,
+  "branches": 100,
+  "functions": 100,
+  "uncoveredLines": 41
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/contract/scope.ts",
+  "lines": 0,
+  "branches": 100,
+  "functions": 100,
+  "uncoveredLines": 11
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/contract/tokens.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 4
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/ingest/outbox-relay.ts",
+  "lines": 0,
+  "branches": 100,
+  "functions": 100,
+  "uncoveredLines": 24
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/ingest/receive.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 57
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/ingest/worker.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 137
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/ledger/repo.memory.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 318
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/ledger/repo.sql.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 293
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/ledger/repo.ts",
+  "lines": 0,
+  "branches": 100,
+  "functions": 100,
+  "uncoveredLines": 10
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/ledger/rows.ts",
+  "lines": 0,
+  "branches": 100,
+  "functions": 100,
+  "uncoveredLines": 362
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/ledger/sql.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 1
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/ledger/migrations/0001_payments_ledger.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 148
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/ledger/migrations/0002_payments_operator_actions.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 31
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/ledger/migrations/0004_payments_attempt_recovery.ts",
+  "lines": 0,
+  "branches": 100,
+  "functions": 100,
+  "uncoveredLines": 9
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/ledger/migrations/checksums.ts",
+  "lines": 0,
+  "branches": 100,
+  "functions": 100,
+  "uncoveredLines": 5
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/ledger/migrations/index.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 22
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/ops/capture-void.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 123
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/ops/common.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 127
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/ops/deps.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 8
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/ops/grants.ts",
+  "lines": 0,
+  "branches": 100,
+  "functions": 100,
+  "uncoveredLines": 32
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/ops/intent.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 110
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/ops/operator.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 45
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/ops/reconcile-attempts.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 36
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/ops/reconcile-snapshot.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 26
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/ops/reconciler.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 88
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/ops/refund.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 110
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/ops/service.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 24
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/ops/view.ts",
+  "lines": 0,
+  "branches": 100,
+  "functions": 100,
+  "uncoveredLines": 24
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/providers/lipay-gateway.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 9
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/state/status.ts",
+  "lines": 0,
+  "branches": 100,
+  "functions": 100,
+  "uncoveredLines": 73
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/testkit/index.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 3
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/testkit/lipay-fake.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 93
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/testkit/provider-conformance.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 63
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/tools/catalog.ts",
+  "lines": 0,
+  "branches": 100,
+  "functions": 100,
+  "uncoveredLines": 80
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/tools/deps.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 22
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/tools/index.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 20
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/tools/input.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 31
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/tools/money-tools.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 104
+ },
+ {
+  "pkg": "commerce",
+  "file": "packages/commerce/src/payments/tools/read-tools.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 20
+ },
+ {
+  "pkg": "cookie-consent",
+  "file": "packages/cookie-consent/src/client/index.ts",
+  "lines": 98.82,
+  "branches": 100,
+  "functions": 96.55,
+  "uncoveredLines": 2
+ },
+ {
+  "pkg": "cookie-consent",
+  "file": "packages/cookie-consent/src/render/css.ts",
+  "lines": 100,
+  "branches": 99.31,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "core",
+  "file": "packages/core/src/args-convention.typecheck.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 43
+ },
+ {
+  "pkg": "core",
+  "file": "packages/core/src/filesystem.ts",
+  "lines": 0,
+  "branches": 100,
+  "functions": 100,
+  "uncoveredLines": 4
+ },
+ {
+  "pkg": "core",
+  "file": "packages/core/src/__tests__/fixtures/legacy-redactors.ts",
+  "lines": 95.9,
+  "branches": 76.47,
+  "functions": 100,
+  "uncoveredLines": 5
+ },
+ {
+  "pkg": "core",
+  "file": "packages/core/src/settings/tool-registrations.ts",
+  "lines": 100,
+  "branches": 98.82,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "core",
+  "file": "packages/core/src/settings/__tests__/principal-lookup.typecheck.ts",
+  "lines": 0,
+  "branches": 100,
+  "functions": 100,
+  "uncoveredLines": 4
+ },
+ {
+  "pkg": "core",
+  "file": "packages/core/src/settings/__tests__/write-tool-fixture.ts",
+  "lines": 100,
+  "branches": 100,
+  "functions": 83.33,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "core",
+  "file": "packages/core/src/settings/express/__tests__/settings-fixture.ts",
+  "lines": 100,
+  "branches": 96.15,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "daemon",
+  "file": "packages/daemon/src/delegated-result-correlation.ts",
+  "lines": 100,
+  "branches": 94.11,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "daemon",
+  "file": "packages/daemon/src/remote-attachment-lookup.ts",
+  "lines": 96.42,
+  "branches": 80.76,
+  "functions": 100,
+  "uncoveredLines": 2
+ },
+ {
+  "pkg": "daemon",
+  "file": "packages/daemon/src/remote-tool-executor.ts",
+  "lines": 99.41,
+  "branches": 93.61,
+  "functions": 96.15,
+  "uncoveredLines": 1
+ },
+ {
+  "pkg": "daemon",
+  "file": "packages/daemon/src/tool-result-diagnostics.ts",
+  "lines": 100,
+  "branches": 90.9,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "daemon",
+  "file": "packages/daemon/src/__tests__/catalog-fixture.ts",
+  "lines": 100,
+  "branches": 77.27,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "daemon",
+  "file": "packages/daemon/src/__tests__/session-fixture.ts",
+  "lines": 100,
+  "branches": 100,
+  "functions": 94.11,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "daemon",
+  "file": "packages/daemon/src/__tests__/surface-fixture.ts",
+  "lines": 100,
+  "branches": 100,
+  "functions": 88.88,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "daemon",
+  "file": "packages/daemon/src/agent-executor/events.ts",
+  "lines": 99.57,
+  "branches": 98.92,
+  "functions": 98.3,
+  "uncoveredLines": 3
+ },
+ {
+  "pkg": "daemon",
+  "file": "packages/daemon/src/agent-executor/launch.ts",
+  "lines": 99.87,
+  "branches": 99.55,
+  "functions": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "pkg": "daemon",
+  "file": "packages/daemon/src/agent-executor/live-session-state.ts",
+  "lines": 98.33,
+  "branches": 96.07,
+  "functions": 100,
+  "uncoveredLines": 2
+ },
+ {
+  "pkg": "daemon",
+  "file": "packages/daemon/src/agent-executor/__tests__/model-discovery-fixture.ts",
+  "lines": 100,
+  "branches": 83.33,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "daemon",
+  "file": "packages/daemon/src/agent-executor/codex/isolation.ts",
+  "lines": 100,
+  "branches": 92.85,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "daemon",
+  "file": "packages/daemon/src/http/attachment-lookup-routes.ts",
+  "lines": 100,
+  "branches": 96.77,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "daemon",
+  "file": "packages/daemon/src/http/message-relay.ts",
+  "lines": 92.3,
+  "branches": 90,
+  "functions": 75,
+  "uncoveredLines": 2
+ },
+ {
+  "pkg": "daemon",
+  "file": "packages/daemon/src/http/tool-execution-routes.ts",
+  "lines": 100,
+  "branches": 90.16,
+  "functions": 94.11,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "daemon",
+  "file": "packages/daemon/src/store/agent-sessions/__tests__/fixtures.ts",
+  "lines": 92.3,
+  "branches": 87.5,
+  "functions": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "pkg": "daemon",
+  "file": "packages/daemon/src/store/agent-sessions/__tests__/packed-fixture.ts",
+  "lines": 100,
+  "branches": 83.33,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "daemon",
+  "file": "packages/daemon/src/tool-recovery/analytics.ts",
+  "lines": 100,
+  "branches": 45.45,
+  "functions": 50,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "daemon",
+  "file": "packages/daemon/src/tool-recovery/observability.ts",
+  "lines": 100,
+  "branches": 94.73,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "db",
+  "file": "packages/db/src/kernel/kernel-core.ts",
+  "lines": 100,
+  "branches": 98.64,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "db",
+  "file": "packages/db/src/kernel/owned-transaction.ts",
+  "lines": 100,
+  "branches": 50,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "db",
+  "file": "packages/db/src/migrate/ddl.ts",
+  "lines": 16.66,
+  "branches": 100,
+  "functions": 0,
+  "uncoveredLines": 5
+ },
+ {
+  "pkg": "db",
+  "file": "packages/db/src/migrate/legacy-ledger.ts",
+  "lines": 100,
+  "branches": 88.57,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "db",
+  "file": "packages/db/src/owner-store/index.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 1
+ },
+ {
+  "pkg": "db",
+  "file": "packages/db/src/owner-store/migrations/0000_owner_store.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 9
+ },
+ {
+  "pkg": "db",
+  "file": "packages/db/src/owner-store/migrations/index.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 3
+ },
+ {
+  "pkg": "db",
+  "file": "packages/db/src/secrets-vault/repo.sql.ts",
+  "lines": 100,
+  "branches": 99.25,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "db",
+  "file": "packages/db/src/sqlite/checked-client.ts",
+  "lines": 100,
+  "branches": 93.18,
+  "functions": 83.33,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "db",
+  "file": "packages/db/src/sqlite/checked-state.ts",
+  "lines": 100,
+  "branches": 90.9,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "db",
+  "file": "packages/db/src/sqlite/transaction.ts",
+  "lines": 100,
+  "branches": 94.87,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "desktop-host",
+  "file": "packages/desktop-host/src/sidecar.ts",
+  "lines": 100,
+  "branches": 98.5,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "desktop-host",
+  "file": "packages/desktop-host/src/electron/electron-url-capture.ts",
+  "lines": 98.55,
+  "branches": 90.9,
+  "functions": 100,
+  "uncoveredLines": 2
+ },
+ {
+  "pkg": "desktop-host",
+  "file": "packages/desktop-host/src/tauri/tauri-sidecar.ts",
+  "lines": 100,
+  "branches": 97.67,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "diagnostics",
+  "file": "packages/diagnostics/src/memory-growth.ts",
+  "lines": 100,
+  "branches": 97.95,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "diagnostics",
+  "file": "packages/diagnostics/src/__tests__/l170-filesystem.fake.ts",
+  "lines": 100,
+  "branches": 90,
+  "functions": 75,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "diagnostics",
+  "file": "packages/diagnostics/src/observability/delivery.ts",
+  "lines": 100,
+  "branches": 92.1,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "diagnostics",
+  "file": "packages/diagnostics/src/observability/errors.ts",
+  "lines": 100,
+  "branches": 90,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "diagnostics",
+  "file": "packages/diagnostics/src/observability/fanout.ts",
+  "lines": 100,
+  "branches": 98.7,
+  "functions": 95.23,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "diagnostics",
+  "file": "packages/diagnostics/src/observability/hooks.ts",
+  "lines": 100,
+  "branches": 100,
+  "functions": 83.33,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "diagnostics",
+  "file": "packages/diagnostics/src/observability/otel.ts",
+  "lines": 100,
+  "branches": 97.32,
+  "functions": 94.73,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "diagnostics",
+  "file": "packages/diagnostics/src/observability/report-error.ts",
+  "lines": 100,
+  "branches": 95.65,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "diagnostics",
+  "file": "packages/diagnostics/src/observability/telemetry-test.ts",
+  "lines": 93.93,
+  "branches": 92.59,
+  "functions": 100,
+  "uncoveredLines": 2
+ },
+ {
+  "pkg": "diagnostics",
+  "file": "packages/diagnostics/src/observability/tracker-noop.ts",
+  "lines": 100,
+  "branches": 100,
+  "functions": 85.71,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "diagnostics",
+  "file": "packages/diagnostics/src/observability/tracker.ts",
+  "lines": 100,
+  "branches": 93.33,
+  "functions": 93.33,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "diagnostics",
+  "file": "packages/diagnostics/src/web-evidence/__tests__/web-evidence-playwright.port-check.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 161
+ },
+ {
+  "pkg": "http-kit",
+  "file": "packages/http-kit/src/verified-origin/origin.ts",
+  "lines": 100,
+  "branches": 94.59,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "infra",
+  "file": "packages/infra/src/events/outbox/worker.ts",
+  "lines": 100,
+  "branches": 97.43,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "integrations",
+  "file": "packages/integrations/src/credentialed-http/credentialed-request.ts",
+  "lines": 99.66,
+  "branches": 99.4,
+  "functions": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "pkg": "integrations",
+  "file": "packages/integrations/src/saved-requests/execute.ts",
+  "lines": 100,
+  "branches": 100,
+  "functions": 90,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "integrations",
+  "file": "packages/integrations/src/saved-requests/schema.ts",
+  "lines": 100,
+  "branches": 96.77,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "mcp",
+  "file": "packages/mcp/src/bin/serve.ts",
+  "lines": 97.97,
+  "branches": 97.29,
+  "functions": 100,
+  "uncoveredLines": 3
+ },
+ {
+  "pkg": "mcp",
+  "file": "packages/mcp/src/federation/adapter.http.ts",
+  "lines": 100,
+  "branches": 99.19,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "mcp",
+  "file": "packages/mcp/src/federation/__tests__/fixtures.ts",
+  "lines": 100,
+  "branches": 75,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "mcp",
+  "file": "packages/mcp/src/server/schema-ref-scope.ts",
+  "lines": 100,
+  "branches": 94.28,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "mcp",
+  "file": "packages/mcp/src/server/stdio-hosting.ts",
+  "lines": 98.62,
+  "branches": 93.68,
+  "functions": 100,
+  "uncoveredLines": 2
+ },
+ {
+  "pkg": "mcp",
+  "file": "packages/mcp/src/server/tool-server.ts",
+  "lines": 100,
+  "branches": 98.24,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "mcp",
+  "file": "packages/mcp/src/tools/ask-choice/__tests__/fixtures.ts",
+  "lines": 100,
+  "branches": 93.75,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "oauth",
+  "file": "packages/oauth/src/discovery.ts",
+  "lines": 100,
+  "branches": 99.04,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "platform",
+  "file": "packages/platform/src/asset-cache.ts",
+  "lines": 99.11,
+  "branches": 98.4,
+  "functions": 100,
+  "uncoveredLines": 2
+ },
+ {
+  "pkg": "platform",
+  "file": "packages/platform/src/download.ts",
+  "lines": 100,
+  "branches": 99.73,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "platform",
+  "file": "packages/platform/src/fetch-with-timeout.ts",
+  "lines": 100,
+  "branches": 96.9,
+  "functions": 95.65,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "platform",
+  "file": "packages/platform/src/fs/guarded-reader.ts",
+  "lines": 100,
+  "branches": 98.95,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "platform",
+  "file": "packages/platform/src/mail/delivery-wrapper.ts",
+  "lines": 100,
+  "branches": 96.29,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "platform",
+  "file": "packages/platform/src/mail/resolve-mailer.ts",
+  "lines": 100,
+  "branches": 99.51,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "platform",
+  "file": "packages/platform/src/mail/__tests__/resolver-fixtures.ts",
+  "lines": 100,
+  "branches": 100,
+  "functions": 90.62,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "platform",
+  "file": "packages/platform/src/secrets/passphrase-envelope.ts",
+  "lines": 100,
+  "branches": 94.33,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "plugins",
+  "file": "packages/plugins/src/host/contributions.ts",
+  "lines": 100,
+  "branches": 98.36,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "plugins",
+  "file": "packages/plugins/src/host/hook-registry.ts",
+  "lines": 98.32,
+  "branches": 98.66,
+  "functions": 100,
+  "uncoveredLines": 3
+ },
+ {
+  "pkg": "plugins",
+  "file": "packages/plugins/src/host/provider-contributions.ts",
+  "lines": 100,
+  "branches": 97.84,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "plugins",
+  "file": "packages/plugins/src/host/provider-host.ts",
+  "lines": 93.64,
+  "branches": 89.39,
+  "functions": 88.46,
+  "uncoveredLines": 11
+ },
+ {
+  "pkg": "plugins",
+  "file": "packages/plugins/src/host/provider-settings-migrations.ts",
+  "lines": 100,
+  "branches": 87.5,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "plugins",
+  "file": "packages/plugins/src/host/quarantine.ts",
+  "lines": 96.55,
+  "branches": 50,
+  "functions": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "pkg": "plugins",
+  "file": "packages/plugins/src/host/node/discovery.ts",
+  "lines": 97.5,
+  "branches": 98.11,
+  "functions": 100,
+  "uncoveredLines": 5
+ },
+ {
+  "pkg": "plugins",
+  "file": "packages/plugins/src/host/node/loader.ts",
+  "lines": 100,
+  "branches": 98.96,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "plugins",
+  "file": "packages/plugins/src/host/node/module-snapshot.ts",
+  "lines": 94.15,
+  "branches": 96.2,
+  "functions": 94.73,
+  "uncoveredLines": 9
+ },
+ {
+  "pkg": "plugins",
+  "file": "packages/plugins/src/host/node/package-files.ts",
+  "lines": 98.21,
+  "branches": 97.91,
+  "functions": 100,
+  "uncoveredLines": 3
+ },
+ {
+  "pkg": "plugins",
+  "file": "packages/plugins/src/host/node/provider-artifact.ts",
+  "lines": 100,
+  "branches": 75,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "protocol",
+  "file": "packages/protocol/src/delegated-result.ts",
+  "lines": 100,
+  "branches": 96.66,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "provider-plugins",
+  "file": "packages/provider-plugins/scripts/build.ts",
+  "lines": 96.26,
+  "branches": 92.3,
+  "functions": 100,
+  "uncoveredLines": 4
+ },
+ {
+  "pkg": "provider-plugins",
+  "file": "packages/provider-plugins/src/analytics-posthog/browser.ts",
+  "lines": 100,
+  "branches": 85.71,
+  "functions": 66.66,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "provider-plugins",
+  "file": "packages/provider-plugins/src/analytics-posthog/consent-adapter.ts",
+  "lines": 100,
+  "branches": 98.75,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "provider-plugins",
+  "file": "packages/provider-plugins/src/analytics-posthog/posthog.ts",
+  "lines": 100,
+  "branches": 92.68,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "provider-plugins",
+  "file": "packages/provider-plugins/src/observability-opentelemetry/index.ts",
+  "lines": 94.87,
+  "branches": 98.86,
+  "functions": 100,
+  "uncoveredLines": 4
+ },
+ {
+  "pkg": "provider-plugins",
+  "file": "packages/provider-plugins/src/observability-opentelemetry/opentelemetry.ts",
+  "lines": 100,
+  "branches": 97.18,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "provider-plugins",
+  "file": "packages/provider-plugins/src/observability-sentry/sentry.ts",
+  "lines": 100,
+  "branches": 96.61,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "sandbox",
+  "file": "packages/sandbox/src/e2b/provider.ts",
+  "lines": 100,
+  "branches": 97.14,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "sandbox",
+  "file": "packages/sandbox/src/e2b/wrap-e2b-sandbox.ts",
+  "lines": 99.61,
+  "branches": 98.38,
+  "functions": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "pkg": "server",
+  "file": "packages/server/src/kernel-base.ts",
+  "lines": 100,
+  "branches": 100,
+  "functions": 90,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "server",
+  "file": "packages/server/src/lifecycle/__tests__/boot-lifecycle.characterization.unit.test.ts",
+  "lines": 100,
+  "branches": 100,
+  "functions": 70,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "server",
+  "file": "packages/server/src/lifecycle/__tests__/boot-lifecycle.test.ts",
+  "lines": 97.89,
+  "branches": 100,
+  "functions": 91.3,
+  "uncoveredLines": 4
+ },
+ {
+  "pkg": "server",
+  "file": "packages/server/src/lifecycle/__tests__/readiness-state.test.ts",
+  "lines": 100,
+  "branches": 100,
+  "functions": 25,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "server",
+  "file": "packages/server/src/owner-store/backup.ts",
+  "lines": 96.22,
+  "branches": 93.47,
+  "functions": 100,
+  "uncoveredLines": 4
+ },
+ {
+  "pkg": "server",
+  "file": "packages/server/src/owner-store/index.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 1
+ },
+ {
+  "pkg": "server",
+  "file": "packages/server/src/owner-store/legacy.ts",
+  "lines": 100,
+  "branches": 83.33,
+  "functions": 81.81,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "server",
+  "file": "packages/server/src/storage/__tests__/backend-config.characterization.unit.test.ts",
+  "lines": 100,
+  "branches": 100,
+  "functions": 66.66,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "server",
+  "file": "packages/server/src/storage/__tests__/backend-config.test.ts",
+  "lines": 100,
+  "branches": 95.83,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "server",
+  "file": "packages/server/src/storage/__tests__/host-injection.test.ts",
+  "lines": 100,
+  "branches": 89.13,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "server",
+  "file": "packages/server/src/storage/__tests__/legacy-ownership.test.ts",
+  "lines": 100,
+  "branches": 85.71,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "server",
+  "file": "packages/server/src/storage/__tests__/legacy-sqlite.test.ts",
+  "lines": 100,
+  "branches": 96.77,
+  "functions": 94.44,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "ui",
+  "file": "packages/ui/scripts/generate-agent-icon-data-uris.mjs",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 77
+ },
+ {
+  "pkg": "ui",
+  "file": "packages/ui/src/features/mcp-ui/surfaces/structured-details.ts",
+  "lines": 100,
+  "branches": 98.19,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "ui",
+  "file": "packages/ui/src/features/panel-kit/fetch-query/binding.react.tsx",
+  "lines": 70.96,
+  "branches": 100,
+  "functions": 87.5,
+  "uncoveredLines": 9
+ },
+ {
+  "pkg": "ui-kit",
+  "file": "packages/ui-kit/scripts/headless-smoke.mjs",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 29
+ },
+ {
+  "pkg": "vibecoding",
+  "file": "packages/vibecoding/src/core/session.ts",
+  "lines": 100,
+  "branches": 93.54,
+  "functions": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "pkg": "vibecoding",
+  "file": "packages/vibecoding/src/html/node/parse5-region-parser.ts",
+  "lines": 98.19,
+  "branches": 97.82,
+  "functions": 100,
+  "uncoveredLines": 3
+ },
+ {
+  "pkg": "vibecoding",
+  "file": "packages/vibecoding/src/node/index.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncoveredLines": 1
+ },
+ {
+  "pkg": "vibecoding",
+  "file": "packages/vibecoding/src/node/project.ts",
+  "lines": 85.96,
+  "branches": 84.86,
+  "functions": 73.46,
+  "uncoveredLines": 40
+ },
+ {
+  "pkg": "vibecoding",
+  "file": "packages/vibecoding/src/node/store.ts",
+  "lines": 94.83,
+  "branches": 86.17,
+  "functions": 100,
+  "uncoveredLines": 19
+ }
+]
