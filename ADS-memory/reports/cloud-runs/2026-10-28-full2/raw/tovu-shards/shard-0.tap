@@ -109,3 +109,3657 @@ ok 18 - run as a script against a missing bundle, it fails loudly with exit stat
   duration_ms: 1139.716636
   type: 'test'
   ...
+# Subtest: transcript-storage
+    # Subtest: loadPersistedState — fail-soft rehydrate
+        # Subtest: returns the empty default when nothing is stored
+        ok 1 - returns the empty default when nothing is stored
+          ---
+          duration_ms: 4.611168
+          type: 'test'
+          ...
+        # Subtest: rehydrates a validly-shaped entry
+        ok 2 - rehydrates a validly-shaped entry
+          ---
+          duration_ms: 1.158415
+          type: 'test'
+          ...
+        # Subtest: clears the key and starts empty on malformed JSON
+        ok 3 - clears the key and starts empty on malformed JSON
+          ---
+          duration_ms: 0.397736
+          type: 'test'
+          ...
+        # Subtest: clears the key and starts empty when the envelope is not an object
+        ok 4 - clears the key and starts empty when the envelope is not an object
+          ---
+          duration_ms: 0.12554
+          type: 'test'
+          ...
+        # Subtest: clears the key and starts empty when open is the wrong type
+        ok 5 - clears the key and starts empty when open is the wrong type
+          ---
+          duration_ms: 0.124101
+          type: 'test'
+          ...
+        # Subtest: clears the whole entry when a message's id is not a string
+        ok 6 - clears the whole entry when a message's id is not a string
+          ---
+          duration_ms: 0.097958
+          type: 'test'
+          ...
+        # Subtest: clears the whole entry when a message's content is not a string
+        ok 7 - clears the whole entry when a message's content is not a string
+          ---
+          duration_ms: 0.089165
+          type: 'test'
+          ...
+        # Subtest: clears the whole entry when a message entry is not an object at all
+        ok 8 - clears the whole entry when a message entry is not an object at all
+          ---
+          duration_ms: 0.69436
+          type: 'test'
+          ...
+        # Subtest: clears the whole entry when even one message in the array is wrong-shaped
+        ok 9 - clears the whole entry when even one message in the array is wrong-shaped
+          ---
+          duration_ms: 0.44742
+          type: 'test'
+          ...
+        # Subtest: never throws when storage access itself throws
+        ok 10 - never throws when storage access itself throws
+          ---
+          duration_ms: 0.585327
+          type: 'test'
+          ...
+        1..10
+    ok 1 - loadPersistedState — fail-soft rehydrate
+      ---
+      duration_ms: 11.910832
+      type: 'suite'
+      ...
+    # Subtest: savePersistedState — bounded, oldest-dropped-first
+        # Subtest: round-trips through loadPersistedState
+        ok 1 - round-trips through loadPersistedState
+          ---
+          duration_ms: 0.926928
+          type: 'test'
+          ...
+        # Subtest: drops the oldest messages first once the count cap is exceeded
+        ok 2 - drops the oldest messages first once the count cap is exceeded
+          ---
+          duration_ms: 0.240968
+          type: 'test'
+          ...
+        # Subtest: drops oldest messages first once the byte cap is exceeded, even under the count cap
+        ok 3 - drops oldest messages first once the byte cap is exceeded, even under the count cap
+          ---
+          duration_ms: 3.206784
+          type: 'test'
+          ...
+        # Subtest: drops a single message larger than the byte cap while retaining pane state
+        ok 4 - drops a single message larger than the byte cap while retaining pane state
+          ---
+          duration_ms: 1.040318
+          type: 'test'
+          ...
+        # Subtest: enforces the UTF-8 byte cap for 界 transcripts
+        ok 5 - enforces the UTF-8 byte cap for 界 transcripts
+          ---
+          duration_ms: 2.416547
+          type: 'test'
+          ...
+        # Subtest: enforces the UTF-8 byte cap for 🙂 transcripts
+        ok 6 - enforces the UTF-8 byte cap for 🙂 transcripts
+          ---
+          duration_ms: 4.247763
+          type: 'test'
+          ...
+        # Subtest: never throws when the underlying setItem throws (e.g. quota exceeded)
+        ok 7 - never throws when the underlying setItem throws (e.g. quota exceeded)
+          ---
+          duration_ms: 0.258579
+          type: 'test'
+          ...
+        1..7
+    ok 2 - savePersistedState — bounded, oldest-dropped-first
+      ---
+      duration_ms: 13.148202
+      type: 'suite'
+      ...
+    # Subtest: clearPersistedState
+        # Subtest: removes the stored key
+        ok 1 - removes the stored key
+          ---
+          duration_ms: 0.278848
+          type: 'test'
+          ...
+        # Subtest: never throws when the underlying removeItem throws
+        ok 2 - never throws when the underlying removeItem throws
+          ---
+          duration_ms: 0.13172
+          type: 'test'
+          ...
+        1..2
+    ok 3 - clearPersistedState
+      ---
+      duration_ms: 0.494935
+      type: 'suite'
+      ...
+    1..3
+ok 19 - transcript-storage
+  ---
+  duration_ms: 26.029227
+  type: 'suite'
+  ...
+# Subtest: action-queue
+    # Subtest: drains null when nothing was queued
+    ok 1 - drains null when nothing was queued
+      ---
+      duration_ms: 0.139027
+      type: 'test'
+      ...
+    # Subtest: returns exactly what was enqueued
+    ok 2 - returns exactly what was enqueued
+      ---
+      duration_ms: 0.103943
+      type: 'test'
+      ...
+    # Subtest: deletes the entry from storage before drainQueuedAction returns — a reload can never re-fire it
+    ok 3 - deletes the entry from storage before drainQueuedAction returns — a reload can never re-fire it
+      ---
+      duration_ms: 0.191204
+      type: 'test'
+      ...
+    # Subtest: deletes before the JSON.parse step, so a corrupt entry cannot survive a failed drain
+    ok 4 - deletes before the JSON.parse step, so a corrupt entry cannot survive a failed drain
+      ---
+      duration_ms: 0.132162
+      type: 'test'
+      ...
+    # Subtest: later enqueueAction calls overwrite the pending slot rather than stacking a FIFO
+    ok 5 - later enqueueAction calls overwrite the pending slot rather than stacking a FIFO
+      ---
+      duration_ms: 0.078789
+      type: 'test'
+      ...
+    # Subtest: never throws when the underlying storage throws on every call
+    ok 6 - never throws when the underlying storage throws on every call
+      ---
+      duration_ms: 0.139284
+      type: 'test'
+      ...
+    # Subtest: fails closed (never returns the action) when removeItem itself throws, rather than risking a re-fire
+    ok 7 - fails closed (never returns the action) when removeItem itself throws, rather than risking a re-fire
+      ---
+      duration_ms: 0.112761
+      type: 'test'
+      ...
+    1..7
+ok 20 - action-queue
+  ---
+  duration_ms: 1.449648
+  type: 'suite'
+  ...
+# Subtest: real-sessionStorage-bound wrappers
+    # Subtest: react: a fresh unopened chat writes no browser storage and loads only after activation
+    ok 1 - react: a fresh unopened chat writes no browser storage and loads only after activation
+      ---
+      duration_ms: 257.437464
+      type: 'test'
+      ...
+    # Subtest: vanilla: a fresh unopened chat writes no browser storage and loads only after activation
+    ok 2 - vanilla: a fresh unopened chat writes no browser storage and loads only after activation
+      ---
+      duration_ms: 18.321834
+      type: 'test'
+      ...
+    # Subtest: checks queued effects without consuming them before the full widget loads
+    ok 3 - checks queued effects without consuming them before the full widget loads
+      ---
+      duration_ms: 7.898519
+      type: 'test'
+      ...
+    # Subtest: keeps the loader usable even when the browser storage getter itself throws
+    ok 4 - keeps the loader usable even when the browser storage getter itself throws
+      ---
+      duration_ms: 6.73318
+      type: 'test'
+      ...
+    # Subtest: loadSiteAssistantState reads through to the real sessionStorage, not a private store
+    ok 5 - loadSiteAssistantState reads through to the real sessionStorage, not a private store
+      ---
+      duration_ms: 6.914033
+      type: 'test'
+      ...
+    # Subtest: saveSiteAssistantState writes through to the real sessionStorage, not a private store
+    ok 6 - saveSiteAssistantState writes through to the real sessionStorage, not a private store
+      ---
+      duration_ms: 5.964287
+      type: 'test'
+      ...
+    # Subtest: clearSiteAssistantState removes the real sessionStorage entry
+    ok 7 - clearSiteAssistantState removes the real sessionStorage entry
+      ---
+      duration_ms: 5.843623
+      type: 'test'
+      ...
+    # Subtest: enqueuePageAction writes through to the real sessionStorage, not a private store
+    ok 8 - enqueuePageAction writes through to the real sessionStorage, not a private store
+      ---
+      duration_ms: 5.759269
+      type: 'test'
+      ...
+    # Subtest: drainQueuedPageAction reads and clears the real sessionStorage entry
+    ok 9 - drainQueuedPageAction reads and clears the real sessionStorage entry
+      ---
+      duration_ms: 11.905211
+      type: 'test'
+      ...
+    1..9
+ok 21 - real-sessionStorage-bound wrappers
+  ---
+  duration_ms: 328.215547
+  type: 'suite'
+  ...
+# Subtest: the storage guard sees aliases and computed accesses, while ignoring comments
+ok 22 - the storage guard sees aliases and computed accesses, while ignoring comments
+  ---
+  duration_ms: 9.928014
+  type: 'test'
+  ...
+# Subtest: storage encapsulation guard
+    # Subtest: only session-store.ts (and this guard) names sessionStorage under apps/site-chat/src
+    ok 1 - only session-store.ts (and this guard) names sessionStorage under apps/site-chat/src
+      ---
+      duration_ms: 468.758606
+      type: 'test'
+      ...
+    1..1
+ok 23 - storage encapsulation guard
+  ---
+  duration_ms: 469.163195
+  type: 'suite'
+  ...
+# Subtest: vanilla adapters: ids, aborts, session persistence and the action queue
+ok 24 - vanilla adapters: ids, aborts, session persistence and the action queue
+  ---
+  duration_ms: 65.576437
+  type: 'test'
+  ...
+# Subtest: vanilla page actions: navigate through the port, scroll or highlight a found target, refuse the rest
+ok 25 - vanilla page actions: navigate through the port, scroll or highlight a found target, refuse the rest
+  ---
+  duration_ms: 59.219313
+  type: 'test'
+  ...
+# Not implemented: navigation to another Document
+# Subtest: vanilla frames run on the next animation frame and can be cancelled
+ok 26 - vanilla frames run on the next animation frame and can be cancelled
+  ---
+  duration_ms: 79.752046
+  type: 'test'
+  ...
+# Subtest: the default navigation port is the page location
+ok 27 - the default navigation port is the page location
+  ---
+  duration_ms: 12.61384
+  type: 'test'
+  ...
+# Subtest: mountSiteVanillaChat mounts into the page root with its open intent, and does nothing without one
+ok 28 - mountSiteVanillaChat mounts into the page root with its open intent, and does nothing without one
+  ---
+  duration_ms: 16.015381
+  type: 'test'
+  ...
+# Subtest: in the comparison frame, a send relays to the widget and reports busy and error states
+ok 29 - in the comparison frame, a send relays to the widget and reports busy and error states
+  ---
+  duration_ms: 10.537681
+  type: 'test'
+  ...
+# Subtest: detector: findFirstPartyRequires recognizes every require-call shape and ignores non-require lookalikes
+ok 30 - detector: findFirstPartyRequires recognizes every require-call shape and ignores non-require lookalikes
+  ---
+  duration_ms: 18.651566
+  type: 'test'
+  ...
+# Subtest: the source-file scanner includes JavaScript variants and excludes declarations/tests
+ok 31 - the source-file scanner includes JavaScript variants and excludes declarations/tests
+  ---
+  duration_ms: 1.79752
+  type: 'test'
+  ...
+# Subtest: the leaf scanner includes dynamic imports and first-party require loads
+ok 32 - the leaf scanner includes dynamic imports and first-party require loads
+  ---
+  duration_ms: 3.541663
+  type: 'test'
+  ...
+# Subtest: the only-copy guard resolves static imports, re-exports and dynamic imports to the leaf
+ok 33 - the only-copy guard resolves static imports, re-exports and dynamic imports to the leaf
+  ---
+  duration_ms: 5.718627
+  type: 'test'
+  ...
+# Subtest: no source file under apps/website/src require()s a first-party module except the allowlist
+ok 34 - no source file under apps/website/src require()s a first-party module except the allowlist
+  ---
+  duration_ms: 10571.002262
+  type: 'test'
+  ...
+# Subtest: every allowlist entry is still present and still a first-party-import-free leaf
+ok 35 - every allowlist entry is still present and still a first-party-import-free leaf
+  ---
+  duration_ms: 0.217341
+  type: 'test'
+  ...
+# Subtest: listAssistantAgents projects fallback models and reasoning options for claude
+ok 36 - listAssistantAgents projects fallback models and reasoning options for claude
+  ---
+  duration_ms: 38.340092
+  type: 'test'
+  ...
+# Subtest: listAssistantAgents' carriesOwnMemory exactly matches each def's own resumesSessionViaCli/resumesSessionViaAcpLoad declaration
+ok 37 - listAssistantAgents' carriesOwnMemory exactly matches each def's own resumesSessionViaCli/resumesSessionViaAcpLoad declaration
+  ---
+  duration_ms: 1.014168
+  type: 'test'
+  ...
+# Subtest: listAssistantAgents' supportsTools exactly matches each def's own runtimeSupportsExternalTools() result
+ok 38 - listAssistantAgents' supportsTools exactly matches each def's own runtimeSupportsExternalTools() result
+  ---
+  duration_ms: 0.274652
+  type: 'test'
+  ...
+# Subtest: listAssistantAgents' supportsSubagents/supportsClaudeInChrome exactly match each def's own runtime support helpers
+ok 39 - listAssistantAgents' supportsSubagents/supportsClaudeInChrome exactly match each def's own runtime support helpers
+  ---
+  duration_ms: 0.66114
+  type: 'test'
+  ...
+# Subtest: listAssistantAgents never returns an agent with an empty id/name
+ok 40 - listAssistantAgents never returns an agent with an empty id/name
+  ---
+  duration_ms: 0.274696
+  type: 'test'
+  ...
+# Subtest: listAssistantAgents memoizes — two back-to-back calls reuse the same in-flight/settled probe
+ok 41 - listAssistantAgents memoizes — two back-to-back calls reuse the same in-flight/settled probe
+  ---
+  duration_ms: 0.159837
+  type: 'test'
+  ...
+# Subtest: rescanAssistantAgents forces a fresh probe, and a later listAssistantAgents call picks up that fresh result
+ok 42 - rescanAssistantAgents forces a fresh probe, and a later listAssistantAgents call picks up that fresh result
+  ---
+  duration_ms: 33.65014
+  type: 'test'
+  ...
+# Subtest: assistantAgentDiscoveryPending reports the process inventory's forced scan only while it is in flight
+ok 43 - assistantAgentDiscoveryPending reports the process inventory's forced scan only while it is in flight
+  ---
+  duration_ms: 36.21183
+  type: 'test'
+  ...
+# Subtest: rescanAssistantAgents surfaces the live model list the prober returns for an available def
+ok 44 - rescanAssistantAgents surfaces the live model list the prober returns for an available def
+  ---
+  duration_ms: 38.667909
+  type: 'test'
+  ...
+# Subtest: known runtime capabilities retain their memory and tool semantics
+ok 45 - known runtime capabilities retain their memory and tool semantics
+  ---
+  duration_ms: 35.404865
+  type: 'test'
+  ...
+# Subtest: assistant inventory preserves dynamic catalog and resolved default for the chat picker
+ok 46 - assistant inventory preserves dynamic catalog and resolved default for the chat picker
+  ---
+  duration_ms: 50.595812
+  type: 'test'
+  ...
+# Subtest: assistant rescan forces model discovery and preserves an unresolved default without guessing
+ok 47 - assistant rescan forces model discovery and preserves an unresolved default without guessing
+  ---
+  duration_ms: 51.088413
+  type: 'test'
+  ...
+# Subtest: live discovery reissues on credential rotation inside the same TTL
+ok 48 - live discovery reissues on credential rotation inside the same TTL
+  ---
+  duration_ms: 5.797339
+  type: 'test'
+  ...
+# Subtest: live discovery contains rejection, keeps the failure TTL, then recovers at expiry
+ok 49 - live discovery contains rejection, keeps the failure TTL, then recovers at expiry
+  ---
+  duration_ms: 1.484943
+  type: 'test'
+  ...
+# Subtest: live discovery never calls the provider for absent, wrong-protocol or blank credentials
+ok 50 - live discovery never calls the provider for absent, wrong-protocol or blank credentials
+  ---
+  duration_ms: 1.41795
+  type: 'test'
+  ...
+# Subtest: live discovery instances own their state and delimiter-containing tenant IDs cannot collide
+ok 51 - live discovery instances own their state and delimiter-containing tenant IDs cannot collide
+  ---
+  duration_ms: 0.995454
+  type: 'test'
+  ...
+# Subtest: live discovery coalesces concurrent calls while the provider is still responding
+ok 52 - live discovery coalesces concurrent calls while the provider is still responding
+  ---
+  duration_ms: 8.111975
+  type: 'test'
+  ...
+# Subtest: live discovery retries a cached failure when the stored baseUrl changes
+ok 53 - live discovery retries a cached failure when the stored baseUrl changes
+  ---
+  duration_ms: 1.295978
+  type: 'test'
+  ...
+# Subtest: Settings and chat share one background inventory while both requests return cached data
+ok 54 - Settings and chat share one background inventory while both requests return cached data
+  ---
+  duration_ms: 24.175055
+  type: 'test'
+  ...
+# Subtest: Auto preflight suggests metadata only; the first guarded write still loads real guidance once
+ok 55 - Auto preflight suggests metadata only; the first guarded write still loads real guidance once
+  ---
+  duration_ms: 60.892241
+  type: 'test'
+  ...
+# Subtest: pending Ask use: real recovery replaces the attempt without another card
+ok 56 - pending Ask use: real recovery replaces the attempt without another card
+  ---
+  duration_ms: 56.967723
+  type: 'test'
+  ...
+# Subtest: pending Ask use: process loss ends the turn and honours a late answer
+ok 57 - pending Ask use: process loss ends the turn and honours a late answer
+  ---
+  duration_ms: 50.589378
+  type: 'test'
+  ...
+# Subtest: pending Ask skip: real recovery replaces the attempt without another card
+ok 58 - pending Ask skip: real recovery replaces the attempt without another card
+  ---
+  duration_ms: 62.34838
+  type: 'test'
+  ...
+# Subtest: pending Ask skip: process loss ends the turn and honours a late answer
+ok 59 - pending Ask skip: process loss ends the turn and honours a late answer
+  ---
+  duration_ms: 82.382692
+  type: 'test'
+  ...
+# Subtest: controller identity binds principal and conversation; disposal removes every attempt alias
+ok 60 - controller identity binds principal and conversation; disposal removes every attempt alias
+  ---
+  duration_ms: 97.135052
+  type: 'test'
+  ...
+# Subtest: Don't ask again writes Auto only for the answering principal through the real setting service
+ok 61 - Don't ask again writes Auto only for the answering principal through the real setting service
+  ---
+  duration_ms: 40.677393
+  type: 'test'
+  ...
+# Subtest: CLI onStarted places the relevance note, without guidance bodies, into the executor prompt
+ok 62 - CLI onStarted places the relevance note, without guidance bodies, into the executor prompt
+  ---
+  duration_ms: 243.190121
+  type: 'test'
+  ...
+# Subtest: CLI preflight preserves the answer receipt channel in the durable run stream
+ok 63 - CLI preflight preserves the answer receipt channel in the durable run stream
+  ---
+  duration_ms: 103.185211
+  type: 'test'
+  ...
+# Subtest: load_agent_plugin carries maturity untested
+ok 64 - load_agent_plugin carries maturity untested
+  ---
+  duration_ms: 45.476586
+  type: 'test'
+  ...
+# Subtest: load_agent_plugin carries maturity soon
+ok 65 - load_agent_plugin carries maturity soon
+  ---
+  duration_ms: 42.619136
+  type: 'test'
+  ...
+# Subtest: load_agent_plugin carries maturity (absent)
+ok 66 - load_agent_plugin carries maturity (absent)
+  ---
+  duration_ms: 47.303052
+  type: 'test'
+  ...
+# Subtest: automatic tool guidance warns before actions for an untested plugin
+ok 67 - automatic tool guidance warns before actions for an untested plugin
+  ---
+  duration_ms: 52.379727
+  type: 'test'
+  ...
+# Subtest: load_agent_plugin uses the real resolver and publishes the loaded chip through the real executor
+ok 68 - load_agent_plugin uses the real resolver and publishes the loaded chip through the real executor
+  ---
+  duration_ms: 49.301759
+  type: 'test'
+  ...
+# Subtest: inactive Higgsfield returns the exact activation and retry calls without activating it
+ok 69 - inactive Higgsfield returns the exact activation and retry calls without activating it
+  ---
+  duration_ms: 296.893217
+  type: 'test'
+  ...
+# Subtest: the first theme write loads installed tovu-theme after a note-only preflight
+ok 70 - the first theme write loads installed tovu-theme after a note-only preflight
+  ---
+  duration_ms: 41.180462
+  type: 'test'
+  ...
+# Subtest: the loader cannot use another principal’s run, an excluded plugin, or a revoked activation
+ok 71 - the loader cannot use another principal’s run, an excluded plugin, or a revoked activation
+  ---
+  duration_ms: 51.846889
+  type: 'test'
+  ...
+# Subtest: 50 relevant ids are discoverable by paging the existing search tool and all load through the executor
+ok 72 - 50 relevant ids are discoverable by paging the existing search tool and all load through the executor
+  ---
+  duration_ms: 8606.912577
+  type: 'test'
+  ...
+# Subtest: explicit loader and guarded write refuse ask through the real executor
+ok 73 - explicit loader and guarded write refuse ask through the real executor
+  ---
+  duration_ms: 40.007293
+  type: 'test'
+  ...
+# Subtest: explicit loader and guarded write refuse off through the real executor
+ok 74 - explicit loader and guarded write refuse off through the real executor
+  ---
+  duration_ms: 10.382866
+  type: 'test'
+  ...
+# Subtest: explicit loader and guarded write refuse untrusted through the real executor
+ok 75 - explicit loader and guarded write refuse untrusted through the real executor
+  ---
+  duration_ms: 40.181057
+  type: 'test'
+  ...
+# Subtest: explicit loader and guarded write refuse unavailable through the real executor
+ok 76 - explicit loader and guarded write refuse unavailable through the real executor
+  ---
+  duration_ms: 22.477992
+  type: 'test'
+  ...
+# Subtest: a turn whose signal is already aborted registers no controller and returns no note
+ok 77 - a turn whose signal is already aborted registers no controller and returns no note
+  ---
+  duration_ms: 24.077548
+  type: 'test'
+  ...
+# Subtest: a tool without guidance capabilities loads no plugin guidance
+ok 78 - a tool without guidance capabilities loads no plugin guidance
+  ---
+  duration_ms: 9.569135
+  type: 'test'
+  ...
+# Subtest: a failing guidance preparation is logged without detail and yields no guidance
+ok 79 - a failing guidance preparation is logged without detail and yields no guidance
+  ---
+  duration_ms: 8.841687
+  type: 'test'
+  ...
+# Subtest: load_agent_plugin refuses unknown input keys
+ok 80 - load_agent_plugin refuses unknown input keys
+  ---
+  duration_ms: 5.303047
+  type: 'test'
+  ...
+# Subtest: a disposed Ask turn publishes nothing after its pending question is aborted
+ok 81 - a disposed Ask turn publishes nothing after its pending question is aborted
+  ---
+  duration_ms: 10.668181
+  type: 'test'
+  ...
+# Subtest: load_agent_plugin reads a supporting file after load without any per-plugin registration
+ok 82 - load_agent_plugin reads a supporting file after load without any per-plugin registration
+  ---
+  duration_ms: 85.498991
+  type: 'test'
+  ...
+# {"timestamp":"2026-10-28T23:29:35.778Z","level":"info","service":"web","message":"web_fetch_page","context":{"origin":"http://127.0.0.1","durationMs":3,"outcome":"refused"}}
+# [tool-failure] ERR-3751-F8ED-87D8-E62E tool=probe_audit_failure run=run-meta-tool execution=57b2b120-9a30-4396-a544-9812da22ac89 principal=principal-meta-tool redactions=0: probe failure
+# Subtest: the published meta-tool set is exactly the 3 staged-discovery tools, and nothing else reaches the provider
+ok 83 - the published meta-tool set is exactly the 3 staged-discovery tools, and nothing else reaches the provider
+  ---
+  duration_ms: 131.749098
+  type: 'test'
+  ...
+# Subtest: search_tools finds a real tool in the real catalog, and every hit it returns is one describe_tool can then resolve
+ok 84 - search_tools finds a real tool in the real catalog, and every hit it returns is one describe_tool can then resolve
+  ---
+  duration_ms: 381.793413
+  type: 'test'
+  ...
+# Subtest: search_tools clamps an out-of-range limit instead of spending a turn refusing it
+ok 85 - search_tools clamps an out-of-range limit instead of spending a turn refusing it
+  ---
+  duration_ms: 49.90385
+  type: 'test'
+  ...
+# Subtest: search_tools' limit description tells the model a miss at the default cutoff is weak evidence, not proof no tool exists, and to retry before giving up
+ok 86 - search_tools' limit description tells the model a miss at the default cutoff is weak evidence, not proof no tool exists, and to retry before giving up
+  ---
+  duration_ms: 0.391796
+  type: 'test'
+  ...
+# Subtest: search_tools' limit description names no coverage percentage — a hardcoded number here is the exact shape of the defect this fixes, regardless of whether the number happens to be true today
+ok 87 - search_tools' limit description names no coverage percentage — a hardcoded number here is the exact shape of the defect this fixes, regardless of whether the number happens to be true today
+  ---
+  duration_ms: 0.196171
+  type: 'test'
+  ...
+# Subtest: search_tools with a missing or empty query is a readable error, not an empty result set
+ok 88 - search_tools with a missing or empty query is a readable error, not an empty result set
+  ---
+  duration_ms: 97.090691
+  type: 'test'
+  ...
+# Subtest: a query that matches nothing reports that it matched nothing, rather than looking like a broken tool
+ok 89 - a query that matches nothing reports that it matched nothing, rather than looking like a broken tool
+  ---
+  duration_ms: 42.178777
+  type: 'test'
+  ...
+# Subtest: BYOK can find, describe and run web_fetch_page, and the wired client refuses a private address
+ok 90 - BYOK can find, describe and run web_fetch_page, and the wired client refuses a private address
+  ---
+  duration_ms: 104.603544
+  type: 'test'
+  ...
+# Subtest: describe_tool returns a real tool's input schema, and refuses an unknown id with a next step
+ok 91 - describe_tool returns a real tool's input schema, and refuses an unknown id with a next step
+  ---
+  duration_ms: 90.490097
+  type: 'test'
+  ...
+# Subtest: execute_delegated_tool with a HALLUCINATED tool id returns a recoverable error — it does not throw and kill the turn
+ok 92 - execute_delegated_tool with a HALLUCINATED tool id returns a recoverable error — it does not throw and kill the turn
+  ---
+  duration_ms: 135.7203
+  type: 'test'
+  ...
+# Subtest: execute_delegated_tool requires a toolId, and says so
+ok 93 - execute_delegated_tool requires a toolId, and says so
+  ---
+  duration_ms: 56.430201
+  type: 'test'
+  ...
+# Subtest: execute_delegated_tool accepts a JSON-ENCODED input string — the observed provider behavior that would otherwise make every input-taking tool uncallable
+ok 94 - execute_delegated_tool accepts a JSON-ENCODED input string — the observed provider behavior that would otherwise make every input-taking tool uncallable
+  ---
+  duration_ms: 39.223584
+  type: 'test'
+  ...
+# Subtest: execute_delegated_tool refuses an input that is neither an object nor JSON-parseable, naming what is wrong
+ok 95 - execute_delegated_tool refuses an input that is neither an object nor JSON-parseable, naming what is wrong
+  ---
+  duration_ms: 47.591483
+  type: 'test'
+  ...
+# Subtest: execute_delegated_tool supplies an empty object for omitted, null and blank input
+ok 96 - execute_delegated_tool supplies an empty object for omitted, null and blank input
+  ---
+  duration_ms: 61.725712
+  type: 'test'
+  ...
+# Subtest: execute_delegated_tool refuses a non-object, non-array, non-string input (e.g. a bare number), naming the actual type
+ok 97 - execute_delegated_tool refuses a non-object, non-array, non-string input (e.g. a bare number), naming the actual type
+  ---
+  duration_ms: 33.348482
+  type: 'test'
+  ...
+# Subtest: execute_delegated_tool maps a real tool's own thrown ForbiddenError (from ITS internal authorize check, not ToolPolicy) to a readable 'failed' error, not an uncaught throw
+ok 98 - execute_delegated_tool maps a real tool's own thrown ForbiddenError (from ITS internal authorize check, not ToolPolicy) to a readable 'failed' error, not an uncaught throw
+  ---
+  duration_ms: 32.617072
+  type: 'test'
+  ...
+# Subtest: execute_delegated_tool maps an already-aborted signal to a readable 'cancelled' error
+ok 99 - execute_delegated_tool maps an already-aborted signal to a readable 'cancelled' error
+  ---
+  duration_ms: 30.567914
+  type: 'test'
+  ...
+# Subtest: a model that calls a REAL tool id as the tool NAME is told how to reach it, not just that it failed
+ok 100 - a model that calls a REAL tool id as the tool NAME is told how to reach it, not just that it failed
+  ---
+  duration_ms: 26.111046
+  type: 'test'
+  ...
+# Subtest: READ-ONLY PARITY: a read-only-constrained principal cannot see or dispatch a write tool — the handler must never run
+ok 101 - READ-ONLY PARITY: a read-only-constrained principal cannot see or dispatch a write tool — the handler must never run
+  ---
+  duration_ms: 77.487214
+  type: 'test'
+  ...
+# Subtest: READ-ONLY PARITY: the identical dispatch from an UNCONSTRAINED principal is unaffected — byte-identical to before this gate existed
+ok 102 - READ-ONLY PARITY: the identical dispatch from an UNCONSTRAINED principal is unaffected — byte-identical to before this gate existed
+  ---
+  duration_ms: 33.762723
+  type: 'test'
+  ...
+# Subtest: INCIDENT FIX: a search_tools call through executeMetaTool is recorded with the caller's real principal/run and the query length, limit, and ranked hit ids — never the raw query text
+ok 103 - INCIDENT FIX: a search_tools call through executeMetaTool is recorded with the caller's real principal/run and the query length, limit, and ranked hit ids — never the raw query text
+  ---
+  duration_ms: 36.709983
+  type: 'test'
+  ...
+# Subtest: a describe_tool call through executeMetaTool is recorded with the requested id and whether it resolved
+ok 104 - a describe_tool call through executeMetaTool is recorded with the requested id and whether it resolved
+  ---
+  duration_ms: 35.043275
+  type: 'test'
+  ...
+# Subtest: without a toolAttemptAudit option, search_tools/describe_tool behave exactly as before and log nothing
+ok 105 - without a toolAttemptAudit option, search_tools/describe_tool behave exactly as before and log nothing
+  ---
+  duration_ms: 42.803776
+  type: 'test'
+  ...
+# Subtest: INCIDENT FIX: an execute_delegated_tool call through executeMetaTool is durably recorded — not just the search that found it
+ok 106 - INCIDENT FIX: an execute_delegated_tool call through executeMetaTool is durably recorded — not just the search that found it
+  ---
+  duration_ms: 42.479693
+  type: 'test'
+  ...
+# Subtest: ordinary successful and throwing delegated handlers record their complete audit trail
+ok 107 - ordinary successful and throwing delegated handlers record their complete audit trail
+  ---
+  duration_ms: 38.801245
+  type: 'test'
+  ...
+# Subtest: WIRING: a diagnostic-carrying execute_delegated_tool result goes through ask -> apply -> retry with NO toolAttemptAudit sink present — the un-audited composition path also works, not just the audited one
+ok 108 - WIRING: a diagnostic-carrying execute_delegated_tool result goes through ask -> apply -> retry with NO toolAttemptAudit sink present — the un-audited composition path also works, not just the audited one
+  ---
+  duration_ms: 53.72998
+  type: 'test'
+  ...
+# Subtest: WIRING: a successful first call is never retried and raises no recovery surface
+ok 109 - WIRING: a successful first call is never retried and raises no recovery surface
+  ---
+  duration_ms: 32.420977
+  type: 'test'
+  ...
+# Subtest: WIRING: no second recovery cycle — a retry whose OWN result also carries a fresh hint+remedyToolId is returned as-is, not looped on again
+ok 110 - WIRING: no second recovery cycle — a retry whose OWN result also carries a fresh hint+remedyToolId is returned as-is, not looped on again
+  ---
+  duration_ms: 68.52883
+  type: 'test'
+  ...
+# Subtest: WIRING: declining the recovery surface returns the ORIGINAL failure untouched, and the remedy tool is never called
+ok 111 - WIRING: declining the recovery surface returns the ORIGINAL failure untouched, and the remedy tool is never called
+  ---
+  duration_ms: 48.766056
+  type: 'test'
+  ...
+# Subtest: WIRING: a headless call (no emitSurface) with a diagnostic-carrying result returns it untouched instead of hanging
+ok 112 - WIRING: a headless call (no emitSurface) with a diagnostic-carrying result returns it untouched instead of hanging
+  ---
+  duration_ms: 43.494405
+  type: 'test'
+  ...
+# [tool-failure] ERR-5055-866F-D77E-E16B tool=fake_recoverable_retry_fails run=run-meta-tool execution=de81789c-6bd4-44de-8892-2e2aab68e22a principal=principal-meta-tool redactions=0: still broken after the fix
+# Subtest: WIRING: the failed retry still returns a coherent, exact error to the model — and does NOT recursively re-enter recovery
+ok 113 - WIRING: the failed retry still returns a coherent, exact error to the model — and does NOT recursively re-enter recovery
+  ---
+  duration_ms: 51.566712
+  type: 'test'
+  ...
+# [assistant-byok] mcp-federation: 'echo-server' registered 1 federated tool(s): mcp__echo-server__echo
+# [assistant-byok] mcp-federation: 'echo-server' registered 1 federated tool(s): mcp__echo-server__echo
+# [assistant-byok] mcp-federation: 'echo-server' registered 3 federated tool(s): mcp__echo-server__echo, mcp__echo-server__write_ungranted, mcp__echo-server__write_granted
+# [assistant-byok] mcp-federation: 'echo-server' refused remote tool 'unlisted' — not-in-operator-allowlist
+# [assistant-byok] mcp-federation: 'echo-server' admitted WRITE tool 'write_granted' (operator-authorized)
+# Subtest: WIRING: recovery composes OUTSIDE audit — original, remedy, and retry are each their own audited attempt (2 rows apiece), none lost or duplicated
+ok 114 - WIRING: recovery composes OUTSIDE audit — original, remedy, and retry are each their own audited attempt (2 rows apiece), none lost or duplicated
+  ---
+  duration_ms: 161.968493
+  type: 'test'
+  ...
+# Subtest: BYOK federation: awaitFederation boots the real stored roster and resolves {settled: true}
+ok 115 - BYOK federation: awaitFederation boots the real stored roster and resolves {settled: true}
+  ---
+  duration_ms: 61.727432
+  type: 'test'
+  ...
+# Subtest: BYOK federation: after awaitFederation settles, search_tools finds the newly federated tool
+ok 116 - BYOK federation: after awaitFederation settles, search_tools finds the newly federated tool
+  ---
+  duration_ms: 71.698958
+  type: 'test'
+  ...
+# Subtest: BYOK federation: settled admitted tools execute with remote names and arguments, while unlisted tools stay refused
+ok 117 - BYOK federation: settled admitted tools execute with remote names and arguments, while unlisted tools stay refused
+  ---
+  duration_ms: 228.260314
+  type: 'test'
+  ...
+# Subtest: BYOK federation: installExtensions: false leaves federation undefined and awaitFederation settled at once
+ok 118 - BYOK federation: installExtensions: false leaves federation undefined and awaitFederation settled at once
+  ---
+  duration_ms: 27.877832
+  type: 'test'
+  ...
+# [assistant-byok] mcp-federation: 'echo-server' registered 1 federated tool(s): mcp__echo-server__echo
+# Subtest: BYOK federation: execute_delegated_tool for a still-registering federated id gets 'still connecting', not a bare 'unknown tool' throw
+ok 119 - BYOK federation: execute_delegated_tool for a still-registering federated id gets 'still connecting', not a bare 'unknown tool' throw
+  ---
+  duration_ms: 92.466051
+  type: 'test'
+  ...
+# [assistant-byok] mcp-federation: 'echo-server' registered 1 federated tool(s): mcp__echo-server__echo
+# [assistant-byok] mcp-federation: 'echo-server' failed, continuing without its tools — connect ECONNREFUSED
+# Subtest: BYOK federation: execute_delegated_tool for a server that was never in the roster gets 'unknown tool', even while the boot pass is still mid-connect for a DIFFERENT server
+ok 120 - BYOK federation: execute_delegated_tool for a server that was never in the roster gets 'unknown tool', even while the boot pass is still mid-connect for a DIFFERENT server
+  ---
+  duration_ms: 130.07472
+  type: 'test'
+  ...
+# Subtest: BYOK federation: execute_delegated_tool for a connection that failed to connect gets that failure's own reason, once the boot pass has settled
+ok 121 - BYOK federation: execute_delegated_tool for a connection that failed to connect gets that failure's own reason, once the boot pass has settled
+  ---
+  duration_ms: 142.918443
+  type: 'test'
+  ...
+# Subtest: the BYOK discovery registry hides disallowed permanent deletes from both has and list
+ok 122 - the BYOK discovery registry hides disallowed permanent deletes from both has and list
+  ---
+  duration_ms: 77.312029
+  type: 'test'
+  ...
+# Subtest: owner discovery exposes permanent deletes with the site grant off, including credential and role deletes
+ok 123 - owner discovery exposes permanent deletes with the site grant off, including credential and role deletes
+  ---
+  duration_ms: 48.051202
+  type: 'test'
+  ...
+# Subtest: an owner delete executes through the assembled BYOK guard only after the confirmation click
+ok 124 - an owner delete executes through the assembled BYOK guard only after the confirmation click
+  ---
+  duration_ms: 34.001988
+  type: 'test'
+  ...
+# Subtest: a tool's plain-string output reaches the model verbatim, not JSON-quoted
+ok 125 - a tool's plain-string output reaches the model verbatim, not JSON-quoted
+  ---
+  duration_ms: 35.754262
+  type: 'test'
+  ...
+# Subtest: a tool's undefined output reaches the model as the JSON text null
+ok 126 - a tool's undefined output reaches the model as the JSON text null
+  ---
+  duration_ms: 49.920587
+  type: 'test'
+  ...
+# Subtest: a text-only content envelope stays one JSON string — only an image earns content blocks
+ok 127 - a text-only content envelope stays one JSON string — only an image earns content blocks
+  ---
+  duration_ms: 66.665118
+  type: 'test'
+  ...
+# Subtest: a content envelope with a non-object block stays one JSON string
+ok 128 - a content envelope with a non-object block stays one JSON string
+  ---
+  duration_ms: 33.838322
+  type: 'test'
+  ...
+# Subtest: a content envelope with an unknown block type stays one JSON string, image or not
+ok 129 - a content envelope with an unknown block type stays one JSON string, image or not
+  ---
+  duration_ms: 50.144521
+  type: 'test'
+  ...
+# Subtest: an image block missing its data stays one JSON string
+ok 130 - an image block missing its data stays one JSON string
+  ---
+  duration_ms: 53.708817
+  type: 'test'
+  ...
+# Subtest: a text block whose text is not a string stays one JSON string
+ok 131 - a text block whose text is not a string stays one JSON string
+  ---
+  duration_ms: 45.311297
+  type: 'test'
+  ...
+# Subtest: an output whose content is not an array stays one JSON string
+ok 132 - an output whose content is not an array stays one JSON string
+  ---
+  duration_ms: 30.083988
+  type: 'test'
+  ...
+# Subtest: execute_delegated_tool refuses a JSON-encoded input that parses to a non-object, naming the fix
+ok 133 - execute_delegated_tool refuses a JSON-encoded input that parses to a non-object, naming the fix
+  ---
+  duration_ms: 32.084724
+  type: 'test'
+  ...
+# Subtest: execute_delegated_tool refuses an array input by naming it an array
+ok 134 - execute_delegated_tool refuses an array input by naming it an array
+  ---
+  duration_ms: 36.026538
+  type: 'test'
+  ...
+# Subtest: execute_delegated_tool with a non-string toolId is the same readable refusal as a missing one
+ok 135 - execute_delegated_tool with a non-string toolId is the same readable refusal as a missing one
+  ---
+  duration_ms: 79.33274
+  type: 'test'
+  ...
+# Subtest: describe_tool with a non-string id is refused, naming the argument
+ok 136 - describe_tool with a non-string id is refused, naming the argument
+  ---
+  duration_ms: 58.385761
+  type: 'test'
+  ...
+# Subtest: describe_tool with a blank id is refused, naming the argument
+ok 137 - describe_tool with a blank id is refused, naming the argument
+  ---
+  duration_ms: 37.171796
+  type: 'test'
+  ...
+# Subtest: a meta-tool call whose input is not an object is read as no arguments at all
+ok 138 - a meta-tool call whose input is not an object is read as no arguments at all
+  ---
+  duration_ms: 36.409796
+  type: 'test'
+  ...
+# Subtest: search_tools falls back to the default limit for a non-numeric limit
+ok 139 - search_tools falls back to the default limit for a non-numeric limit
+  ---
+  duration_ms: 50.304757
+  type: 'test'
+  ...
+# [assistant-byok] mcp-federation: 'oauth-server' registered 1 federated tool(s): mcp__oauth-server__echo
+# [assistant-byok] mcp-federation: stored server 'oauth-server' skipped — this process was not wired with an OAuth token resolver, so its access token cannot be obtained
+# [assistant-byok] mcp-federation: 'echo-server' registered 1 federated tool(s): mcp__echo-server__echo
+# [assistant-byok] mcp-federation: 'wobble-server' registered 1 federated tool(s): mcp__wobble-server__wobble
+# [tool-failure] ERR-1942-08B9-AA22-E2B3 tool=t2_failure run=run-meta-tool execution=4023eda2-af2f-4bef-8cc8-b85503572636 principal=principal-meta-tool redactions=0: T2 expected failure
+# [tool-failure] ERR-05C8-EF7A-31D6-E4F7 tool=t2_failure run=run-meta-tool execution=3e6e3686-d36c-484a-85e8-4cb82136beb6 principal=principal-meta-tool redactions=0: T2 expected failure
+# Subtest: a descriptor-confirmation tool parks until the turn's signal aborts, then reads as cancelled (reported, not fixed)
+ok 140 - a descriptor-confirmation tool parks until the turn's signal aborts, then reads as cancelled (reported, not fixed)
+  ---
+  duration_ms: 84.120915
+  type: 'test'
+  ...
+# Subtest: registerFederationPresets runs exactly once, while the surface is built
+ok 141 - registerFederationPresets runs exactly once, while the surface is built
+  ---
+  duration_ms: 43.542072
+  type: 'test'
+  ...
+# Subtest: prepareGuidance is handed to the executor and consulted for a guidance-capable tool
+ok 142 - prepareGuidance is handed to the executor and consulted for a guidance-capable tool
+  ---
+  duration_ms: 53.08155
+  type: 'test'
+  ...
+# Subtest: with no federation, an mcp__ id the registry does not know is reported as an unknown tool
+ok 143 - with no federation, an mcp__ id the registry does not know is reported as an unknown tool
+  ---
+  duration_ms: 57.751176
+  type: 'test'
+  ...
+# Subtest: an installed-skills refresh that reports a change makes a tool it registered searchable on the next call
+ok 144 - an installed-skills refresh that reports a change makes a tool it registered searchable on the next call
+  ---
+  duration_ms: 106.921666
+  type: 'test'
+  ...
+# Subtest: an installed-skills refresh that reports no change still leaves a tool it registered searchable
+ok 145 - an installed-skills refresh that reports no change still leaves a tool it registered searchable
+  ---
+  duration_ms: 120.386202
+  type: 'test'
+  ...
+# Subtest: BYOK federation: a stored OAuth row's access token is resolved through the wired OAuth service and reaches the connection
+ok 146 - BYOK federation: a stored OAuth row's access token is resolved through the wired OAuth service and reaches the connection
+  ---
+  duration_ms: 55.550545
+  type: 'test'
+  ...
+# Subtest: BYOK federation: without a wired OAuth service a connected OAuth row is skipped, never launched credential-free
+ok 147 - BYOK federation: without a wired OAuth service a connected OAuth row is skipped, never launched credential-free
+  ---
+  duration_ms: 146.524004
+  type: 'test'
+  ...
+# Subtest: BYOK federation: a reload that admits a new server makes its tools searchable without another awaitFederation
+ok 148 - BYOK federation: a reload that admits a new server makes its tools searchable without another awaitFederation
+  ---
+  duration_ms: 82.4875
+  type: 'test'
+  ...
+# Subtest: BYOK: the installed-extension registrar gets this surface's own exchange store as the plugin tools' confirmation transport
+ok 149 - BYOK: the installed-extension registrar gets this surface's own exchange store as the plugin tools' confirmation transport
+  ---
+  duration_ms: 46.748292
+  type: 'test'
+  ...
+# Subtest: T2 search → describe → typed execution publishes the concrete schema and retains legacy wrapper parity
+ok 150 - T2 search → describe → typed execution publishes the concrete schema and retains legacy wrapper parity
+  ---
+  duration_ms: 88.869914
+  type: 'test'
+  ...
+# Subtest: T2 concurrent runs and repeated descriptions cannot share exposure or lose promotions
+ok 151 - T2 concurrent runs and repeated descriptions cannot share exposure or lose promotions
+  ---
+  duration_ms: 108.055718
+  type: 'test'
+  ...
+# Subtest: T2 failed and budget-limited descriptions never publish a callable; wrappers remain usable
+ok 152 - T2 failed and budget-limited descriptions never publish a callable; wrappers remain usable
+  ---
+  duration_ms: 107.756446
+  type: 'test'
+  ...
+# Subtest: T2 typed dispatch rechecks authorization and cannot promote a hidden write for a constrained principal
+ok 153 - T2 typed dispatch rechecks authorization and cannot promote a hidden write for a constrained principal
+  ---
+  duration_ms: 338.754222
+  type: 'test'
+  ...
+# Subtest: T2 typed reads attenuate nested writes through the existing executor
+ok 154 - T2 typed reads attenuate nested writes through the existing executor
+  ---
+  duration_ms: 74.790298
+  type: 'test'
+  ...
+# Subtest: T2 typed calls preserve images, batches, failures and cancellation through the shared mapper
+ok 155 - T2 typed calls preserve images, batches, failures and cancellation through the shared mapper
+  ---
+  duration_ms: 168.517886
+  type: 'test'
+  ...
+# Subtest: T2 typed permanent deletes retain the existing held-open surface and confirmation
+ok 156 - T2 typed permanent deletes retain the existing held-open surface and confirmation
+  ---
+  duration_ms: 112.555102
+  type: 'test'
+  ...
+# Subtest: T2 a previously published delete loses visibility before execution when its owner grant changes
+ok 157 - T2 a previously published delete loses visibility before execution when its owner grant changes
+  ---
+  duration_ms: 60.234117
+  type: 'test'
+  ...
+# Subtest: T2 a typed confirmation park cancels without running its handler
+ok 158 - T2 a typed confirmation park cancels without running its handler
+  ---
+  duration_ms: 118.249323
+  type: 'test'
+  ...
+# Subtest: T2 real surface and shared provider mapper complete discovery and typed execution in one turn
+ok 159 - T2 real surface and shared provider mapper complete discovery and typed execution in one turn
+  ---
+  duration_ms: 60.250673
+  type: 'test'
+  ...
+# Subtest: a retired id in a schema description is pointed at its card, and a repeat of the same card collapses
+ok 160 - a retired id in a schema description is pointed at its card, and a repeat of the same card collapses
+  ---
+  duration_ms: 4.149201
+  type: 'test'
+  ...
+# Subtest: only the plain text is rewritten; the indexed keyword tail is left exactly as scored
+ok 161 - only the plain text is rewritten; the indexed keyword tail is left exactly as scored
+  ---
+  duration_ms: 0.589287
+  type: 'test'
+  ...
+# Subtest: an id that was not retired, or that only starts with a retired id, keeps its name and the registration is returned as-is
+ok 162 - an id that was not retired, or that only starts with a retired id, keeps its name and the registration is returned as-is
+  ---
+  duration_ms: 0.156359
+  type: 'test'
+  ...
+# Subtest: with nothing retired, nothing is rewritten
+ok 163 - with nothing retired, nothing is rewritten
+  ---
+  duration_ms: 0.880857
+  type: 'test'
+  ...
+# Subtest: a registration with no description keeps it absent while its schema text is still rewritten
+ok 164 - a registration with no description keeps it absent while its schema text is still rewritten
+  ---
+  duration_ms: 0.276704
+  type: 'test'
+  ...
+# Subtest: SINK AUDIT: in the real assistant catalog no published description or input-schema text names a retired read tool
+ok 165 - SINK AUDIT: in the real assistant catalog no published description or input-schema text names a retired read tool
+  ---
+  duration_ms: 314.640508
+  type: 'test'
+  ...
+# [theme] active theme '' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+# Subtest: complete production catalog classifies every reader and exercises every scoped read on B
+ok 166 - complete production catalog classifies every reader and exercises every scoped read on B
+  ---
+  duration_ms: 4201.51177
+  type: 'test'
+  ...
+# 63 cross-site tools, 90 EXCLUDED tools
+# Subtest: settings reads refuse another site: they would hand back its provider configuration (core.comments.provider, core.mail.provider)
+ok 167 - settings reads refuse another site: they would hand back its provider configuration (core.comments.provider, core.mail.provider)
+  ---
+  duration_ms: 702.465198
+  type: 'test'
+  ...
+# Subtest: mixed-scope card does not advertise a site supported by only one dispatch branch
+ok 168 - mixed-scope card does not advertise a site supported by only one dispatch branch
+  ---
+  duration_ms: 0.921277
+  type: 'test'
+  ...
+# Subtest: reviewed baseline pins registry guidance and scoped schema; hermetic roots have no generic site input
+ok 169 - reviewed baseline pins registry guidance and scoped schema; hermetic roots have no generic site input
+  ---
+  duration_ms: 882.536325
+  type: 'test'
+  ...
+# Subtest: ROUTE: an unknown tool id (the executor throws) reaches the model as its real reason, not a bare 500
+ok 170 - ROUTE: an unknown tool id (the executor throws) reaches the model as its real reason, not a bare 500
+  ---
+  duration_ms: 7.802615
+  type: 'test'
+  ...
+# Subtest: ROUTE: a tool that runs past its timeout says it timed out
+ok 171 - ROUTE: a tool that runs past its timeout says it timed out
+  ---
+  duration_ms: 13.168639
+  type: 'test'
+  ...
+# Subtest: ROUTE: a call abandoned before it ran says it was cancelled
+ok 172 - ROUTE: a call abandoned before it ran says it was cancelled
+  ---
+  duration_ms: 1.020976
+  type: 'test'
+  ...
+# Subtest: ROUTE: a resolvePrincipal throw carries its reason, with secret-shaped values blanked
+ok 173 - ROUTE: a resolvePrincipal throw carries its reason, with secret-shaped values blanked
+  ---
+  duration_ms: 2.088551
+  type: 'test'
+  ...
+# Subtest: ROUTE: a failed result that skipped the redaction layer is redacted here instead of becoming a bare 500
+ok 174 - ROUTE: a failed result that skipped the redaction layer is redacted here instead of becoming a bare 500
+  ---
+  duration_ms: 1.762075
+  type: 'test'
+  ...
+# Subtest: ROUTE: a failure the redaction layer already ID-tagged keeps its 422 TOOL_EXECUTION_FAILED
+ok 175 - ROUTE: a failure the redaction layer already ID-tagged keeps its 422 TOOL_EXECUTION_FAILED
+  ---
+  duration_ms: 1.150792
+  type: 'test'
+  ...
+# Subtest: describeDelegatedInternalError: a non-Error, empty-message, or missing error falls back to naming the tool
+ok 176 - describeDelegatedInternalError: a non-Error, empty-message, or missing error falls back to naming the tool
+  ---
+  duration_ms: 1.319299
+  type: 'test'
+  ...
+# Subtest: describeDelegatedInternalError: the server-side record correlates to http-kit's own log line
+ok 177 - describeDelegatedInternalError: the server-side record correlates to http-kit's own log line
+  ---
+  duration_ms: 0.452034
+  type: 'test'
+  ...
+# Subtest: ensureExecutionSettingDefinitions registers localCli.reasoning, so the effort pick has somewhere to land
+ok 178 - ensureExecutionSettingDefinitions registers localCli.reasoning, so the effort pick has somewhere to land
+  ---
+  duration_ms: 2.143105
+  type: 'test'
+  ...
+# Subtest: ensureExecutionSettingDefinitions registers localCli.reasoning with the same shape as localCli.model
+ok 179 - ensureExecutionSettingDefinitions registers localCli.reasoning with the same shape as localCli.model
+  ---
+  duration_ms: 0.354653
+  type: 'test'
+  ...
+# Subtest: ensureExecutionSettingDefinitions registers every localCli key the admin ledger writer sends
+ok 180 - ensureExecutionSettingDefinitions registers every localCli key the admin ledger writer sends
+  ---
+  duration_ms: 0.181243
+  type: 'test'
+  ...
+# Subtest: the native composer axes permit personal overrides while retaining workspace inheritance
+ok 181 - the native composer axes permit personal overrides while retaining workspace inheritance
+  ---
+  duration_ms: 0.24895
+  type: 'test'
+  ...
+# Subtest: mode and every BYOK ledger key have the expected schema and default
+ok 182 - mode and every BYOK ledger key have the expected schema and default
+  ---
+  duration_ms: 0.598777
+  type: 'test'
+  ...
+# Subtest: a remote OAuth connection can be saved with no provider id, no endpoints and no client id
+ok 183 - a remote OAuth connection can be saved with no provider id, no endpoints and no client id
+  ---
+  duration_ms: 17.313173
+  type: 'test'
+  ...
+# Subtest: a STDIO OAuth connection still requires a client id — it has no URL to discover from
+ok 184 - a STDIO OAuth connection still requires a client id — it has no URL to discover from
+  ---
+  duration_ms: 1.42167
+  type: 'test'
+  ...
+# Subtest: a STDIO OAuth connection still requires a provider identity
+ok 185 - a STDIO OAuth connection still requires a provider identity
+  ---
+  duration_ms: 1.20196
+  type: 'test'
+  ...
+# Subtest: a remote OAuth connection can be saved with no sign-in method — it is resolved at connect time
+ok 186 - a remote OAuth connection can be saved with no sign-in method — it is resolved at connect time
+  ---
+  duration_ms: 3.024751
+  type: 'test'
+  ...
+# Subtest: a STDIO OAuth connection still requires a sign-in method — it has no URL to discover from
+ok 187 - a STDIO OAuth connection still requires a sign-in method — it has no URL to discover from
+  ---
+  duration_ms: 2.076169
+  type: 'test'
+  ...
+# Subtest: connecting a client-id-less connection discovers the authorization server and self-registers
+ok 188 - connecting a client-id-less connection discovers the authorization server and self-registers
+  ---
+  duration_ms: 74.403017
+  type: 'test'
+  ...
+# Subtest: the registration request carries the connection's own callback URL as its redirect_uri
+ok 189 - the registration request carries the connection's own callback URL as its redirect_uri
+  ---
+  duration_ms: 35.036733
+  type: 'test'
+  ...
+# Subtest: the minted client id is PERSISTED — a second connect registers nothing
+ok 190 - the minted client id is PERSISTED — a second connect registers nothing
+  ---
+  duration_ms: 32.82384
+  type: 'test'
+  ...
+# Subtest: the discovered endpoints are persisted on the row, so a reconnect needs no discovery at all
+ok 191 - the discovered endpoints are persisted on the row, so a reconnect needs no discovery at all
+  ---
+  duration_ms: 13.557453
+  type: 'test'
+  ...
+# Subtest: scopes the resource advertises are adopted when the operator named none
+ok 192 - scopes the resource advertises are adopted when the operator named none
+  ---
+  duration_ms: 12.540008
+  type: 'test'
+  ...
+# Subtest: scopes the operator DID name win over the discovered ones
+ok 193 - scopes the operator DID name win over the discovered ones
+  ---
+  duration_ms: 16.322282
+  type: 'test'
+  ...
+# Subtest: connecting a connection with no sign-in method resolves authorization_code from what the server advertises
+ok 194 - connecting a connection with no sign-in method resolves authorization_code from what the server advertises
+  ---
+  duration_ms: 10.120473
+  type: 'test'
+  ...
+# Subtest: connecting falls back to device_code when that is the only grant the server offers
+ok 195 - connecting falls back to device_code when that is the only grant the server offers
+  ---
+  duration_ms: 12.26858
+  type: 'test'
+  ...
+# Subtest: a resolved grant is PERSISTED — a second connect does not re-discover it
+ok 196 - a resolved grant is PERSISTED — a second connect does not re-discover it
+  ---
+  duration_ms: 11.793985
+  type: 'test'
+  ...
+# Subtest: an operator who typed endpoints and a client id but left the sign-in method blank still gets it resolved, without re-registering
+ok 197 - an operator who typed endpoints and a client id but left the sign-in method blank still gets it resolved, without re-registering
+  ---
+  duration_ms: 7.775324
+  type: 'test'
+  ...
+# Subtest: a connection whose authorization server advertises no grant Tovu supports fails with an actionable error
+ok 198 - a connection whose authorization server advertises no grant Tovu supports fails with an actionable error
+  ---
+  duration_ms: 11.292771
+  type: 'test'
+  ...
+# Subtest: an operator-supplied client id is used verbatim and nothing is ever registered
+ok 199 - an operator-supplied client id is used verbatim and nothing is ever registered
+  ---
+  duration_ms: 2.062201
+  type: 'test'
+  ...
+# Subtest: an operator-supplied client id with no endpoints discovers them but still registers nothing
+ok 200 - an operator-supplied client id with no endpoints discovers them but still registers nothing
+  ---
+  duration_ms: 8.971226
+  type: 'test'
+  ...
+# Subtest: a client secret the server volunteers is sealed and never appears in a read model
+ok 201 - a client secret the server volunteers is sealed and never appears in a read model
+  ---
+  duration_ms: 12.622529
+  type: 'test'
+  ...
+# Subtest: a server that advertises no registration endpoint fails with an actionable error, not a crash
+ok 202 - a server that advertises no registration endpoint fails with an actionable error, not a crash
+  ---
+  duration_ms: 7.105761
+  type: 'test'
+  ...
+# Subtest: a failed registration leaves the row with no client id, so a retry is a clean retry
+ok 203 - a failed registration leaves the row with no client id, so a retry is a clean retry
+  ---
+  duration_ms: 9.274253
+  type: 'test'
+  ...
+# Subtest: a connection whose MCP server publishes nothing at all reports that it must be configured by hand
+ok 204 - a connection whose MCP server publishes nothing at all reports that it must be configured by hand
+  ---
+  duration_ms: 19.924942
+  type: 'test'
+  ...
+# Subtest: disconnect forgets a SELF-REGISTERED client, so the next connect registers a fresh one
+ok 205 - disconnect forgets a SELF-REGISTERED client, so the next connect registers a fresh one
+  ---
+  duration_ms: 10.975677
+  type: 'test'
+  ...
+# Subtest: disconnect also drops the self-registered client's sealed secret
+ok 206 - disconnect also drops the self-registered client's sealed secret
+  ---
+  duration_ms: 9.193656
+  type: 'test'
+  ...
+# Subtest: a connect whose callback URL differs from the one the client was registered with re-registers
+ok 207 - a connect whose callback URL differs from the one the client was registered with re-registers
+  ---
+  duration_ms: 14.901701
+  type: 'test'
+  ...
+# Subtest: a self-registered row written before the client was tracked re-registers once (the stuck-row self-heal)
+ok 208 - a self-registered row written before the client was tracked re-registers once (the stuck-row self-heal)
+  ---
+  duration_ms: 17.225645
+  type: 'test'
+  ...
+# Subtest: a token endpoint that rejects the client as invalid_client makes the next connect re-register
+ok 209 - a token endpoint that rejects the client as invalid_client makes the next connect re-register
+  ---
+  duration_ms: 22.875689
+  type: 'test'
+  ...
+# Subtest: disconnect and a moved callback URL never touch a client id the OPERATOR typed
+ok 210 - disconnect and a moved callback URL never touch a client id the OPERATOR typed
+  ---
+  duration_ms: 10.689385
+  type: 'test'
+  ...
+# Subtest: an operator who types a client id over a self-registered one keeps it through disconnect
+ok 211 - an operator who types a client id over a self-registered one keeps it through disconnect
+  ---
+  duration_ms: 10.450554
+  type: 'test'
+  ...
+# Subtest: a secret issued with no echoed method authenticates with client_secret_basic when the server advertises it
+ok 212 - a secret issued with no echoed method authenticates with client_secret_basic when the server advertises it
+  ---
+  duration_ms: 16.344562
+  type: 'test'
+  ...
+# Subtest: a secret issued with no echoed method is POSTed when client_secret_post is the only secret method advertised
+ok 213 - a secret issued with no echoed method is POSTed when client_secret_post is the only secret method advertised
+  ---
+  duration_ms: 15.117576
+  type: 'test'
+  ...
+# Subtest: self-registration and disconnect both preserve a normalized vault OAuth payload
+ok 214 - self-registration and disconnect both preserve a normalized vault OAuth payload
+  ---
+  duration_ms: 19.284111
+  type: 'test'
+  ...
+# Subtest: a device-only self-registration with no callback registers no redirect URI and stores none
+ok 215 - a device-only self-registration with no callback registers no redirect URI and stores none
+  ---
+  duration_ms: 8.675941
+  type: 'test'
+  ...
+# Subtest: a discovered server that advertises no authorization endpoint stores none
+ok 216 - a discovered server that advertises no authorization endpoint stores none
+  ---
+  duration_ms: 9.687316
+  type: 'test'
+  ...
+# Subtest: a discovered server that advertises no grant at all is refused, saying it offers none
+ok 217 - a discovered server that advertises no grant at all is refused, saying it offers none
+  ---
+  duration_ms: 6.648231
+  type: 'test'
+  ...
+# Subtest: a row with no label registers its client under the server id
+ok 218 - a row with no label registers its client under the server id
+  ---
+  duration_ms: 7.021654
+  type: 'test'
+  ...
+# Subtest: a saved row reads back with both envelopes bound to this server's vault rows
+ok 219 - a saved row reads back with both envelopes bound to this server's vault rows
+  ---
+  duration_ms: 6.509055
+  type: 'test'
+  ...
+# Subtest: a row without envelopes reads back with null envelopes
+ok 220 - a row without envelopes reads back with null envelopes
+  ---
+  duration_ms: 0.346447
+  type: 'test'
+  ...
+# Subtest: re-saving the hydrated envelopes keeps them
+ok 221 - re-saving the hydrated envelopes keeps them
+  ---
+  duration_ms: 2.14919
+  type: 'test'
+  ...
+# Subtest: rotating the env envelope deletes the replaced vault row
+ok 222 - rotating the env envelope deletes the replaced vault row
+  ---
+  duration_ms: 2.481092
+  type: 'test'
+  ...
+# Subtest: clearing the OAuth envelope deletes its vault row and reads back null
+ok 223 - clearing the OAuth envelope deletes its vault row and reads back null
+  ---
+  duration_ms: 2.10917
+  type: 'test'
+  ...
+# Subtest: a failed save leaves the live row untouched and later writes still run
+ok 224 - a failed save leaves the live row untouched and later writes still run
+  ---
+  duration_ms: 2.01046
+  type: 'test'
+  ...
+# Subtest: list returns only the requested workspace's rows
+ok 225 - list returns only the requested workspace's rows
+  ---
+  duration_ms: 0.614859
+  type: 'test'
+  ...
+# Subtest: finding an unknown server returns null
+ok 226 - finding an unknown server returns null
+  ---
+  duration_ms: 0.143618
+  type: 'test'
+  ...
+# Subtest: deleting an unknown server reports false
+ok 227 - deleting an unknown server reports false
+  ---
+  duration_ms: 0.245193
+  type: 'test'
+  ...
+# Subtest: deleting a server removes the row and both vault payloads
+ok 228 - deleting a server removes the row and both vault payloads
+  ---
+  duration_ms: 1.022277
+  type: 'test'
+  ...
+# Subtest: deleting a server with only an env envelope succeeds
+ok 229 - deleting a server with only an env envelope succeeds
+  ---
+  duration_ms: 1.164442
+  type: 'test'
+  ...
+# Subtest: a refresh lease is claimable on a row with no lease and is recorded
+ok 230 - a refresh lease is claimable on a row with no lease and is recorded
+  ---
+  duration_ms: 0.335941
+  type: 'test'
+  ...
+# Subtest: a live refresh lease cannot be claimed by a second claimant
+ok 231 - a live refresh lease cannot be claimed by a second claimant
+  ---
+  duration_ms: 0.127551
+  type: 'test'
+  ...
+# Subtest: a lease expiring exactly now is abandoned and can be reclaimed
+ok 232 - a lease expiring exactly now is abandoned and can be reclaimed
+  ---
+  duration_ms: 0.079775
+  type: 'test'
+  ...
+# Subtest: a lease cannot be claimed on an unknown server
+ok 233 - a lease cannot be claimed on an unknown server
+  ---
+  duration_ms: 0.05246
+  type: 'test'
+  ...
+# Subtest: releasing a lease clears it
+ok 234 - releasing a lease clears it
+  ---
+  duration_ms: 0.145715
+  type: 'test'
+  ...
+# Subtest: releasing a lease on an unknown server creates no row
+ok 235 - releasing a lease on an unknown server creates no row
+  ---
+  duration_ms: 0.057563
+  type: 'test'
+  ...
+# [assistant] live Claude model discovery failed (unknown: stubbed — no real network call) — falling back to the static model list
+# Subtest: an anthropic credential with no stored baseUrl defaults the live call to the real Anthropic API host
+ok 236 - an anthropic credential with no stored baseUrl defaults the live call to the real Anthropic API host
+  ---
+  duration_ms: 29.805476
+  type: 'test'
+  ...
+# Subtest: no stored credential resolves to null and makes zero network calls
+ok 237 - no stored credential resolves to null and makes zero network calls
+  ---
+  duration_ms: 0.95832
+  type: 'test'
+  ...
+# Subtest: a stored credential for a protocol other than anthropic resolves to null and makes zero network calls
+ok 238 - a stored credential for a protocol other than anthropic resolves to null and makes zero network calls
+  ---
+  duration_ms: 1.34241
+  type: 'test'
+  ...
+# Subtest: an anthropic credential with a reachable provider returns its live models
+ok 239 - an anthropic credential with a reachable provider returns its live models
+  ---
+  duration_ms: 60.949498
+  type: 'test'
+  ...
+# [assistant] live Claude model discovery failed (upstream_unavailable: internal error) — falling back to the static model list
+# Subtest: a failed live call (provider 500) resolves to null, not a throw
+ok 240 - a failed live call (provider 500) resolves to null, not a throw
+  ---
+  duration_ms: 23.729106
+  type: 'test'
+  ...
+# Subtest: a second call within the TTL reuses the cached result instead of re-issuing the live call
+ok 241 - a second call within the TTL reuses the cached result instead of re-issuing the live call
+  ---
+  duration_ms: 10.081449
+  type: 'test'
+  ...
+# Subtest: a call after the TTL has expired re-issues the live call
+ok 242 - a call after the TTL has expired re-issues the live call
+  ---
+  duration_ms: 18.879173
+  type: 'test'
+  ...
+# Subtest: cache entries for two tenants never collide, even when their ids would join to the same string under a delimiter-joined key
+ok 243 - cache entries for two tenants never collide, even when their ids would join to the same string under a delimiter-joined key
+  ---
+  duration_ms: 11.049141
+  type: 'test'
+  ...
+# Subtest: a failed live call logs one warning naming the failure kind — the case an operator needs to see
+ok 244 - a failed live call logs one warning naming the failure kind — the case an operator needs to see
+  ---
+  duration_ms: 7.940593
+  type: 'test'
+  ...
+# Subtest: a failed live call with an empty error body names only the failure kind, with no empty detail suffix
+ok 245 - a failed live call with an empty error body names only the failure kind, with no empty detail suffix
+  ---
+  duration_ms: 12.404203
+  type: 'test'
+  ...
+# Subtest: a failed listing that carries a detail names both the failure kind and the detail, then falls back
+ok 246 - a failed listing that carries a detail names both the failure kind and the detail, then falls back
+  ---
+  duration_ms: 0.402083
+  type: 'test'
+  ...
+# Subtest: a successful listing returns its models unchanged
+ok 247 - a successful listing returns its models unchanged
+  ---
+  duration_ms: 0.159596
+  type: 'test'
+  ...
+# Subtest: a successful listing that carries no models array resolves to null rather than an empty catalog
+ok 248 - a successful listing that carries no models array resolves to null rather than an empty catalog
+  ---
+  duration_ms: 0.138227
+  type: 'test'
+  ...
+# Subtest: the quiet paths (no credential, wrong protocol) log nothing — only an attempted-and-failed live call is worth an operator's attention
+ok 249 - the quiet paths (no credential, wrong protocol) log nothing — only an attempted-and-failed live call is worth an operator's attention
+  ---
+  duration_ms: 0.961788
+  type: 'test'
+  ...
+# Subtest: unionModels keeps every fallback entry unchanged when live discovery returns nothing
+ok 250 - unionModels keeps every fallback entry unchanged when live discovery returns nothing
+  ---
+  duration_ms: 0.314227
+  type: 'test'
+  ...
+# Subtest: unionModels appends a live id not already in fallback, after every fallback entry
+ok 251 - unionModels appends a live id not already in fallback, after every fallback entry
+  ---
+  duration_ms: 0.19352
+  type: 'test'
+  ...
+# Subtest: unionModels dedupes by id — a live entry matching a fallback id is dropped, not duplicated or overwritten
+ok 252 - unionModels dedupes by id — a live entry matching a fallback id is dropped, not duplicated or overwritten
+  ---
+  duration_ms: 0.098059
+  type: 'test'
+  ...
+# Subtest: unionModels never drops the sonnet/opus/haiku aliases or the default sentinel, even with live entries present
+ok 253 - unionModels never drops the sonnet/opus/haiku aliases or the default sentinel, even with live entries present
+  ---
+  duration_ms: 0.091372
+  type: 'test'
+  ...
+# Subtest: the handshake sends initialize first, then notifications/initialized with no id
+ok 254 - the handshake sends initialize first, then notifications/initialized with no id
+  ---
+  duration_ms: 2.520432
+  type: 'test'
+  ...
+# Subtest: initialize advertises no client capabilities, so the remote may not ask Tovu to run inference
+ok 255 - initialize advertises no client capabilities, so the remote may not ask Tovu to run inference
+  ---
+  duration_ms: 1.145128
+  type: 'test'
+  ...
+# Subtest: every request carries the operator's configured auth header and both accepted content types
+ok 256 - every request carries the operator's configured auth header and both accepted content types
+  ---
+  duration_ms: 0.878236
+  type: 'test'
+  ...
+# Subtest: a failed handshake rejects rather than returning a half-built session
+ok 257 - a failed handshake rejects rather than returning a half-built session
+  ---
+  duration_ms: 0.762315
+  type: 'test'
+  ...
+# Subtest: the session id the server issues at initialize is echoed on every later request
+ok 258 - the session id the server issues at initialize is echoed on every later request
+  ---
+  duration_ms: 0.406766
+  type: 'test'
+  ...
+# Subtest: a server that issues no session id gets no session header back, rather than an empty one
+ok 259 - a server that issues no session id gets no session header back, rather than an empty one
+  ---
+  duration_ms: 0.35802
+  type: 'test'
+  ...
+# Subtest: a session id containing CRLF is refused — it would inject headers into every later request
+ok 260 - a session id containing CRLF is refused — it would inject headers into every later request
+  ---
+  duration_ms: 0.243842
+  type: 'test'
+  ...
+# Subtest: a session id containing a space is refused too — the spec's own visible-ASCII rule
+ok 261 - a session id containing a space is refused too — the spec's own visible-ASCII rule
+  ---
+  duration_ms: 0.231856
+  type: 'test'
+  ...
+# Subtest: a plain application/json response is read
+ok 262 - a plain application/json response is read
+  ---
+  duration_ms: 0.487106
+  type: 'test'
+  ...
+# Subtest: an SSE-framed response carries the same frame and is read identically
+ok 263 - an SSE-framed response carries the same frame and is read identically
+  ---
+  duration_ms: 0.766978
+  type: 'test'
+  ...
+# Subtest: an SSE payload split across several data: lines is rejoined before parsing
+ok 264 - an SSE payload split across several data: lines is rejoined before parsing
+  ---
+  duration_ms: 0.40719
+  type: 'test'
+  ...
+# Subtest: a charset parameter on the SSE content type does not defeat the match
+ok 265 - a charset parameter on the SSE content type does not defeat the match
+  ---
+  duration_ms: 0.50304
+  type: 'test'
+  ...
+# Subtest: a paginated tools/list is drained across pages and the cursor is sent back
+ok 266 - a paginated tools/list is drained across pages and the cursor is sent back
+  ---
+  duration_ms: 0.65624
+  type: 'test'
+  ...
+# Subtest: a server that paginates forever is abandoned rather than followed
+ok 267 - a server that paginates forever is abandoned rather than followed
+  ---
+  duration_ms: 0.678056
+  type: 'test'
+  ...
+# Subtest: a 401 names the real cause — the authorization expired — and points at the fix
+ok 268 - a 401 names the real cause — the authorization expired — and points at the fix
+  ---
+  duration_ms: 0.670428
+  type: 'test'
+  ...
+# Subtest: a tools/call 401 retains the auth-failure class used by the reauthorization hook
+ok 269 - a tools/call 401 retains the auth-failure class used by the reauthorization hook
+  ---
+  duration_ms: 0.285086
+  type: 'test'
+  ...
+# Subtest: a 403 is reported as a protocol error, NOT an authorization failure — a scoped token is not a stale one
+ok 270 - a 403 is reported as a protocol error, NOT an authorization failure — a scoped token is not a stale one
+  ---
+  duration_ms: 0.357763
+  type: 'test'
+  ...
+# Subtest: a 500 is reported as a status, NOT as an authorization problem
+ok 271 - a 500 is reported as a status, NOT as an authorization problem
+  ---
+  duration_ms: 0.186204
+  type: 'test'
+  ...
+# Subtest: a body that is not JSON is refused rather than surfaced as a result
+ok 272 - a body that is not JSON is refused rather than surfaced as a result
+  ---
+  duration_ms: 0.254085
+  type: 'test'
+  ...
+# Subtest: an empty body where a frame was required is refused
+ok 273 - an empty body where a frame was required is refused
+  ---
+  duration_ms: 0.270661
+  type: 'test'
+  ...
+# Subtest: an SSE stream with no data: line at all is refused
+ok 274 - an SSE stream with no data: line at all is refused
+  ---
+  duration_ms: 0.212573
+  type: 'test'
+  ...
+# Subtest: an oversized body is refused before it is parsed
+ok 275 - an oversized body is refused before it is parsed
+  ---
+  duration_ms: 4.136289
+  type: 'test'
+  ...
+# Subtest: a successful hosted call sends the remote name and arguments and returns the complete result
+ok 276 - a successful hosted call sends the remote name and arguments and returns the complete result
+  ---
+  duration_ms: 0.532771
+  type: 'test'
+  ...
+# Subtest: a JSON-RPC error frame becomes a protocol error carrying the remote's own code and message
+ok 277 - a JSON-RPC error frame becomes a protocol error carrying the remote's own code and message
+  ---
+  duration_ms: 0.348345
+  type: 'test'
+  ...
+# Subtest: a server that never answers is abandoned at the timeout rather than awaited forever
+ok 278 - a server that never answers is abandoned at the timeout rather than awaited forever
+  ---
+  duration_ms: 45.724108
+  type: 'test'
+  ...
+# Subtest: a caller's own abort signal cancels the call, and is reported as an abort not a timeout
+ok 279 - a caller's own abort signal cancels the call, and is reported as an abort not a timeout
+  ---
+  duration_ms: 0.757444
+  type: 'test'
+  ...
+# Subtest: a signal that is already aborted before the call starts aborts it immediately, without waiting for a later abort event
+ok 280 - a signal that is already aborted before the call starts aborts it immediately, without waiting for a later abort event
+  ---
+  duration_ms: 0.385178
+  type: 'test'
+  ...
+# Subtest: a raw transport failure (not a timeout or an abort) is reported as a request failure, carrying the underlying Error's message
+ok 281 - a raw transport failure (not a timeout or an abort) is reported as a request failure, carrying the underlying Error's message
+  ---
+  duration_ms: 0.54984
+  type: 'test'
+  ...
+# Subtest: a raw transport failure that throws a non-Error value still produces a readable message, via String()
+ok 282 - a raw transport failure that throws a non-Error value still produces a readable message, via String()
+  ---
+  duration_ms: 0.286137
+  type: 'test'
+  ...
+# Subtest: close tells the server to drop the session, carrying the id it issued
+ok 283 - close tells the server to drop the session, carrying the id it issued
+  ---
+  duration_ms: 0.270094
+  type: 'test'
+  ...
+# Subtest: a server that refuses the shutdown DELETE does not make close throw
+ok 284 - a server that refuses the shutdown DELETE does not make close throw
+  ---
+  duration_ms: 0.332627
+  type: 'test'
+  ...
+# Subtest: close does not throw when the DELETE fails at the transport level, not just with a refusal status
+ok 285 - close does not throw when the DELETE fails at the transport level, not just with a refusal status
+  ---
+  duration_ms: 0.312137
+  type: 'test'
+  ...
+# Subtest: a failed handshake that already had a session id issued still cleans it up, even when the cleanup DELETE itself fails
+ok 286 - a failed handshake that already had a session id issued still cleans it up, even when the cleanup DELETE itself fails
+  ---
+  duration_ms: 0.287854
+  type: 'test'
+  ...
+# Subtest: a closed session refuses further calls instead of reopening one
+ok 287 - a closed session refuses further calls instead of reopening one
+  ---
+  duration_ms: 0.299792
+  type: 'test'
+  ...
+# Subtest: close is idempotent — a second call issues no second DELETE
+ok 288 - close is idempotent — a second call issues no second DELETE
+  ---
+  duration_ms: 0.184963
+  type: 'test'
+  ...
+# Subtest: the fetch exchange refuses to follow redirects, so a bearer token is never re-sent to a host the server nominated
+ok 289 - the fetch exchange refuses to follow redirects, so a bearer token is never re-sent to a host the server nominated
+  ---
+  duration_ms: 20.984196
+  type: 'test'
+  ...
+# Subtest: the fetch exchange lowercases the content type and surfaces the session id header
+ok 290 - the fetch exchange lowercases the content type and surfaces the session id header
+  ---
+  duration_ms: 0.445404
+  type: 'test'
+  ...
+# Subtest: the fetch exchange sends no body on a DELETE
+ok 291 - the fetch exchange sends no body on a DELETE
+  ---
+  duration_ms: 0.352233
+  type: 'test'
+  ...
+# Subtest: run cancellation reaches the outbound fetch through the canonical session and exchange
+ok 292 - run cancellation reaches the outbound fetch through the canonical session and exchange
+  ---
+  duration_ms: 0.900385
+  type: 'test'
+  ...
+# Subtest: MCP_UI_SANDBOX_PROXY_PATH is unchanged
+ok 293 - MCP_UI_SANDBOX_PROXY_PATH is unchanged
+  ---
+  duration_ms: 0.914187
+  type: 'test'
+  ...
+# Subtest: AssistantDock.tsx no longer builds its iframe URL as a same-origin route — the admin-origin-authority fix
+ok 294 - AssistantDock.tsx no longer builds its iframe URL as a same-origin route — the admin-origin-authority fix
+  ---
+  duration_ms: 0.617191
+  type: 'test'
+  ...
+# Subtest: GET returns 200, html content-type, and the exact SANDBOX_PROXY_HTML body
+ok 295 - GET returns 200, html content-type, and the exact SANDBOX_PROXY_HTML body
+  ---
+  duration_ms: 39.225802
+  type: 'test'
+  ...
+# Subtest: GET is reachable with no principal header or session cookie at all
+ok 296 - GET is reachable with no principal header or session cookie at all
+  ---
+  duration_ms: 10.337007
+  type: 'test'
+  ...
+# Subtest: GET carries the exact framing-protection headers
+ok 297 - GET carries the exact framing-protection headers
+  ---
+  duration_ms: 5.594661
+  type: 'test'
+  ...
+# Subtest: the served body only accepts sandbox-resource-ready from its own host window
+ok 298 - the served body only accepts sandbox-resource-ready from its own host window
+  ---
+  duration_ms: 4.32888
+  type: 'test'
+  ...
+# Subtest: executing the served sandbox script rejects foreign windows and origins and accepts its host
+ok 299 - executing the served sandbox script rejects foreign windows and origins and accepts its host
+  ---
+  duration_ms: 2.517571
+  type: 'test'
+  ...
+# Subtest: real round trip: an exchange delivery from the SAME principal that opened it actually deletes the subscription
+ok 300 - real round trip: an exchange delivery from the SAME principal that opened it actually deletes the subscription
+  ---
+  duration_ms: 114.879263
+  type: 'test'
+  ...
+# Subtest: SECURITY: a delivery from a DIFFERENT principal than the one that opened the exchange is refused, and nothing is delivered
+ok 301 - SECURITY: a delivery from a DIFFERENT principal than the one that opened the exchange is refused, and nothing is delivered
+  ---
+  duration_ms: 26.059453
+  type: 'test'
+  ...
+# Subtest: a delivery cannot be replayed through this route — the exchange's single-use guarantee holds end to end, not just at the store level
+ok 302 - a delivery cannot be replayed through this route — the exchange's single-use guarantee holds end to end, not just at the store level
+  ---
+  duration_ms: 9.895441
+  type: 'test'
+  ...
+# Subtest: 'can you generate an image of a sunset for me' finds media_generate_asset in the top 3
+ok 303 - 'can you generate an image of a sunset for me' finds media_generate_asset in the top 3
+  ---
+  duration_ms: 24.227128
+  type: 'test'
+  ...
+# Subtest: 'make me a logo with AI' and 'draw an illustration for the blog post' both find media_generate_asset
+ok 304 - 'make me a logo with AI' and 'draw an illustration for the blog post' both find media_generate_asset
+  ---
+  duration_ms: 1.767198
+  type: 'test'
+  ...
+# Subtest: 'I need a hero banner for the homepage, can you create one' finds media_generate_asset
+ok 305 - 'I need a hero banner for the homepage, can you create one' finds media_generate_asset
+  ---
+  duration_ms: 1.46639
+  type: 'test'
+  ...
+# Subtest: media_generate_asset never gets confused for media_upload_asset when the operator says 'generate' rather than 'upload'
+ok 306 - media_generate_asset never gets confused for media_upload_asset when the operator says 'generate' rather than 'upload'
+  ---
+  duration_ms: 3.152847
+  type: 'test'
+  ...
+# Subtest: media_generate_asset ranks first for operator phrasings against the full registered catalog
+ok 307 - media_generate_asset ranks first for operator phrasings against the full registered catalog
+  ---
+  duration_ms: 394.635715
+  type: 'test'
+  ...
+# Subtest: pages_read_html resolves slash-prefixed slugs and home after authorization
+ok 308 - pages_read_html resolves slash-prefixed slugs and home after authorization
+  ---
+  duration_ms: 40.572694
+  type: 'test'
+  ...
+# Subtest: pages_read_html returns three stored HTML documents in one batch
+ok 309 - pages_read_html returns three stored HTML documents in one batch
+  ---
+  duration_ms: 5.721293
+  type: 'test'
+  ...
+# Subtest: pages_read_html isolates a missing id field and reads the following item
+ok 310 - pages_read_html isolates a missing id field and reads the following item
+  ---
+  duration_ms: 2.470503
+  type: 'test'
+  ...
+# Subtest: pages_read_html isolates a nonexistent page and reads the following item
+ok 311 - pages_read_html isolates a nonexistent page and reads the following item
+  ---
+  duration_ms: 2.181663
+  type: 'test'
+  ...
+# Subtest: pages_read_html authorizes each batch item and isolates a permission denial
+ok 312 - pages_read_html authorizes each batch item and isolates a permission denial
+  ---
+  duration_ms: 2.333316
+  type: 'test'
+  ...
+# Subtest: pages_read_html rejects more than 25 items before authorization
+ok 313 - pages_read_html rejects more than 25 items before authorization
+  ---
+  duration_ms: 5.561118
+  type: 'test'
+  ...
+# [theme] active theme '' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+# [theme] active theme '' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+# Subtest: pages_read_html scopes shared and overridden sites per item and continues after an unknown site
+ok 314 - pages_read_html scopes shared and overridden sites per item and continues after an unknown site
+  ---
+  duration_ms: 1241.998533
+  type: 'test'
+  ...
+# Subtest: pages_read_html refuses every non-owner cross-site batch item before opening peer databases
+ok 315 - pages_read_html refuses every non-owner cross-site batch item before opening peer databases
+  ---
+  duration_ms: 1398.686386
+  type: 'test'
+  ...
+# Subtest: scalar content readers retain batching after the production read-card collapse
+ok 316 - scalar content readers retain batching after the production read-card collapse
+  ---
+  duration_ms: 1659.890761
+  type: 'test'
+  ...
+# Subtest: Tovu directs unknown read-only tool ids to discovery with candidates and preserves write refusal wording
+ok 317 - Tovu directs unknown read-only tool ids to discovery with candidates and preserves write refusal wording
+  ---
+  duration_ms: 1.657706
+  type: 'test'
+  ...
+# Subtest: defaults: subagent delegation ON, Claude in Chrome ON
+ok 318 - defaults: subagent delegation ON, Claude in Chrome ON
+  ---
+  duration_ms: 13.067178
+  type: 'test'
+  ...
+# Subtest: reads the person's stored value from core.interface at their scope
+ok 319 - reads the person's stored value from core.interface at their scope
+  ---
+  duration_ms: 0.453215
+  type: 'test'
+  ...
+# Subtest: an absent or non-boolean value reads the default
+ok 320 - an absent or non-boolean value reads the default
+  ---
+  duration_ms: 7.644672
+  type: 'test'
+  ...
+# Subtest: a failed read or a failed definition boot falls back to the defaults instead of blocking the launch
+ok 321 - a failed read or a failed definition boot falls back to the defaults instead of blocking the launch
+  ---
+  duration_ms: 0.550749
+  type: 'test'
+  ...
+# Subtest: waits for the definitions before reading
+ok 322 - waits for the definitions before reading
+  ---
+  duration_ms: 0.227035
+  type: 'test'
+  ...
+# Subtest: reads stored reply length: short
+ok 323 - reads stored reply length: short
+  ---
+  duration_ms: 0.122778
+  type: 'test'
+  ...
+# Subtest: reads stored reply length: normal
+ok 324 - reads stored reply length: normal
+  ---
+  duration_ms: 1.013833
+  type: 'test'
+  ...
+# Subtest: reads stored reply length: detailed
+ok 325 - reads stored reply length: detailed
+  ---
+  duration_ms: 0.193203
+  type: 'test'
+  ...
+# Subtest: invalid reply length falls back to Normal: undefined
+ok 326 - invalid reply length falls back to Normal: undefined
+  ---
+  duration_ms: 0.623005
+  type: 'test'
+  ...
+# Subtest: invalid reply length falls back to Normal: null
+ok 327 - invalid reply length falls back to Normal: null
+  ---
+  duration_ms: 0.180989
+  type: 'test'
+  ...
+# Subtest: invalid reply length falls back to Normal: true
+ok 328 - invalid reply length falls back to Normal: true
+  ---
+  duration_ms: 0.056214
+  type: 'test'
+  ...
+# Subtest: invalid reply length falls back to Normal: 1
+ok 329 - invalid reply length falls back to Normal: 1
+  ---
+  duration_ms: 0.050002
+  type: 'test'
+  ...
+# Subtest: invalid reply length falls back to Normal: ""
+ok 330 - invalid reply length falls back to Normal: ""
+  ---
+  duration_ms: 0.042297
+  type: 'test'
+  ...
+# Subtest: invalid reply length falls back to Normal: "SHORT"
+ok 331 - invalid reply length falls back to Normal: "SHORT"
+  ---
+  duration_ms: 0.038771
+  type: 'test'
+  ...
+# Subtest: invalid reply length falls back to Normal: "verbose"
+ok 332 - invalid reply length falls back to Normal: "verbose"
+  ---
+  duration_ms: 0.037755
+  type: 'test'
+  ...
+# Subtest: invalid reply length falls back to Normal: {}
+ok 333 - invalid reply length falls back to Normal: {}
+  ---
+  duration_ms: 0.035357
+  type: 'test'
+  ...
+# Subtest: theme_duplicate is registered in the real catalog and ranks top-3 for operator phrasings
+ok 334 - theme_duplicate is registered in the real catalog and ranks top-3 for operator phrasings
+  ---
+  duration_ms: 447.873393
+  type: 'test'
+  ...
+# Subtest: BYOK: search_tools finds theme_duplicate and describe_tool returns its registered schema
+ok 335 - BYOK: search_tools finds theme_duplicate and describe_tool returns its registered schema
+  ---
+  duration_ms: 47.053391
+  type: 'test'
+  ...
+# Subtest: search finds a tool by an id-term match
+ok 336 - search finds a tool by an id-term match
+  ---
+  duration_ms: 20.790519
+  type: 'test'
+  ...
+# Subtest: search ranks a tool matching more query terms above one matching fewer
+ok 337 - search ranks a tool matching more query terms above one matching fewer
+  ---
+  duration_ms: 1.347973
+  type: 'test'
+  ...
+# Subtest: search returns an empty array, not an error, for no matches
+ok 338 - search returns an empty array, not an error, for no matches
+  ---
+  duration_ms: 1.016151
+  type: 'test'
+  ...
+# Subtest: search respects the limit parameter
+ok 339 - search respects the limit parameter
+  ---
+  duration_ms: 1.527351
+  type: 'test'
+  ...
+# Subtest: search derives 'source' from the id's domain prefix
+ok 340 - search derives 'source' from the id's domain prefix
+  ---
+  duration_ms: 1.054311
+  type: 'test'
+  ...
+# Subtest: every hit carries a positive score
+ok 341 - every hit carries a positive score
+  ---
+  duration_ms: 1.162907
+  type: 'test'
+  ...
+# Subtest: describe returns the full entry including inputSchema for a known id
+ok 342 - describe returns the full entry including inputSchema for a known id
+  ---
+  duration_ms: 6.770608
+  type: 'test'
+  ...
+# Subtest: describe returns null, not throws, for an unknown id
+ok 343 - describe returns null, not throws, for an unknown id
+  ---
+  duration_ms: 0.879752
+  type: 'test'
+  ...
+# Subtest: describe content_read lists only registered cards and their first authored sentence
+ok 344 - describe content_read lists only registered cards and their first authored sentence
+  ---
+  duration_ms: 2.002845
+  type: 'test'
+  ...
+# Subtest: a family without registered cards is absent; a card without prose still has a purpose
+ok 345 - a family without registered cards is absent; a card without prose still has a purpose
+  ---
+  duration_ms: 5.812656
+  type: 'test'
+  ...
+# Subtest: describe omits inputSchema for a descriptor that declared none
+ok 346 - describe omits inputSchema for a descriptor that declared none
+  ---
+  duration_ms: 0.939474
+  type: 'test'
+  ...
+# Subtest: an empty registry seeds an empty, non-throwing catalog
+ok 347 - an empty registry seeds an empty, non-throwing catalog
+  ---
+  duration_ms: 0.887737
+  type: 'test'
+  ...
+# Subtest: search vocabulary makes a tool findable by a word its authored description never contains
+ok 348 - search vocabulary makes a tool findable by a word its authored description never contains
+  ---
+  duration_ms: 5.460342
+  type: 'test'
+  ...
+# Subtest: no caller ever sees the folded vocabulary — describe and search both return the AUTHORED description
+ok 349 - no caller ever sees the folded vocabulary — describe and search both return the AUTHORED description
+  ---
+  duration_ms: 3.673335
+  type: 'test'
+  ...
+# Subtest: a descriptor with no description at all seeds an empty string, both with and without keyword folding
+ok 350 - a descriptor with no description at all seeds an empty string, both with and without keyword folding
+  ---
+  duration_ms: 1.459757
+  type: 'test'
+  ...
+# Subtest: an id with no domain prefix (e.g. it starts with the separator) falls back to source 'tovu'
+ok 351 - an id with no domain prefix (e.g. it starts with the separator) falls back to source 'tovu'
+  ---
+  duration_ms: 1.051423
+  type: 'test'
+  ...
+# Subtest: includeDoc2query: false is forwarded through to indexedDescriptionFor, omitting doc2query questions from the index
+ok 352 - includeDoc2query: false is forwarded through to indexedDescriptionFor, omitting doc2query questions from the index
+  ---
+  duration_ms: 1.943178
+  type: 'test'
+  ...
+# Subtest: a tool with no keyword entry is untouched, and the seam can disable folding entirely
+ok 353 - a tool with no keyword entry is untouched, and the seam can disable folding entirely
+  ---
+  duration_ms: 1.513794
+  type: 'test'
+  ...
+# Subtest: owner_guide_never_infers_missing_grants
+ok 354 - owner_guide_never_infers_missing_grants # SKIP
+  ---
+  duration_ms: 0.875241
+  type: 'test'
+  ...
+# Subtest: expired_confirmation_is_not_reissued
+ok 355 - expired_confirmation_is_not_reissued # SKIP
+  ---
+  duration_ms: 4.274762
+  type: 'test'
+  ...
+# Subtest: database: exactly the 8 wireable entries are registered
+ok 356 - database: exactly the 8 wireable entries are registered
+  ---
+  duration_ms: 100.829275
+  type: 'test'
+  ...
+# Subtest: recovery: exactly the 6 wireable entries are registered, PLUS backup_create_restore_point shows up here too by id membership only — it is Database's handler, not Recovery's own (see the dedicated collision test below)
+ok 357 - recovery: exactly the 6 wireable entries are registered, PLUS backup_create_restore_point shows up here too by id membership only — it is Database's handler, not Recovery's own (see the dedicated collision test below)
+  ---
+  duration_ms: 10.068656
+  type: 'test'
+  ...
+# Subtest: database_execute_migrate_forward is registered and classified mutates-durable-state, but refused without its human-confirmed handler
+ok 358 - database_execute_migrate_forward is registered and classified mutates-durable-state, but refused without its human-confirmed handler
+  ---
+  duration_ms: 2.448208
+  type: 'test'
+  ...
+# Subtest: backup_execute_restore is registered and classified mutates-durable-state, but refused without its human-confirmed handler
+ok 359 - backup_execute_restore is registered and classified mutates-durable-state, but refused without its human-confirmed handler
+  ---
+  duration_ms: 1.32384
+  type: 'test'
+  ...
+# Subtest: the human-confirmer guard itself refuses a plain handler for a confirmer-must-equal-own-delegatedBy tool, given a matching risk classification
+ok 360 - the human-confirmer guard itself refuses a plain handler for a confirmer-must-equal-own-delegatedBy tool, given a matching risk classification
+  ---
+  duration_ms: 0.218391
+  type: 'test'
+  ...
+# Subtest: migrate-forward and restore are the only execute tools here, and each says the user confirms first
+ok 361 - migrate-forward and restore are the only execute tools here, and each says the user confirms first
+  ---
+  duration_ms: 18.243855
+  type: 'test'
+  ...
+# Subtest: backup_create_restore_point is registered exactly ONCE across the whole assistant tool set, despite being catalogued in both Database and Recovery
+ok 362 - backup_create_restore_point is registered exactly ONCE across the whole assistant tool set, despite being catalogued in both Database and Recovery
+  ---
+  duration_ms: 1.474083
+  type: 'test'
+  ...
+# Subtest: every wired database/recovery registration publishes its catalog entry's inputSchema and description verbatim
+ok 363 - every wired database/recovery registration publishes its catalog entry's inputSchema and description verbatim
+  ---
+  duration_ms: 9.521244
+  type: 'test'
+  ...
+# Subtest: requiresConfirmation is unset on every wired database/recovery tool — the execute tools ask inside their own handler
+ok 364 - requiresConfirmation is unset on every wired database/recovery tool — the execute tools ask inside their own handler
+  ---
+  duration_ms: 9.222508
+  type: 'test'
+  ...
+# Subtest: the independent risk classification agrees with the catalog for every wired database/recovery tool
+ok 365 - the independent risk classification agrees with the catalog for every wired database/recovery tool
+  ---
+  duration_ms: 7.450931
+  type: 'test'
+  ...
+# Subtest: a catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for the mutating tool fails the build
+ok 366 - a catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for the mutating tool fails the build
+  ---
+  duration_ms: 0.284993
+  type: 'test'
+  ...
+# Subtest: the ToolPolicy layer is a pass-through 'allow' for every wired database/recovery registration
+ok 367 - the ToolPolicy layer is a pass-through 'allow' for every wired database/recovery registration
+  ---
+  duration_ms: 2.436411
+  type: 'test'
+  ...
+# Subtest: every wired database/recovery tool has a known input fixture — a newly wired tool must be added here, not silently skipped
+ok 368 - every wired database/recovery tool has a known input fixture — a newly wired tool must be added here, not silently skipped
+  ---
+  duration_ms: 6.541345
+  type: 'test'
+  ...
+# Subtest: database_query_timeline: calls authorize() with its catalog's declared permission and the run's principal
+ok 369 - database_query_timeline: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 11.29815
+  type: 'test'
+  ...
+# Subtest: database_query_timeline: a denied principal is rejected and nothing is written
+ok 370 - database_query_timeline: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 11.944878
+  type: 'test'
+  ...
+# Subtest: content_read.database_restore_point: calls authorize() with its catalog's declared permission and the run's principal
+ok 371 - content_read.database_restore_point: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 19.930552
+  type: 'test'
+  ...
+# Subtest: content_read.database_restore_point: a denied principal is rejected and nothing is written
+ok 372 - content_read.database_restore_point: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 1.935406
+  type: 'test'
+  ...
+# Subtest: database_plan_migrate_forward: calls authorize() with its catalog's declared permission and the run's principal
+ok 373 - database_plan_migrate_forward: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 9.118071
+  type: 'test'
+  ...
+# Subtest: database_plan_migrate_forward: a denied principal is rejected and nothing is written
+ok 374 - database_plan_migrate_forward: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 1.995652
+  type: 'test'
+  ...
+# Subtest: database_get_health: calls authorize() with its catalog's declared permission and the run's principal
+ok 375 - database_get_health: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 10.624302
+  type: 'test'
+  ...
+# Subtest: database_get_health: a denied principal is rejected and nothing is written
+ok 376 - database_get_health: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 7.993146
+  type: 'test'
+  ...
+# Subtest: database_get_schema_state: calls authorize() with its catalog's declared permission and the run's principal
+ok 377 - database_get_schema_state: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 2.178221
+  type: 'test'
+  ...
+# Subtest: database_get_schema_state: a denied principal is rejected and nothing is written
+ok 378 - database_get_schema_state: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 6.637776
+  type: 'test'
+  ...
+# Subtest: content_read.database_pending_migration: calls authorize() with its catalog's declared permission and the run's principal
+ok 379 - content_read.database_pending_migration: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 1.704329
+  type: 'test'
+  ...
+# Subtest: content_read.database_pending_migration: a denied principal is rejected and nothing is written
+ok 380 - content_read.database_pending_migration: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 8.804879
+  type: 'test'
+  ...
+# Subtest: backup_create_restore_point: calls authorize() with its catalog's declared permission and the run's principal
+ok 381 - backup_create_restore_point: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 2.820179
+  type: 'test'
+  ...
+# Subtest: backup_create_restore_point: a denied principal is rejected and nothing is written
+ok 382 - backup_create_restore_point: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 5.098429
+  type: 'test'
+  ...
+# Subtest: content_read.backup_restore_point: calls authorize() with its catalog's declared permission and the run's principal
+ok 383 - content_read.backup_restore_point: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 1.957472
+  type: 'test'
+  ...
+# Subtest: content_read.backup_restore_point: a denied principal is rejected and nothing is written
+ok 384 - content_read.backup_restore_point: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 7.165004
+  type: 'test'
+  ...
+# Subtest: backup_get_capabilities: calls authorize() with its catalog's declared permission and the run's principal
+ok 385 - backup_get_capabilities: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 2.003622
+  type: 'test'
+  ...
+# Subtest: backup_get_capabilities: a denied principal is rejected and nothing is written
+ok 386 - backup_get_capabilities: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 6.14274
+  type: 'test'
+  ...
+# Subtest: backup_plan_restore: calls authorize() with its catalog's declared permission and the run's principal
+ok 387 - backup_plan_restore: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 3.993376
+  type: 'test'
+  ...
+# Subtest: backup_plan_restore: a denied principal is rejected and nothing is written
+ok 388 - backup_plan_restore: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 8.299209
+  type: 'test'
+  ...
+# Subtest: recovery_get_status: calls authorize() with its catalog's declared permission and the run's principal
+ok 389 - recovery_get_status: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 2.401485
+  type: 'test'
+  ...
+# Subtest: recovery_get_status: a denied principal is rejected and nothing is written
+ok 390 - recovery_get_status: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 3.370609
+  type: 'test'
+  ...
+# Subtest: recovery_resolve_deep_link: calls authorize() with its catalog's declared permission and the run's principal
+ok 391 - recovery_resolve_deep_link: calls authorize() with its catalog's declared permission and the run's principal
+  ---
+  duration_ms: 7.466687
+  type: 'test'
+  ...
+# Subtest: recovery_resolve_deep_link: a denied principal is rejected and nothing is written
+ok 392 - recovery_resolve_deep_link: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 1.857177
+  type: 'test'
+  ...
+# Subtest: database_query_timeline / backup_list_restore_points / plugins-style reads: a denial throws core/commands's ForbiddenError specifically (no gateway involved)
+ok 393 - database_query_timeline / backup_list_restore_points / plugins-style reads: a denial throws core/commands's ForbiddenError specifically (no gateway involved)
+  ---
+  duration_ms: 7.15497
+  type: 'test'
+  ...
+# Subtest: backup_create_restore_point: authorize() runs before any write
+ok 394 - backup_create_restore_point: authorize() runs before any write
+  ---
+  duration_ms: 5.730859
+  type: 'test'
+  ...
+# Subtest: backup_plan_restore: authorize() is checked twice — once defensively by this tool ahead of planRestore's own cost-class short-circuit, once again inside the gateway's plan() — both agree
+ok 395 - backup_plan_restore: authorize() is checked twice — once defensively by this tool ahead of planRestore's own cost-class short-circuit, once again inside the gateway's plan() — both agree
+  ---
+  duration_ms: 9.718146
+  type: 'test'
+  ...
+# Subtest: backup_plan_restore: an unknown restorePointId is rejected with a ToolInputError naming it, not passed through to planRestore
+ok 396 - backup_plan_restore: an unknown restorePointId is rejected with a ToolInputError naming it, not passed through to planRestore
+  ---
+  duration_ms: 2.53673
+  type: 'test'
+  ...
+# Subtest: database_get_health returns exactly what routeDeps.databaseIntrospection.getHealth() returns
+ok 397 - database_get_health returns exactly what routeDeps.databaseIntrospection.getHealth() returns
+  ---
+  duration_ms: 4.031612
+  type: 'test'
+  ...
+# Subtest: database_get_schema_state returns exactly what routeDeps.databaseIntrospection.getSchemaState() returns
+ok 398 - database_get_schema_state returns exactly what routeDeps.databaseIntrospection.getSchemaState() returns
+  ---
+  duration_ms: 3.016719
+  type: 'test'
+  ...
+# Subtest: database_list_pending_migrations returns exactly what routeDeps.databaseIntrospection.listPendingMigrations() returns
+ok 399 - database_list_pending_migrations returns exactly what routeDeps.databaseIntrospection.listPendingMigrations() returns
+  ---
+  duration_ms: 6.171192
+  type: 'test'
+  ...
+# Subtest: database_get_health / database_get_schema_state / database_list_pending_migrations all reject a populated input — they are parameterless tools
+ok 400 - database_get_health / database_get_schema_state / database_list_pending_migrations all reject a populated input — they are parameterless tools
+  ---
+  duration_ms: 16.644314
+  type: 'test'
+  ...
+# Subtest: timeline, capabilities, recovery status and deep links return the adapter state
+ok 401 - timeline, capabilities, recovery status and deep links return the adapter state
+  ---
+  duration_ms: 2.611874
+  type: 'test'
+  ...
+# Subtest: workflow (Database only): database_plan_migrate_forward's reported cost class feeds backup_create_restore_point's costAck, then database_list_restore_points confirms the new point
+ok 402 - workflow (Database only): database_plan_migrate_forward's reported cost class feeds backup_create_restore_point's costAck, then database_list_restore_points confirms the new point
+  ---
+  duration_ms: 6.098467
+  type: 'test'
+  ...
+# Subtest: workflow (Database create -> Recovery list -> Recovery plan): a restore point minted via Database is visible and previewable through Recovery, using the exact id each step handed to the next
+ok 403 - workflow (Database create -> Recovery list -> Recovery plan): a restore point minted via Database is visible and previewable through Recovery, using the exact id each step handed to the next
+  ---
+  duration_ms: 7.439312
+  type: 'test'
+  ...
+# Subtest: backup_execute_restore applies the selected artifact only after confirmation
+ok 404 - backup_execute_restore applies the selected artifact only after confirmation
+  ---
+  duration_ms: 53.295924
+  type: 'test'
+  ...
+# Subtest: database_execute_migrate_forward: the human confirms in the dialog, then it runs
+ok 405 - database_execute_migrate_forward: the human confirms in the dialog, then it runs
+  ---
+  duration_ms: 33.57691
+  type: 'test'
+  ...
+# Subtest: database_execute_migrate_forward: the human cancels — notConfirmedResult comes back and nothing runs
+ok 406 - database_execute_migrate_forward: the human cancels — notConfirmedResult comes back and nothing runs
+  ---
+  duration_ms: 28.611172
+  type: 'test'
+  ...
+# Subtest: database_execute_migrate_forward: nothing in the model's input can stand in for the click — a confirm/token key is refused before any dialog
+ok 407 - database_execute_migrate_forward: nothing in the model's input can stand in for the click — a confirm/token key is refused before any dialog
+  ---
+  duration_ms: 1.710604
+  type: 'test'
+  ...
+# Subtest: database_execute_migrate_forward: a click from anyone but the delegating human is refused and leaves the dialog waiting
+ok 408 - database_execute_migrate_forward: a click from anyone but the delegating human is refused and leaves the dialog waiting
+  ---
+  duration_ms: 21.071492
+  type: 'test'
+  ...
+# Subtest: database_execute_migrate_forward: a denied principal is refused before any dialog is shown
+ok 409 - database_execute_migrate_forward: a denied principal is refused before any dialog is shown
+  ---
+  duration_ms: 1.376514
+  type: 'test'
+  ...
+# Subtest: backup_execute_restore: the human confirms in the dialog, then it runs
+ok 410 - backup_execute_restore: the human confirms in the dialog, then it runs
+  ---
+  duration_ms: 21.414781
+  type: 'test'
+  ...
+# Subtest: backup_execute_restore: the human cancels — notConfirmedResult comes back and nothing runs
+ok 411 - backup_execute_restore: the human cancels — notConfirmedResult comes back and nothing runs
+  ---
+  duration_ms: 21.306741
+  type: 'test'
+  ...
+# Subtest: backup_execute_restore: nothing in the model's input can stand in for the click — a confirm/token key is refused before any dialog
+ok 412 - backup_execute_restore: nothing in the model's input can stand in for the click — a confirm/token key is refused before any dialog
+  ---
+  duration_ms: 1.876953
+  type: 'test'
+  ...
+# Subtest: backup_execute_restore: a click from anyone but the delegating human is refused and leaves the dialog waiting
+ok 413 - backup_execute_restore: a click from anyone but the delegating human is refused and leaves the dialog waiting
+  ---
+  duration_ms: 21.357864
+  type: 'test'
+  ...
+# Subtest: backup_execute_restore: a denied principal is refused before any dialog is shown
+ok 414 - backup_execute_restore: a denied principal is refused before any dialog is shown
+  ---
+  duration_ms: 1.114336
+  type: 'test'
+  ...
+# Subtest: owner-approved Members create/profile tools are wired alongside the existing roster tools
+ok 415 - owner-approved Members create/profile tools are wired alongside the existing roster tools
+  ---
+  duration_ms: 15.90401
+  type: 'test'
+  ...
+# Subtest: billing and consent transitions remain absent after the approved profile addition
+ok 416 - billing and consent transitions remain absent after the approved profile addition
+  ---
+  duration_ms: 2.574633
+  type: 'test'
+  ...
+# Subtest: every wired Members registration publishes its catalog entry's inputSchema and description
+ok 417 - every wired Members registration publishes its catalog entry's inputSchema and description
+  ---
+  duration_ms: 3.384853
+  type: 'test'
+  ...
+# Subtest: the real Members catalog and tool-registrations' independent risk classification agree
+ok 418 - the real Members catalog and tool-registrations' independent risk classification agree
+  ---
+  duration_ms: 2.344567
+  type: 'test'
+  ...
+# Subtest: a Members catalog entry cannot downgrade its own risk
+ok 419 - a Members catalog entry cannot downgrade its own risk
+  ---
+  duration_ms: 0.405089
+  type: 'test'
+  ...
+# Subtest: the ToolPolicy layer is a pass-through 'allow' for every Members registration
+ok 420 - the ToolPolicy layer is a pass-through 'allow' for every Members registration
+  ---
+  duration_ms: 1.883341
+  type: 'test'
+  ...
+# Subtest: members_list: authorize() is called with 'member.manage', no entityId
+ok 421 - members_list: authorize() is called with 'member.manage', no entityId
+  ---
+  duration_ms: 2.750423
+  type: 'test'
+  ...
+# Subtest: members_list: a denied caller is refused and gets no rows back
+ok 422 - members_list: a denied caller is refused and gets no rows back
+  ---
+  duration_ms: 2.155611
+  type: 'test'
+  ...
+# Subtest: members_get_by_id: authorize() is called with entityId set to the requested member
+ok 423 - members_get_by_id: authorize() is called with entityId set to the requested member
+  ---
+  duration_ms: 1.809043
+  type: 'test'
+  ...
+# Subtest: members_get_by_id: an unknown member id throws ToolInputError('MEMBERS_NOT_FOUND: ...'), not a silent null
+ok 424 - members_get_by_id: an unknown member id throws ToolInputError('MEMBERS_NOT_FOUND: ...'), not a silent null
+  ---
+  duration_ms: 2.610251
+  type: 'test'
+  ...
+# Subtest: members_get_by_id: a member WITH name and emailVerifiedAt set surfaces both fields in the tool view
+ok 425 - members_get_by_id: a member WITH name and emailVerifiedAt set surfaces both fields in the tool view
+  ---
+  duration_ms: 4.807559
+  type: 'test'
+  ...
+# Subtest: members_list: afterId and limit are threaded through from tool input when provided
+ok 426 - members_list: afterId and limit are threaded through from tool input when provided
+  ---
+  duration_ms: 1.185167
+  type: 'test'
+  ...
+# Subtest: members_disable: a denied caller is refused and the member is left unchanged
+ok 427 - members_disable: a denied caller is refused and the member is left unchanged
+  ---
+  duration_ms: 1.233613
+  type: 'test'
+  ...
+# Subtest: members_disable: authorize() runs before the write, and disabling revokes every live session
+ok 428 - members_disable: authorize() runs before the write, and disabling revokes every live session
+  ---
+  duration_ms: 4.004135
+  type: 'test'
+  ...
+# Subtest: members_request_magic_link: authorize() is checked strictly BEFORE the rate limiter is consulted (INV-NEW-03) — a denied call spends no rate-limit budget
+ok 429 - members_request_magic_link: authorize() is checked strictly BEFORE the rate limiter is consulted (INV-NEW-03) — a denied call spends no rate-limit budget
+  ---
+  duration_ms: 11.602274
+  type: 'test'
+  ...
+# Subtest: members_request_magic_link: delivers {delivered:true} for a valid email and sends mail
+ok 430 - members_request_magic_link: delivers {delivered:true} for a valid email and sends mail
+  ---
+  duration_ms: 147.940438
+  type: 'test'
+  ...
+# Subtest: members_request_magic_link: a unknown email reports the actual send to the operator
+ok 431 - members_request_magic_link: a unknown email reports the actual send to the operator
+  ---
+  duration_ms: 47.76039
+  type: 'test'
+  ...
+# Subtest: members_request_magic_link: a disabled email reports the actual send to the operator
+ok 432 - members_request_magic_link: a disabled email reports the actual send to the operator
+  ---
+  duration_ms: 49.879957
+  type: 'test'
+  ...
+# Subtest: members_request_magic_link: a string redirectPath in the input is threaded through to the write service
+ok 433 - members_request_magic_link: a string redirectPath in the input is threaded through to the write service
+  ---
+  duration_ms: 105.622826
+  type: 'test'
+  ...
+# Subtest: members_request_magic_link: exceeding the per-email rate limit throws, naming the email and a retry-after
+ok 434 - members_request_magic_link: exceeding the per-email rate limit throws, naming the email and a retry-after
+  ---
+  duration_ms: 127.038088
+  type: 'test'
+  ...
+# Subtest: workflow: members_list -> members_get_by_id -> members_disable chains correctly and leaves consistent state
+ok 435 - workflow: members_list -> members_get_by_id -> members_disable chains correctly and leaves consistent state
+  ---
+  duration_ms: 9.939015
+  type: 'test'
+  ...
+# Subtest: exactly the 6 wireable redirects entries plus redirects_import are registered — nothing else
+ok 436 - exactly the 6 wireable redirects entries plus redirects_import are registered — nothing else
+  ---
+  duration_ms: 11.993417
+  type: 'test'
+  ...
+# Subtest: redirects_import is agent-callable across the whole assistant tool set
+ok 437 - redirects_import is agent-callable across the whole assistant tool set
+  ---
+  duration_ms: 1.545561
+  type: 'test'
+  ...
+# Subtest: every wired redirects registration publishes its catalog entry's inputSchema and description verbatim
+ok 438 - every wired redirects registration publishes its catalog entry's inputSchema and description verbatim
+  ---
+  duration_ms: 11.878413
+  type: 'test'
+  ...
+# Subtest: requiresConfirmation is unset on every wired redirects tool
+ok 439 - requiresConfirmation is unset on every wired redirects tool
+  ---
+  duration_ms: 5.658949
+  type: 'test'
+  ...
+# Subtest: the independent risk classification agrees with the catalog for every wired redirects tool
+ok 440 - the independent risk classification agrees with the catalog for every wired redirects tool
+  ---
+  duration_ms: 1.364102
+  type: 'test'
+  ...
+# Subtest: a redirects catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for redirects_create fails the build
+ok 441 - a redirects catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for redirects_create fails the build
+  ---
+  duration_ms: 0.459081
+  type: 'test'
+  ...
+# Subtest: the ToolPolicy layer is a pass-through 'allow' for every wired redirects registration
+ok 442 - the ToolPolicy layer is a pass-through 'allow' for every wired redirects registration
+  ---
+  duration_ms: 1.273861
+  type: 'test'
+  ...
+# Subtest: content_read.redirect: calls authorize() with 'admin.redirects.manage' and the run's principal
+ok 443 - content_read.redirect: calls authorize() with 'admin.redirects.manage' and the run's principal
+  ---
+  duration_ms: 6.188871
+  type: 'test'
+  ...
+# Subtest: content_read.redirect: a denied principal is rejected and nothing is written
+ok 444 - content_read.redirect: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 1.865516
+  type: 'test'
+  ...
+# Subtest: redirects_update: calls authorize() with 'admin.redirects.manage' and the run's principal
+ok 445 - redirects_update: calls authorize() with 'admin.redirects.manage' and the run's principal
+  ---
+  duration_ms: 13.180246
+  type: 'test'
+  ...
+# Subtest: redirects_update: a denied principal is rejected and nothing is written
+ok 446 - redirects_update: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 1.130127
+  type: 'test'
+  ...
+# Subtest: redirects_get_hits: calls authorize() with 'admin.redirects.manage' and the run's principal
+ok 447 - redirects_get_hits: calls authorize() with 'admin.redirects.manage' and the run's principal
+  ---
+  duration_ms: 2.643986
+  type: 'test'
+  ...
+# Subtest: redirects_get_hits: a denied principal is rejected and nothing is written
+ok 448 - redirects_get_hits: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 20.443171
+  type: 'test'
+  ...
+# Subtest: redirects_create: calls authorize() with 'admin.redirects.manage' and the run's principal
+ok 449 - redirects_create: calls authorize() with 'admin.redirects.manage' and the run's principal
+  ---
+  duration_ms: 3.480632
+  type: 'test'
+  ...
+# Subtest: redirects_create: a denied principal is rejected and nothing is written
+ok 450 - redirects_create: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 1.171399
+  type: 'test'
+  ...
+# Subtest: redirects_import: calls authorize() with 'admin.redirects.manage' and the run's principal
+ok 451 - redirects_import: calls authorize() with 'admin.redirects.manage' and the run's principal
+  ---
+  duration_ms: 4.433079
+  type: 'test'
+  ...
+# Subtest: redirects_import: a denied principal is rejected and nothing is written
+ok 452 - redirects_import: a denied principal is rejected and nothing is written
+  ---
+  duration_ms: 1.286869
+  type: 'test'
+  ...
+# Subtest: redirects_get: an unknown id reaches the model as its not-found message
+ok 453 - redirects_get: an unknown id reaches the model as its not-found message
+  ---
+  duration_ms: 1.641953
+  type: 'test'
+  ...
+# Subtest: redirects_create: rejects matchType 'regex' the same way the chokepoint does
+ok 454 - redirects_create: rejects matchType 'regex' the same way the chokepoint does
+  ---
+  duration_ms: 1.511934
+  type: 'test'
+  ...
+# Subtest: redirects_import: rejects a non-array 'rules' with the exact validation text, before any write
+ok 455 - redirects_import: rejects a non-array 'rules' with the exact validation text, before any write
+  ---
+  duration_ms: 1.722855
+  type: 'test'
+  ...
+# Subtest: redirects_import: rejects an empty 'rules' array with the exact validation text
+ok 456 - redirects_import: rejects an empty 'rules' array with the exact validation text
+  ---
+  duration_ms: 1.48319
+  type: 'test'
+  ...
+# Subtest: redirects_import: rejects a batch over 500 rules with the exact validation text
+ok 457 - redirects_import: rejects a batch over 500 rules with the exact validation text
+  ---
+  duration_ms: 20.404657
+  type: 'test'
+  ...
+# Subtest: redirects_import: a non-object rule entry is refused by index, not silently coerced
+ok 458 - redirects_import: a non-object rule entry is refused by index, not silently coerced
+  ---
+  duration_ms: 1.26384
+  type: 'test'
+  ...
+# Subtest: redirects_import: a per-rule failure (duplicate fromPattern) does NOT abort the rest of the batch — mixed created/failed in one response
+ok 459 - redirects_import: a per-rule failure (duplicate fromPattern) does NOT abort the rest of the batch — mixed created/failed in one response
+  ---
+  duration_ms: 5.148227
+  type: 'test'
+  ...
+# Subtest: redirects_import: every created row is source:'import', distinguishable from a manual redirects_create row
+ok 460 - redirects_import: every created row is source:'import', distinguishable from a manual redirects_create row
+  ---
+  duration_ms: 1.184112
+  type: 'test'
+  ...
+# Subtest: redirects_import: every row lands under the caller's real workspace and actor, not per-row input — mirrors redirects_create's attribution
+ok 461 - redirects_import: every row lands under the caller's real workspace and actor, not per-row input — mirrors redirects_create's attribution
+  ---
+  duration_ms: 1.569477
+  type: 'test'
+  ...
+# Subtest: workflow: create a redirect, update it, tombstone it — state stays consistent at every step
+ok 462 - workflow: create a redirect, update it, tombstone it — state stays consistent at every step
+  ---
+  duration_ms: 14.917833
+  type: 'test'
+  ...
+# Subtest: redirects_get_hits selects the requested redirect's counts
+ok 463 - redirects_get_hits selects the requested redirect's counts
+  ---
+  duration_ms: 6.834037
+  type: 'test'
+  ...
+# Subtest: theme_reset_file: overwrites a diverged live file with the catalog's original bytes
+ok 464 - theme_reset_file: overwrites a diverged live file with the catalog's original bytes
+  ---
+  duration_ms: 47.482928
+  type: 'test'
+  ...
+# Subtest: theme_reset_file: a file already byte-identical to its original is not rewritten, and reports wasModified: false
+ok 465 - theme_reset_file: a file already byte-identical to its original is not rewritten, and reports wasModified: false
+  ---
+  duration_ms: 16.818485
+  type: 'test'
+  ...
+# Subtest: theme_reset_file: a CRLF-only difference from an LF original counts as modified, and the LF bytes are restored
+ok 466 - theme_reset_file: a CRLF-only difference from an LF original counts as modified, and the LF bytes are restored
+  ---
+  duration_ms: 17.354925
+  type: 'test'
+  ...
+# Subtest: theme_reset_file: restores a binary original's exact bytes, including bytes that are not valid UTF-8, and the file then compares unmodified
+ok 467 - theme_reset_file: restores a binary original's exact bytes, including bytes that are not valid UTF-8, and the file then compares unmodified
+  ---
+  duration_ms: 41.196259
+  type: 'test'
+  ...
+# Subtest: theme_reset_file: a file over the 1 MB text-read limit resets to its exact bytes, and content is null
+ok 468 - theme_reset_file: a file over the 1 MB text-read limit resets to its exact bytes, and content is null
+  ---
+  duration_ms: 126.984377
+  type: 'test'
+  ...
+# Subtest: theme_reset_file: a live file deleted after install is recreated from its original, wasModified: true
+ok 469 - theme_reset_file: a live file deleted after install is recreated from its original, wasModified: true
+  ---
+  duration_ms: 32.775113
+  type: 'test'
+  ...
+# Subtest: theme_reset_file's description states the unmodified-file no-op, and no longer claims there is no modified check
+ok 470 - theme_reset_file's description states the unmodified-file no-op, and no longer claims there is no modified check
+  ---
+  duration_ms: 0.437351
+  type: 'test'
+  ...
+# Subtest: theme_reset_file's search keywords carry modified/changed vocabulary
+ok 471 - theme_reset_file's search keywords carry modified/changed vocabulary
+  ---
+  duration_ms: 0.155517
+  type: 'test'
+  ...
+# Subtest: theme_reset_file: a theme with no stored original at all is refused, and nothing is touched
+ok 472 - theme_reset_file: a theme with no stored original at all is refused, and nothing is touched
+  ---
+  duration_ms: 19.960089
+  type: 'test'
+  ...
+# Subtest: theme_reset_file: a theme with no site original resets from the package's read-only catalog via packageThemesDir, byte for byte
+ok 473 - theme_reset_file: a theme with no site original resets from the package's read-only catalog via packageThemesDir, byte for byte
+  ---
+  duration_ms: 42.208608
+  type: 'test'
+  ...
+# Subtest: theme_reset_file: a file the author added after install has no catalog counterpart and is refused
+ok 474 - theme_reset_file: a file the author added after install has no catalog counterpart and is refused
+  ---
+  duration_ms: 31.746384
+  type: 'test'
+  ...
+# Subtest: theme_reset_file: a built theme's generated-readonly file is refused outright — no whole-tree revert is offered here
+ok 475 - theme_reset_file: a built theme's generated-readonly file is refused outright — no whole-tree revert is offered here
+  ---
+  duration_ms: 13.803487
+  type: 'test'
+  ...
+# Subtest: theme_reset_file: a path inside .trash/ is refused — restore it first
+ok 476 - theme_reset_file: a path inside .trash/ is refused — restore it first
+  ---
+  duration_ms: 24.745747
+  type: 'test'
+  ...
+# Subtest: theme_reset_file refuses when authorize() denies, and never touches disk
+ok 477 - theme_reset_file refuses when authorize() denies, and never touches disk
+  ---
+  duration_ms: 63.336111
+  type: 'test'
+  ...
+# Subtest: theme_reset_file refuses a ../ escape into a sibling theme's folder, leaving it untouched
+ok 478 - theme_reset_file refuses a ../ escape into a sibling theme's folder, leaving it untouched
+  ---
+  duration_ms: 18.001792
+  type: 'test'
+  ...
+# Subtest: theme_reset_file refreshes the live routeDeps.themes entry, matching theme_write_file's live-state coupling
+ok 479 - theme_reset_file refreshes the live routeDeps.themes entry, matching theme_write_file's live-state coupling
+  ---
+  duration_ms: 59.949057
+  type: 'test'
+  ...
+# Subtest: theme_reset_file: a theme whose original is a different layout version refuses theme.json, and the live manifest keeps apiVersion 2
+ok 480 - theme_reset_file: a theme whose original is a different layout version refuses theme.json, and the live manifest keeps apiVersion 2
+  ---
+  duration_ms: 20.00062
+  type: 'test'
+  ...
+# Subtest: theme_copy_file: duplicates a file under the next available name, byte-for-byte
+ok 481 - theme_copy_file: duplicates a file under the next available name, byte-for-byte
+  ---
+  duration_ms: 27.35967
+  type: 'test'
+  ...
+# Subtest: theme_copy_file: when 'name-1' is already taken, the collision loop runs again and lands on '-2'
+ok 482 - theme_copy_file: when 'name-1' is already taken, the collision loop runs again and lands on '-2'
+  ---
+  duration_ms: 39.906863
+  type: 'test'
+  ...
+# Subtest: theme_copy_file: a source path that does not exist in the theme is refused
+ok 483 - theme_copy_file: a source path that does not exist in the theme is refused
+  ---
+  duration_ms: 31.650302
+  type: 'test'
+  ...
+# Subtest: theme_copy_file: a built theme's generated-readonly file is refused
+ok 484 - theme_copy_file: a built theme's generated-readonly file is refused
+  ---
+  duration_ms: 25.731375
+  type: 'test'
+  ...
+# Subtest: theme_copy_file: a path inside .trash/ is refused — copying a trashed file would be a second, unaudited way out of the trash
+ok 485 - theme_copy_file: a path inside .trash/ is refused — copying a trashed file would be a second, unaudited way out of the trash
+  ---
+  duration_ms: 24.222093
+  type: 'test'
+  ...
+# Subtest: theme_copy_file refuses when authorize() denies, and never touches disk
+ok 486 - theme_copy_file refuses when authorize() denies, and never touches disk
+  ---
+  duration_ms: 39.876323
+  type: 'test'
+  ...
+# Subtest: theme_copy_file refuses a ../ escape into a sibling theme's folder, and creates nothing there
+ok 487 - theme_copy_file refuses a ../ escape into a sibling theme's folder, and creates nothing there
+  ---
+  duration_ms: 29.24889
+  type: 'test'
+  ...
+# Subtest: theme_copy_file refreshes the live routeDeps.themes entry, and the copy shows up in a subsequent listing
+ok 488 - theme_copy_file refreshes the live routeDeps.themes entry, and the copy shows up in a subsequent listing
+  ---
+  duration_ms: 21.515819
+  type: 'test'
+  ...
+# [backfill-ranking] "push my site live to my static host" -> rank 1 (top hit: deployment_execute_static_publish), wanted deployment_execute_static_publish
+# [backfill-ranking] "can I publish my site yet" -> rank 3 (top hit: publish_content_plan_pull), wanted deployment_get_static_publish_capabilities
+# [backfill-ranking] "export my site to static files" -> rank 2 (top hit: deployment_diagnose_static_export), wanted deployment_trigger_export
+# [backfill-ranking] "show me the current dockerfile" -> rank 1 (top hit: deployment_get_dockerfile), wanted deployment_get_dockerfile
+# [backfill-ranking] "commit my site to github" -> rank 1 (top hit: source_control_execute_commit), wanted source_control_execute_commit
+# [backfill-ranking] "is github connected" -> rank 1 (top hit: source_control_get_capabilities), wanted source_control_get_capabilities
+# [backfill-ranking] "what backups do we have" -> rank 1 (top hit: content_read.backup_restore_point), wanted content_read.database_restore_point
+# [backfill-ranking] "show me the history of database changes" -> rank 1 (top hit: database_query_timeline), wanted database_query_timeline
+# [backfill-ranking] "remove this custom role" -> rank 1 (top hit: identity_role_delete), wanted identity_role_delete
+# [backfill-ranking] "what access policies exist" -> rank 1 (top hit: content_read.identity_policy), wanted content_read.identity_policy
+# [backfill-ranking] "make a new mailing list" -> rank 1 (top hit: newsletter_create_list), wanted newsletter_create_list
+# [backfill-ranking] "they never got the confirmation email, send it again" -> rank 1 (top hit: newsletter_resend_confirmation), wanted newsletter_resend_confirmation
+# [backfill-ranking] "build me a landing page" -> rank 1 (top hit: pages_write_html), wanted pages_write_html
+# [backfill-ranking] "show me the html source of this page" -> rank 1 (top hit: pages_read_html), wanted pages_read_html
+# [backfill-ranking] "is there a migration stuck in progress" -> rank 1 (top hit: recovery_get_status), wanted recovery_get_status
+# [backfill-ranking] "look up this one redirect rule" -> rank 2 (top hit: redirects_create), wanted content_read.redirect
+# [backfill-ranking] "what are our current seo defaults" -> rank 1 (top hit: seo_get_settings), wanted seo_get_settings
+# [backfill-ranking] "change my admin theme to dark mode" -> rank 1 (top hit: settings_set_ui_preference), wanted settings_set_ui_preference
+# [backfill-ranking] "give me an overview of the whole site" -> rank 1 (top hit: site_get_profile), wanted site_get_profile
+# [backfill-ranking] "preview merging two tags together" -> rank 1 (top hit: taxonomy_plan_merge_term), wanted taxonomy_plan_merge_term
+# [backfill-ranking] "delete this theme file" -> rank 1 (top hit: theme_trash_file), wanted theme_trash_file
+# [backfill-ranking] "put this widget inline in the post body" -> rank 1 (top hit: widgets_insert_embed), wanted widgets_insert_embed
+# [backfill-ranking] "create a new custom content type" -> rank 1 (top hit: collections_content_type_define), wanted collections_content_type_define
+# [backfill-ranking] "what are our current comment moderation settings" -> rank 1 (top hit: comments_get_settings), wanted comments_get_settings
+# [backfill-ranking] "show me a bar chart in the chat" -> rank 1 (top hit: assistant_render_ui), wanted assistant_render_ui
+# Subtest: CRUX: every newly-backfilled tool ranks in the top 3 for a realistic operator phrasing, against the real ~160-tool catalog
+ok 489 - CRUX: every newly-backfilled tool ranks in the top 3 for a realistic operator phrasing, against the real ~160-tool catalog
+  ---
+  duration_ms: 596.423065
+  type: 'test'
+  ...
+# [backfill-ranking] BEFORE (raw id+description) top-3: 10/25 — AFTER (keywords folded in) top-3: 25/25
+# Subtest: the backfill measurably improves top-3 ranking for these cases versus the raw id+description baseline — the causal evidence, not just a high AFTER number in isolation
+ok 490 - the backfill measurably improves top-3 ranking for these cases versus the raw id+description baseline — the causal evidence, not just a high AFTER number in isolation
+  ---
+  duration_ms: 448.186138
+  type: 'test'
+  ...
+# Subtest: the production copy phrasing finds sites_duplicate_site in the top three
+ok 491 - the production copy phrasing finds sites_duplicate_site in the top three
+  ---
+  duration_ms: 334.087619
+  type: 'test'
+  ...
+# Subtest: backfilled ids remain wired except explicitly unwired tools and the merged list alias
+ok 492 - backfilled ids remain wired except explicitly unwired tools and the merged list alias
+  ---
+  duration_ms: 240.864889
+  type: 'test'
+  ...
+# Subtest: supported language and code questions rank settings_list_ui_locales in the top three
+ok 493 - supported language and code questions rank settings_list_ui_locales in the top three
+  ---
+  duration_ms: 573.553727
+  type: 'test'
+  ...
+# Subtest: direct federation forwards run cancellation to the remote and closes the original session
+ok 494 - direct federation forwards run cancellation to the remote and closes the original session
+  ---
+  duration_ms: 7.460595
+  type: 'test'
+  ...
+# Subtest: boot federation forwards run cancellation to the remote and closes the original session
+ok 495 - boot federation forwards run cancellation to the remote and closes the original session
+  ---
+  duration_ms: 1.731586
+  type: 'test'
+  ...
+# Subtest: with no gate configured, behaviour is exactly what it was before the gate existed
+ok 496 - with no gate configured, behaviour is exactly what it was before the gate existed
+  ---
+  duration_ms: 1.168059
+  type: 'test'
+  ...
+# Subtest: a gate that refuses stops the call BEFORE anything crosses the network
+ok 497 - a gate that refuses stops the call BEFORE anything crosses the network
+  ---
+  duration_ms: 0.548602
+  type: 'test'
+  ...
+# Subtest: the gate runs BEFORE the permission check, so a disconnected server is not reported as a permission problem
+ok 498 - the gate runs BEFORE the permission check, so a disconnected server is not reported as a permission problem
+  ---
+  duration_ms: 0.485638
+  type: 'test'
+  ...
+# Subtest: a gate that passes lets the call through unchanged, and is asked about THIS connection
+ok 499 - a gate that passes lets the call through unchanged, and is asked about THIS connection
+  ---
+  duration_ms: 0.34511
+  type: 'test'
+  ...
+# Subtest: with no onAuthFailed configured, a live auth failure propagates unchanged
+ok 500 - with no onAuthFailed configured, a live auth failure propagates unchanged
+  ---
+  duration_ms: 0.52908
+  type: 'test'
+  ...
+# Subtest: onAuthFailed runs on a live McpAuthFailedError, naming the connection, and its thrown result replaces the propagated error
+ok 501 - onAuthFailed runs on a live McpAuthFailedError, naming the connection, and its thrown result replaces the propagated error
+  ---
+  duration_ms: 0.486875
+  type: 'test'
+  ...
+# Subtest: onAuthFailed does NOT run for an ordinary transport failure — only an auth failure is durable
+ok 502 - onAuthFailed does NOT run for an ordinary transport failure — only an auth failure is durable
+  ---
+  duration_ms: 0.614634
+  type: 'test'
+  ...
+# Subtest: the liveness gate receives the tool's remote name, declared annotations and the connection origin — external-mcp-revocation.ts's per-call input
+ok 503 - the liveness gate receives the tool's remote name, declared annotations and the connection origin — external-mcp-revocation.ts's per-call input
+  ---
+  duration_ms: 0.962449
+  type: 'test'
+  ...
+# Subtest: only allowlisted remote tools become registrations, and their ids are namespaced
+ok 504 - only allowlisted remote tools become registrations, and their ids are namespaced
+  ---
+  duration_ms: 0.592067
+  type: 'test'
+  ...
+# Subtest: the published descriptor carries the remote's schema and a provenance-labelled description
+ok 505 - the published descriptor carries the remote's schema and a provenance-labelled description
+  ---
+  duration_ms: 0.226737
+  type: 'test'
+  ...
+# Subtest: the ToolPolicy is a pass-through, because the handler is this tool's one authorization evaluator
+ok 506 - the ToolPolicy is a pass-through, because the handler is this tool's one authorization evaluator
+  ---
+  duration_ms: 0.306406
+  type: 'test'
+  ...
+# Subtest: a federated call authorizes against Tovu's own evaluator BEFORE anything reaches the remote
+ok 507 - a federated call authorizes against Tovu's own evaluator BEFORE anything reaches the remote
+  ---
+  duration_ms: 17.542939
+  type: 'test'
+  ...
+# Subtest: a denied principal gets ForbiddenError and the remote is never contacted at all
+ok 508 - a denied principal gets ForbiddenError and the remote is never contacted at all
+  ---
+  duration_ms: 4.761956
+  type: 'test'
+  ...
+# Subtest: the federated permission is deliberately not the permission of whatever the remote tool resembles
+ok 509 - the federated permission is deliberately not the permission of whatever the remote tool resembles
+  ---
+  duration_ms: 0.203992
+  type: 'test'
+  ...
+# Subtest: the remote receives its OWN tool name, never Tovu's namespaced id
+ok 510 - the remote receives its OWN tool name, never Tovu's namespaced id
+  ---
+  duration_ms: 0.39615
+  type: 'test'
+  ...
+# Subtest: a federated result reaches the model inside the untrusted-data envelope, tagged with its provenance
+ok 511 - a federated result reaches the model inside the untrusted-data envelope, tagged with its provenance
+  ---
+  duration_ms: 0.643112
+  type: 'test'
+  ...
+# Subtest: a remote result claiming isError is reported as data rather than acted on
+ok 512 - a remote result claiming isError is reported as data rather than acted on
+  ---
+  duration_ms: 0.398727
+  type: 'test'
+  ...
+# Subtest: a federated image result is exposed as a top-level `content` array with the image intact — not stringified, not truncated
+ok 513 - a federated image result is exposed as a top-level `content` array with the image intact — not stringified, not truncated
+  ---
+  duration_ms: 0.487675
+  type: 'test'
+  ...
+# Subtest: an image over maxResultBytes is dropped rather than truncated into a corrupt image, and the drop is reported
+ok 514 - an image over maxResultBytes is dropped rather than truncated into a corrupt image, and the drop is reported
+  ---
+  duration_ms: 0.810119
+  type: 'test'
+  ...
+# Subtest: a text-only federated result gets no `content` key at all — nothing for extractResultMedia to touch, and R7's shape is unchanged
+ok 515 - a text-only federated result gets no `content` key at all — nothing for extractResultMedia to touch, and R7's shape is unchanged
+  ---
+  duration_ms: 0.333916
+  type: 'test'
+  ...
+# Subtest: an omitted input is sent as {}, and a non-object input is refused rather than coerced
+ok 516 - an omitted input is sent as {}, and a non-object input is refused rather than coerced
+  ---
+  duration_ms: 0.628185
+  type: 'test'
+  ...
+# Subtest: a federated id colliding with a natively-registered one refuses the whole connection
+ok 517 - a federated id colliding with a natively-registered one refuses the whole connection
+  ---
+  duration_ms: 0.313812
+  type: 'test'
+  ...
+# Subtest: a preset registered from outside core is resolved and connected without core knowing the vendor
+ok 518 - a preset registered from outside core is resolved and connected without core knowing the vendor
+  ---
+  duration_ms: 1.229146
+  type: 'test'
+  ...
+# Subtest: a preset that declines contributes nothing, silently — 'not configured' is the default state
+ok 519 - a preset that declines contributes nothing, silently — 'not configured' is the default state
+  ---
+  duration_ms: 0.555953
+  type: 'test'
+  ...
+# Subtest: two presets both contribute, and one vendor's broken config does not disable the other's working one
+ok 520 - two presets both contribute, and one vendor's broken config does not disable the other's working one
+  ---
+  duration_ms: 0.760054
+  type: 'test'
+  ...
+# Subtest: re-registering the same presetId replaces it, so a module imported twice cannot self-collide
+ok 521 - re-registering the same presetId replaces it, so a module imported twice cannot self-collide
+  ---
+  duration_ms: 0.69021
+  type: 'test'
+  ...
+# Subtest: with no configuration, the daemon boots exactly as it did before federation existed
+ok 522 - with no configuration, the daemon boots exactly as it did before federation existed
+  ---
+  duration_ms: 0.23819
+  type: 'test'
+  ...
+# Subtest: omitting `env` reads the real process.env, not just the explicit `env: {}` every other test here supplies
+ok 523 - omitting `env` reads the real process.env, not just the explicit `env: {}` every other test here supplies
+  ---
+  duration_ms: 0.514547
+  type: 'test'
+  ...
+# Subtest: a configured connection registers its admitted tools into the daemon's registry
+ok 524 - a configured connection registers its admitted tools into the daemon's registry
+  ---
+  duration_ms: 0.389633
+  type: 'test'
+  ...
+# Subtest: an unreachable or broken remote is stepped over — Tovu's own catalog is never held hostage
+ok 525 - an unreachable or broken remote is stepped over — Tovu's own catalog is never held hostage
+  ---
+  duration_ms: 0.261208
+  type: 'test'
+  ...
+# Subtest: a remote that connects but cannot enumerate is stepped over, and its session is closed
+ok 526 - a remote that connects but cannot enumerate is stepped over, and its session is closed
+  ---
+  duration_ms: 0.319065
+  type: 'test'
+  ...
+# Subtest: a remote that fails mid-setup AND whose own close() also rejects still resolves cleanly — cleanup failure is swallowed, not left to crash or unhandled-reject the boot
+ok 527 - a remote that fails mid-setup AND whose own close() also rejects still resolves cleanly — cleanup failure is swallowed, not left to crash or unhandled-reject the boot
+  ---
+  duration_ms: 0.241273
+  type: 'test'
+  ...
+# Subtest: an invalid-but-enabled configuration warns and continues rather than throwing out of boot
+ok 528 - an invalid-but-enabled configuration warns and continues rather than throwing out of boot
+  ---
+  duration_ms: 0.288763
+  type: 'test'
+  ...
+# Subtest: a remote whose id would collide with a native tool loses the whole connection, not just that tool
+ok 529 - a remote whose id would collide with a native tool loses the whole connection, not just that tool
+  ---
+  duration_ms: 0.469888
+  type: 'test'
+  ...
+# Subtest: omitting `logger` uses the real console logger — info and warn both reach console.log/console.warn
+ok 530 - omitting `logger` uses the real console logger — info and warn both reach console.log/console.warn
+  ---
+  duration_ms: 0.916743
+  type: 'test'
+  ...
+# Subtest: omitting `connect` uses the real defaultConnect — a genuine spawn + handshake against a real child process
+ok 531 - omitting `connect` uses the real defaultConnect — a genuine spawn + handshake against a real child process
+  ---
+  duration_ms: 110.438233
+  type: 'test'
+  ...
+# Subtest: defaultConnect's own connect-timeout fires when the child never completes the handshake, and the child is killed
+ok 532 - defaultConnect's own connect-timeout fires when the child never completes the handshake, and the child is killed
+  ---
+  duration_ms: 50.939379
+  type: 'test'
+  ...
+# Subtest: defaultConnect: a launch command that does not exist fails the connection through the CHILD PROCESS's own error event, not a hang or an uncaught exception
+ok 533 - defaultConnect: a launch command that does not exist fails the connection through the CHILD PROCESS's own error event, not a hang or an uncaught exception
+  ---
+  duration_ms: 8.49052
+  type: 'test'
+  ...
+# Subtest: defaultConnect: a real child writing to stderr does not fail, hang, or leak into the protocol stream
+ok 534 - defaultConnect: a real child writing to stderr does not fail, hang, or leak into the protocol stream
+  ---
+  duration_ms: 56.076442
+  type: 'test'
+  ...
+# Subtest: omitting `connect` routes a HOSTED connection to the HTTP adapter — a real handshake over loopback
+ok 535 - omitting `connect` routes a HOSTED connection to the HTTP adapter — a real handshake over loopback
+  ---
+  duration_ms: 95.932731
+  type: 'test'
+  ...
+# Subtest: attachFederatedMcpTools returns one report per connection that reached admission, keyed by connectionId
+ok 536 - attachFederatedMcpTools returns one report per connection that reached admission, keyed by connectionId
+  ---
+  duration_ms: 4.833328
+  type: 'test'
+  ...
+# Subtest: tags each report with whether it came from a preset or the operator's roster
+ok 537 - tags each report with whether it came from a preset or the operator's roster
+  ---
+  duration_ms: 0.479076
+  type: 'test'
+  ...
+# Subtest: a connection that fails before admission (bad handshake) contributes no report entry at all
+ok 538 - a connection that fails before admission (bad handshake) contributes no report entry at all
+  ---
+  duration_ms: 0.296538
+  type: 'test'
+  ...
+# Subtest: with no connections at all, reports is empty rather than omitted or throwing
+ok 539 - with no connections at all, reports is empty rather than omitted or throwing
+  ---
+  duration_ms: 0.121219
+  type: 'test'
+  ...
+# Subtest: an admitted write-authorized tool is logged as a WARN, naming the connection and the tool
+ok 540 - an admitted write-authorized tool is logged as a WARN, naming the connection and the tool
+  ---
+  duration_ms: 0.395805
+  type: 'test'
+  ...
+# Subtest: a write-authorized name absent from the allowlist is logged as drift, sibling of the allowlistedButAbsent line
+ok 541 - a write-authorized name absent from the allowlist is logged as drift, sibling of the allowlistedButAbsent line
+  ---
+  duration_ms: 0.460616
+  type: 'test'
+  ...
+# [host-registry-test] mcp-federation: 'host-a' registered 2 federated tool(s): mcp__host-a__list_tables, mcp__host-a__get_advisors
+# [host-registry-test] mcp-federation: 'host-a' refused remote tool 'execute_sql' — not-in-operator-allowlist
+# Subtest: a hosted server that rejects the token is reported as a failed connection, and federation continues
+ok 542 - a hosted server that rejects the token is reported as a failed connection, and federation continues
+  ---
+  duration_ms: 16.78379
+  type: 'test'
+  ...
+# Subtest: booted hosts isolate their presets and runtime boot consumes the injected registry
+ok 543 - booted hosts isolate their presets and runtime boot consumes the injected registry
+  ---
+  duration_ms: 5754.096955
+  type: 'test'
+  ...
+# Subtest: ai_chats DDL parity with @jini-ai/chat/store/sqlite
+    # Subtest: produces the identical schema to CHAT_HISTORY_DDL
+    ok 1 - produces the identical schema to CHAT_HISTORY_DDL
+      ---
+      duration_ms: 15.939892
+      type: 'test'
+      ...
+    # Subtest: creates tables the Jini store can actually query
+    ok 2 - creates tables the Jini store can actually query
+      ---
+      duration_ms: 74.151535
+      type: 'test'
+      ...
+    # Subtest: enforces the cascade the migration declares
+    ok 3 - enforces the cascade the migration declares
+      ---
+      duration_ms: 7.662686
+      type: 'test'
+      ...
+    1..3
+ok 544 - ai_chats DDL parity with @jini-ai/chat/store/sqlite
+  ---
+  duration_ms: 99.076495
+  type: 'suite'
+  ...
+# Subtest: site capability registry
+    # Subtest: default deny
+        # Subtest: refuses an unknown capability name before executing anything
+        ok 1 - refuses an unknown capability name before executing anything
+          ---
+          duration_ms: 1.962101
+          type: 'test'
+          ...
+        # Subtest: refuses a real capability for a caller class it was not granted to
+        ok 2 - refuses a real capability for a caller class it was not granted to
+          ---
+          duration_ms: 0.417356
+          type: 'test'
+          ...
+        # Subtest: gives the same outcome kind for a nonexistent name and a not-granted caller
+        ok 3 - gives the same outcome kind for a nonexistent name and a not-granted caller
+          ---
+          duration_ms: 0.314528
+          type: 'test'
+          ...
+        1..3
+    ok 1 - default deny
+      ---
+      duration_ms: 3.836532
+      type: 'suite'
+      ...
+    # Subtest: authorized invocation
+        # Subtest: executes and returns the capability's result for a granted caller
+        ok 1 - executes and returns the capability's result for a granted caller
+          ---
+          duration_ms: 3.559002
+          type: 'test'
+          ...
+        # Subtest: leaves input validation to the capability itself
+        ok 2 - leaves input validation to the capability itself
+          ---
+          duration_ms: 0.444257
+          type: 'test'
+          ...
+        # Subtest: supports the parameterless list_categories capability
+        ok 3 - supports the parameterless list_categories capability
+          ---
+          duration_ms: 0.604513
+          type: 'test'
+          ...
+        1..3
+    ok 2 - authorized invocation
+      ---
+      duration_ms: 4.924137
+      type: 'suite'
+      ...
+    # Subtest: execution failure
+        # Subtest: surfaces a thrown error as an error outcome instead of throwing
+        ok 1 - surfaces a thrown error as an error outcome instead of throwing
+          ---
+          duration_ms: 1.359141
+          type: 'test'
+          ...
+        1..1
+    ok 3 - execution failure
+      ---
+      duration_ms: 1.509776
+      type: 'suite'
+      ...
+    # Subtest: SPEC-046 REQ-4 — directive passthrough
+        # Subtest: carries a page-action capability's directive on the ok outcome
+        ok 1 - carries a page-action capability's directive on the ok outcome
+          ---
+          duration_ms: 0.676481
+          type: 'test'
+          ...
+        # Subtest: a read-only capability's ok outcome never carries a directive
+        ok 2 - a read-only capability's ok outcome never carries a directive
+          ---
+          duration_ms: 0.761743
+          type: 'test'
+          ...
+        # Subtest: a refused target produces no directive, even for a page-action capability
+        ok 3 - a refused target produces no directive, even for a page-action capability
+          ---
+          duration_ms: 0.549508
+          type: 'test'
+          ...
+        1..3
+    ok 4 - SPEC-046 REQ-4 — directive passthrough
+      ---
+      duration_ms: 2.22965
+      type: 'suite'
+      ...
+    # Subtest: surface parity with the old closed switch
+        # Subtest: exposes exactly the capabilities the SSE route schemas describe
+        ok 1 - exposes exactly the capabilities the SSE route schemas describe
+          ---
+          duration_ms: 1.336065
+          type: 'test'
+          ...
+        # Subtest: re-exports the same model-facing schemas tools.ts defines
+        ok 2 - re-exports the same model-facing schemas tools.ts defines
+          ---
+          duration_ms: 0.12628
+          type: 'test'
+          ...
+        1..2
+    ok 5 - surface parity with the old closed switch
+      ---
+      duration_ms: 1.572466
+      type: 'suite'
+      ...
+    1..5
+ok 545 - site capability registry
+  ---
+  duration_ms: 14.806415
+  type: 'suite'
+  ...
+# Subtest: Ask advertises but never runs until this visitor clicks allow=true
+ok 546 - Ask advertises but never runs until this visitor clicks allow=true
+  ---
+  duration_ms: 26.019855
+  type: 'test'
+  ...
+# Subtest: Ask advertises but never runs until this visitor clicks allow=false
+ok 547 - Ask advertises but never runs until this visitor clicks allow=false
+  ---
+  duration_ms: 3.704501
+  type: 'test'
+  ...
+# Subtest: timeout while waiting refuses uniformly with a terminal audit
+ok 548 - timeout while waiting refuses uniformly with a terminal audit
+  ---
+  duration_ms: 1.324011
+  type: 'test'
+  ...
+# Subtest: disconnect while waiting refuses uniformly with a terminal audit
+ok 549 - disconnect while waiting refuses uniformly with a terminal audit
+  ---
+  duration_ms: 1.454554
+  type: 'test'
+  ...
+# Subtest: off while waiting refuses uniformly with a terminal audit
+ok 550 - off while waiting refuses uniformly with a terminal audit
+  ---
+  duration_ms: 0.83002
+  type: 'test'
+  ...
+# Subtest: restored while waiting refuses uniformly with a terminal audit
+ok 551 - restored while waiting refuses uniformly with a terminal audit
+  ---
+  duration_ms: 1.94083
+  type: 'test'
+  ...
+# Subtest: corrupt while waiting refuses uniformly with a terminal audit
+ok 552 - corrupt while waiting refuses uniformly with a terminal audit
+  ---
+  duration_ms: 0.891802
+  type: 'test'
+  ...
+# Subtest: storage-error while waiting refuses uniformly with a terminal audit
+ok 553 - storage-error while waiting refuses uniformly with a terminal audit
+  ---
+  duration_ms: 1.87172
+  type: 'test'
+  ...
+# Subtest: input is detached before the confirmation wait
+ok 554 - input is detached before the confirmation wait
+  ---
+  duration_ms: 1.925277
+  type: 'test'
+  ...
+# Subtest: a revision change after the click is refused before the effect
+ok 555 - a revision change after the click is refused before the effect
+  ---
+  duration_ms: 4.071582
+  type: 'test'
+  ...
+# Subtest: policy read failure before a prompt fails closed and retains diagnostics
+ok 556 - policy read failure before a prompt fails closed and retains diagnostics
+  ---
+  duration_ms: 0.444009
+  type: 'test'
+  ...
+# Subtest: a policy switch before the delegate and an Auto-to-Ask switch cannot bypass the click
+ok 557 - a policy switch before the delegate and an Auto-to-Ask switch cannot bypass the click
+  ---
+  duration_ms: 0.471533
+  type: 'test'
+  ...

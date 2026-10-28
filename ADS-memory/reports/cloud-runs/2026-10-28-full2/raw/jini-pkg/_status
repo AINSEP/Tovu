@@ -6,3 +6,12 @@ analytics exit 0 3s
 artifacts NOCONFIG
 artifacts exit 0 3s
 capability-providers exit 0 5s
+chat exit 0 381s
+cli exit 0 7s
+cms exit 0 119s
+commerce exit 0 4s
+cookie-consent exit 0 5s
+core exit 0 37s
+daemon exit 0 79s
+db exit 0 135s
+desktop-host exit 1 70s
