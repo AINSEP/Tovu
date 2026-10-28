@@ -1,0 +1,513 @@
+{
+ "total": 413,
+ "prod": 169,
+ "test": 244,
+ "prodCyc": 94,
+ "prodCog": 75,
+ "perPackage": {
+  "apps/admin": {
+   "cyc": 7,
+   "cog": 3
+  },
+  "apps/desktop": {
+   "cyc": 2,
+   "cog": 0
+  },
+  "apps/site-chat": {
+   "cyc": 1,
+   "cog": 0
+  },
+  "apps/website": {
+   "cyc": 37,
+   "cog": 17
+  },
+  "development/scripts": {
+   "cyc": 47,
+   "cog": 55
+  }
+ },
+ "worst": [
+  {
+   "file": "development/scripts/check-architecture.ts",
+   "line": 657,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 74,
+   "name": "(anon)"
+  },
+  {
+   "file": "development/scripts/coverage-changed.ts",
+   "line": 166,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 74,
+   "name": "(anon)"
+  },
+  {
+   "file": "development/scripts/check-architecture.ts",
+   "line": 657,
+   "rule": "complexity",
+   "n": 67,
+   "name": "main"
+  },
+  {
+   "file": "development/scripts/coverage-changed.ts",
+   "line": 166,
+   "rule": "complexity",
+   "n": 65,
+   "name": "runCoverageChanged"
+  },
+  {
+   "file": "development/scripts/coverage-changed.ts",
+   "line": 236,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 60,
+   "name": "(anon)"
+  },
+  {
+   "file": "development/scripts/coverage-changed.ts",
+   "line": 236,
+   "rule": "complexity",
+   "n": 56,
+   "name": "(anon)"
+  },
+  {
+   "file": "development/scripts/check-idle-motion.ts",
+   "line": 128,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 53,
+   "name": "(anon)"
+  },
+  {
+   "file": "development/scripts/coverage-changed-discovery.ts",
+   "line": 99,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 46,
+   "name": "(anon)"
+  },
+  {
+   "file": "development/scripts/check-outbox-bridge.ts",
+   "line": 120,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 42,
+   "name": "(anon)"
+  },
+  {
+   "file": "development/scripts/lib/dead-path-sweep.ts",
+   "line": 79,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 42,
+   "name": "(anon)"
+  },
+  {
+   "file": "development/scripts/coverage-changed-discovery.ts",
+   "line": 99,
+   "rule": "complexity",
+   "n": 41,
+   "name": "discoverTests"
+  },
+  {
+   "file": "development/scripts/write-path-inventory.ts",
+   "line": 304,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 35,
+   "name": "(anon)"
+  },
+  {
+   "file": "development/scripts/coverage-changed-model.ts",
+   "line": 220,
+   "rule": "complexity",
+   "n": 34,
+   "name": "(anon)"
+  },
+  {
+   "file": "development/scripts/coverage-changed-discovery.ts",
+   "line": 39,
+   "rule": "complexity",
+   "n": 33,
+   "name": "(anon)"
+  },
+  {
+   "file": "development/scripts/check-openapi-contract.ts",
+   "line": 236,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 32,
+   "name": "(anon)"
+  },
+  {
+   "file": "development/scripts/coverage-changed-model.ts",
+   "line": 220,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 32,
+   "name": "(anon)"
+  },
+  {
+   "file": "development/scripts/coverage-changed-model.ts",
+   "line": 106,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 30,
+   "name": "(anon)"
+  },
+  {
+   "file": "apps/website/src/platform/db/migrations/0012_secrets_vault.ts",
+   "line": 260,
+   "rule": "complexity",
+   "n": 29,
+   "name": "up"
+  },
+  {
+   "file": "development/scripts/lib/admin-route-walk.ts",
+   "line": 64,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 29,
+   "name": "(anon)"
+  },
+  {
+   "file": "development/scripts/write-path-inventory.ts",
+   "line": 257,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 28,
+   "name": "(anon)"
+  },
+  {
+   "file": "apps/website/src/server/runtime/composition/modules/assistant-byok.ts",
+   "line": 603,
+   "rule": "complexity",
+   "n": 27,
+   "name": "run"
+  },
+  {
+   "file": "development/scripts/check-architecture.ts",
+   "line": 388,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 27,
+   "name": "(anon)"
+  },
+  {
+   "file": "development/scripts/check-idle-motion.ts",
+   "line": 128,
+   "rule": "complexity",
+   "n": 27,
+   "name": "checkIdleMotion"
+  },
+  {
+   "file": "development/scripts/lib/dead-path-sweep.ts",
+   "line": 233,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 27,
+   "name": "(anon)"
+  },
+  {
+   "file": "development/scripts/lib/openapi-operations.ts",
+   "line": 58,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 27,
+   "name": "(anon)"
+  },
+  {
+   "file": "development/scripts/check-theme-replaced-elements.ts",
+   "line": 152,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 26,
+   "name": "(anon)"
+  },
+  {
+   "file": "development/scripts/coverage-changed-discovery.ts",
+   "line": 39,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 26,
+   "name": "(anon)"
+  },
+  {
+   "file": "development/scripts/lib/dead-path-sweep.ts",
+   "line": 79,
+   "rule": "complexity",
+   "n": 26,
+   "name": "stripComments"
+  },
+  {
+   "file": "development/scripts/lib/dead-path-sweep.ts",
+   "line": 437,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 26,
+   "name": "(anon)"
+  },
+  {
+   "file": "development/scripts/check-openapi-contract.ts",
+   "line": 236,
+   "rule": "complexity",
+   "n": 25,
+   "name": "main"
+  },
+  {
+   "file": "development/scripts/coverage-changed-model.ts",
+   "line": 52,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 25,
+   "name": "(anon)"
+  },
+  {
+   "file": "development/scripts/check-test-baseline.ts",
+   "line": 129,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 24,
+   "name": "(anon)"
+  },
+  {
+   "file": "development/scripts/check-admin-api-routes.ts",
+   "line": 49,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 23,
+   "name": "(anon)"
+  },
+  {
+   "file": "development/scripts/coverage-changed-model.ts",
+   "line": 106,
+   "rule": "complexity",
+   "n": 23,
+   "name": "parseImage"
+  },
+  {
+   "file": "development/scripts/report-churn-hotspots.ts",
+   "line": 130,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 23,
+   "name": "(anon)"
+  },
+  {
+   "file": "apps/website/src/server/runtime/composition/modules/assistant-byok.ts",
+   "line": 603,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 22,
+   "name": "(anon)"
+  },
+  {
+   "file": "development/scripts/check-outbox-bridge.ts",
+   "line": 120,
+   "rule": "complexity",
+   "n": 22,
+   "name": "stripCommentsAndStrings"
+  },
+  {
+   "file": "development/scripts/check-outbox-bridge.ts",
+   "line": 195,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 22,
+   "name": "(anon)"
+  },
+  {
+   "file": "apps/website/src/platform/db/migrations/0012_secrets_vault.ts",
+   "line": 260,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 21,
+   "name": "(anon)"
+  },
+  {
+   "file": "development/scripts/check-outbox-bridge.ts",
+   "line": 337,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 21,
+   "name": "(anon)"
+  }
+ ],
+ "files": [
+  [
+   "development/scripts/coverage-changed-model.ts",
+   15,
+   {
+    "cyc": 8,
+    "cog": 7
+   }
+  ],
+  [
+   "development/scripts/coverage-changed.ts",
+   8,
+   {
+    "cyc": 4,
+    "cog": 4
+   }
+  ],
+  [
+   "development/scripts/lib/dead-path-sweep.ts",
+   8,
+   {
+    "cyc": 4,
+    "cog": 4
+   }
+  ],
+  [
+   "development/scripts/check-architecture.ts",
+   7,
+   {
+    "cyc": 2,
+    "cog": 5
+   }
+  ],
+  [
+   "development/scripts/coverage-changed-discovery.ts",
+   7,
+   {
+    "cyc": 4,
+    "cog": 3
+   }
+  ],
+  [
+   "apps/website/src/platform/db/migrations/0012_secrets_vault.ts",
+   6,
+   {
+    "cyc": 3,
+    "cog": 3
+   }
+  ],
+  [
+   "development/scripts/write-path-inventory.ts",
+   6,
+   {
+    "cyc": 3,
+    "cog": 3
+   }
+  ],
+  [
+   "development/scripts/check-outbox-bridge.ts",
+   5,
+   {
+    "cyc": 2,
+    "cog": 3
+   }
+  ],
+  [
+   "development/scripts/check-admin-api-routes.ts",
+   4,
+   {
+    "cyc": 2,
+    "cog": 2
+   }
+  ],
+  [
+   "development/scripts/coverage-all-files.ts",
+   4,
+   {
+    "cyc": 2,
+    "cog": 2
+   }
+  ],
+  [
+   "development/scripts/lib/admin-route-walk.ts",
+   4,
+   {
+    "cyc": 2,
+    "cog": 2
+   }
+  ],
+  [
+   "apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts",
+   3,
+   {
+    "cyc": 3,
+    "cog": 0
+   }
+  ],
+  [
+   "development/scripts/check-idle-motion.ts",
+   3,
+   {
+    "cyc": 1,
+    "cog": 2
+   }
+  ],
+  [
+   "development/scripts/theme-tool.ts",
+   3,
+   {
+    "cyc": 1,
+    "cog": 2
+   }
+  ],
+  [
+   "apps/admin/src/features/consent/CookieConsent.tsx",
+   2,
+   {
+    "cyc": 2,
+    "cog": 0
+   }
+  ],
+  [
+   "apps/admin/src/features/observability/Observability.tsx",
+   2,
+   {
+    "cyc": 1,
+    "cog": 1
+   }
+  ],
+  [
+   "apps/admin/src/features/plugins/PluginProviderSettingsDialog.tsx",
+   2,
+   {
+    "cyc": 1,
+    "cog": 1
+   }
+  ],
+  [
+   "apps/admin/src/features/skills/skill-drop.ts",
+   2,
+   {
+    "cyc": 1,
+    "cog": 1
+   }
+  ],
+  [
+   "apps/website/src/features/consent/settings-link.ts",
+   2,
+   {
+    "cyc": 1,
+    "cog": 1
+   }
+  ],
+  [
+   "apps/website/src/features/custom-credentials/credential-save-tool.ts",
+   2,
+   {
+    "cyc": 2,
+    "cog": 0
+   }
+  ],
+  [
+   "apps/website/src/features/custom-credentials/provider-settings-card.ts",
+   2,
+   {
+    "cyc": 2,
+    "cog": 0
+   }
+  ],
+  [
+   "apps/website/src/features/sites/site-admin.ts",
+   2,
+   {
+    "cyc": 2,
+    "cog": 0
+   }
+  ],
+  [
+   "apps/website/src/platform/db/migrations/0011_drop_empty_core_commerce_tables.ts",
+   2,
+   {
+    "cyc": 1,
+    "cog": 1
+   }
+  ],
+  [
+   "apps/website/src/platform/db/migrations/0013_unify_vault_credentials.ts",
+   2,
+   {
+    "cyc": 1,
+    "cog": 1
+   }
+  ],
+  [
+   "apps/website/src/platform/site-dir/publish-backstop-file.ts",
+   2,
+   {
+    "cyc": 1,
+    "cog": 1
+   }
+  ]
+ ]
+}

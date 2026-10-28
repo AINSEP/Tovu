@@ -1,0 +1,605 @@
+{
+ "total": 167,
+ "prod": 88,
+ "test": 79,
+ "prodCyc": 54,
+ "prodCog": 34,
+ "perPackage": {
+  "examples/minimal-host": {
+   "cyc": 1,
+   "cog": 0
+  },
+  "examples/reference-web": {
+   "cyc": 9,
+   "cog": 5
+  },
+  "packages/agent-plugins": {
+   "cyc": 2,
+   "cog": 2
+  },
+  "packages/agentic": {
+   "cyc": 1,
+   "cog": 1
+  },
+  "packages/analytics": {
+   "cyc": 1,
+   "cog": 0
+  },
+  "packages/chat": {
+   "cyc": 3,
+   "cog": 3
+  },
+  "packages/cms": {
+   "cyc": 2,
+   "cog": 0
+  },
+  "packages/cookie-consent": {
+   "cyc": 1,
+   "cog": 0
+  },
+  "packages/daemon": {
+   "cyc": 4,
+   "cog": 1
+  },
+  "packages/db": {
+   "cyc": 0,
+   "cog": 1
+  },
+  "packages/devops": {
+   "cyc": 1,
+   "cog": 0
+  },
+  "packages/http-kit": {
+   "cyc": 1,
+   "cog": 0
+  },
+  "packages/memory": {
+   "cyc": 1,
+   "cog": 0
+  },
+  "packages/oauth": {
+   "cyc": 1,
+   "cog": 0
+  },
+  "packages/platform": {
+   "cyc": 1,
+   "cog": 0
+  },
+  "packages/plugins": {
+   "cyc": 2,
+   "cog": 1
+  },
+  "packages/provider-plugins": {
+   "cyc": 1,
+   "cog": 1
+  },
+  "packages/sidecar": {
+   "cyc": 1,
+   "cog": 0
+  },
+  "scripts/check-agentic-dom-purity.ts": {
+   "cyc": 1,
+   "cog": 0
+  },
+  "scripts/check-chatpane-public-surface.ts": {
+   "cyc": 1,
+   "cog": 1
+  },
+  "scripts/check-engine-boundaries.ts": {
+   "cyc": 3,
+   "cog": 3
+  },
+  "scripts/check-extensionless-imports.ts": {
+   "cyc": 1,
+   "cog": 1
+  },
+  "scripts/check-guard-drift.ts": {
+   "cyc": 0,
+   "cog": 1
+  },
+  "scripts/check-package-layers.ts": {
+   "cyc": 3,
+   "cog": 2
+  },
+  "scripts/check-protocol-purity.ts": {
+   "cyc": 0,
+   "cog": 1
+  },
+  "scripts/check-subpath-isolation.ts": {
+   "cyc": 3,
+   "cog": 3
+  },
+  "scripts/lib": {
+   "cyc": 8,
+   "cog": 6
+  },
+  "scripts/testing": {
+   "cyc": 1,
+   "cog": 1
+  }
+ },
+ "worst": [
+  {
+   "file": "scripts/check-subpath-isolation.ts",
+   "line": 214,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 122,
+   "name": "(anon)"
+  },
+  {
+   "file": "scripts/check-engine-boundaries.ts",
+   "line": 340,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 71,
+   "name": "(anon)"
+  },
+  {
+   "file": "scripts/check-subpath-isolation.ts",
+   "line": 99,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 53,
+   "name": "(anon)"
+  },
+  {
+   "file": "scripts/check-subpath-isolation.ts",
+   "line": 214,
+   "rule": "complexity",
+   "n": 53,
+   "name": "auditSubpathIsolation"
+  },
+  {
+   "file": "scripts/check-package-layers.ts",
+   "line": 74,
+   "rule": "complexity",
+   "n": 48,
+   "name": "check"
+  },
+  {
+   "file": "scripts/check-engine-boundaries.ts",
+   "line": 340,
+   "rule": "complexity",
+   "n": 47,
+   "name": "checkEngineBoundaries"
+  },
+  {
+   "file": "examples/reference-web/src/A2uiLab.tsx",
+   "line": 71,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 44,
+   "name": "(anon)"
+  },
+  {
+   "file": "scripts/lib/walk-imports.ts",
+   "line": 66,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 37,
+   "name": "(anon)"
+  },
+  {
+   "file": "examples/reference-web/src/daemon-transport.ts",
+   "line": 89,
+   "rule": "complexity",
+   "n": 32,
+   "name": "toAgentEvent"
+  },
+  {
+   "file": "scripts/lib/source-neutrality.ts",
+   "line": 31,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 32,
+   "name": "(anon)"
+  },
+  {
+   "file": "examples/reference-web/src/daemon-transport.ts",
+   "line": 89,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 30,
+   "name": "(anon)"
+  },
+  {
+   "file": "examples/reference-web/src/daemon-transport.ts",
+   "line": 168,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 30,
+   "name": "(anon)"
+  },
+  {
+   "file": "scripts/check-engine-boundaries.ts",
+   "line": 226,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 28,
+   "name": "(anon)"
+  },
+  {
+   "file": "scripts/lib/walk-imports.ts",
+   "line": 139,
+   "rule": "complexity",
+   "n": 28,
+   "name": "visit"
+  },
+  {
+   "file": "scripts/check-subpath-isolation.ts",
+   "line": 99,
+   "rule": "complexity",
+   "n": 26,
+   "name": "exportEntries"
+  },
+  {
+   "file": "examples/reference-web/src/playground-request.ts",
+   "line": 97,
+   "rule": "complexity",
+   "n": 25,
+   "name": "decodePlaygroundRunRequest"
+  },
+  {
+   "file": "scripts/check-extensionless-imports.ts",
+   "line": 137,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 24,
+   "name": "(anon)"
+  },
+  {
+   "file": "scripts/lib/source-neutrality.ts",
+   "line": 31,
+   "rule": "complexity",
+   "n": 24,
+   "name": "checkSourceNeutrality"
+  },
+  {
+   "file": "examples/minimal-host/src/index.ts",
+   "line": 44,
+   "rule": "complexity",
+   "n": 22,
+   "name": "main"
+  },
+  {
+   "file": "examples/reference-web/src/A2uiLab.tsx",
+   "line": 71,
+   "rule": "complexity",
+   "n": 20,
+   "name": "streamA2uiRun"
+  },
+  {
+   "file": "examples/reference-web/src/playground-request.ts",
+   "line": 97,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 20,
+   "name": "(anon)"
+  },
+  {
+   "file": "scripts/check-package-layers.ts",
+   "line": 74,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 20,
+   "name": "(anon)"
+  },
+  {
+   "file": "scripts/lib/walk-imports.ts",
+   "line": 66,
+   "rule": "complexity",
+   "n": 20,
+   "name": "stripComments"
+  },
+  {
+   "file": "scripts/lib/peer-range-compatibility.ts",
+   "line": 19,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 19,
+   "name": "(anon)"
+  },
+  {
+   "file": "scripts/check-agentic-dom-purity.ts",
+   "line": 122,
+   "rule": "complexity",
+   "n": 18,
+   "name": "checkAgenticDomPurity"
+  },
+  {
+   "file": "scripts/lib/pack-jini-packages.ts",
+   "line": 70,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 17,
+   "name": "(anon)"
+  },
+  {
+   "file": "examples/reference-web/src/daemon-transport.ts",
+   "line": 168,
+   "rule": "complexity",
+   "n": 16,
+   "name": "streamRun"
+  },
+  {
+   "file": "scripts/check-extensionless-imports.ts",
+   "line": 137,
+   "rule": "complexity",
+   "n": 16,
+   "name": "checkExtensionlessImports"
+  },
+  {
+   "file": "examples/reference-web/src/daemon-transport.ts",
+   "line": 227,
+   "rule": "complexity",
+   "n": 15,
+   "name": "startRun"
+  },
+  {
+   "file": "packages/agent-plugins/src/lifecycle/bundled-source-archive.ts",
+   "line": 332,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 15,
+   "name": "(anon)"
+  },
+  {
+   "file": "scripts/check-chatpane-public-surface.ts",
+   "line": 109,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 15,
+   "name": "(anon)"
+  },
+  {
+   "file": "scripts/check-engine-boundaries.ts",
+   "line": 226,
+   "rule": "complexity",
+   "n": 15,
+   "name": "loadPackageRecords"
+  },
+  {
+   "file": "examples/reference-web/src/LabExpense.tsx",
+   "line": 331,
+   "rule": "complexity",
+   "n": 14,
+   "name": "LabExpenseReceipt"
+  },
+  {
+   "file": "scripts/lib/peer-range-compatibility.ts",
+   "line": 19,
+   "rule": "complexity",
+   "n": 14,
+   "name": "assertCompatiblePeerRanges"
+  },
+  {
+   "file": "scripts/lib/self-test.ts",
+   "line": 118,
+   "rule": "complexity",
+   "n": 14,
+   "name": "runGuardSelfTest"
+  },
+  {
+   "file": "scripts/lib/self-test.ts",
+   "line": 118,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 14,
+   "name": "(anon)"
+  },
+  {
+   "file": "packages/agentic/src/core/capability.ts",
+   "line": 122,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 13,
+   "name": "(anon)"
+  },
+  {
+   "file": "packages/analytics/src/ingest.ts",
+   "line": 344,
+   "rule": "complexity",
+   "n": 13,
+   "name": "ipMatchesRange"
+  },
+  {
+   "file": "packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts",
+   "line": 176,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 13,
+   "name": "(anon)"
+  },
+  {
+   "file": "scripts/check-engine-boundaries.ts",
+   "line": 132,
+   "rule": "sonarjs/cognitive-complexity",
+   "n": 13,
+   "name": "(anon)"
+  }
+ ],
+ "files": [
+  [
+   "examples/reference-web/src/daemon-transport.ts",
+   6,
+   {
+    "cyc": 3,
+    "cog": 3
+   }
+  ],
+  [
+   "scripts/check-engine-boundaries.ts",
+   6,
+   {
+    "cyc": 3,
+    "cog": 3
+   }
+  ],
+  [
+   "scripts/check-subpath-isolation.ts",
+   6,
+   {
+    "cyc": 3,
+    "cog": 3
+   }
+  ],
+  [
+   "scripts/check-package-layers.ts",
+   5,
+   {
+    "cyc": 3,
+    "cog": 2
+   }
+  ],
+  [
+   "scripts/lib/walk-imports.ts",
+   5,
+   {
+    "cyc": 3,
+    "cog": 2
+   }
+  ],
+  [
+   "examples/reference-web/src/playground-request.ts",
+   3,
+   {
+    "cyc": 2,
+    "cog": 1
+   }
+  ],
+  [
+   "packages/plugins/src/host/provider-contributions.ts",
+   3,
+   {
+    "cyc": 2,
+    "cog": 1
+   }
+  ],
+  [
+   "examples/reference-web/src/A2uiLab.tsx",
+   2,
+   {
+    "cyc": 1,
+    "cog": 1
+   }
+  ],
+  [
+   "examples/reference-web/src/daemon.ts",
+   2,
+   {
+    "cyc": 2,
+    "cog": 0
+   }
+  ],
+  [
+   "packages/agent-plugins/src/lifecycle/bundled-source-archive.ts",
+   2,
+   {
+    "cyc": 0,
+    "cog": 2
+   }
+  ],
+  [
+   "scripts/check-chatpane-public-surface.ts",
+   2,
+   {
+    "cyc": 1,
+    "cog": 1
+   }
+  ],
+  [
+   "scripts/check-extensionless-imports.ts",
+   2,
+   {
+    "cyc": 1,
+    "cog": 1
+   }
+  ],
+  [
+   "scripts/lib/pack-jini-packages.ts",
+   2,
+   {
+    "cyc": 1,
+    "cog": 1
+   }
+  ],
+  [
+   "scripts/lib/peer-range-compatibility.ts",
+   2,
+   {
+    "cyc": 1,
+    "cog": 1
+   }
+  ],
+  [
+   "scripts/lib/self-test.ts",
+   2,
+   {
+    "cyc": 1,
+    "cog": 1
+   }
+  ],
+  [
+   "scripts/lib/source-neutrality.ts",
+   2,
+   {
+    "cyc": 1,
+    "cog": 1
+   }
+  ],
+  [
+   "scripts/testing/packed-fixture.ts",
+   2,
+   {
+    "cyc": 1,
+    "cog": 1
+   }
+  ],
+  [
+   "examples/minimal-host/src/index.ts",
+   1,
+   {
+    "cyc": 1,
+    "cog": 0
+   }
+  ],
+  [
+   "examples/reference-web/src/LabExpense.tsx",
+   1,
+   {
+    "cyc": 1,
+    "cog": 0
+   }
+  ],
+  [
+   "packages/agent-plugins/src/admin-surfaces/surface-capabilities.ts",
+   1,
+   {
+    "cyc": 1,
+    "cog": 0
+   }
+  ],
+  [
+   "packages/agent-plugins/src/lifecycle/tools/projection.ts",
+   1,
+   {
+    "cyc": 1,
+    "cog": 0
+   }
+  ],
+  [
+   "packages/agentic/src/core/capability.ts",
+   1,
+   {
+    "cyc": 0,
+    "cog": 1
+   }
+  ],
+  [
+   "packages/agentic/src/skills/install/install-service.ts",
+   1,
+   {
+    "cyc": 1,
+    "cog": 0
+   }
+  ],
+  [
+   "packages/analytics/src/ingest.ts",
+   1,
+   {
+    "cyc": 1,
+    "cog": 0
+   }
+  ],
+  [
+   "packages/chat/src/core/accepted-input.ts",
+   1,
+   {
+    "cyc": 0,
+    "cog": 1
+   }
+  ]
+ ]
+}

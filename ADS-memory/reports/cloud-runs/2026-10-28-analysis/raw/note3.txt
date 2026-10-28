@@ -1,0 +1,1 @@
+Step3: complexity:strict as scripted exit 2: 'sonarjs plugin not defined' (rule applied via --rule to non-ts files, e.g. .mjs; package.json:20). Re-running restricted to ts/tsx globs.
