@@ -41,6 +41,7 @@ async function fixture(t: TestContext) {
   }
   sql.prepare("INSERT INTO principals (id,workspace_id,kind,display_name,status,created_at) VALUES ('owner','ws','user','Owner','active',?)").run(stamp);
   sql.prepare("INSERT INTO identity_users (principal_id,workspace_id,username,password_hash) VALUES ('owner','ws','owner',?)").run(sentinel);
+  sql.prepare("INSERT INTO members (id,workspace_id,email,status,created_at,updated_at,version,password_hash) VALUES ('member','ws','member@example.test','active',?,?,1,?)").run(stamp, stamp, sentinel);
   sql.prepare("INSERT INTO sessions (id,workspace_id,principal_id,token_hash,created_at,expires_at) VALUES ('session','ws','owner',?,?,?)").run(sentinel, stamp, stamp);
   sql.prepare("INSERT INTO api_keys (id,workspace_id,principal_id,label,key_hash,prefix,created_at) VALUES ('key','ws','owner','test',?,'prefix',?)").run(sentinel, stamp);
   sql.prepare("INSERT INTO secrets_vault (workspace_id,id,kind,owner_key,label,is_default,revision,meta,created_at,updated_at) VALUES ('ws','vault','custom','tovu',?,0,1,'{}',?,?)").run(sentinel, stamp, stamp);
@@ -153,7 +154,7 @@ test("fresh share projection preserves drafts/schedules/autosaves, excludes priv
   for (const table of ["media", "menus", "nav_location_bindings", "presentation_settings"]) assert.deepEqual(shared.prepare(`SELECT * FROM "${table}"`).all(), sql.prepare(`SELECT * FROM "${table}"`).all(), table);
   // An unsniffed (null) content_type is filled with the archive's sniffed type; every other column is kept.
   assert.deepEqual(shared.prepare(`SELECT * FROM "asset_blobs"`).all(), sql.prepare(`SELECT * FROM "asset_blobs"`).all().map(row => ({ ...(row as object), content_type: "application/octet-stream" })), "asset_blobs");
-  for (const table of ["principals", "identity_users", "sessions", "api_keys", "secrets_vault", "setting_values_global", "setting_values_user", "setting_revisions"]) assert.equal((shared.prepare(`SELECT count(*) AS n FROM "${table}"`).get() as { n: number }).n, 0, table);
+  for (const table of ["principals", "identity_users", "members", "sessions", "api_keys", "secrets_vault", "setting_values_global", "setting_values_user", "setting_revisions"]) assert.equal((shared.prepare(`SELECT count(*) AS n FROM "${table}"`).get() as { n: number }).n, 0, table);
   assert.deepEqual(shared.prepare("SELECT setting_id FROM setting_definitions ORDER BY setting_id").all(), [{ setting_id: "title" }]);
   assert.equal((shared.prepare("SELECT count(*) AS n FROM post_search_document").get() as { n: number }).n, 4, "search is rebuilt from portable posts");
   await assert.rejects(readFile(path.join(dir, "snapshot.db")), /ENOENT/, "snapshot staging is cleaned");

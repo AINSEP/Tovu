@@ -30,9 +30,11 @@ const LATER_COPIED = ["form_delivery_jobs", "form_delivery_plans", "form_submiss
   // why: 0027 adds derived site-search bookkeeping; copied by introspection like any other core table.
   "search_index_state", "search_index_targets", "search_index_watermarks",
   // why: 0028 adds replaced search generations awaiting their index drop; derived, copied the same way.
-  "search_index_retired"];
+  "search_index_retired",
+  // 8bfa8b040 (0035): external identity associations hold no provider tokens.
+  "member_external_identities"];
 // why: 0023's capture-mode sink holds whole messages (raw sign-in links), so it joins the exclusion list.
-const LATER_EXCLUDED = ["form_receiver_pulls", "mail_capture"];
+const LATER_EXCLUDED = ["form_receiver_pulls", "mail_capture", "members"];
 const without = (names: string[], removed: string[]) => names.filter(name => !removed.includes(name));
 const plus = (names: string[], added: string[]) => [...names, ...added].sort();
 
@@ -49,7 +51,8 @@ describe("vault boundary parity [sqlite]", () => {
   after(async () => { await fixture?.kernel.close(); });
 
   test("a transfer copies the same tables as before minus the retired ones", () => {
-    assert.deepEqual(actual.copied, plus(without(golden.copied, [...RETIRED, ...COMMERCE]), LATER_COPIED));
+    // 0034 adds members.password_hash, so the login exclusion now covers members too.
+    assert.deepEqual(actual.copied, plus(without(golden.copied, [...RETIRED, ...COMMERCE, "members"]), LATER_COPIED));
   });
   test("the vault is never copied; it is left out next to what was left out before", () => {
     assert.equal(actual.copied.includes("secrets_vault"), false);

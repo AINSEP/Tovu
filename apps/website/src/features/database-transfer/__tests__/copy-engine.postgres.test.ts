@@ -104,7 +104,7 @@ async function copyAs(site: string, snapshotAt: string, bytes: Buffer = fixtureS
 async function copyInto(schema: string, site: string): Promise<CopyResult> {
   const source = openSqliteSnapshotSource(fixtureSnapshot());
   try {
-    const tables = collectTransferTables();
+    const { tables } = planSnapshotTables(source);
     return await runCopy({ source, target: TARGET(), tables, counts: countSourceRows(source, tables), schema, marker: { site, snapshotAt: "x" }, replaceExisting: false });
   } finally {
     source.close();
@@ -226,8 +226,8 @@ test("a count mismatch or rejected replacement preserves the earlier rows and ma
   await sql(FIXTURE_DB, "UPDATE tovu.menus SET title = 'original sentinel' WHERE id = 'menu-1'");
   const replacement = fixtureSnapshot();
   const source = openSqliteSnapshotSource(replacement);
-  const tables = collectTransferTables();
   try {
+    const { tables } = planSnapshotTables(source);
     const counts = countSourceRows(source, tables).map((entry) => entry.table.name === "menus" ? { ...entry, rows: entry.rows + 1 } : entry);
     const result = await runCopy({ source, target: TARGET(), tables, counts, schema: "tovu", marker: { site: SITE, snapshotAt: "replacement" }, replaceExisting: true });
     assert.equal(!result.ok && result.code, "COUNT_MISMATCH");
@@ -338,6 +338,20 @@ test("T1: the copy carries the schema's indexes, foreign keys, checks, defaults 
   assert.deepEqual(result.unvalidatedConstraints, []);
   const copied = new Set(result.tables.map((table) => table.name));
   const declared = declaredFor(copied);
+  const coreNames = new Set(collectCoreTables().map(({ table }) => getSqliteTableConfig(table).name));
+  const source = openSqliteSnapshotSource(bytes);
+  try {
+    // Migration-only tables have no Drizzle declaration; their source layout is the reference.
+    for (const name of [...copied].filter(name => !coreNames.has(name))) {
+      const layout = source.layout(name);
+      assert.ok(layout, `source layout for ${name}`);
+      // These tables have text/composite primary keys, whose indexes SQLite also lists.
+      declared.indexes += layout.indexes.length;
+      declared.foreignKeys += layout.foreignKeys.filter(fk => copied.has(fk.foreignTable)).length;
+    }
+  } finally {
+    source.close();
+  }
   const q = (text: string) => sql(FIXTURE_DB, text);
   assert.equal(Number(await q(`SELECT count(*) FROM pg_indexes WHERE schemaname = '${schema}' AND tablename <> '_tovu_transfer'`)), declared.indexes);
   assert.equal(Number(await q(`SELECT count(*) FROM pg_constraint WHERE connamespace = '${schema}'::regnamespace AND contype = 'f'`)), declared.foreignKeys);

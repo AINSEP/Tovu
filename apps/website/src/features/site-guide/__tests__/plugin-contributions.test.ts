@@ -16,7 +16,10 @@ test("How Tovu works uses stable manifest identity and valid main topics with re
   const parsed = resolveSiteGuideEngine({}).parseGuideTopics({ raw: await readFile(resolve(root, SITE_GUIDE_FILENAME), "utf8") });
   if (!parsed.ok) throw new Error(parsed.reason);
   assert.equal(parsed.ok, true);
-  assert.deepEqual(parsed.descriptors.map(topic => topic.id), TOVU_CAPABILITY_CARDS.map(card => `how-tovu-works-${card.id}`));
+  // 4df4bbed1 adds a core-only backup card; enrichment topics remain independently authored.
+  assert.deepEqual(parsed.descriptors.map(topic => topic.id), [
+    "content", "forms", "widgets", "themes", "members", "seo", "deploy", "plugins", "jini-packages",
+  ].map(id => `how-tovu-works-${id}`));
   const coreIds = new Set(TOVU_CAPABILITY_CARDS.map(card => card.id));
   assert.ok(parsed.descriptors.every(topic => !coreIds.has(topic.id)), "plugins must never replace core cards");
   const form = parsed.descriptors.find(topic => topic.id === "how-tovu-works-forms")!;

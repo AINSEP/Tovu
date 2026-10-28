@@ -75,15 +75,22 @@ test("the content history through the current head applies on real Postgres", as
     "0019_form_delivery_plans", "0020_vault_api_connection_kind", "0021_site_consent_revisions",
     "0022_workspace_mcp_cascade", "0023_mail_ledgers", "0024_domain_bindings", "0025_mail_feedback_processed", "0026_domain_binding_version",
     "0027_search_index", "0028_search_index_retired", "0029_mail_activity_indexes",
-    "0030_mail_suppression_admin",
+    "0030_mail_suppression_admin", "0031_mail_activity_retention", "0032_member_signup_email",
+    "0033_mail_activity_message", "0034_member_auth", "0035_member_external_identities",
   ];
   assert.deepEqual(report.applied, head);
   assert.deepEqual(CONTENT_MIGRATIONS.map(step => step.id), head);
   const [{ n }] = await baseline.query<{ n: number }>(
     sql`SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema = current_schema() AND table_type = 'BASE TABLE' AND left(table_name, 14) <> '_vault_backup_'`
   );
-  assert.equal(n, collectCoreTables().length + 15, "declared content tables plus post_search_document, tovu_migrations, two TS-only site consent tables, six TS-only mail tables (four ledgers, activity attempts and the suppression removal audit), domain_binding and four TS-only search index tables");
-  assert.equal(n, 93, "93 tables at 0030_mail_suppression_admin: an accidental drop or addition must change this pin");
+  const nonCoreTables = [
+    "post_search_document", "tovu_migrations", "site_consent_revisions", "site_consent_heads",
+    "mail_send_ledger", "mail_suppression", "mail_feedback_inbox", "mail_capture",
+    "mail_activity_attempts", "mail_suppression_removals", "domain_binding", "search_index_state",
+    "search_index_watermarks", "search_index_targets", "search_index_retired",
+  ];
+  assert.equal(n, collectCoreTables().length + nonCoreTables.length, "declared content tables plus search document, ledger and TS-only tables; 0035's member_external_identities is already core");
+  assert.equal(n, 93, "93 tables at 0035_member_external_identities: an accidental drop or addition must change this pin");
   const [{ cfg }] = await baseline.query<{ cfg: number }>(sql`SELECT count(*)::int AS cfg FROM pg_ts_config WHERE cfgname = 'tovu_search'`);
   assert.equal(cfg, 1);
   assert.deepEqual((await migrateContentDatabase(baseline)).applied, [], "a rerun applies nothing");

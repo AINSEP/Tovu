@@ -74,16 +74,18 @@ test("INV-06 characterization: members' send call site still awaits deps.mailer.
   );
 });
 
-test("real call sites use distinct lanes through the production gate and sign-in waits for send completion", async (t) => {
+test("real call sites use distinct lanes through the production gate and sign-in waits for send completion", { timeout: 30_000 }, async (t) => {
   const now = "2026-09-30T00:00:00.000Z";
   const options: MailerSendOptions[] = [];
   let releaseSend!: () => void;
   const pendingSend = new Promise<void>((resolve) => { releaseSend = resolve; });
+  let markSendStarted!: () => void;
+  const sendStarted = new Promise<void>((resolve) => { markSendStarted = resolve; });
   const providerSends: string[] = [];
   const success: MailerSendResult = { ok: true, providerMessageId: "msg-1", acceptedAt: now };
   const inner: MailerPort = {
     capabilities: () => ({ driver: "recording", supportsIdempotencyKey: false, supportsWebhookFeedback: false, maxBatchSize: 1, supportsAttachments: false }),
-    send: async (message) => { providerSends.push(message.to.email); await pendingSend; return success; },
+    send: async (message) => { providerSends.push(message.to.email); markSendStarted(); await pendingSend; return success; },
     sendBatch: async () => { throw new Error("these call sites must use send"); },
   };
   const gate = wrapMailerWithPurposeGate({ inner, mode: "production", durableOutboxReady: () => false });
@@ -101,13 +103,13 @@ test("real call sites use distinct lanes through the production gate and sign-in
     origin: { canonicalOrigin: async () => ({ scheme: "https", host: "localhost", port: 3000, verifiedAt: now, source: "dev-capability" }), isAllowedRedirectTarget: async () => false, isAllowedEgressTarget: async () => false },
   }, input: { workspaceId: "ws-1", email: "member@example.com" } }).then((result) => { completed = true; return result; });
   try {
-    // Drain the call site's asynchronous repo operations without advancing any wall-clock timer.
-    await new Promise<void>((resolve) => setImmediate(resolve));
+    // Code hashing is asynchronous too: synchronize on delivery rather than one event-loop turn.
+    await sendStarted;
     assert.deepEqual(providerSends, ["member@example.com"]);
     assert.equal(options[0]?.lane, "interactive");
     assert.equal(completed, false, "the request must remain pending while the provider send is pending");
   } finally { releaseSend(); }
-  assert.deepEqual(await signIn, { delivered: true });
+  assert.deepEqual(await signIn, { delivered: true, challengeId: "id-1" });
   assert.equal(completed, true);
 
   const bus = new InMemoryEventBus();

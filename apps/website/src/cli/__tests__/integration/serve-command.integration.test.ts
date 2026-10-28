@@ -14,6 +14,7 @@ import test, { after } from "node:test";
 import Database from "better-sqlite3";
 
 import { childProcessCoverageEnv } from "#src/contracts/core/__tests__/helpers/child-process-coverage-env";
+import { loginAsOwner } from "#src/server/__tests__/helpers/http-test-server";
 import { removeFixtureTree } from "../helpers/remove-fixture-tree.js";
 
 const require = createRequire(import.meta.url);
@@ -570,7 +571,7 @@ async function startFakeOtlpCollector(): Promise<{ url: string; receivedCount: (
     req.on("data", (chunk: Buffer) => chunks.push(chunk));
     req.on("end", () => {
       const body = Buffer.concat(chunks);
-      if (body.length > 0) {
+      if (req.url === "/v1/traces" && body.length > 0) {
         receivedCount += 1;
         const exported = JSON.parse(body.toString("utf8")) as { resourceSpans: Array<{ scopeSpans: Array<{ spans: ExportedSpan[] }> }> };
         for (const resource of exported.resourceSpans) {
@@ -665,7 +666,7 @@ test("an identity re-seed failure from a non-built-in owner role conflict must b
   }
 });
 
-test("Constitution Article VIII proof: a request against a REALLY SPAWNED `tovu serve` process — not the in-memory or SQLite composition-root tier, the actual packaged CLI boot path this whole groundwork report was worried an instrumentation plan could silently miss — exports a real span to the operator-configured OTLP collector", async () => {
+test("Constitution Article VIII proof: a request against a REALLY SPAWNED `tovu serve` process — not the in-memory or SQLite composition-root tier, the actual packaged CLI boot path this whole groundwork report was worried an instrumentation plan could silently miss — exports a real span through its saved, enabled provider plugin", async () => {
   const { parent, dir } = initFixture();
   const requestPath = `/welcome-otlp-${randomUUID()}`;
   const db = new Database(resolveSiteDatabasePaths({ dir }).contentDbPath);
@@ -673,22 +674,45 @@ test("Constitution Article VIII proof: a request against a REALLY SPAWNED `tovu 
   db.close();
   const port = await getFreePort();
   const collector = await startFakeOtlpCollector();
-  const child = spawnServe([dir, "--port", String(port)], {
-    OTEL_EXPORTER_OTLP_ENDPOINT: collector.url,
-    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: `${collector.url}/v1/traces`,
-    OTEL_EXPORTER_OTLP_COMPRESSION: "none",
-    OTEL_EXPORTER_OTLP_TRACES_COMPRESSION: "none",
-    OTEL_SERVICE_NAME: "tovu-serve-cli-test",
-    // Forces the batch span processor to flush every 200ms instead of the 5s default, so this test
-    // does not need to wait out a real production-sized batching window.
-    OTEL_BSP_SCHEDULE_DELAY: "200",
-  });
+  const childEnv = { TOVU_ADMIN_USER: "admin", TOVU_ADMIN_PASSWORD: "tovu-dev", TOVU_PLUGIN_LOCAL_INSTALL: "1" };
+  let child = spawnServe([dir, "--port", String(port)], childEnv);
   try {
+    await waitForHttpReady(port, child);
+    // Provider wave 2 retired env selection. Install the distribution's real artifact, enable it,
+    // and save through the same settings owner the admin uses, then prove selection on restart.
+    // A linked Jini checkout keeps the prebuilt distribution beside its linked plugins package.
+    let catalogPath: string;
+    try { catalogPath = require.resolve("@jini-ai/provider-plugins/catalog"); }
+    catch { catalogPath = path.resolve(path.dirname(require.resolve("@jini-ai/plugins/host")), "../../../provider-plugins/catalog.json"); }
+    assert.ok(fs.existsSync(catalogPath), "ENV: the prebuilt @jini-ai/provider-plugins distribution is required for the CLI OTLP integration");
+    const catalog = JSON.parse(fs.readFileSync(catalogPath, "utf8")) as Array<{ id: string; path: string }>;
+    const artifact = catalog.find(entry => entry.id === "observability-opentelemetry");
+    assert.ok(artifact, "the provider distribution must contain the OpenTelemetry artifact");
+    const baseUrl = `http://127.0.0.1:${port}`;
+    const cookie = await loginAsOwner(baseUrl);
+    const headers = { cookie, "content-type": "application/json" };
+    const pluginsUrl = `${baseUrl}/api/admin/v1/workspaces/workspace-local/plugins`;
+    const source = { kind: "folder", path: path.resolve(path.dirname(catalogPath), artifact.path) };
+    const preview = await fetch(`${pluginsUrl}/install/preview`, { method: "POST", headers, body: JSON.stringify({ source }), signal: fetchTimeoutSignal() });
+    assert.equal(preview.status, 200, await preview.clone().text());
+    const { plugin } = await preview.json() as { plugin: { digest: string } };
+    const installed = await fetch(`${pluginsUrl}/install`, { method: "POST", headers, body: JSON.stringify({ source, expectedDigest: plugin.digest }), signal: fetchTimeoutSignal() });
+    assert.equal(installed.status, 201, await installed.text());
+    const providerUrl = `${pluginsUrl}/${artifact.id}`;
+    const enabled = await fetch(providerUrl, { method: "PATCH", headers, body: JSON.stringify({ enabled: true }), signal: fetchTimeoutSignal() });
+    assert.equal(enabled.status, 200, await enabled.text());
+    const saved = await fetch(`${providerUrl}/provider-settings`, { method: "PUT", headers, body: JSON.stringify({ values: { endpoint: collector.url, auth: "none" } }), signal: fetchTimeoutSignal() });
+    assert.equal(saved.status, 200, await saved.clone().text());
+    assert.equal((await saved.json() as { appliesAt: string }).appliesAt, "restart");
+    await stopGracefully(child);
+    child = spawnServe([dir, "--port", String(port)], childEnv);
     await waitForHttpReady(port, child);
     const res = await fetch(`http://127.0.0.1:${port}${requestPath}`, { signal: fetchTimeoutSignal() });
     assert.equal(res.status, 200);
 
     const factor = loadFactor();
+    // Previously OTEL_BSP_SCHEDULE_DELAY shortened this wait. The provider now owns its 5s batch
+    // interval, so the deadline allows the production batching window without env overrides.
     const deadline = Date.now() + 10_000 * factor;
     const requestedSpan = () => collector.spans().find((span) =>
       span.attributes.some((attr) => attr.key === "http.target" && attr.value.stringValue === requestPath)
@@ -699,7 +723,7 @@ test("Constitution Article VIII proof: a request against a REALLY SPAWNED `tovu 
 
     assert.ok(
       collector.receivedCount() > 0,
-      `the spawned tovu serve process must export at least one span to the OTLP collector configured via OTEL_EXPORTER_OTLP_ENDPOINT within ${Math.round((10_000 * factor) / 1000)}s`
+      `the spawned tovu serve process must export at least one span through the saved provider settings within ${Math.round((10_000 * factor) / 1000)}s`
     );
     const span = requestedSpan();
     assert.ok(span, "a readiness or startup span cannot substitute for the uniquely named content request");

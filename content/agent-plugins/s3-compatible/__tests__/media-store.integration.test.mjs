@@ -13,7 +13,7 @@ import { SpanKind, SpanStatusCode } from "@opentelemetry/api";
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
-import { createMediaBlobStore, loadBundledObjectStoreRegistry } from "#src/features/object-storage/index";
+import { createMediaBlobStore, loadBundledObjectStoreRegistry, readBundledObjectStoreEnvDeclarations } from "#src/features/object-storage/index";
 import { trackFetch } from "#src/platform/observability/index";
 import { assertSpanOmits, createInMemoryOtel } from "#src/platform/observability/__tests__/fixtures/in-memory-otel";
 
@@ -184,7 +184,7 @@ function buildEnvS3MediaStore(required) {
       readSetting: notOnEnvPath("readSetting"),
       resolveSharedCredential: notOnEnvPath("resolveSharedCredential"),
     }),
-  });
+  }, { envDeclarations: readBundledObjectStoreEnvDeclarations({ sourceRoot: path.resolve(import.meta.dirname, "../..") }) });
 }
 
 /**

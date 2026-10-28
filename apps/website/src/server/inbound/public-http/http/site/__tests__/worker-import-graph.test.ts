@@ -43,7 +43,7 @@ const FORBIDDEN_IN_WORKER = [
 ];
 
 /** Match both source-checkout and installed-package graphs, including every forms repo adapter. */
-const FORBIDDEN_FORM_SERVICES = /\/(?:Jini\/packages\/cms|node_modules\/@jini-ai\/cms)\/(?:src|dist)\/forms\/(?:write-service\.|submit-service\.|repo[./])/;
+const FORBIDDEN_FORM_SERVICES = /\/(?:packages\/cms|node_modules\/@jini-ai\/cms)\/(?:src|dist)\/forms\/(?:write-service\.|submit-service\.|repo[./])/;
 
 /** Measured rendering modules: 146 Handlebars / 104 Liquid; leave a few modules of headroom. */
 const WORKER_MODULE_BUDGETS = {

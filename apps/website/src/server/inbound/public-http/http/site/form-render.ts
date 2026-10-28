@@ -26,7 +26,8 @@ import { isNonArrayRecord } from "@jini-ai/core/records";
 import { escapeHtml } from "#src/platform/html/escape";
 import { formValidationMessages, formDocumentLocale } from "./form-validation-message.js";
 import { FORM_ATTEMPT_FIELD } from "@jini-ai/cms/forms/submission-attempts";
-import { FORM_SUBMISSION_TOO_FAST_MESSAGE, type FieldDescriptor } from "@jini-ai/cms/forms";
+import { FORM_SUBMISSION_TOO_FAST_MESSAGE } from "@jini-ai/cms/forms/html-render";
+import type { FieldDescriptor } from "@jini-ai/cms/forms";
 import { fieldMaxChars } from "#src/features/forms/field-length-caps";
 
 const FORM_CLASS = "tovu-form";
