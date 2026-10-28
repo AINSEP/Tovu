@@ -12,6 +12,7 @@
 export const ADMIN_SCREENS: readonly { readonly id: string; readonly label: string; readonly path: string }[] = [
   { id: "dashboard", label: "Overview", path: "/" },
   { id: "sites", label: "Sites", path: "/sites" },
+  { id: "import-export", label: "Import & Export", path: "/import-export" },
   { id: "ai-assistant", label: "AI Assistant", path: "/ai-assistant" },
   { id: "pages", label: "Pages", path: "/pages" },
   { id: "posts", label: "Posts", path: "/posts" },
@@ -47,7 +48,6 @@ export const ADMIN_SCREENS: readonly { readonly id: string; readonly label: stri
   { id: "access-tokens", label: "Secrets", path: "/access-tokens" },
   { id: "observability", label: "Observability", path: "/observability" },
   { id: "activity-log", label: "Activity Log", path: "/activity-log" },
-  { id: "import-export", label: "Import & Export", path: "/import-export" },
   { id: "settings", label: "Settings", path: "/settings" },
   { id: "consent", label: "Cookie Consent", path: "/consent" },
   { id: "workspace", label: "Workspace", path: "/workspace" },

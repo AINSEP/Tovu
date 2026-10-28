@@ -34,6 +34,9 @@ test("404 or a lost connection never terminalizes the run or asks the user to re
   const h = harness();
   h.streams[0]!.dropped(); await Promise.resolve(); await Promise.resolve();
   expect(h.done).toEqual([]); expect(h.errors).toEqual([]); expect(h.events).toEqual([]);
+  // Jini bf73324c6 backs off before recovery instead of reading on the disconnect stack.
+  expect(h.reads).toEqual([]);
+  await h.tick();
   expect(h.reads).toEqual([{ runId: "old", messageId: "answer" }]);
   h.stop();
 });
@@ -258,7 +261,7 @@ test("browser durable ports delegate scheduling, and the defaults use EventSourc
   } finally { vi.useRealTimers(); vi.unstubAllGlobals(); }
 });
 
-test("a missing durable row releases the host's page-stream activity without onDone, and stopping releases it again", async () => {
+test("a missing durable row releases the host's page-stream activity and completes observation; stopping still releases it", async () => {
   let ended = 0;
   const done: unknown[] = [];
   const handlers: TrackedRunHandlers = { onEvent: () => {}, onDone: (events) => done.push(events), onError: () => {}, [subscriptionEnded]: () => { ended++; } };
@@ -268,6 +271,6 @@ test("a missing durable row releases the host's page-stream activity without onD
   } }, {});
   poll?.();
   for (let i = 0; i < 10; i++) await Promise.resolve();
-  expect(ended).toBe(1); expect(done).toEqual([]);
+  expect(ended).toBe(1); expect(done).toEqual([[]]);
   stop(); expect(ended).toBe(2);
 });

@@ -1,3 +1,5 @@
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+
 /**
  * @file Strings for the Visitor's AI Assistant inner tabs and the Visitor tools tab (2026-10-22), in
  * all 21 admin locales. A separate file like `ai-assistant-layout-i18n.ts`, merged into the screen's
@@ -30,7 +32,7 @@ const ROWS: Record<string, readonly string[]> = {
     "Integradas", "De plugins", "Creadas", "No disponibles",
     "No se pueden leer los ajustes guardados de herramientas, así que todas están desactivadas.", "Desactivar todas para restablecer",
     "Se cambió en otro lugar. Mostrando lo último; inténtalo de nuevo.", "No se pudo guardar.", "No disponible ahora mismo.",
-    "Auto", "Preguntar antes", "Desactivado", "Límites", "Por visitante, por hora", "Todo el sitio, por día",
+    "Automático", "Preguntar antes", "Desactivado", "Límites", "Por visitante, por hora", "Todo el sitio, por día",
     "Usa un número entero, 1 o más.", "Predeterminado: {ip} por visitante/hora, {site} por sitio/día.",
     "Buscar entradas y páginas", "Permite encontrar tus entradas y páginas.",
     "Leer una entrada o página", "Permite leer una entrada o página.",
@@ -60,7 +62,7 @@ const ROWS: Record<string, readonly string[]> = {
     "Integriert", "Aus Plugins", "Erstellt", "Nicht verfügbar",
     "Gespeicherte Tool-Einstellungen sind nicht lesbar, daher ist jedes Tool aus.", "Alle Tools ausschalten zum Zurücksetzen",
     "Woanders geändert. Der neueste Stand wird angezeigt – bitte erneut versuchen.", "Speichern fehlgeschlagen.", "Gerade nicht verfügbar.",
-    "Automatisch", "Erst fragen", "Aus", "Limits", "Pro Besucher, pro Stunde", "Ganze Website, pro Tag",
+    "Automatisch", "Erst fragen", "Aus", "Grenzen", "Pro Besucher, pro Stunde", "Ganze Website, pro Tag",
     "Ganze Zahl ab 1 verwenden.", "Standard: {ip} pro Besucher/Stunde, {site} pro Website/Tag.",
     "Beiträge und Seiten suchen", "Findet deine Beiträge und Seiten für Besucher.",
     "Beitrag oder Seite lesen", "Lässt Besucher einen Beitrag oder eine Seite lesen.",
@@ -150,7 +152,7 @@ const ROWS: Record<string, readonly string[]> = {
     "Wbudowane", "Z wtyczek", "Utworzone", "Niedostępne",
     "Zapisanych ustawień narzędzi nie da się odczytać, więc wszystkie są wyłączone.", "Wyłącz wszystkie, aby zresetować",
     "Zmieniono gdzie indziej. Pokazujemy najnowsze — spróbuj ponownie.", "Nie udało się zapisać.", "Teraz niedostępne.",
-    "Auto", "Najpierw zapytaj", "Wył.", "Limity", "Na odwiedzającego, na godzinę", "Cała witryna, na dzień",
+    "Automatycznie", "Najpierw zapytaj", "Wył.", "Limity", "Na odwiedzającego, na godzinę", "Cała witryna, na dzień",
     "Podaj liczbę całkowitą, 1 lub więcej.", "Domyślnie: {ip} na odwiedzającego/godz., {site} na witrynę/dzień.",
     "Wyszukiwanie wpisów i stron", "Pozwala odwiedzającym znaleźć Twoje wpisy i strony.",
     "Czytanie wpisu lub strony", "Pozwala odwiedzającym przeczytać wpis lub stronę.",
@@ -165,7 +167,7 @@ const ROWS: Record<string, readonly string[]> = {
     "Beépített", "Bővítményekből", "Létrehozott", "Nem elérhető",
     "A mentett eszközbeállítások nem olvashatók, ezért minden eszköz ki van kapcsolva.", "Mindet kikapcsolni a visszaállításhoz",
     "Máshol módosult. A legfrissebbet mutatjuk — próbáld újra.", "Nem sikerült menteni.", "Most nem elérhető.",
-    "Auto", "Előbb kérdez", "Ki", "Korlátok", "Látogatónként, óránként", "Teljes webhely, naponta",
+    "Automatikus", "Előbb kérdez", "Ki", "Korlátok", "Látogatónként, óránként", "Teljes webhely, naponta",
     "Egész szám, legalább 1.", "Alapértelmezés: {ip} látogatónként/óra, {site} webhelyenként/nap.",
     "Bejegyzések és oldalak keresése", "A látogatók megtalálhatják bejegyzéseidet és oldalaidat.",
     "Bejegyzés vagy oldal olvasása", "A látogatók elolvashatnak egy bejegyzést vagy oldalt.",
@@ -180,7 +182,7 @@ const ROWS: Record<string, readonly string[]> = {
     "Intégrés", "Des plugins", "Créés", "Indisponibles",
     "Les réglages d'outils enregistrés sont illisibles, donc tous les outils sont désactivés.", "Tout désactiver pour réinitialiser",
     "Modifié ailleurs. Affichage de la dernière version — réessayez.", "Enregistrement impossible.", "Indisponible pour le moment.",
-    "Auto", "Demander d'abord", "Désactivé", "Limites", "Par visiteur, par heure", "Tout le site, par jour",
+    "Automatique", "Demander d'abord", "Désactivé", "Limites", "Par visiteur, par heure", "Tout le site, par jour",
     "Saisissez un nombre entier, 1 ou plus.", "Par défaut : {ip} par visiteur/heure, {site} par site/jour.",
     "Rechercher des articles et pages", "Permet aux visiteurs de trouver vos articles et pages.",
     "Lire un article ou une page", "Permet aux visiteurs de lire un article ou une page.",
@@ -240,7 +242,7 @@ const ROWS: Record<string, readonly string[]> = {
     "Integrati", "Dai plugin", "Creati", "Non disponibili",
     "Le impostazioni salvate degli strumenti sono illeggibili, quindi tutti sono disattivati.", "Disattiva tutti per reimpostare",
     "Modificato altrove. Mostro la versione più recente — riprova.", "Impossibile salvare.", "Non disponibile al momento.",
-    "Auto", "Chiedi prima", "Off", "Limiti", "Per visitatore, all'ora", "Intero sito, al giorno",
+    "Automatico", "Chiedi prima", "Disattivato", "Limiti", "Per visitatore, all'ora", "Intero sito, al giorno",
     "Usa un numero intero, 1 o più.", "Predefinito: {ip} per visitatore/ora, {site} per sito/giorno.",
     "Cerca articoli e pagine", "Permette ai visitatori di trovare i tuoi articoli e pagine.",
     "Leggi un articolo o una pagina", "Permette ai visitatori di leggere un articolo o una pagina.",
@@ -300,7 +302,7 @@ const ROWS: Record<string, readonly string[]> = {
     "Integradas", "De plugins", "Criadas", "Indisponíveis",
     "As configurações salvas das ferramentas não podem ser lidas, então todas estão desligadas.", "Desligar todas para redefinir",
     "Alterado em outro lugar. Mostrando o mais recente — tente de novo.", "Não foi possível salvar.", "Indisponível no momento.",
-    "Auto", "Perguntar antes", "Desligado", "Limites", "Por visitante, por hora", "Site inteiro, por dia",
+    "Automático", "Perguntar antes", "Desligado", "Limites", "Por visitante, por hora", "Site inteiro, por dia",
     "Use um número inteiro, 1 ou mais.", "Padrão: {ip} por visitante/hora, {site} por site/dia.",
     "Buscar posts e páginas", "Permite aos visitantes encontrar seus posts e páginas.",
     "Ler um post ou página", "Permite aos visitantes ler um post ou página.",
@@ -346,9 +348,12 @@ export const VISITOR_TOOLS_DICT: Record<string, Record<string, string>> = Object
 );
 export const VISITOR_TOOLS_KEYS: readonly string[] = KEYS;
 
+const translator = createDictionaryTranslator({ featureDictionary: VISITOR_TOOLS_DICT });
+
 /** Adds these strings under `base` per locale. Base wins on a shared key ("Off", "Retry"…) so an
  * existing translation elsewhere on the screen never changes. @complexity O(locales × keys). */
 export function withVisitorToolsStrings({ base }: { base: Record<string, Record<string, string>> }, _options: Record<string, never> = {}) {
-  const locales = new Set([...Object.keys(base), ...Object.keys(VISITOR_TOOLS_DICT)]);
-  return Object.fromEntries([...locales].map((locale) => [locale, { ...VISITOR_TOOLS_DICT[locale], ...base[locale] }]));
+  const dictionary = translator.dictionary;
+  const locales = new Set([...Object.keys(base), ...Object.keys(dictionary)]);
+  return Object.fromEntries([...locales].map((locale) => [locale, { ...dictionary[locale], ...base[locale] }]));
 }

@@ -30,10 +30,11 @@ const ALLOWED: Record<string, string> = {
   "components/AssistantDock/assistant-dock-i18n.ts:CHAT_PANE_I18N_DICT": "Jini chat adapter",
 };
 
-/** Forms owns the assembled translator; these fragments are inputs only at module initialization. */
+/** Forms and Email own their assembled translators; fragments are initialization inputs only. */
 const ASSEMBLED: Record<string, string> = {
   "features/forms/forms-i18n.ts:FORMS_FIELD_SETTINGS_I18N": "FORMS_DICT",
   "features/forms/forms-i18n.ts:FORMS_LEAVE_GUARD_I18N": "FORMS_DICT",
+  "features/email/email-i18n.ts:EMAIL_TABS_DICT": "EMAIL_DICT",
 };
 
 const DECLARATION = /\bconst\s+([A-Z][A-Z0-9_]*_(?:DICT|I18N|DICTIONARY))\s*:\s*Record<\s*string\s*,\s*Record<\s*string\s*,\s*string\s*>\s*>/g;
@@ -48,6 +49,28 @@ function sourceFiles(dir: string, out: string[] = []): string[] {
     }
   }
   return out;
+}
+
+/** Email dc0445924 assembles its fragment in a map at initialization, not during translation.
+ * Match the owning initializer exactly so registering the fragment cannot permit runtime reads. */
+function isEmailAssembly({ node, source, target }: { node: ts.Identifier; source: ts.SourceFile; target: string }, _options = {}): boolean {
+  if (target !== "EMAIL_DICT") return false;
+  let statement: ts.Node = node;
+  while (statement.parent && statement.parent !== source) statement = statement.parent;
+  if (!ts.isVariableStatement(statement)) return false;
+  const declaration = statement.declarationList.declarations.find(item => item.name.getText(source) === target);
+  return declaration?.initializer?.getText(source).replace(/\s+/g, "") ===
+    "Object.fromEntries(Object.entries(BASE_EMAIL_DICT).map(([locale,dictionary])=>[locale,{...dictionary,...EMAIL_TABS_DICT[locale]}]),)";
+}
+
+/** Registered fragments are accepted only by their owning module's assembly expression. */
+function isImportedAssembly({ node, source, target }: { node: ts.Identifier; source: ts.SourceFile; target?: string }, _options = {}): boolean {
+  if (!target) return false;
+  const call = node.parent;
+  const merge = ts.isCallExpression(call) && call.expression.getText(source) === "mergeDictionaryTranslations" &&
+    call.arguments[1] === node && call.arguments[0]?.getText(source) === target &&
+    ts.isExpressionStatement(call.parent) && call.parent.parent === source;
+  return merge || isEmailAssembly({ node, source, target });
 }
 
 /**
@@ -95,11 +118,7 @@ function findInlineDictionaryLookups(files: ReadonlyArray<{ path: string; source
     }
     function isConstruction(node: ts.Identifier): boolean {
       if (!own.has(node.text)) {
-        const target = ASSEMBLED[`${f.path}:${node.text}`];
-        const call = node.parent;
-        return !!target && ts.isCallExpression(call) && call.expression.getText(f.ast) === "mergeDictionaryTranslations" &&
-          call.arguments[1] === node && call.arguments[0]?.getText(f.ast) === target &&
-          ts.isExpressionStatement(call.parent) && call.parent.parent === f.ast;
+        return isImportedAssembly({ node, source: f.ast, target: ASSEMBLED[`${f.path}:${node.text}`] });
       }
       let statement: ts.Node = node;
       while (statement.parent && statement.parent !== f.ast) statement = statement.parent;
@@ -251,6 +270,23 @@ describe("findInlineDictionaryLookups: the detector", () => {
       .toEqual(["features/forms/forms-i18n.ts: references FORMS_FIELD_SETTINGS_I18N"]);
     expect(findInlineDictionaryLookups([fragment, { ...owner, source: owner.source.replace("mergeDictionaryTranslations(FORMS_DICT, FORMS_FIELD_SETTINGS_I18N);", "function t() { mergeDictionaryTranslations(FORMS_DICT, FORMS_FIELD_SETTINGS_I18N); }") }]))
       .toEqual(["features/forms/forms-i18n.ts: references FORMS_DICT", "features/forms/forms-i18n.ts: references FORMS_FIELD_SETTINGS_I18N"]);
+  });
+
+  it("allows Email's initialization map but rejects later lookups and translator-body assembly", () => {
+    const fragment = { path: "features/email/email-tabs-i18n.ts", source: "export const EMAIL_TABS_DICT: Record<string, Record<string, string>> = { es: {} };" };
+    const initializer = "Object.fromEntries(Object.entries(BASE_EMAIL_DICT).map(([locale, dictionary]) => [locale, { ...dictionary, ...EMAIL_TABS_DICT[locale] }]),)";
+    const owner = { path: "features/email/email-i18n.ts", source: [
+      'import { EMAIL_TABS_DICT } from "./email-tabs-i18n";',
+      "const BASE_EMAIL_DICT: Record<string, Record<string, string>> = { es: {} };",
+      `export const EMAIL_DICT: Record<string, Record<string, string>> = ${initializer};`,
+      "export const t = createDictionaryTranslator({ featureDictionary: EMAIL_DICT });",
+    ].join("\n") };
+    expect(findInlineDictionaryLookups([fragment, owner])).toEqual([]);
+    expect(findInlineDictionaryLookups([fragment, { ...owner, source: owner.source + "\nconst bypass = EMAIL_TABS_DICT.es[key];" }]))
+      .toEqual(["features/email/email-i18n.ts: references EMAIL_TABS_DICT"]);
+    const runtime = owner.source.replace(`= ${initializer};`, `= () => ${initializer};`);
+    expect(findInlineDictionaryLookups([fragment, { ...owner, source: runtime }]))
+      .toEqual(["features/email/email-i18n.ts: indexes EMAIL_TABS_DICT", "features/email/email-i18n.ts: references BASE_EMAIL_DICT"]);
   });
 
   it("still flags an owner translator that aliases the raw dictionary", () => {

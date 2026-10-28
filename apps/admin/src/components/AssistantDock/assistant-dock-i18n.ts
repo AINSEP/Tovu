@@ -16,7 +16,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
   es: {
     "Reply length": "Longitud de respuesta",
     "Short": "Breve",
-    "Normal": "Normal",
+    "Normal": "Habitual",
     "Detailed": "Detallada",
     "How much the assistant writes back. Short: just the result and what needs you.": "Cuánto escribe el asistente. Breve: solo el resultado y lo que requiere tu atención.",
     "See each tool call as the assistant works. Open a card to inspect its details.": "Ve cada llamada a herramientas mientras trabaja el asistente. Abre una tarjeta para consultar sus detalles.",
@@ -59,7 +59,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
   id: {
     "Reply length": "Panjang balasan",
     "Short": "Singkat",
-    "Normal": "Normal",
+    "Normal": "Biasa",
     "Detailed": "Terperinci",
     "How much the assistant writes back. Short: just the result and what needs you.": "Seberapa banyak asisten menulis. Singkat: hanya hasil dan hal yang membutuhkan Anda.",
     "See each tool call as the assistant works. Open a card to inspect its details.": "Lihat setiap panggilan alat saat asisten bekerja. Buka kartu untuk memeriksa detailnya.",
@@ -102,7 +102,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
   de: {
     "Reply length": "Antwortlänge",
     "Short": "Kurz",
-    "Normal": "Normal",
+    "Normal": "Standard",
     "Detailed": "Ausführlich",
     "How much the assistant writes back. Short: just the result and what needs you.": "Wie viel der Assistent schreibt. Kurz: nur das Ergebnis und was deine Aufmerksamkeit braucht.",
     "See each tool call as the assistant works. Open a card to inspect its details.": "Sieh jeden Tool-Aufruf, während der Assistent arbeitet. Öffne eine Karte, um ihre Details anzusehen.",
@@ -231,7 +231,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
   "pt-BR": {
     "Reply length": "Tamanho da resposta",
     "Short": "Curta",
-    "Normal": "Normal",
+    "Normal": "Padrão",
     "Detailed": "Detalhada",
     "How much the assistant writes back. Short: just the result and what needs you.": "Quanto o assistente escreve. Curta: só o resultado e o que precisa de você.",
     "See each tool call as the assistant works. Open a card to inspect its details.": "Veja cada chamada de ferramenta enquanto o assistente trabalha. Abra um cartão para conferir os detalhes.",
@@ -661,7 +661,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
   tr: {
     "Reply length": "Yanıt uzunluğu",
     "Short": "Kısa",
-    "Normal": "Normal",
+    "Normal": "Olağan",
     "Detailed": "Ayrıntılı",
     "How much the assistant writes back. Short: just the result and what needs you.": "Asistanın ne kadar yazacağı. Kısa: yalnızca sonuç ve sizin ilgilenmeniz gerekenler.",
     "See each tool call as the assistant works. Open a card to inspect its details.": "Asistan çalışırken her araç çağrısını görün. Ayrıntılarını incelemek için bir kartı açın.",
@@ -1352,7 +1352,7 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "Stop using": "Ne plus utiliser",
     "Stops future use in this chat. Guidance already loaded stays in the current context.": "Arrête toute utilisation future dans cette discussion. Les instructions déjà chargées restent dans le contexte actuel.",
     "Rename chat": "Renommer la discussion",
-    Conversations: "Conversations",
+    Conversations: "Discussions",
     New: "Nouvelle",
     "Search conversations": "Rechercher des conversations",
     "No conversations yet": "Pas encore de conversations",

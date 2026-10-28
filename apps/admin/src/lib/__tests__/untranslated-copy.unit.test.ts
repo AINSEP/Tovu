@@ -150,7 +150,6 @@ const SAME_AS_ENGLISH: Readonly<Record<string, readonly string[]>> = {
   Images: ["fr"],
   Mobile: ["fr"],
   Note: ["fr"],
-  Notifications: ["fr"],
   Options: ["fr"],
   "Sites ({siteName})": ["fr"],
   Page: ["fr"],

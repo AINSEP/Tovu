@@ -221,10 +221,16 @@ describe("AssistantDock Chat settings", () => {
     return modal;
   }
 
-  it("shows the local owner's default grant ({} stored, server enabled) as every permission switch ON", async () => {
+  it("keeps personal MCP opt-in and the master OFF while other local-owner permissions default ON", async () => {
     const modal = await openPermissions(userEvent.setup());
-    await waitFor(() => expect(within(modal).getByRole("switch", { name: "Full CLI access" })).toBeChecked());
-    for (const toggle of within(modal).getAllByRole("switch")) { expect(toggle).toBeChecked(); expect(toggle).toBeEnabled(); }
+    // 4d39ba5232 requires an explicit grant for personal MCP, even with Full CLI enabled.
+    await waitFor(() => expect(within(modal).getByRole("switch", { name: "Bash/shell" })).toBeEnabled());
+    expect(within(modal).getByRole("switch", { name: "Full CLI access" })).not.toBeChecked();
+    expect(within(modal).getByRole("switch", { name: "Your MCP servers" })).not.toBeChecked();
+    for (const name of ["Bash/shell", "File edit/write", "Subagents/Task", "Your skills and settings", "Web fetch/search", "Workflows", "Your shell environment"]) {
+      expect(within(modal).getByRole("switch", { name })).toBeChecked();
+    }
+    for (const toggle of within(modal).getAllByRole("switch")) expect(toggle).toBeEnabled();
   });
 
   // Regression (owner, 2026-10-17): an env kill switch made the server project every switch OFF

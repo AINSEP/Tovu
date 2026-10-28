@@ -201,7 +201,7 @@ describe("transport activity lifecycle", () => {
     expect(activity.active({})).toBe(false);
   });
 
-  it("releases a rejected dispatch and a gone durable row without manufacturing onDone", async () => {
+  it("releases a rejected dispatch and completes observation of a gone durable row", async () => {
     const activity = createStreamActivity({});
     let fail = true;
     let poll: (() => void) | undefined;
@@ -229,6 +229,6 @@ describe("transport activity lifecycle", () => {
     poll!(); await settleLocks();
     expect(activity.active({})).toBe(false);
     expect(closes).toBe(1);
-    expect(done).toBe(0);
+    expect(done).toBe(1);
   });
 });

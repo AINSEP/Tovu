@@ -31,8 +31,9 @@ test("unreachable recovery keeps one polling timer and unmount releases it", asy
   h.abort.abort(); expect(h.timers.size).toBe(0);
 });
 
-test("conversation deletion stops subscription without inventing a terminal message", async () => {
+test("conversation deletion stops subscription and releases streaming with an empty completion", async () => {
   const h = durableSubscriptionFixture(); h.save("gone"); await h.tick();
-  expect(h.done).toEqual([]); expect(h.errors).toEqual([]); expect(h.timers.size).toBe(0);
+  // Jini 507c5a0cd ends observation on an explicitly missing row.
+  expect(h.done).toEqual([[]]); expect(h.errors).toEqual([]); expect(h.timers.size).toBe(0);
   expect(h.closed).toEqual([0]);
 });

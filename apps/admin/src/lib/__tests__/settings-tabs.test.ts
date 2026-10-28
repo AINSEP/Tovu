@@ -254,13 +254,20 @@ describe("loadPrivacy — sentinel collapse", () => {
 describe("savePrivacy — sentinel round-trip on write", () => {
   it("persists a new installationId without replacing it with the empty sentinel", async () => {
     await savePrivacy({ ...DEFAULT_PRIVACY, installationId: "install-new-456" }, DEFAULT_PRIVACY);
-    const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{ key: string; valueJson: unknown; changed: boolean }>;
+    const candidates = saveChangedEntries.mock.calls.slice(-2).flatMap(([, , entries]) => entries) as Array<{ key: string; valueJson: unknown; changed: boolean }>;
     expect(candidates.find((c) => c.key === "installationId")).toEqual({ key: "installationId", valueJson: "install-new-456", changed: true });
   });
 
   it("writes nothing when both sides are the 'no decision yet' null, workspace-scoped", async () => {
     await savePrivacy(DEFAULT_PRIVACY, DEFAULT_PRIVACY);
-    const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{ key: string; changed: boolean }>;
+    const candidates = saveChangedEntries.mock.calls.slice(-2).flatMap(([, , entries]) => entries) as Array<{ key: string; changed: boolean }>;
+    // b46eb6e29 persists metrics first, so later preference failures cannot swallow consent.
+    expect(saveChangedEntries.mock.calls.slice(-2).map(([namespace, scope, entries]) =>
+      [namespace, scope, (entries as Array<{ key: string }>).map(({ key }) => key)]))
+      .toEqual([
+        ["core.privacy", "workspace", ["telemetry.metrics"]],
+        ["core.privacy", "workspace", ["telemetry.content", "installationId", "decisionAt"]],
+      ]);
     expect(candidates.map((c) => c.key)).toEqual(["telemetry.metrics", "telemetry.content", "installationId", "decisionAt"]);
     expect(candidates.every((c) => !c.changed)).toBe(true);
     expect(saveChangedEntries).toHaveBeenCalledWith("core.privacy", "workspace", expect.anything());
@@ -270,7 +277,7 @@ describe("savePrivacy — sentinel round-trip on write", () => {
     const previous = DEFAULT_PRIVACY;
     const next: PrivacyConsentState = { ...previous, privacyDecisionAt: 1_700_000_000_000 };
     await savePrivacy(next, previous);
-    const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{
+    const candidates = saveChangedEntries.mock.calls.slice(-2).flatMap(([, , entries]) => entries) as Array<{
       key: string;
       valueJson: unknown;
       changed: boolean;
@@ -283,7 +290,7 @@ describe("savePrivacy — sentinel round-trip on write", () => {
     const previous: PrivacyConsentState = { ...DEFAULT_PRIVACY, privacyDecisionAt: 1_700_000_000_000 };
     const next: PrivacyConsentState = { ...previous, privacyDecisionAt: null };
     await savePrivacy(next, previous);
-    const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{
+    const candidates = saveChangedEntries.mock.calls.slice(-2).flatMap(([, , entries]) => entries) as Array<{
       key: string;
       valueJson: unknown;
       changed: boolean;
@@ -296,7 +303,7 @@ describe("savePrivacy — sentinel round-trip on write", () => {
     const previous: PrivacyConsentState = { ...DEFAULT_PRIVACY, installationId: "install-abc" };
     const next: PrivacyConsentState = { ...previous, installationId: null };
     await savePrivacy(next, previous);
-    const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{
+    const candidates = saveChangedEntries.mock.calls.slice(-2).flatMap(([, , entries]) => entries) as Array<{
       key: string;
       valueJson: unknown;
       changed: boolean;
@@ -309,7 +316,7 @@ describe("savePrivacy — sentinel round-trip on write", () => {
     const previous: PrivacyConsentState = { ...DEFAULT_PRIVACY, telemetry: { metrics: true, content: true } };
     const next: PrivacyConsentState = { ...previous, telemetry: {} };
     await savePrivacy(next, previous);
-    const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{
+    const candidates = saveChangedEntries.mock.calls.slice(-2).flatMap(([, , entries]) => entries) as Array<{
       key: string;
       valueJson: unknown;
       changed: boolean;
@@ -328,7 +335,7 @@ describe("savePrivacy — sentinel round-trip on write", () => {
     const previous: PrivacyConsentState = { ...DEFAULT_PRIVACY, telemetry: {} };
     const next: PrivacyConsentState = { ...previous, telemetry: { metrics: true, content: true } };
     await savePrivacy(next, previous);
-    const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{
+    const candidates = saveChangedEntries.mock.calls.slice(-2).flatMap(([, , entries]) => entries) as Array<{
       key: string;
       valueJson: unknown;
       changed: boolean;
@@ -346,7 +353,7 @@ describe("savePrivacy — sentinel round-trip on write", () => {
     const previous: PrivacyConsentState = { ...DEFAULT_PRIVACY, telemetry: {} };
     const next: PrivacyConsentState = { ...previous, telemetry: { metrics: false, content: false } };
     await savePrivacy(next, previous);
-    const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{ key: string; changed: boolean }>;
+    const candidates = saveChangedEntries.mock.calls.slice(-2).flatMap(([, , entries]) => entries) as Array<{ key: string; changed: boolean }>;
     const metrics = candidates.find((c) => c.key === "telemetry.metrics");
     const content = candidates.find((c) => c.key === "telemetry.content");
     expect(metrics?.changed).toBe(false);
@@ -356,7 +363,7 @@ describe("savePrivacy — sentinel round-trip on write", () => {
   it("does not falsely mark decisionAt changed when a real timestamp is unchanged across saves", async () => {
     const state: PrivacyConsentState = { ...DEFAULT_PRIVACY, privacyDecisionAt: 1_700_000_000_000 };
     await savePrivacy(state, state);
-    const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{ key: string; changed: boolean }>;
+    const candidates = saveChangedEntries.mock.calls.slice(-2).flatMap(([, , entries]) => entries) as Array<{ key: string; changed: boolean }>;
     const decisionCandidate = candidates.find((c) => c.key === "decisionAt");
     expect(decisionCandidate?.changed).toBe(false);
   });

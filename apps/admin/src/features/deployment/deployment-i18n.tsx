@@ -1021,7 +1021,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "No Dockerfile exists yet. Write one below, then save to create it.": "Még nincs Dockerfile. Írj egyet alább, majd mentsd a létrehozásához.",
   },
   fr: {
-    "Enable a hosting plugin to publish this site.": "Activez un plugin d’hébergement pour publier ce site.", Plugins: "Plugins",
+    "Enable a hosting plugin to publish this site.": "Activez un plugin d’hébergement pour publier ce site.", Plugins: "Extensions",
     Operations: "Opérations",
     Deployment: "Déploiement",
     "Choose how this site gets published, and see what self-hosting it involves.":

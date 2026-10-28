@@ -222,7 +222,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Save to project and use on this site": "Enregistrer dans le projet et utiliser sur ce site",
     "Used by 1 other site; it will use the new token too.": "Utilisée par 1 autre site ; il utilisera aussi le nouveau jeton.",
     "Used by {count} other sites; they will use the new token too.": "Utilisée par {count} autres sites ; ils utiliseront aussi le nouveau jeton.",
-    "Enable a hosting plugin to manage its access tokens.": "Activez un plugin d’hébergement pour gérer ses jetons d’accès.", Plugins: "Plugins",
+    "Enable a hosting plugin to manage its access tokens.": "Activez un plugin d’hébergement pour gérer ses jetons d’accès.", Plugins: "Extensions",
     "Works for": "Compatible avec",
     "Copy keys from another project…": "Copier les clés d’un autre projet…",
     "Source project": "Projet source",

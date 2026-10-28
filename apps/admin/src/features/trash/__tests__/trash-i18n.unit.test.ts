@@ -84,6 +84,7 @@ describe("TRASH_DICT: cross-locale key parity", () => {
     "Redirect",
     "Form",
     "Form submission",
+    "Email template",
     "Widget",
     "Menu",
     "Term",

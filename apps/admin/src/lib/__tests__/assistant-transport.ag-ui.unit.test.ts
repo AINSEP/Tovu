@@ -113,10 +113,13 @@ describe("translateAgUiEventToAgentEvent — direct mappings", () => {
     ]);
   });
 
-  test("message/reasoning boundary markers (START/END) produce no AgentEvent", () => {
+  test("text starts preserve a step boundary; end and reasoning markers produce no AgentEvent", () => {
     const state = createAgUiToAgentTranslationState();
+    // Jini 154c79c93 preserves assistant-message boundaries in the event log.
+    expect(translateAgUiEventToAgentEvent({ type: EventType.TEXT_MESSAGE_START, messageId: "m1", role: "assistant" }, state)).toEqual([
+      { kind: "status", code: "step_start", label: "", data: { messageId: "m1" } },
+    ]);
     const boundaryEvents: AgUiEvent[] = [
-      { type: EventType.TEXT_MESSAGE_START, messageId: "m1", role: "assistant" },
       { type: EventType.TEXT_MESSAGE_END, messageId: "m1" },
       { type: EventType.REASONING_START, messageId: "r1" },
       { type: EventType.REASONING_MESSAGE_START, messageId: "r1", role: "reasoning" },
@@ -477,8 +480,11 @@ describe("startAgUiRun — SSE frame streaming end to end", () => {
     await flushMicrotasks();
     await flushMicrotasks();
 
-    expect(h.events).toEqual([{ kind: "text", text: "hi there" }]);
-    expect(h.done).toEqual([{ kind: "text", text: "hi there" }]);
+    expect(h.events).toEqual([
+      { kind: "status", code: "step_start", label: "", data: { messageId: "m1" } },
+      { kind: "text", text: "hi there" },
+    ]);
+    expect(h.done).toEqual(h.events);
   });
 
   test("RUN_ERROR mid-stream reports via onError without ending the run early", async () => {
@@ -536,7 +542,10 @@ describe("startAgUiRun — SSE frame streaming end to end", () => {
     await flushMicrotasks();
 
     expect(h.errors.map((e) => e.message)).toEqual(["connection reset"]);
-    expect(h.done).toEqual([{ kind: "text", text: "partial" }]);
+    expect(h.done).toEqual([
+      { kind: "status", code: "step_start", label: "", data: { messageId: "m1" } },
+      { kind: "text", text: "partial" },
+    ]);
   });
 
   // --- ADR-059 Decision 6: the named, load-bearing interruption-sequence regression ------------
@@ -566,11 +575,13 @@ describe("startAgUiRun — SSE frame streaming end to end", () => {
 
     // Two SEPARATE text events, not one merged string — proves the client-side reduction renders
     // the interruption as two distinct segments (chat-core's own event log tells them apart by
-    // sequence, not by re-inspecting message ids this transport already discarded).
+    // sequence, with step_start preserving each message id).
     expect(h.events).toEqual([
+      { kind: "status", code: "step_start", label: "", data: { messageId: "msg_1" } },
       { kind: "text", text: "Let me check that." },
       { kind: "tool_use", id: "call-1", name: "search", input: { q: "posts" } },
       { kind: "tool_result", toolUseId: "call-1", content: "found 3", isError: false },
+      { kind: "status", code: "step_start", label: "", data: { messageId: "msg_2" } },
       { kind: "text", text: "Found 3 posts." },
     ]);
     expect(h.done).toEqual(h.events);

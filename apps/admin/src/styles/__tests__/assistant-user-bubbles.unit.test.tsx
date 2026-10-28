@@ -52,7 +52,8 @@ it.each([
   for (const bubble of bubbles) {
     expect(bubble.matches(rule.selectorText)).toBe(true);
   }
-  const midRun = container.querySelector('.jini-message-user--mid-run')!;
+  // Jini d72eb0638 renders mid-run inputs as ordinary sibling transcript rows.
+  const midRun = container.querySelector('[data-agent-label="A message from the user, sent while the agent was working"]')!;
   const firstUser = container.querySelector('[data-message-id="user"]')!;
   const assistant = container.querySelector('.jini-message-assistant')!;
   const followingUser = container.querySelector('[data-message-id="following-user"]')!;
@@ -69,9 +70,14 @@ it.each([
   const firstGap = parseFloat(getComputedStyle(firstUser).marginBottom || '0')
     + parseFloat(getComputedStyle(assistant).marginTop || '0') + listGap;
   expect(firstGap).toBe(ordinaryGap);
-  expect(parseFloat(getComputedStyle(midRun).marginTop)).toBe(ordinaryGap);
+  const midRunGap = parseFloat(getComputedStyle(assistant).marginBottom || '0')
+    + parseFloat(getComputedStyle(midRun).marginTop || '0') + listGap;
+  expect(midRunGap).toBe(ordinaryGap);
   expect(ordinaryGap).toBe(32);
   expect(getComputedStyle(followingUser).marginBottom).toBe('0px');
-  expect(midRun.closest('.jini-message-ext-events')!.previousElementSibling)
-    .toBe(assistant.querySelector('.jini-message-tools'));
+  expect(midRun).not.toHaveClass('jini-message-user--mid-run');
+  expect(midRun.parentElement).toBe(list);
+  expect(midRun.previousElementSibling).toBe(assistant);
+  expect(midRun.nextElementSibling).toBe(followingUser);
+  expect(assistant.querySelector('.jini-message-tools')).not.toBeNull();
 });
