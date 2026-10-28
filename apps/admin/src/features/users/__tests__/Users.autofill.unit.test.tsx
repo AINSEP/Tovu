@@ -115,8 +115,9 @@ describe("Users — Reset password dialog autofill guard", () => {
       expect(input).toHaveAttribute("type", "password");
       expect(input).toHaveAttribute("autocomplete", "new-password");
     }
-    for (const button of within(dialog).getAllByRole("button", { name: "Show password" })) {
-      await user.click(button);
+    for (const label of ["New password", "Confirm new password"]) {
+      await user.click(within(dialog).getByRole("button", { name: `Show ${label}` }));
+      expect(within(dialog).getByRole("button", { name: `Hide ${label}` })).not.toHaveAttribute("aria-pressed");
     }
     for (const label of ["New password", "Confirm new password"]) {
       const input = within(dialog).getByLabelText(label);

@@ -259,7 +259,10 @@ describe("admin credential inputs", () => {
     for (const label of ["New password", "Confirm new password"]) {
       expect(view.getByLabelText(label).getAttribute("autocomplete")).toBe("new-password");
     }
-    for (const button of view.getAllByRole("button", { name: "Show password" })) fireEvent.click(button);
+    for (const label of ["New password", "Confirm new password"]) {
+      fireEvent.click(view.getByRole("button", { name: `Show ${label}` }));
+      expect(view.getByRole("button", { name: `Hide ${label}` }).getAttribute("aria-pressed")).toBeNull();
+    }
     for (const label of ["New password", "Confirm new password"]) {
       const input = view.getByLabelText(label);
       expect(input.getAttribute("type")).toBe("text");

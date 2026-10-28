@@ -480,9 +480,9 @@ describe("Reset password — via RowMenu, opens a dialog with a password field",
   });
 
   describe("Independent show/hide toggles", () => {
-    /** Each password field's own `.field` wrapper — scoping into it, rather than trusting DOM order
-     *  between two same-labeled "Show password" buttons, is what actually proves a toggle affects
-     *  only ITS OWN field. */
+    /** Each password field's own `.field` wrapper — scoping into it and checking both input types
+     *  after every click proves a toggle affects only ITS OWN field. Field-specific accessible
+     *  names also keep the two reveal actions distinguishable without trusting DOM order. */
     function fieldFor(dialog: HTMLElement, labelText: string): HTMLElement {
       return within(dialog).getByLabelText(labelText).closest(".field") as HTMLElement;
     }
@@ -507,18 +507,20 @@ describe("Reset password — via RowMenu, opens a dialog with a password field",
       expect(newInput.type).toBe("password");
       expect(confirmInput.type).toBe("password");
 
-      await user.click(within(newField).getByRole("button", { name: "Show password" }));
+      await user.click(within(newField).getByRole("button", { name: "Show New password" }));
       expect(newInput.type).toBe("text");
       expect(confirmInput.type).toBe("password");
-      // The confirm field's own toggle is unaffected — still hidden, still labeled "Show password".
-      expect(within(confirmField).getByRole("button", { name: "Show password" })).toBeInTheDocument();
+      expect(within(newField).getByRole("button", { name: "Hide New password" })).not.toHaveAttribute("aria-pressed");
+      // The confirm field's own toggle is unaffected — still hidden, still offering to reveal it.
+      expect(within(confirmField).getByRole("button", { name: "Show Confirm new password" })).toBeInTheDocument();
 
-      await user.click(within(confirmField).getByRole("button", { name: "Show password" }));
+      await user.click(within(confirmField).getByRole("button", { name: "Show Confirm new password" }));
       expect(newInput.type).toBe("text");
       expect(confirmInput.type).toBe("text");
+      expect(within(confirmField).getByRole("button", { name: "Hide Confirm new password" })).not.toHaveAttribute("aria-pressed");
 
       // Hiding the new-password field again doesn't touch the confirm field.
-      await user.click(within(newField).getByRole("button", { name: "Hide password" }));
+      await user.click(within(newField).getByRole("button", { name: "Hide New password" }));
       expect(newInput.type).toBe("password");
       expect(confirmInput.type).toBe("text");
     });
@@ -537,8 +539,8 @@ describe("Reset password — via RowMenu, opens a dialog with a password field",
 
       const newField = fieldFor(dialog, "New password");
       const confirmField = fieldFor(dialog, "Confirm new password");
-      await user.click(within(newField).getByRole("button", { name: "Show password" }));
-      await user.click(within(confirmField).getByRole("button", { name: "Show password" }));
+      await user.click(within(newField).getByRole("button", { name: "Show New password" }));
+      await user.click(within(confirmField).getByRole("button", { name: "Show Confirm new password" }));
       expect((within(dialog).getByLabelText("New password") as HTMLInputElement).type).toBe("text");
       expect((within(dialog).getByLabelText("Confirm new password") as HTMLInputElement).type).toBe("text");
 
@@ -547,7 +549,10 @@ describe("Reset password — via RowMenu, opens a dialog with a password field",
 
       expect((within(dialog).getByLabelText("New password") as HTMLInputElement).type).toBe("password");
       expect((within(dialog).getByLabelText("Confirm new password") as HTMLInputElement).type).toBe("password");
-      expect(within(dialog).queryAllByRole("button", { name: "Hide password" })).toHaveLength(0);
+      expect(within(dialog).getByRole("button", { name: "Show New password" })).toBeInTheDocument();
+      expect(within(dialog).getByRole("button", { name: "Show Confirm new password" })).toBeInTheDocument();
+      expect(within(dialog).queryByRole("button", { name: "Hide New password" })).not.toBeInTheDocument();
+      expect(within(dialog).queryByRole("button", { name: "Hide Confirm new password" })).not.toBeInTheDocument();
     });
   });
 });
