@@ -281,7 +281,9 @@ function runningSiteRefusal({ dir, name }: { dir: string; name: string }, ports:
   const running = (ports.readSiteRunning ?? readSiteRunningReal)({ dir }, { workspace: ports.workspace });
   if (!running) return null;
   const url = runningSiteUrl({ record: running });
-  const location = url ? `open in ${running.app} at ${url}` : `starting in ${running.app}. Wait for it to finish starting`;
+  const app = running.app === "Desktop" ? "the Desktop app" : running.app;
+  const guidance = running.app === "Desktop" ? " — close it there or open it in Desktop" : "";
+  const location = url ? `open in ${app} at ${url}${guidance}` : `starting in ${running.app}. Wait for it to finish starting`;
   return { ok: false, code: "SITE_ALREADY_RUNNING", ...(url ? { url } : {}),
     error: `Site '${name}' is ${location}. Switch refused; the current site is still running.` };
 }

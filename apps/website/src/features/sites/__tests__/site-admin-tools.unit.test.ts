@@ -159,7 +159,7 @@ test("sites_switch_site: an occupied Desktop target returns its URL without savi
   };
   env.deps.devRestart = { requestRestart: () => assert.fail("occupied target must not restart") };
   await assert.rejects(() => handlerFor(env.deps, "sites_switch_site")(ctxFor({ name: "alpha" })), {
-    message: "Site 'alpha' is open in Desktop at https://localhost:53775/admin/. Switch refused; the current site is still running.",
+    message: "Site 'alpha' is open in the Desktop app at https://localhost:53775/admin/ — close it there or open it in Desktop. Switch refused; the current site is still running.",
     code: "SITE_ALREADY_RUNNING",
   });
   assert.deepEqual(env.persists, []);

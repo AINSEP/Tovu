@@ -71,7 +71,7 @@ test("Activate refuses a live Desktop target with 409 and its URL before saving 
   const res = await activate(env.deps, t, { restartNow: true });
   assert.equal(res.status, 409);
   assert.deepEqual(res.body, { code: "SITE_ALREADY_RUNNING", url: "http://localhost:53775/admin/",
-    error: "Site 'alpha' is open in Desktop at http://localhost:53775/admin/. Switch refused; the current site is still running." });
+    error: "Site 'alpha' is open in the Desktop app at http://localhost:53775/admin/ — close it there or open it in Desktop. Switch refused; the current site is still running." });
   assert.deepEqual(env.requests, []);
 });
 

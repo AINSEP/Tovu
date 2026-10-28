@@ -31,12 +31,28 @@ for (const port of [53775, 0]) {
       devRestart: { requestRestart: () => assert.fail("occupied target must not restart") },
     });
     assert.deepEqual(result, { ok: false, code: "SITE_ALREADY_RUNNING", error: url
-      ? "Site 'alpha' is open in Desktop at https://localhost:53775/admin/. Switch refused; the current site is still running."
+      ? "Site 'alpha' is open in the Desktop app at https://localhost:53775/admin/ — close it there or open it in Desktop. Switch refused; the current site is still running."
       : "Site 'alpha' is starting in Desktop. Wait for it to finish starting. Switch refused; the current site is still running.",
       ...(url ? { url } : {}),
     });
   });
 }
+
+test("activateSite: saving without a restart still refuses a Desktop target with recovery guidance", () => {
+  const result = activateSite({ switcherBase: "/repo", name: "alpha", restartNow: false }, {
+    listSites: () => [SITE],
+    readSiteRunning: ({ dir }) => {
+      assert.equal(dir, SITE.dir);
+      return { pid: 42, port: 53775, app: "Desktop", scheme: "http", started: "2026-10-26T00:00:00Z", token: "test-lease" };
+    },
+    persistActiveSite: () => assert.fail("occupied target must not change the next boot's site"),
+    devRestart: { requestRestart: () => assert.fail("occupied target must not restart") },
+  });
+  assert.deepEqual(result, {
+    ok: false, code: "SITE_ALREADY_RUNNING", url: "http://localhost:53775/admin/",
+    error: "Site 'alpha' is open in the Desktop app at http://localhost:53775/admin/ — close it there or open it in Desktop. Switch refused; the current site is still running.",
+  });
+});
 
 test("activateSite: an unreadable running lock fails closed before persistence", () => {
   assert.throws(() => activateSite({ switcherBase: "/repo", name: "alpha" }, {
