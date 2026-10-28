@@ -1,0 +1,7 @@
+apps/website/src/features/post/__tests__/search.dialects.test.ts ℹ pass 4 ℹ fail 0 
+apps/website/src/features/webhooks/__tests__/seal-aad-invariant.test.ts ℹ pass 20 ℹ fail 0 
+apps/website/src/assistant/persistence/__tests__/release-manifests.test.ts ℹ pass 0 ℹ fail 1 
+apps/website/src/features/media-generation/__tests__/providers-tools.test.ts ℹ pass 36 ℹ fail 0 
+apps/website/src/features/database-transfer/__tests__/tool-registrations.postgres.test.ts ℹ pass 2 ℹ fail 4 
+apps/website/src/platform/db/repos/__tests__/external-mcp-repo.test.ts ℹ pass 22 ℹ fail 40 
+apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts ℹ pass 0 ℹ fail 1 

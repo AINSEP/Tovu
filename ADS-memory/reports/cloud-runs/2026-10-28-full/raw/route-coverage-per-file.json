@@ -1,0 +1,2666 @@
+[
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/pages.ts",
+  "status": "LOADED",
+  "lines": 92.9,
+  "branches": 68.4,
+  "funcs": 62.9,
+  "uncoveredLines": 219
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/publish-site.ts",
+  "status": "LOADED",
+  "lines": 76.91,
+  "branches": 86.96,
+  "funcs": 50,
+  "uncoveredLines": 109
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/backstop.ts",
+  "status": "LOADED",
+  "lines": 63.67,
+  "branches": 71.15,
+  "funcs": 65.38,
+  "uncoveredLines": 97
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/recovery/restore.ts",
+  "status": "LOADED",
+  "lines": 62.7,
+  "branches": 83.33,
+  "funcs": 50,
+  "uncoveredLines": 91
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/chat-comparison-html.ts",
+  "status": "LOADED",
+  "lines": 11.76,
+  "branches": 100,
+  "funcs": 33.33,
+  "uncoveredLines": 75
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/database/migrate-forward.ts",
+  "status": "LOADED",
+  "lines": 58.05,
+  "branches": 100,
+  "funcs": 33.33,
+  "uncoveredLines": 73
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/posts/template-preview-render.ts",
+  "status": "LOADED",
+  "lines": 65.4,
+  "branches": 75,
+  "funcs": 25,
+  "uncoveredLines": 73
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/taxonomy/merge-term.ts",
+  "status": "LOADED",
+  "lines": 56.52,
+  "branches": 100,
+  "funcs": 33.33,
+  "uncoveredLines": 70
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/media-rendition.ts",
+  "status": "LOADED",
+  "lines": 90.7,
+  "branches": 54.17,
+  "funcs": 40.74,
+  "uncoveredLines": 66
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/site-key.ts",
+  "status": "LOADED",
+  "lines": 91.26,
+  "branches": 85.71,
+  "funcs": 66.67,
+  "uncoveredLines": 54
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/external-mcp/put.ts",
+  "status": "LOADED",
+  "lines": 72.32,
+  "branches": 100,
+  "funcs": 28.57,
+  "uncoveredLines": 49
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/bundle-create.ts",
+  "status": "LOADED",
+  "lines": 78.97,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 49
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/custom-credentials.ts",
+  "status": "LOADED",
+  "lines": 78.13,
+  "branches": 55.56,
+  "funcs": 69.23,
+  "uncoveredLines": 49
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/agent-tools.ts",
+  "status": "LOADED",
+  "lines": 85.53,
+  "branches": 43.59,
+  "funcs": 70,
+  "uncoveredLines": 46
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/agent-plugins/admin-surfaces.ts",
+  "status": "LOADED",
+  "lines": 66.15,
+  "branches": 100,
+  "funcs": 18.18,
+  "uncoveredLines": 44
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/forms/list-submissions.ts",
+  "status": "LOADED",
+  "lines": 54.17,
+  "branches": 100,
+  "funcs": 50,
+  "uncoveredLines": 44
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/write-policy-permission.ts",
+  "status": "LOADED",
+  "lines": 55.1,
+  "branches": 44.44,
+  "funcs": 60,
+  "uncoveredLines": 44
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/agent-plugins/install.ts",
+  "status": "LOADED",
+  "lines": 66.92,
+  "branches": 100,
+  "funcs": 28.57,
+  "uncoveredLines": 43
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/pages/delete.ts",
+  "status": "LOADED",
+  "lines": 67.91,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 43
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/import-url.ts",
+  "status": "LOADED",
+  "lines": 50,
+  "branches": 100,
+  "funcs": 50,
+  "uncoveredLines": 41
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/members/request-magic-link.ts",
+  "status": "LOADED",
+  "lines": 67.52,
+  "branches": 100,
+  "funcs": 40,
+  "uncoveredLines": 38
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/change-sets/revert.ts",
+  "status": "LOADED",
+  "lines": 67.26,
+  "branches": 100,
+  "funcs": 50,
+  "uncoveredLines": 37
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/external-mcp/oauth.ts",
+  "status": "LOADED",
+  "lines": 80.11,
+  "branches": 100,
+  "funcs": 44.44,
+  "uncoveredLines": 37
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/forms/update.ts",
+  "status": "LOADED",
+  "lines": 67.83,
+  "branches": 100,
+  "funcs": 50,
+  "uncoveredLines": 37
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/forms/pull-submissions.ts",
+  "status": "LOADED",
+  "lines": 50,
+  "branches": 100,
+  "funcs": 40,
+  "uncoveredLines": 36
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/replace.ts",
+  "status": "LOADED",
+  "lines": 57.32,
+  "branches": 100,
+  "funcs": 33.33,
+  "uncoveredLines": 35
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/entries/update.ts",
+  "status": "LOADED",
+  "lines": 61.36,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 34
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/forms/delete-submission.ts",
+  "status": "LOADED",
+  "lines": 55.26,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 34
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/plugins/set-enabled.ts",
+  "status": "LOADED",
+  "lines": 81.62,
+  "branches": 60,
+  "funcs": 70,
+  "uncoveredLines": 34
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/entries/lifecycle.ts",
+  "status": "LOADED",
+  "lines": 61.18,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 33
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/entries/create.ts",
+  "status": "LOADED",
+  "lines": 62.79,
+  "branches": 100,
+  "funcs": 50,
+  "uncoveredLines": 32
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/members/complete-sign-in.ts",
+  "status": "LOADED",
+  "lines": 65.22,
+  "branches": 100,
+  "funcs": 42.86,
+  "uncoveredLines": 32
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/content-types/lifecycle.ts",
+  "status": "LOADED",
+  "lines": 66.3,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 31
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/forms/get-submission.ts",
+  "status": "LOADED",
+  "lines": 58.67,
+  "branches": 100,
+  "funcs": 50,
+  "uncoveredLines": 31
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/seo/put-settings.ts",
+  "status": "LOADED",
+  "lines": 41.51,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 31
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/redirects/update.ts",
+  "status": "LOADED",
+  "lines": 53.13,
+  "branches": 100,
+  "funcs": 50,
+  "uncoveredLines": 30
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/integrations/deliveries.ts",
+  "status": "LOADED",
+  "lines": 62.82,
+  "branches": 100,
+  "funcs": 50,
+  "uncoveredLines": 29
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/integrations/list.ts",
+  "status": "LOADED",
+  "lines": 65.48,
+  "branches": 100,
+  "funcs": 50,
+  "uncoveredLines": 29
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/redirects/hits.ts",
+  "status": "LOADED",
+  "lines": 42,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 29
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/content/posts/get-by-slug.ts",
+  "status": "LOADED",
+  "lines": 64.63,
+  "branches": 100,
+  "funcs": 50,
+  "uncoveredLines": 29
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/seo/get-entry.ts",
+  "status": "LOADED",
+  "lines": 45.1,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 28
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/database/timeline.ts",
+  "status": "LOADED",
+  "lines": 66.67,
+  "branches": 100,
+  "funcs": 33.33,
+  "uncoveredLines": 27
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/menus/get-by-id.ts",
+  "status": "LOADED",
+  "lines": 48.08,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 27
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/import.ts",
+  "status": "LOADED",
+  "lines": 91.06,
+  "branches": 60.98,
+  "funcs": 86.67,
+  "uncoveredLines": 27
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/redirects/get-by-id.ts",
+  "status": "LOADED",
+  "lines": 38.1,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 26
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/seo/get-entry-analyze.ts",
+  "status": "LOADED",
+  "lines": 45.83,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 26
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/observability-status.ts",
+  "status": "LOADED",
+  "lines": 69.05,
+  "branches": 77.78,
+  "funcs": 60,
+  "uncoveredLines": 26
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/database/restore-points.ts",
+  "status": "LOADED",
+  "lines": 88.32,
+  "branches": 47.37,
+  "funcs": 72.73,
+  "uncoveredLines": 25
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/forms/get-by-id.ts",
+  "status": "LOADED",
+  "lines": 51.92,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 25
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/integrations/delete.ts",
+  "status": "LOADED",
+  "lines": 59.68,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 25
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/email-templates/routes.ts",
+  "status": "LOADED",
+  "lines": 78.38,
+  "branches": 100,
+  "funcs": 20,
+  "uncoveredLines": 24
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/redirects/import.ts",
+  "status": "LOADED",
+  "lines": 58.62,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 24
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/seo/put-entry.ts",
+  "status": "LOADED",
+  "lines": 73.63,
+  "branches": 100,
+  "funcs": 50,
+  "uncoveredLines": 24
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/change-sets/get.ts",
+  "status": "LOADED",
+  "lines": 59.65,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 23
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/update-policy.ts",
+  "status": "LOADED",
+  "lines": 60.34,
+  "branches": 100,
+  "funcs": 40,
+  "uncoveredLines": 23
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/members/sign-in.ts",
+  "status": "LOADED",
+  "lines": 67.14,
+  "branches": 100,
+  "funcs": 40,
+  "uncoveredLines": 23
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/comments/put-settings.ts",
+  "status": "LOADED",
+  "lines": 61.4,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 22
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/consent/routes.ts",
+  "status": "LOADED",
+  "lines": 65.08,
+  "branches": 100,
+  "funcs": 30,
+  "uncoveredLines": 22
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/integrations/create.ts",
+  "status": "LOADED",
+  "lines": 69.01,
+  "branches": 100,
+  "funcs": 50,
+  "uncoveredLines": 22
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/integrations/pause.ts",
+  "status": "LOADED",
+  "lines": 71.79,
+  "branches": 100,
+  "funcs": 50,
+  "uncoveredLines": 22
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/recovery/deep-link.ts",
+  "status": "LOADED",
+  "lines": 55.1,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 22
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/redirects/tombstone.ts",
+  "status": "LOADED",
+  "lines": 55.1,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 22
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/dockerfile-source.ts",
+  "status": "LOADED",
+  "lines": 87.13,
+  "branches": 77.27,
+  "funcs": 83.33,
+  "uncoveredLines": 22
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/mail-providers.ts",
+  "status": "LOADED",
+  "lines": 80.87,
+  "branches": 100,
+  "funcs": 25,
+  "uncoveredLines": 22
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/create-role.ts",
+  "status": "LOADED",
+  "lines": 52.17,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 22
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/create-policy.ts",
+  "status": "LOADED",
+  "lines": 65.57,
+  "branches": 100,
+  "funcs": 40,
+  "uncoveredLines": 21
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/deployment-overview.ts",
+  "status": "LOADED",
+  "lines": 90.1,
+  "branches": 91.67,
+  "funcs": 75,
+  "uncoveredLines": 20
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/members/get-by-id.ts",
+  "status": "LOADED",
+  "lines": 71.64,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 19
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/posts/template-preview.ts",
+  "status": "LOADED",
+  "lines": 92.08,
+  "branches": 100,
+  "funcs": 28.57,
+  "uncoveredLines": 19
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/seo/get-settings.ts",
+  "status": "LOADED",
+  "lines": 48.65,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 19
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/seo/post-sitemap-regenerate.ts",
+  "status": "LOADED",
+  "lines": 47.22,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 19
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/publish-credentials.ts",
+  "status": "LOADED",
+  "lines": 94.84,
+  "branches": 79.71,
+  "funcs": 92.86,
+  "uncoveredLines": 19
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/analytics/recent-hits.ts",
+  "status": "LOADED",
+  "lines": 82.52,
+  "branches": 100,
+  "funcs": 40,
+  "uncoveredLines": 18
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/change-sets/list.ts",
+  "status": "LOADED",
+  "lines": 55,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 18
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/forms/list.ts",
+  "status": "LOADED",
+  "lines": 50,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 18
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/delete.ts",
+  "status": "LOADED",
+  "lines": 73.13,
+  "branches": 100,
+  "funcs": 50,
+  "uncoveredLines": 18
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/delete-policy.ts",
+  "status": "LOADED",
+  "lines": 68.97,
+  "branches": 100,
+  "funcs": 50,
+  "uncoveredLines": 18
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/newsletter-confirm.ts",
+  "status": "LOADED",
+  "lines": 66.04,
+  "branches": 100,
+  "funcs": 50,
+  "uncoveredLines": 18
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/agent-plugins/memory.ts",
+  "status": "LOADED",
+  "lines": 75,
+  "branches": 53.85,
+  "funcs": 75,
+  "uncoveredLines": 17
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/put-providers.ts",
+  "status": "LOADED",
+  "lines": 78.48,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 17
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/members/list.ts",
+  "status": "LOADED",
+  "lines": 76.39,
+  "branches": 100,
+  "funcs": 50,
+  "uncoveredLines": 17
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/posts/autosave.ts",
+  "status": "LOADED",
+  "lines": 91.24,
+  "branches": 43.59,
+  "funcs": 75,
+  "uncoveredLines": 17
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/comments/get-settings.ts",
+  "status": "LOADED",
+  "lines": 63.64,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 16
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/entries/list.ts",
+  "status": "LOADED",
+  "lines": 57.89,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 16
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/blobs-probe.ts",
+  "status": "LOADED",
+  "lines": 81.61,
+  "branches": 100,
+  "funcs": 50,
+  "uncoveredLines": 16
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/menus/delete.ts",
+  "status": "LOADED",
+  "lines": 65.12,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 15
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/commerce/status.ts",
+  "status": "LOADED",
+  "lines": 77.78,
+  "branches": 100,
+  "funcs": 50,
+  "uncoveredLines": 14
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/external-mcp/tool-approvals.ts",
+  "status": "LOADED",
+  "lines": 72,
+  "branches": 100,
+  "funcs": 50,
+  "uncoveredLines": 14
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/menus/assign-location.ts",
+  "status": "LOADED",
+  "lines": 86.67,
+  "branches": 37.5,
+  "funcs": 100,
+  "uncoveredLines": 14
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/pause-campaign.ts",
+  "status": "LOADED",
+  "lines": 61.11,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 14
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/resume-campaign.ts",
+  "status": "LOADED",
+  "lines": 61.11,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 14
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/recovery/disclosure.ts",
+  "status": "LOADED",
+  "lines": 76.27,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 14
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/delete.ts",
+  "status": "LOADED",
+  "lines": 80.82,
+  "branches": 61.54,
+  "funcs": 100,
+  "uncoveredLines": 14
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/agent-plugins/set-enabled.ts",
+  "status": "LOADED",
+  "lines": 95.52,
+  "branches": 48.15,
+  "funcs": 100,
+  "uncoveredLines": 13
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/members/delete.ts",
+  "status": "LOADED",
+  "lines": 58.06,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 13
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/recovery/status.ts",
+  "status": "LOADED",
+  "lines": 81.43,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 13
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/reset-password.ts",
+  "status": "LOADED",
+  "lines": 85.87,
+  "branches": 47.06,
+  "funcs": 100,
+  "uncoveredLines": 13
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/products.ts",
+  "status": "LOADED",
+  "lines": 89.76,
+  "branches": 54.55,
+  "funcs": 83.33,
+  "uncoveredLines": 13
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/menus/list.ts",
+  "status": "LOADED",
+  "lines": 75,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 12
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/pages/create.ts",
+  "status": "LOADED",
+  "lines": 90.32,
+  "branches": 52.63,
+  "funcs": 100,
+  "uncoveredLines": 12
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/posts/delete.ts",
+  "status": "LOADED",
+  "lines": 92.16,
+  "branches": 53.85,
+  "funcs": 66.67,
+  "uncoveredLines": 12
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/ops/health.ts",
+  "status": "LOADED",
+  "lines": 80.95,
+  "branches": 100,
+  "funcs": 57.14,
+  "uncoveredLines": 12
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/get-providers.ts",
+  "status": "LOADED",
+  "lines": 78,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 11
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/original.ts",
+  "status": "LOADED",
+  "lines": 96.04,
+  "branches": 50,
+  "funcs": 75,
+  "uncoveredLines": 11
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/update-campaign.ts",
+  "status": "LOADED",
+  "lines": 93.25,
+  "branches": 36.67,
+  "funcs": 100,
+  "uncoveredLines": 11
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/remove-policy-permission.ts",
+  "status": "LOADED",
+  "lines": 87.64,
+  "branches": 43.75,
+  "funcs": 100,
+  "uncoveredLines": 11
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/embed-insert.ts",
+  "status": "LOADED",
+  "lines": 73.17,
+  "branches": 90.91,
+  "funcs": 100,
+  "uncoveredLines": 11
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/members/password-sign-in.ts",
+  "status": "LOADED",
+  "lines": 63.33,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 11
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/members/set-password.ts",
+  "status": "LOADED",
+  "lines": 60.71,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 11
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/agent-plugins/list.ts",
+  "status": "LOADED",
+  "lines": 86.84,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 10
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/put-site-credential.ts",
+  "status": "LOADED",
+  "lines": 90.74,
+  "branches": 90,
+  "funcs": 100,
+  "uncoveredLines": 10
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/menus/create.ts",
+  "status": "LOADED",
+  "lines": 88.51,
+  "branches": 37.5,
+  "funcs": 100,
+  "uncoveredLines": 10
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/posts/create.ts",
+  "status": "LOADED",
+  "lines": 92.59,
+  "branches": 68.42,
+  "funcs": 100,
+  "uncoveredLines": 10
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/recovery/restore-points.ts",
+  "status": "LOADED",
+  "lines": 75.61,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 10
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/publish-trust/handshake.ts",
+  "status": "LOADED",
+  "lines": 95.87,
+  "branches": 97.96,
+  "funcs": 100,
+  "uncoveredLines": 10
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/newsletter-unsubscribe.ts",
+  "status": "LOADED",
+  "lines": 81.48,
+  "branches": 100,
+  "funcs": 50,
+  "uncoveredLines": 10
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/external-mcp/delete.ts",
+  "status": "LOADED",
+  "lines": 78.57,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 9
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/plugins/uninstall.ts",
+  "status": "LOADED",
+  "lines": 89.29,
+  "branches": 73.91,
+  "funcs": 100,
+  "uncoveredLines": 9
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/enable.ts",
+  "status": "LOADED",
+  "lines": 90.82,
+  "branches": 35.29,
+  "funcs": 83.33,
+  "uncoveredLines": 9
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/agent-plugins/connection-sign-in.ts",
+  "status": "LOADED",
+  "lines": 69.23,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 8
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/database/schema-state.ts",
+  "status": "LOADED",
+  "lines": 87.69,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 8
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/update.ts",
+  "status": "LOADED",
+  "lines": 94.2,
+  "branches": 55.56,
+  "funcs": 85.71,
+  "uncoveredLines": 8
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/pages/get-by-id.ts",
+  "status": "LOADED",
+  "lines": 91.11,
+  "branches": 35.71,
+  "funcs": 57.14,
+  "uncoveredLines": 8
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/pages/update.ts",
+  "status": "LOADED",
+  "lines": 96.71,
+  "branches": 47.62,
+  "funcs": 88.89,
+  "uncoveredLines": 8
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/redirects/list.ts",
+  "status": "LOADED",
+  "lines": 85.45,
+  "branches": 36.36,
+  "funcs": 100,
+  "uncoveredLines": 8
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/assistant-daemon.ts",
+  "status": "LOADED",
+  "lines": 91.21,
+  "branches": 87.5,
+  "funcs": 100,
+  "uncoveredLines": 8
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/delete-role.ts",
+  "status": "LOADED",
+  "lines": 86.21,
+  "branches": 41.67,
+  "funcs": 100,
+  "uncoveredLines": 8
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/disable.ts",
+  "status": "LOADED",
+  "lines": 92.23,
+  "branches": 68.42,
+  "funcs": 87.5,
+  "uncoveredLines": 8
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/update-role.ts",
+  "status": "LOADED",
+  "lines": 85.71,
+  "branches": 38.46,
+  "funcs": 100,
+  "uncoveredLines": 8
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/update.ts",
+  "status": "LOADED",
+  "lines": 93.1,
+  "branches": 62.5,
+  "funcs": 100,
+  "uncoveredLines": 8
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/plugin-contributions.ts",
+  "status": "LOADED",
+  "lines": 94.07,
+  "branches": 100,
+  "funcs": 90,
+  "uncoveredLines": 8
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/test-connection.ts",
+  "status": "LOADED",
+  "lines": 95.36,
+  "branches": 88.89,
+  "funcs": 100,
+  "uncoveredLines": 7
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/menus/update-tree.ts",
+  "status": "LOADED",
+  "lines": 95.21,
+  "branches": 75.86,
+  "funcs": 100,
+  "uncoveredLines": 7
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/send-test-campaign.ts",
+  "status": "LOADED",
+  "lines": 85.71,
+  "branches": 45.45,
+  "funcs": 80,
+  "uncoveredLines": 7
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/posts/update.ts",
+  "status": "LOADED",
+  "lines": 97.4,
+  "branches": 44.44,
+  "funcs": 80,
+  "uncoveredLines": 7
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/export-site.ts",
+  "status": "LOADED",
+  "lines": 96.2,
+  "branches": 52.94,
+  "funcs": 100,
+  "uncoveredLines": 7
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/taxonomy/create-taxonomy.ts",
+  "status": "LOADED",
+  "lines": 86.27,
+  "branches": 62.5,
+  "funcs": 100,
+  "uncoveredLines": 7
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/taxonomy/list.ts",
+  "status": "LOADED",
+  "lines": 82.05,
+  "branches": 66.67,
+  "funcs": 100,
+  "uncoveredLines": 7
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/members/forgot-password.ts",
+  "status": "LOADED",
+  "lines": 68.18,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 7
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/members/sign-out.ts",
+  "status": "LOADED",
+  "lines": 69.57,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 7
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/external-mcp/probe.ts",
+  "status": "LOADED",
+  "lines": 93.26,
+  "branches": 100,
+  "funcs": 60,
+  "uncoveredLines": 6
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/trash.ts",
+  "status": "LOADED",
+  "lines": 93.33,
+  "branches": 62.5,
+  "funcs": 83.33,
+  "uncoveredLines": 6
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/redirects/create.ts",
+  "status": "LOADED",
+  "lines": 93.62,
+  "branches": 31.25,
+  "funcs": 100,
+  "uncoveredLines": 6
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/taxonomy/rename-term.ts",
+  "status": "LOADED",
+  "lines": 89.29,
+  "branches": 66.67,
+  "funcs": 100,
+  "uncoveredLines": 6
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/members/reset-password.ts",
+  "status": "LOADED",
+  "lines": 66.67,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 6
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/robots.ts",
+  "status": "LOADED",
+  "lines": 82.35,
+  "branches": 57.14,
+  "funcs": 100,
+  "uncoveredLines": 6
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/get-chat-attachment.ts",
+  "status": "LOADED",
+  "lines": 95.37,
+  "branches": 66.67,
+  "funcs": 100,
+  "uncoveredLines": 5
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/list-models.ts",
+  "status": "LOADED",
+  "lines": 96.82,
+  "branches": 92.86,
+  "funcs": 100,
+  "uncoveredLines": 5
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/external-mcp/list.ts",
+  "status": "LOADED",
+  "lines": 82.76,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncoveredLines": 5
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/pages/list.ts",
+  "status": "LOADED",
+  "lines": 87.8,
+  "branches": 50,
+  "funcs": 100,
+  "uncoveredLines": 5
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/module-status.ts",
+  "status": "LOADED",
+  "lines": 91.07,
+  "branches": 87.5,
+  "funcs": 100,
+  "uncoveredLines": 5
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/attach-policy.ts",
+  "status": "LOADED",
+  "lines": 92.31,
+  "branches": 33.33,
+  "funcs": 100,
+  "uncoveredLines": 5
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/chat-comparison.ts",
+  "status": "LOADED",
+  "lines": 86.11,
+  "branches": 100,
+  "funcs": 33.33,
+  "uncoveredLines": 5
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/newsletter-deps.ts",
+  "status": "LOADED",
+  "lines": 92.19,
+  "branches": 100,
+  "funcs": 33.33,
+  "uncoveredLines": 5
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/forms/create.ts",
+  "status": "LOADED",
+  "lines": 94.44,
+  "branches": 35.71,
+  "funcs": 100,
+  "uncoveredLines": 4
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/schedule-campaign.ts",
+  "status": "LOADED",
+  "lines": 93.85,
+  "branches": 40,
+  "funcs": 100,
+  "uncoveredLines": 4
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/send-campaign.ts",
+  "status": "LOADED",
+  "lines": 95.29,
+  "branches": 55.56,
+  "funcs": 100,
+  "uncoveredLines": 4
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/presentation/patch-active-theme.ts",
+  "status": "LOADED",
+  "lines": 96.69,
+  "branches": 68.42,
+  "funcs": 100,
+  "uncoveredLines": 4
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/blob-put.ts",
+  "status": "LOADED",
+  "lines": 95.6,
+  "branches": 31.25,
+  "funcs": 100,
+  "uncoveredLines": 4
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/export.ts",
+  "status": "LOADED",
+  "lines": 97.01,
+  "branches": 58.82,
+  "funcs": 100,
+  "uncoveredLines": 4
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/peers.ts",
+  "status": "LOADED",
+  "lines": 97.2,
+  "branches": 90.63,
+  "funcs": 100,
+  "uncoveredLines": 4
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/taxonomy/assign-terms.ts",
+  "status": "LOADED",
+  "lines": 97.16,
+  "branches": 56.67,
+  "funcs": 100,
+  "uncoveredLines": 4
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/route-guards.ts",
+  "status": "LOADED",
+  "lines": 96.25,
+  "branches": 83.33,
+  "funcs": 83.33,
+  "uncoveredLines": 3
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/list-send-log.ts",
+  "status": "LOADED",
+  "lines": 91.89,
+  "branches": 44.44,
+  "funcs": 100,
+  "uncoveredLines": 3
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/plugins/chart-providers.ts",
+  "status": "LOADED",
+  "lines": 93.88,
+  "branches": 88.24,
+  "funcs": 62.5,
+  "uncoveredLines": 3
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/mail-status.ts",
+  "status": "LOADED",
+  "lines": 95.24,
+  "branches": 75,
+  "funcs": 100,
+  "uncoveredLines": 3
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/assign-role.ts",
+  "status": "LOADED",
+  "lines": 95.31,
+  "branches": 37.5,
+  "funcs": 100,
+  "uncoveredLines": 3
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/create.ts",
+  "status": "LOADED",
+  "lines": 97.27,
+  "branches": 60.87,
+  "funcs": 100,
+  "uncoveredLines": 3
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/region-get.ts",
+  "status": "LOADED",
+  "lines": 94.34,
+  "branches": 92,
+  "funcs": 100,
+  "uncoveredLines": 3
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/delete-site-credential.ts",
+  "status": "LOADED",
+  "lines": 95.56,
+  "branches": 80,
+  "funcs": 100,
+  "uncoveredLines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/get-site-credential.ts",
+  "status": "LOADED",
+  "lines": 95.56,
+  "branches": 80,
+  "funcs": 100,
+  "uncoveredLines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/put-execution-credential.ts",
+  "status": "LOADED",
+  "lines": 98.11,
+  "branches": 95.83,
+  "funcs": 100,
+  "uncoveredLines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/put-settings.ts",
+  "status": "LOADED",
+  "lines": 96.83,
+  "branches": 91.67,
+  "funcs": 100,
+  "uncoveredLines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/content-types/register.ts",
+  "status": "LOADED",
+  "lines": 97.65,
+  "branches": 87.5,
+  "funcs": 100,
+  "uncoveredLines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/cancel-campaign.ts",
+  "status": "LOADED",
+  "lines": 95.12,
+  "branches": 50,
+  "funcs": 100,
+  "uncoveredLines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/create-campaign.ts",
+  "status": "LOADED",
+  "lines": 97.94,
+  "branches": 46.67,
+  "funcs": 100,
+  "uncoveredLines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/create-list.ts",
+  "status": "LOADED",
+  "lines": 95.24,
+  "branches": 40,
+  "funcs": 100,
+  "uncoveredLines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/import-subscriptions.ts",
+  "status": "LOADED",
+  "lines": 96.3,
+  "branches": 50,
+  "funcs": 100,
+  "uncoveredLines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/presentation/get.ts",
+  "status": "LOADED",
+  "lines": 98.53,
+  "branches": 46.67,
+  "funcs": 100,
+  "uncoveredLines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/presentation/rescan-themes.ts",
+  "status": "LOADED",
+  "lines": 96.83,
+  "branches": 50,
+  "funcs": 100,
+  "uncoveredLines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/peer-transport.ts",
+  "status": "LOADED",
+  "lines": 99.41,
+  "branches": 95.24,
+  "funcs": 100,
+  "uncoveredLines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/settings/get-raw.ts",
+  "status": "LOADED",
+  "lines": 97.56,
+  "branches": 76.47,
+  "funcs": 100,
+  "uncoveredLines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/settings/register-definitions.ts",
+  "status": "LOADED",
+  "lines": 98.81,
+  "branches": 88.89,
+  "funcs": 100,
+  "uncoveredLines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/server-logs.ts",
+  "status": "LOADED",
+  "lines": 96.49,
+  "branches": 86.67,
+  "funcs": 100,
+  "uncoveredLines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/sites.ts",
+  "status": "LOADED",
+  "lines": 99.55,
+  "branches": 90.1,
+  "funcs": 94.12,
+  "uncoveredLines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/agent-plugin-surfaces/export-files.ts",
+  "status": "LOADED",
+  "lines": 96.88,
+  "branches": 88,
+  "funcs": 100,
+  "uncoveredLines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/members/oidc-deps.ts",
+  "status": "LOADED",
+  "lines": 98.11,
+  "branches": 85.37,
+  "funcs": 100,
+  "uncoveredLines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/members/oidc-start.ts",
+  "status": "LOADED",
+  "lines": 95.65,
+  "branches": 81.25,
+  "funcs": 100,
+  "uncoveredLines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/search.ts",
+  "status": "LOADED",
+  "lines": 98.85,
+  "branches": 95.89,
+  "funcs": 93.75,
+  "uncoveredLines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/sitemap.ts",
+  "status": "LOADED",
+  "lines": 94.12,
+  "branches": 62.5,
+  "funcs": 100,
+  "uncoveredLines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/agent-plugins/files.ts",
+  "status": "LOADED",
+  "lines": 98.46,
+  "branches": 45.45,
+  "funcs": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/api-keys/create-principal.ts",
+  "status": "LOADED",
+  "lines": 97.83,
+  "branches": 66.67,
+  "funcs": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/get-settings.ts",
+  "status": "LOADED",
+  "lines": 98.15,
+  "branches": 90,
+  "funcs": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/external-mcp/admissions.ts",
+  "status": "LOADED",
+  "lines": 98.36,
+  "branches": 50,
+  "funcs": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/external-mcp/guard.ts",
+  "status": "LOADED",
+  "lines": 98.31,
+  "branches": 50,
+  "funcs": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/forms/authoring.ts",
+  "status": "LOADED",
+  "lines": 98.28,
+  "branches": 83.33,
+  "funcs": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/upload.ts",
+  "status": "LOADED",
+  "lines": 99.51,
+  "branches": 61.11,
+  "funcs": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/members/disable.ts",
+  "status": "LOADED",
+  "lines": 98.48,
+  "branches": 36.36,
+  "funcs": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/get-campaign.ts",
+  "status": "LOADED",
+  "lines": 97.06,
+  "branches": 62.5,
+  "funcs": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/list-lists.ts",
+  "status": "LOADED",
+  "lines": 96.88,
+  "branches": 50,
+  "funcs": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/list-subscriptions.ts",
+  "status": "LOADED",
+  "lines": 97.14,
+  "branches": 50,
+  "funcs": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts",
+  "status": "LOADED",
+  "lines": 99.52,
+  "branches": 76.67,
+  "funcs": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts",
+  "status": "LOADED",
+  "lines": 99.28,
+  "branches": 90.43,
+  "funcs": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/posts/get-by-id.ts",
+  "status": "LOADED",
+  "lines": 97.83,
+  "branches": 44.44,
+  "funcs": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/blob-get.ts",
+  "status": "LOADED",
+  "lines": 99.2,
+  "branches": 46.67,
+  "funcs": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/route-helpers.ts",
+  "status": "LOADED",
+  "lines": 99.22,
+  "branches": 97.3,
+  "funcs": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/settings/get-effective.ts",
+  "status": "LOADED",
+  "lines": 98.91,
+  "branches": 83.33,
+  "funcs": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/skills/list.ts",
+  "status": "LOADED",
+  "lines": 98.33,
+  "branches": 85.71,
+  "funcs": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/browser-telemetry.ts",
+  "status": "LOADED",
+  "lines": 99.36,
+  "branches": 95.45,
+  "funcs": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/mail-activity.ts",
+  "status": "LOADED",
+  "lines": 99.15,
+  "branches": 97.5,
+  "funcs": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/list.ts",
+  "status": "LOADED",
+  "lines": 99.02,
+  "branches": 75,
+  "funcs": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/members/oidc-callback.ts",
+  "status": "LOADED",
+  "lines": 98.95,
+  "branches": 96.43,
+  "funcs": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/member-pages.ts",
+  "status": "LOADED",
+  "lines": 99.47,
+  "branches": 92,
+  "funcs": 100,
+  "uncoveredLines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/agent-plugins/install-response.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 94.12,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/api-keys/issue.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 66.67,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/api-keys/revoke.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 71.43,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/delete-execution-credential.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 87.5,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/detect-agents.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/execution-request-fields.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/get-execution-credential.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 87.5,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/resolve-test-agent-outcome.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/stored-credential-probe.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/test-agent.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/visitor-tools.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/comments/moderate.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/comments/moderation-queue.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/content-types/list.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/content-types/update-fields.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 94.12,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/content-types/write-error-status.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/entries/write-error-status.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/forms/resolve-definition.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/fs-files/custom-root.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 82.76,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/fs-files/folder-picker.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 95.65,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/byte-size.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/content-type.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/list.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 85,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/parse.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/stored-media-response.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 60,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/text.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 85,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/where-used.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 83.33,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/archive-list.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 62.5,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/create-subscription.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 82.35,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/list-campaigns.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 64.29,
+  "funcs": 75,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/remove-subscription.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 81.82,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/resend-confirmation.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 44.44,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/plugins/files.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 82.35,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/plugins/install.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/plugins/list.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/plugins/local-installer.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/plugins/preview.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/posts/list.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 50,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/apply-report.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/capabilities.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/destination.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 98.15,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/import-errors.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/report-dto.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/redirects/shared.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/settings/assistant-subagents-access.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/settings/clear.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 95.83,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/settings/events.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/settings/list-definitions.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/settings/preview-feed-access.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/settings/reset.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/settings/set.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/settings/shared.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 95.92,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/site/profile.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 89.19,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/sites/local-sites.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/sites/site-previews.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/sites/sites-home.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/skills/files.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/skills/manage.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 97.96,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/assistant-owner-grant.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/assistant-permanent-deletes.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/assistant-subagents.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/credential-copy.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/mail-dns.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/mail-test-send.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/site-backups.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 95.45,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/site-imports.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/site-shares.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 98.78,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/source-control-credentials.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 96.67,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/tool-gaps.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/taxonomy/create-term.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/taxonomy/delete-taxonomy.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 81.82,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/taxonomy/delete-term.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 86.67,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/themes/duplicate.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 91.3,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/themes/explore.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 99.48,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/themes/list.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/themes/preview.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/trash/items.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 97.06,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/trash/list.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/trash/purge.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 96,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/trash/restore.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/list-policies.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/list-policy-permissions.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/list-roles.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 90.91,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/create.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 95,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/embed-remove.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 90,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/embed-reorder.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 93.75,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/get-by-id.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/list.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 91.67,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/preview-render.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/preview.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/region-bind.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 93.33,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/region-mutate-placements.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/regions-list.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 75,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/trash.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/update.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 88.89,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/workspace/create.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/workspace/delete.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/workspace/get.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/workspace/list.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 87.5,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/workspace/update.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/agent-plugin-surfaces/files.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 78.57,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/api-connections/oauth-callback.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/external-mcp/oauth-callback-url.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/external-mcp/oauth-callback.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/mail-feedback.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/members/analytics.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/members/me.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 80.77,
+  "funcs": 87.5,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/members/oidc-verify-email.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 84,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/members/unlink-identity.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 78.13,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/oauth/callback-page.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/oauth/public-origin.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site-assistant-confirm.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site-share.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/analytics-ingest.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 76.47,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/comments-submit.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 94.74,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/feed.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 80,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/forms-multipart.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/forms-submit.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/llms.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 77.78,
+  "funcs": 100,
+  "uncoveredLines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/store.ts",
+  "status": "LOADED",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncoveredLines": 0
+ }
+]

@@ -3,3 +3,6 @@ s01 exit 1
 s00 exit 124
 s03 exit 1
 s04 exit 124
+s06 exit 1
+s07 exit 1
+s05 exit 1
