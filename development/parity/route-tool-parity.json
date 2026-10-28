@@ -430,6 +430,12 @@
     "PUT /api/admin/v1/workspaces/:workspaceId/fs-files/custom-root": {
       "chatless": "intentional:sets which folder the chat's own file tools may read; a security boundary the owner sets, not the model"
     },
+    "GET /api/admin/v1/workspaces/:workspaceId/fs-files/folder-picker": {
+      "chatless": "intentional:shows the composer's folder button; opens an OS dialog on the owner's own screen, a human action the model cannot take"
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/fs-files/folder-picker": {
+      "chatless": "intentional:opens an OS folder dialog on the owner's own screen for the composer; a human action the model cannot take"
+    },
     "GET /api/admin/v1/workspaces/:workspaceId/integrations/subscriptions": {
       "tools": [
         "content_read.webhook_subscription"

@@ -1,29 +1,12 @@
 import type { Express, Request, Response } from "express";
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "../../dev-auth.js";
 import { authorizeOrRespond } from "../../authorize-guard.js";
-import { isLoopbackHost } from "#src/server/runtime/boot/bind-host";
-import { isLocalAdminUrl } from "#src/server/runtime/boot/local-owner-signin";
+import { isLocalAdminRequest } from "../../local-admin-request.js";
 import { LocalCredentialCopyError } from "#src/server/runtime/composition/local-credential-copy";
 import type { RouteDeps } from "#src/server/routes/types";
 
 type Deps = Pick<RouteDeps, "workspaceId" | "ownerPrincipalId" | "authorize" | "gatedMutations" | "localCredentialCopy">;
 const BASE = "/api/admin/v1/workspaces/:workspaceId/system/credential-copy";
-
-function loopbackSockets({ req }: { req: Request }, _options = {}): boolean {
-  return isLoopbackHost(req.socket.localAddress?.replace(/^::ffff:/, "")) &&
-    isLoopbackHost(req.socket.remoteAddress?.replace(/^::ffff:/, ""));
-}
-
-/** Local capability plus real sockets/Host: forwarded headers and a spoofed Host cannot admit a remote caller. */
-function localRequest({ req }: { req: Request }, _options = {}): boolean {
-  if (!loopbackSockets({ req })) return false;
-  if (Object.keys(req.headers).some(name => name === "forwarded" || name.startsWith("x-forwarded-"))) return false;
-  try {
-    const url = new URL(`${req.protocol}://${req.get("host")}`);
-    if (!isLocalAdminUrl({ url }) || url.host !== req.get("host")) return false;
-    return req.get("origin") === undefined || req.get("origin") === url.origin;
-  } catch { return false; }
-}
 
 async function authorizedCopy({ res, deps, actorId }: { res: Response; deps: Deps; actorId: string }, _options = {}): Promise<boolean> {
   if (!await authorizeOrRespond(res, deps.authorize, { principalId: actorId, permission: "system.write", workspaceId: deps.workspaceId })) return false;
@@ -42,7 +25,7 @@ async function admitted({ req, res, deps }: { req: Request; res: Response; deps:
   const actorId = getAuthedPrincipal(res).id;
   if (actorId !== await deps.ownerPrincipalId) { res.status(403).json({ reasonCode: "owner-only" }); return false; }
   if (!await authorizedCopy({ res, deps, actorId })) return false;
-  if (!deps.localCredentialCopy?.localHost || !localRequest({ req })) {
+  if (!deps.localCredentialCopy?.localHost || !isLocalAdminRequest({ req })) {
     res.status(403).json({ reasonCode: "local-host-only" }); return false;
   }
   return true;
