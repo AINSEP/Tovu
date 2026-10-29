@@ -1,0 +1,39 @@
+TAP version 13
+# Subtest: SEO/media fix: a dedicated (never-embedded) OG image with NO pre-existing rendition still gets an og:image tag, and the exact published URL 200s anonymously with an image content-type
+not ok 1 - SEO/media fix: a dedicated (never-embedded) OG image with NO pre-existing rendition still gets an og:image tag, and the exact published URL 200s anonymously with an image content-type
+  ---
+  duration_ms: 386.379105
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/server/__tests__/routes/seo-og-image-crawlability.test.ts:1:3100'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /\/og\.v1\/image\.jpg$/. Input:
+    
+    'http://127.0.0.1:34511/m/cover/og.v1/image.jpg?v=1301fff68554'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: 'http://127.0.0.1:34511/m/cover/og.v1/image.jpg?v=1301fff68554'
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/routes/seo-og-image-crawlability.test.ts:142:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+# Subtest: SEO/media-gate seam: once the SAME rendition exists (e.g. an admin previewed it, or a prior crawler attempt generated it), og:image appears with an absolute URL and 200s anonymously with no cookies
+ok 2 - SEO/media-gate seam: once the SAME rendition exists (e.g. an admin previewed it, or a prior crawler attempt generated it), og:image appears with an absolute URL and 200s anonymously with no cookies
+  ---
+  duration_ms: 282.882405
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 1
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5047.042955

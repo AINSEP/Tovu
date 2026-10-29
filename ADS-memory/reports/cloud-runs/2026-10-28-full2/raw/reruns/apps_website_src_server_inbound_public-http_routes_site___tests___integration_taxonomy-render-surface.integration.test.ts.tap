@@ -1,0 +1,83 @@
+TAP version 13
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'page-shell-terms-integration-theme', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'page-shell-terms-integration-theme', which is whichever theme discovery happened to list first
+# [theme] static page 'page-shell-terms-integration-theme/page-shell' is missing the exact token stylesheet sentinel; design tokens were not injected
+# Subtest: integration: GET /:slug renders a Page's assigned category/tag terms as plain labels (no term-archive route exists)
+ok 1 - integration: GET /:slug renders a Page's assigned category/tag terms as plain labels (no term-archive route exists)
+  ---
+  duration_ms: 387.435522
+  type: 'test'
+  ...
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'page-shell-terms-integration-theme', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'page-shell-terms-integration-theme', which is whichever theme discovery happened to list first
+# [theme] static page 'page-shell-terms-integration-theme/page-shell' is missing the exact token stylesheet sentinel; design tokens were not injected
+# Subtest: integration: GET /:slug places the terms block right after the entry's content, inside the article and before the footer
+not ok 2 - integration: GET /:slug places the terms block right after the entry's content, inside the article and before the footer
+  ---
+  duration_ms: 273.645765
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/integration/taxonomy-render-surface.integration.test.ts:1:3225'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - 'Privacy policy'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'Privacy policy'
+  operator: 'strictEqual'
+  stack: |-
+    assertDefaultConsentPage (/home/user/Tovu/apps/website/src/server/__tests__/helpers/default-consent-page.ts:31:12)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/integration/taxonomy-render-surface.integration.test.ts:155:27)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'page-shell-terms-integration-theme', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'page-shell-terms-integration-theme', which is whichever theme discovery happened to list first
+# [theme] static page 'page-shell-terms-integration-theme/page-shell' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'page-shell-terms-integration-theme', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'page-shell-terms-integration-theme', which is whichever theme discovery happened to list first
+# [theme] static page 'page-shell-terms-integration-theme/page-shell' is missing the exact token stylesheet sentinel; design tokens were not injected
+# Subtest: integration: GET /:slug renders no terms block when nothing is assigned (byte-identical to before this feature)
+ok 3 - integration: GET /:slug renders no terms block when nothing is assigned (byte-identical to before this feature)
+  ---
+  duration_ms: 199.769422
+  type: 'test'
+  ...
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'declarative-terms-integration-theme', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'declarative-terms-integration-theme', which is whichever theme discovery happened to list first
+# Subtest: integration: GET /:slug renders assigned terms through the DECLARATIVE tier's own 'content' slot (renderGenericPostPage, not renderViaTemplate)
+ok 4 - integration: GET /:slug renders assigned terms through the DECLARATIVE tier's own 'content' slot (renderGenericPostPage, not renderViaTemplate)
+  ---
+  duration_ms: 191.593199
+  type: 'test'
+  ...
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'templated-terms-integration-theme', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'templated-terms-integration-theme', which is whichever theme discovery happened to list first
+# Subtest: integration: GET /:slug renders assigned terms through the TEMPLATED (Liquid) tier's own post.content field (renderGenericPostPage, not renderViaTemplate)
+ok 5 - integration: GET /:slug renders assigned terms through the TEMPLATED (Liquid) tier's own post.content field (renderGenericPostPage, not renderViaTemplate)
+  ---
+  duration_ms: 349.168349
+  type: 'test'
+  ...
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'handlebars-terms-integration-theme', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'handlebars-terms-integration-theme', which is whichever theme discovery happened to list first
+# Subtest: integration: GET /:slug renders assigned terms through the HANDLEBARS tier's own post.content field (renderGenericPostPage, not renderViaTemplate)
+ok 6 - integration: GET /:slug renders assigned terms through the HANDLEBARS tier's own post.content field (renderGenericPostPage, not renderViaTemplate)
+  ---
+  duration_ms: 290.164948
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 5
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6323.039682

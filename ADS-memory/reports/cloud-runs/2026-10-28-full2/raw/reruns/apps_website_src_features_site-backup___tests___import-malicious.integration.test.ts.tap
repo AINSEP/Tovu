@@ -1,0 +1,636 @@
+TAP version 13
+# Subtest: package filename exceptions require the exact content-addressed root on export and import
+    # Subtest: themes/site/mcp.json
+    ok 1 - themes/site/mcp.json
+      ---
+      duration_ms: 633.376089
+      type: 'test'
+      ...
+    # Subtest: plugins/portable/package/mcp.json
+    ok 2 - plugins/portable/package/mcp.json
+      ---
+      duration_ms: 603.948271
+      type: 'test'
+      ...
+    # Subtest: themes/site/tovu-credential-schemes.json
+    ok 3 - themes/site/tovu-credential-schemes.json
+      ---
+      duration_ms: 496.65785
+      type: 'test'
+      ...
+    # Subtest: agent-plugins/ws/ws/portable/package/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/mcp.json
+    ok 4 - agent-plugins/ws/ws/portable/package/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/mcp.json
+      ---
+      duration_ms: 621.288043
+      type: 'test'
+      ...
+    # Subtest: agent-plugins/ws/ws/portable/package/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/mcp.json
+    ok 5 - agent-plugins/ws/ws/portable/package/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/mcp.json
+      ---
+      duration_ms: 520.738217
+      type: 'test'
+      ...
+    # Subtest: agent-plugins/ws/ws/portable/package/sha256/gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg/mcp.json
+    ok 6 - agent-plugins/ws/ws/portable/package/sha256/gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg/mcp.json
+      ---
+      duration_ms: 490.23853
+      type: 'test'
+      ...
+    # Subtest: themes/agent-plugins/ws/ws/portable/package/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/mcp.json
+    ok 7 - themes/agent-plugins/ws/ws/portable/package/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/mcp.json
+      ---
+      duration_ms: 607.060528
+      type: 'test'
+      ...
+    # Subtest: agent-plugins/ws/mcp.json/portable/package/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/plugin.json
+    ok 8 - agent-plugins/ws/mcp.json/portable/package/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/plugin.json
+      ---
+      duration_ms: 497.590361
+      type: 'test'
+      ...
+    # Subtest: agent-plugins/ws/ws/portable/package/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/.npmrc
+    ok 9 - agent-plugins/ws/ws/portable/package/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/.npmrc
+      ---
+      duration_ms: 679.696084
+      type: 'test'
+      ...
+    # Subtest: agent-plugins/ws/ws/portable/package/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/nested/private-key.pem
+    ok 10 - agent-plugins/ws/ws/portable/package/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/nested/private-key.pem
+      ---
+      duration_ms: 492.428188
+      type: 'test'
+      ...
+    # Subtest: agent-plugins/ws/ws/portable/package/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/vendor-credentials.json
+    ok 11 - agent-plugins/ws/ws/portable/package/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/vendor-credentials.json
+      ---
+      duration_ms: 748.27911
+      type: 'test'
+      ...
+    1..11
+ok 1 - package filename exceptions require the exact content-addressed root on export and import
+  ---
+  duration_ms: 6394.339427
+  type: 'test'
+  ...
+# Subtest: import refuses exactly what export refuses inside a site plugin package
+    # Subtest: mcp.json
+    ok 1 - mcp.json
+      ---
+      duration_ms: 543.06425
+      type: 'test'
+      ...
+    # Subtest: tovu-credential-schemes.json
+    ok 2 - tovu-credential-schemes.json
+      ---
+      duration_ms: 593.410098
+      type: 'test'
+      ...
+    # Subtest: vendor-credentials.json
+    ok 3 - vendor-credentials.json
+      ---
+      duration_ms: 569.874321
+      type: 'test'
+      ...
+    1..3
+ok 2 - import refuses exactly what export refuses inside a site plugin package
+  ---
+  duration_ms: 1707.293209
+  type: 'test'
+  ...
+# Subtest: an installed site plugin's data/ folder stays out of the export, which then imports cleanly
+not ok 3 - an installed site plugin's data/ folder stays out of the export, which then imports cleanly
+  ---
+  duration_ms: 734.043283
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-malicious.integration.test.ts:1:6349'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-malicious.integration.test.ts:152:19)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: the fixture's installed site plugin is a package Jini's own installer accepts
+ok 4 - the fixture's installed site plugin is a package Jini's own installer accepts
+  ---
+  duration_ms: 592.148066
+  type: 'test'
+  ...
+# Subtest: a supplied site plugin manifest is installed as given: a stale integrity hash keeps the plugin out
+ok 5 - a supplied site plugin manifest is installed as given: a stale integrity hash keeps the plugin out
+  ---
+  duration_ms: 637.983748
+  type: 'test'
+  ...
+# Subtest: package manifest filename exceptions preserve secret scanning on export and import
+    # Subtest: mcp.json
+    ok 1 - mcp.json
+      ---
+      duration_ms: 753.592682
+      type: 'test'
+      ...
+    # Subtest: tovu-credential-schemes.json
+    ok 2 - tovu-credential-schemes.json
+      ---
+      duration_ms: 793.048975
+      type: 'test'
+      ...
+    1..2
+ok 6 - package manifest filename exceptions preserve secret scanning on export and import
+  ---
+  duration_ms: 1547.797911
+  type: 'test'
+  ...
+# Subtest: B malicious ZIP matrix: no registered/partial site and no mutation to an existing site
+    # Subtest: path "../outside"
+    ok 1 - path "../outside"
+      ---
+      duration_ms: 22.777699
+      type: 'test'
+      ...
+    # Subtest: path "/absolute"
+    ok 2 - path "/absolute"
+      ---
+      duration_ms: 25.547488
+      type: 'test'
+      ...
+    # Subtest: path "C:/drive"
+    ok 3 - path "C:/drive"
+      ---
+      duration_ms: 21.218985
+      type: 'test'
+      ...
+    # Subtest: path "//server/share"
+    ok 4 - path "//server/share"
+      ---
+      duration_ms: 21.512678
+      type: 'test'
+      ...
+    # Subtest: path "uploads/a\\\\b"
+    ok 5 - path "uploads/a\\\\b"
+      ---
+      duration_ms: 20.486376
+      type: 'test'
+      ...
+    # Subtest: path "uploads/a\\u0000b"
+    ok 6 - path "uploads/a\\u0000b"
+      ---
+      duration_ms: 16.032574
+      type: 'test'
+      ...
+    # Subtest: path "uploads/%2e%2e/a"
+    ok 7 - path "uploads/%2e%2e/a"
+      ---
+      duration_ms: 15.960252
+      type: 'test'
+      ...
+    # Subtest: path "uploads/a."
+    ok 8 - path "uploads/a."
+      ---
+      duration_ms: 16.082766
+      type: 'test'
+      ...
+    # Subtest: path "uploads/CON.txt"
+    ok 9 - path "uploads/CON.txt"
+      ---
+      duration_ms: 16.136852
+      type: 'test'
+      ...
+    # Subtest: path "uploads/é.txt"
+    ok 10 - path "uploads/é.txt"
+      ---
+      duration_ms: 16.446427
+      type: 'test'
+      ...
+    # Subtest: path "uploads/Ｆ.txt"
+    ok 11 - path "uploads/Ｆ.txt"
+      ---
+      duration_ms: 16.34435
+      type: 'test'
+      ...
+    # Subtest: duplicate
+    ok 12 - duplicate
+      ---
+      duration_ms: 63.745163
+      type: 'test'
+      ...
+    # Subtest: case alias
+    ok 13 - case alias
+      ---
+      duration_ms: 17.279745
+      type: 'test'
+      ...
+    # Subtest: ancestor alias
+    ok 14 - ancestor alias
+      ---
+      duration_ms: 16.681145
+      type: 'test'
+      ...
+    # Subtest: file-directory collision
+    ok 15 - file-directory collision
+      ---
+      duration_ms: 16.303686
+      type: 'test'
+      ...
+    # Subtest: Unicode case expansion alias
+    ok 16 - Unicode case expansion alias
+      ---
+      duration_ms: 17.605465
+      type: 'test'
+      ...
+    # Subtest: reverse ancestor alias
+    ok 17 - reverse ancestor alias
+      ---
+      duration_ms: 17.193857
+      type: 'test'
+      ...
+    # Subtest: reverse Unicode expansion
+    ok 18 - reverse Unicode expansion
+      ---
+      duration_ms: 16.362345
+      type: 'test'
+      ...
+    # Subtest: Unicode final sigma ancestor
+    ok 19 - Unicode final sigma ancestor
+      ---
+      duration_ms: 16.938167
+      type: 'test'
+      ...
+    # Subtest: compatibility ancestor
+    ok 20 - compatibility ancestor
+      ---
+      duration_ms: 16.763629
+      type: 'test'
+      ...
+    # Subtest: symlink
+    ok 21 - symlink
+      ---
+      duration_ms: 16.578912
+      type: 'test'
+      ...
+    # Subtest: fifo
+    ok 22 - fifo
+      ---
+      duration_ms: 16.663677
+      type: 'test'
+      ...
+    # Subtest: device
+    ok 23 - device
+      ---
+      duration_ms: 16.454022
+      type: 'test'
+      ...
+    # Subtest: encrypted
+    ok 24 - encrypted
+      ---
+      duration_ms: 17.947565
+      type: 'test'
+      ...
+    # Subtest: hardlink extra field
+    ok 25 - hardlink extra field
+      ---
+      duration_ms: 15.881576
+      type: 'test'
+      ...
+    # Subtest: scopes
+    ok 26 - scopes
+      ---
+      duration_ms: 17.801166
+      type: 'test'
+      ...
+    # Subtest: version
+    ok 27 - version
+      ---
+      duration_ms: 20.096466
+      type: 'test'
+      ...
+    # Subtest: profile
+    ok 28 - profile
+      ---
+      duration_ms: 18.109513
+      type: 'test'
+      ...
+    # Subtest: format version
+    ok 29 - format version
+      ---
+      duration_ms: 17.366549
+      type: 'test'
+      ...
+    # Subtest: schema
+    ok 30 - schema
+      ---
+      duration_ms: 17.322324
+      type: 'test'
+      ...
+    # Subtest: media hash
+    ok 31 - media hash
+      ---
+      duration_ms: 19.086721
+      type: 'test'
+      ...
+    # Subtest: hash
+    ok 32 - hash
+      ---
+      duration_ms: 17.922789
+      type: 'test'
+      ...
+    # Subtest: size
+    ok 33 - size
+      ---
+      duration_ms: 80.95961
+      type: 'test'
+      ...
+    # Subtest: missing inventory
+    ok 34 - missing inventory
+      ---
+      duration_ms: 22.645496
+      type: 'test'
+      ...
+    # Subtest: unlisted file
+    ok 35 - unlisted file
+      ---
+      duration_ms: 61.972343
+      type: 'test'
+      ...
+    # Subtest: unreferenced upload
+    ok 36 - unreferenced upload
+      ---
+      duration_ms: 20.15549
+      type: 'test'
+      ...
+    # Subtest: unlisted directory
+    ok 37 - unlisted directory
+      ---
+      duration_ms: 18.065722
+      type: 'test'
+      ...
+    # Subtest: missing file
+    ok 38 - missing file
+      ---
+      duration_ms: 17.68593
+      type: 'test'
+      ...
+    # Subtest: private file
+    ok 39 - private file
+      ---
+      duration_ms: 20.946741
+      type: 'test'
+      ...
+    # Subtest: media hash differs from database
+    ok 40 - media hash differs from database
+      ---
+      duration_ms: 19.128483
+      type: 'test'
+      ...
+    # Subtest: 2 MiB manifest cap
+    ok 41 - 2 MiB manifest cap
+      ---
+      duration_ms: 30.432093
+      type: 'test'
+      ...
+    # Subtest: 2,000 entry cap
+    ok 42 - 2,000 entry cap
+      ---
+      duration_ms: 285.748116
+      type: 'test'
+      ...
+    # Subtest: declared ZIP bomb
+    ok 43 - declared ZIP bomb
+      ---
+      duration_ms: 22.389047
+      type: 'test'
+      ...
+    # Subtest: aggregate expanded cap
+    ok 44 - aggregate expanded cap
+      ---
+      duration_ms: 17.807866
+      type: 'test'
+      ...
+    # Subtest: actual expanded ZIP bomb
+    ok 45 - actual expanded ZIP bomb
+      ---
+      duration_ms: 19.552281
+      type: 'test'
+      ...
+    1..45
+ok 7 - B malicious ZIP matrix: no registered/partial site and no mutation to an existing site
+  ---
+  duration_ms: 2204.278043
+  type: 'test'
+  ...
+# Subtest: B untrusted schema objects and partial restore errors leave no site, including app-data DBs
+not ok 8 - B untrusted schema objects and partial restore errors leave no site, including app-data DBs
+  ---
+  duration_ms: 524.578019
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-malicious.integration.test.ts:1:15379'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /schema|database/i. Input:
+    
+    "TypeError: Cannot read properties of undefined (reading 'endsWith')"
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async waitForActual (node:assert:646:5)
+    async strict.rejects (node:assert:769:25)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-malicious.integration.test.ts:296:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-malicious.integration.test.ts:296:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: verifier refuses malformed manifest contracts before invoking the database owner
+    # Subtest: missing schema
+    ok 1 - missing schema
+      ---
+      duration_ms: 8.336049
+      type: 'test'
+      ...
+    # Subtest: wrong schema index
+    ok 2 - wrong schema index
+      ---
+      duration_ms: 8.860431
+      type: 'test'
+      ...
+    # Subtest: missing database
+    ok 3 - missing database
+      ---
+      duration_ms: 8.505522
+      type: 'test'
+      ...
+    # Subtest: wrong database path
+    ok 4 - wrong database path
+      ---
+      duration_ms: 9.647333
+      type: 'test'
+      ...
+    # Subtest: non-array files
+    ok 5 - non-array files
+      ---
+      duration_ms: 9.391596
+      type: 'test'
+      ...
+    # Subtest: empty name
+    ok 6 - empty name
+      ---
+      duration_ms: 9.055465
+      type: 'test'
+      ...
+    # Subtest: non-string name
+    ok 7 - non-string name
+      ---
+      duration_ms: 8.489281
+      type: 'test'
+      ...
+    # Subtest: long name
+    ok 8 - long name
+      ---
+      duration_ms: 8.402897
+      type: 'test'
+      ...
+    # Subtest: null file
+    ok 9 - null file
+      ---
+      duration_ms: 8.676156
+      type: 'test'
+      ...
+    # Subtest: non-string path
+    ok 10 - non-string path
+      ---
+      duration_ms: 8.448334
+      type: 'test'
+      ...
+    # Subtest: fractional size
+    ok 11 - fractional size
+      ---
+      duration_ms: 8.274236
+      type: 'test'
+      ...
+    # Subtest: negative size
+    ok 12 - negative size
+      ---
+      duration_ms: 8.193325
+      type: 'test'
+      ...
+    # Subtest: bad hash
+    ok 13 - bad hash
+      ---
+      duration_ms: 8.24854
+      type: 'test'
+      ...
+    # Subtest: manifest lists itself
+    ok 14 - manifest lists itself
+      ---
+      duration_ms: 8.335743
+      type: 'test'
+      ...
+    # Subtest: unrecognized scope
+    ok 15 - unrecognized scope
+      ---
+      duration_ms: 13.866513
+      type: 'test'
+      ...
+    # Subtest: missing settings inventory
+    ok 16 - missing settings inventory
+      ---
+      duration_ms: 8.547155
+      type: 'test'
+      ...
+    # Subtest: oversized manifest inventory
+    ok 17 - oversized manifest inventory
+      ---
+      duration_ms: 11.67041
+      type: 'test'
+      ...
+    1..17
+ok 9 - verifier refuses malformed manifest contracts before invoking the database owner
+  ---
+  duration_ms: 562.045053
+  type: 'test'
+  ...
+# Subtest: share preflight independently rejects disagreeing local headers and ambiguous directory metadata
+    # Subtest: local signature
+    ok 1 - local signature
+      ---
+      duration_ms: 1.036096
+      type: 'test'
+      ...
+    # Subtest: local flags
+    ok 2 - local flags
+      ---
+      duration_ms: 0.829657
+      type: 'test'
+      ...
+    # Subtest: local compression
+    ok 3 - local compression
+      ---
+      duration_ms: 0.731831
+      type: 'test'
+      ...
+    # Subtest: local filename
+    ok 4 - local filename
+      ---
+      duration_ms: 0.677853
+      type: 'test'
+      ...
+    # Subtest: truncated extra fields
+    ok 5 - truncated extra fields
+      ---
+      duration_ms: 0.872993
+      type: 'test'
+      ...
+    # Subtest: nonempty directory
+    ok 6 - nonempty directory
+      ---
+      duration_ms: 0.768364
+      type: 'test'
+      ...
+    # Subtest: regular file named directory
+    ok 7 - regular file named directory
+      ---
+      duration_ms: 0.68636
+      type: 'test'
+      ...
+    # Subtest: directory named file
+    ok 8 - directory named file
+      ---
+      duration_ms: 0.649482
+      type: 'test'
+      ...
+    1..8
+ok 10 - share preflight independently rejects disagreeing local headers and ambiguous directory metadata
+  ---
+  duration_ms: 7.88154
+  type: 'test'
+  ...
+1..10
+# tests 96
+# suites 0
+# pass 94
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 16531.425841

@@ -1,0 +1,257 @@
+TAP version 13
+# [theme] active theme '' did not resolve; falling back to the default theme 'tovu-starter'
+# [theme] active theme '' did not resolve; falling back to the default theme 'tovu-starter'
+# Subtest: GET /welcome: a missing presentation-settings row — not the empty post list — is what must not 500
+ok 1 - GET /welcome: a missing presentation-settings row — not the empty post list — is what must not 500
+  ---
+  duration_ms: 613.869387
+  type: 'test'
+  ...
+# [theme] active theme '' did not resolve; falling back to the default theme 'tovu-starter'
+# [theme] active theme '' did not resolve; falling back to the default theme 'tovu-starter'
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — missing or invalid "id"/"slug" in data-embed-config { workspaceId: 'workspace-local' }
+# Subtest: GET /: a brand-new workspace with no presentation-settings row renders the empty-state home page instead of 500ing
+ok 2 - GET /: a brand-new workspace with no presentation-settings row renders the empty-state home page instead of 500ing
+  ---
+  duration_ms: 229.559912
+  type: 'test'
+  ...
+# [theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+# [theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+# Subtest: GET / 500s with 'No themes installed' when resolveActiveTheme finds none
+ok 3 - GET / 500s with 'No themes installed' when resolveActiveTheme finds none
+  ---
+  duration_ms: 191.704899
+  type: 'test'
+  ...
+# [theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+# [theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+# Subtest: GET /:slug 500s with 'No themes installed' when resolveActiveTheme finds none
+ok 4 - GET /:slug 500s with 'No themes installed' when resolveActiveTheme finds none
+  ---
+  duration_ms: 173.35693
+  type: 'test'
+  ...
+# Subtest: GET /:slug -- `req.params.slug ?? ""` fallback, forced via a direct handler call with slug omitted -- falls through to next(), not a crash
+ok 5 - GET /:slug -- `req.params.slug ?? ""` fallback, forced via a direct handler call with slug omitted -- falls through to next(), not a crash
+  ---
+  duration_ms: 140.259745
+  type: 'test'
+  ...
+# Subtest: GET /:slug -- slug === "admin", forced via a direct handler call -- falls through to next(), not a crash
+ok 6 - GET /:slug -- slug === "admin", forced via a direct handler call -- falls through to next(), not a crash
+  ---
+  duration_ms: 130.024728
+  type: 'test'
+  ...
+# Subtest: GET /api -- a real request, not a direct handler call -- reaches Express's own default 404 (no handler ever responds), proving next() really was called for slug === "api"
+ok 7 - GET /api -- a real request, not a direct handler call -- reaches Express's own default 404 (no handler ever responds), proving next() really was called for slug === "api"
+  ---
+  duration_ms: 159.706794
+  type: 'test'
+  ...
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-404-test-theme', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-404-test-theme', which is whichever theme discovery happened to list first
+# [theme] static page 'static-404-test-theme/404' is missing the exact token stylesheet sentinel; design tokens were not injected
+# Subtest: GET /index: a static theme's own index page is never treated as a marketing page at the /index URL -- it falls through to the ordinary (and here, missing) post lookup
+ok 8 - GET /index: a static theme's own index page is never treated as a marketing page at the /index URL -- it falls through to the ordinary (and here, missing) post lookup
+  ---
+  duration_ms: 187.674249
+  type: 'test'
+  ...
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-404-test-theme', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-404-test-theme', which is whichever theme discovery happened to list first
+# [theme] static page 'static-404-test-theme/404' is missing the exact token stylesheet sentinel; design tokens were not injected
+# Subtest: GET /:slug: a static theme's own pages/404.html renders instead of the bare fallback 404
+ok 9 - GET /:slug: a static theme's own pages/404.html renders instead of the bare fallback 404
+  ---
+  duration_ms: 168.686228
+  type: 'test'
+  ...
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — no such published entity { workspaceId: 'workspace-local', entityId: 'post-broken-canonical' }
+# Subtest: GET /:slug (post route): buildExtraHead's canonical falls back to /<slug> when urlFor can't resolve the post's own entryRef
+ok 10 - GET /:slug (post route): buildExtraHead's canonical falls back to /<slug> when urlFor can't resolve the post's own entryRef
+  ---
+  duration_ms: 320.994273
+  type: 'test'
+  ...
+# Subtest: GET /:slug (post route): canonical and og:url are absolute, using the workspace's verified origin (2026-09-03 fix)
+ok 11 - GET /:slug (post route): canonical and og:url are absolute, using the workspace's verified origin (2026-09-03 fix)
+  ---
+  duration_ms: 337.613838
+  type: 'test'
+  ...
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — missing or invalid "id"/"slug" in data-embed-config { workspaceId: 'workspace-local' }
+# Subtest: GET /: the root page's canonical is absolute with exactly one trailing slash, never 'localhost:3000//' (2026-09-03 fix)
+ok 12 - GET /: the root page's canonical is absolute with exactly one trailing slash, never 'localhost:3000//' (2026-09-03 fix)
+  ---
+  duration_ms: 173.683204
+  type: 'test'
+  ...
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — missing or invalid "id"/"slug" in data-embed-config { workspaceId: 'workspace-local' }
+# Subtest: GET /: with no verified origin registered, canonical degrades to the bare relative path '/' (disclosed fallback, 2026-09-03 fix)
+ok 13 - GET /: with no verified origin registered, canonical degrades to the bare relative path '/' (disclosed fallback, 2026-09-03 fix)
+  ---
+  duration_ms: 190.977246
+  type: 'test'
+  ...
+# Subtest: GET /:slug: a PostNotFoundError thrown before theme resolution completes still 404s through the bare fallback (theme is null in the catch block)
+ok 14 - GET /:slug: a PostNotFoundError thrown before theme resolution completes still 404s through the bare fallback (theme is null in the catch block)
+  ---
+  duration_ms: 177.296576
+  type: 'test'
+  ...
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-empty-page-test-theme', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-empty-page-test-theme', which is whichever theme discovery happened to list first
+# [theme] static page 'static-empty-page-test-theme/empty-page' is missing the exact token stylesheet sentinel; design tokens were not injected
+# Subtest: GET /empty-page: a static theme page whose own file is a literal empty string falls through to the ordinary post lookup (and 404s), rather than rendering as an empty 200
+ok 15 - GET /empty-page: a static theme page whose own file is a literal empty string falls through to the ordinary post lookup (and 404s), rather than rendering as an empty 200
+  ---
+  duration_ms: 174.904173
+  type: 'test'
+  ...
+# [site/pages] GET / failed Error: boom
+#     at ThrowsUnexpectedErrorOnListPostRepo.list (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.route.test.ts:467:11)
+#     at listPublishedPosts (/home/user/Tovu/apps/website/src/features/post/post.ts:2258:42)
+#     at serveHomePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages.ts:2785:5)
+#     at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages.ts:2978:7)
+# Subtest: GET / 500s with a generic 'Site error' when an unexpected exception is thrown
+not ok 16 - GET / 500s with a generic 'Site error' when an unexpected exception is thrown
+  ---
+  duration_ms: 243.082969
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.route.test.ts:1:12586'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - 'Privacy policy'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'Privacy policy'
+  operator: 'strictEqual'
+  stack: |-
+    assertDefaultConsentPage (/home/user/Tovu/apps/website/src/server/__tests__/helpers/default-consent-page.ts:31:12)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.route.test.ts:479:27)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'template-shell-test-theme', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'template-shell-test-theme', which is whichever theme discovery happened to list first
+# [theme] static page 'template-shell-test-theme/about' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'template-shell-test-theme', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'template-shell-test-theme', which is whichever theme discovery happened to list first
+# [theme] static page 'template-shell-test-theme/404' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'template-shell-test-theme', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'template-shell-test-theme', which is whichever theme discovery happened to list first
+# [theme] static page 'template-shell-test-theme/404' is missing the exact token stylesheet sentinel; design tokens were not injected
+# Subtest: GET /:slug: a theme.manifest.templates shell is NOT its own reachable page
+ok 17 - GET /:slug: a theme.manifest.templates shell is NOT its own reachable page
+  ---
+  duration_ms: 198.138918
+  type: 'test'
+  ...
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'template-shell-test-theme', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'template-shell-test-theme', which is whichever theme discovery happened to list first
+# [theme] static page 'template-shell-test-theme/404' is missing the exact token stylesheet sentinel; design tokens were not injected
+# Subtest: GET /404: a theme's own error page is not served as a 200 at its own slug
+ok 18 - GET /404: a theme's own error page is not served as a 200 at its own slug
+  ---
+  duration_ms: 189.548515
+  type: 'test'
+  ...
+# [theme] active theme 'tovu-starter' did not resolve; falling back to the default theme 'tovu-theme'
+# [theme] active theme 'tovu-starter' did not resolve; falling back to the default theme 'tovu-theme'
+# [theme] static theme 'basic' ships none of 'pages-default.html', 'page-shell.html'; untemplated html Pages render in Tovu's generic chrome instead of this theme's own document
+# [theme] active theme 'tovu-starter' did not resolve; falling back to the default theme 'tovu-theme'
+# [theme] active theme 'tovu-starter' did not resolve; falling back to the default theme 'tovu-theme'
+# [theme] static page 'basic/signup' is missing the exact token stylesheet sentinel; design tokens were not injected
+# Subtest: GET /signup: regression for the 2026-08-31 404 -- the primary nav CTA target must be reachable, matching its already-published signin sibling
+ok 19 - GET /signup: regression for the 2026-08-31 404 -- the primary nav CTA target must be reachable, matching its already-published signin sibling
+  ---
+  duration_ms: 213.830653
+  type: 'test'
+  ...
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'basic-2', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'basic-2', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'basic-2', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'basic-2', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'basic-2', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'basic-2', which is whichever theme discovery happened to list first
+# Subtest: the shipped basic-2 nav CTA reaches its real page after publication and stays unpublished by default
+ok 20 - the shipped basic-2 nav CTA reaches its real page after publication and stays unpublished by default
+  ---
+  duration_ms: 369.54978
+  type: 'test'
+  ...
+# Subtest: GET /: a published Page claiming slug '/' with an explicit template renders through the theme's page template, not the theme's own index.html
+ok 21 - GET /: a published Page claiming slug '/' with an explicit template renders through the theme's page template, not the theme's own index.html
+  ---
+  duration_ms: 298.013487
+  type: 'test'
+  ...
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — missing or invalid "id"/"slug" in data-embed-config { workspaceId: 'workspace-local' }
+# Subtest: GET /: no page claims slug '/' -- falls back to the active theme's own index.html unchanged
+ok 22 - GET /: no page claims slug '/' -- falls back to the active theme's own index.html unchanged
+  ---
+  duration_ms: 192.737764
+  type: 'test'
+  ...
+# Subtest: GET /: a Page claiming '/' with no explicit template still renders its own content (generic fallback), never the theme's index.html
+ok 23 - GET /: a Page claiming '/' with no explicit template still renders its own content (generic fallback), never the theme's index.html
+  ---
+  duration_ms: 277.353257
+  type: 'test'
+  ...
+# Subtest: GET /: an unexpected fault is reported with the route and the error, not swallowed into an anonymous 500
+ok 24 - GET /: an unexpected fault is reported with the route and the error, not swallowed into an anonymous 500
+  ---
+  duration_ms: 170.873291
+  type: 'test'
+  ...
+# Subtest: GET /:slug: an unexpected fault is reported with the route, the slug, and the error
+ok 25 - GET /:slug: an unexpected fault is reported with the route, the slug, and the error
+  ---
+  duration_ms: 167.647525
+  type: 'test'
+  ...
+# [theme] static page 'static-empty-page-test-theme/empty-page' is missing the exact token stylesheet sentinel; design tokens were not injected
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-404-test-theme', which is whichever theme discovery happened to list first
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — no such published entity { workspaceId: 'workspace-local', entityId: 'root-home-page-test' }
+# Subtest: GET /:slug: a PostNotFoundError is ordinary 404 control flow and must NOT be reported as a fault
+ok 26 - GET /:slug: a PostNotFoundError is ordinary 404 control flow and must NOT be reported as a fault
+  ---
+  duration_ms: 198.230427
+  type: 'test'
+  ...
+# Subtest: a published empty theme page falls through before head or assistant injection
+ok 27 - a published empty theme page falls through before head or assistant injection
+  ---
+  duration_ms: 121.426164
+  type: 'test'
+  ...
+# Subtest: GET /:slug: a failure during the not-found recovery completes an opaque 500
+ok 28 - GET /:slug: a failure during the not-found recovery completes an opaque 500
+  ---
+  duration_ms: 155.358852
+  type: 'test'
+  ...
+# Subtest: GET /:slug: the canonical fallback still identifies the post when its entryRef misses
+ok 29 - GET /:slug: the canonical fallback still identifies the post when its entryRef misses
+  ---
+  duration_ms: 145.83066
+  type: 'test'
+  ...
+1..29
+# tests 29
+# suites 0
+# pass 28
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13931.69597

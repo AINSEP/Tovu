@@ -1,0 +1,60 @@
+TAP version 13
+# Subtest: [sqlite] 0035 adds only identity metadata, preserves members and applies once
+not ok 1 - [sqlite] 0035 adds only identity metadata, preserves members and applies once
+  ---
+  duration_ms: 88.736979
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/member-external-identities-step.test.ts:1:515'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + '0036_publish_history_config_jsonb'
+    - '0034_member_auth'
+          ^
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: '0034_member_auth'
+  actual: '0036_publish_history_config_jsonb'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/member-external-identities-step.test.ts:21:12)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+# Subtest: [pglite] 0035 adds only identity metadata, preserves members and applies once
+not ok 2 - [pglite] 0035 adds only identity metadata, preserves members and applies once
+  ---
+  duration_ms: 2735.794474
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/member-external-identities-step.test.ts:1:515'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + '0036_publish_history_config_jsonb'
+    - '0034_member_auth'
+          ^
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: '0034_member_auth'
+  actual: '0036_publish_history_config_jsonb'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/member-external-identities-step.test.ts:21:12)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 0
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3779.169303

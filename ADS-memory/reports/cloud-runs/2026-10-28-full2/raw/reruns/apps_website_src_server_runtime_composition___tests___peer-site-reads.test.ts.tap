@@ -1,0 +1,165 @@
+TAP version 13
+# Subtest: inSite: reads B's posts/media/forms and owner chats through the real catalog; audits only A
+not ok 1 - inSite: reads B's posts/media/forms and owner chats through the real catalog; audits only A
+  ---
+  duration_ms: 799.043346
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/peer-site-reads.test.ts:1:1514'
+  failureType: 'testCodeFailure'
+  error: "media_view_image: media asset 'media' could not be decoded as an image (image/png) — its stored file may be damaged."
+  code: 'ERR_TEST_FAILURE'
+  name: 'ToolInputError'
+  stack: |-
+    refusal (/home/user/Tovu/apps/website/src/features/media/view-image-tool.ts:104:10)
+    renderForModel (/home/user/Tovu/apps/website/src/features/media/view-image-tool.ts:170:11)
+    Object.media_view_image (/home/user/Tovu/apps/website/src/features/media/view-image-tool.ts:205:30)
+    async Object.handler (/home/user/Jini/packages/core/src/model-facing-tool-errors.ts:150:18)
+    async Object.handler (/home/user/Tovu/apps/website/src/server/runtime/composition/peer-site-reads.ts:435:24)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/peer-site-reads.test.ts:64:17)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+# Subtest: appData: reads B's posts/media/forms and owner chats through the real catalog; audits only A
+not ok 2 - appData: reads B's posts/media/forms and owner chats through the real catalog; audits only A
+  ---
+  duration_ms: 599.125344
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/peer-site-reads.test.ts:1:1514'
+  failureType: 'testCodeFailure'
+  error: "media_view_image: media asset 'media' could not be decoded as an image (image/png) — its stored file may be damaged."
+  code: 'ERR_TEST_FAILURE'
+  name: 'ToolInputError'
+  stack: |-
+    refusal (/home/user/Tovu/apps/website/src/features/media/view-image-tool.ts:104:10)
+    renderForModel (/home/user/Tovu/apps/website/src/features/media/view-image-tool.ts:170:11)
+    Object.media_view_image (/home/user/Tovu/apps/website/src/features/media/view-image-tool.ts:205:30)
+    async Object.handler (/home/user/Jini/packages/core/src/model-facing-tool-errors.ts:150:18)
+    async Object.handler (/home/user/Tovu/apps/website/src/server/runtime/composition/peer-site-reads.ts:435:24)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/peer-site-reads.test.ts:64:17)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: foreign-site writes never reach a handler; the current registry name is stripped and runs on A
+ok 3 - foreign-site writes never reach a handler; the current registry name is stripped and runs on A
+  ---
+  duration_ms: 531.313567
+  type: 'test'
+  ...
+# Subtest: excluded cross-site reads name the tool and do not claim to be writes
+ok 4 - excluded cross-site reads name the tool and do not claim to be writes
+  ---
+  duration_ms: 495.537933
+  type: 'test'
+  ...
+# [theme] active theme '' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+# Subtest: shared slug lookup uses B after scope selection, with raw and collapsed names in one peer cache
+ok 5 - shared slug lookup uses B after scope selection, with raw and collapsed names in one peer cache
+  ---
+  duration_ms: 553.3256
+  type: 'test'
+  ...
+# Subtest: forms_delivery_status on B reads only B's delivery rows, never A's, and never answers (security pin)
+ok 6 - forms_delivery_status on B reads only B's delivery rows, never A's, and never answers (security pin)
+  ---
+  duration_ms: 610.866818
+  type: 'test'
+  ...
+# Subtest: non-owner refuses before registry discovery, including any peer SQL opens
+ok 7 - non-owner refuses before registry discovery, including any peer SQL opens
+  ---
+  duration_ms: 521.260522
+  type: 'test'
+  ...
+# Subtest: local-host/name/trash/live-db-alias/storage/schema refusals are fixed and path-free
+ok 8 - local-host/name/trash/live-db-alias/storage/schema refusals are fixed and path-free
+  ---
+  duration_ms: 534.425509
+  type: 'test'
+  ...
+# Subtest: peer content/chat/journal connections reject writes; missing dependencies poison every operation except await
+ok 9 - peer content/chat/journal connections reject writes; missing dependencies poison every operation except await
+  ---
+  duration_ms: 554.793401
+  type: 'test'
+  ...
+# Subtest: zero or multiple target owners refuse and close every provisional connection
+ok 10 - zero or multiple target owners refuse and close every provisional connection
+  ---
+  duration_ms: 599.985507
+  type: 'test'
+  ...
+# Subtest: LRU eviction closes the oldest bag; warm reads reuse it and idle callbacks close every handle
+ok 11 - LRU eviction closes the oldest bag; warm reads reuse it and idle callbacks close every handle
+  ---
+  duration_ms: 961.656041
+  type: 'test'
+  ...
+# Subtest: missing peer chat files refuse without creating a replacement database
+ok 12 - missing peer chat files refuse without creating a replacement database
+  ---
+  duration_ms: 520.667434
+  type: 'test'
+  ...
+# Subtest: a missing journal refuses without creating it and closes the provisional content/chat handles
+ok 13 - a missing journal refuses without creating it and closes the provisional content/chat handles
+  ---
+  duration_ms: 514.113124
+  type: 'test'
+  ...
+# Subtest: batch shared site and collapsed content_read dispatch reach B through the same wrappers
+ok 14 - batch shared site and collapsed content_read dispatch reach B through the same wrappers
+  ---
+  duration_ms: 589.103138
+  type: 'test'
+  ...
+# Subtest: L058a invalid peer bounds {"maxSites":0} refuse before discovery
+ok 15 - L058a invalid peer bounds {"maxSites":0} refuse before discovery
+  ---
+  duration_ms: 1.542754
+  type: 'test'
+  ...
+# Subtest: L058a invalid peer bounds {"maxSites":1.5} refuse before discovery
+ok 16 - L058a invalid peer bounds {"maxSites":1.5} refuse before discovery
+  ---
+  duration_ms: 1.021868
+  type: 'test'
+  ...
+# Subtest: L058a invalid peer bounds {"idleMs":0} refuse before discovery
+ok 17 - L058a invalid peer bounds {"idleMs":0} refuse before discovery
+  ---
+  duration_ms: 0.923245
+  type: 'test'
+  ...
+# Subtest: L058a invalid peer bounds {"idleMs":null} refuse before discovery
+ok 18 - L058a invalid peer bounds {"idleMs":null} refuse before discovery
+  ---
+  duration_ms: 0.79498
+  type: 'test'
+  ...
+# Subtest: L058a concurrent cold opens share one bag; unregistered tools refuse; current and closed resolutions stay distinct
+ok 19 - L058a concurrent cold opens share one bag; unregistered tools refuse; current and closed resolutions stay distinct
+  ---
+  duration_ms: 588.699501
+  type: 'test'
+  ...
+# Subtest: L058a busy bags resist eviction and close drains the active handler
+ok 20 - L058a busy bags resist eviction and close drains the active handler
+  ---
+  duration_ms: 732.828099
+  type: 'test'
+  ...
+# Subtest: a peer's blob store reads only files inside its own uploads folder, and theme links added later are refused on roster access
+ok 21 - a peer's blob store reads only files inside its own uploads folder, and theme links added later are refused on roster access
+  ---
+  duration_ms: 552.610351
+  type: 'test'
+  ...
+1..21
+# tests 21
+# suites 0
+# pass 19
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 14140.514709

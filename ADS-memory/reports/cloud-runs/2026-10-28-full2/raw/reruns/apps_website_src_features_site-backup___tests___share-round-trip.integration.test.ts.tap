@@ -1,0 +1,82 @@
+TAP version 13
+# Subtest: share code awareness is restricted to code extensions
+ok 1 - share code awareness is restricted to code extensions
+  ---
+  duration_ms: 4.021666
+  type: 'test'
+  ...
+# Subtest: verified plugin package files get a vendor-key scan only; settings JSON elsewhere stays strict
+ok 2 - verified plugin package files get a vendor-key scan only; settings JSON elsewhere stays strict
+  ---
+  duration_ms: 1.790534
+  type: 'test'
+  ...
+# Subtest: A production preparation → public download → B import preserves content: inSite
+not ok 3 - A production preparation → public download → B import preserves content: inSite
+  ---
+  duration_ms: 986.422757
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/share-round-trip.integration.test.ts:1:4511'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/share-round-trip.integration.test.ts:128:19)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: A production preparation → public download → B import preserves content: appData
+not ok 4 - A production preparation → public download → B import preserves content: appData
+  ---
+  duration_ms: 892.545019
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/share-round-trip.integration.test.ts:1:4511'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/share-round-trip.integration.test.ts:128:19)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: production export still refuses literal credentials inside a hashed plugin package
+ok 5 - production export still refuses literal credentials inside a hashed plugin package
+  ---
+  duration_ms: 646.908816
+  type: 'test'
+  ...
+# Subtest: production export refuses dotted OAuth tokens in a post
+ok 6 - production export refuses dotted OAuth tokens in a post
+  ---
+  duration_ms: 565.777321
+  type: 'test'
+  ...
+# Subtest: production export refuses dotted OAuth tokens in a page
+ok 7 - production export refuses dotted OAuth tokens in a page
+  ---
+  duration_ms: 491.713927
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 5
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5237.922123

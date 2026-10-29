@@ -1,0 +1,131 @@
+TAP version 13
+# Subtest: extractBalancedBraces: a flat block with no nesting
+ok 1 - extractBalancedBraces: a flat block with no nesting
+  ---
+  duration_ms: 0.780388
+  type: 'test'
+  ...
+# Subtest: extractBalancedBraces: nested braces (if/try inside the outer block) do not truncate early
+ok 2 - extractBalancedBraces: nested braces (if/try inside the outer block) do not truncate early
+  ---
+  duration_ms: 0.112887
+  type: 'test'
+  ...
+# Subtest: extractBalancedBraces: throws when the index does not point at '{'
+ok 3 - extractBalancedBraces: throws when the index does not point at '{'
+  ---
+  duration_ms: 0.316426
+  type: 'test'
+  ...
+# Subtest: extractBalancedBraces: throws on unbalanced input rather than returning a truncated slice
+ok 4 - extractBalancedBraces: throws on unbalanced input rather than returning a truncated slice
+  ---
+  duration_ms: 0.084501
+  type: 'test'
+  ...
+# Subtest: extractSafeHrefDeclaration: pulls the const pair and the whole function, and the result is importable JS/TS
+ok 5 - extractSafeHrefDeclaration: pulls the const pair and the whole function, and the result is importable JS/TS
+  ---
+  duration_ms: 0.301269
+  type: 'test'
+  ...
+# Subtest: extractSafeHrefDeclaration: throws (not a silent empty result) when the const pair is missing
+ok 6 - extractSafeHrefDeclaration: throws (not a silent empty result) when the const pair is missing
+  ---
+  duration_ms: 0.142371
+  type: 'test'
+  ...
+# Subtest: extractSafeHrefDeclaration: throws when 'function safeHref(' is missing entirely
+ok 7 - extractSafeHrefDeclaration: throws when 'function safeHref(' is missing entirely
+  ---
+  duration_ms: 0.167024
+  type: 'test'
+  ...
+# Subtest: compareCheckers: no mismatches when every checker agrees with the expected outcome
+ok 8 - compareCheckers: no mismatches when every checker agrees with the expected outcome
+  ---
+  duration_ms: 0.604984
+  type: 'test'
+  ...
+# Subtest: compareCheckers: SYNTHETIC MISMATCH — a deliberately-wrong checker is caught and named by the comparator
+ok 9 - compareCheckers: SYNTHETIC MISMATCH — a deliberately-wrong checker is caught and named by the comparator
+  ---
+  duration_ms: 0.324841
+  type: 'test'
+  ...
+# Subtest: buildSharedTable: every REJECTED_HREFS row is expectedAccept:false and every ACCEPTED_HREFS row is expectedAccept:true
+ok 10 - buildSharedTable: every REJECTED_HREFS row is expectedAccept:false and every ACCEPTED_HREFS row is expectedAccept:true
+  ---
+  duration_ms: 0.340213
+  type: 'test'
+  ...
+# Subtest: loadHrefChecker: extracts a real, callable checker from render.ts that behaves correctly
+ok 11 - loadHrefChecker: extracts a real, callable checker from render.ts that behaves correctly
+  ---
+  duration_ms: 12.435104
+  type: 'test'
+  ...
+# Subtest: live: jini:isAllowedHref, render.ts:safeHref, and static-render.ts:safeHref agree on every table row
+not ok 12 - live: jini:isAllowedHref, render.ts:safeHref, and static-render.ts:safeHref agree on every table row
+  ---
+  duration_ms: 6.071823
+  type: 'test'
+  location: '/home/user/Tovu/development/scripts/__tests__/check-menu-href-allowlist-sync.test.ts:17:2423'
+  failureType: 'testCodeFailure'
+  error: 'extractSafeHrefDeclaration: could not find the SAFE_HREF_RESOLUTION_BASE/ORIGIN const pair in /home/user/Tovu/apps/website/src/features/theme/static-render.ts'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    extractSafeHrefDeclaration (/home/user/Tovu/development/scripts/check-menu-href-allowlist-sync.ts:155:11)
+    loadHrefChecker (/home/user/Tovu/development/scripts/check-menu-href-allowlist-sync.ts:182:23)
+    runMenuHrefAllowlistSync (/home/user/Tovu/development/scripts/check-menu-href-allowlist-sync.ts:255:5)
+    TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/check-menu-href-allowlist-sync.test.ts:177:28)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+    Test.postRun (node:internal/test_runner/test:1542:19)
+    Test.run (node:internal/test_runner/test:1467:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: CLI returns nonzero for mismatch and reports the reason
+not ok 13 - CLI returns nonzero for mismatch and reports the reason
+  ---
+  duration_ms: 183.94786
+  type: 'test'
+  location: '/home/user/Tovu/development/scripts/__tests__/check-menu-href-allowlist-sync.test.ts:17:2741'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /produced disagreement/. Input:
+    
+    'check:menu-href-allowlist-sync — could not run the comparison at all (extraction failure, not a behavioral mismatch): extractSafeHrefDeclaration: could not find the SAFE_HREF_RESOLUTION_BASE/ORIGIN const pair in /home/user/Tovu/apps/website/src/features/theme/static-render.ts\n'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    check:menu-href-allowlist-sync — could not run the comparison at all (extraction failure, not a behavioral mismatch): extractSafeHrefDeclaration: could not find the SAFE_HREF_RESOLUTION_BASE/ORIGIN const pair in /home/user/Tovu/apps/website/src/features/theme/static-render.ts
+    
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/check-menu-href-allowlist-sync.test.ts:207:16)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+    Test.postRun (node:internal/test_runner/test:1542:19)
+    Test.run (node:internal/test_runner/test:1467:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: CLI returns nonzero for extraction and reports the reason
+ok 14 - CLI returns nonzero for extraction and reports the reason
+  ---
+  duration_ms: 171.782501
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 12
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 585.451067

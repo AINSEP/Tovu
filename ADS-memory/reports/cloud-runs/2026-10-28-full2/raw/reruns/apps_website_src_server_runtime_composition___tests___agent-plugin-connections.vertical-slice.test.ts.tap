@@ -1,0 +1,112 @@
+TAP version 13
+# Subtest: vertical slice: connect -> public callback -> executable tool call -> admin-surface action, all through the composition
+ok 1 - vertical slice: connect -> public callback -> executable tool call -> admin-surface action, all through the composition
+  ---
+  duration_ms: 132.2931
+  type: 'test'
+  ...
+# Subtest: vertical slice: a surface reads status, starts a pick sign-in, takes its callback field once, saves state, and a tool reads it
+ok 2 - vertical slice: a surface reads status, starts a pick sign-in, takes its callback field once, saves state, and a tool reads it
+  ---
+  duration_ms: 44.973271
+  type: 'test'
+  ...
+# Subtest: security: the shared connection port refuses another workspace's target and reads no account for it
+ok 3 - security: the shared connection port refuses another workspace's target and reads no account for it
+  ---
+  duration_ms: 16.433507
+  type: 'test'
+  ...
+# Subtest: security: a token a plugin kept in module scope is withheld in a LATER tool call, surface call and state write (one memory per generation)
+ok 4 - security: a token a plugin kept in module scope is withheld in a LATER tool call, surface call and state write (one memory per generation)
+  ---
+  duration_ms: 28.036787
+  type: 'test'
+  ...
+# Subtest: security: one token memory across seams: a token a TOOL obtained is withheld from a surface answer
+ok 5 - security: one token memory across seams: a token a TOOL obtained is withheld from a surface answer
+  ---
+  duration_ms: 20.384586
+  type: 'test'
+  ...
+# Subtest: security: one token memory across seams: a token a SURFACE handler obtained is withheld from a tool's output
+ok 6 - security: one token memory across seams: a token a SURFACE handler obtained is withheld from a tool's output
+  ---
+  duration_ms: 20.645243
+  type: 'test'
+  ...
+# Subtest: security: surface handlers get the host kind from the runtime the API connections use, never from the caller's context
+ok 7 - security: surface handlers get the host kind from the runtime the API connections use, never from the caller's context
+  ---
+  duration_ms: 3.779925
+  type: 'test'
+  ...
+# Subtest: security: desktop admits only its plaintext loopback redirect, and completes the sign-in itself
+ok 8 - security: desktop admits only its plaintext loopback redirect, and completes the sign-in itself
+  ---
+  duration_ms: 14.617472
+  type: 'test'
+  ...
+# Subtest: vendor neutrality end to end: a second provider plugin connects, stores sealed tokens, runs a confirmed write tool, a surface action and a push form delivery
+not ok 9 - vendor neutrality end to end: a second provider plugin connects, stores sealed tokens, runs a confirmed write tool, a surface action and a push form delivery
+  ---
+  duration_ms: 23.215158
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:1:13403'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      [
+        [
+    +     'Values',
+    +     'Ada'
+    +   ],
+    +   [
+          'Account',
+          'Ada'
+        ],
+        [
+          'Affects',
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0:
+      0: 'Account'
+      1: 'Ada'
+    1:
+      0: 'Affects'
+      1: 'table Leads'
+  actual:
+    0:
+      0: 'Values'
+      1: 'Ada'
+    1:
+      0: 'Account'
+      1: 'Ada'
+    2:
+      0: 'Affects'
+      1: 'table Leads'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:229:10)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: security: the composition gives the assistant's tool registrar and the admin screen's connections ONE frozen-account map, so an admin action the assistant runs is pinned
+ok 10 - security: the composition gives the assistant's tool registrar and the admin screen's connections ONE frozen-account map, so an admin action the assistant runs is pinned
+  ---
+  duration_ms: 29.424769
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 9
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2276.763239

@@ -1,0 +1,569 @@
+[
+ {
+  "file": "apps/website/src/assistant/site/__tests__/visitor-executor-confirmation.unit.test.ts",
+  "failures": 1,
+  "firstTest": "without a value-row snapshot Ask fails closed; signal remains an optional adapter port",
+  "rerun": "FAIL",
+  "class": "REAL",
+  "cause": "Test timed out after 600000 ms: Ask-without-snapshot path never settles (hang) — see visitor-executor-confirmation.unit.test.ts; possibly confirmation-card change.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/assistant/site/__tests__/visitor-executor-confirmation.unit.test.ts:1:6503'\nerror: 'test timed out after 600000ms'\n..."
+ },
+ {
+  "file": "apps/website/src/features/publish-content/__tests__/media-video-embed.round-trip.test.ts",
+  "failures": 1,
+  "firstTest": "publishing only a video media item carries its poster along, and the receiving site renders the embed as a <video> with a poster that resolves",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "New versioned media URLs (`?v=sha12`, 0037/replace-restamp work) — tests still assert exact `/m/<slug>/...` URLs without the query (e.g. regex `src=\"/m/promo-01/original.mp4\"`, `/og.v1/image.jpg$`). library.test 500!=400 and peer-site-reads image-decode error look like the same media-pipeline change; verify.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/features/publish-content/__tests__/media-video-embed.round-trip.test.ts:1:2897'\nerror: |-\nThe input did not match the regular expression /<video\\b[^>]*\\bsrc=\"\\/m\\/promo-01\\/original\\.mp4\"/. Input:\n'<figure class=\"hero-media\"><div class=\"video-embed\"><video src=\"/m/promo-01/original.mp4?v=7af950870f90\" controls poster=\"/m/promo-poster/public.v1/image.webp\" autoplay muted loop playsinline>Promo clip</video></div></figure>'\nexpected:\nactual: '<figure class=\"hero-media\"><div class=\"video-embed\"><video src=\"/m/promo-01/original.mp4?v=7af950870f90\" controls poster=\"/m/promo-poster/public.v1/image.webp\" autoplay muted loop playsinline>Promo clip</video></div></figure>'\nstack: |-\nTestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/publish-content/__tests__/media-video-embed.round-trip.test.ts:142:10)\nasync Test.run (node:internal/test_runner/test:1409:7)\nasync startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+ },
+ {
+  "file": "apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts",
+  "failures": 19,
+  "firstTest": "a URL import checks the staging budget; an upload import does not",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Test wiring calls features/site-backup rebuildImportDatabase without the now-required `moduleUrl` (import-database.ts:24-26,35; wrapper at server/runtime/composition/site-portability.ts:19 supplies it) and github-backup-secrets expects `deps.siteBackupSanitize` that no longer exists. Matches typecheck:tests TS2345 errors in the same files.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:4553'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\nstack: |-\nimportWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\nObject.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\nasync verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\nasync verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\nasync runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\nasync exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\nasync TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:84:17)\nasync Test.run (node:internal/test_runner/test:1409:7)\nasync Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+ },
+ {
+  "file": "apps/website/src/features/source-control/__tests__/github-backup-restore-accounts.integration.test.ts",
+  "failures": 1,
+  "firstTest": "SEC-1 restore: restoring a sanitized GitHub backup keeps the target site's owner and member, and both can still sign in",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Test wiring calls features/site-backup rebuildImportDatabase without the now-required `moduleUrl` (import-database.ts:24-26,35; wrapper at server/runtime/composition/site-portability.ts:19 supplies it) and github-backup-secrets expects `deps.siteBackupSanitize` that no longer exists. Matches typecheck:tests TS2345 errors in the same files.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/features/source-control/__tests__/github-backup-restore-accounts.integration.test.ts:1:1824'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\nstack: |-\nimportWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\nObject.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\nasync verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\nasync verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\nasync runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\nasync exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\nasync TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/source-control/__tests__/github-backup-restore-accounts.integration.test.ts:67:19)\nasync Test.run (node:internal/test_runner/test:1409:7)\nasync startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+ },
+ {
+  "file": "apps/website/src/platform/db/kernel/__tests__/no-raw-sqlite.boundary.test.ts",
+  "failures": 1,
+  "firstTest": "no new raw SQLite outside the storage kernel (ratchet: the baseline only shrinks)",
+  "rerun": "FAIL",
+  "class": "REAL",
+  "cause": "Ratchet: new raw SQLite outside the storage kernel — project-keys/attachments.ts (insert-or), migrations/project/0000_project_vault.ts + 0001 (sqlite-json x2), server/runtime/composition/project-store.ts (pragma x2).",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/no-raw-sqlite.boundary.test.ts:1:1784'\nerror: |-\nNew raw SQLite outside platform/db/kernel. Use the storage kernel (run/transaction + Drizzle, dialect.ts helpers) instead.\n+ actual - expected\n+ [\n+   'apps/website/src/features/project-keys/attachments.ts: insert-or 0 -> 1',\n+   'apps/website/src/platform/db/migrations/project/0000_project_vault.ts: sqlite-json 0 -> 2',\n+   'apps/website/src/platform/db/migrations/project/0001_project_credential_kinds.ts: sqlite-json 0 -> 2',\n+   'apps/website/src/server/runtime/composition/project-store.ts: pragma 0 -> 2'\n+ ]\n- []\nexpected:\nactual:\n0: 'apps/website/src/features/project-keys/attachments.ts: insert-or 0 -> 1'"
+ },
+ {
+  "file": "apps/website/src/server/runtime/composition/__tests__/installed-extension-tools.executable-tools.test.ts",
+  "failures": 1,
+  "firstTest": "a write tool asks through the process's confirmation transport, with the plugin's disclosed rows",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Confirmation-card row labels changed (actual rows `Connection ref`/`Table`/`Values`/`ID`, tests expect `Tool`/`Input`) — tests not updated for the new approval-card layout.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/installed-extension-tools.executable-tools.test.ts:1:3777'\nerror: |-\nExpected values to be strictly deep-equal:\n+ actual - expected\n[\n[\n+     'Connection ref',\n+     'conn-1'\n-     'Tool',\n-     'p_acme_office__append_rows'\n]\n]\nexpected:\n0:"
+ },
+ {
+  "file": "development/scripts/__tests__/unit/mutation-cli-characterization.unit.test.ts",
+  "failures": 1,
+  "firstTest": "lanes CLI records a sweep and a no-test row, then removes its isolated copy",
+  "rerun": "FAIL",
+  "class": "ENV",
+  "cause": "`Cannot redefine property: constants` — test patches a frozen node builtin namespace; behaviour differs on Node 24.22 (this container) — rerun reproduces; also `?characterization` query imports flagged by dead-path-sweep.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/development/scripts/__tests__/unit/mutation-cli-characterization.unit.test.ts:1:3407'\nerror: 'Cannot redefine property: constants'\nstack: |-\ndefineProperty (<anonymous>)\nObject.cjsMockModuleLoad (node:internal/test_runner/mock/mock:1012:5)\nwrapModuleLoad (node:internal/modules/cjs/loader:261:19)\nloadCJSModuleWithModuleLoad (node:internal/modules/esm/translators:372:15)\nModuleWrap.<anonymous> (node:internal/modules/esm/translators:244:9)\nModuleJob.run (node:internal/modules/esm/module_job:561:25)\nasync node:internal/modules/esm/loader:647:26\nasync TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/unit/mutation-cli-characterization.unit.test.ts:155:3)\nasync Test.run (node:internal/test_runner/test:1409:7)\nasync Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+ },
+ {
+  "file": "apps/website/src/features/agent-plugins/__tests__/unit/bundled-tovu-theme-package.unit.test.ts",
+  "failures": 1,
+  "firstTest": "every tool tovu-theme's skill and references cite is a real native tool or a per-plugin tool",
+  "rerun": "FAIL",
+  "class": "REAL",
+  "cause": "Bundled tovu-theme SKILL.md still cites retired tool `media_list_assets` (use content_read.media_asset); unit test flags it.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/bundled-tovu-theme-package.unit.test.ts:1:3959'\nerror: |-\nthe skill tells agents to call tools that do not exist\n+ actual - expected\n+ [\n+   'SKILL.md: media_list_assets (retired â use content_read.media_asset)'\n+ ]\n- []\nexpected:\nactual:\n0: 'SKILL.md: media_list_assets (retired â use content_read.media_asset)'\nstack: |-\nTestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/bundled-tovu-theme-package.unit.test.ts:100:10)\nasync Test.run (node:internal/test_runner/test:1409:7)"
+ },
+ {
+  "file": "apps/website/src/features/site-backup/__tests__/share-plugin-policy.integration.test.ts",
+  "failures": 2,
+  "firstTest": "import refuses tampered portable plugin DDL and private plugin tables",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Test wiring calls features/site-backup rebuildImportDatabase without the now-required `moduleUrl` (import-database.ts:24-26,35; wrapper at server/runtime/composition/site-portability.ts:19 supplies it) and github-backup-secrets expects `deps.siteBackupSanitize` that no longer exists. Matches typecheck:tests TS2345 errors in the same files.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/share-plugin-policy.integration.test.ts:1:802'\nerror: |-\nThe validation function is expected to return \"true\". Received false\nCaught error:\nTypeError: Cannot read properties of undefined (reading 'endsWith')\nstack: |-\nasync TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/share-plugin-policy.integration.test.ts:33:7)\nasync Test.run (node:internal/test_runner/test:1409:7)\nasync Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+ },
+ {
+  "file": "apps/website/src/features/source-control/__tests__/github-backup-secrets.integration.test.ts",
+  "failures": 1,
+  "firstTest": "SEC-1: GitHub backup excludes password hashes, sessions, magic-link tokens and sealed vault rows",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Test wiring calls features/site-backup rebuildImportDatabase without the now-required `moduleUrl` (import-database.ts:24-26,35; wrapper at server/runtime/composition/site-portability.ts:19 supplies it) and github-backup-secrets expects `deps.siteBackupSanitize` that no longer exists. Matches typecheck:tests TS2345 errors in the same files.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/features/source-control/__tests__/github-backup-secrets.integration.test.ts:1:1237'\nerror: 'deps.siteBackupSanitize is not a function'\nstack: |-\ncaptureBackupDatabase (/home/user/Tovu/apps/website/src/features/site-backup/backup-service.ts:616:34)\nasync prepareContent (/home/user/Tovu/apps/website/src/features/site-backup/backup-service.ts:633:22)\nasync planSiteBackup (/home/user/Tovu/apps/website/src/features/site-backup/backup-service.ts:550:20)\nasync TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/source-control/__tests__/github-backup-secrets.integration.test.ts:97:16)\nasync Test.run (node:internal/test_runner/test:1409:7)\nasync startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+ },
+ {
+  "file": "apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts",
+  "failures": 8,
+  "firstTest": "resolveHtmlPageEmbeds: a \"media\" embed with no variant resolves against CORE_PUBLIC_TRANSFORM_NAME (\"public\") by default",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "New versioned media URLs (`?v=sha12`, 0037/replace-restamp work) — tests still assert exact `/m/<slug>/...` URLs without the query (e.g. regex `src=\"/m/promo-01/original.mp4\"`, `/og.v1/image.jpg$`). library.test 500!=400 and peer-site-reads image-decode error look like the same media-pipeline change; verify.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts:1:17751'\nerror: |-\nExpected values to be strictly deep-equal:\n+ actual - expected\n... Skipped lines\n{\ncomponentId: 'media-image',\nprops: {\nalt: 'A scenic photo',\nassetId: 'asset-1',\n...\nhtmlAttributes: null,\n+     sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',\nslug: null,"
+ },
+ {
+  "file": "apps/website/src/platform/db/__tests__/parity/vault-boundary-parity.test.ts",
+  "failures": 3,
+  "firstTest": "vault boundary parity [sqlite]",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Imports apps/website/src/platform/db/repos/site-credential-repo.ts which no longer exists (deleted in the snapshot commit 2a0c60ac).",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-boundary-parity.test.ts:1:1620'\nerror: \"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"\nstack: |-\nfinalizeResolution (node:internal/modules/esm/resolve:272:11)\nmoduleResolve (node:internal/modules/esm/resolve:879:10)\ndefaultResolve (node:internal/modules/esm/resolve:1006:11)\n#cachedDefaultResolve (node:internal/modules/esm/loader:705:20)\n#resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)\nnextStep (node:internal/modules/customization_hooks:189:26)\nresolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)\nresolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)\nresolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)\nresolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343)\n..."
+ },
+ {
+  "file": "apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts",
+  "failures": 1,
+  "firstTest": "the content history through the current head applies on real Postgres",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Expected migration head 0036_publish_history_config_jsonb; head is now 0037_media_source_metadata.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts:1:1778'\nerror: |-\nExpected values to be strictly deep-equal:\n+ actual - expected\n... Skipped lines\n[\n'0000_legacy_baseline',\n'0001_post_search',\n'0002_drop_empty_legacy_chat_tables',\n'0003_coercion_json_as_json',\n...\n'0036_publish_history_config_jsonb',\n+   '0037_media_source_metadata'\n]"
+ },
+ {
+  "file": "apps/website/src/server/__tests__/integration/member-magic-link-real-composition.unrun.integration.test.ts",
+  "failures": 2,
+  "firstTest": "[unrun] member magic link [sqlite]: the sixth request for one email within the hour is 429 with Retry-After, case-insensitively; another email still passes",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Rate-limit/refusal expectation deep-equal mismatch on sixth request; pinned shape stale (verify).",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/server/__tests__/integration/member-magic-link-real-composition.unrun.integration.test.ts:1:10661'\nerror: |-\nExpected values to be strictly deep-equal:\n+ actual - expected\n{\n+   error: 'too many member authentication requests'\n-   error: 'too many sign-in requests for this email'\n}\nexpected:\nerror: 'too many sign-in requests for this email'\nactual:\nerror: 'too many member authentication requests'"
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/__tests__/publish-site.tw4.pins.test.ts",
+  "failures": 1,
+  "firstTest": "publish trigger preserves shape errors, validation order, and domain confirmation before consent",
+  "rerun": "FAIL",
+  "class": "REAL",
+  "cause": "POST publish returns 500 instead of 409 (publish-site.tw4.pins.test.ts:53) — unhandled error path; likely consent/default-consent or deps wiring change; triage needed.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/publish-site.tw4.pins.test.ts:1:552'\nerror: |-\nExpected values to be strictly equal:\n500 !== 409\nexpected: 409\nactual: 500\nstack: |-\nTestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/publish-site.tw4.pins.test.ts:53:10)\nprocess.processTicksAndRejections (node:internal/process/task_queues:104:5)\nasync Test.run (node:internal/test_runner/test:1409:7)\nasync startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+ },
+ {
+  "file": "development/scripts/__tests__/unit/script-inventory-characterization.unit.test.ts",
+  "failures": 3,
+  "firstTest": "rigor CLI preserves tags, runner selection and cyclic source-to-test mapping",
+  "rerun": "FAIL",
+  "class": "ENV",
+  "cause": "`Cannot redefine property: constants` — test patches a frozen node builtin namespace; behaviour differs on Node 24.22 (this container) — rerun reproduces; also `?characterization` query imports flagged by dead-path-sweep.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/development/scripts/__tests__/unit/script-inventory-characterization.unit.test.ts:1:316'\nerror: 'Cannot redefine property: constants'\nstack: |-\ndefineProperty (<anonymous>)\nObject.cjsMockModuleLoad (node:internal/test_runner/mock/mock:1012:5)\nwrapModuleLoad (node:internal/modules/cjs/loader:261:19)\nloadCJSModuleWithModuleLoad (node:internal/modules/esm/translators:372:15)\nModuleWrap.<anonymous> (node:internal/modules/esm/translators:244:9)\nModuleJob.run (node:internal/modules/esm/module_job:561:25)\nasync node:internal/modules/esm/loader:647:26\nasync TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/unit/script-inventory-characterization.unit.test.ts:52:3)\nasync Test.run (node:internal/test_runner/test:1409:7)\nasync startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+ },
+ {
+  "file": "apps/website/src/contracts/core/__tests__/integration/child-process-coverage-env-wiring.test.ts",
+  "failures": 1,
+  "firstTest": "apps/website/src/cli/__tests__/integration/serve-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment",
+  "rerun": "FAIL",
+  "class": "REAL",
+  "cause": "serve-command.integration.test.ts has a spawn whose env bypasses the coverage helper (policy test) — add helper to that spawn.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/contracts/core/__tests__/integration/child-process-coverage-env-wiring.test.ts:11:1277'\nerror: |-\napps/website/src/cli/__tests__/integration/serve-command.integration.test.ts has a spawn whose environment bypasses the coverage helper\n+ actual - expected\n+ [\n+   'spawn(process.execPath, [\"--import\", TSX_LOADER, CLI_MAIN, \"serve\", ...args], { env: childEnv, cwd })'\n+ ]\n- []\nexpected:\nactual:\n0: 'spawn(process.execPath, [\"--import\", TSX_LOADER, CLI_MAIN, \"serve\", ...args], { env: childEnv, cwd })'\nstack: |-\nTestContext.<anonymous> (/home/user/Tovu/apps/website/src/contracts/core/__tests__/integration/child-process-coverage-env-wiring.test.ts:138:12)\nTest.runInAsyncScope (node:async_hooks:227:14)"
+ },
+ {
+  "file": "apps/website/src/features/agent-plugins/executable-tools/__tests__/executable-tools.vertical-slice.test.ts",
+  "failures": 1,
+  "firstTest": "a confirmed write tool call runs end to end through the registry, approval owner and host capabilities",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Confirmation-card row labels changed (actual rows `Connection ref`/`Table`/`Values`/`ID`, tests expect `Tool`/`Input`) — tests not updated for the new approval-card layout.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/features/agent-plugins/executable-tools/__tests__/executable-tools.vertical-slice.test.ts:1:150'\nerror: |-\nExpected values to be strictly deep-equal:\n+ actual - expected\n[\n+   'Connection ref',\n+   'Table',\n+   'Values',\n-   'Tool',\n-   'Input',\n'Account',\n'Affects'\n]\nexpected:"
+ },
+ {
+  "file": "apps/website/src/features/site-backup/__tests__/import-download.integration.test.ts",
+  "failures": 2,
+  "firstTest": "B guarded HTTPS import pins public download, refuses private initial/redirect peers, propagates caps and cancellation",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Test wiring calls features/site-backup rebuildImportDatabase without the now-required `moduleUrl` (import-database.ts:24-26,35; wrapper at server/runtime/composition/site-portability.ts:19 supplies it) and github-backup-secrets expects `deps.siteBackupSanitize` that no longer exists. Matches typecheck:tests TS2345 errors in the same files.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-download.integration.test.ts:1:476'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\nstack: |-\nimportWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\nObject.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\nasync verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\nasync verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\nasync runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\nasync exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\nasync TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-download.integration.test.ts:28:17)\nasync Test.run (node:internal/test_runner/test:1409:7)\nasync startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+ },
+ {
+  "file": "apps/website/src/platform/db/__tests__/parity/vault-cascade-parity.test.ts",
+  "failures": 2,
+  "firstTest": "vault cascade parity [sqlite]",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Imports apps/website/src/platform/db/repos/site-credential-repo.ts which no longer exists (deleted in the snapshot commit 2a0c60ac).",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-cascade-parity.test.ts:1:608'\nerror: \"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"\nstack: |-\nfinalizeResolution (node:internal/modules/esm/resolve:272:11)\nmoduleResolve (node:internal/modules/esm/resolve:879:10)\ndefaultResolve (node:internal/modules/esm/resolve:1006:11)\n#cachedDefaultResolve (node:internal/modules/esm/loader:705:20)\n#resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)\nnextStep (node:internal/modules/customization_hooks:189:26)\nresolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)\nresolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)\nresolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)\nresolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343)\n..."
+ },
+ {
+  "file": "packages/sdk/src/__tests__/unit/sdk-public-api.unit.test.ts",
+  "failures": 1,
+  "firstTest": "SDK external type contracts are declared package dependencies for standalone consumers",
+  "rerun": "FAIL",
+  "class": "ENV",
+  "cause": "Assertion sees `file:/home/user/Jini/packages/*` instead of a semver range because this run overrode every @jini-ai dependency with local file: paths (setup, not product).",
+  "errorHead": "---\nlocation: '/home/user/Tovu/packages/sdk/src/__tests__/unit/sdk-public-api.unit.test.ts:12:1209'\nerror: |-\nExpected values to be strictly equal:\n+ actual - expected\n+ 'file:/home/user/Jini/packages/plugins'\n- '^0.6.13'\nexpected: '^0.6.13'\nactual: 'file:/home/user/Jini/packages/plugins'\nstack: |-\nTestContext.<anonymous> (/home/user/Tovu/packages/sdk/src/__tests__/unit/sdk-public-api.unit.test.ts:142:10)\nTest.runInAsyncScope (node:async_hooks:227:14)\nTest.run (node:internal/test_runner/test:1402:25)\nTest.processPendingSubtests (node:internal/test_runner/test:974:18)\nTest.postRun (node:internal/test_runner/test:1542:19)"
+ },
+ {
+  "file": "apps/website/src/features/seo/__tests__/index.unit.test.ts",
+  "failures": 1,
+  "firstTest": "createSeoDeps: static bindings, clock/transform receivers and public-access decision",
+  "rerun": "FAIL",
+  "class": "REAL",
+  "cause": "createSeoDeps loses its receiver: transform-repo called with `[object Object]` instead of `og` (seo/index.ts, test line 67).",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/features/seo/__tests__/index.unit.test.ts:1:2598'\nerror: |-\nlistByName keeps its receiver\n+ actual - expected\n[\n+   'transform-repo:[object Object]'\n-   'transform-repo:og'\n]\nexpected:\n0: 'transform-repo:og'\nactual:\n0: 'transform-repo:[object Object]'\nstack: |-\nTestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/seo/__tests__/index.unit.test.ts:67:10)"
+ },
+ {
+  "file": "apps/website/src/features/site-backup/__tests__/import-failures.integration.test.ts",
+  "failures": 4,
+  "firstTest": "a consumed upload cannot create a second import, while request replay is idempotent and source-bound",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Test wiring calls features/site-backup rebuildImportDatabase without the now-required `moduleUrl` (import-database.ts:24-26,35; wrapper at server/runtime/composition/site-portability.ts:19 supplies it) and github-backup-secrets expects `deps.siteBackupSanitize` that no longer exists. Matches typecheck:tests TS2345 errors in the same files.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-failures.integration.test.ts:1:7711'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\nstack: |-\nimportWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\nObject.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\nasync verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\nasync verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\nasync runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\nasync exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\nasync TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-failures.integration.test.ts:109:19)\nasync Test.run (node:internal/test_runner/test:1409:7)\nasync Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+ },
+ {
+  "file": "apps/website/src/platform/db/__tests__/parity/vault-hot-path.test.ts",
+  "failures": 2,
+  "firstTest": "vault hot paths [sqlite]",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Imports apps/website/src/platform/db/repos/site-credential-repo.ts which no longer exists (deleted in the snapshot commit 2a0c60ac).",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-hot-path.test.ts:5:88'\nerror: \"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"\nstack: |-\nfinalizeResolution (node:internal/modules/esm/resolve:272:11)\nmoduleResolve (node:internal/modules/esm/resolve:879:10)\ndefaultResolve (node:internal/modules/esm/resolve:1006:11)\n#cachedDefaultResolve (node:internal/modules/esm/loader:705:20)\n#resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)\nnextStep (node:internal/modules/customization_hooks:189:26)\nresolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)\nresolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)\nresolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)\nresolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343)\n..."
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/commerce-strip-parity.test.ts",
+  "failures": 2,
+  "firstTest": "the transfer catalog loses exactly the six commerce tables and gains the named later columns",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Transfer catalog table list changed (migrations 0036/0037); pin needs updating.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/commerce-strip-parity.test.ts:6:1940'\nerror: |-\nExpected values to be strictly deep-equal:\n+ actual - expected\n... Skipped lines\n[\n[\n'agent_tool_attempts',\n[\n'id',\n...\n'source_sha256',\n+       'source_metadata_json',\n'status',"
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.edge-paths.route.test.ts",
+  "failures": 3,
+  "firstTest": "GET /: a failing lookup of the page claiming / answers the generic 500",
+  "rerun": "FAIL",
+  "class": "REAL",
+  "cause": "Default consent banner renders without the `/privacy` \"Privacy policy\" link: test helper default-consent-page.ts:31 asserts `a[href=\"/privacy\"]`, but Jini cookie-consent banner.ts:25 defaults `privacyPolicyUrl: ''` — Tovu host (site-consent middleware) no longer passes it, or Jini default changed. Tovu↔Jini drift.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.edge-paths.route.test.ts:1:11079'\nerror: |-\nExpected values to be strictly equal:\n+ actual - expected\n+ undefined\n- 'Privacy policy'\nexpected: 'Privacy policy'\nstack: |-\nassertDefaultConsentPage (/home/user/Tovu/apps/website/src/server/__tests__/helpers/default-consent-page.ts:31:12)\nTestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.edge-paths.route.test.ts:301:16)\nprocess.processTicksAndRejections (node:internal/process/task_queues:104:5)\nasync Test.run (node:internal/test_runner/test:1409:7)\nasync Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+ },
+ {
+  "file": "development/scripts/__tests__/openapi-contract-fixtures.test.ts",
+  "failures": 1,
+  "firstTest": "OpenAPI contract: all 29 original mismatches reach the documented condition with real HTTP inputs",
+  "rerun": "FAIL",
+  "class": "ENV",
+  "cause": "`Test home isolation required` — refuses the real HOME (/root); needs an isolated HOME/profile env that the sharded run did not set.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/development/scripts/__tests__/openapi-contract-fixtures.test.ts:1:2406'\nerror: 'Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.'\nstack: |-\nassertTestHomeIsolation (/home/user/Tovu/apps/website/src/platform/site-dir/sites-home.ts:53:11)\ncreateSitesWorkspace (/home/user/Tovu/apps/website/src/platform/site-dir/sites-home.ts:20:3)\nresolveSiteRoot (/home/user/Tovu/apps/website/src/platform/site-dir/site-root.ts:78:21)\ndescribeSiteBinding (/home/user/Tovu/apps/website/src/platform/site-dir/site-registry.ts:479:15)\ncreateRouteDeps (/home/user/Tovu/apps/website/src/server/runtime/composition/app.ts:1114:23)\nstartTovuServer (/home/user/Tovu/development/scripts/lib/tovu-test-server.ts:23:21)\nTestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/openapi-contract-fixtures.test.ts:46:24)\nTest.runInAsyncScope (node:async_hooks:227:14)\nTest.run (node:internal/test_runner/test:1402:25)\nTest.start (node:internal/test_runner/test:1262:17)\n..."
+ },
+ {
+  "file": "apps/website/src/assistant/persistence/__tests__/release-manifests.test.ts",
+  "failures": 1,
+  "firstTest": "root/admin/site-chat select the same new chat release and preserve the UI override",
+  "rerun": "FAIL",
+  "class": "ENV",
+  "cause": "Assertion sees `file:/home/user/Jini/packages/*` instead of a semver range because this run overrode every @jini-ai dependency with local file: paths (setup, not product).",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/release-manifests.test.ts:1:321'\nerror: 'Invalid comparator: file:/home/user/Jini/packages/chat'\nstack: |-\nComparator.parse (/home/user/Tovu/node_modules/semver/classes/comparator.js:41:13)\nnew Comparator (/home/user/Tovu/node_modules/semver/classes/comparator.js:25:10)\n/home/user/Tovu/node_modules/semver/classes/range.js:157:47\nArray.map (<anonymous>)\nRange.parseRange (/home/user/Tovu/node_modules/semver/classes/range.js:157:35)\n/home/user/Tovu/node_modules/semver/classes/range.js:42:22\nArray.map (<anonymous>)\nnew Range (/home/user/Tovu/node_modules/semver/classes/range.js:42:8)\nObject.minVersion (/home/user/Tovu/node_modules/semver/ranges/min-version.js:8:11)\nTestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/release-manifests.test.ts:11:26)\n..."
+ },
+ {
+  "file": "apps/website/src/cli/__tests__/unit/plugin-install-real-site.unit.test.ts",
+  "failures": 1,
+  "firstTest": "apps/website/src/cli/__tests__/unit/plugin-install-real-site.unit.test.ts",
+  "rerun": "PASS",
+  "class": "FLAKY (ENV)",
+  "cause": "Process died with SIGTRAP; passes on rerun.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/cli/__tests__/unit/plugin-install-real-site.unit.test.ts:1:1'\nexitCode: ~\nsignal: 'SIGTRAP'\nerror: 'test failed'\n..."
+ },
+ {
+  "file": "apps/website/src/features/site-backup/__tests__/import-interruption.integration.test.ts",
+  "failures": 8,
+  "firstTest": "B hard interruption allocated reconciles under locks: inSite",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Test wiring calls features/site-backup rebuildImportDatabase without the now-required `moduleUrl` (import-database.ts:24-26,35; wrapper at server/runtime/composition/site-portability.ts:19 supplies it) and github-backup-secrets expects `deps.siteBackupSanitize` that no longer exists. Matches typecheck:tests TS2345 errors in the same files.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-interruption.integration.test.ts:1:488'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\nstack: |-\nimportWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\nObject.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\nasync verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\nasync verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\nasync runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\nasync exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\nasync TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-interruption.integration.test.ts:17:21)\nasync Test.run (node:internal/test_runner/test:1409:7)\nasync startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+ },
+ {
+  "file": "apps/website/src/features/site-backup/__tests__/share-refusals.integration.test.ts",
+  "failures": 2,
+  "firstTest": "export of populated undeclared store tables refuses by name with a clear next step; empty ones do not block",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Test wiring calls features/site-backup rebuildImportDatabase without the now-required `moduleUrl` (import-database.ts:24-26,35; wrapper at server/runtime/composition/site-portability.ts:19 supplies it) and github-backup-secrets expects `deps.siteBackupSanitize` that no longer exists. Matches typecheck:tests TS2345 errors in the same files.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/share-refusals.integration.test.ts:1:6243'\nerror: |-\nThe input did not match the regular expression /schema|database/i. Input:\n\"TypeError: Cannot read properties of undefined (reading 'endsWith')\"\nexpected:\nactual:\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\nstack: |-\nimportWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\nObject.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\nasync verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\nasync verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\nasync runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\nasync exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)"
+ },
+ {
+  "file": "apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts",
+  "failures": 2,
+  "firstTest": "vault read parity [postgres]",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Imports apps/website/src/platform/db/repos/site-credential-repo.ts which no longer exists (deleted in the snapshot commit 2a0c60ac).",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:1:1337'\nerror: \"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"\nstack: |-\nfinalizeResolution (node:internal/modules/esm/resolve:272:11)\nmoduleResolve (node:internal/modules/esm/resolve:879:10)\ndefaultResolve (node:internal/modules/esm/resolve:1006:11)\n#cachedDefaultResolve (node:internal/modules/esm/loader:705:20)\n#resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)\nnextStep (node:internal/modules/customization_hooks:189:26)\nresolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)\nresolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)\nresolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)\nresolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343)\n..."
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/__tests__/library.test.ts",
+  "failures": 1,
+  "firstTest": "Library HTTP: allowed formats ignore MIME labels, list/download/rename/text preserve bytes and metadata",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "New versioned media URLs (`?v=sha12`, 0037/replace-restamp work) — tests still assert exact `/m/<slug>/...` URLs without the query (e.g. regex `src=\"/m/promo-01/original.mp4\"`, `/og.v1/image.jpg$`). library.test 500!=400 and peer-site-reads image-decode error look like the same media-pipeline change; verify.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/media/__tests__/library.test.ts:1:2578'\nerror: |-\nExpected values to be strictly equal:\n500 !== 400\nexpected: 400\nactual: 500\nstack: |-\nTestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/media/__tests__/library.test.ts:61:12)\nprocess.processTicksAndRejections (node:internal/process/task_queues:104:5)\nasync Test.run (node:internal/test_runner/test:1409:7)\nasync startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+ },
+ {
+  "file": "apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts",
+  "failures": 1,
+  "firstTest": "vendor neutrality end to end: a second provider plugin connects, stores sealed tokens, runs a confirmed write tool, a surface action and a push form delivery",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Confirmation-card row labels changed (actual rows `Connection ref`/`Table`/`Values`/`ID`, tests expect `Tool`/`Input`) — tests not updated for the new approval-card layout.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:1:13403'\nerror: |-\nExpected values to be strictly deep-equal:\n+ actual - expected\n[\n[\n+     'Values',\n+     'Ada'\n+   ],\n+   [\n'Account',\n'Ada'\n],\n["
+ },
+ {
+  "file": "content/agent-plugins/fly/__tests__/credential-schemes.test.mjs",
+  "failures": 1,
+  "firstTest": "content/agent-plugins/fly/__tests__/credential-schemes.test.mjs",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Test imports apps/website/src/features/custom-credentials/auth-schemes.ts, which no longer exists (ERR_MODULE_NOT_FOUND).",
+  "errorHead": "---\nlocation: '/home/user/Tovu/content/agent-plugins/fly/__tests__/credential-schemes.test.mjs:1:1'\nexitCode: 1\nsignal: ~\nerror: 'test failed'\n..."
+ },
+ {
+  "file": "content/agent-plugins/google-workspace/__tests__/sheets-admin.vertical-slice.test.mjs",
+  "failures": 1,
+  "firstTest": "vertical slice: a confirmed sheets_tab_modify rename registers, discloses, waits for the click and sends one batchUpdate",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Confirmation-card row labels changed (actual rows `Connection ref`/`Table`/`Values`/`ID`, tests expect `Tool`/`Input`) — tests not updated for the new approval-card layout.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/content/agent-plugins/google-workspace/__tests__/sheets-admin.vertical-slice.test.mjs:21:1'\nerror: |-\nExpected values to be strictly deep-equal:\n+ actual - expected\n[\n[\n+     'Action',\n+     'rename'\n+   ],\n+   [\n+     'Sheet ID',\n+     '7'\n+   ],\n+   ["
+ },
+ {
+  "file": "development/scripts/__tests__/dead-path-sweep.test.ts",
+  "failures": 2,
+  "firstTest": "dead-path sweep: no path reference outside the known-broken register resolves to nothing",
+  "rerun": "FAIL",
+  "class": "REAL",
+  "cause": "Guard/boundary test failing on the live tree: see first error lines (matches check:boundaries errors `domain-no-direct-assistant-tool-registration`, vendor/idle-motion/dead-path allowlists out of date).",
+  "errorHead": "---\nlocation: '/home/user/Tovu/development/scripts/__tests__/dead-path-sweep.test.ts:1:2753'\nerror: |-\na path reference under development/scripts or the db tooling points at a file that does not exist\n+ actual - expected\n+ [\n+   'development/scripts/__tests__/unit/mutation-cli-characterization.unit.test.ts:59 [relative-import] \"../../mutation-sweep.mjs?characterization\" -> none of development/scripts/mutation-sweep.mjs?characterization exist',\n+   'development/scripts/__tests__/unit/mutation-cli-characterization.unit.test.ts:155 [relative-import] \"../../mutation-lanes.mjs?characterization\" -> none of development/scripts/mutation-lanes.mjs?characterization exist',\n+   'development/scripts/check-admin-complexity-drift.ts:77 [repo-relative-string] \"sonarjs/cognitive-complexity\" -> none of sonarjs exist',\n+   'development/scripts/check-admin-complexity-drift.ts:110 [repo-relative-string] \"sonarjs/cognitive-complexity\" -> none of sonarjs exist',\n+   'development/scripts/check-coverage-integrity.ts:167 [repo-relative-string] \"development/coverage/lcov.info\" -> none of development/coverage exist',\n+   'development/scripts/check-src-complexity-drift.ts:196 [repo-relative-string] \"sonarjs/cognitive-complexity\" -> none of sonarjs exist',\n+   'development/scripts/check-src-complexity-drift.ts:246 [repo-relative-string] \"sonarjs/cognitive-complexity\" -> none of sonarjs exist',\n+   'development/scripts/check-test-baseline.ts:90 [repo-relative-string] \"development/coverage/test-results.tap\" -> none of development/coverage exist',\n+   'development/scripts/coverage-changed.ts:33 [repo-relative-string] \"ADS-memory/.local-artifacts/test-slots/run-gated.sh\" -> none of ADS-memory/.local-artifacts/test-slots exist',"
+ },
+ {
+  "file": "development/scripts/__tests__/repair-site.test.ts",
+  "failures": 2,
+  "firstTest": "repair-site.ts: dry run (no --apply) prints the plan and writes NOTHING",
+  "rerun": "FAIL",
+  "class": "ENV",
+  "cause": "repair-site dry run exits 1 — needs real site-dir/HOME state in this container (verify).",
+  "errorHead": "---\nlocation: '/home/user/Tovu/development/scripts/__tests__/repair-site.test.ts:1:1207'\nerror: |-\nExpected values to be strictly equal:\n1 !== 0\nexpected: 0\nactual: 1\nstack: |-\nTestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/repair-site.test.ts:54:10)\nTest.runInAsyncScope (node:async_hooks:227:14)\nTest.run (node:internal/test_runner/test:1402:25)\nTest.processPendingSubtests (node:internal/test_runner/test:974:18)\nTest.postRun (node:internal/test_runner/test:1542:19)\nTest.run (node:internal/test_runner/test:1467:12)\nasync startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)"
+ },
+ {
+  "file": "apps/website/src/features/site-backup/__tests__/import-malicious.integration.test.ts",
+  "failures": 2,
+  "firstTest": "an installed site plugin's data/ folder stays out of the export, which then imports cleanly",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Test wiring calls features/site-backup rebuildImportDatabase without the now-required `moduleUrl` (import-database.ts:24-26,35; wrapper at server/runtime/composition/site-portability.ts:19 supplies it) and github-backup-secrets expects `deps.siteBackupSanitize` that no longer exists. Matches typecheck:tests TS2345 errors in the same files.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-malicious.integration.test.ts:1:6349'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\nstack: |-\nimportWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\nObject.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\nasync verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\nasync verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\nasync runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\nasync exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\nasync TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-malicious.integration.test.ts:152:19)\nasync Test.run (node:internal/test_runner/test:1409:7)\nasync Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+ },
+ {
+  "file": "apps/website/src/features/site-backup/__tests__/import.integration.test.ts",
+  "failures": 3,
+  "firstTest": "B valid archive and recipient-only owner: inSite",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Test wiring calls features/site-backup rebuildImportDatabase without the now-required `moduleUrl` (import-database.ts:24-26,35; wrapper at server/runtime/composition/site-portability.ts:19 supplies it) and github-backup-secrets expects `deps.siteBackupSanitize` that no longer exists. Matches typecheck:tests TS2345 errors in the same files.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import.integration.test.ts:1:457'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\nstack: |-\nimportWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\nObject.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\nasync verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\nasync verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\nasync runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\nasync exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\nasync TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import.integration.test.ts:20:19)\nasync Test.run (node:internal/test_runner/test:1409:7)\nasync startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+ },
+ {
+  "file": "apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts",
+  "failures": 2,
+  "firstTest": "vault read parity [sqlite]",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Imports apps/website/src/platform/db/repos/site-credential-repo.ts which no longer exists (deleted in the snapshot commit 2a0c60ac).",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:834'\nerror: \"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"\nstack: |-\nfinalizeResolution (node:internal/modules/esm/resolve:272:11)\nmoduleResolve (node:internal/modules/esm/resolve:879:10)\ndefaultResolve (node:internal/modules/esm/resolve:1006:11)\n#cachedDefaultResolve (node:internal/modules/esm/loader:705:20)\n#resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)\nnextStep (node:internal/modules/customization_hooks:189:26)\nresolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)\nresolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)\nresolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)\nresolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343)\n..."
+ },
+ {
+  "file": "apps/website/src/platform/db/sqlite/__tests__/share-database.integration.test.ts",
+  "failures": 1,
+  "firstTest": "apps/website/src/platform/db/sqlite/__tests__/share-database.integration.test.ts",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "File-level failure (exit 1, ERR_TEST_FAILURE/AssertionError) — see reruns/ tap for the assertion; not root-caused.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/platform/db/sqlite/__tests__/share-database.integration.test.ts:1:1'\nexitCode: 1\nsignal: ~\nerror: 'test failed'\n..."
+ },
+ {
+  "file": "apps/website/src/server/__tests__/routes/seo-og-image-crawlability.test.ts",
+  "failures": 1,
+  "firstTest": "SEO/media fix: a dedicated (never-embedded) OG image with NO pre-existing rendition still gets an og:image tag, and the exact published URL 200s anonymously with an image content-type",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "New versioned media URLs (`?v=sha12`, 0037/replace-restamp work) — tests still assert exact `/m/<slug>/...` URLs without the query (e.g. regex `src=\"/m/promo-01/original.mp4\"`, `/og.v1/image.jpg$`). library.test 500!=400 and peer-site-reads image-decode error look like the same media-pipeline change; verify.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/server/__tests__/routes/seo-og-image-crawlability.test.ts:1:3100'\nerror: |-\nThe input did not match the regular expression /\\/og\\.v1\\/image\\.jpg$/. Input:\n'http://127.0.0.1:42209/m/cover/og.v1/image.jpg?v=1301fff68554'\nexpected:\nactual: 'http://127.0.0.1:42209/m/cover/og.v1/image.jpg?v=1301fff68554'\nstack: |-\nTestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/routes/seo-og-image-crawlability.test.ts:142:10)\nprocess.processTicksAndRejections (node:internal/process/task_queues:104:5)\nasync Test.run (node:internal/test_runner/test:1409:7)\nasync startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.member-access.route.test.ts",
+  "failures": 2,
+  "firstTest": "GET /:slug and / -- an unknown member cookie cannot expose gated content",
+  "rerun": "FAIL",
+  "class": "REAL",
+  "cause": "Default consent banner renders without the `/privacy` \"Privacy policy\" link: test helper default-consent-page.ts:31 asserts `a[href=\"/privacy\"]`, but Jini cookie-consent banner.ts:25 defaults `privacyPolicyUrl: ''` — Tovu host (site-consent middleware) no longer passes it, or Jini default changed. Tovu↔Jini drift.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.member-access.route.test.ts:1:4652'\nerror: |-\nExpected values to be strictly equal:\n+ actual - expected\n+ undefined\n- 'Privacy policy'\nexpected: 'Privacy policy'\nstack: |-\nassertDefaultConsentPage (/home/user/Tovu/apps/website/src/server/__tests__/helpers/default-consent-page.ts:31:12)\nTestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.member-access.route.test.ts:175:18)\nprocess.processTicksAndRejections (node:internal/process/task_queues:104:5)\nasync Test.run (node:internal/test_runner/test:1409:7)\nasync Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+ },
+ {
+  "file": "apps/website/src/server/runtime/composition/__tests__/provider-plugins.unit.test.ts",
+  "failures": 1,
+  "firstTest": "nothing configured: nothing is loaded, every contract is the shared noop, and AI tracing is off",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Telemetry/diagnostics default object is no longer reference-identical (diagnostics optional analytics change in Jini); pin needs updating.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/provider-plugins.unit.test.ts:1:10312'\nerror: |-\nValues have same structure but are not reference-equal:\n{\nactiveTraceIds: [Function: activeTraceIds],\ncapture: [Function: capture],\nerror: [Function: error],\nmetric: [Function: metric],\ntrace: [AsyncFunction: trace]\n}\n..."
+ },
+ {
+  "file": "apps/website/src/assistant/__tests__/agent-plugin-executable-tools.characterization.test.ts",
+  "failures": 1,
+  "firstTest": "a policy confirmation card shows exactly the Tool and Input rows (pinned before G7)",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Confirmation-card row labels changed (actual rows `Connection ref`/`Table`/`Values`/`ID`, tests expect `Tool`/`Input`) — tests not updated for the new approval-card layout.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/assistant/__tests__/agent-plugin-executable-tools.characterization.test.ts:1:1180'\nerror: |-\nExpected values to be strictly deep-equal:\n+ actual - expected\n[\n+   'ID'\n-   'Tool',\n-   'Input'\n]\nexpected:\n0: 'Tool'\n1: 'Input'\nactual:\n0: 'ID'"
+ },
+ {
+  "file": "apps/website/src/assistant/__tests__/domain-no-direct-tool-registration.boundary.test.ts",
+  "failures": 1,
+  "firstTest": "no production file under src/{analytics,features,identity,media,navigation,origin,seo,widgets}/ value-imports from src/assistant/ (type-only ToolContributor imports are fine)",
+  "rerun": "FAIL",
+  "class": "REAL",
+  "cause": "Guard/boundary test failing on the live tree: see first error lines (matches check:boundaries errors `domain-no-direct-assistant-tool-registration`, vendor/idle-motion/dead-path allowlists out of date).",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/assistant/__tests__/domain-no-direct-tool-registration.boundary.test.ts:1:3931'\nerror: |-\nDomain/feature modules must not call assistant's tool-contribution registry directly â only server/tool-catalog-manifest.ts may. Offending edges:\napps/website/src/features/agent-plugins/automatic-agent-plugins.ts value-imports \"../../assistant/ask-choice-tool.js\"\n+ actual - expected\n+ [\n+   'apps/website/src/features/agent-plugins/automatic-agent-plugins.ts value-imports \"../../assistant/ask-choice-tool.js\"'\n+ ]\n- []\nexpected:\nactual:\n0: 'apps/website/src/features/agent-plugins/automatic-agent-plugins.ts value-imports \"../../assistant/ask-choice-tool.js\"'\nstack: |-\nTestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/domain-no-direct-tool-registration.boundary.test.ts:200:10)"
+ },
+ {
+  "file": "apps/website/src/features/site-backup/__tests__/import-private-rows.integration.test.ts",
+  "failures": 2,
+  "firstTest": "B successfully strips hostile schema-valid accounts, sessions and secrets before and after owner setup",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Test wiring calls features/site-backup rebuildImportDatabase without the now-required `moduleUrl` (import-database.ts:24-26,35; wrapper at server/runtime/composition/site-portability.ts:19 supplies it) and github-backup-secrets expects `deps.siteBackupSanitize` that no longer exists. Matches typecheck:tests TS2345 errors in the same files.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-private-rows.integration.test.ts:1:452'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\nstack: |-\nimportWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\nObject.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\nasync verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\nasync verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\nasync runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\nasync exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\nasync TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-private-rows.integration.test.ts:35:19)\nasync Test.run (node:internal/test_runner/test:1409:7)\nasync startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+ },
+ {
+  "file": "apps/website/src/features/site-backup/__tests__/share-round-trip.integration.test.ts",
+  "failures": 2,
+  "firstTest": "A production preparation â public download â B import preserves content: inSite",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Test wiring calls features/site-backup rebuildImportDatabase without the now-required `moduleUrl` (import-database.ts:24-26,35; wrapper at server/runtime/composition/site-portability.ts:19 supplies it) and github-backup-secrets expects `deps.siteBackupSanitize` that no longer exists. Matches typecheck:tests TS2345 errors in the same files.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/share-round-trip.integration.test.ts:1:4511'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\nstack: |-\nimportWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\nObject.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\nasync verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\nasync verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\nasync runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\nasync exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\nasync TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/share-round-trip.integration.test.ts:128:19)\nasync Test.run (node:internal/test_runner/test:1409:7)\nasync Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+ },
+ {
+  "file": "apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts",
+  "failures": 3,
+  "firstTest": "vault write parity [sqlite]",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Imports apps/website/src/platform/db/repos/site-credential-repo.ts which no longer exists (deleted in the snapshot commit 2a0c60ac).",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:689'\nerror: \"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"\nstack: |-\nfinalizeResolution (node:internal/modules/esm/resolve:272:11)\nmoduleResolve (node:internal/modules/esm/resolve:879:10)\ndefaultResolve (node:internal/modules/esm/resolve:1006:11)\n#cachedDefaultResolve (node:internal/modules/esm/loader:705:20)\n#resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)\nnextStep (node:internal/modules/customization_hooks:189:26)\nresolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)\nresolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)\nresolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)\nresolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343)\n..."
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/integration/taxonomy-render-surface.integration.test.ts",
+  "failures": 1,
+  "firstTest": "integration: GET /:slug places the terms block right after the entry's content, inside the article and before the footer",
+  "rerun": "FAIL",
+  "class": "REAL",
+  "cause": "Default consent banner renders without the `/privacy` \"Privacy policy\" link: test helper default-consent-page.ts:31 asserts `a[href=\"/privacy\"]`, but Jini cookie-consent banner.ts:25 defaults `privacyPolicyUrl: ''` — Tovu host (site-consent middleware) no longer passes it, or Jini default changed. Tovu↔Jini drift.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/integration/taxonomy-render-surface.integration.test.ts:1:3225'\nerror: |-\nExpected values to be strictly equal:\n+ actual - expected\n+ undefined\n- 'Privacy policy'\nexpected: 'Privacy policy'\nstack: |-\nassertDefaultConsentPage (/home/user/Tovu/apps/website/src/server/__tests__/helpers/default-consent-page.ts:31:12)\nTestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/integration/taxonomy-render-surface.integration.test.ts:155:27)\nprocess.processTicksAndRejections (node:internal/process/task_queues:104:5)\nasync Test.run (node:internal/test_runner/test:1409:7)\nasync Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+ },
+ {
+  "file": "apps/website/src/server/runtime/composition/__tests__/peer-site-reads.test.ts",
+  "failures": 2,
+  "firstTest": "inSite: reads B's posts/media/forms and owner chats through the real catalog; audits only A",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "New versioned media URLs (`?v=sha12`, 0037/replace-restamp work) — tests still assert exact `/m/<slug>/...` URLs without the query (e.g. regex `src=\"/m/promo-01/original.mp4\"`, `/og.v1/image.jpg$`). library.test 500!=400 and peer-site-reads image-decode error look like the same media-pipeline change; verify.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/peer-site-reads.test.ts:1:1514'\nerror: \"media_view_image: media asset 'media' could not be decoded as an image (image/png) â its stored file may be damaged.\"\nstack: |-\nrefusal (/home/user/Tovu/apps/website/src/features/media/view-image-tool.ts:104:10)\nrenderForModel (/home/user/Tovu/apps/website/src/features/media/view-image-tool.ts:170:11)\nObject.media_view_image (/home/user/Tovu/apps/website/src/features/media/view-image-tool.ts:205:30)\nasync Object.handler (/home/user/Jini/packages/core/src/model-facing-tool-errors.ts:150:18)\nasync Object.handler (/home/user/Tovu/apps/website/src/server/runtime/composition/peer-site-reads.ts:435:24)\nasync TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/peer-site-reads.test.ts:64:17)\nasync Test.run (node:internal/test_runner/test:1409:7)\nasync startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+ },
+ {
+  "file": "development/scripts/__tests__/check-idle-motion.test.ts",
+  "failures": 1,
+  "firstTest": "the live tree has no idle-CPU offenders and no stale allowlist entries",
+  "rerun": "FAIL",
+  "class": "REAL",
+  "cause": "Guard/boundary test failing on the live tree: see first error lines (matches check:boundaries errors `domain-no-direct-assistant-tool-registration`, vendor/idle-motion/dead-path allowlists out of date).",
+  "errorHead": "---\nlocation: '/home/user/Tovu/development/scripts/__tests__/check-idle-motion.test.ts:1:921'\nerror: |-\nExpected values to be strictly deep-equal:\n+ actual - expected\n+ [\n+   {\n+     detail: 'setInterval( â use a visibility-aware timer or allowlist it with a reason',\n+     file: 'apps/desktop/src/product-memory-telemetry.ts',\n+     line: 56,\n+     rule: 'bare-interval'\n+   },\n+   {\n+     detail: 'setInterval( â use a visibility-aware timer or allowlist it with a reason',\n+     file: 'apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx',"
+ },
+ {
+  "file": "development/scripts/__tests__/request-site-binding.guard.test.ts",
+  "failures": 1,
+  "firstTest": "request surfaces and their feature helpers use the booted site binding",
+  "rerun": "FAIL",
+  "class": "REAL",
+  "cause": "Guard/boundary test failing on the live tree: see first error lines (matches check:boundaries errors `domain-no-direct-assistant-tool-registration`, vendor/idle-motion/dead-path allowlists out of date).",
+  "errorHead": "---\nlocation: '/home/user/Tovu/development/scripts/__tests__/request-site-binding.guard.test.ts:1:2993'\nerror: |-\nResolve layouts at boot and inject them into request handlers\n+ actual - expected\n+ [\n+   'features/site-backup/import-plugin-state.ts: resolveAgentPluginLayout'\n+ ]\n- []\nexpected:\nactual:\n0: 'features/site-backup/import-plugin-state.ts: resolveAgentPluginLayout'\nstack: |-\nTestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/request-site-binding.guard.test.ts:79:10)\nTest.runInAsyncScope (node:async_hooks:227:14)"
+ },
+ {
+  "file": "development/scripts/__tests__/unit/af-cli-characterization.unit.test.ts",
+  "failures": 2,
+  "firstTest": "outbox CLI ignores comment/string decoys and distinguishes raw adapters from unresolved deps",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "check:outbox-bridge output text changed (finding wording) — regex pin stale.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/development/scripts/__tests__/unit/af-cli-characterization.unit.test.ts:24:481'\nerror: |-\nThe input did not match the regular expression /example\\.ts:6.*publishEntry.*outbox: raw/. Input:\n'check:outbox-bridge â 1 OUTBOX_BRIDGE_SKIPPED finding(s):\\n' +\n'  source/example.ts:3 â `createEntry(...)` needs `toEntryOutbox(...)`, got: outbox: wrong\\n' +\n'check:outbox-bridge â 3 UNRESOLVED finding(s) (failing closed â verify by hand):\\n' +\n'  source/example.ts:5 â `createTerm(...)`: resolved `deps` object has no `outbox:` field and no same-file helper spread to follow (chokepoint requires one)\\n' +\n'  source/example.ts:6 â `publishEntry(...)`: resolved `deps` object has no `outbox:` field and no same-file helper spread to follow (chokepoint requires one)\\n' +\n'  source/example.ts:7 â `assignTerms(...)`: `deps: missingDeps()` â helper `missingDeps` not found (or not resolvable) in the same file\\n' +\n'\\n' +\n'Fix: wrap the raw outbox adapter with the named bridge before it reaches the chokepoint call, e.g. `outbox: toEntryOutbox(deps)` (see server/routes/admin/entries/create.ts for the reference pattern).\\n'\nexpected:\nactual: |-\ncheck:outbox-bridge â 1 OUTBOX_BRIDGE_SKIPPED finding(s):"
+ },
+ {
+  "file": "apps/website/src/assistant/__tests__/declared-tool-keywords.contract.test.ts",
+  "failures": 1,
+  "firstTest": "shipped tool words enrich both legacy and registered search without plugin activation",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Contract still expects `fly: credential_save` keyword entry (test line 67); tool/keyword registry changed.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/assistant/__tests__/declared-tool-keywords.contract.test.ts:1:3061'\nerror: 'fly: credential_save: fly'\nexpected: true\nactual: false\nstack: |-\nTestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/declared-tool-keywords.contract.test.ts:67:65)\nTest.runInAsyncScope (node:async_hooks:227:14)\nTest.run (node:internal/test_runner/test:1402:25)\nTest.processPendingSubtests (node:internal/test_runner/test:974:18)\nTest.postRun (node:internal/test_runner/test:1542:19)\nTest.run (node:internal/test_runner/test:1467:12)\nasync Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+ },
+ {
+  "file": "apps/website/src/features/deployments/deploy-targets/__tests__/no-vendor-in-core.boundary.test.ts",
+  "failures": 1,
+  "firstTest": "real core tree has only reviewed pattern exceptions, each with its exact current total",
+  "rerun": "FAIL",
+  "class": "REAL",
+  "cause": "Guard/boundary test failing on the live tree: see first error lines (matches check:boundaries errors `domain-no-direct-assistant-tool-registration`, vendor/idle-motion/dead-path allowlists out of date).",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/features/deployments/deploy-targets/__tests__/no-vendor-in-core.boundary.test.ts:1:11351'\nerror: |-\nVendor knowledge belongs in its plugin. Uncovered file/vendor/count pairs:\n+ actual - expected\n+ [\n+   'apps/website/src/contracts/core/assistant-native-fallbacks.ts: anthropic 1',\n+   'apps/website/src/server/runtime/composition/data-modules.ts: lipay 1'\n+ ]\n- []\nexpected:\nactual:\n0: 'apps/website/src/contracts/core/assistant-native-fallbacks.ts: anthropic 1'\n1: 'apps/website/src/server/runtime/composition/data-modules.ts: lipay 1'\nstack: |-"
+ },
+ {
+  "file": "apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts",
+  "failures": 14,
+  "firstTest": "L3 local: share/import preserves private documents and deduplicates blobs",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Test wiring calls features/site-backup rebuildImportDatabase without the now-required `moduleUrl` (import-database.ts:24-26,35; wrapper at server/runtime/composition/site-portability.ts:19 supplies it) and github-backup-secrets expects `deps.siteBackupSanitize` that no longer exists. Matches typecheck:tests TS2345 errors in the same files.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:5163'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\nstack: |-\nimportWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\nObject.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\nasync verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\nasync verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\nasync runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\nasync exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\nasync TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:119:19)\nasync Test.run (node:internal/test_runner/test:1409:7)\nasync startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+ },
+ {
+  "file": "apps/website/src/features/site-export/__tests__/site-exporter.test.ts",
+  "failures": 1,
+  "firstTest": "live site: a request carrying the static-export marker gets no widget AND a never-store Cache-Control",
+  "rerun": "FAIL",
+  "class": "REAL",
+  "cause": "Default consent banner renders without the `/privacy` \"Privacy policy\" link: test helper default-consent-page.ts:31 asserts `a[href=\"/privacy\"]`, but Jini cookie-consent banner.ts:25 defaults `privacyPolicyUrl: ''` — Tovu host (site-consent middleware) no longer passes it, or Jini default changed. Tovu↔Jini drift.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/features/site-export/__tests__/site-exporter.test.ts:1:6749'\nerror: |-\nExpected values to be strictly equal:\n+ actual - expected\n+ undefined\n- 'Privacy policy'\nexpected: 'Privacy policy'\nstack: |-\nassertDefaultConsentPage (/home/user/Tovu/apps/website/src/server/__tests__/helpers/default-consent-page.ts:31:12)\nTestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-export/__tests__/site-exporter.test.ts:246:9)\nprocess.processTicksAndRejections (node:internal/process/task_queues:104:5)\nasync Test.run (node:internal/test_runner/test:1409:7)\nasync Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+ },
+ {
+  "file": "apps/website/src/platform/db/migrations/__tests__/member-external-identities-step.test.ts",
+  "failures": 2,
+  "firstTest": "[sqlite] 0035 adds only identity metadata, preserves members and applies once",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "Expected migration head 0036_publish_history_config_jsonb; head is now 0037_media_source_metadata.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/member-external-identities-step.test.ts:1:515'\nerror: |-\nExpected values to be strictly equal:\n+ actual - expected\n+ '0036_publish_history_config_jsonb'\n- '0034_member_auth'\n^\nexpected: '0034_member_auth'\nactual: '0036_publish_history_config_jsonb'\nstack: |-\nTestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/member-external-identities-step.test.ts:21:12)\nasync Test.run (node:internal/test_runner/test:1409:7)\nasync startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/__tests__/agent-probe-characterization.test.ts",
+  "failures": 4,
+  "firstTest": "detect-agents reads injected inventory with strict force undefined",
+  "rerun": "FAIL",
+  "class": "STALE",
+  "cause": "detect-agents payload now carries `discoveryPending` (and other new fields) not in the pinned expected object.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/assistant/__tests__/agent-probe-characterization.test.ts:1:3482'\nerror: |-\nExpected values to be strictly deep-equal:\n+ actual - expected\n... Skipped lines\n{\ndata: [\n{\nauthStatus: 'ok',\ndiscoveryPending: true,\n...\n],\n+       modelsSource: 'live'\n}"
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.route.test.ts",
+  "failures": 1,
+  "firstTest": "GET / 500s with a generic 'Site error' when an unexpected exception is thrown",
+  "rerun": "FAIL",
+  "class": "REAL",
+  "cause": "Default consent banner renders without the `/privacy` \"Privacy policy\" link: test helper default-consent-page.ts:31 asserts `a[href=\"/privacy\"]`, but Jini cookie-consent banner.ts:25 defaults `privacyPolicyUrl: ''` — Tovu host (site-consent middleware) no longer passes it, or Jini default changed. Tovu↔Jini drift.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.route.test.ts:1:12586'\nerror: |-\nExpected values to be strictly equal:\n+ actual - expected\n+ undefined\n- 'Privacy policy'\nexpected: 'Privacy policy'\nstack: |-\nassertDefaultConsentPage (/home/user/Tovu/apps/website/src/server/__tests__/helpers/default-consent-page.ts:31:12)\nTestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.route.test.ts:479:27)\nprocess.processTicksAndRejections (node:internal/process/task_queues:104:5)\nasync Test.run (node:internal/test_runner/test:1409:7)\nasync Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+ },
+ {
+  "file": "development/scripts/__tests__/check-menu-href-allowlist-sync.test.ts",
+  "failures": 2,
+  "firstTest": "live: jini:isAllowedHref, render.ts:safeHref, and static-render.ts:safeHref agree on every table row",
+  "rerun": "FAIL",
+  "class": "REAL",
+  "cause": "Cannot find SAFE_HREF_RESOLUTION_BASE/ORIGIN const pair in features/theme/static-render — refactor moved/renamed them; drift script no longer parses.",
+  "errorHead": "---\nlocation: '/home/user/Tovu/development/scripts/__tests__/check-menu-href-allowlist-sync.test.ts:17:2423'\nerror: 'extractSafeHrefDeclaration: could not find the SAFE_HREF_RESOLUTION_BASE/ORIGIN const pair in /home/user/Tovu/apps/website/src/features/theme/static-render.ts'\nstack: |-\nextractSafeHrefDeclaration (/home/user/Tovu/development/scripts/check-menu-href-allowlist-sync.ts:155:11)\nloadHrefChecker (/home/user/Tovu/development/scripts/check-menu-href-allowlist-sync.ts:182:23)\nrunMenuHrefAllowlistSync (/home/user/Tovu/development/scripts/check-menu-href-allowlist-sync.ts:255:5)\nTestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/check-menu-href-allowlist-sync.test.ts:177:28)\nTest.runInAsyncScope (node:async_hooks:227:14)\nTest.run (node:internal/test_runner/test:1402:25)\nTest.processPendingSubtests (node:internal/test_runner/test:974:18)\nTest.postRun (node:internal/test_runner/test:1542:19)\nTest.run (node:internal/test_runner/test:1467:12)\nasync Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+ }
+]

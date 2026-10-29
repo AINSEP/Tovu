@@ -1,0 +1,78 @@
+TAP version 13
+# Subtest: vertical slice: a confirmed sheets_tab_modify rename registers, discloses, waits for the click and sends one batchUpdate
+not ok 1 - vertical slice: a confirmed sheets_tab_modify rename registers, discloses, waits for the click and sends one batchUpdate
+  ---
+  duration_ms: 45.458513
+  type: 'test'
+  location: '/home/user/Tovu/content/agent-plugins/google-workspace/__tests__/sheets-admin.vertical-slice.test.mjs:21:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      [
+        [
+    +     'Action',
+    +     'rename'
+    +   ],
+    +   [
+    +     'Sheet ID',
+    +     '7'
+    +   ],
+    +   [
+    +     'Title',
+    +     'Leads 2026'
+    +   ],
+    +   [
+          'Account',
+          'alice@example.test'
+        ],
+        [
+          'Affects',
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0:
+      0: 'Account'
+      1: 'alice@example.test'
+    1:
+      0: 'Affects'
+      1: 'spreadsheet sheet1234567890abcdef'
+    2:
+      0: 'Affects'
+      1: 'rename tab 7'
+  actual:
+    0:
+      0: 'Action'
+      1: 'rename'
+    1:
+      0: 'Sheet ID'
+      1: '7'
+    2:
+      0: 'Title'
+      1: 'Leads 2026'
+    3:
+      0: 'Account'
+      1: 'alice@example.test'
+    4:
+      0: 'Affects'
+      1: 'spreadsheet sheet1234567890abcdef'
+    5:
+      0: 'Affects'
+      1: 'rename tab 7'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugins/google-workspace/__tests__/sheets-admin.vertical-slice.test.mjs:33:10)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 583.227052

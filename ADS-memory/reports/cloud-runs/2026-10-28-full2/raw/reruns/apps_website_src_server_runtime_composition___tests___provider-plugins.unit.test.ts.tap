@@ -1,0 +1,264 @@
+TAP version 13
+# Subtest: cookie-consent adapter is mounted under base/<pluginId> only while its lease is current
+ok 1 - cookie-consent adapter is mounted under base/<pluginId> only while its lease is current
+  ---
+  duration_ms: 7.210126
+  type: 'test'
+  ...
+# Subtest: browser contribution comes only from a configured current analytics lease
+ok 2 - browser contribution comes only from a configured current analytics lease
+  ---
+  duration_ms: 2.353115
+  type: 'test'
+  ...
+# Subtest: provider replacement changes the browser revision, removal withdraws it, and legacy controllers require restart
+ok 3 - provider replacement changes the browser revision, removal withdraws it, and legacy controllers require restart
+  ---
+  duration_ms: 1.64616
+  type: 'test'
+  ...
+# Subtest: provider reporter feeds delivery status and diagnostic receipts follow live leases and consent
+ok 4 - provider reporter feeds delivery status and diagnostic receipts follow live leases and consent
+  ---
+  duration_ms: 10.080788
+  type: 'test'
+  ...
+# Subtest: nothing configured: nothing is loaded, every contract is the shared noop, and AI tracing is off
+not ok 5 - nothing configured: nothing is loaded, every contract is the shared noop, and AI tracing is off
+  ---
+  duration_ms: 1.202197
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/provider-plugins.unit.test.ts:1:10312'
+  failureType: 'testCodeFailure'
+  error: |-
+    Values have same structure but are not reference-equal:
+    
+    {
+      activeTraceIds: [Function: activeTraceIds],
+      capture: [Function: capture],
+      error: [Function: error],
+      metric: [Function: metric],
+      trace: [AsyncFunction: trace]
+    }
+    
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: installed + enabled + configured OTel and Sentry: mapped inputs, one fanned-out port, both disposed
+ok 6 - installed + enabled + configured OTel and Sentry: mapped inputs, one fanned-out port, both disposed
+  ---
+  duration_ms: 1.190247
+  type: 'test'
+  ...
+# Subtest: configured but not installed or not enabled: that contract stays on the noop and its factory never runs
+ok 7 - configured but not installed or not enabled: that contract stays on the noop and its factory never runs
+  ---
+  duration_ms: 0.267603
+  type: 'test'
+  ...
+# Subtest: unreadable saved settings are treated as not configured, with a warning naming the plugin
+ok 8 - unreadable saved settings are treated as not configured, with a warning naming the plugin
+  ---
+  duration_ms: 0.6784
+  type: 'test'
+  ...
+# Subtest: installed + enabled but unconfigured (or missing a required field): never loaded; contracts Tovu does not host are skipped
+ok 9 - installed + enabled but unconfigured (or missing a required field): never loaded; contracts Tovu does not host are skipped
+  ---
+  duration_ms: 0.489223
+  type: 'test'
+  ...
+# Subtest: providerInputOf: only declared names pass, blanks are dropped, and a required blank means not configured
+ok 10 - providerInputOf: only declared names pass, blanks are dropped, and a required blank means not configured
+  ---
+  duration_ms: 0.284938
+  type: 'test'
+  ...
+# Subtest: providerInputOf: a blank public field takes the plugin's declared default; a saved value wins
+ok 11 - providerInputOf: a blank public field takes the plugin's declared default; a saved value wins
+  ---
+  duration_ms: 0.181981
+  type: 'test'
+  ...
+# Subtest: a throwing factory, an invalid port and a hung initialization each leave only their own contract on the noop
+ok 12 - a throwing factory, an invalid port and a hung initialization each leave only their own contract on the noop
+  ---
+  duration_ms: 21.836724
+  type: 'test'
+  ...
+# Subtest: product analytics: consent first; a revoke that lands while consent is being read drops the event
+ok 13 - product analytics: consent first; a revoke that lands while consent is being read drops the event
+  ---
+  duration_ms: 1.585002
+  type: 'test'
+  ...
+# Subtest: AI trace: a configured sink receives recorded events through the fan-out
+ok 14 - AI trace: a configured sink receives recorded events through the fan-out
+  ---
+  duration_ms: 0.844693
+  type: 'test'
+  ...
+# Subtest: disabling a provider plugin (its contribution detached) disposes its resources
+ok 15 - disabling a provider plugin (its contribution detached) disposes its resources
+  ---
+  duration_ms: 1.004249
+  type: 'test'
+  ...
+# Subtest: two product-analytics providers both receive each allowed event
+ok 16 - two product-analytics providers both receive each allowed event
+  ---
+  duration_ms: 1.128506
+  type: 'test'
+  ...
+# Subtest: observability validator refuses hostile values and accepts a full port
+ok 17 - observability validator refuses hostile values and accepts a full port
+  ---
+  duration_ms: 0.157856
+  type: 'test'
+  ...
+# Subtest: product_analytics validator refuses hostile values and accepts a full port
+ok 18 - product_analytics validator refuses hostile values and accepts a full port
+  ---
+  duration_ms: 0.087045
+  type: 'test'
+  ...
+# Subtest: ai_trace validator refuses hostile values and accepts a full port
+ok 19 - ai_trace validator refuses hostile values and accepts a full port
+  ---
+  duration_ms: 0.046299
+  type: 'test'
+  ...
+# Subtest: the observability validator refuses a port missing any single signal
+ok 20 - the observability validator refuses a port missing any single signal
+  ---
+  duration_ms: 0.121061
+  type: 'test'
+  ...
+# Subtest: without a warn sink, a provider failure (even a non-Error rejection) goes to the console
+ok 21 - without a warn sink, a provider failure (even a non-Error rejection) goes to the console
+  ---
+  duration_ms: 0.805031
+  type: 'test'
+  ...
+# Subtest: a provider whose dispose fails is reported by phase through the warn sink
+ok 22 - a provider whose dispose fails is reported by phase through the warn sink
+  ---
+  duration_ms: 0.606782
+  type: 'test'
+  ...
+# Subtest: a retired lease is never called again: after disable every contract's composed port is inert (noop)
+ok 23 - a retired lease is never called again: after disable every contract's composed port is inert (noop)
+  ---
+  duration_ms: 1.448948
+  type: 'test'
+  ...
+# Subtest: site attribution: each contract's factory receives the site in that contract's terms
+ok 24 - site attribution: each contract's factory receives the site in that contract's terms
+  ---
+  duration_ms: 0.127337
+  type: 'test'
+  ...
+# Subtest: legacyProviderCredentialCheck: matches only the retired `plugin:<id>` label, from the non-decrypting listing
+ok 25 - legacyProviderCredentialCheck: matches only the retired `plugin:<id>` label, from the non-decrypting listing
+  ---
+  duration_ms: 0.12779
+  type: 'test'
+  ...
+# Subtest: analytics-only AI capability records generations, reuses consent revocation and goes inert on disable
+ok 26 - analytics-only AI capability records generations, reuses consent revocation and goes inert on disable
+  ---
+  duration_ms: 4.604767
+  type: 'test'
+  ...
+# Subtest: analytics providers have independent content policies and one failure cannot block another generation destination
+ok 27 - analytics providers have independent content policies and one failure cannot block another generation destination
+  ---
+  duration_ms: 1.6116
+  type: 'test'
+  ...
+# Subtest: optional AI capability validation rejects malformed hooks and content policies
+ok 28 - optional AI capability validation rejects malformed hooks and content policies
+  ---
+  duration_ms: 0.132593
+  type: 'test'
+  ...
+# Subtest: an unconfigured slot becomes live without replacing captured ports; rotation, detach, failure and retry use the same lifecycle
+ok 29 - an unconfigured slot becomes live without replacing captured ports; rotation, detach, failure and retry use the same lifecycle
+  ---
+  duration_ms: 1.624657
+  type: 'test'
+  ...
+# Subtest: AI generation recording follows live attachment and content-policy rotation, including pending consent
+ok 30 - AI generation recording follows live attachment and content-policy rotation, including pending consent
+  ---
+  duration_ms: 6.379221
+  type: 'test'
+  ...
+# Subtest: visitor events follow visitor proof and revocation even when owner admin telemetry is off
+ok 31 - visitor events follow visitor proof and revocation even when owner admin telemetry is off
+  ---
+  duration_ms: 3.036103
+  type: 'test'
+  ...
+# Subtest: enabled reflects configured current observability leases rather than inert wrappers
+ok 32 - enabled reflects configured current observability leases rather than inert wrappers
+  ---
+  duration_ms: 0.716168
+  type: 'test'
+  ...
+# Subtest: a later contract failure records failure for all rolled-back slots and never publishes stale success
+ok 33 - a later contract failure records failure for all rolled-back slots and never publishes stale success
+  ---
+  duration_ms: 1.319091
+  type: 'test'
+  ...
+# Subtest: provider loading reuses current registrations, reloads retired ones and recovers from refused admission
+ok 34 - provider loading reuses current registrations, reloads retired ones and recovers from refused admission
+  ---
+  duration_ms: 0.856894
+  type: 'test'
+  ...
+# Subtest: runtime returns explicit plugin-safe guidance while keeping SDK errors and retired ports private
+ok 35 - runtime returns explicit plugin-safe guidance while keeping SDK errors and retired ports private
+  ---
+  duration_ms: 0.905452
+  type: 'test'
+  ...
+# Subtest: env unset: site tracker/visitor/error/browser/AI behavior matches the existing port snapshot and product loader is untouched
+ok 36 - env unset: site tracker/visitor/error/browser/AI behavior matches the existing port snapshot and product loader is untouched
+  ---
+  duration_ms: 1.586722
+  type: 'test'
+  ...
+# Subtest: env configured: product catalog projection is independent from site consent; browser/AI/visitor stay site-only and both resources dispose
+ok 37 - env configured: product catalog projection is independent from site consent; browser/AI/visitor stay site-only and both resources dispose
+  ---
+  duration_ms: 10.579215
+  type: 'test'
+  ...
+# Subtest: diagnostic receipts exclude noop metrics from Sentry and PostHog while retaining OTel metrics
+ok 38 - diagnostic receipts exclude noop metrics from Sentry and PostHog while retaining OTel metrics
+  ---
+  duration_ms: 1.808454
+  type: 'test'
+  ...
+# Subtest: 1: saved provider environment wins over the host default; blank uses host and release stays host-owned
+ok 39 - 1: saved provider environment wins over the host default; blank uses host and release stays host-owned
+  ---
+  duration_ms: 2.647267
+  type: 'test'
+  ...
+# Subtest: active trace IDs follow only the current observability lease and remain optional for legacy providers
+ok 40 - active trace IDs follow only the current observability lease and remain optional for legacy providers
+  ---
+  duration_ms: 1.030085
+  type: 'test'
+  ...
+1..40
+# tests 40
+# suites 0
+# pass 39
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 439.034518

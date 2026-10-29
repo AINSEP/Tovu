@@ -1,0 +1,374 @@
+TAP version 13
+# Subtest: vault read parity [sqlite]
+    # Subtest: the transcript covers every golden key and nothing else
+    not ok 1 - the transcript covers every golden key and nothing else
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1046'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: site-assistant
+    not ok 2 - site-assistant
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: personal-execution
+    not ok 3 - personal-execution
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: media-provider
+    not ok 4 - media-provider
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: custom
+    not ok 5 - custom
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: publish-peer
+    not ok 6 - publish-peer
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: database-destination
+    not ok 7 - database-destination
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: vendor (with the folded publish_credential_sets)
+    not ok 8 - vendor (with the folded publish_credential_sets)
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: source-control
+    not ok 9 - source-control
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: mcp-env (enabled configs)
+    not ok 10 - mcp-env (enabled configs)
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: mcp-auth (server views)
+    not ok 11 - mcp-auth (server views)
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: isolation: a second and an empty workspace see only their own rows
+    not ok 12 - isolation: a second and an empty workspace see only their own rows
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: isolation: personal keys stay per principal and per workspace
+    not ok 13 - isolation: personal keys stay per principal and per workspace
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: order: custom-credential and peer lists
+    not ok 14 - order: custom-credential and peer lists
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: order: vendor and source-control lists, defaults first-class
+    not ok 15 - order: vendor and source-control lists, defaults first-class
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: order: MCP server views and enabled configs
+    not ok 16 - order: MCP server views and enabled configs
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    1..16
+not ok 1 - vault read parity [sqlite]
+  ---
+  duration_ms: 80.051817
+  type: 'suite'
+  location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:834'
+  failureType: 'hookFailed'
+  error: "Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    moduleResolve (node:internal/modules/esm/resolve:879:10)
+    defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    nextStep (node:internal/modules/customization_hooks:189:26)
+    resolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)
+    resolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)
+    resolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)
+    resolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343)
+  ...
+# Subtest: vault read parity [pglite]
+    # Subtest: the transcript covers every golden key and nothing else
+    not ok 1 - the transcript covers every golden key and nothing else
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1046'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: site-assistant
+    not ok 2 - site-assistant
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: personal-execution
+    not ok 3 - personal-execution
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: media-provider
+    not ok 4 - media-provider
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: custom
+    not ok 5 - custom
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: publish-peer
+    not ok 6 - publish-peer
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: database-destination
+    not ok 7 - database-destination
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: vendor (with the folded publish_credential_sets)
+    not ok 8 - vendor (with the folded publish_credential_sets)
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: source-control
+    not ok 9 - source-control
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: mcp-env (enabled configs)
+    not ok 10 - mcp-env (enabled configs)
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: mcp-auth (server views)
+    not ok 11 - mcp-auth (server views)
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: isolation: a second and an empty workspace see only their own rows
+    not ok 12 - isolation: a second and an empty workspace see only their own rows
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: isolation: personal keys stay per principal and per workspace
+    not ok 13 - isolation: personal keys stay per principal and per workspace
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: order: custom-credential and peer lists
+    not ok 14 - order: custom-credential and peer lists
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: order: vendor and source-control lists, defaults first-class
+    not ok 15 - order: vendor and source-control lists, defaults first-class
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: order: MCP server views and enabled configs
+    not ok 16 - order: MCP server views and enabled configs
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:1452'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    1..16
+not ok 2 - vault read parity [pglite]
+  ---
+  duration_ms: 0.05569
+  type: 'suite'
+  location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:834'
+  failureType: 'hookFailed'
+  error: "Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    moduleResolve (node:internal/modules/esm/resolve:879:10)
+    defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    nextStep (node:internal/modules/customization_hooks:189:26)
+    resolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)
+    resolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)
+    resolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)
+    resolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343)
+  ...
+1..2
+# tests 32
+# suites 2
+# pass 0
+# fail 0
+# cancelled 32
+# skipped 0
+# todo 0
+# duration_ms 1270.627143

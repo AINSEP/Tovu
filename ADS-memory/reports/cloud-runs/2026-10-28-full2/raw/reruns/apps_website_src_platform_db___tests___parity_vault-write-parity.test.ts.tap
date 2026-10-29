@@ -1,0 +1,316 @@
+TAP version 13
+# Subtest: vault write parity [sqlite]
+    # Subtest: vendor: every step matches
+    not ok 1 - vendor: every step matches
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:1581'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: source: every step matches
+    not ok 2 - source: every step matches
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:1581'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: custom: every step matches
+    not ok 3 - custom: every step matches
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:1581'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: peer: every step matches
+    not ok 4 - peer: every step matches
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:1581'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: media: every step matches
+    not ok 5 - media: every step matches
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:1581'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: destination: every step matches
+    not ok 6 - destination: every step matches
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:1581'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: mcp: every step matches
+    not ok 7 - mcp: every step matches
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:1581'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: assistant: every step matches
+    not ok 8 - assistant: every step matches
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:1581'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    1..8
+not ok 1 - vault write parity [sqlite]
+  ---
+  duration_ms: 59.428283
+  type: 'suite'
+  location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:689'
+  failureType: 'hookFailed'
+  error: "Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    moduleResolve (node:internal/modules/esm/resolve:879:10)
+    defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    nextStep (node:internal/modules/customization_hooks:189:26)
+    resolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)
+    resolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)
+    resolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)
+    resolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343)
+  ...
+# Subtest: vault write parity [pglite]
+    # Subtest: vendor: every step matches
+    not ok 1 - vendor: every step matches
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:1581'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: source: every step matches
+    not ok 2 - source: every step matches
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:1581'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: custom: every step matches
+    not ok 3 - custom: every step matches
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:1581'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: peer: every step matches
+    not ok 4 - peer: every step matches
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:1581'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: media: every step matches
+    not ok 5 - media: every step matches
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:1581'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: destination: every step matches
+    not ok 6 - destination: every step matches
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:1581'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: mcp: every step matches
+    not ok 7 - mcp: every step matches
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:1581'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: assistant: every step matches
+    not ok 8 - assistant: every step matches
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:1581'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    1..8
+not ok 2 - vault write parity [pglite]
+  ---
+  duration_ms: 0.036492
+  type: 'suite'
+  location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:689'
+  failureType: 'hookFailed'
+  error: "Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    moduleResolve (node:internal/modules/esm/resolve:879:10)
+    defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    nextStep (node:internal/modules/customization_hooks:189:26)
+    resolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)
+    resolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)
+    resolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)
+    resolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343)
+  ...
+# Subtest: vault write parity [memory]
+    # Subtest: vendor: every step matches
+    not ok 1 - vendor: every step matches
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:1581'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: source: every step matches
+    not ok 2 - source: every step matches
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:1581'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: custom: every step matches
+    not ok 3 - custom: every step matches
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:1581'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: peer: every step matches
+    not ok 4 - peer: every step matches
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:1581'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: media: every step matches
+    not ok 5 - media: every step matches
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:1581'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: destination: every step matches
+    not ok 6 - destination: every step matches
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:1581'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: mcp: every step matches
+    not ok 7 - mcp: every step matches # SKIP MCP server rows live outside the vault; there is no vault-backed MCP fake to compare
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:1142'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: assistant: every step matches
+    not ok 8 - assistant: every step matches
+      ---
+      duration_ms: 0
+      type: 'test'
+      location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:1581'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    1..8
+not ok 3 - vault write parity [memory]
+  ---
+  duration_ms: 0.017627
+  type: 'suite'
+  location: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:689'
+  failureType: 'hookFailed'
+  error: "Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    moduleResolve (node:internal/modules/esm/resolve:879:10)
+    defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    nextStep (node:internal/modules/customization_hooks:189:26)
+    resolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)
+    resolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)
+    resolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)
+    resolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343)
+  ...
+1..3
+# tests 24
+# suites 3
+# pass 0
+# fail 0
+# cancelled 23
+# skipped 1
+# todo 0
+# duration_ms 1323.776266

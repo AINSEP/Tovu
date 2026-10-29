@@ -1,0 +1,32 @@
+TAP version 13
+# Subtest: root/admin/site-chat select the same new chat release and preserve the UI override
+not ok 1 - root/admin/site-chat select the same new chat release and preserve the UI override
+  ---
+  duration_ms: 2.12319
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/release-manifests.test.ts:1:321'
+  failureType: 'testCodeFailure'
+  error: 'Invalid comparator: file:/home/user/Jini/packages/chat'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    Comparator.parse (/home/user/Tovu/node_modules/semver/classes/comparator.js:41:13)
+    new Comparator (/home/user/Tovu/node_modules/semver/classes/comparator.js:25:10)
+    /home/user/Tovu/node_modules/semver/classes/range.js:157:47
+    Array.map (<anonymous>)
+    Range.parseRange (/home/user/Tovu/node_modules/semver/classes/range.js:157:35)
+    /home/user/Tovu/node_modules/semver/classes/range.js:42:22
+    Array.map (<anonymous>)
+    new Range (/home/user/Tovu/node_modules/semver/classes/range.js:42:8)
+    Object.minVersion (/home/user/Tovu/node_modules/semver/ranges/min-version.js:8:11)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/release-manifests.test.ts:11:26)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 185.60519

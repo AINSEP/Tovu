@@ -1,0 +1,46 @@
+TAP version 13
+# Subtest: no production file under src/{analytics,features,identity,media,navigation,origin,seo,widgets}/ value-imports from src/assistant/ (type-only ToolContributor imports are fine)
+not ok 1 - no production file under src/{analytics,features,identity,media,navigation,origin,seo,widgets}/ value-imports from src/assistant/ (type-only ToolContributor imports are fine)
+  ---
+  duration_ms: 858.729769
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/assistant/__tests__/domain-no-direct-tool-registration.boundary.test.ts:1:3931'
+  failureType: 'testCodeFailure'
+  error: |-
+    Domain/feature modules must not call assistant's tool-contribution registry directly — only server/tool-catalog-manifest.ts may. Offending edges:
+      apps/website/src/features/agent-plugins/automatic-agent-plugins.ts value-imports "../../assistant/ask-choice-tool.js"
+    + actual - expected
+    
+    + [
+    +   'apps/website/src/features/agent-plugins/automatic-agent-plugins.ts value-imports "../../assistant/ask-choice-tool.js"'
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0: 'apps/website/src/features/agent-plugins/automatic-agent-plugins.ts value-imports "../../assistant/ask-choice-tool.js"'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/domain-no-direct-tool-registration.boundary.test.ts:200:10)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.start (node:internal/test_runner/test:1262:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+  ...
+# Subtest: the boundary sees each runtime syntax and exempts only type-only edges
+ok 2 - the boundary sees each runtime syntax and exempts only type-only edges
+  ---
+  duration_ms: 1.115715
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 1
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1494.544521

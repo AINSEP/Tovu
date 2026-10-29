@@ -1,0 +1,129 @@
+TAP version 13
+# Subtest: admin route CLI resolves nested placeholders and reports the unmatched concrete URL
+ok 1 - admin route CLI resolves nested placeholders and reports the unmatched concrete URL
+  ---
+  duration_ms: 148.289726
+  type: 'test'
+  ...
+# Subtest: activation CLI lists explicit provenance and writes the enable decision through its owner
+ok 2 - activation CLI lists explicit provenance and writes the enable decision through its owner
+  ---
+  duration_ms: 228.502511
+  type: 'test'
+  ...
+# Subtest: outbox CLI ignores comment/string decoys and distinguishes raw adapters from unresolved deps
+not ok 3 - outbox CLI ignores comment/string decoys and distinguishes raw adapters from unresolved deps
+  ---
+  duration_ms: 143.928002
+  type: 'test'
+  location: '/home/user/Tovu/development/scripts/__tests__/unit/af-cli-characterization.unit.test.ts:24:481'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /example\.ts:6.*publishEntry.*outbox: raw/. Input:
+    
+    'check:outbox-bridge — 1 OUTBOX_BRIDGE_SKIPPED finding(s):\n' +
+      '  source/example.ts:3 — `createEntry(...)` needs `toEntryOutbox(...)`, got: outbox: wrong\n' +
+      'check:outbox-bridge — 3 UNRESOLVED finding(s) (failing closed — verify by hand):\n' +
+      '  source/example.ts:5 — `createTerm(...)`: resolved `deps` object has no `outbox:` field and no same-file helper spread to follow (chokepoint requires one)\n' +
+      '  source/example.ts:6 — `publishEntry(...)`: resolved `deps` object has no `outbox:` field and no same-file helper spread to follow (chokepoint requires one)\n' +
+      '  source/example.ts:7 — `assignTerms(...)`: `deps: missingDeps()` — helper `missingDeps` not found (or not resolvable) in the same file\n' +
+      '\n' +
+      'Fix: wrap the raw outbox adapter with the named bridge before it reaches the chokepoint call, e.g. `outbox: toEntryOutbox(deps)` (see server/routes/admin/entries/create.ts for the reference pattern).\n'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    check:outbox-bridge — 1 OUTBOX_BRIDGE_SKIPPED finding(s):
+      source/example.ts:3 — `createEntry(...)` needs `toEntryOutbox(...)`, got: outbox: wrong
+    check:outbox-bridge — 3 UNRESOLVED finding(s) (failing closed — verify by hand):
+      source/example.ts:5 — `createTerm(...)`: resolved `deps` object has no `outbox:` field and no same-file helper spread to follow (chokepoint requires one)
+      source/example.ts:6 — `publishEntry(...)`: resolved `deps` object has no `outbox:` field and no same-file helper spread to follow (chokepoint requires one)
+      source/example.ts:7 — `assignTerms(...)`: `deps: missingDeps()` — helper `missingDeps` not found (or not resolvable) in the same file
+    
+    Fix: wrap the raw outbox adapter with the named bridge before it reaches the chokepoint call, e.g. `outbox: toEntryOutbox(deps)` (see server/routes/admin/entries/create.ts for the reference pattern).
+    
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/unit/af-cli-characterization.unit.test.ts:100:10)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+    Test.postRun (node:internal/test_runner/test:1542:19)
+    Test.run (node:internal/test_runner/test:1467:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: registry drift CLI skips projects with no registry Jini dependencies
+ok 4 - registry drift CLI skips projects with no registry Jini dependencies
+  ---
+  duration_ms: 88.75353
+  type: 'test'
+  ...
+# Subtest: brand icon CLI keeps the letter and removes the disconnected frame from the simplified master
+not ok 5 - brand icon CLI keeps the letter and removes the disconnected frame from the simplified master
+  ---
+  duration_ms: 344.804559
+  type: 'test'
+  location: '/home/user/Tovu/development/scripts/__tests__/unit/af-cli-characterization.unit.test.ts:24:1892'
+  failureType: 'testCodeFailure'
+  error: |-
+    build-brand-icons: full-logo artwork (170,170)-(1089,1089) is not fully inside the 904px crop at (178,178); it would be clipped.
+    
+    
+    1 !== 0
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/unit/af-cli-characterization.unit.test.ts:133:10)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: trash backfill CLI opens dry runs read-only and reports absent domain tables
+ok 6 - trash backfill CLI opens dry runs read-only and reports absent domain tables
+  ---
+  duration_ms: 204.817656
+  type: 'test'
+  ...
+# Subtest: OpenAPI contract CLI selects every applicable probe and closes after idempotency replays
+ok 7 - OpenAPI contract CLI selects every applicable probe and closes after idempotency replays
+  ---
+  duration_ms: 166.322307
+  type: 'test'
+  ...
+# Subtest: secret leak CLI preserves the canary pair during the sweep and fails on a leaked canary
+ok 8 - secret leak CLI preserves the canary pair during the sweep and fails on a leaked canary
+  ---
+  duration_ms: 178.896589
+  type: 'test'
+  ...
+# Subtest: coverage triage CLI includes complexity-only files absent from both coverage tiers
+ok 9 - coverage triage CLI includes complexity-only files absent from both coverage tiers
+  ---
+  duration_ms: 139.316744
+  type: 'test'
+  ...
+# Subtest: web dev CLI attaches to the selected running site and opens its admin URL
+ok 10 - web dev CLI attaches to the selected running site and opens its admin URL
+  ---
+  duration_ms: 188.850259
+  type: 'test'
+  ...
+# Subtest: desktop dev CLI builds preload before watching and forwards Electron flags on normal exit
+ok 11 - desktop dev CLI builds preload before watching and forwards Electron flags on normal exit
+  ---
+  duration_ms: 406.929935
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 9
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2358.619327

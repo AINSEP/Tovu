@@ -71,3 +71,4 @@ ok 12 - a policy switch before the delegate and an Auto-to-Ask switch cannot byp
   duration_ms: 0.470526
   type: 'test'
   ...
+# Interrupted while running: apps/website/src/assistant/site/__tests__/visitor-executor-confirmation.unit.test.ts at /home/user/Tovu/apps/website/src/assistant/site/__tests__/visitor-executor-confirmation.unit.test.ts:1:1

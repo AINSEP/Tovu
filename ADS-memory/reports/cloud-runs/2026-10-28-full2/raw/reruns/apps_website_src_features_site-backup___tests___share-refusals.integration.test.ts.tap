@@ -1,0 +1,321 @@
+TAP version 13
+# Subtest: revoke: unknown or another site's shareId is NOT_FOUND and leaves the other site's export live
+ok 1 - revoke: unknown or another site's shareId is NOT_FOUND and leaves the other site's export live
+  ---
+  duration_ms: 55.122248
+  type: 'test'
+  ...
+# Subtest: revoke twice is idempotent: same revokedAt, token stays dead, no error
+ok 2 - revoke twice is idempotent: same revokedAt, token stays dead, no error
+  ---
+  duration_ms: 11.731557
+  type: 'test'
+  ...
+# Subtest: revoke of a remote export disables the link first; without its original storage it fails, then a retry deletes and verifies
+ok 3 - revoke of a remote export disables the link first; without its original storage it fails, then a retry deletes and verifies
+  ---
+  duration_ms: 12.657286
+  type: 'test'
+  ...
+# Subtest: revoke reports DELETE_FAILED when the remote copy is still reachable after delete
+ok 4 - revoke reports DELETE_FAILED when the remote copy is still reachable after delete
+  ---
+  duration_ms: 10.20926
+  type: 'test'
+  ...
+# Subtest: import refuses corrupt uploads (not a ZIP, truncated, empty) without registering or staging a site
+    # Subtest: not a zip
+    ok 1 - not a zip
+      ---
+      duration_ms: 19.884056
+      type: 'test'
+      ...
+    # Subtest: truncated
+    ok 2 - truncated
+      ---
+      duration_ms: 20.327125
+      type: 'test'
+      ...
+    # Subtest: central directory only
+    ok 3 - central directory only
+      ---
+      duration_ms: 12.797963
+      type: 'test'
+      ...
+    # Subtest: empty
+    ok 4 - empty
+      ---
+      duration_ms: 11.135637
+      type: 'test'
+      ...
+    1..4
+ok 5 - import refuses corrupt uploads (not a ZIP, truncated, empty) without registering or staging a site
+  ---
+  duration_ms: 574.010123
+  type: 'test'
+  ...
+# Subtest: export of populated undeclared store tables refuses by name with a clear next step; empty ones do not block
+not ok 6 - export of populated undeclared store tables refuses by name with a clear next step; empty ones do not block
+  ---
+  duration_ms: 816.173025
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/share-refusals.integration.test.ts:1:6243'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /schema|database/i. Input:
+    
+    "TypeError: Cannot read properties of undefined (reading 'endsWith')"
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async waitForActual (node:assert:646:5)
+    async strict.rejects (node:assert:769:25)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/share-refusals.integration.test.ts:132:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/share-refusals.integration.test.ts:132:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: export of populated undeclared lipay tables refuses by name with a clear next step; empty ones do not block
+not ok 7 - export of populated undeclared lipay tables refuses by name with a clear next step; empty ones do not block
+  ---
+  duration_ms: 784.878099
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/share-refusals.integration.test.ts:1:6243'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /schema|database/i. Input:
+    
+    "TypeError: Cannot read properties of undefined (reading 'endsWith')"
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async waitForActual (node:assert:646:5)
+    async strict.rejects (node:assert:769:25)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/share-refusals.integration.test.ts:132:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/share-refusals.integration.test.ts:132:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: export leaves the source's publish history destinations untouched and never carries them
+ok 8 - export leaves the source's publish history destinations untouched and never carries them
+  ---
+  duration_ms: 673.485801
+  type: 'test'
+  ...
+# Subtest: receiver rejects unsafe filenames before reserving a token
+ok 9 - receiver rejects unsafe filenames before reserving a token
+  ---
+  duration_ms: 1.500335
+  type: 'test'
+  ...
+# Subtest: receiver compensates writeArtifact failure without making a token public
+ok 10 - receiver compensates writeArtifact failure without making a token public
+  ---
+  duration_ms: 3.760835
+  type: 'test'
+  ...
+# Subtest: receiver compensates put failure without making a token public
+ok 11 - receiver compensates put failure without making a token public
+  ---
+  duration_ms: 3.183723
+  type: 'test'
+  ...
+# Subtest: cancelled export disables and deletes the local artifact before delivery
+ok 12 - cancelled export disables and deletes the local artifact before delivery
+  ---
+  duration_ms: 6.965657
+  type: 'test'
+  ...
+# Subtest: failed delivery retains a retryable locator when delete throws
+ok 13 - failed delivery retains a retryable locator when delete throws
+  ---
+  duration_ms: 7.530829
+  type: 'test'
+  ...
+# Subtest: failed delivery retains a retryable locator when purge unverified
+ok 14 - failed delivery retains a retryable locator when purge unverified
+  ---
+  duration_ms: 7.62945
+  type: 'test'
+  ...
+# Subtest: upload exception without a URL becomes a safe delivery refusal and still deletes remote bytes
+ok 15 - upload exception without a URL becomes a safe delivery refusal and still deletes remote bytes
+  ---
+  duration_ms: 6.344078
+  type: 'test'
+  ...
+# Subtest: a concurrent revoke during upload cannot publish a working token
+ok 16 - a concurrent revoke during upload cannot publish a working token
+  ---
+  duration_ms: 10.69674
+  type: 'test'
+  ...
+# Subtest: failed local-runtime verification never remotely deletes through its own registry
+ok 17 - failed local-runtime verification never remotely deletes through its own registry
+  ---
+  duration_ms: 8.779861
+  type: 'test'
+  ...
+# Subtest: revoke preserves the tombstone if deleting the local ZIP fails, and retry completes
+ok 18 - revoke preserves the tombstone if deleting the local ZIP fails, and retry completes
+  ---
+  duration_ms: 8.885209
+  type: 'test'
+  ...
+# Subtest: revoke checks provider as well as binding and skips URL verification when none was uploaded
+ok 19 - revoke checks provider as well as binding and skips URL verification when none was uploaded
+  ---
+  duration_ms: 9.64136
+  type: 'test'
+  ...
+# Subtest: registry validates identifiers, preserves immutable claims, scopes history and sorts newest first
+ok 20 - registry validates identifiers, preserves immutable claims, scopes history and sorts newest first
+  ---
+  duration_ms: 14.397103
+  type: 'test'
+  ...
+# Subtest: registry does not hide corrupt metadata or filesystem failures as a missing export
+ok 21 - registry does not hide corrupt metadata or filesystem failures as a missing export
+  ---
+  duration_ms: 7.648957
+  type: 'test'
+  ...
+# Subtest: backend refuses unknown jobs and concurrent exports, resumes only for the same principal
+ok 22 - backend refuses unknown jobs and concurrent exports, resumes only for the same principal
+  ---
+  duration_ms: 66.181913
+  type: 'test'
+  ...
+# Subtest: backend resolves a saved remote locator and leaves a revoked row when resolution fails
+ok 23 - backend resolves a saved remote locator and leaves a revoked row when resolution fails
+  ---
+  duration_ms: 12.082004
+  type: 'test'
+  ...
+# Subtest: delivery selection pins the runtime binding and rejects unsupported providers without touching object storage
+ok 24 - delivery selection pins the runtime binding and rejects unsupported providers without touching object storage
+  ---
+  duration_ms: 2.706017
+  type: 'test'
+  ...
+# Subtest: runtime delivery rejects non-origin http://public.example
+ok 25 - runtime delivery rejects non-origin http://public.example
+  ---
+  duration_ms: 1.589619
+  type: 'test'
+  ...
+# Subtest: runtime delivery rejects non-origin https://user@public.example
+ok 26 - runtime delivery rejects non-origin https://user@public.example
+  ---
+  duration_ms: 1.3015
+  type: 'test'
+  ...
+# Subtest: runtime delivery rejects non-origin https://:password@public.example
+ok 27 - runtime delivery rejects non-origin https://:password@public.example
+  ---
+  duration_ms: 0.982188
+  type: 'test'
+  ...
+# Subtest: runtime delivery rejects non-origin https://public.example/path
+ok 28 - runtime delivery rejects non-origin https://public.example/path
+  ---
+  duration_ms: 1.013831
+  type: 'test'
+  ...
+# Subtest: runtime delivery rejects non-origin https://public.example/?x=1
+ok 29 - runtime delivery rejects non-origin https://public.example/?x=1
+  ---
+  duration_ms: 1.201353
+  type: 'test'
+  ...
+# Subtest: runtime delivery rejects non-origin https://public.example/\#fragment
+ok 30 - runtime delivery rejects non-origin https://public.example/\#fragment
+  ---
+  duration_ms: 1.235085
+  type: 'test'
+  ...
+# Subtest: runtime adapter rejects key/URL tampering and verifies every anonymous download header
+ok 31 - runtime adapter rejects key/URL tampering and verifies every anonymous download header
+  ---
+  duration_ms: 10.965793
+  type: 'test'
+  ...
+# Subtest: ordinary file cap applies independently of total expanded bytes
+ok 32 - ordinary file cap applies independently of total expanded bytes
+  ---
+  duration_ms: 0.498386
+  type: 'test'
+  ...
+# Subtest: zip surfaces encoding failures, translates size refusals, detects stale files and increments progress
+ok 33 - zip surfaces encoding failures, translates size refusals, detects stale files and increments progress
+  ---
+  duration_ms: 315.81072
+  type: 'test'
+  ...
+# Subtest: portable paths enforce depth, dangerous filenames, content scanning and order-independent collisions
+ok 34 - portable paths enforce depth, dangerous filenames, content scanning and order-independent collisions
+  ---
+  duration_ms: 1.252232
+  type: 'test'
+  ...
+# Subtest: backend reports archive progress without starting a second ZIP and keeps verified links private
+ok 35 - backend reports archive progress without starting a second ZIP and keeps verified links private
+  ---
+  duration_ms: 76.920231
+  type: 'test'
+  ...
+# Subtest: backend cancels a waiting caller and releases its active lane after preparation settles
+ok 36 - backend cancels a waiting caller and releases its active lane after preparation settles
+  ---
+  duration_ms: 69.471206
+  type: 'test'
+  ...
+# Subtest: registry propagates broken directory/tombstone errors instead of treating them as absent
+ok 37 - registry propagates broken directory/tombstone errors instead of treating them as absent
+  ---
+  duration_ms: 10.371132
+  type: 'test'
+  ...
+# Subtest: ZIP refuses an oversized manifest before encoding and preserves non-Error encoder failures
+ok 38 - ZIP refuses an oversized manifest before encoding and preserves non-Error encoder failures
+  ---
+  duration_ms: 130.581504
+  type: 'test'
+  ...
+1..38
+# tests 42
+# suites 0
+# pass 40
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5387.276137

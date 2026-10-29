@@ -1,0 +1,127 @@
+TAP version 13
+# Subtest: full website/admin roots include contracts; desktop scope remains the existing two files
+ok 1 - full website/admin roots include contracts; desktop scope remains the existing two files
+  ---
+  duration_ms: 24.644754
+  type: 'test'
+  ...
+# Subtest: traversal preserves exclusions, supports TS variants and scans overlapping roots once
+ok 2 - traversal preserves exclusions, supports TS variants and scans overlapping roots once
+  ---
+  duration_ms: 35.539481
+  type: 'test'
+  ...
+# Subtest: comments never count; executable strings, template substitutions and TSX do
+ok 3 - comments never count; executable strings, template substitutions and TSX do
+  ---
+  duration_ms: 4.298174
+  type: 'test'
+  ...
+# Subtest: the raw pre-filter cannot hide comment-separated provider or environment syntax
+ok 4 - the raw pre-filter cannot hide comment-separated provider or environment syntax
+  ---
+  duration_ms: 3.181571
+  type: 'test'
+  ...
+# Subtest: manifest canonical IDs and literal aliases do not depend on plugin activation
+ok 5 - manifest canonical IDs and literal aliases do not depend on plugin activation
+  ---
+  duration_ms: 4.587498
+  type: 'test'
+  ...
+# Subtest: deploy hosts, source-control IDs and dormant deployment symbols retain detection everywhere
+ok 6 - deploy hosts, source-control IDs and dormant deployment symbols retain detection everywhere
+  ---
+  duration_ms: 1.029453
+  type: 'test'
+  ...
+# Subtest: vendor words respect identifier boundaries and ordinary replicate prose without path exceptions
+ok 7 - vendor words respect identifier boundaries and ordinary replicate prose without path exceptions
+  ---
+  duration_ms: 0.710904
+  type: 'test'
+  ...
+# Subtest: Render React/rendering terminology and the ordinary resend verb stay allowed
+ok 8 - Render React/rendering terminology and the ordinary resend verb stay allowed
+  ---
+  duration_ms: 0.563239
+  type: 'test'
+  ...
+# Subtest: unified mail rules preserve branded names, domains, old adapter, selections and secrets
+ok 9 - unified mail rules preserve branded names, domains, old adapter, selections and secrets
+  ---
+  duration_ms: 1.185246
+  type: 'test'
+  ...
+# Subtest: exception validation rejects invalid reasons, vendors, paths, counts and duplicate keys
+ok 10 - exception validation rejects invalid reasons, vendors, paths, counts and duplicate keys
+  ---
+  duration_ms: 0.82981
+  type: 'test'
+  ...
+# Subtest: pattern totals ratchet across files; increased, reduced, new and overlapping allowances fail
+ok 11 - pattern totals ratchet across files; increased, reduced, new and overlapping allowances fail
+  ---
+  duration_ms: 3.561302
+  type: 'test'
+  ...
+# Subtest: malformed policy data and supplemental vendor declarations fail closed
+ok 12 - malformed policy data and supplemental vendor declarations fail closed
+  ---
+  duration_ms: 2.172883
+  type: 'test'
+  ...
+# Subtest: outside-scan release infrastructure is documented and never treated as a source allowance
+ok 13 - outside-scan release infrastructure is documented and never treated as a source allowance
+  ---
+  duration_ms: 1.642139
+  type: 'test'
+  ...
+# Subtest: tool search metadata has no hosting product names; plugin manifests own vendor search words
+ok 14 - tool search metadata has no hosting product names; plugin manifests own vendor search words
+  ---
+  duration_ms: 1.976197
+  type: 'test'
+  ...
+# Subtest: real core tree has only reviewed pattern exceptions, each with its exact current total
+not ok 15 - real core tree has only reviewed pattern exceptions, each with its exact current total
+  ---
+  duration_ms: 3564.26445
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/deployments/deploy-targets/__tests__/no-vendor-in-core.boundary.test.ts:1:11351'
+  failureType: 'testCodeFailure'
+  error: |-
+    Vendor knowledge belongs in its plugin. Uncovered file/vendor/count pairs:
+    + actual - expected
+    
+    + [
+    +   'apps/website/src/contracts/core/assistant-native-fallbacks.ts: anthropic 1',
+    +   'apps/website/src/server/runtime/composition/data-modules.ts: lipay 1'
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0: 'apps/website/src/contracts/core/assistant-native-fallbacks.ts: anthropic 1'
+    1: 'apps/website/src/server/runtime/composition/data-modules.ts: lipay 1'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/deployments/deploy-targets/__tests__/no-vendor-in-core.boundary.test.ts:194:10)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+    Test.postRun (node:internal/test_runner/test:1542:19)
+    Test.run (node:internal/test_runner/test:1467:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+1..15
+# tests 15
+# suites 0
+# pass 14
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4390.654371

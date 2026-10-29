@@ -1,0 +1,289 @@
+TAP version 13
+# Subtest: sweepFiles emits the complete finding for a planted single-segment path.join
+ok 1 - sweepFiles emits the complete finding for a planted single-segment path.join
+  ---
+  duration_ms: 4.501763
+  type: 'test'
+  ...
+# Subtest: dead-path sweep: no path reference outside the known-broken register resolves to nothing
+not ok 2 - dead-path sweep: no path reference outside the known-broken register resolves to nothing
+  ---
+  duration_ms: 620.924903
+  type: 'test'
+  location: '/home/user/Tovu/development/scripts/__tests__/dead-path-sweep.test.ts:1:2753'
+  failureType: 'testCodeFailure'
+  error: |-
+    a path reference under development/scripts or the db tooling points at a file that does not exist
+    + actual - expected
+    
+    + [
+    +   'development/scripts/__tests__/unit/mutation-cli-characterization.unit.test.ts:59 [relative-import] "../../mutation-sweep.mjs?characterization" -> none of development/scripts/mutation-sweep.mjs?characterization exist',
+    +   'development/scripts/__tests__/unit/mutation-cli-characterization.unit.test.ts:155 [relative-import] "../../mutation-lanes.mjs?characterization" -> none of development/scripts/mutation-lanes.mjs?characterization exist',
+    +   'development/scripts/check-admin-complexity-drift.ts:77 [repo-relative-string] "sonarjs/cognitive-complexity" -> none of sonarjs exist',
+    +   'development/scripts/check-admin-complexity-drift.ts:110 [repo-relative-string] "sonarjs/cognitive-complexity" -> none of sonarjs exist',
+    +   'development/scripts/check-src-complexity-drift.ts:196 [repo-relative-string] "sonarjs/cognitive-complexity" -> none of sonarjs exist',
+    +   'development/scripts/check-src-complexity-drift.ts:246 [repo-relative-string] "sonarjs/cognitive-complexity" -> none of sonarjs exist',
+    +   'development/scripts/coverage-changed.ts:33 [repo-relative-string] "ADS-memory/.local-artifacts/test-slots/run-gated.sh" -> none of ADS-memory/.local-artifacts/test-slots exist',
+    +   'development/scripts/coverage-changed.ts:34 [repo-relative-string] "ADS-memory/.local-artifacts/codex-waves/features-2026-10-04/common.md" -> none of ADS-memory/.local-artifacts/codex-waves/features-2026-10-04 exist',
+    +   'development/scripts/coverage-changed.ts:478 [repo-relative-string] "ADS-memory/.local-artifacts/coverage-changed" -> none of ADS-memory/.local-artifacts exist',
+    +   'development/scripts/report-churn-hotspots.ts:133 [repo-relative-string] "sonarjs/cognitive-complexity" -> none of sonarjs exist',
+    +   'development/scripts/report-churn-hotspots.ts:176 [repo-relative-string] "sonarjs/cognitive-complexity" -> none of sonarjs exist'
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0: 'development/scripts/__tests__/unit/mutation-cli-characterization.unit.test.ts:59 [relative-import] "../../mutation-sweep.mjs?characterization" -> none of development/scripts/mutation-sweep.mjs?characterization exist'
+    1: 'development/scripts/__tests__/unit/mutation-cli-characterization.unit.test.ts:155 [relative-import] "../../mutation-lanes.mjs?characterization" -> none of development/scripts/mutation-lanes.mjs?characterization exist'
+    2: 'development/scripts/check-admin-complexity-drift.ts:77 [repo-relative-string] "sonarjs/cognitive-complexity" -> none of sonarjs exist'
+    3: 'development/scripts/check-admin-complexity-drift.ts:110 [repo-relative-string] "sonarjs/cognitive-complexity" -> none of sonarjs exist'
+    4: 'development/scripts/check-src-complexity-drift.ts:196 [repo-relative-string] "sonarjs/cognitive-complexity" -> none of sonarjs exist'
+    5: 'development/scripts/check-src-complexity-drift.ts:246 [repo-relative-string] "sonarjs/cognitive-complexity" -> none of sonarjs exist'
+    6: 'development/scripts/coverage-changed.ts:33 [repo-relative-string] "ADS-memory/.local-artifacts/test-slots/run-gated.sh" -> none of ADS-memory/.local-artifacts/test-slots exist'
+    7: 'development/scripts/coverage-changed.ts:34 [repo-relative-string] "ADS-memory/.local-artifacts/codex-waves/features-2026-10-04/common.md" -> none of ADS-memory/.local-artifacts/codex-waves/features-2026-10-04 exist'
+    8: 'development/scripts/coverage-changed.ts:478 [repo-relative-string] "ADS-memory/.local-artifacts/coverage-changed" -> none of ADS-memory/.local-artifacts exist'
+    9: 'development/scripts/report-churn-hotspots.ts:133 [repo-relative-string] "sonarjs/cognitive-complexity" -> none of sonarjs exist'
+    10: 'development/scripts/report-churn-hotspots.ts:176 [repo-relative-string] "sonarjs/cognitive-complexity" -> none of sonarjs exist'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/dead-path-sweep.test.ts:230:10)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+    Test.postRun (node:internal/test_runner/test:1542:19)
+    Test.run (node:internal/test_runner/test:1467:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+# Subtest: known-broken register has no stale entries — every listed reference is still actually broken
+ok 3 - known-broken register has no stale entries — every listed reference is still actually broken
+  ---
+  duration_ms: 576.033885
+  type: 'test'
+  ...
+# Subtest: known-broken register is exactly the 1 reference remaining after the theme-tool repair — growth needs a deliberate edit
+ok 4 - known-broken register is exactly the 1 reference remaining after the theme-tool repair — growth needs a deliberate edit
+  ---
+  duration_ms: 0.230469
+  type: 'test'
+  ...
+# Subtest: module-relative fixture URLs resolve beside the importer and still report missing files
+ok 5 - module-relative fixture URLs resolve beside the importer and still report missing files
+  ---
+  duration_ms: 1.983642
+  type: 'test'
+  ...
+# Subtest: every known-broken entry carries a non-empty rationale
+ok 6 - every known-broken entry carries a non-empty rationale
+  ---
+  duration_ms: 0.216413
+  type: 'test'
+  ...
+# Subtest: the sweep actually looks at something — target enumeration is not silently empty
+ok 7 - the sweep actually looks at something — target enumeration is not silently empty
+  ---
+  duration_ms: 1.258497
+  type: 'test'
+  ...
+# Subtest: historical: the pre-921d705f generate-seed-content.ts imports are flagged as dead
+ok 8 - historical: the pre-921d705f generate-seed-content.ts imports are flagged as dead
+  ---
+  duration_ms: 0.375607
+  type: 'test'
+  ...
+# Subtest: historical: the fixed generate-seed-content.ts imports resolve, so the check above is not trivially true
+ok 9 - historical: the fixed generate-seed-content.ts imports resolve, so the check above is not trivially true
+  ---
+  duration_ms: 0.242873
+  type: 'test'
+  ...
+# Subtest: historical: the pre-7fb47f55 drizzle.config.ts path strings are flagged as dead
+ok 10 - historical: the pre-7fb47f55 drizzle.config.ts path strings are flagged as dead
+  ---
+  duration_ms: 4.01225
+  type: 'test'
+  ...
+# Subtest: historical: a repointed drizzle config's path strings resolve, so the check above is not trivially true
+ok 11 - historical: a repointed drizzle config's path strings resolve, so the check above is not trivially true
+  ---
+  duration_ms: 3.755989
+  type: 'test'
+  ...
+# Subtest: historical [adversarial]: the pre-678b6464 route-coverage-lib.ts prefixes are flagged as dead now that trailing-/ literals with real directory structure are classified
+ok 12 - historical [adversarial]: the pre-678b6464 route-coverage-lib.ts prefixes are flagged as dead now that trailing-/ literals with real directory structure are classified
+  ---
+  duration_ms: 3.384518
+  type: 'test'
+  ...
+# Subtest: historical: the current route-coverage-lib.ts prefixes resolve, so the check above is not trivially true
+ok 13 - historical: the current route-coverage-lib.ts prefixes resolve, so the check above is not trivially true
+  ---
+  duration_ms: 3.597472
+  type: 'test'
+  ...
+# Subtest: extractPathJoinSegments finds the trailing string-literal run and ignores the non-literal base
+ok 14 - extractPathJoinSegments finds the trailing string-literal run and ignores the non-literal base
+  ---
+  duration_ms: 0.156522
+  type: 'test'
+  ...
+# Subtest: extractPathJoinSegments stops the trailing run at the first non-literal argument, however many literals came before it
+ok 15 - extractPathJoinSegments stops the trailing run at the first non-literal argument, however many literals came before it
+  ---
+  duration_ms: 0.103776
+  type: 'test'
+  ...
+# Subtest: extractPathJoinSegments finds nothing when no argument is a trailing string literal
+ok 16 - extractPathJoinSegments finds nothing when no argument is a trailing string literal
+  ---
+  duration_ms: 0.102755
+  type: 'test'
+  ...
+# Subtest: extractPathJoinSegments ignores calls other than path.join/path.resolve
+ok 17 - extractPathJoinSegments ignores calls other than path.join/path.resolve
+  ---
+  duration_ms: 0.061052
+  type: 'test'
+  ...
+# Subtest: extractPathJoinSegments finds the literal directory run BEFORE a trailing non-literal argument, not just before the end
+ok 18 - extractPathJoinSegments finds the literal directory run BEFORE a trailing non-literal argument, not just before the end
+  ---
+  duration_ms: 0.078106
+  type: 'test'
+  ...
+# Subtest: dropLeadingParentSegments strips only the leading .. run, keeping a .. that appears later
+ok 19 - dropLeadingParentSegments strips only the leading .. run, keeping a .. that appears later
+  ---
+  duration_ms: 0.041435
+  type: 'test'
+  ...
+# Subtest: dropLeadingParentSegments: given the file's depth, only an EXACT '..' count is trusted to land at repo root
+ok 20 - dropLeadingParentSegments: given the file's depth, only an EXACT '..' count is trusted to land at repo root
+  ---
+  duration_ms: 0.096738
+  type: 'test'
+  ...
+# Subtest: fileDirectoryDepth counts directory levels below the repo root
+ok 21 - fileDirectoryDepth counts directory levels below the repo root
+  ---
+  duration_ms: 0.057405
+  type: 'test'
+  ...
+# Subtest: closed: dropLeadingParentSegments + fileDirectoryDepth reject a real file's mismatched '..' count end to end
+ok 22 - closed: dropLeadingParentSegments + fileDirectoryDepth reject a real file's mismatched '..' count end to end
+  ---
+  duration_ms: 0.053313
+  type: 'test'
+  ...
+# Subtest: closed: a SINGLE meaningful segment in a path.join/path.resolve call is no longer invisible — closes the check-outbox-bridge.ts / rewrite-deep-imports.ts blind spot
+ok 23 - closed: a SINGLE meaningful segment in a path.join/path.resolve call is no longer invisible — closes the check-outbox-bridge.ts / rewrite-deep-imports.ts blind spot
+  ---
+  duration_ms: 7.116764
+  type: 'test'
+  ...
+# Subtest: historical [direct]: the pre-fix SRC_DIR/SERVER_DIR shapes resolve to nothing under REPO_ROOT — both the one-segment and two-segment forms
+ok 24 - historical [direct]: the pre-fix SRC_DIR/SERVER_DIR shapes resolve to nothing under REPO_ROOT — both the one-segment and two-segment forms
+  ---
+  duration_ms: 3.633149
+  type: 'test'
+  ...
+# Subtest: historical: the current check-outbox-bridge.ts, check-capability-inventory.ts, and rewrite-deep-imports.ts path.join/path.resolve calls resolve, so the checks above are not trivially true
+ok 25 - historical: the current check-outbox-bridge.ts, check-capability-inventory.ts, and rewrite-deep-imports.ts path.join/path.resolve calls resolve, so the checks above are not trivially true
+  ---
+  duration_ms: 3.921755
+  type: 'test'
+  ...
+# Subtest: stripComments blanks comments without touching string literals or line numbers
+ok 26 - stripComments blanks comments without touching string literals or line numbers
+  ---
+  duration_ms: 0.126177
+  type: 'test'
+  ...
+# Subtest: stripComments keeps a // sequence that lives inside a string literal
+ok 27 - stripComments keeps a // sequence that lives inside a string literal
+  ---
+  duration_ms: 0.143875
+  type: 'test'
+  ...
+# Subtest: extractRelativeImportSpecifiers finds from/side-effect/dynamic/require forms and ignores bare specifiers
+ok 28 - extractRelativeImportSpecifiers finds from/side-effect/dynamic/require forms and ignores bare specifiers
+  ---
+  duration_ms: 0.121063
+  type: 'test'
+  ...
+# Subtest: resolveImportCandidates applies the .js-written/.ts-on-disk rewrite
+ok 29 - resolveImportCandidates applies the .js-written/.ts-on-disk rewrite
+  ---
+  duration_ms: 0.093323
+  type: 'test'
+  ...
+# Subtest: resolveImportCandidates really resolves this repo's own .js-written imports
+ok 30 - resolveImportCandidates really resolves this repo's own .js-written imports
+  ---
+  duration_ms: 0.094622
+  type: 'test'
+  ...
+# Subtest: classifyRepoRelativeString names the rule for every string it declines
+ok 31 - classifyRepoRelativeString names the rule for every string it declines
+  ---
+  duration_ms: 0.237704
+  type: 'test'
+  ...
+# Subtest: SKIP_REASONS is exactly the SkipReason union — neither the rule tables nor the type can grow alone
+ok 32 - SKIP_REASONS is exactly the SkipReason union — neither the rule tables nor the type can grow alone
+  ---
+  duration_ms: 0.18839
+  type: 'test'
+  ...
+# Subtest: classifyRepoRelativeString hands a `./` literal that is also an import specifier back to class 1
+ok 33 - classifyRepoRelativeString hands a `./` literal that is also an import specifier back to class 1
+  ---
+  duration_ms: 0.092377
+  type: 'test'
+  ...
+# Subtest: classifyRepoRelativeString recognizes a first segment that only exists deeper in the tree — the whole point
+ok 34 - classifyRepoRelativeString recognizes a first segment that only exists deeper in the tree — the whole point
+  ---
+  duration_ms: 2.836444
+  type: 'test'
+  ...
+# Subtest: classifyRepoRelativeString [adversarial]: a trailing-/ literal with real directory structure is classified and checked, not exempted — the route-coverage-lib.ts escape
+ok 35 - classifyRepoRelativeString [adversarial]: a trailing-/ literal with real directory structure is classified and checked, not exempted — the route-coverage-lib.ts escape
+  ---
+  duration_ms: 2.966148
+  type: 'test'
+  ...
+# Subtest: classifyRepoRelativeString: a trailing-/ literal naming only ONE segment stays skipped — no regression for real non-path usage
+ok 36 - classifyRepoRelativeString: a trailing-/ literal naming only ONE segment stays skipped — no regression for real non-path usage
+  ---
+  duration_ms: 8.265235
+  type: 'test'
+  ...
+# Subtest: pathThatMustExist requires source files whole and non-source paths only down to their directory
+ok 37 - pathThatMustExist requires source files whole and non-source paths only down to their directory
+  ---
+  duration_ms: 0.136323
+  type: 'test'
+  ...
+# Subtest: generated coverage artifacts are not reported as dead paths
+ok 38 - generated coverage artifacts are not reported as dead paths
+  ---
+  duration_ms: 625.072279
+  type: 'test'
+  ...
+# Subtest: shouldScanStringsIn excludes test files' fixture paths but not their imports
+ok 39 - shouldScanStringsIn excludes test files' fixture paths but not their imports
+  ---
+  duration_ms: 566.096793
+  type: 'test'
+  ...
+1..39
+# tests 39
+# suites 0
+# pass 38
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2633.517305

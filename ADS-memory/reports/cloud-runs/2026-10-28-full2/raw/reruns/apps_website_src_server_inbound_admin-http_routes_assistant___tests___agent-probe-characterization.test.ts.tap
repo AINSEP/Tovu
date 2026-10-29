@@ -1,0 +1,298 @@
+TAP version 13
+# Subtest: test-agent preserves unknown id and forces a fresh probe
+ok 1 - test-agent preserves unknown id and forces a fresh probe
+  ---
+  duration_ms: 3.178716
+  type: 'test'
+  ...
+# Subtest: test-agent preserves unavailable CLI and forces a fresh probe
+ok 2 - test-agent preserves unavailable CLI and forces a fresh probe
+  ---
+  duration_ms: 0.538064
+  type: 'test'
+  ...
+# Subtest: test-agent preserves missing authentication and forces a fresh probe
+ok 3 - test-agent preserves missing authentication and forces a fresh probe
+  ---
+  duration_ms: 0.523845
+  type: 'test'
+  ...
+# Subtest: test-agent preserves unknown authentication and forces a fresh probe
+ok 4 - test-agent preserves unknown authentication and forces a fresh probe
+  ---
+  duration_ms: 0.377593
+  type: 'test'
+  ...
+# Subtest: test-agent preserves stale model and forces a fresh probe
+ok 5 - test-agent preserves stale model and forces a fresh probe
+  ---
+  duration_ms: 0.347101
+  type: 'test'
+  ...
+# Subtest: test-agent preserves ready with model and forces a fresh probe
+ok 6 - test-agent preserves ready with model and forces a fresh probe
+  ---
+  duration_ms: 0.413449
+  type: 'test'
+  ...
+# Subtest: test-agent preserves ready without model and forces a fresh probe
+ok 7 - test-agent preserves ready without model and forces a fresh probe
+  ---
+  duration_ms: 0.312122
+  type: 'test'
+  ...
+# Subtest: detect-agents reads injected inventory with strict force undefined
+not ok 8 - detect-agents reads injected inventory with strict force undefined
+  ---
+  duration_ms: 3.860466
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/assistant/__tests__/agent-probe-characterization.test.ts:1:3482'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    ... Skipped lines
+    
+      {
+        data: [
+          {
+            authStatus: 'ok',
+            discoveryPending: true,
+    ...
+            ],
+    +       modelsSource: 'live'
+          }
+        ]
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    data:
+      0:
+        id: 'fixture-cli'
+        label: 'Fixture CLI'
+        installed: true
+        models:
+          0:
+            id: 'model-a'
+            label: 'Model A'
+        authStatus: 'ok'
+        discoveryPending: true
+  actual:
+    data:
+      0:
+        id: 'fixture-cli'
+        label: 'Fixture CLI'
+        installed: true
+        models:
+          0:
+            id: 'model-a'
+            label: 'Model A'
+        modelsSource: 'live'
+        authStatus: 'ok'
+        discoveryPending: true
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/assistant/__tests__/agent-probe-characterization.test.ts:87:14)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: detect-agents reads injected inventory with strict force false
+not ok 9 - detect-agents reads injected inventory with strict force false
+  ---
+  duration_ms: 1.057577
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/assistant/__tests__/agent-probe-characterization.test.ts:1:3482'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    ... Skipped lines
+    
+      {
+        data: [
+          {
+            authStatus: 'ok',
+            discoveryPending: true,
+    ...
+            ],
+    +       modelsSource: 'live'
+          }
+        ]
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    data:
+      0:
+        id: 'fixture-cli'
+        label: 'Fixture CLI'
+        installed: true
+        models:
+          0:
+            id: 'model-a'
+            label: 'Model A'
+        authStatus: 'ok'
+        discoveryPending: true
+  actual:
+    data:
+      0:
+        id: 'fixture-cli'
+        label: 'Fixture CLI'
+        installed: true
+        models:
+          0:
+            id: 'model-a'
+            label: 'Model A'
+        modelsSource: 'live'
+        authStatus: 'ok'
+        discoveryPending: true
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/assistant/__tests__/agent-probe-characterization.test.ts:87:14)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: detect-agents reads injected inventory with strict force true
+not ok 10 - detect-agents reads injected inventory with strict force true
+  ---
+  duration_ms: 0.865173
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/assistant/__tests__/agent-probe-characterization.test.ts:1:3482'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    ... Skipped lines
+    
+      {
+        data: [
+          {
+            authStatus: 'ok',
+            discoveryPending: true,
+    ...
+            ],
+    +       modelsSource: 'live'
+          }
+        ]
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    data:
+      0:
+        id: 'fixture-cli'
+        label: 'Fixture CLI'
+        installed: true
+        models:
+          0:
+            id: 'model-a'
+            label: 'Model A'
+        authStatus: 'ok'
+        discoveryPending: true
+  actual:
+    data:
+      0:
+        id: 'fixture-cli'
+        label: 'Fixture CLI'
+        installed: true
+        models:
+          0:
+            id: 'model-a'
+            label: 'Model A'
+        modelsSource: 'live'
+        authStatus: 'ok'
+        discoveryPending: true
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/assistant/__tests__/agent-probe-characterization.test.ts:87:14)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: detect-agents reads injected inventory with strict force true
+not ok 11 - detect-agents reads injected inventory with strict force true
+  ---
+  duration_ms: 0.787752
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/assistant/__tests__/agent-probe-characterization.test.ts:1:3482'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    ... Skipped lines
+    
+      {
+        data: [
+          {
+            authStatus: 'ok',
+            discoveryPending: true,
+    ...
+            ],
+    +       modelsSource: 'live'
+          }
+        ]
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    data:
+      0:
+        id: 'fixture-cli'
+        label: 'Fixture CLI'
+        installed: true
+        models:
+          0:
+            id: 'model-a'
+            label: 'Model A'
+        authStatus: 'ok'
+        discoveryPending: true
+  actual:
+    data:
+      0:
+        id: 'fixture-cli'
+        label: 'Fixture CLI'
+        installed: true
+        models:
+          0:
+            id: 'model-a'
+            label: 'Model A'
+        modelsSource: 'live'
+        authStatus: 'ok'
+        discoveryPending: true
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/assistant/__tests__/agent-probe-characterization.test.ts:87:14)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: test-agent probes through the assistant inventory's runtime when no detector is injected
+ok 12 - test-agent probes through the assistant inventory's runtime when no detector is injected
+  ---
+  duration_ms: 0.642613
+  type: 'test'
+  ...
+# Subtest: test-agent refuses another workspace before authorizing or probing
+ok 13 - test-agent refuses another workspace before authorizing or probing
+  ---
+  duration_ms: 0.408126
+  type: 'test'
+  ...
+# Subtest: test-agent falls back to the runtime's own detector when neither a detector nor an inventory is wired (isolated PATH)
+ok 14 - test-agent falls back to the runtime's own detector when neither a detector nor an inventory is wired (isolated PATH)
+  ---
+  duration_ms: 4028.565942
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 10
+# fail 4
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5763.947258

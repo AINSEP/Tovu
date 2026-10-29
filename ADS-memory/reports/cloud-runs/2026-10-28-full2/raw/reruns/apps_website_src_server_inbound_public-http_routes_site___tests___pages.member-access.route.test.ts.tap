@@ -1,0 +1,106 @@
+TAP version 13
+# Subtest: GET /:slug -- an anonymous visitor is 404'd for a members-only post
+ok 1 - GET /:slug -- an anonymous visitor is 404'd for a members-only post
+  ---
+  duration_ms: 397.017536
+  type: 'test'
+  ...
+# Subtest: GET /:slug -- a signed-in member CAN read a members-only post
+ok 2 - GET /:slug -- a signed-in member CAN read a members-only post
+  ---
+  duration_ms: 242.76557
+  type: 'test'
+  ...
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'dispatch', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'dispatch', which is whichever theme discovery happened to list first
+# Subtest: GET / -- a members-only post's title does not appear in the anonymous home/nav listing
+ok 3 - GET / -- a members-only post's title does not appear in the anonymous home/nav listing
+  ---
+  duration_ms: 379.986663
+  type: 'test'
+  ...
+# Subtest: GET /:slug -- a NULL memberAccessJson post still renders publicly (pre-existing behavior, unchanged)
+ok 4 - GET /:slug -- a NULL memberAccessJson post still renders publicly (pre-existing behavior, unchanged)
+  ---
+  duration_ms: 205.674562
+  type: 'test'
+  ...
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'dispatch', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'dispatch', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'dispatch', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'dispatch', which is whichever theme discovery happened to list first
+# Subtest: GET /:slug and / -- an unknown member cookie cannot expose gated content
+not ok 5 - GET /:slug and / -- an unknown member cookie cannot expose gated content
+  ---
+  duration_ms: 282.193707
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.member-access.route.test.ts:1:4652'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - 'Privacy policy'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'Privacy policy'
+  operator: 'strictEqual'
+  stack: |-
+    assertDefaultConsentPage (/home/user/Tovu/apps/website/src/server/__tests__/helpers/default-consent-page.ts:31:12)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.member-access.route.test.ts:175:18)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'dispatch', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'dispatch', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'dispatch', which is whichever theme discovery happened to list first
+# [theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'dispatch', which is whichever theme discovery happened to list first
+# Subtest: GET /:slug and / -- an expired member cookie cannot expose gated content
+not ok 6 - GET /:slug and / -- an expired member cookie cannot expose gated content
+  ---
+  duration_ms: 255.292646
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.member-access.route.test.ts:1:4652'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - 'Privacy policy'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'Privacy policy'
+  operator: 'strictEqual'
+  stack: |-
+    assertDefaultConsentPage (/home/user/Tovu/apps/website/src/server/__tests__/helpers/default-consent-page.ts:31:12)
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.member-access.route.test.ts:175:18)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: malformed member cookies do not turn a gated page into a 500
+ok 7 - malformed member cookies do not turn a gated page into a 500
+  ---
+  duration_ms: 196.080722
+  type: 'test'
+  ...
+# Subtest: consuming a form flash appends its clearing cookie without replacing an earlier cookie
+ok 8 - consuming a form flash appends its clearing cookie without replacing an earlier cookie
+  ---
+  duration_ms: 208.176287
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 6
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7396.388166

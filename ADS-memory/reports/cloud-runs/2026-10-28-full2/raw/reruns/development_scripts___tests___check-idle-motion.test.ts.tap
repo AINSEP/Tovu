@@ -1,0 +1,124 @@
+TAP version 13
+# Subtest: the live tree has no idle-CPU offenders and no stale allowlist entries
+not ok 1 - the live tree has no idle-CPU offenders and no stale allowlist entries
+  ---
+  duration_ms: 552.832214
+  type: 'test'
+  location: '/home/user/Tovu/development/scripts/__tests__/check-idle-motion.test.ts:1:921'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + [
+    +   {
+    +     detail: 'setInterval( — use a visibility-aware timer or allowlist it with a reason',
+    +     file: 'apps/desktop/src/product-memory-telemetry.ts',
+    +     line: 56,
+    +     rule: 'bare-interval'
+    +   },
+    +   {
+    +     detail: 'setInterval( — use a visibility-aware timer or allowlist it with a reason',
+    +     file: 'apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx',
+    +     line: 741,
+    +     rule: 'bare-interval'
+    +   },
+    +   {
+    +     detail: '.provider-settings-spinner { animation: provider-settings-spin 0.8s linear infinite }',
+    +     file: 'apps/admin/src/features/plugins/provider-settings-dialog.css',
+    +     line: 32,
+    +     rule: 'infinite-animation'
+    +   }
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0:
+      rule: 'bare-interval'
+      file: 'apps/desktop/src/product-memory-telemetry.ts'
+      line: 56
+      detail: 'setInterval( — use a visibility-aware timer or allowlist it with a reason'
+    1:
+      rule: 'bare-interval'
+      file: 'apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx'
+      line: 741
+      detail: 'setInterval( — use a visibility-aware timer or allowlist it with a reason'
+    2:
+      rule: 'infinite-animation'
+      file: 'apps/admin/src/features/plugins/provider-settings-dialog.css'
+      line: 32
+      detail: '.provider-settings-spinner { animation: provider-settings-spin 0.8s linear infinite }'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/check-idle-motion.test.ts:36:10)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.start (node:internal/test_runner/test:1262:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+  ...
+# Subtest: an absent allowed spinner produces its exact stale-allowlist violation
+ok 2 - an absent allowed spinner produces its exact stale-allowlist violation
+  ---
+  duration_ms: 1.812041
+  type: 'test'
+  ...
+# Subtest: an allowed infinite spinner still requires reduced-motion support
+ok 3 - an allowed infinite spinner still requires reduced-motion support
+  ---
+  duration_ms: 1.545067
+  type: 'test'
+  ...
+# Subtest: an infinite CSS animation outside the allowlist fails, with its selector
+ok 4 - an infinite CSS animation outside the allowlist fails, with its selector
+  ---
+  duration_ms: 1.277802
+  type: 'test'
+  ...
+# Subtest: a commented-out infinite animation and a finite one pass
+ok 5 - a commented-out infinite animation and a finite one pass
+  ---
+  duration_ms: 1.075104
+  type: 'test'
+  ...
+# Subtest: an autoplaying or looping video in UI markup fails
+ok 6 - an autoplaying or looping video in UI markup fails
+  ---
+  duration_ms: 1.322731
+  type: 'test'
+  ...
+# Subtest: turning off Electron background throttling fails
+ok 7 - turning off Electron background throttling fails
+  ---
+  duration_ms: 1.171978
+  type: 'test'
+  ...
+# Subtest: a bare setInterval in UI code fails; one in a comment does not
+ok 8 - a bare setInterval in UI code fails; one in a comment does not
+  ---
+  duration_ms: 1.351128
+  type: 'test'
+  ...
+# Subtest: a Tailwind infinite animation class fails
+ok 9 - a Tailwind infinite animation class fails
+  ---
+  duration_ms: 1.868807
+  type: 'test'
+  ...
+# Subtest: cssDeclarations keeps the innermost selector across @media blocks
+ok 10 - cssDeclarations keeps the innermost selector across @media blocks
+  ---
+  duration_ms: 0.347542
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 9
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 687.453311

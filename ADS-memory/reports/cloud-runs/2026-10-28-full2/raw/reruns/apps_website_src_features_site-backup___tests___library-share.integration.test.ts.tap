@@ -1,0 +1,482 @@
+TAP version 13
+# Subtest: L3 local: share/import preserves private documents and deduplicates blobs
+not ok 1 - L3 local: share/import preserves private documents and deduplicates blobs
+  ---
+  duration_ms: 863.634683
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:5163'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:119:19)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+# Subtest: L3 s3: share/import preserves private documents and deduplicates blobs
+not ok 2 - L3 s3: share/import preserves private documents and deduplicates blobs
+  ---
+  duration_ms: 917.695302
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:5163'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:119:19)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: L3 import explicitly rejects missing document before creating a site
+not ok 3 - L3 import explicitly rejects missing document before creating a site
+  ---
+  duration_ms: 493.095092
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:12418'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /document|database/i. Input:
+    
+    "TypeError: Cannot read properties of undefined (reading 'endsWith')"
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async waitForActual (node:assert:646:5)
+    async strict.rejects (node:assert:769:25)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:180:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:180:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: L3 import explicitly rejects corrupt document before creating a site
+not ok 4 - L3 import explicitly rejects corrupt document before creating a site
+  ---
+  duration_ms: 570.566187
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:12418'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /document|database/i. Input:
+    
+    "TypeError: Cannot read properties of undefined (reading 'endsWith')"
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async waitForActual (node:assert:646:5)
+    async strict.rejects (node:assert:769:25)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:180:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:180:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: L3 import explicitly rejects invalid-json document before creating a site
+not ok 5 - L3 import explicitly rejects invalid-json document before creating a site
+  ---
+  duration_ms: 490.386488
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:12418'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /document|database/i. Input:
+    
+    "TypeError: Cannot read properties of undefined (reading 'endsWith')"
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async waitForActual (node:assert:646:5)
+    async strict.rejects (node:assert:769:25)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:180:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:180:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: L3 import explicitly rejects invalid-docx document before creating a site
+not ok 6 - L3 import explicitly rejects invalid-docx document before creating a site
+  ---
+  duration_ms: 493.445837
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:12418'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /document|database/i. Input:
+    
+    "TypeError: Cannot read properties of undefined (reading 'endsWith')"
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async waitForActual (node:assert:646:5)
+    async strict.rejects (node:assert:769:25)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:180:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:180:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: L3 import explicitly rejects bad-key document before creating a site
+not ok 7 - L3 import explicitly rejects bad-key document before creating a site
+  ---
+  duration_ms: 485.342289
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:12418'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /document|database/i. Input:
+    
+    "TypeError: Cannot read properties of undefined (reading 'endsWith')"
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async waitForActual (node:assert:646:5)
+    async strict.rejects (node:assert:769:25)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:180:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:180:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: L3 a v1 archive is refused without creating a site
+ok 8 - L3 a v1 archive is refused without creating a site
+  ---
+  duration_ms: 378.289739
+  type: 'test'
+  ...
+# Subtest: L3 document-first deduplication strips mixed blob uploader attribution (active)
+ok 9 - L3 document-first deduplication strips mixed blob uploader attribution (active)
+  ---
+  duration_ms: 487.119855
+  type: 'test'
+  ...
+# Subtest: L3 document-first deduplication strips mixed blob uploader attribution (trashed)
+ok 10 - L3 document-first deduplication strips mixed blob uploader attribution (trashed)
+  ---
+  duration_ms: 538.950077
+  type: 'test'
+  ...
+# Subtest: L3 rejects invented manifest identity 13
+ok 11 - L3 rejects invented manifest identity 13
+  ---
+  duration_ms: 386.190363
+  type: 'test'
+  ...
+# Subtest: L3 rejects invented manifest identity 14
+ok 12 - L3 rejects invented manifest identity 14
+  ---
+  duration_ms: 464.494515
+  type: 'test'
+  ...
+# Subtest: L3 forged ordinary rendition cannot expose a private document through anonymous media retrieval
+not ok 13 - L3 forged ordinary rendition cannot expose a private document through anonymous media retrieval
+  ---
+  duration_ms: 471.612251
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:15750'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - 'INVALID_DATABASE'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'INVALID_DATABASE'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:230:12)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: L3 genuine pre-L3 share omits Trash and orphan payloads but rejects arbitrary uploads
+not ok 14 - L3 genuine pre-L3 share omits Trash and orphan payloads but rejects arbitrary uploads
+  ---
+  duration_ms: 508.340139
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:17997'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:267:19)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: L3 valid DOCX package expansion is bounded within entry limits
+not ok 15 - L3 valid DOCX package expansion is bounded within entry limits
+  ---
+  duration_ms: 1080.160795
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:19607'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /DOCX expanded size|DOCX compression ratio/. Input:
+    
+    "TypeError: Cannot read properties of undefined (reading 'endsWith')"
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async waitForActual (node:assert:646:5)
+    async strict.rejects (node:assert:769:25)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:303:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:303:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: L3 isolated guard: oversize
+not ok 16 - L3 isolated guard: oversize
+  ---
+  duration_ms: 805.013188
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:21797'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /10 MiB/. Input:
+    
+    "TypeError: Cannot read properties of undefined (reading 'endsWith')"
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async waitForActual (node:assert:646:5)
+    async strict.rejects (node:assert:769:25)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:329:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:329:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: L3 isolated guard: wrong-signature
+not ok 17 - L3 isolated guard: wrong-signature
+  ---
+  duration_ms: 461.09671
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:21797'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /PDF signature/. Input:
+    
+    "TypeError: Cannot read properties of undefined (reading 'endsWith')"
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async waitForActual (node:assert:646:5)
+    async strict.rejects (node:assert:769:25)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:329:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:329:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: L3 isolated guard: secret-sentinel
+ok 18 - L3 isolated guard: secret-sentinel
+  ---
+  duration_ms: 545.909524
+  type: 'test'
+  ...
+# Subtest: L3 isolated guard: destination-collision
+not ok 19 - L3 isolated guard: destination-collision
+  ---
+  duration_ms: 515.583014
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:21797'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /Referenced media is missing or failed its hash/. Input:
+    
+    "TypeError: Cannot read properties of undefined (reading 'endsWith')"
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async waitForActual (node:assert:646:5)
+    async strict.rejects (node:assert:769:25)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:329:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:329:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: L3 isolated guard: forged-cross-owner
+not ok 20 - L3 isolated guard: forged-cross-owner
+  ---
+  duration_ms: 470.911874
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:21797'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /database/i. Input:
+    
+    "TypeError: Cannot read properties of undefined (reading 'endsWith')"
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async waitForActual (node:assert:646:5)
+    async strict.rejects (node:assert:769:25)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:329:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:329:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+1..20
+# tests 20
+# suites 0
+# pass 6
+# fail 14
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13263.306093
