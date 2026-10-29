@@ -2,9 +2,55 @@
  RUN  v4.1.11 /home/user/Tovu/apps/admin
       Coverage enabled with v8
 
- ❯ src/features/pages/__tests__/use-page-editor.unit.test.ts (0 test)
- ❯ src/features/themes/__tests__/use-theme-explore.hooks.unit.test.ts (0 test)
- ❯ src/features/publish-content/__tests__/PublishContentDialog.unit.test.tsx (0 test)
- ❯ src/components/__tests__/AssistantDock.hooks.unit.test.tsx (0 test)
- ❯ src/features/security/hooks/__tests__/use-access-tokens.unit.test.tsx (0 test)
- ❯ src/features/posts/__tests__/PostEditor.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/main-entry-signed-in.unit.test.tsx (1 test | 1 failed) 30128ms
+   × mounts the signed-in shell, not the login screen, once the session has a user 30065ms
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-compat.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/interfaces.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-json-schema-compat.js" points to missing source files
+Sourcemap for "/home/user/Tovu/apps/admin/node_modules/untruncate-json/dist/cjs/index.js" points to missing source files
+Not implemented: HTMLFormElement's submit() method
+stderr | src/__tests__/unit/app-admin-assistant-dock-visibility.unit.test.tsx > keeps the assistant dock mounted, outside the expanded post-preview's containing block, while a post's Preview tab is expanded
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-admin-assistant-dock-visibility.unit.test.tsx > keeps the assistant dock mounted, outside the expanded post-preview's containing block, while a post's Preview tab is expanded
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:176:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:195:10)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+ ❯ src/__tests__/unit/app-admin-assistant-dock-visibility.unit.test.tsx (4 tests | 1 failed) 11927ms
+   × keeps the assistant dock mounted, outside the expanded post-preview's containing block, while a post's Preview tab is expanded 5859ms
+stderr | src/__tests__/unit/app-confirm-dialog-i18n.unit.test.tsx > translates the logout confirm's Cancel button under a non-English locale
+[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only TypeError: Installed skills response must contain a skills array
+    at skillsSnapshotFromBody (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:36:42)
+    at readSkillsSnapshot (/home/user/Tovu/apps/admin/src/features/plugins/installed-skills-composer-source.ts:55:12)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Promise.all (index 1)
+    at projectComposerCapabilities (/home/user/Tovu/apps/admin/src/features/plugins/composer-capabilities.ts:219:20)
+
+stderr | src/__tests__/unit/app-confirm-dialog-i18n.unit.test.tsx > translates the logout confirm's Cancel button under a non-English locale
+[AssistantDock] failed to load stored BYOK credential state Error: getAdminExecutionCredential response missing data
+    at requireExecutionResponseData (/home/user/Jini/packages/ui/src/features/execution/http-adapter.ts:42:11)
+    at requireData (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:176:10)
+    at Object.loadAdminExecutionCredential [as loadCredential] (/home/user/Tovu/apps/admin/src/lib/execution-settings.ts:195:10)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:92:19)
+
+ ❯ src/__tests__/unit/app-confirm-dialog-i18n.unit.test.tsx (1 test | 1 failed) 5229ms
+   × translates the logout confirm's Cancel button under a non-English locale 5226ms
+11:11:50 PM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/typescript/lib/typescript.js.
+Error: An error occurred while trying to read the map file at typescript.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/typescript/lib/typescript.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/openid-client@6.8.8/node_modules/openid-client/build/index.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/oauth4webapi@3.8.8/node_modules/oauth4webapi/build/index.js" points to missing source files

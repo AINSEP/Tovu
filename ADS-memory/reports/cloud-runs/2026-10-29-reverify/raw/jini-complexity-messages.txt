@@ -1,0 +1,128 @@
+packages/admin/src/consent/react/ConsentFields.tsx:112:110 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/admin/src/seo/messages.en.ts:6:3 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/admin/src/seo/messages.en.ts:6:37 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/admin/src/seo/messages.en.ts:7:3 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/admin/src/seo/messages.en.ts:7:76 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/admin/src/seo/react/hooks/SeoPage.hooks.ts:18:29 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/admin/src/seo/react/hooks/SeoPage.hooks.ts:18:64 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/admin/src/seo/react/pages/SeoPage.tsx:643:22 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/agent-plugins/src/lifecycle/manifest.ts:243:104 [error] no-restricted-syntax Consumer product identities belong to the host.
+packages/agent-plugins/src/lifecycle/update.ts:211:48 [warn] sonarjs/file-permissions Make sure this permission is safe.
+packages/agent-plugins/src/lifecycle/update.ts:269:43 [warn] sonarjs/file-permissions Make sure this permission is safe.
+packages/agent-plugins/src/manifest.ts:86:138 [error] no-restricted-syntax Consumer product identities belong to the host.
+packages/agentic/src/core/site-guide/site-guide.ts:4:22 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/chat/src/core/question-form/scan.ts:339:10 [error] sonarjs/cognitive-complexity Refactor this function to reduce its Cognitive Complexity from 13 to the 10 allowed.
+packages/chat/src/core/todos.ts:128:44 [warn] sonarjs/todo-tag Complete the task associated to this "TODO" comment.
+packages/chat/src/react/artifact-types.ts:12:4 [warn] sonarjs/todo-tag Complete the task associated to this "TODO" comment.
+packages/chat/src/react/components/Markdown.tsx:37:57 [warn] sonarjs/todo-tag Complete the task associated to this "TODO" comment.
+packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts:249:43 [warn] sonarjs/pseudo-random Make sure that using this pseudorandom number generator is safe here.
+packages/chat/src/react/hooks/useArtifactStream.ts:12:4 [warn] sonarjs/todo-tag Complete the task associated to this "TODO" comment.
+packages/chat/src/react/hooks/useCopyToClipboard.ts:8:34 [warn] sonarjs/todo-tag Complete the task associated to this "TODO" comment.
+packages/chat/src/react/hooks/usePinnedTodos.ts:22:25 [warn] sonarjs/todo-tag Complete the task associated to this "TODO" comment.
+packages/chat/src/store/ports.ts:40:13 [warn] sonarjs/redundant-type-aliases Remove this redundant type alias and replace its occurrences with "string".
+packages/chat/src/store/runtime/history-tools.ts:116:59 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/chat/src/store/runtime/history-tools.ts:19:18 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/cli/src/flags.ts:100:17 [error] sonarjs/cognitive-complexity Refactor this function to reduce its Cognitive Complexity from 11 to the 10 allowed.
+packages/cms/src/consent/css-parser.ts:118:17 [warn] sonarjs/regex-complexity Simplify this regular expression to reduce its complexity from 28 to the 20 allowed.
+packages/cms/src/consent/express/index.ts:112:67 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/cms/src/consent/express/index.ts:115:54 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/cms/src/consent/express/index.ts:162:151 [error] no-restricted-syntax Specification IDs belong in rationale comments, never runtime strings.
+packages/cms/src/consent/express/index.ts:179:42 [error] no-restricted-syntax Specification IDs belong in rationale comments, never runtime strings.
+packages/cms/src/consent/express/index.ts:240:79 [error] no-restricted-syntax Specification IDs belong in rationale comments, never runtime strings.
+packages/cms/src/consent/express/index.ts:253:19 [error] no-restricted-syntax Specification IDs belong in rationale comments, never runtime strings.
+packages/cms/src/consent/express/index.ts:289:24 [error] no-restricted-syntax Specification IDs belong in rationale comments, never runtime strings.
+packages/cms/src/consent/express/index.ts:93:27 [error] no-restricted-syntax Specification IDs belong in rationale comments, never runtime strings.
+packages/cms/src/consent/html/resources.ts:17:22 [warn] sonarjs/regex-complexity Simplify this regular expression to reduce its complexity from 28 to the 20 allowed.
+packages/cms/src/consent/html/resources.ts:17:22 [warn] sonarjs/regex-complexity Simplify this regular expression to reduce its complexity from 28 to the 20 allowed.
+packages/cms/src/consent/html/resources.ts:17:22 [warn] sonarjs/regex-complexity Simplify this regular expression to reduce its complexity from 28 to the 20 allowed.
+packages/cms/src/forms/field-registry.ts:205:63 [warn] sonarjs/super-linear-regex Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking.
+packages/cms/src/media/agent-tools.ts:88:18 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/cms/src/media/document-ingress.ts:162:126 [warn] sonarjs/no-clear-text-protocols Using http protocol is insecure. Use https instead.
+packages/cms/src/navigation/menu-service.ts:155:35 [warn] sonarjs/no-clear-text-protocols Using http protocol is insecure. Use https instead.
+packages/cms/src/navigation/repo.memory.ts:131:9 [error] sonarjs/cognitive-complexity Refactor this function to reduce its Cognitive Complexity from 11 to the 10 allowed.
+packages/cms/src/navigation/tool-registrations.ts:128:73 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/cms/src/navigation/types.ts:195:13 [warn] sonarjs/redundant-type-aliases Remove this redundant type alias and replace its occurrences with "string".
+packages/cms/src/redirects/ports.ts:184:6 [warn] sonarjs/todo-tag Complete the task associated to this "TODO" comment.
+packages/cms/src/redirects/redirects.ts:244:10 [warn] sonarjs/no-inconsistent-returns Refactor this function to use "return" consistently.
+packages/cms/src/redirects/redirects.ts:249:47 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/cms/src/routing/routing.ts:224:6 [warn] sonarjs/todo-tag Complete the task associated to this "TODO" comment.
+packages/cms/src/routing/types.ts:100:6 [warn] sonarjs/todo-tag Complete the task associated to this "TODO" comment.
+packages/cms/src/seo/absolute-url.ts:16:85 [warn] sonarjs/todo-tag Complete the task associated to this "TODO" comment.
+packages/cms/src/seo/absolute-url.ts:19:64 [warn] sonarjs/todo-tag Complete the task associated to this "TODO" comment.
+packages/cms/src/seo/dom/index.ts:16:49 [warn] sonarjs/no-inconsistent-returns Refactor this function to use "return" consistently.
+packages/cms/src/seo/types.ts:95:13 [warn] sonarjs/redundant-type-aliases Remove this redundant type alias and replace its occurrences with "string".
+packages/cms/src/trash/ports.ts:8:13 [warn] sonarjs/redundant-type-aliases Remove this redundant type alias and replace its occurrences with "string".
+packages/cms/src/widgets/html/gallery-render.ts:59:6 [warn] sonarjs/todo-tag Complete the task associated to this "TODO" comment.
+packages/cms/src/widgets/markers/marker.ts:129:24 [warn] sonarjs/regex-complexity Simplify this regular expression to reduce its complexity from 23 to the 20 allowed.
+packages/cms/src/widgets/markers/marker.ts:129:24 [warn] sonarjs/super-linear-regex Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking.
+packages/cms/src/widgets/markers/marker.ts:133:34 [warn] sonarjs/super-linear-regex Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking.
+packages/cms/src/widgets/resolver-service.ts:107:10 [error] sonarjs/cognitive-complexity Refactor this function to reduce its Cognitive Complexity from 13 to the 10 allowed.
+packages/cms/src/widgets/resolvers/menu.ts:69:11 [error] sonarjs/cognitive-complexity Refactor this function to reduce its Cognitive Complexity from 12 to the 10 allowed.
+packages/cms/src/widgets/resolvers/taxonomy.ts:6:23 [error] sonarjs/cognitive-complexity Refactor this function to reduce its Cognitive Complexity from 11 to the 10 allowed.
+packages/cms/src/widgets/types.ts:144:13 [warn] sonarjs/redundant-type-aliases Remove this redundant type alias and replace its occurrences with "string".
+packages/commerce/src/catalog/repo.order-payments.ts:30:24 [warn] sonarjs/no-nested-functions Refactor this code to not nest functions more than 4 levels deep.
+packages/commerce/src/catalog/settle-order-payment.ts:55:8 [error] complexity Async function 'settleOrderPayment' has a complexity of 11. Maximum allowed is 10.
+packages/commerce/src/payments/accounting/apply-evidence.ts:124:16 [warn] sonarjs/no-inconsistent-returns Refactor this function to use "return" consistently.
+packages/commerce/src/payments/accounting/apply-evidence.ts:140:16 [warn] sonarjs/no-inconsistent-returns Refactor this function to use "return" consistently.
+packages/commerce/src/payments/accounting/plan-evidence.ts:102:19 [warn] sonarjs/use-type-alias Replace this union type with a type alias.
+packages/commerce/src/payments/contract/checkout-client.ts:29:23 [warn] sonarjs/no-inconsistent-returns Refactor this function to use "return" consistently.
+packages/commerce/src/payments/ledger/repo.memory.ts:149:19 [warn] sonarjs/expression-complexity Reduce the number of conditional operators (6) used in the expression (maximum allowed 3).
+packages/commerce/src/payments/ops/common.ts:114:10 [warn] sonarjs/expression-complexity Reduce the number of conditional operators (4) used in the expression (maximum allowed 3).
+packages/commerce/src/payments/state/status.ts:100:5 [warn] sonarjs/elseif-without-else Add the missing "else" clause.
+packages/commerce/src/payments/testkit/lipay-fake.ts:115:46 [warn] sonarjs/no-nested-incdec Extract this increment operation into a dedicated statement.
+packages/commerce/src/payments/testkit/lipay-fake.ts:124:46 [warn] sonarjs/no-nested-incdec Extract this increment operation into a dedicated statement.
+packages/commerce/src/payments/tools/catalog.ts:93:20 [warn] sonarjs/no-duplicate-string Define a constant instead of duplicating this literal 6 times.
+packages/commerce/src/payments/tools/money-tools.ts:153:67 [warn] sonarjs/no-nested-template-literals Refactor this code to not use nested template literals.
+packages/cookie-consent/src/server/receipt.ts:59:35 [error] no-restricted-syntax Specification IDs belong in rationale comments, never runtime strings.
+packages/core/src/origin-validation.ts:281:33 [error] no-restricted-syntax Specification IDs belong in rationale comments, never runtime strings.
+packages/core/src/origin-validation.ts:31:5 [error] no-restricted-syntax Specification IDs belong in rationale comments, never runtime strings.
+packages/core/src/primitives/ids.ts:2:13 [warn] sonarjs/redundant-type-aliases Remove this redundant type alias and replace its occurrences with "string".
+packages/core/src/primitives/time.ts:2:13 [warn] sonarjs/redundant-type-aliases Remove this redundant type alias and replace its occurrences with "string".
+packages/core/src/surface-exchanges.ts:67:13 [warn] sonarjs/redundant-type-aliases Remove this redundant type alias and replace its occurrences with "string".
+packages/daemon/src/agent-executor/launch.ts:1120:54 [warn] sonarjs/publicly-writable-directories Make sure publicly writable directories are used safely here.
+packages/db/src/kernel/pglite/dialect.ts:41:10 [warn] sonarjs/generator-without-yield Add a "yield" statement to this generator.
+packages/db/src/recovery/degraded-banners.ts:104:9 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/db/src/recovery/degraded-banners.ts:69:9 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/db/src/recovery/degraded-banners.ts:78:9 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/db/src/recovery/degraded-banners.ts:87:9 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/db/src/recovery/recovery-orchestrator.ts:88:56 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/db/src/recovery/restore-point-create.ts:92:18 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/db/src/transfer/postgres-target.ts:120:9 [warn] sonarjs/no-os-command-from-path Make sure the "PATH" variable only contains fixed, unwriteable directories.
+packages/desktop-host/src/electron/updates/instance-presence.ts:69:5 [error] sonarjs/cognitive-complexity Refactor this function to reduce its Cognitive Complexity from 11 to the 10 allowed.
+packages/desktop-host/src/tauri/testing.ts:133:9 [warn] sonarjs/no-invariant-returns Refactor this function to not always return the same value.
+packages/http-kit/src/verified-origin/site-path.ts:52:22 [warn] sonarjs/no-clear-text-protocols Using http protocol is insecure. Use https instead.
+packages/http-kit/src/verified-origin/site-path.ts:54:29 [warn] sonarjs/no-clear-text-protocols Using http protocol is insecure. Use https instead.
+packages/integrations/src/webhooks/types.ts:14:13 [warn] sonarjs/redundant-type-aliases Remove this redundant type alias and replace its occurrences with "number".
+packages/integrations/src/webhooks/types.ts:6:13 [warn] sonarjs/redundant-type-aliases Remove this redundant type alias and replace its occurrences with "string".
+packages/mcp/src/server/resources/site-guide-resource.ts:16:37 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/platform/src/fs/directory-user-config.ts:159:75 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/platform/src/process.ts:325:14 [warn] sonarjs/no-os-command-from-path Make sure the "PATH" variable only contains fixed, unwriteable directories.
+packages/plugins/src/glue/manifest.ts:4:13 [warn] sonarjs/redundant-type-aliases Remove this redundant type alias and replace its occurrences with "string".
+packages/plugins/src/glue/manifest.ts:6:13 [warn] sonarjs/redundant-type-aliases Remove this redundant type alias and replace its occurrences with "string".
+packages/plugins/src/glue/ports.ts:10:13 [warn] sonarjs/redundant-type-aliases Remove this redundant type alias and replace its occurrences with "unknown".
+packages/plugins/src/host/declarative-enable.ts:60:63 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/plugins/src/host/manifest-types.ts:25:13 [warn] sonarjs/redundant-type-aliases Remove this redundant type alias and replace its occurrences with "string".
+packages/plugins/src/host/plugin-format.ts:3:48 [error] no-restricted-syntax Consumer product identities belong to the host.
+packages/plugins/src/host/plugin-format.ts:6:44 [error] no-restricted-syntax Consumer product identities belong to the host.
+packages/plugins/src/host/plugin-format.ts:6:44 [error] no-restricted-syntax Consumer source paths are forbidden.
+packages/provider-plugins/src/payments-stripe/checkout-session.ts:32:8 [error] complexity Async function 'createCheckoutSession' has a complexity of 11. Maximum allowed is 10.
+packages/provider-plugins/src/payments-stripe/session-reading.ts:19:1 [error] complexity Function 'sessionStatus' has a complexity of 11. Maximum allowed is 10.
+packages/search/src/tools.ts:61:18 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/search/src/tools.ts:78:18 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/search/src/tools.ts:85:18 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/search/src/tools.ts:93:18 [error] no-restricted-syntax Use host-neutral messages and injected wire constants.
+packages/server/src/builtin-features.ts:56:25 [warn] sonarjs/no-require-or-define Use a standard "import" statement instead of "require".
+packages/server/src/create-local-node-daemon.ts:53:25 [warn] sonarjs/no-require-or-define Use a standard "import" statement instead of "require".
+packages/ui-kit/src/react/testing/driver.ts:87:23 [error] sonarjs/cognitive-complexity Refactor this function to reduce its Cognitive Complexity from 11 to the 10 allowed.
+packages/ui/src/features/execution/types.ts:147:13 [warn] sonarjs/redundant-type-aliases Remove this redundant type alias and replace its occurrences with "boolean".
+packages/ui/src/features/i18n/dictionaries/settings-dialog.ja.ts:11:112 [warn] sonarjs/no-hardcoded-passwords Review this potentially hard-coded password.
+packages/ui/src/features/i18n/dictionaries/settings-dialog.zh-CN.ts:21:112 [warn] sonarjs/no-hardcoded-passwords Review this potentially hard-coded password.
+packages/ui/src/features/i18n/dictionaries/settings-dialog.zh-TW.ts:24:112 [warn] sonarjs/no-hardcoded-passwords Review this potentially hard-coded password.
+packages/ui/src/features/i18n/types.ts:13:13 [warn] sonarjs/redundant-type-aliases Remove this redundant type alias and replace its occurrences with "string".
+packages/ui/src/features/notifications/notifications-catalog.ts:15:13 [warn] sonarjs/redundant-type-aliases Remove this redundant type alias and replace its occurrences with "string".
+packages/ui/src/react/components/HeaderActionsMenu.tsx:65:36 [warn] sonarjs/bool-param-default Provide a default value for 'active' so that the logic of the function is more evident when this parameter is missing. Consider defining another function if providing default value is not possible.
+packages/ui/src/react/components/HeaderActionsMenu.tsx:70:43 [warn] sonarjs/bool-param-default Provide a default value for 'active' so that the logic of the function is more evident when this parameter is missing. Consider defining another function if providing default value is not possible.
+packages/ui/src/utils/notifications.ts:37:7 [warn] sonarjs/no-unused-collection Either use this collection's contents or remove the collection.
+packages/ui/src/utils/uuid.ts:48:16 [warn] sonarjs/pseudo-random Make sure that using this pseudorandom number generator is safe here.
+packages/user-management/src/admin/conformance/index.ts:93:114 [warn] sonarjs/no-hardcoded-passwords Review this potentially hard-coded password.
+packages/vibecoding/src/core/types.ts:27:13 [warn] sonarjs/redundant-type-aliases Remove this redundant type alias and replace its occurrences with "string".

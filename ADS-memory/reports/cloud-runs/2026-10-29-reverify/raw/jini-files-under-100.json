@@ -1,0 +1,1642 @@
+[
+ {
+  "package": "admin",
+  "file": "packages/admin/src/comments/conformance/comments-api.conformance.ts",
+  "lines": 100,
+  "branches": 97.29,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/media/react/index.ts",
+  "lines": 100,
+  "branches": 82.6,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/media/react/components/MediaCard.tsx",
+  "lines": 100,
+  "branches": 94.11,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/media/react/components/MediaDialog.tsx",
+  "lines": 100,
+  "branches": 50,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/media/react/components/MediaGrid.tsx",
+  "lines": 100,
+  "branches": 66.66,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/media/react/components/MediaIcons.tsx",
+  "lines": 85.71,
+  "branches": 100,
+  "functions": 77.77,
+  "uncovered_lines": 4
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/media/react/components/MediaPicker.tsx",
+  "lines": 100,
+  "branches": 80,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/media/react/hooks/EditMediaPanel.hooks.ts",
+  "lines": 100,
+  "branches": 98.46,
+  "functions": 88.88,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/media/react/hooks/GallerySelection.hooks.ts",
+  "lines": 100,
+  "branches": 89.47,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/media/react/hooks/MediaDialog.hooks.ts",
+  "lines": 100,
+  "branches": 66.66,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/media/react/hooks/MediaPage.hooks.ts",
+  "lines": 98.66,
+  "branches": 85.41,
+  "functions": 90.9,
+  "uncovered_lines": 1
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/media/react/hooks/MediaPicker.hooks.ts",
+  "lines": 92.59,
+  "branches": 100,
+  "functions": 66.66,
+  "uncovered_lines": 2
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/media/react/hooks/MediaPorts.hooks.ts",
+  "lines": 100,
+  "branches": 50,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/media/react/hooks/MediaQuery.hooks.ts",
+  "lines": 100,
+  "branches": 91.3,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/media/react/hooks/ProvidersTab.hooks.ts",
+  "lines": 3.4,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 170
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/media/react/pages/MediaPage.tsx",
+  "lines": 97.61,
+  "branches": 83.33,
+  "functions": 100,
+  "uncovered_lines": 1
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/media/react/tabs/LibraryTab.tsx",
+  "lines": 100,
+  "branches": 87.5,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/media/react/tabs/ProvidersTab.tsx",
+  "lines": 7.89,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 35
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/react/components/RowMenu/RowMenu.hooks.tsx",
+  "lines": 100,
+  "branches": 97.95,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/react/entities/EntityField.tsx",
+  "lines": 100,
+  "branches": 98,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/seo/rules.ts",
+  "lines": 90.67,
+  "branches": 97.35,
+  "functions": 89.74,
+  "uncovered_lines": 18
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/seo/adapters/http.ts",
+  "lines": 93.61,
+  "branches": 100,
+  "functions": 94.44,
+  "uncovered_lines": 3
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/seo/adapters/memory.ts",
+  "lines": 100,
+  "branches": 95.12,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/seo/controllers/entry-section.controller.ts",
+  "lines": 40,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 3
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/seo/controllers/media-ref.controller.ts",
+  "lines": 18.18,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 9
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/seo/controllers/seo-entry.controller.ts",
+  "lines": 88.09,
+  "branches": 100,
+  "functions": 83.33,
+  "uncovered_lines": 5
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/seo/controllers/seo.controller.ts",
+  "lines": 80.95,
+  "branches": 100,
+  "functions": 50,
+  "uncovered_lines": 8
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/seo/controllers/sitemap.controller.ts",
+  "lines": 95.83,
+  "branches": 33.33,
+  "functions": 50,
+  "uncovered_lines": 1
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/seo/react/index.ts",
+  "lines": 81.81,
+  "branches": 71.42,
+  "functions": 66.66,
+  "uncovered_lines": 4
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/seo/react/components/MediaRefField.tsx",
+  "lines": 2.73,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 71
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/seo/react/components/SeoIcons.tsx",
+  "lines": 36.11,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 23
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/seo/react/components/SitemapModal.tsx",
+  "lines": 1.32,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 149
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/seo/react/hooks/MediaRefField.hooks.ts",
+  "lines": 15.62,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 27
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/seo/react/hooks/SeoModuleTabs.ts",
+  "lines": 36.36,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 7
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/seo/react/hooks/SeoPage.hooks.ts",
+  "lines": 37.5,
+  "branches": 100,
+  "functions": 28.57,
+  "uncovered_lines": 15
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/seo/react/hooks/SeoPorts.hooks.ts",
+  "lines": 82.35,
+  "branches": 100,
+  "functions": 66.66,
+  "uncovered_lines": 3
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/seo/react/hooks/SeoQuery.hooks.ts",
+  "lines": 84.61,
+  "branches": 94.73,
+  "functions": 71.42,
+  "uncovered_lines": 8
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/seo/react/hooks/SitemapModal.hooks.ts",
+  "lines": 27.77,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 13
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/seo/react/hooks/use-entry-picker.hooks.ts",
+  "lines": 70.58,
+  "branches": 70,
+  "functions": 66.66,
+  "uncovered_lines": 5
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/seo/react/hooks/use-seo-entry-panel.hooks.ts",
+  "lines": 86.66,
+  "branches": 91.3,
+  "functions": 90,
+  "uncovered_lines": 4
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/seo/react/hooks/use-seo-entry-section.hooks.ts",
+  "lines": 40,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 3
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/seo/react/hooks/use-seo.hooks.ts",
+  "lines": 100,
+  "branches": 93.54,
+  "functions": 63.63,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/seo/react/hooks/use-share-image-warning.hooks.ts",
+  "lines": 3.03,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 64
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/seo/react/hooks/use-sitemap-modal.hooks.ts",
+  "lines": 16.66,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 15
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/seo/react/pages/SeoPage.tsx",
+  "lines": 1.2,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 492
+ },
+ {
+  "package": "admin",
+  "file": "packages/admin/src/widgets/react/components/WidgetInstanceNotices.tsx",
+  "lines": 97.05,
+  "branches": 92.85,
+  "functions": 100,
+  "uncovered_lines": 1
+ },
+ {
+  "package": "agent-plugins",
+  "file": "packages/agent-plugins/core/persistent-state.d.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncovered_lines": 25
+ },
+ {
+  "package": "agent-plugins",
+  "file": "packages/agent-plugins/src/admin-surfaces/action-tools.ts",
+  "lines": 100,
+  "branches": 94.73,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "agent-plugins",
+  "file": "packages/agent-plugins/src/admin-surfaces/surface-client.ts",
+  "lines": 100,
+  "branches": 99.16,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "agent-plugins",
+  "file": "packages/agent-plugins/src/lifecycle/set-enabled.ts",
+  "lines": 98.41,
+  "branches": 94.87,
+  "functions": 100,
+  "uncovered_lines": 1
+ },
+ {
+  "package": "agent-plugins",
+  "file": "packages/agent-plugins/src/lifecycle/tools/capabilities.ts",
+  "lines": 100,
+  "branches": 98.94,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "agent-runtime",
+  "file": "packages/agent-runtime/src/claude-code-models.ts",
+  "lines": 100,
+  "branches": 98.38,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "agent-runtime",
+  "file": "packages/agent-runtime/src/claude-filesystem-policy.ts",
+  "lines": 96.71,
+  "branches": 95.41,
+  "functions": 93.33,
+  "uncovered_lines": 5
+ },
+ {
+  "package": "agent-runtime",
+  "file": "packages/agent-runtime/src/claude-stream.ts",
+  "lines": 100,
+  "branches": 99.12,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "agent-runtime",
+  "file": "packages/agent-runtime/src/model-discovery-yaml.ts",
+  "lines": 78.12,
+  "branches": 78.37,
+  "functions": 90.9,
+  "uncovered_lines": 14
+ },
+ {
+  "package": "agent-runtime",
+  "file": "packages/agent-runtime/src/agent-protocol/acp/models.ts",
+  "lines": 100,
+  "branches": 98.7,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "agent-runtime",
+  "file": "packages/agent-runtime/src/ai-trace/recorder.ts",
+  "lines": 97.47,
+  "branches": 94.65,
+  "functions": 96.55,
+  "uncovered_lines": 5
+ },
+ {
+  "package": "agent-runtime",
+  "file": "packages/agent-runtime/src/ai-trace/sinks.ts",
+  "lines": 96.8,
+  "branches": 98.43,
+  "functions": 100,
+  "uncovered_lines": 3
+ },
+ {
+  "package": "agent-runtime",
+  "file": "packages/agent-runtime/src/defs/claude.ts",
+  "lines": 100,
+  "branches": 98.14,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "agent-runtime",
+  "file": "packages/agent-runtime/src/providers/tool-turn.ts",
+  "lines": 98.96,
+  "branches": 99.54,
+  "functions": 100,
+  "uncovered_lines": 3
+ },
+ {
+  "package": "analytics",
+  "file": "packages/analytics/src/privacy.ts",
+  "lines": 100,
+  "branches": 95.23,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "analytics",
+  "file": "packages/analytics/src/product/index.ts",
+  "lines": 100,
+  "branches": 98.7,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "cms",
+  "file": "packages/cms/src/comments/sanitize.ts",
+  "lines": 100,
+  "branches": 80,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "cms",
+  "file": "packages/cms/src/consent/express/index.ts",
+  "lines": 100,
+  "branches": 99.35,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "cms",
+  "file": "packages/cms/src/consent/node/index.ts",
+  "lines": 99.28,
+  "branches": 99.07,
+  "functions": 100,
+  "uncovered_lines": 1
+ },
+ {
+  "package": "cms",
+  "file": "packages/cms/src/forms/email-sender-fields.ts",
+  "lines": 95.34,
+  "branches": 96.66,
+  "functions": 100,
+  "uncovered_lines": 2
+ },
+ {
+  "package": "cms",
+  "file": "packages/cms/src/media/content-type-sniffer.ts",
+  "lines": 100,
+  "branches": 98.61,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "cms",
+  "file": "packages/cms/src/media/document-read.ts",
+  "lines": 100,
+  "branches": 98.46,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "cms",
+  "file": "packages/cms/src/media/image-transformer.sharp.ts",
+  "lines": 100,
+  "branches": 98.03,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "cms",
+  "file": "packages/cms/src/media/replace-media-file.ts",
+  "lines": 97.29,
+  "branches": 93.75,
+  "functions": 100,
+  "uncovered_lines": 1
+ },
+ {
+  "package": "cms",
+  "file": "packages/cms/src/media/video-frames.ffmpeg.ts",
+  "lines": 100,
+  "branches": 99.43,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "cms",
+  "file": "packages/cms/src/media/video-frames.ts",
+  "lines": 100,
+  "branches": 98.87,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "cms",
+  "file": "packages/cms/src/seo/feed.ts",
+  "lines": 90.24,
+  "branches": 100,
+  "functions": 100,
+  "uncovered_lines": 4
+ },
+ {
+  "package": "cms",
+  "file": "packages/cms/src/seo/write-service.ts",
+  "lines": 99.43,
+  "branches": 98.52,
+  "functions": 100,
+  "uncovered_lines": 1
+ },
+ {
+  "package": "cms",
+  "file": "packages/cms/src/widgets/html/plugin-export.ts",
+  "lines": 100,
+  "branches": 97.36,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "commerce",
+  "file": "packages/commerce/src/payments/provider-module-guard.ts",
+  "lines": 95.74,
+  "branches": 100,
+  "functions": 93.75,
+  "uncovered_lines": 2
+ },
+ {
+  "package": "cookie-consent",
+  "file": "packages/cookie-consent/src/client.min.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncovered_lines": 2
+ },
+ {
+  "package": "core",
+  "file": "packages/core/src/args-convention.typecheck.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncovered_lines": 43
+ },
+ {
+  "package": "core",
+  "file": "packages/core/src/settings/settings.ts",
+  "lines": 99.41,
+  "branches": 99.01,
+  "functions": 100,
+  "uncovered_lines": 1
+ },
+ {
+  "package": "core",
+  "file": "packages/core/src/settings/tool-registrations.ts",
+  "lines": 100,
+  "branches": 98.86,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "core",
+  "file": "packages/core/src/settings/__tests__/principal-lookup.typecheck.ts",
+  "lines": 0,
+  "branches": 100,
+  "functions": 100,
+  "uncovered_lines": 4
+ },
+ {
+  "package": "core",
+  "file": "packages/core/src/text/sanitize-untrusted-text.ts",
+  "lines": 97.97,
+  "branches": 97.4,
+  "functions": 100,
+  "uncovered_lines": 2
+ },
+ {
+  "package": "daemon",
+  "file": "packages/daemon/src/remote-tool-executor.ts",
+  "lines": 100,
+  "branches": 98.97,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "daemon",
+  "file": "packages/daemon/src/tool-result-media.ts",
+  "lines": 95.45,
+  "branches": 98.18,
+  "functions": 100,
+  "uncovered_lines": 3
+ },
+ {
+  "package": "daemon",
+  "file": "packages/daemon/src/agent-executor/events.ts",
+  "lines": 98.87,
+  "branches": 98.1,
+  "functions": 100,
+  "uncovered_lines": 8
+ },
+ {
+  "package": "daemon",
+  "file": "packages/daemon/src/agent-executor/launch.ts",
+  "lines": 99.12,
+  "branches": 98.71,
+  "functions": 100,
+  "uncovered_lines": 7
+ },
+ {
+  "package": "daemon",
+  "file": "packages/daemon/src/agent-executor/live-session-state.ts",
+  "lines": 100,
+  "branches": 98.13,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "daemon",
+  "file": "packages/daemon/src/agent-executor/mcp-bridge.ts",
+  "lines": 98.86,
+  "branches": 99.29,
+  "functions": 100,
+  "uncovered_lines": 3
+ },
+ {
+  "package": "daemon",
+  "file": "packages/daemon/src/http/attachment-lookup-routes.ts",
+  "lines": 100,
+  "branches": 97.14,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "daemon",
+  "file": "packages/daemon/src/http/db-ops.ts",
+  "lines": 97.6,
+  "branches": 97.43,
+  "functions": 100,
+  "uncovered_lines": 3
+ },
+ {
+  "package": "daemon",
+  "file": "packages/daemon/src/http/delegated-tools.ts",
+  "lines": 97.82,
+  "branches": 98.68,
+  "functions": 100,
+  "uncovered_lines": 3
+ },
+ {
+  "package": "daemon",
+  "file": "packages/daemon/src/http/terminals.ts",
+  "lines": 98.35,
+  "branches": 98.88,
+  "functions": 100,
+  "uncovered_lines": 3
+ },
+ {
+  "package": "daemon",
+  "file": "packages/daemon/src/http/tool-execution-routes.ts",
+  "lines": 100,
+  "branches": 97.26,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "db",
+  "file": "packages/db/src/kernel/kernel-core.ts",
+  "lines": 100,
+  "branches": 98.64,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "db",
+  "file": "packages/db/src/migrate/legacy-ledger.ts",
+  "lines": 100,
+  "branches": 88.57,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "db",
+  "file": "packages/db/src/secrets-vault/repo.sql.ts",
+  "lines": 100,
+  "branches": 99.24,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "db",
+  "file": "packages/db/src/sqlite/checked-client.ts",
+  "lines": 100,
+  "branches": 98.11,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "db",
+  "file": "packages/db/src/sqlite/transaction.ts",
+  "lines": 100,
+  "branches": 95.45,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "desktop-host",
+  "file": "packages/desktop-host/src/render-bridge.ts",
+  "lines": 92.03,
+  "branches": 83.92,
+  "functions": 100,
+  "uncovered_lines": 9
+ },
+ {
+  "package": "desktop-host",
+  "file": "packages/desktop-host/src/sidecar.ts",
+  "lines": 100,
+  "branches": 98.5,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "desktop-host",
+  "file": "packages/desktop-host/src/electron/electron-url-capture.ts",
+  "lines": 98.58,
+  "branches": 94.04,
+  "functions": 100,
+  "uncovered_lines": 2
+ },
+ {
+  "package": "desktop-host",
+  "file": "packages/desktop-host/src/tauri/tauri-sidecar.ts",
+  "lines": 100,
+  "branches": 97.77,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "diagnostics",
+  "file": "packages/diagnostics/src/memory-growth.ts",
+  "lines": 100,
+  "branches": 98,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "diagnostics",
+  "file": "packages/diagnostics/src/observability/fanout.ts",
+  "lines": 100,
+  "branches": 98.73,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "diagnostics",
+  "file": "packages/diagnostics/src/observability/otel.ts",
+  "lines": 100,
+  "branches": 99.13,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "diagnostics",
+  "file": "packages/diagnostics/src/observability/tracker.ts",
+  "lines": 100,
+  "branches": 96.2,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "diagnostics",
+  "file": "packages/diagnostics/src/web-evidence/__tests__/web-evidence-playwright.port-check.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncovered_lines": 161
+ },
+ {
+  "package": "infra",
+  "file": "packages/infra/src/events/outbox/worker.ts",
+  "lines": 100,
+  "branches": 97.43,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "integrations",
+  "file": "packages/integrations/src/credentialed-http/credentialed-request.ts",
+  "lines": 99.67,
+  "branches": 99.4,
+  "functions": 100,
+  "uncovered_lines": 1
+ },
+ {
+  "package": "mcp",
+  "file": "packages/mcp/src/bin/serve.ts",
+  "lines": 98,
+  "branches": 97.29,
+  "functions": 100,
+  "uncovered_lines": 3
+ },
+ {
+  "package": "mcp",
+  "file": "packages/mcp/src/client/client.ts",
+  "lines": 98.39,
+  "branches": 98.88,
+  "functions": 100,
+  "uncovered_lines": 3
+ },
+ {
+  "package": "mcp",
+  "file": "packages/mcp/src/client/css-url-refs.ts",
+  "lines": 100,
+  "branches": 70,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "mcp",
+  "file": "packages/mcp/src/federation/adapter.http.ts",
+  "lines": 100,
+  "branches": 99.19,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "mcp",
+  "file": "packages/mcp/src/federation/__tests__/fixtures.ts",
+  "lines": 100,
+  "branches": 75,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "mcp",
+  "file": "packages/mcp/src/server/stdio-hosting.ts",
+  "lines": 100,
+  "branches": 95.6,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "mcp",
+  "file": "packages/mcp/src/server/tool-server.ts",
+  "lines": 100,
+  "branches": 98.27,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "mcp",
+  "file": "packages/mcp/src/server/adapters/stdio-codec.ts",
+  "lines": 83.33,
+  "branches": 85.71,
+  "functions": 100,
+  "uncovered_lines": 2
+ },
+ {
+  "package": "mcp",
+  "file": "packages/mcp/src/tools/ask-choice/__tests__/fixtures.ts",
+  "lines": 100,
+  "branches": 93.75,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "oauth",
+  "file": "packages/oauth/src/discovery.ts",
+  "lines": 100,
+  "branches": 99.04,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "platform",
+  "file": "packages/platform/src/asset-cache.ts",
+  "lines": 99.11,
+  "branches": 98.4,
+  "functions": 100,
+  "uncovered_lines": 2
+ },
+ {
+  "package": "platform",
+  "file": "packages/platform/src/download.ts",
+  "lines": 100,
+  "branches": 99.74,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "platform",
+  "file": "packages/platform/src/fetch-with-timeout.ts",
+  "lines": 100,
+  "branches": 98.01,
+  "functions": 95.65,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "platform",
+  "file": "packages/platform/src/fs/errno.ts",
+  "lines": 100,
+  "branches": 92.3,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "platform",
+  "file": "packages/platform/src/fs/guarded-reader.ts",
+  "lines": 100,
+  "branches": 99.48,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "platform",
+  "file": "packages/platform/src/mail/delivery-wrapper.ts",
+  "lines": 100,
+  "branches": 98.21,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "platform",
+  "file": "packages/platform/src/mail/resolve-mailer.ts",
+  "lines": 100,
+  "branches": 99.52,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "platform",
+  "file": "packages/platform/src/mail/__tests__/resolver-fixtures.ts",
+  "lines": 100,
+  "branches": 100,
+  "functions": 90.62,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "platform",
+  "file": "packages/platform/src/secrets/passphrase-envelope.ts",
+  "lines": 100,
+  "branches": 98.36,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "plugins",
+  "file": "packages/plugins/src/host/contributions.ts",
+  "lines": 100,
+  "branches": 98.38,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "plugins",
+  "file": "packages/plugins/src/host/hook-registry.ts",
+  "lines": 99.44,
+  "branches": 98.73,
+  "functions": 100,
+  "uncovered_lines": 1
+ },
+ {
+  "package": "plugins",
+  "file": "packages/plugins/src/host/provider-contributions.ts",
+  "lines": 100,
+  "branches": 97.84,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "plugins",
+  "file": "packages/plugins/src/host/provider-host.ts",
+  "lines": 100,
+  "branches": 95.12,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "plugins",
+  "file": "packages/plugins/src/host/node/discovery.ts",
+  "lines": 97.5,
+  "branches": 98.11,
+  "functions": 100,
+  "uncovered_lines": 5
+ },
+ {
+  "package": "plugins",
+  "file": "packages/plugins/src/host/node/module-snapshot.ts",
+  "lines": 94.26,
+  "branches": 97.5,
+  "functions": 94.73,
+  "uncovered_lines": 9
+ },
+ {
+  "package": "plugins",
+  "file": "packages/plugins/src/host/node/package-files.ts",
+  "lines": 100,
+  "branches": 98.91,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "plugins",
+  "file": "packages/plugins/src/host/node/source-drafts.ts",
+  "lines": 100,
+  "branches": 99.51,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "sandbox",
+  "file": "packages/sandbox/src/e2b/provider.ts",
+  "lines": 100,
+  "branches": 97.14,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "sandbox",
+  "file": "packages/sandbox/src/e2b/wrap-e2b-sandbox.ts",
+  "lines": 99.61,
+  "branches": 98.38,
+  "functions": 100,
+  "uncovered_lines": 1
+ },
+ {
+  "package": "server",
+  "file": "packages/server/src/kernel-base.ts",
+  "lines": 100,
+  "branches": 100,
+  "functions": 90,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "server",
+  "file": "packages/server/src/lifecycle/__tests__/boot-lifecycle.characterization.unit.test.ts",
+  "lines": 100,
+  "branches": 100,
+  "functions": 70,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "server",
+  "file": "packages/server/src/lifecycle/__tests__/boot-lifecycle.test.ts",
+  "lines": 97.89,
+  "branches": 100,
+  "functions": 91.3,
+  "uncovered_lines": 4
+ },
+ {
+  "package": "server",
+  "file": "packages/server/src/lifecycle/__tests__/readiness-state.test.ts",
+  "lines": 100,
+  "branches": 100,
+  "functions": 25,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "server",
+  "file": "packages/server/src/owner-store/backup.ts",
+  "lines": 96.22,
+  "branches": 94.56,
+  "functions": 100,
+  "uncovered_lines": 4
+ },
+ {
+  "package": "server",
+  "file": "packages/server/src/owner-store/legacy.ts",
+  "lines": 100,
+  "branches": 85.18,
+  "functions": 81.81,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "server",
+  "file": "packages/server/src/storage/__tests__/backend-config.characterization.unit.test.ts",
+  "lines": 100,
+  "branches": 100,
+  "functions": 66.66,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "server",
+  "file": "packages/server/src/storage/__tests__/backend-config.test.ts",
+  "lines": 100,
+  "branches": 95.83,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "server",
+  "file": "packages/server/src/storage/__tests__/host-injection.test.ts",
+  "lines": 100,
+  "branches": 89.13,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "server",
+  "file": "packages/server/src/storage/__tests__/legacy-ownership.test.ts",
+  "lines": 100,
+  "branches": 85.71,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "server",
+  "file": "packages/server/src/storage/__tests__/legacy-sqlite.test.ts",
+  "lines": 100,
+  "branches": 96.77,
+  "functions": 94.44,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/scripts/generate-agent-icon-data-uris.mjs",
+  "lines": 90.9,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 7
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/about/index.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncovered_lines": 1
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/admin-widgets/components/InfoTip.hooks.tsx",
+  "lines": 100,
+  "branches": 96.49,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/execution/rules.ts",
+  "lines": 97.64,
+  "branches": 99.16,
+  "functions": 97.72,
+  "uncovered_lines": 10
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/execution/react/components/AgentCliEnvFields.tsx",
+  "lines": 5.71,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 33
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/execution/react/components/AgentDiagnosticRow.tsx",
+  "lines": 3.22,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 60
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/execution/react/components/ByokProviderForm.tsx",
+  "lines": 0.61,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 322
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/execution/react/components/ExecutionTab.tsx",
+  "lines": 1.06,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 186
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/execution/react/components/LocalCliAgentCard.tsx",
+  "lines": 1.63,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 120
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/execution/react/components/LocalCliAgentList.tsx",
+  "lines": 1.88,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 104
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/execution/react/components/LocalCliAgentSettings.tsx",
+  "lines": 1.43,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 137
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/execution/react/components/ProviderChipGroup.tsx",
+  "lines": 47.72,
+  "branches": 33.33,
+  "functions": 100,
+  "uncovered_lines": 23
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/execution/react/hooks/use-byok-field-validation.hooks.ts",
+  "lines": 100,
+  "branches": 70,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/execution/react/hooks/useLocalCliAgentList.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncovered_lines": 8
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/execution/react/hooks/useReasoningControl.ts",
+  "lines": 100,
+  "branches": 98.82,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/external-mcp/constants.ts",
+  "lines": 0,
+  "branches": 100,
+  "functions": 100,
+  "uncovered_lines": 16
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/external-mcp/index.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncovered_lines": 1
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/external-mcp/react/components/ExternalMcpTab.tsx",
+  "lines": 1.62,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 121
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/folder-path-drop/index.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncovered_lines": 1
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/html-editor/editor-blocks.ts",
+  "lines": 100,
+  "branches": 97.27,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/integrations/rules.ts",
+  "lines": 98.65,
+  "branches": 98.24,
+  "functions": 100,
+  "uncovered_lines": 2
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/mcp-ui/surfaces/fields.ts",
+  "lines": 96,
+  "branches": 96.55,
+  "functions": 100,
+  "uncovered_lines": 2
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/mcp-ui/surfaces/structured-details.ts",
+  "lines": 100,
+  "branches": 99.17,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/media-providers/catalog.ts",
+  "lines": 0,
+  "branches": 100,
+  "functions": 100,
+  "uncovered_lines": 1
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/media-providers/react/components/MediaProviderCard.tsx",
+  "lines": 1.44,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 136
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/media-providers/react/components/MediaProvidersTab.tsx",
+  "lines": 1.48,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 133
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/media-providers/react/components/media-providers-tab-labels.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncovered_lines": 57
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/memory/react/hooks/useMemoryConfig.hooks.ts",
+  "lines": 100,
+  "branches": 98.07,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/project-locations/index.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncovered_lines": 1
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/skills/index.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncovered_lines": 1
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/source-config-list/agent-handles.ts",
+  "lines": 50,
+  "branches": 33.33,
+  "functions": 16.66,
+  "uncovered_lines": 18
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/source-config-list/react/components/SourceConfigAddForm.tsx",
+  "lines": 2.1,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 93
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/source-config-list/react/components/SourceConfigField.tsx",
+  "lines": 1.69,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 116
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/source-config-list/react/components/SourceConfigItemCard.tsx",
+  "lines": 0.89,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 222
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/source-config-list/react/components/SourceConfigList.tsx",
+  "lines": 3.57,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 54
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/source-config-list/react/components/SourceConfigListView.tsx",
+  "lines": 2.24,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 87
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/features/source-config-list/react/components/SourceConfigTrustOptions.tsx",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncovered_lines": 17
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/react/components/SecretInput.hooks.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncovered_lines": 1
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/react/components/SecretInput.tsx",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncovered_lines": 40
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/utils/design-md.ts",
+  "lines": 100,
+  "branches": 97.14,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/utils/index.ts",
+  "lines": 0,
+  "branches": 0,
+  "functions": 0,
+  "uncovered_lines": 1
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/utils/trim-chars.ts",
+  "lines": 100,
+  "branches": 80,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "ui",
+  "file": "packages/ui/src/utils/unhandled-case.ts",
+  "lines": 33.33,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 2
+ },
+ {
+  "package": "ui-kit",
+  "file": "packages/ui-kit/src/react/SecretInput.tsx",
+  "lines": 15.38,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 11
+ },
+ {
+  "package": "ui-kit",
+  "file": "packages/ui-kit/src/react/secret-reveal.hooks.ts",
+  "lines": 12.5,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 14
+ },
+ {
+  "package": "user-management",
+  "file": "packages/user-management/src/react/testing.ts",
+  "lines": 100,
+  "branches": 98.18,
+  "functions": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "user-management",
+  "file": "packages/user-management/src/react/auth/Login.tsx",
+  "lines": 8.33,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 22
+ },
+ {
+  "package": "user-management",
+  "file": "packages/user-management/src/react/members/Members.tsx",
+  "lines": 96.55,
+  "branches": 90.9,
+  "functions": 100,
+  "uncovered_lines": 6
+ },
+ {
+  "package": "user-management",
+  "file": "packages/user-management/src/react/users/ChangeUsernameDialog.tsx",
+  "lines": 100,
+  "branches": 100,
+  "functions": 50,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "user-management",
+  "file": "packages/user-management/src/react/users/Users.tsx",
+  "lines": 0.55,
+  "branches": 100,
+  "functions": 0,
+  "uncovered_lines": 535
+ },
+ {
+  "package": "user-management",
+  "file": "packages/user-management/src/react/users/rules.ts",
+  "lines": 100,
+  "branches": 100,
+  "functions": 75,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "user-management",
+  "file": "packages/user-management/src/react/users/hooks/use-change-username.hooks.ts",
+  "lines": 56.25,
+  "branches": 66.66,
+  "functions": 40,
+  "uncovered_lines": 14
+ },
+ {
+  "package": "user-management",
+  "file": "packages/user-management/src/react/users/hooks/use-users.hooks.ts",
+  "lines": 100,
+  "branches": 95.71,
+  "functions": 95,
+  "uncovered_lines": 0
+ },
+ {
+  "package": "vibecoding",
+  "file": "packages/vibecoding/src/html/node/parse5-region-parser.ts",
+  "lines": 98.2,
+  "branches": 98.83,
+  "functions": 100,
+  "uncovered_lines": 3
+ },
+ {
+  "package": "vibecoding",
+  "file": "packages/vibecoding/src/node/project.ts",
+  "lines": 97.9,
+  "branches": 95.33,
+  "functions": 90.19,
+  "uncovered_lines": 6
+ },
+ {
+  "package": "vibecoding",
+  "file": "packages/vibecoding/src/node/store.ts",
+  "lines": 97.91,
+  "branches": 94.05,
+  "functions": 100,
+  "uncovered_lines": 8
+ }
+]

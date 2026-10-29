@@ -1,0 +1,1613 @@
+
+ RUN  v4.1.11 /home/user/Tovu/apps/admin
+      Coverage enabled with v8
+
+ ❯ src/features/pages/__tests__/use-page-editor.unit.test.ts (0 test)
+ ❯ src/features/themes/__tests__/use-theme-explore.hooks.unit.test.ts (0 test)
+ ❯ src/features/publish-content/__tests__/PublishContentDialog.unit.test.tsx (0 test)
+ ❯ src/components/__tests__/AssistantDock.hooks.unit.test.tsx (0 test)
+ ❯ src/features/security/hooks/__tests__/use-access-tokens.unit.test.tsx (0 test)
+ ❯ src/features/posts/__tests__/PostEditor.unit.test.tsx (0 test)
+ ❯ src/features/themes/__tests__/ThemeExplore.unit.test.tsx (0 test)
+ ❯ src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx (0 test)
+ ❯ src/features/deployment/__tests__/StaticSiteTab.unit.test.tsx (0 test)
+ ❯ src/features/media/__tests__/Media.unit.test.tsx (0 test)
+ ❯ src/features/deployment/hooks/__tests__/use-publish-credentials.unit.test.tsx (0 test)
+ ❯ src/features/ai-assistant/__tests__/use-visitor-credential-form.unit.test.ts (0 test)
+ ❯ src/features/roles/__tests__/use-roles.unit.test.tsx (0 test)
+ ❯ src/features/security/__tests__/AccessTokensTab.credential-flows.unit.test.tsx (0 test)
+ ❯ src/features/pages/__tests__/Pages.unit.test.tsx (0 test)
+ ❯ src/components/__tests__/AssistantDock.unit.test.tsx (0 test)
+ ❯ src/hooks/__tests__/use-admin-execution-credential.hooks.test.ts (0 test)
+ ❯ src/features/pages/__tests__/PageEditor.unit.test.tsx (0 test)
+ ❯ src/lib/__tests__/execution-settings.test.ts (0 test)
+ ❯ src/features/users/__tests__/use-users.unit.test.tsx (0 test)
+ ❯ src/features/taxonomy/__tests__/Taxonomy.unit.test.tsx (0 test)
+ ❯ src/features/roles/__tests__/Roles.unit.test.tsx (0 test)
+ ❯ src/features/deployment/hooks/__tests__/use-static-publish.unit.test.tsx (0 test)
+ ❯ src/features/collections/__tests__/use-collection-entry-editor.unit.test.tsx (0 test)
+ ❯ src/features/settings/hooks/__tests__/use-external-mcp.unit.test.ts (0 test)
+ ❯ src/features/plugins/__tests__/Plugins.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/AssistantDock.hooks.unit.test.tsx (0 test)
+ ❯ src/features/library/__tests__/Library.unit.test.tsx (0 test)
+ ❯ src/hooks/__tests__/use-assistant-chats.unit.test.ts (0 test)
+ ❯ src/__measurements__/request-volume.measurement.test.tsx (0 test)
+ ❯ src/features/security/hooks/__tests__/use-other-credentials.unit.test.tsx (0 test)
+Sourcemap for "/home/user/Tovu/apps/admin/node_modules/untruncate-json/dist/cjs/index.js" points to missing source files
+ ❯ src/components/__tests__/WidgetConfigFields.unit.test.tsx (0 test)
+ ❯ src/features/fs-files/hooks/__tests__/use-folder-drop.hooks.unit.test.ts (0 test)
+ ❯ src/features/sites/__tests__/site-transfer-tabs.unit.test.tsx (0 test)
+ ❯ src/features/plugins/__tests__/AgentPlugins.unit.test.tsx (0 test)
+ ❯ src/features/collections/__tests__/Collections.unit.test.tsx (0 test)
+ ❯ src/features/users/__tests__/Users.unit.test.tsx (0 test)
+ ❯ src/lib/__tests__/widget-embed-extension.unit.test.tsx (0 test)
+ ❯ src/features/settings/__tests__/SettingsUi.unit.test.tsx (0 test)
+ ❯ src/features/sites/__tests__/Sites.unit.test.tsx (0 test)
+ ❯ src/features/trash/__tests__/use-trash.unit.test.tsx (0 test)
+ ❯ src/lib/__tests__/settings-tabs.test.ts (0 test)
+ ❯ src/features/menus/__tests__/MenuEditor.unit.test.tsx (0 test)
+ ❯ src/features/taxonomy/__tests__/use-term-picker.unit.test.tsx (0 test)
+ ❯ src/features/deployment/hooks/__tests__/use-dockerfile-source.unit.test.tsx (0 test)
+ ❯ src/features/menus/__tests__/use-menu-editor.hooks.unit.test.tsx (0 test)
+ ❯ src/features/pages/__tests__/use-pages.unit.test.ts (0 test)
+ ❯ src/features/dashboard/__tests__/Dashboard.unit.test.tsx (0 test)
+ ❯ src/features/taxonomy/__tests__/use-taxonomy.unit.test.tsx (0 test)
+ ❯ src/features/themes/__tests__/Themes.unit.test.tsx (0 test)
+ ❯ src/features/media/__tests__/use-media.hooks.unit.test.tsx (0 test)
+ ❯ src/features/collections/__tests__/CollectionEntryEditor.dynamic-field.unit.test.tsx (0 test)
+ ❯ src/features/plugins/__tests__/use-plugins.hooks.unit.test.ts (0 test)
+ ❯ src/features/recovery/__tests__/Recovery.unit.test.tsx (0 test)
+ ❯ src/features/recovery/__tests__/use-recovery.unit.test.ts (0 test)
+ ❯ src/features/ai-assistant/__tests__/VisitorCredentialForm.unit.test.tsx (0 test)
+ ❯ src/features/database/__tests__/Database.unit.test.tsx (0 test)
+ ❯ src/features/themes/__tests__/use-themes.hooks.unit.test.ts (0 test)
+ ❯ src/__tests__/unit/panels-render.unit.test.tsx (0 test)
+ ❯ src/features/deployment/hooks/__tests__/use-static-export.unit.test.tsx (0 test)
+ ❯ src/features/source-control/__tests__/SourceControl.unit.test.tsx (0 test)
+ ❯ src/features/plugins/__tests__/plugin-provider-settings.unit.test.tsx (0 test)
+ ❯ src/features/settings/__tests__/ExternalMcpSettingsPanel.unit.test.tsx (0 test)
+ ❯ src/features/email/__tests__/EmailTabs.unit.test.tsx (0 test)
+ ❯ src/features/settings/__tests__/rules.unit.test.ts (0 test)
+ ❯ src/features/sites/__tests__/use-sites.hooks.unit.test.tsx (0 test)
+ ❯ src/features/recovery/__tests__/use-restore-flow.unit.test.ts (0 test)
+ ❯ src/components/__tests__/EmbedInsertControl.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-sites-section-visibility.unit.test.tsx (0 test)
+ ❯ src/features/settings/__tests__/external-mcp-agent-drive.unit.test.tsx (0 test)
+ ❯ src/lib/__tests__/media-embed-extension.unit.test.tsx (0 test)
+ ❯ src/components/__tests__/AssistantDock.execution-refresh.unit.test.tsx (0 test)
+10:43:47 PM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/typescript/lib/typescript.js.
+Error: An error occurred while trying to read the map file at typescript.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/typescript/lib/typescript.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+ ❯ src/features/database/__tests__/use-migrate-forward-section.unit.test.tsx (0 test)
+ ❯ src/features/consent/__tests__/CookieConsent.unit.test.tsx (0 test)
+ ❯ src/features/database/__tests__/use-timeline-section.unit.test.tsx (0 test)
+ ❯ src/features/taxonomy/__tests__/use-merge-term-section.unit.test.tsx (0 test)
+ ❯ src/features/plugins/__tests__/agent-plugin-surface-frame.unit.test.tsx (0 test)
+ ❯ src/features/posts/__tests__/post-editor-agent-drive.unit.test.tsx (0 test)
+ ❯ src/features/sites/__tests__/create-site-plugin-tokens.unit.test.tsx (0 test)
+ ❯ src/features/ai-assistant/__tests__/AiAssistant.unit.test.tsx (0 test)
+ ❯ src/features/media/__tests__/use-edit-media-panel.hooks.unit.test.tsx (0 test)
+ ❯ src/features/security/__tests__/OtherCredentialsSection.unit.test.tsx (0 test)
+ ❯ src/features/settings/hooks/__tests__/use-external-mcp-admissions.unit.test.tsx (0 test)
+ ❯ src/components/WidgetConfigFields/__tests__/MediaContentEditor.unit.test.tsx (0 test)
+ ❯ src/features/dashboard/__tests__/use-dashboard-port.unit.test.ts (0 test)
+ ❯ src/features/settings/__tests__/ExternalMcpToolsModal.unit.test.tsx (0 test)
+ ❯ src/features/source-control/__tests__/use-source-control-credentials.unit.test.tsx (0 test)
+ ❯ src/features/sites/__tests__/use-local-sites.unit.test.tsx (0 test)
+ ❯ src/components/__tests__/ChatFab.hooks.unit.test.tsx (0 test)
+ ❯ src/components/__tests__/WidgetPickerDialog.hooks.unit.test.tsx (0 test)
+ ❯ src/features/menus/__tests__/use-menus.hooks.unit.test.tsx (0 test)
+ ❯ src/features/deployment/__tests__/DockerfileTab.unit.test.tsx (0 test)
+ ❯ src/features/security/__tests__/SiteKeyTab.unit.test.tsx (0 test)
+ ❯ src/features/ai-assistant/__tests__/AdminExecutionMode.unit.test.tsx (0 test)
+ ❯ src/features/plugins/__tests__/agent-plugin-update.unit.test.tsx (0 test)
+ ❯ src/lib/__tests__/assistant-transport.run-status.unit.test.ts (0 test)
+ ❯ src/admin-themes/__tests__/admin-themes.unit.test.ts (27 tests | 2 failed) 191ms
+     × preserves all inherited root token values (dark=false) 10ms
+     × preserves all inherited root token values (dark=true) 2ms
+ ❯ src/features/security/__tests__/AccessTokensTab.unit.test.tsx (0 test)
+ ❯ src/hooks/__tests__/use-admin-appearance.unit.test.ts (0 test)
+ ❯ src/admin-themes/__tests__/use-admin-theme.hooks.unit.test.tsx (0 test)
+ ❯ src/features/skills/__tests__/Skills.unit.test.tsx (0 test)
+ ❯ src/components/__tests__/MediaPickerDialog.unit.test.tsx (0 test)
+ ❯ src/features/users/__tests__/users-agent-drive.unit.test.tsx (0 test)
+ ❯ src/lib/__tests__/credential-input-autocomplete.unit.test.ts (0 test)
+ ❯ src/features/plugins/__tests__/use-agent-plugins.hooks.unit.test.ts (0 test)
+ ❯ src/features/posts/__tests__/Posts.unit.test.tsx (0 test)
+ ❯ src/features/ai-assistant/__tests__/VisitorToolsPanel.unit.test.tsx (0 test)
+ ❯ src/features/collections/__tests__/use-collections.unit.test.tsx (0 test)
+ ❯ src/components/__tests__/WidgetPickerDialog.unit.test.tsx (0 test)
+ ❯ src/features/users/__tests__/Users.crud.unit.test.tsx (0 test)
+ ❯ src/features/settings/__tests__/AdminAppearance.unit.test.tsx (0 test)
+ ❯ src/features/taxonomy/__tests__/TermPicker.unit.test.tsx (0 test)
+ ❯ src/features/workspace/__tests__/use-workspace.hooks.unit.test.ts (0 test)
+ ❯ src/features/library/__tests__/use-library.hooks.unit.test.tsx (0 test)
+ ❯ src/features/collections/__tests__/use-new-content-type-dialog.unit.test.tsx (0 test)
+ ❯ src/features/sites/__tests__/site-card-view.unit.test.tsx (0 test)
+ ❯ src/features/taxonomy/__tests__/taxonomy-agent-drive.unit.test.tsx (0 test)
+ ❯ src/__tests__/fqfix-actions.unit.test.tsx (0 test)
+ ❯ src/features/members/__tests__/use-members.hooks.unit.test.ts (0 test)
+ ❯ src/components/WidgetConfigFields/__tests__/MediaContentEditor.markup.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/dock-header.unit.test.tsx (0 test)
+ ❯ src/features/security/__tests__/CopyKeysDialog.unit.test.tsx (0 test)
+ ❯ src/features/themes/__tests__/themes-delete.unit.test.tsx (0 test)
+ ❯ src/features/integrations/__tests__/use-integrations.unit.test.tsx (0 test)
+ ❯ src/features/trash/__tests__/Trash.unit.test.tsx (0 test)
+ ❯ src/integrations/jini-admin/__tests__/widgets-swap.unit.test.tsx (0 test)
+ ❯ src/components/__tests__/AssistantDock.chat-settings.unit.test.tsx (0 test)
+ ❯ src/features/users/__tests__/rules.unit.test.ts (0 test)
+ ❯ src/integrations/jini-admin/__tests__/modules.hooks.unit.test.tsx (0 test)
+ ❯ src/hooks/__tests__/use-assistant-chats.run-stub.unit.test.ts (0 test)
+ ❯ src/features/sites/__tests__/Sites.hooks.unit.test.tsx (0 test)
+ ❯ src/features/sites/__tests__/sites-home-setting.unit.test.tsx (0 test)
+ ❯ src/features/voice-input/__tests__/voice-to-composer.integration.test.tsx (0 test)
+ ❯ src/components/__tests__/MediaEditDialog.unit.test.tsx (0 test)
+ ❯ src/features/plugins/__tests__/PluginsAddTab.unit.test.tsx (0 test)
+ ❯ src/features/security/__tests__/use-site-key-recovery.unit.test.ts (0 test)
+ ❯ src/components/__tests__/MediaPickerDialog.hooks.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/RoutedA2uiSurfaceCard.unit.test.tsx (0 test)
+ ❯ src/features/themes/__tests__/theme-preview-refresh.unit.test.tsx (0 test)
+ ❯ src/features/plugins/__tests__/AgentPluginsAddTab.unit.test.tsx (0 test)
+ ❯ src/lib/__tests__/shared-stream-adapters.unit.test.ts (0 test)
+ ❯ src/features/posts/__tests__/post-cover-image.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/resolve-composer-discovery-outcome.unit.test.ts (0 test)
+ ❯ src/features/observability/__tests__/Observability.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/nav-wiring.unit.test.ts (0 test)
+ ❯ src/features/ai-assistant/__tests__/AdminSubagents.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-hooks-admin-webmcp.unit.test.tsx (0 test)
+ ❯ src/components/__tests__/AdminByokKeyPanel.unit.test.tsx (0 test)
+ ❯ src/features/content-analysis/__tests__/use-content-analysis.hooks.unit.test.tsx (0 test)
+ ❯ src/features/menus/__tests__/menu-html-mode.unit.test.tsx (0 test)
+ ❯ src/features/observability/__tests__/recent-errors-panel.unit.test.tsx (0 test)
+ ❯ src/features/collections/__tests__/use-edit-fields-dialog.unit.test.tsx (0 test)
+ ❯ src/features/media/__tests__/media-tab-counts.unit.test.tsx (0 test)
+ ❯ src/features/taxonomy/__tests__/use-term-detail-panel.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/DockSettingsMenu.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/chat-settings-tooltips.unit.test.tsx (0 test)
+ ❯ src/features/posts/__tests__/post-schedule-featured.unit.test.tsx (0 test)
+ ❯ src/components/__tests__/JiniMediaPicker.hooks.unit.test.tsx (0 test)
+ ❯ src/features/integrations/__tests__/Integrations.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/use-chat-display-preferences.hooks.unit.test.ts (0 test)
+ ❯ src/components/__tests__/AssistantDock.runtime-access.unit.test.tsx (0 test)
+ ❯ src/features/publish-content/hooks/__tests__/use-publish-content-confirm.guards.unit.test.ts (0 test)
+ ❯ src/integrations/jini-admin/__tests__/seo-swap.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/AgentFailureCard.unit.test.tsx (0 test)
+ ❯ src/features/deployment/__tests__/OverviewTab.unit.test.tsx (0 test)
+ ❯ src/components/__tests__/agent-handle-batch1.unit.test.tsx (0 test)
+ ❯ src/components/TemplateSource/__tests__/TemplateSourceModal.unit.test.tsx (0 test)
+ ❯ src/features/plugins/__tests__/AgentPluginRow.unit.test.tsx (0 test)
+ ❯ src/features/media/__tests__/media-type-filter.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-admin-assistant-dock-visibility.unit.test.tsx (0 test)
+ ❯ src/features/email/__tests__/EmailTemplateEditor.unit.test.tsx (0 test)
+ ❯ src/integrations/jini-admin/__tests__/media-swap.unit.test.tsx (0 test)
+ ❯ src/lib/__tests__/untranslated-copy.unit.test.ts (0 test)
+ ❯ src/lib/__tests__/media-image-extension.unit.test.tsx (0 test)
+ ❯ src/features/plugins/__tests__/agent-plugin-memory.hooks.unit.test.ts (0 test)
+ ❯ src/features/security/__tests__/use-site-key.unit.test.tsx (0 test)
+ ❯ src/features/taxonomy/__tests__/use-new-term-form.unit.test.tsx (0 test)
+ ❯ src/features/collections/__tests__/collections-agent-drive.unit.test.tsx (0 test)
+ ❯ src/features/analytics/__tests__/use-analytics.hooks.unit.test.ts (0 test)
+ ❯ src/features/email/__tests__/Email.unit.test.tsx (0 test)
+ ❯ src/features/plugins/__tests__/AgentPluginDetailsModal.unit.test.tsx (0 test)
+ ❯ src/features/providers/__tests__/Providers.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/composer-selected-skills.unit.test.tsx (0 test)
+ ❯ src/integrations/jini-admin/__tests__/comments-swap.unit.test.tsx (0 test)
+ ❯ src/features/voice-input/__tests__/PushToTalkMicButton.unit.test.tsx (0 test)
+ ❯ src/features/security/__tests__/Security.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/composer-skills.typing-renders.unit.test.tsx (0 test)
+ ❯ src/features/sites/__tests__/local-site-cards.unit.test.tsx (0 test)
+ ❯ src/features/settings/__tests__/ai-agent-presentation.unit.test.ts (0 test)
+ ❯ src/features/themes/__tests__/use-theme-explore-file-groups.hooks.unit.test.ts (0 test)
+ ❯ src/components/__tests__/MediaEditDialog.hooks.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-session-unauthenticated-kickback.unit.test.tsx (0 test)
+ ❯ src/components/__tests__/ChatFab.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-chat-dock-seam.unit.test.tsx (0 test)
+ ❯ src/features/media/__tests__/media-order-by.unit.test.tsx (0 test)
+ ❯ src/features/observability/__tests__/use-recent-server-errors.hooks.unit.test.ts (0 test)
+ ❯ src/features/plugins/__tests__/PackageFilesModal.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/composer-slash-plugin-pin.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-agent-page-identity.unit.test.tsx (0 test)
+ ❯ src/features/providers/__tests__/always-allow.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/agent-plugins-setting.unit.test.tsx (0 test)
+ ❯ src/features/members/__tests__/Members.unit.test.tsx (0 test)
+ ❯ src/lib/__tests__/panel-access.unit.test.ts (0 test)
+ ❯ src/features/admin-themes/__tests__/AdminThemes.unit.test.tsx (0 test)
+ ❯ src/lib/__tests__/settings-effective-reads.integration.test.ts (0 test)
+ ❯ src/hooks/__tests__/use-admin-locale.hooks.test.ts (0 test)
+ ❯ src/hooks/__tests__/tovu-execution-entry-points.integration.test.tsx (0 test)
+ ❯ src/features/skills/__tests__/skill-dialogs-and-row.unit.test.tsx (0 test)
+ ❯ src/features/menus/__tests__/Menus.unit.test.tsx (0 test)
+ ❯ src/hooks/__tests__/use-assistant-chats.resume-last.unit.test.ts (0 test)
+ ❯ src/features/posts/__tests__/posts-agent-drive.unit.test.tsx (0 test)
+ ❯ src/features/collections/__tests__/CollectionEntries.unit.test.tsx (0 test)
+ ❯ src/features/pages/__tests__/PageEditor.interactive-flush.unit.test.tsx (0 test)
+ ❯ src/features/posts/__tests__/PostEditor.toolbar-probes.unit.test.ts (0 test)
+ ❯ src/integrations/jini-admin/__tests__/redirects-swap.unit.test.tsx (0 test)
+ ❯ src/components/__tests__/SitesSidebarNav.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-sidebar-rail-storage-key.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/use-selected-agent-auth-warning.hooks.unit.test.ts (0 test)
+ ❯ src/__tests__/unit/app-session-boot-token.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-chat-dock-drop-capture.unit.test.tsx (0 test)
+ ❯ src/features/plugins/__tests__/use-plugin-package-files.hooks.unit.test.ts (0 test)
+ ❯ src/features/import-export/__tests__/ImportExport.unit.test.tsx (0 test)
+ ❯ src/__measurements__/render-churn.measurement.test.tsx (0 test)
+ ❯ src/components/__tests__/EmbedInsertControl.hooks.unit.test.tsx (0 test)
+ ❯ src/features/settings/hooks/__tests__/use-settings-ui.unit.test.ts (0 test)
+ ❯ src/features/workspace/__tests__/Workspace.unit.test.tsx (0 test)
+ ❯ src/components/__tests__/agent-handle-batch3.unit.test.tsx (0 test)
+ ❯ src/features/plugins/__tests__/plugin-zip-install.unit.test.tsx (0 test)
+ ❯ src/features/media/__tests__/media-agent-drive.unit.test.tsx (0 test)
+ ❯ src/__tests__/fqfix-editor-reopen.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/use-dock-renderer-registry.hooks.unit.test.tsx (0 test)
+ ❯ src/hooks/__tests__/use-assistant-chats.durable-turn.unit.test.ts (0 test)
+ ❯ src/components/__tests__/WidgetSelectionDialog.unit.test.tsx (0 test)
+ ❯ src/lib/__tests__/media-embed-extension.hooks.unit.test.tsx (0 test)
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+ ❯ src/features/observability/__tests__/use-observability-status.hooks.unit.test.ts (0 test)
+ ❯ src/features/deployment/__tests__/Deployment.unit.test.tsx (0 test)
+ ❯ src/components/__tests__/MailStatusBanner.unit.test.tsx (0 test)
+ ❯ src/features/users/__tests__/account-protections.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/skill-composer-routing.unit.test.tsx (0 test)
+ ❯ src/features/ai-assistant/__tests__/AssistantDaemonRestart.unit.test.tsx (0 test)
+ ❯ src/features/collections/__tests__/CollectionEntryEditor.unit.test.tsx (0 test)
+ ❯ src/components/__tests__/AssistantDock.load-recovery.unit.test.tsx (0 test)
+ ❯ src/features/ai-assistant/__tests__/dock-agent-permissions.hooks.unit.test.tsx (0 test)
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+ ❯ src/lib/__tests__/agent-pages.unit.test.ts (0 test)
+ ❯ src/features/content-analysis/__tests__/ContentAnalysisCard.unit.test.tsx (0 test)
+ ❯ src/integrations/jini-admin/__tests__/redirects-ports.unit.test.ts (0 test)
+ ❯ src/features/sites/__tests__/create-site-admin-password.unit.test.tsx (0 test)
+ ❯ src/integrations/jini-admin/__tests__/forms-swap.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/composer-send-stop.integration.test.tsx (0 test)
+ ❯ src/hooks/__tests__/use-tovu-execution-adapters.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/use-messages-change-handler.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-hooks-admin-capability-executors.unit.test.tsx (0 test)
+ ❯ src/features/plugins/__tests__/agent-plugin-memory-panel.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-shell-chrome.unit.test.tsx (0 test)
+ ❯ src/features/users/__tests__/Users.autofill.unit.test.tsx (0 test)
+ ❯ src/features/taxonomy/__tests__/use-new-taxonomy-form.unit.test.tsx (0 test)
+ ❯ src/__tests__/app-boot-request-volume.test.tsx (0 test)
+ ❯ src/features/themes/__tests__/themes-duplicate.unit.test.tsx (0 test)
+ ❯ src/features/forms/__tests__/FormsList.unit.test.tsx (0 test)
+ ❯ src/features/security/__tests__/access-tokens-revoke-copy.unit.test.tsx (0 test)
+ ❯ src/hooks/__tests__/use-interface-preferences.hooks.test.ts (0 test)
+ ❯ src/components/AssistantDock/__tests__/chat-display-preferences.unit.test.ts (0 test)
+ ❯ src/__tests__/unit/app-plugins-route.unit.test.tsx (0 test)
+ ❯ src/features/source-control/__tests__/ProvidersTab.unit.test.tsx (0 test)
+ ❯ src/features/posts/__tests__/post-author.unit.test.tsx (0 test)
+ ❯ src/features/collections/__tests__/use-collection-entries.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-session-local-owner.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-logout-confirm.unit.test.tsx (0 test)
+ ❯ src/components/__tests__/agent-handle-batch2.unit.test.tsx (0 test)
+ ❯ src/features/settings/__tests__/ai-agent-locales.unit.test.ts (0 test)
+ ❯ src/hooks/__tests__/editor-session-expiry.unit.test.ts (0 test)
+ ❯ src/components/AssistantDock/__tests__/MessageOverflowModal.unit.test.tsx (0 test)
+ ❯ src/features/plugins/__tests__/b15-row-panel-ownership.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-hooks-announcements.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/composer-draft-attachment-restore.integration.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/admin-empty-state-i18n.unit.test.ts (0 test)
+ ❯ src/components/AssistantDock/__tests__/composer-installed-skills.integration.test.tsx (0 test)
+ ❯ src/features/media/__tests__/media-screen-states.unit.test.tsx (0 test)
+ ❯ src/features/sites/__tests__/AllSitesTab.unit.test.tsx (0 test)
+ ❯ src/features/integrations/__tests__/use-integration-deliveries.unit.test.tsx (0 test)
+ ❯ src/components/__tests__/Placeholder.unit.test.tsx (0 test)
+ ❯ src/lib/__tests__/attachment-uploader-quotas.unit.test.ts (0 test)
+ ❯ src/features/database/__tests__/use-schema-state-section.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/chat-agent-plugin-preferences.adapter.unit.test.ts (0 test)
+ ❯ src/styles/__tests__/assistant-user-bubbles.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-confirm-dialog-i18n.unit.test.tsx (0 test)
+ ❯ src/components/__tests__/WidgetPreview.unit.test.tsx (0 test)
+ ❯ src/features/settings/__tests__/ExternalMcpSettingsPanel.hooks.unit.test.tsx (0 test)
+ ❯ src/integrations/jini-admin/__tests__/widgets-ports.unit.test.ts (0 test)
+ ❯ src/components/__tests__/agent-handle-batch4.unit.test.tsx (0 test)
+ ❯ src/features/settings/__tests__/UserInterfaceSettingsPanel.unit.test.tsx (0 test)
+ ❯ src/hooks/__tests__/admin-locale-dependencies.hooks.test.ts (0 test)
+ ❯ src/hooks/__tests__/assistant-chats-dependencies.unit.test.ts (0 test)
+ ❯ src/features/analytics/__tests__/Analytics.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/admin-nav-recovery-acs.unit.test.ts (0 test)
+ ❯ src/integrations/jini-admin/__tests__/comments-ports.unit.test.ts (0 test)
+ ❯ src/features/webmcp/__tests__/browser-agent-settings.unit.test.tsx (0 test)
+ ❯ src/features/admin-ui/__tests__/AdminUi.unit.test.tsx (0 test)
+ ❯ src/features/pages/__tests__/PageEditor.preview-remount.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/assistant-runtime-preferences.unit.test.ts (0 test)
+ ❯ src/__tests__/unit/app-route-prototype-keys.unit.test.tsx (0 test)
+ ❯ src/features/settings/__tests__/use-external-mcp-remove-confirm.hooks.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/assistant-dock-props.unit.test.tsx (0 test)
+ ❯ src/features/plugins/__tests__/package-files-interactions.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/conversation-title-editor.unit.test.tsx (0 test)
+ ❯ src/lib/__tests__/credential-fidelity.unit.test.ts (0 test)
+ ❯ src/__tests__/unit/app-session-seam.unit.test.tsx (0 test)
+ ❯ src/features/menus/__tests__/MenuEditor.header-characterization.unit.test.tsx (0 test)
+ ❯ src/features/ai-assistant/__tests__/VisitorAssistantTabs.unit.test.tsx (0 test)
+ ❯ src/hooks/__tests__/use-tovu-execution-policy.unit.test.tsx (0 test)
+ ❯ src/components/__tests__/SecretInput.unit.test.tsx (0 test)
+ ❯ src/features/menus/__tests__/menu-authoring-ux.unit.test.tsx (0 test)
+ ❯ src/features/publish-content/hooks/__tests__/use-publish-content-confirm-T4-03.characterization.unit.test.ts (0 test)
+ ❯ src/features/plugins/__tests__/plugin-list-refresh.unit.test.ts (0 test)
+ ❯ src/features/settings/__tests__/external-mcp-missing-launcher-recovery.unit.test.tsx (0 test)
+ ❯ src/features/users/__tests__/use-reset-password-fields.unit.test.tsx (0 test)
+ ❯ src/features/integrations/__tests__/IntegrationDeliveries.unit.test.tsx (0 test)
+ ❯ src/features/ai-assistant/__tests__/byok-no-key-message-i18n.unit.test.tsx (0 test)
+ ❯ src/lib/__tests__/credential-card-guidance.unit.test.ts (0 test)
+ ❯ src/components/AssistantDock/__tests__/use-assistant-runtime-preferences.hooks.unit.test.ts (0 test)
+ ❯ src/__tests__/unit/app-panel-permissions.unit.test.tsx (0 test)
+ ❯ src/components/WidgetConfigFields/__tests__/HtmlAttributeRows.unit.test.tsx (0 test)
+ ❯ src/features/members/__tests__/rules.unit.test.ts (0 test)
+ ❯ src/__tests__/admin-boot-readers.test.tsx (0 test)
+ ❯ src/features/database/__tests__/database-i18n.unit.test.tsx (0 test)
+ ❯ src/lib/__tests__/admin-screens-manifest.unit.test.ts (0 test)
+ ❯ src/features/publish-content/__tests__/publish-content-L057.characterization.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-stream-wiring.unit.test.tsx (0 test)
+ ❯ src/features/security/__tests__/site-key-copy.i18n.unit.test.tsx (0 test)
+ ❯ src/features/menus/__tests__/page-choices.hooks.unit.test.tsx (0 test)
+ ❯ src/features/email/__tests__/use-email.unit.test.ts (0 test)
+ ❯ src/features/auth/__tests__/Login.unit.test.tsx (0 test)
+ ❯ src/features/sites/__tests__/site-card-preview.unit.test.tsx (0 test)
+ ❯ src/features/observability/__tests__/queries-panel.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/chat-fab-hide-preference.unit.test.ts (0 test)
+ ❯ src/features/playground/__tests__/Playground.unit.test.tsx (0 test)
+ ❯ src/features/security/__tests__/SiteKeyRecoveryCard.unit.test.tsx (0 test)
+ ❯ src/features/media/__tests__/media-preview-click-lightbox.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/DockHeader.unit.test.tsx (0 test)
+ ❯ src/features/users/__tests__/users-reset-password-info.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/assistant-dock-i18n.unit.test.ts (0 test)
+ ❯ src/hooks/__tests__/use-admin-appearance.tw2-pin.test.ts (0 test)
+ ❯ src/features/authentication/__tests__/Authentication.locale.unit.test.tsx (0 test)
+ ❯ src/features/deployment/__tests__/deployment-visuals.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-hooks-logout-confirm.unit.test.tsx (0 test)
+ ❯ src/features/observability/__tests__/use-observability-tab.hooks.unit.test.ts (0 test)
+ ❯ src/components/AssistantDock/__tests__/FolderDropNotice.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/chart-provider.contract.unit.test.tsx (0 test)
+ ❯ src/features/taxonomy/__tests__/use-merge-term-section.stale-failures.unit.test.tsx (0 test)
+ ❯ src/features/pages/__tests__/html-tab-new-page.unit.test.ts (0 test)
+ ❯ src/features/settings/__tests__/use-settings-locale-sync.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/agents-loader.unit.test.ts (0 test)
+ ❯ src/features/ai-assistant/__tests__/use-ai-assistant-locale-sync.unit.test.tsx (0 test)
+ ❯ src/features/themes/__tests__/use-theme-explore-theme.hooks.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/local-cli-selection-echo.unit.test.ts (0 test)
+ ❯ src/features/security/__tests__/SiteKeyTab.agent-secrecy.unit.test.tsx (0 test)
+ ❯ src/features/providers/hooks/__tests__/use-providers.unit.test.ts (0 test)
+ ❯ src/features/taxonomy/__tests__/html-embed.unit.test.tsx (0 test)
+ ❯ src/features/deployment/hooks/__tests__/use-deployment-overview.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/assistant-dock-dict-i18n.unit.test.ts (0 test)
+ ❯ src/features/publish-content/__tests__/PublishSectionButton.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/execution-config-write.unit.test.ts (0 test)
+ ❯ src/features/integrations/__tests__/integrations-i18n.unit.test.tsx (0 test)
+ ❯ src/features/comments/__tests__/comments-i18n.unit.test.ts (0 test)
+ ❯ src/components/AssistantDock/__tests__/run-start-failure.integration.test.tsx (0 test)
+ ❯ src/features/dashboard/__tests__/use-dashboard.hooks.unit.test.ts (0 test)
+ ❯ src/features/sites/__tests__/sites-idle-requests.unit.test.tsx (0 test)
+ ❯ src/features/themes/__tests__/theme-preview-dirty.unit.test.tsx (0 test)
+ ❯ src/features/seo/__tests__/Seo.hooks.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-hooks-frontend-session-error.unit.test.ts (0 test)
+ ❯ src/components/AssistantDock/__tests__/RoutedA2uiSurfaceCard.contract.unit.test.tsx (0 test)
+ ❯ src/features/menus/__tests__/html-embed.unit.test.tsx (0 test)
+ ❯ src/features/library/__tests__/download-documents.unit.test.tsx (0 test)
+ ❯ src/features/pages/__tests__/scriptblocks-controller.unit.test.ts (0 test)
+ ❯ src/features/settings/__tests__/built-in-mcp.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/DockLeadingAccessory.unit.test.tsx (0 test)
+ ❯ src/lib/__tests__/typed-answer-poster.test.ts (0 test)
+ ❯ src/features/publish-content/hooks/__tests__/use-publish-content-confirm.hooks.unit.test.ts (0 test)
+ ❯ src/components/AssistantDock/__tests__/SelectedAgentPluginTray.unit.test.tsx (0 test)
+ ❯ src/components/WidgetConfigFields/__tests__/PlacementContentFields.unit.test.tsx (0 test)
+ ❯ src/features/plugins/__tests__/agent-plugin-manage-surfaces.unit.test.tsx (0 test)
+ ❯ src/components/__tests__/GalleryInsertControl.unit.test.tsx (0 test)
+ ❯ src/features/security/__tests__/site-key-generate-error.unit.test.ts (0 test)
+ ❯ src/features/plugins/__tests__/use-agent-plugin-details-modal.hooks.unit.test.ts (0 test)
+ ❯ src/lib/__tests__/settings-privacy-live.unit.test.ts (0 test)
+ ❯ src/features/themes/__tests__/use-theme-explore-preview.hooks.unit.test.ts (0 test)
+ ❯ src/components/AssistantDock/__tests__/fqfix-daemon-online.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/local-cli-selection-persistence.unit.test.ts (0 test)
+ ❯ src/features/authentication/__tests__/Authentication.unit.test.tsx (0 test)
+ ❯ src/features/publish-content/__tests__/publish-availability.store.unit.test.tsx (0 test)
+ ❯ src/features/collections/__tests__/use-lifecycle-confirm-dialog.unit.test.tsx (0 test)
+ ❯ src/features/deployment/__tests__/PureTabs.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/FolderDropError.unit.test.tsx (0 test)
+ ❯ src/features/plugins/__tests__/plugin-visuals.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/main-entry.unit.test.tsx (0 test)
+ ❯ src/features/observability/__tests__/use-recent-error-item.hooks.unit.test.ts (0 test)
+ ❯ src/hooks/__tests__/use-admin-document-locale.unit.test.ts (0 test)
+ ❯ src/components/AssistantDock/__tests__/FolderDropConfirmation.unit.test.tsx (0 test)
+ ❯ src/features/playground/__tests__/Playground.canvas-lifecycle.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/main-entry-signed-in.unit.test.tsx (1 test | 1 failed) 131ms
+   × mounts the signed-in shell, not the login screen, once the session has a user 92ms
+ ❯ src/components/AssistantDock/__tests__/conversation-title.unit.test.ts (0 test)
+ ❯ src/features/settings/__tests__/ai-agent-card-presentation.unit.test.tsx (0 test)
+ ❯ src/features/menus/__tests__/legacy-page-picker.unit.test.tsx (0 test)
+ ❯ src/features/media/__tests__/media-card-metadata.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/conversation-refresh.hooks.unit.test.ts (0 test)
+ ❯ src/features/users/__tests__/change-username.unit.test.tsx (0 test)
+ ❯ src/integrations/jini-admin/__tests__/media-session.unit.test.ts (0 test)
+ ❯ src/features/database/__tests__/use-schema-state-section.wired.unit.test.tsx (0 test)
+ ❯ src/lib/__tests__/import-export-routes.unit.test.ts (0 test)
+ ❯ src/features/publish-content/__tests__/use-publish-section-button.hooks.unit.test.tsx (0 test)
+ ❯ src/features/admin-ui/__tests__/redirects.unit.test.tsx (0 test)
+ ❯ src/hooks/__tests__/admin-execution-credential-dependencies.unit.test.ts (0 test)
+ ❯ src/features/settings/__tests__/settings-execution-i18n.unit.test.ts (0 test)
+ ❯ src/components/AssistantDock/__tests__/chat-agent-plugin-preferences.unit.test.ts (0 test)
+ ❯ src/features/auth/__tests__/login-default-credential.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/FolderPathButton.unit.test.tsx (0 test)
+ ❯ src/features/security/__tests__/security-visuals.unit.test.tsx (0 test)
+ ❯ src/features/source-control/__tests__/source-control-visuals.unit.test.tsx (0 test)
+ ❯ src/features/taxonomy/__tests__/embed-header-alignment.unit.test.tsx (0 test)
+ ❯ src/lib/__tests__/mediawidget-extension.unit.test.ts (0 test)
+ ❯ src/features/sites/__tests__/sites-visuals.unit.test.tsx (0 test)
+ ❯ src/components/AssistantDock/__tests__/interactive-ui-styles.unit.test.ts (0 test)
+ ❯ src/components/AssistantDock/__tests__/PickedFolderChip.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/commerce-off.unit.test.ts (0 test)
+
+⎯⎯⎯⎯⎯ Failed Suites 422 ⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__measurements__/render-churn.measurement.test.tsx [ src/__measurements__/render-churn.measurement.test.tsx ]
+ FAIL  src/__measurements__/request-volume.measurement.test.tsx [ src/__measurements__/request-volume.measurement.test.tsx ]
+ FAIL  src/__tests__/admin-boot-readers.test.tsx [ src/__tests__/admin-boot-readers.test.tsx ]
+ FAIL  src/__tests__/app-boot-request-volume.test.tsx [ src/__tests__/app-boot-request-volume.test.tsx ]
+ FAIL  src/__tests__/fqfix-actions.unit.test.tsx [ src/__tests__/fqfix-actions.unit.test.tsx ]
+ FAIL  src/__tests__/fqfix-editor-reopen.unit.test.tsx [ src/__tests__/fqfix-editor-reopen.unit.test.tsx ]
+ FAIL  src/admin-themes/__tests__/use-admin-theme.hooks.unit.test.tsx [ src/admin-themes/__tests__/use-admin-theme.hooks.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-admin-assistant-dock-visibility.unit.test.tsx [ src/__tests__/unit/app-admin-assistant-dock-visibility.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-agent-page-identity.unit.test.tsx [ src/__tests__/unit/app-agent-page-identity.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-chat-dock-drop-capture.unit.test.tsx [ src/__tests__/unit/app-chat-dock-drop-capture.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-chat-dock-seam.unit.test.tsx [ src/__tests__/unit/app-chat-dock-seam.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-confirm-dialog-i18n.unit.test.tsx [ src/__tests__/unit/app-confirm-dialog-i18n.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-hooks-admin-capability-executors.unit.test.tsx [ src/__tests__/unit/app-hooks-admin-capability-executors.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-hooks-admin-webmcp.unit.test.tsx [ src/__tests__/unit/app-hooks-admin-webmcp.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-hooks-announcements.unit.test.tsx [ src/__tests__/unit/app-hooks-announcements.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-hooks-frontend-session-error.unit.test.ts [ src/__tests__/unit/app-hooks-frontend-session-error.unit.test.ts ]
+ FAIL  src/__tests__/unit/app-hooks-logout-confirm.unit.test.tsx [ src/__tests__/unit/app-hooks-logout-confirm.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-logout-confirm.unit.test.tsx [ src/__tests__/unit/app-logout-confirm.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-panel-permissions.unit.test.tsx [ src/__tests__/unit/app-panel-permissions.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-plugins-route.unit.test.tsx [ src/__tests__/unit/app-plugins-route.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-route-prototype-keys.unit.test.tsx [ src/__tests__/unit/app-route-prototype-keys.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-session-boot-token.unit.test.tsx [ src/__tests__/unit/app-session-boot-token.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-session-local-owner.unit.test.tsx [ src/__tests__/unit/app-session-local-owner.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-session-seam.unit.test.tsx [ src/__tests__/unit/app-session-seam.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-session-unauthenticated-kickback.unit.test.tsx [ src/__tests__/unit/app-session-unauthenticated-kickback.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-shell-chrome.unit.test.tsx [ src/__tests__/unit/app-shell-chrome.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-sidebar-rail-storage-key.unit.test.tsx [ src/__tests__/unit/app-sidebar-rail-storage-key.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-sites-section-visibility.unit.test.tsx [ src/__tests__/unit/app-sites-section-visibility.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-stream-wiring.unit.test.tsx [ src/__tests__/unit/app-stream-wiring.unit.test.tsx ]
+ FAIL  src/__tests__/unit/chat-fab-hide-preference.unit.test.ts [ src/__tests__/unit/chat-fab-hide-preference.unit.test.ts ]
+ FAIL  src/components/__tests__/AdminByokKeyPanel.unit.test.tsx [ src/components/__tests__/AdminByokKeyPanel.unit.test.tsx ]
+ FAIL  src/components/__tests__/AssistantDock.execution-refresh.unit.test.tsx [ src/components/__tests__/AssistantDock.execution-refresh.unit.test.tsx ]
+ FAIL  src/components/__tests__/AssistantDock.hooks.unit.test.tsx [ src/components/__tests__/AssistantDock.hooks.unit.test.tsx ]
+ FAIL  src/components/__tests__/AssistantDock.load-recovery.unit.test.tsx [ src/components/__tests__/AssistantDock.load-recovery.unit.test.tsx ]
+ FAIL  src/components/__tests__/AssistantDock.unit.test.tsx [ src/components/__tests__/AssistantDock.unit.test.tsx ]
+ FAIL  src/components/__tests__/ChatFab.hooks.unit.test.tsx [ src/components/__tests__/ChatFab.hooks.unit.test.tsx ]
+ FAIL  src/components/__tests__/ChatFab.unit.test.tsx [ src/components/__tests__/ChatFab.unit.test.tsx ]
+ FAIL  src/components/__tests__/EmbedInsertControl.hooks.unit.test.tsx [ src/components/__tests__/EmbedInsertControl.hooks.unit.test.tsx ]
+ FAIL  src/components/__tests__/EmbedInsertControl.unit.test.tsx [ src/components/__tests__/EmbedInsertControl.unit.test.tsx ]
+ FAIL  src/components/__tests__/GalleryInsertControl.unit.test.tsx [ src/components/__tests__/GalleryInsertControl.unit.test.tsx ]
+ FAIL  src/components/__tests__/JiniMediaPicker.hooks.unit.test.tsx [ src/components/__tests__/JiniMediaPicker.hooks.unit.test.tsx ]
+ FAIL  src/components/__tests__/MailStatusBanner.unit.test.tsx [ src/components/__tests__/MailStatusBanner.unit.test.tsx ]
+ FAIL  src/components/__tests__/MediaEditDialog.hooks.unit.test.tsx [ src/components/__tests__/MediaEditDialog.hooks.unit.test.tsx ]
+ FAIL  src/components/__tests__/MediaEditDialog.unit.test.tsx [ src/components/__tests__/MediaEditDialog.unit.test.tsx ]
+ FAIL  src/components/__tests__/MediaPickerDialog.hooks.unit.test.tsx [ src/components/__tests__/MediaPickerDialog.hooks.unit.test.tsx ]
+ FAIL  src/components/__tests__/MediaPickerDialog.unit.test.tsx [ src/components/__tests__/MediaPickerDialog.unit.test.tsx ]
+ FAIL  src/components/__tests__/SecretInput.unit.test.tsx [ src/components/__tests__/SecretInput.unit.test.tsx ]
+ FAIL  src/components/__tests__/SitesSidebarNav.unit.test.tsx [ src/components/__tests__/SitesSidebarNav.unit.test.tsx ]
+ FAIL  src/components/__tests__/WidgetConfigFields.unit.test.tsx [ src/components/__tests__/WidgetConfigFields.unit.test.tsx ]
+ FAIL  src/components/__tests__/WidgetPickerDialog.hooks.unit.test.tsx [ src/components/__tests__/WidgetPickerDialog.hooks.unit.test.tsx ]
+ FAIL  src/components/__tests__/WidgetPickerDialog.unit.test.tsx [ src/components/__tests__/WidgetPickerDialog.unit.test.tsx ]
+ FAIL  src/components/__tests__/WidgetPreview.unit.test.tsx [ src/components/__tests__/WidgetPreview.unit.test.tsx ]
+ FAIL  src/components/__tests__/WidgetSelectionDialog.unit.test.tsx [ src/components/__tests__/WidgetSelectionDialog.unit.test.tsx ]
+ FAIL  src/components/__tests__/agent-handle-batch1.unit.test.tsx [ src/components/__tests__/agent-handle-batch1.unit.test.tsx ]
+ FAIL  src/components/__tests__/agent-handle-batch2.unit.test.tsx [ src/components/__tests__/agent-handle-batch2.unit.test.tsx ]
+ FAIL  src/components/__tests__/agent-handle-batch3.unit.test.tsx [ src/components/__tests__/agent-handle-batch3.unit.test.tsx ]
+ FAIL  src/components/__tests__/agent-handle-batch4.unit.test.tsx [ src/components/__tests__/agent-handle-batch4.unit.test.tsx ]
+ FAIL  src/hooks/__tests__/admin-execution-credential-dependencies.unit.test.ts [ src/hooks/__tests__/admin-execution-credential-dependencies.unit.test.ts ]
+ FAIL  src/hooks/__tests__/admin-locale-dependencies.hooks.test.ts [ src/hooks/__tests__/admin-locale-dependencies.hooks.test.ts ]
+ FAIL  src/hooks/__tests__/assistant-chats-dependencies.unit.test.ts [ src/hooks/__tests__/assistant-chats-dependencies.unit.test.ts ]
+ FAIL  src/hooks/__tests__/editor-session-expiry.unit.test.ts [ src/hooks/__tests__/editor-session-expiry.unit.test.ts ]
+ FAIL  src/hooks/__tests__/use-admin-appearance.tw2-pin.test.ts [ src/hooks/__tests__/use-admin-appearance.tw2-pin.test.ts ]
+ FAIL  src/hooks/__tests__/use-admin-appearance.unit.test.ts [ src/hooks/__tests__/use-admin-appearance.unit.test.ts ]
+ FAIL  src/hooks/__tests__/use-admin-document-locale.unit.test.ts [ src/hooks/__tests__/use-admin-document-locale.unit.test.ts ]
+ FAIL  src/hooks/__tests__/use-admin-execution-credential.hooks.test.ts [ src/hooks/__tests__/use-admin-execution-credential.hooks.test.ts ]
+ FAIL  src/hooks/__tests__/use-admin-locale.hooks.test.ts [ src/hooks/__tests__/use-admin-locale.hooks.test.ts ]
+ FAIL  src/hooks/__tests__/use-assistant-chats.durable-turn.unit.test.ts [ src/hooks/__tests__/use-assistant-chats.durable-turn.unit.test.ts ]
+ FAIL  src/hooks/__tests__/use-assistant-chats.resume-last.unit.test.ts [ src/hooks/__tests__/use-assistant-chats.resume-last.unit.test.ts ]
+ FAIL  src/hooks/__tests__/use-assistant-chats.run-stub.unit.test.ts [ src/hooks/__tests__/use-assistant-chats.run-stub.unit.test.ts ]
+ FAIL  src/hooks/__tests__/use-assistant-chats.unit.test.ts [ src/hooks/__tests__/use-assistant-chats.unit.test.ts ]
+ FAIL  src/hooks/__tests__/use-interface-preferences.hooks.test.ts [ src/hooks/__tests__/use-interface-preferences.hooks.test.ts ]
+ FAIL  src/hooks/__tests__/use-tovu-execution-adapters.unit.test.tsx [ src/hooks/__tests__/use-tovu-execution-adapters.unit.test.tsx ]
+ FAIL  src/hooks/__tests__/use-tovu-execution-policy.unit.test.tsx [ src/hooks/__tests__/use-tovu-execution-policy.unit.test.tsx ]
+ FAIL  src/lib/__tests__/assistant-transport.run-status.unit.test.ts [ src/lib/__tests__/assistant-transport.run-status.unit.test.ts ]
+ FAIL  src/lib/__tests__/attachment-uploader-quotas.unit.test.ts [ src/lib/__tests__/attachment-uploader-quotas.unit.test.ts ]
+ FAIL  src/lib/__tests__/credential-card-guidance.unit.test.ts [ src/lib/__tests__/credential-card-guidance.unit.test.ts ]
+ FAIL  src/lib/__tests__/credential-fidelity.unit.test.ts [ src/lib/__tests__/credential-fidelity.unit.test.ts ]
+ FAIL  src/lib/__tests__/credential-input-autocomplete.unit.test.ts [ src/lib/__tests__/credential-input-autocomplete.unit.test.ts ]
+ FAIL  src/lib/__tests__/execution-settings.test.ts [ src/lib/__tests__/execution-settings.test.ts ]
+ FAIL  src/lib/__tests__/import-export-routes.unit.test.ts [ src/lib/__tests__/import-export-routes.unit.test.ts ]
+ FAIL  src/lib/__tests__/media-embed-extension.hooks.unit.test.tsx [ src/lib/__tests__/media-embed-extension.hooks.unit.test.tsx ]
+ FAIL  src/lib/__tests__/media-embed-extension.unit.test.tsx [ src/lib/__tests__/media-embed-extension.unit.test.tsx ]
+ FAIL  src/lib/__tests__/media-image-extension.unit.test.tsx [ src/lib/__tests__/media-image-extension.unit.test.tsx ]
+ FAIL  src/lib/__tests__/mediawidget-extension.unit.test.ts [ src/lib/__tests__/mediawidget-extension.unit.test.ts ]
+ FAIL  src/lib/__tests__/settings-effective-reads.integration.test.ts [ src/lib/__tests__/settings-effective-reads.integration.test.ts ]
+ FAIL  src/lib/__tests__/settings-privacy-live.unit.test.ts [ src/lib/__tests__/settings-privacy-live.unit.test.ts ]
+ FAIL  src/lib/__tests__/settings-tabs.test.ts [ src/lib/__tests__/settings-tabs.test.ts ]
+ FAIL  src/lib/__tests__/shared-stream-adapters.unit.test.ts [ src/lib/__tests__/shared-stream-adapters.unit.test.ts ]
+ FAIL  src/lib/__tests__/typed-answer-poster.test.ts [ src/lib/__tests__/typed-answer-poster.test.ts ]
+ FAIL  src/lib/__tests__/untranslated-copy.unit.test.ts [ src/lib/__tests__/untranslated-copy.unit.test.ts ]
+ FAIL  src/lib/__tests__/widget-embed-extension.unit.test.tsx [ src/lib/__tests__/widget-embed-extension.unit.test.tsx ]
+ FAIL  src/styles/__tests__/assistant-user-bubbles.unit.test.tsx [ src/styles/__tests__/assistant-user-bubbles.unit.test.tsx ]
+ FAIL  src/components/TemplateSource/__tests__/TemplateSourceModal.unit.test.tsx [ src/components/TemplateSource/__tests__/TemplateSourceModal.unit.test.tsx ]
+ FAIL  src/components/WidgetConfigFields/__tests__/HtmlAttributeRows.unit.test.tsx [ src/components/WidgetConfigFields/__tests__/HtmlAttributeRows.unit.test.tsx ]
+ FAIL  src/components/WidgetConfigFields/__tests__/MediaContentEditor.markup.unit.test.tsx [ src/components/WidgetConfigFields/__tests__/MediaContentEditor.markup.unit.test.tsx ]
+ FAIL  src/components/WidgetConfigFields/__tests__/MediaContentEditor.unit.test.tsx [ src/components/WidgetConfigFields/__tests__/MediaContentEditor.unit.test.tsx ]
+ FAIL  src/components/WidgetConfigFields/__tests__/PlacementContentFields.unit.test.tsx [ src/components/WidgetConfigFields/__tests__/PlacementContentFields.unit.test.tsx ]
+ FAIL  src/features/admin-themes/__tests__/AdminThemes.unit.test.tsx [ src/features/admin-themes/__tests__/AdminThemes.unit.test.tsx ]
+ FAIL  src/features/ai-assistant/__tests__/AdminSubagents.unit.test.tsx [ src/features/ai-assistant/__tests__/AdminSubagents.unit.test.tsx ]
+ FAIL  src/features/ai-assistant/__tests__/VisitorAssistantTabs.unit.test.tsx [ src/features/ai-assistant/__tests__/VisitorAssistantTabs.unit.test.tsx ]
+ FAIL  src/features/ai-assistant/__tests__/VisitorToolsPanel.unit.test.tsx [ src/features/ai-assistant/__tests__/VisitorToolsPanel.unit.test.tsx ]
+ FAIL  src/features/ai-assistant/__tests__/byok-no-key-message-i18n.unit.test.tsx [ src/features/ai-assistant/__tests__/byok-no-key-message-i18n.unit.test.tsx ]
+ FAIL  src/features/ai-assistant/__tests__/dock-agent-permissions.hooks.unit.test.tsx [ src/features/ai-assistant/__tests__/dock-agent-permissions.hooks.unit.test.tsx ]
+ FAIL  src/features/ai-assistant/__tests__/use-ai-assistant-locale-sync.unit.test.tsx [ src/features/ai-assistant/__tests__/use-ai-assistant-locale-sync.unit.test.tsx ]
+ FAIL  src/features/ai-assistant/__tests__/use-visitor-credential-form.unit.test.ts [ src/features/ai-assistant/__tests__/use-visitor-credential-form.unit.test.ts ]
+ FAIL  src/features/analytics/__tests__/Analytics.unit.test.tsx [ src/features/analytics/__tests__/Analytics.unit.test.tsx ]
+ FAIL  src/features/analytics/__tests__/use-analytics.hooks.unit.test.ts [ src/features/analytics/__tests__/use-analytics.hooks.unit.test.ts ]
+ FAIL  src/features/auth/__tests__/Login.unit.test.tsx [ src/features/auth/__tests__/Login.unit.test.tsx ]
+ FAIL  src/features/auth/__tests__/login-default-credential.unit.test.tsx [ src/features/auth/__tests__/login-default-credential.unit.test.tsx ]
+ FAIL  src/features/collections/__tests__/CollectionEntries.unit.test.tsx [ src/features/collections/__tests__/CollectionEntries.unit.test.tsx ]
+ FAIL  src/features/collections/__tests__/CollectionEntryEditor.dynamic-field.unit.test.tsx [ src/features/collections/__tests__/CollectionEntryEditor.dynamic-field.unit.test.tsx ]
+ FAIL  src/features/collections/__tests__/CollectionEntryEditor.unit.test.tsx [ src/features/collections/__tests__/CollectionEntryEditor.unit.test.tsx ]
+ FAIL  src/features/collections/__tests__/Collections.unit.test.tsx [ src/features/collections/__tests__/Collections.unit.test.tsx ]
+ FAIL  src/features/collections/__tests__/collections-agent-drive.unit.test.tsx [ src/features/collections/__tests__/collections-agent-drive.unit.test.tsx ]
+ FAIL  src/features/collections/__tests__/use-collection-entries.unit.test.tsx [ src/features/collections/__tests__/use-collection-entries.unit.test.tsx ]
+ FAIL  src/features/collections/__tests__/use-collection-entry-editor.unit.test.tsx [ src/features/collections/__tests__/use-collection-entry-editor.unit.test.tsx ]
+ FAIL  src/features/collections/__tests__/use-collections.unit.test.tsx [ src/features/collections/__tests__/use-collections.unit.test.tsx ]
+ FAIL  src/features/collections/__tests__/use-edit-fields-dialog.unit.test.tsx [ src/features/collections/__tests__/use-edit-fields-dialog.unit.test.tsx ]
+ FAIL  src/features/collections/__tests__/use-lifecycle-confirm-dialog.unit.test.tsx [ src/features/collections/__tests__/use-lifecycle-confirm-dialog.unit.test.tsx ]
+ FAIL  src/features/collections/__tests__/use-new-content-type-dialog.unit.test.tsx [ src/features/collections/__tests__/use-new-content-type-dialog.unit.test.tsx ]
+ FAIL  src/features/comments/__tests__/comments-i18n.unit.test.ts [ src/features/comments/__tests__/comments-i18n.unit.test.ts ]
+ FAIL  src/features/consent/__tests__/CookieConsent.unit.test.tsx [ src/features/consent/__tests__/CookieConsent.unit.test.tsx ]
+ FAIL  src/features/content-analysis/__tests__/ContentAnalysisCard.unit.test.tsx [ src/features/content-analysis/__tests__/ContentAnalysisCard.unit.test.tsx ]
+ FAIL  src/features/content-analysis/__tests__/use-content-analysis.hooks.unit.test.tsx [ src/features/content-analysis/__tests__/use-content-analysis.hooks.unit.test.tsx ]
+ FAIL  src/features/dashboard/__tests__/Dashboard.unit.test.tsx [ src/features/dashboard/__tests__/Dashboard.unit.test.tsx ]
+ FAIL  src/features/dashboard/__tests__/use-dashboard-port.unit.test.ts [ src/features/dashboard/__tests__/use-dashboard-port.unit.test.ts ]
+ FAIL  src/features/dashboard/__tests__/use-dashboard.hooks.unit.test.ts [ src/features/dashboard/__tests__/use-dashboard.hooks.unit.test.ts ]
+ FAIL  src/features/database/__tests__/Database.unit.test.tsx [ src/features/database/__tests__/Database.unit.test.tsx ]
+ FAIL  src/features/database/__tests__/database-i18n.unit.test.tsx [ src/features/database/__tests__/database-i18n.unit.test.tsx ]
+ FAIL  src/features/database/__tests__/use-migrate-forward-section.unit.test.tsx [ src/features/database/__tests__/use-migrate-forward-section.unit.test.tsx ]
+ FAIL  src/features/database/__tests__/use-schema-state-section.unit.test.tsx [ src/features/database/__tests__/use-schema-state-section.unit.test.tsx ]
+ FAIL  src/features/database/__tests__/use-schema-state-section.wired.unit.test.tsx [ src/features/database/__tests__/use-schema-state-section.wired.unit.test.tsx ]
+ FAIL  src/features/database/__tests__/use-timeline-section.unit.test.tsx [ src/features/database/__tests__/use-timeline-section.unit.test.tsx ]
+ FAIL  src/features/deployment/__tests__/Deployment.unit.test.tsx [ src/features/deployment/__tests__/Deployment.unit.test.tsx ]
+ FAIL  src/features/deployment/__tests__/DockerfileTab.unit.test.tsx [ src/features/deployment/__tests__/DockerfileTab.unit.test.tsx ]
+ FAIL  src/features/deployment/__tests__/OverviewTab.unit.test.tsx [ src/features/deployment/__tests__/OverviewTab.unit.test.tsx ]
+ FAIL  src/features/deployment/__tests__/PureTabs.unit.test.tsx [ src/features/deployment/__tests__/PureTabs.unit.test.tsx ]
+ FAIL  src/features/deployment/__tests__/StaticSiteTab.unit.test.tsx [ src/features/deployment/__tests__/StaticSiteTab.unit.test.tsx ]
+ FAIL  src/features/deployment/__tests__/deployment-visuals.unit.test.tsx [ src/features/deployment/__tests__/deployment-visuals.unit.test.tsx ]
+ FAIL  src/features/email/__tests__/EmailTabs.unit.test.tsx [ src/features/email/__tests__/EmailTabs.unit.test.tsx ]
+ FAIL  src/features/email/__tests__/use-email.unit.test.ts [ src/features/email/__tests__/use-email.unit.test.ts ]
+ FAIL  src/features/forms/__tests__/FormsList.unit.test.tsx [ src/features/forms/__tests__/FormsList.unit.test.tsx ]
+ FAIL  src/features/import-export/__tests__/ImportExport.unit.test.tsx [ src/features/import-export/__tests__/ImportExport.unit.test.tsx ]
+ FAIL  src/features/integrations/__tests__/IntegrationDeliveries.unit.test.tsx [ src/features/integrations/__tests__/IntegrationDeliveries.unit.test.tsx ]
+ FAIL  src/features/integrations/__tests__/Integrations.unit.test.tsx [ src/features/integrations/__tests__/Integrations.unit.test.tsx ]
+ FAIL  src/features/integrations/__tests__/integrations-i18n.unit.test.tsx [ src/features/integrations/__tests__/integrations-i18n.unit.test.tsx ]
+ FAIL  src/features/integrations/__tests__/use-integration-deliveries.unit.test.tsx [ src/features/integrations/__tests__/use-integration-deliveries.unit.test.tsx ]
+ FAIL  src/features/integrations/__tests__/use-integrations.unit.test.tsx [ src/features/integrations/__tests__/use-integrations.unit.test.tsx ]
+ FAIL  src/features/library/__tests__/download-documents.unit.test.tsx [ src/features/library/__tests__/download-documents.unit.test.tsx ]
+ FAIL  src/features/library/__tests__/use-library.hooks.unit.test.tsx [ src/features/library/__tests__/use-library.hooks.unit.test.tsx ]
+ FAIL  src/features/media/__tests__/use-edit-media-panel.hooks.unit.test.tsx [ src/features/media/__tests__/use-edit-media-panel.hooks.unit.test.tsx ]
+ FAIL  src/features/media/__tests__/use-media.hooks.unit.test.tsx [ src/features/media/__tests__/use-media.hooks.unit.test.tsx ]
+ FAIL  src/features/members/__tests__/Members.unit.test.tsx [ src/features/members/__tests__/Members.unit.test.tsx ]
+ FAIL  src/features/members/__tests__/rules.unit.test.ts [ src/features/members/__tests__/rules.unit.test.ts ]
+ FAIL  src/features/members/__tests__/use-members.hooks.unit.test.ts [ src/features/members/__tests__/use-members.hooks.unit.test.ts ]
+ FAIL  src/features/menus/__tests__/MenuEditor.header-characterization.unit.test.tsx [ src/features/menus/__tests__/MenuEditor.header-characterization.unit.test.tsx ]
+ FAIL  src/features/menus/__tests__/MenuEditor.unit.test.tsx [ src/features/menus/__tests__/MenuEditor.unit.test.tsx ]
+ FAIL  src/features/menus/__tests__/Menus.unit.test.tsx [ src/features/menus/__tests__/Menus.unit.test.tsx ]
+ FAIL  src/features/menus/__tests__/html-embed.unit.test.tsx [ src/features/menus/__tests__/html-embed.unit.test.tsx ]
+ FAIL  src/features/menus/__tests__/legacy-page-picker.unit.test.tsx [ src/features/menus/__tests__/legacy-page-picker.unit.test.tsx ]
+ FAIL  src/features/menus/__tests__/menu-authoring-ux.unit.test.tsx [ src/features/menus/__tests__/menu-authoring-ux.unit.test.tsx ]
+ FAIL  src/features/menus/__tests__/menu-html-mode.unit.test.tsx [ src/features/menus/__tests__/menu-html-mode.unit.test.tsx ]
+ FAIL  src/features/menus/__tests__/page-choices.hooks.unit.test.tsx [ src/features/menus/__tests__/page-choices.hooks.unit.test.tsx ]
+ FAIL  src/features/menus/__tests__/use-menu-editor.hooks.unit.test.tsx [ src/features/menus/__tests__/use-menu-editor.hooks.unit.test.tsx ]
+ FAIL  src/features/menus/__tests__/use-menus.hooks.unit.test.tsx [ src/features/menus/__tests__/use-menus.hooks.unit.test.tsx ]
+ FAIL  src/features/observability/__tests__/use-observability-status.hooks.unit.test.ts [ src/features/observability/__tests__/use-observability-status.hooks.unit.test.ts ]
+ FAIL  src/features/observability/__tests__/use-observability-tab.hooks.unit.test.ts [ src/features/observability/__tests__/use-observability-tab.hooks.unit.test.ts ]
+ FAIL  src/features/observability/__tests__/use-recent-error-item.hooks.unit.test.ts [ src/features/observability/__tests__/use-recent-error-item.hooks.unit.test.ts ]
+ FAIL  src/features/observability/__tests__/use-recent-server-errors.hooks.unit.test.ts [ src/features/observability/__tests__/use-recent-server-errors.hooks.unit.test.ts ]
+ FAIL  src/features/pages/__tests__/PageEditor.interactive-flush.unit.test.tsx [ src/features/pages/__tests__/PageEditor.interactive-flush.unit.test.tsx ]
+ FAIL  src/features/pages/__tests__/PageEditor.preview-remount.unit.test.tsx [ src/features/pages/__tests__/PageEditor.preview-remount.unit.test.tsx ]
+ FAIL  src/features/pages/__tests__/PageEditor.unit.test.tsx [ src/features/pages/__tests__/PageEditor.unit.test.tsx ]
+ FAIL  src/features/pages/__tests__/Pages.unit.test.tsx [ src/features/pages/__tests__/Pages.unit.test.tsx ]
+ FAIL  src/features/pages/__tests__/html-tab-new-page.unit.test.ts [ src/features/pages/__tests__/html-tab-new-page.unit.test.ts ]
+ FAIL  src/features/pages/__tests__/scriptblocks-controller.unit.test.ts [ src/features/pages/__tests__/scriptblocks-controller.unit.test.ts ]
+ FAIL  src/features/pages/__tests__/use-pages.unit.test.ts [ src/features/pages/__tests__/use-pages.unit.test.ts ]
+ FAIL  src/features/playground/__tests__/Playground.canvas-lifecycle.unit.test.tsx [ src/features/playground/__tests__/Playground.canvas-lifecycle.unit.test.tsx ]
+ FAIL  src/features/playground/__tests__/Playground.unit.test.tsx [ src/features/playground/__tests__/Playground.unit.test.tsx ]
+ FAIL  src/features/plugins/__tests__/AgentPluginDetailsModal.unit.test.tsx [ src/features/plugins/__tests__/AgentPluginDetailsModal.unit.test.tsx ]
+ FAIL  src/features/plugins/__tests__/AgentPluginRow.unit.test.tsx [ src/features/plugins/__tests__/AgentPluginRow.unit.test.tsx ]
+ FAIL  src/features/plugins/__tests__/PackageFilesModal.unit.test.tsx [ src/features/plugins/__tests__/PackageFilesModal.unit.test.tsx ]
+ FAIL  src/features/plugins/__tests__/Plugins.unit.test.tsx [ src/features/plugins/__tests__/Plugins.unit.test.tsx ]
+ FAIL  src/features/plugins/__tests__/PluginsAddTab.unit.test.tsx [ src/features/plugins/__tests__/PluginsAddTab.unit.test.tsx ]
+ FAIL  src/features/plugins/__tests__/agent-plugin-manage-surfaces.unit.test.tsx [ src/features/plugins/__tests__/agent-plugin-manage-surfaces.unit.test.tsx ]
+ FAIL  src/features/plugins/__tests__/agent-plugin-memory-panel.unit.test.tsx [ src/features/plugins/__tests__/agent-plugin-memory-panel.unit.test.tsx ]
+ FAIL  src/features/plugins/__tests__/agent-plugin-memory.hooks.unit.test.ts [ src/features/plugins/__tests__/agent-plugin-memory.hooks.unit.test.ts ]
+ FAIL  src/features/plugins/__tests__/agent-plugin-surface-frame.unit.test.tsx [ src/features/plugins/__tests__/agent-plugin-surface-frame.unit.test.tsx ]
+ FAIL  src/features/plugins/__tests__/b15-row-panel-ownership.unit.test.tsx [ src/features/plugins/__tests__/b15-row-panel-ownership.unit.test.tsx ]
+ FAIL  src/features/plugins/__tests__/package-files-interactions.unit.test.tsx [ src/features/plugins/__tests__/package-files-interactions.unit.test.tsx ]
+ FAIL  src/features/plugins/__tests__/plugin-list-refresh.unit.test.ts [ src/features/plugins/__tests__/plugin-list-refresh.unit.test.ts ]
+ FAIL  src/features/plugins/__tests__/plugin-provider-settings.unit.test.tsx [ src/features/plugins/__tests__/plugin-provider-settings.unit.test.tsx ]
+ FAIL  src/features/plugins/__tests__/plugin-visuals.unit.test.tsx [ src/features/plugins/__tests__/plugin-visuals.unit.test.tsx ]
+ FAIL  src/features/plugins/__tests__/plugin-zip-install.unit.test.tsx [ src/features/plugins/__tests__/plugin-zip-install.unit.test.tsx ]
+ FAIL  src/features/plugins/__tests__/use-agent-plugin-details-modal.hooks.unit.test.ts [ src/features/plugins/__tests__/use-agent-plugin-details-modal.hooks.unit.test.ts ]
+ FAIL  src/features/plugins/__tests__/use-agent-plugins.hooks.unit.test.ts [ src/features/plugins/__tests__/use-agent-plugins.hooks.unit.test.ts ]
+ FAIL  src/features/plugins/__tests__/use-plugin-package-files.hooks.unit.test.ts [ src/features/plugins/__tests__/use-plugin-package-files.hooks.unit.test.ts ]
+ FAIL  src/features/plugins/__tests__/use-plugins.hooks.unit.test.ts [ src/features/plugins/__tests__/use-plugins.hooks.unit.test.ts ]
+ FAIL  src/features/posts/__tests__/PostEditor.toolbar-probes.unit.test.ts [ src/features/posts/__tests__/PostEditor.toolbar-probes.unit.test.ts ]
+ FAIL  src/features/posts/__tests__/PostEditor.unit.test.tsx [ src/features/posts/__tests__/PostEditor.unit.test.tsx ]
+ FAIL  src/features/posts/__tests__/Posts.unit.test.tsx [ src/features/posts/__tests__/Posts.unit.test.tsx ]
+ FAIL  src/features/posts/__tests__/post-author.unit.test.tsx [ src/features/posts/__tests__/post-author.unit.test.tsx ]
+ FAIL  src/features/posts/__tests__/post-cover-image.unit.test.tsx [ src/features/posts/__tests__/post-cover-image.unit.test.tsx ]
+ FAIL  src/features/posts/__tests__/post-editor-agent-drive.unit.test.tsx [ src/features/posts/__tests__/post-editor-agent-drive.unit.test.tsx ]
+ FAIL  src/features/posts/__tests__/post-schedule-featured.unit.test.tsx [ src/features/posts/__tests__/post-schedule-featured.unit.test.tsx ]
+ FAIL  src/features/posts/__tests__/posts-agent-drive.unit.test.tsx [ src/features/posts/__tests__/posts-agent-drive.unit.test.tsx ]
+ FAIL  src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx [ src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx ]
+ FAIL  src/features/providers/__tests__/Providers.unit.test.tsx [ src/features/providers/__tests__/Providers.unit.test.tsx ]
+ FAIL  src/features/providers/__tests__/always-allow.unit.test.tsx [ src/features/providers/__tests__/always-allow.unit.test.tsx ]
+ FAIL  src/features/publish-content/__tests__/PublishContentDialog.unit.test.tsx [ src/features/publish-content/__tests__/PublishContentDialog.unit.test.tsx ]
+ FAIL  src/features/publish-content/__tests__/PublishSectionButton.unit.test.tsx [ src/features/publish-content/__tests__/PublishSectionButton.unit.test.tsx ]
+ FAIL  src/features/publish-content/__tests__/publish-availability.store.unit.test.tsx [ src/features/publish-content/__tests__/publish-availability.store.unit.test.tsx ]
+ FAIL  src/features/publish-content/__tests__/publish-content-L057.characterization.unit.test.tsx [ src/features/publish-content/__tests__/publish-content-L057.characterization.unit.test.tsx ]
+ FAIL  src/features/publish-content/__tests__/use-publish-section-button.hooks.unit.test.tsx [ src/features/publish-content/__tests__/use-publish-section-button.hooks.unit.test.tsx ]
+ FAIL  src/features/recovery/__tests__/use-recovery.unit.test.ts [ src/features/recovery/__tests__/use-recovery.unit.test.ts ]
+ FAIL  src/features/recovery/__tests__/use-restore-flow.unit.test.ts [ src/features/recovery/__tests__/use-restore-flow.unit.test.ts ]
+ FAIL  src/features/roles/__tests__/Roles.unit.test.tsx [ src/features/roles/__tests__/Roles.unit.test.tsx ]
+ FAIL  src/features/roles/__tests__/use-roles.unit.test.tsx [ src/features/roles/__tests__/use-roles.unit.test.tsx ]
+ FAIL  src/features/security/__tests__/AccessTokensTab.credential-flows.unit.test.tsx [ src/features/security/__tests__/AccessTokensTab.credential-flows.unit.test.tsx ]
+ FAIL  src/features/security/__tests__/AccessTokensTab.unit.test.tsx [ src/features/security/__tests__/AccessTokensTab.unit.test.tsx ]
+ FAIL  src/features/security/__tests__/CopyKeysDialog.unit.test.tsx [ src/features/security/__tests__/CopyKeysDialog.unit.test.tsx ]
+ FAIL  src/features/security/__tests__/OtherCredentialsSection.unit.test.tsx [ src/features/security/__tests__/OtherCredentialsSection.unit.test.tsx ]
+ FAIL  src/features/security/__tests__/Security.unit.test.tsx [ src/features/security/__tests__/Security.unit.test.tsx ]
+ FAIL  src/features/security/__tests__/SiteKeyRecoveryCard.unit.test.tsx [ src/features/security/__tests__/SiteKeyRecoveryCard.unit.test.tsx ]
+ FAIL  src/features/security/__tests__/SiteKeyTab.agent-secrecy.unit.test.tsx [ src/features/security/__tests__/SiteKeyTab.agent-secrecy.unit.test.tsx ]
+ FAIL  src/features/security/__tests__/SiteKeyTab.unit.test.tsx [ src/features/security/__tests__/SiteKeyTab.unit.test.tsx ]
+ FAIL  src/features/security/__tests__/access-tokens-revoke-copy.unit.test.tsx [ src/features/security/__tests__/access-tokens-revoke-copy.unit.test.tsx ]
+ FAIL  src/features/security/__tests__/security-visuals.unit.test.tsx [ src/features/security/__tests__/security-visuals.unit.test.tsx ]
+ FAIL  src/features/security/__tests__/site-key-copy.i18n.unit.test.tsx [ src/features/security/__tests__/site-key-copy.i18n.unit.test.tsx ]
+ FAIL  src/features/security/__tests__/site-key-generate-error.unit.test.ts [ src/features/security/__tests__/site-key-generate-error.unit.test.ts ]
+ FAIL  src/features/security/__tests__/use-site-key-recovery.unit.test.ts [ src/features/security/__tests__/use-site-key-recovery.unit.test.ts ]
+ FAIL  src/features/security/__tests__/use-site-key.unit.test.tsx [ src/features/security/__tests__/use-site-key.unit.test.tsx ]
+ FAIL  src/features/seo/__tests__/Seo.hooks.unit.test.tsx [ src/features/seo/__tests__/Seo.hooks.unit.test.tsx ]
+ FAIL  src/features/settings/__tests__/AdminAppearance.unit.test.tsx [ src/features/settings/__tests__/AdminAppearance.unit.test.tsx ]
+ FAIL  src/features/settings/__tests__/ExternalMcpSettingsPanel.hooks.unit.test.tsx [ src/features/settings/__tests__/ExternalMcpSettingsPanel.hooks.unit.test.tsx ]
+ FAIL  src/features/settings/__tests__/ExternalMcpSettingsPanel.unit.test.tsx [ src/features/settings/__tests__/ExternalMcpSettingsPanel.unit.test.tsx ]
+ FAIL  src/features/settings/__tests__/ExternalMcpToolsModal.unit.test.tsx [ src/features/settings/__tests__/ExternalMcpToolsModal.unit.test.tsx ]
+ FAIL  src/features/settings/__tests__/SettingsUi.unit.test.tsx [ src/features/settings/__tests__/SettingsUi.unit.test.tsx ]
+ FAIL  src/features/settings/__tests__/UserInterfaceSettingsPanel.unit.test.tsx [ src/features/settings/__tests__/UserInterfaceSettingsPanel.unit.test.tsx ]
+ FAIL  src/features/settings/__tests__/ai-agent-card-presentation.unit.test.tsx [ src/features/settings/__tests__/ai-agent-card-presentation.unit.test.tsx ]
+ FAIL  src/features/settings/__tests__/ai-agent-locales.unit.test.ts [ src/features/settings/__tests__/ai-agent-locales.unit.test.ts ]
+ FAIL  src/features/settings/__tests__/ai-agent-presentation.unit.test.ts [ src/features/settings/__tests__/ai-agent-presentation.unit.test.ts ]
+ FAIL  src/features/settings/__tests__/built-in-mcp.unit.test.tsx [ src/features/settings/__tests__/built-in-mcp.unit.test.tsx ]
+ FAIL  src/features/settings/__tests__/external-mcp-agent-drive.unit.test.tsx [ src/features/settings/__tests__/external-mcp-agent-drive.unit.test.tsx ]
+ FAIL  src/features/settings/__tests__/external-mcp-missing-launcher-recovery.unit.test.tsx [ src/features/settings/__tests__/external-mcp-missing-launcher-recovery.unit.test.tsx ]
+ FAIL  src/features/settings/__tests__/rules.unit.test.ts [ src/features/settings/__tests__/rules.unit.test.ts ]
+ FAIL  src/features/settings/__tests__/settings-execution-i18n.unit.test.ts [ src/features/settings/__tests__/settings-execution-i18n.unit.test.ts ]
+ FAIL  src/features/settings/__tests__/use-external-mcp-remove-confirm.hooks.unit.test.tsx [ src/features/settings/__tests__/use-external-mcp-remove-confirm.hooks.unit.test.tsx ]
+ FAIL  src/features/settings/__tests__/use-settings-locale-sync.unit.test.tsx [ src/features/settings/__tests__/use-settings-locale-sync.unit.test.tsx ]
+ FAIL  src/features/sites/__tests__/AllSitesTab.unit.test.tsx [ src/features/sites/__tests__/AllSitesTab.unit.test.tsx ]
+ FAIL  src/features/sites/__tests__/Sites.hooks.unit.test.tsx [ src/features/sites/__tests__/Sites.hooks.unit.test.tsx ]
+ FAIL  src/features/sites/__tests__/Sites.unit.test.tsx [ src/features/sites/__tests__/Sites.unit.test.tsx ]
+ FAIL  src/features/sites/__tests__/create-site-admin-password.unit.test.tsx [ src/features/sites/__tests__/create-site-admin-password.unit.test.tsx ]
+ FAIL  src/features/sites/__tests__/create-site-plugin-tokens.unit.test.tsx [ src/features/sites/__tests__/create-site-plugin-tokens.unit.test.tsx ]
+ FAIL  src/features/sites/__tests__/local-site-cards.unit.test.tsx [ src/features/sites/__tests__/local-site-cards.unit.test.tsx ]
+ FAIL  src/features/sites/__tests__/site-card-preview.unit.test.tsx [ src/features/sites/__tests__/site-card-preview.unit.test.tsx ]
+ FAIL  src/features/sites/__tests__/site-card-view.unit.test.tsx [ src/features/sites/__tests__/site-card-view.unit.test.tsx ]
+ FAIL  src/features/sites/__tests__/site-transfer-tabs.unit.test.tsx [ src/features/sites/__tests__/site-transfer-tabs.unit.test.tsx ]
+ FAIL  src/features/sites/__tests__/sites-home-setting.unit.test.tsx [ src/features/sites/__tests__/sites-home-setting.unit.test.tsx ]
+ FAIL  src/features/sites/__tests__/sites-idle-requests.unit.test.tsx [ src/features/sites/__tests__/sites-idle-requests.unit.test.tsx ]
+ FAIL  src/features/sites/__tests__/sites-visuals.unit.test.tsx [ src/features/sites/__tests__/sites-visuals.unit.test.tsx ]
+ FAIL  src/features/sites/__tests__/use-local-sites.unit.test.tsx [ src/features/sites/__tests__/use-local-sites.unit.test.tsx ]
+ FAIL  src/features/sites/__tests__/use-sites.hooks.unit.test.tsx [ src/features/sites/__tests__/use-sites.hooks.unit.test.tsx ]
+ FAIL  src/features/skills/__tests__/skill-dialogs-and-row.unit.test.tsx [ src/features/skills/__tests__/skill-dialogs-and-row.unit.test.tsx ]
+ FAIL  src/features/source-control/__tests__/ProvidersTab.unit.test.tsx [ src/features/source-control/__tests__/ProvidersTab.unit.test.tsx ]
+ FAIL  src/features/source-control/__tests__/SourceControl.unit.test.tsx [ src/features/source-control/__tests__/SourceControl.unit.test.tsx ]
+ FAIL  src/features/source-control/__tests__/source-control-visuals.unit.test.tsx [ src/features/source-control/__tests__/source-control-visuals.unit.test.tsx ]
+ FAIL  src/features/source-control/__tests__/use-source-control-credentials.unit.test.tsx [ src/features/source-control/__tests__/use-source-control-credentials.unit.test.tsx ]
+ FAIL  src/features/taxonomy/__tests__/Taxonomy.unit.test.tsx [ src/features/taxonomy/__tests__/Taxonomy.unit.test.tsx ]
+ FAIL  src/features/taxonomy/__tests__/TermPicker.unit.test.tsx [ src/features/taxonomy/__tests__/TermPicker.unit.test.tsx ]
+ FAIL  src/features/taxonomy/__tests__/embed-header-alignment.unit.test.tsx [ src/features/taxonomy/__tests__/embed-header-alignment.unit.test.tsx ]
+ FAIL  src/features/taxonomy/__tests__/taxonomy-agent-drive.unit.test.tsx [ src/features/taxonomy/__tests__/taxonomy-agent-drive.unit.test.tsx ]
+ FAIL  src/features/taxonomy/__tests__/use-merge-term-section.stale-failures.unit.test.tsx [ src/features/taxonomy/__tests__/use-merge-term-section.stale-failures.unit.test.tsx ]
+ FAIL  src/features/taxonomy/__tests__/use-merge-term-section.unit.test.tsx [ src/features/taxonomy/__tests__/use-merge-term-section.unit.test.tsx ]
+ FAIL  src/features/taxonomy/__tests__/use-new-taxonomy-form.unit.test.tsx [ src/features/taxonomy/__tests__/use-new-taxonomy-form.unit.test.tsx ]
+ FAIL  src/features/taxonomy/__tests__/use-new-term-form.unit.test.tsx [ src/features/taxonomy/__tests__/use-new-term-form.unit.test.tsx ]
+ FAIL  src/features/taxonomy/__tests__/use-taxonomy.unit.test.tsx [ src/features/taxonomy/__tests__/use-taxonomy.unit.test.tsx ]
+ FAIL  src/features/taxonomy/__tests__/use-term-detail-panel.unit.test.tsx [ src/features/taxonomy/__tests__/use-term-detail-panel.unit.test.tsx ]
+ FAIL  src/features/taxonomy/__tests__/use-term-picker.unit.test.tsx [ src/features/taxonomy/__tests__/use-term-picker.unit.test.tsx ]
+ FAIL  src/features/themes/__tests__/ThemeExplore.unit.test.tsx [ src/features/themes/__tests__/ThemeExplore.unit.test.tsx ]
+ FAIL  src/features/themes/__tests__/Themes.unit.test.tsx [ src/features/themes/__tests__/Themes.unit.test.tsx ]
+ FAIL  src/features/themes/__tests__/theme-preview-dirty.unit.test.tsx [ src/features/themes/__tests__/theme-preview-dirty.unit.test.tsx ]
+ FAIL  src/features/themes/__tests__/theme-preview-refresh.unit.test.tsx [ src/features/themes/__tests__/theme-preview-refresh.unit.test.tsx ]
+ FAIL  src/features/themes/__tests__/themes-delete.unit.test.tsx [ src/features/themes/__tests__/themes-delete.unit.test.tsx ]
+ FAIL  src/features/themes/__tests__/themes-duplicate.unit.test.tsx [ src/features/themes/__tests__/themes-duplicate.unit.test.tsx ]
+ FAIL  src/features/themes/__tests__/use-theme-explore-file-groups.hooks.unit.test.ts [ src/features/themes/__tests__/use-theme-explore-file-groups.hooks.unit.test.ts ]
+ FAIL  src/features/themes/__tests__/use-theme-explore-preview.hooks.unit.test.ts [ src/features/themes/__tests__/use-theme-explore-preview.hooks.unit.test.ts ]
+ FAIL  src/features/themes/__tests__/use-theme-explore-theme.hooks.unit.test.tsx [ src/features/themes/__tests__/use-theme-explore-theme.hooks.unit.test.tsx ]
+ FAIL  src/features/themes/__tests__/use-themes.hooks.unit.test.ts [ src/features/themes/__tests__/use-themes.hooks.unit.test.ts ]
+ FAIL  src/features/trash/__tests__/Trash.unit.test.tsx [ src/features/trash/__tests__/Trash.unit.test.tsx ]
+ FAIL  src/features/trash/__tests__/use-trash.unit.test.tsx [ src/features/trash/__tests__/use-trash.unit.test.tsx ]
+ FAIL  src/features/users/__tests__/Users.autofill.unit.test.tsx [ src/features/users/__tests__/Users.autofill.unit.test.tsx ]
+ FAIL  src/features/users/__tests__/Users.crud.unit.test.tsx [ src/features/users/__tests__/Users.crud.unit.test.tsx ]
+ FAIL  src/features/users/__tests__/Users.unit.test.tsx [ src/features/users/__tests__/Users.unit.test.tsx ]
+ FAIL  src/features/users/__tests__/account-protections.unit.test.tsx [ src/features/users/__tests__/account-protections.unit.test.tsx ]
+ FAIL  src/features/users/__tests__/change-username.unit.test.tsx [ src/features/users/__tests__/change-username.unit.test.tsx ]
+ FAIL  src/features/users/__tests__/rules.unit.test.ts [ src/features/users/__tests__/rules.unit.test.ts ]
+ FAIL  src/features/users/__tests__/use-reset-password-fields.unit.test.tsx [ src/features/users/__tests__/use-reset-password-fields.unit.test.tsx ]
+ FAIL  src/features/users/__tests__/use-users.unit.test.tsx [ src/features/users/__tests__/use-users.unit.test.tsx ]
+ FAIL  src/features/users/__tests__/users-agent-drive.unit.test.tsx [ src/features/users/__tests__/users-agent-drive.unit.test.tsx ]
+ FAIL  src/features/users/__tests__/users-reset-password-info.unit.test.tsx [ src/features/users/__tests__/users-reset-password-info.unit.test.tsx ]
+ FAIL  src/features/voice-input/__tests__/PushToTalkMicButton.unit.test.tsx [ src/features/voice-input/__tests__/PushToTalkMicButton.unit.test.tsx ]
+ FAIL  src/features/voice-input/__tests__/voice-to-composer.integration.test.tsx [ src/features/voice-input/__tests__/voice-to-composer.integration.test.tsx ]
+ FAIL  src/features/webmcp/__tests__/browser-agent-settings.unit.test.tsx [ src/features/webmcp/__tests__/browser-agent-settings.unit.test.tsx ]
+ FAIL  src/features/workspace/__tests__/Workspace.unit.test.tsx [ src/features/workspace/__tests__/Workspace.unit.test.tsx ]
+ FAIL  src/features/workspace/__tests__/use-workspace.hooks.unit.test.ts [ src/features/workspace/__tests__/use-workspace.hooks.unit.test.ts ]
+ FAIL  src/integrations/jini-admin/__tests__/comments-ports.unit.test.ts [ src/integrations/jini-admin/__tests__/comments-ports.unit.test.ts ]
+ FAIL  src/integrations/jini-admin/__tests__/comments-swap.unit.test.tsx [ src/integrations/jini-admin/__tests__/comments-swap.unit.test.tsx ]
+ FAIL  src/integrations/jini-admin/__tests__/forms-swap.unit.test.tsx [ src/integrations/jini-admin/__tests__/forms-swap.unit.test.tsx ]
+ FAIL  src/integrations/jini-admin/__tests__/media-session.unit.test.ts [ src/integrations/jini-admin/__tests__/media-session.unit.test.ts ]
+ FAIL  src/integrations/jini-admin/__tests__/media-swap.unit.test.tsx [ src/integrations/jini-admin/__tests__/media-swap.unit.test.tsx ]
+ FAIL  src/integrations/jini-admin/__tests__/modules.hooks.unit.test.tsx [ src/integrations/jini-admin/__tests__/modules.hooks.unit.test.tsx ]
+ FAIL  src/integrations/jini-admin/__tests__/redirects-ports.unit.test.ts [ src/integrations/jini-admin/__tests__/redirects-ports.unit.test.ts ]
+ FAIL  src/integrations/jini-admin/__tests__/redirects-swap.unit.test.tsx [ src/integrations/jini-admin/__tests__/redirects-swap.unit.test.tsx ]
+ FAIL  src/integrations/jini-admin/__tests__/seo-swap.unit.test.tsx [ src/integrations/jini-admin/__tests__/seo-swap.unit.test.tsx ]
+ FAIL  src/integrations/jini-admin/__tests__/widgets-ports.unit.test.ts [ src/integrations/jini-admin/__tests__/widgets-ports.unit.test.ts ]
+ FAIL  src/integrations/jini-admin/__tests__/widgets-swap.unit.test.tsx [ src/integrations/jini-admin/__tests__/widgets-swap.unit.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/AgentFailureCard.unit.test.tsx [ src/components/AssistantDock/__tests__/AgentFailureCard.unit.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/AssistantDock.hooks.unit.test.tsx [ src/components/AssistantDock/__tests__/AssistantDock.hooks.unit.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/DockHeader.unit.test.tsx [ src/components/AssistantDock/__tests__/DockHeader.unit.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/DockLeadingAccessory.unit.test.tsx [ src/components/AssistantDock/__tests__/DockLeadingAccessory.unit.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/DockSettingsMenu.unit.test.tsx [ src/components/AssistantDock/__tests__/DockSettingsMenu.unit.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/FolderDropConfirmation.unit.test.tsx [ src/components/AssistantDock/__tests__/FolderDropConfirmation.unit.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/FolderDropError.unit.test.tsx [ src/components/AssistantDock/__tests__/FolderDropError.unit.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/FolderDropNotice.unit.test.tsx [ src/components/AssistantDock/__tests__/FolderDropNotice.unit.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/FolderPathButton.unit.test.tsx [ src/components/AssistantDock/__tests__/FolderPathButton.unit.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/MessageOverflowModal.unit.test.tsx [ src/components/AssistantDock/__tests__/MessageOverflowModal.unit.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/PickedFolderChip.unit.test.tsx [ src/components/AssistantDock/__tests__/PickedFolderChip.unit.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/SelectedAgentPluginTray.unit.test.tsx [ src/components/AssistantDock/__tests__/SelectedAgentPluginTray.unit.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/admin-empty-state-i18n.unit.test.ts [ src/components/AssistantDock/__tests__/admin-empty-state-i18n.unit.test.ts ]
+ FAIL  src/components/AssistantDock/__tests__/agent-plugins-setting.unit.test.tsx [ src/components/AssistantDock/__tests__/agent-plugins-setting.unit.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/agents-loader.unit.test.ts [ src/components/AssistantDock/__tests__/agents-loader.unit.test.ts ]
+ FAIL  src/components/AssistantDock/__tests__/assistant-dock-dict-i18n.unit.test.ts [ src/components/AssistantDock/__tests__/assistant-dock-dict-i18n.unit.test.ts ]
+ FAIL  src/components/AssistantDock/__tests__/assistant-dock-i18n.unit.test.ts [ src/components/AssistantDock/__tests__/assistant-dock-i18n.unit.test.ts ]
+ FAIL  src/components/AssistantDock/__tests__/assistant-dock-props.unit.test.tsx [ src/components/AssistantDock/__tests__/assistant-dock-props.unit.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/assistant-runtime-preferences.unit.test.ts [ src/components/AssistantDock/__tests__/assistant-runtime-preferences.unit.test.ts ]
+ FAIL  src/components/AssistantDock/__tests__/chat-agent-plugin-preferences.adapter.unit.test.ts [ src/components/AssistantDock/__tests__/chat-agent-plugin-preferences.adapter.unit.test.ts ]
+ FAIL  src/components/AssistantDock/__tests__/chat-agent-plugin-preferences.unit.test.ts [ src/components/AssistantDock/__tests__/chat-agent-plugin-preferences.unit.test.ts ]
+ FAIL  src/components/AssistantDock/__tests__/chat-display-preferences.unit.test.ts [ src/components/AssistantDock/__tests__/chat-display-preferences.unit.test.ts ]
+ FAIL  src/components/AssistantDock/__tests__/chat-settings-tooltips.unit.test.tsx [ src/components/AssistantDock/__tests__/chat-settings-tooltips.unit.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/composer-draft-attachment-restore.integration.test.tsx [ src/components/AssistantDock/__tests__/composer-draft-attachment-restore.integration.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/composer-installed-skills.integration.test.tsx [ src/components/AssistantDock/__tests__/composer-installed-skills.integration.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/composer-selected-skills.unit.test.tsx [ src/components/AssistantDock/__tests__/composer-selected-skills.unit.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/composer-send-stop.integration.test.tsx [ src/components/AssistantDock/__tests__/composer-send-stop.integration.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/composer-skills.typing-renders.unit.test.tsx [ src/components/AssistantDock/__tests__/composer-skills.typing-renders.unit.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/composer-slash-plugin-pin.unit.test.tsx [ src/components/AssistantDock/__tests__/composer-slash-plugin-pin.unit.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/conversation-refresh.hooks.unit.test.ts [ src/components/AssistantDock/__tests__/conversation-refresh.hooks.unit.test.ts ]
+ FAIL  src/components/AssistantDock/__tests__/conversation-title-editor.unit.test.tsx [ src/components/AssistantDock/__tests__/conversation-title-editor.unit.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/conversation-title.unit.test.ts [ src/components/AssistantDock/__tests__/conversation-title.unit.test.ts ]
+ FAIL  src/components/AssistantDock/__tests__/dock-header.unit.test.tsx [ src/components/AssistantDock/__tests__/dock-header.unit.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/fqfix-daemon-online.unit.test.tsx [ src/components/AssistantDock/__tests__/fqfix-daemon-online.unit.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/local-cli-selection-echo.unit.test.ts [ src/components/AssistantDock/__tests__/local-cli-selection-echo.unit.test.ts ]
+ FAIL  src/components/AssistantDock/__tests__/local-cli-selection-persistence.unit.test.ts [ src/components/AssistantDock/__tests__/local-cli-selection-persistence.unit.test.ts ]
+ FAIL  src/components/AssistantDock/__tests__/run-start-failure.integration.test.tsx [ src/components/AssistantDock/__tests__/run-start-failure.integration.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/skill-composer-routing.unit.test.tsx [ src/components/AssistantDock/__tests__/skill-composer-routing.unit.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/use-assistant-runtime-preferences.hooks.unit.test.ts [ src/components/AssistantDock/__tests__/use-assistant-runtime-preferences.hooks.unit.test.ts ]
+ FAIL  src/components/AssistantDock/__tests__/use-chat-display-preferences.hooks.unit.test.ts [ src/components/AssistantDock/__tests__/use-chat-display-preferences.hooks.unit.test.ts ]
+ FAIL  src/components/AssistantDock/__tests__/use-dock-renderer-registry.hooks.unit.test.tsx [ src/components/AssistantDock/__tests__/use-dock-renderer-registry.hooks.unit.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/use-messages-change-handler.unit.test.tsx [ src/components/AssistantDock/__tests__/use-messages-change-handler.unit.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/use-selected-agent-auth-warning.hooks.unit.test.ts [ src/components/AssistantDock/__tests__/use-selected-agent-auth-warning.hooks.unit.test.ts ]
+ FAIL  src/features/deployment/hooks/__tests__/use-deployment-overview.unit.test.tsx [ src/features/deployment/hooks/__tests__/use-deployment-overview.unit.test.tsx ]
+ FAIL  src/features/deployment/hooks/__tests__/use-dockerfile-source.unit.test.tsx [ src/features/deployment/hooks/__tests__/use-dockerfile-source.unit.test.tsx ]
+ FAIL  src/features/deployment/hooks/__tests__/use-publish-credentials.unit.test.tsx [ src/features/deployment/hooks/__tests__/use-publish-credentials.unit.test.tsx ]
+ FAIL  src/features/deployment/hooks/__tests__/use-static-export.unit.test.tsx [ src/features/deployment/hooks/__tests__/use-static-export.unit.test.tsx ]
+ FAIL  src/features/deployment/hooks/__tests__/use-static-publish.unit.test.tsx [ src/features/deployment/hooks/__tests__/use-static-publish.unit.test.tsx ]
+ FAIL  src/features/fs-files/hooks/__tests__/use-folder-drop.hooks.unit.test.ts [ src/features/fs-files/hooks/__tests__/use-folder-drop.hooks.unit.test.ts ]
+ FAIL  src/features/providers/hooks/__tests__/use-providers.unit.test.ts [ src/features/providers/hooks/__tests__/use-providers.unit.test.ts ]
+ FAIL  src/features/publish-content/hooks/__tests__/use-publish-content-confirm-T4-03.characterization.unit.test.ts [ src/features/publish-content/hooks/__tests__/use-publish-content-confirm-T4-03.characterization.unit.test.ts ]
+ FAIL  src/features/publish-content/hooks/__tests__/use-publish-content-confirm.guards.unit.test.ts [ src/features/publish-content/hooks/__tests__/use-publish-content-confirm.guards.unit.test.ts ]
+ FAIL  src/features/publish-content/hooks/__tests__/use-publish-content-confirm.hooks.unit.test.ts [ src/features/publish-content/hooks/__tests__/use-publish-content-confirm.hooks.unit.test.ts ]
+ FAIL  src/features/security/hooks/__tests__/use-access-tokens.unit.test.tsx [ src/features/security/hooks/__tests__/use-access-tokens.unit.test.tsx ]
+ FAIL  src/features/security/hooks/__tests__/use-other-credentials.unit.test.tsx [ src/features/security/hooks/__tests__/use-other-credentials.unit.test.tsx ]
+ FAIL  src/features/settings/hooks/__tests__/use-external-mcp-admissions.unit.test.tsx [ src/features/settings/hooks/__tests__/use-external-mcp-admissions.unit.test.tsx ]
+ FAIL  src/features/settings/hooks/__tests__/use-external-mcp.unit.test.ts [ src/features/settings/hooks/__tests__/use-external-mcp.unit.test.ts ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../../../Jini/packages/ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+    29077|  }
+    29078|  _formatLog(e$1, position) {
+    29079|   const err$2 = typeof e$1 === "string" ? new Error(e$1) : e$1;
+       |                                           ^
+    29080|   if (err$2.pluginCode) return err$2;
+    29081|   err$2.plugin = this._plugin.name;
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+ ❯ fetchModule node_modules/vite/dist/node/chunks/config.js:34073:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/425]⎯
+
+ FAIL  src/__tests__/unit/admin-nav-recovery-acs.unit.test.ts [ src/__tests__/unit/admin-nav-recovery-acs.unit.test.ts ]
+ FAIL  src/__tests__/unit/commerce-off.unit.test.ts [ src/__tests__/unit/commerce-off.unit.test.ts ]
+ FAIL  src/__tests__/unit/nav-wiring.unit.test.ts [ src/__tests__/unit/nav-wiring.unit.test.ts ]
+ FAIL  src/__tests__/unit/panels-render.unit.test.tsx [ src/__tests__/unit/panels-render.unit.test.tsx ]
+ FAIL  src/components/__tests__/Placeholder.unit.test.tsx [ src/components/__tests__/Placeholder.unit.test.tsx ]
+ FAIL  src/lib/__tests__/admin-screens-manifest.unit.test.ts [ src/lib/__tests__/admin-screens-manifest.unit.test.ts ]
+ FAIL  src/lib/__tests__/agent-pages.unit.test.ts [ src/lib/__tests__/agent-pages.unit.test.ts ]
+ FAIL  src/lib/__tests__/panel-access.unit.test.ts [ src/lib/__tests__/panel-access.unit.test.ts ]
+ FAIL  src/features/admin-ui/__tests__/redirects.unit.test.tsx [ src/features/admin-ui/__tests__/redirects.unit.test.tsx ]
+ FAIL  src/features/authentication/__tests__/Authentication.unit.test.tsx [ src/features/authentication/__tests__/Authentication.unit.test.tsx ]
+ FAIL  src/features/skills/__tests__/Skills.unit.test.tsx [ src/features/skills/__tests__/Skills.unit.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui/settings-dialog.css" from "src/features/skills/Skills.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Tovu/apps/admin/src/features/skills/Skills.tsx:4:7
+  3  |  import { agentHandle } from "@jini-ai/agentic";
+  4  |  import { SettingsDialogShell } from "@jini-ai/ui";
+  5  |  import "@jini-ai/ui/settings-dialog.css";
+     |          ^
+  6  |  import { SkillInstallConfirmation } from "./SkillInstallConfirmation";
+  7  |  import { SkillRemoveConfirmDialog } from "./SkillRemoveConfirmDialog";
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+    29077|  }
+    29078|  _formatLog(e$1, position) {
+    29079|   const err$2 = typeof e$1 === "string" ? new Error(e$1) : e$1;
+       |                                           ^
+    29080|   if (err$2.pluginCode) return err$2;
+    29081|   err$2.plugin = this._plugin.name;
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+ ❯ fetchModule node_modules/vite/dist/node/chunks/config.js:34073:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/425]⎯
+
+ FAIL  src/__tests__/unit/main-entry.unit.test.tsx [ src/__tests__/unit/main-entry.unit.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui/remixicon.css?inline" from "src/main.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Tovu/apps/admin/src/main.tsx:13:25
+  12 |  import { redirectLegacyHashUrl } from "./lib/router";
+  13 |  import { adminTelemetry, installBrowserErrorListeners, reactRootErrorOptions } from "./lib/browser-telemetry";
+  14 |  import remixiconCss from "@jini-ai/ui/remixicon.css?inline";
+     |                            ^
+  15 |  import "./styles.css";
+  16 |  import "./styles/forms.css";
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+    29077|  }
+    29078|  _formatLog(e$1, position) {
+    29079|   const err$2 = typeof e$1 === "string" ? new Error(e$1) : e$1;
+       |                                           ^
+    29080|   if (err$2.pluginCode) return err$2;
+    29081|   err$2.plugin = this._plugin.name;
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/425]⎯
+
+ FAIL  src/components/__tests__/AssistantDock.chat-settings.unit.test.tsx [ src/components/__tests__/AssistantDock.chat-settings.unit.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui/settings-dialog.css" from "src/components/AssistantDock/AssistantDock.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Tovu/apps/admin/src/components/AssistantDock/AssistantDock.tsx:48:7
+  38 |  import { hasUsableAdminKey, selectedLocalCliReasoning } from "../../lib/execution-settings";
+  39 |  import "../../styles/assistant.css";
+  40 |  import "@jini-ai/ui/settings-dialog.css";
+     |          ^
+  41 |  import {
+  42 |    useAssistantDockChrome,
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+    29077|  }
+    29078|  _formatLog(e$1, position) {
+    29079|   const err$2 = typeof e$1 === "string" ? new Error(e$1) : e$1;
+       |                                           ^
+    29080|   if (err$2.pluginCode) return err$2;
+    29081|   err$2.plugin = this._plugin.name;
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/425]⎯
+
+ FAIL  src/components/__tests__/AssistantDock.runtime-access.unit.test.tsx [ src/components/__tests__/AssistantDock.runtime-access.unit.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/resolve-composer-discovery-outcome.unit.test.ts [ src/components/AssistantDock/__tests__/resolve-composer-discovery-outcome.unit.test.ts ]
+Error: Failed to resolve import "@jini-ai/ui/settings-dialog.css" from "src/components/AssistantDock/AssistantDock.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Tovu/apps/admin/src/components/AssistantDock/AssistantDock.tsx:48:7
+  38 |  import { hasUsableAdminKey, selectedLocalCliReasoning } from "../../lib/execution-settings";
+  39 |  import "../../styles/assistant.css";
+  40 |  import "@jini-ai/ui/settings-dialog.css";
+     |          ^
+  41 |  import {
+  42 |    useAssistantDockChrome,
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+    29077|  }
+    29078|  _formatLog(e$1, position) {
+    29079|   const err$2 = typeof e$1 === "string" ? new Error(e$1) : e$1;
+       |                                           ^
+    29080|   if (err$2.pluginCode) return err$2;
+    29081|   err$2.plugin = this._plugin.name;
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+ ❯ fetchModule node_modules/vite/dist/node/chunks/config.js:34073:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/425]⎯
+
+ FAIL  src/hooks/__tests__/tovu-execution-entry-points.integration.test.tsx [ src/hooks/__tests__/tovu-execution-entry-points.integration.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui/settings-dialog.css" from "src/features/settings/SettingsUi.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Tovu/apps/admin/src/features/settings/SettingsUi.tsx:125:7
+  14 |    SettingsDialogShell
+  15 |  } from "@jini-ai/ui";
+  16 |  import "@jini-ai/ui/settings-dialog.css";
+     |          ^
+  17 |  import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
+  18 |  import { ADMIN_LOCALES, DEFAULT_INSTRUCTIONS } from "../../lib/settings-tabs";
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+    29077|  }
+    29078|  _formatLog(e$1, position) {
+    29079|   const err$2 = typeof e$1 === "string" ? new Error(e$1) : e$1;
+       |                                           ^
+    29080|   if (err$2.pluginCode) return err$2;
+    29081|   err$2.plugin = this._plugin.name;
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/425]⎯
+
+ FAIL  src/features/ai-assistant/__tests__/AdminExecutionMode.unit.test.tsx [ src/features/ai-assistant/__tests__/AdminExecutionMode.unit.test.tsx ]
+ FAIL  src/features/ai-assistant/__tests__/AiAssistant.unit.test.tsx [ src/features/ai-assistant/__tests__/AiAssistant.unit.test.tsx ]
+ FAIL  src/features/ai-assistant/__tests__/AssistantDaemonRestart.unit.test.tsx [ src/features/ai-assistant/__tests__/AssistantDaemonRestart.unit.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui/settings-dialog.css" from "src/features/ai-assistant/AiAssistant.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Tovu/apps/admin/src/features/ai-assistant/AiAssistant.tsx:16:7
+  14 |    SettingsDialogShell
+  15 |  } from "@jini-ai/ui";
+  16 |  import "@jini-ai/ui/settings-dialog.css";
+     |          ^
+  17 |  import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
+  18 |  import { agentHandle } from "@jini-ai/agentic";
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+    29077|  }
+    29078|  _formatLog(e$1, position) {
+    29079|   const err$2 = typeof e$1 === "string" ? new Error(e$1) : e$1;
+       |                                           ^
+    29080|   if (err$2.pluginCode) return err$2;
+    29081|   err$2.plugin = this._plugin.name;
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+ ❯ fetchModule node_modules/vite/dist/node/chunks/config.js:34073:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/425]⎯
+
+ FAIL  src/features/ai-assistant/__tests__/VisitorCredentialForm.unit.test.tsx [ src/features/ai-assistant/__tests__/VisitorCredentialForm.unit.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui/settings-dialog.css" from "src/features/ai-assistant/AiAssistant.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Tovu/apps/admin/src/features/ai-assistant/AiAssistant.tsx:16:7
+  14 |    SettingsDialogShell
+  15 |  } from "@jini-ai/ui";
+  16 |  import "@jini-ai/ui/settings-dialog.css";
+     |          ^
+  17 |  import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
+  18 |  import { agentHandle } from "@jini-ai/agentic";
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+    29077|  }
+    29078|  _formatLog(e$1, position) {
+    29079|   const err$2 = typeof e$1 === "string" ? new Error(e$1) : e$1;
+       |                                           ^
+    29080|   if (err$2.pluginCode) return err$2;
+    29081|   err$2.plugin = this._plugin.name;
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/425]⎯
+
+ FAIL  src/features/admin-ui/__tests__/AdminUi.unit.test.tsx [ src/features/admin-ui/__tests__/AdminUi.unit.test.tsx ]
+Error: [vitest] There was an error when mocking a module. If you are using "vi.mock" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock
+ ❯ src/features/admin-themes/AdminThemes.tsx:8:1
+      6| import { resolveAdminThemeDocument } from "../../admin-themes/apply";
+      7| import { ADMIN_THEMES, findAdminTheme, type AdminThemeManifest, type A…
+      8| import { useAdminThemePicker, type AdminThemeDocumentEnv, type AdminTh…
+       | ^
+      9| import { t } from "./admin-themes-i18n";
+     10| import "./admin-themes.css";
+
+Caused by: Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../../../Jini/packages/ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+ ❯ fetchModule node_modules/vite/dist/node/chunks/config.js:34073:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/425]⎯
+
+ FAIL  src/features/authentication/__tests__/Authentication.locale.unit.test.tsx [ src/features/authentication/__tests__/Authentication.locale.unit.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui/settings-dialog.css" from "src/features/authentication/Authentication.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Tovu/apps/admin/src/features/authentication/Authentication.tsx:9:7
+  7  |    SettingsDialogShell
+  8  |  } from "@jini-ai/ui";
+  9  |  import "@jini-ai/ui/settings-dialog.css";
+     |          ^
+  10 |  import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+  11 |  import { providerBackendNote, t as translateAuthentication } from "./authentication-i18n";
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+    29077|  }
+    29078|  _formatLog(e$1, position) {
+    29079|   const err$2 = typeof e$1 === "string" ? new Error(e$1) : e$1;
+       |                                           ^
+    29080|   if (err$2.pluginCode) return err$2;
+    29081|   err$2.plugin = this._plugin.name;
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/425]⎯
+
+ FAIL  src/features/email/__tests__/Email.unit.test.tsx [ src/features/email/__tests__/Email.unit.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui/settings-dialog.css" from "src/features/email/Email.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Tovu/apps/admin/src/features/email/Email.tsx:4:7
+  3  |  import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+  4  |  import { TabBar } from "@jini-ai/ui/tab-strip";
+  5  |  import "@jini-ai/ui/settings-dialog.css";
+     |          ^
+  6  |  import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
+  7  |  import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+    29077|  }
+    29078|  _formatLog(e$1, position) {
+    29079|   const err$2 = typeof e$1 === "string" ? new Error(e$1) : e$1;
+       |                                           ^
+    29080|   if (err$2.pluginCode) return err$2;
+    29081|   err$2.plugin = this._plugin.name;
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/425]⎯
+
+ FAIL  src/features/email/__tests__/EmailTemplateEditor.unit.test.tsx [ src/features/email/__tests__/EmailTemplateEditor.unit.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui/settings-dialog.css" from "src/features/email/EmailTemplateEditor.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Tovu/apps/admin/src/features/email/EmailTemplateEditor.tsx:6:7
+  5  |  import { useDirtyGuard } from "@jini-ai/ui/panel-kit";
+  6  |  import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
+  7  |  import "@jini-ai/ui/settings-dialog.css";
+     |          ^
+  8  |  import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+  9  |  import { DEVICE_PREVIEW_WIDTHS } from "../../components/DevicePreview/DevicePreview.hooks";
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+    29077|  }
+    29078|  _formatLog(e$1, position) {
+    29079|   const err$2 = typeof e$1 === "string" ? new Error(e$1) : e$1;
+       |                                           ^
+    29080|   if (err$2.pluginCode) return err$2;
+    29081|   err$2.plugin = this._plugin.name;
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/425]⎯
+
+ FAIL  src/features/library/__tests__/Library.unit.test.tsx [ src/features/library/__tests__/Library.unit.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui/settings-dialog.css" from "src/features/skills/Skills.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Tovu/apps/admin/src/features/skills/Skills.tsx:4:7
+  3  |  import { agentHandle } from "@jini-ai/agentic";
+  4  |  import { SettingsDialogShell } from "@jini-ai/ui";
+  5  |  import "@jini-ai/ui/settings-dialog.css";
+     |          ^
+  6  |  import { SkillInstallConfirmation } from "./SkillInstallConfirmation";
+  7  |  import { SkillRemoveConfirmDialog } from "./SkillRemoveConfirmDialog";
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+    29077|  }
+    29078|  _formatLog(e$1, position) {
+    29079|   const err$2 = typeof e$1 === "string" ? new Error(e$1) : e$1;
+       |                                           ^
+    29080|   if (err$2.pluginCode) return err$2;
+    29081|   err$2.plugin = this._plugin.name;
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/425]⎯
+
+ FAIL  src/features/media/__tests__/Media.unit.test.tsx [ src/features/media/__tests__/Media.unit.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui/settings-dialog.css" from "src/features/media/Media.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Tovu/apps/admin/src/features/media/Media.tsx:8:7
+  6  |  import { I18nProvider, MediaProvidersTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
+  7  |  import { mediaProviderCatalogPolicy } from "@jini-ai/integrations/media-providers/catalog";
+  8  |  import "@jini-ai/ui/settings-dialog.css";
+     |          ^
+  9  |  import { agentHandle } from "@jini-ai/agentic";
+  10 |  import { buildAgentListHandles } from "@jini-ai/agentic";
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+    29077|  }
+    29078|  _formatLog(e$1, position) {
+    29079|   const err$2 = typeof e$1 === "string" ? new Error(e$1) : e$1;
+       |                                           ^
+    29080|   if (err$2.pluginCode) return err$2;
+    29081|   err$2.plugin = this._plugin.name;
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/425]⎯
+
+ FAIL  src/features/media/__tests__/media-agent-drive.unit.test.tsx [ src/features/media/__tests__/media-agent-drive.unit.test.tsx ]
+ FAIL  src/features/media/__tests__/media-card-metadata.unit.test.tsx [ src/features/media/__tests__/media-card-metadata.unit.test.tsx ]
+ FAIL  src/features/media/__tests__/media-order-by.unit.test.tsx [ src/features/media/__tests__/media-order-by.unit.test.tsx ]
+ FAIL  src/features/media/__tests__/media-preview-click-lightbox.unit.test.tsx [ src/features/media/__tests__/media-preview-click-lightbox.unit.test.tsx ]
+ FAIL  src/features/media/__tests__/media-screen-states.unit.test.tsx [ src/features/media/__tests__/media-screen-states.unit.test.tsx ]
+ FAIL  src/features/media/__tests__/media-tab-counts.unit.test.tsx [ src/features/media/__tests__/media-tab-counts.unit.test.tsx ]
+ FAIL  src/features/media/__tests__/media-type-filter.unit.test.tsx [ src/features/media/__tests__/media-type-filter.unit.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui/settings-dialog.css" from "src/features/media/Media.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Tovu/apps/admin/src/features/media/Media.tsx:8:7
+  6  |  import { I18nProvider, MediaProvidersTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
+  7  |  import { mediaProviderCatalogPolicy } from "@jini-ai/integrations/media-providers/catalog";
+  8  |  import "@jini-ai/ui/settings-dialog.css";
+     |          ^
+  9  |  import { agentHandle } from "@jini-ai/agentic";
+  10 |  import { buildAgentListHandles } from "@jini-ai/agentic";
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+    29077|  }
+    29078|  _formatLog(e$1, position) {
+    29079|   const err$2 = typeof e$1 === "string" ? new Error(e$1) : e$1;
+       |                                           ^
+    29080|   if (err$2.pluginCode) return err$2;
+    29081|   err$2.plugin = this._plugin.name;
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+ ❯ fetchModule node_modules/vite/dist/node/chunks/config.js:34073:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/425]⎯
+
+ FAIL  src/features/observability/__tests__/Observability.unit.test.tsx [ src/features/observability/__tests__/Observability.unit.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui/settings-dialog.css" from "src/features/observability/Observability.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Tovu/apps/admin/src/features/observability/Observability.tsx:3:7
+  2  |  import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
+  3  |  import { I18nProvider, SETTINGS_DIALOG_DICTIONARIES, SettingsDialogShell } from "@jini-ai/ui";
+  4  |  import "@jini-ai/ui/settings-dialog.css";
+     |          ^
+  5  |  import { agentHandle } from "@jini-ai/agentic";
+  6  |  import { AlertIcon, GaugeIcon, PulseIcon, QueriesIcon } from "./observability-visuals";
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+    29077|  }
+    29078|  _formatLog(e$1, position) {
+    29079|   const err$2 = typeof e$1 === "string" ? new Error(e$1) : e$1;
+       |                                           ^
+    29080|   if (err$2.pluginCode) return err$2;
+    29081|   err$2.plugin = this._plugin.name;
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/425]⎯
+
+ FAIL  src/features/observability/__tests__/queries-panel.unit.test.tsx [ src/features/observability/__tests__/queries-panel.unit.test.tsx ]
+ FAIL  src/features/observability/__tests__/recent-errors-panel.unit.test.tsx [ src/features/observability/__tests__/recent-errors-panel.unit.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui/settings-dialog.css" from "src/features/observability/Observability.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Tovu/apps/admin/src/features/observability/Observability.tsx:3:7
+  2  |  import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
+  3  |  import { I18nProvider, SETTINGS_DIALOG_DICTIONARIES, SettingsDialogShell } from "@jini-ai/ui";
+  4  |  import "@jini-ai/ui/settings-dialog.css";
+     |          ^
+  5  |  import { agentHandle } from "@jini-ai/agentic";
+  6  |  import { AlertIcon, GaugeIcon, PulseIcon, QueriesIcon } from "./observability-visuals";
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+    29077|  }
+    29078|  _formatLog(e$1, position) {
+    29079|   const err$2 = typeof e$1 === "string" ? new Error(e$1) : e$1;
+       |                                           ^
+    29080|   if (err$2.pluginCode) return err$2;
+    29081|   err$2.plugin = this._plugin.name;
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+ ❯ fetchModule node_modules/vite/dist/node/chunks/config.js:34073:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/425]⎯
+
+ FAIL  src/features/pages/__tests__/use-page-editor.unit.test.ts [ src/features/pages/__tests__/use-page-editor.unit.test.ts ]
+ FAIL  src/features/themes/__tests__/use-theme-explore.hooks.unit.test.ts [ src/features/themes/__tests__/use-theme-explore.hooks.unit.test.ts ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../../../Jini/packages/ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+    29077|  }
+    29078|  _formatLog(e$1, position) {
+    29079|   const err$2 = typeof e$1 === "string" ? new Error(e$1) : e$1;
+       |                                           ^
+    29080|   if (err$2.pluginCode) return err$2;
+    29081|   err$2.plugin = this._plugin.name;
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/425]⎯
+
+ FAIL  src/features/plugins/__tests__/AgentPlugins.unit.test.tsx [ src/features/plugins/__tests__/AgentPlugins.unit.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui/settings-dialog.css" from "src/features/plugins/AgentPlugins.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Tovu/apps/admin/src/features/plugins/AgentPlugins.tsx:8:7
+  6  |    SettingsDialogShell
+  7  |  } from "@jini-ai/ui";
+  8  |  import "@jini-ai/ui/settings-dialog.css";
+     |          ^
+  9  |  import { agentHandle } from "@jini-ai/agentic";
+  10 |  import { useId, useState } from "react";
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+    29077|  }
+    29078|  _formatLog(e$1, position) {
+    29079|   const err$2 = typeof e$1 === "string" ? new Error(e$1) : e$1;
+       |                                           ^
+    29080|   if (err$2.pluginCode) return err$2;
+    29081|   err$2.plugin = this._plugin.name;
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/425]⎯
+
+ FAIL  src/features/plugins/__tests__/AgentPluginsAddTab.unit.test.tsx [ src/features/plugins/__tests__/AgentPluginsAddTab.unit.test.tsx ]
+ FAIL  src/features/plugins/__tests__/agent-plugin-update.unit.test.tsx [ src/features/plugins/__tests__/agent-plugin-update.unit.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui/settings-dialog.css" from "src/features/plugins/AgentPlugins.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Tovu/apps/admin/src/features/plugins/AgentPlugins.tsx:8:7
+  6  |    SettingsDialogShell
+  7  |  } from "@jini-ai/ui";
+  8  |  import "@jini-ai/ui/settings-dialog.css";
+     |          ^
+  9  |  import { agentHandle } from "@jini-ai/agentic";
+  10 |  import { useId, useState } from "react";
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+    29077|  }
+    29078|  _formatLog(e$1, position) {
+    29079|   const err$2 = typeof e$1 === "string" ? new Error(e$1) : e$1;
+       |                                           ^
+    29080|   if (err$2.pluginCode) return err$2;
+    29081|   err$2.plugin = this._plugin.name;
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+ ❯ fetchModule node_modules/vite/dist/node/chunks/config.js:34073:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/425]⎯
+
+ FAIL  src/features/recovery/__tests__/Recovery.unit.test.tsx [ src/features/recovery/__tests__/Recovery.unit.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui/settings-dialog.css" from "src/features/recovery/Recovery.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Tovu/apps/admin/src/features/recovery/Recovery.tsx:4:7
+  3  |  import { agentHandle } from "@jini-ai/agentic";
+  4  |  import { I18nProvider, SETTINGS_DIALOG_DICTIONARIES, SettingsDialogShell } from "@jini-ai/ui";
+  5  |  import "@jini-ai/ui/settings-dialog.css";
+     |          ^
+  6  |  import { buildAgentListHandles } from "@jini-ai/agentic";
+  7  |  import { formatTimestamp } from "@jini-ai/ui/panel-kit";
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+    29077|  }
+    29078|  _formatLog(e$1, position) {
+    29079|   const err$2 = typeof e$1 === "string" ? new Error(e$1) : e$1;
+       |                                           ^
+    29080|   if (err$2.pluginCode) return err$2;
+    29081|   err$2.plugin = this._plugin.name;
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/425]⎯
+
+ FAIL  src/features/taxonomy/__tests__/html-embed.unit.test.tsx [ src/features/taxonomy/__tests__/html-embed.unit.test.tsx ]
+Error: [vitest] There was an error when mocking a module. If you are using "vi.mock" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock
+ ❯ src/features/taxonomy/hooks/use-new-term-form.hooks.ts:4:1
+      2| import { describeApiError, type AdminTaxonomyWithTerms } from "@/lib/a…
+      3| import { useFetchMutation } from "@jini-ai/ui/fetch-query";
+      4| import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+       | ^
+      5| import { t } from "../taxonomy-i18n";
+      6| import { KEYS } from "../rules";
+
+Caused by: Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../../../Jini/packages/ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+ ❯ fetchModule node_modules/vite/dist/node/chunks/config.js:34073:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/425]⎯
+
+ FAIL  src/components/AssistantDock/__tests__/RoutedA2uiSurfaceCard.contract.unit.test.tsx [ src/components/AssistantDock/__tests__/RoutedA2uiSurfaceCard.contract.unit.test.tsx ]
+ FAIL  src/components/AssistantDock/__tests__/chart-provider.contract.unit.test.tsx [ src/components/AssistantDock/__tests__/chart-provider.contract.unit.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui/interactive-ui.css" from "src/components/AssistantDock/RoutedA2uiSurfaceCard.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Tovu/apps/admin/src/components/AssistantDock/RoutedA2uiSurfaceCard.tsx:5:7
+  4  |  import { useContext } from "react";
+  5  |  import { A2uiSurfaceCard, useT } from "@jini-ai/chat/react";
+  6  |  import "@jini-ai/ui/interactive-ui.css";
+     |          ^
+  7  |  import { useRoutedA2uiSurfaceCard } from "./hooks/use-routed-a2ui-surface-card.hooks";
+  8  |  import { AdminChartRegistryContext } from "@/integrations/chart-providers/chart-registry-context";
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+    29077|  }
+    29078|  _formatLog(e$1, position) {
+    29079|   const err$2 = typeof e$1 === "string" ? new Error(e$1) : e$1;
+       |                                           ^
+    29080|   if (err$2.pluginCode) return err$2;
+    29081|   err$2.plugin = this._plugin.name;
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+ ❯ fetchModule node_modules/vite/dist/node/chunks/config.js:34073:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/425]⎯
+
+ FAIL  src/components/AssistantDock/__tests__/RoutedA2uiSurfaceCard.unit.test.tsx [ src/components/AssistantDock/__tests__/RoutedA2uiSurfaceCard.unit.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui/interactive-ui.css" from "src/components/AssistantDock/RoutedA2uiSurfaceCard.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Tovu/apps/admin/src/components/AssistantDock/RoutedA2uiSurfaceCard.tsx:5:7
+  4  |  import { useContext } from "react";
+  5  |  import { A2uiSurfaceCard, useT } from "@jini-ai/chat/react";
+  6  |  import "@jini-ai/ui/interactive-ui.css";
+     |          ^
+  7  |  import { useRoutedA2uiSurfaceCard } from "./hooks/use-routed-a2ui-surface-card.hooks";
+  8  |  import { AdminChartRegistryContext } from "@/integrations/chart-providers/chart-registry-context";
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+    29077|  }
+    29078|  _formatLog(e$1, position) {
+    29079|   const err$2 = typeof e$1 === "string" ? new Error(e$1) : e$1;
+       |                                           ^
+    29080|   if (err$2.pluginCode) return err$2;
+    29081|   err$2.plugin = this._plugin.name;
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[24/425]⎯
+
+ FAIL  src/components/AssistantDock/__tests__/execution-config-write.unit.test.ts [ src/components/AssistantDock/__tests__/execution-config-write.unit.test.ts ]
+Error: [vitest] There was an error when mocking a module. If you are using "vi.mock" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock
+ ❯ src/components/AssistantDock/__tests__/execution-config-write.unit.test.ts:11:1
+      9| vi.mock("@/lib/settings-refresh-bus", () => ({ publishSettingsRefresh:…
+     10|
+     11| import { DEFAULT_EXECUTION_CONFIG, saveExecutionConfig } from "@/lib/e…
+       | ^
+     12| import { publishSettingsRefresh } from "@/lib/settings-refresh-bus";
+     13| import { applyExecutionConfigChange, persistExecutionConfigWrite } fro…
+
+Caused by: Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../../../Jini/packages/ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+ ❯ fetchModule node_modules/vite/dist/node/chunks/config.js:34073:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[25/425]⎯
+
+ FAIL  src/components/AssistantDock/__tests__/interactive-ui-styles.unit.test.ts [ src/components/AssistantDock/__tests__/interactive-ui-styles.unit.test.ts ]
+Error: Cannot find module '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/features/interactive-ui/interactive-ui.css'
+ ❯ src/components/AssistantDock/__tests__/interactive-ui-styles.unit.test.ts:7:68
+      5|
+      6| // Vitest returns "" for `?inline` CSS unless css processing is on, so…
+      7| const interactiveCss = readFileSync(createRequire(import.meta.url).res…
+       |                                                                    ^
+      8|
+      9| it("loads the built table stylesheet at the shared inline and canvas A…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[26/425]⎯
+
+ FAIL  src/features/settings/hooks/__tests__/use-settings-ui.unit.test.ts [ src/features/settings/hooks/__tests__/use-settings-ui.unit.test.ts ]
+Error: [vitest] There was an error when mocking a module. If you are using "vi.mock" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock
+ ❯ src/features/settings/hooks/use-settings-ui.hooks.ts:8:1
+      6|   type PrivacyConsentState,
+      7| } from "@jini-ai/ui";
+      8| import {
+       | ^
+      9|   DEFAULT_EXECUTION_CONFIG,
+     10|   EXECUTION_NAMESPACE,
+
+Caused by: Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../../../Jini/packages/ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+ ❯ fetchModule node_modules/vite/dist/node/chunks/config.js:34073:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[27/425]⎯
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/admin-themes/__tests__/admin-themes.unit.test.ts > admin theme cascade > preserves all inherited root token values (dark=false)
+ FAIL  src/admin-themes/__tests__/admin-themes.unit.test.ts > admin theme cascade > preserves all inherited root token values (dark=true)
+Error: Cannot find module '/home/user/Tovu/apps/admin/node_modules/@jini-ai/ui/dist/styles/variables.css'
+ ❯ src/admin-themes/__tests__/admin-themes.unit.test.ts:129:59
+    127|     const bridge = read(resolve(SRC, "styles/admin-theme-bridge.css"));
+    128|     const platform = resolve(process.cwd(), "node_modules/@jini-ai/adm…
+    129|     const variables = read(createRequire(import.meta.url).resolve("@ji…
+       |                                                           ^
+    130|     const tokens = (sheets: string[]) => {
+    131|       const values: Record<string, string> = {};
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[28/425]⎯
+
+ FAIL  src/__tests__/unit/main-entry-signed-in.unit.test.tsx > mounts the signed-in shell, not the login screen, once the session has a user
+Error: Failed to resolve import "@jini-ai/ui/remixicon.css?inline" from "src/main.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Tovu/apps/admin/src/main.tsx:13:25
+  12 |  import { redirectLegacyHashUrl } from "./lib/router";
+  13 |  import { adminTelemetry, installBrowserErrorListeners, reactRootErrorOptions } from "./lib/browser-telemetry";
+  14 |  import remixiconCss from "@jini-ai/ui/remixicon.css?inline";
+     |                            ^
+  15 |  import "./styles.css";
+  16 |  import "./styles/forms.css";
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+    29077|  }
+    29078|  _formatLog(e$1, position) {
+    29079|   const err$2 = typeof e$1 === "string" ? new Error(e$1) : e$1;
+       |                                           ^
+    29080|   if (err$2.pluginCode) return err$2;
+    29081|   err$2.plugin = this._plugin.name;
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+ ❯ fetchModule node_modules/vite/dist/node/chunks/config.js:34073:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[29/425]⎯
+
+
+ Test Files  424 failed | 409 passed (833)
+      Tests  3 failed | 5481 passed (5484)
+   Start at  22:40:57
+   Duration  1230.32s (transform 87.22s, setup 232.42s, import 136.84s, tests 133.66s, environment 961.29s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 44.93% ( 9142/20345 )
+Branches     : 42.11% ( 5695/13524 )
+Functions    : 42.98% ( 3115/7246 )
+Lines        : 44.72% ( 7527/16828 )
+================================================================================
+EXIT=1
