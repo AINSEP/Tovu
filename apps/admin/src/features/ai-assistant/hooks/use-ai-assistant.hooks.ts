@@ -115,7 +115,7 @@ export function useAiAssistantTab({ tabId }: { tabId: string | null | undefined 
  * @complexity Time: O(n) tabs; space: O(1).
  */
 export function resolveAiAssistantTabSubtitle({ tabs, activeTabId }: {
-  tabs: readonly { id: string; subtitle?: string | undefined }[]; activeTabId: string;
+  tabs: readonly { id: string; subtitle?: string }[]; activeTabId: string;
 }, _options = {}): string | undefined {
   return (tabs.find(tab => tab.id === activeTabId) ?? tabs[0])?.subtitle;
 }

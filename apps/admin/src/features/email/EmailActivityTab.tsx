@@ -254,7 +254,7 @@ function FeedbackSetup(props: { controller: EmailActivityController; locale: str
   );
 }
 
-export function EmailActivityTab(props: { controller: EmailActivityController; locale: string; part?: "sends" | "blocked" | "reports" | undefined }) {
+export function EmailActivityTab(props: { controller: EmailActivityController; locale: string; part?: "sends" | "blocked" | "reports" }) {
   const { controller, locale, part } = props;
   return (
     <>

@@ -178,7 +178,7 @@ export function segmentLabel(label: string): string {
 export const ADD_PROVIDER_PART = "_add-provider";
 export const CAPABILITIES_PART = "_capabilities";
 
-function AddProvider(props: { controller: EmailProviderController; locale: string; onSelect?: ((id: string) => void) | undefined }) {
+function AddProvider(props: { controller: EmailProviderController; locale: string; onSelect?: (id: string) => void }) {
   const { controller, locale } = props;
   const select = (id: string | undefined) => { if (id) props.onSelect?.(id); };
   return (
@@ -205,7 +205,7 @@ function AddProvider(props: { controller: EmailProviderController; locale: strin
   );
 }
 
-function ProviderCards(props: { providers: readonly MailProviderConfiguration[]; controller: EmailProviderController; status: AdminMailStatus | null; locale: string; selectedId?: string | null | undefined; onSelect?: ((id: string) => void) | undefined }) {
+function ProviderCards(props: { providers: readonly MailProviderConfiguration[]; controller: EmailProviderController; status: AdminMailStatus | null; locale: string; selectedId?: string | null; onSelect?: (id: string) => void }) {
   const { providers, controller, locale } = props;
   const shownId = props.selectedId === ADD_PROVIDER_PART || props.selectedId === CAPABILITIES_PART ? props.selectedId : shownProviderId(providers, props.selectedId) ?? ADD_PROVIDER_PART;
   const items = [...providers.map((p) => ({ key: p.id, label: segmentLabel(p.label) })),
@@ -222,7 +222,7 @@ function ProviderCards(props: { providers: readonly MailProviderConfiguration[];
   );
 }
 
-export function EmailProviderTab(props: { controller: EmailProviderController; status: AdminMailStatus | null; locale: string; selectedId?: string | null | undefined; onSelect?: ((id: string) => void) | undefined }) {
+export function EmailProviderTab(props: { controller: EmailProviderController; status: AdminMailStatus | null; locale: string; selectedId?: string | null; onSelect?: (id: string) => void }) {
   const { controller, locale } = props;
   const pending = controller.pendingSwitch;
   return (

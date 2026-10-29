@@ -153,7 +153,7 @@ function ProvidersPanel({ t }: { t: Translate }) {
 }
 
 export interface ObservabilityProps {
-  tabId?: string | null | undefined;
+  tabId?: string | null;
   /** Dependency injection seam for tests — the same convention `AgentPluginsProps.useAgentPluginsHook`
    *  uses. Defaulted to the real hook, so production callers pass nothing and behave exactly as
    *  before. */
