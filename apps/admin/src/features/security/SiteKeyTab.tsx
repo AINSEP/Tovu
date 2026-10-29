@@ -151,7 +151,7 @@ function SiteKeyStatusCard({ controller, status }: { controller: SiteKeyControll
   );
 }
 
-function siteKeyStatusBadgeClass(active: boolean, invalid: boolean | undefined): string {
+function siteKeyStatusBadgeClass(active: boolean, invalid = false): string {
   if (invalid) return "status-warning";
   return active ? "status-ok" : "status-neutral";
 }

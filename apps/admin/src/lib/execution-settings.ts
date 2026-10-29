@@ -477,7 +477,10 @@ export async function saveExecutionConfig(
       written.push(key);
     }
   } catch (error) {
-    const previousValues = new Map(changedLedgerEntries(previous, next).map((entry) => [entry.key, entry.valueJson]));
+    // Diffed the other way round: the entries `previous` holds for the keys this write changed.
+    const restoreTarget = previous;
+    const failedWrite = next;
+    const previousValues = new Map(changedLedgerEntries(restoreTarget, failedWrite).map((entry) => [entry.key, entry.valueJson]));
     await restoreLedgerKeys(written, previousValues);
     throw error;
   }

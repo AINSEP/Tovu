@@ -65,9 +65,48 @@ export interface MediaPickerDialogProps {
   accept?: readonly string[];
 }
 
+type MediaPickerDialogState = ReturnType<typeof useWiredMediaPickerDialog>;
+
+/** The dialog's body: a loading notice, the empty-library notice, or the grid of choices. */
+function MediaPickerItems({ items, itemHandles, dialog, emptyState }: {
+  items: ReturnType<typeof acceptedMediaItems>;
+  itemHandles: readonly string[] | undefined;
+  dialog: Pick<MediaPickerDialogState, "select" | "mediaOriginalUrl" | "t">;
+  emptyState: readonly [string | undefined, string | undefined];
+}) {
+  const { select, mediaOriginalUrl, t } = dialog;
+  if (items === null) return <p className="notice">{t("Loading media…")}</p>;
+  if (items.length === 0) {
+    return (
+      <p className="notice">
+        {emptyState[0]}
+        <a href="/admin/media">{t("Media")}</a>
+        {emptyState[1]}
+      </p>
+    );
+  }
+  return (
+    <div className="media-picker-grid">
+      {items.map((item, index) => (
+        <button
+          key={item.id}
+          type="button"
+          className="media-picker-item"
+          title={item.title}
+          onClick={() => select(item)}
+          {...(itemHandles ? agentHandle({ handle: itemHandles[index]! }, { role: "button", label: item.title }) : {})}
+        >
+          <img src={mediaOriginalUrl(item.id)} alt={item.alt || item.title} loading="lazy" />
+          <span className="media-picker-item-title">{item.title}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function LegacyMediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agentHandle: base, accept, ...props }: MediaPickerDialogProps) {
   const dialog = useDialog(props.onSelect, props.onCancel);
-  const { error, select, mediaOriginalUrl, t } = dialog;
+  const { error, t } = dialog;
   const items = acceptedMediaItems(dialog.items, accept);
   // Native modality keeps Tab inside; Jini also restores the opener when this dialog unmounts.
   // Cancel is always present regardless of loading/error/empty/populated state, the same reason
@@ -84,31 +123,7 @@ function LegacyMediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agentH
 
         <div className="media-picker-body">
           {error ? <div className="notice error">{error}</div> : null}
-          {items === null ? <p className="notice">{t("Loading media…")}</p> : null}
-          {items?.length === 0 ? (
-            <p className="notice">
-              {emptyStateBefore}
-              <a href="/admin/media">{t("Media")}</a>
-              {emptyStateAfter}
-            </p>
-          ) : null}
-          {items && items.length > 0 ? (
-            <div className="media-picker-grid">
-              {items.map((item, index) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className="media-picker-item"
-                  title={item.title}
-                  onClick={() => select(item)}
-                  {...(itemHandles ? agentHandle({ handle: itemHandles[index]! }, { role: "button", label: item.title }) : {})}
-                >
-                  <img src={mediaOriginalUrl(item.id)} alt={item.alt || item.title} loading="lazy" />
-                  <span className="media-picker-item-title">{item.title}</span>
-                </button>
-              ))}
-            </div>
-          ) : null}
+          <MediaPickerItems items={items} itemHandles={itemHandles} dialog={dialog} emptyState={[emptyStateBefore, emptyStateAfter]} />
         </div>
 
         <div className="widget-picker-footer">

@@ -648,6 +648,13 @@ export interface PageEditorDependencies {
  */
 /** Where an old id/slug bookmark should land: the root page on its alias, any other page (except a
  *  real `home` page, which keeps its id) on its canonical slug. `null` when already canonical. */
+/** Whether the editor shows exactly the live page: published, nothing dirty, same template. */
+function isPublishedUnchanged({ status, contentDirty, templateChoice, savedTemplateChoice }: {
+  status: string; contentDirty: boolean; templateChoice: string | null; savedTemplateChoice: string | null;
+}): boolean {
+  return status === "published" && !contentDirty && templateChoice === savedTemplateChoice;
+}
+
 function canonicalPageRedirect(post: AdminPost, routeSlug: string): string | null {
   if (post.slug === "/") return routeSlug === post.id ? pageAdminPath(post) : null;
   if (post.slug === HOME_PAGE_HANDLE) return null;
@@ -865,9 +872,8 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
 
   const prevViewRef = useRef(view);
   useEffect(() => {
-    if (view === "html" && prevViewRef.current !== "html") {
-      if (!consumeJumpFormatting()) setDraftHtml(prettifyHtml(html));
-    }
+    // A jump into the HTML view keeps the caller's own formatting; any other entry prettifies.
+    if (view === "html" && prevViewRef.current !== "html" && !consumeJumpFormatting()) setDraftHtml(prettifyHtml(html));
     prevViewRef.current = view;
   }, [view, html, consumeJumpFormatting]);
 
@@ -1150,7 +1156,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     autosave.scheduleAutosave(buildPageAutosaveDraft(page, { title, slug, html }));
   }, [page, contentDirty, title, slug, html, autosave.scheduleAutosave]);
 
-  const previewMatchesLive = status === "published" && !contentDirty && templateChoice === savedTemplateChoice;
+  const previewMatchesLive = isPublishedUnchanged({ status, contentDirty, templateChoice, savedTemplateChoice });
   // Pending-html preview's debounced auto-submit (2026-09-09) — see `PageEditorController
   // .previewFormRef`'s own doc. `active` mirrors the negation of `PagePreview`'s own
   // `canShowLiveSite` (see that function's doc): true whenever the operator isn't looking at the

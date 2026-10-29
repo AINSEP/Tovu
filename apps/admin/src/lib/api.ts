@@ -32,6 +32,9 @@ function publishContentDestinationPath(): string {
   return `/workspaces/${WORKSPACE_ID}/publish-content/destination`;
 }
 
+/** Which part of a theme a file is (`GET .../themes/:id/files`). */
+export type ThemeFileGroup = "page" | "partial" | "style" | "script" | "config" | "asset" | "other";
+
 export interface AdminUser {
   id: string;
   username: string;
@@ -1888,6 +1891,9 @@ export interface ContentTypeFieldDef {
 
 export type ContentTypeStatus = "active" | "deprecated" | "tombstone";
 
+/** A content type's lifecycle transition (`POST /content-types/:key/lifecycle`). */
+export type ContentTypeLifecycleOp = "deprecate" | "reactivate" | "tombstone";
+
 export interface AdminContentType {
   workspaceId: string;
   key: string;
@@ -3027,7 +3033,7 @@ export const api = {
        */
       files: Array<{
         path: string;
-        group: "page" | "partial" | "style" | "script" | "config" | "asset" | "other";
+        group: ThemeFileGroup;
         /** Whether the raw source can be fetched/displayed as text at all — false only for binary
          *  assets (images, fonts). Independent of `editable`: a script is readable but not editable. */
         readable: boolean;
@@ -3095,7 +3101,7 @@ export const api = {
   copyThemeFile: (themeId: string, path: string) =>
     request<{
       path: string;
-      group: "page" | "partial" | "style" | "script" | "config" | "asset" | "other";
+      group: ThemeFileGroup;
       readable: boolean;
       editable: boolean;
       resettable: boolean;
@@ -3114,7 +3120,7 @@ export const api = {
   renameThemeFile: (themeId: string, path: string, name: string) =>
     request<{
       path: string;
-      group: "page" | "partial" | "style" | "script" | "config" | "asset" | "other";
+      group: ThemeFileGroup;
       readable: boolean;
       editable: boolean;
       resettable: boolean;
@@ -3682,7 +3688,7 @@ export const api = {
       key,
       op,
       expectedVersion,
-    }: { key: string; op: "deprecate" | "reactivate" | "tombstone"; expectedVersion: number },
+    }: { key: string; op: ContentTypeLifecycleOp; expectedVersion: number },
     _options: Record<string, never> = {}
   ) =>
     request<{ contentType: AdminContentType }>(`/content-types/${encodeURIComponent(key)}/lifecycle`, {

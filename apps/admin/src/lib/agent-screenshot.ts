@@ -202,9 +202,9 @@ function encodeWithinBudget(canvas: CapturedCanvas): readonly ScreenshotContentB
   for (const quality of JPEG_QUALITIES) {
     const dataUrl = canvas.toDataURL("image/jpeg", quality);
     const parsed = parseDataUrl(dataUrl);
-    if (!parsed) continue;
-    if (estimateBase64ByteLength(parsed.data) > MAX_SCREENSHOT_BYTES) continue;
-    return [buildTextBlock(FIDELITY_NOTE), buildImageBlock(parsed.mimeType, parsed.data)];
+    if (parsed && estimateBase64ByteLength(parsed.data) <= MAX_SCREENSHOT_BYTES) {
+      return [buildTextBlock(FIDELITY_NOTE), buildImageBlock(parsed.mimeType, parsed.data)];
+    }
   }
   return undefined;
 }

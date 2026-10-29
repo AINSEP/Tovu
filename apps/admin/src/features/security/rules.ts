@@ -88,7 +88,10 @@ export const SITE_KEY_MANAGE_PERMISSION = "admin.security.site-key.manage";
 /** Which credential store a row belongs to. `"custom"` (2026-08-17) is the odd one out — see
  *  {@link AccessTokenRow.category}'s own doc: it has no fixed provider catalog behind it at all, an
  *  operator-typed row IS its own provider identity. */
-export type AccessTokenKind = "publish" | "source-control" | "custom";
+/** The one id shared by the source-control token kind and its category. */
+const SOURCE_CONTROL = "source-control";
+
+export type AccessTokenKind = "publish" | typeof SOURCE_CONTROL | "custom";
 
 /** The category filter row's own ids — `"all"` plus one bucket per real category. Every provider
  *  and every {@link OtherCredentialStoreInfo} lands in exactly one of the non-`"all"` ids (the owner's
@@ -122,7 +125,7 @@ export interface AccessTokenCategoryInfo {
  */
 export const ACCESS_TOKEN_CATEGORIES: readonly AccessTokenCategoryInfo[] = [
   { id: "all", label: "All" },
-  { id: "source-control", label: "Source control" },
+  { id: SOURCE_CONTROL, label: "Source control" },
   { id: "hosting", label: "Hosting" },
   { id: "media", label: "Media" },
   { id: "ai", label: "AI" },
@@ -240,12 +243,12 @@ function publishTargetProviderInfo(target: AdminPublishTargetDescriptor, credent
 function sourceControlTargetProviderInfo(descriptor: AdminSourceControlProviderDescriptor): AccessTokenProviderInfo {
   const info = sourceControlProviderInfoFromDescriptor(descriptor);
   return {
-    kind: "source-control",
+    kind: SOURCE_CONTROL,
     providerId: info.id,
     label: info.label,
     vendorLabel: info.label,
     purposeLabel: "Source control",
-    category: "source-control",
+    category: SOURCE_CONTROL,
     tokenPageUrl: info.tokenPageUrl,
     scopeGuidanceKey: info.scopeGuidanceKey,
     ...(info.tokenLabel !== undefined ? { tokenLabel: info.tokenLabel } : {}),
@@ -281,8 +284,8 @@ export function accessTokenProviderInfo(providers: readonly AccessTokenProviderI
       providerId: ref.providerId,
       label: ref.providerId,
       vendorLabel: ref.providerId,
-      purposeLabel: ref.kind === "source-control" ? "Source control" : "Hosting",
-      category: ref.kind === "source-control" ? "source-control" : "hosting",
+      purposeLabel: ref.kind === SOURCE_CONTROL ? "Source control" : "Hosting",
+      category: ref.kind === SOURCE_CONTROL ? SOURCE_CONTROL : "hosting",
       tokenPageUrl: "",
       scopeGuidanceKey: "",
       extraFields: [],
@@ -878,7 +881,7 @@ export function accessTokenExistingRowReadyToSave(
 ): boolean {
   // Metadata edits use the same secret-preserving update path as a rename. A supplied token
   // still requires the provider's complete connection fields.
-  if (row.kind !== "source-control" && fields.name.trim() && !fields.token.trim() && accessTokenWorksForChanged({ draft: fields.worksFor, saved: row.worksFor })) return true;
+  if (row.kind !== SOURCE_CONTROL && fields.name.trim() && !fields.token.trim() && accessTokenWorksForChanged({ draft: fields.worksFor, saved: row.worksFor })) return true;
   if (row.kind === "custom") return customCredentialReplaceReadyToSave(fields, row.name, row.username);
   return accessTokenReplaceReadyToSave(fields, row.name, info);
 }

@@ -12,6 +12,8 @@ import { useWiredAccessTokens } from "./hooks/use-access-tokens.hooks";
 import { useWiredSiteKey } from "./hooks/use-site-key.hooks";
 import { useWiredSecurityPermissions } from "./hooks/use-security-permissions.hooks";
 
+const ACCESS_TOKENS_TAB = "access-tokens";
+
 /**
  * @file The Security page (`/admin/access-tokens`) — a consolidation, not a new store: every token
  * here already lives in `publish_credential_sets` (Static Site tab) or
@@ -90,13 +92,13 @@ import { useWiredSecurityPermissions } from "./hooks/use-security-permissions.ho
  * empty/absent permissions), so the tab never flashes into view before disappearing.
  */
 
-const SECURITY_TAB_IDS = ["access-tokens", "site-key"] as const;
+const SECURITY_TAB_IDS = [ACCESS_TOKENS_TAB, "site-key"] as const;
 type SecurityTabId = (typeof SECURITY_TAB_IDS)[number];
 
 /** The tab-id list for a principal WITHOUT `admin.security.site-key.manage` — see this file's header
  *  ("The site key tab is affordance-hidden") for why {@link resolveSecurityTabId} needs a second,
  *  narrower list rather than only ever validating against {@link SECURITY_TAB_IDS}. */
-const ACCESS_TOKENS_ONLY_TAB_IDS: readonly SecurityTabId[] = ["access-tokens"];
+const ACCESS_TOKENS_ONLY_TAB_IDS: readonly SecurityTabId[] = [ACCESS_TOKENS_TAB];
 
 /** Falls back to the Access Tokens tab for an absent or unrecognized `?tab=` value, delegating to
  *  the shared `../../lib/resolve-active-tab-id` guard `Deployment.tsx`/`SourceControl.tsx`/
@@ -106,7 +108,7 @@ const ACCESS_TOKENS_ONLY_TAB_IDS: readonly SecurityTabId[] = ["access-tokens"];
  *  typo would, and they land on Access Tokens instead of an empty panel. */
 function resolveSecurityTabId(tabId: string | null | undefined, canManageSiteKey: boolean): SecurityTabId {
   const validIds: readonly SecurityTabId[] = canManageSiteKey ? SECURITY_TAB_IDS : ACCESS_TOKENS_ONLY_TAB_IDS;
-  return resolveActiveTabId({ tabId: tabId, validIds: validIds, defaultId: "access-tokens" });
+  return resolveActiveTabId({ tabId: tabId, validIds: validIds, defaultId: ACCESS_TOKENS_TAB });
 }
 
 export interface SecurityProps {
@@ -136,7 +138,7 @@ export function Security(props: SecurityProps) {
 
   const tabs: TabBarTab[] = [
     {
-      id: "access-tokens",
+      id: ACCESS_TOKENS_TAB,
       label: t({ locale: locale, key: "Access Tokens" }),
       icon: <AccessTokensIcon size={16} />,
       handle: "security-tab-access-tokens",
@@ -184,7 +186,7 @@ export function Security(props: SecurityProps) {
         onChange={handleTabChange}
         containerHandle="security-tab-bar"
       />
-      {activeTabId === "access-tokens" ? <AccessTokensTab useAccessTokensHook={props.useAccessTokensHook} /> : null}
+      {activeTabId === ACCESS_TOKENS_TAB ? <AccessTokensTab useAccessTokensHook={props.useAccessTokensHook} /> : null}
       {activeTabId === "site-key" ? <SiteKeyTab useSiteKeyHook={props.useSiteKeyHook} /> : null}
     </div>
   );

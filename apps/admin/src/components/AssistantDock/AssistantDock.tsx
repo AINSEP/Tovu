@@ -639,11 +639,9 @@ export function AssistantDock({
         // Spread, not attributes: a chat build without these props ignores them (see `chatPaneDisplayProps`).
         {...chatPaneDisplayProps({ preferences: chatDisplay.preferences })}
         agentPluginsMode={agentPlugins.mode}
-        // suggestions={[
-        //   "Summarise what content types this site defines.",
-        //   "List the agent-callable tools and the permission each one needs.",
-        //   "Which admin sections exist, and what does each one manage?",
-        // ]}
+        // Starter suggestions are parked. The prompts last offered were: "Summarise what content
+        // types this site defines.", "List the agent-callable tools and the permission each one
+        // needs." and "Which admin sections exist, and what does each one manage?"
       />
       <ConfirmDialog {...conversationDelete.dialog} />
       <ChatSettingsDialog open={chatSettings.open} onClose={chatSettings.close} t={t}

@@ -1,5 +1,7 @@
 import { useEffect } from "react";
 
+const DATA_LABEL = "data-label";
+
 /**
  * @file Column labels for `.list-table` body cells, so the phone card layout can name each value
  * (mobile catalog P-4, 2026-10-06). On narrow screens `styles.css` turns every `.list-table` row
@@ -23,7 +25,7 @@ function headerLabels(table: HTMLTableElement): string[] {
     title.querySelectorAll('.info-tip, [role="tooltip"], [hidden], [aria-hidden="true"]')
       .forEach((help) => help.remove());
     // An element's `textContent` is never null (only a document's or doctype's is), so no "" fallback.
-    const text = (th.getAttribute("data-label") ?? title.textContent).replace(SORT_GLYPHS, "").trim();
+    const text = (th.getAttribute(DATA_LABEL) ?? title.textContent).replace(SORT_GLYPHS, "").trim();
     for (let i = 0; i < th.colSpan; i += 1) labels.push(text);
   }
   return labels;
@@ -34,8 +36,8 @@ function labelRow(row: HTMLTableRowElement, labels: readonly string[]): void {
   for (const cell of Array.from(row.cells)) {
     // A spanning cell (an empty-state or inline detail row) belongs to no single column.
     const label = cell.colSpan === 1 ? (labels[column] ?? "") : "";
-    if (label && cell.getAttribute("data-label") !== label) cell.setAttribute("data-label", label);
-    if (!label && cell.hasAttribute("data-label")) cell.removeAttribute("data-label");
+    if (label && cell.getAttribute(DATA_LABEL) !== label) cell.setAttribute(DATA_LABEL, label);
+    if (!label && cell.hasAttribute(DATA_LABEL)) cell.removeAttribute(DATA_LABEL);
     column += cell.colSpan;
   }
 }

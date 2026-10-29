@@ -42,6 +42,9 @@ import { useRemoveConfirmDialog, useAddCustomCredentialDialog, useMergedSecretsO
 import { CopyKeysDialog } from "./CopyKeysDialog";
 import { useWiredCopyKeys } from "./hooks/use-copy-keys.hooks";
 
+/** "Remove from Tovu," never "Revoke": removal forgets the stored copy, the provider keeps the key. */
+const REMOVE_FROM_TOVU = "Remove from Tovu";
+
 /**
  * @file The Access Tokens tab — `Security.tsx`'s one tab and this feature's actual content. One
  * flat, searchable, category-filtered list of every credential this install holds across all eight
@@ -412,8 +415,8 @@ function TokenRow({
       {state.row.scope === "project" && !state.row.usedByThisSite ? (
         <div className="access-tokens-row-actions">
           <p className="field-hint">{translate("Use on this site to replace this key.")}</p>
-          <button type="button" className="btn-danger" onClick={() => dialogRef.current?.showModal()} aria-label={`${translate("Remove from Tovu")} — ${state.name}`}>
-            {translate("Remove from Tovu")}
+          <button type="button" className="btn-danger" onClick={() => dialogRef.current?.showModal()} aria-label={`${translate(REMOVE_FROM_TOVU)} — ${state.name}`}>
+            {translate(REMOVE_FROM_TOVU)}
           </button>
         </div>
       ) : <ExistingTokenFields state={state} controller={controller} info={info} onRemoveClick={() => dialogRef.current?.showModal()} t={translate} />}
@@ -742,10 +745,10 @@ function ExistingTokenFields({
           // Same multi-row-open ambiguity as Save above, on this page's one destructive action —
           // see `rules.ts`'s `restoreButtonAccessibleName` (`recovery/rules.ts`) for the identical
           // reasoning applied to a different screen's own always-visible destructive control.
-          aria-label={`${translate("Remove from Tovu")} — ${state.name}`}
+          aria-label={`${translate(REMOVE_FROM_TOVU)} — ${state.name}`}
           {...agentHandle({ handle: `security-access-tokens-remove-${agentHandleSegment({ value: state.row.id })}` }, { role: "button", label: `Open the confirm dialog to remove this ${info.label} token from Tovu` })}
         >
-          {translate("Remove from Tovu")}
+          {translate(REMOVE_FROM_TOVU)}
         </button>
         {state.error ? (
           <p className="save-error" role="alert">
@@ -869,7 +872,7 @@ const RemoveConfirmDialog = forwardRef<HTMLDialogElement, { row: AccessTokenRow;
             {translate("Cancel")}
           </button>
           <button type="button" className="btn-danger" onClick={confirm}>
-            {translate("Remove from Tovu")}
+            {translate(REMOVE_FROM_TOVU)}
           </button>
         </div>
       </dialog>

@@ -27,7 +27,10 @@ export function unchangedSaveHandlers(
     if (pending === "unchanged") setConfirmingUnchangedSave(true);
   };
   return {
-    onSave: () => void (dirty ? save() : saveOrWarn()),
+    onSave: () => {
+      if (dirty) void save();
+      else void saveOrWarn();
+    },
     onUnchangedSaveConfirm: () => {
       setConfirmingUnchangedSave(false);
       void save();

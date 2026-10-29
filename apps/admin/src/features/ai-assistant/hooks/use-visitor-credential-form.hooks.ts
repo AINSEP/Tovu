@@ -223,6 +223,11 @@ function withDiscoveredModel(current: ByokConfig, models: readonly string[]): By
   return { ...current, model: models.find((m) => m === "gemini-flash-latest") ?? (models[0] as string) };
 }
 
+/** {@link withDiscoveredModel} as a `setConfig` updater. */
+function seedDiscoveredModel(models: readonly string[]): (current: ByokConfig) => ByokConfig {
+  return (current) => withDiscoveredModel(current, models);
+}
+
 /**
  * Save key's status line — whether the KEY reached the server, and nothing else. One of four
  * mutually exclusive messages keyed on `saveState.status` (plus `stored` for the two "idle"
@@ -517,7 +522,7 @@ export function useVisitorCredentialForm({
       .then((models) => {
         if (cancelled) return;
         setDiscovery({ status: "ok", models });
-        setConfig((current) => withDiscoveredModel(current, models));
+        setConfig(seedDiscoveredModel(models));
       })
       .catch((e: unknown) => {
         if (cancelled) return;
@@ -597,7 +602,7 @@ export function useVisitorCredentialForm({
           // `site-assistant.ts`'s own `DEFAULT_MODEL`; otherwise the first entry is simply a valid
           // starting point the operator can change. Without this the operator is stuck: `model` is a
           // required field, so `Test connection` stays disabled until something fills it.
-          setConfig((current) => withDiscoveredModel(current, models));
+          setConfig(seedDiscoveredModel(models));
         })
         .catch((e: unknown) =>
           !cancelled && setDiscovery({ status: "error", message: e instanceof Error ? e.message : "Model discovery failed" }),

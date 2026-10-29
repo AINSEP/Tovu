@@ -1292,15 +1292,13 @@ function publishPrimaryDisabled(
   _options: Record<string, never> = {}
 ): boolean {
   const canStart = canRequestPlan(phase) && isChosenPeerId(selectedPeerId);
-  const primaryDisabled = connectOffer
+  return connectOffer
     ? connecting || connectOffer.candidateUrl === null
     : // `selectedPublishing` is ANDed with the plan-level rule, never a replacement for it: a plan
       // that may not be confirmed at all stays disabled whatever is checked, and a confirmable
       // plan with everything unchecked is disabled too — the button never promises a run that
       // would write nothing.
       !(canStart || canConfirmSelection({ phase, selectedPublishing, overwriteReplanPending }));
-
-  return primaryDisabled;
 }
 
 /** The sentence shown when live answered differently from the report on screen. Names the site

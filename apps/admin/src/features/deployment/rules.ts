@@ -439,7 +439,7 @@ export function ownerPasswordLabelKey(defaultOwnerPasswordUnsafe: boolean): stri
  *  routes failed, or a publish `StaticPublishOutcome` with `ok: false`). @complexity O(1). */
 export function runStatusTone(
   status: "idle" | "running" | "completed" | "errored",
-  ok: boolean | undefined
+  ok = true
 ): "neutral" | "warning" | "ok" | "error" {
   if (status === "idle") return "neutral";
   if (status === "running") return "warning";
