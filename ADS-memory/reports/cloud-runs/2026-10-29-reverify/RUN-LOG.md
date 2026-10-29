@@ -1,2 +1,3 @@
 # RUN-LOG
 - 21:33:05Z STARTED re-verify (Sonnet 5.5, hard cap 2h45m => end by 00:18Z; no new step after 00:03Z). Tovu branch cloud/reverify-1029-results (from cloud/reverify-1029).
+- 21:53:14Z Setup done. Jini: install ok, build had 9 package failures (see raw/jini-build.txt), typecheck/guard/test:scripts/complexity all exit 1 (raw). Jini vitest sweep running in background. Tovu: npm ci FAILS on unpublished ranges (@jini-ai/cookie-consent@^0.6.13 ETARGET) -> local UNCOMMITTED override: all @jini-ai deps set to "next", overrides removed (root + apps/desktop/admin/site-chat incl. admin tiptap pins), npm install --ignore-scripts, link:jini to /home/user/Jini/packages. Tovu typechecks run (raw/tovu-typecheck-*.txt).

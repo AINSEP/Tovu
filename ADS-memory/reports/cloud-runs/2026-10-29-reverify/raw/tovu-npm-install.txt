@@ -1,0 +1,22 @@
+npm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation
+npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
+npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
+npm warn deprecated @jini-ai/infra@0.5.4: Compatibility shim: use @jini-ai/db/core and @jini-ai/db/sqlite directly.
+npm error code 2
+npm error path /home/user/Tovu/packages/contracts
+npm error command failed
+npm error command sh -c npm run build
+npm error > @tovu/contracts@0.1.0 build
+npm error > tsc -p tsconfig.json
+npm error
+npm error src/product-telemetry.ts(1,15): error TS2305: Module '"@jini-ai/diagnostics/observability"' has no exported member 'CrashUpload'.
+npm error src/product-telemetry.ts(2,43): error TS2307: Cannot find module '@jini-ai/analytics/product' or its corresponding type declarations.
+npm error npm error Lifecycle script `build` failed with error:
+npm error npm error code 2
+npm error npm error path /home/user/Tovu/packages/contracts
+npm error npm error workspace @tovu/contracts@0.1.0
+npm error npm error location /home/user/Tovu/packages/contracts
+npm error npm error command failed
+npm error npm error command sh -c tsc -p tsconfig.json
+npm error A complete log of this run can be found in: /root/.npm/_logs/2026-10-29T21_44_07_498Z-debug-0.log
+EXIT=2

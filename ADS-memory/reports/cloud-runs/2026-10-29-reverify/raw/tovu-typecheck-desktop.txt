@@ -1,0 +1,10 @@
+== tsconfig.live-verify.json
+EXIT=0
+== tsconfig.main.json
+../website/src/platform/site-dir/site-trash.ts(87,3): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+EXIT=2
+== tsconfig.preload.json
+EXIT=0
+== tsconfig.renderer.json
+EXIT=0

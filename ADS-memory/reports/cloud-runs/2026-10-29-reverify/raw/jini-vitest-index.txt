@@ -1,0 +1,7 @@
+admin EXIT=1
+agent-plugins EXIT=1
+agent-runtime EXIT=1
+agentic EXIT=0
+analytics EXIT=0
+artifacts EXIT=0
+capability-providers EXIT=0

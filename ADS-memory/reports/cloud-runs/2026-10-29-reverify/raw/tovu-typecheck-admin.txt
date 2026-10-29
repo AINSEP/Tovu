@@ -1,0 +1,7 @@
+src/features/admin-ui/__tests__/redirects.unit.test.tsx(24,36): error TS2345: Argument of type 'Route' is not assignable to parameter of type 'PanelRenderContext'.
+  Property 'Placeholder' is missing in type 'Route' but required in type 'PanelRenderContext'.
+src/features/authentication/__tests__/Authentication.unit.test.tsx(20,38): error TS2345: Argument of type '{ view: null; params: {}; query: URLSearchParams; }' is not assignable to parameter of type 'PanelRenderContext'.
+  Property 'Placeholder' is missing in type '{ view: null; params: {}; query: URLSearchParams; }' but required in type 'PanelRenderContext'.
+src/features/library/__tests__/Library.unit.test.tsx(67,36): error TS2345: Argument of type '{ view: null; params: {}; query: URLSearchParams; }' is not assignable to parameter of type 'PanelRenderContext'.
+  Property 'Placeholder' is missing in type '{ view: null; params: {}; query: URLSearchParams; }' but required in type 'PanelRenderContext'.
+EXIT=2

@@ -1,0 +1,4 @@
+npm warn deprecated backbone-undo@0.2.6: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+
+added 584 packages, and changed 12 packages in 24s
+EXIT=0

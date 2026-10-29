@@ -1,0 +1,159 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/chat
+      Coverage enabled with v8
+
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPane.test.tsx (53 tests) 880ms
+ ❯ src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx (0 test)
+ ❯ src/react/components/__tests__/Composer.test.tsx (0 test)
+ ✓ src/react/components/__tests__/ToolCard.test.tsx (115 tests) 2335ms
+ ❯ src/react/components/__tests__/MessageRow.test.tsx (0 test)
+ ❯ src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx (0 test)
+ ❯ src/react/components/__tests__/QuestionForm.test.tsx (0 test)
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPane.mid-run.test.tsx (33 tests) 910ms
+ ✓ src/react/agent-bridge/__tests__/frontend-session-bridge.test.ts (49 tests) 144ms
+ ✓ src/embed-widget/vanilla/__tests__/widget.test.ts (22 tests) 682ms
+ ✓ src/react/components/__tests__/A2uiSurfaceCard.test.tsx (34 tests) 1042ms
+ ✓ src/react/hooks/__tests__/useComposer.test.ts (36 tests) 373ms
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPaneAgentControl.test.tsx (31 tests) 429ms
+ ✓ src/react/features/chat-pane/__tests__/rules.test.ts (53 tests) 48ms
+ ✓ src/react/features/chat-pane/__tests__/createDaemonAttachmentUploader.test.ts (28 tests) 265ms
+ ✓ src/react/components/__tests__/Markdown.test.tsx (51 tests) 889ms
+ ❯ src/react/components/__tests__/McpUiSurfaceCard.test.tsx (0 test)
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPaneRuntimeInventory.test.tsx (25 tests) 653ms
+ ✓ src/react/hooks/__tests__/useConversation.test.ts (25 tests) 206ms
+ ✓ src/react/hooks/__tests__/useRunStream.test.ts (21 tests) 155ms
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPaneWorkingDirectory.test.tsx (18 tests) 235ms
+ ❯ src/react/components/__tests__/MessageList.test.tsx (0 test)
+ ✓ src/react/hooks/__tests__/assistant-chats.writes.cov-j2.test.ts (28 tests) 245ms
+ ✓ src/react/hooks/__tests__/composer-draft-cache.storage-edges.test.ts (38 tests) 35ms
+ ✓ src/react/hooks/__tests__/assistant-chats.navigation.cov-j2.test.ts (22 tests) 201ms
+ ✓ src/react/__tests__/message-blocks.test.ts (24 tests) 26ms
+ ✓ src/react/components/__tests__/ConversationList.test.tsx (32 tests) 5892ms
+   ✓ the four actions > selects a conversation and closes 586ms
+   ✓ the four actions > does not select when a double-click opens the rename editor 422ms
+   ✓ rename on double-click > limits the inline title input to 50 characters 494ms
+   ✓ rename on double-click > uses the raw server result for c1, including newer titles for loaded ids 482ms
+   ✓ rename on double-click > uses the raw server result for unloaded, including newer titles for loaded ids 519ms
+ ❯ src/react/components/__tests__/surface-question-replay.test.tsx (0 test)
+ ✓ src/react/hooks/__tests__/fab-position.cov-j2.test.ts (24 tests) 132ms
+ ✓ src/react/components/__tests__/composer-discovery.test.ts (28 tests) 25ms
+ ✓ src/react/hooks/__tests__/useChatFabDrag.test.tsx (13 tests) 168ms
+ ✓ src/react/hooks/__tests__/composer-draft-cache.test.ts (25 tests) 63ms
+ ❯ src/react/hooks/__tests__/secret-redaction.test.tsx (0 test)
+ ❯ src/react/components/__tests__/MessageRow.display.test.tsx (0 test)
+ ✓ src/react/features/chat-pane/__tests__/createMcpUiToolCaller.test.ts (18 tests) 46ms
+ ✓ src/react/features/chat-pane/__tests__/model-options.test.ts (16 tests) 17ms
+ ✓ src/embed-widget/react/__tests__/header.test.ts (11 tests) 451ms
+ ✓ src/react/hooks/__tests__/useComposerHistoryKeys.hooks.test.tsx (23 tests) 395ms
+ ✓ src/embed-widget/react/__tests__/embed.test.tsx (13 tests) 663ms
+ ❯ src/react/components/__tests__/answered-question.test.tsx (0 test)
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPane.cov-j2.test.tsx (7 tests) 214ms
+ ❯ src/react/components/__tests__/MidRunUserMessage.test.tsx (0 test)
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPane.refresh.test.tsx (8 tests) 198ms
+ ✓ src/react/__tests__/ChatSettingsDialog.lifecycle.test.tsx (11 tests) 583ms
+ ✓ src/react/__tests__/tool-call-display.test.ts (20 tests) 37ms
+ ✓ src/react/hooks/__tests__/useComposerHistory.test.ts (8 tests) 419ms
+ ❯ src/react/components/__tests__/owned-renderer-registries.test.tsx (0 test)
+ ✓ src/react/hooks/__tests__/useQuestionForms.test.ts (17 tests) 77ms
+ ✓ src/react/hooks/__tests__/assistant-chats.pure.cov-j2.test.ts (19 tests) 24ms
+ ✓ src/react/__tests__/ChatSettingsDialog.test.tsx (7 tests) 891ms
+   ✓ advanced chat settings > calls the supplied display and permission owners without its own settings copy 301ms
+ ✓ src/embed-widget/vanilla/__tests__/lazy-loader.test.ts (15 tests) 93ms
+ ✓ src/react/components/__tests__/AttachmentPreviewModal.test.tsx (11 tests) 528ms
+ ❯ src/react/components/__tests__/Composer.history.test.tsx (0 test)
+ ❯ src/react/components/__tests__/AttachmentGallery.test.tsx (0 test)
+ ✓ src/embed-widget/vanilla/__tests__/state.test.ts (9 tests) 26ms
+ ✓ src/react/components/__tests__/AttachmentPreviewModal.hooks.test.tsx (10 tests) 149ms
+ ❯ src/react/components/__tests__/ToolCard.long-chat-memory.test.tsx (0 test)
+ ❯ src/react/components/__tests__/SentAttachment.test.tsx (0 test)
+ ✓ src/react/components/__tests__/MessageRow.usage.test.ts (19 tests) 91ms
+ ❯ src/react/components/__tests__/conversation-cost.test.tsx (0 test)
+ ✓ src/react/hooks/__tests__/useComposer.lifecycle.cov-j2.test.tsx (7 tests) 91ms
+ ❯ src/react/components/__tests__/Composer.guards.test.tsx (0 test)
+ ✓ src/react/hooks/__tests__/useArtifactStream.test.ts (11 tests) 109ms
+ ✓ src/react/features/chat-pane/__tests__/styles-attachment-tray-rows.test.tsx (7 tests) 518ms
+ ❯ src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.test.tsx (0 test)
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPaneNewTabLinks.test.tsx (10 tests) 129ms
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPaneComposerPlaceholder.test.tsx (7 tests) 63ms
+ ✓ src/react/hooks/__tests__/useExtEventGroups.test.ts (9 tests) 55ms
+ ❯ src/react/__tests__/index.test.ts (0 test)
+ ✓ src/react/components/__tests__/ChatFab.test.tsx (6 tests) 280ms
+ ✓ src/react/features/chat-pane/__tests__/createMidRunMessagePoster.test.ts (8 tests) 45ms
+ ❯ src/react/features/chat-pane/__tests__/styles-user-bubbles.test.tsx (0 test)
+ ❯ src/react/hooks/__tests__/useComposer.draft-debounce.test.tsx (0 test)
+ ✓ src/react/components/__tests__/list-gallery.hooks.test.tsx (7 tests) 76ms
+ ❯ src/react/components/__tests__/standalone-approval.test.tsx (0 test)
+ ✓ src/react/hooks/__tests__/useToolTimeline.test.ts (7 tests) 52ms
+ ✓ src/react/hooks/__tests__/useCopyToClipboard.cov-j2.test.ts (6 tests) 85ms
+ ✓ src/embed-widget/vanilla/__tests__/state.edges.test.ts (7 tests) 23ms
+ ✓ src/react/hooks/__tests__/last-conversation-store.test.ts (9 tests) 10ms
+ ✓ src/react/components/__tests__/ExtEventErrorBoundary.test.tsx (6 tests) 174ms
+ ✓ src/react/components/__tests__/ConversationList.gaps.test.tsx (6 tests) 492ms
+ ✓ src/react/components/__tests__/Icon.test.tsx (21 tests) 127ms
+ ✓ src/react/features/chat-pane/__tests__/createTypedAnswerPoster.test.ts (6 tests) 26ms
+ ✓ src/react/hooks/__tests__/useRunStream.checkpoint.cov-j2.test.ts (8 tests) 79ms
+ ❯ src/react/features/chat-pane/__tests__/components/ChatPane.typing-render.test.tsx (0 test)
+ ✓ src/react/components/__tests__/TodoCard.test.tsx (7 tests) 365ms
+ ✓ src/react/components/__tests__/AttachmentTray.test.tsx (6 tests) 304ms
+ ✓ src/react/components/__tests__/McpUiSurfaceCard.j5-03.characterization.test.tsx (9 tests) 239ms
+ ✓ src/react/components/__tests__/TodoCard.l199.characterization.test.tsx (8 tests) 532ms
+ ✓ src/react/__tests__/message-blocks.thinking.test.ts (6 tests) 8ms
+ ❯ src/react/components/__tests__/mid-run-transcript.test.tsx (0 test)
+ ✓ src/react/hooks/__tests__/usePinnedTodos.test.ts (5 tests) 59ms
+ ❯ src/react/components/__tests__/ComposerDiscovery.test.tsx (0 test)
+ ✓ src/react/__tests__/artifact-types.test.ts (7 tests) 11ms
+ ❯ src/react/features/chat-pane/__tests__/styles-lone-send-button.test.tsx (0 test)
+ ❯ src/react/features/chat-pane/__tests__/components/ChatPane.long-transcript.bench.test.tsx (0 test)
+ ✓ src/embed-widget/react/__tests__/dialog.test.tsx (2 tests) 281ms
+ ✓ src/react/components/__tests__/NextStepActions.test.tsx (5 tests) 231ms
+ ✓ src/react/components/__tests__/JiniChatProvider.test.tsx (3 tests) 75ms
+ ✓ src/react/components/__tests__/A2uiSurfaceCard.delivery.test.tsx (3 tests) 345ms
+ ✓ src/react/components/__tests__/ConversationTitleEditor.test.tsx (4 tests) 545ms
+   ✓ ConversationTitleEditor > commits a changed, trimmed title only once even when Enter is followed by blur 300ms
+ ❯ src/react/components/__tests__/MessageList.jump-to-latest.test.tsx (0 test)
+ ✓ src/embed-widget/vanilla/__tests__/lazy-loader.retry.test.ts (4 tests) 133ms
+ ✓ src/react/hooks/__tests__/composer-history-storage.test.ts (4 tests) 9ms
+ ✓ src/react/hooks/__tests__/useSurfaceExpiry.test.ts (6 tests) 67ms
+ ✓ src/react/components/__tests__/McpUiSurfaceCard.l199.characterization.test.tsx (3 tests) 244ms
+ ❯ src/react/components/__tests__/MessageList.l199.characterization.test.tsx (0 test)
+ ❯ src/react/components/__tests__/QuestionsPanel.j5-03.characterization.test.tsx (0 test)
+ ❯ src/react/components/__tests__/QuestionsPanel.test.tsx (0 test)
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPaneControlsHeight.test.tsx (2 tests) 46ms
+ ❯ src/react/components/__tests__/QuestionsPanel.l199.characterization.test.tsx (0 test)
+ ✓ src/react/hooks/__tests__/durable-run-hooks.test.ts (3 tests) 50ms
+ ✓ src/react/__tests__/ext-event-renderer-registry.test.ts (6 tests) 14ms
+ ✓ src/react/components/__tests__/mcp-ui-surface-state.test.ts (4 tests) 12ms
+ ❯ src/react/components/__tests__/MidRunUserMessage.cov-j2.test.tsx (0 test)
+ ✓ src/react/hooks/__tests__/context.test.ts (7 tests) 59ms
+ ✓ src/react/__tests__/tool-renderer-registry.test.ts (6 tests) 6ms
+ ✓ src/react/components/__tests__/ConversationList.trigger.test.tsx (5 tests) 186ms
+ ✓ src/react/__tests__/package-content.test.ts (6 tests) 9ms
+ ✓ src/react/features/chat-pane/__tests__/components/AgentPluginUsage.test.tsx (3 tests) 203ms
+ ✓ src/react/components/__tests__/A2uiSurfaceCard.registry.test.tsx (1 test) 153ms
+ ✓ src/react/hooks/__tests__/attachment-preview-cache.test.ts (4 tests) 16ms
+ ✓ src/react/hooks/__tests__/last-conversation-store.cov-j2.test.ts (3 tests) 10ms
+ ✓ src/react/components/__tests__/MessageRow.usage.l199.characterization.test.ts (10 tests) 141ms
+ ❯ src/react/features/chat-pane/__tests__/components/ChatPane.cov-j2.test.tsx (0 test)
+ ❯ src/react/features/chat-pane/__tests__/components/RuntimeDropUp.cov-j2.test.tsx (0 test)
+ ❯ src/react/components/__tests__/MessageList.streaming-renders.test.tsx (0 test)
+ ❯ src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.cov-j2.test.tsx (0 test)
+ ❯ src/react/components/__tests__/Composer.mid-run.test.tsx (0 test)
+ ❯ src/react/features/chat-pane/__tests__/components/RuntimeDropUp.test.tsx (0 test)
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPaneSurface.cov-j2.test.tsx (3 tests) 36ms
+ ✓ src/react/__tests__/ext-event-renderer-registry.cov-j2.test.ts (3 tests) 6ms
+ ✓ src/react/features/chat-pane/__tests__/styles-row-containment.test.ts (1 test) 4ms
+ ✓ src/react/hooks/__tests__/useConversation.retry-race.cov-j2.test.ts (1 test) 56ms
+ ✓ src/react/hooks/testing/__tests__/fake-transport.test.ts (3 tests) 8ms
+ ❯ src/react/components/__tests__/MessageList.queued-attachments.cov-j2.test.tsx (0 test)
+ ✓ src/react/components/__tests__/composer-discovery.cov-j2.test.ts (9 tests) 10ms
+ ✓ src/react/features/chat-pane/__tests__/model-options.cov-j2.test.ts (2 tests) 5ms
+ ✓ src/react/features/chat-pane/__tests__/hooks/useAgentRuntimePicker.cov-j2.test.ts (3 tests) 4ms
+ ❯ src/react/components/__tests__/Composer.slash-guard.test.tsx (0 test)
+ ❯ src/react/features/chat-pane/__tests__/index.test.ts (0 test)
+ ✓ src/embed-widget/react/__tests__/dialog.focus-edges.test.tsx (2 tests) 46ms
+ ✓ src/react/features/chat-pane/__tests__/styles-spinner.test.ts (2 tests) 56ms
+ ✓ src/react/components/__tests__/MessageList.rules.test.ts (4 tests) 7ms
+ ✓ src/embed-widget/transports/__tests__/fetch-sse.test.ts (50 tests) 78ms
+ ❯ src/react/components/__tests__/durable-run-notice.test.tsx (0 test)
+ ✓ src/core/assistant-client/__tests__/transport.test.ts (87 tests) 122ms
+ ✓ src/core/question-form/__tests__/question-form.test.ts (63 tests) 63ms
