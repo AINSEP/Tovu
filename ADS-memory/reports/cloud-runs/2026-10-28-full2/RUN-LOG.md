@@ -11,3 +11,4 @@
 - 2026-10-29T00:49:21Z shards 0-4 done; 5,6,7 running.
 - 2026-10-29T01:05:51Z ALL 8 shards done (exit 1 each; fails=129 leaf+99 cancelled in 63 files). Coverage merged: all-files 86.04% lines, 1232 NEVER-LOADED; route floor passes (99.92/79.81/98.98 — NOT failing as expected). classify + per-file route table written. Reruns of 63 failing files in progress.
 - 2026-10-29T01:17:42Z RESULTS.md written (all steps done).
+- 2026-10-29T01:17:58Z DONE. All steps 1-6 completed; RESULTS.md final. No cap hit.

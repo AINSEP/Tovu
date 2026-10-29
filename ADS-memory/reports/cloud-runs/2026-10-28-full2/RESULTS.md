@@ -1,6 +1,6 @@
 # Full verification run, 2nd pass, 2026-10-28 evening — RESULTS (report only)
 Tovu: branch cloud/full2-1028 (WIP snapshot 2a0c60ac); Jini: cloud/full2-1028. Sonnet 5.5, no product code/test/config/lockfile committed. Only local, uncommitted setup: every `@jini-ai/*` dependency in the root, apps/admin, apps/desktop (its own `overrides` removed), apps/site-chat and packages/sdk manifests rewritten to `file:/home/user/Jini/packages/<name>` and root `overrides` replaced the same way (`npm ci` impossible: `@jini-ai/cookie-consent`/`plugins@^0.6.13` are not on npm), `npm install --ignore-scripts`. Postgres 16 on socket /tmp (user `la`), Chromium symlinks (not needed by any step run). Node 24.22.0.
-Wall clock at write-up ≈ 2h30 of the 4h cap; all six brief steps ran. Raw output in `raw/`.
+Wall clock at write-up ≈ 2h of the 4h cap; all six brief steps ran. Raw output in `raw/`.
 
 ## §0 One screen (delta = vs first pass `cloud/full-1028-results`)
 | Area | 2nd pass | 1st pass → delta |
@@ -257,4 +257,4 @@ commerce has 60 files at 0% (src/payments/**, src/catalog/**: 4 020 uncovered li
 - Desktop and admin: admin coverage via vitest only (L99.41 B98.41 F98.74); desktop has no coverage collection, so apps/desktop shows NEVER-LOADED in all-files.
 - Jini cognitive complexity (see §3); Jini per-package coverage is vitest v8 summary (raw/jini-pkg/*-cov).
 - `npm run typecheck` includes e2e; `typecheck:scripts` run too. `development/coverage/` (merged lcov) and tests' stray files (`chat.db`, `sites/tovu-dev/{agent-plugins,consent-receipts}`) are untracked local artefacts, not committed.
-- 88 min of the schedule remained at write-up; no cap was hit.
+- ≈2h of the 4h cap used; no cap was hit.
