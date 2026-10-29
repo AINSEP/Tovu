@@ -32,6 +32,7 @@
  */
 import { HttpAgent } from "@ag-ui/client";
 import { createAgUiRunClient } from "@jini-ai/chat/transports/ag-ui";
+import { uniqueId } from "./unique-id";
 export type { AgUiEvent, AgUiToAgentTranslationState } from "@jini-ai/chat/core/ag-ui";
 /** Must match `src/server/modules/assistant-ag-ui.ts`'s `AG_UI_RUN_PATH` exactly. */
 export const AG_UI_RUN_PATH = "/api/admin/v1/assistant/ag-ui-run";
@@ -53,14 +54,10 @@ export function isAgUiTransportEnabled(): boolean {
   return localStorage.getItem(AG_UI_TOGGLE_STORAGE_KEY) === "1";
 }
 
-/** Same fallback as `mintByokRunId` (`assistant-transport.ts`) for a browser without
- *  `crypto.randomUUID`. Kept as its own copy rather than imported, to avoid the same import-cycle
- *  concern `sse-frames.ts`'s extraction was made to avoid (`assistant-transport.ts` imports FROM
- *  this module). */
+/** Same minting as `assistant-transport.ts`'s run ids — shared through the import-free
+ *  `unique-id.ts`, not imported from that module (it imports FROM this one). */
 function mintAgUiId(): string {
-  return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return uniqueId();
 }
 
 /** Distinguishes an AG-UI-run id (client-minted, no server-side run record reachable through THIS

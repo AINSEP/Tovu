@@ -86,6 +86,14 @@ export interface MigrateForwardSectionDependencies {
   port: MigrateForwardSectionPort;
 }
 
+/** The failure copy for whichever step failed, in step order; `null` when none did. */
+function migrateForwardErrorKey(planError: unknown, confirmError: unknown, executeError: unknown): string | null {
+  if (planError) return "Failed to plan the forward migration";
+  if (confirmError) return "Failed to confirm the forward migration";
+  if (executeError) return "Failed to execute the forward migration";
+  return null;
+}
+
 /**
  * @param deps Injected dependencies — the `MigrateForwardSectionPort` to run the ceremony through.
  * @returns The ceremony's step/plan/token/done state plus `startPlan`/`doConfirm`/`doExecute`/
@@ -163,14 +171,8 @@ export function useMigrateForwardSection(deps: MigrateForwardSectionDependencies
   // predecessor's output — see this file's own header), so at most one of these three is ever
   // non-null at a time; a plain precedence chain is enough, no `clearOtherWriteErrors` needed.
   const rawError = startPlanMutation.error ?? confirmMutation.error ?? executeMutation.error;
-  let error: string | null = null;
-  if (startPlanMutation.error) {
-    error = describeApiError(rawError, t({ locale: locale, key: "Failed to plan the forward migration" }));
-  } else if (confirmMutation.error) {
-    error = describeApiError(rawError, t({ locale: locale, key: "Failed to confirm the forward migration" }));
-  } else if (executeMutation.error) {
-    error = describeApiError(rawError, t({ locale: locale, key: "Failed to execute the forward migration" }));
-  }
+  const errorKey = migrateForwardErrorKey(startPlanMutation.error, confirmMutation.error, executeMutation.error);
+  const error = errorKey === null ? null : describeApiError(rawError, t({ locale: locale, key: errorKey }));
 
   return { step, busy, error, plan, confirmationToken, done, reset, startPlan, doConfirm, doExecute, t: boundT, locale };
 }

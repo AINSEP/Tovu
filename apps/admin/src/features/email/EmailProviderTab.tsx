@@ -171,8 +171,19 @@ export function shownProviderId(providers: readonly MailProviderConfiguration[],
  * A segment's name: the provider's label without a trailing "(…)" aside — "Console (local
  * development, sends nothing)" reads as "Console"; the card keeps the full label. Pure.
  */
+/** `label` minus one trailing `(…)` group (no nested parentheses) and the whitespace around it;
+ *  `label` unchanged when it does not end in one. Same result as
+ *  `label.replace(/\s*\([^()]*\)\s*$/, "")`, in one linear pass. */
+function withoutTrailingParenthetical(label: string): string {
+  const body = label.trimEnd();
+  if (!body.endsWith(")")) return label;
+  const open = body.lastIndexOf("(");
+  if (open === -1 || body.slice(open + 1, -1).includes(")")) return label;
+  return body.slice(0, open).trimEnd();
+}
+
 export function segmentLabel(label: string): string {
-  return label.replace(/\s*\([^()]*\)\s*$/, "") || label;
+  return withoutTrailingParenthetical(label) || label;
 }
 
 export const ADD_PROVIDER_PART = "_add-provider";

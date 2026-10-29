@@ -117,7 +117,8 @@ export function createInstalledSkillsComposerCapabilitySource(
   /** Revalidate once per pending request; force prevents pre-event work from publishing a cache. */
   const reload = (_required: Record<string, never> = {}, { force = false } = {}) => {
     if (pending && !force) return pending;
-    const current = ++generation;
+    generation += 1;
+    const current = generation;
     pending = readSkillsSnapshot({ request, cached }).then(snapshot => {
       if (current === generation) cached = snapshot;
       return snapshot.capabilities;

@@ -1,5 +1,6 @@
 import { api, type PresentationSettings, type ThemeTier } from "@/lib/api";
 import type { ThemesPort } from "./themes-port.hooks";
+import { asciiSlug } from "../../../lib/ascii-slug";
 
 /**
  * @file The only place under `features/themes` that reaches `lib/api` for the three `ThemesPort`
@@ -57,7 +58,7 @@ export function createFakeThemesPort(options: FakeThemesPortOptions = {}): Theme
     async duplicateTheme(themeId, newName) {
       const source = availableThemes.find((theme) => theme.id === themeId);
       if (!source) throw new Error(`theme '${themeId}' was not found`);
-      const id = newName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+      const id = asciiSlug(newName);
       availableThemeIds.push(id);
       availableThemes.push({ id, name: newName, tier: source.tier });
       return { theme: { id, name: newName } };

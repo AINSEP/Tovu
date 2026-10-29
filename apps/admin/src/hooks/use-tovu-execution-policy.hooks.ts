@@ -24,7 +24,10 @@ export function useTovuExecutionPolicy(
     if (desktop) return undefined;
     let live = true;
     pending.current = loader.current().then(
-      (snapshot) => { if (live) setMode(snapshot.mode); return snapshot; },
+      (snapshot) => {
+        if (live) setMode(snapshot.mode);
+        return snapshot;
+      },
       () => undefined, // Unknown capability stays hidden; a reload can retry discovery.
     );
     return () => { live = false; };

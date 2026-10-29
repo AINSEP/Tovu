@@ -251,7 +251,8 @@ export function useExecutionConfig(
 
   const refreshExecutionConfig = useCallback(() => {
     const controller = lifecycleRef.current!;
-    const generation = ++refreshGeneration.current;
+    refreshGeneration.current += 1;
+    const generation = refreshGeneration.current;
     const writesAtStart = localWriteRef.current;
     // A refresh notification invalidates the old read even if this request fails. Otherwise Send
     // could reuse a recent cache entry after Settings told us its saved value had changed.
@@ -657,7 +658,8 @@ export function useLocalCliSelection(
     }
     normalizationRef.current = null;
     touchedRef.current = true;
-    const generation = ++pickGeneration.current;
+    pickGeneration.current += 1;
+    const generation = pickGeneration.current;
     localCliSelectionRef.current = selection;
     setLocalCliSelection(selection);
     const write = applyExecutionConfigChange(setExecutionConfig, (previous) => withLocalCliSelection({ previous, selection }));
@@ -716,7 +718,8 @@ export function useComposerCapabilities(_input: Record<string, never> = {}, _opt
     let stopPolling = () => {};
     /** Reproject only current work; an unchanged catalog retains its React state identity. */
     const reload = (_required = {}, { force = false } = {}) => {
-      const current = ++generation;
+      generation += 1;
+      const current = generation;
       return projectComposerCapabilities([createBundledComposerCapabilitySource(), { id: installed.id, list: () => installed.reload({}, { force }) }])
       .then((projection) => {
         // An unchanged catalog keeps its state, so refreshes do not re-render the dock. JSON drops

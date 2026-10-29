@@ -373,15 +373,9 @@ function computeContentDirty(
   original: PostFormState | null,
 ): boolean {
   if (original === null) return false;
-  return (
-    current.title !== original.title ||
-    current.slug !== original.slug ||
-    current.status !== original.status ||
-    JSON.stringify(current.bodyJson) !== JSON.stringify(original.bodyJson) ||
-    current.overridesThemePage !== original.overridesThemePage ||
-    current.author !== original.author ||
-    current.showAuthor !== original.showAuthor
-  );
+  const fieldsChanged = (["title", "slug", "status", "overridesThemePage", "author", "showAuthor"] as const)
+    .some((field) => current[field] !== original[field]);
+  return fieldsChanged || JSON.stringify(current.bodyJson) !== JSON.stringify(original.bodyJson);
 }
 
 /**

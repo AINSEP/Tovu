@@ -27,7 +27,7 @@ export interface AddonsRouteResolution {
  * @complexity O(n) time and space in URL length; the Add-ons table has five fixed entries.
  */
 export function resolveAddonsRoute({ routePath }: { readonly routePath: string }): AddonsRouteResolution {
-  const pathname = routePath.replace(/\?.*$/s, "");
+  const pathname = routePath.split("?", 1)[0]!;
   const parts = pathname.split("/").filter(Boolean);
   const route = { parts, query: routePath.slice(pathname.length) };
 

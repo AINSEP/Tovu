@@ -15,6 +15,7 @@ import {
   type AdminStaticPublishConfig,
   type AdminStaticPublishTargetId,
 } from "../../lib/api";
+import { asciiSlug } from "../../lib/ascii-slug";
 
 /**
  * @file Pure data and computation for the Deployment panel — no React, no fetch, no `t()` calls
@@ -253,11 +254,7 @@ export function staticPublishProjectNameCopy(target: AdminPublishTargetDescripto
  *  lowercase words joined by single hyphens, and one throw blanks the whole admin, so a camelCase
  *  name (`accessKeyId`) becomes `access-key-id`. @complexity O(n) in the name's length. */
 export function fieldNameHandleSegment(fieldName: string): string {
-  return fieldName
-    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return asciiSlug(fieldName.replace(/([a-z0-9])([A-Z])/g, "$1-$2"));
 }
 
 /** The `agentHandle` id of one publish-config input. Ids predate the descriptors and are pinned by

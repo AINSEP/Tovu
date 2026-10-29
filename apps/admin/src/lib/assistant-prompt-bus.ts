@@ -48,9 +48,9 @@ export function useAssistantPromptRequests(composerHandle: RefObject<ChatPaneCom
         const text = pending;
         pending = null;
         handle.insertText(text);
-      } else if (attempt < MAX_ATTEMPTS) {
-        timer = setTimeout(() => deliver(attempt + 1), RETRY_MS);
+        return;
       }
+      if (attempt < MAX_ATTEMPTS) timer = setTimeout(() => deliver(attempt + 1), RETRY_MS);
     };
     const listener = () => deliver();
     listeners.add(listener);

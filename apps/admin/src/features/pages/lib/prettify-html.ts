@@ -85,8 +85,9 @@ type Token =
 
 /** Matches one complete HTML tag, attributes included, with attribute values allowed to contain
  *  `>` when quoted (`data-x="a > b"`) so such a value is never mistaken for the tag's own end. */
-const TAG_PATTERN =
-  /<\/?([a-zA-Z][a-zA-Z0-9:-]*)(?:\s+[^\s"'=<>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>]+))?)*\s*\/?>/y;
+const ATTRIBUTE_VALUE = String.raw`(?:"[^"]*"|'[^']*'|[^\s"'=<>]+)`;
+const ATTRIBUTE = String.raw`\s+[^\s"'=<>]+(?:\s*=\s*${ATTRIBUTE_VALUE})?`;
+const TAG_PATTERN = new RegExp(String.raw`<\/?([a-zA-Z][a-zA-Z0-9:-]*)(?:${ATTRIBUTE})*\s*\/?>`, "y");
 
 /**
  * Consumes an HTML comment (`<!-- ... -->`) starting at `i`, if there is one — one of four token

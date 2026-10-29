@@ -112,7 +112,7 @@ const NO_PERMISSIONS: readonly string[] = [];
 export function parseRoute(routePath: string): Route {
   // Everything before the first `?` (the query is `matchRoute`'s to read). A replace rather than
   // `split("?")[0]`, whose `?? ""` fallback for an index that always exists could never fire.
-  const rawPath = routePath.replace(/\?[\s\S]*$/, "");
+  const rawPath = routePath.split("?", 1)[0]!;
   const parts = rawPath.split("/").filter(Boolean);
 
   if (parts[0] === "section" && parts[1]) {

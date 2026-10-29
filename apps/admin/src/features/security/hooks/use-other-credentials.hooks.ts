@@ -221,13 +221,7 @@ export function useOtherCredentials(
   const writes = useSerialWrites();
   const reloadStores = useCallback(() => {
     void writes.run({ task: () => Promise.all(OTHER_CREDENTIAL_STORES.map(store =>
-      refetchOne(port, store, setStoreStates, t, locale)
-        .catch((err: unknown) =>
-          setStoreStates((prev) => ({
-            ...prev,
-            [store.id]: { items: [], loadError: accessTokensLoadErrorMessage(locale, translateCredentialMessage({ message: describeApiError(err, t("unknown error")), locale })) },
-          }))
-        )
+      refetchOneOrRecordFailure(port, store, setStoreStates, t, locale)
     )) });
   }, [writes, port, t, locale]);
   const fetchedRef = useRef(false);
@@ -345,6 +339,22 @@ async function refetchOne(
 ): Promise<void> {
   const items = await readStore(port, store, t, locale);
   setStoreStates((prev) => ({ ...prev, [store.id]: { items, loadError: null } }));
+}
+
+/** {@link refetchOne}, recording a failed read as that store's load error instead of rejecting. */
+async function refetchOneOrRecordFailure(
+  port: OtherCredentialsPort,
+  store: OtherCredentialStoreInfo,
+  setStoreStates: (updater: (prev: Record<string, StoreState>) => Record<string, StoreState>) => void,
+  t: Translate,
+  locale: string
+): Promise<void> {
+  try {
+    await refetchOne(port, store, setStoreStates, t, locale);
+  } catch (err: unknown) {
+    const loadError = accessTokensLoadErrorMessage(locale, translateCredentialMessage({ message: describeApiError(err, t("unknown error")), locale }));
+    setStoreStates((prev) => ({ ...prev, [store.id]: { items: [], loadError } }));
+  }
 }
 
 /** Dispatches one store's Replace write — the one place `OtherCredentialStoreId` is switched over

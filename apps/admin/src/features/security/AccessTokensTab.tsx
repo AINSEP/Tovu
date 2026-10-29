@@ -95,6 +95,11 @@ export interface AccessTokensTabProps {
   showCopyKeysEntry?: boolean;
 }
 
+/** A provider group can take another saved token unless it is custom or unlisted. */
+function acceptsAnotherToken(info: { kind: string; unlisted?: boolean }): boolean {
+  return info.kind !== "custom" && !info.unlisted;
+}
+
 function resolveAccessTokensHook(override: typeof useWiredAccessTokens | undefined): typeof useWiredAccessTokens {
   return override ?? useWiredAccessTokens;
 }
@@ -313,7 +318,7 @@ function ProviderGroup({ group, controller }: { group: AccessTokenProviderGroupS
           saved row could join; a second custom credential is a wholly new one, created through the
           standalone "Add custom provider" dialog, not this per-provider affordance. */}
       {/* Nor for an unlisted provider (plugin off or missing): it takes no new token. */}
-      {hasRows && !group.addForm.visible && group.info.kind !== "custom" && !group.info.unlisted ? <AddAnotherButton ref={ref} label={group.info.label} controller={controller} t={controller.t} /> : null}
+      {hasRows && !group.addForm.visible && acceptsAnotherToken(group.info) ? <AddAnotherButton ref={ref} label={group.info.label} controller={controller} t={controller.t} /> : null}
     </section>
   );
 }

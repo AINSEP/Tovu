@@ -22,7 +22,9 @@ function desktopStarter(): StartSite | undefined {
 function copyBlocked({ loading, pending, source, count }: {
   loading: boolean; pending: boolean; source: AdminCredentialCopySource | undefined; count: number;
 }): boolean {
-  return loading || pending || !source || !!source.reasonCode || count === 0 || count > MAX_COPY_IDS;
+  const sourceBlocked = !source || !!source.reasonCode;
+  const countOutOfRange = count === 0 || count > MAX_COPY_IDS;
+  return loading || pending || sourceBlocked || countOutOfRange;
 }
 
 /** The desktop start for the selected upgrade source — only its own route-supplied hint, only with a desktop owner. */
@@ -74,6 +76,12 @@ function isEmptySource(source: AdminCredentialCopySource | undefined): boolean {
 /** The copy route refused because the source must be upgraded first; any other failure stays generic. */
 function isUpgradeRefusal(failure: unknown): boolean {
   return failure instanceof ApiError && failure.body?.reasonCode === NEEDS_UPGRADE;
+}
+
+/** The source site's keys are dropped and it is marked as needing an upgrade before copying. */
+function markSourceNeedsUpgrade(sourceSiteId: string): (previous: AdminCredentialCopySource[]) => AdminCredentialCopySource[] {
+  return (previous) => previous.map(item => item.siteId === sourceSiteId
+    ? { ...item, keys: [], reasonCode: NEEDS_UPGRADE } : item);
 }
 
 /** Owns this CMS copy flow; Jini owns the dialog and C2 owns eligibility/secret handling.
@@ -137,8 +145,7 @@ export function useCopyKeys({ t }: { t: Translate }, {
         publishContentRefresh([ACCESS_TOKENS_RESOURCE]);
       } catch (failure) {
         if (!isUpgradeRefusal(failure)) { setError("Copying keys failed. Try again."); return; }
-        setSources(previous => previous.map(item => item.siteId === sourceSiteId
-          ? { ...item, keys: [], reasonCode: NEEDS_UPGRADE } : item));
+        setSources(markSourceNeedsUpgrade(sourceSiteId));
         setIds([]);
       }
     });

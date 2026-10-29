@@ -2422,9 +2422,8 @@ const UNPARSEABLE_BODY = Symbol("unparseable-json-body");
  *  (true against Node's own global, observed false against a test environment's jsdom-provided
  *  global). Duck-typing `name` is the only check that holds in both. */
 function errorName(value: unknown): string | undefined {
-  return value && typeof value === "object" && "name" in value && typeof value.name === "string"
-    ? value.name
-    : undefined;
+  if (!value || typeof value !== "object" || !("name" in value)) return undefined;
+  return typeof value.name === "string" ? value.name : undefined;
 }
 
 /**

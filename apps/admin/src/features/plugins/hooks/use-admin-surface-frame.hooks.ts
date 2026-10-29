@@ -69,6 +69,10 @@ function frameOutcome(answer: AgentPluginSurfaceActionAnswer): AdminSurfaceActio
   return answer.ok ? { ok: true, result: answer.result } : { ok: false, error: answer.error };
 }
 
+function appendLinks(links: readonly HostSignInLink[]): (current: readonly HostSignInLink[]) => readonly HostSignInLink[] {
+  return (current) => [...current, ...links];
+}
+
 /**
  * @param required.surface - The listing entry: its `actions` are the client-side early refusal.
  * @complexity O(p) per message in the payload size (Jini's validator), plus one request.
@@ -135,7 +139,7 @@ export function useAdminSurfaceFrame(
         .catch((): AgentPluginSurfaceActionAnswer => HOST_UNAVAILABLE)
         .then((answer) => {
           const links = hostLinks(answer);
-          if (links.length > 0) setIssued((current) => [...current, ...links]);
+          if (links.length > 0) setIssued(appendLinks(links));
           liveFrame()?.postMessage(adminSurfaceActionResponse({ request, outcome: frameOutcome(answer) }), "*");
         });
     };

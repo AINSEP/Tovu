@@ -12,6 +12,7 @@ import {
   useSocialLinksConfig,
 } from "./WidgetConfigFields.hooks";
 import { defaultWidgetConfigFieldsPort } from "./widget-config-fields-dependencies.hooks";
+import { asciiSlug } from "../../lib/ascii-slug";
 
 /**
  * @file Per-widget-type config sub-forms (`ui.spec.md` §2/§3.4) — one component per v1 widget type,
@@ -176,7 +177,7 @@ function findContentType(collections: AdminContentType[] | null, key: string): A
  *  `tovu_feature` example collection carries — which `agentHandle` throws on verbatim. Used only
  *  for the handle text; the visible label still goes through {@link humanizeFieldName}. */
 function fieldHandleSegment(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return asciiSlug(name);
 }
 
 /** The Collection `<select>` — its own component because the loading/error states from

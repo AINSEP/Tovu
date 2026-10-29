@@ -683,7 +683,8 @@ export function postSlugFollowsTitle(
   { post, manuallyEdited = false }: { post: Pick<AdminPost, "kind" | "status" | "title" | "slug" | "everPublished">; manuallyEdited?: boolean },
   _optional: Record<string, never> = {},
 ): boolean {
-  return post.kind === "post" && post.status !== "published" && !post.everPublished && !manuallyEdited && isAutomaticPostSlug(post);
+  const neverPublished = post.status !== "published" && !post.everPublished;
+  return post.kind === "post" && neverPublished && !manuallyEdited && isAutomaticPostSlug(post);
 }
 
 /** Preview the same bounded base the server derives; the server chooses the available suffix. */

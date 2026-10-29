@@ -346,7 +346,8 @@ function PublishContentReport({ view, t }: PublishContentSectionProps) {
     </tr>
   );
 
-  return view.rows.length > 0 ? (
+  if (view.rows.length === 0) return null;
+  return (
     <>
       <div className="table-scroll publish-content-report">
         <table className="list-table">
@@ -450,5 +451,5 @@ function PublishContentReport({ view, t }: PublishContentSectionProps) {
         <p className="notice publish-content-overwrite-unavailable">{view.overwriteUnavailable}</p>
       )}
     </>
-  ) : null;
+  );
 }

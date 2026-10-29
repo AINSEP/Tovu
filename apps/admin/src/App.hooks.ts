@@ -128,7 +128,8 @@ export function useAdminSession(_required: Record<string, never> = {}, {
     // stripped SYNCHRONOUSLY, before either network call below fires — see `takeBootToken`'s own
     // doc for why the fragment must not survive past this line. `null` (no fragment, the ordinary
     // case for other launch paths) checks the current session, then tries guarded local bootstrap.
-    const readEpoch = ++sessionEpoch.current;
+    sessionEpoch.current += 1;
+    const readEpoch = sessionEpoch.current;
     if (initialSession.current === null) {
       const bootToken = takeBootToken(location, history);
       if (bootToken) {
@@ -210,7 +211,8 @@ export function useAdminSession(_required: Record<string, never> = {}, {
    */
   function handleLogin(next: AdminUser) {
     initialReadPending.current = false;
-    const readEpoch = ++sessionEpoch.current;
+    sessionEpoch.current += 1;
+    const readEpoch = sessionEpoch.current;
     setAdminDraftIdentity({ id: next.id });
     setUser(next);
     // "Not known yet" rather than `[]` until the `/auth/me` below answers, so a fresh sign-in does
@@ -221,7 +223,11 @@ export function useAdminSession(_required: Record<string, never> = {}, {
     // live site (`publish-availability.store.ts`); a failed read leaves the default in place.
     sessionApi
       .me()
-      .then((r) => { if (sessionEpoch.current !== readEpoch) return; setPublishToLiveAvailable(readPublishToLiveAvailability(r)); setEffectivePermissions(r.effectivePermissions); })
+      .then((r) => {
+        if (sessionEpoch.current !== readEpoch) return;
+        setPublishToLiveAvailable(readPublishToLiveAvailability(r));
+        setEffectivePermissions(r.effectivePermissions);
+      })
       .catch(() => undefined);
   }
 

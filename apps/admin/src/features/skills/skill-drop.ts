@@ -21,7 +21,8 @@ async function collect(entries: readonly DropEntry[]) {
     files.push(file); paths.push(entry.fullPath.replace(/^\/+/, ""));
   }
   async function walk(entry: DropEntry, depth: number): Promise<void> {
-    if (++visited > 512 || depth > 16) throw limit("Skill folder has too many entries or is too deep.");
+    visited += 1;
+    if (visited > 512 || depth > 16) throw limit("Skill folder has too many entries or is too deep.");
     if (entry.isFile) {
       await collectFile({ entry });
       return;

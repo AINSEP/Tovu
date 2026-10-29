@@ -8,6 +8,7 @@ import { browserDurableSubscriptionPorts, durableRunBindings, followDurableRun }
 import { agUiRunClient } from "./assistant-transport-ag-ui";
 import { RUN_NOTICES } from "@tovu/assistant-run-events";
 import { adminStreamActivity, trackTransportActivity, type StreamActivity } from "./stream-activity";
+import { uniqueId } from "./unique-id";
 export { parseUsageEvent, terminalFailureError, terminalOutcomeNotice, terminalReasonNotice, translateRunAgentPayload } from "@tovu/assistant-run-events";
 export { parseFrame } from "./sse-frames";
 
@@ -16,7 +17,7 @@ const RUNS_URL = "/api/runs";
 const client = createAssistantTransportClient({ ports: {
  runsUrl: RUNS_URL, byokTurnUrl: "/api/admin/v1/assistant/byok-turn", byokRunIdPrefix: "byok:", notices: RUN_NOTICES,
  fetch: (url, init) => fetch(url, init),
- mintId: () => typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : String(Date.now()) + "-" + Math.random().toString(36).slice(2),
+ mintId: () => uniqueId(),
  projectPrompt: ({ prompt, context }) => promptWithSelectedSkills(prompt, context),
  projectInput: ({ input }) => withSelectedSkillGuidance(input),
  bindRun: ({ runId, binding }) => { durableRunBindings.set(runId, binding); },

@@ -441,11 +441,11 @@ function buildCriteriaPublishResult(
     if (rowPublishesWithSelection(row, selected)) {
       willPublish.push(row.entityLabel);
       if (row.outcome === "forced") willOverwrite.push(row.entityLabel);
-    } else if (row.disposition === "skipped") {
-      // `toPublishReportRows` gives every skipped row a reason (its own MISSING_REASON fallback when the
-      // peer sent none), so a skipped row's `reason` is never null here.
-      leftAlone.push({ label: row.entityLabel, reason: row.reason! });
+      continue;
     }
+    // `toPublishReportRows` gives every skipped row a reason (its own MISSING_REASON fallback when the
+    // peer sent none), so a skipped row's `reason` is never null here.
+    if (row.disposition === "skipped") leftAlone.push({ label: row.entityLabel, reason: row.reason! });
   }
   return {
     opened: true,
@@ -486,6 +486,13 @@ function buildCriteriaPublishResult(
 /** A replan's scope: just the peer, plus the ticked overwrite keys when there are any. */
 function planScope(peerId: string, overwriteKeys: ReadonlySet<string>): { peerId: string; overwriteEntityKeys?: string[] } {
   return overwriteKeys.size === 0 ? { peerId } : { peerId, overwriteEntityKeys: Array.from(overwriteKeys) };
+}
+
+/** A confirmable plan with at least one row publishing and no overwrite replan still in flight. */
+function canConfirmSelection(
+  { phase, selectedPublishing, overwriteReplanPending }: { phase: PublishContentPhase; selectedPublishing: number; overwriteReplanPending: boolean },
+): boolean {
+  return canConfirmPlan(phase) && selectedPublishing > 0 && !overwriteReplanPending;
 }
 
 export function usePublishContentConfirm(props: {
@@ -1291,7 +1298,7 @@ function publishPrimaryDisabled(
       // that may not be confirmed at all stays disabled whatever is checked, and a confirmable
       // plan with everything unchecked is disabled too — the button never promises a run that
       // would write nothing.
-      !(canStart || (canConfirmPlan(phase) && selectedPublishing > 0 && !overwriteReplanPending));
+      !(canStart || canConfirmSelection({ phase, selectedPublishing, overwriteReplanPending }));
 
   return primaryDisabled;
 }
@@ -1321,7 +1328,7 @@ function publishConnectOffer(
   // `null` until BOTH the peer list came back empty and the destination check that follows it has
   // resolved — so the dialog never flashes a stale "add one in Settings" sentence, and never shows
   // the connect offer a beat before it has anything real to say.
-  return peersLoaded && peers.length === 0 && peersError === null && destinationLoaded && destination !== null
-    ? { message: destination.message, candidateUrl: destination.candidateUrl }
-    : null;
+  const noPeers = peersLoaded && peers.length === 0 && peersError === null;
+  if (!noPeers || !destinationLoaded || destination === null) return null;
+  return { message: destination.message, candidateUrl: destination.candidateUrl };
 }

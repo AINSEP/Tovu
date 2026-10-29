@@ -17,8 +17,9 @@ import type { AdminServerLogEntry } from "@/lib/api";
 const SCOPE_PREFIX = /^\[([^\]\n]{1,40})\]\s*/;
 /** A V8 stack frame line (`    at fn (file:1:2)`). */
 const STACK_FRAME = /^\s*at\s/;
-/** A thrown error's own line (`TypeError: fetch failed`, `Caused by: …`), capturing its text. */
-const ERROR_LINE = /^\s*(?:(?:[A-Z][\w$]*)?(?:Error|Exception)|Caused by)\s*:\s*(.+?)\s*$/;
+/** One character of a thrown error's class name (`TypeError`, `HTTP$Exception`). */
+const ERROR_NAME_CHAR = /[\w$]/;
+const LINE_TERMINATOR = /[\n\r\u2028\u2029]/;
 /** Summaries longer than this are cut — they become the toggle button's accessible name. */
 export const SUMMARY_MAX_LENGTH = 200;
 
@@ -65,11 +66,42 @@ function joinHeadlineAndCause(headline: string, cause: string | null): string {
   return headline ? `${headline} — ${cause}` : cause;
 }
 
+/** Where a thrown error's name ends when one starts at `at`: a capitalized identifier ending in
+ *  `Error`/`Exception`, or `Caused by`. -1 otherwise. */
+function errorNameEnd(line: string, at: number): number {
+  let end = at;
+  while (end < line.length && ERROR_NAME_CHAR.test(line[end]!)) end += 1;
+  const name = line.slice(at, end);
+  if (/^[A-Z]/.test(name) && (name.endsWith("Error") || name.endsWith("Exception"))) return end;
+  return line.startsWith("Caused by", at) ? at + "Caused by".length : -1;
+}
+
+/** The message after the colon, trimmed; it must not span lines. An all-whitespace remainder
+ *  yields its last same-line character, as the lazy `(.+?)` capture this replaces did. */
+function messageAfterColon(afterColon: string): string | null {
+  const text = afterColon.trim();
+  if (text !== "") return LINE_TERMINATOR.test(text) ? null : text;
+  for (let i = afterColon.length - 1; i >= 0; i -= 1) {
+    if (!LINE_TERMINATOR.test(afterColon[i]!)) return afterColon[i]!;
+  }
+  return null;
+}
+
+/** A thrown error's own line (`TypeError: fetch failed`, `Caused by: …`) → its message text.
+ *  Same capture as `/^\s*(?:(?:[A-Z][\w$]*)?(?:Error|Exception)|Caused by)\s*:\s*(.+?)\s*$/`,
+ *  in one linear pass. */
+function thrownErrorText(line: string): string | null {
+  const nameEnd = errorNameEnd(line, line.length - line.trimStart().length);
+  if (nameEnd === -1) return null;
+  const rest = line.slice(nameEnd).trimStart();
+  return rest.startsWith(":") ? messageAfterColon(rest.slice(1)) : null;
+}
+
 function findThrownErrorText(lines: string[]): string | null {
   for (const line of lines) {
     if (STACK_FRAME.test(line)) return null;
-    const match = ERROR_LINE.exec(line);
-    if (match) return match[1];
+    const text = thrownErrorText(line);
+    if (text !== null) return text;
   }
   return null;
 }
@@ -129,7 +161,10 @@ export function segmentErrorPaths({ message }: { message: string }): ErrorMessag
 }
 
 /** An ISO-8601 timestamp, e.g. `2026-10-09T01:04:17.785Z`. */
-const ISO_TIMESTAMP = /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?\b/g;
+const ISO_DATE = String.raw`\d{4}-\d{2}-\d{2}`;
+const ISO_TIME = String.raw`\d{2}:\d{2}:\d{2}(?:\.\d+)?`;
+const ISO_OFFSET = String.raw`(?:Z|[+-]\d{2}:?\d{2})?`;
+const ISO_TIMESTAMP = new RegExp(String.raw`\b${ISO_DATE}T${ISO_TIME}${ISO_OFFSET}\b`, "g");
 /**
  * A labeled per-request id (`requestId: 'abc'`, `"request_id":"abc"`, `traceId=abc`): the label is
  * kept, the value dropped. The `:`/`=` is required so prose ("request id was missing") is untouched.

@@ -1,5 +1,6 @@
 import { ApiError } from "./api";
 import type { Translate } from "@jini-ai/ui/panel-kit";
+import { trimCharsEnd } from "@jini-ai/core/primitives";
 
 /**
  * @file Rules for a BYOK key the server holds write-only and will only send to the endpoint it was saved
@@ -30,7 +31,7 @@ export const STORED_KEY_NO_ENDPOINT_COPY = "Your saved key has no provider saved
  *  slashes, no case folding). The two must agree, or a screen and the server disagree about which
  *  endpoint a stored key belongs to. */
 function normalizeEndpoint(baseUrl: string): string {
-  return baseUrl.trim().replace(/\/+$/, "");
+  return trimCharsEnd({ text: baseUrl.trim(), chars: "/" });
 }
 
 /**

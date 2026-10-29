@@ -259,7 +259,9 @@ function handleFileRowRenameKeyDown(
   if (e.key === "Enter") {
     e.preventDefault();
     actions.commitRename();
-  } else if (e.key === "Escape") {
+    return;
+  }
+  if (e.key === "Escape") {
     e.preventDefault();
     actions.cancelRename();
   }

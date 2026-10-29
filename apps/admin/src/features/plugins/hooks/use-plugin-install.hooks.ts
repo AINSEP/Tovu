@@ -66,7 +66,8 @@ export function usePluginInstall(required: { port: PluginInstallPort; t: Transla
   async function perform(install: boolean) {
     if (!canRun(install)) return;
     locked.current = true; setBusy(true); setError(null); setInstalledName(null);
-    const generation = ++sequence.current;
+    sequence.current += 1;
+    const generation = sequence.current;
     const source = currentSource();
     try {
       await (install ? installReviewed(source, preview!, generation) : reviewSource(source, generation));
