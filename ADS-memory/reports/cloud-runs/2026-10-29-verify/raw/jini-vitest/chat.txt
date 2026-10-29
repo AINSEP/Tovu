@@ -296,3 +296,262 @@ stdout | src/server/durable-runs/__tests__/missing-resume.test.ts > reconstructs
  ✓ src/store/__tests__/sqlite.test.ts (19 tests) 180ms
  ✓ src/store/__tests__/paging.test.ts (8 tests) 158ms
  ✓ src/store/__tests__/parity.test.ts (14 tests) 100ms
+ ✓ src/store/__tests__/pglite.socket.test.ts (51 tests) 150640ms
+   ✓ PGlite socket clock and object methods > persists a shared core clock and preserves its receiver across create, append, rename and touch 3874ms
+   ✓ PGlite socket clock and object methods > applies the second paging bag and binds continuation to the owner 2192ms
+   ✓ PGlite socket clock and object methods > uses system wall time when no clock is supplied 2170ms
+   ✓ PGlite socket > cross-owner reads > returns null when another user fetches a chat by id 3043ms
+   ✓ PGlite socket > cross-owner reads > returns null across workspaces even for the same owner id 2961ms
+   ✓ PGlite socket > cross-owner reads > returns null across owner kinds even for the same owner id 2741ms
+   ✓ PGlite socket > cross-owner reads > omits other owners chats from list 3185ms
+   ✓ PGlite socket > cross-owner reads > returns no messages when another user asks for them 2978ms
+   ✓ PGlite socket > cross-owner writes are no-ops, not errors > does not delete another owners chat 2270ms
+   ✓ PGlite socket > cross-owner writes are no-ops, not errors > does not rename another owners chat 2794ms
+   ✓ PGlite socket > cross-owner writes are no-ops, not errors > refuses to append a message into another owners chat 2496ms
+   ✓ PGlite socket > cross-owner writes are no-ops, not errors > does not overwrite another owners message when appending a colliding id to its OWN chat 2914ms
+   ✓ PGlite socket > cross-owner writes are no-ops, not errors > does not touch another owners chat 2597ms
+   ✓ PGlite socket > append semantics > updates a message in place when the same id is appended again to the same chat 2418ms
+   ✓ PGlite socket > append semantics > keeps position stable across an in-place update 2550ms
+   ✓ PGlite socket > deletion > cascades to the conversation messages 2379ms
+   ✓ PGlite socket > title source > lets a generated title replace a fallback one 2629ms
+   ✓ PGlite socket > title source > never lets a generated title clobber a manual rename 2361ms
+   ✓ PGlite socket > retention sweep > deletes only expired rows and never touches never-expiring history 2556ms
+   ✓ PGlite socket > retention sweep > honours its chunk limit so one call cannot hold a long write lock 2521ms
+   ✓ PGlite socket > message ordering > assigns sequential positions and returns messages in that order 2558ms
+   ✓ PGlite socket > message ordering > updates a message in place without allocating a new position 2655ms
+   ✓ PGlite socket parity > conversation summaries include mid-run user messages and tolerate damaged event JSON 2603ms
+   ✓ PGlite socket parity > create then get and list round-trip every conversation field 2638ms
+   ✓ PGlite socket parity > list is most-recently-updated first and counts messages 2472ms
+   ✓ PGlite socket parity > messages round-trip every stored field, in position order 2445ms
+   ✓ PGlite socket parity > a malformed events column reads as no events, not an error 2361ms
+   ✓ PGlite socket parity > appending an existing id updates it in place at the same position 2860ms
+   ✓ PGlite socket parity > appending bumps the conversation's updatedAt 2454ms
+   ✓ PGlite socket parity > rename: a generated title replaces a fallback one but never a manual one 2782ms
+   ✓ PGlite socket parity > touch bumps updatedAt and, when asked, the expiry 2801ms
+   ✓ PGlite socket parity > delete cascades to messages, agent sessions and tool approvals 2991ms
+   ✓ PGlite socket parity > another owner, workspace or owner kind sees nothing and changes nothing 3268ms
+   ✓ PGlite socket parity > appending an id that lives in another owner's chat never overwrites that row 4061ms
+   ✓ PGlite socket parity > an append inside a rolled-back transaction leaves nothing 5038ms
+   ✓ PGlite socket parity > concurrent appends to one chat get distinct, gap-free positions 3962ms
+   ✓ PGlite socket paging > provides bounded conversation and message reads on the owner-scoped store 4077ms
+   ✓ PGlite socket paging > pages tied timestamps with UTF-8 ordinal opaque ids, without skips or duplicates 2668ms
+   ✓ PGlite socket paging > orders different recencies descending and retains deleted anchor continuations 2791ms
+   ✓ PGlite socket paging > accepts limits 1 and 200, defaults to 50, and refuses invalid bounds 3528ms
+   ✓ PGlite socket paging > rejects owner, workspace, kind, read-kind and conversation cursor reuse before a data read 2959ms
+   ✓ PGlite socket paging > keeps message positions on updates and discovers append after a deleted anchor 3198ms
+   ✓ PGlite socket paging > unknown and other-owned message pages have exactly the same empty output 3108ms
+   ✓ PGlite socket paging > a page selects only limit plus one rows instead of loading the compatibility transcript 3227ms
+   ✓ PGlite socket additional invariants > copies the owner tuple so mutation cannot rebind a store 2991ms
+   ✓ PGlite socket additional invariants > duplicate creates hide the existing owner and preserve their causes 2835ms
+   ✓ PGlite socket additional invariants > upserts change only the ai_* mutable fields and re-read exactly one projected row 3441ms
+   ✓ PGlite socket additional invariants > malformed optional JSON leaves readable text and no damaged optional values 3982ms
+   ✓ PGlite socket additional invariants > retention includes equality, cascades, bounds 1..500 and preserves missing expiry 3445ms
+   ✓ PGlite socket transactions > joins the exact kernel transaction so a throwing write rolls back ledger and transcript 3079ms
+   ✓ PGlite socket transactions > controlled terminal settlement prevents a queued late browser save from replacing final text 3732ms
+ ✓ src/store/__tests__/pglite.test.ts (51 tests) 135186ms
+   ✓ PGlite clock and object methods > persists a shared core clock and preserves its receiver across create, append, rename and touch 3496ms
+   ✓ PGlite clock and object methods > applies the second paging bag and binds continuation to the owner 2267ms
+   ✓ PGlite clock and object methods > uses system wall time when no clock is supplied 2326ms
+   ✓ PGlite > cross-owner reads > returns null when another user fetches a chat by id 2367ms
+   ✓ PGlite > cross-owner reads > returns null across workspaces even for the same owner id 2313ms
+   ✓ PGlite > cross-owner reads > returns null across owner kinds even for the same owner id 2426ms
+   ✓ PGlite > cross-owner reads > omits other owners chats from list 2573ms
+   ✓ PGlite > cross-owner reads > returns no messages when another user asks for them 2247ms
+   ✓ PGlite > cross-owner writes are no-ops, not errors > does not delete another owners chat 2360ms
+   ✓ PGlite > cross-owner writes are no-ops, not errors > does not rename another owners chat 2865ms
+   ✓ PGlite > cross-owner writes are no-ops, not errors > refuses to append a message into another owners chat 2730ms
+   ✓ PGlite > cross-owner writes are no-ops, not errors > does not overwrite another owners message when appending a colliding id to its OWN chat 2515ms
+   ✓ PGlite > cross-owner writes are no-ops, not errors > does not touch another owners chat 2308ms
+   ✓ PGlite > append semantics > updates a message in place when the same id is appended again to the same chat 2602ms
+   ✓ PGlite > append semantics > keeps position stable across an in-place update 2691ms
+   ✓ PGlite > deletion > cascades to the conversation messages 2605ms
+   ✓ PGlite > title source > lets a generated title replace a fallback one 2548ms
+   ✓ PGlite > title source > never lets a generated title clobber a manual rename 2513ms
+   ✓ PGlite > retention sweep > deletes only expired rows and never touches never-expiring history 2793ms
+   ✓ PGlite > retention sweep > honours its chunk limit so one call cannot hold a long write lock 2709ms
+   ✓ PGlite > message ordering > assigns sequential positions and returns messages in that order 2857ms
+   ✓ PGlite > message ordering > updates a message in place without allocating a new position 2726ms
+   ✓ PGlite parity > conversation summaries include mid-run user messages and tolerate damaged event JSON 3348ms
+   ✓ PGlite parity > create then get and list round-trip every conversation field 2956ms
+   ✓ PGlite parity > list is most-recently-updated first and counts messages 3108ms
+   ✓ PGlite parity > messages round-trip every stored field, in position order 3519ms
+   ✓ PGlite parity > a malformed events column reads as no events, not an error 2522ms
+   ✓ PGlite parity > appending an existing id updates it in place at the same position 2740ms
+   ✓ PGlite parity > appending bumps the conversation's updatedAt 3700ms
+   ✓ PGlite parity > rename: a generated title replaces a fallback one but never a manual one 2571ms
+   ✓ PGlite parity > touch bumps updatedAt and, when asked, the expiry 2369ms
+   ✓ PGlite parity > delete cascades to messages, agent sessions and tool approvals 2741ms
+   ✓ PGlite parity > another owner, workspace or owner kind sees nothing and changes nothing 2741ms
+   ✓ PGlite parity > appending an id that lives in another owner's chat never overwrites that row 2676ms
+   ✓ PGlite parity > an append inside a rolled-back transaction leaves nothing 2725ms
+   ✓ PGlite parity > concurrent appends to one chat get distinct, gap-free positions 2574ms
+   ✓ PGlite paging > provides bounded conversation and message reads on the owner-scoped store 2480ms
+   ✓ PGlite paging > pages tied timestamps with UTF-8 ordinal opaque ids, without skips or duplicates 2411ms
+   ✓ PGlite paging > orders different recencies descending and retains deleted anchor continuations 2785ms
+   ✓ PGlite paging > accepts limits 1 and 200, defaults to 50, and refuses invalid bounds 2885ms
+   ✓ PGlite paging > rejects owner, workspace, kind, read-kind and conversation cursor reuse before a data read 2592ms
+   ✓ PGlite paging > keeps message positions on updates and discovers append after a deleted anchor 2352ms
+   ✓ PGlite paging > unknown and other-owned message pages have exactly the same empty output 2994ms
+   ✓ PGlite paging > a page selects only limit plus one rows instead of loading the compatibility transcript 2696ms
+   ✓ PGlite additional invariants > copies the owner tuple so mutation cannot rebind a store 2502ms
+   ✓ PGlite additional invariants > duplicate creates hide the existing owner and preserve their causes 2576ms
+   ✓ PGlite additional invariants > upserts change only the ai_* mutable fields and re-read exactly one projected row 2451ms
+   ✓ PGlite additional invariants > malformed optional JSON leaves readable text and no damaged optional values 2386ms
+   ✓ PGlite additional invariants > retention includes equality, cascades, bounds 1..500 and preserves missing expiry 2188ms
+   ✓ PGlite transactions > joins the exact kernel transaction so a throwing write rolls back ledger and transcript 2207ms
+   ✓ PGlite transactions > controlled terminal settlement prevents a queued late browser save from replacing final text 2547ms
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 45 ⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/react/__tests__/index.test.ts [ src/react/__tests__/index.test.ts ]
+ FAIL  src/react/components/__tests__/AttachmentGallery.test.tsx [ src/react/components/__tests__/AttachmentGallery.test.tsx ]
+ FAIL  src/react/components/__tests__/Composer.guards.test.tsx [ src/react/components/__tests__/Composer.guards.test.tsx ]
+ FAIL  src/react/components/__tests__/Composer.history.test.tsx [ src/react/components/__tests__/Composer.history.test.tsx ]
+ FAIL  src/react/components/__tests__/Composer.mid-run.test.tsx [ src/react/components/__tests__/Composer.mid-run.test.tsx ]
+ FAIL  src/react/components/__tests__/Composer.slash-guard.test.tsx [ src/react/components/__tests__/Composer.slash-guard.test.tsx ]
+ FAIL  src/react/components/__tests__/Composer.test.tsx [ src/react/components/__tests__/Composer.test.tsx ]
+ FAIL  src/react/components/__tests__/ComposerDiscovery.test.tsx [ src/react/components/__tests__/ComposerDiscovery.test.tsx ]
+ FAIL  src/react/components/__tests__/McpUiSurfaceCard.test.tsx [ src/react/components/__tests__/McpUiSurfaceCard.test.tsx ]
+ FAIL  src/react/components/__tests__/MessageList.jump-to-latest.test.tsx [ src/react/components/__tests__/MessageList.jump-to-latest.test.tsx ]
+ FAIL  src/react/components/__tests__/MessageList.l199.characterization.test.tsx [ src/react/components/__tests__/MessageList.l199.characterization.test.tsx ]
+ FAIL  src/react/components/__tests__/MessageList.queued-attachments.cov-j2.test.tsx [ src/react/components/__tests__/MessageList.queued-attachments.cov-j2.test.tsx ]
+ FAIL  src/react/components/__tests__/MessageList.streaming-renders.test.tsx [ src/react/components/__tests__/MessageList.streaming-renders.test.tsx ]
+ FAIL  src/react/components/__tests__/MessageList.test.tsx [ src/react/components/__tests__/MessageList.test.tsx ]
+ FAIL  src/react/components/__tests__/MessageRow.display.test.tsx [ src/react/components/__tests__/MessageRow.display.test.tsx ]
+ FAIL  src/react/components/__tests__/MessageRow.test.tsx [ src/react/components/__tests__/MessageRow.test.tsx ]
+ FAIL  src/react/components/__tests__/MidRunUserMessage.cov-j2.test.tsx [ src/react/components/__tests__/MidRunUserMessage.cov-j2.test.tsx ]
+ FAIL  src/react/components/__tests__/MidRunUserMessage.test.tsx [ src/react/components/__tests__/MidRunUserMessage.test.tsx ]
+ FAIL  src/react/components/__tests__/QuestionForm.test.tsx [ src/react/components/__tests__/QuestionForm.test.tsx ]
+ FAIL  src/react/components/__tests__/QuestionsPanel.j5-03.characterization.test.tsx [ src/react/components/__tests__/QuestionsPanel.j5-03.characterization.test.tsx ]
+ FAIL  src/react/components/__tests__/QuestionsPanel.l199.characterization.test.tsx [ src/react/components/__tests__/QuestionsPanel.l199.characterization.test.tsx ]
+ FAIL  src/react/components/__tests__/QuestionsPanel.test.tsx [ src/react/components/__tests__/QuestionsPanel.test.tsx ]
+ FAIL  src/react/components/__tests__/SentAttachment.test.tsx [ src/react/components/__tests__/SentAttachment.test.tsx ]
+ FAIL  src/react/components/__tests__/ToolCard.long-chat-memory.test.tsx [ src/react/components/__tests__/ToolCard.long-chat-memory.test.tsx ]
+ FAIL  src/react/components/__tests__/answered-question.test.tsx [ src/react/components/__tests__/answered-question.test.tsx ]
+ FAIL  src/react/components/__tests__/conversation-cost.test.tsx [ src/react/components/__tests__/conversation-cost.test.tsx ]
+ FAIL  src/react/components/__tests__/durable-run-notice.test.tsx [ src/react/components/__tests__/durable-run-notice.test.tsx ]
+ FAIL  src/react/components/__tests__/mid-run-transcript.test.tsx [ src/react/components/__tests__/mid-run-transcript.test.tsx ]
+ FAIL  src/react/components/__tests__/owned-renderer-registries.test.tsx [ src/react/components/__tests__/owned-renderer-registries.test.tsx ]
+ FAIL  src/react/components/__tests__/standalone-approval.test.tsx [ src/react/components/__tests__/standalone-approval.test.tsx ]
+ FAIL  src/react/components/__tests__/surface-question-replay.test.tsx [ src/react/components/__tests__/surface-question-replay.test.tsx ]
+ FAIL  src/react/hooks/__tests__/secret-redaction.test.tsx [ src/react/hooks/__tests__/secret-redaction.test.tsx ]
+ FAIL  src/react/hooks/__tests__/useComposer.draft-debounce.test.tsx [ src/react/hooks/__tests__/useComposer.draft-debounce.test.tsx ]
+ FAIL  src/react/features/chat-pane/__tests__/index.test.ts [ src/react/features/chat-pane/__tests__/index.test.ts ]
+ FAIL  src/react/features/chat-pane/__tests__/styles-lone-send-button.test.tsx [ src/react/features/chat-pane/__tests__/styles-lone-send-button.test.tsx ]
+ FAIL  src/react/features/chat-pane/__tests__/styles-user-bubbles.test.tsx [ src/react/features/chat-pane/__tests__/styles-user-bubbles.test.tsx ]
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx [ src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx ]
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.cov-j2.test.tsx [ src/react/features/chat-pane/__tests__/components/ChatPane.cov-j2.test.tsx ]
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.long-transcript.bench.test.tsx [ src/react/features/chat-pane/__tests__/components/ChatPane.long-transcript.bench.test.tsx ]
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.typing-render.test.tsx [ src/react/features/chat-pane/__tests__/components/ChatPane.typing-render.test.tsx ]
+ FAIL  src/react/features/chat-pane/__tests__/components/RuntimeDropUp.cov-j2.test.tsx [ src/react/features/chat-pane/__tests__/components/RuntimeDropUp.cov-j2.test.tsx ]
+ FAIL  src/react/features/chat-pane/__tests__/components/RuntimeDropUp.test.tsx [ src/react/features/chat-pane/__tests__/components/RuntimeDropUp.test.tsx ]
+ FAIL  src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.cov-j2.test.tsx [ src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.cov-j2.test.tsx ]
+ FAIL  src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.test.tsx [ src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+ ❯ TransformPluginContext.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+ ❯ PluginContainer.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18
+ ❯ loadAndTransform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/46]⎯
+
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx [ src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+ ❯ TransformPluginContext.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+ ❯ PluginContainer.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18
+ ❯ loadAndTransform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/46]⎯
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/core/__tests__/turn-usage-w2g.unit.test.ts > legacy boundary data without an id splits every reply, while a repeated receipt id splits once
+AssertionError: expected [ [ { kind: 'text', …(1) } ], …(3) ] to deeply equal [ [ { kind: 'text', …(1) } ], …(3) ]
+
+- Expected
++ Received
+
+  Array [
+    Array [
+      Object {
+        "kind": "text",
+        "text": "reply",
+      },
+    ],
+    Array [
+      Object {
+        "kind": "text",
+        "text": "reply",
+      },
+    ],
+    Array [
+      Object {
+        "kind": "text",
+        "text": "reply",
+      },
+    ],
+    Array [
+      Object {
+        "kind": "text",
+        "text": "reply",
+      },
+      Object {
++       "data": Object {
++         "id": "input",
++       },
++       "kind": "ext",
++       "name": "user_message",
++     },
++     Object {
+        "kind": "text",
+        "text": "reply",
+      },
+    ],
+  ]
+
+ ❯ src/core/__tests__/turn-usage-w2g.unit.test.ts:10:106
+      8|   const malformed: AgentEvent = { kind: 'ext', name: 'user_message', d…
+      9|   const receipt: AgentEvent = { kind: 'ext', name: 'user_message', dat…
+     10|   expect(replySegments({ events: [text, legacy, text, malformed, text,…
+       |                                                                                                          ^
+     11|     [text], [text], [text], [text, text],
+     12|   ]);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/46]⎯
+
+ Test Files  46 failed | 218 passed (264)
+      Tests  1 failed | 3209 passed (3210)
+   Start at  19:59:27
+   Duration  447.60s (transform 10.36s, setup 35.91s, collect 31.63s, tests 339.96s, environment 66.67s, prepare 23.25s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 99.85% ( 4087/4093 )
+Branches     : 99.36% ( 2669/2686 )
+Functions    : 99.78% ( 469/470 )
+Lines        : 99.85% ( 4087/4093 )
+================================================================================

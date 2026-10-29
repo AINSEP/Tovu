@@ -1,0 +1,60 @@
+check:architecture — 1999 files, 73 modules, production files only
+
+  cross-feature import edges (all-import)              436
+  propagation cost (all-import)                        12.93%
+  propagation cost (runtime-only)                      3.00%
+  back-edges into composition root                     0
+    └ back-edges, runtime-only (informational)         0
+  module cycles (mutual pairs, runtime-only)           5
+  largest strongly-connected component (runtime-only)  22
+  module API surface (files exposed)                   802
+    └ deep-import edges (informational)                2597
+  bidirectional hub count                              16.06% (321/1999)
+
+  Martin instability: informational, not ratcheted — pass --list for the per-module gradient.
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/asset-destinations.ts -> apps/website/src/features/media/index.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/asset-destinations.ts -> apps/website/src/features/theme/asset-operations.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/asset-sources.ts -> apps/website/src/features/theme/asset-operations.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/copy-tool.ts -> apps/website/src/features/media/document-archive.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/copy-tool.ts -> apps/website/src/features/theme/asset-operations.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/tool-registrations.ts -> apps/website/src/features/deployments/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/image-transform/tool.ts -> apps/website/src/features/theme/asset-operations.ts
+  NEW cross-feature edge: apps/website/src/features/media/where-used.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/member-login/link-policy.ts -> apps/website/src/features/members/index.ts
+  NEW cross-feature edge: apps/website/src/features/member-login/link-service.ts -> apps/website/src/features/members/index.ts
+  NEW cross-feature edge: apps/website/src/features/object-storage/artifact-provider.ts -> apps/website/src/features/deployments/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/object-storage/registry.ts -> apps/website/src/features/deployments/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/pages/html-document-store.memory.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/pages/html-document-store.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/pages/html-document-store.ts -> apps/website/src/features/post/index.ts
+  NEW cross-feature edge: apps/website/src/features/plugin-runtime/widget-partials.ts -> apps/website/src/features/theme/rendering.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/peer-transport.ts -> apps/website/src/features/deployments/static-publish/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/push-plan.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/tool-deps.ts -> apps/website/src/features/deployments/static-publish/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/tool-registrations.ts -> apps/website/src/features/deployments/static-publish/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/type-registry.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/type-registry.ts -> apps/website/src/features/theme/catalog.ts
+  NEW cross-feature edge: apps/website/src/features/seo/cover-image.ts -> apps/website/src/features/post/rendering.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/import-restore-placement.ts -> apps/website/src/features/theme/catalog.ts
+  NEW cross-feature edge: apps/website/src/features/site-export/media-original-urls.ts -> apps/website/src/features/media/index.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/access.ts -> apps/website/src/features/members/index.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/access.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/cms-document-source.ts -> apps/website/src/features/members/index.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/cms-document-source.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/cms-document-source.ts -> apps/website/src/features/post/read-model.ts
+  NEW cross-feature edge: apps/website/src/features/widgets/deps.ts -> apps/website/src/features/media/index.ts
+
+  propagation cost (all-import) improved: 15.52 → 12.93
+
+  propagation cost (runtime-only) improved: 3.06 → 3
+
+  module API surface (files exposed) improved: 821 → 802
+
+  bidirectional hub count improved: 335 → 321
+
+check:architecture — FAILED: 1 metric(s) regressed against a hard constraint.
+Either fix the regression or, if genuinely intended, run with --update to move the baseline.
+
+real	0m34.350s
+user	0m33.182s
+sys	0m2.048s

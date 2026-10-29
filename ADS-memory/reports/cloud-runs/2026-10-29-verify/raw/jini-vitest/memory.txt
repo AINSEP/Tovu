@@ -1,0 +1,33 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/memory
+      Coverage enabled with v8
+
+ ✓ src/__tests__/llm-provider.test.ts (66 tests) 61ms
+ ✓ src/__tests__/verify.test.ts (34 tests) 26ms
+ ✓ src/__tests__/note-store.test.ts (67 tests) 875ms
+ ✓ src/__tests__/extract-facts.test.ts (21 tests) 35ms
+ ✓ src/__tests__/extraction-log.test.ts (23 tests) 22ms
+ ✓ src/__tests__/llm-provider.l088.characterization.test.ts (34 tests) 27ms
+ ✓ src/__tests__/extract-facts.l088.characterization.test.ts (13 tests) 21ms
+ ✓ src/__tests__/note-store-helpers.test.ts (19 tests) 14ms
+ ✓ src/__tests__/verify.l088.characterization.test.ts (24 tests) 13ms
+ ✓ src/__tests__/vendor-catalog.test.ts (5 tests) 54ms
+ ✓ src/__tests__/rule-body.test.ts (10 tests) 10ms
+ ✓ src/__tests__/integration-ports.test.ts (2 tests) 47ms
+ ✓ src/__tests__/entry-frontmatter.test.ts (6 tests) 20ms
+ ✓ src/__tests__/rule-body.l088.characterization.test.ts (7 tests) 4ms
+ ✓ src/__tests__/index.test.ts (1 test) 5ms
+
+ Test Files  15 passed (15)
+      Tests  332 passed (332)
+   Start at  20:19:47
+   Duration  4.06s (transform 758ms, setup 0ms, collect 1.39s, tests 1.23s, environment 4ms, prepare 1.42s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 100% ( 1113/1113 )
+Branches     : 100% ( 545/545 )
+Functions    : 100% ( 123/123 )
+Lines        : 100% ( 1113/1113 )
+================================================================================

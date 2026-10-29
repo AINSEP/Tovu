@@ -1,0 +1,6 @@
+0 5 {"sonarjs/redundant-type-aliases/W":3,"sonarjs/too-many-break-or-continue-in-loop/W":1,"sonarjs/no-inconsistent-returns/W":1}
+W apps/admin/src/lib/api.ts:693 sonarjs/redundant-type-aliases Remove this redundant type alias and replace its occurrences with "AdminPublishCredentialProviderId".
+W apps/admin/src/lib/api.ts:818 sonarjs/redundant-type-aliases Remove this redundant type alias and replace its occurrences with "string".
+W apps/admin/src/lib/api.ts:1014 sonarjs/redundant-type-aliases Remove this redundant type alias and replace its occurrences with "string".
+W apps/website/src/platform/db/migrations/0002_drop_empty_legacy_chat_tables.ts:28 sonarjs/too-many-break-or-continue-in-loop Reduce the total number of "break" and "continue" statements in this loop to use one at most.
+W apps/website/src/platform/db/migrations/0020_vault_api_connection_kind.ts:66 sonarjs/no-inconsistent-returns Refactor this function to use "return" consistently.

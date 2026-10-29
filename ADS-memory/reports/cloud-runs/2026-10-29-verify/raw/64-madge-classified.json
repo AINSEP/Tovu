@@ -1,0 +1,186 @@
+{
+ "admin": {
+  "total": 16,
+  "own": 14,
+  "website": 0,
+  "jini": 2,
+  "mixed": 0,
+  "groups": {
+   "own": [
+    [
+     "lib/api.ts",
+     "lib/settings-effective-reads.ts"
+    ],
+    [
+     "panels.tsx",
+     "components/Placeholder.tsx",
+     "nav.ts"
+    ],
+    [
+     "components/WidgetPickerDialog/WidgetPickerDialog.tsx",
+     "components/WidgetPickerDialog/WidgetPickerDialog.hooks.tsx"
+    ],
+    [
+     "components/MediaPickerDialog/MediaPickerDialog.tsx",
+     "components/MediaPickerDialog/JiniMediaPicker.hooks.ts"
+    ],
+    [
+     "integrations/jini-admin/modules.hooks.ts",
+     "integrations/jini-admin/seo-module.hooks.ts",
+     "components/MediaPickerDialog/MediaPickerDialog.tsx",
+     "components/MediaPickerDialog/JiniMediaPicker.hooks.ts"
+    ],
+    [
+     "panels.tsx",
+     "features/comments/index.ts",
+     "integrations/jini-admin/modules.hooks.ts"
+    ],
+    [
+     "features/pages/rules.ts",
+     "features/pages/hooks/use-page-editor.hooks.ts",
+     "features/pages/hooks/page-editor-dependencies.hooks.ts"
+    ],
+    [
+     "features/pages/rules.ts",
+     "features/pages/hooks/use-page-editor.hooks.ts"
+    ],
+    [
+     "features/pages/hooks/use-theme-pages.hooks.ts",
+     "features/pages/lib/theme-page-publish-state.ts"
+    ],
+    [
+     "features/pages/rules.ts",
+     "features/pages/hooks/use-theme-pages.hooks.ts"
+    ],
+    [
+     "hooks/use-standing-draft-autosave.hooks.ts",
+     "lib/standing-draft-local-backup.ts"
+    ],
+    [
+     "features/posts/hooks/use-post-editor.hooks.ts",
+     "features/posts/hooks/post-editor-save.rules.ts",
+     "features/posts/hooks/post-editor-state.rules.ts"
+    ],
+    [
+     "features/posts/hooks/use-post-editor.hooks.ts",
+     "features/posts/hooks/post-editor-save.rules.ts"
+    ],
+    [
+     "panels.tsx",
+     "media-panel.ts"
+    ]
+   ],
+   "website": [],
+   "jini": [
+    [
+     "../../../../Jini/packages/chat/dist/react/hooks/useUserTextGuard.d.ts",
+     "../../../../Jini/packages/chat/dist/react/index.d.ts"
+    ],
+    [
+     "../../../../Jini/packages/ui/dist/features/panel-kit/helpers/standing-draft-local-backup.d.ts",
+     "../../../../Jini/packages/ui/dist/features/panel-kit/hooks/use-standing-draft-autosave.hooks.d.ts"
+    ]
+   ],
+   "mixed": []
+  },
+  "websiteImports": {
+   "../../website/src/platform/html/slug.ts": [
+    "features/menus/hooks/use-menu-editor.hooks.ts"
+   ],
+   "../../website/src/features/post/slug.ts": [
+    "features/posts/rules.ts"
+   ],
+   "../../website/src/features/site-backup/share-policy.ts": [
+    "features/sites/hooks/use-site-transfer.hooks.ts"
+   ],
+   "../../website/src/contracts/core/credential-copy.ts": [
+    "lib/credential-copy.ts"
+   ],
+   "../../website/src/contracts/core/credential-token.ts": [
+    "lib/credential-copy.ts"
+   ],
+   "../../website/src/contracts/core/admin-locales.ts": [
+    "lib/settings-tabs.ts"
+   ]
+  }
+ },
+ "desktop": {
+  "total": 4,
+  "own": 2,
+  "website": 0,
+  "jini": 2,
+  "mixed": 0,
+  "groups": {
+   "own": [
+    [
+     "sites-mcp-tools.ts",
+     "add-site-pointer.ts",
+     "site-dir-store.ts",
+     "tovu-server.ts",
+     "sites-mcp-registration.ts"
+    ],
+    [
+     "renderer/use-site-workspace.hooks.ts",
+     "renderer/site-theme-preview.hooks.ts"
+    ]
+   ],
+   "website": [],
+   "jini": [
+    [
+     "../../../../Jini/packages/chat/dist/react/hooks/useUserTextGuard.d.ts",
+     "../../../../Jini/packages/chat/dist/react/index.d.ts"
+    ],
+    [
+     "../../../../Jini/packages/ui/dist/features/panel-kit/helpers/standing-draft-local-backup.d.ts",
+     "../../../../Jini/packages/ui/dist/features/panel-kit/hooks/use-standing-draft-autosave.hooks.d.ts"
+    ]
+   ],
+   "mixed": []
+  },
+  "websiteImports": {
+   "../../website/src/platform/server-logs/redact-local-text.ts": [
+    "../scripts/check-complexity.ts",
+    "../scripts/check-coverage.ts",
+    "../scripts/check-js-backslide.ts",
+    "../scripts/check-tree-quiet.ts",
+    "../scripts/smoke-bridge.ts",
+    "../scripts/smoke-native.ts",
+    "smoke-bridge.ts",
+    "smoke-native.ts",
+    "tovu-server.ts"
+   ],
+   "../../website/src/contracts/core/assistant-native-fallbacks.ts": [
+    "desktop-agent.ts"
+   ],
+   "../../website/src/contracts/core/host-signals.ts": [
+    "desktop-agent.ts",
+    "desktop-host-signals.ts"
+   ],
+   "../../website/src/contracts/core/secret-redaction.ts": [
+    "desktop-agent.ts",
+    "tovu-server.ts"
+   ],
+   "../../website/src/contracts/headless/assistant-subagents-policy.ts": [
+    "desktop-agent.ts",
+    "desktop-chat-main.ts"
+   ],
+   "../../website/src/features/agent-plugins/host-signals.ts": [
+    "desktop-host-signals.ts"
+   ],
+   "../../website/src/server/runtime/composition/product-telemetry.ts": [
+    "product-memory-telemetry.ts",
+    "product-telemetry-preference.ts",
+    "product-telemetry.ts"
+   ],
+   "../../website/src/server/runtime/composition/product-events.ts": [
+    "product-telemetry-ipc.ts"
+   ],
+   "renderer/create-website-onboarding-policy.ts": [
+    "renderer/CreateWebsiteOnboarding.tsx"
+   ],
+   "../../website/src/platform/server-logs/console-tee.ts": [
+    "tovu-server.ts"
+   ]
+  }
+ }
+}

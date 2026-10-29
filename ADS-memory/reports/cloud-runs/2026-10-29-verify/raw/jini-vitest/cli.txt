@@ -1,0 +1,49 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/cli
+      Coverage enabled with v8
+
+ ✓ src/__tests__/http.test.ts (43 tests) 139ms
+ ✓ src/__tests__/run-command.test.ts (59 tests) 186ms
+ ✓ src/__tests__/prompt.test.ts (31 tests) 101ms
+ ✓ src/__tests__/http.pins.test.ts (38 tests) 62ms
+ ✓ src/__tests__/daemon-command.test.ts (19 tests) 39ms
+ ✓ src/__tests__/version-command.test.ts (17 tests) 60ms
+ ✓ src/__tests__/errors.test.ts (23 tests) 27ms
+ ✓ src/__tests__/main.test.ts (31 tests) 453ms
+ ✓ src/__tests__/daemon-url.pins.test.ts (111 tests) 68ms
+ ✓ src/__tests__/daemon-url.test.ts (24 tests) 40ms
+ ✓ src/__tests__/introspection.test.ts (8 tests) 11ms
+ ✓ src/__tests__/run-command.pins.test.ts (20 tests) 56ms
+ ✓ src/__tests__/command-registry.test.ts (16 tests) 25ms
+ ✓ src/__tests__/main.pins.test.ts (13 tests) 39ms
+ ✓ src/__tests__/local-daemon-discovery.test.ts (7 tests) 253ms
+ ✓ src/__tests__/errors.pins.test.ts (15 tests) 15ms
+ ✓ src/__tests__/flags.test.ts (22 tests) 9ms
+ ✓ src/__tests__/flags.pins.test.ts (19 tests) 15ms
+ ✓ src/__tests__/command-registry.pins.test.ts (10 tests) 8ms
+ ✓ src/__tests__/prompt.pins.test.ts (8 tests) 82ms
+ ✓ src/__tests__/introspection.cov-j2.test.ts (2 tests) 13ms
+ ✓ src/__tests__/prompt-read-file-settled.test.ts (2 tests) 35ms
+ ✓ src/__tests__/http-contradictions.unit.test.ts (13 tests) 38ms
+ ✓ src/__tests__/integration-surface.test.ts (3 tests) 13ms
+ ✓ src/__tests__/usage.test.ts (7 tests) 12ms
+ ✓ src/__tests__/core-redaction-migration.test.ts (3 tests) 9ms
+ ✓ src/__tests__/index.test.ts (2 tests) 5ms
+ ✓ src/__tests__/redact.test.ts (5 tests) 9ms
+ ✓ src/__tests__/audit-regressions.test.ts (2 tests) 6ms
+ ✓ src/__tests__/args-convention.test.ts (1 test) 8ms
+ ✓ src/__tests__/tokens.test.ts (1 test) 5ms
+
+ Test Files  31 passed (31)
+      Tests  575 passed (575)
+   Start at  20:06:56
+   Duration  10.29s (transform 1.77s, setup 0ms, collect 4.66s, tests 1.84s, environment 13ms, prepare 3.73s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 100% ( 1075/1075 )
+Branches     : 100% ( 667/667 )
+Functions    : 100% ( 123/123 )
+Lines        : 100% ( 1075/1075 )
+================================================================================

@@ -1,0 +1,33 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/sidecar
+      Coverage enabled with v8
+
+ ✓ src/__tests__/daemon-registry.test.ts (22 tests) 293ms
+ ✓ src/__tests__/supervisor.test.ts (16 tests) 16ms
+ ✓ src/__tests__/index.test.ts (63 tests | 2 skipped) 469ms
+ ✓ src/__tests__/supervisor-node.l178.test.ts (14 tests) 23ms
+ ✓ src/__tests__/supervisor-node.windows.test.ts (12 tests) 62ms
+ ✓ src/__tests__/supervisor-node.test.ts (7 tests) 13ms
+ ✓ src/__tests__/respawn-policy.test.ts (9 tests) 6ms
+ ✓ src/__tests__/atomic-json-kernel.test.ts (5 tests) 88ms
+ ✓ src/__tests__/file-race-regressions.test.ts (4 tests) 106ms
+ ✓ src/__tests__/respawn-policy.l178.test.ts (24 tests) 12ms
+ ✓ src/__tests__/audit-regressions.test.ts (2 tests) 30ms
+ ✓ src/__tests__/daemon-registry.l178.test.ts (27 tests) 105ms
+ ✓ src/__tests__/integration-surface.test.ts (2 tests) 4ms
+ ✓ src/__tests__/supervisor-isolation.test.ts (1 test) 4ms
+ ✓ src/__tests__/args-convention.test.ts (1 test) 56ms
+
+ Test Files  15 passed (15)
+      Tests  207 passed | 2 skipped (209)
+   Start at  20:23:44
+   Duration  5.27s (transform 1.26s, setup 0ms, collect 3.09s, tests 1.29s, environment 3ms, prepare 1.44s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 100% ( 955/955 )
+Branches     : 100% ( 435/435 )
+Functions    : 100% ( 99/99 )
+Lines        : 100% ( 955/955 )
+================================================================================

@@ -1,0 +1,107 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/cookie-consent
+      Coverage enabled with v8
+
+ ✓ src/__tests__/anonymous.test.ts (11 tests) 106ms
+stderr | src/__tests__/client.test.ts > boot, queue and banner > a durable grant without a receipt keeps the banner open with its alert until the receipt lands
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at navigateFetch (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+    at exports.navigate (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+    at Timeout._onTimeout (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/nodes/HTMLHyperlinkElementUtils-impl.js:81:7)
+    at listOnTimeout (node:internal/timers:685:17)
+    at processTimers (node:internal/timers:618:7) undefined
+
+ ✓ src/__tests__/client.test.ts (28 tests) 1095ms
+ ✓ src/__tests__/client-dom.test.ts (11 tests) 220ms
+ ✓ src/__tests__/server.test.ts (17 tests) 54ms
+ ✓ src/__tests__/node.test.ts (19 tests) 172ms
+ ✓ src/__tests__/css.test.ts (22 tests) 22ms
+ ✓ src/__tests__/render.test.ts (14 tests) 13ms
+ ✓ src/__tests__/policy.test.ts (10 tests) 11ms
+ ✓ src/__tests__/plugins.test.ts (6 tests) 17ms
+ ❯ src/__tests__/bundle.smoke.test.ts (4 tests | 3 failed) 334ms
+   × dist/client.min.js > boots from the page config, shows the banner and drains the queue without granting 193ms
+     → expected undefined to be 'pending' // Object.is equality
+   × dist/client.min.js > Accept grants the adapter, runs the inert tag, writes the cookie and closes the banner 84ms
+     → expected undefined to be true // Object.is equality
+   × dist/client.min.js > Reject grants nothing; reopening and rejecting after Accept revokes the adapter 54ms
+     → expected undefined to match object { status: 'set', action: 'reject' }
+ ✓ src/__tests__/purge-storage-m1.unit.test.ts (1 test) 89ms
+ ✓ src/__tests__/css-failure-m1.unit.test.ts (2 tests) 10ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/bundle.smoke.test.ts > dist/client.min.js > boots from the page config, shows the banner and drains the queue without granting
+AssertionError: expected undefined to be 'pending' // Object.is equality
+
+- Expected: 
+"pending"
+
++ Received: 
+undefined
+
+ ❯ src/__tests__/bundle.smoke.test.ts:39:43
+     37|   test('boots from the page config, shows the banner and drains the qu…
+     38|     const win = page();
+     39|     expect(win.jiniConsent?.get().status).toBe('pending');
+       |                                           ^
+     40|     expect(win.document.documentElement.getAttribute('data-consent')).…
+     41|     expect(win.document.documentElement.getAttribute('data-consent-reg…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/__tests__/bundle.smoke.test.ts > dist/client.min.js > Accept grants the adapter, runs the inert tag, writes the cookie and closes the banner
+AssertionError: expected undefined to be true // Object.is equality
+
+- Expected: 
+true
+
++ Received: 
+undefined
+
+ ❯ src/__tests__/bundle.smoke.test.ts:52:54
+     50|     click(win, '#jini-consent .jini-consent-actions [data-consent-acti…
+     51|     await settle();
+     52|     expect(win.jiniConsent?.get().allowed.analytics).toBe(true);
+       |                                                      ^
+     53|     expect(win.grants).toEqual(['grant']);
+     54|     expect(win.inertRan).toBe(1);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/__tests__/bundle.smoke.test.ts > dist/client.min.js > Reject grants nothing; reopening and rejecting after Accept revokes the adapter
+AssertionError: expected undefined to match object { status: 'set', action: 'reject' }
+
+- Expected: 
+Object {
+  "action": "reject",
+  "status": "set",
+}
+
++ Received: 
+undefined
+
+ ❯ src/__tests__/bundle.smoke.test.ts:63:41
+     61|     click(rejected, '#jini-consent [data-consent-action="reject"]');
+     62|     await settle();
+     63|     expect(rejected.jiniConsent?.get()).toMatchObject({ status: 'set',…
+       |                                         ^
+     64|     expect(rejected.grants).toEqual([]);
+     65|     expect(rejected.inertRan).toBeUndefined();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+ Test Files  1 failed | 11 passed (12)
+      Tests  3 failed | 142 passed (145)
+   Start at  20:10:32
+   Duration  5.91s (transform 796ms, setup 0ms, collect 2.35s, tests 2.14s, environment 1.51s, prepare 1.27s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 99.79% ( 989/991 )
+Branches     : 99.88% ( 855/856 )
+Functions    : 99.38% ( 161/162 )
+Lines        : 99.79% ( 989/991 )
+================================================================================

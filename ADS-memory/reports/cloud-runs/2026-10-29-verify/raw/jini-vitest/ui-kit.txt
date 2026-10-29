@@ -1,0 +1,35 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/ui-kit
+      Coverage enabled with v8
+
+ ✓ src/react/testing/__tests__/driver.characterization.test.ts (43 tests) 192ms
+ ✓ src/react/__tests__/native-hooks.test.ts (20 tests) 491ms
+ ✓ src/react/__tests__/confirm.test.ts (13 tests) 412ms
+ ✓ src/react/__tests__/confirm-guard.test.ts (22 tests) 320ms
+ ✓ src/react/__tests__/native.test.ts (7 tests) 274ms
+ ✓ src/react/confirm/__tests__/guard.characterization.test.ts (25 tests) 438ms
+ ✓ src/react/native/__tests__/dialog.characterization.test.ts (10 tests) 234ms
+ ✓ src/react/__tests__/provider-edges.test.ts (10 tests) 191ms
+ ✓ src/react/confirm/__tests__/controller.characterization.test.ts (7 tests) 67ms
+ ✓ src/react/native/__tests__/navigation.characterization.test.ts (21 tests) 712ms
+ ✓ src/react/__tests__/secret-field.test.ts (4 tests) 255ms
+ ✓ src/react/__tests__/conformance.test.ts (2 tests) 245ms
+ ✓ src/react/__tests__/dialog-focus.test.ts (1 test) 188ms
+ ✓ src/__tests__/rules.test.ts (7 tests) 22ms
+ ✓ src/__tests__/confirm.characterization.test.ts (10 tests) 9ms
+ ✓ src/__tests__/unit/headless-smoke.unit.test.ts (3 tests) 32ms
+ ✓ src/__tests__/ssr.test.ts (1 test) 22ms
+
+ Test Files  17 passed (17)
+      Tests  206 passed (206)
+   Start at  20:24:14
+   Duration  11.37s (transform 914ms, setup 0ms, collect 3.05s, tests 4.10s, environment 6.66s, prepare 1.61s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 97.23% ( 879/904 )
+Branches     : 100% ( 600/600 )
+Functions    : 98.57% ( 138/140 )
+Lines        : 97.23% ( 879/904 )
+================================================================================

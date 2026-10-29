@@ -1,0 +1,268 @@
+{
+ "admin": {
+  "lines": 91.72,
+  "branches": 99.32,
+  "functions": 95.03,
+  "statements": 91.72,
+  "files": 377
+ },
+ "agent-plugins": {
+  "lines": 99.52,
+  "branches": 99.84,
+  "functions": 99.86,
+  "statements": 99.52,
+  "files": 69
+ },
+ "agent-runtime": {
+  "lines": 99.77,
+  "branches": 99.59,
+  "functions": 99.78,
+  "statements": 99.77,
+  "files": 138
+ },
+ "agentic": {
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100,
+  "files": 51
+ },
+ "analytics": {
+  "lines": 100,
+  "branches": 99.32,
+  "functions": 100,
+  "statements": 100,
+  "files": 12
+ },
+ "artifacts": {
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100,
+  "files": 10
+ },
+ "capability-providers": {
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100,
+  "files": 28
+ },
+ "chat": {
+  "lines": 99.85,
+  "branches": 99.36,
+  "functions": 99.78,
+  "statements": 99.85,
+  "files": 63
+ },
+ "cli": {
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100,
+  "files": 16
+ },
+ "cms": {
+  "lines": 99.98,
+  "branches": 99.9,
+  "functions": 100,
+  "statements": 99.98,
+  "files": 281
+ },
+ "commerce": {
+  "lines": 4.01,
+  "branches": 39.7,
+  "functions": 39.7,
+  "statements": 4.01,
+  "files": 69
+ },
+ "cookie-consent": {
+  "lines": 99.79,
+  "branches": 99.88,
+  "functions": 99.38,
+  "statements": 99.79,
+  "files": 17
+ },
+ "core": {
+  "lines": 99.14,
+  "branches": 99.81,
+  "functions": 99.82,
+  "statements": 99.14,
+  "files": 113
+ },
+ "daemon": {
+  "lines": 99.75,
+  "branches": 99.63,
+  "functions": 100,
+  "statements": 99.75,
+  "files": 131
+ },
+ "db": {
+  "lines": 100,
+  "branches": 99.56,
+  "functions": 100,
+  "statements": 100,
+  "files": 96
+ },
+ "desktop-host": {
+  "lines": 99.53,
+  "branches": 98.76,
+  "functions": 100,
+  "statements": 99.53,
+  "files": 67
+ },
+ "devops": {
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100,
+  "files": 9
+ },
+ "diagnostics": {
+  "lines": 94.91,
+  "branches": 99.63,
+  "functions": 99.76,
+  "statements": 94.91,
+  "files": 47
+ },
+ "http-kit": {
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100,
+  "files": 24
+ },
+ "infra": {
+  "lines": 100,
+  "branches": 99.02,
+  "functions": 100,
+  "statements": 100,
+  "files": 13
+ },
+ "integrations": {
+  "lines": 99.98,
+  "branches": 99.96,
+  "functions": 100,
+  "statements": 99.98,
+  "files": 91
+ },
+ "mcp": {
+  "lines": 99.82,
+  "branches": 99.06,
+  "functions": 100,
+  "statements": 99.82,
+  "files": 66
+ },
+ "memory": {
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100,
+  "files": 9
+ },
+ "oauth": {
+  "lines": 100,
+  "branches": 99.89,
+  "functions": 100,
+  "statements": 100,
+  "files": 33
+ },
+ "platform": {
+  "lines": 99.97,
+  "branches": 99.81,
+  "functions": 99.65,
+  "statements": 99.97,
+  "files": 104
+ },
+ "plugins": {
+  "lines": 99.55,
+  "branches": 99.22,
+  "functions": 99.75,
+  "statements": 99.55,
+  "files": 52
+ },
+ "protocol": {
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100,
+  "files": 12
+ },
+ "provider-plugins": {
+  "lines": 2.12,
+  "branches": 97.06,
+  "functions": 94.88,
+  "statements": 2.13,
+  "files": 26
+ },
+ "registry": {
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100,
+  "files": 16
+ },
+ "sandbox": {
+  "lines": 99.78,
+  "branches": 98.59,
+  "functions": 100,
+  "statements": 99.78,
+  "files": 10
+ },
+ "search": {
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100,
+  "files": 16
+ },
+ "server": {
+  "lines": 99.76,
+  "branches": 98.16,
+  "functions": 94.52,
+  "statements": 99.76,
+  "files": 32
+ },
+ "sidecar": {
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100,
+  "files": 13
+ },
+ "sqlite": {
+  "lines": 100,
+  "branches": 100,
+  "functions": 100,
+  "statements": 100,
+  "files": 1
+ },
+ "ui-kit": {
+  "lines": 97.23,
+  "branches": 100,
+  "functions": 98.57,
+  "statements": 97.23,
+  "files": 29
+ },
+ "ui": {
+  "lines": 95.18,
+  "branches": 99.82,
+  "functions": 97.03,
+  "statements": 95.18,
+  "files": 686
+ },
+ "user-management": {
+  "lines": 90.11,
+  "branches": 99.53,
+  "functions": 96.5,
+  "statements": 90.11,
+  "files": 98
+ },
+ "vibecoding": {
+  "lines": 99.05,
+  "branches": 96.99,
+  "functions": 97.14,
+  "statements": 99.05,
+  "files": 27
+ }
+}

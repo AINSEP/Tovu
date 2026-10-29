@@ -1,0 +1,21 @@
+[
+  [
+    "../../../../Jini/packages/chat/dist/react/hooks/useUserTextGuard.d.ts",
+    "../../../../Jini/packages/chat/dist/react/index.d.ts"
+  ],
+  [
+    "../../../../Jini/packages/ui/dist/features/panel-kit/helpers/standing-draft-local-backup.d.ts",
+    "../../../../Jini/packages/ui/dist/features/panel-kit/hooks/use-standing-draft-autosave.hooks.d.ts"
+  ],
+  [
+    "sites-mcp-tools.ts",
+    "add-site-pointer.ts",
+    "site-dir-store.ts",
+    "tovu-server.ts",
+    "sites-mcp-registration.ts"
+  ],
+  [
+    "renderer/use-site-workspace.hooks.ts",
+    "renderer/site-theme-preview.hooks.ts"
+  ]
+]

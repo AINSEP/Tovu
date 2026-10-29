@@ -1,0 +1,53 @@
+ DEPRECATED  "environmentMatchGlobs" is deprecated. Use `test.projects` to define different configurations instead.
+Loaded  vitest@3.2.7  and  @vitest/coverage-v8@2.1.9 .
+Running mixed versions is not supported and may lead into bugs
+Update your dependencies and make sure the versions match.
+
+ RUN  v3.2.7 /home/user/Jini/packages/vibecoding
+      Coverage enabled with v8
+
+ ✓ src/core/__tests__/history.test.ts (24 tests) 27ms
+ ✓ src/html/__tests__/edit.test.ts (58 tests) 89ms
+ ✓ src/html/__tests__/regions.test.ts (23 tests) 23ms
+ ✓ src/html/node/__tests__/parse5-region-parser.test.ts (17 tests) 41ms
+ ✓ src/node/__tests__/project-turn.test.ts (12 tests) 1690ms
+   ✓ atomic-write debris is never captured and a UTF-8 BOM survives a text round trip  305ms
+ ✓ src/html/node/__tests__/scan.test.ts (29 tests) 45ms
+ ✓ src/html/node/__tests__/parse5-region-parser.l189.characterization.test.ts (22 tests) 43ms
+ ✓ src/node/__tests__/unit/project-contracts.unit.test.ts (18 tests) 2441ms
+   ✓ the text target supports snapshot restore, keeps labels and cannot bypass project transactions  347ms
+   ✓ project sessions discard cached bytes after redo and snapshot restore, including a no-op restore  564ms
+ ✓ src/core/__tests__/apply.test.ts (13 tests) 14ms
+ ✓ src/node/__tests__/unit/store-corruption.unit.test.ts (39 tests) 1555ms
+ ✓ src/node/__tests__/project-history.test.ts (7 tests) 2299ms
+   ✓ directory spelling and file/directory transitions survive undo and redo  332ms
+   ✓ A→B→A by another handle conflicts by generation and clears stale history  406ms
+   ✓ snapshot restore is undoable and objects shared by revisions are retained  311ms
+   ✓ garbage collection expires unpinned snapshots without pruning a pinned redo  462ms
+   ✓ injected session shares pointer history and invalidates caches across delete/undo and drift  335ms
+ ✓ src/node/__tests__/store-recovery.test.ts (9 tests) 492ms
+ ✓ src/__tests__/integration.test.ts (2 tests) 42ms
+ ✓ src/node/__tests__/paths.test.ts (32 tests) 34ms
+ ✓ src/html/node/__tests__/unit/scanner-contracts.unit.test.ts (2 tests) 14ms
+ ✓ src/session/__tests__/session-exports.test.ts (2 tests) 887ms
+   ✓ packed ./session imports and runs with every React resolution forbidden  884ms
+ ✓ src/react/__tests__/tools.test.ts (14 tests) 17ms
+ ✓ src/react/__tests__/session.test.ts (17 tests) 32ms
+ ✓ src/react/__tests__/use-vibecoding-session.test.ts (4 tests) 381ms
+ ✓ src/react/__tests__/components/VibecodingWorkbench.test.tsx (6 tests) 536ms
+ ✓ src/react/__tests__/components/DocumentPreview.test.tsx (4 tests) 121ms
+ ✓ src/react/__tests__/components/PartsViewer.test.tsx (6 tests) 217ms
+
+ Test Files  22 passed (22)
+      Tests  360 passed (360)
+   Start at  20:33:21
+   Duration  14.51s (transform 1.66s, setup 1.17s, collect 4.22s, tests 11.04s, environment 2.88s, prepare 2.56s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 99.05% ( 1775/1792 )
+Branches     : 96.99% ( 872/899 )
+Functions    : 97.14% ( 170/175 )
+Lines        : 99.05% ( 1775/1792 )
+================================================================================
