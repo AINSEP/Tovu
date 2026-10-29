@@ -1,0 +1,12 @@
+✔ React activation preserves page focus on closed mount and focuses explicit opens (82.518852ms)
+✔ React activation preserves page focus on resume and focuses explicit opens (28.382521ms)
+✔ React activation without a mount root still toggles, and touches no page element (15.414606ms)
+✔ a focus request while already open and with no enabled composer leaves focus where it was (16.083344ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4506.053995

@@ -1,0 +1,864 @@
+######## admin
+ FAIL  src/seo/react/__tests__/copy-polish.unit.test.tsx [ src/seo/react/__tests__/copy-polish.unit.test.tsx ]
+ FAIL  src/seo/react/__tests__/share-image-warning.unit.test.tsx [ src/seo/react/__tests__/share-image-warning.unit.test.tsx ]
+ FAIL  src/seo/react/__tests__/use-entry-picker.unit.test.ts [ src/seo/react/__tests__/use-entry-picker.unit.test.ts ]
+ FAIL  src/seo/react/__tests__/use-seo-entry-panel.unit.test.ts [ src/seo/react/__tests__/use-seo-entry-panel.unit.test.ts ]
+ FAIL  src/seo/react/__tests__/use-seo.unit.test.ts [ src/seo/react/__tests__/use-seo.unit.test.ts ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+
+ FAIL  src/seo/react/__tests__/share-image-warning.unit.test.tsx [ src/seo/react/__tests__/share-image-warning.unit.test.tsx ]
+ FAIL  src/seo/react/__tests__/use-entry-picker.unit.test.ts [ src/seo/react/__tests__/use-entry-picker.unit.test.ts ]
+ FAIL  src/seo/react/__tests__/use-seo-entry-panel.unit.test.ts [ src/seo/react/__tests__/use-seo-entry-panel.unit.test.ts ]
+ FAIL  src/seo/react/__tests__/use-seo.unit.test.ts [ src/seo/react/__tests__/use-seo.unit.test.ts ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+
+ FAIL  src/seo/react/__tests__/use-entry-picker.unit.test.ts [ src/seo/react/__tests__/use-entry-picker.unit.test.ts ]
+ FAIL  src/seo/react/__tests__/use-seo-entry-panel.unit.test.ts [ src/seo/react/__tests__/use-seo-entry-panel.unit.test.ts ]
+ FAIL  src/seo/react/__tests__/use-seo.unit.test.ts [ src/seo/react/__tests__/use-seo.unit.test.ts ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+
+ FAIL  src/seo/react/__tests__/use-seo-entry-panel.unit.test.ts [ src/seo/react/__tests__/use-seo-entry-panel.unit.test.ts ]
+ FAIL  src/seo/react/__tests__/use-seo.unit.test.ts [ src/seo/react/__tests__/use-seo.unit.test.ts ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+ ❯ TransformPluginContext.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+
+ FAIL  src/seo/react/__tests__/use-seo.unit.test.ts [ src/seo/react/__tests__/use-seo.unit.test.ts ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+ ❯ TransformPluginContext.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+ ❯ PluginContainer.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18
+
+ FAIL  src/seo/react/__tests__/Seo.unit.test.tsx [ src/seo/react/__tests__/Seo.unit.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+ ❯ TransformPluginContext.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+ ❯ PluginContainer.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18
+
+ FAIL  src/media/react/__tests__/media.test.tsx > renders the optional credential tab without exposing saved secrets
+TestingLibraryElementError: Unable to find a label with the text of: Example credential
+
+Ignored nodes: comments, script, style
+<body>
+  <div />
+</body>
+
+Ignored nodes: comments, script, style
+<body>
+  <div />
+</body>
+ ❯ waitForWrapper ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/media/react/__tests__/media.test.tsx:295:35
+    293|   );
+
+ FAIL  src/seo/react/__tests__/seo-binding.unit.test.tsx > seo module binding > reports tab switches to the host
+TestingLibraryElementError: Unable to find role="tab" and name "Sitemap"
+
+Ignored nodes: comments, script, style
+<body>
+  <div />
+</body>
+
+Ignored nodes: comments, script, style
+<body>
+  <div />
+</body>
+ ❯ waitForWrapper ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/seo/react/__tests__/seo-binding.unit.test.tsx:43:34
+     41|     const onTabChange = vi.fn();
+
+ FAIL  src/seo/react/__tests__/seo-binding.unit.test.tsx > seo module binding > mounts the standalone defaults tab once settings load
+TestingLibraryElementError: Unable to find a label with the text of: /Title template/
+
+Ignored nodes: comments, script, style
+<body>
+  <div />
+</body>
+
+Ignored nodes: comments, script, style
+<body>
+  <div />
+</body>
+ ❯ waitForWrapper ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/seo/react/__tests__/seo-binding.unit.test.tsx:50:25
+     48|     mountSeo({ api: createMemorySeoApi({}), tab: 'defaults' });
+
+ FAIL  src/seo/react/__tests__/seo-binding.unit.test.tsx > seo module binding > shows the standalone tab load error when settings cannot be read
+TestingLibraryElementError: Unable to find an element with the text: settings offline. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your m
+
+Ignored nodes: comments, script, style
+<body>
+  <div />
+</body>
+
+Ignored nodes: comments, script, style
+<body>
+  <div />
+</body>
+ ❯ waitForWrapper ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/seo/react/__tests__/seo-binding.unit.test.tsx:56:25
+     54|     const api: AdminSeoPort = { ...createMemorySeoApi({}), getSeoSetti…
+
+ FAIL  src/seo/react/__tests__/seo-binding.unit.test.tsx > seo module binding > opens the shell sitemap modal from the sitemap tab and closes it on dismiss
+TestingLibraryElementError: Unable to find role="button" and name "View sitemap"
+
+Ignored nodes: comments, script, style
+<body>
+  <div />
+</body>
+
+Ignored nodes: comments, script, style
+<body>
+  <div />
+</body>
+ ❯ waitForWrapper ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/seo/react/__tests__/seo-binding.unit.test.tsx:61:34
+     59|   it('opens the shell sitemap modal from the sitemap tab and closes it…
+
+ FAIL  src/seo/react/__tests__/seo-binding.unit.test.tsx > seo module binding > mounts the standalone entries tab
+TestingLibraryElementError: Unable to find an element with the text: Per-entry SEO. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matc
+
+Ignored nodes: comments, script, style
+<body>
+  <div />
+</body>
+
+Ignored nodes: comments, script, style
+<body>
+  <div />
+</body>
+ ❯ waitForWrapper ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/seo/react/__tests__/seo-binding.unit.test.tsx:69:25
+     67|   it('mounts the standalone entries tab', async () => {
+######## agent-plugins
+ FAIL  src/lifecycle/__tests__/unit/set-enabled-compatibility.unit.test.ts > activation observers run only for committed transitions and cannot undo a toggle
+AssertionError: expected { schemaVersion: 1, plugins: { …(1) } } to deeply equal { schemaVersion: 1, plugins: { …(1) } }
+
+- Expected
++ Received
+
+  Object {
+    "plugins": Object {
+      "observed": Object {
+        "enabled": false,
+        "origin": "operator-installed",
+-       "updatedAt": "2026-10-29T19:57:41.672Z",
++       "updatedAt": "2026-10-29T19:57:41.698Z",
+        "updatedBy": "operator:alice",
+      },
+    },
+######## agent-runtime
+
+######## chat
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.typing-render.test.tsx [ src/react/features/chat-pane/__tests__/components/ChatPane.typing-render.test.tsx ]
+ FAIL  src/react/features/chat-pane/__tests__/components/RuntimeDropUp.cov-j2.test.tsx [ src/react/features/chat-pane/__tests__/components/RuntimeDropUp.cov-j2.test.tsx ]
+ FAIL  src/react/features/chat-pane/__tests__/components/RuntimeDropUp.test.tsx [ src/react/features/chat-pane/__tests__/components/RuntimeDropUp.test.tsx ]
+ FAIL  src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.cov-j2.test.tsx [ src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.cov-j2.test.tsx ]
+ FAIL  src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.test.tsx [ src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+
+ FAIL  src/react/features/chat-pane/__tests__/components/RuntimeDropUp.cov-j2.test.tsx [ src/react/features/chat-pane/__tests__/components/RuntimeDropUp.cov-j2.test.tsx ]
+ FAIL  src/react/features/chat-pane/__tests__/components/RuntimeDropUp.test.tsx [ src/react/features/chat-pane/__tests__/components/RuntimeDropUp.test.tsx ]
+ FAIL  src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.cov-j2.test.tsx [ src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.cov-j2.test.tsx ]
+ FAIL  src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.test.tsx [ src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+
+ FAIL  src/react/features/chat-pane/__tests__/components/RuntimeDropUp.test.tsx [ src/react/features/chat-pane/__tests__/components/RuntimeDropUp.test.tsx ]
+ FAIL  src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.cov-j2.test.tsx [ src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.cov-j2.test.tsx ]
+ FAIL  src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.test.tsx [ src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+
+ FAIL  src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.cov-j2.test.tsx [ src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.cov-j2.test.tsx ]
+ FAIL  src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.test.tsx [ src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+ ❯ TransformPluginContext.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+
+ FAIL  src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.test.tsx [ src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+ ❯ TransformPluginContext.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+ ❯ PluginContainer.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18
+
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx [ src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+ ❯ TransformPluginContext.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+ ❯ PluginContainer.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18
+
+ FAIL  src/core/__tests__/turn-usage-w2g.unit.test.ts > legacy boundary data without an id splits every reply, while a repeated receipt id splits once
+AssertionError: expected [ [ { kind: 'text', …(1) } ], …(3) ] to deeply equal [ [ { kind: 'text', …(1) } ], …(3) ]
+
+- Expected
++ Received
+
+  Array [
+    Array [
+      Object {
+        "kind": "text",
+        "text": "reply",
+      },
+    ],
+    Array [
+      Object {
+        "kind": "text",
+######## cookie-consent
+ FAIL  src/__tests__/bundle.smoke.test.ts > dist/client.min.js > boots from the page config, shows the banner and drains the queue without granting
+AssertionError: expected undefined to be 'pending' // Object.is equality
+
+- Expected: 
+"pending"
+
++ Received: 
+undefined
+
+ ❯ src/__tests__/bundle.smoke.test.ts:39:43
+     37|   test('boots from the page config, shows the banner and drains the qu…
+     38|     const win = page();
+     39|     expect(win.jiniConsent?.get().status).toBe('pending');
+       |                                           ^
+     40|     expect(win.document.documentElement.getAttribute('data-consent')).…
+     41|     expect(win.document.documentElement.getAttribute('data-consent-reg…
+
+ FAIL  src/__tests__/bundle.smoke.test.ts > dist/client.min.js > Accept grants the adapter, runs the inert tag, writes the cookie and closes the banner
+AssertionError: expected undefined to be true // Object.is equality
+
+- Expected: 
+true
+
++ Received: 
+undefined
+
+ ❯ src/__tests__/bundle.smoke.test.ts:52:54
+     50|     click(win, '#jini-consent .jini-consent-actions [data-consent-acti…
+     51|     await settle();
+     52|     expect(win.jiniConsent?.get().allowed.analytics).toBe(true);
+       |                                                      ^
+     53|     expect(win.grants).toEqual(['grant']);
+     54|     expect(win.inertRan).toBe(1);
+
+ FAIL  src/__tests__/bundle.smoke.test.ts > dist/client.min.js > Reject grants nothing; reopening and rejecting after Accept revokes the adapter
+AssertionError: expected undefined to match object { status: 'set', action: 'reject' }
+
+- Expected: 
+Object {
+  "action": "reject",
+  "status": "set",
+}
+
++ Received: 
+undefined
+
+ ❯ src/__tests__/bundle.smoke.test.ts:63:41
+     61|     click(rejected, '#jini-consent [data-consent-action="reject"]');
+     62|     await settle();
+     63|     expect(rejected.jiniConsent?.get()).toMatchObject({ status: 'set',…
+######## db
+ FAIL  src/__tests__/import-isolation.test.ts > database import isolation > scans every production TypeScript file and confines optional dependencies
+AssertionError: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- Array []
++ Array [
++   "/home/user/Jini/packages/db/src/shared/ddl.adapter.ts: kysely outside kernel/migrate: kysely",
++ ]
+
+ ❯ src/__tests__/import-isolation.test.ts:63:129
+     61|     expect(files).toContain(join(sourceRoot, "pglite/owner.ts"));
+     62|     expect(files).toContain(join(sourceRoot, "kernel/port.ts"));
+     63|     expect(files.flatMap(file => violations(relative(sourceRoot, file)…
+       |                                                                                                                                 ^
+
+ FAIL  src/__tests__/loads-without-driver.test.ts > @jini-ai/db in an install with no database driver present > ./migrate imports alone, works, and loads only migrate + kernel + core
+AssertionError: migrate loaded shared/ddl.adapter.js: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/__tests__/loads-without-driver.test.ts:267:79
+    265|       for (const url of ownFiles) {
+    266|         const inDist = url.split("/node_modules/@jini-ai/db/dist/")[1]…
+    267|         expect(dirs.includes(dirname(inDist)), `${subpath} loaded ${in…
+       |                                                                               ^
+    268|       }
+    269|       const packages = result.resolved.filter((url) => url.includes("/…
+
+ FAIL  src/__tests__/loads-without-driver.test.ts > @jini-ai/db in an install with no database driver present > ./owner-store imports alone, works, and loads only owner-store + owner-store/migrations + migrate
+AssertionError: owner-store loaded shared/ddl.adapter.js: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/__tests__/loads-without-driver.test.ts:267:79
+    265|       for (const url of ownFiles) {
+    266|         const inDist = url.split("/node_modules/@jini-ai/db/dist/")[1]…
+    267|         expect(dirs.includes(dirname(inDist)), `${subpath} loaded ${in…
+       |                                                                               ^
+    268|       }
+    269|       const packages = result.resolved.filter((url) => url.includes("/…
+######## desktop-host
+
+######## diagnostics
+
+######## infra
+
+######## integrations
+
+######## mcp
+ FAIL  src/server/__tests__/tool-server.test.ts > a rejected transport close on stdin EOF still completes hosting and disposes idle tracking
+Error: Invalid Chai property: toHaveBeenCalledExactlyOnceWith
+ ❯ src/server/__tests__/tool-server.test.ts:132:15
+    130|   stdin.emit('end');
+    131|   await running;
+    132|   expect(close).toHaveBeenCalledExactlyOnceWith({});
+       |               ^
+    133|   expect(hoisted.dispose).toHaveBeenCalled();
+    134| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 76 passed (77)
+      Tests  1 failed | 1439 passed (1440)
+   Start at  20:19:18
+   Duration  28.14s (transform 5.00s, setup 0ms, collect 19.57s, tests 7.38s, environment 18ms, prepare 7.66s)
+######## platform
+
+######## plugins
+ FAIL  src/host/__tests__/unit/loader.unit.test.ts > maps package snapshot refusal PLUGIN_PACKAGE_UNSAFE to integrity failure
+ FAIL  src/host/__tests__/unit/loader.unit.test.ts > maps package snapshot refusal PLUGIN_PACKAGE_TOO_LARGE to integrity failure
+Error: Invalid Chai property: toHaveBeenCalledExactlyOnceWith
+ ❯ src/host/__tests__/unit/loader.unit.test.ts:40:22
+     38|   const importModule = vi.fn(async () => { throw new PluginInstallErro…
+     39|   await expect(load({ importModule })).resolves.toEqual({ loaded: fals…
+     40|   expect(importModule).toHaveBeenCalledExactlyOnceWith({
+       |                      ^
+     41|     plugin: { pluginId: 'demo', packageRoot: '/plugins/demo/1.0.0' }, …
+     42|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ Test Files  1 failed | 56 passed (57)
+      Tests  2 failed | 770 passed (772)
+   Start at  20:20:55
+
+ FAIL  src/host/__tests__/unit/loader.unit.test.ts > maps package snapshot refusal PLUGIN_PACKAGE_TOO_LARGE to integrity failure
+Error: Invalid Chai property: toHaveBeenCalledExactlyOnceWith
+ ❯ src/host/__tests__/unit/loader.unit.test.ts:40:22
+     38|   const importModule = vi.fn(async () => { throw new PluginInstallErro…
+     39|   await expect(load({ importModule })).resolves.toEqual({ loaded: fals…
+     40|   expect(importModule).toHaveBeenCalledExactlyOnceWith({
+       |                      ^
+     41|     plugin: { pluginId: 'demo', packageRoot: '/plugins/demo/1.0.0' }, …
+     42|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ Test Files  1 failed | 56 passed (57)
+      Tests  2 failed | 770 passed (772)
+   Start at  20:20:55
+   Duration  46.68s (transform 2.38s, setup 0ms, collect 6.93s, tests 37.52s, environment 19ms, prepare 5.66s)
+######## provider-plugins
+ FAIL  src/__tests__/unit/exporter-completion-m2.unit.test.ts > an exception from the consumer after export completion is not recast as a second export failure
+Error: Invalid Chai property: toHaveBeenCalledExactlyOnceWith
+ ❯ src/__tests__/unit/exporter-completion-m2.unit.test.ts:14:18
+     12|   const callback = vi.fn(() => { throw failure; });
+     13|   expect(() => exporter.export('payload', callback)).toThrow(failure);
+     14|   expect(callback).toHaveBeenCalledExactlyOnceWith({ code: 0 });
+       |                  ^
+     15|   expect(reporter.result).toHaveBeenCalledExactlyOnceWith({ phase: 'ex…
+     16| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/__tests__/unit/exporter-completion-m2.unit.test.ts > a synchronous exporter failure is sanitized and flush/shutdown retain the borrowed exporter
+Error: Invalid Chai property: toHaveBeenCalledExactlyOnceWith
+ ❯ src/__tests__/unit/exporter-completion-m2.unit.test.ts:28:18
+     26|   const callback = vi.fn();
+
+ FAIL  src/__tests__/unit/exporter-completion-m2.unit.test.ts > a synchronous exporter failure is sanitized and flush/shutdown retain the borrowed exporter
+Error: Invalid Chai property: toHaveBeenCalledExactlyOnceWith
+ ❯ src/__tests__/unit/exporter-completion-m2.unit.test.ts:28:18
+     26|   const callback = vi.fn();
+     27|   exporter.export([], callback);
+     28|   expect(callback).toHaveBeenCalledExactlyOnceWith({ code: 1, error: n…
+       |                  ^
+     29|   expect(reporter.result).toHaveBeenCalledExactlyOnceWith({ phase: 'ex…
+     30|   await exporter.forceFlush();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed | 19 passed (20)
+      Tests  2 failed | 267 passed (269)
+   Start at  20:21:46
+   Duration  55.10s (transform 3.06s, setup 0ms, collect 7.89s, tests 56.83s, environment 393ms, prepare 1.97s)
+######## sandbox
+
+######## server
+ FAIL  tests/storage/loads-without-driver.test.ts > memory composition runs from the packed server with no SQLite, pg, PGlite or React installed
+AssertionError: node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'smol-toml' imported from /tmp/c2-server-memory-TxO1oG/node_modules/@jini-ai/daemon/dist/agent-executor/codex/isolation.js
+Did you mean to import "smol-toml/dist/index.cjs"?
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:331:9)
+    at packageResolve (node:internal/modules/esm/resolve:784:25)
+    at moduleResolve (node:internal/modules/esm/resolve:873:18)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)
+    at #resolve (node:internal/modules/esm/loader:687:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)
+######## ui
+ FAIL  src/features/execution/react/components/__tests__/LocalCliAgentList.pin.test.tsx [ src/features/execution/react/components/__tests__/LocalCliAgentList.pin.test.tsx ]
+ FAIL  src/features/execution/react/components/__tests__/LocalCliAgentSettings.pin.test.tsx [ src/features/execution/react/components/__tests__/LocalCliAgentSettings.pin.test.tsx ]
+ FAIL  src/features/external-mcp/react/components/__tests__/ExternalMcpTab.actions.test.tsx [ src/features/external-mcp/react/components/__tests__/ExternalMcpTab.actions.test.tsx ]
+ FAIL  src/features/external-mcp/react/components/__tests__/ExternalMcpTab.characterization.unit.test.tsx [ src/features/external-mcp/react/components/__tests__/ExternalMcpTab.characterization.unit.test.tsx ]
+ FAIL  src/features/media-providers/__tests__/react/components/MediaProvidersTab.test.tsx [ src/features/media-providers/__tests__/react/components/MediaProvidersTab.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "src/react/components/SecretInput.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/src/react/components/SecretInput.tsx:2:46
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import { forwardRef } from "react";
+  3  |  import { SecretInput as KitSecretInput } from "@jini-ai/ui-kit/react";
+     |                                                 ^
+  4  |  import { useT } from "../../features/i18n/index.js";
+  5  |  import { Icon } from "./Icon.js";
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+
+ FAIL  src/features/execution/react/components/__tests__/LocalCliAgentSettings.pin.test.tsx [ src/features/execution/react/components/__tests__/LocalCliAgentSettings.pin.test.tsx ]
+ FAIL  src/features/external-mcp/react/components/__tests__/ExternalMcpTab.actions.test.tsx [ src/features/external-mcp/react/components/__tests__/ExternalMcpTab.actions.test.tsx ]
+ FAIL  src/features/external-mcp/react/components/__tests__/ExternalMcpTab.characterization.unit.test.tsx [ src/features/external-mcp/react/components/__tests__/ExternalMcpTab.characterization.unit.test.tsx ]
+ FAIL  src/features/media-providers/__tests__/react/components/MediaProvidersTab.test.tsx [ src/features/media-providers/__tests__/react/components/MediaProvidersTab.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "src/react/components/SecretInput.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/src/react/components/SecretInput.tsx:2:46
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import { forwardRef } from "react";
+  3  |  import { SecretInput as KitSecretInput } from "@jini-ai/ui-kit/react";
+     |                                                 ^
+  4  |  import { useT } from "../../features/i18n/index.js";
+  5  |  import { Icon } from "./Icon.js";
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+
+ FAIL  src/features/external-mcp/react/components/__tests__/ExternalMcpTab.actions.test.tsx [ src/features/external-mcp/react/components/__tests__/ExternalMcpTab.actions.test.tsx ]
+ FAIL  src/features/external-mcp/react/components/__tests__/ExternalMcpTab.characterization.unit.test.tsx [ src/features/external-mcp/react/components/__tests__/ExternalMcpTab.characterization.unit.test.tsx ]
+ FAIL  src/features/media-providers/__tests__/react/components/MediaProvidersTab.test.tsx [ src/features/media-providers/__tests__/react/components/MediaProvidersTab.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "src/react/components/SecretInput.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/src/react/components/SecretInput.tsx:2:46
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import { forwardRef } from "react";
+  3  |  import { SecretInput as KitSecretInput } from "@jini-ai/ui-kit/react";
+     |                                                 ^
+  4  |  import { useT } from "../../features/i18n/index.js";
+  5  |  import { Icon } from "./Icon.js";
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+
+ FAIL  src/features/external-mcp/react/components/__tests__/ExternalMcpTab.characterization.unit.test.tsx [ src/features/external-mcp/react/components/__tests__/ExternalMcpTab.characterization.unit.test.tsx ]
+ FAIL  src/features/media-providers/__tests__/react/components/MediaProvidersTab.test.tsx [ src/features/media-providers/__tests__/react/components/MediaProvidersTab.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "src/react/components/SecretInput.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/src/react/components/SecretInput.tsx:2:46
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import { forwardRef } from "react";
+  3  |  import { SecretInput as KitSecretInput } from "@jini-ai/ui-kit/react";
+     |                                                 ^
+  4  |  import { useT } from "../../features/i18n/index.js";
+  5  |  import { Icon } from "./Icon.js";
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+ ❯ TransformPluginContext.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+
+ FAIL  src/features/media-providers/__tests__/react/components/MediaProvidersTab.test.tsx [ src/features/media-providers/__tests__/react/components/MediaProvidersTab.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "src/react/components/SecretInput.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/src/react/components/SecretInput.tsx:2:46
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import { forwardRef } from "react";
+  3  |  import { SecretInput as KitSecretInput } from "@jini-ai/ui-kit/react";
+     |                                                 ^
+  4  |  import { useT } from "../../features/i18n/index.js";
+  5  |  import { Icon } from "./Icon.js";
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+ ❯ TransformPluginContext.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+ ❯ PluginContainer.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18
+
+ FAIL  src/features/execution/__tests__/react/components/LocalCliAgentCard.test.tsx [ src/features/execution/__tests__/react/components/LocalCliAgentCard.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "src/react/components/SecretInput.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/src/react/components/SecretInput.tsx:2:46
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import { forwardRef } from "react";
+  3  |  import { SecretInput as KitSecretInput } from "@jini-ai/ui-kit/react";
+     |                                                 ^
+  4  |  import { useT } from "../../features/i18n/index.js";
+  5  |  import { Icon } from "./Icon.js";
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+ ❯ TransformPluginContext.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+ ❯ PluginContainer.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18
+
+ FAIL  src/__tests__/unit/agent-icon-generation.unit.test.ts > generates deterministic inline SVG and PNG bytes while excluding unsupported assets
+Error: [vitest] No "default" export is defined on the "node:fs" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+vi.mock(import("node:fs"), async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    // your mocked methods
+  }
+})
+
+ ❯ scripts/generate-agent-icon-data-uris.mjs:30:100
+     29| // bundler in front of it), Vitest/jsdom, or any other bundler.
+     30| import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+     31| import { dirname, extname, join } from 'node:path';
+
+ FAIL  src/__tests__/unit/agent-icon-generation.unit.test.ts > generates an empty map when there are no supported icons
+Error: [vitest] No "default" export is defined on the "node:fs" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+vi.mock(import("node:fs"), async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    // your mocked methods
+  }
+})
+
+ ❯ scripts/generate-agent-icon-data-uris.mjs:30:100
+     29| // bundler in front of it), Vitest/jsdom, or any other bundler.
+     30| import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+     31| import { dirname, extname, join } from 'node:path';
+
+ FAIL  src/features/media-providers/__tests__/missing-peer.test.ts > imports generic UI root, core and feature entries without the integrations peer
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "src/react/components/SecretInput.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/src/react/components/SecretInput.tsx:2:46
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import { forwardRef } from "react";
+  3  |  import { SecretInput as KitSecretInput } from "@jini-ai/ui-kit/react";
+     |                                                 ^
+  4  |  import { useT } from "../../features/i18n/index.js";
+  5  |  import { Icon } from "./Icon.js";
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+ ❯ TransformPluginContext.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+ ❯ PluginContainer.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18
+
+ FAIL  src/react/__tests__/components/remixicon-css-export.build-output.test.ts > the ./remixicon.css subpath export reaches built output > has been built at least once for this suite to check
+AssertionError: /home/user/Jini/packages/ui/dist/react/components/remixicon-font/remixicon.css is missing — the exports map points at it but the build's copy step did not produce it. Run `pnpm --filter @jini-ai/ui build` before th
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/react/__tests__/components/remixicon-css-export.build-output.test.ts:53:7
+     51|       `${cssPath} is missing — the exports map points at it but the bu…
+     52|         'produce it. Run `pnpm --filter @jini-ai/ui build` before this…
+     53|     ).toBe(true);
+       |       ^
+     54|   });
+     55| 
+
+ FAIL  src/react/__tests__/components/remixicon-css-export.build-output.test.ts > the ./remixicon.css subpath export reaches built output > is the real RemixIcon stylesheet, not an empty or placeholder file
+Error: ENOENT: no such file or directory, open '/home/user/Jini/packages/ui/dist/react/components/remixicon-font/remixicon.css'
+ ❯ src/react/__tests__/components/remixicon-css-export.build-output.test.ts:58:17
+     56|   it('is the real RemixIcon stylesheet, not an empty or placeholder fi…
+     57|     const cssPath = resolve(PACKAGE_ROOT, manifest.exports[SUBPATH] as…
+     58|     const css = readFileSync(cssPath, 'utf8');
+       |                 ^
+     59| 
+     60|     expect(css).toContain('@font-face');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/36]⎯
+
+ FAIL  src/react/__tests__/components/remixicon-css-export.build-output.test.ts > the ./remixicon.css subpath export reaches built output > ships the woff2 beside it, because the @font-face src is relative
+Error: ENOENT: no such file or directory, open '/home/user/Jini/packages/ui/dist/react/components/remixicon-font/remixicon.css'
+ ❯ src/react/__tests__/components/remixicon-css-export.build-output.test.ts:69:17
+     67|   it('ships the woff2 beside it, because the @font-face src is relativ…
+
+ FAIL  src/react/__tests__/components/remixicon-css-export.build-output.test.ts > the ./remixicon.css subpath export reaches built output > ships the woff2 beside it, because the @font-face src is relative
+Error: ENOENT: no such file or directory, open '/home/user/Jini/packages/ui/dist/react/components/remixicon-font/remixicon.css'
+ ❯ src/react/__tests__/components/remixicon-css-export.build-output.test.ts:69:17
+     67|   it('ships the woff2 beside it, because the @font-face src is relativ…
+     68|     const cssPath = resolve(PACKAGE_ROOT, manifest.exports[SUBPATH] as…
+     69|     const css = readFileSync(cssPath, 'utf8');
+       |                 ^
+     70| 
+     71|     // Pinning the relative form on purpose. It is *why* the sibling f…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/36]⎯
+
+ Test Files  33 failed | 604 passed (637)
+      Tests  6 failed | 8317 passed (8323)
+   Start at  20:24:26
+   Duration  471.34s (transform 20.44s, setup 93.38s, collect 61.34s, tests 166.47s, environment 305.04s, prepare 63.53s)
+######## user-management
+ FAIL  src/react/auth/__tests__/Login.unit.test.tsx [ src/react/auth/__tests__/Login.unit.test.tsx ]
+ FAIL  src/react/members/__tests__/Members.host-ports.test.tsx [ src/react/members/__tests__/Members.host-ports.test.tsx ]
+ FAIL  src/react/users/__tests__/Users.complexity-pins.test.tsx [ src/react/users/__tests__/Users.complexity-pins.test.tsx ]
+ FAIL  src/react/users/__tests__/account-protections.ported.test.tsx [ src/react/users/__tests__/account-protections.ported.test.tsx ]
+ FAIL  src/react/users/__tests__/change-username.hooks.test.tsx [ src/react/users/__tests__/change-username.hooks.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+
+ FAIL  src/react/members/__tests__/Members.host-ports.test.tsx [ src/react/members/__tests__/Members.host-ports.test.tsx ]
+ FAIL  src/react/users/__tests__/Users.complexity-pins.test.tsx [ src/react/users/__tests__/Users.complexity-pins.test.tsx ]
+ FAIL  src/react/users/__tests__/account-protections.ported.test.tsx [ src/react/users/__tests__/account-protections.ported.test.tsx ]
+ FAIL  src/react/users/__tests__/change-username.hooks.test.tsx [ src/react/users/__tests__/change-username.hooks.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+
+ FAIL  src/react/users/__tests__/Users.complexity-pins.test.tsx [ src/react/users/__tests__/Users.complexity-pins.test.tsx ]
+ FAIL  src/react/users/__tests__/account-protections.ported.test.tsx [ src/react/users/__tests__/account-protections.ported.test.tsx ]
+ FAIL  src/react/users/__tests__/change-username.hooks.test.tsx [ src/react/users/__tests__/change-username.hooks.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+
+ FAIL  src/react/users/__tests__/account-protections.ported.test.tsx [ src/react/users/__tests__/account-protections.ported.test.tsx ]
+ FAIL  src/react/users/__tests__/change-username.hooks.test.tsx [ src/react/users/__tests__/change-username.hooks.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+ ❯ TransformPluginContext.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+
+ FAIL  src/react/users/__tests__/change-username.hooks.test.tsx [ src/react/users/__tests__/change-username.hooks.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+ ❯ TransformPluginContext.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+ ❯ PluginContainer.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18
+
+ FAIL  src/react/users/__tests__/Users.coverage.test.tsx [ src/react/users/__tests__/Users.coverage.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+ ❯ TransformPluginContext.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+ ❯ PluginContainer.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18

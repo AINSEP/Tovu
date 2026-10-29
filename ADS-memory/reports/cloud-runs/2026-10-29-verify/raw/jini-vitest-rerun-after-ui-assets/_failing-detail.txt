@@ -1,0 +1,23 @@
+######## user-management
+ FAIL  src/react/users/__tests__/Users.coverage.test.tsx > UserResetPasswordDialog > reveals only the new-password field through its own toggle, flipping its icon and labels
+AssertionError: expected <path …(1)></path>
+<path …(1)></path> to have a length of 1 but got 2
+
+- Expected
++ Received
+
+- 1
++ 2
+
+ ❯ src/react/users/__tests__/Users.coverage.test.tsx:334:53
+    332|     expect(newToggle).not.toHaveAttribute("aria-pressed");
+    333|     // EyeIcon while hidden: the eye outline path plus its pupil circl…
+    334|     expect(newToggle!.querySelectorAll("svg path")).toHaveLength(1);
+       |                                                     ^
+    335|     expect(newToggle!.querySelectorAll("svg circle")).toHaveLength(1);
+######## admin
+
+######## chat
+
+######## ui
+

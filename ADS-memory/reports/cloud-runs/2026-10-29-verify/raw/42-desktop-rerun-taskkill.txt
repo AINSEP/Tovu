@@ -1,0 +1,46 @@
+✔ T5: a boot failure after long startup logs reports the final CLI error (11.682198ms)
+✔ a native spawn error preserves its cause and rejects only after child cleanup (9.004165ms)
+✔ an error after readiness cannot replace the handle, and the supervisor still receives exit (3.336322ms)
+✖ the default Windows stop invokes taskkill for the whole tree and waits for child exit (7.966088ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 3
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 470.916072
+
+✖ failing tests:
+
+test at src/tovu-server-failures.test.ts:97:1
+✖ the default Windows stop invokes taskkill for the whole tree and waits for child exit (7.966088ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + []
+  - [
+  -   [
+  -     'taskkill',
+  -     [
+  -       '/pid',
+  -       '424242',
+  -       '/T',
+  -       '/F'
+  -     ],
+  -     {
+  -       stdio: 'ignore'
+  -     }
+  -   ]
+  - ]
+  
+      at TestContext.<anonymous> (file:///home/user/Tovu/apps/desktop/src/tovu-server-failures.test.ts:110:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ [ 'taskkill', [Array], [Object] ] ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

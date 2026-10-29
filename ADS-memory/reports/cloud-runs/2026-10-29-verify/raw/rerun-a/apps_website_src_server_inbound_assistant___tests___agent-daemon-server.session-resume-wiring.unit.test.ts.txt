@@ -1,0 +1,74 @@
+▶ H1 wiring — a failed resume must clear its dead stored session id
+  ✔ imports shouldClearSessionOnFailedResume from the pure decision module (1.45115ms)
+  ✔ the stream subscription calls shouldClearSessionOnFailedResume and, when true, clears the stored session id (0.289246ms)
+  ✔ attemptedResumeSessionId is assigned from the gated resume value actually attempted — the value the decision checks must reflect what onStarted really passed to agentExecutor.run, not the raw pre-gating lookup (0.244247ms)
+✔ H1 wiring — a failed resume must clear its dead stored session id (3.553303ms)
+▶ H2 wiring — overlapping runs on one conversation must not both resume
+  ✔ imports createLiveRunTracker and constructs exactly one module-level instance (1.300641ms)
+  ✔ a run registers itself in the tracker before any await in onStarted's synchronous prefix (0.56744ms)
+  ✔ a run unregisters itself from the tracker on its own terminal event (545.371174ms)
+  ✖ hasConcurrentLiveRun gates whether this run may read/pass a stored resumeSessionId (7.379492ms)
+✖ H2 wiring — overlapping runs on one conversation must not both resume (586.85056ms)
+▶ H2-context-loss wiring — a forced-cold run must not silently drop conversation history
+  ✔ imports agentCarriesOwnMemory and wouldForcedColdStartLoseConversationContext from the pure decision module (0.413515ms)
+  ✔ getSessionId is looked up unconditionally (not gated behind !hasConcurrentLiveRun) so the risky case is even detectable (1.745246ms)
+  ✖ the context-loss check runs, and refuses the run (finish + return), strictly before agentExecutor.run is called (0.490737ms)
+  ✔ effectiveResumeSessionId (not the raw storedSessionId) is what attemptedResumeSessionId and resolveResumeSessionField consume (0.267748ms)
+✖ H2-context-loss wiring — a forced-cold run must not silently drop conversation history (6.250961ms)
+▶ Send right after Stop — wait for the stopped run, and say why when refusing
+  ✔ waits for a stopped run on the same chat before deciding whether another run holds the session (0.19776ms)
+  ✔ the concurrent-run refusal puts its plain reason on the run's stream (0.10204ms)
+✔ Send right after Stop — wait for the stopped run, and say why when refusing (0.488444ms)
+✔ onStarted's real stream clears only the resumed conversation-agent binding (97.505768ms)
+✔ onStarted's real stream persists the CLI's reconfirmed session (34.801748ms)
+✔ onStarted refuses a concurrent memory-carrying run and never dispatches a cold executor call (50.179263ms)
+✔ onStarted registers the conversation synchronously while instruction refresh is held (23.291278ms)
+✔ fresh and resumed in-app launches honor user MCP undefined and disclose native permissions (56.99855ms)
+✔ fresh and resumed in-app launches honor user MCP false and disclose native permissions (53.788609ms)
+✔ fresh and resumed in-app launches honor user MCP true and disclose native permissions (44.061461ms)
+ℹ tests 20
+ℹ suites 4
+ℹ pass 18
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3370.004355
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-resume-wiring.unit.test.ts:1:6155
+✖ hasConcurrentLiveRun gates whether this run may read/pass a stored resumeSessionId (7.379492ms)
+  AssertionError [ERR_ASSERTION]: this test's own anchor (the agentExecutor.run call) must still exist verbatim
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-resume-wiring.unit.test.ts:161:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-resume-wiring.unit.test.ts:1:9052
+✖ the context-loss check runs, and refuses the run (finish + return), strictly before agentExecutor.run is called (0.490737ms)
+  AssertionError [ERR_ASSERTION]: this test's own anchor (the agentExecutor.run call) must still exist verbatim
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-resume-wiring.unit.test.ts:218:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

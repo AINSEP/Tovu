@@ -1,0 +1,11 @@
+✔ stop cancels the running batch before the store closes; a restart delivers what it released (271.963728ms)
+✔ a batch abandoned without a stop (crash) is reclaimed after a restart once its lease expires (216.8643ms)
+✔ a receiver trickling bytes forever is cut off by the total deadline through the guarded client (203.617833ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2363.564814

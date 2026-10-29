@@ -1,0 +1,21 @@
+▶ SiteAssistantHeader
+  ✔ renders the public title and New thread without a workspace kicker (134.110105ms)
+  ✔ resets immediately with no confirm step when the transcript is empty (65.165027ms)
+  ✔ shows a two-step confirm, without resetting yet, when the transcript has messages (94.754807ms)
+  ✔ protects a typed draft in an empty transcript and restores focus after Cancel or Escape (43.137765ms)
+  ✔ autofocuses Cancel (the safe choice), not the destructive Discard button, once the confirm step appears (19.223575ms)
+  ✔ backs out on Cancel without resetting, restoring the plain New thread button (79.847738ms)
+  ✔ resets and closes the confirm step when Discard is clicked (16.295505ms)
+  ✔ backs out on Escape (from anywhere in the pane) without resetting (24.920574ms)
+  ✔ keeps confirmation open on non-Escape keydown without resetting (27.629025ms)
+  ✔ Escape is inert when the confirm step is not open (no listener attached, nothing to dismiss) (15.863951ms)
+  ✔ removes its Escape listener on unmount — a later Escape after unmount touches nothing (22.111282ms)
+✔ SiteAssistantHeader (549.577701ms)
+ℹ tests 11
+ℹ suites 1
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3497.875744

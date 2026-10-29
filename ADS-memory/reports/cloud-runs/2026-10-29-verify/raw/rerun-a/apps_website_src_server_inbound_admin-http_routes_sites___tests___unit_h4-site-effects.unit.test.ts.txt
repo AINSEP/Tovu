@@ -1,0 +1,39 @@
+✔ permanent site deletion requires both confirmations: {} (6.77114ms)
+✔ permanent site deletion requires both confirmations: {"checked":true} (5.72886ms)
+✔ permanent site deletion requires both confirmations: {"confirmed":true} (0.952ms)
+✔ permanent site deletion requires both confirmations: {"checked":true,"confirmed":true} (0.720113ms)
+✖ sites settings validate every root before calling the settings writer (4.772025ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 4
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2967.628085
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/admin-http/routes/sites/__tests__/unit/h4-site-effects.unit.test.ts:1:1916
+✖ sites settings validate every root before calling the settings writer (4.772025ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      jsonBody: {
+  +     error: 'Sites folder is unavailable: /private/tmp. Mount it or choose an existing local folder.'
+  -     error: 'Choose an absolute folder path for sites settings.'
+      },
+      statusCode: 400
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/sites/__tests__/unit/h4-site-effects.unit.test.ts:43:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { statusCode: 400, jsonBody: { error: 'Sites folder is unavailable: /private/tmp. Mount it or choose an existing local folder.' } },
+    expected: { statusCode: 400, jsonBody: { error: 'Choose an absolute folder path for sites settings.' } },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

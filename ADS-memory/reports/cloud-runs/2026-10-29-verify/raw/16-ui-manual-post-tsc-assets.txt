@@ -1,0 +1,4 @@
+≈ tailwindcss v4.3.3
+
+Done in 136ms
+ENV WORKAROUND: manual run of ui build post-tsc copy steps + symlink ui/node_modules/@jini-ai/ui-kit (undeclared dep)

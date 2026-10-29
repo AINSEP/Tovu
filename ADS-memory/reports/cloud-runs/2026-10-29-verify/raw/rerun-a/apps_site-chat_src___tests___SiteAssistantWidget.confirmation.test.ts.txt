@@ -1,0 +1,10 @@
+✔ React held turn waits for visitor click allow=true, using the existing proposal strip (695.749359ms)
+✔ React held turn waits for visitor click allow=false, using the existing proposal strip (195.050604ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4090.739744

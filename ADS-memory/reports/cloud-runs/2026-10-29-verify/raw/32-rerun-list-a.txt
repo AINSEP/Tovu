@@ -1,0 +1,12 @@
+apps/site-chat/src/__tests__/SiteAssistantActivation.test.ts
+apps/website/src/server/inbound/admin-http/routes/sites/__tests__/unit/h4-site-effects.unit.test.ts
+apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-resume-wiring.unit.test.ts
+apps/site-chat/src/__tests__/SiteAssistantHeader.test.ts
+apps/website/src/server/inbound/assistant/__tests__/assistant-system-overlay.unit.test.ts
+content/agent-plugins/vercel/targets/__tests__/vercel.test.mjs
+development/scripts/__tests__/unit/script-inventory-characterization.unit.test.ts
+apps/site-chat/src/__tests__/SiteAssistantWidget.confirmation.test.ts
+apps/site-chat/src/__tests__/entries.test.ts
+apps/website/src/platform/site-dir/__tests__/integration/duplicate-pglite-site.integration.test.ts
+apps/website/src/server/runtime/composition/__tests__/webhook-delivery-worker.shutdown.test.ts
+packages/sdk/src/__tests__/unit/sdk-public-api.unit.test.ts

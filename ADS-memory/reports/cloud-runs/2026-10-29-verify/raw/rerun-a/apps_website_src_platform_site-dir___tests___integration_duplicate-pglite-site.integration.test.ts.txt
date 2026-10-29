@@ -1,0 +1,10 @@
+✔ a PGlite site duplicates while it runs in this process and while stopped; both copies boot on their own (13763.580596ms)
+✔ a PGlite source run by another live process is refused before anything is written (4681.492345ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 22493.644297

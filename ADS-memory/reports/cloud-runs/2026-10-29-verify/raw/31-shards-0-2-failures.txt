@@ -1,0 +1,155 @@
+######## shard 0
+ℹ tests 4208 ℹ pass 4201 ℹ fail 4 ℹ cancelled 0 ℹ skipped 3 
+✖ failing tests:
+
+test at apps/site-chat/src/__tests__/SiteAssistantActivation.test.ts:1:1
+✖ apps/site-chat/src/__tests__/SiteAssistantActivation.test.ts (4948.047258ms)
+  'test failed'
+
+test at apps/website/src/server/inbound/admin-http/routes/sites/__tests__/unit/h4-site-effects.unit.test.ts:1:1916
+✖ sites settings validate every root before calling the settings writer (3.818452ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      jsonBody: {
+  +     error: 'Sites folder is unavailable: /private/tmp. Mount it or choose an existing local folder.'
+  -     error: 'Choose an absolute folder path for sites settings.'
+      },
+      statusCode: 400
+    }
+  
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { statusCode: 400, jsonBody: { error: 'Sites folder is unavailable: /private/tmp. Mount it or choose an existing local folder.' } },
+    expected: { statusCode: 400, jsonBody: { error: 'Choose an absolute folder path for sites settings.' } },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-resume-wiring.unit.test.ts:1:6155
+✖ hasConcurrentLiveRun gates whether this run may read/pass a stored resumeSessionId (60.77566ms)
+  AssertionError [ERR_ASSERTION]: this test's own anchor (the agentExecutor.run call) must still exist verbatim
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-resume-wiring.unit.test.ts:1:9052
+✖ the context-loss check runs, and refuses the run (finish + return), strictly before agentExecutor.run is called (0.571966ms)
+  AssertionError [ERR_ASSERTION]: this test's own anchor (the agentExecutor.run call) must still exist verbatim
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+######## shard 1
+ℹ tests 3683 ℹ pass 3669 ℹ fail 4 ℹ cancelled 1 ℹ skipped 9 
+✖ failing tests:
+
+test at apps/site-chat/src/__tests__/SiteAssistantHeader.test.ts:1:1
+✖ apps/site-chat/src/__tests__/SiteAssistantHeader.test.ts (4990.499022ms)
+  'test failed'
+
+test at apps/website/src/server/inbound/assistant/__tests__/assistant-system-overlay.unit.test.ts:1:5303
+✖ native fallback guidance stops after one denial and confines genuine shell gaps for every CLI (4.008513ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /no ~\/\.claude\/tool-results or other CLI spill-file reads/. Input:
+  
+  'Before planning or building this site, call site_guide({"operation":"overview"}), then site_guide({"operation":"explain","topic":"<topic id from overview>"}) for the relevant building blocks. If tools are proxied, use
+  
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Before planning or building this site, call site_guide({"operation":"overview"}), then site_guide({"operation":"explain","topic":"<topic id from overview>"}) for the relevant building blocks. If tools are pr
+    expected: /no ~\/\.claude\/tool-results or other CLI spill-file reads/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at content/agent-plugins/vercel/targets/__tests__/vercel.test.mjs:715:3
+✖ returns the last known deployment state once polling exhausts its 30-attempt budget without a terminal readyState (20005.912573ms)
+  'test timed out after 20000ms'
+
+test at content/agent-plugins/vercel/targets/__tests__/vercel.test.mjs:821:3
+✖ includes teamId (preferred over teamSlug) or teamSlug in the query string when configured (1006.733272ms)
+  AssertionError [ERR_ASSERTION]: expected ["/v2/files","/v13/deployments","/v13/deployments/dpl_never_ready","/v13/deployments/dpl_scoped"] to equal ["/v2/files","/v13/deployments","/v13/deployments/dpl_scoped"]
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at development/scripts/__tests__/unit/script-inventory-characterization.unit.test.ts:5:1716
+✖ write-path CLI resolves table mutations, bare/property callers and unresolved ports (4583.134176ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      {
+        caller: '(no implementation found in project)',
+        contractMethod: 'MissingRepo.save',
+        coverageClass: 'unknown'
+      },
+      {
+  +     caller: '(anonymous)',
+  -     caller: 'write',
+        contractMethod: 'DraftPort.save',
+        coverageClass: 'executeCommand'
+      }
+    ]
+  
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ { contractMethod: 'MissingRepo.save', caller: '(no implementation found in project)', coverageClass: 'unknown' }, { contractMethod: 'DraftPort.save', caller: '(anonymous)', coverageClass: 'executeCommand' }
+    expected: [ { contractMethod: 'MissingRepo.save', caller: '(no implementation found in project)', coverageClass: 'unknown' }, { contractMethod: 'DraftPort.save', caller: 'write', coverageClass: 'executeCommand' } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+######## shard 2
+ℹ tests 3930 ℹ pass 3920 ℹ fail 5 ℹ cancelled 0 ℹ skipped 5 
+✖ failing tests:
+
+test at apps/site-chat/src/__tests__/SiteAssistantWidget.confirmation.test.ts:1:1
+✖ apps/site-chat/src/__tests__/SiteAssistantWidget.confirmation.test.ts (4784.789515ms)
+  'test failed'
+
+test at apps/site-chat/src/__tests__/entries.test.ts:1:1937
+✖ main mounts the React widget, runs a queued highlight, and creates its own root when a page has none (548.802191ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@jini-ai/ui-kit' imported from /home/user/Jini/packages/ui/dist/react/components/SecretInput.js
+    code: 'ERR_MODULE_NOT_FOUND'
+  }
+
+test at apps/website/src/platform/site-dir/__tests__/integration/duplicate-pglite-site.integration.test.ts:1:1
+✖ apps/website/src/platform/site-dir/__tests__/integration/duplicate-pglite-site.integration.test.ts (17815.328376ms)
+  'test failed'
+
+test at apps/website/src/server/runtime/composition/__tests__/webhook-delivery-worker.shutdown.test.ts:1:5484
+✖ a receiver trickling bytes forever is cut off by the total deadline through the guarded client (335.343044ms)
+  AssertionError [ERR_ASSERTION]: the receiver was still sending when it was cut off
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/sdk/src/__tests__/unit/sdk-public-api.unit.test.ts:12:1209
+✖ SDK external type contracts are declared package dependencies for standalone consumers (10.403173ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'next' !== '^0.6.13'
+  
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'next',
+    expected: '^0.6.13',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,5 @@
+user-management exit=1
+admin exit=1
+chat exit=1
+ui exit=1
+ALLDONE

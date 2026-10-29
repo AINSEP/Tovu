@@ -1,0 +1,1151 @@
+▶ AdminExecutionCredentialRepoPort [sqlite]
+  ✔ findByWorkspaceAndPrincipal returns null when no row exists (475.313689ms)
+  ✔ the first execution credential save persists settings in SQL (555.047707ms)
+  ✔ upsert then findByWorkspaceAndPrincipal round-trips a sealed record exactly (365.439ms)
+  ✔ upsert is a true upsert — a second call on the same (workspace, principal) updates the one row, not a second row (233.047237ms)
+  ✔ clearKey nulls the sealed columns and masked, and leaves everything else untouched (439.900382ms)
+  ✔ raw envelope writes withhold unknown-length hints, preserve verified hints, and clear them on envelope changes (443.503647ms)
+  ✔ clearKey on a (workspace, principal) with no row is a harmless no-op (209.370673ms)
+  ✔ row-level isolation: two principals in the same workspace never collide (240.806985ms)
+✔ AdminExecutionCredentialRepoPort [sqlite] (2967.369882ms)
+▶ AdminExecutionCredentialRepoPort [pglite]
+  ✔ findByWorkspaceAndPrincipal returns null when no row exists (19921.089869ms)
+  ✔ the first execution credential save persists settings in SQL (174.740313ms)
+  ✔ upsert then findByWorkspaceAndPrincipal round-trips a sealed record exactly (128.509873ms)
+  ✔ upsert is a true upsert — a second call on the same (workspace, principal) updates the one row, not a second row (160.636717ms)
+  ✔ clearKey nulls the sealed columns and masked, and leaves everything else untouched (153.178297ms)
+  ✔ raw envelope writes withhold unknown-length hints, preserve verified hints, and clear them on envelope changes (282.824427ms)
+  ✔ clearKey on a (workspace, principal) with no row is a harmless no-op (150.873835ms)
+  ✔ row-level isolation: two principals in the same workspace never collide (262.014404ms)
+✔ AdminExecutionCredentialRepoPort [pglite] (21238.933417ms)
+✔ the vault CHECK constraint rejects a half-sealed row written outside this adapter (394.831213ms)
+✔ the vault FK rejects a row for a principal that does not exist (259.343333ms)
+▶ MediaProviderCredentialRepoPort [sqlite]
+  ✔ listByWorkspaceId returns an empty array when no rows exist (581.580834ms)
+  ✔ upsert then list round-trips a sealed record exactly (749.733309ms)
+  ✔ a keyless row round-trips with sealed and keyTail both null (340.721826ms)
+  ✔ a non-default media singleton resolves with one exact-provider query and one open (512.543176ms)
+  ✔ upsert on the same (workspace, provider) updates the one row rather than adding a second (512.466877ms)
+  ✔ two providers coexist in one workspace under the composite key (280.718728ms)
+  ✔ listByWorkspaceId never returns another workspace's rows (315.965019ms)
+  ✔ deleteByProviderIds removes only the named ids (235.553687ms)
+  ✔ deleteByProviderIds on an empty list is a no-op, not an IN () syntax error (248.245091ms)
+  ✔ deleteByProviderIds never crosses a workspace boundary (236.071157ms)
+  ✔ deleteByProviderIds on ids with no rows is harmless (588.688667ms)
+  ✔ replaceWorkspace commits every upsert and the tombstone delete together (274.119808ms)
+  ✔ replaceWorkspace rolls back writes it had already applied when a later write in the same transaction fails (atomicity proof) (393.114982ms)
+  ✔ replaceWorkspace applies nothing when the planner itself throws (568.845673ms)
+  ✔ the planner is handed the rows as of the transaction, never a caller's earlier snapshot (179.44772ms)
+  ✔ replaceWorkspace reads, plans and writes inside the real kernel transaction (223.530176ms)
+  ✔ a metadata-only SQL save preserves a rotation committed while its other key was sealing (134.468809ms)
+  ✔ replaceWorkspace never reads or tombstones another workspace's rows (1413.932661ms)
+  ✔ a reader polling on the shared connection can never observe a half-replaced map (521.918684ms)
+  ✔ an async planner smuggled past the type system fails closed instead of reopening the interleaving window (323.14512ms)
+✔ MediaProviderCredentialRepoPort [sqlite] (8638.168184ms)
+▶ MediaProviderCredentialRepoPort [pglite]
+  ✔ listByWorkspaceId returns an empty array when no rows exist (10599.464432ms)
+  ✔ upsert then list round-trips a sealed record exactly (187.779654ms)
+  ✔ a keyless row round-trips with sealed and keyTail both null (56.273922ms)
+  ✔ a non-default media singleton resolves with one exact-provider query and one open (346.978296ms)
+  ✔ upsert on the same (workspace, provider) updates the one row rather than adding a second (114.63763ms)
+  ✔ two providers coexist in one workspace under the composite key (234.627621ms)
+  ✔ listByWorkspaceId never returns another workspace's rows (259.990388ms)
+  ✔ deleteByProviderIds removes only the named ids (323.206184ms)
+  ✔ deleteByProviderIds on an empty list is a no-op, not an IN () syntax error (243.924636ms)
+  ✔ deleteByProviderIds never crosses a workspace boundary (96.663327ms)
+  ✔ deleteByProviderIds on ids with no rows is harmless (125.211359ms)
+  ✔ replaceWorkspace commits every upsert and the tombstone delete together (143.38247ms)
+  ✔ replaceWorkspace rolls back writes it had already applied when a later write in the same transaction fails (atomicity proof) (167.868992ms)
+  ✔ replaceWorkspace applies nothing when the planner itself throws (134.693534ms)
+  ✔ the planner is handed the rows as of the transaction, never a caller's earlier snapshot (158.222792ms)
+  ✔ replaceWorkspace reads, plans and writes inside the real kernel transaction (221.291289ms)
+  ✔ a metadata-only SQL save preserves a rotation committed while its other key was sealing (220.462719ms)
+  ✔ replaceWorkspace never reads or tombstones another workspace's rows (323.078327ms)
+  ✔ a reader polling on the shared connection can never observe a half-replaced map (248.606191ms)
+  ✔ an async planner smuggled past the type system fails closed instead of reopening the interleaving window (212.782651ms)
+✔ MediaProviderCredentialRepoPort [pglite] (14425.601304ms)
+▶ VendorCredentialSetRepoPort (Jini memory)
+  ✔ findById returns null when no row exists (6.497136ms)
+  ✔ insert then findById round-trips a sealed record exactly, including tokenTail (11.855037ms)
+  ✔ listByWorkspace returns every row for that workspace, and none from another (8.109517ms)
+  ✔ the UNIQUE (workspace_id, vendor_id, label) index rejects a duplicate (1.888222ms)
+  ✔ update changes the row in place — a second insert-shaped id never appears (1.454706ms)
+  ✔ delete removes the row; deleting a non-existent id is a harmless no-op (0.896458ms)
+  ✔ findDefaultByVendor returns null when the vendor has no rows (0.358676ms)
+  ✔ listByVendor returns only rows for that (workspace, vendor) pair (5.624554ms)
+  ✔ insert with isDefault:true atomically clears isDefault on every OTHER row in the same (workspace, vendor) group (0.647228ms)
+  ✔ insert with isDefault:true never touches a DIFFERENT vendor's or workspace's default (0.706458ms)
+  ✔ update with isDefault:true atomically clears the previous default in the same group (0.750566ms)
+  ✔ deleting the default promotes the group's most-recently-updated remaining row (6.209707ms)
+  ✔ deleting the LAST row for a vendor leaves no default (not an error) (0.696199ms)
+  ✔ deleting a NON-default row never promotes anything (the real default is untouched) (0.691796ms)
+  ✔ a freshly inserted row starts with accountLabel null (0.407323ms)
+  ✔ updateAccountLabel writes ONLY the account_label column — sealed/tokenTail/isDefault/updatedAt are all untouched (1.36729ms)
+  ✔ updateAccountLabel on a non-existent row is a harmless no-op (1.027539ms)
+✔ VendorCredentialSetRepoPort (Jini memory) (55.295282ms)
+▶ VendorCredentialSetRepoPort [sqlite]
+  ✔ findById returns null when no row exists (309.751436ms)
+  ✔ insert then findById round-trips a sealed record exactly, including tokenTail (728.522294ms)
+  ✔ listByWorkspace returns every row for that workspace, and none from another (191.757909ms)
+  ✔ the UNIQUE (workspace_id, vendor_id, label) index rejects a duplicate (248.861769ms)
+  ✔ update changes the row in place — a second insert-shaped id never appears (351.987655ms)
+  ✔ delete removes the row; deleting a non-existent id is a harmless no-op (431.899825ms)
+  ✔ findDefaultByVendor returns null when the vendor has no rows (166.846919ms)
+  ✔ listByVendor returns only rows for that (workspace, vendor) pair (323.70896ms)
+  ✔ insert with isDefault:true atomically clears isDefault on every OTHER row in the same (workspace, vendor) group (417.922928ms)
+  ✔ insert with isDefault:true never touches a DIFFERENT vendor's or workspace's default (478.087575ms)
+  ✔ update with isDefault:true atomically clears the previous default in the same group (294.407211ms)
+  ✔ deleting the default promotes the group's most-recently-updated remaining row (440.357484ms)
+  ✔ deleting the LAST row for a vendor leaves no default (not an error) (514.858565ms)
+  ✔ deleting a NON-default row never promotes anything (the real default is untouched) (454.609787ms)
+  ✔ a freshly inserted row starts with accountLabel null (507.70083ms)
+  ✔ updateAccountLabel writes ONLY the account_label column — sealed/tokenTail/isDefault/updatedAt are all untouched (377.108869ms)
+  ✔ updateAccountLabel on a non-existent row is a harmless no-op (325.035185ms)
+✔ VendorCredentialSetRepoPort [sqlite] (6565.234839ms)
+▶ VendorCredentialSetRepoPort [pglite]
+  ✔ findById returns null when no row exists (14383.560127ms)
+  ✔ insert then findById round-trips a sealed record exactly, including tokenTail (74.263237ms)
+  ✔ listByWorkspace returns every row for that workspace, and none from another (155.21274ms)
+  ✔ the UNIQUE (workspace_id, vendor_id, label) index rejects a duplicate (180.933677ms)
+  ✔ update changes the row in place — a second insert-shaped id never appears (239.499859ms)
+  ✔ delete removes the row; deleting a non-existent id is a harmless no-op (286.336978ms)
+  ✔ findDefaultByVendor returns null when the vendor has no rows (84.127366ms)
+  ✔ listByVendor returns only rows for that (workspace, vendor) pair (207.398903ms)
+  ✔ insert with isDefault:true atomically clears isDefault on every OTHER row in the same (workspace, vendor) group (147.578891ms)
+  ✔ insert with isDefault:true never touches a DIFFERENT vendor's or workspace's default (105.859815ms)
+  ✔ update with isDefault:true atomically clears the previous default in the same group (256.255779ms)
+  ✔ deleting the default promotes the group's most-recently-updated remaining row (257.84684ms)
+  ✔ deleting the LAST row for a vendor leaves no default (not an error) (328.017869ms)
+  ✔ deleting a NON-default row never promotes anything (the real default is untouched) (164.606297ms)
+  ✔ a freshly inserted row starts with accountLabel null (154.156877ms)
+  ✔ updateAccountLabel writes ONLY the account_label column — sealed/tokenTail/isDefault/updatedAt are all untouched (505.500461ms)
+  ✔ updateAccountLabel on a non-existent row is a harmless no-op (296.518081ms)
+✔ VendorCredentialSetRepoPort [pglite] (17831.113018ms)
+✔ the vault rejects a half-sealed row written outside the adapter (222.12484ms)
+✔ the vault FK rejects a workspace that does not exist (195.037662ms)
+✔ deleting a workspace CASCADEs to its credential sets (246.499326ms)
+[migrations] /tmp/database-adapter-ledger-stamps-xMYne5/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+[migrations] /tmp/database-adapter-ledger-pending-IuLaph/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+✔ real content.db: canOpenDb/migrationsTableReadable are true right after openContentDb (621.765459ms)
+✔ real content.db: no .site-meta.json and a migrated db -> 'in-sync' against the bundled runtime, without writing meta (284.298916ms)
+✔ real content.db: .site-meta.json stamped to match this runtime's real latest migration -> 'in-sync', and nothing is pending against this runtime's own bundled journal (468.171647ms)
+✔ real runner: an adopted SQLite baseline ignores rewritten legacy timestamps when listing pending migrations (1812.915307ms)
+✔ real runner: SQLite reports a missing content step by ledger id and content migration index (2045.841763ms)
+✔ real content.db: a stale .site-meta.json tag classifies as 'diverged', per drift.ts's tag-decisive rule (200.435077ms)
+✔ real content.db: a malformed .site-meta.json (bad JSON) is treated as absent, never thrown (210.367274ms)
+✔ real content.db: a .site-meta.json missing schemaVersion/schemaTag is treated as absent (172.293124ms)
+✔ real content.db: canOpenDb is false once the connection is closed (232.551909ms)
+✔ synthetic journal: 'ahead' — site-meta's version is higher than the applied migration's, same tag (60.050532ms)
+✔ synthetic journal: 'behind' — site-meta's version is lower than the applied migration's, same tag (284.252877ms)
+✔ synthetic journal: listPendingMigrations reports exactly the entries not yet reflected in __drizzle_migrations (384.600661ms)
+✔ synthetic journal: listPendingMigrations is empty once every journal entry has a matching applied row (163.092363ms)
+✔ a database with no __drizzle_migrations table at all (never migrated) reports migrationsTableReadable:false and schema state 'unknown' (19.727563ms)
+✔ empty SQLite history has unknown identity and leaves every unmatched journal entry pending (70.790756ms)
+✔ unmatched SQLite history has unknown identity and leaves every unmatched journal entry pending (53.837029ms)
+✔ a missing journal never fabricates SQLite schema identity or pending entries (55.301599ms)
+✔ a invalid-json journal never fabricates SQLite schema identity or pending entries (59.980128ms)
+✔ an existing PGlite ledger without the baseline has unknown identity and reports the baseline pending (7803.232369ms)
+✔ fresh in-memory openContentDb includes media.created_by and supports Drizzle inserts without attribution (470.675534ms)
+✔ fresh synchronous content databases match every declared table's columns and the real TS migration head (3060.81297ms)
+✔ fresh file openContentDb preserves creator attribution on reopen and needs no TS migrations afterward (351.483221ms)
+✔ fresh openContentDb creates the publish audit table, both complete indexes and its direction CHECK (214.75811ms)
+✔ fresh vault head enforces metadata, singleton and MCP pointer contracts before first boot (310.010149ms)
+✔ drift guard: the mirrored literals are the site-title setting's own namespace and key, and the pin's own actor (1.350646ms)
+▶ resetLegacySiteTitlePin [sqlite]
+  ✔ REQ-12/REQ-14, EC-02: every workspace's system pin and every marker row, pending or resolved, are removed, and the counts say so (232.336232ms)
+  ✔ INV-07, AC-21, EC-09: an owner's own title travels — a set or cleared row by anyone but the system is kept (169.131523ms)
+  ✔ adversarial: the system actor alone is not the pin — its rows for any other setting, including a same-named key elsewhere, are kept (157.697298ms)
+  ✔ a second run over an already-reset copy deletes nothing (127.135133ms)
+  ✔ a copy from before the marker migration has no marker table: the pin rows still go, and the missing table is not an error (293.881917ms)
+✔ resetLegacySiteTitlePin [sqlite] (981.240439ms)
+▶ resetLegacySiteTitlePin [pglite]
+  ✔ REQ-12/REQ-14, EC-02: every workspace's system pin and every marker row, pending or resolved, are removed, and the counts say so (16138.915823ms)
+  ✔ INV-07, AC-21, EC-09: an owner's own title travels — a set or cleared row by anyone but the system is kept (219.256058ms)
+  ✔ adversarial: the system actor alone is not the pin — its rows for any other setting, including a same-named key elsewhere, are kept (198.176561ms)
+  ✔ a second run over an already-reset copy deletes nothing (288.442024ms)
+  ✔ a copy from before the marker migration has no marker table: the pin rows still go, and the missing table is not an error (211.786888ms)
+✔ resetLegacySiteTitlePin [pglite] (17057.303167ms)
+✔ a database with none of the three tables is left untouched rather than failing (1.857772ms)
+✔ escapeHtml: escapes all five special characters, apostrophe as numeric &#39; (1.193727ms)
+✔ escapeHtml: & is escaped first, so an existing entity is escaped once, not twice (0.232062ms)
+✔ escapeHtml: plain text and non-ASCII pass through unchanged (0.147279ms)
+✔ escapeXml: same set, apostrophe as the XML named entity &apos; (sitemap bytes) (0.170135ms)
+✔ escapeXml: empty and plain Unicode text pass through unchanged (0.128657ms)
+✔ production composition: no origins means the stock factory, which refuses 127.0.0.1 (2.978508ms)
+✔ production entrypoints never pass test origins; only the composition seams name them (68.205907ms)
+✔ the allowlisted origin is reached over plain http, pinned to loopback (2.546927ms)
+✔ another port on the same loopback host is still refused, before any socket (0.574896ms)
+✔ localhost is not the allowlisted origin even though it resolves to the same address (8.116428ms)
+✔ a redirect from the allowlisted origin to http://127.0.0.1:9/ is refused at that hop (4.67003ms)
+✔ a redirect from the allowlisted origin to http://10.0.0.1/ is refused at that hop (0.47915ms)
+✔ a redirect from the allowlisted origin to http://169.254.169.254/latest/meta-data/ is refused at that hop (0.348216ms)
+✔ a redirect from the allowlisted origin to http://localhost:41234/ is refused at that hop (1.130358ms)
+✔ a redirect to a public http host keeps the CALLER's policy: https-only media refuses it, web fetch follows it (0.532041ms)
+✔ only exact loopback-literal origins with an explicit port are accepted (0.334786ms)
+✔ the native transport reaches a loopback fixture without injected HTTP ports (46.429853ms)
+✔ an unlisted origin keeps the caller's existing development host permission (2.141485ms)
+✔ an unlisted private origin is permitted when the original caller permits private addresses (0.336898ms)
+✔ harness origins normalize a single trailing slash and deduplicate (0.121047ms)
+✔ begin builds an authorization URL carrying response_type, client_id, redirect_uri, scope, state and the S256 challenge (25.132895ms)
+✔ begin contacts no third party — a dead provider cannot make starting a connection hang (1.511569ms)
+✔ complete sends the matching code_verifier, the stored redirect_uri, and no client secret for a public client (22.887156ms)
+✔ expires_in becomes an absolute expiresAt computed from the injected clock (3.961297ms)
+✔ a provider that omits expires_in yields a null expiry rather than a fabricated one (5.193869ms)
+✔ a replayed callback is refused and never reaches the token endpoint a second time (2.058775ms)
+✔ a state belonging to another connection is refused before any exchange (3.847216ms)
+✔ a missing state is refused without contacting the provider (0.224945ms)
+✔ an oversized authorization code is refused before it is put in a form body (0.506734ms)
+✔ a callback carrying error=access_denied is terminal, not retryable (0.631868ms)
+✔ an unreachable token endpoint fails fast and is NOT retried (2.78434ms)
+✔ a stalled exchange is aborted by the configured deadline without retrying (50.033137ms)
+✔ a provider error body never leaks its description into the message (6.763198ms)
+✔ a token endpoint that answers with something other than JSON is a malformed response, not a token (1.220233ms)
+✔ an oversized token response is refused rather than buffered (5.292141ms)
+✔ an http:// redirect URI is refused at begin, so a plaintext code leg can never be started (0.367978ms)
+✔ a redirect URI pointing at internal address space is refused (0.393662ms)
+✔ a provider that does not declare the authorization-code grant refuses to start one (0.20718ms)
+✔ an extra authorization parameter cannot overwrite response_type (0.288284ms)
+✔ an extra authorization parameter cannot overwrite client_id (0.094026ms)
+✔ an extra authorization parameter cannot overwrite redirect_uri (0.072936ms)
+✔ an extra authorization parameter cannot overwrite scope (0.062088ms)
+✔ an extra authorization parameter cannot overwrite state (0.059438ms)
+✔ an extra authorization parameter cannot overwrite code_challenge (0.055822ms)
+✔ an extra authorization parameter cannot overwrite code_challenge_method (0.056308ms)
+✔ a state minted for a different provider is refused before any exchange (0.553744ms)
+✔ PKCE-disabled providers omit challenge and verifier and honor a scope override (0.837771ms)
+✔ a callback with neither code nor error is refused without an exchange (4.680982ms)
+✔ an extra authorization parameter the provider genuinely needs is carried through (0.535102ms)
+✔ provider id validation rejects "" (7.179628ms)
+✔ provider id validation rejects "Uppercase" (0.289486ms)
+✔ provider id validation rejects "-leading" (0.089992ms)
+✔ provider id validation rejects "has space" (5.971253ms)
+✔ provider id validation rejects "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" (0.191179ms)
+✔ descriptor validation: provider 'b05-provider' declares no supported grants (0.203255ms)
+✔ descriptor validation: provider 'b05-provider' supports the browser redirect grant but declares no authorization endpoint (0.83368ms)
+✔ descriptor validation: provider 'b05-provider' supports the device grant but declares no device authorization endpoint (2.891601ms)
+✔ registration refuses an unsafe tokenEndpoint before admitting its id (10.590549ms)
+✔ registration refuses an unsafe authorizationEndpoint before admitting its id (2.304811ms)
+✔ registration refuses an unsafe deviceAuthorizationEndpoint before admitting its id (0.242162ms)
+✔ operator descriptors derive both grants from endpoints, preserve overrides and force PKCE (3.190265ms)
+✔ a single operator endpoint enables only authorization_code and defaults scopes and client auth (1.328571ms)
+✔ a single operator endpoint enables only device_code and defaults scopes and client auth (1.450082ms)
+✔ operator configuration with no flow endpoints is refused instead of inventing a grant (0.623954ms)
+✔ registry starts empty, explicitly registers an example, replaces by id and refuses an invalid replacement (11.566045ms)
+✔ an error object is reported once per occurrence, with its operation and attributes (12.77721ms)
+✔ message and stack are redacted before the port sees them (5.011272ms)
+✔ non-Error throws become a redacted Error; no port means no report (0.257802ms)
+✔ a throwing adapter leaves the request scope open and never throws to the caller (0.408017ms)
+✔ exact secrets are blanked even when they have no recognizable shape (1.197432ms)
+✔ each rotated record retains release/environment and its own active trace IDs (6.323299ms)
+✔ the sink writes JSON lines and creates the log directory first (0.302614ms)
+✔ rotation moves the full file to .1 (replacing the older .1) before exceeding the cap (0.326355ms)
+✔ rotation counts an existing file's size from before this process started (0.188854ms)
+✔ a failed write disables the sink silently instead of throwing (0.273414ms)
+✔ the tail reader joins .1 then the current file, oldest first, and skips torn lines (0.28711ms)
+✔ the tail reader honors the byte budget and drops the partial first line (0.315816ms)
+✔ the tail reader returns null when no log file exists (0.117696ms)
+✔ serverLogFilePaths puts both processes' logs under <site>/ops/logs (0.233278ms)
+✔ attach flushes already-buffered lines, then persists new ones; reads merge both processes' files by time (8.833016ms)
+✔ through the real filesystem: files are owner-only, and a missing pair of files reads as not capturing (5.775105ms)
+✔ capture records a fatal uncaught exception without handling it, tagged with this process's source (6.627211ms)
+✔ a disabled sink drops later entries even if the filesystem recovers (0.22897ms)
+✔ the tail reader ignores non-entries without losing valid adjacent entries (0.278882ms)
+✔ the tail reader can recover a rotated file when the current file is absent (0.126392ms)
+✔ a current file that fills the byte budget excludes the rotated file and its own first fragment (0.239648ms)
+✔ files disappearing between stat and read are treated as empty tails (0.9923ms)
+✔ the default filesystem reader returns null for an absent log pair (2.539597ms)
+✔ through the real filesystem: rotation renames the full file to .1 and starts a fresh current file (5.951624ms)
+✔ an empty current file contributes nothing and leaves the whole byte budget to the rotated file (0.308384ms)
+✔ a byte budget that starts exactly on a line boundary retains that whole first line (0.170168ms)
+✔ a cold copy purges every chat table, keeps both ledgers and content, and resets only legacy title pins (21262.803976ms)
+✔ a failed cold copy preserves an existing target, releases the source lock, and permits a later copy with no chat tables (21232.741859ms)
+✔ final verification failure is wrapped as InternalError with the ledger diagnosis (15058.443431ms)
+✔ a locked source yields ValidationError and never creates a target or removes the other owner's lock (7.630171ms)
+✔ a lock naming no process is still a running owner: ValidationError says the process is unknown (7.92991ms)
+✔ a source the owner lock cannot even be taken on is an InternalError naming the target (11.924709ms)
+✔ T38: a synchronous source-open failure releases the owner lock (11.634377ms)
+✔ a Postgres database holding one foreign table is refused by name, before any folder is made (633.455899ms)
+✔ check refuses a path the backstop policy denies (21.510464ms)
+✔ check refuses a site folder that is a regular file (33.300837ms)
+✔ check refuses a site folder reached through a link (16.22904ms)
+✔ check reports a missing site folder as unavailable (27.640462ms)
+✔ check accepts an existing regular file (35.86703ms)
+✔ check accepts a file that does not exist yet under a missing folder (19.82786ms)
+✔ check refuses a linked file (29.514274ms)
+✔ check refuses a file under a linked folder (5.725569ms)
+✔ check refuses a folder where a file is expected (3.95569ms)
+✔ check refuses a file used as a folder (12.537189ms)
+✔ check refuses a path component the filesystem cannot inspect (11.867587ms)
+✔ read returns null for a missing file (11.815522ms)
+✔ read returns the bytes and normalized mode of a regular file (19.937782ms)
+✔ read refuses a file over the send limit (23.95421ms)
+✔ read refuses an unsafe path with its reason (16.227972ms)
+✔ capture of a missing file records no backup (23.712088ms)
+✔ capture keeps a private copy of an existing file (23.955753ms)
+✔ replace writes verified bytes with the requested mode, creating parent folders (39.952089ms)
+✔ replace overwrites an existing file in place (63.782924ms)
+✔ replace refuses bytes over the send limit before staging (10.905261ms)
+✔ replace refuses a staging folder that is not a directory (8.805696ms)
+✔ replace refuses an unsafe target (8.288281ms)
+✔ restore without a backup removes the file the send created (15.57512ms)
+✔ restore without a backup accepts a file that is already gone (11.747595ms)
+✔ restore puts the captured bytes and mode back (32.099299ms)
+✔ T42: a completed file undo reclaims its backup and keeps another pending undo (39.91931ms)
+✔ restore refuses an unsafe backup name (11.901734ms)
+✔ restore refuses a tampered backup (27.951368ms)
+✔ read surfaces an open failure other than a missing file (19.855375ms)
+✔ replace refuses staged bytes whose checksum changed and removes the stage (19.882684ms)
+✔ replace refuses a parent folder swapped for a non-directory after the check (19.982258ms)
+✔ replace surfaces a stage cleanup failure other than a missing stage (35.928073ms)
+✔ restore without a backup surfaces a removal failure other than a missing file (7.803338ms)
+✔ D-05: the creation name seeds public HTML and JSON, including the reset copy, only once (212.944917ms)
+✔ an unlistable nested folder leaves the workspace roots unchanged (62.990966ms)
+✔ the sites settings store names itself and reports a lock timeout as locked settings (0.373913ms)
+✔ resolves the one workspace row and rejects an unknown explicit id (347.024633ms)
+✔ listSites: returns [] when sites/ does not exist at all (fresh checkout, before any tovu init) (11.423733ms)
+✔ listSites: skips a non-directory entry and a directory missing .site-meta.json, without throwing (7.488148ms)
+✔ createSite: rejects an invalid folder name before writing anything to disk (2.408172ms)
+✔ SITE_NAME_PATTERN: accepts lowercase/digits/dashes only, rejecting anything that could escape sitesRoot (0.257946ms)
+✔ createSite + listSites: a created site is listed with the right name/dir/displayName, and is NOT marked active under an unrelated cwd/env (2703.84274ms)
+✔ listSites: marks the site matching TOVU_SITE as active, and every sibling as not (5452.933493ms)
+✔ createSite: the resulting content.db starts with only the Blog listing page (2520.51423ms)
+✔ describeSiteBinding: falls back to the default site name when neither override is set (7.304378ms)
+✔ describeSiteBinding: TOVU_SITE names a folder under sites/, and is NOT reported as an override (4.662622ms)
+✔ describeSiteBinding: TOVU_SITE_DIR is reported as an override, because it OUTRANKS the TOVU_SITE line activate writes (1.325325ms)
+✔ describeSiteBinding: switcherCompatible stays true for every binding that really is <cwd>/sites-relative (12.404158ms)
+✔ describeSiteBinding: a TOVU_SITE_DIR pointing OUTSIDE <cwd>/sites is not switcher-compatible (2026-09-07) (34.5389ms)
+✔ describeSiteBinding: an install-dir-pinned boot marks its binding non-switchable for every process that inherits its env (0.405614ms)
+✔ describeSiteBinding: agrees with listSites()'s own `active` flag for a real created site (2294.135444ms)
+✔ includeServingSite: appends the served directory as `unregistered` when it carries no init markers (40.520587ms)
+✔ includeServingSite: marks a real initialized site `registered` and appends nothing (3439.569273ms)
+✔ includeServingSite: appends nothing when the served directory does not exist on disk (16.033438ms)
+✔ includeServingSite: appends nothing when the served path is a FILE rather than a directory (39.65582ms)
+✔ includeServingSite: keeps every registered sibling, and the appended entry is the ONLY active one (7008.20871ms)
+✔ includeServingSite: does NOT loosen readSiteDir — a half-written site is still absent from both the strict and the composed listing (10.073388ms)
+✔ switcherBaseForBinding: the base above <base>/sites for a switchable binding, null for an install dir (0.398565ms)
+✔ listSitesForBinding: a switchable binding lists its own base, with `active` read against the binding, not the env (0.359066ms)
+✔ listSitesForBinding: an install-dir binding without init markers lists nothing, and never scans a sites/ root (4.771854ms)
+User config is unreadable: /tmp/tovu-sites-home-2115kt/.local/share/Tovu/config.json. Using defaults; the original was left untouched.
+User config is unreadable: /tmp/tovu-sites-home-2115kt/.local/share/Tovu/config.json. Using defaults; the original was left untouched.
+User config is unreadable: /tmp/tovu-sites-home-2115kt/.local/share/Tovu/config.json. Using defaults; the original was left untouched.
+User config is unreadable: /tmp/tovu-sites-home-q4jfwd/.local/share/Tovu/config.json. Using defaults; the original was left untouched.
+User config is unreadable: /tmp/tovu-sites-home-q4jfwd/.local/share/Tovu/config.json. Using defaults; the original was left untouched.
+User config is unreadable: /tmp/tovu-sites-home-q4jfwd/.local/share/Tovu/config.json. Using defaults; the original was left untouched.
+User config is unreadable: /tmp/tovu-sites-home-q4jfwd/.local/share/Tovu/config.json. Using defaults; the original was left untouched.
+✔ a Tovu checkout cwd adds its sites folder as the default source root (147.594585ms)
+✔ a cwd without the checkout layout adds no default source root (78.041904ms)
+✔ explicit sourceRoots replace the checkout default (83.090295ms)
+✔ TOVU_DESKTOP_USER_DATA_DIR is trimmed and resolved against cwd for the shared desktop profile (19.743658ms)
+✔ a blank TOVU_DESKTOP_USER_DATA_DIR keeps the platform app-data default (63.93205ms)
+✔ an explicit appDataDir wins over TOVU_DESKTOP_USER_DATA_DIR (15.841668ms)
+✔ projectsPaths default to the running platform and the resolved app-data folder (75.903119ms)
+✔ catalogRecovery discards stale minted fixture ids from the catalog (91.934331ms)
+✔ without catalogRecovery a stale fixture id stays listed (83.738907ms)
+✔ TOVU_SITE_ROOTS entries are trimmed and resolved against cwd before the isolation check (5.51962ms)
+✔ blank TOVU_SITE_ROOTS entries are ignored rather than resolved to cwd (34.86495ms)
+✔ XDG_CONFIG_HOME, sourceRoots and appDataDir inside the owner home are refused under node:test (11.807624ms)
+✔ assertTestHomeIsolation is a no-op outside node:test, even for the real home (0.367365ms)
+✔ assertTestHomeIsolation refuses the real home as homeDir (0.220467ms)
+✔ assertTestHomeIsolation refuses the real home itself as a path (0.296288ms)
+✔ assertTestHomeIsolation refuses every protected owner storage root and its descendants (6.507205ms)
+✔ assertTestHomeIsolation treats a child whose name starts with two dots as inside the root (0.431276ms)
+✔ assertTestHomeIsolation allows owner-home siblings that only share a protected prefix (0.327283ms)
+✔ the nested 0.1.14 sites folder is discovered and its sites join the roots once (21.130351ms)
+✔ a nested folder already listed as a root is not duplicated (10.66899ms)
+✔ a nested folder without site children stays out of the roots (6.100535ms)
+✔ no nested folder means no compatibility root (9.56051ms)
+✔ a file named sites is not a compatibility root (8.146115ms)
+✔ a website named sites is a website, not a compatibility root (4.33323ms)
+✔ a TOVU_SITES_HOME override never qualifies for the nested compatibility root (9.87ms)
+✔ a saved sitesHome setting never qualifies for the nested compatibility root (18.843088ms)
+✔ an unreadable saved setting never authorizes the nested compatibility root (14.084366ms)
+✔ a saved setting without sitesHome, or a null setting, keeps the nested compatibility root (18.444614ms)
+✔ resolveSitesHome returns the shared creation home (33.672208ms)
+✔ reportSitesSyncWarning names both remedies for a synced sites home (23.692506ms)
+✔ reportSitesSyncWarning defaults to console.warn (12.222458ms)
+✔ reportSitesSyncWarning stays silent without a warning, using the ambient workspace by default (5.192753ms)
+✔ boot-session: a spent or invalid token gets the exact documented 401 body (2183.288494ms)
+✔ boot-session: a freshly minted token mints a real, authenticating session (552.211138ms)
+✔ boot-session: an unreadable freshly minted session gets the exact 500 and no cookie (834.146036ms)
+✔ boot-session: single-use survives the ROUTE, not just the token store — a replay gets the same 401 (592.202953ms)
+✔ boot-session: the loopback guard runs BEFORE the token is even looked at (529.132418ms)
+✔ boot-session route coexisting with the login route changes nothing about ordinary login (565.699312ms)
+✔ fxdev: desktop boot exchange refuses a disabled or member owner before minting (1125.46594ms)
+✔ fxdev: desktop exchange forwards a revocation failure and never issues a replacement cookie (1735.073975ms)
+✔ devsignin: switching A → B → A creates ordinary site sessions and tolerates the other site's cookie (2069.10169ms)
+✔ devsignin: an existing non-owner session is retained without promotion (649.126588ms)
+✔ devsignin: password login supersedes local owner bootstrap and logout clears that port's cookie (1008.417075ms)
+✔ fxdev: logout revokes both session names, while other tabs' sessions survive (904.163349ms)
+✔ fxdev: password login revokes both superseded cookies and keeps the new session (1146.277373ms)
+✔ fxdev: failed password login retains existing sessions (898.998573ms)
+✔ fxdev: failed superseded-session revocation refuses password login without setting cookies (780.14137ms)
+✔ fxdev: desktop exchange revokes both superseded sessions before setting its ordinary cookie (959.744792ms)
+✔ fxdev: disabled local sign-in ignores a valid planted local cookie on every auth surface (1148.922006ms)
+✔ fxdev: every proxy marker is refused through the real local boot route (500.853025ms)
+✔ fxdev: missing or non-same-origin fetch metadata refuses even with exact local Origin (216.398802ms)
+✔ devsignin: production, deployed and LAN boots refuse bootstrap and keep me unauthenticated (2556.669586ms)
+✔ devsignin: remote peer, remote Host and missing/cross origin refuse before touching identity (670.17467ms)
+✔ devsignin: simultaneous tabs do not spend the desktop boot token (820.924798ms)
+✔ devsignin: a disabled owner cannot receive an automatic session (711.983239ms)
+✔ devsignin: failed identity readiness forwards an error instead of hanging or setting a cookie (856.944928ms)
+✔ deskfx S1: desktop logout then reopening signs the owner in again without restart (621.479478ms)
+✔ deskfx2 MUST-1: forged perfect headers need the desktop capability (1557.812875ms)
+✔ security: the owner's password sign-in triggers the pull once (840.615196ms)
+✔ security: a built-in admin's password sign-in triggers the pull (549.940376ms)
+✔ security: a signed-in user who is neither owner nor admin never triggers the pull (683.837287ms)
+✔ security: a failed sign-in never triggers the pull (725.054039ms)
+✔ security: the desktop boot-session sign-in (the owner) triggers the pull (536.496522ms)
+✔ security: a refused boot-session token never triggers the pull (527.6845ms)
+✔ security: the local dev owner sign-in triggers the pull; keeping an existing non-owner session does not (1755.763129ms)
+✔ security: sign-in answers while the pull it started is still running (1264.706075ms)
+✔ security: a failing pull or a throwing sign-in port never changes the sign-in response, and logs no detail (2435.024056ms)
+✔ password-status: unauthenticated gets the exact documented 401 body (1463.339387ms)
+✔ password-status: the seeded owner still on tovu-dev reads true (898.162736ms)
+✔ password-status: the response body's keys are exactly ["usesDefaultPassword"] (1210.613638ms)
+✔ password-status: after resetUserPassword to another value, a fresh sign-in reads false (979.866956ms)
+✔ password-status is specific to the authenticated user rather than the owner (1238.12684ms)
+✔ password-status: repeat reads of an unchanged hash reuse one argon2 verify; a new hash re-verifies (1453.1892ms)
+✔ an authenticated principal without a user row uses its display name and has no default password (1383.916675ms)
+✔ password-status bounds memoization and rechecks an evicted hash (2489.640568ms)
+✔ APIKEY_PRINCIPAL_CREATE mints an active, grantless api_key principal (1512.560517ms)
+✔ APIKEY_PRINCIPAL_CREATE refuses a blank displayName and any kind other than api_key (689.695583ms)
+✔ APIKEY_ISSUE returns the raw key once and persists only a hash of it (651.751017ms)
+✔ a request authenticates with Authorization: Bearer <raw-key> and performs a gated mutation (1354.363082ms)
+✔ AUTH_ME returns the API-key principal's displayName as username when no user row exists (772.857099ms)
+✔ APIKEY_REVOKE is 204 and the revoked key is rejected on the very next request (1489.937194ms)
+✔ an unknown, malformed, or expired key is rejected 401 (976.23628ms)
+✔ an api_key-authenticated caller cannot mint, issue, or revoke — even holding apikey.manage (1803.109837ms)
+✔ all three routes are 401 without a credential and 403 for an authenticated caller lacking apikey.manage (1300.807313ms)
+✔ APIKEY_ISSUE refuses a wildcard source policy, a non-api_key target, and a non-grantless target (1568.719461ms)
+✔ INV-07: an issuer cannot snapshot a permission it does not hold unconstrained (1217.301958ms)
+✔ skill-only create uses the installed skill's exact name (4.713594ms)
+✔ skill-only first user message uses its name, while user prose still uses the normal title heuristic (2.48222ms)
+✔ role and policy pickers refuse an authenticated user with no role.manage grant (2235.847003ms)
+✔ workspace get and PATCH refuse an authenticated user with no workspace.manage grant and preserve the row (1499.789435ms)
+✔ AC-02: wrong password is rejected 401 and never sets a session cookie (3004.180335ms)
+✔ REQ-07: AUTH_ME returns the owner principal with '*' in its effective permission set (1838.619972ms)
+✔ AC-03/AC-04: a viewer principal is denied content.write with a typed 403, and no post is created (2539.381156ms)
+✔ delete-user plan v2, Slice 4: AUTH_ME's canManageUserTrash is false for a plain viewer, true for the built-in admin role (1364.851659ms)
+✔ AC-05/EC-02: disabling a principal mid-session invalidates its existing session on the next request (579.466501ms)
+✔ AC-03: an editor CAN create a post through the gateway, and the change-set actorId is the editor's real principal id (734.631447ms)
+✔ malformed admin session cookies remain unauthenticated instead of throwing (300.914619ms)
+✔ login and logout append their session cookies without replacing an earlier cookie (586.610419ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ [unrun] concurrent saves [sqlite]: two simultaneous entry saves on the same base version — one 200, one 409 VERSION_CONFLICT, and the stored entry is the winner's (5210.864811ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ [unrun] concurrent saves [sqlite]: two simultaneous menu tree saves on the same base version — one 200, one 409 VERSION_CONFLICT, and the stored tree is the winner's (3259.468862ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ [unrun] list validation [sqlite]: the database timeline refuses a bad limit or an undecodable cursor with 400 VALIDATION_ERROR and the exact message (3197.649381ms)

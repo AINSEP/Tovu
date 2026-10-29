@@ -1,0 +1,1084 @@
+✔ visible navigation retains declaration order and filters hidden sections in each group (1.437809ms)
+✔ hidden tasks remain addressable while unknown IDs have no fallback section (0.224374ms)
+✔ the fleet tool vocabulary includes navigation and the tools of every parked section (0.161231ms)
+✔ siteNameError accepts 1..200 characters after trimming and refuses everything else (0.858254ms)
+✔ a paste that fits is left to the browser untouched (0.930074ms)
+✔ an over-long paste keeps the WHOLE draft (replacing the selection) instead of letting maxlength truncate it (0.314217ms)
+✔ with no selection reported, the paste lands at the end of the current value (2.938867ms)
+✔ preload bridge uses fixed IPC channels, strips Electron event, and tears down its listener and claim (1.525984ms)
+✔ a rejected watch or unwatch claim is swallowed: preview is best-effort and never an unhandled rejection (15.62818ms)
+✔ mcpToolNameForVerb spells every dot as an underscore so the name passes MCP clients' tool-name pattern (1.157517ms)
+✔ desktopVerbForAgentToolName reverses the mapping for bare and client-namespaced names (1.641735ms)
+✔ desktopVerbForAgentToolName answers undefined for names that are not ours (0.221787ms)
+✔ useSitesPolling: without a bridge it stops loading and never starts the interval (32.270649ms)
+✔ useSitesPolling: loads, re-polls on each tick, reports a failed poll, and recovers on the next (40.624385ms)
+✔ useSitesPolling: a lookup that changes drops every result the previous one still had in flight (5.231222ms)
+✔ useSiteRescan: applies the returned list at once and shows scanning only while the call is open (8.904914ms)
+✔ useSiteRescan: a failed scan keeps the grid, reports Error and non-Error reasons, and clears on retry (13.899519ms)
+✔ useSiteRescan: without a bridge the button does nothing at all (3.054547ms)
+✔ useRunnerNavigation: an agent navigate moves the section and returns to the sites home tab, then detaches (2.729497ms)
+✔ useRunnerNavigation: without a bridge nothing subscribes and the nav stays put (6.825368ms)
+✔ useSectionNav: a section click resets create, Appearance and the open tab; Appearance drops the tab (15.755491ms)
+✔ useProjectTabs: opening adds once and selects, remembers an admin page, and closing picks a neighbour (10.026718ms)
+✔ useApplySiteRecord: replaces the matching row, merges a located site into one card, and drops unknown ids (1.794644ms)
+✔ T18: a poll started before creation cannot erase the new site and its token notice (26.985551ms)
+✔ useProjectMutations: a create appends the plain record, keeps the full result for the notice, and resets the form (12.212197ms)
+✔ useProjectMutations: a cancelled picker keeps the form, and a missing bridge throws before touching anything (9.77533ms)
+✔ useProjectMutations: delete drops the row and its tab; open clears the notice first; cancel resets the form (11.292939ms)
+✔ useProjectMutations: the ready notice is withdrawn once the created site starts (50.473764ms)
+✔ useProjectMutations: a caller that passes no project list never has the notice withdrawn under it (2.798418ms)
+✔ useExpandedMode: toggles, collapses on Escape only, and never outlives the workspace it immerses (7.152979ms)
+✔ useDismissibleDropdown: outside pointerdown and Escape close it; a press inside does not (41.474855ms)
+✔ useMenuKeyboard: opening focuses the first entry and the arrows, Home and End move between entries (76.333968ms)
+✔ useMenuKeyboard: closing with focus inside (or nowhere) returns it to the trigger; a deliberate click away is left alone (26.509959ms)
+✔ useMenuKeyboard: a menu that stays mounted while closed returns focus from inside it, and not from outside (30.839882ms)
+✔ useDeleteConfirmation: request, Escape cancels unless a delete is in flight, success clears, failure explains (34.800232ms)
+✔ useSiteStart: success hands main's record on and resolves true; a missing bridge or a rejection resolves false with a reason (15.402344ms)
+✔ useWebviewLoadFailure: ignores sub-frame and aborted failures, reports a real one, and a finished load clears both (11.162087ms)
+✔ useWebviewLoadFailure: unmounting clears a pending stall timer (4.854775ms)
+✔ useWorkspaceChatTransport: wires every surface from one bridge, and disposing the pane drops its run listener (8.11973ms)
+✔ useWorkspaceChatTransport: without a bridge every surface is absent (1.294893ms)
+✔ useRunnerConversations: loads the list on mount, and a failed load logs and keeps an empty switcher (21.077469ms)
+✔ useRunnerConversations: select loads a transcript, a slower earlier select never lands, and a failed load still switches (7.783716ms)
+✔ useRunnerConversations: create switches to the new thread unless a select overtook it while it was in flight (12.650225ms)
+✔ useRunnerConversations: removing the open thread lands on the next one, or on a fresh pane when none is left (15.690989ms)
+✔ useRunnerConversations: a remove whose refresh fails falls back to the on-screen list without the deleted thread (9.516244ms)
+✔ useRunnerConversations: rename is optimistic, logs a failed write, and re-reads the list either way (10.371927ms)
+✔ useRunnerConversations: an optimistic rename changes only the renamed thread (8.47524ms)
+✔ useRunnerConversations: an open thread saves each settled message once, and a failed save is retried later (10.326929ms)
+✔ useRunnerConversations: a first message with nothing open adopts exactly one new thread and saves into it (7.040204ms)
+✔ useRunnerConversations: an adoption overtaken by a select still saves its messages but does not take over (9.199991ms)
+✔ useRunnerConversations: a failed adoption logs and lets the next message try again (8.380113ms)
+✔ useRunnerConversations: a message landing between deleting the open thread and loading the next is not written to the deleted thread (12.753736ms)
+✔ useRunnerConversations: without a bridge every action is a no-op (2.10628ms)
+✔ useConversationDeleteConfirmation: a prompt resolves from the answer, and a newer prompt cancels an older one (6.164875ms)
+✔ useCreateWebsiteForm: an invalid name explains itself on submit and an empty one never enables Create (14.257892ms)
+✔ useCreateWebsiteForm: Supabase needs a URL and a typed key; the key is read once and wiped before the call (7.438456ms)
+✔ useCreateWebsiteForm: a custom provider needs a label and a connection; a failed create shows the reason (10.101313ms)
+✔ useCreateWebsiteForm: with the credential inputs unmounted a SQLite site still submits with no credential (1.816296ms)
+✔ with the default lookup and no preload (`window.tovuRunner` unset) every bridge-reading hook stays inert (3.565339ms)
+✔ creation selects only the chosen database endpoint and credential without trimming secrets (4.217304ms)
+✔ supabase and custom creation each require their own readiness and a nonempty slug (0.294727ms)
+✔ the dropdown effect closes on outside pointerdown, preserves inside clicks, and detaches (129.114039ms)
+✔ menu arrow keys wrap at both ends, Home/End jump, and other keys are left alone (0.48583ms)
+✔ the Settings menu focuses its first entry on open, moves with the arrows, and hands focus back on close (142.557189ms)
+✔ siteSlug keeps its existing behaviour for plain ASCII names (1.243243ms)
+✔ siteSlug still yields nothing for a name with no letters or digits in it (4.978562ms)
+✔ a non-Latin website name is not erased, so its site can actually be created (1.307724ms)
+✔ a Latin name carrying diacritics is not mangled into nonsense (0.220332ms)
+✔ combining marks stay attached to the letter they belong to (0.237364ms)
+✔ countRunningSites counts running sites and nothing else (0.183439ms)
+✔ a NavLink click selects its own section when the link is enabled (0.266966ms)
+✔ a disabled NavLink never fires onSelectSection (29.543313ms)
+✔ the Settings gear flips its dropdown open, then shut (0.388574ms)
+✔ a disabled Settings gear never opens its dropdown (0.101047ms)
+✔ picking a theme applies it FIRST, then closes the dropdown (0.096964ms)
+✔ the Appearance link closes the dropdown FIRST, then opens the page (0.104023ms)
+✔ Start waits for start to settle before notifying the caller (0.183854ms)
+✔ Start with no onStarted just runs start (0.099067ms)
+✔ a start that rejects skips onStarted, and the SAME rejection reaches the caller (2.996209ms)
+✔ performSiteStart calls startSite and reports main's own record back (0.178512ms)
+✔ performSiteStart surfaces a rejection's Error message verbatim (0.768479ms)
+✔ performSiteStart coerces a non-Error rejection with String(), not [object Object] (0.249834ms)
+✔ performSiteStart with no bridge is an operator-facing message, not a thrown error (0.070243ms)
+✔ a start that RESOLVES but reports failure (useSiteStart's bridge-missing/caught-error path) skips onStarted (0.083267ms)
+✔ root presentation keeps chrome, guest targets and duplicate-site notices aligned (0.257653ms)
+✔ Phase 3 actual shell screens and Create website button send only catalog IDs (477.887676ms)
+✔ App: the header chip and running card display the same resource snapshot (253.221845ms)
+✔ App: a stopped site's tab offers Start and shows the boot wait with the button disabled (388.060243ms)
+✔ App: an empty Projects screen explains the three header actions, and the header buttons reach the bridge (152.198475ms)
+✔ App: loading, a failed list, a failed rescan and a refused add each read as their own message (287.867536ms)
+✔ App: the nav badges running sites, inert links do nothing, and an agent navigate shows the unbuilt section (105.610234ms)
+✔ T3: navigating away from Websites and back preserves the open admin webview (295.395052ms)
+✔ App: the Settings menu opens, moves with the arrows, picks a theme, opens Sites settings and Appearance (594.95822ms)
+✔ App: Check for updates… reads Checking… until main answers, then closes (153.84247ms)
+✔ App: without checkForUpdates on the bridge the Settings menu has no update row (66.560296ms)
+✔ App: a created site's notice says it is ready with its token outcome, and Cancel returns to the grid (560.952751ms)
+✔ App: a site tab's bar toggles views, opens the browser, expands the window, and Escape collapses it (312.706372ms)
+✔ App: a guest that fails to load is replaced by a retry panel, and a slow one gets an overlay after 8 s (128.184772ms)
+✔ App: a site attached to another app's server says it is connecting, then shows why the attach failed (129.212768ms)
+✔ App: Find opens its bar, Enter and Shift+Enter step through matches, and Escape closes it (187.347383ms)
+✔ App: re-adding a tracked site opens its tab with the notice, and an overflowing strip shows scroll arrows (56.800223ms)
+✔ starts on the SQLite default with no slug, a disabled submit and no vendor fields (9.088352ms)
+✔ shows the planned sites-home destination and enables submit once the form says it can create (2.779541ms)
+✔ keeps submit disabled and relabelled while a create is in flight (2.802224ms)
+✔ renders a footer only for the exact submission error (3.964201ms)
+✔ routes every form control to its own setter, and both back controls to onBack (2.758918ms)
+✔ the Supabase branch (reachable only through state) wires its URL and uncontrolled key input (5.102495ms)
+✔ the Custom branch wires provider, connection and an uncontrolled credential (3.076097ms)
+✔ offers one optional, uncontrolled token field per connectable service when Supabase is available (3.71245ms)
+✔ hides Connect services and disables its tokens while the Supabase flag is false, even with offered plugins (2.223258ms)
+✔ renders Connect services and enables the Supabase card through the injected availability flag (2.71245ms)
+✔ renders with the real default hooks: SQLite selected, submit disabled, no services yet (11.696991ms)
+✔ the two database options this app cannot provision carry a "Soon" tag; SQLite does not (2.367729ms)
+✔ the "Soon" tag reuses the admin sidebar badge look (uppercase, bordered, faint) (1.08421ms)
+✔ the owner-hidden Instance copy section and its description are absent (1.441927ms)
+✔ no footer or readiness text renders without an error, and both action buttons remain (3.353708ms)
+✔ the credential hints name Tovu, never Runner (2.720908ms)
+✔ D-02: an oversized draft shows the exact inline validation inside the name field (4.167922ms)
+✔ section explanations are ⓘ tooltips beside their headings, not loose sentences (owner 2026-10-11) (1.080289ms)
+✔ with services available but none offered by Tovu, there is no empty Connect services section (7.03673ms)
+✔ one snapshot drives the chip and site figure, warnings and panel-open cadence request (1.068208ms)
+✔ chip is a focusable dialog trigger; all readers share data and close restores collapsed cadence (84.465106ms)
+✔ rows join by identity, exclude external/stopped sites and withdraw stale process rows (1.180966ms)
+✔ panel Stop reaches the existing stop API once, applies main record and shows a rejection (57.876777ms)
+✔ unavailable snapshot shows unavailable chip/cards, and stopped cards hide the previous figure (10.274459ms)
+✔ loads metadata; import feedback counts imported keys and mentions kept site copies (1781.347544ms)
+✔ same-turn double submit performs one action and one refresh (46.326478ms)
+✔ opaque failures never expose submitted values and stale revisions are withdrawn (20.780326ms)
+✔ failed inventory reads clear old entries; unmounted completions do not read again (5.567598ms)
+✔ stale preload offers an unavailable state without any operation (7.538492ms)
+✔ new vendor save is unattached, clears its password input and never renders the secret (2863.250921ms)
+✔ backup import sends only the source and passphrase, clears it, and shows fixed feedback (63.116785ms)
+✔ replace carries the displayed revision; importing from this computer sends only the source (53.067049ms)
+✔ Enter or Space on the card itself opens the project (1.272063ms)
+✔ any other key on the card does nothing (0.287545ms)
+✔ Enter or Space on a control INSIDE the card does not open the project (0.168401ms)
+✔ the card's keydown handler routes through isCardOpenKey rather than checking keys inline (0.875351ms)
+✔ a menu entry closes the menu BEFORE running its action (1.085149ms)
+✔ every entry built from one closeMenuThen runs only its own action (0.373745ms)
+✔ a card whose folder is missing does not open — there is no site to start there (0.382934ms)
+✔ cardOpenProps opens only for accepted keys on the card and leaves descendant controls alone (0.52493ms)
+✔ the open-affordance class is absent for every inert card (1.621933ms)
+✔ databaseLabel names the provisioned database, an operator's own label, or the custom category (0.740801ms)
+✔ a stopped card opens on click and Enter, shows its details, and Start reaches the power hook (170.554253ms)
+✔ running cards join resource figures by site id even when names match; stopped cards hide figures (17.054945ms)
+✔ a running card shows its capture, failure line and details; the menu offers browser, rename and delete (50.898766ms)
+✔ duplicate names show each parent folder; a root-level folder reads as "/" (10.124791ms)
+✔ a missing folder offers Locate and Remove instead of Start, and shows Locate progress and refusal (26.363209ms)
+✔ mid-transition, provisioning, external and restart-less cards render the matching control (12.666799ms)
+✔ the delete confirm owns the card: cancel, confirm, busy label and main's refusal (13.179977ms)
+✔ a confirm body names commands as code (13.550016ms)
+✔ an external stop panel falls back to the delete copy and tolerates a power hook without stop confirm (10.916974ms)
+✔ the rename panel edits the draft, saves, cancels, and shows both hints and main's refusal (31.328875ms)
+✔ the default hooks render a card outside the desktop app without a bridge (13.696349ms)
+✔ card panels keep one group, propagation guards, busy errors and their original actions (19.207491ms)
+✔ stop panels preserve the existing fallback copy and optional callback behavior (0.379472ms)
+✔ the trigger opens the dialog; every row reflects the folders and its buttons reach the hook (500.605693ms)
+✔ environment overrides disable their rows and say why; busy disables Save; errors are alerts (43.950251ms)
+✔ a synced-folder warning shows beside the trigger and inside the dialog, with both fixes (36.773119ms)
+✔ the dialog without a trigger (the Settings menu entry) renders only when its settings say open (27.933743ms)
+✔ without a fleet transport the pane says why there is no chat, and renders neither chat component (2146.567181ms)
+✔ with a fleet transport the switcher and the chat pane get the hook state, under the pane's own header (23.120285ms)
+✔ the working directory the chat pane picks is held by the pane and handed back on the next render (23.785047ms)
+✔ a pending delete renders an inline confirmation whose buttons answer it (27.486663ms)
+✔ SiteCard imports and calls useSitePreview with the project's own id and previewVersion (1.081149ms)
+✔ the tile renders the capture when one exists, and a neutral placeholder otherwise — never the port (0.332746ms)
+✔ the preview image carries no alt text — it is decoration, not content (0.238944ms)
+✔ uploads exact bytes and preserves file identity, kind, size and order across out-of-order saves (21.687351ms)
+✔ an empty batch returns no attachments and makes no IPC save (0.61989ms)
+✔ a composer abort during staging discards the completed batch (5.34951ms)
+✔ a failed IPC save rejects the batch and a later upload can succeed (1.294608ms)
+✔ a file read failure rejects before its bytes are sent over IPC (0.551997ms)
+✔ desktop light uses fixed bubble tokens for ordinary and nested mid-run messages (1069.214513ms)
+✔ desktop dark uses fixed bubble tokens for ordinary and nested mid-run messages (236.935923ms)
+✔ the expanded-mode effect attaches Escape handling only while expanded and detaches on collapse (489.131869ms)
+✔ the toggle expands from collapsed (0.132973ms)
+✔ the toggle collapses from expanded (0.11535ms)
+✔ the toggle round-trips from either starting state (4.47442ms)
+✔ the collapse key is exactly the DOM key name, not a label (2.355369ms)
+✔ Escape collapses expanded mode (0.31135ms)
+✔ Escape while already collapsed is a no-op, not a toggle (1.686879ms)
+✔ repeated Escape stays collapsed (0.208596ms)
+✔ every other key leaves the mode exactly as it was, from both states (1.393243ms)
+✔ losing the project tab collapses expanded mode (0.976933ms)
+✔ expanded mode survives as long as the project tab is still showing (0.949038ms)
+✔ a project tab appearing does NOT expand on its own (0.156446ms)
+✔ entering expanded mode hides both the top nav and the tab strip (2.745245ms)
+✔ expanded mode hides the top nav in every section, appearance open or not (2.063166ms)
+✔ collapsed, the top nav shows in every section (0.199601ms)
+✔ the tab strip keeps its two pre-existing rules when nothing is expanded (1.835301ms)
+✔ the visible project is on screen; its open siblings are not (0.263529ms)
+✔ nothing is on screen when no workspace is the visible one (0.164091ms)
+✔ no workspace is on screen outside Projects, even one whose id still matches (1.539501ms)
+✔ whenever expanded mode can stay on, exactly one workspace — and its bar — is on screen (0.683468ms)
+✔ opening Appearance takes the workspace away, and the top nav with it — but not the exit (0.182673ms)
+✔ returns no paths for a drop with neither items nor files (1.520132ms)
+✔ skips a non-file item (e.g. the text/uri-list string item Finder adds alongside a folder) (0.224056ms)
+✔ skips a file item whose entry is not a directory (0.184687ms)
+✔ skips a file item whose webkitGetAsEntry() resolves to null (0.130125ms)
+✔ skips a file item on a drag that never defines webkitGetAsEntry at all (0.114361ms)
+✔ recovers the OS path for a single dropped folder (0.295812ms)
+✔ drops a resolved folder whose path could not be recovered (getPathForFile returned '') (0.218536ms)
+✔ drops a folder item when .files has no entry at its index (0.125551ms)
+✔ keeps the .files index aligned when a string item sits ahead of the folder's file item (0.679776ms)
+✔ preserves drop order across a mix of string items, loose files, and multiple folders (0.495362ms)
+✔ every Runner section has a non-empty glyph of its own in the shared decorative frame (11.466567ms)
+✔ the home glyph has a door, not just an outline (0.662087ms)
+✔ the gear has six solid teeth at 60-degree steps under an opaque body ring (1.858244ms)
+✔ back, forward and reload draw different shapes, and reload matches the updates glyph (1.128153ms)
+✔ the Settings menu glyphs are six distinct shapes in the shared frame (1.757949ms)
+✔ the target is the first running site, else the first site, else none (5.631161ms)
+✔ the import page is an allowlisted admin path, never one the renderer composes (1.301519ms)
+✔ a tab asked for the import page loads the admin on it; the public site ignores it (0.518068ms)
+✔ the tab hook remembers a requested admin page per tab and forgets it on close (218.078249ms)
+✔ the header button opens the target tab on the import page and hides with no target (0.542825ms)
+✔ each workspace receives its own requested admin page (0.270721ms)
+✔ useAppVersion: loads the version, keeps a failure message, and waits without a bridge (131.430842ms)
+✔ useSiteFolders: loads, applies every action result, and keeps a null picker result out (45.051982ms)
+✔ useSiteFolders: a missing bridge or method and a failed load surface readable errors (41.189288ms)
+✔ useSiteStorageSettings: drafts follow the folders, the dialog clears errors, saves send placement (41.260835ms)
+✔ first-content loading keeps the same wrapper, live status and stalled precedence (210.588372ms)
+✖ the loading overlay on the Site view says "Loading <site>…" (257.5769ms)
+✔ all three typefaces are bundled variable fonts with their OFL licenses (8.513229ms)
+✔ renderer CSP permits only local font and stylesheet origins (3.545732ms)
+✔ marketplace is a registered RunnerSectionId (0.885733ms)
+✔ marketplace is visible (not hidden) and grants no tools yet (0.378671ms)
+✔ marketplace has its own nav icon, not a reused one (0.164809ms)
+✔ the generic disable rule still covers every section but projects — no Marketplace special-case (0.119961ms)
+✔ NavLink never fires onSelectSection for a disabled entry (0.210995ms)
+✔ renders the app into #root by default and returns the root it created (1.170978ms)
+✔ a caller-chosen rootId selects that element instead (0.251784ms)
+✔ a missing host element throws an error naming it, and no root is created (0.597861ms)
+✔ D-11: inert destinations expose exact hover and accessible Coming soon copy (6.126906ms)
+✔ D-11: Websites retains its existing tooltip attributes (0.171584ms)
+✔ the fleet page renders no chat FAB of its own — the site's assistant FAB inside the <webview> is the only one (3.07573ms)
+✔ App.tsx does not import a ChatFab component either — the other route the second button comes back by (0.326886ms)
+✔ the disabled-FAB style went with the button, so nothing is left to style a placeholder back into place (0.169832ms)
+✔ WorkspaceChatPane survives the FAB's removal, unreferenced, for the panel that replaces it (0.327783ms)
+✔ the fleet chat still has no main-process half — if this fails, revisit where the workspace chat is reached from (0.373507ms)
+✔ keeps user turns and every terminal assistant turn, omitting queued, running and unstamped replies (13.258549ms)
+✔ a user turn survives even when it carries a nonterminal status (0.298013ms)
+✔ a reply becomes persistable when a later call receives its terminal status (0.236882ms)
+✔ shell actions send only the explicit payload and a broken bridge cannot break the action (2.417109ms)
+✔ error and unhandledrejection listeners cap text before IPC; cleanup removes both without preventing default handling (7.822351ms)
+✔ at least one renderer HTML file exists to scan (a vacuous glob would pass every assertion below for free) (0.785161ms)
+✔ no renderer HTML file references a remote (http/https) <script> or <link> URL (13.744645ms)
+✔ index.html declares a Content-Security-Policy meta tag with script-src 'self' and no inline/eval exception (0.404734ms)
+✔ every renderer HTML entry declares a CSP with script-src 'self' and no inline/eval exception (4.790932ms)
+✔ the HTML scanner detects remote resources with any quoting and protocol-relative URLs (6.824587ms)
+✔ the preload rescan method invokes the exact contract channel with no renderer payload (76.266374ms)
+✔ runner-api declares rescanSites, or the renderer cannot see the bridge method (36.126639ms)
+✔ the rescan result replaces the project list rather than waiting for the next poll (100.742598ms)
+✔ a refused broad-root scan shows the exact remedy and keeps the existing projects (104.754396ms)
+✔ the Projects header renders a Rescan control wired to that hook (99.617168ms)
+✔ a rescan failure is reported ALONGSIDE the grid, never in place of it (22.06149ms)
+✔ D-02/D-17: Create and Rename reject invalid drafts locally, with the same exact inline validation (145.234848ms)
+✔ D-03: a cancelled Create keeps the form open without inserting a row or a ready notice (168.18256ms)
+✔ D-03/D-09: cancelled Add is silent; an already-tracked Add reports the exact name and opens that site (73.873903ms)
+✔ D-12/D-01: Escape dismisses confirmation, and a rejected Delete keeps its panel with a human error (61.607915ms)
+✔ D-12: Escape closes the menu and Rename even when focus is on a panel button (129.638391ms)
+✔ D-14: closing the active tab picks right, else left, and preserves an unrelated selection (0.288946ms)
+✔ D-18: a missing website keeps its name in truthful Remove copy (0.277955ms)
+✔ D-19: the ready notice disappears on start, missing folder, or removal and uses no stale status (0.252691ms)
+✔ D-20: fast typing issues one search for the complete exact query; clear/close cancels it and Enter flushes it (0.756262ms)
+✔ D-24: IPC and AddSitePointerError class prefixes never reach the operator (1.200792ms)
+✔ D-26: the active tab scrolls into view and overflow buttons expose the hidden direction (0.386689ms)
+✔ D-28: truncated tab names expose the full name as a title (49.081926ms)
+✔ D-26: scroll arrows render only while the strip overflows, each disabled on its own exhausted side (82.275888ms)
+✔ D-02/D-17: oversized paste preserves the full draft for validation instead of silently saving 200 characters (0.499254ms)
+✔ D-14: the tab hook applies the neighbour decision when closing the active middle tab (27.429833ms)
+✔ D-19: the mutation hook permanently dismisses the ready notice once its site starts (13.774857ms)
+✔ tabAfterClose: closing the active tab that is not in the strip leaves no active tab (0.098876ms)
+✔ siteOperationError falls back to English copy in a host with no navigator (1.386107ms)
+✔ the actions row is in the card BODY, and the preview tile carries nothing but the preview (1.498378ms)
+✔ the card head is a 2x2 grid — name | ⋮ on row 1, SQLite | status on row 2 (1.410436ms)
+✔ Start/Stop sits on its own row UNDER the text, with Restart on that same row at the right edge (0.735883ms)
+✔ no standalone trash control exists anywhere — delete lives only inside the ⋮ menu (8.6181ms)
+✔ nothing in the action row is revealed by hover — the owner asked to see the ⋮ either way (0.558346ms)
+✔ the ⋮ trigger carries an accessible name, since it has no visible text (0.373242ms)
+✔ the power button calls power.toggle and renders the label powerControl decided (486.114017ms)
+✔ Start opens the site through the SAME onOpen a card click uses — no second open path (0.185992ms)
+✔ Start/Stop reuses the header's "Create website" class rather than a hand-copied look (0.468432ms)
+✔ the card renders the status the power hook decided, not the raw polled one (0.36025ms)
+✔ every event that starts in the action row stops there — the card underneath is an open target (0.180497ms)
+✔ the ⋮ menu carries copy and onRequestDelete through to its delete entry (0.157048ms)
+✔ the delete entry closes the menu BEFORE requesting a delete, same as every other entry (0.138082ms)
+✔ delete reads as destructive only when it actually erases files, never for an adopted "Remove" (0.287376ms)
+✔ the delete entry is last in the menu list, after Rename and the conditional Open in browser (0.158023ms)
+✔ delete still goes through the confirm overlay — a menu entry makes that no less load-bearing (145.253477ms)
+✔ the pending mark is cleared on BOTH arms, so a failed start cannot stick on Starting… (101.409118ms)
+✔ main's refreshed record reaches the grid, rather than waiting on the 4s poll (96.327195ms)
+✔ a missing-folder card says so in its body (35.560833ms)
+✔ a missing-folder card offers Locate and Remove in place of Start/Stop (0.175571ms)
+✔ a located card replaces the missing one in the grid at once, not on the next poll (0.797565ms)
+✔ an external Stop confirms in the same overlay, with `npm run dev` as code, and Confirm reaches the hook (97.980996ms)
+✔ the menu stops BOTH clicks and keydowns, or it opens the site underneath itself (1.726547ms)
+✔ the menu reuses useDismissibleDropdown rather than hand-rolling outside-click dismissal (0.402832ms)
+✔ the trigger carries the same a11y contract SettingsControl uses (0.523178ms)
+✔ neither Start nor Stop is in the menu — the card's own action row owns the lifecycle (0.355512ms)
+✔ Open in browser shows only for a running site, and reads the RENDERED status (0.202869ms)
+✔ every menu item closes the menu before acting, never after (0.390495ms)
+✔ the rename overlay makes the card inert, the same way the delete confirmation does (0.193639ms)
+✔ the rename input is bounded and its Save refuses what Tovu would refuse (0.257934ms)
+✔ main's refusal is surfaced verbatim, never paraphrased (0.868275ms)
+✔ a running record with a local stopping status omits Open in browser throughout the rendered card (527.696034ms)
+✔ useAddSite: pending while the picker is open, then the new card first and no message (191.945592ms)
+✔ useAddSite: a duplicate keeps one card, says so for that site, and opens its tab (16.85862ms)
+✔ useAddSite: a duplicate without a tab opener still reports it (70.103348ms)
+✔ useAddSite: cancelling the picker changes nothing and says nothing, either way main reports it (73.045542ms)
+✔ useAddSite: a refusal is shown as recovery text, and the next attempt clears it first (7.93279ms)
+✔ useAddSite: outside the desktop app the button explains itself instead of doing nothing (10.406548ms)
+✔ useCreateSitePluginTokens: offers the services Tovu lists, and sends trimmed typed tokens once (7.707308ms)
+✔ useCreateSitePluginTokens: hidden services are never requested and never send a token (5.89963ms)
+✔ useCreateSitePluginTokens: no bridge method, a rejecting bridge, or a late reply all offer nothing (6.633662ms)
+✔ D-24: Add shows a short recovery message without the error class or temporary path (1.697722ms)
+✔ D-24: an empty folder points to Create website (0.40267ms)
+✔ D-24: a damaged folder and an unreadable folder have different recovery instructions (0.19062ms)
+✔ D-24: unknown path-bearing Add failures have a short fallback (0.432385ms)
+✔ D-24: Add recovery text uses the desktop locale (0.193566ms)
+✔ D-24: every supported locale has all six recovery messages (0.518157ms)
+✔ D-24: a failed site start hides the internal temp path (1.079993ms)
+✔ D-24: starting from a card uses the same path-free message (0.314602ms)
+✔ D-24: Add feedback stays on the websites view when switching to a site tab (418.563382ms)
+✔ zero, absent and invalid ports have no address or port number (4.661695ms)
+✔ running sites retain their port, origin and lifecycle copy (0.320047ms)
+✔ non-running lifecycle states never advertise a stale port (0.243293ms)
+✔ the rendered card keeps the running address in the status title, never in its copy (285.332259ms)
+✔ siteCardStatus names the running app in the title and drops its detail line (0.451406ms)
+✔ the rendered stopped panel says Stopped without port 0 (72.642371ms)
+✔ stopping a tab blanks its URL immediately even while the last guest URL is remembered (66.91118ms)
+✔ Restart waits for Stop before starting and returns the new record (1.583445ms)
+✔ a failed Stop never starts; a failed Start remains actionable; missing bridge is reported (0.971364ms)
+✔ Restart is offered only for running sites with a present folder (0.694191ms)
+✔ rapid Restart/Stop clicks share one synchronous guard and clear it after failure (146.200288ms)
+✔ rendered Restart button invokes the hook and is disabled during a transition (55.202149ms)
+✔ the stopped record is applied even if the following start fails (0.465525ms)
+✔ only matching public site guests reload once; local tool paths use the current live port (8.797659ms)
+✔ admin, stopped and foreign-origin guests do not subscribe, and every guest failure is contained (12.605521ms)
+✔ invalid tool paths never call into a guest; stopped guests never acquire a stream (0.420546ms)
+✔ delivery checks the actual guest URL even before React observes its navigation (0.242046ms)
+✔ a malformed escape in a tool path, or an unparseable guest URL, is refused rather than navigated (4.686343ms)
+✔ back, forward and reload are icon-only buttons named for assistive tech (1.200443ms)
+✔ the three history buttons come first, before the status dot and the view toggle (0.340115ms)
+✔ the url sits on the right, directly before Open in browser (0.193464ms)
+✔ the buttons are wired to the hook, and back/forward disable from live history (0.159599ms)
+✔ SiteWorkspace holds no state or effects of its own (0.262021ms)
+✔ the remount survives only as recovery: key on the guest, and both recovery panels retry through it (0.233401ms)
+✔ the icons are drawn inline in icons.tsx, with no icon package (0.141956ms)
+✔ rendered toolbar buttons pair each accessible name with its own command and history flag (493.335142ms)
+✔ stopped, running and missing-folder cards never offer Move into sites/ (3192.882127ms)
+✔ hookHarness.render refuses a hook that never settles (1.258259ms)
+✔ hookHarness.render returns once a state update stops changing anything (5.081721ms)
+✔ stalecard: duplicate names show each parent under the name, including missing and Windows sites (987.555053ms)
+✔ D-13 arrow keys wrap, Home/End select endpoints and focus the selected tab (1.776729ms)
+✔ D-13 ignores other controls, vertical keys, and modified shortcuts (0.830032ms)
+✔ D-13 rendered tabs have one tab stop and wire keyboard navigation (144.741861ms)
+✔ D-13 a single All tab remains navigable (0.237ms)
+✔ tasks is still a registered RunnerSectionId (0.860646ms)
+✔ tasks is hidden from the nav (0.236895ms)
+✔ tasks keeps all of its desktop.* tools even though it is hidden (0.217995ms)
+✔ missing or invalid saved preference (null) defaults to light even on a dark OS (388.931523ms)
+✔ missing or invalid saved preference (unsupported) defaults to light even on a dark OS (37.529675ms)
+✔ restores explicit light and ignores subsequent OS changes (76.625911ms)
+✔ restores explicit dark and ignores subsequent OS changes (64.171397ms)
+✔ system resolves both OS states, and switching to an explicit choice removes the OS subscription (50.358325ms)
+✔ unmount removes the system listener so later OS changes cannot alter the document (22.489491ms)
+✔ a folder refusal keeps the recovery instruction without exposing the path (1.613717ms)
+✔ the Electron IPC prefix and folder path are replaced by recovery text (0.317947ms)
+✔ a cancelled folder picker shows NOTHING (0.113613ms)
+✔ an empty or non-Error rejection still produces something sayable (0.308446ms)
+✔ re-adding a tracked website REPLACES its row instead of showing a second card (0.989804ms)
+✔ a newly added website appears first (0.173683ms)
+✔ duplicate confirmation is scoped to that site; failed Add never supplies a site notice (100.912775ms)
+✔ the add logic lives in a hook, not in App.tsx — this repo keeps logic out of .tsx (0.395957ms)
+✔ the add hook holds pending state, applies the returned row, and clears a prior refusal (30.903494ms)
+✔ the add hook suppresses picker cancellation and reports an absent bridge (38.968246ms)
+✔ the Projects header renders the Add Tovu Website button, wired and disableable (0.500744ms)
+✔ the button sits between Rescan and Create website (0.400726ms)
+✔ a refused add is reported ALONGSIDE the grid, never in place of it (83.603523ms)
+✔ the redundant dashed add tile is GONE from the grid (0.261948ms)
+✔ removing the tile did not leave an operator with no websites staring at nothing (0.417159ms)
+✔ runner-api declares addSite, or the renderer cannot see the bridge method (1.858331ms)
+✔ the hook loads the exact main-process version once and retains it on rerender (80.535732ms)
+✔ missing bridge or a stale preload without getAppVersion leaves the brand usable (27.601605ms)
+✔ an injected replacement bridge resets stale state and ignores the previous request (11.010011ms)
+✔ IPC failure preserves the actual message without inventing a version (8.349898ms)
+✔ a synchronous bridge failure is contained and its exact text is retained (7.384213ms)
+✔ a version request that settles after unmount cannot update state (14.55536ms)
+✔ the nav renders the loaded version beneath Tovu in the same brand block (60.422987ms)
+✔ the nav exposes the real loading error on the brand without displaying a fake version (47.855118ms)
+✔ hidden services do not request token sign-in plugins until enabled (154.258803ms)
+✔ a create with no tokens reaches onCreate unchanged while services are hidden (34.088928ms)
+✔ hiding services after a token was typed sends no token and clears the old input (10.391584ms)
+✔ enabling services again preserves Supabase agent plugin tokens and clears the input before create (11.00833ms)
+✔ tokensForCreate: trimmed, blanks dropped, undefined when nothing was typed (0.188502ms)
+✔ createdTokensNote: saved says it connects on first start; failed says to ask the assistant; none is null (0.29068ms)
+✔ toggle opens the bar and bumps focusNonce, even when already open (13.273335ms)
+✔ set-query to non-empty text keeps the last result; clearing to "" drops it (0.703439ms)
+✔ result records whatever the target reported; close resets to the initial state (0.134288ms)
+✔ resolveFindTarget prefers the active guest when it is actually mounted (0.264828ms)
+✔ resolveFindTarget falls back to top when the active guest id has no mounted element (2.284404ms)
+✔ resolveFindTarget is top with no active tab, and none with no bridge either (0.216844ms)
+✔ shouldCloseOnGuestChange: true only when the bar is open AND the visible surface actually changed (0.136716ms)
+✔ runFind on a guest target calls the guest directly, never the bridge (0.242339ms)
+✔ runFind on a guest not yet attached to the DOM is swallowed, not thrown (0.313047ms)
+✔ runFind on the top target calls the bridge with the query merged into the options (0.242439ms)
+✔ runFind on the top target clears the document selection BEFORE searching (0.223626ms)
+✔ runFind on a guest target ALSO clears the host selection first (8.561505ms)
+✔ runFind on the top target with no bridge does not clear the selection either (0.21378ms)
+✔ restoreFindInputFocus blurs THEN focuses the input on every call, and tolerates a closed bar (0.221978ms)
+✔ restoreFindInputFocus raises `restoring` for exactly its own blur, so the blur listener cannot loop on it (0.437076ms)
+✔ runFind/stopFind on none, or on top with no bridge, are no-ops (0.173252ms)
+✔ stopFind clears the guest with clearSelection, or stops the bridge search (0.16989ms)
+✔ stopFind on a guest not yet attached is swallowed, not thrown (0.18085ms)
+✔ formatMatchCount: blank until a result exists, "No results" for zero matches, "N of M" otherwise (0.089685ms)
+✔ subscribeToFindResults: a GUEST target reports on both sources, and a result on the GUEST's own event also restores focus — a guest find moves keyboard focus into the guest (0.344849ms)
+✔ subscribeToFindResults: a TOP target listens to the window alone (0.113301ms)
+✔ subscribeToFindResults: no bridge (outside a desktop window) still subscribes a guest, restores focus on its own event, and unsubscribing is safe (0.147005ms)
+✔ shouldReclaimFindFocus: only while open and within FIND_FOCUS_RECLAIM_MS of the last issued find (0.111643ms)
+✔ shouldKeepReclaimingFindFocus: every frame from issuing a find until it reports, never mid-composition (0.111646ms)
+✔ the real hook restores input focus on guest/window reports and defers restoration during composition (514.021094ms)
+✔ the real hook arms per-frame focus reclaim on issue and stops after a result or close (170.047771ms)
+✔ the real hook installs/removes blur and composition listeners and defers external blur restoration (100.266306ms)
+✔ without a desktop bridge the bar has nothing to open and stays inert (58.410686ms)
+✔ Cmd+F opens and focuses the bar; a typed query searches the window once typing settles (42.981272ms)
+✔ Enter and Shift+Enter step within the session; stepping with a pending query runs that query instead (15.703175ms)
+✔ clearing the query stops the search and the counter; closing stops it and resets the bar (105.046312ms)
+✔ a re-summon while open refocuses and reselects the existing query (23.170357ms)
+✔ a blur long after the last find, or before any find, is the user clicking away and sticks (10.538053ms)
+✔ an IME composition is never interrupted: searches wait for it and reports do not refocus (17.303123ms)
+✔ a mounted guest is searched directly, reports on its own event, and a tab switch closes the bar (18.285513ms)
+✔ unmounting cancels every pending query, frame and blur reclaim (5.783675ms)
+✔ useComposedGuestRef feeds one webview node to every registration, and is stable across renders (102.986206ms)
+✔ the live ports read the real window: selection, clock, frames and timers (37.044138ms)
+✔ the query scheduler's default clock is the real timer: cancel drops, settle runs (210.382829ms)
+✔ destination follows typed names, shortens home, and ignores stale replies (2520.725412ms)
+✔ visible badge and panel use main cadence; hidden documents and unmount release polling (2200.802398ms)
+✔ a panel change waits for an outstanding badge read and discards its result (33.653601ms)
+✔ starts hidden without a read; failures withdraw stale data and retry at badge cadence (7.377144ms)
+✔ a missing resource preload remains unavailable and creates no timer (23.594533ms)
+✔ hide/show during a read discards that reading and retries without overlapping (16.148641ms)
+✔ late replies after unmount cannot rearm polling (4.697935ms)
+✔ with no desktop bridge at all, the action resolves an operator-facing refusal, without throwing (0.751886ms)
+✔ openInBrowser calls bridge.openSiteExternal with the PUBLIC site view, not the admin (0.70549ms)
+✔ openInBrowser surfaces a rejected Error message verbatim (0.199569ms)
+✔ a non-Error rejection is coerced with String(), not left as [object Object] (0.12121ms)
+✔ sync warning keeps its DOM, remedy actions and disabled states in either dialog location (172.642934ms)
+✔ settings Add rescans the saved root once; cancel and Remove do not rescan (91.671847ms)
+✔ a failed automatic scan keeps the added folder and shows its exact remedy (69.115636ms)
+✔ settings failures keep the saved roots and show the exact filesystem error (23.270196ms)
+✔ an older preload reports unavailable settings and a late load cannot update an unmounted panel (49.520016ms)
+✔ the shared settings dialog lists roots, only extra roots get Remove, and picker buttons invoke hooks (93.762705ms)
+✔ changing sites home uses the native settings port and applies its returned path (42.751437ms)
+✔ saving all settings uses the shared preload action and surfaces exact rejection (40.932651ms)
+✔ storage drafts omit env overrides and both startup-warning remedies use the settings owner (23.626223ms)
+✔ closing the settings dropdown leaves the sites dialog and its placement draft mounted outside the menu (25.000156ms)
+✔ deskfx S5: IPC wrappers are stripped, close clears the action, and errors stay inside the dialog (400.153155ms)
+✔ deskfx S2: the home row has no Remove even with an old persisted extra-root entry (24.168734ms)
+✔ deskfx2 SHOULD-2: both warning remedies show their failures outside the closed dialog (168.051045ms)
+✔ a located folder resolves with main's record at its new id (2.032477ms)
+✔ a refusal containing a filesystem path becomes the card's recovery instruction (1.271189ms)
+✔ a cancelled picker is not an error to show (0.406735ms)
+✔ a non-Error rejection is stringified, and a missing bridge says so (0.544897ms)
+✔ the locate hook shows pending/error state and delivers the found record with the old id on retry (2287.329578ms)
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+✔ a Start reads as starting until main answers, then applies main's record and opens the site (3004.880259ms)
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+✔ a failed Stop shows main's sentence, clears the pending mark, and the next press clears the error (5.017275ms)
+✔ statuses with no honest button make a press a no-op that never reaches the bridge (13.375654ms)
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+✔ Stop on a site another process serves asks first; Cancel drops it and Confirm stops it (13.544541ms)
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+✔ Restart stops, reports the stopped record, starts, and reads as restarting meanwhile (18.520438ms)
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+✔ a Restart whose start fails shows the failure; a disabled Restart never reaches the bridge (9.312088ms)
+✔ with no bridge wired, a press reports the unavailable bridge on the card (5.512171ms)
+✔ toggle intent preserves no-op, synchronous lock and external-stop confirmation precedence (1.627031ms)
+✔ rapid Start clicks use the synchronous lock and settle updates before opening the site (164.058732ms)
+✔ a running site is offered Stop (0.220335ms)
+✔ a stopped site is offered Start (0.119457ms)
+✔ a FAILED site is offered Start, not a disabled button — a failed boot is the one you retry (0.167759ms)
+✔ mid-start the button says Starting… and does nothing when pressed (0.089212ms)
+✔ mid-stop the button says Stopping… and does nothing when pressed (0.067581ms)
+✔ provisioning and blocked get NO button rather than an inert one (0.073151ms)
+✔ no status produces a label that contradicts its action (0.200783ms)
+✔ 'start' calls startSite and reports main's own record back (0.241168ms)
+✔ 'stop' calls stopSite, never startSite (13.801969ms)
+✔ a rejected call surfaces the Error message verbatim rather than re-wrapping it (0.810636ms)
+✔ a non-Error rejection is coerced with String(), not left as [object Object] (0.182017ms)
+✔ no bridge at all is an operator-facing message, not a thrown error (0.150996ms)
+✔ the in-flight status of each action is the lifecycle status of the same name (0.096115ms)
+✔ a Start that comes back running opens the site, after the card has the new record (6.491284ms)
+✔ a failed Start stays on the card: the error is returned and nothing opens (0.440705ms)
+✔ a Start whose record does not say running does not open the site (0.156176ms)
+✔ a Stop never opens the site (0.164247ms)
+✔ an npm run dev site gets the owner's confirm copy; another app gets one naming it (0.226263ms)
+✔ codeSpans renders backticked text as code and drops empty parts (0.143178ms)
+✔ the Stop confirm is its own card overlay; delete still wins a tie (0.124603ms)
+✔ Stop on an external site asks first: only Confirm reaches the bridge, Cancel never does (102.097249ms)
+✔ a version fetches its capture once; a null version clears what was shown (3201.458146ms)
+✔ a failed fetch renders no image (5.382368ms)
+✔ a reply or failure from a superseded version never overwrites the newer one (26.132032ms)
+✔ with no bridge there is nothing to ask, so nothing is shown (12.255183ms)
+✔ two sites that share a version number each fetch their own capture (5.47795ms)
+✔ the preview effect refetches a new id and ignores the cancelled request's late resolve (245.775432ms)
+✔ the preview effect refetches a new id and ignores the cancelled request's late reject (62.95185ms)
+✔ a null previewVersion clears, even when a bridge IS available (0.626192ms)
+✔ a null previewVersion clears with no bridge either (0.169234ms)
+✔ a real previewVersion with no bridge skips — no fetch attempted, but nothing is cleared (0.369081ms)
+✔ a real previewVersion with a bridge plans a fetch, carrying that SAME bridge reference and the id (0.720569ms)
+✔ previewVersion 0 is a real version, not treated like null (0.268538ms)
+✔ a cancelled run writes nothing on success — a stale resolve must not clobber a newer run (0.100117ms)
+✔ a cancelled run writes nothing on failure either (0.118366ms)
+✔ a live run writes the resolved url on success (0.230371ms)
+✔ a live run writes null on success when there genuinely is no capture yet (1.576205ms)
+✔ a live run writes null on failure (0.119912ms)
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+✔ starting a rename seeds the current name; Escape cancels it (3000.83081ms)
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+✔ a successful save sends the trimmed-as-typed draft, closes the overlay and hands main's record over (94.593354ms)
+✔ a rejected save keeps the overlay open with main's sentence and stops the spinner (12.639244ms)
+✔ refusals never reach the bridge and never show a spinner (22.81853ms)
+✔ submitRename preserves the draft on failure, clears saving, and closes with the returned record on retry (258.638167ms)
+✔ Enter that commits IME composition cannot submit; the subsequent ordinary Enter can (0.745963ms)
+✔ an empty name is rejected (0.212013ms)
+✔ a name that is only whitespace is rejected — trims BEFORE measuring, not after (0.311935ms)
+✔ a single visible character is accepted (0.228906ms)
+✔ exactly 200 characters (the boundary) is accepted (0.175722ms)
+✔ 201 characters is rejected — one past the boundary (0.273916ms)
+✔ 200 characters of CONTENT survives surrounding whitespace that would otherwise push it over (0.176694ms)
+✔ 201 characters of content is still rejected once surrounding whitespace is trimmed away (4.516344ms)
+✔ Save is enabled for a valid name that is not already saving (0.689956ms)
+✔ Save is disabled while a save is already in flight, even with a valid name (0.316572ms)
+✔ Save is disabled for an invalid name, even when nothing is in flight (0.264671ms)
+✔ Save is disabled when BOTH the name is invalid and a save is in flight (0.212021ms)
+✔ with no bridge, submission refuses with the exact operator-facing message (0.355829ms)
+✔ with a bridge, submission carries that SAME bridge reference and the id/name payload (0.21256ms)
+✔ the payload carries the RAW draft, untrimmed — main trims and validates its own copy (0.133618ms)
+✔ an Error rejection surfaces its message verbatim, fix and all (0.388833ms)
+✔ a non-Error rejection is coerced with String(), not left as [object Object] (0.174865ms)
+✔ the invalid-name hint shows for a non-empty draft Tovu would reject (4.386832ms)
+✔ no invalid-name hint for an empty draft (0.219152ms)
+✔ no invalid-name hint for a valid draft, including one exactly at the 200 boundary (0.127009ms)
+✔ Escape cancels the rename, whether or not Save is enabled (0.358035ms)
+✔ Enter submits the card being renamed when Save is enabled (0.330598ms)
+✔ Enter does nothing while Save is disabled (0.19543ms)
+✔ every other key is left alone (0.19973ms)
+✔ building the handler runs nothing (0.109857ms)
+✔ an own running site shows its admin at once and subscribes to history only while visible (2786.135149ms)
+✔ a stopped site mounts no guest and shows no url (8.142385ms)
+✔ a foreign site mounts only once main has admitted its origin (9.483115ms)
+✔ a refused attach is shown on the tab; a settlement after unmount is dropped (18.10221ms)
+✔ prepareExternalWorkspace has nothing to attach for an own site (3.349817ms)
+✔ selecting the current view of a site with no address loads nothing (0.398285ms)
+✔ an attached guest reports its history and navigations into the workspace (11.794775ms)
+✔ workspace effects follow guest replacement and visible-tab history subscriptions (280.175146ms)
+✔ soft-load retains populated history, the live URL, and the existing guest identity (0.283ms)
+✔ a guest that is not attached yet reads as no history rather than throwing (0.203731ms)
+✔ did-navigate re-reads canGoBack/canGoForward from the guest and reports the new url (11.60018ms)
+✔ did-navigate-in-page (the admin router pushState) updates the arrows too (0.2758ms)
+✔ an in-page navigation inside a SUBFRAME refreshes the arrows but never replaces the main url (0.98109ms)
+✔ the teardown detaches both navigation listeners (0.247739ms)
+✔ the reducer stores what a navigation reported, and a new guest node starts with no history (0.146718ms)
+✔ Back calls goBack only when the guest can go back (0.221924ms)
+✔ Forward calls goForward only when the guest can go forward (5.142515ms)
+✔ Back and Forward are no-ops with no guest mounted or a guest not attached yet (0.208014ms)
+✔ the toolbar actions route goBack/goForward to the guest (4.95532ms)
+✔ Reload on a healthy guest ignores the HTTP cache and does NOT remount, so history survives (0.345999ms)
+✔ Reload while the load FAILED remounts the guest instead of calling reload() (0.135001ms)
+✔ Reload while the load STALLED remounts, even though the guest is still mounted (0.15829ms)
+✔ Reload on a guest that is not attached yet falls back to the remount (0.13646ms)
+✔ the recovery panel retry always remounts, and a remount changes the <webview> key (0.13832ms)
+✔ surfaceOfUrl reads the admin from its path and everything else as the site (0.148568ms)
+✔ neither surface invents an address for zero, missing or stopped ports (0.169274ms)
+✔ choosing the surface already on screen does nothing (0.19382ms)
+✔ choosing a surface other than the requested one changes src (0.105703ms)
+✔ after Back crossed to the other surface, choosing the requested one loads it imperatively (55.669549ms)
+✔ that imperative load falls back to a remount when the guest cannot take it (0.333886ms)
+✔ selecting a view highlights it at once, until the guest reports where it landed (0.114103ms)
+✔ Open in browser sends the surface on screen, not the one last requested (5.562227ms)
+✔ a HIDDEN tab does not subscribe to the accelerator, so only the active tab moves (1.24953ms)
+✔ the visible tab steps its own guest back and forward on the accelerator (0.238349ms)
+✔ the accelerator is a no-op on a visible tab whose guest is not mounted (0.182323ms)
+✔ with no desktop bridge there is nothing to subscribe to (0.07534ms)
+✔ history steps and navigation listener setup/teardown contain every detached guest exception (0.226867ms)
+✔ shared running websites retain their HTTPS origin for both admin and public surfaces (0.126306ms)
+✔ a foreign workspace waits for main to attach before using its URL (2.44355ms)
+✔ foreign running sites have no stop action and cannot restart the owning app (1.346091ms)
+✔ the workspace mounts no foreign guest until main has admitted its origin (49.23769ms)
+✔ dialog hook preserves middle truncation, root order, badges, and home removal protection (1.963483ms)
+✔ dialog hook preserves independent override flags and busy picker disabling (0.311837ms)
+✔ dialog hook defaults the trigger and keeps the outside warning out of open/menu-only dialogs (0.466971ms)
+✔ dialog hook forwards exact actions and prevents form submission before saving (0.523837ms)
+✔ the strip reveals the active tab and shows arrows only while it overflows (2712.747081ms)
+✔ the arrows scroll the strip by a fixed step, and arrow keys move between tabs (31.925333ms)
+✔ with no strip mounted the hook observes nothing and its controls are inert (14.025772ms)
+✔ the pane state passes its collaborators through and derives the conversation view (1997.944667ms)
+✔ a folder dropped on the pane is written into the composer the ChatPane published (2.030919ms)
+✔ a dropped folder is swallowed and its path written into the composer draft (2.987438ms)
+✔ several dropped folders go in as ONE space-joined insert, in drop order, loose files skipped (0.271882ms)
+✔ a drop with no folder in it passes through untouched, so ChatPane can stage it as an attachment (0.142616ms)
+✔ without a desktop bridge (no getPathForFile) even a folder drop passes through untouched (0.151273ms)
+✔ a folder whose path cannot be recovered is not a folder drop — the event passes through (0.129827ms)
+✔ a folder drop before ChatPane publishes its composer handle is still swallowed, with nothing inserted (0.127102ms)
+✔ the conversation list gets a COPY of the readonly list: same items, same order, new array (0.150061ms)
+✔ no conversationId prop at all while nothing is active (0.191768ms)
+✔ the active conversation id is passed through when one is active (0.182736ms)
+✔ the run context is empty when the operator picked neither a model nor a reasoning level (0.234421ms)
+✔ the run context carries each picked field and only that field (0.179305ms)
+✔ WorkspaceChatPane takes everything from useWorkspaceChatPane, and the hook routes drops through captureFolderDrop (2.901338ms)
+✔ a registered guest takes its remembered level, and the menu zooms the visible guest and persists it (2345.949053ms)
+✔ a deregistered guest is no longer a target; the command falls back to the shell window (11.92469ms)
+✔ with no bridge the hook subscribes to nothing, and defaults to the shell's own localStorage (11.272275ms)
+✔ a shell whose localStorage getter throws still renders, and zoom still works for the session (10.853049ms)
+✔ resolveZoomTarget: the active guest when it is mounted (10.093076ms)
+✔ resolveZoomTarget: the top page when no guest is active, given a bridge (0.236887ms)
+✔ resolveZoomTarget: the top page when the named guest never actually mounted (0.139811ms)
+✔ resolveZoomTarget: 'none' outside a real desktop window (0.10535ms)
+✔ nextZoomLevel: in/out step by 0.5, reset returns to 0 outright (0.146117ms)
+✔ readStoredZoom: 0 for an unset, corrupt, or throwing store (0.239491ms)
+✔ writeStoredZoom then readStoredZoom round-trips, keyed per project (1.263283ms)
+✔ writeStoredZoom swallows a throwing store rather than breaking the caller (0.313438ms)
+✔ applyZoomCommand: a guest target zooms the guest and persists the new level (0.448443ms)
+✔ applyZoomCommand: a top target zooms the bridge and never touches storage (0.258276ms)
+✔ applyZoomCommand: a top target with no bridge, or a none target, is an inert no-op (0.161079ms)
+✔ useZoom wires remembered zoom on registration and commands to the current target, with teardown (145.150076ms)
+✔ applyStoredZoom: an attached guest takes the stored level at once, with no listener left behind (0.330087ms)
+✔ applyStoredZoom: a guest that is not attached yet does not throw (0.252913ms)
+✔ applyStoredZoom: the stored level still lands once the guest reaches dom-ready (0.175154ms)
+✔ applyZoomCommand: a guest that is not attached yet is an inert no-op, not a throw (3.410881ms)
+✔ ticks on its period while the window is visible (1.662472ms)
+✔ stops its timer when the window is hidden (0.277341ms)
+✔ starts with no timer when the window is already hidden (0.12485ms)
+✔ ticks at once and resumes when the window is shown again (0.274607ms)
+✔ the returned stop clears the timer and the listener (0.171547ms)
+✔ the projects polling hook schedules its listSites callback every 4000ms (367.212982ms)
+✔ the default timers are the real global interval: it ticks, and stop clears it (71.493655ms)
+✔ Websites fits at 375px with every nav control and header action inside the page (3535.675167ms)
+✔ narrow collapsed multi-tab content fills the dialog, and the desktop single-tab dialog uses its one column (654.521472ms)
+✔ the listeners are keyed on the guest NODE, so their lifetime is the node's (1.079527ms)
+✔ the hook hands back the callback ref, and App.tsx puts it on the guest (0.347223ms)
+✔ clearing the failure is a SEPARATE effect keyed on resetKey alone (0.167678ms)
+✔ loaded resets alongside failed/stalled, and only did-finish-load sets it true (0.23966ms)
+✔ useSiteWorkspace passes loaded straight through from useWebviewLoadFailure (0.326211ms)
+✔ SiteWorkspace covers the guest with its own loading state until loaded (or stalled) says otherwise (0.437897ms)
+✔ App actually hands applySiteRecord down to the workspaces, not just to the grid (0.221292ms)
+✔ the two database options this app cannot provision are DISABLED, with the reason on the card (411.7309ms)
+✔ an unavailable option really disables its radio, not just its styling (31.943487ms)
+✔ late-mounted and replacement guests get listeners; old guests and timers are cleaned up (148.334672ms)
+✔ loaded stays false through intermediate events and resets for each navigation (78.694593ms)
+✔ the app stylesheet gives <webview> the display:flex its blocked shadow-root style can't (0.939385ms)
+✔ the guest webview's partition reads off THIS project's own prop, not a shared or hardcoded value (0.940522ms)
+✔ each open project gets its OWN SiteWorkspace instance, carrying its own project prop (0.239356ms)
+✔ SiteRecord's partition field is a required string, not optional — a workspace cannot silently render with no partition at all (0.417634ms)
+✔ startRun refuses before contacting main when no agent is chosen (4.629147ms)
+✔ startRun also refuses an empty-string agentId (0.290762ms)
+✔ every startRun mints a distinct subscription id, shaped sub-<seq>-<random> (4.549153ms)
+✔ a rejected chatStart invoke removes the subscription and rethrows the SAME error (1.120149ms)
+✔ buildChatStartPayload flattens history through the REAL buildTranscript, scoped to the target agent (5.608162ms)
+✔ buildChatStartPayload carries model/reasoning from context, coerced to strings, and omits them when absent (4.309864ms)
+✔ buildChatStartPayload omits attachmentPaths for both undefined and empty attachments (0.347025ms)
+✔ buildChatStartPayload maps attachments to their bare paths only, in order (0.368019ms)
+✔ fetchRunStatus resolves null when the daemon has no snapshot for the run (3.601854ms)
+✔ fetchRunStatus maps daemon state "queued" to chat status "queued" (0.331335ms)
+✔ fetchRunStatus maps daemon state "starting" to chat status "queued" (0.098621ms)
+✔ fetchRunStatus maps daemon state "running" to chat status "running" (0.075517ms)
+✔ fetchRunStatus maps daemon state "succeeded" to chat status "succeeded" (0.095579ms)
+✔ fetchRunStatus maps daemon state "failed" to chat status "failed" (0.052188ms)
+✔ fetchRunStatus maps daemon state "cancelled" to chat status "canceled" (0.049138ms)
+✔ stopRun delegates straight to the bridge with the given run id (0.219811ms)
+✔ an already-aborted cancelSignal stops the run the moment its run id is known (0.205659ms)
+✔ a cancelSignal aborted later stops the run exactly once, not before (0.162222ms)
+✔ a rejecting chatStop from an ALREADY-aborted cancelSignal never surfaces as an unhandled rejection (0.450191ms)
+✔ a rejecting chatStop from a cancelSignal aborted LATER also never surfaces as an unhandled rejection (0.362393ms)
+✔ aborting the pane-lifetime signal detaches the browser side WITHOUT stopping the run (1.002557ms)
+✔ an already-aborted pane lifetime leaves no routable subscription (0.30489ms)
+✔ a rejecting chatDetach during pane-lifetime teardown never surfaces as an unhandled rejection (0.614814ms)
+✔ createWorkspaceChatTransport installs exactly ONE onChatEvent listener, however many runs start (0.279782ms)
+✔ startRun delivers pushed events while the chatStart invoke is still pending (0.483182ms)
+✔ one shared push channel demultiplexes by subscription id and never bleeds one run into another (0.299587ms)
+✔ a full turn translates every RunAgentPayload variant to its exact AgentEvent, in order (1.217752ms)
+✔ a status event with an EMPTY detail string still carries it — not a falsy-string omission (0.30609ms)
+✔ usage zeros are kept, not dropped as falsy (0.743977ms)
+✔ a tool_input_delta with no onToolInputDelta handler wired is a harmless no-op (0.300489ms)
+✔ a tool_result carrying no media, or non-array media, renders with no media key at all (1.629321ms)
+✔ isMediaBlock rejects a non-object entry and a null entry, not just a wrong-shaped object (2.724099ms)
+✔ start/stdout/stderr are diagnostics-only and never render, per NOOP_RUN_EVENT_KINDS (0.467691ms)
+✔ exitDescription names the signal when the process was terminated by one (0.24437ms)
+✔ exitDescription names the exit code when there is no signal (0.223827ms)
+✔ exitDescription falls back to a generic message with neither code nor signal (1.084032ms)
+✔ a run that already reported its own "error" event does not get a second, generic one from "end" (0.358452ms)
+✔ a succeeded end settles quietly, with no error at all (0.160294ms)
+✔ once settled, further protocol events for the same subscription are inert (0.131441ms)
+✔ closed:terminal settles quietly — the "end" event already told the story (0.259573ms)
+✔ closed:unknown-run reports a specific, actionable error before settling (0.640499ms)
+✔ closed:replay-gap reports the replay-specific error before settling (0.240543ms)
+✔ a "closed" message after the run already ended does not double-fire onDone or invent an error (0.210879ms)
+✔ reattachRun stays pending until the stream ends, like an SSE reader, then delivers the full log (0.515045ms)
+✔ reattachRun resolves immediately without contacting main when the caller aborted before it started (0.237571ms)
+✔ aborting mid-reattach detaches AND resolves the pending promise, so a caller awaiting it is never stuck (0.284852ms)
+✔ a rejected chatReattach invoke removes the subscription and rethrows the SAME error (0.779348ms)
+✔ dispose tears down the shared listener and detaches every still-open subscription (0.222013ms)
+✔ dispose does not re-detach a subscription the demux already closed out (0.13909ms)
+✔ a pane-unmount detach that loses the race with the demux is a harmless no-op, not a second chatDetach (0.151486ms)
+✔ cumulative usage preserves session identity and rejects malformed metadata over IPC (0.307419ms)
+✔ subscriptionRandomPart prefers the runtime UUID and falls back to a base-36 time+random token (0.255114ms)
+✔ buildChatStartPayload sends model and reasoning independently of each other (0.194617ms)
+✔ a rejecting chatDetach for a pane that was already gone at start never surfaces as an unhandled rejection (0.456494ms)
+✔ buildChatStartPayload forwards a conversation id and omits a null or absent one (0.259966ms)
+ℹ tests 702
+ℹ suites 0
+ℹ pass 701
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 63550.395472
+
+✖ failing tests:
+
+test at src/renderer/loading-overlay.test.ts:1:914
+✖ the loading overlay on the Site view says "Loading <site>…" (257.5769ms)
+  ReferenceError [Error]: SiteStartPanel is not defined
+      at SiteWorkspace (<anonymous>:19:25)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/desktop/src/renderer/loading-overlay.test.ts:49:29)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)

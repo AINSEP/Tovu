@@ -1,0 +1,281 @@
+
+ RUN  v4.1.11 /home/user/Tovu/apps/admin
+      Coverage enabled with v8
+
+Not implemented: Window's confirm() method
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-compat.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/interfaces.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-json-schema-compat.js" points to missing source files
+ ❯ src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx (0 test)
+ ❯ src/features/posts/__tests__/PostEditor.unit.test.tsx (0 test)
+Sourcemap for "/home/user/Tovu/apps/admin/node_modules/untruncate-json/dist/cjs/index.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/openid-client@6.8.8/node_modules/openid-client/build/index.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/oauth4webapi@3.8.8/node_modules/oauth4webapi/build/index.js" points to missing source files
+ ❯ src/features/library/__tests__/Library.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/panels-render.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-sites-section-visibility.unit.test.tsx (0 test)
+8:43:30 PM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/typescript/lib/typescript.js.
+Error: An error occurred while trying to read the map file at typescript.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/typescript/lib/typescript.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+ ❯ src/features/posts/__tests__/post-editor-agent-drive.unit.test.tsx (0 test)
+ ❯ src/features/ai-assistant/__tests__/AiAssistant.unit.test.tsx (0 test)
+ ❯ src/features/posts/__tests__/post-cover-image.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/nav-wiring.unit.test.ts (0 test)
+ ❯ src/__tests__/unit/app-hooks-admin-webmcp.unit.test.tsx (0 test)
+ ❯ src/features/posts/__tests__/post-schedule-featured.unit.test.tsx (0 test)
+ ❯ src/components/__tests__/agent-handle-batch1.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-admin-assistant-dock-visibility.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-session-unauthenticated-kickback.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-chat-dock-seam.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-agent-page-identity.unit.test.tsx (0 test)
+ ❯ src/lib/__tests__/panel-access.unit.test.ts (0 test)
+Not implemented: Window's scrollTo() method
+ ❯ src/features/posts/__tests__/PostEditor.toolbar-probes.unit.test.ts (0 test)
+ ❯ src/__tests__/unit/app-sidebar-rail-storage-key.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-session-boot-token.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-chat-dock-drop-capture.unit.test.tsx (0 test)
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+ ❯ src/lib/__tests__/agent-pages.unit.test.ts (0 test)
+ ❯ src/__tests__/unit/app-hooks-admin-capability-executors.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-shell-chrome.unit.test.tsx (0 test)
+ ❯ src/__tests__/app-boot-request-volume.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-plugins-route.unit.test.tsx (0 test)
+ ❯ src/features/posts/__tests__/post-author.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-session-local-owner.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-logout-confirm.unit.test.tsx (0 test)
+ ❯ src/hooks/__tests__/editor-session-expiry.unit.test.ts (0 test)
+ ❯ src/__tests__/unit/app-hooks-announcements.unit.test.tsx (0 test)
+ ❯ src/components/__tests__/Placeholder.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-confirm-dialog-i18n.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/admin-nav-recovery-acs.unit.test.ts (0 test)
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+ ❯ src/__tests__/unit/app-route-prototype-keys.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-session-seam.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-panel-permissions.unit.test.tsx (0 test)
+ ❯ src/lib/__tests__/admin-screens-manifest.unit.test.ts (0 test)
+ ❯ src/__tests__/unit/app-stream-wiring.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/chat-fab-hide-preference.unit.test.ts (0 test)
+ ❯ src/__tests__/unit/app-hooks-logout-confirm.unit.test.tsx (0 test)
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+ ❯ src/__tests__/unit/app-hooks-frontend-session-error.unit.test.ts (0 test)
+ ❯ src/features/authentication/__tests__/Authentication.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/main-entry.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/main-entry-signed-in.unit.test.tsx (1 test | 1 failed) 3682ms
+   × mounts the signed-in shell, not the login screen, once the session has a user 3664ms
+ ❯ src/integrations/jini-admin/__tests__/media-session.unit.test.ts (0 test)
+ ❯ src/lib/__tests__/import-export-routes.unit.test.ts (0 test)
+ ❯ src/features/admin-ui/__tests__/redirects.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/commerce-off.unit.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 48 ⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/app-boot-request-volume.test.tsx [ src/__tests__/app-boot-request-volume.test.tsx ]
+ FAIL  src/__tests__/unit/admin-nav-recovery-acs.unit.test.ts [ src/__tests__/unit/admin-nav-recovery-acs.unit.test.ts ]
+ FAIL  src/__tests__/unit/app-admin-assistant-dock-visibility.unit.test.tsx [ src/__tests__/unit/app-admin-assistant-dock-visibility.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-agent-page-identity.unit.test.tsx [ src/__tests__/unit/app-agent-page-identity.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-chat-dock-drop-capture.unit.test.tsx [ src/__tests__/unit/app-chat-dock-drop-capture.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-chat-dock-seam.unit.test.tsx [ src/__tests__/unit/app-chat-dock-seam.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-confirm-dialog-i18n.unit.test.tsx [ src/__tests__/unit/app-confirm-dialog-i18n.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-hooks-admin-capability-executors.unit.test.tsx [ src/__tests__/unit/app-hooks-admin-capability-executors.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-hooks-admin-webmcp.unit.test.tsx [ src/__tests__/unit/app-hooks-admin-webmcp.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-hooks-announcements.unit.test.tsx [ src/__tests__/unit/app-hooks-announcements.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-hooks-frontend-session-error.unit.test.ts [ src/__tests__/unit/app-hooks-frontend-session-error.unit.test.ts ]
+ FAIL  src/__tests__/unit/app-hooks-logout-confirm.unit.test.tsx [ src/__tests__/unit/app-hooks-logout-confirm.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-logout-confirm.unit.test.tsx [ src/__tests__/unit/app-logout-confirm.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-panel-permissions.unit.test.tsx [ src/__tests__/unit/app-panel-permissions.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-plugins-route.unit.test.tsx [ src/__tests__/unit/app-plugins-route.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-route-prototype-keys.unit.test.tsx [ src/__tests__/unit/app-route-prototype-keys.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-session-boot-token.unit.test.tsx [ src/__tests__/unit/app-session-boot-token.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-session-local-owner.unit.test.tsx [ src/__tests__/unit/app-session-local-owner.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-session-seam.unit.test.tsx [ src/__tests__/unit/app-session-seam.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-session-unauthenticated-kickback.unit.test.tsx [ src/__tests__/unit/app-session-unauthenticated-kickback.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-shell-chrome.unit.test.tsx [ src/__tests__/unit/app-shell-chrome.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-sidebar-rail-storage-key.unit.test.tsx [ src/__tests__/unit/app-sidebar-rail-storage-key.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-sites-section-visibility.unit.test.tsx [ src/__tests__/unit/app-sites-section-visibility.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-stream-wiring.unit.test.tsx [ src/__tests__/unit/app-stream-wiring.unit.test.tsx ]
+ FAIL  src/__tests__/unit/chat-fab-hide-preference.unit.test.ts [ src/__tests__/unit/chat-fab-hide-preference.unit.test.ts ]
+ FAIL  src/__tests__/unit/commerce-off.unit.test.ts [ src/__tests__/unit/commerce-off.unit.test.ts ]
+ FAIL  src/__tests__/unit/main-entry.unit.test.tsx [ src/__tests__/unit/main-entry.unit.test.tsx ]
+ FAIL  src/__tests__/unit/nav-wiring.unit.test.ts [ src/__tests__/unit/nav-wiring.unit.test.ts ]
+ FAIL  src/__tests__/unit/panels-render.unit.test.tsx [ src/__tests__/unit/panels-render.unit.test.tsx ]
+ FAIL  src/components/__tests__/Placeholder.unit.test.tsx [ src/components/__tests__/Placeholder.unit.test.tsx ]
+ FAIL  src/components/__tests__/agent-handle-batch1.unit.test.tsx [ src/components/__tests__/agent-handle-batch1.unit.test.tsx ]
+ FAIL  src/lib/__tests__/admin-screens-manifest.unit.test.ts [ src/lib/__tests__/admin-screens-manifest.unit.test.ts ]
+ FAIL  src/lib/__tests__/agent-pages.unit.test.ts [ src/lib/__tests__/agent-pages.unit.test.ts ]
+ FAIL  src/lib/__tests__/import-export-routes.unit.test.ts [ src/lib/__tests__/import-export-routes.unit.test.ts ]
+ FAIL  src/lib/__tests__/panel-access.unit.test.ts [ src/lib/__tests__/panel-access.unit.test.ts ]
+ FAIL  src/features/admin-ui/__tests__/redirects.unit.test.tsx [ src/features/admin-ui/__tests__/redirects.unit.test.tsx ]
+ FAIL  src/features/ai-assistant/__tests__/AiAssistant.unit.test.tsx [ src/features/ai-assistant/__tests__/AiAssistant.unit.test.tsx ]
+ FAIL  src/features/authentication/__tests__/Authentication.unit.test.tsx [ src/features/authentication/__tests__/Authentication.unit.test.tsx ]
+ FAIL  src/features/library/__tests__/Library.unit.test.tsx [ src/features/library/__tests__/Library.unit.test.tsx ]
+ FAIL  src/features/posts/__tests__/PostEditor.toolbar-probes.unit.test.ts [ src/features/posts/__tests__/PostEditor.toolbar-probes.unit.test.ts ]
+ FAIL  src/features/posts/__tests__/post-editor-agent-drive.unit.test.tsx [ src/features/posts/__tests__/post-editor-agent-drive.unit.test.tsx ]
+ FAIL  src/integrations/jini-admin/__tests__/media-session.unit.test.ts [ src/integrations/jini-admin/__tests__/media-session.unit.test.ts ]
+Error: Failed to resolve import "@tiptap/extension-collaboration" from "node_modules/@tiptap/extension-drag-handle/dist/index.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Tovu/apps/admin/node_modules/@tiptap/extension-drag-handle/dist/index.js:3:31
+  5  |  import { computePosition } from "@floating-ui/dom";
+  6  |  import { isFirefox } from "@tiptap/core";
+  7  |  import { isChangeOrigin } from "@tiptap/extension-collaboration";
+     |                                  ^
+  8  |  import { Plugin, PluginKey } from "@tiptap/pm/state";
+  9  |  import {
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+    29077|  }
+    29078|  _formatLog(e$1, position) {
+    29079|   const err$2 = typeof e$1 === "string" ? new Error(e$1) : e$1;
+       |                                           ^
+    29080|   if (err$2.pluginCode) return err$2;
+    29081|   err$2.plugin = this._plugin.name;
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+ ❯ fetchModule node_modules/vite/dist/node/chunks/config.js:34073:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/49]⎯
+
+ FAIL  src/hooks/__tests__/editor-session-expiry.unit.test.ts [ src/hooks/__tests__/editor-session-expiry.unit.test.ts ]
+ FAIL  src/features/posts/__tests__/post-author.unit.test.tsx [ src/features/posts/__tests__/post-author.unit.test.tsx ]
+ FAIL  src/features/posts/__tests__/post-cover-image.unit.test.tsx [ src/features/posts/__tests__/post-cover-image.unit.test.tsx ]
+ FAIL  src/features/posts/__tests__/post-schedule-featured.unit.test.tsx [ src/features/posts/__tests__/post-schedule-featured.unit.test.tsx ]
+Error: Failed to resolve import "highlight.js/lib/core" from "node_modules/@tiptap/extension-code-block-lowlight/dist/index.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Tovu/apps/admin/node_modules/@tiptap/extension-code-block-lowlight/dist/index.js:6:22
+  6  |  import { Plugin, PluginKey } from "@tiptap/pm/state";
+  7  |  import { Decoration, DecorationSet } from "@tiptap/pm/view";
+  8  |  import highlight from "highlight.js/lib/core";
+     |                         ^
+  9  |  function parseNodes(nodes, className = []) {
+  10 |    return nodes.flatMap((node) => {
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+    29077|  }
+    29078|  _formatLog(e$1, position) {
+    29079|   const err$2 = typeof e$1 === "string" ? new Error(e$1) : e$1;
+       |                                           ^
+    29080|   if (err$2.pluginCode) return err$2;
+    29081|   err$2.plugin = this._plugin.name;
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+ ❯ fetchModule node_modules/vite/dist/node/chunks/config.js:34073:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/49]⎯
+
+ FAIL  src/features/posts/__tests__/PostEditor.unit.test.tsx [ src/features/posts/__tests__/PostEditor.unit.test.tsx ]
+Error: Failed to resolve import "@tiptap/extension-collaboration" from "node_modules/@tiptap/extension-drag-handle/dist/index.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Tovu/apps/admin/node_modules/@tiptap/extension-drag-handle/dist/index.js:3:31
+  5  |  import { computePosition } from "@floating-ui/dom";
+  6  |  import { isFirefox } from "@tiptap/core";
+  7  |  import { isChangeOrigin } from "@tiptap/extension-collaboration";
+     |                                  ^
+  8  |  import { Plugin, PluginKey } from "@tiptap/pm/state";
+  9  |  import {
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+    29077|  }
+    29078|  _formatLog(e$1, position) {
+    29079|   const err$2 = typeof e$1 === "string" ? new Error(e$1) : e$1;
+       |                                           ^
+    29080|   if (err$2.pluginCode) return err$2;
+    29081|   err$2.plugin = this._plugin.name;
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/49]⎯
+
+ FAIL  src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx [ src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx ]
+Error: Failed to resolve import "highlight.js/lib/core" from "node_modules/@tiptap/extension-code-block-lowlight/dist/index.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Tovu/apps/admin/node_modules/@tiptap/extension-code-block-lowlight/dist/index.js:6:22
+  6  |  import { Plugin, PluginKey } from "@tiptap/pm/state";
+  7  |  import { Decoration, DecorationSet } from "@tiptap/pm/view";
+  8  |  import highlight from "highlight.js/lib/core";
+     |                         ^
+  9  |  function parseNodes(nodes, className = []) {
+  10 |    return nodes.flatMap((node) => {
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+    29077|  }
+    29078|  _formatLog(e$1, position) {
+    29079|   const err$2 = typeof e$1 === "string" ? new Error(e$1) : e$1;
+       |                                           ^
+    29080|   if (err$2.pluginCode) return err$2;
+    29081|   err$2.plugin = this._plugin.name;
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/49]⎯
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/unit/main-entry-signed-in.unit.test.tsx > mounts the signed-in shell, not the login screen, once the session has a user
+Error: Failed to resolve import "@tiptap/extension-collaboration" from "node_modules/@tiptap/extension-drag-handle/dist/index.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Tovu/apps/admin/node_modules/@tiptap/extension-drag-handle/dist/index.js:3:31
+  5  |  import { computePosition } from "@floating-ui/dom";
+  6  |  import { isFirefox } from "@tiptap/core";
+  7  |  import { isChangeOrigin } from "@tiptap/extension-collaboration";
+     |                                  ^
+  8  |  import { Plugin, PluginKey } from "@tiptap/pm/state";
+  9  |  import {
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+    29077|  }
+    29078|  _formatLog(e$1, position) {
+    29079|   const err$2 = typeof e$1 === "string" ? new Error(e$1) : e$1;
+       |                                           ^
+    29080|   if (err$2.pluginCode) return err$2;
+    29081|   err$2.plugin = this._plugin.name;
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+ ❯ fetchModule node_modules/vite/dist/node/chunks/config.js:34073:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/49]⎯
+
+
+ Test Files  49 failed | 784 passed (833)
+      Tests  1 failed | 12675 passed (12676)
+   Start at  20:37:50
+   Duration  1783.47s (transform 121.63s, setup 227.02s, import 1001.96s, tests 738.21s, environment 833.82s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 94.24% ( 21770/23100 )
+Branches     : 93.8% ( 14547/15507 )
+Functions    : 93.24% ( 7781/8345 )
+Lines        : 94.36% ( 18100/19180 )
+================================================================================
+exit=1
