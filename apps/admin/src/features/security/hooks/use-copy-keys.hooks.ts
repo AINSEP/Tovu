@@ -94,7 +94,7 @@ export function useCopyKeys({ t }: { t: Translate }, {
   const [refresh, setRefresh] = useState(0);
   const busy = useRef(false);
   useEffect(() => {
-    if (!open) return;
+    if (!open) return undefined;
     let live = true;
     setLoading(true);
     client.listCredentialCopySources({}).then(({ sources: next }) => {

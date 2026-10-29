@@ -503,7 +503,7 @@ export function useVisitorCredentialForm({
   useEffect(() => {
     // Missing optional discovery must not leave the form waiting for work it cannot start.
     const listModels = port.current.listModels?.bind(port.current);
-    if (!stored?.isSet || apiKey.trim() || storedKeyIsForOtherEndpoint || !listModels) return;
+    if (!stored?.isSet || apiKey.trim() || storedKeyIsForOtherEndpoint || !listModels) return undefined;
     let cancelled = false;
     setDiscovery({ status: "loading" });
     listModels({ ...config, apiKey: "" })
@@ -576,7 +576,7 @@ export function useVisitorCredentialForm({
     const listModels = port.current.listModels?.bind(port.current);
     if (!apiKey.trim() || !presetSuppliedEndpoint || !listModels) {
       setDiscovery({ status: "idle" });
-      return;
+      return undefined;
     }
     let cancelled = false;
     setDiscovery({ status: "loading" });

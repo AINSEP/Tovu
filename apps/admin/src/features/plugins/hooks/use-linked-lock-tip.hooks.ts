@@ -39,7 +39,10 @@ export function linkedLockTip({ onFollow }: { onFollow: () => void }): typeof us
       onFollow();
     };
     const handleIconKeyDown = (event: KeyboardEvent<HTMLSpanElement>) => {
-      if (event.key !== "Enter" && event.key !== " ") return tip.handleIconKeyDown(event);
+      if (event.key !== "Enter" && event.key !== " ") {
+        tip.handleIconKeyDown(event);
+        return;
+      }
       event.preventDefault();
       onFollow();
     };

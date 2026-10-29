@@ -93,7 +93,7 @@ export function useDockAutoRail(
 
   useEffect(() => {
     const band = matchMedia(DOCK_AUTO_RAIL_QUERY);
-    if (!band) return;
+    if (!band) return undefined;
     const apply = () => {
       const want = shouldAutoRail({ dockOpen, narrow: band.matches });
       if (want === forced.current) return;

@@ -764,7 +764,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     // Loaded together, same reasoning as `usePostEditor`'s identical `Promise.all` — the picker
     // needs `activeThemeTemplates` in hand before it can render anything meaningful, and a fast
     // page-load racing a slow presentation-settings load would otherwise flash an empty picker.
-    if (hydratedRoute.current === routeSlug) return;
+    if (hydratedRoute.current === routeSlug) return undefined;
     // Reopening must hydrate from this mount's settled read, never the retained cache snapshot.
     // Once hydrated, background invalidations must not replace the operator's local draft.
     initial.load()
@@ -888,7 +888,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   // inside the expanded surface is the exit that always works; this is a convenience on top of it,
   // gated on `previewExpanded` so no listener is registered at all while collapsed.
   useEffect(() => {
-    if (!previewExpanded) return;
+    if (!previewExpanded) return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setPreviewExpanded(false);
     };

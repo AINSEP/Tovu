@@ -626,7 +626,10 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
   }
 
   async function replaceToken(row: AccessTokenRow): Promise<void> {
-    if (row.kind === "custom") return replaceCustomCredential(row);
+    if (row.kind === "custom") {
+      await replaceCustomCredential(row);
+      return;
+    }
     const ref: AccessTokenProviderRef = { kind: row.kind, providerId: row.providerId };
     // `row.username` is always undefined here (it is only ever set for `kind: "custom"` rows — see
     // AccessTokenRow.username's own doc), so this is a no-op today. Kept for symmetry with

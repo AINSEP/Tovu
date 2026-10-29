@@ -265,14 +265,14 @@ export function useThemeCanvasStyling(
   const [state, setState] = useState<ThemeCanvasStylingState>({ status: "pending" });
 
   useEffect(() => {
-    if (themeId === null) return; // Still `pending` — presentation settings have not landed yet.
+    if (themeId === null) return undefined; // Still `pending` — presentation settings have not landed yet.
     if (!themeId) {
       // Presentation settings have landed but no theme is configured (`themeId === ""`) — there is
       // nothing to fetch, so this resolves immediately instead of sitting `pending` until the Slice B2
       // timeout below, which exists to bound a real in-flight fetch, not an empty theme id.
       logCanvasStylingSettle("styling:empty-theme");
       setState(NO_CANVAS_STYLING);
-      return;
+      return undefined;
     }
     if (templateChoice === "") {
       // Bare page (owner ruling 2026-09-23, S6): no theme chrome at all, so there is nothing for the
@@ -282,7 +282,7 @@ export function useThemeCanvasStyling(
       // a real, loaded theme with a bare Page selected is a settled state, not a waiting one.
       logCanvasStylingSettle("styling:bare-page");
       setState(NO_CANVAS_STYLING);
-      return;
+      return undefined;
     }
     // Declared fresh inside the effect body on every run (not a ref/module-level flag) so it is
     // naturally reset on each mount, including StrictMode's dev-mode mount->unmount->mount — see

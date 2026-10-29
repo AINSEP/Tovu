@@ -110,14 +110,14 @@ export function useAdminThemeDocument(_required: object, { port = defaultAdminTh
   const themeId = interfaceConfig?.adminTheme;
   const preference = appearance?.theme;
   useEffect(() => {
-    if (themeId === undefined || preference === undefined) return;
+    if (themeId === undefined || preference === undefined) return undefined;
     const resolved = env ?? browserEnv();
     const paint = () => paintAdminTheme({ choice: { themeId, preference } }, resolved);
     paint();
-    if (preference !== "system" || !resolved.matchMedia) return;
+    if (preference !== "system" || !resolved.matchMedia) return undefined;
     const media = resolved.matchMedia("(prefers-color-scheme: dark)");
     // A partial host port must not open a subscription it cannot dispose.
-    if (!media.removeEventListener) return;
+    if (!media.removeEventListener) return undefined;
     media.addEventListener?.("change", paint);
     return () => {
       if (media.removeEventListener) media.removeEventListener("change", paint);

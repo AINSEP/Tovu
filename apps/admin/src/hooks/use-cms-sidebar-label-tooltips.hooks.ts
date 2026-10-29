@@ -7,7 +7,7 @@ export function useCmsSidebarLabelTooltips(
 ): void {
   useEffect(() => {
     const nav = doc.getElementById(navId);
-    if (!nav) return;
+    if (!nav) return undefined;
     const original = new Map<Element, string | null>();
     const update = () => {
       for (const link of nav.querySelectorAll("a.cms-item")) {

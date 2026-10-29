@@ -458,7 +458,7 @@ export function useByokRuntime(
   useEffect(() => {
     if (executionConfig.mode !== "byok" || !byokApiKey.trim()) {
       setByokModels([]);
-      return;
+      return undefined;
     }
     let cancelled = false;
     executionPort.current
@@ -706,7 +706,7 @@ export function useComposerCapabilities(_input: Record<string, never> = {}, _opt
   const [catalog, setCatalog] = useState(() => ({ scope: queryScope, projection: emptyComposerCapabilityProjection() }));
 
   useEffect(() => {
-    if (checking) return;
+    if (checking) return undefined;
     // One source per authenticated boot scope and document (same-origin site/API, fixed workspace).
     // No module singleton can retain another user's installed capabilities.
     const installed = createInstalledSkillsComposerCapabilitySource();

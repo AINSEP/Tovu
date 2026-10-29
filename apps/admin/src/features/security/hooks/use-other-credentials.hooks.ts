@@ -158,17 +158,17 @@ async function readExternalMcpServers(port: OtherCredentialsPort, t: Translate, 
 /** Dispatches one store's read by id — the one place `OtherCredentialStoreId` is switched over for
  *  reads, mirroring `rules.ts`'s `buildAccessTokenConnectionInput` dispatch-by-kind pattern.
  *  @complexity O(1) plus whichever reader's own complexity. */
+type StoreReader = (port: OtherCredentialsPort, store: OtherCredentialStoreInfo, t: Translate, locale: string) => Promise<RawStoreItem[]>;
+
+const STORE_READERS: Record<OtherCredentialStoreInfo["id"], StoreReader> = {
+  "site-assistant": (port, store, _t, locale) => readSiteAssistant(port, store, locale),
+  "admin-byok": (port, store, _t, locale) => readAdminByok(port, store, locale),
+  "media-provider": (port, _store, _t, locale) => readMediaProviders(port, locale),
+  "external-mcp": (port, _store, t, locale) => readExternalMcpServers(port, t, locale),
+};
+
 function readStore(port: OtherCredentialsPort, store: OtherCredentialStoreInfo, t: Translate, locale = 'en'): Promise<RawStoreItem[]> {
-  switch (store.id) {
-    case "site-assistant":
-      return readSiteAssistant(port, store, locale);
-    case "admin-byok":
-      return readAdminByok(port, store, locale);
-    case "media-provider":
-      return readMediaProviders(port, locale);
-    case "external-mcp":
-      return readExternalMcpServers(port, t, locale);
-  }
+  return STORE_READERS[store.id](port, store, t, locale);
 }
 
 /** Builds the full `{apiKey?, baseUrl?, model?}` map to PUT back for a media-provider Replace/Remove

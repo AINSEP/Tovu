@@ -61,8 +61,8 @@ export function captureSkillDrop(
   event.preventDefault(); event.stopPropagation();
   const saved = { ...event, preventDefault: () => {}, stopPropagation: () => {}, dataTransfer: { ...event.dataTransfer, files, types: Array.from(event.dataTransfer.types ?? []), items: items.map(item => ({ kind: "file", getAsFile: () => item.file, webkitGetAsEntry: () => item.entry })) } } as unknown as DragEvent<HTMLElement>;
   void collect(entries).then(({ files: leaves, paths }) => {
-    if (leaves.some(file => file.name === "SKILL.md")) return proposeFiles(leaves, paths);
-    fallback(saved);
+    if (leaves.some(file => file.name === "SKILL.md")) proposeFiles(leaves, paths);
+    else fallback(saved);
   }).catch(error => error === NOT_A_SKILL ? fallback(saved) : onError(error instanceof Error ? error.message : "Could not read skill folder."));
   return true;
 }

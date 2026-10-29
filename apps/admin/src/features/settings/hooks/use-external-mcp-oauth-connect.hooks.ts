@@ -98,7 +98,10 @@ export function useExternalMcpOAuthConnect(
       try {
         const result = await port.pollExternalMcpOAuthDevice(serverId);
         if (stopped) return;
-        if (result.status === "connected") return finish();
+        if (result.status === "connected") {
+          finish();
+          return;
+        }
         timer = setTimeout(() => void tick(), result.retryAfterSeconds * 1000);
       } catch (error) {
         if (!stopped) finish(describeApiError(error, fallbackError));

@@ -55,7 +55,7 @@ export async function resolveComposerDiscoveryOutcome(
   const route = resolveTovuComposerDiscoveryRoute(selection.item.id);
   if (route) {
     deps.navigate(route);
-    return;
+    return undefined;
   }
 
   const capability = deps.capabilities.byItemId.get(selection.item.id);
@@ -80,7 +80,7 @@ export async function resolveComposerDiscoveryOutcome(
     return { draft: "" };
   }
 
-  if (!capability?.resolve) return;
+  if (!capability?.resolve) return undefined;
 
   return applyBinding({ selection, label: capability.item.label, binding: capability.resolve(selection.argument) }, deps);
 }

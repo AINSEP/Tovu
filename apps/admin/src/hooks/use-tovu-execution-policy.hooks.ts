@@ -21,7 +21,7 @@ export function useTovuExecutionPolicy(
   const loader = useRef(loadRuntime);
   const pending = useRef<Promise<RuntimeSnapshot | undefined> | null>(null);
   useEffect(() => {
-    if (desktop) return;
+    if (desktop) return undefined;
     let live = true;
     pending.current = loader.current().then(
       (snapshot) => { if (live) setMode(snapshot.mode); return snapshot; },

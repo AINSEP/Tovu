@@ -188,7 +188,7 @@ export function useAdminSession(_required: Record<string, never> = {}, {
    * and would 401, and `EventSource` would then retry that 401 forever.
    */
   useEffect(() => {
-    if (!user) return;
+    if (!user) return undefined;
     return subscribeSettingsChanges(WORKSPACE_ID, { principalId: user.id });
   }, [user]);
 
@@ -317,7 +317,7 @@ export function useAdminAssistantAvailability(user: AdminUser | null): boolean {
   const [enabled, setEnabled] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) return undefined;
     let cancelled = false;
     api
       .getAssistantSettings()
@@ -629,7 +629,7 @@ export function useSidebarDrawer({ routePath }: { routePath: string }): UseSideb
   // only listen while open, so this never fights other Escape handlers (e.g. a dialog) elsewhere
   // in the app.
   useEffect(() => {
-    if (!sidebarOpen) return;
+    if (!sidebarOpen) return undefined;
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") setSidebarOpen(false);
     }
@@ -778,10 +778,10 @@ export function useChatDockLayout(): UseChatDockLayout {
   useEffect(() => {
     if (!isSheetMode || !chatOpen) {
       setSheetHeightPx(0);
-      return;
+      return undefined;
     }
     const el = chatDockRef.current;
-    if (!el) return;
+    if (!el) return undefined;
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (entry) setSheetHeightPx(entry.contentRect.height);
@@ -800,10 +800,10 @@ export function useChatDockLayout(): UseChatDockLayout {
   useEffect(() => {
     if (isSheetMode || !chatOpen) {
       setDockWidthPx(0);
-      return;
+      return undefined;
     }
     const el = chatDockRef.current;
-    if (!el) return;
+    if (!el) return undefined;
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (entry) setDockWidthPx(entry.contentRect.width);
@@ -816,7 +816,7 @@ export function useChatDockLayout(): UseChatDockLayout {
   // Harmless at desktop widths too (closing the docked panel via Escape is a reasonable universal
   // affordance, not sheet-specific), so this is not gated on `isSheetMode`.
   useEffect(() => {
-    if (!chatOpen) return;
+    if (!chatOpen) return undefined;
     function onKeyDown(e: KeyboardEvent) {
       // The composer consumes Escape to dismiss its palette; keep the containing dock open.
       // An open modal (a confirm dialog) or menu (Chats, gear) owns its Escape too: one press closes only it.
@@ -1107,7 +1107,7 @@ export function useAgentPageBridge(
   const executors = useMemo(() => buildAdminCapabilityExecutors(contentEl), [contentEl]);
 
   useEffect(() => {
-    if (!pageDriver) return;
+    if (!pageDriver) return undefined;
 
     const bridge = createBridge({ baseUrl: "", fetch, openStream }, {
       pageDriver,
@@ -1130,7 +1130,7 @@ export function useAgentPageBridge(
   }, [pageDriver, executors, createBridge, openStream]);
 
   useEffect(() => {
-    if (!pageDriver || !webMcpEnabled) return;
+    if (!pageDriver || !webMcpEnabled) return undefined;
     // Plan §4 S5: expose the SAME admin dispatcher and page driver as the assistant relay.
     // Its own AbortController, not bridge.close()'s lifetime: these are unrelated surfaces
     // (daemon-relayed SSE vs. page-native WebMCP). Opting out unregisters browser tools while

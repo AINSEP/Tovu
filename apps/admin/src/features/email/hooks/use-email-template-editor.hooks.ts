@@ -83,10 +83,10 @@ export function useEmailTemplateEditor(
   }, [loadedId]);
 
   useEffect(() => {
-    if (!loadedId) return;
+    if (!loadedId) return undefined;
     if (!html.trim()) {
       setPreview({ data: null, error: null, pending: false });
-      return;
+      return undefined;
     }
     let live = true;
     setPreview((current) => ({ ...current, pending: true }));

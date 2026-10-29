@@ -72,9 +72,9 @@ export function useLocalSites(
   useEffect(() => {
     if (switchTarget && activeSiteName === switchTarget.name) {
       setSwitchTarget(null);
-      return;
+      return undefined;
     }
-    if (!starting && !switchTarget) return;
+    if (!starting && !switchTarget) return undefined;
     // Replace the slow poll while a restart is pending; a saved default alone is not completion.
     return startVisibleInterval(() => {
       if (switchTarget && Date.now() >= switchTarget.deadline) setSwitchTarget(null);

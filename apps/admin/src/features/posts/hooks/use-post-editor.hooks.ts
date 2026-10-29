@@ -909,7 +909,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // always works; this is a convenience on top of it, gated on `previewExpanded` so no listener is
   // registered at all while collapsed.
   useEffect(() => {
-    if (!previewExpanded) return;
+    if (!previewExpanded) return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setPreviewExpanded(false);
     };

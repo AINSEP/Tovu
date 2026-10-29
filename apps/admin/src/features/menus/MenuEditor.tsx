@@ -147,6 +147,9 @@ export function MenuItemTargetFields({
           </label>
         </>
       );
+    default:
+      // Every target kind is handled above; an unknown one renders no fields.
+      return null;
   }
 }
 

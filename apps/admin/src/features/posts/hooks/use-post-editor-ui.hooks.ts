@@ -183,7 +183,7 @@ export function useToolbarOverflow(): ToolbarOverflowController {
   }, [toolbar]);
 
   useEffect(() => {
-    if (!toolbar || typeof ResizeObserver !== "function") return;
+    if (!toolbar || typeof ResizeObserver !== "function") return undefined;
     const observer = new ResizeObserver(remeasure);
     observer.observe(toolbar);
     toolbar.querySelectorAll(".tb-more, [data-tb-rank]").forEach((control) => observer.observe(control));
@@ -208,7 +208,7 @@ export function useToolbarOverflow(): ToolbarOverflowController {
 export function usePostPreviewIframeEscape(expanded: boolean, onCollapse: () => void): (node: HTMLIFrameElement | null) => void {
   const [iframe, setIframe] = useState<HTMLIFrameElement | null>(null);
   useEffect(() => {
-    if (!iframe || !expanded) return;
+    if (!iframe || !expanded) return undefined;
     let frameDocument: Document | null = null;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onCollapse();
