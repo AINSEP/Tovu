@@ -1,0 +1,16 @@
+apps/website/src/assistant/duplicate-resource-registry.ts(97,10): error TS2352: Conversion of type 'DuplicateResourceHandlerContributor<never>[]' to type 'readonly DuplicateResourceHandlerContributor<TDeps>[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'DuplicateResourceHandlerContributor<never>' is not comparable to type 'DuplicateResourceHandlerContributor<TDeps>'.
+    Type 'TDeps' is not comparable to type 'never'.
+apps/website/src/server/inbound/admin-http/routes/system/assistant-permanent-deletes.ts(23,46): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(iterable?: Iterable<unknown> | null | undefined): Set<unknown>', gave the following error.
+    Argument of type 'unknown' is not assignable to parameter of type 'Iterable<unknown> | null | undefined'.
+  Overload 2 of 2, '(values?: readonly any[] | null | undefined): Set<any>', gave the following error.
+    Argument of type 'unknown' is not assignable to parameter of type 'readonly any[] | null | undefined'.
+apps/website/src/server/inbound/admin-http/routes/system/assistant-permanent-deletes.ts(23,76): error TS18046: 'body.allowedToolIds' is of type 'unknown'.
+apps/website/src/server/inbound/admin-http/routes/system/assistant-permanent-deletes.ts(26,70): error TS2488: Type 'unknown' must have a '[Symbol.iterator]()' method that returns an iterator.
+apps/website/src/server/runtime/composition/tool-catalog-manifest.ts(422,52): error TS2345: Argument of type 'DnsRouteDeps' is not assignable to parameter of type 'SavedHostingDeps'.
+  Type 'DnsRouteDeps' is missing the following properties from type '{ publishContentPeerRepo: Pick<PublishContentPeerRepoPort, "listByWorkspace">; publishHistoryStore: Pick<PublishHistoryStore, "list">; }': publishContentPeerRepo, publishHistoryStore
+
+real	0m24.964s
+user	0m33.143s
+sys	0m3.856s

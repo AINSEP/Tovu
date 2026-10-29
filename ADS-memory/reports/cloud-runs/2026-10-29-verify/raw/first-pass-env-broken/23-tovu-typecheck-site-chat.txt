@@ -1,0 +1,19 @@
+apps/site-chat/src/SiteAssistantActivation.hooks.ts(1,57): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/site-chat/src/SiteAssistantHeader.hooks.ts(1,25): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/site-chat/src/SiteAssistantHeader.tsx(14,10): error TS2875: This JSX tag requires the module path 'react/jsx-runtime' to exist, but none could be found. Make sure you have types for the appropriate package installed.
+apps/site-chat/src/SiteAssistantWidget.tsx(1,67): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/site-chat/src/SiteAssistantWidget.tsx(159,89): error TS7006: Parameter 'message' implicitly has an 'any' type.
+apps/site-chat/src/SiteAssistantWidget.tsx(169,17): error TS7006: Parameter 'key' implicitly has an 'any' type.
+apps/site-chat/src/SiteAssistantWidget.tsx(236,5): error TS2875: This JSX tag requires the module path 'react/jsx-runtime' to exist, but none could be found. Make sure you have types for the appropriate package installed.
+apps/site-chat/src/SiteToolConfirmation.hooks.ts(1,58): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/site-chat/src/__tests__/SiteAssistantHeader.test.ts(4,27): error TS2307: Cannot find module 'react-dom/client' or its corresponding type declarations.
+apps/site-chat/src/__tests__/react-dom-harness.ts(62,35): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/site-chat/src/__tests__/react-dom-harness.ts(64,44): error TS2307: Cannot find module 'react-dom/client' or its corresponding type declarations.
+apps/site-chat/src/main.tsx(1,39): error TS2307: Cannot find module 'react-dom/client' or its corresponding type declarations.
+apps/site-chat/src/main.tsx(76,15): error TS2875: This JSX tag requires the module path 'react/jsx-runtime' to exist, but none could be found. Make sure you have types for the appropriate package installed.
+apps/site-chat/src/vanilla-host.ts(2,30): error TS2307: Cannot find module 'micromark-extension-gfm' or its corresponding type declarations.
+apps/site-chat/vite.config.ts(2,19): error TS2307: Cannot find module '@vitejs/plugin-react' or its corresponding type declarations.
+
+real	0m3.683s
+user	0m5.153s
+sys	0m0.520s

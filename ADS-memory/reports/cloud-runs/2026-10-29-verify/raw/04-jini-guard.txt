@@ -1,0 +1,28 @@
+
+> jini@ guard /home/user/Jini
+> node --import tsx ./scripts/guard.ts
+
+[hardwiring] HW1-env-default: 17 total; 0 new
+[hardwiring] HW2-vendor-adapter: 18 total; 0 new
+[hardwiring] HW3-module-state: 137 total; 1 new
+[hardwiring] HW4-injected-fetch: 1 total; 0 new
+[hardwiring] HW5-jini-export: 0 total; 0 new
+[hardwiring] HW6-boot-default: 0 total; 0 new
+[hardwiring] HW7-public-react: 0 total; 0 new
+[hardwiring] HW8-provider-url: 49 total; 0 new
+[hardwiring] HW9-plugin-import: 0 total; 0 new
+[hardwiring] 27 stale debt occurrences; remove them from scripts/hardwiring-debt.json.
+[guard] R13-model-fallback-freshness claude: MF3 compared 16 live id(s) against 20 fallback entr(ies).
+[guard] R13-model-fallback-freshness codex: MF3 SKIPPED — `codex debug models` unavailable (spawn codex ENOENT). Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness antigravity: MF3 SKIPPED — `agy models` unavailable (spawn agy ENOENT). Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness pi: MF3 SKIPPED — MF3 does not apply to `pi` — only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness aider: MF3 SKIPPED — MF3 does not apply to `aider` — only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness opencode: MF3 SKIPPED — MF3 does not apply to `opencode` — only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).
+[guard] L3-undeclared-edge packages/ui/src/react/components/SecretInput.hooks.ts: ui → @jini-ai/ui-kit/react: production import must be a dependency or peerDependency
+[guard] L3-undeclared-edge packages/ui/src/react/components/SecretInput.tsx: ui → @jini-ai/ui-kit/react: production import must be a dependency or peerDependency
+[guard] SI-domain packages/platform/src/http/guarded/client.ts: ./http/guarded (http) reaches src/net/effective-port.ts (net) via ../../net/effective-port.js
+[guard] SI-domain packages/platform/src/mail/builtin-providers.ts: ./mail (mail) reaches src/net/effective-port.ts (net) via ../net/effective-port.js
+[guard] HW3-module-state packages/devops/src/static-export/css-urls.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+
+5 guard violation(s).
+ ELIFECYCLE  Command failed with exit code 1.

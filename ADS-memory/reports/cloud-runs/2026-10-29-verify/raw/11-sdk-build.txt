@@ -1,0 +1,30 @@
+
+> @tovu/sdk@0.1.0 build
+> tsc -p tsconfig.json
+
+src/index.ts(132,166): error TS2724: '"@jini-ai/plugins/host"' has no exported member named 'PluginProviderContribution'. Did you mean 'PluginRouteContribution'?
+src/index.ts(132,194): error TS2305: Module '"@jini-ai/plugins/host"' has no exported member 'PluginProviderFactory'.
+src/index.ts(132,217): error TS2305: Module '"@jini-ai/plugins/host"' has no exported member 'PluginProviderResource'.
+src/index.ts(133,110): error TS2724: '"@jini-ai/plugins/host"' has no exported member named 'PluginProviderContribution'. Did you mean 'PluginRouteContribution'?
+npm error Lifecycle script `build` failed with error:
+npm error code 2
+npm error path /home/user/Tovu/packages/sdk
+npm error workspace @tovu/sdk@0.1.0
+npm error location /home/user/Tovu/packages/sdk
+npm error command failed
+npm error command sh -c tsc -p tsconfig.json
+
+> @tovu/sdk@0.1.0 build
+> tsc -p tsconfig.json
+
+src/index.ts(132,166): error TS2724: '"@jini-ai/plugins/host"' has no exported member named 'PluginProviderContribution'. Did you mean 'PluginRouteContribution'?
+src/index.ts(132,194): error TS2305: Module '"@jini-ai/plugins/host"' has no exported member 'PluginProviderFactory'.
+src/index.ts(132,217): error TS2305: Module '"@jini-ai/plugins/host"' has no exported member 'PluginProviderResource'.
+src/index.ts(133,110): error TS2724: '"@jini-ai/plugins/host"' has no exported member named 'PluginProviderContribution'. Did you mean 'PluginRouteContribution'?
+npm error Lifecycle script `build` failed with error:
+npm error code 2
+npm error path /home/user/Tovu/packages/sdk
+npm error workspace @tovu/sdk@0.1.0
+npm error location /home/user/Tovu/packages/sdk
+npm error command failed
+npm error command sh -c tsc -p tsconfig.json

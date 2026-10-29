@@ -1,0 +1,79 @@
+
+> tovu@0.1.0 link:jini
+> node development/scripts/link-jini.mjs
+
+
+.:
+  ok       agent-plugins
+  ok       agent-runtime
+  ok       agentic
+  ok       analytics
+  ok       capability-providers
+  ok       chat
+  ok       cli
+  ok       cms
+  ok       commerce
+  ok       cookie-consent
+  ok       core
+  ok       daemon
+  ok       db
+  ok       desktop-host
+  ok       devops
+  ok       diagnostics
+  ok       http-kit
+  ok       infra
+  ok       integrations
+  ok       mcp
+  ok       oauth
+  ok       platform
+  ok       plugins
+  ok       protocol
+  ok       registry
+  ok       sandbox
+  ok       search
+  ok       server
+  ok       sidecar
+  ok       ui
+  ok       user-management
+  ok       vibecoding
+
+apps/admin:
+  link admin -> ../../../../../Jini/packages/admin (was installed-copy)
+  link agent-plugins -> ../../../../../Jini/packages/agent-plugins (was installed-copy)
+  link agent-runtime -> ../../../../../Jini/packages/agent-runtime (was installed-copy)
+  link agentic -> ../../../../../Jini/packages/agentic (was installed-copy)
+  link chat -> ../../../../../Jini/packages/chat (was installed-copy)
+  link cms -> ../../../../../Jini/packages/cms (was installed-copy)
+  link core -> ../../../../../Jini/packages/core (was installed-copy)
+  link integrations -> ../../../../../Jini/packages/integrations (was installed-copy)
+  link oauth -> ../../../../../Jini/packages/oauth (was installed-copy)
+  link protocol -> ../../../../../Jini/packages/protocol (was installed-copy)
+  link ui -> ../../../../../Jini/packages/ui (was installed-copy)
+  link ui-kit -> ../../../../../Jini/packages/ui-kit (was installed-copy)
+  link user-management -> ../../../../../Jini/packages/user-management (was installed-copy)
+
+apps/site-chat:
+  link agentic -> ../../../../../Jini/packages/agentic (was installed-copy)
+  link chat -> ../../../../../Jini/packages/chat (was installed-copy)
+  link core -> ../../../../../Jini/packages/core (was installed-copy)
+  link protocol -> ../../../../../Jini/packages/protocol (was installed-copy)
+  link ui -> ../../../../../Jini/packages/ui (was installed-copy)
+
+apps/desktop:
+  link agent-runtime -> ../../../../../Jini/packages/agent-runtime (was installed-copy)
+  link agentic -> ../../../../../Jini/packages/agentic (was installed-copy)
+  link chat -> ../../../../../Jini/packages/chat (was installed-copy)
+  link core -> ../../../../../Jini/packages/core (was installed-copy)
+  link daemon -> ../../../../../Jini/packages/daemon (was installed-copy)
+  link desktop-host -> ../../../../../Jini/packages/desktop-host (was installed-copy)
+  link devops -> ../../../../../Jini/packages/devops (was installed-copy)
+  link diagnostics -> ../../../../../Jini/packages/diagnostics (was installed-copy)
+  link mcp -> ../../../../../Jini/packages/mcp (was installed-copy)
+  link oauth -> ../../../../../Jini/packages/oauth (was installed-copy)
+  link platform -> ../../../../../Jini/packages/platform (was installed-copy)
+  link protocol -> ../../../../../Jini/packages/protocol (was installed-copy)
+  link ui -> ../../../../../Jini/packages/ui (was installed-copy)
+
+Linked @jini-ai/* from /home/user/Jini/packages (31 link(s) changed).
+Builds are blocked while linked (check-no-linked-jini.mjs) — run `npm run unlink:jini` before building for real.
+

@@ -1,0 +1,35 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/capability-providers
+      Coverage enabled with v8
+
+ ✓ src/adapters/ws/__tests__/index.test.ts (21 tests) 88ms
+ ✓ src/visitor-auth/__tests__/lifecycle.test.ts (28 tests) 13ms
+ ✓ src/visitor-auth/__tests__/lifecycle.guards.test.ts (28 tests) 10ms
+ ✓ src/adapters/jwt-auth/__tests__/index.test.ts (19 tests) 690ms
+ ✓ src/visitor-auth/__tests__/definitions-registry.test.ts (13 tests) 10ms
+ ✓ src/adapters/blob-storage/__tests__/index.test.ts (12 tests) 16ms
+ ✓ src/comments/__tests__/comments.test.ts (4 tests) 10ms
+ ✓ src/adapters/sqlite/__tests__/index.test.ts (16 tests) 33ms
+ ✓ src/unsafe-reference/__tests__/auth.test.ts (11 tests) 9ms
+ ✓ src/unsafe-reference/__tests__/db.test.ts (12 tests) 6ms
+ ✓ src/unsafe-reference/__tests__/storage.test.ts (10 tests) 12ms
+ ✓ src/__tests__/index.test.ts (3 tests) 4ms
+ ✓ src/unsafe-reference/__tests__/realtime.test.ts (7 tests) 8ms
+ ✓ src/unsafe-reference/__tests__/payments.test.ts (8 tests) 7ms
+ ✓ src/visitor-auth/__tests__/tokens-exports.test.ts (2 tests) 3ms
+ ✓ src/__tests__/tokens.test.ts (2 tests) 3ms
+ ✓ src/unsafe-reference/__tests__/index.test.ts (1 test) 2ms
+
+ Test Files  17 passed (17)
+      Tests  197 passed (197)
+   Start at  19:59:22
+   Duration  4.00s (transform 955ms, setup 0ms, collect 2.27s, tests 923ms, environment 3ms, prepare 1.26s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 100% ( 1070/1070 )
+Branches     : 100% ( 424/424 )
+Functions    : 100% ( 113/113 )
+Lines        : 100% ( 1070/1070 )
+================================================================================

@@ -1,0 +1,81 @@
+apps/desktop/main.ts(107,116): error TS2307: Cannot find module 'electron' or its corresponding type declarations.
+apps/desktop/main.ts(183,49): error TS2307: Cannot find module 'electron' or its corresponding type declarations.
+apps/desktop/main.ts(261,26): error TS2339: Property 'resourcesPath' does not exist on type 'Process'.
+apps/desktop/main.ts(434,92): error TS2339: Property 'resourcesPath' does not exist on type 'Process'.
+apps/desktop/main.ts(445,34): error TS7006: Parameter '_event' implicitly has an 'any' type.
+apps/desktop/main.ts(445,42): error TS7006: Parameter '_contents' implicitly has an 'any' type.
+apps/desktop/main.ts(445,53): error TS7006: Parameter 'details' implicitly has an 'any' type.
+apps/desktop/main.ts(446,33): error TS7006: Parameter '_event' implicitly has an 'any' type.
+apps/desktop/main.ts(446,41): error TS7006: Parameter 'details' implicitly has an 'any' type.
+apps/desktop/main.ts(449,94): error TS7006: Parameter 'contents' implicitly has an 'any' type.
+apps/desktop/main.ts(487,58): error TS7006: Parameter 'item' implicitly has an 'any' type.
+apps/desktop/main.ts(627,36): error TS7006: Parameter 'event' implicitly has an 'any' type.
+apps/desktop/main.ts(703,36): error TS7006: Parameter 'event' implicitly has an 'any' type.
+apps/desktop/main.ts(726,49): error TS7006: Parameter 'event' implicitly has an 'any' type.
+apps/desktop/main.ts(726,56): error TS7006: Parameter 'webPreferences' implicitly has an 'any' type.
+apps/desktop/main.ts(726,72): error TS7006: Parameter 'params' implicitly has an 'any' type.
+apps/desktop/main.ts(735,48): error TS7006: Parameter '_event' implicitly has an 'any' type.
+apps/desktop/main.ts(735,56): error TS7006: Parameter 'contents' implicitly has an 'any' type.
+apps/desktop/main.ts(1148,37): error TS18048: 'entry' is possibly 'undefined'.
+apps/desktop/main.ts(1270,35): error TS7006: Parameter '_event' implicitly has an 'any' type.
+apps/desktop/main.ts(1270,43): error TS7006: Parameter 'contents' implicitly has an 'any' type.
+apps/desktop/main.ts(1275,35): error TS7006: Parameter 'event' implicitly has an 'any' type.
+apps/desktop/main.ts(1275,42): error TS7006: Parameter 'url' implicitly has an 'any' type.
+apps/desktop/main.ts(1286,35): error TS7006: Parameter 'details' implicitly has an 'any' type.
+apps/desktop/main.ts(1584,43): error TS2307: Cannot find module 'electron-updater' or its corresponding type declarations.
+apps/desktop/main.ts(1612,27): error TS2339: Property 'windowsStore' does not exist on type 'Process'.
+apps/desktop/main.ts(1632,43): error TS2307: Cannot find module 'electron-updater' or its corresponding type declarations.
+apps/desktop/main.ts(1757,75): error TS2307: Cannot find module 'electron' or its corresponding type declarations.
+apps/desktop/main.ts(1975,24): error TS7006: Parameter 'event' implicitly has an 'any' type.
+apps/desktop/src/asar-verify.test.ts(14,56): error TS2307: Cannot find module '@electron/asar' or its corresponding type declarations.
+apps/desktop/src/asar-verify.ts(47,23): error TS2307: Cannot find module '@electron/asar' or its corresponding type declarations.
+apps/desktop/src/desktop-capture.test.ts(5,36): error TS2307: Cannot find module 'electron' or its corresponding type declarations.
+apps/desktop/src/desktop-capture.ts(4,69): error TS2307: Cannot find module 'electron' or its corresponding type declarations.
+apps/desktop/src/desktop-capture.ts(14,34): error TS2503: Cannot find namespace 'Electron'.
+apps/desktop/src/desktop-capture.ts(22,49): error TS7006: Parameter '_contents' implicitly has an 'any' type.
+apps/desktop/src/desktop-capture.ts(22,60): error TS7006: Parameter '_permission' implicitly has an 'any' type.
+apps/desktop/src/desktop-capture.ts(22,73): error TS7006: Parameter 'callback' implicitly has an 'any' type.
+apps/desktop/src/desktop-capture.ts(25,48): error TS7006: Parameter 'request' implicitly has an 'any' type.
+apps/desktop/src/desktop-capture.ts(25,57): error TS7006: Parameter 'callback' implicitly has an 'any' type.
+apps/desktop/src/desktop-capture.ts(31,38): error TS7006: Parameter 'event' implicitly has an 'any' type.
+apps/desktop/src/desktop-capture.ts(40,43): error TS7006: Parameter 'details' implicitly has an 'any' type.
+apps/desktop/src/desktop-capture.ts(40,52): error TS7006: Parameter 'callback' implicitly has an 'any' type.
+apps/desktop/src/desktop-capture.ts(45,62): error TS7006: Parameter 'event' implicitly has an 'any' type.
+apps/desktop/src/desktop-capture.ts(45,69): error TS7006: Parameter 'errorCode' implicitly has an 'any' type.
+apps/desktop/src/desktop-capture.ts(45,80): error TS7006: Parameter 'errorDescription' implicitly has an 'any' type.
+apps/desktop/src/desktop-capture.ts(48,61): error TS7006: Parameter 'event' implicitly has an 'any' type.
+apps/desktop/src/desktop-capture.ts(48,68): error TS7006: Parameter 'url' implicitly has an 'any' type.
+apps/desktop/src/desktop-host-signals.ts(16,29): error TS2339: Property 'resourcesPath' does not exist on type 'Process'.
+apps/desktop/src/electron-builder-files.test.ts(44,109): error TS2307: Cannot find module 'app-builder-lib/out/fileMatcher.js' or its corresponding type declarations.
+apps/desktop/src/electron-builder-files.test.ts(58,16): error TS2664: Invalid module name in augmentation, module 'app-builder-lib/out/fileMatcher.js' cannot be found.
+apps/desktop/src/find-in-page-ipc.ts(14,43): error TS2307: Cannot find module 'electron' or its corresponding type declarations.
+apps/desktop/src/find-in-page-ipc.ts(33,67): error TS7006: Parameter 'event' implicitly has an 'any' type.
+apps/desktop/src/find-in-page-ipc.ts(33,74): error TS7006: Parameter 'query' implicitly has an 'any' type.
+apps/desktop/src/native-listener-disposal.test.ts(18,16): error TS7006: Parameter 'channel' implicitly has an 'any' type.
+apps/desktop/src/native-listener-disposal.test.ts(18,25): error TS7006: Parameter 'listener' implicitly has an 'any' type.
+apps/desktop/src/native-listener-disposal.test.ts(19,23): error TS7006: Parameter 'channel' implicitly has an 'any' type.
+apps/desktop/src/native-listener-disposal.test.ts(22,20): error TS7006: Parameter 'text' implicitly has an 'any' type.
+apps/desktop/src/native-listener-disposal.test.ts(22,26): error TS7006: Parameter 'options' implicitly has an 'any' type.
+apps/desktop/src/native-listener-disposal.test.ts(23,24): error TS7006: Parameter 'action' implicitly has an 'any' type.
+apps/desktop/src/native-listener-disposal.test.ts(30,3): error TS2349: This expression is not callable.
+  Type '{}' has no call signatures.
+apps/desktop/src/native-listener-disposal.test.ts(30,25): error TS2344: Type 'unknown' does not satisfy the constraint '(...args: any) => any'.
+apps/desktop/src/native-listener-disposal.test.ts(31,3): error TS2349: This expression is not callable.
+  Type '{}' has no call signatures.
+apps/desktop/src/native-listener-disposal.test.ts(31,25): error TS2344: Type 'unknown' does not satisfy the constraint '(...args: any) => any'.
+apps/desktop/src/preload/preload.mts(27,64): error TS2307: Cannot find module 'electron' or its corresponding type declarations.
+apps/desktop/src/renderer/source-test-harness.ts(4,19): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/speech/native-speech-adapter.test.ts(73,25): error TS7006: Parameter 'channel' implicitly has an 'any' type.
+apps/desktop/src/speech/native-speech-adapter.test.ts(73,84): error TS7006: Parameter 'channel' implicitly has an 'any' type.
+apps/desktop/src/speech/speech-ipc.ts(20,30): error TS2307: Cannot find module 'electron' or its corresponding type declarations.
+apps/desktop/src/speech/speech-ipc.ts(60,66): error TS7006: Parameter 'event' implicitly has an 'any' type.
+apps/desktop/src/speech/speech-ipc.ts(60,73): error TS7006: Parameter 'samples' implicitly has an 'any' type.
+apps/desktop/src/speech/speech-ipc.ts(60,82): error TS7006: Parameter 'sampleRate' implicitly has an 'any' type.
+apps/desktop/src/update-manifest-merge.test.ts(13,33): error TS2307: Cannot find module 'electron-updater/out/providers/Provider.js' or its corresponding type declarations.
+apps/desktop/src/verify-package-cli.test.ts(14,56): error TS2307: Cannot find module '@electron/asar' or its corresponding type declarations.
+apps/website/src/platform/site-dir/site-trash.ts(87,3): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+
+real	0m11.582s
+user	0m15.785s
+sys	0m1.077s

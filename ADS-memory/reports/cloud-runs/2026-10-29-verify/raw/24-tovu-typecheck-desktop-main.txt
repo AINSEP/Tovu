@@ -1,0 +1,6 @@
+apps/website/src/platform/site-dir/site-trash.ts(87,3): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+
+real	0m12.188s
+user	0m16.304s
+sys	0m1.212s

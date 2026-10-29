@@ -1,0 +1,35 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/analytics
+      Coverage enabled with v8
+
+ ✓ src/__tests__/ingest.test.ts (69 tests) 26ms
+ ✓ src/__tests__/forwarding.test.ts (20 tests) 18ms
+ ✓ src/__tests__/ingest-characterization.test.ts (35 tests) 16ms
+ ✓ src/__tests__/browser-contribution.test.ts (16 tests) 27ms
+stderr | src/__tests__/product-consent.test.ts > recheck #1: async consent without a revision fails closed; sync consent and async with a revision deliver
+[analytics/product] async consent without consentRevision: every promised approval is dropped (fail closed). Pass { consentRevision } to withProductAnalyticsGuards.
+
+ ✓ src/__tests__/product-consent.test.ts (12 tests) 20ms
+ ✓ src/__tests__/ai-generations.test.ts (5 tests) 18ms
+ ✓ src/__tests__/repo.memory.test.ts (9 tests) 5ms
+ ✓ src/__tests__/product-analytics.test.ts (6 tests) 12ms
+ ✓ src/__tests__/salt.test.ts (9 tests) 7ms
+ ✓ src/__tests__/product-boundaries.unit.test.ts (4 tests) 15ms
+ ✓ src/__tests__/product-fanout.test.ts (4 tests) 5ms
+ ✓ src/__tests__/policy-ports.test.ts (4 tests) 8ms
+ ✓ src/__tests__/exports.test.ts (2 tests) 3ms
+ ✓ src/__tests__/product-browser.test.ts (2 tests) 135ms
+
+ Test Files  14 passed (14)
+      Tests  197 passed (197)
+   Start at  19:59:19
+   Duration  2.84s (transform 571ms, setup 0ms, collect 1.49s, tests 316ms, environment 3ms, prepare 1.15s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 100% ( 687/687 )
+Branches     : 99.32% ( 439/442 )
+Functions    : 100% ( 94/94 )
+Lines        : 100% ( 687/687 )
+================================================================================

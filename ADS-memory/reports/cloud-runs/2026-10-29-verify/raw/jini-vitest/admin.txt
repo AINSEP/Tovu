@@ -1,0 +1,1120 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/admin
+      Coverage enabled with v8
+
+ ✓ src/widgets/react/__tests__/use-widget-instance-editor.hooks.unit.test.ts (36 tests) 1502ms
+ ❯ src/seo/react/__tests__/Seo.unit.test.tsx (0 test)
+ ✓ src/forms/react/__tests__/FormsList.unit.test.tsx (16 tests) 1306ms
+ ✓ src/comments/react/__tests__/use-comment-queue.unit.test.tsx (26 tests) 2600ms
+ ✓ src/react/__tests__/components/ConfirmDialog.test.tsx (41 tests) 544ms
+ ✓ src/redirects/react/__tests__/use-redirects.hooks.unit.test.tsx (20 tests) 1381ms
+ ✓ src/forms/react/__tests__/FormEditor.unit.test.tsx (14 tests) 2000ms
+   ✓ field attributes modal > opens from the row's kebab trigger, and round-trips a CSS class + an allowlisted attribute into the save payload 590ms
+   ✓ field attributes modal > rejects a non-allowlisted attribute name client-side, keeping the modal open with an error 318ms
+   ✓ field attributes modal > Cancel discards edits without touching the field 317ms
+ ❯ src/seo/react/__tests__/share-image-warning.unit.test.tsx (0 test)
+ ✓ src/react/components/RowMenu/__tests__/RowMenu.test.tsx (34 tests) 553ms
+ ✓ src/media/react/__tests__/edit-parity.test.tsx (24 tests) 1716ms
+ ✓ src/media/react/__tests__/library-tab-hooks.test.tsx (23 tests) 563ms
+ ✓ src/security/react/__tests__/security-hooks.test.tsx (29 tests) 1411ms
+ ❯ src/media/react/__tests__/library-parity.test.tsx (0 test)
+ ✓ src/agent-plugins/react/__tests__/agent-plugins-hooks.test.tsx (23 tests) 503ms
+ ❯ src/media/react/__tests__/providers-tab-hooks.test.tsx (0 test)
+ ✓ src/react/components/__tests__/Sidebar.test.tsx (26 tests) 592ms
+ ❯ src/seo/react/__tests__/use-seo-entry-panel.unit.test.ts (0 test)
+ ✓ src/react/__tests__/components/DataTable.test.tsx (31 tests) 458ms
+stderr | src/media/react/__tests__/media.test.tsx > renders the optional credential tab without exposing saved secrets
+{
+  name: 'Error',
+  message: 'Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?',
+  stack: 'Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?\n' +
+    '    at TransformPluginContext._formatError (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)\n' +
+    '    at TransformPluginContext.error (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)\n' +
+    '    at normalizeUrl (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)\n' +
+    '    at async file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39\n' +
+    '    at async Promise.all (index 2)\n' +
+    '    at async TransformPluginContext.transform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)\n' +
+    '    at async PluginContainer.transform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)\n' +
+    '    at async loadAndTransform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)\n' +
+    '    at async ViteNodeServer._transformRequest (file:///home/user/Jini/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:537:16)\n' +
+    '    at async ViteNodeServer._fetchModule (file:///home/user/Jini/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:504:17)',
+  cause: undefined,
+  __vitest_rollup_error__: {
+    plugin: 'vite:import-analysis',
+    id: '/home/user/Jini/packages/ui/dist/react/components/SecretInput.js',
+    loc: {
+      file: '../../../src/react/components/SecretInput.tsx',
+      line: 2,
+      column: 46
+    },
+    frame: '1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";\n' +
+      "2  |  import { forwardRef } from 'react';\n" +
+      "3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';\n" +
+      '   |                                                 ^\n' +
+      "4  |  import { useT } from '../../features/i18n/index.js';\n" +
+      "5  |  import { Icon } from './Icon.js';"
+  },
+  stackStr: 'Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?\n' +
+    '    at TransformPluginContext._formatError (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)\n' +
+    '    at TransformPluginContext.error (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)\n' +
+    '    at normalizeUrl (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)\n' +
+    '    at async file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39\n' +
+    '    at async Promise.all (index 2)\n' +
+    '    at async TransformPluginContext.transform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)\n' +
+    '    at async PluginContainer.transform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)\n' +
+    '    at async loadAndTransform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)\n' +
+    '    at async ViteNodeServer._transformRequest (file:///home/user/Jini/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:537:16)\n' +
+    '    at async ViteNodeServer._fetchModule (file:///home/user/Jini/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:504:17)',
+  nameStr: 'Error',
+  expected: 'undefined',
+  actual: 'undefined'
+}
+An error occurred in one of your React components.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+ ✓ src/consent/react/__tests__/ConsentFields.test.tsx (22 tests) 977ms
+ ✓ src/widgets/react/__tests__/use-widgets-library.hooks.unit.test.tsx (13 tests) 1131ms
+ ✓ src/react/shell/__tests__/AdminShell.test.tsx (22 tests) 572ms
+ ❯ src/seo/react/__tests__/SitemapModal.unit.test.tsx (0 test)
+ ✓ src/forms/react/__tests__/use-forms-list.unit.test.tsx (14 tests) 1156ms
+ ✓ src/forms/react/__tests__/submissions-states.unit.test.tsx (15 tests) 1652ms
+   ✓ forms module editor page > opens the editor for a formId prop 371ms
+   ✓ forms module editor page > opens the editor for a route param on the submissions tab 324ms
+   ✓ forms module editor page > refuses to render the editor without a form id 307ms
+ ✓ src/media/react/__tests__/upload-button-hooks.test.tsx (23 tests) 92ms
+ ✓ src/redirects/react/__tests__/use-import-redirects-form.hooks.unit.test.tsx (15 tests) 107ms
+ ❯ src/media/react/__tests__/media.test.tsx (11 tests | 1 failed) 16869ms
+   ✓ media React slice > lazily switches library presets and hides the optional Providers tab 1197ms
+   × renders the optional credential tab without exposing saved secrets 15013ms
+     → Unable to find a label with the text of: Example credential
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+   ✓ renders a read-only media page when write grants are absent 362ms
+ ✓ src/comments/__tests__/rules.unit.test.ts (31 tests) 17ms
+ ✓ src/widgets/react/__tests__/WidgetsLibrary.unit.test.tsx (13 tests) 645ms
+ ✓ src/redirects/react/__tests__/redirects-binding.unit.test.tsx (14 tests) 1447ms
+   ✓ redirects React binding > mounts the lazy list page and cancelling a delete keeps the rule 568ms
+   ✓ redirects React binding > prefers live host options over the factory defaults 343ms
+   ✓ redirects React binding > blocks the screen with the load error when the first list read fails 309ms
+ ✓ src/widgets/react/__tests__/use-widget-region-editor.hooks.unit.test.tsx (8 tests) 545ms
+ ✓ src/react/entities/__tests__/draft-rules.test.ts (26 tests) 24ms
+ ✓ src/widgets/react/__tests__/WidgetRegionEditor.unit.test.tsx (19 tests) 543ms
+ ✓ src/comments/react/__tests__/Comments.unit.test.tsx (4 tests) 690ms
+   ✓ offers Purge only under the trash filter, and gates it through ConfirmDialog instead of window.confirm 332ms
+ ✓ src/media/react/__tests__/qa-fixes.test.tsx (8 tests) 2211ms
+   ✓ shows only an error after failure and recovers through Retry 500ms
+   ✓ places host actions in the header, marks selected sort, and filters Trash with optional Restore pills 551ms
+   ✓ names the permanent deletion and focuses the next card, then the empty grid 884ms
+ ✓ src/forms/react/__tests__/use-form-submissions.unit.test.tsx (7 tests) 595ms
+ ✓ src/react/entities/__tests__/screens.test.tsx (14 tests) 586ms
+ ✓ src/widgets/react/__tests__/WidgetInstanceEditor.unit.test.tsx (15 tests) 522ms
+   ✓ editor controls > sends the edited title and config to Save, and blocks Back when leaving is declined 312ms
+ ✓ src/forms/react/__tests__/forms-agent-drive.unit.test.tsx (4 tests) 877ms
+   ✓ driving a new form's field editor through page.* verbs > page.fill on the name and slug fields reaches React state 519ms
+ ❯ src/seo/react/__tests__/MediaRefField.unit.test.tsx (0 test)
+ ✓ src/agent-plugins/react/__tests__/agent-plugins.test.tsx (7 tests) 4494ms
+   ✓ denies default mounts without reading the backend 433ms
+   ✓ renders both enabled and disabled rows read-only with details and inspection 487ms
+   ✓ preserves all rows across lazy list tabs and shows an honest marketplace 1137ms
+   ✓ uses direct enable, guarded disable and cancel-first focus without optimistic activation 663ms
+   ✓ Downloaded Turn off confirms a disable without deleting or hiding the package 754ms
+   ✓ inspects disabled packages with file omissions, caps, keyboard navigation and per-file wrap reset 616ms
+   ✓ honors host Button overrides for page and confirmation actions 403ms
+ ❯ src/seo/react/__tests__/use-seo.unit.test.ts (0 test)
+ ✓ src/forms/react/__tests__/use-form-editor.branches.unit.test.tsx (10 tests) 404ms
+ ❯ src/media/react/__tests__/media-component-states.test.tsx (0 test)
+ ✓ src/react/shell/__tests__/session.test.tsx (13 tests) 602ms
+stderr | src/seo/react/__tests__/seo-binding.unit.test.tsx > seo module binding > reports tab switches to the host
+{
+  name: 'Error',
+  message: 'Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?',
+  stack: 'Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?\n' +
+    '    at TransformPluginContext._formatError (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)\n' +
+    '    at TransformPluginContext.error (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)\n' +
+    '    at normalizeUrl (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)\n' +
+    '    at async file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39\n' +
+    '    at async Promise.all (index 2)\n' +
+    '    at async TransformPluginContext.transform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)\n' +
+    '    at async PluginContainer.transform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)\n' +
+    '    at async loadAndTransform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)\n' +
+    '    at async ViteNodeServer._transformRequest (file:///home/user/Jini/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:537:16)\n' +
+    '    at async ViteNodeServer._fetchModule (file:///home/user/Jini/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:504:17)',
+  cause: undefined,
+  __vitest_rollup_error__: {
+    plugin: 'vite:import-analysis',
+    id: '/home/user/Jini/packages/ui/dist/react/components/SecretInput.js',
+    loc: {
+      file: '../../../src/react/components/SecretInput.tsx',
+      line: 2,
+      column: 46
+    },
+    frame: '1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";\n' +
+      "2  |  import { forwardRef } from 'react';\n" +
+      "3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';\n" +
+      '   |                                                 ^\n' +
+      "4  |  import { useT } from '../../features/i18n/index.js';\n" +
+      "5  |  import { Icon } from './Icon.js';"
+  },
+  stackStr: 'Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?\n' +
+    '    at TransformPluginContext._formatError (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)\n' +
+    '    at TransformPluginContext.error (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)\n' +
+    '    at normalizeUrl (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)\n' +
+    '    at async file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39\n' +
+    '    at async Promise.all (index 2)\n' +
+    '    at async TransformPluginContext.transform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)\n' +
+    '    at async PluginContainer.transform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)\n' +
+    '    at async loadAndTransform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)\n' +
+    '    at async ViteNodeServer._transformRequest (file:///home/user/Jini/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:537:16)\n' +
+    '    at async ViteNodeServer._fetchModule (file:///home/user/Jini/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:504:17)',
+  nameStr: 'Error',
+  expected: 'undefined',
+  actual: 'undefined'
+}
+An error occurred in one of your React components.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+ ✓ src/security/react/__tests__/security-editor.test.tsx (6 tests) 2798ms
+   ✓ security credential editor > collects the custom-provider fields and saves them under the chosen category 664ms
+   ✓ security credential editor > titles an existing credential as an edit and cancelling discards the draft 402ms
+   ✓ security provider-described fields > labels the token with the provider field and edits its extra fields 430ms
+   ✓ security page binding > reports tab changes to the host and shows the host-supplied root-key scope notice 618ms
+   ✓ access tokens tab > links to the provider token page and promotes a saved token to default 374ms
+   ✓ access tokens tab > denies the tab itself to a viewer without the read grant 308ms
+ ✓ src/forms/react/__tests__/FieldSettingsSection.unit.test.tsx (16 tests) 542ms
+stderr | src/redirects/react/__tests__/use-hit-count-cell.hooks.unit.test.tsx > useHitCountCell > fetches once request() is called, and resolves with the hit stats
+The current testing environment is not configured to support act(...)
+The current testing environment is not configured to support act(...)
+
+stderr | src/redirects/react/__tests__/use-hit-count-cell.hooks.unit.test.tsx > useHitCountCell > keeps two redirect requests and cached results separate under one provider
+The current testing environment is not configured to support act(...)
+The current testing environment is not configured to support act(...)
+
+stderr | src/redirects/react/__tests__/use-hit-count-cell.hooks.unit.test.tsx > useHitCountCell > keeps two redirect requests and cached results separate under one provider
+The current testing environment is not configured to support act(...)
+The current testing environment is not configured to support act(...)
+
+stderr | src/redirects/react/__tests__/use-hit-count-cell.hooks.unit.test.tsx > useHitCountCell > resolves data even for a rule with zero recorded hits — the caller must branch on data being present, not on hitCount's truthiness
+The current testing environment is not configured to support act(...)
+The current testing environment is not configured to support act(...)
+
+stderr | src/redirects/react/__tests__/use-hit-count-cell.hooks.unit.test.tsx > useHitCountCell > is fetching while the request is in flight, and settles once it resolves
+The current testing environment is not configured to support act(...)
+The current testing environment is not configured to support act(...)
+
+stderr | src/redirects/react/__tests__/use-hit-count-cell.hooks.unit.test.tsx > useHitCountCell > is fetching while the request is in flight, and settles once it resolves
+The current testing environment is not configured to support act(...)
+
+stderr | src/redirects/react/__tests__/use-hit-count-cell.hooks.unit.test.tsx > useHitCountCell > surfaces a request failure as an error
+The current testing environment is not configured to support act(...)
+The current testing environment is not configured to support act(...)
+
+stderr | src/redirects/react/__tests__/use-hit-count-cell.hooks.unit.test.tsx > useHitCountCell — injected port (no fetch stub) > stays lazy against the injected port too — request() is what triggers the read
+The current testing environment is not configured to support act(...)
+The current testing environment is not configured to support act(...)
+
+stderr | src/redirects/react/__tests__/use-hit-count-cell.hooks.unit.test.tsx > useHitCountCell — injected port (no fetch stub) > resolves whatever hitCount the injected port was seeded with
+The current testing environment is not configured to support act(...)
+The current testing environment is not configured to support act(...)
+
+ ✓ src/redirects/react/__tests__/use-hit-count-cell.hooks.unit.test.tsx (9 tests) 445ms
+ ✓ src/react/components/InteractiveHtmlEditor/__tests__/InteractiveHtmlEditor.test.tsx (22 tests) 12ms
+ ✓ src/comments/react/__tests__/use-comment-settings.unit.test.tsx (7 tests) 423ms
+ ❯ src/seo/react/__tests__/copy-polish.unit.test.tsx (0 test)
+ ❯ src/__tests__/fqfix-loading.unit.test.tsx (0 test)
+ ✓ src/react/entities/__tests__/entity-routes-and-states.test.tsx (13 tests) 290ms
+ ✓ src/react/entities/__tests__/use-entity-edit.test.tsx (10 tests) 700ms
+stderr | src/seo/react/__tests__/seo-binding.unit.test.tsx > seo module binding > mounts the standalone defaults tab once settings load
+{
+  name: 'Error',
+  message: 'Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?',
+  stack: 'Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?\n' +
+    '    at TransformPluginContext._formatError (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)\n' +
+    '    at TransformPluginContext.error (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)\n' +
+    '    at normalizeUrl (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)\n' +
+    '    at async file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39\n' +
+    '    at async Promise.all (index 2)\n' +
+    '    at async TransformPluginContext.transform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)\n' +
+    '    at async PluginContainer.transform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)\n' +
+    '    at async loadAndTransform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)\n' +
+    '    at async ViteNodeServer._transformRequest (file:///home/user/Jini/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:537:16)\n' +
+    '    at async ViteNodeServer._fetchModule (file:///home/user/Jini/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:504:17)',
+  cause: undefined,
+  __vitest_rollup_error__: {
+    plugin: 'vite:import-analysis',
+    id: '/home/user/Jini/packages/ui/dist/react/components/SecretInput.js',
+    loc: {
+      file: '../../../src/react/components/SecretInput.tsx',
+      line: 2,
+      column: 46
+    },
+    frame: '1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";\n' +
+      "2  |  import { forwardRef } from 'react';\n" +
+      "3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';\n" +
+      '   |                                                 ^\n' +
+      "4  |  import { useT } from '../../features/i18n/index.js';\n" +
+      "5  |  import { Icon } from './Icon.js';"
+  },
+  stackStr: 'Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?\n' +
+    '    at TransformPluginContext._formatError (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)\n' +
+    '    at TransformPluginContext.error (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)\n' +
+    '    at normalizeUrl (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)\n' +
+    '    at async file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39\n' +
+    '    at async Promise.all (index 2)\n' +
+    '    at async TransformPluginContext.transform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)\n' +
+    '    at async PluginContainer.transform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)\n' +
+    '    at async loadAndTransform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)\n' +
+    '    at async ViteNodeServer._transformRequest (file:///home/user/Jini/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:537:16)\n' +
+    '    at async ViteNodeServer._fetchModule (file:///home/user/Jini/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:504:17)',
+  nameStr: 'Error',
+  expected: 'undefined',
+  actual: 'undefined',
+  diff: ''
+}
+An error occurred in one of your React components.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+ ✓ src/widgets/react/__tests__/widgets-binding.unit.test.tsx (12 tests) 3914ms
+   ✓ widgets module pages > opens the editor from route params and lists every place the widget is used 401ms
+   ✓ widgets module pages > shows no usage banner for a widget used nowhere 319ms
+   ✓ widgets module pages > lists bound regions on the regions page 329ms
+   ✓ widgets module pages > opens the editor from a direct widget id and words a single use in the singular 311ms
+   ✓ widgets module pages > starts a new widget from a type param and shows the pending save 351ms
+   ✓ widgets module pages > starts a new widget from a direct type prop 312ms
+   ✓ widgets module pages > asks for a widget type when neither an id nor a type is supplied 306ms
+   ✓ widgets module pages > shows the load error, after a loading notice, when the widget cannot be read 341ms
+   ✓ widgets module pages > blocks the library with the first-load error 309ms
+   ✓ widgets module pages > loads the region named by route params, a direct prop, or none 925ms
+ ✓ src/source-control/react/__tests__/source-control-surface.unit.test.tsx (11 tests) 1727ms
+   ✓ source-control React > shows token guidance and links to the provider token page 414ms
+   ✓ source-control React > surfaces a failed token save 356ms
+   ✓ source-control React > flags a saved token whose provider is no longer listed 316ms
+   ✓ source-control React > opens the host credential manager when navigation is supplied 318ms
+   ✓ source-control React > denies the providers tab to a viewer without the read grant 307ms
+ ✓ src/widgets/react/__tests__/use-widget-regions.hooks.unit.test.tsx (7 tests) 631ms
+ ✓ src/forms/react/__tests__/use-field-attributes-dialog.hooks.unit.test.ts (6 tests) 135ms
+ ✓ src/seo/react/__tests__/seo-hooks-fallbacks.unit.test.tsx (12 tests) 502ms
+ ✓ src/react/entities/__tests__/entity-field.test.tsx (16 tests) 349ms
+ ✓ src/forms/react/__tests__/FormEditorFieldsBody.unit.test.tsx (13 tests) 400ms
+stderr | src/seo/react/__tests__/seo-binding.unit.test.tsx > seo module binding > shows the standalone tab load error when settings cannot be read
+{
+  name: 'Error',
+  message: 'Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?',
+  stack: 'Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?\n' +
+    '    at TransformPluginContext._formatError (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)\n' +
+    '    at TransformPluginContext.error (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)\n' +
+    '    at normalizeUrl (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)\n' +
+    '    at async file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39\n' +
+    '    at async Promise.all (index 2)\n' +
+    '    at async TransformPluginContext.transform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)\n' +
+    '    at async PluginContainer.transform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)\n' +
+    '    at async loadAndTransform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)\n' +
+    '    at async ViteNodeServer._transformRequest (file:///home/user/Jini/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:537:16)\n' +
+    '    at async ViteNodeServer._fetchModule (file:///home/user/Jini/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:504:17)',
+  cause: undefined,
+  __vitest_rollup_error__: {
+    plugin: 'vite:import-analysis',
+    id: '/home/user/Jini/packages/ui/dist/react/components/SecretInput.js',
+    loc: {
+      file: '../../../src/react/components/SecretInput.tsx',
+      line: 2,
+      column: 46
+    },
+    frame: '1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";\n' +
+      "2  |  import { forwardRef } from 'react';\n" +
+      "3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';\n" +
+      '   |                                                 ^\n' +
+      "4  |  import { useT } from '../../features/i18n/index.js';\n" +
+      "5  |  import { Icon } from './Icon.js';"
+  },
+  stackStr: 'Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?\n' +
+    '    at TransformPluginContext._formatError (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)\n' +
+    '    at TransformPluginContext.error (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)\n' +
+    '    at normalizeUrl (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)\n' +
+    '    at async file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39\n' +
+    '    at async Promise.all (index 2)\n' +
+    '    at async TransformPluginContext.transform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)\n' +
+    '    at async PluginContainer.transform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)\n' +
+    '    at async loadAndTransform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)\n' +
+    '    at async ViteNodeServer._transformRequest (file:///home/user/Jini/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:537:16)\n' +
+    '    at async ViteNodeServer._fetchModule (file:///home/user/Jini/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:504:17)',
+  nameStr: 'Error',
+  expected: 'undefined',
+  actual: 'undefined',
+  diff: ''
+}
+An error occurred in one of your React components.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+ ✓ src/redirects/react/__tests__/Redirects.unit.test.tsx (5 tests) 1132ms
+   ✓ Redirects — table actions and bulk import > loads a row's hit count and imports the JSON typed into the bulk form 431ms
+ ✓ src/react/shell/__tests__/admin-theme.test.tsx (4 tests) 183ms
+ ✓ src/comments/react/__tests__/use-comment-queue.boundary.unit.test.tsx (10 tests) 442ms
+ ✓ src/media/react/__tests__/qa-round2.test.tsx (6 tests) 1938ms
+   ✓ keeps the existing grid mounted during uploads and focuses it without scrolling 560ms
+   ✓ restores focus and announces Trash and Restore after their refreshes 578ms
+   ✓ announces Replace and returns focus without removing the grid 570ms
+ ✓ src/browser/__tests__/navigation-interceptor.test.ts (25 tests) 57ms
+ ✓ src/security/react/__tests__/security.test.tsx (6 tests) 2938ms
+   ✓ security React slice > renders denied without grants and never loads credentials 379ms
+   ✓ security React slice > renders saved rows read-only without write grants, and omits optional root-key tab 356ms
+   ✓ security React slice > lazily switches root-key tab with grants and never offers reveal 719ms
+   ✓ security React slice > clears newly saved secret drafts and supports multiple named tokens 443ms
+   ✓ security React slice > allows host confirmation overrides and executes only through the safety controller 341ms
+   ✓ security React slice > refuses fresh recovery without a typed confirmation and accepts it after preview 698ms
+ ✓ src/forms/react/__tests__/use-form-submission-detail.unit.test.tsx (6 tests) 416ms
+stderr | src/seo/react/__tests__/seo-binding.unit.test.tsx > seo module binding > opens the shell sitemap modal from the sitemap tab and closes it on dismiss
+{
+  name: 'Error',
+  message: 'Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?',
+  stack: 'Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?\n' +
+    '    at TransformPluginContext._formatError (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)\n' +
+    '    at TransformPluginContext.error (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)\n' +
+    '    at normalizeUrl (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)\n' +
+    '    at async file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39\n' +
+    '    at async Promise.all (index 2)\n' +
+    '    at async TransformPluginContext.transform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)\n' +
+    '    at async PluginContainer.transform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)\n' +
+    '    at async loadAndTransform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)\n' +
+    '    at async ViteNodeServer._transformRequest (file:///home/user/Jini/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:537:16)\n' +
+    '    at async ViteNodeServer._fetchModule (file:///home/user/Jini/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:504:17)',
+  cause: undefined,
+  __vitest_rollup_error__: {
+    plugin: 'vite:import-analysis',
+    id: '/home/user/Jini/packages/ui/dist/react/components/SecretInput.js',
+    loc: {
+      file: '../../../src/react/components/SecretInput.tsx',
+      line: 2,
+      column: 46
+    },
+    frame: '1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";\n' +
+      "2  |  import { forwardRef } from 'react';\n" +
+      "3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';\n" +
+      '   |                                                 ^\n' +
+      "4  |  import { useT } from '../../features/i18n/index.js';\n" +
+      "5  |  import { Icon } from './Icon.js';"
+  },
+  stackStr: 'Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?\n' +
+    '    at TransformPluginContext._formatError (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)\n' +
+    '    at TransformPluginContext.error (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)\n' +
+    '    at normalizeUrl (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)\n' +
+    '    at async file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39\n' +
+    '    at async Promise.all (index 2)\n' +
+    '    at async TransformPluginContext.transform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)\n' +
+    '    at async PluginContainer.transform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)\n' +
+    '    at async loadAndTransform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)\n' +
+    '    at async ViteNodeServer._transformRequest (file:///home/user/Jini/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:537:16)\n' +
+    '    at async ViteNodeServer._fetchModule (file:///home/user/Jini/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:504:17)',
+  nameStr: 'Error',
+  expected: 'undefined',
+  actual: 'undefined',
+  diff: ''
+}
+An error occurred in one of your React components.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+ ✓ src/react/entities/__tests__/screen-states.test.tsx (10 tests) 404ms
+ ✓ src/source-control/react/__tests__/providers-tab-hooks.test.tsx (7 tests) 443ms
+ ✓ src/forms/react/__tests__/use-form-editor.unit.test.tsx (5 tests) 277ms
+ ✓ src/comments/react/__tests__/comments-states.unit.test.tsx (6 tests) 695ms
+   ✓ comments module page > lazily loads the queue page through the bound module and renders it with the host translator 530ms
+ ✓ src/react/__tests__/hooks/use-nav-sections.test.tsx (12 tests) 50ms
+ ❯ src/seo/react/__tests__/MediaRefField.hooks.unit.test.ts (0 test)
+ ✓ src/react/__tests__/components/converted-callers.test.tsx (6 tests) 438ms
+ ✓ src/react/__tests__/components/ConfirmButton.test.tsx (14 tests) 237ms
+ ✓ src/react/__tests__/hooks/use-sidebar-rail-controlled.test.tsx (5 tests) 36ms
+ ✓ src/comments/react/__tests__/QueueSection.unit.test.tsx (5 tests) 261ms
+stderr | src/seo/react/__tests__/seo-binding.unit.test.tsx > seo module binding > mounts the standalone entries tab
+{
+  name: 'Error',
+  message: 'Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?',
+  stack: 'Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?\n' +
+    '    at TransformPluginContext._formatError (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)\n' +
+    '    at TransformPluginContext.error (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)\n' +
+    '    at normalizeUrl (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)\n' +
+    '    at async file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39\n' +
+    '    at async Promise.all (index 2)\n' +
+    '    at async TransformPluginContext.transform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)\n' +
+    '    at async PluginContainer.transform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)\n' +
+    '    at async loadAndTransform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)\n' +
+    '    at async ViteNodeServer._transformRequest (file:///home/user/Jini/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:537:16)\n' +
+    '    at async ViteNodeServer._fetchModule (file:///home/user/Jini/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:504:17)',
+  cause: undefined,
+  __vitest_rollup_error__: {
+    plugin: 'vite:import-analysis',
+    id: '/home/user/Jini/packages/ui/dist/react/components/SecretInput.js',
+    loc: {
+      file: '../../../src/react/components/SecretInput.tsx',
+      line: 2,
+      column: 46
+    },
+    frame: '1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";\n' +
+      "2  |  import { forwardRef } from 'react';\n" +
+      "3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';\n" +
+      '   |                                                 ^\n' +
+      "4  |  import { useT } from '../../features/i18n/index.js';\n" +
+      "5  |  import { Icon } from './Icon.js';"
+  },
+  stackStr: 'Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?\n' +
+    '    at TransformPluginContext._formatError (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)\n' +
+    '    at TransformPluginContext.error (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)\n' +
+    '    at normalizeUrl (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)\n' +
+    '    at async file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39\n' +
+    '    at async Promise.all (index 2)\n' +
+    '    at async TransformPluginContext.transform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)\n' +
+    '    at async PluginContainer.transform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)\n' +
+    '    at async loadAndTransform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)\n' +
+    '    at async ViteNodeServer._transformRequest (file:///home/user/Jini/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:537:16)\n' +
+    '    at async ViteNodeServer._fetchModule (file:///home/user/Jini/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:504:17)',
+  nameStr: 'Error',
+  expected: 'undefined',
+  actual: 'undefined',
+  diff: ''
+}
+An error occurred in one of your React components.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+ ✓ src/forms/react/__tests__/FormEditor.field-settings.unit.test.tsx (3 tests) 1267ms
+   ✓ field settings in the form editor > the type picker groups every type under a plain-language name 316ms
+   ✓ field settings in the form editor > adds an option, makes it the default, and saves both in the PUT body 755ms
+ ✓ src/react/components/__tests__/Sidebar.accordion.test.tsx (7 tests) 218ms
+ ✓ src/agent-plugins/react/__tests__/agent-plugins-states.test.tsx (7 tests) 1128ms
+   ✓ shows the load failure as a danger notice when the backend list fails 382ms
+   ✓ announces an empty workspace once the list has loaded with no packages 320ms
+   ✓ raises an alert when an enable is refused and keeps the row off 379ms
+ ✓ src/forms/react/__tests__/field-row-editing.unit.test.tsx (5 tests) 509ms
+ ✓ src/forms/react/__tests__/html-mode.unit.test.tsx (4 tests) 643ms
+   ✓ HTML form authoring — owner acceptance 2026-10-04 > toggle seeds current fields, preserves draft across toggles, and copies the real saved slug 517ms
+ ✓ src/media/react/__tests__/media-card-hooks.test.tsx (7 tests) 75ms
+ ✓ src/agent-plugins/react/__tests__/AgentPluginRow.test.tsx (10 tests) 225ms
+ ✓ src/consent/react/__tests__/ConsentSettingsPanel.test.tsx (5 tests) 606ms
+   ✓ cookie consent settings panel > offers a labeled OFF switch and keyboard-editable copy, region mode and policy version 315ms
+ ✓ src/widgets/react/__tests__/WidgetRegions.unit.test.tsx (9 tests) 218ms
+ ✓ src/widgets/react/__tests__/use-widgets-library.wiring.unit.test.tsx (6 tests) 440ms
+ ❯ src/seo/react/__tests__/seo-binding.unit.test.tsx (12 tests | 5 failed) 75543ms
+   × seo module binding > reports tab switches to the host 15054ms
+     → Unable to find role="tab" and name "Sitemap"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+   × seo module binding > mounts the standalone defaults tab once settings load 15019ms
+     → Unable to find a label with the text of: /Title template/
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+   × seo module binding > shows the standalone tab load error when settings cannot be read 15005ms
+     → Unable to find an element with the text: settings offline. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+   × seo module binding > opens the shell sitemap modal from the sitemap tab and closes it on dismiss 15009ms
+     → Unable to find role="button" and name "View sitemap"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+   × seo module binding > mounts the standalone entries tab 15006ms
+     → Unable to find an element with the text: Per-entry SEO. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+ ✓ src/react/shell/__tests__/use-admin-theme.unit.test.tsx (7 tests) 59ms
+ ✓ src/forms/react/__tests__/FormSubmissions.unit.test.tsx (10 tests) 247ms
+ ✓ src/forms/react/__tests__/copy-polish.unit.test.tsx (6 tests) 492ms
+   ✓ forms copy polish > carries builder field labels from the editor through the list into detail 345ms
+stderr | src/forms/react/__tests__/FormEditor.leave-and-focus.unit.test.tsx > FormEditor Back with unsaved edits > asks first after an edit; Keep editing stays, Discard changes leaves
+A component suspended inside an `act` scope, but the `act` call was not awaited. When testing React components that depend on asynchronous data, you must await the result:
+
+await act(() => ...)
+
+ ✓ src/comments/react/__tests__/SettingsSection.unit.test.tsx (4 tests) 548ms
+   ✓ SettingsSection — useCommentSettingsHook injection > submits the edited real form fields under the names the settings patch reads 414ms
+ ✓ src/forms/react/__tests__/FormEditor.leave-and-focus.unit.test.tsx (4 tests) 670ms
+ ✓ src/comments/react/__tests__/use-comment-settings.boundary.unit.test.tsx (5 tests) 208ms
+ ✓ src/widgets/react/__tests__/use-widget-regions.wiring.unit.test.tsx (4 tests) 260ms
+ ✓ src/react/__tests__/hooks/use-sidebar-rail.test.tsx (8 tests) 40ms
+ ✓ src/forms/react/__tests__/FormsModule.unit.test.tsx (3 tests) 745ms
+   ✓ Forms module list API failure regression > renders the visible error when the API read rejects: 'Forms API unavailable' 394ms
+   ✓ Forms module list API failure regression > renders the visible error when the API read rejects: 'Forms API request timed out' 319ms
+ ✓ src/redirects/react/__tests__/copy-polish.unit.test.tsx (2 tests) 497ms
+   ✓ redirect copy polish > shows human type, provenance and status labels and keeps creation values unchanged 495ms
+ ✓ src/security/react/__tests__/RootKeyTab.test.tsx (9 tests) 252ms
+ ✓ src/forms/react/__tests__/use-form-fields-editor.hooks.unit.test.tsx (2 tests) 26ms
+ ✓ src/comments/react/__tests__/use-comments.unit.test.tsx (3 tests) 196ms
+ ✓ src/react/__tests__/components/confirm-guards.test.tsx (5 tests) 114ms
+ ✓ src/browser/__tests__/navigation-args.test.ts (7 tests) 25ms
+ ✓ src/react/__tests__/overlays.test.tsx (5 tests) 109ms
+ ✓ src/react/__tests__/components/use-confirm-request.test.tsx (4 tests) 43ms
+ ✓ src/widgets/react/__tests__/fetch-query-migration.test.ts (3 tests) 216ms
+ ✓ src/source-control/react/__tests__/source-control.test.tsx (3 tests) 1164ms
+   ✓ does not fetch or show credentials without page grants 386ms
+   ✓ renders a read-only provider row without write grants or optional navigation 382ms
+   ✓ accepts a ui-kit token save and never displays saved secret drafts 394ms
+ ✓ src/react/__tests__/hooks/preference-ports.test.tsx (3 tests) 27ms
+ ✓ src/forms/react/__tests__/forms-view.hooks.unit.test.tsx (4 tests) 39ms
+stderr | src/browser/__tests__/shell-navigation.test.ts
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at navigateFetch (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+    at exports.navigate (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+    at Timeout._onTimeout (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/nodes/HTMLHyperlinkElementUtils-impl.js:80:7)
+    at listOnTimeout (node:internal/timers:685:17)
+    at processTimers (node:internal/timers:618:7) undefined
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at navigateFetch (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+    at exports.navigate (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+    at Timeout._onTimeout (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/nodes/HTMLHyperlinkElementUtils-impl.js:80:7)
+    at listOnTimeout (node:internal/timers:685:17)
+    at processTimers (node:internal/timers:618:7) undefined
+
+ ✓ src/browser/__tests__/shell-navigation.test.ts (3 tests) 40ms
+ ✓ src/core/react/__tests__/bind-react.test.tsx (2 tests) 397ms
+   ✓ binds lazy pages and tabs to a private per-binding port context when the host passes none 385ms
+ ✓ src/playground/react/__tests__/playground.test.tsx (2 tests) 773ms
+   ✓ denies canvas publication without grants 380ms
+   ✓ read-only canvas survives rerenders and clears on unmount under StrictMode 392ms
+ ❯ src/seo/react/__tests__/use-entry-picker.unit.test.ts (0 test)
+ ✓ src/react/entities/__tests__/relation-rules.test.ts (3 tests) 6ms
+ ✓ src/consent/react/__tests__/ConsentFields-m1.unit.test.tsx (2 tests) 71ms
+ ✓ src/react/__tests__/components/dialog-args.test.tsx (2 tests) 47ms
+ ✓ src/react/shell/__tests__/model.test.ts (2 tests) 6ms
+ ✓ src/react/components/__tests__/Sidebar.controlled.test.tsx (1 test) 147ms
+ ✓ src/react/shell/__tests__/theme-boundaries.test.ts (1 test) 24ms
+ ✓ src/forms/react/__tests__/native-dialog-dismissal.unit.test.ts (1 test) 119ms
+ ✓ src/react/__tests__/integration-barrels.test.tsx (3 tests) 4ms
+ ✓ src/media/react/__tests__/gallery-selection.test.tsx (1 test) 29ms
+ ✓ src/react/components/InteractiveHtmlEditor/__tests__/InteractiveHtmlEditor.wiring.test.tsx (1 test) 17ms
+ ✓ src/playground/react/__tests__/playground-scope.test.tsx (2 tests) 94ms
+ ✓ src/forms/react/__tests__/use-form-submission-date.hooks.unit.test.tsx (1 test) 46ms
+ ✓ src/media/react/__tests__/card-metadata.test.tsx (2 tests) 116ms
+ ✓ src/media/react/__tests__/media-lightbox-hooks.test.tsx (3 tests) 6ms
+ ✓ src/consent/react/__tests__/consent-entry.test.tsx (1 test) 190ms
+ ✓ src/react/entities/__tests__/entity-text.test.ts (2 tests) 4ms
+ ✓ src/forms/__tests__/field-settings.unit.test.ts (79 tests) 65ms
+ ✓ src/seo/__tests__/rules.unit.test.ts (78 tests) 38ms
+ ✓ src/comments/__tests__/comment-queue.controller.unit.test.ts (38 tests) 36ms
+ ✓ src/agent-plugins/__tests__/controllers.test.ts (36 tests) 28ms
+ ✓ src/core/__tests__/entities.test.ts (63 tests) 29ms
+ ✓ src/security/__tests__/http.test.ts (26 tests) 25ms
+ ✓ src/redirects/__tests__/redirects-api.conformance.unit.test.ts (36 tests) 36ms
+ ✓ src/media/__tests__/library-controller.test.ts (26 tests) 197ms
+ ✓ src/security/__tests__/memory.test.ts (41 tests) 55ms
+ ✓ src/media/__tests__/legacy-rules.test.ts (109 tests) 33ms
+ ✓ src/security/__tests__/access-tokens.controller.test.ts (34 tests) 31ms
+ ✓ src/security/__tests__/root-key.controller.test.ts (35 tests) 40ms
+ ✓ src/core/module/__tests__/create-admin.boundary.test.ts (41 tests) 29ms
+ ✓ src/security/__tests__/rules.test.ts (34 tests) 18ms
+ ✓ src/seo/__tests__/seo-surface.unit.test.ts (20 tests) 25ms
+ ✓ src/source-control/__tests__/controllers.test.ts (14 tests) 19ms
+ ✓ src/forms/__tests__/memory-adapter.unit.test.ts (29 tests) 28ms
+ ✓ src/media/__tests__/parity-controllers.test.ts (12 tests) 35ms
+ ✓ src/forms/__tests__/rules.unit.test.ts (21 tests) 32ms
+ ✓ src/media/__tests__/memory.test.ts (28 tests) 23ms
+ ✓ src/comments/__tests__/comments-surface.unit.test.ts (13 tests) 16ms
+ ✓ src/forms/__tests__/answer-format.unit.test.ts (25 tests) 36ms
+ ✓ src/core/__tests__/manifest.test.ts (34 tests) 15ms
+ ✓ src/widgets/__tests__/instance-editor.controller.unit.test.ts (19 tests) 22ms
+ ✓ src/redirects/__tests__/rules.unit.test.ts (24 tests) 19ms
+ ✓ src/core/__tests__/entities-rules.boundary.test.ts (27 tests) 22ms
+ ✓ src/security/__tests__/controllers.test.ts (10 tests) 22ms
+ ✓ src/forms/__tests__/forms-api.conformance.test.ts (17 tests) 19ms
+ ✓ src/widgets/__tests__/region-editor.controller.unit.test.ts (14 tests) 18ms
+ ✓ src/widgets/__tests__/library.controller.unit.test.ts (17 tests) 18ms
+ ✓ src/core/__tests__/transport.test.ts (18 tests) 15ms
+ ✓ src/widgets/__tests__/rules.unit.test.ts (25 tests) 16ms
+ ✓ src/media/__tests__/media-surface.test.ts (11 tests) 26ms
+ ✓ src/widgets/__tests__/widgets-surface.unit.test.ts (12 tests) 19ms
+ ✓ src/agent-plugins/__tests__/package-file-tree.test.ts (32 tests) 15ms
+ ✓ src/core/__tests__/transport-regressions.test.ts (17 tests) 31ms
+ ✓ src/forms/__tests__/html-starter.unit.test.ts (12 tests) 50ms
+ ✓ src/comments/__tests__/comments-api.conformance.test.ts (12 tests) 21ms
+ ✓ src/comments/__tests__/memory.unit.test.ts (22 tests) 22ms
+ ✓ src/media/__tests__/controllers.test.ts (6 tests) 25ms
+ ✓ src/media/__tests__/rules.test.ts (51 tests) 19ms
+ ✓ src/redirects/__tests__/redirects-surface.unit.test.ts (10 tests) 16ms
+ ✓ src/core/__tests__/routing.test.ts (24 tests) 19ms
+ ✓ src/media/__tests__/qa-recovery.test.ts (7 tests) 27ms
+ ✓ src/security/__tests__/security-guards.unit.test.ts (7 tests) 18ms
+ ✓ src/forms/__tests__/forms-surface.unit.test.ts (8 tests) 8ms
+ ✓ src/core/module/__tests__/composition.test.ts (5 tests) 17ms
+ ✓ src/browser/__tests__/telemetry-boundaries.unit.test.ts (5 tests) 13ms
+ ✓ src/source-control/__tests__/conformance.test.ts (9 tests) 18ms
+ ✓ src/agent-plugins/__tests__/rules.test.ts (5 tests) 11ms
+ ✓ src/browser/__tests__/telemetry.unit.test.ts (6 tests) 17ms
+ ✓ src/agent-plugins/__tests__/adapter-contracts.test.ts (5 tests) 11ms
+ ✓ src/core/__tests__/args-convention.contract.test.ts (5 tests) 15ms
+ ✓ src/core/__tests__/ledger-slice.test.ts (4 tests) 4ms
+ ✓ src/media/__tests__/html-attributes.test.ts (9 tests) 6ms
+ ✓ src/core/__tests__/menu-target-narrowing.test.ts (3 tests) 4ms
+ ✓ src/agent-plugins/__tests__/http.test.ts (2 tests) 6ms
+ ✓ src/core/module/__tests__/controller-store.test.ts (5 tests) 8ms
+ ✓ src/source-control/__tests__/http.test.ts (2 tests) 11ms
+ ✓ src/forms/__tests__/form-editor-dirty.unit.test.ts (4 tests) 4ms
+ ✓ src/core/__tests__/transport-http.boundary.test.ts (7 tests) 14ms
+ ✓ src/source-control/__tests__/rules.test.ts (3 tests) 5ms
+ ✓ src/playground/__tests__/controllers.test.ts (4 tests) 10ms
+ ✓ src/widgets/__tests__/widgets-api-conformance.unit.test.ts (3 tests) 7ms
+ ✓ src/core/__tests__/transport-headers.test.ts (4 tests) 16ms
+ ✓ src/playground/__tests__/targets-contract.test.ts (4 tests) 8ms
+ ✓ src/redirects/__tests__/memory.conformance.test.ts (2 tests) 9ms
+ ✓ src/core/__tests__/recovery-gated.test.ts (3 tests) 4ms
+ ✓ src/media/__tests__/http.test.ts (1 test) 8ms
+ ✓ src/core/__tests__/default-panel-navigation.test.ts (2 tests) 4ms
+ ✓ src/core/__tests__/permissions.test.ts (5 tests) 3ms
+ ✓ src/core/__tests__/integration-entries.test.ts (4 tests) 5ms
+ ✓ src/seo/__tests__/conformance.test.ts (1 test) 4ms
+ ✓ src/core/__tests__/default-theme-css.unit.test.ts (1 test) 7ms
+ ✓ src/core/__tests__/database-gated.test.ts (1 test) 4ms
+ ✓ src/media/__tests__/media-file-name.test.ts (3 tests) 3ms
+ ✓ src/forms/__tests__/field-settings-upload-choices.unit.test.ts (1 test) 122ms
+ ✓ src/agent-plugins/__tests__/package-file-tree.hwa.test.ts (1 test) 3ms
+ ✓ src/widgets/__tests__/memory-conformance.test.ts (1 test) 6ms
+ ✓ src/media/__tests__/metadata-exports.test.ts (1 test) 25ms
+ ✓ src/playground/__tests__/http.test.ts (1 test) 3ms
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 13 ⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/fqfix-loading.unit.test.tsx [ src/__tests__/fqfix-loading.unit.test.tsx ]
+ FAIL  src/media/react/__tests__/library-parity.test.tsx [ src/media/react/__tests__/library-parity.test.tsx ]
+ FAIL  src/media/react/__tests__/media-component-states.test.tsx [ src/media/react/__tests__/media-component-states.test.tsx ]
+ FAIL  src/media/react/__tests__/providers-tab-hooks.test.tsx [ src/media/react/__tests__/providers-tab-hooks.test.tsx ]
+ FAIL  src/seo/react/__tests__/MediaRefField.hooks.unit.test.ts [ src/seo/react/__tests__/MediaRefField.hooks.unit.test.ts ]
+ FAIL  src/seo/react/__tests__/MediaRefField.unit.test.tsx [ src/seo/react/__tests__/MediaRefField.unit.test.tsx ]
+ FAIL  src/seo/react/__tests__/SitemapModal.unit.test.tsx [ src/seo/react/__tests__/SitemapModal.unit.test.tsx ]
+ FAIL  src/seo/react/__tests__/copy-polish.unit.test.tsx [ src/seo/react/__tests__/copy-polish.unit.test.tsx ]
+ FAIL  src/seo/react/__tests__/share-image-warning.unit.test.tsx [ src/seo/react/__tests__/share-image-warning.unit.test.tsx ]
+ FAIL  src/seo/react/__tests__/use-entry-picker.unit.test.ts [ src/seo/react/__tests__/use-entry-picker.unit.test.ts ]
+ FAIL  src/seo/react/__tests__/use-seo-entry-panel.unit.test.ts [ src/seo/react/__tests__/use-seo-entry-panel.unit.test.ts ]
+ FAIL  src/seo/react/__tests__/use-seo.unit.test.ts [ src/seo/react/__tests__/use-seo.unit.test.ts ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+ ❯ TransformPluginContext.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+ ❯ PluginContainer.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18
+ ❯ loadAndTransform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/19]⎯
+
+ FAIL  src/seo/react/__tests__/Seo.unit.test.tsx [ src/seo/react/__tests__/Seo.unit.test.tsx ]
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+ ❯ TransformPluginContext.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+ ❯ PluginContainer.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18
+ ❯ loadAndTransform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/19]⎯
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/media/react/__tests__/media.test.tsx > renders the optional credential tab without exposing saved secrets
+TestingLibraryElementError: Unable to find a label with the text of: Example credential
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+ ❯ waitForWrapper ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/media/react/__tests__/media.test.tsx:295:35
+    293|   );
+    294|   // A cold lazy Providers import alone can take more than 5s on a loa…
+    295|   const credential = await screen.findByLabelText('Example credential'…
+       |                                   ^
+    296|   expect(credential).toHaveValue('');
+    297|   expect(credential).toHaveAttribute('data-agent-private', 'true');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/19]⎯
+
+ FAIL  src/seo/react/__tests__/seo-binding.unit.test.tsx > seo module binding > reports tab switches to the host
+TestingLibraryElementError: Unable to find role="tab" and name "Sitemap"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+ ❯ waitForWrapper ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/seo/react/__tests__/seo-binding.unit.test.tsx:43:34
+     41|     const onTabChange = vi.fn();
+     42|     mountSeo({ api: createMemorySeoApi({}), onTabChange });
+     43|     fireEvent.click(await screen.findByRole('tab', { name: 'Sitemap' }…
+       |                                  ^
+     44|     expect(onTabChange).toHaveBeenCalledWith({ tab: 'sitemap' });
+     45|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/19]⎯
+
+ FAIL  src/seo/react/__tests__/seo-binding.unit.test.tsx > seo module binding > mounts the standalone defaults tab once settings load
+TestingLibraryElementError: Unable to find a label with the text of: /Title template/
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+ ❯ waitForWrapper ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/seo/react/__tests__/seo-binding.unit.test.tsx:50:25
+     48|     mountSeo({ api: createMemorySeoApi({}), tab: 'defaults' });
+     49|     expect(screen.getByText('loading')).toBeInTheDocument();
+     50|     expect(await screen.findByLabelText(/Title template/, {}, LAZY)).t…
+       |                         ^
+     51|   });
+     52| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/19]⎯
+
+ FAIL  src/seo/react/__tests__/seo-binding.unit.test.tsx > seo module binding > shows the standalone tab load error when settings cannot be read
+TestingLibraryElementError: Unable to find an element with the text: settings offline. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+ ❯ waitForWrapper ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/seo/react/__tests__/seo-binding.unit.test.tsx:56:25
+     54|     const api: AdminSeoPort = { ...createMemorySeoApi({}), getSeoSetti…
+     55|     mountSeo({ api, tab: 'sitemap' });
+     56|     expect(await screen.findByText('settings offline', {}, LAZY)).toBe…
+       |                         ^
+     57|   });
+     58| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/19]⎯
+
+ FAIL  src/seo/react/__tests__/seo-binding.unit.test.tsx > seo module binding > opens the shell sitemap modal from the sitemap tab and closes it on dismiss
+TestingLibraryElementError: Unable to find role="button" and name "View sitemap"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+ ❯ waitForWrapper ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/seo/react/__tests__/seo-binding.unit.test.tsx:61:34
+     59|   it('opens the shell sitemap modal from the sitemap tab and closes it…
+     60|     mountSeo({ api: createMemorySeoApi({ sitemapText: '<urlset></urlse…
+     61|     fireEvent.click(await screen.findByRole('button', { name: 'View si…
+       |                                  ^
+     62|     const dialog = await screen.findByRole('dialog');
+     63|     fireEvent(dialog, new Event('cancel', { cancelable: true }));
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/19]⎯
+
+ FAIL  src/seo/react/__tests__/seo-binding.unit.test.tsx > seo module binding > mounts the standalone entries tab
+TestingLibraryElementError: Unable to find an element with the text: Per-entry SEO. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+ ❯ waitForWrapper ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/seo/react/__tests__/seo-binding.unit.test.tsx:69:25
+     67|   it('mounts the standalone entries tab', async () => {
+     68|     mountSeo({ api: createMemorySeoApi({}), tab: 'entries' });
+     69|     expect(await screen.findByText('Per-entry SEO', {}, LAZY)).toBeInT…
+       |                         ^
+     70|   });
+     71| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/19]⎯
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 6 unhandled errors during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+ ❯ TransformPluginContext.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+ ❯ PluginContainer.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18
+ ❯ loadAndTransform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27
+ ❯ ViteNodeServer._transformRequest ../../node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:537:16
+ ❯ ViteNodeServer._fetchModule ../../node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:504:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { __vitest_rollup_error__: { plugin: 'vite:import-analysis', id: '/home/user/Jini/packages/ui/dist/react/components/SecretInput.js', loc: { file: '../../../src/react/components/SecretInput.tsx', line: 2, column: 46 }, frame: '1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";\n2  |  import { forwardRef } from \'react\';\n3  |  import { SecretInput as KitSecretInput } from \'@jini-ai/ui-kit/react\';\n   |                                                 ^\n4  |  import { useT } from \'../../features/i18n/index.js\';\n5  |  import { Icon } from \'./Icon.js\';' } }
+This error originated in "src/media/react/__tests__/media.test.tsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "renders the optional credential tab without exposing saved secrets". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+ ❯ TransformPluginContext.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+ ❯ PluginContainer.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18
+ ❯ loadAndTransform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27
+ ❯ ViteNodeServer._transformRequest ../../node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:537:16
+ ❯ ViteNodeServer._fetchModule ../../node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:504:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { __vitest_rollup_error__: { plugin: 'vite:import-analysis', id: '/home/user/Jini/packages/ui/dist/react/components/SecretInput.js', loc: { file: '../../../src/react/components/SecretInput.tsx', line: 2, column: 46 }, frame: '1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";\n2  |  import { forwardRef } from \'react\';\n3  |  import { SecretInput as KitSecretInput } from \'@jini-ai/ui-kit/react\';\n   |                                                 ^\n4  |  import { useT } from \'../../features/i18n/index.js\';\n5  |  import { Icon } from \'./Icon.js\';' } }
+This error originated in "src/seo/react/__tests__/seo-binding.unit.test.tsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "reports tab switches to the host". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+ ❯ TransformPluginContext.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+ ❯ PluginContainer.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18
+ ❯ loadAndTransform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27
+ ❯ ViteNodeServer._transformRequest ../../node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:537:16
+ ❯ ViteNodeServer._fetchModule ../../node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:504:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { __vitest_rollup_error__: { plugin: 'vite:import-analysis', id: '/home/user/Jini/packages/ui/dist/react/components/SecretInput.js', loc: { file: '../../../src/react/components/SecretInput.tsx', line: 2, column: 46 }, frame: '1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";\n2  |  import { forwardRef } from \'react\';\n3  |  import { SecretInput as KitSecretInput } from \'@jini-ai/ui-kit/react\';\n   |                                                 ^\n4  |  import { useT } from \'../../features/i18n/index.js\';\n5  |  import { Icon } from \'./Icon.js\';' } }
+This error originated in "src/seo/react/__tests__/seo-binding.unit.test.tsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "mounts the standalone defaults tab once settings load". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+ ❯ TransformPluginContext.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+ ❯ PluginContainer.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18
+ ❯ loadAndTransform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27
+ ❯ ViteNodeServer._transformRequest ../../node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:537:16
+ ❯ ViteNodeServer._fetchModule ../../node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:504:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { __vitest_rollup_error__: { plugin: 'vite:import-analysis', id: '/home/user/Jini/packages/ui/dist/react/components/SecretInput.js', loc: { file: '../../../src/react/components/SecretInput.tsx', line: 2, column: 46 }, frame: '1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";\n2  |  import { forwardRef } from \'react\';\n3  |  import { SecretInput as KitSecretInput } from \'@jini-ai/ui-kit/react\';\n   |                                                 ^\n4  |  import { useT } from \'../../features/i18n/index.js\';\n5  |  import { Icon } from \'./Icon.js\';' } }
+This error originated in "src/seo/react/__tests__/seo-binding.unit.test.tsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "shows the standalone tab load error when settings cannot be read". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+ ❯ TransformPluginContext.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+ ❯ PluginContainer.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18
+ ❯ loadAndTransform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27
+ ❯ ViteNodeServer._transformRequest ../../node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:537:16
+ ❯ ViteNodeServer._fetchModule ../../node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:504:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { __vitest_rollup_error__: { plugin: 'vite:import-analysis', id: '/home/user/Jini/packages/ui/dist/react/components/SecretInput.js', loc: { file: '../../../src/react/components/SecretInput.tsx', line: 2, column: 46 }, frame: '1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";\n2  |  import { forwardRef } from \'react\';\n3  |  import { SecretInput as KitSecretInput } from \'@jini-ai/ui-kit/react\';\n   |                                                 ^\n4  |  import { useT } from \'../../features/i18n/index.js\';\n5  |  import { Icon } from \'./Icon.js\';' } }
+This error originated in "src/seo/react/__tests__/seo-binding.unit.test.tsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "opens the shell sitemap modal from the sitemap tab and closes it on dismiss". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+Error: Failed to resolve import "@jini-ai/ui-kit/react" from "../ui/dist/react/components/SecretInput.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Jini/packages/ui/dist/react/components/SecretInput.js:2:46
+  1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+  2  |  import { forwardRef } from 'react';
+  3  |  import { SecretInput as KitSecretInput } from '@jini-ai/ui-kit/react';
+     |                                                 ^
+  4  |  import { useT } from '../../features/i18n/index.js';
+  5  |  import { Icon } from './Icon.js';
+ ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+ ❯ TransformPluginContext.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+ ❯ PluginContainer.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18
+ ❯ loadAndTransform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27
+ ❯ ViteNodeServer._transformRequest ../../node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:537:16
+ ❯ ViteNodeServer._fetchModule ../../node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:504:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { __vitest_rollup_error__: { plugin: 'vite:import-analysis', id: '/home/user/Jini/packages/ui/dist/react/components/SecretInput.js', loc: { file: '../../../src/react/components/SecretInput.tsx', line: 2, column: 46 }, frame: '1  |  import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";\n2  |  import { forwardRef } from \'react\';\n3  |  import { SecretInput as KitSecretInput } from \'@jini-ai/ui-kit/react\';\n   |                                                 ^\n4  |  import { useT } from \'../../features/i18n/index.js\';\n5  |  import { Icon } from \'./Icon.js\';' } }
+This error originated in "src/seo/react/__tests__/seo-binding.unit.test.tsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "mounts the standalone entries tab". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+ Test Files  15 failed | 196 passed (211)
+      Tests  6 failed | 2564 passed (2570)
+     Errors  6 errors
+   Start at  19:54:18
+   Duration  182.62s (transform 8.94s, setup 28.27s, collect 27.38s, tests 165.48s, environment 55.82s, prepare 18.44s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 91.72% ( 12897/14061 )
+Branches     : 99.32% ( 7176/7225 )
+Functions    : 95.03% ( 1951/2053 )
+Lines        : 91.72% ( 12897/14061 )
+================================================================================
+npm notice
+npm notice New major version of npm available! 11.19.1 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

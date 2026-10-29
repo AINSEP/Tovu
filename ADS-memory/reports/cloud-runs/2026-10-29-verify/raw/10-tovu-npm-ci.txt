@@ -1,0 +1,8 @@
+npm error code ETARGET
+npm error notarget No matching version found for @jini-ai/cookie-consent@^0.6.13.
+npm error notarget In most cases you or one of your dependencies are requesting a package version that doesn't exist.
+npm error A complete log of this run can be found in: /root/.npm/_logs/2026-10-29T19_54_22_925Z-debug-0.log
+
+real	0m1.736s
+user	0m1.065s
+sys	0m0.135s

@@ -1,0 +1,224 @@
+
+> jini@ test:scripts /home/user/Jini
+> vitest run scripts/__tests__ && pnpm run test:scripts:node
+
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini
+
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/recon-site.unit.test.mjs (10 tests) 19ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/interaction-probe.unit.test.mjs (20 tests) 31ms
+stdout | packages/agent-runtime/src/skills/web-clone/scripts/__tests__/asset-harvest.test.mjs > main > falls back to the real fs/console ports when none are injected
+▸ 候选资产 0 个(图片 0 / 字体 0)，开始下载…
+✅ 下载 0 成功 / 0 失败 → /tmp/wc1-NmMgLL/out
+/tmp/wc1-NmMgLL/out/asset-manifest.json
+
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/asset-harvest.test.mjs (23 tests) 28ms
+ ✓ packages/cms/scripts/__tests__/check-packaging.test.ts (22 tests) 18ms
+stdout | packages/agent-runtime/src/skills/web-clone/scripts/__tests__/compare-recon.test.mjs > main > uses the real fs and console when no ports are injected
+/tmp/wc1-compare-QkYqGz/R.md
+
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/compare-recon.test.mjs (17 tests) 26ms
+stdout | packages/agent-runtime/src/skills/web-clone/scripts/__tests__/audit-clone.test.mjs > main > uses the real fs and console when no ports are injected
+/tmp/wc1-audit-S97Qe7/out.md
+
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/audit-clone.test.mjs (21 tests) 39ms
+ ✓ scripts/__tests__/check-subpath-isolation.test.ts (33 tests) 184ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/route-crawl.unit.test.mjs (11 tests) 17ms
+ ✓ scripts/__tests__/check-package-layers.test.ts (66 tests) 165ms
+stdout | packages/agent-runtime/src/skills/web-clone/scripts/__tests__/dna-scaffold.test.mjs > main > uses the real fs and console when no ports are injected
+✅ design-dna 骨架已写入: /tmp/wc1-dna-SHbtxe/d.json
+   下一步: 人工 Analyze 补全 ""，并从 _recon_signals 指派颜色角色。schema → references/design-dna.md
+
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/dna-scaffold.test.mjs (13 tests) 14ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/visual-diff.unit.test.mjs (9 tests) 13ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/network-capture.unit.test.mjs (7 tests) 34ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/mirror-site.unit.test.mjs (8 tests) 12ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/sourcemap-hunt.unit.test.mjs (9 tests) 12ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/od-preview-rewrite.unit.test.mjs (11 tests) 17ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/lib-wc2.unit.test.mjs (17 tests) 297ms
+ ✓ scripts/__tests__/check-guard-drift.test.ts (10 tests) 7ms
+stdout | packages/agent-runtime/src/skills/web-clone/scripts/__tests__/init-clone.test.mjs > main > uses the real fs and console when no ports are injected
+/tmp/wc1-init-EXlU3n/demo-clone
+
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/init-clone.test.mjs (10 tests) 11ms
+ ✓ scripts/__tests__/peer-range-compatibility.unit.test.ts (11 tests) 27ms
+ ❯ scripts/__tests__/coupling-isolation.test.ts (15 tests | 5 failed) 8110ms
+   × platform OS helper import isolation > command reaches only its existing OS owners 9ms
+     → expected [ …(12) ] to deeply equal [ 'packages/platform/src/command.ts' ]
+   × platform OS helper import isolation > process reaches only its existing OS owners 2ms
+     → expected [ …(20) ] to deeply equal [ …(3) ]
+   × platform OS helper import isolation > proxy-env reaches only its existing OS owners 1ms
+     → expected [ …(7) ] to deeply equal [ Array(1) ]
+   × model-discovery policy import isolation > cannot reach native process/filesystem modules or its adapter implementations 1ms
+     → expected [ …(4) ] to deeply equal [ …(3) ]
+   × verified shared leaves retain their existing owners > @jini-ai/platform./http/guarded crosses no domain boundary 1ms
+     → expected [ { …(6) } ] to deeply equal []
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/script-cli.test.mjs (8 tests) 7ms
+ ✓ scripts/__tests__/leaf-import-closures.test.ts (7 tests) 7778ms
+   ✓ universal translation owner and SEO entries > keeps SEO and its HTTP adapter free of React and preserves the existing interpolation owner 7412ms
+ ✓ scripts/__tests__/packed-exports.unit.test.ts (11 tests) 6ms
+ ✓ scripts/__tests__/walk-imports.test.ts (7 tests) 28ms
+ ✓ scripts/__tests__/guard-drift-cli.unit.test.ts (1 test) 15ms
+ ✓ scripts/__tests__/storage-public-entries.test.ts (23 tests) 317ms
+ ✓ scripts/__tests__/guard-self-test.unit.test.ts (1 test) 134ms
+ ✓ scripts/__tests__/check-model-fallback-freshness.test.ts (1 test) 1055ms
+   ✓ guards Antigravity against newly reported models missing from its fallback 1054ms
+ ✓ scripts/__tests__/fetch-query-isolation.test.ts (3 tests) 11224ms
+   ✓ fetch-query optional adapter isolation > keeps TanStack out of the default runtime closure while the optional entry reaches it 11221ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  scripts/__tests__/coupling-isolation.test.ts > platform OS helper import isolation > command reaches only its existing OS owners
+AssertionError: expected [ …(12) ] to deeply equal [ 'packages/platform/src/command.ts' ]
+
+- Expected
++ Received
+
+  Array [
++   "packages/core/src/primitives/http.ts",
++   "packages/core/src/primitives/ids.ts",
++   "packages/core/src/primitives/index.ts",
++   "packages/core/src/primitives/json.ts",
++   "packages/core/src/primitives/logger.ts",
++   "packages/core/src/primitives/paths.ts",
++   "packages/core/src/primitives/result.ts",
++   "packages/core/src/primitives/sse.ts",
++   "packages/core/src/primitives/tasks.ts",
++   "packages/core/src/primitives/time.ts",
++   "packages/core/src/primitives/trim-chars.ts",
+    "packages/platform/src/command.ts",
+  ]
+
+ ❯ scripts/__tests__/coupling-isolation.test.ts:17:26
+     15|     const files = [`packages/platform/src/${name}.ts`];
+     16|     if (name === 'process') files.push('packages/platform/src/command.…
+     17|     expect(entry?.files).toEqual(files.sort());
+       |                          ^
+     18|     expect(entry?.dependencies).toEqual([]); // In particular, no Undi…
+     19|     expect(audit.findings.filter(finding => finding.package === '@jini…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  scripts/__tests__/coupling-isolation.test.ts > platform OS helper import isolation > process reaches only its existing OS owners
+AssertionError: expected [ …(20) ] to deeply equal [ …(3) ]
+
+- Expected
++ Received
+
+  Array [
++   "packages/core/src/primitives/http.ts",
++   "packages/core/src/primitives/ids.ts",
++   "packages/core/src/primitives/index.ts",
++   "packages/core/src/primitives/json.ts",
++   "packages/core/src/primitives/logger.ts",
++   "packages/core/src/primitives/paths.ts",
++   "packages/core/src/primitives/result.ts",
++   "packages/core/src/primitives/sse.ts",
++   "packages/core/src/primitives/tasks.ts",
++   "packages/core/src/primitives/time.ts",
++   "packages/core/src/primitives/trim-chars.ts",
++   "packages/core/src/redact.ts",
++   "packages/core/src/text/escape.ts",
++   "packages/core/src/text/index.ts",
++   "packages/core/src/text/line-tail.ts",
++   "packages/core/src/text/sanitize-untrusted-text.ts",
+    "packages/platform/src/command.ts",
+    "packages/platform/src/process.ts",
+    "packages/platform/src/shell.ts",
++   "packages/platform/src/windows-system-tools.ts",
+  ]
+
+ ❯ scripts/__tests__/coupling-isolation.test.ts:17:26
+     15|     const files = [`packages/platform/src/${name}.ts`];
+     16|     if (name === 'process') files.push('packages/platform/src/command.…
+     17|     expect(entry?.files).toEqual(files.sort());
+       |                          ^
+     18|     expect(entry?.dependencies).toEqual([]); // In particular, no Undi…
+     19|     expect(audit.findings.filter(finding => finding.package === '@jini…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  scripts/__tests__/coupling-isolation.test.ts > platform OS helper import isolation > proxy-env reaches only its existing OS owners
+AssertionError: expected [ …(7) ] to deeply equal [ Array(1) ]
+
+- Expected
++ Received
+
+  Array [
++   "packages/core/src/primitives/trim-chars.ts",
++   "packages/core/src/redact.ts",
++   "packages/core/src/text/escape.ts",
++   "packages/core/src/text/index.ts",
++   "packages/core/src/text/line-tail.ts",
++   "packages/core/src/text/sanitize-untrusted-text.ts",
+    "packages/platform/src/proxy-env.ts",
+  ]
+
+ ❯ scripts/__tests__/coupling-isolation.test.ts:17:26
+     15|     const files = [`packages/platform/src/${name}.ts`];
+     16|     if (name === 'process') files.push('packages/platform/src/command.…
+     17|     expect(entry?.files).toEqual(files.sort());
+       |                          ^
+     18|     expect(entry?.dependencies).toEqual([]); // In particular, no Undi…
+     19|     expect(audit.findings.filter(finding => finding.package === '@jini…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  scripts/__tests__/coupling-isolation.test.ts > model-discovery policy import isolation > cannot reach native process/filesystem modules or its adapter implementations
+AssertionError: expected [ …(4) ] to deeply equal [ …(3) ]
+
+- Expected
++ Received
+
+  Array [
+    "packages/agent-runtime/src/core/model-discovery-shared.ts",
+    "packages/agent-runtime/src/model-discovery-config.ts",
++   "packages/agent-runtime/src/model-discovery-yaml.ts",
+    "packages/agent-runtime/src/model-discovery.ts",
+  ]
+
+ ❯ scripts/__tests__/coupling-isolation.test.ts:27:26
+     25|   it('cannot reach native process/filesystem modules or its adapter im…
+     26|     const entry = audit.closures.find(closure => closure.package === '…
+     27|     expect(entry?.files).toEqual([
+       |                          ^
+     28|       'packages/agent-runtime/src/core/model-discovery-shared.ts',
+     29|       'packages/agent-runtime/src/model-discovery-config.ts',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  scripts/__tests__/coupling-isolation.test.ts > verified shared leaves retain their existing owners > @jini-ai/platform./http/guarded crosses no domain boundary
+AssertionError: expected [ { …(6) } ] to deeply equal []
+
+- Expected
++ Received
+
+- Array []
++ Array [
++   Object {
++     "file": "packages/platform/src/http/guarded/client.ts",
++     "kind": "a",
++     "package": "@jini-ai/platform",
++     "reason": "./http/guarded (http) reaches src/net/effective-port.ts (net) via ../../net/effective-port.js",
++     "rule": "SI-domain",
++     "subpath": "./http/guarded",
++   },
++ ]
+
+ ❯ scripts/__tests__/coupling-isolation.test.ts:56:99
+     54|   ])('%s%s crosses no domain boundary', (owner, subpath) => {
+     55|     expect(audit.findings.filter(finding => finding.package === owner
+     56|       && finding.subpath === subpath && (finding.kind === 'a' || findi…
+       |                                                                                                   ^
+     57|   });
+     58| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+ Test Files  1 failed | 28 passed (29)
+      Tests  5 failed | 400 passed (405)
+   Start at  19:50:58
+   Duration  14.91s (transform 1.49s, setup 0ms, collect 4.60s, tests 29.65s, environment 5ms, prepare 1.85s)
+
+ ELIFECYCLE  Command failed with exit code 1.

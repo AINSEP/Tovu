@@ -1,0 +1,189 @@
+Scope: 44 of 45 workspace projects
+packages/core build$ tsc -p tsconfig.json
+packages/memory build$ tsc -p tsconfig.json
+packages/protocol build$ tsc -p tsconfig.json
+packages/cookie-consent build$ tsc -p tsconfig.json && node scripts/build-client.mjs
+packages/cookie-consent build: ▲ [WARNING] Ignoring this import because "src/client/entry.ts" was marked as having no side effects [ignored-bare-import]
+packages/cookie-consent build:     src/client.min.ts:2:7:
+packages/cookie-consent build:       2 │ import './client/entry.js';
+packages/cookie-consent build:         ╵        ~~~~~~~~~~~~~~~~~~~
+packages/cookie-consent build:   It was excluded from the "sideEffects" array in the enclosing "package.json" file:
+packages/cookie-consent build:     package.json:31:2:
+packages/cookie-consent build:       31 │   "sideEffects": [
+packages/cookie-consent build:          ╵   ~~~~~~~~~~~~~
+packages/cookie-consent build: client.min.js: 25 bytes, 45 bytes gzipped (budget 4608)
+packages/cookie-consent build: Done
+packages/sandbox build$ tsc -p tsconfig.json && tsc -p tsconfig.cjs.json && node -e "require('fs').writeFileSync('dist/cjs/package.json','{\"type\":\"commonjs\"}')"
+packages/memory build: Done
+packages/ui-kit build$ tsc -p tsconfig.build.json
+packages/protocol build: Done
+packages/ui-kit build: Done
+packages/sandbox build: Done
+packages/core build: Done
+packages/agentic build$ tsc -p tsconfig.json && tsc -p tsconfig.dom.json
+packages/artifacts build$ tsc -p tsconfig.json
+packages/platform build$ tsc -p tsconfig.json
+packages/desktop-host build$ tsc -p tsconfig.json && cp src/speech/macos/speech-helper.swift dist/speech/macos/speech-helper.swift
+packages/artifacts build: Done
+packages/desktop-host build: Done
+packages/agentic build: Done
+packages/platform build: Done
+examples/reference-desktop build$ tsc -p tsconfig.json
+packages/capability-providers build$ tsc -p tsconfig.json
+packages/db build$ tsc -p tsconfig.build.json
+packages/http-kit build$ tsc -p tsconfig.json
+examples/reference-desktop build: Done
+packages/oauth build$ tsc -p tsconfig.json
+packages/capability-providers build: Done
+packages/sidecar build$ tsc -p tsconfig.json
+packages/http-kit build: src/__tests__/verified-origin-allowlist-boundaries.unit.test.ts(8,59): error TS2345: Argument of type '(host: string, candidate: string) => Promise<[void, void]>' is not assignable to parameter of type '(args_0: string, args_1: string) => Awaitable<void>'.
+packages/http-kit build:   Type 'Promise<[void, void]>' is not assignable to type 'Awaitable<void>'.
+packages/http-kit build:     Type 'Promise<[void, void]>' is not assignable to type 'PromiseLike<void>'.
+packages/http-kit build:       Types of property 'then' are incompatible.
+packages/http-kit build:         Type '<TResult1 = [void, void], TResult2 = never>(onfulfilled?: ((value: [void, void]) => TResult1 | PromiseLike<TResult1>) | null | undefined, onrejected?: ((reason: any) => TResult2 | PromiseLike<...>) | null | undefined) => Promise<...>' is not assignable to type '<TResult1 = void, TResult2 = never>(onfulfilled?: ((value: void) => TResult1 | PromiseLike<TResult1>) | null | undefined, onrejected?: ((reason: any) => TResult2 | PromiseLike<...>) | null | undefined) => PromiseLike<...>'.
+packages/http-kit build:           Types of parameters 'onfulfilled' and 'onfulfilled' are incompatible.
+packages/http-kit build:             Types of parameters 'value' and 'value' are incompatible.
+packages/http-kit build:               Type '[void, void]' is not assignable to type 'void'.
+packages/http-kit build: Failed
+packages/vibecoding build$ tsc -p tsconfig.json
+packages/oauth build: Done
+packages/db build: Done
+packages/sidecar build: Done
+packages/vibecoding build: Done
+packages/cli build$ tsc -p tsconfig.json && chmod +x dist/main.js
+packages/cms build$ tsc -p tsconfig.json
+packages/infra build$ tsc -p tsconfig.json
+packages/plugins build$ tsc -p tsconfig.json
+packages/infra build: src/events/outbox/__tests__/fenced-worker.test.ts(10,43): error TS2322: Type 'void' is not assignable to type '"delivered" | "uncertain" | "permanent-failure" | "confirmed-no-effect"'.
+packages/infra build: Failed
+packages/registry build$ tsc -p tsconfig.json
+packages/cli build: Done
+packages/plugins build: src/host/__tests__/unit/loader.unit.test.ts(40,24): error TS2339: Property 'toHaveBeenCalledExactlyOnceWith' does not exist on type 'Assertion<Mock<() => Promise<never>>>'.
+packages/plugins build: Failed
+packages/registry build: Done
+packages/cms build: Done
+packages/agent-plugins build$ tsc -p tsconfig.json
+packages/cms/forms build$ tsc -p tsconfig.json
+packages/cms/forms build: Done
+packages/agent-plugins build: Done
+packages/integrations build$ tsc -p tsconfig.json
+packages/search build$ tsc -p tsconfig.json
+packages/search build: Done
+packages/integrations build: src/saved-requests/__tests__/credential-description-w2g.unit.test.ts(11,10): error TS2540: Cannot assign to 'executeCredentialedRequest' because it is a read-only property.
+packages/integrations build: src/saved-requests/__tests__/credential-description-w2g.unit.test.ts(11,46): error TS7006: Parameter 'required' implicitly has an 'any' type.
+packages/integrations build: src/saved-requests/__tests__/credential-description-w2g.unit.test.ts(11,56): error TS7006: Parameter 'optional' implicitly has an 'any' type.
+packages/integrations build: Failed
+packages/agent-runtime build$ tsc -p tsconfig.json
+packages/agent-runtime build: src/ai-trace/__tests__/sink-policy.unit.test.ts(39,18): error TS2352: Conversion of type '{ kind: "model_turn"; input: null; output: null; reasoning: null; errorContent: undefined; error: null; } | { kind: "model_turn"; input: null; output: null; reasoning: null; errorContent: undefined; ... 8 more ...; tags: readonly string[]; } | { ...; } | { ...; } | { ...; }' to type 'AiTraceEvent' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+packages/agent-runtime build:   Type '{ kind: "model_turn"; input: null; output: null; reasoning: null; errorContent: undefined; error: null; traceId: string; at: number; outcome: AiRunOutcome; totals: AiTraceTotals; }' is not comparable to type 'AiTraceEvent'.
+packages/agent-runtime build:     Type '{ kind: "model_turn"; input: null; output: null; reasoning: null; errorContent: undefined; error: null; traceId: string; at: number; outcome: AiRunOutcome; totals: AiTraceTotals; }' is missing the following properties from type 'AiTraceModelTurn': turnId, index, startedAt, endedAt, and 6 more.
+packages/agent-runtime build: Failed
+packages/analytics build$ tsc -p tsconfig.json
+packages/ui build$ node scripts/generate-agent-icon-data-uris.mjs && tsc -p tsconfig.json && mkdir -p dist/react/components/remixicon-font dist/features/settings/dialog/styles dist/features/tabbed-dialog/styles && cp src/react/components/remixicon-font/remixicon.css src/react/components/remixicon-font/remixicon.woff2 dist/react/components/remixicon-font/ && cp src/features/settings/dialog/styles/settings-dialog.css dist/features/settings/dialog/styles/ && cp src/features/tabbed-dialog/styles/tabbed-dialog.css dist/features/tabbed-dialog/styles/ && npx @tailwindcss/cli -i src/features/interactive-ui/styles.css -o dist/features/interactive-ui/interactive-ui.css --minify && mkdir -p dist/features/admin-widgets/styles && cp src/features/admin-widgets/styles/admin-widgets.css dist/features/admin-widgets/styles/ && mkdir -p dist/styles && cp src/styles/*.css dist/styles/
+packages/ui build: Generated 20 agent icon data URIs -> /home/user/Jini/packages/ui/src/react/components/agent-icon-data-uris.generated.ts
+packages/analytics build: Done
+packages/ui build: src/react/components/SecretInput.hooks.ts(2,87): error TS2307: Cannot find module '@jini-ai/ui-kit/react' or its corresponding type declarations.
+packages/ui build: src/react/components/SecretInput.tsx(2,47): error TS2307: Cannot find module '@jini-ai/ui-kit/react' or its corresponding type declarations.
+packages/ui build: Failed
+packages/admin build$ tsc -p tsconfig.json
+packages/diagnostics build$ tsc -p tsconfig.json
+packages/commerce build$ tsc -p tsconfig.json
+packages/commerce build: Done
+packages/diagnostics build: Done
+packages/admin build: Done
+packages/chat build$ tsc -p tsconfig.json && mkdir -p dist/react/styles && cp src/react/styles/reference.css dist/react/styles/ && mkdir -p dist/embed-widget/vanilla && node --input-type=module -e "import {writeFileSync,readFileSync} from 'node:fs'; import {CHAT_BUBBLE_STYLE} from './dist/embed-widget/browser/lazy-loader.js'; writeFileSync('dist/embed-widget/vanilla/style.css',CHAT_BUBBLE_STYLE+'\n'+readFileSync('src/embed-widget/vanilla/style.css','utf8'));"
+packages/user-management build$ tsc -p tsconfig.json
+packages/provider-plugins build$ node --import tsx scripts/build.ts
+packages/provider-plugins build: Done
+packages/user-management build: Done
+packages/chat build: Done
+packages/daemon build$ tsc -p tsconfig.json
+packages/daemon build: Done
+packages/devops build$ tsc -p tsconfig.json
+packages/server build$ tsc -p tsconfig.tests.json && tsc -p tsconfig.json
+packages/sqlite build$ tsc -p tsconfig.json
+packages/mcp build$ tsc -p tsconfig.json && chmod +x dist/bin/serve.js
+packages/sqlite build: Done
+packages/server build: Done
+packages/devops build: Done
+packages/mcp build: src/server/__tests__/tool-server.test.ts(132,17): error TS2339: Property 'toHaveBeenCalledExactlyOnceWith' does not exist on type 'Assertion<MockInstance<(_required: Record<string, never>) => Promise<void>>>'.
+packages/mcp build: Failed
+examples/reference-web build$ vite build && vite build --config vite.mcpui-view.config.ts
+examples/reference-web build: vite v8.1.5 building client environment for production...
+examples/reference-web build: [2K
+examples/reference-web build: new URL('./remixicon-font/remixicon.css', import.meta.url) doesn't exist at build time, it will remain unchanged to be resolved at runtime. If this is intended, you can use the /* @vite-ignore */ comment to suppress this warning.
+examples/reference-web build: transforming...✓ 1147 modules transformed.
+examples/reference-web build: rendering chunks...
+examples/reference-web build: computing gzip size...
+examples/reference-web build: dist/index.html                                  1.06 kB │ gzip:   0.60 kB
+examples/reference-web build: dist/sample-preview/starter-site/notes.html      8.03 kB │ gzip:   3.18 kB
+examples/reference-web build: dist/sample-preview/starter-site/index.html      8.67 kB │ gzip:   3.36 kB
+examples/reference-web build: dist/assets/index-tiIM3XZq.css                 149.81 kB │ gzip:  25.11 kB
+examples/reference-web build: dist/assets/index-CShq7Iok.js                1,402.92 kB │ gzip: 410.34 kB
+examples/reference-web build: [plugin builtin:vite-reporter] 
+examples/reference-web build: (!) Some chunks are larger than 500 kB after minification. Consider:
+examples/reference-web build: - Using dynamic import() to code-split the application
+examples/reference-web build: - Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+examples/reference-web build: - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+examples/reference-web build: ✗ Build failed in 1.52s
+examples/reference-web build: error during build:
+examples/reference-web build: Build failed with 1 error:
+examples/reference-web build: Error: [vite]: Rolldown failed to resolve import "@jini-ai/ui-kit/react" from "/home/user/Jini/packages/ui/dist/react/components/SecretInput.js".
+examples/reference-web build: This is most likely unintended because it can break your application at runtime.
+examples/reference-web build: If you do want to externalize this module explicitly add it to
+examples/reference-web build: `build.rolldownOptions.external`
+examples/reference-web build:     at viteLog (file:///home/user/Jini/node_modules/.pnpm/vite@8.1.5_@types+node@24.13.3_esbuild@0.28.1_jiti@2.7.0_sass@1.51.0_tsx@4.23.1_yaml@2.9.0/node_modules/vite/dist/node/chunks/node.js:33154:57)
+examples/reference-web build:     at onRollupLog (file:///home/user/Jini/node_modules/.pnpm/vite@8.1.5_@types+node@24.13.3_esbuild@0.28.1_jiti@2.7.0_sass@1.51.0_tsx@4.23.1_yaml@2.9.0/node_modules/vite/dist/node/chunks/node.js:33186:7)
+examples/reference-web build:     at onLog (file:///home/user/Jini/node_modules/.pnpm/vite@8.1.5_@types+node@24.13.3_esbuild@0.28.1_jiti@2.7.0_sass@1.51.0_tsx@4.23.1_yaml@2.9.0/node_modules/vite/dist/node/chunks/node.js:32953:4)
+examples/reference-web build:     at file:///home/user/Jini/node_modules/.pnpm/rolldown@1.1.5/node_modules/rolldown/dist/shared/rolldown-build-CtPvmZgJ.mjs:50:26
+examples/reference-web build:     at logger (file:///home/user/Jini/node_modules/.pnpm/rolldown@1.1.5/node_modules/rolldown/dist/shared/rolldown-build-CtPvmZgJ.mjs:41:3)
+examples/reference-web build:     at aggregateBindingErrorsIntoJsError (file:///home/user/Jini/node_modules/.pnpm/rolldown@1.1.5/node_modules/rolldown/dist/shared/error-BHRSI0R7.mjs:48:18)
+examples/reference-web build:     at unwrapBindingResult (file:///home/user/Jini/node_modules/.pnpm/rolldown@1.1.5/node_modules/rolldown/dist/shared/error-BHRSI0R7.mjs:18:128)
+examples/reference-web build:     at #build (file:///home/user/Jini/node_modules/.pnpm/rolldown@1.1.5/node_modules/rolldown/dist/shared/rolldown-build-CtPvmZgJ.mjs:3276:34)
+examples/reference-web build:     at async buildEnvironment (file:///home/user/Jini/node_modules/.pnpm/vite@8.1.5_@types+node@24.13.3_esbuild@0.28.1_jiti@2.7.0_sass@1.51.0_tsx@4.23.1_yaml@2.9.0/node_modules/vite/dist/node/chunks/node.js:33061:66)
+examples/reference-web build:     at async Object.build (file:///home/user/Jini/node_modules/.pnpm/vite@8.1.5_@types+node@24.13.3_esbuild@0.28.1_jiti@2.7.0_sass@1.51.0_tsx@4.23.1_yaml@2.9.0/node_modules/vite/dist/node/chunks/node.js:33483:19)
+examples/reference-web build:     at async Object.buildApp (file:///home/user/Jini/node_modules/.pnpm/vite@8.1.5_@types+node@24.13.3_esbuild@0.28.1_jiti@2.7.0_sass@1.51.0_tsx@4.23.1_yaml@2.9.0/node_modules/vite/dist/node/chunks/node.js:33480:153)
+examples/reference-web build:     at async CAC.<anonymous> (file:///home/user/Jini/node_modules/.pnpm/vite@8.1.5_@types+node@24.13.3_esbuild@0.28.1_jiti@2.7.0_sass@1.51.0_tsx@4.23.1_yaml@2.9.0/node_modules/vite/dist/node/cli.js:776:3) {
+examples/reference-web build:   errors: [Getter/Setter]
+examples/reference-web build: }
+examples/reference-web build: Failed
+ ERR_PNPM_RECURSIVE_FAIL  
+
+
+Summary: 8 fails, 33 passes
+
+/home/user/Jini/packages/http-kit:
+ ERROR  @jini-ai/http-kit@0.6.13 build: `tsc -p tsconfig.json`
+Exit status 2
+
+/home/user/Jini/packages/infra:
+ ERROR  @jini-ai/infra@0.5.4 build: `tsc -p tsconfig.json`
+Exit status 2
+
+/home/user/Jini/packages/plugins:
+ ERROR  @jini-ai/plugins@0.6.13 build: `tsc -p tsconfig.json`
+Exit status 2
+
+/home/user/Jini/packages/integrations:
+ ERROR  @jini-ai/integrations@0.6.13 build: `tsc -p tsconfig.json`
+Exit status 2
+
+/home/user/Jini/packages/agent-runtime:
+ ERROR  @jini-ai/agent-runtime@0.6.13 build: `tsc -p tsconfig.json`
+Exit status 2
+
+/home/user/Jini/packages/ui:
+ ERROR  @jini-ai/ui@0.6.13 build: `node scripts/generate-agent-icon-data-uris.mjs && tsc -p tsconfig.json && mkdir -p dist/react/components/remixicon-font dist/features/settings/dialog/styles dist/features/tabbed-dialog/styles && cp src/react/components/remixicon-font/remixicon.css src/react/components/remixicon-font/remixicon.woff2 dist/react/components/remixicon-font/ && cp src/features/settings/dialog/styles/settings-dialog.css dist/features/settings/dialog/styles/ && cp src/features/tabbed-dialog/styles/tabbed-dialog.css dist/features/tabbed-dialog/styles/ && npx @tailwindcss/cli -i src/features/interactive-ui/styles.css -o dist/features/interactive-ui/interactive-ui.css --minify && mkdir -p dist/features/admin-widgets/styles && cp src/features/admin-widgets/styles/admin-widgets.css dist/features/admin-widgets/styles/ && mkdir -p dist/styles && cp src/styles/*.css dist/styles/`
+Exit status 2
+
+/home/user/Jini/packages/mcp:
+ ERROR  @jini-ai/mcp@0.6.13 build: `tsc -p tsconfig.json && chmod +x dist/bin/serve.js`
+Exit status 2
+
+/home/user/Jini/examples/reference-web:
+ ERROR  @jini-app/reference-web@0.0.6 build: `vite build && vite build --config vite.mcpui-view.config.ts`
+Exit status 1
+
+real	2m14.733s
+user	4m56.203s
+sys	0m32.658s

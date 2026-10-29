@@ -1,0 +1,16 @@
+20-tovu-typecheck-root exit=2
+20b-tovu-typecheck-e2e exit=2
+21-tovu-typecheck-scripts exit=2
+22-tovu-typecheck-admin exit=2
+23-tovu-typecheck-site-chat exit=2
+24-tovu-typecheck-desktop-preload exit=2
+24-tovu-typecheck-desktop-renderer exit=2
+24-tovu-typecheck-desktop-main exit=2
+24-tovu-typecheck-desktop-live-verify exit=0
+25-tovu-typecheck-tests exit=2
+22-tovu-typecheck-admin exit=2
+23-tovu-typecheck-site-chat exit=0
+24-tovu-typecheck-desktop-preload exit=0
+24-tovu-typecheck-desktop-renderer exit=0
+24-tovu-typecheck-desktop-main exit=2
+24-tovu-typecheck-desktop-live-verify exit=0

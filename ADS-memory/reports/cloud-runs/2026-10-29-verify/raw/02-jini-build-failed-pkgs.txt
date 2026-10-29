@@ -1,0 +1,8 @@
+examples/reference-web
+packages/agent-runtime
+packages/http-kit
+packages/infra
+packages/integrations
+packages/mcp
+packages/plugins
+packages/ui

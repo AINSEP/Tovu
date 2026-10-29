@@ -1,0 +1,43 @@
+/home/user/Jini/packages/admin/src/consent/react/ConsentFields.tsx:112 no-restricted-syntax Use host-neutral messages and injected wire constants.
+/home/user/Jini/packages/admin/src/seo/messages.en.ts:6 no-restricted-syntax Use host-neutral messages and injected wire constants.
+/home/user/Jini/packages/admin/src/seo/messages.en.ts:6 no-restricted-syntax Use host-neutral messages and injected wire constants.
+/home/user/Jini/packages/admin/src/seo/messages.en.ts:7 no-restricted-syntax Use host-neutral messages and injected wire constants.
+/home/user/Jini/packages/admin/src/seo/messages.en.ts:7 no-restricted-syntax Use host-neutral messages and injected wire constants.
+/home/user/Jini/packages/admin/src/seo/react/hooks/SeoPage.hooks.ts:18 no-restricted-syntax Use host-neutral messages and injected wire constants.
+/home/user/Jini/packages/admin/src/seo/react/hooks/SeoPage.hooks.ts:18 no-restricted-syntax Use host-neutral messages and injected wire constants.
+/home/user/Jini/packages/admin/src/seo/react/pages/SeoPage.tsx:643 no-restricted-syntax Use host-neutral messages and injected wire constants.
+/home/user/Jini/packages/agent-plugins/src/lifecycle/manifest.ts:243 no-restricted-syntax Consumer product identities belong to the host.
+/home/user/Jini/packages/agent-plugins/src/manifest.ts:86 no-restricted-syntax Consumer product identities belong to the host.
+/home/user/Jini/packages/agentic/src/core/site-guide/site-guide.ts:4 no-restricted-syntax Use host-neutral messages and injected wire constants.
+/home/user/Jini/packages/chat/src/store/runtime/history-tools.ts:19 no-restricted-syntax Use host-neutral messages and injected wire constants.
+/home/user/Jini/packages/chat/src/store/runtime/history-tools.ts:116 no-restricted-syntax Use host-neutral messages and injected wire constants.
+/home/user/Jini/packages/cms/src/consent/express/index.ts:93 no-restricted-syntax Specification IDs belong in rationale comments, never runtime strings.
+/home/user/Jini/packages/cms/src/consent/express/index.ts:112 no-restricted-syntax Use host-neutral messages and injected wire constants.
+/home/user/Jini/packages/cms/src/consent/express/index.ts:115 no-restricted-syntax Use host-neutral messages and injected wire constants.
+/home/user/Jini/packages/cms/src/consent/express/index.ts:162 no-restricted-syntax Specification IDs belong in rationale comments, never runtime strings.
+/home/user/Jini/packages/cms/src/consent/express/index.ts:179 no-restricted-syntax Specification IDs belong in rationale comments, never runtime strings.
+/home/user/Jini/packages/cms/src/consent/express/index.ts:238 no-restricted-syntax Specification IDs belong in rationale comments, never runtime strings.
+/home/user/Jini/packages/cms/src/consent/express/index.ts:251 no-restricted-syntax Specification IDs belong in rationale comments, never runtime strings.
+/home/user/Jini/packages/cms/src/consent/express/index.ts:286 no-restricted-syntax Specification IDs belong in rationale comments, never runtime strings.
+/home/user/Jini/packages/cms/src/media/agent-tools.ts:88 no-restricted-syntax Use host-neutral messages and injected wire constants.
+/home/user/Jini/packages/cms/src/navigation/tool-registrations.ts:128 no-restricted-syntax Use host-neutral messages and injected wire constants.
+/home/user/Jini/packages/cms/src/redirects/redirects.ts:249 no-restricted-syntax Use host-neutral messages and injected wire constants.
+/home/user/Jini/packages/cookie-consent/src/server/receipt.ts:59 no-restricted-syntax Specification IDs belong in rationale comments, never runtime strings.
+/home/user/Jini/packages/core/src/origin-validation.ts:31 no-restricted-syntax Specification IDs belong in rationale comments, never runtime strings.
+/home/user/Jini/packages/core/src/origin-validation.ts:281 no-restricted-syntax Specification IDs belong in rationale comments, never runtime strings.
+/home/user/Jini/packages/db/src/recovery/degraded-banners.ts:69 no-restricted-syntax Use host-neutral messages and injected wire constants.
+/home/user/Jini/packages/db/src/recovery/degraded-banners.ts:78 no-restricted-syntax Use host-neutral messages and injected wire constants.
+/home/user/Jini/packages/db/src/recovery/degraded-banners.ts:87 no-restricted-syntax Use host-neutral messages and injected wire constants.
+/home/user/Jini/packages/db/src/recovery/degraded-banners.ts:104 no-restricted-syntax Use host-neutral messages and injected wire constants.
+/home/user/Jini/packages/db/src/recovery/recovery-orchestrator.ts:88 no-restricted-syntax Use host-neutral messages and injected wire constants.
+/home/user/Jini/packages/db/src/recovery/restore-point-create.ts:92 no-restricted-syntax Use host-neutral messages and injected wire constants.
+/home/user/Jini/packages/mcp/src/server/resources/site-guide-resource.ts:16 no-restricted-syntax Use host-neutral messages and injected wire constants.
+/home/user/Jini/packages/platform/src/fs/directory-user-config.ts:159 no-restricted-syntax Use host-neutral messages and injected wire constants.
+/home/user/Jini/packages/plugins/src/host/declarative-enable.ts:60 no-restricted-syntax Use host-neutral messages and injected wire constants.
+/home/user/Jini/packages/plugins/src/host/plugin-format.ts:3 no-restricted-syntax Consumer product identities belong to the host.
+/home/user/Jini/packages/plugins/src/host/plugin-format.ts:6 no-restricted-syntax Consumer source paths are forbidden.
+/home/user/Jini/packages/plugins/src/host/plugin-format.ts:6 no-restricted-syntax Consumer product identities belong to the host.
+/home/user/Jini/packages/search/src/tools.ts:61 no-restricted-syntax Use host-neutral messages and injected wire constants.
+/home/user/Jini/packages/search/src/tools.ts:78 no-restricted-syntax Use host-neutral messages and injected wire constants.
+/home/user/Jini/packages/search/src/tools.ts:85 no-restricted-syntax Use host-neutral messages and injected wire constants.
+/home/user/Jini/packages/search/src/tools.ts:93 no-restricted-syntax Use host-neutral messages and injected wire constants.

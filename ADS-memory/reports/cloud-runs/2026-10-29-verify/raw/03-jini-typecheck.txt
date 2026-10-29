@@ -1,0 +1,150 @@
+Scope: 44 of 45 workspace projects
+examples/nlweb-demo typecheck$ tsc -p tsconfig.json --noEmit
+packages/core typecheck$ tsc -p tsconfig.json --noEmit
+packages/memory typecheck$ tsc -p tsconfig.json --noEmit
+packages/cookie-consent typecheck$ tsc -p tsconfig.json --noEmit
+examples/nlweb-demo typecheck: Done
+packages/protocol typecheck$ tsc -p tsconfig.json --noEmit
+packages/cookie-consent typecheck: Done
+packages/sandbox typecheck$ tsc -p tsconfig.json --noEmit
+packages/memory typecheck: Done
+packages/ui-kit typecheck$ tsc --noEmit
+packages/protocol typecheck: Done
+packages/sandbox typecheck: Done
+packages/core typecheck: Done
+packages/ui-kit typecheck: Done
+packages/agentic typecheck$ tsc -p tsconfig.json --noEmit && tsc -p tsconfig.dom.json --noEmit
+packages/artifacts typecheck$ tsc -p tsconfig.json --noEmit
+packages/desktop-host typecheck$ tsc -p tsconfig.json --noEmit
+packages/platform typecheck$ tsc -p tsconfig.json --noEmit
+packages/artifacts typecheck: Done
+packages/desktop-host typecheck: Done
+packages/agentic typecheck: Done
+packages/platform typecheck: Done
+examples/reference-desktop typecheck$ tsc -p tsconfig.json --noEmit
+packages/capability-providers typecheck$ tsc -p tsconfig.json --noEmit
+packages/http-kit typecheck$ tsc -p tsconfig.json --noEmit
+packages/db typecheck$ tsc -p tsconfig.json --noEmit
+examples/reference-desktop typecheck: Done
+packages/oauth typecheck$ tsc -p tsconfig.json --noEmit
+packages/capability-providers typecheck: Done
+packages/sidecar typecheck$ tsc -p tsconfig.json --noEmit
+packages/http-kit typecheck: src/__tests__/verified-origin-allowlist-boundaries.unit.test.ts(8,59): error TS2345: Argument of type '(host: string, candidate: string) => Promise<[void, void]>' is not assignable to parameter of type '(args_0: string, args_1: string) => Awaitable<void>'.
+packages/http-kit typecheck:   Type 'Promise<[void, void]>' is not assignable to type 'Awaitable<void>'.
+packages/http-kit typecheck:     Type 'Promise<[void, void]>' is not assignable to type 'PromiseLike<void>'.
+packages/http-kit typecheck:       Types of property 'then' are incompatible.
+packages/http-kit typecheck:         Type '<TResult1 = [void, void], TResult2 = never>(onfulfilled?: ((value: [void, void]) => TResult1 | PromiseLike<TResult1>) | null | undefined, onrejected?: ((reason: any) => TResult2 | PromiseLike<...>) | null | undefined) => Promise<...>' is not assignable to type '<TResult1 = void, TResult2 = never>(onfulfilled?: ((value: void) => TResult1 | PromiseLike<TResult1>) | null | undefined, onrejected?: ((reason: any) => TResult2 | PromiseLike<...>) | null | undefined) => PromiseLike<...>'.
+packages/http-kit typecheck:           Types of parameters 'onfulfilled' and 'onfulfilled' are incompatible.
+packages/http-kit typecheck:             Types of parameters 'value' and 'value' are incompatible.
+packages/http-kit typecheck:               Type '[void, void]' is not assignable to type 'void'.
+packages/http-kit typecheck: Failed
+packages/vibecoding typecheck$ tsc -p tsconfig.json --noEmit
+packages/oauth typecheck: Done
+packages/sidecar typecheck: Done
+packages/db typecheck: Done
+packages/vibecoding typecheck: Done
+packages/cli typecheck$ tsc -p tsconfig.json --noEmit
+packages/plugins typecheck$ tsc -p tsconfig.json --noEmit
+packages/infra typecheck$ tsc -p tsconfig.json --noEmit
+packages/cms typecheck$ tsc -p tsconfig.json --noEmit
+packages/infra typecheck: src/events/outbox/__tests__/fenced-worker.test.ts(10,43): error TS2322: Type 'void' is not assignable to type '"delivered" | "uncertain" | "permanent-failure" | "confirmed-no-effect"'.
+packages/infra typecheck: Failed
+packages/registry typecheck$ tsc -p tsconfig.json --noEmit
+packages/cli typecheck: Done
+packages/plugins typecheck: src/host/__tests__/unit/loader.unit.test.ts(40,24): error TS2339: Property 'toHaveBeenCalledExactlyOnceWith' does not exist on type 'Assertion<Mock<() => Promise<never>>>'.
+packages/plugins typecheck: Failed
+packages/registry typecheck: Done
+packages/cms typecheck: Done
+packages/agent-plugins typecheck$ tsc -p tsconfig.json --noEmit
+packages/cms/forms typecheck$ tsc -p tsconfig.json --noEmit
+packages/cms/forms typecheck: Done
+packages/agent-plugins typecheck: Done
+packages/integrations typecheck$ tsc -p tsconfig.json --noEmit
+packages/search typecheck$ tsc -p tsconfig.json --noEmit
+packages/search typecheck: Done
+packages/integrations typecheck: src/saved-requests/__tests__/credential-description-w2g.unit.test.ts(11,10): error TS2540: Cannot assign to 'executeCredentialedRequest' because it is a read-only property.
+packages/integrations typecheck: src/saved-requests/__tests__/credential-description-w2g.unit.test.ts(11,46): error TS7006: Parameter 'required' implicitly has an 'any' type.
+packages/integrations typecheck: src/saved-requests/__tests__/credential-description-w2g.unit.test.ts(11,56): error TS7006: Parameter 'optional' implicitly has an 'any' type.
+packages/integrations typecheck: Failed
+packages/agent-runtime typecheck$ tsc -p tsconfig.json --noEmit
+packages/agent-runtime typecheck: src/ai-trace/__tests__/sink-policy.unit.test.ts(39,18): error TS2352: Conversion of type '{ kind: "model_turn"; input: null; output: null; reasoning: null; errorContent: undefined; error: null; } | { kind: "model_turn"; input: null; output: null; reasoning: null; errorContent: undefined; ... 8 more ...; tags: readonly string[]; } | { ...; } | { ...; } | { ...; }' to type 'AiTraceEvent' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+packages/agent-runtime typecheck:   Type '{ kind: "model_turn"; input: null; output: null; reasoning: null; errorContent: undefined; error: null; traceId: string; at: number; outcome: AiRunOutcome; totals: AiTraceTotals; }' is not comparable to type 'AiTraceEvent'.
+packages/agent-runtime typecheck:     Type '{ kind: "model_turn"; input: null; output: null; reasoning: null; errorContent: undefined; error: null; traceId: string; at: number; outcome: AiRunOutcome; totals: AiTraceTotals; }' is missing the following properties from type 'AiTraceModelTurn': turnId, index, startedAt, endedAt, and 6 more.
+packages/agent-runtime typecheck: Failed
+packages/analytics typecheck$ tsc -p tsconfig.json --noEmit
+packages/ui typecheck$ tsc -p tsconfig.json --noEmit
+packages/analytics typecheck: Done
+packages/ui typecheck: src/react/components/SecretInput.hooks.ts(2,87): error TS2307: Cannot find module '@jini-ai/ui-kit/react' or its corresponding type declarations.
+packages/ui typecheck: src/react/components/SecretInput.tsx(2,47): error TS2307: Cannot find module '@jini-ai/ui-kit/react' or its corresponding type declarations.
+packages/ui typecheck: Failed
+packages/admin typecheck$ tsc -p tsconfig.json --noEmit
+packages/diagnostics typecheck$ tsc -p tsconfig.json --noEmit
+packages/commerce typecheck$ tsc -p tsconfig.json --noEmit
+packages/commerce typecheck: Done
+packages/diagnostics typecheck: Done
+packages/admin typecheck: Done
+packages/provider-plugins typecheck$ tsc -p tsconfig.json --noEmit
+packages/chat typecheck$ tsc -p tsconfig.json --noEmit
+packages/user-management typecheck$ tsc -p tsconfig.json --noEmit
+packages/provider-plugins typecheck: src/__tests__/analytics-posthog-consent.test.ts(46,7): error TS18046: 'settings.loaded' is of type 'unknown'.
+packages/provider-plugins typecheck: src/__tests__/unit/exporter-completion-m2.unit.test.ts(14,20): error TS2339: Property 'toHaveBeenCalledExactlyOnceWith' does not exist on type 'Assertion<Mock<() => never>>'.
+packages/provider-plugins typecheck: src/__tests__/unit/exporter-completion-m2.unit.test.ts(15,27): error TS2339: Property 'toHaveBeenCalledExactlyOnceWith' does not exist on type 'Assertion<Mock<Procedure>>'.
+packages/provider-plugins typecheck: src/__tests__/unit/exporter-completion-m2.unit.test.ts(28,20): error TS2339: Property 'toHaveBeenCalledExactlyOnceWith' does not exist on type 'Assertion<Mock<Procedure>>'.
+packages/provider-plugins typecheck: src/__tests__/unit/exporter-completion-m2.unit.test.ts(29,27): error TS2339: Property 'toHaveBeenCalledExactlyOnceWith' does not exist on type 'Assertion<Mock<Procedure>>'.
+packages/provider-plugins typecheck: Failed
+packages/user-management typecheck: Done
+packages/chat typecheck: Done
+packages/daemon typecheck$ tsc -p tsconfig.json --noEmit
+packages/daemon typecheck: Done
+packages/devops typecheck$ tsc -p tsconfig.json --noEmit
+packages/server typecheck$ tsc -p tsconfig.tests.json && tsc -p tsconfig.json --noEmit
+packages/mcp typecheck$ tsc -p tsconfig.json --noEmit
+packages/sqlite typecheck$ tsc -p tsconfig.json --noEmit
+packages/sqlite typecheck: Done
+packages/devops typecheck: Done
+packages/server typecheck: Done
+packages/mcp typecheck: src/server/__tests__/tool-server.test.ts(132,17): error TS2339: Property 'toHaveBeenCalledExactlyOnceWith' does not exist on type 'Assertion<MockInstance<(_required: Record<string, never>) => Promise<void>>>'.
+packages/mcp typecheck: Failed
+examples/reference-web typecheck$ tsc -p tsconfig.json --noEmit
+examples/reference-web typecheck: Done
+ ERR_PNPM_RECURSIVE_FAIL  
+
+
+Summary: 8 fails, 34 passes
+
+/home/user/Jini/packages/http-kit:
+ ERROR  @jini-ai/http-kit@0.6.13 typecheck: `tsc -p tsconfig.json --noEmit`
+Exit status 2
+
+/home/user/Jini/packages/infra:
+ ERROR  @jini-ai/infra@0.5.4 typecheck: `tsc -p tsconfig.json --noEmit`
+Exit status 2
+
+/home/user/Jini/packages/plugins:
+ ERROR  @jini-ai/plugins@0.6.13 typecheck: `tsc -p tsconfig.json --noEmit`
+Exit status 2
+
+/home/user/Jini/packages/integrations:
+ ERROR  @jini-ai/integrations@0.6.13 typecheck: `tsc -p tsconfig.json --noEmit`
+Exit status 2
+
+/home/user/Jini/packages/agent-runtime:
+ ERROR  @jini-ai/agent-runtime@0.6.13 typecheck: `tsc -p tsconfig.json --noEmit`
+Exit status 2
+
+/home/user/Jini/packages/ui:
+ ERROR  @jini-ai/ui@0.6.13 typecheck: `tsc -p tsconfig.json --noEmit`
+Exit status 2
+
+/home/user/Jini/packages/provider-plugins:
+ ERROR  @jini-ai/provider-plugins@0.6.13 typecheck: `tsc -p tsconfig.json --noEmit`
+Exit status 2
+
+/home/user/Jini/packages/mcp:
+ ERROR  @jini-ai/mcp@0.6.13 typecheck: `tsc -p tsconfig.json --noEmit`
+Exit status 2
+
+real	1m57.560s
+user	4m33.814s
+sys	0m20.986s
+tc exit=0
