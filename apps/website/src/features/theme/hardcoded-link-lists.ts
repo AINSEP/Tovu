@@ -70,7 +70,8 @@ export function findHardcodedLinks({ html }: { html: string }, _optional: {} = {
 function anchorHref({ html, start }: { html: string; start: number }, _options = {}): { href: string; end: number } | undefined {
   const prefix = new RegExp(HREF_PREFIX);
   const value = new RegExp(HREF_VALUE);
-  for (let offset = start; offset < html.length; offset++) {
+  let offset = start;
+  while (offset < html.length) {
     const char = html[offset]!;
     if (char === ">") return undefined;
     const captured = anchorHrefAt({ html, offset, prefix, value });
@@ -78,7 +79,7 @@ function anchorHref({ html, start }: { html: string; start: number }, _options =
     const quoted = char === '"' || char === "'";
     const end = quoted ? html.indexOf(char, offset + 1) : offset;
     if (end === -1) return undefined;
-    offset = end;
+    offset = end + 1;
   }
   return undefined;
 }
