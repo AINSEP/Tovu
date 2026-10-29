@@ -1,5 +1,5 @@
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
-import { isUniqueViolation } from "../../platform/db/kernel/dialect.js";
+import { isUniqueViolation } from "@jini-ai/db/kernel";
 import { InMemoryVaultRepo, SecretsVaultService, VaultError, type VaultRepoPort, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
 import { credentialTokenHint } from "#src/contracts/core/credential-token";
 import { byVaultLabel, createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
@@ -173,7 +173,8 @@ function peerVault({ repo, sealer, keyring, now }: {
  * @complexity O(metadata size) validation, then fixed projection.
  */
 function peerRecord({ record }: { record: VaultRecord }, _options = {}): PublishContentPeerRecord {
-  if (record.kind !== "publish-peer" || record.ownerKey !== "tovu" || record.principalId !== null || record.provider !== null || record.binding !== null) throw new VaultError({ code: "context" });
+  const wrongKind = record.kind !== "publish-peer" || record.ownerKey !== "tovu";
+  if (wrongKind || record.principalId !== null || record.provider !== null || record.binding !== null) throw new VaultError({ code: "context" });
   const meta = peerKinds.metaParsers["publish-peer"]({ meta: record.meta });
   return { workspaceId: record.workspaceId, id: record.id, label: record.label, baseUrl: meta.baseUrl as string,
     remoteWorkspaceId: meta.remoteWorkspaceId as string, sealed: record.sealed,

@@ -5,7 +5,7 @@ import path from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
 import { contentHash } from "../content-hash.js";
-import { createRawFileSitePort } from "#src/platform/site-dir/publish-backstop-file";
+import { createRawFileSitePort } from "#src/features/publish-content/publish-backstop-file";
 import { contributeRawFilePublish, undoRawFile } from "../raw-file-contributor.js";
 import { createFileBlobIndex } from "../file-blob-index.js";
 import { InMemoryBlobStore, InMemoryVersionedMediaRepo, InMemoryAssetBlobRepo, InMemoryMediaContentTypeStore } from "#src/features/media/index";

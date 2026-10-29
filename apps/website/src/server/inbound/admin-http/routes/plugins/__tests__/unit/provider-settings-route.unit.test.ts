@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import test, { type TestContext } from "node:test";
 import express from "express";
+import { createNoopTracker } from '@jini-ai/diagnostics/observability';
+import { ToolInputError } from '@jini-ai/core';
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { createProjectKeys } from "#src/features/project-keys/service";
 import { fakeAttachments, vaultRow } from "#src/features/project-keys/__tests__/helpers";
@@ -17,6 +19,30 @@ import { registerPluginProviderSettingsRoutes, type ProviderSettingsRouteDeps } 
  */
 
 const WS = "ws-1";
+
+test('provider save reports each declared contract once and never sends field values to telemetry', async t => {
+  const events: unknown[] = [];
+  const tracker = { ...createNoopTracker({}), capture: (...args: unknown[]) => { events.push(args); } };
+  const { call, config } = await serve(t, { tracker });
+  const saved = await call('PUT', `${WS}/plugins/obs/provider-settings`, { values: { endpoint: 'https://collector.example.test', headers: 'private-fixture' } });
+  assert.equal(saved.status, 200);
+  assert.deepEqual(config.saved.get('obs'), { settings: { endpoint: 'https://collector.example.test' }, secrets: { headers: 'private-fixture' } });
+  assert.deepEqual(events, [[{ name: 'provider_configured', userId: 'owner' }, { properties: { contract: 'observability', pluginId: 'obs', action: 'save' } }]]);
+});
+
+test('project key use reports a typed unknown-key refusal as 400 and keeps opaque failures private', async t => {
+  for (const failure of [new ToolInputError({ message: 'Unknown project key' }), new Error('private vault location')]) {
+    let writes = 0;
+    const { call } = await serve(t, { projectKeys: {
+      list: async () => [], savedResult: async ({ result }) => result,
+      permissionFor: async () => { throw failure; }, use: async () => { writes++; assert.fail('missing key cannot be attached'); },
+    } });
+    const reply = await call('PUT', `${WS}/project-keys/missing/use`, { use: true });
+    assert.deepEqual([reply.status, reply.json], failure instanceof ToolInputError
+      ? [400, { error: 'Unknown project key' }] : [500, { error: 'internal error', code: 'INTERNAL_ERROR' }]);
+    assert.equal(writes, 0);
+  }
+});
 const MANIFEST = { contributes: { providers: [
   { contract: "observability", id: "opentelemetry", contractVersion: 1, settings: [
     { name: "endpoint", label: "OTLP endpoint", required: true, hint: "https://…" }, { name: "headers", label: "OTLP headers", secret: true }] },

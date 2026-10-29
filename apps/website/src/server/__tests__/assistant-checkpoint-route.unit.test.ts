@@ -45,7 +45,7 @@ test("recover POST runs the finalizer for an owned run and answers the post-reco
     find: async (input: unknown) => { calls.push(["find", input]); return run; },
   };
   const deps = { workspaceId: "ws", siteStoragePaths: { chatAttachmentsDir: "/unused" }, chatRunLedger: { durable } } as unknown as RouteDeps;
-  assistantRunFinalizerFor({ ledger: deps.chatRunLedger }, {}).recover = async (input: unknown) => { calls.push(["recover", input]); };
+  assistantRunFinalizerFor({ ledger: deps.chatRunLedger }, {}).recover = async (input: unknown) => { calls.push(["recover", input]); return "finalized"; };
   createAssistantModule(deps, {} as never).registerRoutes!(app);
   const post = (req: Record<string, unknown>, principal = "owner") => new Promise<{ code: number; body: unknown }>((resolve, reject) => {
     let code = 200;

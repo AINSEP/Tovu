@@ -1,8 +1,7 @@
-import { PERMANENT_DELETE_GUIDANCE } from "#src/contracts/headless/assistant-permanent-deletes-policy";
-import { CREDENTIAL_GUIDANCE } from "#src/assistant/credential-guidance";
-import { SITE_GUIDE_POINTER } from "#src/assistant/site-guide-pointer";
+import { PERMANENT_DELETE_GUIDANCE } from "#src/contracts/headless/index";
+import { CREDENTIAL_GUIDANCE, SITE_GUIDE_POINTER } from "#src/assistant/prompt-guidance";
 import { TOOLS_FIRST_RULE } from "#src/contracts/core/assistant-native-fallbacks";
-import { ASSISTANT_CLI_CAPABILITIES, type AssistantCliPermissions } from "#src/contracts/headless/assistant-subagents-policy";
+import { ASSISTANT_CLI_CAPABILITIES, type AssistantCliPermissions } from "#src/contracts/headless/index";
 /**
  * @file Test seam extracted out of `agent-daemon-server.ts`'s `assistantPromptAugmenter.
  * systemOverlay()`: the base tool-catalog-protocol overlay every assistant run receives, and the
@@ -70,7 +69,7 @@ export function buildAssistantSubagentsOverlay(required: {
  * "clean up" this text, and do not collapse this back down to a single block — {@link
  * BASH_PROHIBITION_BLOCK} is a deliberately harsher, opt-in diagnostic variant, not a replacement
  * for this one (see {@link resolveBashProhibitionEnabled}'s doc for why both exist).
- * Todo 21 corrects that old availability claim: the enforced disallow list now owns this wording.
+ * Task 21 corrects that old availability claim: the enforced disallow list now owns this wording.
  */
 
 /** Most tools take `items` by default (`assistant/batch-tool-inputs.ts`); one call beats dozens. */
@@ -141,7 +140,7 @@ export function resolveAssistantRunSettings(homeDir: string, fileExists: (path: 
  * @complexity O(1).
  */
 export function resolveBashProhibitionEnabled(
-  env: { readonly TOVU_AGENT_FORBID_BASH?: string | undefined } = process.env,
+  env: { readonly TOVU_AGENT_FORBID_BASH?: string } = process.env,
 ): boolean {
   return env.TOVU_AGENT_FORBID_BASH === "1";
 }

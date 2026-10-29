@@ -1,3 +1,4 @@
+import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -24,10 +25,10 @@ async function fixture({ accountLabel }: { accountLabel?: string } = {}, _option
   const clock = { nowMs: () => 0, nowIso: () => "2026-10-20T00:00:00.000Z" };
   const writeDeps = { repo, sealer, keyring, clock, idGen: { newId: () => `credential-${++id}` }, loadDeployTargets: async () => registry };
   const saved = await createPublishCredential(writeDeps, { workspaceId: "ws", label: "Original", connection: { providerId: "fixture", token: ["fixture", "original"].join("-") } });
-  const ports = { workspaceId: "ws", authorize: async () => ({ allowed, reason: "pin" }), clock, idGen: writeDeps.idGen,
+  const ports = { observability: createNoopObservabilityPort({}), workspaceId: "ws", authorize: async () => ({ allowed, reason: "pin" }), clock, idGen: writeDeps.idGen,
     vendorCredentialSetRepo: repo, siteAssistantSecretSealer: sealer, siteAssistantSecretKeyring: keyring,
     publishExecutionMode: "hosted-api-only", publishCredentialVerificationCache: cache, loadDeployTargets: writeDeps.loadDeployTargets,
-  } satisfies Omit<AdminPublishCredentialsDeps, "contentKernel" | "observability">;
+  } satisfies Omit<AdminPublishCredentialsDeps, "contentKernel">;
   const app = express();
   // PUT never uses contentKernel; the fake provider performs no outbound request/observability work.
   registerAdminPublishCredentialsRoutes(app, ports as AdminPublishCredentialsDeps);

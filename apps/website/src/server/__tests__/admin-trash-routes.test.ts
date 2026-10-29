@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -10,7 +11,6 @@ import {
   createContentDbTransactionRunner,
   createPostTrashAdapter,
   createRedirectTrashAdapter,
-  createSqliteTrashDb,
   createTableTrashAdapter,
   createTrashService,
   POST_ENTITY_TYPE,
@@ -188,10 +188,10 @@ function buildTrashHarness(): TrashHarness {
     .run(base.workspaceId, "ws", "ws", "2026-01-01T00:00:00.000Z");
 
   const registry = buildTrashRegistry();
-  const sqliteTrashDb = createSqliteTrashDb({ db });
+  const sqliteTrashDb = contentKernel(db);
   const adapters = new Map<string, TrashAdapter>([
-    [POST_ENTITY_TYPE, createPostTrashAdapter(client)],
-    [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(client)],
+    [POST_ENTITY_TYPE, createPostTrashAdapter(contentKernel(client))],
+    [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(contentKernel(client))],
     // `moveToTrash` (`POST .../trash/items`) is exercised through the `form` entry — the one
     // registry-derived kind G1c registers.
     ...[...registry.values()].map(

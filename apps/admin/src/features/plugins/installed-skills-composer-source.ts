@@ -28,6 +28,16 @@ const INSTALLED_SKILL_ID_PREFIX = "installed-skill:";
 
 type SkillsSnapshot = { etag: string | undefined; capabilities: readonly TovuComposerCapability[] };
 
+function skillsSnapshotFromBody({ body, cached, etag }: {
+  body: InstalledSkillsResponse;
+  cached: SkillsSnapshot | undefined;
+  etag: string | undefined;
+}, _options = {}): SkillsSnapshot {
+  if (!Array.isArray(body.skills)) throw new TypeError("Installed skills response must contain a skills array");
+  if (cached?.etag && etag === cached.etag) return cached;
+  return { etag, capabilities: body.skills.filter(isInstalledSkillSummary).filter(s => s.enabled !== false).map(toCapability) };
+}
+
 /** Reuse authenticated transport and translate only its 304 error into the exact cached snapshot.
  * Invalid bodies and failures throw, so they never become successful cache entries.
  * @complexity O(n) time/space for n summaries; one request, no guidance bodies cached.
@@ -42,9 +52,7 @@ async function readSkillsSnapshot(
       headers: cached?.etag ? { "If-None-Match": cached.etag } : {},
       onOk: response => { etag = response.headers?.get("ETag") ?? undefined; },
     });
-    if (!Array.isArray(body.skills)) throw new TypeError("Installed skills response must contain a skills array");
-    if (cached?.etag && etag === cached.etag) return cached;
-    return { etag, capabilities: body.skills.filter(isInstalledSkillSummary).filter(s => s.enabled !== false).map(toCapability) };
+    return skillsSnapshotFromBody({ body, cached, etag });
   } catch (error) {
     if (error instanceof ApiError && error.status === 304 && cached) return cached;
     throw error;
@@ -52,13 +60,9 @@ async function readSkillsSnapshot(
 }
 
 function isInstalledSkillSummary(value: unknown): value is InstalledSkillSummary {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    typeof (value as { toolId?: unknown }).toolId === "string" &&
-    typeof (value as { name?: unknown }).name === "string" &&
-    typeof (value as { description?: unknown }).description === "string"
-  );
+  if (typeof value !== "object" || value === null) return false;
+  const summary = value as { toolId?: unknown; name?: unknown; description?: unknown };
+  return typeof summary.toolId === "string" && typeof summary.name === "string" && typeof summary.description === "string";
 }
 
 /**
@@ -113,7 +117,8 @@ export function createInstalledSkillsComposerCapabilitySource(
   /** Revalidate once per pending request; force prevents pre-event work from publishing a cache. */
   const reload = (_required: Record<string, never> = {}, { force = false } = {}) => {
     if (pending && !force) return pending;
-    const current = ++generation;
+    generation += 1;
+    const current = generation;
     pending = readSkillsSnapshot({ request, cached }).then(snapshot => {
       if (current === generation) cached = snapshot;
       return snapshot.capabilities;

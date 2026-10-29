@@ -1,3 +1,5 @@
+import { createCoreTableCatalog } from "#src/server/runtime/composition/database-transfer-adapters";
+import { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
@@ -63,11 +65,19 @@ const LATER_TABLES: Record<string, { before: string | null; classes: Record<stri
     lease_expires_at: "utc-timestamp-text", last_started_at: "utc-timestamp-text" } },
   form_submission_remote_receipts: { before: "form_submissions", classes: { workspace_id: "plain-text", destination_key: "plain-text",
     remote_id: "plain-text", submission_id: "plain-text", imported_at: "utc-timestamp-text" } },
+  // 8bfa8b040 (0035): provider subject associations, with no bearer credentials.
+  member_external_identities: { before: "member_revisions", classes: { id: "plain-text", workspace_id: "plain-text",
+    member_id: "plain-text", provider_id: "plain-text", issuer: "plain-text", subject: "plain-text",
+    linked_at: "utc-timestamp-text", unlinked_at: "utc-timestamp-text" } },
 };
 
 // Classified but never copied (`member_magic_tokens` is a login table in `database-transfer/exclusions.ts`),
 // so only the classification parity sees it. 0032 (new-address sign-in challenge email).
-const LATER_UNCOPIED_COLUMNS: Record<string, Record<string, string>> = { member_magic_tokens: { email: "plain-text" } };
+// b9d3b37b3 (0034) adds member passwords and code challenges; members now stays behind in a copy.
+const LATER_UNCOPIED_COLUMNS: Record<string, Record<string, string>> = {
+  members: { password_hash: "plain-text" },
+  member_magic_tokens: { email: "plain-text", code_hash: "plain-text", failed_attempts: "plain-integer" },
+};
 
 const golden = JSON.parse(readFileSync(join(import.meta.dirname, "__fixtures__/commerce-strip-parity.golden.json"), "utf8")) as {
   transfer: Record<string, string[]>; classes: Record<string, Record<string, string>>;
@@ -174,7 +184,7 @@ describeEachDialect("trash and purge on a database migrated past 0011", { tables
     const kernel = make();
     await seed(kernel);
     let n = 0;
-    const user = createUserTrashAdapter({ db: kernel, purge: new SqlUserPurge(kernel), idGen: { next: () => `evt-${++n}` }, clock: { nowIso: () => AT } });
+    const user = createUserTrashAdapter({ eventValues: outboxEventValues, db: kernel, purge: new SqlUserPurge({ kernel: kernel, eventValues: outboxEventValues }), idGen: { next: () => `evt-${++n}` }, clock: { nowIso: () => AT } });
 
     assert.equal((await user.hide({ workspaceId: WS, entityId: "u-1", at: AT, expectedVersion: null })).ok, true);
     assert.equal(await user.purge({ workspaceId: WS, entityId: "u-1", expectedVersion: null }), "purged");
@@ -188,8 +198,8 @@ describe("catalogs against the pre-strip tree (4570fce9d)", () => {
 
   test("the transfer catalog loses exactly the six commerce tables and gains the named later columns", () => {
     for (const name of COMMERCE) assert.ok(name in golden.transfer, `pre-strip copied ${name}`);
-    const actual = Object.fromEntries(collectTransferTables().map(table => [table.name, table.columns.map(column => column.name)]));
-    const expected = without(golden.transfer, COMMERCE);
+    const actual = Object.fromEntries(collectTransferTables({ catalog: createCoreTableCatalog({}) }).map(table => [table.name, table.columns.map(column => column.name)]));
+    const expected = without(golden.transfer, [...COMMERCE, "members"]);
     for (const [table, addition] of Object.entries(LATER_COLUMNS)) {
       const columns = [...expected[table]];
       const at = columns.indexOf(addition.before);
@@ -197,6 +207,10 @@ describe("catalogs against the pre-strip tree (4570fce9d)", () => {
       columns.splice(at, 0, ...Object.keys(addition.classes));
       expected[table] = columns;
     }
+    // 0037 (cloud snapshot 2a0c60ac): per-media source metadata follows the source hash.
+    const sourceAt = expected.media.indexOf("source_sha256");
+    assert.notEqual(sourceAt, -1, "media: the pre-strip source hash anchor must exist");
+    expected.media.splice(sourceAt + 1, 0, "source_metadata_json");
     let entries = Object.entries(expected);
     for (const [table, addition] of Object.entries(LATER_TABLES)) {
       if (addition.before === null) continue;
@@ -219,6 +233,7 @@ describe("catalogs against the pre-strip tree (4570fce9d)", () => {
     for (const [table, addition] of Object.entries(LATER_COLUMNS)) {
       expected[table] = { ...expected[table], ...addition.classes };
     }
+    expected.media = { ...expected.media, source_metadata_json: "json-text" };
     for (const [table, addition] of Object.entries(LATER_TABLES)) expected[table] = addition.classes;
     for (const [table, classes] of Object.entries(LATER_UNCOPIED_COLUMNS)) expected[table] = { ...expected[table], ...classes };
     expected.external_mcp_servers = without(expected.external_mcp_servers, MCP_SEALED);

@@ -85,7 +85,7 @@ export function useSidebarEmptyClickToggle(
 ): void {
   useEffect(() => {
     const nav = doc.getElementById(navId);
-    if (!nav) return;
+    if (!nav) return undefined;
     let pressedAt: { x: number; y: number } | null = null;
     function onPointerDown(event: PointerEvent) {
       pressedAt = { x: event.clientX, y: event.clientY };

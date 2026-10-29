@@ -1,5 +1,5 @@
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
-import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort, ExternalMcpStoreDeps } from "#src/assistant/index";
+import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort, ExternalMcpStoreDeps } from "#src/assistant/mcp-services";
 
 import { deriveAgentPluginConnectionId } from "./federate-mcp.js";
 import { listInstalledAgentPluginServers, type InstalledAgentPluginServers, type TokenImportLog } from "./import-access-token.js";
@@ -107,20 +107,21 @@ async function applyServerToolRenames(
   if (config.type === "stdio" || !config.tovuRenamedTools) return false;
   const serverId = deriveAgentPluginConnectionId(serverKey);
   if (serverId === null) return false;
-  let changed = false;
+  const result = { changed: false };
   try {
     const row = await deps.externalMcpServerRepo.findByServerId({ workspaceId: deps.workspaceId, serverId });
     if (!row) return false;
     const renamed = renameRowTools({ row, renames: config.tovuRenamedTools, clock: deps.clock, pluginId, url: config.url });
     if (!renamed) return false;
     await deps.externalMcpServerRepo.upsert(renamed);
-    changed = true;
-    log.info(`[agent-plugins] '${serverId}': renamed saved tools to follow the '${pluginId}' plugin (${Object.entries(config.tovuRenamedTools).map(([from, to]) => `${from} -> ${to}`).join(", ")}).`);
+    result.changed = true;
+    const renames = Object.entries(config.tovuRenamedTools).map(([from, to]) => `${from} -> ${to}`).join(", ");
+    log.info(`[agent-plugins] '${serverId}': renamed saved tools to follow the '${pluginId}' plugin (${renames}).`);
     return true;
   } catch (err) {
     log.warn(`[agent-plugins] could not apply the '${pluginId}' plugin's tool renames to '${serverId}': ${err instanceof Error ? err.message : String(err)}`);
   }
-  return changed;
+  return result.changed;
 }
 
 /**

@@ -31,6 +31,8 @@ import {
 import { defaultStaticPublishPort } from "./static-publish-dependencies.hooks";
 import type { StaticPublishPort } from "./static-publish-port.hooks";
 
+const UNKNOWN_ERROR = "unknown error";
+
 /**
  * @file Everything the Static Site tab's "Getting it online" provider form does — target selection,
  * the host's config fields and projectName, the preview action, and the publish
@@ -151,7 +153,7 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
   // The host's own text in the viewer's locale, once, so every consumer (this form, the credential
   // rows built from these targets) renders it translated.
   const targets = useMemo(() => localizePublishTargets(targetsQuery.data, locale), [targetsQuery.data, locale]);
-  const targetsError = targetsQuery.error ? publishLoadErrorMessage(locale, describeApiError(targetsQuery.error, "unknown error")) : null;
+  const targetsError = targetsQuery.error ? publishLoadErrorMessage(locale, describeApiError(targetsQuery.error, UNKNOWN_ERROR)) : null;
   const [chosenTarget, setChosenTarget] = useState<AdminStaticPublishTargetId | null>(null);
   const target = chosenTarget ?? targets?.[0]?.id ?? "";
   const selectedTarget = publishTargetById(targets, target);
@@ -220,7 +222,7 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
       setPreview(result);
     } catch (err) {
       if (previewGenerationRef.current !== requestGeneration) return;
-      setPreviewError(publishPreviewErrorMessage(locale, describeApiError(err, "unknown error")));
+      setPreviewError(publishPreviewErrorMessage(locale, describeApiError(err, UNKNOWN_ERROR)));
     } finally {
       // Unconditional, unlike the two branches above: this request's own spinner must stop once ITS
       // OWN network call settles regardless of generation, or a discarded stale response would leave
@@ -248,7 +250,7 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
     setRun(query.data);
   }, [query.status, query.data]);
 
-  const loadError = query.error ? publishLoadErrorMessage(locale, describeApiError(query.error, "unknown error")) : null;
+  const loadError = query.error ? publishLoadErrorMessage(locale, describeApiError(query.error, UNKNOWN_ERROR)) : null;
 
   // Counts CONSECUTIVE poll failures for the `PUBLISH_POLL_FAILURE_LIMIT` bound below — same ref-not-
   // state reasoning `use-static-export.hooks.ts`'s own `pollFailuresRef` documents.
@@ -288,7 +290,7 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
           // retry forever. Setting `pollError` also flips `isPublishing` false on the next render,
           // which re-arms this effect's own cleanup — but `return` here (no `scheduleNext()`) is
           // what actually stops the loop; it must not depend on that later render having happened.
-          setPollError(publishPollErrorMessage(locale, describeApiError(err, "unknown error")));
+          setPollError(publishPollErrorMessage(locale, describeApiError(err, UNKNOWN_ERROR)));
           return;
         }
         scheduleNext();
@@ -332,7 +334,7 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
       });
       setRun(started);
     } catch (err) {
-      setPublishError(publishTriggerErrorMessage(locale, describeApiError(err, "unknown error")));
+      setPublishError(publishTriggerErrorMessage(locale, describeApiError(err, UNKNOWN_ERROR)));
     } finally {
       publishingRef.current = false;
       setPublishing(false);

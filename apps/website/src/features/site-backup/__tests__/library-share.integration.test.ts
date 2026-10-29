@@ -20,7 +20,7 @@ import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { SqliteMediaRepo, SqliteAssetBlobRepo, SqliteAssetRenditionRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { sanitizeShareDatabase, rewriteArchiveMedia } from "#src/platform/db/sqlite/share-database";
+import { sanitizeShareDatabase, rewriteArchiveMedia } from "#src/server/runtime/composition/site-portability";
 import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 import { readTemplate } from "#src/platform/site-dir/read-template";

@@ -14,6 +14,7 @@ test("Sites snapshot exposes the injected host and Trash; trashing the default r
   await localSiteSupervisor.start({ name: "alpha" });
   let persisted = "alpha";
   const deps: AdminSitesDeps = {
+    createSite: async () => { throw new Error("unexpected site creation"); },
     workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "owner" }),
     siteBinding: { name: "owner", dir: "/repo/sites/owner", dirOverridden: false, switcherCompatible: true },
     isSiteSwitcherEnabled: () => true, localSiteSupervisor,

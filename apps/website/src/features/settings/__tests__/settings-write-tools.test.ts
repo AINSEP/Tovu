@@ -1,4 +1,4 @@
-import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_WRITE_REASON } from "../../../contracts/headless/assistant-permanent-deletes-policy.js";
+import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_WRITE_REASON } from "../../../contracts/headless/index.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { Express, Request, Response } from "express";
@@ -14,7 +14,7 @@ import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "#src/assist
 import { RUN_PRINCIPAL_HEADER } from "#src/assistant/daemon-access";
 import { createSystemClock } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_WRITE_REASON } from "../../../contracts/headless/assistant-subagents-policy.js";
+import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_WRITE_REASON } from "../../../contracts/headless/index.js";
 import { set } from "../site-title-write.js";
 import type { DetectedAgent } from "@jini-ai/agent-runtime";
 
@@ -76,6 +76,35 @@ test("normal setting runs directly and both writes are durable, not readOnly", a
   assert.deepEqual(await f.call("settings_set_value", { namespace: "core.presentation", key: "timezone", value: "Pacific" }), { key: "core.presentation.timezone", scope: "workspace", previous: null, value: "Pacific", revisionSeq: 1 });
   assert.equal(f.surfaceExchanges.size(), 0);
   for (const toolId of ["settings_set_value", "settings_clear_value"]) assert.equal(f.registrations.find((r) => r.descriptor.id === toolId)!.descriptor.readOnly, false);
+});
+
+test('settings approval renders previous and new objects as a field diff', async () => {
+  const f = fixture('core.execution', 'mode', { type: 'json' });
+  let html = '';
+  const emitSurface: NonNullable<ToolExecutionOptions['emitSurface']> = async emission => {
+    html = (emission.payload as { resource: { resource: { text: string } } }).resource.resource.text;
+    f.surfaceExchanges.deliver({ exchangeId: 'exchange-1', principalId: 'caller', params: { decision: 'confirm' } }, { toolId: 'settings_set_value' });
+  };
+  const input = { namespace: 'core.execution', key: 'mode' };
+  await f.call('settings_set_value', { ...input, value: { enabled: false, privacyPolicyUrl: '/privacy' } }, { emitSurface });
+  await f.call('settings_set_value', { ...input, value: { enabled: true, privacyPolicyUrl: '/privacy' } }, { emitSurface });
+  assert.match(html, /<dt>Enabled<\/dt><dd><div class="mcpui-detail-change">[\s\S]*Before[\s\S]*Off[\s\S]*After[\s\S]*On/);
+  assert.match(html, /mcpui-detail-unchanged[\s\S]*<dt>Privacy policy URL<\/dt>/);
+  assert.match(html, /View raw/);
+  assert.doesNotMatch(html, /<dt>Previous override<\/dt>/, 'one shared diff replaces the duplicate snapshot row');
+});
+
+test('chat selection approval passes the resulting selection as structured data', async () => {
+  const f = await chatFixture();
+  let html = '';
+  await f.call('settings_set_value', { namespace: 'core.execution', key: 'localCli.agentId', scope: 'user', value: 'new' }, {
+    emitSurface: async emission => {
+      html = (emission.payload as { resource: { resource: { text: string } } }).resource.resource.text;
+      await f.answer().emitSurface();
+    },
+  });
+  assert.match(html, /<dt>Resulting chat selection<\/dt><dd><dl class="mcpui-detail-group">/);
+  assert.match(html, /<dt>Agent ID<\/dt>/);
 });
 
 /** All three real ledger definitions and the same injected inventory as the UI route. */

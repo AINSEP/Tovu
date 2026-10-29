@@ -1,3 +1,5 @@
+import { createCoreTableCatalog } from "#src/server/runtime/composition/database-transfer-adapters";
+import { openSqliteSnapshot } from "#src/platform/db/kernel/drivers/sqlite";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -34,7 +36,7 @@ test("every excluded name is a current or migrated-away core table, and none of 
   // Raw-SQL migration tables have no Drizzle declaration, so they are not "core" by that catalog.
   const rawSqlNames = ["mail_capture"];
   assert.deepEqual(Object.keys(EXCLUDED_CORE_TABLES).filter((name) => !coreNames.has(name)).sort(), [...retiredNames, ...rawSqlNames].sort());
-  const copied = new Set(collectTransferTables().map((table) => table.name));
+  const copied = new Set(collectTransferTables({ catalog: createCoreTableCatalog({}) }).map((table) => table.name));
   assert.deepEqual(Object.keys(EXCLUDED_CORE_TABLES).filter((name) => copied.has(name)), []);
 });
 
@@ -47,7 +49,7 @@ test("partial exclusion counts skip settings tables absent from an older snapsho
     INSERT INTO setting_definitions VALUES ('public', 0), ('secret-a', 1), ('secret-b', 1);
     INSERT INTO setting_values_global VALUES ('public', 'visible'), ('secret-a', 'private-a'), ('secret-b', 'private-b');
   `);
-  const source = openSqliteSnapshotSource(db.serialize());
+  const source = openSqliteSnapshotSource({ bytes: db.serialize(), open: data => openSqliteSnapshot({ data }) });
   t.after(() => source.close());
 
   assert.deepEqual(countPartialExclusions(source), [{
@@ -59,7 +61,7 @@ test("partial exclusion counts skip settings tables absent from an older snapsho
 
 test("the copy excludes every agreed login, saved-key, confirmation and running-lock table", () => {
   assert.deepEqual(Object.keys(EXCLUDED_CORE_TABLES).sort(), [
-    "identity_users", "sessions", "api_keys", "member_sessions", "member_magic_tokens",
+    "identity_users", "sessions", "api_keys", "members", "member_sessions", "member_magic_tokens",
     "admin_execution_credentials", "custom_credential_sets", "database_transfer_destinations",
     "external_mcp_servers", "external_mcp_tool_approvals", "media_provider_credentials",
     "oauth_device_authorizations", "oauth_pending_authorizations", "publish_content_peers",
@@ -68,8 +70,22 @@ test("the copy excludes every agreed login, saved-key, confirmation and running-
   ].sort());
 });
 
+test("a snapshot with member password hashes leaves the whole credential table behind", (t) => {
+  const db = new Database(":memory:");
+  t.after(() => db.close());
+  db.exec("CREATE TABLE members (id TEXT PRIMARY KEY, password_hash TEXT)");
+  db.prepare("INSERT INTO members VALUES (?, ?)").run("member-1", "MEMBER_PASSWORD_HASH_CANARY");
+  const source = openSqliteSnapshotSource({ bytes: db.serialize(), open: data => openSqliteSnapshot({ data }) });
+  t.after(() => source.close());
+
+  assert.equal(source.countRows("members"), 1, "the snapshot really contains a member credential");
+  const plan = planSnapshotTables({ source, catalog: createCoreTableCatalog({}) });
+  assert.equal(plan.tables.some(table => table.name === "members"), false);
+  assert.deepEqual(plan.leftOut, [{ table: "members", reason: "logins (password hashes, sessions and sign-in links) are not copied" }]);
+});
+
 test("a copy carries form delivery plans and job index rows with their outbox rows, never the receiver pull lease", () => {
-  const copied = new Set(collectTransferTables().map((table) => table.name));
+  const copied = new Set(collectTransferTables({ catalog: createCoreTableCatalog({}) }).map((table) => table.name));
   assert.deepEqual(["form_delivery_plans", "form_delivery_jobs", "outbox_events", "form_submission_remote_receipts", "form_receiver_pulls"]
     .map((name) => [name, copied.has(name)]), [
     ["form_delivery_plans", true], ["form_delivery_jobs", true], ["outbox_events", true], ["form_submission_remote_receipts", true],
@@ -82,7 +98,7 @@ test("a copy plan names the receiver pull lease as left out because it is a lock
   const db = openContentDb(":memory:");
   try {
     db.$client.prepare("INSERT INTO form_receiver_pulls (workspace_id, receiver_key, lease_token, lease_expires_at, last_started_at) VALUES ('ws', 'host:https://r.example', 't', '2026-10-20T12:06:15.000Z', '2026-10-20T12:00:00.000Z')").run();
-    const { leftOut } = planSnapshotTables(openSqliteSnapshotSource(db.$client.serialize()));
+    const { leftOut } = planSnapshotTables({ source: openSqliteSnapshotSource({ bytes: db.$client.serialize(), open: data => openSqliteSnapshot({ data }) }), catalog: createCoreTableCatalog({}) });
     assert.deepEqual(leftOut.filter(entry => entry.table === "form_receiver_pulls"),
       [{ table: "form_receiver_pulls", reason: "locks held by the running site are not copied" }]);
   } finally {

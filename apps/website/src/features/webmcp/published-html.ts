@@ -29,11 +29,11 @@ function nativeFormToolRanges({ html }: { html: string }, _options = {}): { star
     if (!('tagName' in node)) continue;
     if (node.tagName === 'script' && node.attrs.some(attr => attr.name === SCRIPT_MARKER) && node.sourceCodeLocation) {
       ranges.push(node.sourceCodeLocation);
-      continue;
+    } else {
+      ranges.push(...formToolAttributeRanges({ node }));
+      stack.push(...node.childNodes);
+      if (node.tagName === 'template') stack.push(...(node as DefaultTreeAdapterMap['template']).content.childNodes);
     }
-    ranges.push(...formToolAttributeRanges({ node }));
-    stack.push(...node.childNodes);
-    if (node.tagName === 'template') stack.push(...(node as DefaultTreeAdapterMap['template']).content.childNodes);
   }
   ranges.sort((a, b) => b.startOffset - a.startOffset);
   return ranges;

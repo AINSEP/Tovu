@@ -228,11 +228,12 @@ const REASON_REWRITES: readonly ReasonRewrite[] = [
     pattern: /^fieldsJson failed schema validation: /,
     friendly: "This entry's fields don't match its collection on the live site. Publish the collection too.",
   },
-  {
-    pattern:
-      /^(?:content-type key '.+' fails the identifier grammar gate|key '.+' is permanently reserved|field name '.+' (?:fails the identifier grammar gate|appears more than once)|field '.+' has (?:kind '.+', not one of the closed field-kind enum|storage-only kind '.+' and cannot be queryable)|content type '.+' (?:submits more than \d+ queryable fields|update submitted an empty fields array))/,
-    friendly: "The live site can't accept this collection's fields. Update the live site, then try again.",
-  },
+  ...[
+    /^(?:content-type key '.+' fails the identifier grammar gate|key '.+' is permanently reserved)/,
+    /^field name '.+' (?:fails the identifier grammar gate|appears more than once)/,
+    /^field '.+' has (?:kind '.+', not one of the closed field-kind enum|storage-only kind '.+' and cannot be queryable)/,
+    /^content type '.+' (?:submits more than \d+ queryable fields|update submitted an empty fields array)/,
+  ].map((pattern) => ({ pattern, friendly: "The live site can't accept this collection's fields. Update the live site, then try again." })),
   {
     // entries (`repo.sqlite.ts`, `trash-aware-memory-repo.ts`) and forms word a trashed slug holder alike.
     pattern: /^an? [\w-]+ with slug '.+' is in the Trash/,

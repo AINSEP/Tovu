@@ -103,8 +103,7 @@ const NON_STATIC_TIER_SKIP_ROOTS: ReadonlySet<string> = new Set(["theme.json", "
 function planNonStaticRootScan(themeDir: string): string[] {
   const unrecognized: string[] = [];
   for (const name of readdirSync(themeDir)) {
-    if (NON_STATIC_TIER_SKIP_ROOTS.has(name)) continue;
-    if (CARRY_OVER_UNCHANGED.has(name) || TOKENS_MODE_FILE_PATTERN.test(name)) continue;
+    if (NON_STATIC_TIER_SKIP_ROOTS.has(name) || CARRY_OVER_UNCHANGED.has(name) || TOKENS_MODE_FILE_PATTERN.test(name)) continue;
     unrecognized.push(name);
   }
   return unrecognized;
@@ -231,10 +230,11 @@ function planStaticRootScan(themeDir: string): { moves: MigrationFileMove[]; unr
     if (STATIC_TIER_SKIP_ROOTS.has(name)) continue;
     if (isConventionalPartialFile(name)) {
       moves.push({ from: name, to: `render/partials/${name}` });
-      continue;
+    } else if (!CARRY_OVER_UNCHANGED.has(name) && !TOKENS_MODE_FILE_PATTERN.test(name)) {
+      unrecognized.push(name);
+    } else {
+      // Recognized carry-over files already have their destination.
     }
-    if (CARRY_OVER_UNCHANGED.has(name) || TOKENS_MODE_FILE_PATTERN.test(name)) continue;
-    unrecognized.push(name);
   }
   return { moves, unrecognized };
 }

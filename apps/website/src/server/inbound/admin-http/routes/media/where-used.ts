@@ -1,5 +1,5 @@
 import type { Express } from 'express';
-import { findMediaWhereUsed } from '#src/features/media/where-used';
+import { findMediaWhereUsed } from '#src/features/media/index';
 import { getAuthedPrincipal } from '#src/server/inbound/admin-http/dev-auth';
 import type { RouteDeps } from '#src/server/routes/types';
 

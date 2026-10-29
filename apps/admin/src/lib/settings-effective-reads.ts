@@ -1,4 +1,9 @@
-import type { SettingResolvedValue } from "./api";
+export interface SettingResolvedValue {
+  key: string;
+  value: unknown;
+  sourceLayer: "user" | "workspace" | "global" | "default";
+  defVersion: number;
+}
 
 type EffectiveSettings = { data: SettingResolvedValue[] };
 

@@ -17,7 +17,7 @@ import { buildDomainRegistrations, indexCatalogById, optionalBoolean, optionalSt
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import type { SecretSealerPort } from "../webhooks/index.js";
 import {
   resolveMediaProviderCredential,
@@ -377,6 +377,7 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
               caption: optionalString({ input: input, key: "caption" }),
               credit: optionalString({ input: input, key: "credit" }),
               createdByPrincipal: ctx.principal.id,
+              provenance: { kind: 'generated' },
             },
           }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
 
@@ -423,6 +424,6 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
  * `server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`,
  * not by importing this module.
  */
-export function contributeMediaGenerationTools(): ToolContributor {
+export function contributeMediaGenerationTools(): ToolContributor<MediaGenerationToolDeps, unknown> {
   return { domain: DOMAIN, build: buildMediaGenerationRegistrations, risk: mediaGenerationDerivedRisk };
 }

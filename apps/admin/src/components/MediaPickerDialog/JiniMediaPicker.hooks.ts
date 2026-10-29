@@ -1,6 +1,6 @@
 import { useCachedLoader } from "@jini-ai/ui/fetch-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useHostMediaPicker } from '../../integrations/jini-admin/modules.hooks';
+import { useHostMediaPicker } from '../../integrations/jini-admin/module-context';
 import { defaultMediaPickerPort } from './media-picker-dependencies.hooks';
 import type { MediaPickerPort } from './media-picker-port.hooks';
 import type { MediaPickerDialogProps } from './MediaPickerDialog';
@@ -16,7 +16,7 @@ export function useJiniMediaPicker(props: MediaPickerDialogProps, { port = defau
   const callbacks = useRef(props); callbacks.current = props;
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    if (!enabled || !picker) return;
+    if (!enabled || !picker) return undefined;
     const abort = new AbortController();
     void picker.pick({ accept: callbacks.current.accept ?? [] }, { signal: abort.signal }).then(async selected => {
       if (abort.signal.aborted) return;

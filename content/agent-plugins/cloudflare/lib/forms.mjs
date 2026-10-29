@@ -170,10 +170,11 @@ export function formPageRoutes({ files }, { max = MAX_PAGE_ROUTES } = {}) {
   const routes = [];
   for (const file of files ?? []) {
     const path = String(file.file ?? '').replaceAll('\\', '/').replace(/^\.?\//, '');
-    if (!path.endsWith('.html') || !FORM_MARKER.test(Buffer.from(file.data ?? '').toString('utf8'))) continue;
-    const page = routesForPage({ path });
-    if (routes.length + page.length > max) break;
-    routes.push(...page);
+    if (path.endsWith('.html') && FORM_MARKER.test(Buffer.from(file.data ?? '').toString('utf8'))) {
+      const page = routesForPage({ path });
+      if (routes.length + page.length > max) break;
+      routes.push(...page);
+    }
   }
   return routes;
 }

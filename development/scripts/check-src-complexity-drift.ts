@@ -242,11 +242,12 @@ export function findViolations(): Violation[] {
     // measured 2026-08-16/17 fell in a __tests__ dir) but kept as a real guard, not dead code —
     // nothing prevents a future complex test-setup helper from tripping it.
     if (relPath.includes("__tests__/") || relPath.includes("__measurements__/")) continue;
-    for (const message of result.messages) {
+    violations.push(...result.messages.flatMap((message): Violation[] => {
       if (message.ruleId === "complexity" || message.ruleId === "sonarjs/cognitive-complexity") {
-        violations.push({ rule: message.ruleId, file: relPath, reason: message.message });
+        return [{ rule: message.ruleId, file: relPath, reason: message.message }];
       }
-    }
+      return [];
+    }));
   }
   return violations;
 }

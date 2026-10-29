@@ -42,8 +42,8 @@ export { AgentPluginLinkedError } from "./provider-plugin-link.js";
 import type { SetAgentPluginEnabledResult } from "@jini-ai/agent-plugins/lifecycle";
 export { AgentPluginNotInstalledError } from "@jini-ai/agent-plugins/lifecycle";
 export type { SetAgentPluginEnabledResult } from "@jini-ai/agent-plugins/lifecycle";
-import type { SetAgentPluginEnabledInput } from '../../contracts/headless/plugin-host.js';
-export type { SetAgentPluginEnabledInput } from '../../contracts/headless/plugin-host.js';
+import type { SetAgentPluginEnabledInput } from '../../contracts/headless/index.js';
+export type { SetAgentPluginEnabledInput } from '../../contracts/headless/index.js';
 
 /**
  * Records an operator's enable/disable decision for one installed Agent Plugin.

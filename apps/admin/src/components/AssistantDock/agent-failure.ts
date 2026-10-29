@@ -1,6 +1,7 @@
 /** Compatibility copy of the proposed @jini-ai/chat/core failure API; see the Jini patch. */
 import type { AgentEvent, ChatMessage, ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/core";
 import { isAbortError } from "@jini-ai/ui/panel-kit";
+import { redactCredentialShapes, redactSecretAssignments, stripControlCharacters, stripCsiSequences, stripOscSequences } from "./agent-failure-scanners";
 
 export interface AgentFailureHint {
   readonly category: "auth" | "unsupported-client";
@@ -28,23 +29,29 @@ export const GENERIC_AGENT_FAILURE = "The assistant could not continue this answ
 
 /** Strip CSI, OSC (including terminal hyperlinks) and remaining control characters first. */
 export function redactAgentFailure({ text }: { text: string }, _optional = {}): string {
-  return text
-    .replace(/(?:\x1b\]|\x9d)[\s\S]*?(?:\x07|\x1b\\)/g, "")
-    .replace(/[\x1b\x9b][[\]()#;?]*(?:(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nq-uy=><~])/g, "")
-    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]/g, "")
-    .replace(/\b(?:AIza[\w-]+|AQ\.[\w.\/-]+|sk-[\w.-]+|gh[pousr]_[\w]+|github_pat_[\w]+|ya29\.[\w.-]+|eyJ[\w-]+\.[\w-]+(?:\.[\w-]+)?)/g, "[REDACTED]")
-    .replace(/\b(Bearer\s+)[^\s"'<>]+/gi, "$1[REDACTED]")
-    .replace(/((?:[\w-]*(?:api[ _-]?key|access[ _-]?token|refresh[ _-]?token|auth[ _-]?token|secret|password)|token)["']?\s*[:=]\s*["']?)([^\s"'&,;}]+)/gi, "$1[REDACTED]")
+  const visible = stripControlCharacters(stripCsiSequences(stripOscSequences(text)));
+  const bearerRedacted = redactCredentialShapes(visible).replace(/\b(Bearer\s+)[^\s"'<>]+/gi, "$1[REDACTED]");
+  return redactSecretAssignments(bearerRedacted)
     .replace(/(Authorization\s*:\s*(?:Basic|Token)\s+)[^\s"'<>]+/gi, "$1[REDACTED]")
     .replace(/([?&](?:key|api[_-]?key|token|access_token|refresh_token|code)=)[^\s"'&#]+/gi, "$1[REDACTED]")
     .replace(/(https?:\/\/)[^\s/@:]+:[^\s/@]+@/gi, "$1[REDACTED]@");
 }
 
 const NOISE = /^(?:Warning:.*(?:256-color|color support)|YOLO mode is enabled|Code discovery:|Hook system message:|Ripgrep is not available|An unexpected critical error occurred:\s*$|Traceback \(most recent call last\):|\s*at\s|\s*File ")/i;
-const STRUCTURE = /^(?:[{}\[\],]+|[a-z][\w]*:\s|\.\.\.)/;
+const STRUCTURE = /^(?:[{}\[\],]+|[a-z]\w*:\s|\.\.\.)/;
 // "did not load": the daemon's MCP-bridge notice ("The assistant's tools did not load (MCP bridge \"jini\"
 // status: pending)...") names no other error word when the bridge left no stderr.
-const ERROR_LINE = /\b(?:[\w]*error|failed|failure|invalid|not valid|unauthorized|unauthenticated|denied|refused|exhausted|could not|not logged in|not authenticated|authentication required|no longer supported|missing.*key|did not load)\b/i;
+const ERROR_PHRASES: readonly RegExp[] = [
+  /\b\w*error\b/i,
+  /\b(?:failed|failure|invalid|not valid|unauthorized|unauthenticated|denied|refused|exhausted)\b/i,
+  /\b(?:could not|not logged in|not authenticated|authentication required|no longer supported|did not load)\b/i,
+  /\bmissing.*key\b/i,
+];
+
+/** Whether the line names an error in any of `ERROR_PHRASES`' words, each as whole words. */
+function isErrorLine(line: string): boolean {
+  return ERROR_PHRASES.some((phrase) => phrase.test(line));
+}
 const GENERIC = /^(?:Run failed — the agent process exited without answering|This turn failed\.?$|The assistant could not (?:continue|finish) this answer\. Saved work is above\.?$|Stopped\.?$)/i;
 
 function agentIdField(agentId: string | undefined): { agentId?: string } {
@@ -62,7 +69,7 @@ function extErrorMessage(data: unknown): string[] {
 function eventFailureSources(event: AgentEvent): string[] {
   if (event.kind === "raw") return [event.line];
   if (event.kind === "ext") return event.name === "error" ? extErrorMessage(event.data) : [];
-  if (event.kind === "status" && !GENERIC.test(event.label) && (event.code === "agent_error" || ERROR_LINE.test(event.label))) {
+  if (event.kind === "status" && !GENERIC.test(event.label) && (event.code === "agent_error" || isErrorLine(event.label))) {
     return [[event.label, event.detail].filter(Boolean).join(" ")];
   }
   return [];
@@ -79,7 +86,7 @@ export function extractAgentFailure(
   const sources = (events ?? []).flatMap(eventFailureSources);
   const details = redactAgentFailure({ text: sources.join("\n") }, {}).trim();
   const lines = details.split(/\r?\n/).map(line => line.trim()).filter(line => !NOISE.test(line)).filter(isMeaningfulLine);
-  const errors = lines.filter(line => ERROR_LINE.test(line));
+  const errors = lines.filter(line => isErrorLine(line));
   const reason = (errors[errors.length - 1] ?? lines[lines.length - 1])?.slice(0, 600);
   return reason ? { reason, details, ...agentIdField(agentId) } : null;
 }

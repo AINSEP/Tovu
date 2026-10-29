@@ -53,7 +53,7 @@ function useProviderChoices(required: { pluginApi: PluginApi; refresh: () => Pro
     return () => { live = false; };
   }, [pluginApi, attempt]);
   const addProvider = useCallback(async ({ pluginId }: { pluginId: string }, _optional = {}) => {
-    if (locked.current) return;
+    if (locked.current) return undefined;
     locked.current = true;
     lastPlugin.current = pluginId;
     setAdding(pluginId);
@@ -69,6 +69,7 @@ function useProviderChoices(required: { pluginApi: PluginApi; refresh: () => Pro
       return provider.id;
     } catch (error) {
       setAddError(error instanceof Error ? error.message : errorMessage(error));
+      return undefined;
     } finally {
       locked.current = false;
       setAdding(null);
@@ -77,6 +78,7 @@ function useProviderChoices(required: { pluginApi: PluginApi; refresh: () => Pro
   const retryAdd = useCallback(async () => {
     if (lastPlugin.current) return addProvider({ pluginId: lastPlugin.current });
     setAddError(null); setAttempt((n) => n + 1);
+    return undefined;
   }, [addProvider]);
   return useMemo(() => ({ choices, adding, addError, addWarning, retryAdd, addProvider }), [choices, adding, addError, addWarning, retryAdd, addProvider]);
 }

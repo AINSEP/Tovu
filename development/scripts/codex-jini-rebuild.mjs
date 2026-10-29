@@ -43,11 +43,7 @@ function fileTimes(root) {
   return files;
 }
 
-/** Capture raw porcelain plus per-source status and mtimes, including untracked files.
- * O(n + s) time/space for n source files and s Git status entries. Git/read failures propagate.
- */
-function snapshot(repo, exec = execFileSync) {
-  const porcelain = exec('git', ['-C', repo, 'status', '--porcelain=v1', '-z', '--untracked-files=all'], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
+function porcelainStatuses({ porcelain }, _options = {}) {
   const statuses = {};
   const entries = porcelain.split('\0');
   for (let i = 0; i < entries.length; i++) {
@@ -58,6 +54,15 @@ function snapshot(repo, exec = execFileSync) {
     // Porcelain -z places the rename/copy source in the next NUL-delimited field.
     if (/[RC]/.test(status)) statuses[entries[++i]] = `${status}:${file}`;
   }
+  return statuses;
+}
+
+/** Capture raw porcelain plus per-source status and mtimes, including untracked files.
+ * O(n + s) time/space for n source files and s Git status entries. Git/read failures propagate.
+ */
+function snapshot(repo, exec = execFileSync) {
+  const porcelain = exec('git', ['-C', repo, 'status', '--porcelain=v1', '-z', '--untracked-files=all'], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
+  const statuses = porcelainStatuses({ porcelain });
   const files = {};
   for (const entry of fs.readdirSync(path.join(repo, 'packages'), { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
@@ -69,6 +74,11 @@ function snapshot(repo, exec = execFileSync) {
     else delete files[file];
   }
   return { porcelain, files };
+}
+
+function recordBuildResult({ log, pkg, rc, result, testOnly, emitted }, _options = {}) {
+  const built = rc === 0 || (!result.error && !result.signal && testOnly && emitted);
+  fs.appendFileSync(log, `[${pkg}] rc=${rc} built=${built}${built && rc !== 0 ? ' (test-only tsc errors; dist emitted)' : ''}${result.error ? ` error=${result.error.message}` : ''}${result.signal ? ` signal=${result.signal}` : ''}\n`);
 }
 
 /** Run one package build, retaining its raw rc and counting test-only errors as built only
@@ -90,8 +100,7 @@ function rebuildPackage({ repo, pkg, log }, exec = spawnSync) {
     const testOnly = onlyTestErrors(output);
     const emitted = Object.entries(fileTimes(path.join(dir, 'dist'))).some(([file, time]) =>
       /\.[cm]?js$/.test(file) && before[file] !== time);
-    const built = rc === 0 || (!result.error && !result.signal && testOnly && emitted);
-    fs.appendFileSync(log, `[${pkg}] rc=${rc} built=${built}${built && rc !== 0 ? ' (test-only tsc errors; dist emitted)' : ''}${result.error ? ` error=${result.error.message}` : ''}${result.signal ? ` signal=${result.signal}` : ''}\n`);
+    recordBuildResult({ log, pkg, rc, result, testOnly, emitted });
     return `${pkg}=${rc}`;
   } catch (error) {
     fs.appendFileSync(log, `[${pkg}] rc=1 built=false error=${error.message}\n`);

@@ -1,7 +1,5 @@
 import type { Generated } from "kysely";
 
-import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
-import type { SqliteConnectionSource } from "../../platform/db/kernel/drivers/sqlite.js";
 import type { StorageKernel } from "../../platform/db/kernel/port.js";
 
 /**
@@ -11,12 +9,11 @@ import type { StorageKernel } from "../../platform/db/kernel/port.js";
  */
 
 /**
- * A kernel over ANY table typing (a `ContentKernel`, a `PluginKernel`…), or a SQLite connection (raw
- * client or Drizzle handle) while call sites still pass one. `any`: a `Kysely<DB>` is invariant in
+ * A composed kernel over ANY table typing (a `ContentKernel`, a `PluginKernel`…). `any`: a `Kysely<DB>` is invariant in
  * `DB`, so no narrower type admits every kernel; the engine only reads its own tables through it.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type PluginStore = StorageKernel<any> | SqliteConnectionSource;
+export type PluginStore = StorageKernel<any>;
 
 export interface PluginCoreTables {
   _plugin_migration_journal: {
@@ -46,8 +43,8 @@ export interface PluginCoreTables {
 
 export type PluginKernel = StorageKernel<PluginCoreTables>;
 
-/** The kernel behind `store`: the kernel itself, or the one kernel of a SQLite connection. */
+/** The composed kernel behind `store`, viewed through the plugin table contract. */
 export function pluginKernel(store: PluginStore): PluginKernel {
   // The type parameter only names the tables Kysely checks queries against; the kernel is the same.
-  return contentKernel(store as ContentKernel | SqliteConnectionSource) as unknown as PluginKernel;
+  return store as unknown as PluginKernel;
 }

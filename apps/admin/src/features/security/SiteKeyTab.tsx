@@ -151,7 +151,7 @@ function SiteKeyStatusCard({ controller, status }: { controller: SiteKeyControll
   );
 }
 
-function siteKeyStatusBadgeClass(active: boolean, invalid: boolean | undefined): string {
+function siteKeyStatusBadgeClass(active: boolean, invalid = false): string {
   if (invalid) return "status-warning";
   return active ? "status-ok" : "status-neutral";
 }
@@ -269,14 +269,16 @@ export function SiteKeyGenerateAction({ controller }: { controller: SiteKeyContr
   );
 }
 
+function siteKeyGenerateFailureText(failure: SiteKeyGenerateFailure, translate: Translate, locale: string): string {
+  if (failure.kind === "already-exists") {
+    return translate("A key file already exists. This tab only creates a new key — it never overwrites one.");
+  }
+  return failure.kind === "generic" ? siteKeyGenerateErrorMessage(locale, failure.detail) : failure.detail;
+}
+
 function SiteKeyGenerateErrorNote({ failure, t: translate }: { failure: SiteKeyGenerateFailure; t: Translate }) {
   const locale = useAdminLocale();
-  const text =
-    failure.kind === "already-exists"
-      ? translate("A key file already exists. This tab only creates a new key — it never overwrites one.")
-      : failure.kind === "generic"
-        ? siteKeyGenerateErrorMessage(locale, failure.detail)
-        : failure.detail;
+  const text = siteKeyGenerateFailureText(failure, translate, locale);
   return (
     <p className="notice error" role="status" {...agentHandle({ handle: "security-site-key-generate-error" }, { role: "status", label: "Shows the error when generating a site key file failed" })}>
       {text}

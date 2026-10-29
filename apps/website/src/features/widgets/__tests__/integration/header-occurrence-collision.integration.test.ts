@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryEntryRepo } from "#src/features/entries/index";
-import { InMemoryPostRepo } from "#src/features/post/index";
+import { InMemoryPostRepo, createPublicPostReader } from "#src/features/post/index";
 import type { PostRecord } from "#src/features/post/index";
 import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
 import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render";
@@ -51,7 +51,7 @@ test('renderHtmlPageBody: two "content" markers referencing the SAME id with DIF
     `<section id="without-header"><main data-embed-config='{"type":"content","id":"entity-1","header":false}'></main></section>`;
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo },
+    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
     input: { workspaceId: WORKSPACE_ID, html },
   });
 

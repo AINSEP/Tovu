@@ -101,9 +101,9 @@ import { dirname, resolve } from "node:path";
 
 import { isUnchangedAttachment } from "@jini-ai/daemon/http";
 
-import { CHAT_ATTACHMENT_REF_PATTERN, type ChatAttachmentReadResult, type ChatAttachmentRefusal } from '../../contracts/headless/chat-attachment.js';
-export { CHAT_ATTACHMENT_REF_PATTERN } from '../../contracts/headless/chat-attachment.js';
-export type { ChatAttachmentReadResult, ChatAttachmentRefusal } from '../../contracts/headless/chat-attachment.js';
+import { CHAT_ATTACHMENT_REF_PATTERN, type ChatAttachmentReadResult, type ChatAttachmentRefusal } from '../../contracts/headless/index.js';
+export { CHAT_ATTACHMENT_REF_PATTERN } from '../../contracts/headless/index.js';
+export type { ChatAttachmentReadResult, ChatAttachmentRefusal } from '../../contracts/headless/index.js';
 
 /**
  * Accepted batch id shape — kept identical to `attachments.ts`'s own `BATCH_ID_PATTERN`, because

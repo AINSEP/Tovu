@@ -50,6 +50,7 @@
  * `site-dir-store.ts`'s existing MRU) is the smaller, honest surface this pass actually verified;
  * auto-restoring a full session is a follow-up, not this fix.
  */
+import { resolveOnPath } from "@jini-ai/agent-runtime";
 import fs from "node:fs";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
@@ -199,7 +200,7 @@ function readRegistry(registryDir: string): RegistrySnapshot {
   for (const filePath of [...(files ?? []).map((file) => file.filePath), legacyRegistryFilePath(registryDir)]) {
     const read = readRegistryFile(filePath);
     if (read.state === "ok") snapshot.sites.push(...read.sites);
-    else if (read.state === "unreadable") snapshot.unreadable.push(filePath);
+    if (read.state === "unreadable") snapshot.unreadable.push(filePath);
   }
   return snapshot;
 }
@@ -366,7 +367,9 @@ interface PsOptions {
 
 /** The real `ps`, stdout as text; throws when `ps` exits non-zero (a gone pid). @complexity O(1). */
 function runPsArgvOnly(args: string[]): string {
-  return execFileSync("ps", args, { encoding: "utf8" });
+  const command = resolveOnPath({ bin: 'ps' });
+  if (command === null) throw new Error('ps executable is unavailable.');
+  return execFileSync(command, args, { encoding: "utf8" });
 }
 
 /**
@@ -560,9 +563,7 @@ async function reconcileOrphans(registryDir: string, options: { instanceId?: str
 async function reconcileRows(sites: SiteProcessRow[]): Promise<SiteProcessRow[]> {
   const reconciled: SiteProcessRow[] = [];
   for (const row of sites) {
-    if (!isProcessAlive(row.pid)) continue;
-    if (!isServeProcessForSite(readProcessCommand(row.pid) ?? "", row)) continue;
-    if (!isOrphanedProcess(row.pid)) continue;
+    if (!isProcessAlive(row.pid) || !isServeProcessForSite(readProcessCommand(row.pid) ?? "", row) || !isOrphanedProcess(row.pid)) continue;
     reconciled.push(row);
     await terminateOrphan(row);
   }

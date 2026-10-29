@@ -4,13 +4,14 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/media.js';
 import { withToolMetadata } from '@jini-ai/core';
 import { nowIso } from "@jini-ai/core/primitives";
 
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { buildMediaRegistrations, mediaDerivedRisk, type MediaRecord, type MediaToolDeps, type TransformDefinitionRepoPort } from "@jini-ai/cms/media";
 import { type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { requireInputRecord, requireString, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "./bootstrap.js";
 import { assertAllowedSniffedContentType, getLatestTransformDefinition, mediaPublicPath, mediaUrlKey } from "./index.js";
+import type { RemoveMediaFn } from "./contracts.js";
 import type { MediaContentTypeStorePort } from "./content-type-store.js";
 import { TOVU_MAX_UPLOAD_BYTES } from "../../contracts/core/upload-limits.js";
 
@@ -51,10 +52,10 @@ function resolveOneAssetPublicUrl(
 ): string | null {
   const key = mediaUrlKey(asset);
   const contentType = contentTypes.get(asset.source.sha256);
-  if (contentType === "image/svg+xml" || contentType?.startsWith("video/") || contentType?.startsWith("audio/")) return mediaPublicPath(key, { kind: "original", contentType });
+  if (contentType === "image/svg+xml" || contentType?.startsWith("video/") || contentType?.startsWith("audio/")) return mediaPublicPath({ key, sha256: asset.source.sha256, variant: { kind: "original", contentType } });
   if (!latest) return null;
   const ext = EXT_BY_TRANSFORM_FORMAT[latest.params.format] ?? latest.params.format;
-  return mediaPublicPath(key, { kind: "transform", name: CORE_PUBLIC_TRANSFORM_NAME, version: latest.version, ext });
+  return mediaPublicPath({ key, sha256: asset.source.sha256, variant: { kind: "transform", name: CORE_PUBLIC_TRANSFORM_NAME, version: latest.version, ext } });
 }
 
 /**
@@ -152,22 +153,6 @@ const MEDIA_TRASH_TOOL_ID = "media_trash_asset";
 const ASSISTANT_ACTOR_PLUGIN_ID = "assistant";
 
 /**
- * Hands one asset's removal to whoever owns removal in this composition.
- *
- * Structurally typed ON PURPOSE — this file imports nothing from `features/trash`, exactly as
- * `post.ts`'s `RemovePostFn` and the comments write-service's `RemoveCommentFn` do not. The
- * composition root binds the real implementation, already bound to this domain's entity type.
- */
-export type RemoveMediaFn = (required: {
-  workspaceId: string;
-  id: string;
-  display: { title: string; subtitle?: string | null };
-  at: string;
-  expectedVersion: number | null;
-  actor: { principalId: string; pluginId?: string | null };
-}) => Promise<{ ok: true; version: number | null } | { ok: false; reason: "not-found" | "version-changed" }>;
-
-/**
  * The one field this shim adds to Jini's `MediaToolDeps`.
  *
  * Declared here (rather than widening `MediaToolDeps` in `@jini-ai/cms`) for the same reason the
@@ -253,6 +238,7 @@ export function buildMediaRegistrationsForTovu(
   // Jini binds creation attribution to each invocation's authenticated principal, so parallel
   // agent/user uploads and chat promotions never share mutable actor state.
   const registrations = buildMediaRegistrations(routeDeps, {
+    listContentTypes: routeDeps.mediaContentTypeStore,
     resolvePublicUrls: ({ assets }) => resolveMediaPublicUrls(routeDeps, assets),
     recordUploadContentType: buildRecordUploadContentType(routeDeps),
     maxUploadBytes: TOVU_MAX_UPLOAD_BYTES,
@@ -274,6 +260,10 @@ export function buildMediaRegistrationsForTovu(
  * replaced it — see this file's own header above for why the earlier attempt closed a cycle and why
  * this retry does not.
  */
-export function contributeMediaTools(): ToolContributor {
+export function contributeMediaTools(): ToolContributor<MediaToolDeps & MediaPublicUrlDeps & MediaTrashToolDeps, AssistantSurfaceDeps> {
   return { domain: "media", build: buildMediaRegistrationsForTovu, risk: mediaDerivedRisk };
 }
+
+export { contributeMediaDuplicateHandlers } from "./duplicate-asset.js";
+export { contributeMediaViewImageTools } from "./view-image-tool.js";
+export { contributeMediaViewVideoTools, type MediaVideoToolPorts } from "./view-video-tool.js";

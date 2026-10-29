@@ -63,7 +63,7 @@ export function useSitesSidebarNav(
 
   useEffect(() => {
     const nav = doc.getElementById("admin-sidebar");
-    if (!nav || !hasName) { setTarget(null); return; }
+    if (!nav || !hasName) { setTarget(null); return undefined; }
     // No row class is added here: React rewrites the shared row's className on every active change.
     // The effect below marks the portal target with an unmanaged attribute React leaves alone.
     const discover = () => setTarget(nav.querySelector<HTMLElement>('a.cms-item[href$="/sites"]'));
@@ -76,14 +76,14 @@ export function useSitesSidebarNav(
 
   // Mark before measuring/painting the split label; cleanup restores the shared label on removal.
   useLayoutEffect(() => {
-    if (!target) return;
+    if (!target) return undefined;
     target.setAttribute("data-cms-sites-split", "");
     return () => target.removeAttribute("data-cms-sites-split");
   }, [target]);
 
   useLayoutEffect(() => {
     const element = nameRef.current;
-    if (!element) { setTruncated(false); return; }
+    if (!element) { setTruncated(false); return undefined; }
     const update = () => {
       const { scrollWidth, clientWidth } = measure(element);
       setTruncated(scrollWidth > clientWidth);

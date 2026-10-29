@@ -85,16 +85,16 @@ async function pullPages<R extends { readonly committedIds: readonly string[] }>
   let after = 0;
   for (let page = 0; page < required.maxPages; page += 1) {
     // Out of time: the rows still waiting are the next pull's, exactly as when the page cap stops.
-    if (required.outOfTime()) break;
+    if (required.outOfTime()) return;
     const batch = await required.pullPage(after);
     report.hasMore = batch.hasMore;
-    if (batch.items.length === 0) break;
+    if (batch.items.length === 0) return;
     report.pulled += batch.items.length;
     const imported = await required.importPage(batch.items);
     report.pages.push(imported);
     report.acknowledged += await acknowledgeCommitted({ acknowledge: required.acknowledge, committedIds: imported.committedIds });
     after = batch.nextAfter;
-    if (!batch.hasMore) break;
+    if (!batch.hasMore) return;
   }
 }
 

@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { describeApiError, type AdminContentType } from "@/lib/api";
+import { describeApiError, type AdminContentType, type ContentTypeLifecycleOp } from "@/lib/api";
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { collectionEmbedSnippet, isUserCollection, KEYS, type LifecycleConfirmOp } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
@@ -57,7 +57,7 @@ export interface CollectionsController {
   setEditingFieldsFor: (value: AdminContentType | null) => void;
   actionError: string | null;
   load: () => void;
-  runLifecycle: (contentType: AdminContentType, op: "deprecate" | "reactivate" | "tombstone") => Promise<void>;
+  runLifecycle: (contentType: AdminContentType, op: ContentTypeLifecycleOp) => Promise<void>;
   /** The content-type key whose "Copy embed code" button most recently wrote to the clipboard —
    *  `null` once the transient window elapses. Keyed by `key`, not a single boolean, so only the
    *  row that was actually clicked shows "Copied". */
@@ -101,20 +101,20 @@ export function useCollections(deps: CollectionsDependencies): CollectionsContro
   // state and is `null` for Reactivate (never confirm-gated — see `runLifecycle`'s call sites), so it
   // cannot be reused here without misattributing a failed Reactivate's message to "deprecate".
   const [lastAttempt, setLastAttempt] = useState<{
-    op: "deprecate" | "reactivate" | "tombstone";
+    op: ContentTypeLifecycleOp;
     contentType: AdminContentType;
   } | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [copyFallback, setCopyFallback] = useState<{ key: string; snippet: string } | null>(null);
 
   const lifecycleMutation = useFetchMutation({
-    run: ({ input }: { input: { key: string; op: "deprecate" | "reactivate" | "tombstone"; expectedVersion: number } }) =>
+    run: ({ input }: { input: { key: string; op: ContentTypeLifecycleOp; expectedVersion: number } }) =>
       port.contentTypeLifecycle(input),
   }, {
     invalidates: [KEYS.list],
   });
 
-  async function runLifecycle(contentType: AdminContentType, op: "deprecate" | "reactivate" | "tombstone") {
+  async function runLifecycle(contentType: AdminContentType, op: ContentTypeLifecycleOp) {
     setLastAttempt({ op, contentType });
     try {
       await lifecycleMutation.mutate({ input: { key: contentType.key, op, expectedVersion: contentType.version } });

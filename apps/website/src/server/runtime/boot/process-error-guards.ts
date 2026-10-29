@@ -112,7 +112,12 @@ export function installProcessErrorReporting(
     if (crashing) return;
     crashing = true;
     let exited = false;
-    const finish = (): void => { if (exited) return; exited = true; clearTimeout(deadline); exit(1); };
+    const finish = (): void => {
+      if (exited) return;
+      exited = true;
+      clearTimeout(deadline);
+      exit(1);
+    };
     const deadline = setTimeout(finish, Math.min(optional.timeoutMs ?? 2_000, 2_000));
     try {
       (optional.log ?? ((_message, failure) => console.error(failure)))("[uncaughtException] fatal; exiting after telemetry flush:", error instanceof Error ? error : redactedError({ error }));

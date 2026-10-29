@@ -23,7 +23,7 @@ export class SqliteMemberExternalIdentityRepo extends SqlMemberExternalIdentityR
  * @file The 6 `members` repos on a site's SQLite `content.db` (ADR-PIPE-013 Decision §5, REQ-18):
  * each is a thin subclass of the one Kysely query body in `repo.ts`. Kept as named classes so
  * existing call sites that construct them from the content db handle stay as they are; new code
- * calls the `…RepoFor(kernel)` factories.
+ * constructs the `Sql…Repo` classes with a kernel directly.
  */
 
 export class SqliteMemberRepo extends SqlMemberRepo {

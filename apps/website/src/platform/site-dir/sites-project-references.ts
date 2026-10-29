@@ -1,7 +1,6 @@
 /** Tovu's desktop catalog wire adapter. JSON locking/replacement/rollback belongs to Jini. */
 import path from "node:path";
 import type { DurableJsonChange } from "@jini-ai/platform/fs";
-import type { SitesWorkspace } from "./sites-home.js";
 
 /** Cover installed and source desktop profiles, or only an explicitly selected profile.
  * Linux Electron uses XDG config while shared storage uses XDG data; both must be updated.
@@ -55,7 +54,7 @@ function isProjectRow(row: unknown): row is { siteDir: string; createdAt: string
 }
 
 /** Build the product's reference participants for the shared locked relocation transaction. */
-export function sitesProjectReferences({ workspace, from, to }: { workspace: SitesWorkspace; from: string; to: string },
+export function sitesProjectReferences({ workspace, from, to }: { workspace: { projectsPaths: readonly string[] }; from: string; to: string },
   { projectsPaths = workspace.projectsPaths }: { projectsPaths?: readonly string[] } = {},
 ): DurableJsonChange[] {
   return [...new Set(projectsPaths)].map((filePath) => ({ filePath, transform: (value) => relocateDesktopProjects({ value, from, to }) }));

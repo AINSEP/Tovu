@@ -34,7 +34,7 @@ import type { UUID } from "@jini-ai/core/primitives";
  */
 export interface AgentPluginsRouteDeps {
   readonly snapshotAgentPluginSettings?: import("@jini-ai/agent-plugins/lifecycle").UpdateAgentPluginRequired["snapshotSettings"];
-  readonly pluginHost?: import("#src/contracts/headless/plugin-host").PluginHostPort;
+  readonly pluginHost?: import("#src/contracts/headless/index").PluginHostPort;
   workspaceId: UUID;
   agentPluginLayout: RouteDeps["agentPluginLayout"];
   authorize: AuthorizeFn;

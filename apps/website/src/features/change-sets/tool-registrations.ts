@@ -5,7 +5,7 @@ import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, optionalNumber, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission, type AuthorizeFn, type ChangeSetRecord, type OutboxPort } from "@jini-ai/cms/core";
 
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import {
   ChangeSetInvalidStatusError,
   ChangeSetNotFoundError,
@@ -118,7 +118,10 @@ export function buildChangeSetsRegistrations(routeDeps: ChangeSetToolDeps): Tool
       // `listByWorkspace` makes no ordering promise a caller should rely on (the SQLite adapter
       // sorts ascending by `createdAt`, oldest first) — newest-first is this tool's OWN contract, so
       // it sorts explicitly rather than trusting the port's incidental order.
-      const newestFirst = [...all].sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
+      const newestFirst = [...all].sort((a, b) => {
+        if (a.createdAt < b.createdAt) return 1;
+        return a.createdAt > b.createdAt ? -1 : 0;
+      });
 
       return { changeSets: newestFirst.slice(0, limit).map(toChangeSetToolView) };
     },
@@ -184,6 +187,6 @@ export function buildChangeSetsRegistrations(routeDeps: ChangeSetToolDeps): Tool
  * Domain key `"change-sets"` — its own key, since the tool-contribution registry replaces a
  * domain's ENTIRE contribution on re-registration by that key.
  */
-export function contributeChangeSetsTools(): ToolContributor {
+export function contributeChangeSetsTools(): ToolContributor<ChangeSetToolDeps, unknown> {
   return { domain: "change-sets", build: buildChangeSetsRegistrations, risk: changeSetsDerivedRisk };
 }

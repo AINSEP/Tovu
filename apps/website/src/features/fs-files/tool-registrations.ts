@@ -6,7 +6,7 @@ import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/core/prim
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { approvalToolHandler, refuseUnexpectedKeys, type HumanConfirmSpec } from '#src/contracts/core/human-confirm';
 
 import {
@@ -211,6 +211,6 @@ export function buildFsFilesRegistrations(
  * `server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not
  * by importing this module.
  */
-export function contributeFsFilesTools(): ToolContributor {
+export function contributeFsFilesTools(): ToolContributor<FsFilesToolDeps, AssistantSurfaceDeps> {
   return { domain: "fs-files", build: buildFsFilesRegistrations, risk: fsFilesDerivedRisk };
 }

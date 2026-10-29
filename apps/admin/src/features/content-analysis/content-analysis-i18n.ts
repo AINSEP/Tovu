@@ -15,6 +15,9 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  */
 import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
+/** Reading-time copy; every locale keeps the same short form. */
+const MINUTES_SHORT = "{minutes} min";
+
 export const CONTENT_ANALYSIS_KEYS = [
   "Content analysis",
   "Analyze now",
@@ -31,7 +34,7 @@ export const CONTENT_ANALYSIS_KEYS = [
   "Words",
   "Sentences: {count}",
   "Reading time",
-  "{minutes} min",
+  MINUTES_SHORT,
   "Estimated",
   "Readability",
   "{band} · grade {grade}",
@@ -81,7 +84,7 @@ export const CONTENT_ANALYSIS_ROWS: Record<string, readonly string[]> = {
   es: [
     "Análisis de contenido", "Analizar ahora", "Analizando…", "Tabla de contenidos", "Aún no hay encabezados.", "Comprobaciones",
     "Del último guardado.", "De tu borrador actual, con los cambios sin guardar.", "Aún sin analizar. Guarda o haz clic en Analizar ahora.", "Análisis no disponible.",
-    "Puntuación", "de 100", "Palabras", "Frases: {count}", "Tiempo de lectura", "{minutes} min", "Estimado", "Legibilidad", "{band} · nivel {grade}",
+    "Puntuación", "de 100", "Palabras", "Frases: {count}", "Tiempo de lectura", MINUTES_SHORT, "Estimado", "Legibilidad", "{band} · nivel {grade}",
     "Muy fácil", "Fácil", "Bastante fácil", "Normal", "Bastante difícil", "Difícil", "Muy difícil",
     "Correcto", "Advertencia", "Error", "Omitido",
     "Longitud del título", "Metadescripción", "Texto alternativo de imágenes", "Orden de encabezados", "Un solo H1", "Longitud del contenido", "Subtítulos",
@@ -110,7 +113,7 @@ export const CONTENT_ANALYSIS_ROWS: Record<string, readonly string[]> = {
   "pt-BR": [
     "Análise de conteúdo", "Analisar agora", "Analisando…", "Sumário", "Ainda não há títulos.", "Verificações",
     "Do último salvamento.", "Do seu rascunho atual, incluindo alterações não salvas.", "Ainda não analisado. Salve ou clique em Analisar agora.", "Análise indisponível.",
-    "Pontuação", "de 100", "Palavras", "Frases: {count}", "Tempo de leitura", "{minutes} min", "Estimado", "Legibilidade", "{band} · nível {grade}",
+    "Pontuação", "de 100", "Palavras", "Frases: {count}", "Tempo de leitura", MINUTES_SHORT, "Estimado", "Legibilidade", "{band} · nível {grade}",
     "Muito fácil", "Fácil", "Razoavelmente fácil", "Padrão", "Razoavelmente difícil", "Difícil", "Muito difícil",
     "Aprovado", "Aviso", "Falha", "Ignorado",
     "Tamanho do título", "Meta descrição", "Texto alternativo das imagens", "Ordem dos títulos", "Um único H1", "Tamanho do conteúdo", "Subtítulos",
@@ -139,7 +142,7 @@ export const CONTENT_ANALYSIS_ROWS: Record<string, readonly string[]> = {
   fr: [
     "Analyse du contenu", "Analyser maintenant", "Analyse en cours…", "Table des matières", "Aucun intertitre pour l’instant.", "Vérifications",
     "D’après le dernier enregistrement.", "D’après votre brouillon actuel, modifications non enregistrées comprises.", "Pas encore analysé. Enregistrez, ou cliquez sur Analyser maintenant.", "Analyse indisponible.",
-    "Note", "sur 100", "Mots", "Phrases : {count}", "Temps de lecture", "{minutes} min", "Estimation", "Lisibilité", "{band} · niveau {grade}",
+    "Note", "sur 100", "Mots", "Phrases : {count}", "Temps de lecture", MINUTES_SHORT, "Estimation", "Lisibilité", "{band} · niveau {grade}",
     "Très facile", "Facile", "Plutôt facile", "Standard", "Plutôt difficile", "Difficile", "Très difficile",
     "Réussi", "Avertissement", "Échec", "Ignoré",
     "Longueur du titre", "Méta-description", "Texte alternatif des images", "Ordre des intertitres", "Un seul H1", "Longueur du contenu", "Intertitres",
@@ -197,7 +200,7 @@ export const CONTENT_ANALYSIS_ROWS: Record<string, readonly string[]> = {
   it: [
     "Analisi del contenuto", "Analizza ora", "Analisi in corso…", "Sommario", "Ancora nessun titolo.", "Controlli",
     "Dall’ultimo salvataggio.", "Dalla bozza attuale, comprese le modifiche non salvate.", "Non ancora analizzato. Salva o fai clic su Analizza ora.", "Analisi non disponibile.",
-    "Punteggio", "su 100", "Parole", "Frasi: {count}", "Tempo di lettura", "{minutes} min", "Stimato", "Leggibilità", "{band} · livello {grade}",
+    "Punteggio", "su 100", "Parole", "Frasi: {count}", "Tempo di lettura", MINUTES_SHORT, "Stimato", "Leggibilità", "{band} · livello {grade}",
     "Molto facile", "Facile", "Abbastanza facile", "Nella media", "Abbastanza difficile", "Difficile", "Molto difficile",
     "Superato", "Avviso", "Non superato", "Saltato",
     "Lunghezza del titolo", "Meta descrizione", "Testo alternativo delle immagini", "Ordine dei titoli", "Un solo H1", "Lunghezza del contenuto", "Sottotitoli",
@@ -313,7 +316,7 @@ export const CONTENT_ANALYSIS_ROWS: Record<string, readonly string[]> = {
   pl: [
     "Analiza treści", "Analizuj teraz", "Analizowanie…", "Spis treści", "Brak nagłówków.", "Kontrole",
     "Według ostatniego zapisu.", "Według bieżącej wersji roboczej, łącznie z niezapisanymi zmianami.", "Jeszcze nie przeanalizowano. Zapisz lub kliknij Analizuj teraz.", "Analiza niedostępna.",
-    "Wynik", "na 100", "Słowa", "Zdania: {count}", "Czas czytania", "{minutes} min", "Szacunkowo", "Czytelność", "{band} · poziom {grade}",
+    "Wynik", "na 100", "Słowa", "Zdania: {count}", "Czas czytania", MINUTES_SHORT, "Szacunkowo", "Czytelność", "{band} · poziom {grade}",
     "Bardzo łatwy", "Łatwy", "Dość łatwy", "Przeciętny", "Dość trudny", "Trudny", "Bardzo trudny",
     "Zaliczone", "Ostrzeżenie", "Niezaliczone", "Pominięte",
     "Długość tytułu", "Opis meta", "Tekst alternatywny obrazów", "Kolejność nagłówków", "Jeden H1", "Długość treści", "Śródtytuły",

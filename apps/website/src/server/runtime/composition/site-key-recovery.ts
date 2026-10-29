@@ -152,7 +152,7 @@ async function resealRecord(input: {
       record: input.record, previous: input.previous });
     return;
   }
-  const parsers = Object.fromEntries([...VAULT_KINDS, "custom" as const].map(kind => [kind, ({ meta, provider }: { meta: unknown; provider?: string | null | undefined }) => {
+  const parsers = Object.fromEntries([...VAULT_KINDS, "custom" as const].map(kind => [kind, ({ meta, provider }: { meta: unknown; provider?: string | null }) => {
     const parsed = recoveryKinds.metaParsers[kind]({ meta, provider });
     const { normalization: _flag, ...plain } = parsed;
     return plain;

@@ -1,0 +1,14 @@
+
+apps/admin/src/lib/api.ts
+   693:13  warning  Remove this redundant type alias and replace its occurrences with "AdminPublishCredentialProviderId"  sonarjs/redundant-type-aliases
+   818:13  warning  Remove this redundant type alias and replace its occurrences with "string"                            sonarjs/redundant-type-aliases
+  1014:13  warning  Remove this redundant type alias and replace its occurrences with "string"                            sonarjs/redundant-type-aliases
+
+apps/website/src/platform/db/migrations/0002_drop_empty_legacy_chat_tables.ts
+  28:3  warning  Reduce the total number of "break" and "continue" statements in this loop to use one at most  sonarjs/too-many-break-or-continue-in-loop
+
+apps/website/src/platform/db/migrations/0020_vault_api_connection_kind.ts
+  66:16  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+✖ 5 problems (0 errors, 5 warnings)
+

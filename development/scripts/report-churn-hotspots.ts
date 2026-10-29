@@ -156,23 +156,30 @@ export function scanComplexity(scope: string): Map<string, { cyclomatic: number;
     // Same exclusion both existing complexity gates apply, for the same reason: test and
     // measurement code is out of scope for this ceiling, not silently-tracked debt.
     if (relPath.includes("__tests__/") || relPath.includes("__measurements__/") || relPath.includes(".test.")) continue;
-    let cyclomatic = 0;
-    let cognitive = 0;
-    let violations = 0;
-    for (const message of result.messages) {
-      if (message.ruleId === "complexity") {
-        violations++;
-        const m = /complexity of (\d+)/.exec(message.message);
-        if (m) cyclomatic = Math.max(cyclomatic, Number(m[1]));
-      } else if (message.ruleId === "sonarjs/cognitive-complexity") {
-        violations++;
-        const m = /Cognitive Complexity from (\d+)/.exec(message.message);
-        if (m) cognitive = Math.max(cognitive, Number(m[1]));
-      }
-    }
-    if (violations > 0) byFile.set(relPath, { cyclomatic, cognitive, violations });
+    const metrics = messageComplexity({ messages: result.messages });
+    if (metrics.violations > 0) byFile.set(relPath, metrics);
   }
   return byFile;
+}
+
+function messageComplexity({ messages }: { messages: EslintMessage[] }, _options = {}): {
+  cyclomatic: number; cognitive: number; violations: number;
+} {
+  let cyclomatic = 0;
+  let cognitive = 0;
+  let violations = 0;
+  for (const message of messages) {
+    if (message.ruleId === "complexity") {
+      violations++;
+      const m = /complexity of (\d+)/.exec(message.message);
+      if (m) cyclomatic = Math.max(cyclomatic, Number(m[1]));
+    } else if (message.ruleId === "sonarjs/cognitive-complexity") {
+      violations++;
+      const m = /Cognitive Complexity from (\d+)/.exec(message.message);
+      if (m) cognitive = Math.max(cognitive, Number(m[1]));
+    }
+  }
+  return { cyclomatic, cognitive, violations };
 }
 
 /**

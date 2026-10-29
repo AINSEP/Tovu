@@ -99,14 +99,18 @@ function lex(src) {
   let lastWord = "";
   let i = 0;
 
+  const scanTemplateEscape = () => {
+    blank(skel, i);
+    if (i + 1 < n) blank(skel, i + 1);
+    i += 2;
+  };
+
   const scanTemplate = () => {
     // at a position inside template text; runs until the closing backtick or a `${`
     while (i < n) {
       const c = src[i];
       if (c === "\\") {
-        blank(skel, i);
-        if (i + 1 < n) blank(skel, i + 1);
-        i += 2;
+        scanTemplateEscape();
         continue;
       }
       if (c === "`") {
@@ -126,75 +130,99 @@ function lex(src) {
     }
   };
 
-  while (i < n) {
+  const scanLineComment = () => {
+    while (i < n && src[i] !== "\n") {
+      blank(code, i);
+      blank(skel, i);
+      i++;
+    }
+  };
+
+  const scanBlockComment = () => {
+    const end = src.indexOf("*/", i + 2);
+    const stop = end === -1 ? n : end + 2;
+    for (; i < stop; i++) {
+      blank(code, i);
+      blank(skel, i);
+    }
+  };
+
+  const scanComment = () => {
+    if (src[i] !== "/") return false;
+    if (src[i + 1] === "/") {
+      scanLineComment();
+      return true;
+    }
+    if (src[i + 1] === "*") {
+      scanBlockComment();
+      return true;
+    }
+    return false;
+  };
+
+  const scanQuoted = ({ quote }, _options = {}) => {
+    i++;
+    while (i < n && src[i] !== quote && src[i] !== "\n") {
+      if (src[i] === "\\" && i + 1 < n && src[i + 1] !== "\n") {
+        blank(skel, i);
+        i++;
+      }
+      blank(skel, i);
+      i++;
+    }
+    i++;
+    lastSig = quote;
+    lastWord = "";
+  };
+
+  const findRegexEnd = () => {
+    // regex literal
+    let j = i + 1;
+    let inClass = false;
+    while (j < n && src[j] !== "\n") {
+      const r = src[j];
+      if (r === "\\") {
+        j += 2;
+        continue;
+      }
+      if (r === "[") inClass = true;
+      else if (r === "]") inClass = false;
+      else if (r === "/" && !inClass) {
+        return j;
+      }
+      j++;
+    }
+    return -1;
+  };
+
+  const scanRegex = () => {
+    const j = findRegexEnd();
+    if (j === -1) return false;
+    for (let k = i + 1; k < j; k++) blank(skel, k);
+    i = j + 1;
+    while (i < n && /[a-z]/i.test(src[i])) i++;
+    lastSig = "/";
+    lastWord = "";
+    return true;
+  };
+
+  const scanLiteral = () => {
     const c = src[i];
-    const d = src[i + 1];
-    if (c === "/" && d === "/") {
-      while (i < n && src[i] !== "\n") {
-        blank(code, i);
-        blank(skel, i);
-        i++;
-      }
-      continue;
-    }
-    if (c === "/" && d === "*") {
-      const end = src.indexOf("*/", i + 2);
-      const stop = end === -1 ? n : end + 2;
-      for (; i < stop; i++) {
-        blank(code, i);
-        blank(skel, i);
-      }
-      continue;
-    }
     if (c === "'" || c === '"') {
-      i++;
-      while (i < n && src[i] !== c && src[i] !== "\n") {
-        if (src[i] === "\\" && i + 1 < n && src[i + 1] !== "\n") {
-          blank(skel, i);
-          i++;
-        }
-        blank(skel, i);
-        i++;
-      }
-      i++;
-      lastSig = c;
-      lastWord = "";
-      continue;
+      scanQuoted({ quote: c });
+      return true;
     }
     if (c === "`") {
       i++;
       scanTemplate();
       lastWord = "";
-      continue;
+      return true;
     }
-    if (c === "/" && (lastSig === "" || REGEX_PREV_CHARS.has(lastSig) || REGEX_PREV_WORDS.has(lastWord))) {
-      // regex literal
-      let j = i + 1;
-      let inClass = false;
-      let ok = false;
-      while (j < n && src[j] !== "\n") {
-        const r = src[j];
-        if (r === "\\") {
-          j += 2;
-          continue;
-        }
-        if (r === "[") inClass = true;
-        else if (r === "]") inClass = false;
-        else if (r === "/" && !inClass) {
-          ok = true;
-          break;
-        }
-        j++;
-      }
-      if (ok) {
-        for (let k = i + 1; k < j; k++) blank(skel, k);
-        i = j + 1;
-        while (i < n && /[a-z]/i.test(src[i])) i++;
-        lastSig = "/";
-        lastWord = "";
-        continue;
-      }
-    }
+    const regexPosition = lastSig === "" || REGEX_PREV_CHARS.has(lastSig) || REGEX_PREV_WORDS.has(lastWord);
+    return c === "/" && regexPosition && scanRegex();
+  };
+
+  const scanBrace = ({ c }, _options = {}) => {
     if (c === "{") braceDepth++;
     else if (c === "}") {
       braceDepth--;
@@ -202,22 +230,34 @@ function lex(src) {
         tplStack.pop();
         i++;
         scanTemplate();
-        continue;
+        return true;
       }
     }
+    return false;
+  };
+
+  const scanCode = ({ c }, _options = {}) => {
     if (/[A-Za-z0-9_$]/.test(c)) {
       let j = i;
       while (j < n && /[A-Za-z0-9_$]/.test(src[j])) j++;
       lastWord = src.slice(i, j);
       lastSig = src[j - 1];
       i = j;
-      continue;
+      return;
     }
     if (!/\s/.test(c)) {
       lastSig = c;
       lastWord = "";
     }
     i++;
+  };
+
+  while (i < n) {
+    const c = src[i];
+    if (scanComment()) continue;
+    if (scanLiteral()) continue;
+    if (scanBrace({ c })) continue;
+    scanCode({ c });
   }
   return { code: code.join(""), skel: skel.join("") };
 }
@@ -395,14 +435,7 @@ function stemOf(file) {
     .replace(/\.(unit|integration|e2e|contract|smoke)$/, "");
 }
 
-function analyseTestFile(file, src, resolve) {
-  const { code, skel } = lex(src);
-  const lineOf = lineIndex(src);
-  const tags = {};
-  const add = (tag, line, test, detail) => {
-    (tags[tag] ??= []).push(test === undefined ? { line, detail } : { line, test, detail });
-  };
-
+function bareAssertionPattern({ code }, _options = {}) {
   // named imports from node:assert used bare (`strictEqual(...)`)
   const bareAsserts = new Set();
   for (const m of code.matchAll(/import\s*\{([^}]*)\}\s*from\s*["'](?:node:)?assert(?:\/strict)?["']/g)) {
@@ -411,62 +444,75 @@ function analyseTestFile(file, src, resolve) {
       if (name) bareAsserts.add(name);
     }
   }
-  const bareAssertRe = bareAsserts.size ? new RegExp(`(?<![\\w$.])(?:${[...bareAsserts].join("|")})\\s*\\(`, "g") : null;
+  return bareAsserts.size ? new RegExp(`(?<![\\w$.])(?:${[...bareAsserts].join("|")})\\s*\\(`, "g") : null;
 
-  // --- tests
-  const tests = [];
-  TEST_CALL.lastIndex = 0;
-  for (const m of skel.matchAll(TEST_CALL)) {
-    let i = m.index + m[0].length;
-    const mods = [];
-    let isTest = true;
+}
+
+function eachModifierEnd({ skel, offset }, _options = {}) {
+  const rest = skel.slice(offset, offset + 5);
+  const ws = /^\s*/.exec(rest)[0].length;
+  if (skel[offset + ws] === "(") {
+    const close = matchBracket(skel, offset + ws);
+    return close === -1 ? -1 : close + 1;
+  }
+  if (skel[offset + ws] === "`") return skel.indexOf("`", offset + ws + 1) + 1;
+  return offset;
+}
+
+function parseTestModifiers({ skel, offset }, _options = {}) {
+  let i = offset;
+  const mods = [];
     for (;;) {
       const mm = /^\s*\.\s*([A-Za-z_$][\w$]*)/.exec(skel.slice(i, i + 80));
       if (!mm) break;
       if (!TEST_MODIFIERS.has(mm[1])) {
-        isTest = false;
-        break;
+        return { i, mods, isTest: false };
       }
       mods.push(mm[1]);
       i += mm[0].length;
-      if (mm[1] === "each") {
-        const rest = skel.slice(i, i + 5);
-        const ws = /^\s*/.exec(rest)[0].length;
-        if (skel[i + ws] === "(") {
-          const close = matchBracket(skel, i + ws);
-          if (close === -1) break;
-          i = close + 1;
-        } else if (skel[i + ws] === "`") {
-          const close = skel.indexOf("`", i + ws + 1);
-          i = close + 1;
-        }
-      }
+      if (mm[1] !== "each") continue;
+      const end = eachModifierEnd({ skel, offset: i });
+      if (end === -1) break;
+      i = end;
     }
-    if (!isTest) continue;
-    const ws = /^\s*/.exec(skel.slice(i, i + 20))[0].length;
-    if (skel[i + ws] !== "(") continue;
-    const open = i + ws;
-    const firstArg = skel.slice(open + 1, open + 40).trimStart()[0];
-    if (m[2] && !/["'`]/.test(firstArg ?? "")) continue; // t.test must take a title literal
-    if (!firstArg || firstArg === ")") continue;
-    const close = matchBracket(skel, open);
-    if (close === -1) continue;
+  return { i, mods, isTest: true };
+}
+
+function testCallDetails({ code, open, close, mods, m }, _options = {}) {
     const titleMatch = /^\s*(["'`])([^]*?)\1/.exec(code.slice(open + 1, Math.min(close, open + 400)));
     const title = titleMatch ? titleMatch[2].replace(/\s+/g, " ").slice(0, 160) : "(dynamic title)";
     const argsHead = code.slice(open + 1, Math.min(close, open + 600));
     const optionSkip = /[{,]\s*(?:skip|todo)\s*:\s*(?!false\b)/.test(argsHead.split(/=>|\bfunction\b|\basync\b/)[0]);
     const skipped = mods.some((x) => SKIP_MODIFIERS.has(x)) || m[1] === "xit" || optionSkip;
-    tests.push({ start: m.index, open, close, title, line: lineOf(m.index), mods, skipped });
+  return { title, skipped };
+}
+
+function parseTestCall({ m, code, skel, lineOf }, _options = {}) {
+    const { i, mods, isTest } = parseTestModifiers({ skel, offset: m.index + m[0].length });
+    if (!isTest) return null;
+    const ws = /^\s*/.exec(skel.slice(i, i + 20))[0].length;
+    if (skel[i + ws] !== "(") return null;
+    const open = i + ws;
+    const firstArg = skel.slice(open + 1, open + 40).trimStart()[0];
+    if (m[2] && !/["'`]/.test(firstArg ?? "")) return null; // t.test must take a title literal
+    if (!firstArg || firstArg === ")") return null;
+    const close = matchBracket(skel, open);
+    if (close === -1) return null;
+    const { title, skipped } = testCallDetails({ code, open, close, mods, m });
+    return { start: m.index, open, close, title, line: lineOf(m.index), mods, skipped };
+}
+
+function collectTests({ code, skel, lineOf }, _options = {}) {
+  const tests = [];
+  TEST_CALL.lastIndex = 0;
+  for (const m of skel.matchAll(TEST_CALL)) {
+    const test = parseTestCall({ m, code, skel, lineOf });
+    if (test) tests.push(test);
   }
+  return tests;
+}
 
-  const testAt = (offset) => {
-    // innermost enclosing test
-    let best = null;
-    for (const t of tests) if (t.open <= offset && offset <= t.close && (!best || t.open > best.open)) best = t;
-    return best;
-  };
-
-  // --- assertions
+function collectAssertions({ code, skel, bareAssertRe }, _options = {}) {
   const assertions = [];
   const collectAsserts = (re) => {
     re.lastIndex = 0;
@@ -485,7 +531,6 @@ function analyseTestFile(file, src, resolve) {
   if (bareAssertRe) collectAsserts(bareAssertRe);
   THROW_ASSERT.lastIndex = 0;
   for (const m of code.matchAll(THROW_ASSERT)) assertions.push({ start: m.index, end: m.index + m[0].length, text: m[0], manual: true });
-  const implicit = [...skel.matchAll(IMPLICIT_ASSERT)].map((m) => m.index);
   // drop assertions nested inside another assertion's span (e.g. expect.poll(() => expect(x)...))
   assertions.sort((a, b) => a.start - b.start || b.end - a.end);
   const topAssertions = [];
@@ -495,27 +540,10 @@ function analyseTestFile(file, src, resolve) {
     topAssertions.push(a);
     lastEnd = a.end;
   }
+  return topAssertions;
+}
 
-  for (const t of tests) {
-    t.asserts = topAssertions.filter((a) => a.start > t.open && a.start < t.close);
-    t.implicitAsserts = implicit.filter((o) => o > t.open && o < t.close).length;
-  }
-
-  const leafTests = tests.filter((t) => !tests.some((o) => o !== t && o.open > t.open && o.close < t.close));
-  for (const t of tests) {
-    if (t.skipped) {
-      add("skip/only/todo", t.line, t.title, `${t.mods.join(".") || "option"} skip/todo`);
-      continue;
-    }
-    if (t.mods.includes("only")) add("skip/only/todo", t.line, t.title, "only");
-    const isLeaf = leafTests.includes(t);
-    if (!isLeaf) continue;
-    const as = t.asserts;
-    if (as.length === 0) {
-      if (!t.implicitAsserts) add("no-assert", t.line, t.title, "no assertion call in the test body");
-      continue;
-    }
-    const real = as.filter((a) => !a.manual && !/^t\.plan/.test(a.text));
+function tagAssertionKinds({ real, t, add }, _options = {}) {
     if (real.length && real.every((a) => MOCK_CALL_RE.test(a.skelText))) {
       add("mock-call-only", t.line, t.title, `${real.length} assertion(s), all on mock calls`);
     }
@@ -525,11 +553,46 @@ function analyseTestFile(file, src, resolve) {
     if (real.length && real.every((a) => LOG_RE.test(a.skelText))) {
       add("log-only", t.line, t.title, `${real.length} assertion(s), all on log/console output`);
     }
-  }
-  for (const a of topAssertions) {
-    if (ALWAYS_WEAK_RE.test(a.text)) add("weak-matcher", lineOf(a.start), testAt(a.start)?.title ?? null, a.text.slice(0, 120));
-  }
+}
 
+function tagTestAssertions({ t, isLeaf, add }, _options = {}) {
+    if (t.skipped) {
+      add("skip/only/todo", t.line, t.title, `${t.mods.join(".") || "option"} skip/todo`);
+      return;
+    }
+    if (t.mods.includes("only")) add("skip/only/todo", t.line, t.title, "only");
+    if (!isLeaf) return;
+    const as = t.asserts;
+    if (as.length === 0) {
+      if (!t.implicitAsserts) add("no-assert", t.line, t.title, "no assertion call in the test body");
+      return;
+    }
+    tagAssertionKinds({ real: as.filter((a) => !a.manual && !/^t\.plan/.test(a.text)), t, add });
+}
+
+function tagLineSkip({ l, ln, t, tags, add }, _options = {}) {
+    for (const re of SKIP_LINE_RES) {
+      if (re.test(l)) {
+        // test-level skips already recorded with the test; avoid a duplicate for the same line
+        if (!(tags["skip/only/todo"] ?? []).some((e) => e.line === ln)) add("skip/only/todo", ln, t?.title ?? null, l.trim().slice(0, 120));
+        break;
+      }
+    }
+}
+
+function tagSourceLine({ l, idx, lineOffsets, testAt, titleTopic, tags, add }, _options = {}) {
+    const ln = idx + 1;
+    if (!l.trim()) return;
+    const t = testAt(lineOffsets[idx]);
+    const title = t?.title ?? null;
+    const synthetic =
+      SYNTHETIC_SPECIFIC.find((re) => re.test(l)) ?? (titleTopic(t) ? SYNTHETIC_GENERIC.find((re) => re.test(l)) : undefined);
+    if (synthetic) add("synthetic-input", ln, title, l.trim().slice(0, 120));
+    if (TIMING_RE.test(l)) add("timing", ln, title, l.trim().slice(0, 120));
+    tagLineSkip({ l, ln, t, tags, add });
+}
+
+function tagSourceLines({ code, file, testAt, tags, add }, _options = {}) {
   // --- line-based tags
   const codeLines = code.split("\n");
   const titleTopic = (t) => SYNTHETIC_TOPIC_RE.test(t?.title ?? "") || SYNTHETIC_TOPIC_RE.test(path.posix.basename(file));
@@ -539,26 +602,12 @@ function analyseTestFile(file, src, resolve) {
     lineOffsets.push(offset);
     offset += l.length + 1;
   }
-  codeLines.forEach((l, idx) => {
-    const ln = idx + 1;
-    if (!l.trim()) return;
-    const t = testAt(lineOffsets[idx]);
-    const synthetic =
-      SYNTHETIC_SPECIFIC.find((re) => re.test(l)) ?? (titleTopic(t) ? SYNTHETIC_GENERIC.find((re) => re.test(l)) : undefined);
-    if (synthetic) add("synthetic-input", ln, t?.title ?? null, l.trim().slice(0, 120));
-    if (TIMING_RE.test(l)) add("timing", ln, t?.title ?? null, l.trim().slice(0, 120));
-    for (const re of SKIP_LINE_RES) {
-      if (re.test(l)) {
-        // test-level skips already recorded with the test; avoid a duplicate for the same line
-        if (!(tags["skip/only/todo"] ?? []).some((e) => e.line === ln)) add("skip/only/todo", ln, t?.title ?? null, l.trim().slice(0, 120));
-        break;
-      }
-    }
-  });
+  codeLines.forEach((l, idx) => tagSourceLine({ l, idx, lineOffsets, testAt, titleTopic, tags, add }));
+}
 
+function tagSelfMocks({ code, file, imports, resolve, lineOf, add }, _options = {}) {
   // --- self-mock
   const subjects = new Set();
-  const imports = extractImports(code);
   for (const spec of imports) {
     const r = resolve(file, spec);
     if (r && stemOf(r).replace(/\.(ts|tsx|mts|mjs|cjs|js)$/, "") === stemOf(file) && !TEST_FILE.test(r)) subjects.add(r);
@@ -570,6 +619,41 @@ function analyseTestFile(file, src, resolve) {
     if (r && subjects.has(r)) add("self-mock", ln, null, `mocks its own subject ${r}`);
     else if (r === "apps/admin/src/lib/api.ts") add("self-mock", ln, null, "mocks apps/admin/src/lib/api.ts");
   }
+
+}
+
+function analyseTestFile(file, src, resolve) {
+  const { code, skel } = lex(src);
+  const lineOf = lineIndex(src);
+  const tags = {};
+  const add = (tag, line, test, detail) => {
+    (tags[tag] ??= []).push(test === undefined ? { line, detail } : { line, test, detail });
+  };
+
+  const tests = collectTests({ code, skel, lineOf });
+  const testAt = (offset) => {
+    // innermost enclosing test
+    let best = null;
+    for (const t of tests) if (t.open <= offset && offset <= t.close && (!best || t.open > best.open)) best = t;
+    return best;
+  };
+
+  const topAssertions = collectAssertions({ code, skel, bareAssertRe: bareAssertionPattern({ code }) });
+  const implicit = [...skel.matchAll(IMPLICIT_ASSERT)].map((m) => m.index);
+  for (const t of tests) {
+    t.asserts = topAssertions.filter((a) => a.start > t.open && a.start < t.close);
+    t.implicitAsserts = implicit.filter((o) => o > t.open && o < t.close).length;
+  }
+
+  const leafTests = tests.filter((t) => !tests.some((o) => o !== t && o.open > t.open && o.close < t.close));
+  for (const t of tests) tagTestAssertions({ t, isLeaf: leafTests.includes(t), add });
+  for (const a of topAssertions) {
+    if (ALWAYS_WEAK_RE.test(a.text)) add("weak-matcher", lineOf(a.start), testAt(a.start)?.title ?? null, a.text.slice(0, 120));
+  }
+
+  tagSourceLines({ code, file, testAt, tags, add });
+  const imports = extractImports(code);
+  tagSelfMocks({ code, file, imports, resolve, lineOf, add });
 
   for (const k of Object.keys(tags)) tags[k].sort((a, b) => a.line - b.line);
   return {
@@ -610,18 +694,22 @@ function runnerOf(file, playwrightConfigs) {
     };
   }
   if (file.startsWith("development/e2e/") && /\.spec\.[a-z]+$/.test(file)) {
-    const base = path.posix.basename(file);
-    const configs = playwrightConfigs.filter((c) => c.re && c.re.test(base)).map((c) => c.path);
-    return {
-      runner: "playwright",
-      configs,
-      command: configs.length ? `npx playwright test --config=${configs[0]} ${file}` : `(no playwright config's testMatch covers ${base})`,
-    };
+    return playwrightRunner({ file, playwrightConfigs });
   }
   if (file.startsWith("apps/site-chat/")) {
     return { runner: "root-node", command: `TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json ${ROOT_NODE} ${file}` };
   }
   return { runner: "root-node", command: `${ROOT_NODE} ${file}` };
+}
+
+function playwrightRunner({ file, playwrightConfigs }, _options = {}) {
+  const base = path.posix.basename(file);
+  const configs = playwrightConfigs.filter((c) => c.re && c.re.test(base)).map((c) => c.path);
+  return {
+    runner: "playwright",
+    configs,
+    command: configs.length ? `npx playwright test --config=${configs[0]} ${file}` : `(no playwright config's testMatch covers ${base})`,
+  };
 }
 
 function loadPlaywrightConfigs(tracked, blobs) {
@@ -714,17 +802,7 @@ function packShards(items, capBytes, keyOf) {
 // Main
 // ---------------------------------------------------------------------------------------------------
 
-function main() {
-  const opts = parseArgs(process.argv);
-  const head = git(["rev-parse", "HEAD"]).trim();
-  const tracked = new Set(git(["ls-tree", "-r", "--name-only", "HEAD"]).split("\n").filter(Boolean));
-  const codeFiles = [...tracked].filter((p) => CODE_EXT.test(p) && !IGNORED_PATH.test(p) && !p.endsWith(".d.ts")).sort();
-  const testFiles = codeFiles.filter((p) => TEST_FILE.test(p));
-  const playwrightPaths = [...tracked].filter((p) => /^development\/playwright[^/]*\.config\.ts$/.test(p));
-  const blobs = readBlobs([...codeFiles, ...playwrightPaths.filter((p) => !codeFiles.includes(p))]);
-  const resolve = makeResolver(tracked);
-  const playwrightConfigs = loadPlaywrightConfigs(tracked, blobs);
-
+function buildTestRecords({ testFiles, blobs, resolve, playwrightConfigs }, _options = {}) {
   // --- test files
   const testRecords = [];
   const mentionIndex = new Map(); // basename → test files mentioning it as a string
@@ -751,6 +829,10 @@ function main() {
     });
   }
 
+  return { testRecords, mentionIndex };
+}
+
+function buildImporters({ codeFiles, blobs, resolve }, _options = {}) {
   // --- import graph over every code file
   const importers = new Map(); // dep → Set(importing files)
   for (const file of codeFiles) {
@@ -762,10 +844,25 @@ function main() {
       importers.get(r).add(file);
     }
   }
-  const testSet = new Set(testFiles);
-  const TRANSITIVE_CAP = 25;
-  const MAX_DEPTH = 8;
-  function mapToTests(file) {
+  return importers;
+}
+
+function visitTestImporters({ file, importers, seen, testSet, found, next, depth, transitiveCap }, _options = {}) {
+  let total = 0;
+  for (const imp of [...(importers.get(file) ?? [])].sort()) {
+          if (seen.has(imp)) continue;
+          seen.add(imp);
+          if (testSet.has(imp)) {
+            total++;
+            if (depth > 1 && found.length < transitiveCap) found.push({ test: imp, depth });
+          } else next.push(imp);
+        }
+  return total;
+}
+
+function mapToTests({ file, importers, testSet }, _options = {}) {
+    const TRANSITIVE_CAP = 25;
+    const MAX_DEPTH = 8;
     const direct = [...(importers.get(file) ?? [])].filter((f) => testSet.has(f)).sort();
     const seen = new Set([file]);
     let frontier = [file];
@@ -774,20 +871,30 @@ function main() {
     for (let depth = 1; depth <= MAX_DEPTH && frontier.length; depth++) {
       const next = [];
       for (const f of frontier) {
-        for (const imp of [...(importers.get(f) ?? [])].sort()) {
-          if (seen.has(imp)) continue;
-          seen.add(imp);
-          if (testSet.has(imp)) {
-            total++;
-            if (depth > 1 && found.length < TRANSITIVE_CAP) found.push({ test: imp, depth });
-          } else next.push(imp);
-        }
+        total += visitTestImporters({ file: f, importers, seen, testSet, found, next, depth, transitiveCap: TRANSITIVE_CAP });
       }
       frontier = next;
     }
     return { direct, transitive: found, reachableTestCount: total };
   }
 
+function isChangedSource({ p, tracked }, _options = {}) {
+  return CODE_EXT.test(p) && !TEST_FILE.test(p) && !IGNORED_PATH.test(p) && tracked.has(p) && !p.endsWith(".d.ts");
+}
+
+function recordChangedSourceLine({ line, tracked, changed }, _options = {}) {
+  const m = /^(\d+|-)\t(\d+|-)\t(.+)$/.exec(line);
+  if (!m) return;
+  const p = m[3];
+  if (!isChangedSource({ p, tracked })) return;
+  const rec = changed.get(p) ?? { added: 0, deleted: 0, commits: 0 };
+  rec.added += m[1] === "-" ? 0 : Number(m[1]);
+  rec.deleted += m[2] === "-" ? 0 : Number(m[2]);
+  rec.commits++;
+  changed.set(p, rec);
+}
+
+function collectChangedSources({ opts, tracked }, _options = {}) {
   // --- changed sources
   const log = git(["log", `--since=${opts.since}`, "--no-renames", "--numstat", "--format=%H", "HEAD"]);
   const commits = new Set();
@@ -797,16 +904,12 @@ function main() {
       commits.add(line);
       continue;
     }
-    const m = /^(\d+|-)\t(\d+|-)\t(.+)$/.exec(line);
-    if (!m) continue;
-    const p = m[3];
-    if (!CODE_EXT.test(p) || TEST_FILE.test(p) || IGNORED_PATH.test(p) || !tracked.has(p) || p.endsWith(".d.ts")) continue;
-    const rec = changed.get(p) ?? { added: 0, deleted: 0, commits: 0 };
-    rec.added += m[1] === "-" ? 0 : Number(m[1]);
-    rec.deleted += m[2] === "-" ? 0 : Number(m[2]);
-    rec.commits++;
-    changed.set(p, rec);
+    recordChangedSourceLine({ line, tracked, changed });
   }
+  return { commits, changed };
+}
+
+function buildChangedRecords({ changed, blobs, importers, testSet, mentionIndex }, _options = {}) {
   // A module that only declares types (e.g. the admin `*-port.hooks.ts` interfaces) has no runtime
   // code to test or mutate; importers use `import type`, so it can never map to a test.
   const isTypeOnly = (p) => {
@@ -817,7 +920,7 @@ function main() {
   };
   const isTestSupport = (p) => /(^|\/)(__tests__|__fixtures__|fixtures|test-helpers|test-utils|testing)\//.test(p) || /(test-helpers?|test-utils?|\.fixture)\.[a-z]+$/.test(p);
   const changedRecords = [...changed.keys()].sort().map((p) => {
-    const map = mapToTests(p);
+    const map = mapToTests({ file: p, importers, testSet });
     const rec = changed.get(p);
     const mapped = map.direct.length > 0 || map.transitive.length > 0;
     return {
@@ -837,12 +940,10 @@ function main() {
     };
   });
 
-  // --- shards
-  const auditShards = packShards(
-    testRecords.map((t) => ({ path: t.path, bytes: t.bytes })),
-    opts.auditCapKb * 1024,
-    treeOf,
-  );
+  return changedRecords;
+}
+
+function buildMutationShards({ testRecords, changedRecords, opts }, _options = {}) {
   const commandByTest = new Map(testRecords.map((t) => [t.path, t.command]));
   const mutationSources = changedRecords.filter((c) => !c.testSupport && !c.typeOnly);
   const changedByPath = new Map(changedRecords.map((c) => [c.path, c]));
@@ -870,6 +971,34 @@ function main() {
     };
   });
 
+  return mutationShards;
+}
+
+function main() {
+  const opts = parseArgs(process.argv);
+  const head = git(["rev-parse", "HEAD"]).trim();
+  const tracked = new Set(git(["ls-tree", "-r", "--name-only", "HEAD"]).split("\n").filter(Boolean));
+  const codeFiles = [...tracked].filter((p) => CODE_EXT.test(p) && !IGNORED_PATH.test(p) && !p.endsWith(".d.ts")).sort();
+  const testFiles = codeFiles.filter((p) => TEST_FILE.test(p));
+  const playwrightPaths = [...tracked].filter((p) => /^development\/playwright[^/]*\.config\.ts$/.test(p));
+  const blobs = readBlobs([...codeFiles, ...playwrightPaths.filter((p) => !codeFiles.includes(p))]);
+  const resolve = makeResolver(tracked);
+  const playwrightConfigs = loadPlaywrightConfigs(tracked, blobs);
+
+  const { testRecords, mentionIndex } = buildTestRecords({ testFiles, blobs, resolve, playwrightConfigs });
+  const importers = buildImporters({ codeFiles, blobs, resolve });
+  const testSet = new Set(testFiles);
+  const { commits, changed } = collectChangedSources({ opts, tracked });
+  const changedRecords = buildChangedRecords({ changed, blobs, importers, testSet, mentionIndex });
+
+  // --- shards
+  const auditShards = packShards(
+    testRecords.map((t) => ({ path: t.path, bytes: t.bytes })),
+    opts.auditCapKb * 1024,
+    treeOf,
+  );
+  const mutationShards = buildMutationShards({ testRecords, changedRecords, opts });
+
   // --- write
   mkdirSync(opts.out, { recursive: true });
   const write = (name, data) => writeFileSync(path.join(opts.out, name), typeof data === "string" ? data : JSON.stringify(data, null, 2) + "\n");
@@ -883,13 +1012,7 @@ function main() {
 
 const TAG_ORDER = ["mock-call-only", "self-mock", "weak-matcher", "no-assert", "synthetic-input", "log-only", "skip/only/todo", "timing"];
 
-function renderSummary({ head, opts, testRecords, changedRecords, auditShards, mutationShards, commits }) {
-  const trees = [...new Set(testRecords.map((t) => t.tree))].sort();
-  const L = [];
-  L.push("# Test rigor inventory", "");
-  L.push(`HEAD \`${head}\` · generated by \`node development/scripts/test-rigor-inventory.mjs\` (deterministic; reads HEAD, not the working tree).`, "");
-  L.push("Tags are heuristics for triage, not verdicts. \"files\" = files with ≥1 hit; \"hits\" = tagged tests or lines.", "");
-
+function renderTestTables({ L, testRecords, trees }, _options = {}) {
   L.push("## Test files per tree", "");
   L.push("| tree | files | KB | tests (est.) | assertions | runner(s) |", "|---|---:|---:|---:|---:|---|");
   for (const tr of trees) {
@@ -911,6 +1034,9 @@ function renderSummary({ head, opts, testRecords, changedRecords, auditShards, m
   }
   L.push("");
 
+}
+
+function renderSurprises({ L, testRecords, opts, auditShards }, _options = {}) {
   const zero = testRecords.filter((t) => t.testCountEstimate === 0);
   L.push("## Anything surprising", "");
   const unmatchedE2e = testRecords.filter((t) => t.runner === "playwright" && !t.playwrightConfigs?.length);
@@ -930,6 +1056,9 @@ function renderSummary({ head, opts, testRecords, changedRecords, auditShards, m
   if (oversize.length) L.push(`- ${oversize.length} audit shard(s) exceed the cap (a single file larger than the cap): ${oversize.map((s) => s.id).join(", ")}`);
   L.push("");
 
+}
+
+function renderAuditShards({ L, opts, auditShards }, _options = {}) {
   L.push("## Audit shards", "");
   L.push(`Cap ${opts.auditCapKb} KB of test source per shard; folder-disjoint; never mixes trees.`, "");
   L.push("| shard | tree | files | KB | folders |", "|---|---|---:|---:|---|");
@@ -938,6 +1067,41 @@ function renderSummary({ head, opts, testRecords, changedRecords, auditShards, m
     L.push(`| ${s.id} | ${s.tree} | ${s.fileCount} | ${s.kb}${s.oversize ? " (!)" : ""} | ${folders} |`);
   }
   L.push("");
+
+}
+
+function renderMutationShards({ L, opts, mutationShards }, _options = {}) {
+  L.push("## Mutation shards", "");
+  L.push(`Cap ${opts.mutationCapKb} KB of changed source per shard; tests = direct importers + transitive importers at depth ≤ 2.`, "");
+  L.push("| shard | tree | sources | KB | unmapped | tests | folders |", "|---|---|---:|---:|---:|---:|---|");
+  for (const s of mutationShards) {
+    const folders = s.folders.length > 3 ? `${s.folders.slice(0, 3).join(", ")}, … (+${s.folders.length - 3})` : s.folders.join(", ");
+    L.push(`| ${s.id} | ${s.tree} | ${s.fileCount} | ${s.kb} | ${s.unmappedCount} | ${s.tests.length} | ${folders} |`);
+  }
+  L.push("");
+
+}
+
+function renderUnmappedSources({ L, unmapped }, _options = {}) {
+  L.push(`## Unmapped changed sources (${unmapped.length})`, "");
+  L.push("No test imports them, directly or transitively (static imports only; source-text \"wiring\" tests that read a file with readFileSync show up as *mentioned by*).", "");
+  for (const c of unmapped) {
+    const mention = c.mentionedByTests?.length ? ` — mentioned by ${c.mentionedByTests.slice(0, 3).map((t) => `\`${t}\``).join(", ")}${c.mentionedByTests.length > 3 ? ", …" : ""}` : "";
+    L.push(`- \`${c.path}\` (${c.linesAdded + c.linesDeleted} lines)${mention}`);
+  }
+  L.push("");
+}
+
+function renderSummary({ head, opts, testRecords, changedRecords, auditShards, mutationShards, commits }) {
+  const trees = [...new Set(testRecords.map((t) => t.tree))].sort();
+  const L = [];
+  L.push("# Test rigor inventory", "");
+  L.push(`HEAD \`${head}\` · generated by \`node development/scripts/test-rigor-inventory.mjs\` (deterministic; reads HEAD, not the working tree).`, "");
+  L.push("Tags are heuristics for triage, not verdicts. \"files\" = files with ≥1 hit; \"hits\" = tagged tests or lines.", "");
+
+  renderTestTables({ L, testRecords, trees });
+  renderSurprises({ L, testRecords, opts, auditShards });
+  renderAuditShards({ L, opts, auditShards });
 
   const typeOnly = changedRecords.filter((c) => !c.testSupport && c.typeOnly);
   const nonSupport = changedRecords.filter((c) => !c.testSupport && !c.typeOnly);
@@ -951,22 +1115,8 @@ function renderSummary({ head, opts, testRecords, changedRecords, auditShards, m
   }
   L.push("");
 
-  L.push("## Mutation shards", "");
-  L.push(`Cap ${opts.mutationCapKb} KB of changed source per shard; tests = direct importers + transitive importers at depth ≤ 2.`, "");
-  L.push("| shard | tree | sources | KB | unmapped | tests | folders |", "|---|---|---:|---:|---:|---:|---|");
-  for (const s of mutationShards) {
-    const folders = s.folders.length > 3 ? `${s.folders.slice(0, 3).join(", ")}, … (+${s.folders.length - 3})` : s.folders.join(", ");
-    L.push(`| ${s.id} | ${s.tree} | ${s.fileCount} | ${s.kb} | ${s.unmappedCount} | ${s.tests.length} | ${folders} |`);
-  }
-  L.push("");
-
-  L.push(`## Unmapped changed sources (${unmapped.length})`, "");
-  L.push("No test imports them, directly or transitively (static imports only; source-text \"wiring\" tests that read a file with readFileSync show up as *mentioned by*).", "");
-  for (const c of unmapped) {
-    const mention = c.mentionedByTests?.length ? ` — mentioned by ${c.mentionedByTests.slice(0, 3).map((t) => `\`${t}\``).join(", ")}${c.mentionedByTests.length > 3 ? ", …" : ""}` : "";
-    L.push(`- \`${c.path}\` (${c.linesAdded + c.linesDeleted} lines)${mention}`);
-  }
-  L.push("");
+  renderMutationShards({ L, opts, mutationShards });
+  renderUnmappedSources({ L, unmapped });
   return L.join("\n");
 }
 

@@ -72,9 +72,9 @@ export function useLocalSites(
   useEffect(() => {
     if (switchTarget && activeSiteName === switchTarget.name) {
       setSwitchTarget(null);
-      return;
+      return undefined;
     }
-    if (!starting && !switchTarget) return;
+    if (!starting && !switchTarget) return undefined;
     // Replace the slow poll while a restart is pending; a saved default alone is not completion.
     return startVisibleInterval(() => {
       if (switchTarget && Date.now() >= switchTarget.deadline) setSwitchTarget(null);
@@ -89,8 +89,10 @@ export function useLocalSites(
     try {
       if (isConfirmable(action) && !(await confirm(t(LOCAL_SITE_CONFIRM_KEYS[action]), { action }))) return;
       const result = await port.manageLocalSite({ name, action, confirmed: true, checked: checked[name] === true });
-      if (action === "switch" && restartAccepted(result)) setSwitchTarget({ name, deadline: Date.now() + 60_000 });
-      else if (action === "switch") setError(t("This host could not switch now. The default is saved for the next launch."));
+      if (action === "switch") {
+        if (restartAccepted(result)) setSwitchTarget({ name, deadline: Date.now() + 60_000 });
+        else setError(t("This host could not switch now. The default is saved for the next launch."));
+      }
       refresh();
     } catch (failure) {
       setError(localActionErrorMessage(failure, t));

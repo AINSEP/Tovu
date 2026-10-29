@@ -74,3 +74,27 @@ export {
   withToolCatalogAudit,
 } from "./tool-audit-preset.js";
 export { buildAssistantToolRegistrations } from "./tool-registrations.js";
+export type { AssistantToolRegistryDeps } from "./tool-registrations.js";
+export { askAgentPluginChoice } from "./ask-choice-tool.js";
+export { applyToolApprovalPolicy } from "./tool-approval-policy.js";
+export { createAssistantAgentInventory } from "./agents.js";
+export { attachAssistantToolExtensions } from "./installed-extension-tools.js";
+export type { AssistantToolExtensions } from "./installed-extension-tools.js";
+export { createStoredExternalMcpConnectionSource, buildExternalMcpFederationDeps } from "./external-mcp-connection-source.js";
+export { onExternalMcpRosterChanged, notifyExternalMcpRosterChanged } from "./external-mcp-roster-change.js";
+export {
+  agentCarriesOwnMemory, extractSessionRefFromEndEvent, resolveResumeSessionField,
+  shouldClearSessionOnFailedResume, wouldForcedColdStartLoseConversationContext,
+  CONCURRENT_RUN_REFUSAL_MESSAGE, createLiveRunTracker, failRunBeforeStart,
+  STOPPING_RUN_WAIT_MS, waitForStoppingRuns, agentAcceptsHostMintedSessionId,
+  resolveHostMintedSessionId, resolveNewSessionField, createConversationStartLock,
+} from "./agent-session-preset.js";
+export { readChatPermanentDeletesPolicy } from "./permanent-delete-settings.js";
+export { createChatDeleteScope, ALL_CHAT_DELETE_TOOLS } from "./permanent-delete-tool-gate.js";
+export { readAssistantCliPermissions } from "./subagent-settings.js";
+export { createLostFrontendBindings } from "./lost-frontend-binding.js";
+export { withPageNavigateErrorRewrap } from "./rewrap-page-navigate-error.js";
+export { delegatedToolErrorDisclosure } from "./tool-recovery-preset.js";
+export { createRunActiveContextStore, registerRunActiveContextRoute } from "./run-active-context.js";
+export { createRunScopedCredentials } from "./daemon-access.js";
+export type { RunPageContext } from "./run-page-context.js";

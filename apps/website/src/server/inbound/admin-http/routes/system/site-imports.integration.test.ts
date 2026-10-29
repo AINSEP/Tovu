@@ -1,6 +1,7 @@
 /** Approved round17 B: principal/session/Origin setup boundary, raw authenticated upload.
  * Baseline RED: route family and needs-owner handoff absent. Never executes source markup.
  */
+import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import test from "node:test";
@@ -39,7 +40,7 @@ test("B raw upload and setup routes reject unauthorized principals, machine cred
     },
     completeOwner: async ({ principalId, adminPassword }: { principalId: string; adminPassword: string }) => { assert.equal(adminPassword, "new-password"); calls.push("owner:" + principalId); return { state: "ready" }; },
   } as unknown as SiteImportBackend;
-  registerAdminSiteImportRoutes({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed, reason: "test" }), siteImportBackend: backend } });
+  registerAdminSiteImportRoutes({ app, deps: { workspaceId: "ws", tracker: createNoopTracker({}), authorize: async () => ({ allowed, reason: "test" }), siteImportBackend: backend } });
   const origin = await startTestServer(app, t), root = origin + "/api/admin/v1/workspaces/ws/site-imports";
   const headers = { "x-principal": "recipient", "content-type": "application/zip" };
   assert.equal((await fetch(root + "/uploads", { method: "POST", body: Buffer.from("zip") })).status, 401);
@@ -73,7 +74,7 @@ test("import routes preserve principal/source contracts and sanitize failures ac
   };
   const app = express(); app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "recipient" }; res.locals.authCredentialKind = "session"; next(); });
-  const deps = { workspaceId: "ws", authorize: async () => ({ allowed, reason: "test" }), get siteImportBackend() { return available ? backend : undefined; } };
+  const deps = { workspaceId: "ws", tracker: createNoopTracker({}), authorize: async () => ({ allowed, reason: "test" }), get siteImportBackend() { return available ? backend : undefined; } };
   registerAdminSiteImportRoutes({ app, deps });
   const origin = await startTestServer(app, t), root = origin + "/api/admin/v1/workspaces/ws/site-imports";
   const post = (suffix: string, body: unknown) => fetch(root + suffix, { method: "POST", headers: { origin, "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -110,7 +111,7 @@ test("upload admission rejects a concurrent body and releases the lane when the 
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "recipient" }; next(); });
   const backend: SiteImportBackend = { ...unexpectedBackend, upload: async ({ archive, principalId }) => { assert.deepEqual(archive, Buffer.from("zip")); assert.equal(principalId, "recipient"); uploads++; if (uploads === 1) { entered(); await holding; } return { uploadId: String(uploads) }; } };
-  registerAdminSiteImportRoutes({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }), siteImportBackend: backend } });
+  registerAdminSiteImportRoutes({ app, deps: { workspaceId: "ws", tracker: createNoopTracker({}), authorize: async () => ({ allowed: true, reason: "test" }), siteImportBackend: backend } });
   const root = await startTestServer(app, t) + "/api/admin/v1/workspaces/ws/site-imports/uploads";
   const post = () => fetch(root, { method: "POST", headers: { "content-type": "application/zip" }, body: "zip" });
   const first = post(); await started;
@@ -124,7 +125,7 @@ test("raw parser refuses compressed uploads, clears admission and reports the re
   const { SHARE_LIMITS } = await import("#src/features/site-backup/share-policy");
   let uploads = 0;
   const app = express(); app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerAdminSiteImportRoutes({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }), siteImportBackend: { ...unexpectedBackend, upload: async () => { uploads++; return { uploadId: "uploaded" }; } } } });
+  registerAdminSiteImportRoutes({ app, deps: { workspaceId: "ws", tracker: createNoopTracker({}), authorize: async () => ({ allowed: true, reason: "test" }), siteImportBackend: { ...unexpectedBackend, upload: async () => { uploads++; return { uploadId: "uploaded" }; } } } });
   const root = await startTestServer(app, t) + "/api/admin/v1/workspaces/ws/site-imports/uploads";
   const compressed = await fetch(root, { method: "POST", headers: { "content-type": "application/zip", "content-encoding": "gzip" }, body: "invalid gzip" });
   assert.equal(compressed.status, 400); assert.equal((await compressed.json()).code, "IMPORT_FAILED");
@@ -156,7 +157,7 @@ test("disconnecting during import cancels the backend signal", async t => {
     return new Promise<never>((_resolve, reject) => { signal.addEventListener("abort", () => { cancelled(); reject(new SiteShareRefusal({ code: "CANCELLED", message: "Import cancelled" })); }, { once: true }); });
   } };
   const app = express(); app.use(express.json()); app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerAdminSiteImportRoutes({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }), siteImportBackend: backend } });
+  registerAdminSiteImportRoutes({ app, deps: { workspaceId: "ws", tracker: createNoopTracker({}), authorize: async () => ({ allowed: true, reason: "test" }), siteImportBackend: backend } });
   const root = await startTestServer(app, t) + "/api/admin/v1/workspaces/ws/site-imports";
   const controller = new AbortController();
   const rejected = assert.rejects(fetch(root, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url: "https://share.example/site.zip" }), signal: controller.signal }), { name: "AbortError" });
@@ -179,7 +180,7 @@ for (const [limit, timings] of [
   test(`a stalled upload is dropped by the ${limit} and frees the single upload lane`, { timeout: 10_000 }, async t => {
     let uploads = 0;
     const app = express(); app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-    registerAdminSiteImportRoutes({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }),
+    registerAdminSiteImportRoutes({ app, deps: { workspaceId: "ws", tracker: createNoopTracker({}), authorize: async () => ({ allowed: true, reason: "test" }),
       siteImportBackend: { ...unexpectedBackend, upload: async () => { uploads++; return { uploadId: "uploaded" }; } } } }, timings);
     const root = await startTestServer(app, t) + "/api/admin/v1/workspaces/ws/site-imports/uploads";
     await stallUpload(root);
@@ -200,7 +201,7 @@ test("a client that aborts mid-body during owner setup cancels the backend signa
       return new Promise<never>((_resolve, reject) => { signal.addEventListener("abort", () => { cancelled(); reject(new SiteShareRefusal({ code: "CANCELLED", message: "cancelled" })); }, { once: true }); });
     } };
   const app = express(); app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
-  registerAdminSiteImportRoutes({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }), siteImportBackend: backend } });
+  registerAdminSiteImportRoutes({ app, deps: { workspaceId: "ws", tracker: createNoopTracker({}), authorize: async () => ({ allowed: true, reason: "test" }), siteImportBackend: backend } });
   const origin = await startTestServer(app, t);
   // A non-form body is left unparsed by the urlencoded parser, so the handler runs while the request is still incomplete.
   const pending = request(origin + "/api/admin/v1/workspaces/ws/site-imports/00000000-0000-4000-8000-000000000001/owner",
@@ -215,7 +216,7 @@ test("a client that aborts mid-body during owner setup cancels the backend signa
 test("upload admission failures and a refused owner gate on POST answer without reaching the backend", async t => {
   const app = express(); app.use(express.json());
   app.use((req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = req.get("x-kind") ?? "session"; next(); });
-  registerAdminSiteImportRoutes({ app, deps: { workspaceId: "ws", authorize: async () => { throw new Error("authorizer down at /private/db"); }, siteImportBackend: unexpectedBackend } });
+  registerAdminSiteImportRoutes({ app, deps: { workspaceId: "ws", tracker: createNoopTracker({}), authorize: async () => { throw new Error("authorizer down at /private/db"); }, siteImportBackend: unexpectedBackend } });
   const origin = await startTestServer(app, t), root = origin + "/api/admin/v1/workspaces/ws/site-imports";
   const upload = await fetch(root + "/uploads", { method: "POST", headers: { "content-type": "application/zip" }, body: "zip" });
   assert.equal(upload.status, 400);

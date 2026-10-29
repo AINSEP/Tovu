@@ -1,3 +1,4 @@
+import type { ImageCodecPort } from "@jini-ai/cms/media";
 /**
  * @file The server's {@link SitePreviewCapturePort}: headless Chromium through Playwright, resized
  * with sharp. The desktop captures with Electron's hidden `BrowserWindow.capturePage()`, which a
@@ -68,16 +69,16 @@ async function loadPlaywrightLauncher(): Promise<PreviewBrowserLauncher> {
   } };
 }
 
-async function resizeWithSharp({ png, width }: { png: Buffer; width: number }): Promise<Buffer> {
-  return (await encodeJpeg({ image: png, maxWidth: width }, { quality: 72 })).bytes;
+async function resizeWithCodec({ png, width, imageCodec }: { png: Buffer; width: number; imageCodec: ImageCodecPort }, _options = {}): Promise<Buffer> {
+  return (await encodeJpeg({ image: png, maxWidth: width, imageCodec }, { quality: 72 })).bytes;
 }
 
 /**
  * @complexity O(1) per capture beyond the page load, screenshot and resize themselves.
  */
 export function createPlaywrightSitePreviewCapture(
-  _required: Record<string, never> = {},
-  { loadLauncher = loadPlaywrightLauncher, resize = resizeWithSharp, log = (message) => console.warn(message) }: PlaywrightSitePreviewCaptureOptions = {},
+  { imageCodec }: { imageCodec: ImageCodecPort },
+  { loadLauncher = loadPlaywrightLauncher, resize = (input) => resizeWithCodec({ ...input, imageCodec }), log = (message) => console.warn(message) }: PlaywrightSitePreviewCaptureOptions = {},
 ): SitePreviewCapturePort {
   const browser = createLazyBrowser({ launch: async () => (await loadLauncher()).launch(LAUNCH_OPTIONS) });
 
@@ -116,11 +117,11 @@ export function createPlaywrightSitePreviewCapture(
  * @complexity O(pixels), bounded by the native capture contract.
  */
 export function createSitePreviewCaptureForHost(
-  _required: Record<string, never> = {},
+  { imageCodec }: { imageCodec: ImageCodecPort },
   { env = process.env, capture = desktopRenderForHost({ env }), ...options }: PlaywrightSitePreviewCaptureOptions & { env?: NodeJS.ProcessEnv; capture?: UrlCapturePort | null } = {},
 ): SitePreviewCapturePort {
-  if (!capture) return createPlaywrightSitePreviewCapture({}, options);
-  const resize = options.resize ?? resizeWithSharp;
+  if (!capture) return createPlaywrightSitePreviewCapture({ imageCodec }, options);
+  const resize = options.resize ?? ((input) => resizeWithCodec({ ...input, imageCodec }));
   const log = options.log ?? console.warn;
   return {
     async capture({ url }) {

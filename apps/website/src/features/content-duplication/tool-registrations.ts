@@ -37,15 +37,14 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
  * the registry's contents visible here at all.
  */
 import { buildDomainRegistrations, indexCatalogById, isRecord, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import { requireToolPermission } from "@jini-ai/cms/core";
+import { requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 
 import type {
   DuplicateResourceHandler,
   DuplicateResourceHandlerContributor,
-  ToolContributor,
-} from "#src/assistant/index";
-import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
+} from "../../assistant/tool-contributions.js";
+import type { ToolContributor } from "@jini-ai/core";
 
 import { type AgentToolDefinition as ContentDuplicationAgentToolDefinition } from "@jini-ai/core";
 import { withPluginHookRefusals } from "../../contracts/core/plugin-hook-failed-error.js";
@@ -113,6 +112,11 @@ function unsupportedResourceError(resource: string, supportedResources: Iterable
       "No other resource can be duplicated by this tool — retrying with a different spelling will not help." });
 }
 
+export interface ContentDuplicationToolDeps {
+  readonly authorize: AuthorizeFn;
+  readonly workspaceId: string;
+}
+
 /**
  * Where this tool's per-resource handler contributions come from — see this file's own header for
  * why they are injected rather than read from `assistant/duplicate-resource-registry.ts` here.
@@ -121,8 +125,8 @@ function unsupportedResourceError(resource: string, supportedResources: Iterable
  * composition root. A test supplies a resource's `contribute*DuplicateHandlers()` directly, which
  * also keeps it off the module-level registry other tests share.
  */
-export interface ContentDuplicationResourceSource {
-  readonly listResourceHandlers: () => readonly DuplicateResourceHandlerContributor[];
+export interface ContentDuplicationResourceSource<TDeps> {
+  readonly listResourceHandlers: () => readonly DuplicateResourceHandlerContributor<TDeps>[];
 }
 
 /**
@@ -133,9 +137,9 @@ export interface ContentDuplicationResourceSource {
  *
  * @complexity O(r) in the number of registered resources, once per build; O(1) per tool call.
  */
-export function buildContentDuplicationRegistrations(
-  routeDeps: AssistantToolRegistryDeps,
-  resources: ContentDuplicationResourceSource,
+export function buildContentDuplicationRegistrations<TDeps extends ContentDuplicationToolDeps>(
+  routeDeps: TDeps,
+  resources: ContentDuplicationResourceSource<TDeps>,
 ): ToolRegistration[] {
   const handlersByResource = new Map<string, DuplicateResourceHandler>(
     resources.listResourceHandlers().map((contributor) => [contributor.resource, contributor.build(routeDeps)]),
@@ -180,7 +184,7 @@ export function buildContentDuplicationRegistrations(
  * `assistant/duplicate-resource-registry.ts`'s OWN registration, which is what makes THIS tool have
  * anything to resolve `resource` against in the first place — the manifest calls both.
  */
-export function contributeContentDuplicationTools(resources: ContentDuplicationResourceSource): ToolContributor {
+export function contributeContentDuplicationTools<TDeps extends ContentDuplicationToolDeps>(resources: ContentDuplicationResourceSource<TDeps>): ToolContributor<TDeps, unknown> {
   return {
     domain: "content-duplication",
     build: (routeDeps) => buildContentDuplicationRegistrations(routeDeps, resources),

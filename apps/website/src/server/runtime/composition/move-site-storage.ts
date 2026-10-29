@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { copyPgStore, type CopiedTable, nonEmptyTables } from "#src/features/database-transfer/pg-store-copy";
+import { copyPgStore, type CopiedTable, nonEmptyTables } from "#src/platform/db/site-store-copy";
 import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
 import { acquireOwnerLock, PgliteOwnerLockedError } from "#src/platform/db/kernel/drivers/pglite-owner";
 import { openPostgresKernel, storageOps, type StorageKernel } from "#src/platform/db/kernel/index";
@@ -23,7 +23,7 @@ import { type SiteSecretSealer, writeSealedConnectionString } from "./storage-se
  *    site is refused, never paused behind its back.
  * 2. The target must be empty (no rows in `public`/`ai_chat` besides the migration ledgers).
  * 3. Both sides are brought to head by the migration runner (content + AI chat histories).
- * 4. Every table is copied, verified and counter-fixed in one target transaction (`pg-store-copy.ts`).
+ * 4. Every table is copied, verified and counter-fixed in one target transaction (`platform/db/site-store-copy.ts`).
  * 5. The connection string is sealed with the site key (O3) into `.storage-secret.json` — or, with
  *    `secretRef: { env }`, left to that variable — and only then `.site-meta.json` is switched to
  *    `postgres`, atomically. The switch is the last write: any failure before it leaves the site on

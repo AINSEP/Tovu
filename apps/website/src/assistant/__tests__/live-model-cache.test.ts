@@ -8,7 +8,7 @@ import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { InMemoryAdminExecutionCredentialRepo } from "../execution-credential-store.memory.js";
 import { setExecutionCredential } from "../execution-credential-store.js";
-import { fetchLiveClaudeModels, getLiveClaudeModels, resetLiveModelCacheForTesting, unionModels } from "../live-model-cache.js";
+import { createLiveModelDiscovery, fetchLiveClaudeModels, unionModels } from "../live-model-cache.js";
 
 /**
  * @file `live-model-cache.ts` — the two properties the design doc's Local CLI live-discovery
@@ -35,11 +35,12 @@ const clock = { nowMs: () => Date.parse("2026-08-05T00:00:00.000Z"), nowIso: () 
  *  to match. */
 const TTL_MS = 5 * 60_000;
 
-function makeDeps() {
+function makeDeps({ nowMs = Date.now }: { nowMs?: () => number } = {}, _options = {}) {
   const repo = new InMemoryAdminExecutionCredentialRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
-  return { repo, keyring, sealer, deps: { repo, keyring, sealer, clock } };
+  const discovery = createLiveModelDiscovery({ repo, sealer, clock: { nowMs }, discover: fetchLiveClaudeModels });
+  return { discovery, deps: { repo, keyring, sealer, clock } };
 }
 
 /** A stand-in Anthropic-shaped `/v1/models` endpoint. Records how many times it was hit so cache
@@ -110,8 +111,7 @@ function stubFetchCapture(): { urls: () => string[]; restore: () => void } {
 // ---------------------------------------------------------------------------
 
 test("an anthropic credential with no stored baseUrl defaults the live call to the real Anthropic API host", async () => {
-  resetLiveModelCacheForTesting();
-  const { deps, repo, sealer } = makeDeps();
+  const { deps, discovery } = makeDeps();
   await setExecutionCredential(deps, {
     workspaceId: WORKSPACE,
     principalId: ADMIN_A,
@@ -122,7 +122,7 @@ test("an anthropic credential with no stored baseUrl defaults the live call to t
   const fetchSpy = stubFetchCapture();
 
   try {
-    const result = await getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A });
+    const result = await discovery.getLiveClaudeModels({ workspaceId: WORKSPACE, principalId: ADMIN_A });
     assert.equal(result, null, "the stubbed rejection must still resolve to null, not throw");
     assert.equal(fetchSpy.urls().length, 1);
     assert.match(fetchSpy.urls()[0] ?? "", /^https:\/\/api\.anthropic\.com/, "an omitted baseUrl must default to the real Anthropic host");
@@ -132,12 +132,11 @@ test("an anthropic credential with no stored baseUrl defaults the live call to t
 });
 
 test("no stored credential resolves to null and makes zero network calls", async () => {
-  resetLiveModelCacheForTesting();
-  const { repo, sealer } = makeDeps();
+  const { discovery } = makeDeps();
   const fetchSpy = stubFetchSpy();
 
   try {
-    const result = await getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A });
+    const result = await discovery.getLiveClaudeModels({ workspaceId: WORKSPACE, principalId: ADMIN_A });
     assert.equal(result, null);
     assert.equal(fetchSpy.callCount(), 0, "no credential means the network branch must never run");
   } finally {
@@ -146,8 +145,7 @@ test("no stored credential resolves to null and makes zero network calls", async
 });
 
 test("a stored credential for a protocol other than anthropic resolves to null and makes zero network calls", async () => {
-  resetLiveModelCacheForTesting();
-  const { deps, repo, sealer } = makeDeps();
+  const { deps, discovery } = makeDeps();
   await setExecutionCredential(deps, {
     workspaceId: WORKSPACE,
     principalId: ADMIN_A,
@@ -157,7 +155,7 @@ test("a stored credential for a protocol other than anthropic resolves to null a
   const fetchSpy = stubFetchSpy();
 
   try {
-    const result = await getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A });
+    const result = await discovery.getLiveClaudeModels({ workspaceId: WORKSPACE, principalId: ADMIN_A });
     assert.equal(result, null);
     assert.equal(fetchSpy.callCount(), 0, "a non-anthropic credential must never reach the network branch");
   } finally {
@@ -170,8 +168,7 @@ test("a stored credential for a protocol other than anthropic resolves to null a
 // ---------------------------------------------------------------------------
 
 test("an anthropic credential with a reachable provider returns its live models", async () => {
-  resetLiveModelCacheForTesting();
-  const { deps, repo, sealer } = makeDeps();
+  const { deps, discovery } = makeDeps();
   const provider = await startProviderServer(() => ({
     status: 200,
     body: { data: [{ id: "claude-opus-5-20260101", display_name: "Claude Opus 5" }] },
@@ -185,7 +182,7 @@ test("an anthropic credential with a reachable provider returns its live models"
       baseUrl: provider.baseUrl,
     });
 
-    const result = await getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A });
+    const result = await discovery.getLiveClaudeModels({ workspaceId: WORKSPACE, principalId: ADMIN_A });
 
     assert.deepEqual(result, [{ id: "claude-opus-5-20260101", label: "Claude Opus 5" }]);
     assert.equal(provider.requestCount(), 1);
@@ -197,8 +194,7 @@ test("an anthropic credential with a reachable provider returns its live models"
 });
 
 test("a failed live call (provider 500) resolves to null, not a throw", async () => {
-  resetLiveModelCacheForTesting();
-  const { deps, repo, sealer } = makeDeps();
+  const { deps, discovery } = makeDeps();
   const provider = await startProviderServer(() => ({ status: 500, body: { error: "internal error" } }));
   try {
     await setExecutionCredential(deps, {
@@ -209,7 +205,7 @@ test("a failed live call (provider 500) resolves to null, not a throw", async ()
       baseUrl: provider.baseUrl,
     });
 
-    const result = await getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A });
+    const result = await discovery.getLiveClaudeModels({ workspaceId: WORKSPACE, principalId: ADMIN_A });
 
     assert.equal(result, null);
   } finally {
@@ -222,8 +218,8 @@ test("a failed live call (provider 500) resolves to null, not a throw", async ()
 // ---------------------------------------------------------------------------
 
 test("a second call within the TTL reuses the cached result instead of re-issuing the live call", async () => {
-  resetLiveModelCacheForTesting();
-  const { deps, repo, sealer } = makeDeps();
+  let fakeNow = 1_000_000;
+  const { deps, discovery } = makeDeps({ nowMs: () => fakeNow });
   const provider = await startProviderServer(() => ({
     status: 200,
     body: { data: [{ id: "claude-opus-5-20260101", display_name: "Claude Opus 5" }] },
@@ -236,12 +232,9 @@ test("a second call within the TTL reuses the cached result instead of re-issuin
       protocol: "anthropic",
       baseUrl: provider.baseUrl,
     });
-    let fakeNow = 1_000_000;
-    const now = () => fakeNow;
-
-    const first = await getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A, now });
+    const first = await discovery.getLiveClaudeModels({ workspaceId: WORKSPACE, principalId: ADMIN_A });
     fakeNow += 1_000; // still well inside the TTL window
-    const second = await getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A, now });
+    const second = await discovery.getLiveClaudeModels({ workspaceId: WORKSPACE, principalId: ADMIN_A });
 
     assert.deepEqual(first, second);
     assert.equal(provider.requestCount(), 1, "the second call must be served from cache, not a fresh request");
@@ -251,8 +244,8 @@ test("a second call within the TTL reuses the cached result instead of re-issuin
 });
 
 test("a call after the TTL has expired re-issues the live call", async () => {
-  resetLiveModelCacheForTesting();
-  const { deps, repo, sealer } = makeDeps();
+  let fakeNow = 1_000_000;
+  const { deps, discovery } = makeDeps({ nowMs: () => fakeNow });
   let model = { id: "claude-opus-5-20260101", display_name: "Claude Opus 5" };
   const provider = await startProviderServer(() => ({
     status: 200,
@@ -266,14 +259,11 @@ test("a call after the TTL has expired re-issues the live call", async () => {
       protocol: "anthropic",
       baseUrl: provider.baseUrl,
     });
-    let fakeNow = 1_000_000;
-    const now = () => fakeNow;
-
-    const first = await getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A, now });
+    const first = await discovery.getLiveClaudeModels({ workspaceId: WORKSPACE, principalId: ADMIN_A });
     assert.deepEqual(first, [{ id: "claude-opus-5-20260101", label: "Claude Opus 5" }]);
     model = { id: "claude-sonnet-new", display_name: "New Sonnet" };
     fakeNow += TTL_MS + 1;
-    const second = await getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A, now });
+    const second = await discovery.getLiveClaudeModels({ workspaceId: WORKSPACE, principalId: ADMIN_A });
     assert.deepEqual(second, [{ id: "claude-sonnet-new", label: "New Sonnet" }]);
 
     assert.equal(provider.requestCount(), 2, "an expired cache entry must trigger a fresh live call");
@@ -286,9 +276,8 @@ test("cache entries for two tenants never collide, even when their ids would joi
   // A `${workspaceId}:${principalId}` string key would put these two DISTINCT tenants on the SAME
   // slot: "ws:1" + ":" + "2" === "ws" + ":" + "1:2" === "ws:1:2". Tovu is intentionally
   // multi-workspace, so this is a real configuration, not a contrived edge case.
-  resetLiveModelCacheForTesting();
-  const { deps: depsA, repo: repoA, sealer: sealerA } = makeDeps();
-  const { deps: depsB, repo: repoB, sealer: sealerB } = makeDeps();
+  const { deps: depsA, discovery: discoveryA } = makeDeps();
+  const { deps: depsB, discovery: discoveryB } = makeDeps();
   const providerA = await startProviderServer(() => ({
     status: 200,
     body: { data: [{ id: "model-a", display_name: "Model A" }] },
@@ -313,8 +302,8 @@ test("cache entries for two tenants never collide, even when their ids would joi
       baseUrl: providerB.baseUrl,
     });
 
-    const resultA = await getLiveClaudeModels({ repo: repoA, sealer: sealerA }, { workspaceId: "ws:1", principalId: "2" });
-    const resultB = await getLiveClaudeModels({ repo: repoB, sealer: sealerB }, { workspaceId: "ws", principalId: "1:2" });
+    const resultA = await discoveryA.getLiveClaudeModels({ workspaceId: "ws:1", principalId: "2" });
+    const resultB = await discoveryB.getLiveClaudeModels({ workspaceId: "ws", principalId: "1:2" });
 
     assert.deepEqual(resultA, [{ id: "model-a", label: "Model A" }]);
     assert.deepEqual(
@@ -349,8 +338,7 @@ async function captureWarnings<T>(run: () => Promise<T>): Promise<{ result: T; w
 }
 
 test("a failed live call logs one warning naming the failure kind — the case an operator needs to see", async () => {
-  resetLiveModelCacheForTesting();
-  const { deps, repo, sealer } = makeDeps();
+  const { deps, discovery } = makeDeps();
   const provider = await startProviderServer(() => ({ status: 500, body: { error: "internal error" } }));
   try {
     await setExecutionCredential(deps, {
@@ -362,7 +350,7 @@ test("a failed live call logs one warning naming the failure kind — the case a
     });
 
     const { warnings } = await captureWarnings(() =>
-      getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A }),
+      discovery.getLiveClaudeModels({ workspaceId: WORKSPACE, principalId: ADMIN_A }),
     );
 
     assert.equal(warnings.length, 1, "a failed live call must log exactly one warning");
@@ -374,8 +362,7 @@ test("a failed live call logs one warning naming the failure kind — the case a
 });
 
 test("a failed live call with an empty error body names only the failure kind, with no empty detail suffix", async () => {
-  resetLiveModelCacheForTesting();
-  const { deps, repo, sealer } = makeDeps();
+  const { deps, discovery } = makeDeps();
   const server = createServer((_req, res) => { res.writeHead(503); res.end(); });
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
@@ -390,7 +377,7 @@ test("a failed live call with an empty error body names only the failure kind, w
     });
 
     const { result, warnings } = await captureWarnings(() =>
-      getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A }),
+      discovery.getLiveClaudeModels({ workspaceId: WORKSPACE, principalId: ADMIN_A }),
     );
 
     assert.equal(result, null);
@@ -428,8 +415,7 @@ test("a successful listing that carries no models array resolves to null rather 
 });
 
 test("the quiet paths (no credential, wrong protocol) log nothing — only an attempted-and-failed live call is worth an operator's attention", async () => {
-  resetLiveModelCacheForTesting();
-  const { deps, repo, sealer } = makeDeps();
+  const { deps, discovery } = makeDeps();
   await setExecutionCredential(deps, {
     workspaceId: WORKSPACE,
     principalId: "principal-openai",
@@ -438,8 +424,8 @@ test("the quiet paths (no credential, wrong protocol) log nothing — only an at
   });
 
   const { warnings } = await captureWarnings(async () => {
-    await getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A }); // no credential
-    await getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: "principal-openai" }); // wrong protocol
+    await discovery.getLiveClaudeModels({ workspaceId: WORKSPACE, principalId: ADMIN_A }); // no credential
+    await discovery.getLiveClaudeModels({ workspaceId: WORKSPACE, principalId: "principal-openai" }); // wrong protocol
   });
 
   assert.equal(warnings.length, 0);

@@ -38,7 +38,7 @@ import type { DbOpsPort } from "../../contracts/core/gated-mutations/ports.js";
 import { acquireOperationLock, releaseOperationLock } from "../../contracts/core/operation-lock.js";
 import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { buildMigrateForwardHooks, type LedgerAppendPort } from "./gated-hooks.js";
 import { getDatabaseAgentToolCatalog } from "./agent-tools.js";
 import { TOVU_DATABASE_MESSAGES } from "./db-messages.js";
@@ -250,7 +250,7 @@ export function buildDatabaseRegistrations(
  * Database drift logic belongs to the low-level database module, which must not value-import
  * this feature: that would close a runtime cycle through assistant tool discovery.
  */
-export function contributeDatabaseTools(): ToolContributor {
+export function contributeDatabaseTools(): ToolContributor<DatabaseToolDeps, AssistantSurfaceDeps> {
   return { domain: "database", build: buildDatabaseRegistrations, risk: databaseDerivedRisk };
 }
 

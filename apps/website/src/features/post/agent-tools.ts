@@ -2,6 +2,8 @@ export const CONTENT_POST_DELETE_TOOL_ID = "content_post_delete";
 import { DEFAULT_POST_LIST_LIMIT, MAX_POST_LIST_LIMIT, MAX_SLUG_LENGTH, MAX_TITLE_LENGTH, SLUG_FORMAT_PATTERN, SLUG_OR_ROOT_PATTERN } from "./post.js";
 import { DEFAULT_POST_SEARCH_LIMIT, MAX_POST_SEARCH_LIMIT } from "./search.js";
 
+const BLOCK_NODE_REF = "#/$defs/blockNode" as const;
+
 /**
  * @file The Posts + Pages agent-tool catalog — this domain's instance of the per-domain
  * `agent-tools.ts` convention every other wired domain (`features/entries/agent-tools.ts`,
@@ -480,7 +482,7 @@ export const TIPTAP_DOC_SCHEMA = {
           type: "object",
           additionalProperties: false,
           required: ["type", "content"],
-          properties: { type: { const: "blockquote" }, content: { type: "array", items: { $ref: "#/$defs/blockNode" } } },
+          properties: { type: { const: "blockquote" }, content: { type: "array", items: { $ref: BLOCK_NODE_REF } } },
           description: "A blockquote. Renders as <blockquote>, wrapping ordinary block content (typically paragraphs).",
         },
         {
@@ -645,7 +647,7 @@ export const TIPTAP_DOC_SCHEMA = {
       type: "object",
       additionalProperties: false,
       required: ["type", "content"],
-      properties: { type: { const: "listItem" }, content: { type: "array", items: { $ref: "#/$defs/blockNode" } } },
+      properties: { type: { const: "listItem" }, content: { type: "array", items: { $ref: BLOCK_NODE_REF } } },
       description: "One list item. content is ordinary block content (typically a single paragraph, optionally followed by a nested bulletList/orderedList).",
     },
     taskItemNode: {
@@ -661,7 +663,7 @@ export const TIPTAP_DOC_SCHEMA = {
         },
         content: {
           type: "array",
-          items: { $ref: "#/$defs/blockNode" },
+          items: { $ref: BLOCK_NODE_REF },
           description: "Ordinary block content — in practice a single paragraph. This renderer does not support a nested sub-checklist inside a taskItem.",
         },
       },
@@ -690,7 +692,7 @@ export const TIPTAP_DOC_SCHEMA = {
       properties: {
         type: { const: "tableCell" },
         attrs: { $ref: "#/$defs/tableCellAttrs" },
-        content: { type: "array", items: { $ref: "#/$defs/blockNode" }, description: "Ordinary block content — typically a single paragraph." },
+        content: { type: "array", items: { $ref: BLOCK_NODE_REF }, description: "Ordinary block content — typically a single paragraph." },
       },
       description: "A regular data cell. Renders as <td>.",
     },
@@ -701,7 +703,7 @@ export const TIPTAP_DOC_SCHEMA = {
       properties: {
         type: { const: "tableHeader" },
         attrs: { $ref: "#/$defs/tableCellAttrs" },
-        content: { type: "array", items: { $ref: "#/$defs/blockNode" }, description: "Ordinary block content — typically a single paragraph." },
+        content: { type: "array", items: { $ref: BLOCK_NODE_REF }, description: "Ordinary block content — typically a single paragraph." },
       },
       description: "A header cell. Renders as <th>. Same attrs as tableCell (colspan/rowspan/align).",
     },
@@ -721,7 +723,7 @@ export const TIPTAP_DOC_SCHEMA = {
   required: ["type", "content"],
   properties: {
     type: { const: "doc" },
-    content: { type: "array", items: { $ref: "#/$defs/blockNode" } },
+    content: { type: "array", items: { $ref: BLOCK_NODE_REF } },
   },
   description:
     "A TipTap/ProseMirror document: { type: 'doc', content: [...blockNode] }. An empty document is { type: 'doc', content: [] }. " +

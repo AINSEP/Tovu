@@ -3,8 +3,8 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
-import type { DuplicateResourceHandlerContributor } from "#src/assistant/index";
+import type { ContentDuplicationToolDeps } from "../tool-registrations.js";
+import type { DuplicateResourceHandlerContributor } from "../../../assistant/duplicate-resource-registry.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { buildContentDuplicationRegistrations, contributeContentDuplicationTools } from "../tool-registrations.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
@@ -61,13 +61,13 @@ function fakeRouteDeps(allowedPermissions: string[]) {
         ? { allowed: true, reason: "matched" }
         : { allowed: false, reason: "no matching grant" };
     },
-  } as unknown as AssistantToolRegistryDeps;
+  } as unknown as ContentDuplicationToolDeps;
 
   return { deps, authorizeCalls };
 }
 
 interface FakeResource {
-  contributor: DuplicateResourceHandlerContributor;
+  contributor: DuplicateResourceHandlerContributor<ContentDuplicationToolDeps>;
   calls: Array<{ principalId: string; id: string; overrides: Record<string, unknown> }>;
 }
 
@@ -89,8 +89,8 @@ function fakeResource(resource: string, permission: string): FakeResource {
 }
 
 function toolFor(
-  deps: AssistantToolRegistryDeps,
-  contributors: readonly DuplicateResourceHandlerContributor[],
+  deps: ContentDuplicationToolDeps,
+  contributors: readonly DuplicateResourceHandlerContributor<ContentDuplicationToolDeps>[],
 ): ToolRegistration {
   const registrations = buildContentDuplicationRegistrations(deps, {
     listResourceHandlers: () => contributors,
@@ -112,7 +112,7 @@ function call(registration: ToolRegistration, input: unknown) {
 }
 
 test("the tool contributor resolves resources registered after contribution when build runs", async () => {
-  const registered: DuplicateResourceHandlerContributor[] = [];
+  const registered: DuplicateResourceHandlerContributor<ContentDuplicationToolDeps>[] = [];
   const contributor = contributeContentDuplicationTools({ listResourceHandlers: () => registered });
   const posts = fakeResource("post", "content.write");
   registered.push(posts.contributor);

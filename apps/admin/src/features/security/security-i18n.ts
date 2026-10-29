@@ -2197,7 +2197,7 @@ const COPY_REASON_TEXT: Record<string, string> = {
 export function copyKeysResultText({ result, t }: {
   result: import("@/lib/api").AdminCredentialCopyResult; t: (key: string) => string;
 }, _options = {}): string {
-  if (result.status === "copied") return `${t("copied ✓")}${result.last4?.length === 4 ? ` …${result.last4}` : ""}`;
+  if (result.status === "copied") return t("copied ✓") + (result.last4?.length === 4 ? " …" + result.last4 : "");
   return t(COPY_REASON_TEXT[result.reasonCode ?? ""] ?? "Copying keys failed. Try again.");
 }
 

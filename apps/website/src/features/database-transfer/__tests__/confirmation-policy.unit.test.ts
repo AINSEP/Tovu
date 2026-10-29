@@ -1,3 +1,4 @@
+import { createDatabaseTransferAdapters } from "#src/server/runtime/composition/database-transfer-adapters";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -44,7 +45,7 @@ async function harness(t: test.TestContext, options: { replaces?: string; allowe
       },
     }),
   };
-  const registration = buildDatabaseTransferRegistrations(deps, {surfaceExchanges: surfaces}).find(tool => tool.descriptor.id === "database_transfer_run")!;
+  const registration = buildDatabaseTransferRegistrations({ ...deps, databaseTransferAdapters: createDatabaseTransferAdapters({}) }, {surfaceExchanges: surfaces}).find(tool => tool.descriptor.id === "database_transfer_run")!;
   const ctx = {executionId: "exec", run: {id: "run"}, principal: {id: "owner"}, input: {planId: plan.planId}, signal: new AbortController().signal};
   return {registration, ctx, scripts, surfaces};
 }

@@ -23,8 +23,10 @@ export function externalMcpVaultRecord(
   { sealed, identity, kind }: { sealed: SealedSecret; identity: Identity; kind: Kind }, _options = {},
 ): VaultRecord {
   const context = (sealed as Envelope)[contextKey];
-  if (!context || context.workspaceId !== identity.workspaceId || context.ownerKey !== identity.serverId ||
-    context.kind !== kind || context.principalId !== null || context.binding !== null) throw new VaultError({ code: "context" });
+  if (!context) throw new VaultError({ code: "context" });
+  const invalidOwner = context.workspaceId !== identity.workspaceId || context.ownerKey !== identity.serverId;
+  const invalidScope = context.kind !== kind || context.principalId !== null || context.binding !== null;
+  if (invalidOwner || invalidScope) throw new VaultError({ code: "context" });
   return { ...context, sealed: { keyId: sealed.keyId, ciphertext: sealed.ciphertext, nonce: sealed.nonce, alg: sealed.alg } };
 }
 

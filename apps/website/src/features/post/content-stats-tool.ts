@@ -3,7 +3,7 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
@@ -11,7 +11,8 @@ import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { PostRecord, PostRepoPort } from "./post.js";
 import { extractPostPlainText } from "./search.js";
 import { extractPlainTextFromHtml } from "./html-plain-text.js";
-import { sniffContentType, type MediaContentTypeStorePort } from "../media/index.js";
+import { sniffContentType } from "@jini-ai/cms/media";
+import type { MediaContentTypeStorePort } from "../media/index.js";
 
 /** Read ports only; structural projections also permit small in-memory fixtures. */
 export interface ContentStatsToolDeps {
@@ -166,6 +167,6 @@ export function buildContentStatsRegistrations(deps: ContentStatsToolDeps): Tool
 }
 
 /** Installs under a unique domain key, preserving the existing post contributor. */
-export function contributeContentStatsTools(): ToolContributor {
+export function contributeContentStatsTools(): ToolContributor<ContentStatsToolDeps, unknown> {
   return { domain: "content-stats", build: buildContentStatsRegistrations, risk: contentStatsDerivedRisk };
 }

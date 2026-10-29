@@ -114,7 +114,7 @@ report what actually happened.
 For a bundled cold start use `agent_plugin_connect` above. The steps here describe manual
 recovery when that tool reports a configuration problem. Do not assume the
 steps below can be skipped because a `mcp__higgsfield__*` tool is missing for some other reason —
-check `content_read.external_mcp` (or `external_mcp_list`) first and see what actually exists.
+check `content_read.external_mcp` first and see what actually exists.
 
 **Step A — the plugin itself must be enabled, and only the operator can approve it.**
 `higgsfield-media` ships bundled but **disabled** (`seed-bundled.ts` writes

@@ -8,8 +8,8 @@ import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
-import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_WRITE_REASON } from "#src/contracts/headless/assistant-subagents-policy";
-import { ASSISTANT_PERMANENT_DELETES_WRITE_REASON } from "#src/contracts/headless/assistant-permanent-deletes-policy";
+import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_WRITE_REASON } from "#src/contracts/headless/index";
+import { ASSISTANT_PERMANENT_DELETES_WRITE_REASON } from "#src/contracts/headless/index";
 import { registerAdminSettingsClearRoute } from "../clear.js";
 import { registerAdminSettingsGetEffectiveRoute } from "../get-effective.js";
 import { registerAdminSettingsRegisterDefinitionsRoute } from "../register-definitions.js";

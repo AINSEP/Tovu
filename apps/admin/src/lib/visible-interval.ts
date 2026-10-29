@@ -54,7 +54,10 @@ export function startVisibleInterval(
     handle = null;
   };
   const onVisibility = () => {
-    if (doc.visibilityState === "hidden") return halt();
+    if (doc.visibilityState === "hidden") {
+      halt();
+      return;
+    }
     if (handle !== null) return;
     tick();
     run();

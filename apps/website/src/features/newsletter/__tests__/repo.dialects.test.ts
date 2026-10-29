@@ -6,7 +6,7 @@ import { sql } from "kysely";
 import { describeEachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { installNewsletterDataModule, NEWSLETTER_TABLE_NAMES } from "../data-module-manifest.js";
-import { newsletterAudienceSnapshotRepoFor, newsletterCampaignRepoFor, newsletterConfirmationTokenRepoFor, newsletterListRepoFor, newsletterSendRepoFor, newsletterSubscriptionRepoFor } from "../repo.js";
+import { SqlNewsletterAudienceSnapshotRepo, SqlNewsletterCampaignRepo, SqlNewsletterConfirmationTokenRepo, SqlNewsletterListRepo, SqlNewsletterSendRepo, SqlNewsletterSubscriptionRepo } from "../repo.js";
 import type { AudienceSnapshotRow, CampaignRecord, CampaignRevision, ConfirmationTokenRecord, NewsletterListRow, SendRow, SubscriptionRow } from "../types.js";
 
 /**
@@ -35,7 +35,7 @@ function repos(base: ContentKernel) {
   const pending = installFresh(base);
   pending.catch(() => {});
   const kernel = heldUntil(base, pending);
-  return { kernel, campaigns: newsletterCampaignRepoFor(kernel), lists: newsletterListRepoFor(kernel), subscriptions: newsletterSubscriptionRepoFor(kernel), snapshots: newsletterAudienceSnapshotRepoFor(kernel), sends: newsletterSendRepoFor(kernel), tokens: newsletterConfirmationTokenRepoFor(kernel) };
+  return { kernel, campaigns: new SqlNewsletterCampaignRepo(kernel), lists: new SqlNewsletterListRepo(kernel), subscriptions: new SqlNewsletterSubscriptionRepo(kernel), snapshots: new SqlNewsletterAudienceSnapshotRepo(kernel), sends: new SqlNewsletterSendRepo(kernel), tokens: new SqlNewsletterConfirmationTokenRepo(kernel) };
 }
 
 function list(id: string, overrides: Partial<NewsletterListRow> = {}): NewsletterListRow {

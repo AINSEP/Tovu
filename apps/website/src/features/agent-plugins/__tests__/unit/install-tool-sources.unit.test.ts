@@ -6,7 +6,7 @@ import path from "node:path";
 import test, { type TestContext } from "node:test";
 import { ToolInputError } from "@jini-ai/core";
 import { buildRegistrations } from "../../install-tool.js";
-import type { PluginHostPort } from "../../../../contracts/headless/plugin-host.js";
+import type { PluginHostPort } from "../../../../contracts/headless/index.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { listInstalledPlugins, readBundledAgentPluginDigests } from "../../lifecycle.js";
 import { agentPluginActivations } from "../../activation-effects.js";

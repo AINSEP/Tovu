@@ -1,5 +1,5 @@
 import type { SettingsRepoPort, getEffective } from "@jini-ai/core/settings";
-import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_KEY, DEFAULT_PERMANENT_DELETES_POLICY, PERMANENT_DELETE_TOOLS, type AssistantPermanentDeletesPolicy } from "../contracts/headless/assistant-permanent-deletes-policy.js";
+import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_KEY, DEFAULT_PERMANENT_DELETES_POLICY, PERMANENT_DELETE_TOOLS, type AssistantPermanentDeletesPolicy } from "../contracts/headless/index.js";
 export interface PermanentDeleteSettingsDeps {
   settingsRepo: SettingsRepoPort; getEffective: typeof getEffective; settingsReady: Promise<void>; workspaceId: string;
 }
@@ -28,8 +28,9 @@ export async function readAssistantPermanentDeletesPolicy(required: PermanentDel
     scopeContext: { workspaceId: required.workspaceId },
   });
   const value = result?.value as Partial<AssistantPermanentDeletesPolicy> | null;
-  if (!value || typeof value.enabled !== "boolean" || !Array.isArray(value.allowedToolIds) ||
-    value.allowedToolIds.length > PERMANENT_DELETE_TOOLS.length || new Set(value.allowedToolIds).size !== value.allowedToolIds.length ||
+  const fallback = { ...DEFAULT_PERMANENT_DELETES_POLICY, allowedToolIds: [] };
+  if (!value || typeof value.enabled !== "boolean" || !Array.isArray(value.allowedToolIds)) return fallback;
+  if (value.allowedToolIds.length > PERMANENT_DELETE_TOOLS.length || new Set(value.allowedToolIds).size !== value.allowedToolIds.length ||
     value.allowedToolIds.some(id => !PERMANENT_DELETE_TOOLS.some(tool => tool.id === id))) {
     return { ...DEFAULT_PERMANENT_DELETES_POLICY, allowedToolIds: [] };
   }

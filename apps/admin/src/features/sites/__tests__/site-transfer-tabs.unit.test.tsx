@@ -280,10 +280,9 @@ function handle(element: HTMLElement, id: string, role: string, label: string) {
 describe("transfer tab presentation contracts", () => {
   it("publishes the export action and announces an in-flight export", async () => {
     const controller = exportController();
-    const ui = render(<SiteExportTab t={t} useExport={() => controller} publish={<button>Publish fixture</button>} />);
+    const ui = render(<SiteExportTab t={t} useExport={() => controller} />);
     expect(screen.getByRole("region", { name: "Export Site" })).toBeTruthy();
     expect(screen.getByText("Makes a .tovu.zip copy of this site that another Tovu can import.")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Publish fixture" })).toBeTruthy();
     const button = screen.getByRole("button", { name: "Export this site" });
     handle(button, "sites-export-create", "button", "Export this site as a .tovu.zip");
     await userEvent.click(button);

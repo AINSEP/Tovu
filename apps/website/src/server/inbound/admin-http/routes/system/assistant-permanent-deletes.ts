@@ -1,6 +1,6 @@
 import type { Express } from "express";
-import { readAssistantPermanentDeletesPolicy } from "#src/assistant/permanent-delete-settings";
-import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_KEY, ASSISTANT_PERMANENT_DELETES_WRITE_REASON, PERMANENT_DELETE_TOOLS } from "#src/contracts/headless/assistant-permanent-deletes-policy";
+import { readAssistantPermanentDeletesPolicy } from "#src/assistant/runtime-settings";
+import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_KEY, ASSISTANT_PERMANENT_DELETES_WRITE_REASON, PERMANENT_DELETE_TOOLS } from "#src/contracts/headless/index";
 import { rejectSettingsRequest } from "../settings/shared.js";
 import { registerAssistantOwnerGrantRoutes, type AssistantOwnerGrantDeps } from "./assistant-owner-grant.js";
 /** Mount this site's owner policy on the shared acknowledged/audited grant ceremony.
@@ -17,10 +17,10 @@ export function registerAdminAssistantPermanentDeletesRoutes(required: { app: Ex
     validationError: "enabled must be a boolean; enabling permanent deletes requires riskAcknowledged: true.",
     read: () => readAssistantPermanentDeletesPolicy({ ...required.deps, settingsReady: required.deps.settingsUiTabsReady }),
     parse: body => {
-      if (Object.keys(body).some(key => !["enabled", "allowedToolIds", "riskAcknowledged"].includes(key)) ||
-        !Array.isArray(body.allowedToolIds) || body.allowedToolIds.length > PERMANENT_DELETE_TOOLS.length ||
-        body.allowedToolIds.some(id => !PERMANENT_DELETE_TOOLS.some(tool => tool.id === id)) ||
-        new Set(body.allowedToolIds).size !== body.allowedToolIds.length) {
+      const validKeys = !Object.keys(body).some(key => !["enabled", "allowedToolIds", "riskAcknowledged"].includes(key));
+      const validIds = Array.isArray(body.allowedToolIds) && body.allowedToolIds.length <= PERMANENT_DELETE_TOOLS.length
+        && !body.allowedToolIds.some(id => !PERMANENT_DELETE_TOOLS.some(tool => tool.id === id));
+      if (!validKeys || !validIds || new Set(body.allowedToolIds).size !== body.allowedToolIds.length) {
         rejectSettingsRequest({ status: 400, code: "VALIDATION_ERROR", error: "allowedToolIds must contain unique ids from the 13 supported permanent delete tools. Unknown and forbidden ids are rejected." });
       }
       return { enabled: body.enabled as boolean, allowedToolIds: [...body.allowedToolIds] as string[] };

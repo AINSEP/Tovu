@@ -16,12 +16,17 @@ export function assertSpecificSiteRoot({ root }: { root: string }, { homeDir = o
   if (isBroadRoot(normalized, home)) throw new Error(`Sites folder is too broad: ${root}. Choose a specific folder containing your Tovu websites.`);
 }
 
-const trimSlashes = (value: string) => value.replaceAll('\\', '/').replace(/\/+$/, '');
+function trimSlashes(value: string): string {
+  const spelling = value.replaceAll('\\', '/');
+  let end = spelling.length;
+  while (end > 0 && spelling[end - 1] === '/') end--;
+  return spelling.slice(0, end);
+}
 
 /** Forward slashes, no trailing slash; a UNC `//host/share` is kept as written. */
 function normalizeRoot(root: string): string {
   const spelling = root.replaceAll('\\', '/');
-  return spelling.startsWith('//') ? spelling.replace(/\/+$/, '') : path.posix.normalize(spelling).replace(/\/+$/, '') || '/';
+  return spelling.startsWith('//') ? trimSlashes(spelling) : trimSlashes(path.posix.normalize(spelling)) || '/';
 }
 
 /** Whole accounts, volumes, drives, shares and direct home children. */

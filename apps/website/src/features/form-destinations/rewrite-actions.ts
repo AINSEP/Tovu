@@ -19,7 +19,9 @@ export function assertSubmitUrl({ submitUrl }: { submitUrl: string }, _optional:
   let parsed: URL | undefined;
   try { parsed = new URL(submitUrl); } catch { parsed = undefined; }
   if (!parsed || !isPlainHttps({ parsed, raw: submitUrl })) throw new Error("the form destination returned a post address that is not a plain https URL (no user name, query or fragment). Update or reinstall the destination's plugin, then publish again");
-  return `${parsed.origin}${parsed.pathname.replace(/\/+$/, "")}`;
+  let end = parsed.pathname.length;
+  while (end > 0 && parsed.pathname[end - 1] === "/") end -= 1;
+  return `${parsed.origin}${parsed.pathname.slice(0, end)}`;
 }
 
 /** https with no userinfo, query or fragment (an empty `?` or `#` counts too). @complexity O(url length). */

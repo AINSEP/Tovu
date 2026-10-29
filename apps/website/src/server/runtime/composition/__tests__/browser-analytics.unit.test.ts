@@ -1,3 +1,5 @@
+import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Express, Request, RequestHandler, Response } from 'express';
@@ -14,9 +16,9 @@ test('admin HTML injection follows the durable metrics setting and handles strea
   let middleware!: RequestHandler;
   const app = { get() {}, use(_paths: string[], handler: RequestHandler) { middleware = handler; } } as unknown as Express;
   const surfaces: string[] = [];
-  applyAdminBrowserAnalytics({ app, deps: { workspaceId: 'workspace-1', settingsRepo: repo,
+  applyAdminBrowserAnalytics({ app, deps: { ...createRouteDeps(), workspaceId: 'workspace-1', settingsRepo: repo,
     browserAnalytics: ({ surface }) => { surfaces.push(surface); return [{ source: 'function(){return function(mode){};}', origins: [], supportsStatic: false }]; },
-  } as RouteDeps });
+  } });
   async function render() {
     const headers = new Map<string, unknown>([['content-type', 'text/html'], ['etag', 'old'], ['content-length', '42']]);
     let finish!: (body: string) => void;

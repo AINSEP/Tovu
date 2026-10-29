@@ -55,7 +55,7 @@ export function registerAdminCommerceStatusRoute(
           resolvePaymentRuntime: () => deps.lipay ?? null,
         })
       );
-    } catch (err) {
+    } catch {
       // Adapter exceptions may contain secrets; return only the fixed error response.
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }

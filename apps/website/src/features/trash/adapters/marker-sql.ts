@@ -18,14 +18,12 @@
 import { type Kysely, sql } from "kysely";
 
 import type { ContentDatabase } from "../../../platform/db/content-database.generated.js";
-import { type ContentKernel, contentKernel } from "../../../platform/db/content-kernel.js";
-import type { SqliteConnectionSource } from "../../../platform/db/kernel/drivers/sqlite.js";
+import type { ContentKernel } from "../../../platform/db/content-kernel.js";
 import { loose } from "../entry-sql.js";
 import type { TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
 
-/** What a marker adapter is built over: the content kernel, or (while call sites still hold one)
- *  its SQLite handle. */
-export type MarkerStore = ContentKernel | SqliteConnectionSource;
+/** What a marker adapter is built over: the content kernel supplied by composition. */
+export type MarkerStore = ContentKernel;
 
 /**
  * The kernel behind `store`, resolved on first use rather than at adapter construction — a
@@ -33,8 +31,7 @@ export type MarkerStore = ContentKernel | SqliteConnectionSource;
  * @complexity O(1).
  */
 export function lazyKernel(store: MarkerStore): () => ContentKernel {
-  let resolved: ContentKernel | undefined;
-  return () => (resolved ??= contentKernel(store));
+  return () => store;
 }
 
 /** The state a row must be in before a flip: `column <op> value` (`deleted_at is null`,

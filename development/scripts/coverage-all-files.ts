@@ -53,15 +53,20 @@ function sourceExclusionGroup({ file }: { file: string }, _options: Options = {}
 function typeStatement({ node }: { node: ts.Statement }, _options: Options = {}): boolean {
   if (ts.isInterfaceDeclaration(node) || ts.isTypeAliasDeclaration(node)) return true;
   if (ts.canHaveModifiers(node) && ts.getModifiers(node)?.some(m => m.kind === ts.SyntaxKind.DeclareKeyword)) return true;
-  if (ts.isImportDeclaration(node)) {
-    const clause = node.importClause;
-    if (!clause) return false;
-    if (clause.isTypeOnly) return true;
-    return !clause.name && !!clause.namedBindings && ts.isNamedImports(clause.namedBindings)
-      && clause.namedBindings.elements.length > 0 && clause.namedBindings.elements.every(e => e.isTypeOnly);
-  }
+  if (ts.isImportDeclaration(node)) return typeImport({ node });
   if (ts.isImportEqualsDeclaration(node)) return node.isTypeOnly;
   if (!ts.isExportDeclaration(node)) return false;
+  return typeExport({ node });
+}
+
+function typeImport({ node }: { node: ts.ImportDeclaration }, _options: Options = {}): boolean {
+  const clause = node.importClause;
+  if (!clause) return false;
+  if (clause.isTypeOnly) return true;
+  return !clause.name && !!clause.namedBindings && ts.isNamedImports(clause.namedBindings)
+    && clause.namedBindings.elements.length > 0 && clause.namedBindings.elements.every(e => e.isTypeOnly);
+}
+function typeExport({ node }: { node: ts.ExportDeclaration }, _options: Options = {}): boolean {
   if (node.isTypeOnly) return true;
   const clause = node.exportClause;
   if (!clause || !ts.isNamedExports(clause)) return false;
@@ -80,15 +85,20 @@ export function analyzeSource({ file, text }: { file: string; text: string }, _o
     const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
     if (ts.isStatement(node) && !ts.isBlock(node) && !ts.isEmptyStatement(node)) image.lines[line] = 0;
     if (ts.isFunctionLike(node) && 'body' in node && node.body) image.functions[node.pos] = 0;
-    let arms = 0;
-    if (ts.isIfStatement(node) || ts.isConditionalExpression(node)) arms = 2;
-    if (ts.isCaseClause(node) || ts.isDefaultClause(node)) arms = 1;
-    if (ts.isBinaryExpression(node) && [ts.SyntaxKind.AmpersandAmpersandToken, ts.SyntaxKind.BarBarToken, ts.SyntaxKind.QuestionQuestionToken].includes(node.operatorToken.kind)) arms = 2;
+    const arms = branchArms({ node });
     for (let arm = 0; arm < arms; arm++) image.branches[`${node.pos}:${arm}`] = 0;
     ts.forEachChild(node, visit);
   };
   visit(source);
   return { typeOnly: source.statements.every(node => typeStatement({ node })), image };
+}
+
+function branchArms({ node }: { node: ts.Node }, _options: Options = {}): number {
+  let arms = 0;
+  if (ts.isIfStatement(node) || ts.isConditionalExpression(node)) arms = 2;
+  if (ts.isCaseClause(node) || ts.isDefaultClause(node)) arms = 1;
+  if (ts.isBinaryExpression(node) && [ts.SyntaxKind.AmpersandAmpersandToken, ts.SyntaxKind.BarBarToken, ts.SyntaxKind.QuestionQuestionToken].includes(node.operatorToken.kind)) arms = 2;
+  return arms;
 }
 
 /** Index suffixes once; ambiguous suffixes remain unmatched rather than guessing a file. O(path segments). */

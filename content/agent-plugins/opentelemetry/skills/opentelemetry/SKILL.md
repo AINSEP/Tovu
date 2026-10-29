@@ -13,7 +13,7 @@ It is part of `observability-opentelemetry` and turns on and off with it: there 
 ## Set it up
 
 1. Check status: `provider_status {pluginId:"observability-opentelemetry"}`.
-   - Not listed: the provider plugin is not installed. Say so in one line; `plugins_list` shows what is.
+   - Not listed: the provider plugin is not installed. Say so in one line; `content_read.plugin` shows what is.
    - `enabled: false`: offer `plugins_set_enabled {family:"site-runtime", pluginId:"observability-opentelemetry", enabled:true}`.
    - `usedByThisSite: false` with a `keyId`: ask "Use the saved OpenTelemetry key for <site>?".
      Yes → `project_key_use {keyId, use:true}`. To use a different key, open the card;

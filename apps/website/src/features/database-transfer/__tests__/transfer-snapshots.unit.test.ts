@@ -1,3 +1,4 @@
+import { createDatabaseTransferAdapters } from "#src/server/runtime/composition/database-transfer-adapters";
 /** j03: disposable fixtures only. Drive the real host snapshot adapter through the tool ports. */
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
@@ -56,7 +57,7 @@ test("planning backs up chat.db read-only, discloses its rows, and running uses 
         runScript: async chunks => { script = [...chunks].join(""); return { ok: true, value: null }; },
       }),
     };
-    const tools = new Map(buildDatabaseTransferRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }).map(tool => [tool.descriptor.id, tool]));
+    const tools = new Map(buildDatabaseTransferRegistrations({ ...deps, databaseTransferAdapters: createDatabaseTransferAdapters({}) }, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }).map(tool => [tool.descriptor.id, tool]));
     const planned = await tools.get("database_transfer_plan")!.handler(ctx()) as { planned: boolean; planId: string; rowCount: number };
     assert.equal(planned.planned, true);
     assert.ok(planned.rowCount >= 3);

@@ -232,14 +232,15 @@ function FeedbackSetup(props: { controller: EmailActivityController; locale: str
                     <strong className="email-provider-name">{provider.label}</strong>
                     <Chip tone={state.tone}>{t({ locale, key: state.label })}</Chip>
                   </div>
-                  {provider.supported ? (
-                    provider.webhookUrl ? (
+                  {provider.supported && provider.webhookUrl ? (
                       <div className="email-row">
                         <span className="jini-field-label">{t({ locale, key: "Webhook URL" })}</span>
                         <code className="email-break">{provider.webhookUrl}</code>
                         <CopyButton text={provider.webhookUrl} label={t({ locale, key: "{provider} webhook URL" }).replace("{provider}", provider.label)} locale={locale} handle={`email-feedback-${provider.providerId}-copy`} />
                       </div>
-                    ) : <span className="jini-field-hint">{t({ locale, key: "Verify the site's address first; the webhook URL needs it." })}</span>
+                  ) : null}
+                  {provider.supported && !provider.webhookUrl ? (
+                    <span className="jini-field-hint">{t({ locale, key: "Verify the site's address first; the webhook URL needs it." })}</span>
                   ) : null}
                   {provider.lastVerifiedEvent ? (
                     <span className="jini-field-hint">{t({ locale, key: "Last report: {when}" }).replace("{when}", when(provider.lastVerifiedEvent.receivedAt, locale))}</span>
@@ -254,7 +255,7 @@ function FeedbackSetup(props: { controller: EmailActivityController; locale: str
   );
 }
 
-export function EmailActivityTab(props: { controller: EmailActivityController; locale: string; part?: "sends" | "blocked" | "reports" | undefined }) {
+export function EmailActivityTab(props: { controller: EmailActivityController; locale: string; part?: "sends" | "blocked" | "reports" }) {
   const { controller, locale, part } = props;
   return (
     <>

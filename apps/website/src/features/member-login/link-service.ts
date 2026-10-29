@@ -1,10 +1,10 @@
 /** Transactional member adapter; protocol validation happens before this service is called. */
 import { nowIso } from "@jini-ai/core/primitives";
-import { isUniqueViolation } from "../../platform/db/kernel/dialect.js";
+import { isUniqueViolation } from "@jini-ai/db/kernel";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
-import type { MemberExternalIdentityRepoPort, MemberSignInResult, MembersWriteServiceDeps } from "../members/ports.js";
-import { completeSignIn, createMember, issueMemberSession, requestSignInLink, notifyMemberCreated } from "../members/write-service.js";
-import type { MemberExternalIdentityRecord, MemberRecord } from "../members/types.js";
+import type { MemberExternalIdentityRepoPort, MemberSignInResult, MembersWriteServiceDeps } from "../members/index.js";
+import { completeSignIn, createMember, issueMemberSession, requestSignInLink, notifyMemberCreated } from "../members/index.js";
+import type { MemberExternalIdentityRecord, MemberRecord } from "../members/index.js";
 import { decideMemberLogin } from "./link-policy.js";
 import { MemberLoginError, type VerifiedLoginIdentity } from "./types.js";
 

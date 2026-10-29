@@ -4,8 +4,8 @@ import { buildPublishContentCatalog, type PublishContentDeps } from "./type-regi
 import { pushBundleToPeer, type PeerCallDeps, type NotSupportedByLiveEntry } from "./peer-transport.js";
 import { createCompositePeerBlobSource, type CompositeBlobStoreRead } from "./composite-blob-source.js";
 import { appendSkippedRowsToPeerPlan, keepChangingIncludedEntities, labelPeerPlanRows, tagTrashingRows } from "./report-labels.js";
-import { entryPublicPath } from "#src/platform/routing/adapter";
-import type { PostRecord } from "../post/post.js";
+import { entryPublicPath } from "#src/platform/routing/index";
+import type { PostRecord } from "../post/contracts.js";
 import type { PublishScope } from "./ui/contract.js";
 
 /** Owner decision 2026-10-05: the assistant must publish on its own. The HTTP dialog and chat

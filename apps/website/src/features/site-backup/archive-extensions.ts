@@ -87,9 +87,10 @@ async function unindexedAgentRecords(required: { files: readonly PlannedDiskFile
     const [, id, digest] = match;
     const previous = known.get(id!);
     if (previous && previous !== digest) throw new SiteShareRefusal({ code: "UNSUPPORTED_PLUGIN", message: `Plugin '${id}' has multiple installed digests.` });
-    if (previous) continue;
-    known.set(id!, digest!);
-    extras.push({ kind: "agent", id: id!, version: "unknown", digest: digest!, enabled: false, shipped: true });
+    if (!previous) {
+      known.set(id!, digest!);
+      extras.push({ kind: "agent", id: id!, version: "unknown", digest: digest!, enabled: false, shipped: true });
+    }
   }
   return extras;
 }

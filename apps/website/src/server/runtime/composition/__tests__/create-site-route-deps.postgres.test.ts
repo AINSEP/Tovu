@@ -85,7 +85,7 @@ async function drainBootReadiness(deps: NewsletterRouteDeps): Promise<void> {
 }
 
 /** Boots the composition over the site folder and closes its pool when the test ends. */
-async function bootPostgresSite(t: TestContext): Promise<NewsletterRouteDeps> {
+async function bootPostgresSite(t: TestContext) {
   const deps = await createSiteRouteDeps(path.join(siteDir, "content.db"), {
     uploadsDir: path.join(siteDir, "uploads"),
     themesDir: path.join(siteDir, "themes"),

@@ -51,19 +51,37 @@ export interface FileRow {
 /** Report paths support plain lines, bullets, fenced blocks, inline code and file:line links. */
 function reportSection(text: string, name: string): string | undefined {
   const lines: string[] = [];
-  let active = false, found = false, fenced = false;
-  for (const line of text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").split(/\r?\n/)) {
-    if (/^\s*(```|~~~)/.test(line)) { fenced = !fenced; continue; }
-    const header = !fenced && /^\s*(?:#{1,6}\s*)?(?:\*\*)?([A-Z][A-Z0-9 /_-]*?)(?:\*\*)?\s*:\s*(?:\*\*)?\s*(.*)$/.exec(line);
-    const heading = !fenced && /^\s*#{1,6}\s+(.+?)\s*$/.exec(line);
-    const title = header ? header[1]!.trim() : heading ? heading[1]!.replace(/[*:]/g, "").trim() : undefined;
-    if (title) {
-      if (title === name) { active = found = true; if (header) lines.push(header[2]!); continue; }
-      if (active) break;
+  let active = false, found = false;
+  for (const { line, fenced } of reportLines({ text })) {
+    const { header, title } = reportHeading({ line, fenced });
+    if (title === name) {
+      active = found = true;
+      appendHeader({ header, lines });
+      continue;
     }
+    if (title && active) break;
     if (active) lines.push(line);
   }
   return found ? lines.join("\n") : undefined;
+}
+
+function* reportLines({ text }: { text: string }, _optional: Optional = {}) {
+  let fenced = false;
+  for (const line of text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").split(/\r?\n/)) {
+    if (/^\s*(```|~~~)/.test(line)) { fenced = !fenced; continue; }
+    yield { line, fenced };
+  }
+}
+
+function appendHeader({ header, lines }: { header: RegExpExecArray | false | null; lines: string[] }, _optional: Optional = {}): void {
+  if (header) lines.push(header[2]!);
+}
+
+function reportHeading({ line, fenced }: { line: string; fenced: boolean }, _optional: Optional = {}) {
+  const header = !fenced && /^\s*(?:#{1,6}\s*)?(?:\*\*)?([A-Z][A-Z0-9 /_-]*?)(?:\*\*)?\s*:\s*(?:\*\*)?\s*(.*)$/.exec(line);
+  const heading = !fenced && /^\s*#{1,6}\s+(.+?)\s*$/.exec(line);
+  const title = header ? header[1]!.trim() : heading ? heading[1]!.replace(/[*:]/g, "").trim() : undefined;
+  return { header, title };
 }
 
 function pathsIn(text: string): string[] {
@@ -87,15 +105,20 @@ export function changedSourceSet({ paths }: { paths: readonly string[] }, _optio
   for (const raw of [...new Set(paths)].sort()) {
     const file = raw.replaceAll("\\", "/").replace(/^\.\//, "");
     if (file.split("/").includes("..")) throw new Error(`Path escapes the source root: ${raw}`);
-    let reason = "";
-    if (!/^(apps|development)\//.test(file)) reason = "outside apps/ and development/";
-    else if (!/\.[cm]?[jt]sx?$/.test(file)) reason = "not JS/TS source";
-    else if (/\.d\.[cm]?ts$/.test(file)) reason = "type declaration";
-    else if (isTestPath(file) || /\/(?:__tests__|__measurements__|__mocks__|__fixtures__|fixtures|test-fixtures|testdata|e2e)\//.test(file)) reason = "test or fixture";
-    else if (/\/(?:node_modules|dist|build|coverage|generated|__generated__|\.next|\.cache)\//.test(file) || /\.(generated|gen)\.[cm]?[jt]sx?$/.test(file)) reason = "generated or build output";
+    const reason = sourceExclusion({ file });
     if (reason) excluded.push({ file, reason }); else files.push(file);
   }
   return { files: [...new Set(files)].sort(), excluded };
+}
+
+function sourceExclusion({ file }: { file: string }, _optional: Optional = {}): string {
+  let reason = "";
+  if (!/^(apps|development)\//.test(file)) reason = "outside apps/ and development/";
+  else if (!/\.[cm]?[jt]sx?$/.test(file)) reason = "not JS/TS source";
+  else if (/\.d\.[cm]?ts$/.test(file)) reason = "type declaration";
+  else if (isTestPath(file) || /\/(?:__tests__|__measurements__|__mocks__|__fixtures__|fixtures|test-fixtures|testdata|e2e)\//.test(file)) reason = "test or fixture";
+  else if (/\/(?:node_modules|dist|build|coverage|generated|__generated__|\.next|\.cache)\//.test(file) || /\.(generated|gen)\.[cm]?[jt]sx?$/.test(file)) reason = "generated or build output";
+  return reason;
 }
 
 function counter(value: string, label: string): number {
@@ -103,42 +126,62 @@ function counter(value: string, label: string): number {
   return Number(value);
 }
 
+interface LcovRecordState {
+  image: CoverageImage;
+  declarations: { name: string; line: number | null; key: string }[];
+  namedCounts: Map<string, number>;
+  hits: Map<string, number[]>;
+  summaries: Map<string, number>;
+}
+
+const lcovReaders = new Map<string, (input: { row: string; state: LcovRecordState }) => void>([
+  ["DA", readLcovLine], ["BRDA", readLcovBranch], ["FN", readLcovFunction], ["FNDA", readLcovFunctionHits],
+]);
+
+function readLcovRow({ row, state }: { row: string; state: LcovRecordState }, _optional: Optional = {}): void {
+  if (/^(LF|LH|BRF|BRH|FNF|FNH):/.test(row)) {
+    const [key, value] = row.split(":");
+    state.summaries.set(key!, counter(value!, key!));
+    return;
+  }
+  const kind = row.slice(0, row.indexOf(":"));
+  lcovReaders.get(kind)?.({ row, state });
+}
+
+function readLcovLine({ row, state: { image } }: { row: string; state: LcovRecordState }, _optional: Optional = {}): void {
+  const [position, count] = row.slice(3).split(",");
+  const line = counter(position!, "DA position");
+  image.lines.set(line, Math.max(image.lines.get(line) ?? 0, counter(count!, "DA count")));
+}
+function readLcovBranch({ row, state: { image } }: { row: string; state: LcovRecordState }, _optional: Optional = {}): void {
+  const fields = row.slice(5).split(",");
+  if (fields.length !== 4) throw new Error(`Invalid BRDA: ${row}`);
+  const key = fields.slice(0, 3).join(",");
+  const hit = fields[3] === "-" ? 0 : counter(fields[3]!, "BRDA count");
+  image.branches.set(key, Math.max(image.branches.get(key) ?? 0, hit));
+}
+function readLcovFunction({ row, state: { declarations, namedCounts } }: { row: string; state: LcovRecordState }, _optional: Optional = {}): void {
+  const match = /^FN:(\d+|undefined),(?:(\d+),)?(.+)$/.exec(row);
+  if (!match) throw new Error(`Invalid FN: ${row}`);
+  const line = match[1] === "undefined" ? null : Number(match[1]), name = match[3]!;
+  const base = `${line}:${name}`, occurrence = namedCounts.get(base) ?? 0;
+  namedCounts.set(base, occurrence + 1);
+  declarations.push({ name, line, key: `${base}:${occurrence}` });
+}
+function readLcovFunctionHits({ row, state: { hits } }: { row: string; state: LcovRecordState }, _optional: Optional = {}): void {
+  const match = /^FNDA:(\d+),(.+)$/.exec(row);
+  if (!match) throw new Error(`Invalid FNDA: ${row}`);
+  const values = hits.get(match[2]!) ?? [];
+  values.push(Number(match[1])); hits.set(match[2]!, values);
+}
+
 function parseImage(record: string, normalizePath: (file: string) => string): CoverageImage | undefined {
   const sf = /^SF:(.+)$/m.exec(record);
   if (!sf) return undefined;
   const image: CoverageImage = { file: normalizePath(sf[1]!.trim()), lines: new Map(), branches: new Map(), functions: new Map(), warnings: [] };
-  const declarations: { name: string; line: number | null; key: string }[] = [];
-  const namedCounts = new Map<string, number>();
-  const hits = new Map<string, number[]>();
-  const summaries = new Map<string, number>();
-  for (const row of record.split("\n")) {
-    if (/^(LF|LH|BRF|BRH|FNF|FNH):/.test(row)) {
-      const [key, value] = row.split(":");
-      summaries.set(key!, counter(value!, key!));
-    } else if (row.startsWith("DA:")) {
-      const [position, count] = row.slice(3).split(",");
-      const line = counter(position!, "DA position");
-      image.lines.set(line, Math.max(image.lines.get(line) ?? 0, counter(count!, "DA count")));
-    } else if (row.startsWith("BRDA:")) {
-      const fields = row.slice(5).split(",");
-      if (fields.length !== 4) throw new Error(`Invalid BRDA: ${row}`);
-      const key = fields.slice(0, 3).join(",");
-      const hit = fields[3] === "-" ? 0 : counter(fields[3]!, "BRDA count");
-      image.branches.set(key, Math.max(image.branches.get(key) ?? 0, hit));
-    } else if (row.startsWith("FN:")) {
-      const match = /^FN:(\d+|undefined),(?:(\d+),)?(.+)$/.exec(row);
-      if (!match) throw new Error(`Invalid FN: ${row}`);
-      const line = match[1] === "undefined" ? null : Number(match[1]), name = match[3]!;
-      const base = `${line}:${name}`, occurrence = namedCounts.get(base) ?? 0;
-      namedCounts.set(base, occurrence + 1);
-      declarations.push({ name, line, key: `${base}:${occurrence}` });
-    } else if (row.startsWith("FNDA:")) {
-      const match = /^FNDA:(\d+),(.+)$/.exec(row);
-      if (!match) throw new Error(`Invalid FNDA: ${row}`);
-      const values = hits.get(match[2]!) ?? [];
-      values.push(Number(match[1])); hits.set(match[2]!, values);
-    }
-  }
+  const state: LcovRecordState = { image, declarations: [], namedCounts: new Map(), hits: new Map(), summaries: new Map() };
+  for (const row of record.split("\n")) readLcovRow({ row, state });
+  const { declarations, hits, summaries } = state;
   for (const declaration of declarations) {
     const values = hits.get(declaration.name);
     if (!values?.length) throw new Error(`LCOV function ${declaration.name} is missing FNDA`);
@@ -167,15 +210,22 @@ export function mergeLcov({ text, normalizePath }: { text: string; normalizePath
     if (!next) continue;
     const previous = images.get(next.file);
     if (!previous) { images.set(next.file, next); continue; }
-    // Same-image duplicate SF blocks are a union, never summed LF/BRF/FNF denominators.
-    for (const axis of ["lines", "branches", "functions"] as const) {
-      if (!sameKeys(previous[axis], next[axis])) previous.warnings.push(`incompatible ${axis === "branches" ? "branch" : axis} layouts in duplicate SF records; coverage not evidence`);
-    }
-    for (const [line, hit] of next.lines) previous.lines.set(line, Math.max(previous.lines.get(line) ?? 0, hit));
-    for (const [key, hit] of next.branches) previous.branches.set(key, Math.max(previous.branches.get(key) ?? 0, hit));
-    for (const [key, fn] of next.functions) previous.functions.set(key, { ...fn, hits: Math.max(previous.functions.get(key)?.hits ?? 0, fn.hits) });
+    mergeDuplicateImage({ previous, next });
   }
   return images;
+}
+
+function mergeDuplicateImage({ previous, next }: { previous: CoverageImage; next: CoverageImage }, _optional: Optional = {}): void {
+  // Same-image duplicate SF blocks are a union, never summed LF/BRF/FNF denominators.
+  checkDuplicateLayouts({ previous, next });
+  for (const [line, hit] of next.lines) previous.lines.set(line, Math.max(previous.lines.get(line) ?? 0, hit));
+  for (const [key, hit] of next.branches) previous.branches.set(key, Math.max(previous.branches.get(key) ?? 0, hit));
+  for (const [key, fn] of next.functions) previous.functions.set(key, { ...fn, hits: Math.max(previous.functions.get(key)?.hits ?? 0, fn.hits) });
+}
+function checkDuplicateLayouts({ previous, next }: { previous: CoverageImage; next: CoverageImage }, _optional: Optional = {}): void {
+  for (const axis of ["lines", "branches", "functions"] as const) {
+    if (!sameKeys(previous[axis], next[axis])) previous.warnings.push(`incompatible ${axis === "branches" ? "branch" : axis} layouts in duplicate SF records; coverage not evidence`);
+  }
 }
 
 function imageCounters(image: CoverageImage): Counters {
@@ -198,56 +248,107 @@ export function classifyGap({ complexity = 0, runtimeReasons = [], mockCounts = 
   return { label: reasons.length ? "refactor-candidate" : "needs-test", reasons: reasons.length ? reasons : ["add assertions that exercise the uncovered behavior"] };
 }
 
+function rangeLabel({ start, last }: { start: number | undefined; last: number | undefined }, _optional: Optional = {}): string {
+  return start === last ? `${start}` : `${start}-${last}`;
+}
+
 function ranges(positions: number[]): string[] {
   const out: string[] = [];
   let start: number | undefined, last: number | undefined;
   for (const next of [...new Set(positions)].sort((a, b) => a - b)) {
-    if (last !== undefined && next !== last + 1) { out.push(start === last ? `${start}` : `${start}-${last}`); start = undefined; }
+    if (last !== undefined && next !== last + 1) { out.push(rangeLabel({ start, last })); start = undefined; }
     if (start === undefined) start = next;
     last = next;
   }
-  if (start !== undefined) out.push(start === last ? `${start}` : `${start}-${last}`);
+  if (start !== undefined) out.push(rangeLabel({ start, last }));
   return out;
 }
 
-export function evaluateFiles({ files, coverage, sources = new Map(), loadedBy = new Map(), selectedFor = new Map(), triage = new Map(), runners = new Map(), invalid = new Map(), unloadedFunctions = new Map() }: {
+type FileInputs = {
   files: readonly string[]; coverage: ReadonlyMap<string, CoverageImage>;
   sources?: ReadonlyMap<string, string>; loadedBy?: ReadonlyMap<string, string[]>;
   selectedFor?: ReadonlyMap<string, string[]>; triage?: ReadonlyMap<string, GapTriage>;
   runners?: ReadonlyMap<string, string>; invalid?: ReadonlyMap<string, string[]>;
   unloadedFunctions?: ReadonlyMap<string, readonly string[]>;
-}, { ranFiles, deleted = new Set(), missing = new Set() }: { ranFiles?: ReadonlySet<string>; deleted?: ReadonlySet<string>; missing?: ReadonlySet<string> } = {}): FileRow[] {
-  return files.map((file): FileRow => {
-    const skipped = deleted.has(file) ? "DELETED" : missing.has(file) ? "MISSING" : ranFiles && !ranFiles.has(file) ? "NOT RUN" : undefined;
-    if (skipped) return {
-      file, status: skipped, line: null, branch: null, funcs: null,
-      distance: { line: null, branch: null, funcs: null }, counters: null,
-      uncoveredLines: [], uncoveredFunctions: [], uncoveredBranches: [], loadedBy: [],
-      selectedFor: [...(selectedFor.get(file) ?? [])], runner: "unmeasured", evidence: false,
-      warnings: skipped === "MISSING" ? ["WARNING: missing non-deleted source — not measured"] : [],
-      triage: { label: skipped === "NOT RUN" ? "needs-run" : "not-measured", reasons: [skipped === "NOT RUN" ? "run selected tests and remeasure before diagnosing gaps" : skipped === "DELETED" ? "deleted — not measured" : "restore or correct the missing path before measurement"] },
-    };
-    const image = coverage.get(file);
-    // Vitest's coverage.include also emits zero-hit records for unloaded files. Imports/mocks
-    // are only discovery hints; neither existence in that report nor a grep establishes execution.
-    const loaded = !!image && hasInstrumentedHits({ image });
-    const counters = loaded ? imageCounters(image!) : null;
-    const pct = (hit: number, found: number) => found === 0 ? 100 : hit * 100 / found;
-    const line = counters ? pct(counters.lh, counters.lf) : 0;
-    const branch = counters ? pct(counters.brh, counters.brf) : 0;
-    const funcs = counters ? pct(counters.fnh, counters.fnf) : 0;
-    const warnings = [...(image?.warnings ?? []), ...(invalid.get(file) ?? [])];
-    return {
-      file, status: loaded ? "MEASURED" : "NOT LOADED", line, branch, funcs,
-      distance: { line: 100 - line, branch: 100 - branch, funcs: 100 - funcs }, counters,
-      uncoveredLines: image?.lines.size ? ranges([...image.lines].filter(([, hit]) => hit === 0).map(([position]) => position)) : (sources.has(file) ? [`1-${sources.get(file)!.trimEnd().split("\n").length} (whole source; executable indices unknown)`] : ["whole file (no LCOV record)"]),
-      uncoveredFunctions: image?.functions.size ? [...image.functions.values()].filter((fn) => fn.hits === 0) : loaded ? [] : (unloadedFunctions.get(file) ?? []).map((name, index) => ({ key: `source:${index}:${name}`, name, line: null, hits: 0 })),
-      uncoveredBranches: image ? [...image.branches].filter(([, hit]) => hit === 0).map(([key]) => key) : [],
-      loadedBy: [...(loadedBy.get(file) ?? [])].sort(), selectedFor: [...(selectedFor.get(file) ?? [])].sort(),
-      runner: runners.get(file) ?? "unmeasured", evidence: warnings.length === 0,
-      warnings, triage: loaded && !warnings.length ? triage.get(file) ?? classifyGap({}) : { label: "needs-test", reasons: ["no instrumented hits in executed scope; inspect test selection and loading before diagnosing a refactor"] },
-    };
-  }).sort((a, b) => (a.line ?? -1) - (b.line ?? -1) || (a.branch ?? -1) - (b.branch ?? -1) || (a.funcs ?? -1) - (b.funcs ?? -1) || (a.file < b.file ? -1 : a.file > b.file ? 1 : 0));
+};
+type FileOptions = { ranFiles?: ReadonlySet<string>; deleted?: ReadonlySet<string>; missing?: ReadonlySet<string> };
+
+export function evaluateFiles(input: FileInputs, options: FileOptions = {}): FileRow[] {
+  const context = rowContext(input);
+  const scope = rowScope({}, options);
+  return input.files.map((file) => evaluateFile({ file, context }, scope)).sort(compareRows);
+}
+
+function rowContext({ coverage, sources = new Map(), loadedBy = new Map(), selectedFor = new Map(), triage = new Map(), runners = new Map(), invalid = new Map(), unloadedFunctions = new Map() }: FileInputs, _optional: Optional = {}) {
+  return { coverage, sources, loadedBy, selectedFor, triage, runners, invalid, unloadedFunctions };
+}
+
+function rowScope(_input: Optional, { ranFiles, deleted = new Set(), missing = new Set() }: FileOptions = {}) {
+  return { ranFiles, deleted, missing };
+}
+function skippedStatus({ file }: { file: string }, { ranFiles, deleted, missing }: ReturnType<typeof rowScope>) {
+  if (deleted.has(file)) return "DELETED";
+  if (missing.has(file)) return "MISSING";
+  if (ranFiles && !ranFiles.has(file)) return "NOT RUN";
+  return undefined;
+}
+function skippedRow({ file, skipped, selectedFor }: { file: string; skipped: "DELETED" | "MISSING" | "NOT RUN"; selectedFor: ReadonlyMap<string, string[]> }, _optional: Optional = {}): FileRow {
+  return {
+    file, status: skipped, line: null, branch: null, funcs: null,
+    distance: { line: null, branch: null, funcs: null }, counters: null,
+    uncoveredLines: [], uncoveredFunctions: [], uncoveredBranches: [], loadedBy: [],
+    selectedFor: [...(selectedFor.get(file) ?? [])], runner: "unmeasured", evidence: false,
+    warnings: skipped === "MISSING" ? ["WARNING: missing non-deleted source — not measured"] : [],
+    triage: { label: skipped === "NOT RUN" ? "needs-run" : "not-measured", reasons: [skipped === "NOT RUN" ? "run selected tests and remeasure before diagnosing gaps" : skipped === "DELETED" ? "deleted — not measured" : "restore or correct the missing path before measurement"] },
+  };
+}
+function evaluateFile({ file, context }: { file: string; context: ReturnType<typeof rowContext> }, options: ReturnType<typeof rowScope>): FileRow {
+  const { coverage, sources, loadedBy, selectedFor, triage, runners, invalid, unloadedFunctions } = context;
+  const skipped = skippedStatus({ file }, options);
+  if (skipped) return skippedRow({ file, skipped, selectedFor });
+  const image = coverage.get(file);
+  const { loaded, counters, line, branch, funcs, warnings } = measuredMetrics({ image, file, invalid });
+  return {
+    file, status: loaded ? "MEASURED" : "NOT LOADED", line, branch, funcs,
+    distance: { line: 100 - line, branch: 100 - branch, funcs: 100 - funcs }, counters,
+    uncoveredLines: uncoveredLineRanges({ file, image, sources }),
+    uncoveredFunctions: uncoveredFunctionHits({ file, image, loaded, unloadedFunctions }),
+    uncoveredBranches: image ? [...image.branches].filter(([, hit]) => hit === 0).map(([key]) => key) : [],
+    loadedBy: [...(loadedBy.get(file) ?? [])].sort(), selectedFor: [...(selectedFor.get(file) ?? [])].sort(),
+    runner: runners.get(file) ?? "unmeasured", evidence: warnings.length === 0,
+    warnings, triage: rowTriage({ file, loaded, warnings, triage }),
+  };
+}
+function measuredMetrics({ image, file, invalid }: { image?: CoverageImage; file: string; invalid: ReadonlyMap<string, string[]> }, _optional: Optional = {}) {
+  // Vitest's coverage.include also emits zero-hit records for unloaded files. Imports/mocks
+  // are only discovery hints; neither existence in that report nor a grep establishes execution.
+  const loaded = !!image && hasInstrumentedHits({ image });
+  const counters = loaded ? imageCounters(image!) : null;
+  const pct = (hit: number, found: number) => found === 0 ? 100 : hit * 100 / found;
+  const line = counters ? pct(counters.lh, counters.lf) : 0;
+  const branch = counters ? pct(counters.brh, counters.brf) : 0;
+  const funcs = counters ? pct(counters.fnh, counters.fnf) : 0;
+  const warnings = [...(image?.warnings ?? []), ...(invalid.get(file) ?? [])];
+  return { loaded, counters, line, branch, funcs, warnings };
+}
+
+function uncoveredLineRanges({ file, image, sources }: { file: string; image?: CoverageImage; sources: ReadonlyMap<string, string> }, _optional: Optional = {}): string[] {
+  if (image?.lines.size) return ranges([...image.lines].filter(([, hit]) => hit === 0).map(([position]) => position));
+  if (sources.has(file)) return [`1-${sources.get(file)!.trimEnd().split("\n").length} (whole source; executable indices unknown)`];
+  return ["whole file (no LCOV record)"];
+}
+function uncoveredFunctionHits({ file, image, loaded, unloadedFunctions }: { file: string; image?: CoverageImage; loaded: boolean; unloadedFunctions: ReadonlyMap<string, readonly string[]> }, _optional: Optional = {}): FunctionHit[] {
+  if (image?.functions.size) return [...image.functions.values()].filter((fn) => fn.hits === 0);
+  if (loaded) return [];
+  return (unloadedFunctions.get(file) ?? []).map((name, index) => ({ key: `source:${index}:${name}`, name, line: null, hits: 0 }));
+}
+function rowTriage({ file, loaded, warnings, triage }: { file: string; loaded: boolean; warnings: string[]; triage: ReadonlyMap<string, GapTriage> }, _optional: Optional = {}): GapTriage {
+  if (loaded && !warnings.length) return triage.get(file) ?? classifyGap({});
+  return { label: "needs-test", reasons: ["no instrumented hits in executed scope; inspect test selection and loading before diagnosing a refactor"] };
+}
+function compareRows(a: FileRow, b: FileRow): number {
+  const difference = (axis: "line" | "branch" | "funcs") => (a[axis] ?? -1) - (b[axis] ?? -1);
+  return difference("line") || difference("branch") || difference("funcs") || (a.file < b.file ? -1 : a.file > b.file ? 1 : 0);
 }
 
 export function summarizeFiles({ rows }: { rows: readonly FileRow[] }, _optional: Optional = {}) {
@@ -303,33 +404,47 @@ export function renderFixPrompt({ rows, rules, input, out, failures = [], toolEr
 
 export const REUSE_NOTES = "Reused existing TypeScript AST, admin @vitest/coverage-v8 and its Istanbul reporting pipeline, desktop TEST_PASSES, and check-coverage-integrity.ts. Inspected node_modules: istanbul-lib-coverage / istanbul-lib-report exist only in admin; they consume Istanbul JSON rather than parse Node LCOV. lcov-parse, c8 and v8-to-istanbul are absent. No dependency added; a small LCOV adapter preserves same-scope duplicate unions and rejects incompatible layouts. [IstanbulJS](https://github.com/istanbuljs/istanbuljs), [lcov-parse](https://github.com/davglass/lcov-parse). [diff-cover](https://github.com/Bachmann1234/diff_cover) measures changed lines; a --changed-lines mode is worth adding for source-mapped coverage, after tsx position accuracy is solved.";
 
+function noExecutedTests({ runs, toolErrors, selectedTests }: { runs: readonly { executedTests?: number }[]; toolErrors: readonly string[]; selectedTests: readonly string[] }, _optional: Optional = {}): string | undefined {
+  return runs.length === 0 || runs.every((run) => run.executedTests === 0) ? toolErrors.join("; ") || (selectedTests.length ? "selected runners reported no executed tests" : "no eligible tests selected") : undefined;
+}
+// A renderer may be handed older/default model rows. Never display 0% or measured
+// coverage from those rows when the run context says no tests actually executed.
+function unrunRow(row: FileRow): FileRow {
+  return row.status === "DELETED" || row.status === "MISSING" ? row : ({
+    ...row, status: "NOT RUN", runner: "unmeasured", line: null, branch: null, funcs: null,
+    distance: { line: null, branch: null, funcs: null }, counters: null,
+    uncoveredLines: [], uncoveredFunctions: [], uncoveredBranches: [], loadedBy: [], evidence: false,
+    triage: { label: "needs-run", reasons: ["run selected tests and remeasure before diagnosing gaps"] },
+  });
+}
+function coverageEvidence({ noTests, scopeInvalid }: { noTests?: string; scopeInvalid: unknown }, _optional: Optional = {}): string {
+  if (noTests) return "NOT EVIDENCE (no tests ran)";
+  return scopeInvalid ? "NOT EVIDENCE (test/tool/integrity failures or unrun scope)" : "valid for this exact selected scope";
+}
+function meanPercent({ number }: { number: number | null }, _optional: Optional = {}): string {
+  return number === null ? "N/A" : `${number.toFixed(2)}%`;
+}
+
 export function renderMarkdown({ rows, input, selectedTests, omittedTests, failures, toolErrors, runs, excluded = [], noTestsReason, picks = [], warnings = [] }: {
   rows: readonly FileRow[]; input: string; selectedTests: readonly string[]; omittedTests: readonly string[];
   failures: readonly string[]; toolErrors: readonly string[]; runs: readonly { id: string; tests: readonly string[]; status: number | null; log: string; command: string; role: string; executedTests?: number }[];
   excluded?: readonly { file: string; reason: string }[]; noTestsReason?: string;
   picks?: readonly { test: string; changedFile?: string; reason: string }[]; warnings?: readonly string[];
 }, _optional: Optional = {}): string {
-  const noTests = noTestsReason ?? (runs.length === 0 || runs.every((run) => run.executedTests === 0) ? toolErrors.join("; ") || (selectedTests.length ? "selected runners reported no executed tests" : "no eligible tests selected") : undefined);
-  // A renderer may be handed older/default model rows. Never display 0% or measured
-  // coverage from those rows when the run context says no tests actually executed.
-  const visibleRows: readonly FileRow[] = noTests ? rows.map((row): FileRow => row.status === "DELETED" || row.status === "MISSING" ? row : ({
-    ...row, status: "NOT RUN", runner: "unmeasured", line: null, branch: null, funcs: null,
-    distance: { line: null, branch: null, funcs: null }, counters: null,
-    uncoveredLines: [], uncoveredFunctions: [], uncoveredBranches: [], loadedBy: [], evidence: false,
-    triage: { label: "needs-run", reasons: ["run selected tests and remeasure before diagnosing gaps"] },
-  })) : rows;
+  const noTests = noTestsReason ?? noExecutedTests({ runs, toolErrors, selectedTests });
+  const visibleRows = noTests ? rows.map(unrunRow) : rows;
   const total = summarizeFiles({ rows: visibleRows });
   const value = (number: number | null) => number === null ? "N/A" : number.toFixed(2);
   const metric = (number: number | null, gap: number | null) => number === null ? "N/A" : `${value(number)} (${value(gap)})`;
   const status = (row: FileRow) => row.status === "DELETED" ? "deleted — not measured" : row.status === "MISSING" ? "WARNING: missing — not measured" : `${row.status} / ${row.runner}${!row.evidence ? " / NOT EVIDENCE" : ""}`;
   const scopeInvalid = failures.length || toolErrors.length || rows.some((row) => row.status !== "DELETED" && row.status !== "MISSING" && !row.evidence);
   return [noTests ? `# Coverage of changed files — no tests ran: ${noTests}` : "# Coverage of changed files", "", `Input: ${input}`, "",
-    `Coverage evidence: ${noTests ? "NOT EVIDENCE (no tests ran)" : scopeInvalid ? "NOT EVIDENCE (test/tool/integrity failures or unrun scope)" : "valid for this exact selected scope"}.`, "",
+    `Coverage evidence: ${coverageEvidence({ noTests, scopeInvalid })}.`, "",
     "LCOV ranges below are instrumented line indices; tsx positions are not reliable source locations. Branch gaps are counts and opaque IDs, never source-arm claims. Node includes comments/blanks in its line denominator; Vitest does not. Across runners, keep a complete image rather than union incomparable denominators.", "",
     "| Changed file | Status / runner | Line % (gap pp) | Branch % (gap pp) | Function % (gap pp) | Uncovered | Tests with instrumented hits | Triage |",
     "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ...visibleRows.map((row) => `| ${cell(row.file)} | ${cell(status(row))} | ${metric(row.line, row.distance.line)} | ${metric(row.branch, row.distance.branch)} | ${metric(row.funcs, row.distance.funcs)} | ${cell(gaps(row))} | ${cell(row.loadedBy.join(", ") || "none")} | ${cell(row.triage.label + ": " + row.triage.reasons.join("; "))} |`), "",
-    `Overall: ${total.fileCount} changed source files eligible for measurement; ${total.notRun} NOT RUN; ${total.notLoaded} NOT LOADED. Deleted/missing paths are excluded from coverage gaps. All-file mean (unloaded files = 0; unrun files unknown): lines ${value(total.mean.line)}${total.mean.line === null ? "" : "%"}, branches ${value(total.mean.branch)}${total.mean.branch === null ? "" : "%"}, functions ${value(total.mean.funcs)}${total.mean.funcs === null ? "" : "%"}.`,
+    `Overall: ${total.fileCount} changed source files eligible for measurement; ${total.notRun} NOT RUN; ${total.notLoaded} NOT LOADED. Deleted/missing paths are excluded from coverage gaps. All-file mean (unloaded files = 0; unrun files unknown): lines ${meanPercent({ number: total.mean.line })}, branches ${meanPercent({ number: total.mean.branch })}, functions ${meanPercent({ number: total.mean.funcs })}.`,
     "Executable totals for unloaded/unrun files are unknown, not silently excluded or estimated. Measured-only counters by runner:",
     ...Object.entries(total.byRunner).map(([runner, c]) => `- ${runner}: ${c.fileCount} files; lines ${c.lh}/${c.lf}, branches ${c.brh}/${c.brf}, functions ${c.fnh}/${c.fnf}`), "",
     `Selected tests (${selectedTests.length}; exact paths, capped):`, ...selectedTests.map((test) => {

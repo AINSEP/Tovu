@@ -1,7 +1,8 @@
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
+import * as externalMcpStore from "#src/assistant/index";
 import { loadDeployOpsRegistry } from "#src/features/deployments/deploy-ops/registry";
 import { loadSourceControlProviderRegistry } from "#src/features/source-control/provider-registry";
-import { loadCredentialSchemeRegistry } from "#src/features/custom-credentials/auth-schemes";
+import { loadCredentialSchemeRegistry } from "#src/features/agent-plugins/auth-schemes";
 import type { RouteDeps } from "#src/server/routes/types";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { resolveSkillLayout } from "#src/features/skills/layout";
@@ -42,6 +43,8 @@ export function createTempSiteLayoutFixture(_input: Record<string, never>, _opti
  * setup order while production receives fixed layouts at boot. New binding tests use fixed ports. */
 export function testSiteLayoutContext<T extends object>(input: T, _options = {}) {
   const descriptors: PropertyDescriptorMap = {
+    externalMcpStore: { enumerable: true, configurable: true, value: externalMcpStore },
+    notifyRosterChanged: { enumerable: true, configurable: true, value: externalMcpStore.notifyExternalMcpRosterChanged },
     agentPluginLayout: { enumerable: true, configurable: true, get: () => resolveAgentPluginLayout() },
     agentPluginLifecycle: { enumerable: true, configurable: true, get: () => createTovuAgentPluginLifecycle({ layout: context.agentPluginLayout }) },
     loadDeployOps: { enumerable: true, configurable: true, get: () => (ctx: { workspaceId: string }) => loadDeployOpsRegistry(ctx, { loadContributions: context.agentPluginLifecycle.loadPluginContributions }) },
@@ -53,7 +56,7 @@ export function testSiteLayoutContext<T extends object>(input: T, _options = {})
   for (const key of Object.keys(descriptors)) {
     if (key in input) delete descriptors[key];
   }
-  const context = Object.defineProperties(input, descriptors) as T & Pick<RouteDeps, "agentPluginLayout" | "agentPluginLifecycle" | "skillLayout" | "siteBinding" | "loadDeployOps" | "loadSourceControlProviders" | "loadAuthSchemes">;
+  const context = Object.defineProperties(input, descriptors) as T & Pick<RouteDeps, "agentPluginLayout" | "agentPluginLifecycle" | "skillLayout" | "siteBinding" | "loadDeployOps" | "loadSourceControlProviders" | "loadAuthSchemes" | "externalMcpStore" | "notifyRosterChanged">;
   return context;
 }
 

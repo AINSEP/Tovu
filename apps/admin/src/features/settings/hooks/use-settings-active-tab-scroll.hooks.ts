@@ -18,7 +18,7 @@ export function useSettingsActiveTabScroll(
 
   useEffect(() => {
     const strip = rootRef.current?.querySelector(".jini-tabbed-dialog-sidebar");
-    if (!ready || !strip) return;
+    if (!ready || !strip) return undefined;
     const scrollActiveTab = () => {
       if (!isPhone()) return;
       strip.querySelector<HTMLElement>('.jini-tabbed-dialog-nav-item[aria-pressed="true"]')

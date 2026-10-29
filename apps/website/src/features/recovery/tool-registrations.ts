@@ -30,7 +30,7 @@ import type { DbOpsPort } from "../../contracts/core/gated-mutations/ports.js";
 import { acquireOperationLock, isOperationInFlight, releaseOperationLock } from "../../contracts/core/operation-lock.js";
 import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { buildRestoreHooks, toRecoveryResult } from "./gated-hooks.js";
 import type {
   MigrationRunsRepoPort,
@@ -53,6 +53,9 @@ import { confirmRestore, executeRestore, planRestore } from "./recovery-orchestr
 import { resolveDegradedBanner } from "./ui/degraded-banners.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
+const BACKUP_READ_PERMISSION = "backup.read" as const;
+const RESTORE_POINT_ENTITY = "restore-point" as const;
 
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: recoveryAgentToolCatalog });
@@ -233,7 +236,7 @@ export function buildRecoveryRegistrations(
   const handlers: Record<string, ToolHandler> = {
     backup_list_restore_points: async (ctx) => {
       requireNoInput({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "backup.read" }, { entityType: "restore-point" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: BACKUP_READ_PERMISSION }, { entityType: RESTORE_POINT_ENTITY });
       // Same repo/function Database's own `database_list_restore_points` reads — one persisted
       // list, two gated views (ADR-045 §1, "Database and Recovery are sibling faces").
       return listRestorePoints({ repo: routeDeps.restorePointsRepo });
@@ -241,7 +244,7 @@ export function buildRecoveryRegistrations(
 
     backup_get_capabilities: async (ctx) => {
       requireNoInput({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "backup.read" }, { entityType: "restore-point" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: BACKUP_READ_PERMISSION }, { entityType: RESTORE_POINT_ENTITY });
       const capabilities = await routeDeps.dbOps.getCapabilities();
       return { costClass: capabilities.restorePoint.costClass, kind: capabilities.restorePoint.kind,
         fullSiteBackup: {
@@ -260,7 +263,7 @@ export function buildRecoveryRegistrations(
       // ever runs — a pre-existing gap this wiring found in the real HTTP route too (it calls
       // `planRestore` with no authorize() of its own either). This tool stays strictly more
       // conservative than that route by never skipping the check, rather than reproducing the gap.
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "backup.read" }, { entityType: "restore-point" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: BACKUP_READ_PERMISSION }, { entityType: RESTORE_POINT_ENTITY });
 
       // An unknown id is a caller mistake, not a planning question — reject it here rather than
       // letting it reach `planRestore()`/the gateway, which have no reason to name a nonexistent
@@ -278,7 +281,7 @@ export function buildRecoveryRegistrations(
 
     recovery_get_status: async (ctx) => {
       requireNoInput({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "backup.read" }, { entityType: "restore-point" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: BACKUP_READ_PERMISSION }, { entityType: RESTORE_POINT_ENTITY });
 
       const capabilities = await routeDeps.dbOps.getCapabilities();
       const siteStatus = await routeDeps.siteStatusRepo.get(routeDeps.workspaceId);
@@ -302,7 +305,7 @@ export function buildRecoveryRegistrations(
       if (!isRecord(candidate)) throw new ToolInputError({ message: "'envelope' (object) is required" });
       const envelope = requireDeepLinkEnvelope(candidate.value.envelope);
 
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "backup.read" }, { entityType: "restore-point" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: BACKUP_READ_PERMISSION }, { entityType: RESTORE_POINT_ENTITY });
 
       return resolveDeepLinkContext({
         deps: { lookup: routeDeps.deepLinkRestorePointLookup },
@@ -320,7 +323,7 @@ export function buildRecoveryRegistrations(
         const input = requireInputRecord({ input: ctx.input });
         refuseUnexpectedKeys(input, ["restorePointId"]);
         const restorePointId = requireString({ input: input, key: "restorePointId" });
-        await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "backup.restore" }, { entityType: "restore-point" });
+        await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "backup.restore" }, { entityType: RESTORE_POINT_ENTITY });
         const { plan } = await planRestoreWithDisclosure(ctx.principal.id, restorePointId);
         const { items } = await listRestorePoints({ repo: routeDeps.restorePointsRepo });
         const createdAt = items.find((item) => item.id === restorePointId)?.createdAt;
@@ -406,6 +409,6 @@ export function buildRecoveryRegistrations(
  * are both `import type` — erased from the runtime-only graph `check:architecture` uses for module
  * cycles/SCC — so this domain does not carry `database`'s `db`-hub round-trip risk.
  */
-export function contributeRecoveryTools(): ToolContributor {
+export function contributeRecoveryTools(): ToolContributor<RecoveryToolDeps, AssistantSurfaceDeps> {
   return { domain: "recovery", build: buildRecoveryRegistrations, risk: recoveryDerivedRisk };
 }

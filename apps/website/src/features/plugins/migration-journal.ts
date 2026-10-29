@@ -13,7 +13,7 @@
  */
 import { sql } from "kysely";
 
-import { autoIdColumnSql, checkpointWal, columnTypeSql } from "../../platform/db/kernel/dialect.js";
+import { autoIdColumnSql, checkpointWal, columnTypeSql } from "@jini-ai/db/kernel";
 import { type PluginKernel, type PluginStore, pluginKernel } from "./plugin-store.js";
 
 export type JournalPhase = "PREPARED_SNAPSHOT" | "DDL_IN_PROGRESS" | "VERIFYING" | "COMMITTED" | "ROLLED_BACK";

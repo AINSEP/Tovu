@@ -329,7 +329,7 @@ test('C3: mixed outcomes preserve safe summaries, truncate tails, and display mi
   assert.equal(f.surfaceExchanges.size(), 0);
 });
 
-for (const results of [[], [{ kind: 'vendor' as const, id: 'one', status: 'failed' as const, reasonCode: 'source-missing' }]]) {
+for (const results of [[], [{ kind: 'vendor' as const, id: 'one', status: 'failed' as const, reasonCode: 'source-missing' as const }]]) {
   test(`copy outcome renders ${results.length ? 'failure without a copied row' : 'empty success'}`, async () => {
     const f = fixture();
     f.deps.localCredentialCopy!.copy = async () => results;

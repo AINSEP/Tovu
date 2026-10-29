@@ -262,8 +262,9 @@ export class MemberNotFoundError extends Error {}
  * `"newsletter:{listId}"`, `"feature:{ns}:{id}"`) rather than a closed union —
  * new modules mint their own namespaced purposes without touching this file
  * (Article III: no speculative enum, just a documented string convention).
+ * The exported purpose type follows the stored consent record's field.
  */
-export type ConsentPurpose = string;
+export type ConsentPurpose = MemberConsentRecord["purpose"];
 
 /** Consent lifecycle. Only `confirmConsent` may produce `'granted'` (INV-NEW-02) — see `consent-service.ts`. */
 export type ConsentStatus = "pending" | "granted" | "revoked";
@@ -292,7 +293,7 @@ export interface MemberConsentRecord {
   workspaceId: UUID;
   /** Composite FK → members(workspace_id, id). */
   memberId: UUID;
-  purpose: ConsentPurpose;
+  purpose: string;
   status: ConsentStatus;
   evidence: ConsentEvidence;
   grantedAt?: ISODateTime;

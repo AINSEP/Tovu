@@ -3,7 +3,7 @@ import { escapeHtml } from "@jini-ai/core/text";
 import { embedMarkerSnippetFromConfig, markersOfType } from "@jini-ai/cms/widgets/markers";
 import type { PluginExportsPort, PluginExportTemplate } from "@jini-ai/cms/widgets/html";
 import type { LoginProvider } from "../../member-login/types.js";
-import { MEMBER_OIDC_PATH } from "#src/features/member-login/public-path";
+import { MEMBER_OIDC_PATH } from "#src/contracts/headless/index";
 import { checkPluginExportConfig, selectPluginExport, PluginEmbedValidationError, type PluginEmbedDiagnostic, type SelectedPluginExport } from "./diagnostics.js";
 import { pluginExportFileUrl, type PluginExportPackage, type PluginExportSource } from "./source.js";
 
@@ -12,6 +12,7 @@ export interface PluginExportRenderSession extends PluginExportsPort {
 }
 export interface PluginExportCatalogRow {
   readonly plugin: string;
+  readonly displayName?: string;
   readonly component: string;
   readonly version: number;
   readonly minVersion: number;
@@ -126,7 +127,7 @@ async function catalogRows(required: { packages: readonly PluginExportPackage[];
       const selection = selectPluginExport({ packages: required.packages, config });
       const selected = { owner, component, definition };
       const availability = await catalogAvailability({ selection, selected, config, providers, deps: required.deps });
-      exports.push({ plugin: owner.id, component, version: definition.version, minVersion: definition.minVersion ?? 1, props: definition.props,
+      exports.push({ plugin: owner.id, ...(owner.displayName ? { displayName: owner.displayName } : {}), component, version: definition.version, minVersion: definition.minVersion ?? 1, props: definition.props,
         consent: definition.consent, availability, snippet: availability === "ready" ? embedMarkerSnippetFromConfig({ config }) : null });
     }
     rows.set(owner.plugin.pluginId, exports);

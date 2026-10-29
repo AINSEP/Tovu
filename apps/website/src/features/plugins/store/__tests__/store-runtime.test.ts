@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -21,11 +22,11 @@ async function activateStore({ db }: { db: Database.Database; dbPath: string }) 
 }
 test("store: activation is idempotent — a second boot does not double-seed", async () => {
   const { db, dbPath, dir } = tempDb();
-  const store1 = await activateStore({ db, dbPath });
+  const store1 = await activateStore({ db: contentKernel(db), dbPath });
   assert.ok((await store1.checkout({ productId: "prod-candle", qty: 2 })).ok);
   db.prepare("UPDATE p_store__products SET title = ?, price = ? WHERE id = ?").run("Edited Candle", 1750, "prod-candle");
   const modified = await store1.listProducts();
-  const store2 = await activateStore({ db, dbPath }); // simulate a restart
+  const store2 = await activateStore({ db: contentKernel(db), dbPath }); // simulate a restart
   assert.equal((await store2.listProducts()).length, SEED_PRODUCTS.length, "still one set of products");
   assert.deepEqual(await store2.listProducts(), modified, "purchased stock, OCC version, edited title and price survive reactivation");
 
@@ -37,7 +38,7 @@ test("store: checkout decrements stock (OCC) and records an order", async (t) =>
   const now = 1780000000123;
   t.mock.method(Date, "now", () => now);
   const { db, dbPath, dir } = tempDb();
-  const store = await activateStore({ db, dbPath });
+  const store = await activateStore({ db: contentKernel(db), dbPath });
 
   const before = (await store.listProducts()).find((p) => p.id === "prod-candle")!;
   const result = await store.checkout({ productId: "prod-candle", qty: 2 });
@@ -64,7 +65,7 @@ test("store: checkout decrements stock (OCC) and records an order", async (t) =>
 
 test("store: checkout refuses out-of-stock and unknown products (no order, no decrement)", async () => {
   const { db, dbPath, dir } = tempDb();
-  const store = await activateStore({ db, dbPath });
+  const store = await activateStore({ db: contentKernel(db), dbPath });
 
   const tooMany = await store.checkout({ productId: "prod-candle", qty: 999 });
   assert.deepEqual(tooMany, { ok: false, reason: "out-of-stock", retries: 0 });
@@ -85,7 +86,7 @@ test("store: checkout refuses out-of-stock and unknown products (no order, no de
 test("store: invalid quantities are refused without stock, version, or order changes", async () => {
   const { db, dbPath, dir } = tempDb();
   try {
-    const store = await activateStore({ db, dbPath });
+    const store = await activateStore({ db: contentKernel(db), dbPath });
     const before = await store.listProducts();
     for (const qty of [0, -1, 0.5, NaN, Infinity, -Infinity]) {
       const result = await store.checkout({ productId: "prod-candle", qty: qty });

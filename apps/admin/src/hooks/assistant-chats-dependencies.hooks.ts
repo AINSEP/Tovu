@@ -1,4 +1,4 @@
-import { deriveContentConversationTitle } from "@tovu/headless";
+import { deriveContentConversationTitle } from "../../../website/src/assistant/content-chat-title.js";
 import { deriveConversationTitle, type ChatMessage } from "@jini-ai/chat/core";
 import { createLastConversationStore, type LastConversationStore } from "@jini-ai/chat/react";
 

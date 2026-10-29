@@ -76,7 +76,7 @@ export function testResultLine(result: MailTestSendResult, locale: string): { to
   }
 }
 
-export function EmailOverviewTab(props: { controller: EmailOverviewController; locale: string; part?: "uses" | "test" | undefined }) {
+export function EmailOverviewTab(props: { controller: EmailOverviewController; locale: string; part?: "uses" | "test" }) {
   const { controller, locale, part } = props;
   return (
     <>

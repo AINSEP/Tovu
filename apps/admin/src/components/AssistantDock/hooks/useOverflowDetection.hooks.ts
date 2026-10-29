@@ -68,7 +68,7 @@ export function useOverflowDetection<T extends HTMLElement = HTMLDivElement>(): 
 
   useEffect(() => {
     const el = containerRef.current;
-    if (!el || typeof ResizeObserver !== "function") return;
+    if (!el || typeof ResizeObserver !== "function") return undefined;
     const observer = new ResizeObserver(() => setIsOverflowing(isElementOverflowing(el)));
     observer.observe(el);
     setIsOverflowing(isElementOverflowing(el));

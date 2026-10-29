@@ -173,7 +173,8 @@ export async function performPowerAction(
   try {
     return { record: action === 'start' ? await bridge.startSite(id) : await bridge.stopSite(id) };
   } catch (err) {
-    return { error: action === 'start' ? siteOperationError({ error: err, operation: 'start' }) : err instanceof Error ? err.message : String(err) };
+    if (action === 'start') return { error: siteOperationError({ error: err, operation: 'start' }) };
+    return { error: err instanceof Error ? err.message : String(err) };
   }
 }
 
@@ -258,7 +259,8 @@ export function useSitePower(
   const statusOf = useCallback(
     (project: SiteRecord) => {
       const action = pending[project.id];
-      return action === undefined ? project.status : action === 'restart' ? 'starting' : IN_FLIGHT_STATUS[action];
+      if (action === undefined) return project.status;
+      return action === 'restart' ? 'starting' : IN_FLIGHT_STATUS[action];
     },
     [pending],
   );

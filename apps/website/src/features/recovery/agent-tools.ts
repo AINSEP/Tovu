@@ -31,6 +31,8 @@
  * checks at call time — this module declares shape only, no I/O.
  */
 
+const BACKUP_READ_PERMISSION = "backup.read" as const;
+
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
 
 export type AgentToolActorClassRule = "confirmer-must-equal-own-delegatedBy" | "user-only" | "none";
@@ -114,21 +116,21 @@ export const recoveryAgentToolCatalog: AgentToolDefinition[] = [
     name: "backup_list_restore_points",
     description: "Lists restore points for the current site, newest first, with their capture trigger and cost class.",
     sideEffects: "none",
-    authorization: { permission: "backup.read" },
+    authorization: { permission: BACKUP_READ_PERMISSION },
     inputSchema: NO_INPUT_SCHEMA,
   },
   {
     name: "backup_get_capabilities",
     description: "Reports this site's restore-point cost class and mechanism kind. For private full-site repository backups, call source_control_get_capabilities to discover installed hosts (including disabled ones), then site_backup_plan → site_backup_push. Portable .tovu.zip exports are available under Admin → Sites → Export. Rendered static output commits are a separate publishing workflow.",
     sideEffects: "none",
-    authorization: { permission: "backup.read" },
+    authorization: { permission: BACKUP_READ_PERMISSION },
     inputSchema: NO_INPUT_SCHEMA,
   },
   {
     name: "backup_plan_restore",
     description: "Previews what restoring to a given restore point would change, including the discarded-write-window disclosure.",
     sideEffects: "none",
-    authorization: { permission: "backup.read" },
+    authorization: { permission: BACKUP_READ_PERMISSION },
     inputSchema: PLAN_RESTORE_SCHEMA,
   },
   {
@@ -161,7 +163,7 @@ export const recoveryAgentToolCatalog: AgentToolDefinition[] = [
     description:
       "Reports this site's current restore-point cost class plus the single highest-precedence degraded-state banner (migration interrupted, pending migration, an operation already in flight, cost class unavailable, or watermark baseline unavailable), if any.",
     sideEffects: "none",
-    authorization: { permission: "backup.read" },
+    authorization: { permission: BACKUP_READ_PERMISSION },
     inputSchema: NO_INPUT_SCHEMA,
   },
   {
@@ -172,7 +174,7 @@ export const recoveryAgentToolCatalog: AgentToolDefinition[] = [
     description:
       "Re-resolves a Database-Timeline deep-link envelope server-side (INV-04): looks up the envelope's restorePointId against the current restore-points list rather than trusting the envelope's own carried value. A stale or forged id resolves to found:false.",
     sideEffects: "none",
-    authorization: { permission: "backup.read" },
+    authorization: { permission: BACKUP_READ_PERMISSION },
     inputSchema: DEEP_LINK_ENVELOPE_SCHEMA,
   },
 ];

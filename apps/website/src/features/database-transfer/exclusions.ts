@@ -24,6 +24,8 @@ export const EXCLUDED_CORE_TABLES: Readonly<Record<string, TransferExclusionReas
   identity_users: "login",
   sessions: "login",
   api_keys: "login",
+  // Migration 0034 added password_hash; ordinary copies must leave member credentials behind too.
+  members: "login",
   member_sessions: "login",
   member_magic_tokens: "login",
   secrets_vault: "saved-key",

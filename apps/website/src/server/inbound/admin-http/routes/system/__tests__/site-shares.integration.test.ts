@@ -99,7 +99,7 @@ test("share creation accepts a non-UUID job id (reported, not fixed)", async t =
   const app = express(); app.use(express.json({ strict: false }));
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
   const ports = { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "fixture" }) } satisfies Pick<RouteDeps, "workspaceId" | "authorize">;
-  registerAdminSiteShareRoutes({ app, deps: { ...ports, siteShareBackend: { create } } as RouteDeps });
+  registerAdminSiteShareRoutes({ app, deps: portFake<RouteDeps>({ ...ports, siteShareBackend: { create } }) });
   const base = await startTestServer(app, t), root = `${base}/api/admin/v1/workspaces/ws/site-shares`;
   for (const body of [null, {}, { jobId: "-".repeat(36) }]) {
     const response = await fetch(root, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });

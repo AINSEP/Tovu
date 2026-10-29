@@ -3,7 +3,7 @@ import type { KeyringPort } from "@jini-ai/platform/secrets";
 /** The parts of a store vault's `required` input that crypto guards read. Both are read at call time,
  * never captured, so a guard always sees the store's current keyring and translator. */
 export interface StorageFailureSource {
-  keyring?: KeyringPort | undefined;
+  keyring?: KeyringPort;
   storageError: (error?: unknown) => Error;
 }
 

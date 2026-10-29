@@ -24,7 +24,7 @@ import { CORE_COMMERCE_TABLES_IN_DROP_ORDER } from "../migrations/0011_drop_empt
 import { secretsVaultStatements, MCP_VAULT_SQLITE_STATEMENTS } from "../migrations/0012_secrets_vault.js";
 import { widenedVaultTableDdl } from "../migrations/0020_vault_api_connection_kind.js";
 import { readFrozenChain } from "../migrations/legacy-sqlite.js";
-import type { ContentDb } from "./content-db.js";
+import type { NativeSqliteDatabase } from "../kernel/drivers/sqlite.js";
 
 /**
  * @file Synchronous construction of a BRAND-NEW Tovu content database at head.
@@ -48,7 +48,7 @@ import type { ContentDb } from "./content-db.js";
  * fresh-only step that adds raw SQLite raises this file's baseline counts in the same commit.
  */
 export function bootstrapFreshContentDb(
-  { db }: { db: ContentDb },
+  { db }: { db: { $client: NativeSqliteDatabase } },
   // Injectable for the drift guard's own test; production always uses the real step list.
   { migrations = CONTENT_MIGRATIONS }: { migrations?: readonly MigrationStep[] } = {},
 ): boolean {
@@ -203,6 +203,8 @@ export function bootstrapFreshContentDb(
     "0035_member_external_identities": () => {
       for (const statement of MEMBER_EXTERNAL_IDENTITIES_STATEMENTS) client.exec(statement);
     },
+    "0036_publish_history_config_jsonb": () => {}, // Postgres-only conversion; SQLite retains 0016's text column.
+    "0037_media_source_metadata": () => client.exec("ALTER TABLE media ADD COLUMN \"source_metadata_json\" text"),
     "0018_form_submission_remote_receipts": () => {
       for (const statement of FORM_SUBMISSION_REMOTE_RECEIPTS_STATEMENTS) client.exec(statement);
     },

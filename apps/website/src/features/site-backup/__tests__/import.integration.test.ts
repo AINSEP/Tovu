@@ -72,7 +72,8 @@ test("B compiled static output renders through the theme owner while authored bu
 });
 
 test("restore quarantines malformed, executable and unsafe compiled theme variants while preserving ordinary static assets", async t => {
-  const { stageVerifiedImport, restoreStagedImport } = await import("../import-restore.js");
+  const { stageVerifiedImport } = await import("../import-restore.js");
+  const { restoreStagedImport } = await import("#src/server/runtime/composition/site-portability");
   const { readTemplate } = await import("../../../platform/site-dir/read-template.js");
   const { default: Database } = await import("better-sqlite3");
   const h = await importFixture(t), files = new Map<string, Buffer>();

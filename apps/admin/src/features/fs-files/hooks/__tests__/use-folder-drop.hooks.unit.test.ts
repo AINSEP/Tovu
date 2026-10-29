@@ -717,7 +717,7 @@ describe("useFolderDrop — last drop wins across overlapping drops", () => {
       .mockResolvedValueOnce({ path: "/Users/x/b" });
     // Every notice any render ever showed — a superseded drop's error must never appear, not even
     // briefly before the newer drop's confirmation replaces it.
-    const shown: Array<{ kind: string; path: string } | null> = [];
+    const shown: Array<ReturnType<typeof useFolderDrop>["notice"]> = [];
     const { result } = renderHook(() => {
       const controller = useFolderDrop(
         { composerHandle },
@@ -741,7 +741,7 @@ describe("useFolderDrop — last drop wins across overlapping drops", () => {
     await waitFor(() => expect(result.current.notice).toMatchObject({ kind: "confirmation", path: "/Users/x/b" }));
     await flushMicrotasks();
     expect(result.current.notice).toMatchObject({ kind: "confirmation", path: "/Users/x/b" });
-    expect(shown.filter((n) => n !== null).map((n) => `${n!.kind} ${n!.path}`)).not.toContain("error /Users/x/a");
+    expect(shown.filter((n) => n !== null && "path" in n).map((n) => `${n.kind} ${n.path}`)).not.toContain("error /Users/x/a");
   });
 });
 

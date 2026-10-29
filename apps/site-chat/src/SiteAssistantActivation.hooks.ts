@@ -38,7 +38,7 @@ export function useSiteAssistantActivation({ root, open, setOpen }: {
     setOpen(!open);
   }, [open, setOpen]);
   useEffect(() => {
-    if (!root) return;
+    if (!root) return undefined;
     const activate = () => {
       focusRequested.current ||= root.dataset.chatFocus === 'true';
       delete root.dataset.chatFocus;
@@ -58,7 +58,7 @@ export function useSiteAssistantActivation({ root, open, setOpen }: {
     root?.querySelector<HTMLTextAreaElement>('textarea:not(:disabled)')?.focus();
   }, [root, open]);
   useEffect(() => {
-    if (!root) return;
+    if (!root) return undefined;
     root.dataset.chatMounted = 'true';
     root.dispatchEvent(new Event('jini-chat-mounted'));
     return () => { delete root.dataset.chatMounted; };

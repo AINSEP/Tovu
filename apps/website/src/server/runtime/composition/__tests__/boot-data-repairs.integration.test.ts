@@ -12,8 +12,8 @@ import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
 import { runBootDataRepairs } from "../boot-data-repairs.js";
 import { openSiteContentDb } from "../open-site-content-db.js";
 import { openSiteStore } from "../open-site-store.js";
-import { bootSiteDir, closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
-import { initSite } from "#src/platform/site-dir/init-site";
+import { closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
+import { bootSiteDir, initSite } from "#src/server/runtime/composition/site-dir";
 import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
 
 /**

@@ -20,8 +20,8 @@
 import { SenderIdentityNotConfiguredError, type MailSenderIdentityPort } from "@jini-ai/platform/mail";
 import type { FormDefinitionRepoPort } from "@jini-ai/cms/forms";
 import { isMailDeliveryAvailable, mailSenderIdentityFor, type MailerPort } from "../../platform/mail/index.js";
-import type { MailPurposeGateProbe } from "../../platform/mail/purpose-gate-probe.js";
-import { evaluateLaunchGate, type LaunchGateDeps, type LaunchGatePrecondition } from "../newsletter/launch-gate.js";
+import type { MailPurposeGateProbe } from "../../platform/mail/index.js";
+import { evaluateLaunchGate, type LaunchGateDeps, type LaunchGatePrecondition } from "../newsletter/index.js";
 import type { MailActivityOutcome, MailActivityRepo, MailActivityUse } from "../mail/activity.repo.js";
 
 export type MailUseState = "ready" | "blocked" | "disabled" | "not_configured" | "unknown";

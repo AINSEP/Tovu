@@ -261,6 +261,7 @@ test("a tool result is an explicit model-facing view: workspaceId/timestamps dro
     "publicUrl",
     "sha256",
     "slug",
+    "source",
     "status",
     "title",
     "version",
@@ -269,6 +270,8 @@ test("a tool result is an explicit model-facing view: workspaceId/timestamps dro
   assert.equal("createdAt" in found, false);
   assert.equal("updatedAt" in found, false);
   assert.equal(found.status, "active");
+  // Owner-approved z3 list contract: only safe origin metadata reaches the model.
+  assert.deepEqual(found.source, { kind: "upload" });
   // c321cd0ca / @jini-ai/cms 0.4.2: every media tool view names the principal that created the asset.
   assert.equal(found.createdBy, PRINCIPAL_ID);
   // No "public" transform was registered for this fixture (see `seedPublicTransform`'s own doc) —
@@ -285,8 +288,8 @@ test("media_upload_asset's publicUrl is the ADR-027 §4 public-transform URL for
   await seedPublicTransform(deps);
   const out = (await wired("media_upload_asset", deps).handler(
     executionContext({ filename: "logo.png", contentType: "image/png", dataBase64: ONE_PIXEL_PNG_BASE64 }),
-  )) as { media: { id: string; slug: string; publicUrl: string | null } };
-  assert.equal(out.media.publicUrl, `/m/${out.media.slug}/public.v1/image.webp`);
+  )) as { media: { id: string; slug: string; sha256: string; publicUrl: string | null } };
+  assert.equal(out.media.publicUrl, `/m/${out.media.slug}/public.v1/image.webp?v=${out.media.sha256.slice(0, 12)}`);
 });
 
 test("media_list_assets' publicUrl matches media_upload_asset's for the same asset, resolved in one batch", async () => {
@@ -322,7 +325,7 @@ test("media_list_assets' publicUrl is the byte-passthrough /original URL for a v
   };
   const found = listed.media.find((m) => m.id === uploaded.media.id);
   assert.ok(found);
-  assert.equal(found.publicUrl, `/m/${uploaded.media.slug}/original.mp4`);
+  assert.equal(found.publicUrl, `/m/${uploaded.media.slug}/original.mp4?v=${uploaded.media.sha256.slice(0, 12)}`);
 });
 
 test("a trashed asset's publicUrl is null, never a link a visitor would 404 on", async () => {

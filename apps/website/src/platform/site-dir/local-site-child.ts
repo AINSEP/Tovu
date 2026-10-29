@@ -110,7 +110,7 @@ export async function runLocalSiteChild(
     importEntry = importModule, timers = NODE_TIMERS }: LocalSiteChildOptional = {},
 ): Promise<void> {
   const ownerPid = ownerPidFrom({ env: proc.env });
-  const reap = reapOwnTree ?? createOwnTreeReaper({ proc });
+  const reap = localSiteReaper({ proc, reapOwnTree });
   // Latched by the watchdog: a tree stop can settle before the OS ends this process, so a bundle
   // build that finishes after the owner is gone must not go on to boot the site.
   let ownerLost = false;
@@ -128,6 +128,13 @@ export async function runLocalSiteChild(
   }
   if (ownerLost) return;
   await importEntry(siteEntry);
+}
+
+function localSiteReaper(
+  { proc, reapOwnTree }: { proc: LocalSiteChildProcess; reapOwnTree: LocalSiteChildOptional["reapOwnTree"] },
+  _optional = {},
+): () => Promise<void> {
+  return reapOwnTree ?? createOwnTreeReaper({ proc });
 }
 
 /** A failed boot reports and exits 1, as the uncaught rejection it replaces did, while still running

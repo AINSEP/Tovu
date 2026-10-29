@@ -115,7 +115,9 @@ function disabledGateProblems(gate: GateEntry, today: string, maxDisabledDays: n
   const age = daysBetween(gate.disabledOn, today);
   if (age === null) {
     problems.push(`${where} has an unparseable "disabledOn" (${gate.disabledOn}); expected YYYY-MM-DD.`);
-  } else if (age > maxDisabledDays) {
+    return problems;
+  }
+  if (age > maxDisabledDays) {
     problems.push(
       `${where} has been disabled ${age} days (since ${gate.disabledOn}, limit ${maxDisabledDays}). ` +
         `Re-enable it, or re-confirm the decision by updating "disabledOn" and "disabledReason".`

@@ -55,7 +55,7 @@ export const HOOK_CONTENT_ENTRY_BEFORE_SAVE = "content.entry.beforeSave" as cons
 /** hooks v2 plan §3.1 — the one typed hook catalog (data) plus its companion type map, re-exported
  * here so a plugin author imports everything from `@tovu/sdk`'s package root (ADR-005 rule 1: no
  * other import surface exists). See `./hooks.ts`'s own file doc for why this is a value AND type
- * export while `hooks.ts` itself only ever `import type`s from this file (no runtime cycle). */
+ * export while `hooks.ts` imports its payload types from `./content-contracts.js` (no cycle). */
 import {
   HOOK_POINTS,
   type HookKind,
@@ -77,31 +77,8 @@ export {
   type ContributionHookName,
 };
 
-/** The merged-into-`ext.{pluginId}` shape a `beforeSave` filter returns (state.spec.md §2
- * `SdkSurface.ExtPatch`). Values are restricted to the four JSON-primitive types BR-06's field
- * `type` vocabulary supports (`string | integer | number | boolean` — `integer` collapses to
- * `number` at the JS/TS type level; BR-06's validator distinguishes integer-vs-number at the
- * value level, not the type level). */
-export type ExtPatch = Readonly<Record<string, string | number | boolean>>;
-
-/**
- * The read-only entry snapshot a `beforeSave` filter receives (REQ-05, RT-001). A v1 filter
- * cannot mutate core entry fields — this type has no setters, and every field is `readonly`
- * (ADR-024 §3: plain, serializable, never a live ORM row). `ext` reflects every OTHER plugin's
- * already-written namespaces at the time this filter runs (TB-01 composition order) — never this
- * plugin's own not-yet-written patch.
- */
-export interface ContentEntryDraft {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly title: string;
-  /** Per-entry meta description when available; omitted when the host has no override. */
-  readonly metaDescription?: string;
-  readonly slug: string;
-  readonly status: "draft" | "published";
-  readonly bodyJson: Readonly<Record<string, unknown>>;
-  readonly ext: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
-}
+import type { ContentEntryDraft, ExtPatch } from "./content-contracts.js";
+export type { ContentEntryDraft, ExtPatch } from "./content-contracts.js";
 
 /** Per-invocation context passed alongside the entry draft. */
 export interface HookContext {
@@ -153,17 +130,18 @@ export interface HookAttachOptions {
 // Generic contribution contracts stay with Jini's runtime owner. The SDK declares that package
 // as a dependency so a plugin consumer resolves these types without the host application's deps.
 export type { PluginRouteContribution, PluginToolContribution, PluginWidgetContribution, PluginContribution, PluginRouteInput, PluginRouteResult, PluginAuthContext, PluginProviderContribution, PluginProviderFactory, PluginProviderResource } from '@jini-ai/plugins/host';
+import type { PluginRouteContribution, PluginToolContribution, PluginWidgetContribution, PluginContribution, PluginProviderContribution } from '@jini-ai/plugins/host';
 
 export interface PluginSdk {
-  readonly routes: { add(required: import('@jini-ai/plugins/host').PluginRouteContribution, optional?: Record<string, never>): void };
-  readonly tools: { add(required: import('@jini-ai/plugins/host').PluginToolContribution, optional?: Record<string, never>): void };
-  readonly widgets: { add(required: import('@jini-ai/plugins/host').PluginWidgetContribution, optional?: Record<string, never>): void };
+  readonly routes: { add(required: PluginRouteContribution, optional?: Record<string, never>): void };
+  readonly tools: { add(required: PluginToolContribution, optional?: Record<string, never>): void };
+  readonly widgets: { add(required: PluginWidgetContribution, optional?: Record<string, never>): void };
   /** Gated by `providers.register` (tier-3 only). Registers an inert provider factory the manifest
    * declares under `contributes.providers`; the host initializes it only when the plugin is
    * installed, enabled and configured, and disposes it on disable or shutdown. */
-  readonly providers: { register(required: import('@jini-ai/plugins/host').PluginProviderContribution, optional?: Record<string, never>): void };
+  readonly providers: { register(required: PluginProviderContribution, optional?: Record<string, never>): void };
   /** Explicit route/tool/widget record; uses the selected surface capability, not hooks.attach. */
-  addContribution(required: import('@jini-ai/plugins/host').PluginContribution, optional?: Record<string, never>): void;
+  addContribution(required: PluginContribution, optional?: Record<string, never>): void;
   /** Live metadata lookup supplied by the host, shared with agent plugins. No execution grant. */
   readonly plugins?: {
     getPlugin(required: { id: string; family?: string }, optional?: Record<string, never>): Promise<{ id: string; version: string | null; enabled: boolean } | null>;

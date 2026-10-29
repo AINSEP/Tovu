@@ -32,7 +32,7 @@ import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 import { applyBatchInputs, BATCH_OPT_OUT, batchDescriptorFor, batchEligibilityFor, DEFAULT_MAX_BATCH_ITEMS, resolveBatchableTools, withBatchInput, type BatchResult } from "../batch-tool-inputs.js";
 import { ALL_CHAT_DELETE_TOOLS } from "../permanent-delete-tool-gate.js";
-import { approvalClassAsks, toolApprovalPolicyFor } from "../../contracts/headless/assistant-tool-approval-policy.js";
+import { approvalClassAsks, toolApprovalPolicyFor } from "../assistant-tool-approval-policy.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { currentToolIdFor } from "../content-read-tool.js";
 
@@ -306,7 +306,7 @@ test("local theme asset batches inherit root/theme, allow item overrides and con
   fs.writeFileSync(path.join(root, "icon.ico"), icon);
   const permissions: string[] = [];
   const registrations = buildImportThemeFileRegistrations({
-    workspaceId: "ws-batch-local", themesDir: root, siteBinding: { dir: root },
+    workspaceId: "ws-batch-local", themesDir: root, siteBinding: { dir: root }, resolveActiveThemeId: async () => "plain",
     themes: discoverAllBuiltInThemes({ dir: root, source: "built-in" }),
     resolveRoots: () => ({ repo: root, site: root, custom: root }),
     authorize: async (request) => { permissions.push(request.permission); return { allowed: true, reason: "matched" }; },

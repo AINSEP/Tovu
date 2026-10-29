@@ -24,7 +24,7 @@ import {
   loadCredentialSchemeRegistryFromSource,
   loadBundledCredentialSchemeRegistry,
   type CredentialSchemeRule,
-} from "../auth-schemes.js";
+} from "../../agent-plugins/auth-schemes.js";
 import { EXAMPLE_HOST_PLUGIN_ROOT, loadFixtureAuthSchemes } from "./fixture-auth-schemes.fixture.js";
 
 /**

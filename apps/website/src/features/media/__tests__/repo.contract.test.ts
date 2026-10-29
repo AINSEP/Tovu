@@ -476,6 +476,7 @@ for (const each of eachDialect({ tables: ["media", "media_slug_history", "asset_
     const record = makeMedia();
     await repo.insertIfAbsent(record);
     assert.deepEqual(await repo.replaceFileIfVersion({ workspaceId: WORKSPACE_ID, id: record.id, ifVersion: 1, sha256: "b".repeat(64),
+      contentType: "image/jpeg", provenance: { kind: "upload", path: "replacement.jpg" },
       storageKey: "blobs/missing", originalRenditionId: "rendition-1", updatedAt: "2026-07-18T00:00:00.000Z" }), { applied: false });
     assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE_ID, id: record.id }), record);
   });

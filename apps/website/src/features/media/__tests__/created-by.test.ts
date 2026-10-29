@@ -130,7 +130,7 @@ for (const adapter of eachDialect({ tables: ["media", "media_slug_history", "ass
         sha256: "b".repeat(64), storageKey: "replacement-key", status: "active",
         createdAt: "2026-10-04T01:00:00Z", createdByPrincipal: "replacing-user" });
       assert.deepEqual(await repo.replaceFileIfVersion({ workspaceId: "creator-ws", id: "imported",
-        ifVersion: 2, sha256: "b".repeat(64), storageKey: "replacement-key",
+        ifVersion: 2, sha256: "b".repeat(64), contentType: "image/jpeg", provenance: { kind: "upload", path: "replacement.jpg" }, storageKey: "replacement-key",
         originalRenditionId: "replacement-rendition", updatedAt: "2026-10-04T01:00:00Z" }), { applied: true });
       assert.equal((await repo.findById({ workspaceId: "creator-ws", id: "imported" }))?.createdBy, "publishing-agent");
       assert.equal(await repo.findById({ workspaceId: "another-ws", id: "imported" }), null);

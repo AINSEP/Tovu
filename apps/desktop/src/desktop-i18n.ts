@@ -100,8 +100,11 @@ export function runtimeLocale(
 
 export function desktopCopy({ locale }: { locale: string }, _optionalArgs = {}): DesktopCopy {
   const normalized = locale.replace(/_/g, '-');
-  const key = Object.keys(COPY).find(key => key.toLowerCase() === normalized.toLowerCase())
-    ?? (normalized.toLowerCase().startsWith('zh') ? (/tw|hk|hant/i.test(normalized) ? 'zh-TW' : 'zh-CN') : normalized.split('-')[0] ?? 'en');
+  let key = Object.keys(COPY).find(key => key.toLowerCase() === normalized.toLowerCase());
+  if (key === undefined) {
+    key = normalized.split('-')[0] ?? 'en';
+    if (normalized.toLowerCase().startsWith('zh')) key = /tw|hk|hant/i.test(normalized) ? 'zh-TW' : 'zh-CN';
+  }
   const row = COPY[key] ?? COPY.en!;
   const [settings, automaticUpdates, saveUpdateError, restart, restarting] = row;
   const [invalid, empty, incomplete, unreadable, add, start] = SITE_ERROR_COPY[key] ?? SITE_ERROR_COPY.en!;

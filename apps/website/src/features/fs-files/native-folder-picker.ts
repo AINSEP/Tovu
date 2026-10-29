@@ -98,7 +98,9 @@ export function folderChooserCommand(
  * @complexity O(n) in the output length.
  */
 export function chosenFolderPath({ stdout }: { stdout: string }): string | null {
-  const printed = stdout.replace(/[\r\n]+$/, "");
+  let end = stdout.length;
+  while (end > 0 && (stdout[end - 1] === "\r" || stdout[end - 1] === "\n")) end -= 1;
+  const printed = stdout.slice(0, end);
   if (printed === "") return null;
   return printed.length > 1 && printed.endsWith("/") ? printed.slice(0, -1) : printed;
 }

@@ -15,6 +15,7 @@ export function buildServer({ repoRoot }, { npmCli = process.env.npm_execpath,
 } = {}) {
   if (!npmCli) throw new Error('Run this script through npm run build:server so npm_execpath is available.');
   // Invoke npm's JavaScript entrypoint with node, avoiding Windows npm.cmd shell quoting entirely.
+  runNode({ args: [npmCli, 'run', 'build', '--workspace=@tovu/contracts'] });
   runNode({ args: [npmCli, 'run', 'build', '--workspace=@tovu/sdk'] });
   // Deleted source files must not survive into the next runtime as stale compiled modules.
   rmSync(path.join(repoRoot, 'dist/src'), { recursive: true, force: true });

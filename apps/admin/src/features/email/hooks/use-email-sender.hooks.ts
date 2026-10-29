@@ -30,12 +30,25 @@ export interface EmailSenderController {
   checkAgain: () => Promise<void>;
 }
 
-const ADDRESS = /^[^\s@<>()[\]",;:\\]+@[^\s@<>()[\]",;:\\]+\.[^\s@<>()[\]",;:\\]+$/;
+/** One run of address characters: no whitespace, `@`, brackets, quotes or list separators. */
+const ADDRESS_CHARS = /^[^\s@<>()[\]",;:\\]+$/;
+
+/** `local@domain` where the domain has a dot with something on both sides. Same acceptance as
+ *  `/^[^…]+@[^…]+\.[^…]+$/` over that character class, without its backtracking. */
+function isAddress(value: string): boolean {
+  const at = value.indexOf("@");
+  if (at === -1) return false;
+  const local = value.slice(0, at);
+  const domain = value.slice(at + 1);
+  if (!ADDRESS_CHARS.test(local) || !ADDRESS_CHARS.test(domain)) return false;
+  const dot = domain.indexOf(".", 1);
+  return dot !== -1 && dot < domain.length - 1;
+}
 
 /** A plain address or blank (blank = not configured). Pure. */
 export function isValidSenderEmail(value: string): boolean {
   const trimmed = value.trim();
-  return trimmed === "" || ADDRESS.test(trimmed);
+  return trimmed === "" || isAddress(trimmed);
 }
 
 /** The sender from the effective-settings rows; anything non-string reads as blank. Pure. */

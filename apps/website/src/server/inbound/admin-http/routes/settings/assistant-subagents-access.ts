@@ -1,6 +1,6 @@
 import { resolveDefinitionRaw, type SettingsRepoPort } from "@jini-ai/core/settings";
-import { ASSISTANT_PERMANENT_DELETES_NAMESPACE } from "#src/contracts/headless/assistant-permanent-deletes-policy";
-import { ASSISTANT_SUBAGENTS_NAMESPACE } from "#src/contracts/headless/assistant-subagents-policy";
+import { ASSISTANT_PERMANENT_DELETES_NAMESPACE } from "#src/contracts/headless/index";
+import { ASSISTANT_SUBAGENTS_NAMESPACE } from "#src/contracts/headless/index";
 
 type BodyItem = Record<string, unknown>;
 

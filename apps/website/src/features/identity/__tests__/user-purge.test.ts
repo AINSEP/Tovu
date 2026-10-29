@@ -1,3 +1,4 @@
+import { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -149,7 +150,7 @@ for (const each of eachDialect({ tables: TABLES.filter(table => table !== "secre
     const neighborBefore = await snapshotTables(kernel, "neighbor");
     const otherBefore = await snapshotTables(kernel, "other-workspace-user");
 
-    const purge = new SqlUserPurge(kernel);
+    const purge = new SqlUserPurge({ kernel: kernel, eventValues: outboxEventValues });
     const counts = await purge.purgeUser({ workspaceId: WS, principalId, buildEvent: makeBuildEvent(principalId) });
 
     assert.deepEqual(counts, { roles: 1, policies: 1, sessions: 2, apiKeys: 1, userSettings: 1 });
@@ -195,7 +196,7 @@ for (const each of eachDialect({ tables: TABLES.filter(table => table !== "secre
     );
 
     const before = await snapshotTables(kernel);
-    const purge = new SqlUserPurge(kernel);
+    const purge = new SqlUserPurge({ kernel: kernel, eventValues: outboxEventValues });
     await assert.rejects(
       purge.purgeUser({ workspaceId: WS, principalId, buildEvent: makeBuildEvent(principalId, "dup-event") })
     );

@@ -45,10 +45,10 @@ function OtherIcon({ size = 16 }: { size?: number }) {
  */
 export function resolveImportExportTabs(
   { t }: { t: Translate },
-  { transferTabsSoon = SITE_TRANSFER_TABS_SOON }: { transferTabsSoon?: boolean } = {},
+  _options: Record<string, never> = {},
 ): TabBarTab[] {
-  const soonTag = transferTabsSoon ? t("Soon") : undefined;
-  const soonSuffix = transferTabsSoon ? " (coming soon)" : "";
+  const soonTag = SITE_TRANSFER_TABS_SOON ? t("Soon") : undefined;
+  const soonSuffix = SITE_TRANSFER_TABS_SOON ? " (coming soon)" : "";
   return [
     {
       id: "export",

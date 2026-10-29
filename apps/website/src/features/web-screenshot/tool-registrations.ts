@@ -2,7 +2,7 @@ import { toolMetadata } from "../../contracts/core/tool-metadata/web-screenshot.
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import { WEB_SCREENSHOT_PERMISSION, webScreenshotAgentToolCatalog } from "./agent-tools.js";
 import { createWebScreenshotService, readWebScreenshotInput, WEB_SCREENSHOT_TOOL_ID, type OpenOwnSite, type SaveCaptureFiles, type WebScreenshotPorts, type WebScreenshotService } from "./web-screenshot.js";
@@ -50,13 +50,13 @@ export function buildWebScreenshotRegistrations(
  * @param optional.openOwnSiteFor - Builds the own-site opener from the booted site's deps; omitted, `sitePath` is refused.
  * @param optional.saveCaptureFilesFor - Builds the capture writer for the booted site's folder; omitted, captures are not saved.
  */
-export function contributeWebScreenshotTools(
+export function contributeWebScreenshotTools<TDeps extends WebScreenshotToolDeps = WebScreenshotToolDeps>(
   { ports }: { ports: WebScreenshotPorts },
   { openOwnSiteFor, saveCaptureFilesFor }: {
-    openOwnSiteFor?: (routeDeps: Parameters<ToolContributor["build"]>[0]) => OpenOwnSite;
-    saveCaptureFilesFor?: (routeDeps: Parameters<ToolContributor["build"]>[0]) => SaveCaptureFiles;
+    openOwnSiteFor?: (routeDeps: TDeps) => OpenOwnSite;
+    saveCaptureFilesFor?: (routeDeps: TDeps) => SaveCaptureFiles;
   } = {},
-): ToolContributor {
+): ToolContributor<TDeps, unknown> {
   const service = createWebScreenshotService({ ports });
   return {
     domain: DOMAIN,

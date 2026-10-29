@@ -69,7 +69,9 @@ test('D-24: Add feedback stays on the websites view when switching to a site tab
   const message = 'Could not add this website. Check the folder and try again.';
   let activeTab: string | null = null;
   let areaProps: any;
-  const renderApp = sourceFunction(readFileSync(new URL('./App.tsx', import.meta.url), 'utf8'), 'App', {
+  const source = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
+  const renderApp = sourceFunction(source, 'App', {
+    appScreen: sourceFunction(source, 'appScreen'),
     useTheme: () => ['light', noop], useSiteRescan: () => ({}), useApplySiteRecord: () => noop,
     useAddSite: () => ({ adding: false, addError: message, addSite: noop }),
     appPresentation, deriveSitesHomeView, chromeVisibility, countRunningSites, findSection: () => ({}),

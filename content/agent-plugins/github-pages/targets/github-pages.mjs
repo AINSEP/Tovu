@@ -380,6 +380,10 @@ export function bindGitHubPages(kit) {
       const errorMessage = typeof errorObj?.message === 'string' ? errorObj.message : undefined;
       return { status, ...(errorMessage ? { errorMessage } : {}), raw: json };
   }
+  function isPagesBuildForCommit({ json, commitSha }, _options = {}) {
+      const commit = typeof json.commit === 'string' ? json.commit : '';
+      return commit === commitSha;
+  }
   /**
    * Polls `GET /repos/{owner}/{repo}/pages/builds/latest` — deliberately not
    * the Pages site resource's own `status` field (`GET
@@ -412,10 +416,8 @@ export function bindGitHubPages(kit) {
           const resp = await fetchWithTimeout(`${GITHUB_API}/repos/${enc(owner)}/${enc(repo)}/pages/builds/latest`, redirectGuardInit({ headers: githubHeaders(config.token) }), { timeoutMs: FETCH_TIMEOUT_MS.DEPLOY });
           assertNotRedirected(resp, 'GitHub Pages build status check');
           const read = await readPagesBuildResponse({ resp });
-          if (read === undefined) continue;
-          const { json } = read;
-          const commit = typeof json.commit === 'string' ? json.commit : '';
-          if (commit !== commitSha)
+          const json = read?.json;
+          if (read === undefined || !isPagesBuildForCommit({ json, commitSha }))
               continue;
           last = pagesBuildState({ json });
           const { status } = last;

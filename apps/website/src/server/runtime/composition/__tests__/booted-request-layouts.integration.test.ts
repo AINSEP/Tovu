@@ -1,3 +1,4 @@
+import { containAgentPluginStatePath } from "#src/features/agent-plugins/lifecycle";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdtemp, mkdir, readFile, realpath } from "node:fs/promises";
@@ -73,7 +74,7 @@ test("plugin discovery, MCP, activation and memory stay on A after env selects B
   assert.ok((await resolveAgentPluginMcpServers(input)).bound);
   const gate = createAgentPluginToolGate(input);
   assert.equal(await gate.isCallable({ pluginId: "bound-plugin", archiveDigest: plugin.archiveDigest }), true);
-  const memory = pluginMemory(input, { layout: binding.agentPluginLayout });
+  const memory = pluginMemory({ ...input, contain: containAgentPluginStatePath }, { layout: binding.agentPluginLayout });
   await memory.writeNote({ entryPath: "project.txt", text: "Site A only" });
   assert.equal((await memory.list({ kind: "notes" }))[0]?.text, "Site A only");
   await setAgentPluginEnabled({ ...input, enabled: false, actor: "owner" });
@@ -112,7 +113,7 @@ test("filesystem custom root stays scoped to A and reflects live folder changes"
 test("admin memory and file handlers consume A's binding when env points at B", () => withSites(async binding => {
   await seedPlugin(binding.agentPluginLayout);
   const input = { ...binding, workspaceId };
-  await pluginMemory({ ...input, pluginId: "bound-plugin" }, { layout: binding.agentPluginLayout }).writeNote({ entryPath: "project.txt", text: "HTTP site A" });
+  await pluginMemory({ contain: containAgentPluginStatePath, ...input, pluginId: "bound-plugin" }, { layout: binding.agentPluginLayout }).writeNote({ entryPath: "project.txt", text: "HTTP site A" });
   await installSkill({ ...input, files: [{ path: "SKILL.md", contentBase64: Buffer.from(markdown).toString("base64") }] });
   const handlers = new Map<string, Function>();
   const app = express();

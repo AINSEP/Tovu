@@ -8,7 +8,7 @@
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { toolMetadata } from "../../contracts/core/tool-metadata/domain-dns.js";
-import type { DnsChangeToolDeps } from "./dns-tools.js";
+import type { DnsChangeToolDeps } from "./tool-deps.js";
 import { readMailDnsStatus, verifyMailDnsStatus, type MailDnsStatusPorts } from "./mail-dns-status.js";
 
 const emptyInput = { type: "object", additionalProperties: false, properties: {} } as const;

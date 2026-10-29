@@ -8,8 +8,8 @@ import { after, before, test } from "node:test";
 import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 
 import { freshPostgresDatabase, psql } from "#src/platform/db/__tests__/postgres-database";
-import { bootSiteDir, closeSiteDirBoot } from "../../boot-site-dir.js";
-import { initSite } from "../../init-site.js";
+import { closeSiteDirBoot } from "../../boot-site-dir.js";
+import { bootSiteDir, initSite } from "#src/server/runtime/composition/site-dir";
 import { SITE_META_FILENAME } from "../../site-storage.js";
 import { CHAT_EXPIRY_SWEEP_INTERVAL_MS } from "#src/assistant/persistence/chat-expiry-sweep";
 import { CONTENT_MIGRATIONS } from "#src/platform/db/migrations/index";

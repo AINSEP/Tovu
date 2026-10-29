@@ -1,20 +1,20 @@
-export type {
-  AdminPost,
-  AdminPostEnvelope,
-  AdminPresentation,
-  ContentPost,
-  ContentPostPayload,
-  HeadlessEntryKind,
-  HeadlessThemeId,
-  HeadlessThemeSummary,
-  HeadlessThemeTier,
-} from "./contracts.js";
-
-export { deriveContentConversationTitle } from "./content-chat-title.js";
-export type { AdminChartProviderSnapshot } from "./chart-providers.js";
-
-export { directPageAction, TOOL_APPROVAL_POLICY } from "./assistant-tool-approval-policy.js";
-export * from "./assistant-permanent-deletes-policy.js";
-export { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_KEY } from "./assistant-subagents-policy.js";
-export { ASSISTANT_CLI_CAPABILITIES, assistantCliPermissions } from "./assistant-subagents-policy.js";
-export type { AssistantCliCapability, AssistantCliPermissions } from "./assistant-subagents-policy.js";
+/** Browser-safe contracts and metadata only; behavior lives with its feature owner. */
+export type { HeadlessThemeId, HeadlessEntryKind, HeadlessBodyFormat, AdminPost, AdminPostEnvelope, ContentPost, HeadlessThemeTier, HeadlessThemeSummary, AdminPresentation, ContentPostPayload } from './contracts.js';
+export type { AdminChartProviderSnapshot } from './chart-providers.js';
+export type { ChatAttachmentRefusal, ChatAttachmentReadResult } from './chat-attachment.js';
+export { CHAT_ATTACHMENT_REF_PATTERN } from './chat-attachment.js';
+export type { FormDeliveryStatusRow, FormDeliveryStatusPort } from './form-delivery-status.js';
+export { DELIVERY_STATUS_MAX_LIMIT } from './form-delivery-status.js';
+export type { PluginLookupPort, PluginProvider, AgentPluginWorkspaceLayout, AgentPluginLayout, OperatorLocaleDeps, AgentPluginUninstallToolDeps, SetAgentPluginEnabledInput, AgentPluginHostCapability, PluginHostPort } from './plugin-host.js';
+export type { SiteCookieConsentDeps, ConsentPluginHttp, ConsentPluginContribution } from './site-cookie-consent.js';
+export { CREDENTIAL_SAVE_TOOL_ID, SECRET_FORM_CARD_DEFINITIONS, SECRET_FORM_TOOL_IDS } from './secret-form-cards.js';
+export { MEMBER_OIDC_PATH } from './member-login.js';
+export type { AssistantCliCapability, AssistantCliPermissions } from './assistant-subagents-policy.js';
+export { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_KEY, ASSISTANT_CLI_PERMISSIONS_KEY, ASSISTANT_CLI_CAPABILITIES, ASSISTANT_SUBAGENTS_WRITE_REASON } from './assistant-subagents-policy.js';
+export type { ChatPermanentDeleteToolId, AssistantPermanentDeletesPolicy } from './assistant-permanent-deletes-policy.js';
+export { PERMANENT_DELETE_TOOLS, ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_KEY, ASSISTANT_PERMANENT_DELETES_WRITE_REASON, PERMANENT_DELETE_DANGERS, DEFAULT_PERMANENT_DELETES_POLICY, PERMANENT_DELETE_GUIDANCE } from './assistant-permanent-deletes-policy.js';
+export type { ToolApprovalClass, ToolApprovalPolicy } from './assistant-tool-approval-policy.js';
+export { ASSISTANT_EXECUTION_APPROVAL_SETTINGS, TOOL_APPROVAL_POLICY, POLICY_CONFIRMATION_TOOL_IDS, EXTENSION_TOOL_APPROVAL_POLICY } from './assistant-tool-approval-policy.js';
+export type { InstallAttachmentReader, PluginInstallRequest, InstallArchiveFiles } from './plugin-install-source.js';
+export { PLUGIN_INSTALL_SOURCE_SCHEMA } from './plugin-install-source.js';
+export type { GetEffectiveSetting } from './operator-locale.js';

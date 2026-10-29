@@ -186,11 +186,12 @@ export async function listMailActivity(required: { principalId: string; query: M
   const rows = await repo(deps).list({ workspaceId: deps.workspaceId, limit: query.limit + 1 }, { ...query.filter, ...(query.before ? { before: query.before } : {}) });
   const page = rows.slice(0, query.limit);
   const filtered = Object.keys(query.filter).length > 0;
+  const emptyReason = filtered ? "no_matches" : "none_recorded";
   return {
     access,
     items: page.map((row) => toItem({ record: row, access })),
     nextCursor: rows.length > query.limit ? nextMailCursor({ page }) : null,
-    empty: page.length > 0 || query.before ? null : filtered ? "no_matches" : "none_recorded",
+    empty: page.length > 0 || query.before ? null : emptyReason,
   };
 }
 

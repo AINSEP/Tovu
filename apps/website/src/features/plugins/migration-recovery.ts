@@ -12,7 +12,7 @@
  *   be an attempt whose transaction rolled back. Nothing to restore; the entry is marked
  *   `ROLLED_BACK`.
  */
-import { tableExists } from "../../platform/db/kernel/dialect.js";
+import { tableExists } from "@jini-ai/db/kernel";
 import { advanceJournalPhase, findIncompleteJournalEntries, type JournalEntry } from "./migration-journal.js";
 import { type PluginStore, pluginKernel } from "./plugin-store.js";
 import { restoreFromSnapshot } from "./restore.js";

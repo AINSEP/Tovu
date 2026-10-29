@@ -2,7 +2,8 @@
 import path from 'node:path';
 import { createNoopTracker, type Tracker } from '@jini-ai/diagnostics/observability';
 import { createTracker } from '@jini-ai/diagnostics/observability/node';
-import { bootProductTelemetry, type ProductTelemetry, type ProductConsent } from '../../website/src/server/runtime/composition/product-telemetry.ts';
+import { bootProductTelemetry } from '../../website/src/server/runtime/composition/product-telemetry.ts';
+import type { ProductTelemetry, ProductConsent } from '@tovu/contracts/product-telemetry';
 export interface DesktopProductLaunch { configPath: string; preferencePath: string; release: string }
 export interface DesktopProductTelemetry {
   tracker: Tracker; launch: DesktopProductLaunch | undefined;

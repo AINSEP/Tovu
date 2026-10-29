@@ -3,8 +3,9 @@ import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { installSitePlugin, previewSitePluginInstall, PluginInstallError, type PluginInstallDeps } from "@jini-ai/plugins/host/node";
 import { pluginInstallConsent } from "#src/features/plugin-runtime/install-consent";
-import { bootSiteDir, closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
-import { resolveSiteRoot } from "#src/platform/site-dir/site-root";
+import { closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
+import { bootSiteDir } from "#src/server/runtime/composition/site-dir";
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { SqlPluginActivationRepo } from "@jini-ai/plugins/host/sql";
 

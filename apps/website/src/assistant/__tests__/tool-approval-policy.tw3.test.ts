@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { approvalClassFor, federatedApprovalClassFor } from '../tool-approval-policy.js';
-import { ASSISTANT_EXECUTION_APPROVAL_SETTINGS, type ToolApprovalPolicy } from '../../contracts/headless/assistant-tool-approval-policy.js';
+import { ASSISTANT_EXECUTION_APPROVAL_SETTINGS, type ToolApprovalPolicy } from '../../contracts/headless/index.js';
 
 test('TW3 local classification preserves each dynamic rule and rejects inherited ids', () => {
   const cases: [ToolApprovalPolicy['rule'], unknown, string][] = [

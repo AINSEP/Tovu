@@ -26,7 +26,7 @@ function makeDeps() {
   const listedNames: string[] = [];
   const transformDefinitionRepo = {
     marker: "transform-repo",
-    async listByName(this: { marker: string }, name: string) { listedNames.push(`${this.marker}:${name}`); return []; },
+    async listByName(this: { marker: string }, { workspaceId, name }: { workspaceId: string; name: string }) { listedNames.push(`${this.marker}:${workspaceId}:${name}`); return []; },
   };
   const deps = {
     mediaRepo: new InMemoryMediaRepo({}, { initialRows: [] }),
@@ -63,8 +63,8 @@ test("createSeoDeps: static bindings, clock/transform receivers and public-acces
   assert.equal(seo.originRegistry, deps.originRegistry);
   assert.equal(typeof seo.rootSlug, "string");
   assert.equal(seo.clock.nowIso(), "bound:2026-09-12T00:00:00.000Z", "nowIso keeps its receiver");
-  await seo.media.transformDefinitionRepo.listByName("og");
-  assert.deepEqual(listedNames, ["transform-repo:og"], "listByName keeps its receiver");
+  await seo.media.transformDefinitionRepo.listByName({ workspaceId: "ws", name: "og" });
+  assert.deepEqual(listedNames, ["transform-repo:ws:og"], "listByName keeps its receiver and workspace-scoped input");
 
   assert.equal(seo.isPubliclyAccessible({ post: { memberAccessJson: null } } as never), true);
   assert.equal(seo.isPubliclyAccessible({ post: { memberAccessJson: JSON.stringify({ visibility: "members" }) } } as never), false);

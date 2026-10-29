@@ -30,7 +30,10 @@ export function legacyBaselineChecksum(): string {
 }
 
 async function up(kernel: StorageKernel<unknown>, context: MigrationContext): Promise<void> {
-  if (kernel.dialect === "sqlite") return adoptLegacySqlite(kernel, context.note);
+  if (kernel.dialect === "sqlite") {
+    await adoptLegacySqlite(kernel, context.note);
+    return;
+  }
   const existing = (await listTables(kernel)).filter((name) => name !== LEDGER_TABLE);
   if (existing.length > 0) {
     throw new LegacyHistoryError(

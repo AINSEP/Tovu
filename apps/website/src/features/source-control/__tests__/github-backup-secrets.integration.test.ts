@@ -8,6 +8,7 @@ import Database from "better-sqlite3";
 
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { sanitizeShareDatabase } from "#src/server/runtime/composition/site-portability";
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 import { InMemoryCustomCredentialSetRepo } from "../../custom-credentials/repo.memory.js";
 import { createCustomCredential } from "../../custom-credentials/store.js";
@@ -91,6 +92,7 @@ test("SEC-1: GitHub backup excludes password hashes, sessions, magic-link tokens
     siteBackupPlanStore: new SiteBackupPlanStore(),
     siteBackupPushJobs: new SiteBackupPushJobs<PushResult>(),
     siteBackupSiteKeyStatus: () => ({ active: true }),
+    siteBackupSanitize: sanitizeShareDatabase,
     siteBackupNow: () => new Date(stamp),
   };
   const caller = { principal: { id: "owner" }, signal: new AbortController().signal };

@@ -3,8 +3,8 @@ import type { Insertable, Selectable } from "kysely";
 import type { ContentKernel } from "../content-kernel.js";
 import type { WebhookDeliveriesTable, WebhookSubscriptionsTable } from "../content-database.generated.js";
 
-import type { DeliveryEnvelopeStore } from "#src/features/webhooks/repo.memory";
-import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "#src/features/webhooks/ports";
+import type { DeliveryEnvelopeStore } from "#src/features/webhooks/index";
+import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "#src/features/webhooks/index";
 import type {
   IntegrationId,
   WebhookDeliveryRecord,
@@ -13,7 +13,7 @@ import type {
   WebhookSubscriptionRecord,
   WebhookSubscriptionStatus,
   WebhookTopic,
-} from "#src/features/webhooks/types";
+} from "#src/features/webhooks/index";
 
 /**
  * @file THE adapters for the `integrations` webhook repo ports (ADR-036 §2, ADR-PIPE-015 Phase 2,
@@ -377,14 +377,4 @@ export class SqlWebhookDeliveryRepo implements WebhookDeliveryRepoPort, Delivery
     if (!row || !row.payload_json) return null;
     return JSON.parse(row.payload_json) as WebhookEventEnvelope;
   }
-}
-
-/** The webhook subscription repo on `kernel`'s database, whichever dialect. */
-export function webhookSubscriptionRepoFor(kernel: ContentKernel): WebhookSubscriptionRepoPort {
-  return new SqlWebhookSubscriptionRepo(kernel);
-}
-
-/** The webhook delivery repo (and envelope store) on `kernel`'s database, whichever dialect. */
-export function webhookDeliveryRepoFor(kernel: ContentKernel): SqlWebhookDeliveryRepo {
-  return new SqlWebhookDeliveryRepo(kernel);
 }

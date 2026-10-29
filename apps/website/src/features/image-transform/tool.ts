@@ -1,15 +1,15 @@
 import { toolMetadata } from "../../contracts/core/tool-metadata/image-transform.js";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, withSchemaOnRejection, type AgentToolDefinition, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { approvalToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
 import { FS_FILES_READ_PERMISSION } from "../fs-files/agent-tools.js";
 import { FsFilePathError } from "../fs-files/fs-files.js";
 import { FsWriteInputError } from "../fs-files/write-files.js";
 import { describeWriteBatch } from "../fs-files/tool-registrations.js";
-import { ASSET_SOURCE_SCHEMA, readAssetSource } from "../fs-files/asset-sources.js";
-import { requireAssetDestination, prepareAssetWrites, writeAssetFiles, type AssetToolDeps, type PreparedAssets } from "../fs-files/asset-destinations.js";
-import { isShapeRejection as isThemeShapeRejection } from "../theme/tool-registrations.js";
+import { ASSET_SOURCE_SCHEMA, readAssetSource } from "../asset-transfer/asset-sources.js";
+import { requireAssetDestination, prepareAssetWrites, writeAssetFiles, type AssetToolDeps, type PreparedAssets } from "../asset-transfer/asset-destinations.js";
+import { isShapeRejection as isThemeShapeRejection } from "../theme/asset-operations.js";
 import { isImportShapeRejection } from "../media-import/tool-registrations.js";
 import { ImageTransformError, OUTPUT_SCHEMA, IMAGE_LIMITS, inspectImage, normalizeOutputs, renderOutputs, type RenderedImage } from "./image-ops.js";
 
@@ -27,7 +27,7 @@ import { ImageTransformError, OUTPUT_SCHEMA, IMAGE_LIMITS, inspectImage, normali
  */
 
 export const IMAGE_TRANSFORM_TOOL_ID = "image_transform";
-export type ImageTransformToolDeps = AssetToolDeps;
+export type ImageTransformToolDeps = AssetToolDeps & { imageCodec: import("@jini-ai/cms/media").ImageCodecPort };
 
 const CATALOG: AgentToolDefinition = {
   name: IMAGE_TRANSFORM_TOOL_ID,
@@ -52,7 +52,10 @@ const CATALOG_BY_ID = indexCatalogById({ catalog: imageTransformAgentToolCatalog
 export const imageTransformDerivedRisk: DerivedRiskByToolId = new Map([[IMAGE_TRANSFORM_TOOL_ID, "mutates-durable-state"]]);
 
 interface Prepared { source: Awaited<ReturnType<typeof inspectImage>>; rendered: RenderedImage[]; assets?: PreparedAssets }
-const isCallerError = (error: unknown) => error instanceof ImageTransformError || error instanceof FsFilePathError || error instanceof FsWriteInputError || isThemeShapeRejection(error) || isImportShapeRejection({ error });
+const isCallerError = (error: unknown) => {
+  if (error instanceof ImageTransformError || error instanceof FsFilePathError || error instanceof FsWriteInputError) return true;
+  return isThemeShapeRejection(error) || isImportShapeRejection({ error });
+};
 const view = (rendered: readonly RenderedImage[]) => rendered.map(({ path, format, width, height, bytes }) => ({ path, format, width, height, bytes: bytes.length }));
 
 /** Validate and authorize before I/O; all outputs render before any approval or destination write.
@@ -64,7 +67,7 @@ async function prepare({ routeDeps, ctx }: { routeDeps: ImageTransformToolDeps; 
   // An inspect needs no destination; it cannot reach a writer.
   const destination = outputs ? await requireAssetDestination({ deps: routeDeps, ctx, input: input.destination }) : undefined;
   const { bytes } = await readAssetSource({ deps: routeDeps, ctx, input: input.source, maxBytes: IMAGE_LIMITS.maxSourceBytes });
-  const prepared: Prepared = { source: await inspectImage({ source: bytes }), rendered: outputs ? await renderOutputs({ source: bytes, outputs }) : [] };
+  const prepared: Prepared = { source: await inspectImage({ source: bytes, imageCodec: routeDeps.imageCodec }), rendered: outputs ? await renderOutputs({ source: bytes, outputs, imageCodec: routeDeps.imageCodec }) : [] };
   if (destination) prepared.assets = prepareAssetWrites({ deps: routeDeps, destination, files: prepared.rendered });
   return prepared;
 }
@@ -85,6 +88,6 @@ export function buildImageTransformRegistrations(routeDeps: ImageTransformToolDe
 }
 
 /** Contributes `image_transform` — registered once by `tool-catalog-manifest.ts`. */
-export function contributeImageTransformTools(): ToolContributor {
+export function contributeImageTransformTools(): ToolContributor<ImageTransformToolDeps, AssistantSurfaceDeps> {
   return { domain: "image-transform", build: buildImageTransformRegistrations, risk: imageTransformDerivedRisk };
 }

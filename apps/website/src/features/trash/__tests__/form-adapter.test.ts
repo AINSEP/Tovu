@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import test from "node:test";
 import type Database from "better-sqlite3";
@@ -6,7 +7,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import * as schema from "#src/platform/db/schema.sqlite";
 
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
-import { createSqliteTrashDb } from "../db-port.sqlite.js";
+
 import { buildTrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "../table-adapter.js";
 import { createTrashService } from "@jini-ai/cms/trash";
@@ -51,7 +52,7 @@ function harness(): Harness {
   // `form`'s purgeFirst declares `entityType: "form_submission"` (T1 item 5's phantom-row cleanup) —
   // needed even though this file never independently trashes a submission first, since `runCascade`
   // requires the ref whenever the cascade declares `entityType` at all.
-  const adapter = createTableTrashAdapter({ entry: registry.get("form")!, db: createSqliteTrashDb({ db }) });
+  const adapter = createTableTrashAdapter({ entry: registry.get("form")!, db: contentKernel(db) });
   return { client, adapter };
 }
 

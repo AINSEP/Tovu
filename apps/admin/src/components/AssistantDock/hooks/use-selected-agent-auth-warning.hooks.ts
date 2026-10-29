@@ -42,7 +42,8 @@ export function useSelectedAgentAuthWarning(
   }, []);
 
   const scanRef = useRef((request: () => Promise<readonly DetectedAgent[]>) => {
-    const scan = ++generation.current;
+    generation.current += 1;
+    const scan = generation.current;
     // Through a promise so a port that throws synchronously still lands in the no-warning branch.
     Promise.resolve().then(request).then(
       // A slow first detection must not overwrite a newer rescan's result.

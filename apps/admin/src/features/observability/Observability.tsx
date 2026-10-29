@@ -51,6 +51,41 @@ function ObservabilityStatusCard({
   );
 }
 
+type AcceptedProvider = NonNullable<ObservabilityStatusController["testResult"]>["providers"][number];
+type ProviderExport = NonNullable<NonNullable<NonNullable<ObservabilityStatusController["status"]>["providers"]>[number]["lastExport"]>;
+
+/** `providerId (signal, signal)` for one provider that accepted the diagnostic locally. */
+function acceptedProviderText(provider: AcceptedProvider, t: Translate): string {
+  return `${provider.providerId} (${provider.signals.map(signal => t(signal)).join(", ")})`;
+}
+
+/** ` (ErrorClass, HTTP 503)` after a failed export; empty when there is no error class. */
+function exportFailureSuffix(lastExport: ProviderExport): string {
+  if (!lastExport.errorClass) return "";
+  const status = lastExport.statusCode ? ", HTTP " + lastExport.statusCode : "";
+  return ` (${lastExport.errorClass}${status})`;
+}
+
+function ObservabilityDiagnostics({ controller }: { controller: ObservabilityStatusController }) {
+  const { status, t } = controller;
+  return <>
+    {status?.canSendTestError && controller.sendTestError ? (
+      <button type="button" className="jini-button" disabled={controller.sendingTestError}
+        onClick={() => { void controller.sendTestError?.(); }}
+        {...agentHandle({ handle: "observability-send-test-error" }, { role: "button", label: "Send test error" })}>
+        {t(controller.sendingTestError ? "Sending test error…" : "Send test error")}
+      </button>
+    ) : null}
+    {controller.testError ? <p role="alert">{controller.testError}</p> : null}
+    {controller.testResult ? <p role="status">
+      {controller.testResult.providers.length
+        ? `${t("Accepted locally by")}: ${controller.testResult.providers.map(provider => acceptedProviderText(provider, t)).join("; ")}.`
+        : t("No provider accepted the diagnostic yet.")}
+      {" "}{t("Remote delivery is confirmed by export status and your provider. Analytics requires telemetry consent.")}
+    </p> : null}
+  </>;
+}
+
 /**
  * Overview tab: explains OpenTelemetry in plain language for an operator who does not already
  * know what it is, then reports this install's REAL current state — read from
@@ -86,25 +121,12 @@ function OverviewPanel({ controller }: { controller: ObservabilityStatusControll
         <p className="jini-field-hint" key={provider.providerId}>
           {provider.providerId}: {provider.lastExport
             ? <><span>{t(provider.lastExport.outcome === "ok" ? "Last export succeeded" : "Last export failed")}</span> — <time dateTime={provider.lastExport.at}>{new Date(provider.lastExport.at).toLocaleString()}</time>
-              {provider.lastExport.errorClass ? ` (${provider.lastExport.errorClass}${provider.lastExport.statusCode ? `, HTTP ${provider.lastExport.statusCode}` : ""})` : ""}</>
+              {exportFailureSuffix(provider.lastExport)}</>
             : t("No export result yet")}
         </p>
       ))}
       {controller.refresh ? <button type="button" className="jini-button" onClick={controller.refresh}>{t("Refresh")}</button> : null}
-      {status?.canSendTestError && controller.sendTestError ? (
-        <button type="button" className="jini-button" disabled={controller.sendingTestError}
-          onClick={() => { void controller.sendTestError?.(); }}
-          {...agentHandle({ handle: "observability-send-test-error" }, { role: "button", label: "Send test error" })}>
-          {t(controller.sendingTestError ? "Sending test error…" : "Send test error")}
-        </button>
-      ) : null}
-      {controller.testError ? <p role="alert">{controller.testError}</p> : null}
-      {controller.testResult ? <p role="status">
-        {controller.testResult.providers.length
-          ? `${t("Accepted locally by")}: ${controller.testResult.providers.map(provider => `${provider.providerId} (${provider.signals.map(signal => t(signal)).join(", ")})`).join("; ")}.`
-          : t("No provider accepted the diagnostic yet.")}
-        {" "}{t("Remote delivery is confirmed by export status and your provider. Analytics requires telemetry consent.")}
-      </p> : null}
+      <ObservabilityDiagnostics controller={controller} />
 
       <p className="jini-field-hint">
         <a
@@ -146,7 +168,7 @@ function ProvidersPanel({ t }: { t: Translate }) {
 }
 
 export interface ObservabilityProps {
-  tabId?: string | null | undefined;
+  tabId?: string | null;
   /** Dependency injection seam for tests — the same convention `AgentPluginsProps.useAgentPluginsHook`
    *  uses. Defaulted to the real hook, so production callers pass nothing and behave exactly as
    *  before. */

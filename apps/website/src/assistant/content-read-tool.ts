@@ -186,7 +186,7 @@ export function currentToolIdFor(toolId: string): string {
 
 /** One card id repeated in a list ("X, X, or Y", "X or X", "X/X") once two retired members of the
  *  same card both resolve to it. */
-const REPEATED_CARD_ID_PATTERN = /(content_read\.[a-z_]+)(?:(?:\s*,\s*|\s+or\s+|\s+and\s+|\s*\/\s*)\1\b)+/g;
+const REPEATED_CARD_ID_PATTERN = /(content_read\.[a-z_]+)(?:\s*(?:[,/]|\s(?:or|and)\s)\s*\1\b)+/g;
 
 /** Applies `rewriteText` to every string `description` in a JSON schema.
  *  @complexity O(n) in the schema size. */

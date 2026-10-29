@@ -1,3 +1,5 @@
+import { sqliteTableInfo } from "#src/platform/db/kernel/sqlite-only";
+import { sqliteForeignKeyCheckedTransaction } from "#src/platform/db/kernel/sqlite-only";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -6,7 +8,7 @@ import { sql } from "kysely";
 import { openMemorySqliteKernel } from "../../kernel/drivers/sqlite.js";
 import type { ContentDatabase } from "../../content-database.generated.js";
 import type { ContentKernel } from "../../content-kernel.js";
-import { createRawRowSqlitePort } from "../publish-backstop-row.sqlite.js";
+import { createRawRowSqlitePort } from "../../../../features/publish-content/publish-backstop-row.sqlite.js";
 import type { RawValue } from "#src/features/publish-content/backstop-ports";
 
 /**
@@ -21,7 +23,7 @@ async function withPort(work: (input: { kernel: ContentKernel; port: ReturnType<
     await kernel.execute(sql`CREATE TABLE p_tags (post_id TEXT NOT NULL, tag TEXT NOT NULL, PRIMARY KEY (post_id, tag))`);
     await kernel.execute(sql`CREATE TABLE p_unsafe (id TEXT PRIMARY KEY, api_key TEXT)`);
     await kernel.execute(sql`CREATE TABLE p_counters (id TEXT PRIMARY KEY, n INTEGER)`);
-    await work({ kernel, port: createRawRowSqlitePort({ kernel }) });
+    await work({ kernel, port: createRawRowSqlitePort({ checkedTransaction: sqliteForeignKeyCheckedTransaction, tableInfo: sqliteTableInfo, kernel }) });
   } finally { await kernel.close(); }
 }
 
@@ -29,7 +31,7 @@ test("the port refuses a non-SQLite content database", async () => {
   const kernel = openMemorySqliteKernel<ContentDatabase>();
   try {
     const postgresLike = new Proxy(kernel, { get: (target, property, receiver) => property === "dialect" ? "postgres" : Reflect.get(target, property, receiver) });
-    assert.throws(() => createRawRowSqlitePort({ kernel: postgresLike }), { message: "Send by hand currently requires a SQLite content database." });
+    assert.throws(() => createRawRowSqlitePort({ checkedTransaction: sqliteForeignKeyCheckedTransaction, tableInfo: sqliteTableInfo, kernel: postgresLike }), { message: "Send by hand currently requires a SQLite content database." });
   } finally { await kernel.close(); }
 });
 

@@ -54,7 +54,8 @@ type FileEntry = Extract<AgentPluginArchiveEntry, { kind: "file" }>;
 /** Refuses empty, NUL, absolute, drive-lettered, dot/dot-dot, empty-segment and colon paths. */
 function assertInsidePackage(required: { key: string; segments: readonly string[] }): void {
   const { key, segments } = required;
-  if (!key || key.includes("\0") || key.startsWith("/") || /^[a-zA-Z]:/.test(key) || segments.some((s) => !s || s === "." || s === ".." || s.includes(":"))) fail("PLUGIN_PACKAGE_UNSAFE", "ZIP paths must stay inside the package.");
+  const unsafeKey = !key || key.includes("\0") || key.startsWith("/") || /^[a-zA-Z]:/.test(key);
+  if (unsafeKey || segments.some((s) => !s || s === "." || s === ".." || s.includes(":"))) fail("PLUGIN_PACKAGE_UNSAFE", "ZIP paths must stay inside the package.");
 }
 
 /** Records one path prefix's spelling; refuses a second spelling of it and caps distinct prefixes. */
@@ -102,7 +103,8 @@ async function readFileBytes(required: { state: ArchivePolicyState; entry: FileE
 /** Applies the whole policy to one entry, in order, and keeps a file's bytes when it passes. */
 async function acceptEntry(required: { state: ArchivePolicyState; entry: AgentPluginArchiveEntry }): Promise<void> {
   const { state, entry } = required;
-  if (++state.entries > MAX_ENTRIES) fail("PLUGIN_PACKAGE_TOO_LARGE", "ZIP has too many entries.");
+  state.entries += 1;
+  if (state.entries > MAX_ENTRIES) fail("PLUGIN_PACKAGE_TOO_LARGE", "ZIP has too many entries.");
   if (entry.kind !== "file" && entry.kind !== "directory") fail("PLUGIN_PACKAGE_UNSAFE", "ZIP links are not allowed.");
   const name = entry.entryPath.replaceAll("\\", "/");
   const key = entry.kind === "directory" ? name.replace(/\/$/, "") : name;
@@ -125,6 +127,6 @@ export async function readSitePluginArchive(
     return state.files;
   } catch (error) {
     if (error instanceof PluginInstallError) throw error;
-    fail("PLUGIN_ARCHIVE_INVALID", "ZIP could not be read safely.");
+    return fail("PLUGIN_ARCHIVE_INVALID", "ZIP could not be read safely.");
   }
 }

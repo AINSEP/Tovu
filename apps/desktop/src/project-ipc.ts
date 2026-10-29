@@ -181,7 +181,7 @@ interface ShellLike {
  *  `deps.ipcMain.handle(...)` call below still gives its own listener a real, specific parameter
  *  type at the point that matters — the handler function it delegates to. */
 interface IpcMainLike {
-  handle(channel: string, listener: (event: any, ...args: any[]) => any): void; // eslint-disable-line @typescript-eslint/no-explicit-any -- mirrors Electron's own ipcMain.handle signature
+  handle(channel: string, listener: (event: any, ...args: any[]) => any): void; // Mirrors Electron's own ipcMain.handle signature.
 }
 
 /** `deps.serializer` — `keyed-serializer.ts`'s per-key promise chain, loosened from that file's own
@@ -297,7 +297,10 @@ function siteExternalUrl(openEntry: OpenSiteEntry | undefined, sharedRunning: Sh
 
 /** Which app runs the site, or the last exit of a settled stop; see the `statusDetail` field below. */
 function siteStatusDetail(sharedRunning: SharedRunning, status: string, openSites: OpenSites, siteDir: string): string | null {
-  if (sharedRunning) return `Running in ${sharedRunning.app} (${sharedRunning.port > 0 ? `port ${sharedRunning.port}` : "starting"})`;
+  if (sharedRunning) {
+    const detail = sharedRunning.port > 0 ? `port ${sharedRunning.port}` : "starting";
+    return `Running in ${sharedRunning.app} (${detail})`;
+  }
   return status === "stopped" ? describeLastExit(openSites, siteDir) : null;
 }
 
@@ -551,7 +554,10 @@ export function planNewSiteDir({ name }: { name: string }, {
   if (!workspace.homeAvailable({})) throw new Error(`Sites home volume is unavailable: ${home}. Mount it or choose a local folder in Sites settings.`);
   const folder = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "website";
   let target = path.join(home, folder), suffix = 2;
-  while (fs.existsSync(target)) target = path.join(home, `${folder}-${suffix++}`);
+  while (fs.existsSync(target)) {
+    target = path.join(home, `${folder}-${suffix}`);
+    suffix++;
+  }
   return target;
 }
 
@@ -1369,8 +1375,10 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>): void {
   });
   deps.ipcMain.handle(SITE_IPC_CHANNELS.saveSettings, (_event, input: import("./contracts/project.ts").SiteSettingsPatch) => {
     if (!deps.sharedSites || !deps.siteFolders) throw new Error("Sites settings are unavailable in this desktop version.");
-    if (!input || typeof input !== "object" || Array.isArray(input) || Object.keys(input).some((key) => key !== "databases") ||
-      (input.databases !== "inSite" && input.databases !== "appData")) throw new Error('Sites settings accept only databases: "inSite" or "appData". Choose folders with the native picker.');
+    const invalidMessage = 'Sites settings accept only databases: "inSite" or "appData". Choose folders with the native picker.';
+    if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error(invalidMessage);
+    if (Object.keys(input).some((key) => key !== "databases") ||
+      (input.databases !== "inSite" && input.databases !== "appData")) throw new Error(invalidMessage);
     deps.sharedSites.updateConfig({ patch: { databases: input.databases } });
     return deps.siteFolders.read({});
   });

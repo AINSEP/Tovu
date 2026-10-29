@@ -1,8 +1,6 @@
 import type { UUID } from "@jini-ai/core/primitives";
-import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
-import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
-import type { PostKind, PostStatus } from "./post.js";
-import type { PostSearchProjection } from "./repo.js";
+import type { ContentKernel } from "../../platform/db/content-kernel.js";
+import type { PostSearchDialect, SearchProjectionTables } from "./search-index.contract.js";
 import { toPostSearchDocument, type PostSearchHit, type PostSearchPort, type PostSearchQuery } from "./search.js";
 import { pgPostSearch } from "./search-index.postgres.js";
 import { sqlitePostSearch } from "./search-index.sqlite.js";
@@ -19,43 +17,7 @@ import { sqlitePostSearch } from "./search-index.sqlite.js";
  * semantics. Their agreement is gated by the eval set in `__tests__/search.eval.ts`.
  */
 
-/** One dialect's post search: the repo's projection writes plus the ranked query. */
-export interface PostSearchDialect extends PostSearchProjection {
-  search(kernel: ContentKernel, query: PostSearchQuery): Promise<PostSearchHit[]>;
-}
-
-/** `post_search_document` as both dialects share it (the Postgres one adds a `search` tsvector). It
- *  is not in the generated `ContentDatabase` types: SQLite builds it in drizzle migration 0022,
- *  Postgres in migration step `0001_post_search`. */
-export type SearchProjectionTables = {
-  post_search_document: { post_id: string; title: string; slug: string; body_text: string };
-};
-
-/** One ranked row, before projection into a {@link PostSearchHit}. */
-export interface PostSearchRow {
-  id: string;
-  kind: string;
-  title: string;
-  slug: string;
-  status: string;
-  updated_at: string;
-  snippet: string;
-  /** Higher is better (each dialect converts its own scale). */
-  score: number;
-}
-
-export function toPostSearchHit(row: PostSearchRow): PostSearchHit {
-  return {
-    id: row.id as UUID,
-    kind: row.kind as PostKind,
-    title: row.title,
-    slug: row.slug,
-    status: row.status as PostStatus,
-    updatedAt: row.updated_at,
-    snippet: row.snippet,
-    score: Number(row.score),
-  };
-}
+export { toPostSearchHit, type PostSearchDialect, type PostSearchRow, type SearchProjectionTables } from "./search-index.contract.js";
 
 /** The post search for `kernel`'s dialect. */
 export function postSearchFor(kernel: ContentKernel): PostSearchDialect {
@@ -72,11 +34,11 @@ export class PostSearchIndex implements PostSearchPort {
   private readonly ready: Promise<unknown> | undefined;
 
   /**
-   * @param store - The content kernel, or the SQLite content db handle it is derived from.
+   * @param required.kernel - The content kernel supplied by composition.
    * @param optional.ready - Settles when the boot backfill is done; every search waits for it.
    */
-  constructor(store: ContentKernel | ContentDb, optional: { ready?: Promise<unknown> } = {}) {
-    this.kernel = contentKernel(store);
+  constructor(required: { kernel: ContentKernel }, optional: { ready?: Promise<unknown> } = {}) {
+    this.kernel = required.kernel;
     this.ready = optional.ready;
   }
 
@@ -88,7 +50,7 @@ export class PostSearchIndex implements PostSearchPort {
 
 /**
  * The FTS5 `PostSearchPort` on a site's SQLite `content.db`: {@link PostSearchIndex} kept as a
- * named class so call sites that construct it from the content db handle stay as they are.
+ * named class so SQLite call sites can retain their explicit adapter name over a composed kernel.
  */
 export class SqlitePostSearchIndex extends PostSearchIndex {}
 
@@ -99,7 +61,7 @@ export class SqlitePostSearchIndex extends PostSearchIndex {}
  * @param optional.ready - Settles when the boot backfill is done; every search waits for it.
  */
 export function postSearchIndexFor(kernel: ContentKernel, optional: { ready?: Promise<unknown> } = {}): PostSearchPort {
-  return new PostSearchIndex(kernel, optional);
+  return new PostSearchIndex({ kernel }, optional);
 }
 
 /** Posts indexed per backfill transaction: one PGlite transaction blocks every other client. */
@@ -124,14 +86,13 @@ export const BACKFILL_BATCH_SIZE = 50;
  * agent daemon included, waits). A crash midway leaves whole batches indexed and the rest for the
  * next boot, which is what the anti-join already handles.
  *
- * @param store - The content kernel, or the SQLite content db handle it is derived from.
+ * @param required.kernel - The content kernel supplied by composition.
  * @param optional.batchSize - Posts per transaction (tests).
  * @returns The number of posts newly indexed.
  * @complexity O(m) in the number of UNINDEXED posts, plus one O(n) anti-join over `posts` per batch.
  * @overallScore 100
  */
-export async function backfillPostSearchIndex(store: ContentKernel | ContentDb, optional: { batchSize?: number } = {}): Promise<number> {
-  const kernel = contentKernel(store);
+export async function backfillPostSearchIndex({ kernel }: { kernel: ContentKernel }, optional: { batchSize?: number } = {}): Promise<number> {
   const search = postSearchFor(kernel);
   const batchSize = optional.batchSize ?? BACKFILL_BATCH_SIZE;
   let indexed = 0;
@@ -192,14 +153,13 @@ export const POST_SEARCH_PROJECTION_VERSION_SETTING_ID = "tovu.internal.post_sea
  * effect). On Postgres each page locks its `posts` rows (`FOR UPDATE`) so a concurrent `save()` can
  * neither be overwritten by a projection of the row it just replaced nor interleave with one.
  *
- * @param store - The content kernel, or the SQLite content db handle it is derived from.
+ * @param required.kernel - The content kernel supplied by composition.
  * @param optional.batchSize - Posts per transaction (tests).
  * @returns The number of posts re-projected.
  * @complexity O(1) when current; otherwise O(n) in all posts, once per version bump.
  * @overallScore 100
  */
-export async function reindexStalePostSearchIndex(store: ContentKernel | ContentDb, optional: { batchSize?: number } = {}): Promise<number> {
-  const kernel = contentKernel(store);
+export async function reindexStalePostSearchIndex({ kernel }: { kernel: ContentKernel }, optional: { batchSize?: number } = {}): Promise<number> {
   if ((await readProjectionVersion(kernel)) >= POST_SEARCH_PROJECTION_VERSION) return 0;
   const search = postSearchFor(kernel);
   const batchSize = optional.batchSize ?? BACKFILL_BATCH_SIZE;
@@ -235,17 +195,17 @@ export async function reindexStalePostSearchIndex(store: ContentKernel | Content
  * ({@link backfillPostSearchIndex}). Rebuild first, so the first boot after a version bump never
  * projects a missing post twice; the backfill then costs its usual single anti-join.
  *
- * @param store - The content kernel, or the SQLite content db handle it is derived from.
+ * @param required.kernel - The content kernel supplied by composition.
  * @param optional.batchSize - Posts per transaction (tests).
  * @returns How many posts each step wrote.
  * @overallScore 100
  */
 export async function preparePostSearchIndex(
-  store: ContentKernel | ContentDb,
+  required: { kernel: ContentKernel },
   optional: { batchSize?: number } = {}
 ): Promise<{ reindexed: number; backfilled: number }> {
-  const reindexed = await reindexStalePostSearchIndex(store, optional);
-  const backfilled = await backfillPostSearchIndex(store, optional);
+  const reindexed = await reindexStalePostSearchIndex(required, optional);
+  const backfilled = await backfillPostSearchIndex(required, optional);
   return { reindexed, backfilled };
 }
 

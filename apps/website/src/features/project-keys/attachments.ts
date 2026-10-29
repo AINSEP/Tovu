@@ -19,7 +19,7 @@ export function createKeyAttachments({ kernel }: { kernel: StorageKernel<unknown
   return {
     async attach({ siteId, keyId, siteName }) {
       if (!siteId) throw new Error("This site has no id yet; restart it.");
-      await kernel.execute(sql`INSERT OR IGNORE INTO site_key_attachments (site_id, key_id, site_name, attached_at) VALUES (${siteId}, ${keyId}, ${siteName}, ${new Date().toISOString()})`);
+      await kernel.execute(sql`INSERT INTO site_key_attachments (site_id, key_id, site_name, attached_at) VALUES (${siteId}, ${keyId}, ${siteName}, ${new Date().toISOString()}) ON CONFLICT (site_id, key_id) DO NOTHING`);
     },
     detach: ({ siteId, keyId }) => kernel.execute(sql`DELETE FROM site_key_attachments WHERE site_id=${siteId} AND key_id=${keyId}`),
     async isAttached({ siteId, keyId }) {

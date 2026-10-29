@@ -19,6 +19,9 @@ import path from "node:path";
 
 import { isBundleInput, type StalenessShell } from "./shell-staleness.ts";
 
+const NODE_MODULES = "node_modules";
+const PACKAGE_JSON = "package.json";
+
 /** One `{platform, arch}` a staging run targets, or a prebuild was built for (see {@link prebuildTarget}). */
 interface Target {
   platform: string;
@@ -98,12 +101,12 @@ export function stageDir(src: string, dest: string, dropNestedModules: boolean):
     recursive: true,
     dereference: true,
     // Hermetic Playwright installs put browser downloads inside playwright-core; keep only the driver.
-    filter: (from) => path.basename(from) !== ".local-browsers" && (!dropNestedModules || path.basename(from) !== "node_modules"),
+    filter: (from) => path.basename(from) !== ".local-browsers" && (!dropNestedModules || path.basename(from) !== NODE_MODULES),
   });
 }
 
 export function declaredDependencies(packageDir: string): string[] {
-  const manifestPath = path.join(packageDir, "package.json");
+  const manifestPath = path.join(packageDir, PACKAGE_JSON);
   if (!existsSync(manifestPath)) return [];
   return Object.keys(JSON.parse(readFileSync(manifestPath, "utf8")).dependencies ?? {});
 }
@@ -112,8 +115,8 @@ export function declaredDependencies(packageDir: string): string[] {
 export function findPackageDir(fromDir: string, depName: string): string | undefined {
   let dir = fromDir;
   for (;;) {
-    const candidate = path.join(dir, "node_modules", depName);
-    if (existsSync(path.join(candidate, "package.json"))) return realpathSync(candidate);
+    const candidate = path.join(dir, NODE_MODULES, depName);
+    if (existsSync(path.join(candidate, PACKAGE_JSON))) return realpathSync(candidate);
     const parent = path.dirname(dir);
     if (parent === dir) return undefined;
     dir = parent;
@@ -136,7 +139,7 @@ function resolveDependencyEdge(
   const resolved = findPackageDir(from, dep);
   if (resolved === undefined || visited.has(resolved)) return undefined;
   visited.add(resolved);
-  const dest = path.join(outDir, "node_modules", dep);
+  const dest = path.join(outDir, NODE_MODULES, dep);
   const alreadyStaged = existsSync(dest);
   if (!alreadyStaged) stageDir(resolved, dest, true);
   return { resolved, staged: !alreadyStaged };
@@ -199,10 +202,10 @@ export function stagedPackageDirs(modulesDir: string): string[] {
  * @throws {Error} listing every `pkg -> dep` pair that did not resolve.
  */
 export function assertClosureComplete({ outDir }: { outDir: string }): void {
-  const modulesDir = path.join(outDir, "node_modules");
+  const modulesDir = path.join(outDir, NODE_MODULES);
   const unresolved = (packageDir: string, dep: string) => {
-    const hoisted = path.join(modulesDir, dep, "package.json");
-    const nested = path.join(packageDir, "node_modules", dep, "package.json");
+    const hoisted = path.join(modulesDir, dep, PACKAGE_JSON);
+    const nested = path.join(packageDir, NODE_MODULES, dep, PACKAGE_JSON);
     return !existsSync(hoisted) && !existsSync(nested);
   };
   // flatMap/filter/map preserve array order throughout, so this reports missing dependencies in
@@ -282,10 +285,11 @@ function stripGeneratedFiles(modulesDir: string, tally: StripTally): void {
         continue;
       }
       const reason = strippableReason(path.relative(modulesDir, full).split(path.sep).join("/"));
-      if (reason === undefined) continue;
-      tally.bytes += diskBytes(full);
-      tally[reason] += 1;
-      rmSync(full, { force: true });
+      if (reason !== undefined) {
+        tally.bytes += diskBytes(full);
+        tally[reason] += 1;
+        rmSync(full, { force: true });
+      }
     }
   };
   walk(modulesDir);
@@ -325,7 +329,7 @@ function stripCoverageReports(modulesDir: string, tally: StripTally): void {
  * @complexity O(n) in files under the staged `node_modules`.
  */
 export function stripNonRuntimeFiles({ outDir }: { outDir: string }): StripTally {
-  const modulesDir = path.join(outDir, "node_modules");
+  const modulesDir = path.join(outDir, NODE_MODULES);
   const tally: StripTally = { declaration: 0, sourceMap: 0, coverage: 0, bytes: 0 };
   if (!existsSync(modulesDir)) return tally;
   stripCoverageReports(modulesDir, tally);
@@ -448,12 +452,12 @@ function prunePrebuildDir(packageDir: string, targets: readonly Target[], module
     if (built === undefined) continue;
     if (prebuildServesTarget(built, targets)) {
       servesTarget = true;
-      continue;
+    } else {
+      const full = path.join(prebuildsDir, entry);
+      tally.bytes += diskBytes(full);
+      tally.prebuilds += 1;
+      rmSync(full, { recursive: true, force: true });
     }
-    const full = path.join(prebuildsDir, entry);
-    tally.bytes += diskBytes(full);
-    tally.prebuilds += 1;
-    rmSync(full, { recursive: true, force: true });
   }
   if (!servesTarget) {
     const wanted = targets.map((target: Target) => `${target.platform}-${target.arch}`).join(", ");
@@ -477,7 +481,7 @@ function prunePrebuildDir(packageDir: string, targets: readonly Target[], module
  * @complexity O(n) in staged packages plus their prebuild entries.
  */
 export function pruneNativePrebuilds({ outDir, targets }: { outDir: string; targets: readonly Target[] }): PruneTally {
-  const modulesDir = path.join(outDir, "node_modules");
+  const modulesDir = path.join(outDir, NODE_MODULES);
   const tally: PruneTally = { prebuilds: 0, buildInputs: 0, bytes: 0 };
   if (!existsSync(modulesDir)) return tally;
   for (const packageDir of stagedPackageDirs(modulesDir)) {
@@ -497,7 +501,7 @@ export function pruneNativePrebuilds({ outDir, targets }: { outDir: string; targ
 /** Whether to descend into / consider one directory entry at all.
  *  @complexity O(1). */
 function isWalkable(entry: Dirent): boolean {
-  if (entry.name === "node_modules" || entry.name.startsWith(".")) return false;
+  if (entry.name === NODE_MODULES || entry.name.startsWith(".")) return false;
   return isBundleInput(entry.isDirectory() ? `${entry.name}/` : entry.name);
 }
 
@@ -602,12 +606,13 @@ function assertNoNativeBinaries(root: string, dir: string = root): void {
       assertNoNativeBinaries(root, full);
       continue;
     }
-    if (!entry.isFile() || !hasNativeBinaryMagic(full)) continue;
-    throw new Error(
-      `stageBundledNpm: ${path.relative(root, full)} starts with native-binary (Mach-O/ELF/PE) magic bytes. npm is ` +
-        `expected to ship no compiled binaries — files under Contents/Resources carry no per-file code signature, ` +
-        `so shipping one unsigned would be a silent security regression rather than a build failure.`
-    );
+    if (entry.isFile() && hasNativeBinaryMagic(full)) {
+      throw new Error(
+        `stageBundledNpm: ${path.relative(root, full)} starts with native-binary (Mach-O/ELF/PE) magic bytes. npm is ` +
+          `expected to ship no compiled binaries — files under Contents/Resources carry no per-file code signature, ` +
+          `so shipping one unsigned would be a silent security regression rather than a build failure.`
+      );
+    }
   }
 }
 
@@ -684,20 +689,20 @@ export const STAGED_SHELLS: (StalenessShell & { sourceDirs?: string[]; sourceFil
     // `npm run unlink:jini` here: it swaps the whole tree to published Jini for no benefit.
     buildWith: "cd apps/admin && npx vite build",
     sourceDirs: [path.join("apps", "admin", "src")],
-    sourceFiles: [path.join("apps", "admin", "package.json")],
+    sourceFiles: [path.join("apps", "admin", PACKAGE_JSON)],
   },
   {
     relative: path.join("apps", "site-chat", "dist"),
     marker: "site-assistant.js",
     buildWith: "cd apps/site-chat && npx vite build",
     sourceDirs: [path.join("apps", "site-chat", "src")],
-    sourceFiles: [path.join("apps", "site-chat", "package.json")],
+    sourceFiles: [path.join("apps", "site-chat", PACKAGE_JSON)],
   },
 ];
 
 /** Copy the runtime files at the same relative paths consumed by the packaged server. */
 export function stagePayloadFiles({ repoRoot, outDir }: { repoRoot: string; outDir: string }): void {
-  cpSync(path.join(repoRoot, "package.json"), path.join(outDir, "package.json"));
+  cpSync(path.join(repoRoot, PACKAGE_JSON), path.join(outDir, PACKAGE_JSON));
   cpSync(path.join(repoRoot, "dist"), path.join(outDir, "dist"), { recursive: true, dereference: true });
   for (const shell of STAGED_SHELLS) {
     cpSync(path.join(repoRoot, shell.relative), path.join(outDir, shell.relative), { recursive: true, dereference: true });

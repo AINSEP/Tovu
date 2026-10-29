@@ -6,7 +6,7 @@ import { buildSkillToolRegistrations } from '../../features/skills/tool-registra
 import { buildAgentPluginToolRegistrations } from '../../features/agent-plugins/tool-registrations.js';
 import { buildPluginCapabilityToolRegistrations } from '../../features/plugin-runtime/capability-tool-registrations.js';
 import { buildPluginMemoryRegistrations } from '../../features/agent-plugins/memory-tools.js';
-import { withExtensionApprovalPolicy, toolApprovalPolicyFor } from '../../contracts/headless/assistant-tool-approval-policy.js';
+import { withExtensionApprovalPolicy, toolApprovalPolicyFor } from '../assistant-tool-approval-policy.js';
 import { createToolRegistry, type ToolRegistration } from '@jini-ai/core';
 import { attachAssistantToolExtensions } from '../installed-extension-tools.js';
 

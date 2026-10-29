@@ -72,8 +72,8 @@ export function createApiConnectionVault(required: ApiConnectionVaultDeps, _opti
     repo: required.repo, keyring: required.keyring, sealer: required.sealer,
     metaParsers: createVaultMetaParsers({}, { parsers: { [API_CONNECTION_VAULT_KIND]: input => parseTovuStoreMeta({ ...input, kind: API_CONNECTION_VAULT_KIND }) } }),
     authorize: async ({ context }) => {
-      if (context.workspaceId !== scope.workspaceId || context.kind !== scope.kind || context.ownerKey !== scope.ownerKey ||
-        context.principalId !== null || ("binding" in context && context.binding !== null)) throw new VaultError({ code: "context" });
+      const wrongScope = context.workspaceId !== scope.workspaceId || context.kind !== scope.kind || context.ownerKey !== scope.ownerKey;
+      if (wrongScope || context.principalId !== null || ("binding" in context && context.binding !== null)) throw new VaultError({ code: "context" });
     },
     now: () => new Date(required.clock.nowMs()).toISOString(),
     newId: () => { throw new VaultError({ code: "invalid-record" }); },
@@ -135,7 +135,7 @@ export function createApiConnectionVaultRecordStore(
       const read = await readAttempt(state);
       if (!read) return null;
       const deleted = await vault.delete({ ...scope, id: attemptId(state), expectedRevision: read.found.summary.revision })
-        .catch((error: unknown) => { if (isConflict(error)) return false; throw error; });
+        .catch((error: unknown) => { if (isConflict(error)) { return false; } throw error; });
       return deleted ? read.attempt : null;
     },
     async peekAttempt({ state }) {

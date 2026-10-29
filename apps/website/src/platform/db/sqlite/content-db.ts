@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type Database from "better-sqlite3";
+import type { NativeSqliteDatabase } from "../kernel/drivers/sqlite.js";
 import type { SqliteSyncOpener } from "@jini-ai/db/sqlite";
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
@@ -43,7 +43,7 @@ import { bootstrapFreshContentDb } from "./fresh-content-db.js";
  * restore-point capture can call the driver's online-backup API directly. Additive only — every
  * existing caller that only used the Drizzle query surface is unaffected.
  */
-export type ContentDb = BetterSQLite3Database<typeof schema> & { $client: Database.Database };
+export type ContentDb = BetterSQLite3Database<typeof schema> & { $client: NativeSqliteDatabase };
 
 /** The frozen legacy chain, `src/platform/db/drizzle/` (resolved from this file). */
 const MIGRATIONS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../drizzle");
@@ -69,7 +69,7 @@ export interface ContentDbSeedData {
  * uses this so crash recovery (ADR-023 §2) can read the plugin migration journal before
  * {@link migrateSqliteContentFile} touches the schema.
  */
-export interface ContentDbOpenOptions { readonly open?: SqliteSyncOpener<Database.Database> }
+export interface ContentDbOpenOptions { readonly open?: SqliteSyncOpener<NativeSqliteDatabase> }
 
 export function openSqliteContentConnection(required: string | { filePath: string }, { open = openNativeSqlite }: ContentDbOpenOptions = {}): ContentDb {
   const filePath = typeof required === "string" ? required : required.filePath;

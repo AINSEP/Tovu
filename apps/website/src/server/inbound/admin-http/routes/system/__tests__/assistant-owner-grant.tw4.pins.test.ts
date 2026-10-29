@@ -3,7 +3,7 @@ import test from "node:test";
 import express from "express";
 import { InMemorySettingsRepo, ensureSettingDefinitions, getEffective } from "@jini-ai/core/settings";
 import { ensureExecutionSettingDefinitions } from "#src/assistant/execution-mode-settings";
-import { ASSISTANT_PERMANENT_DELETES_NAMESPACE as namespace } from "#src/contracts/headless/assistant-permanent-deletes-policy";
+import { ASSISTANT_PERMANENT_DELETES_NAMESPACE as namespace } from "#src/contracts/headless/index";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAssistantOwnerGrantRoutes, type AssistantOwnerGrantDeps } from "../assistant-owner-grant.js";
 
@@ -16,7 +16,7 @@ async function fixture({ previous = false, requireAcknowledgment }: { previous?:
     principals: { findActiveById: async () => null }, ensureSettingDefinitions }, { systemPrincipalId: "system" });
   const deps = { workspaceId: "ws", settingsReady: Promise.resolve(), settingsUiTabsReady: Promise.resolve(),
     settingsRepo: repo, clock, idGen, getEffective, ownerPrincipalId: Promise.resolve("owner"),
-    principalRepo: { findById: async () => null } as AssistantOwnerGrantDeps["principalRepo"],
+    principalRepo: { findById: async () => null, findActiveById: async () => null, list: async () => [], save: async () => {} },
     authorize: async () => ({ allowed: true, reason: "pin" }),
   } satisfies AssistantOwnerGrantDeps;
   const app = express();

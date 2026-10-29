@@ -2,7 +2,7 @@ import { act, render, renderHook, screen, waitFor, within } from "@/__tests__/fe
 import userEvent from "@testing-library/user-event";
 import { ChatSettingsDialog } from "@jini-ai/chat/react";
 import { describe, expect, it, vi } from "vitest";
-import { assistantCliPermissions } from "@tovu/headless";
+import { assistantCliPermissions } from "../../../../../website/src/assistant/assistant-subagents-policy.js";
 import { useDockAgentPermissions } from "../hooks/use-admin-subagents.hooks";
 import type { AssistantSubagentsPort, AssistantSubagentsSettings } from "@/lib/assistant-subagents";
 

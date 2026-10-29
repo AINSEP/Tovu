@@ -1,4 +1,5 @@
 import { decodePublishCriteriaFromQuery, PUBLISH_CRITERIA_QUERY_PARAM, type PublishCriteria } from "@tovu/publish-content-ui";
+import { querySuffix } from "./query-suffix";
 
 /**
  * @file `publish-criteria-tool-webmcp-plan-2026-09-24.md` §4 S2, the owner's own "PLUS" instruction
@@ -49,7 +50,7 @@ export function takePublishCriteriaFromQuery(
   // unmodified, same as `boot-token-fragment.ts`'s own pathname/search preservation.
   params.delete(PUBLISH_CRITERIA_QUERY_PARAM);
   const rest = params.toString();
-  const nextUrl = `${location.pathname}${rest ? `?${rest}` : ""}${location.hash}`;
+  const nextUrl = `${location.pathname}${querySuffix(rest)}${location.hash}`;
   history.replaceState(null, "", nextUrl);
 
   return decodePublishCriteriaFromQuery(raw);

@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import type { HttpClientPort } from "#src/platform/http/index";
-import { assertPortableSiteName, reconcileSiteCreation } from "#src/platform/site-dir/site-registry";
-import type { SitesWorkspace } from "#src/platform/site-dir/sites-home";
+import { assertPortableSiteName, reconcileSiteCreation } from "#src/platform/site-dir/index";
+import type { SitesWorkspace } from "#src/platform/site-dir/index";
 import type { SiteImportRegistry, SiteImportRecord } from "./import-registry.js";
 import { SHARE_LIMITS, SiteShareRefusal } from "./share-policy.js";
 
@@ -38,7 +38,8 @@ export function parseImportInput(required: { input: unknown }): ParsedSiteImport
 
 function requireSourceShape(value: unknown): Record<string, unknown> {
   const input = value as Record<string, unknown>;
-  if (!input || typeof input !== "object" || Array.isArray(input) || Object.keys(input).some(key => !INPUT_KEYS.includes(key)) ||
+  const invalidRecord = !input || typeof input !== "object" || Array.isArray(input);
+  if (invalidRecord || Object.keys(input).some(key => !INPUT_KEYS.includes(key)) ||
       (input.url !== undefined) === (input.uploadId !== undefined)) refusal("INVALID_INPUT", "Provide exactly one source: url or uploadId; optional displayName and requestId only.");
   return input;
 }
@@ -75,7 +76,7 @@ export function requireStagingBudget(required: { registry: SiteImportRegistry })
 }
 
 /** The caller's signal (when given) combined with this step's own deadline. */
-export function deadlineSignal(required: { timeoutMs: number }, optional: { signal?: AbortSignal | undefined } = {}): AbortSignal {
+export function deadlineSignal(required: { timeoutMs: number }, optional: { signal?: AbortSignal } = {}): AbortSignal {
   return AbortSignal.any([...(optional.signal ? [optional.signal] : []), AbortSignal.timeout(required.timeoutMs)]);
 }
 
@@ -148,7 +149,7 @@ export async function startImportedSite(required: { row: SiteImportRecord; name:
 }
 
 /** The public view of a stored import row. */
-export function siteImportView(required: { row: SiteImportRecord }, optional: { setupBase?: string | undefined }): SiteImportView {
+export function siteImportView(required: { row: SiteImportRecord }, optional: { setupBase?: string }): SiteImportView {
   const { row } = required;
   const pending = row.status === "needs-owner";
   return {

@@ -1,10 +1,10 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
 import type { RunHandlers } from "@jini-ai/chat/react";
 import type { ExecutionConfig } from "@jini-ai/ui";
 
-import { consumeByokStream, createTovuAssistantTransport, handleByokFrame, parseFrame } from "../assistant-transport";
+import { createTovuAssistantTransport, parseFrame } from "../assistant-transport";
 import { flushMicrotasks, streamFromChunks } from "./assistant-transport.test-helpers";
 
 /**
@@ -15,11 +15,10 @@ import { flushMicrotasks, streamFromChunks } from "./assistant-transport.test-he
  * `readSseFrames` itself is still not exported, so its buffering/chunk-splitting behavior is
  * exercised the only way a caller can reach it: through `startByokRun`'s held-open POST, feeding a
  * real `ReadableStream<Uint8Array>` via a stubbed `fetch`'s `Response.body` (the "SSE frame
- * streaming" describe block below). Its two extracted pieces (2026-08-06, complexity pass) —
+ * streaming" describe block below). Its extracted pieces (2026-08-06, complexity pass) —
  * `parseFrame` (per-frame `event:`/`data:` parsing) and `handleByokFrame` (the `"agent"`/`"error"`/
- * `"end"` dispatch that used to sit inside `startByokRun`'s stream-consumer IIFE) — ARE exported,
- * and get their own direct describe blocks immediately below: no `ReadableStream`, `fetch`, or
- * `startRun` call needed to exercise either.
+ * `"end"` dispatch that used to sit inside `startByokRun`'s stream-consumer IIFE) — are tested directly in Jini;
+ * `parseFrame` retains its direct host test below. The stream tests here cover the live binding.
  */
 
 function handlers(): RunHandlers & { events: AgentEvent[]; errors: Error[]; done: AgentEvent[] | null } {
@@ -84,170 +83,22 @@ describe("parseFrame", () => {
   });
 });
 
-describe("handleByokFrame — frame dispatch, extracted from startByokRun's consumer IIFE", () => {
-  test("an 'agent' frame that translates pushes to collected and forwards onEvent", () => {
-    const collected: AgentEvent[] = [];
-    const h = handlers();
-    const finish = vi.fn();
-
-    handleByokFrame({ event: "agent", data: JSON.stringify({ type: "text_delta", delta: "hi" }) }, { collected, handlers: h, finish });
-
-    expect(collected).toEqual([{ kind: "text", text: "hi" }]);
-    expect(h.events).toEqual([{ kind: "text", text: "hi" }]);
-    expect(finish).not.toHaveBeenCalled();
-  });
-
-  test("an 'agent' frame whose payload translates to null is not collected or forwarded", () => {
-    const collected: AgentEvent[] = [];
-    const h = handlers();
-
-    handleByokFrame({ event: "agent", data: JSON.stringify({ type: "thinking_start" }) }, { collected, handlers: h, finish: vi.fn() });
-
-    expect(collected).toEqual([]);
-    expect(h.events).toEqual([]);
-  });
-
-  test("an 'error' frame reports via onError without calling finish", () => {
-    const h = handlers();
-    const finish = vi.fn();
-
-    handleByokFrame({ event: "error", data: JSON.stringify({ message: "model overloaded" }) }, { collected: [], handlers: h, finish });
-
-    expect(h.errors.map((e) => e.message)).toEqual(["model overloaded"]);
-    expect(finish).not.toHaveBeenCalled();
-  });
-
-  test("an 'error' frame with no message field falls back to a generic BYOK failure message", () => {
-    const h = handlers();
-
-    handleByokFrame({ event: "error", data: JSON.stringify({}) }, { collected: [], handlers: h, finish: vi.fn() });
-
-    expect(h.errors.map((e) => e.message)).toEqual(["BYOK turn failed"]);
-  });
-
-  test("an 'end' frame with an ordinary reason calls finish without pushing a notice", () => {
-    const collected: AgentEvent[] = [];
-    const h = handlers();
-    const finish = vi.fn();
-
-    handleByokFrame({ event: "end", data: JSON.stringify({ reason: "stop" }) }, { collected, handlers: h, finish });
-
-    expect(collected).toEqual([]);
-    expect(h.events).toEqual([]);
-    expect(finish).toHaveBeenCalledTimes(1);
-  });
-
-  test("an 'end' frame with reason max_tool_turns pushes the notice, then calls finish", () => {
-    const collected: AgentEvent[] = [];
-    const h = handlers();
-    const finish = vi.fn();
-
-    handleByokFrame({ event: "end", data: JSON.stringify({ reason: "max_tool_turns" }) }, { collected, handlers: h, finish });
-
-    expect(collected).toHaveLength(1);
-    expect(collected[0]?.kind).toBe("status");
-    expect(h.events).toEqual(collected);
-    expect(finish).toHaveBeenCalledTimes(1);
-  });
-
-  test("a frame with an unrecognized event name matches no branch — a silent no-op", () => {
-    const collected: AgentEvent[] = [];
-    const h = handlers();
-    const finish = vi.fn();
-
-    handleByokFrame({ event: "message", data: "{}" }, { collected, handlers: h, finish });
-
-    expect(collected).toEqual([]);
-    expect(h.events).toEqual([]);
-    expect(finish).not.toHaveBeenCalled();
-  });
-});
-
 /**
  * `consumeByokStream` — the async-IIFE stream consumer `startByokRun` used to hold inline, pulled
  * out to a top-level function (2026-08-06, complexity pass, second pass) specifically so the
  * OWNER'S whole-function complexity view (which rolls a nested closure's branches into its
  * enclosing function) no longer counts this loop as part of `startByokRun`. The end-to-end
  * `startByokRun — SSE frame streaming` block below still exercises this through a real
- * `fetch`/`ReadableStream`; these tests drive it directly with a fake stream and no network.
+ * `fetch`/`ReadableStream`; Jini owns the direct consumer tests.
  */
-describe("consumeByokStream — the stream-consumer loop, extracted from startByokRun", () => {
-  function ctx(overrides: Partial<{ controller: AbortController }> = {}) {
-    const collected: AgentEvent[] = [];
-    const h = handlers();
-    const finish = vi.fn();
-    const controller = overrides.controller ?? new AbortController();
-    return { collected, handlers: h, finish, controller, runId: "byok:test" };
-  }
-
-  test("drains every frame via handleByokFrame; an 'end' frame's finish() and the generator's own completion finish() both fire", async () => {
-    const c = ctx();
-    const body = streamFromChunks([frame("agent", { type: "text_delta", delta: "hi" }), frame("end", {})]);
-
-    await consumeByokStream(body, c);
-
-    expect(c.handlers.events).toEqual([{ kind: "text", text: "hi" }]);
-    // `handleByokFrame`'s `"end"` case calls `ctx.finish` once, and the `for await` loop's own
-    // completion (once `readSseFrames` closes) calls it again unconditionally — matching the
-    // original inline IIFE. `finish` is idempotent via `startByokRun`'s real `settled` flag (see
-    // "'end' calls onDone exactly once..." in the SSE-streaming describe block below, asserted
-    // end-to-end through `handlers.onDone`); this bare `vi.fn()` has no such guard, so it correctly
-    // observes both calls.
-    expect(c.finish).toHaveBeenCalledTimes(2);
-  });
-
-  test("calls finish once via its own completion when the stream ends with no 'end' frame", async () => {
-    const c = ctx();
-    const body = streamFromChunks([frame("agent", { type: "text_delta", delta: "only" })]);
-
-    await consumeByokStream(body, c);
-
-    expect(c.handlers.events).toEqual([{ kind: "text", text: "only" }]);
-    expect(c.finish).toHaveBeenCalledTimes(1);
-  });
-
-  test("a stream error while not aborted is reported via onError, THEN settles the turn through finish()", async () => {
-    const c = ctx();
-    // Order matters, not just presence: `useRunStream`'s `onDone` keeps an existing `'error'`
-    // status, so onError-then-finish records a failed run WITH its collected events, while the
-    // reverse order would record it as succeeded. Same contract as `subscribeToRun`'s `end` listener.
-    const order: string[] = [];
-    const reportError = c.handlers.onError;
-    c.handlers.onError = (error: Error) => {
-      order.push("onError");
-      reportError(error);
-    };
-    c.finish.mockImplementation(() => {
-      order.push("finish");
-    });
-    const body = new ReadableStream<Uint8Array>({
-      pull(controller) {
-        controller.error(new Error("connection reset"));
-      },
-    });
-
-    await consumeByokStream(body, c);
-
-    expect(c.handlers.errors.map((e) => e.message)).toEqual(["connection reset"]);
-    expect(order).toEqual(["onError", "finish"]);
-  });
-
-  test("a stream error after abort() is swallowed as an expected cancellation, and finish is still called", async () => {
-    const controller = new AbortController();
-    const c = ctx({ controller });
-    controller.abort();
-    const body = new ReadableStream<Uint8Array>({
-      pull(streamController) {
-        streamController.error(new Error("aborted mid-read"));
-      },
-    });
-
-    await consumeByokStream(body, c);
-
-    expect(c.handlers.errors).toEqual([]);
-    expect(c.finish).toHaveBeenCalledTimes(1);
-  });
-});
+// `handleByokFrame`'s `"end"` case calls `ctx.finish` once, and the `for await` loop's own
+// completion (once `readSseFrames` closes) calls it again unconditionally — matching the
+// original inline IIFE. `finish` is idempotent via `startByokRun`'s real `settled` flag (see
+// "'end' calls onDone exactly once..." in the SSE-streaming describe block below, asserted
+// end-to-end through `handlers.onDone`).
+// Order matters, not just presence: `useRunStream`'s `onDone` keeps an existing `'error'`
+// status, so onError-then-finish records a failed run WITH its collected events, while the
+// reverse order would record it as succeeded. Same contract as `subscribeToRun`'s `end` listener.
 
 let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 

@@ -24,7 +24,7 @@ import type { ToolRegistration } from "@jini-ai/core";
 
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
-import { type ToolContributor } from "../tool-contribution-registry.js";
+import { type ToolContributor } from "../tool-registrations.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import { commentsAgentToolCatalog } from "../../features/comments/agent-tools.js";

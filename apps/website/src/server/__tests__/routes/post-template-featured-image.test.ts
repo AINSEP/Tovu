@@ -48,14 +48,14 @@ test("featfallback: static heroes and post-preview cards use doc and HTML body i
     const response = await fetch(`${baseUrl}/body-${format}`);
     assert.equal(response.status, 200);
     const html = await response.text();
-    assert.ok(html.includes(`<figure class="post-featured"><img src="/m/${MEDIA_SLUG}/public.v1/image.jpg" alt="Alt ${format}" width="1600" height="900"`));
+    assert.ok(html.includes(`<figure class="post-featured"><img src="/m/${MEDIA_SLUG}/public.v1/image.jpg?v=aaaaaaaaaaaa" alt="Alt ${format}" width="1600" height="900"`));
     assert.equal((await deps.postRepo.findBySlug({ workspaceId: WORKSPACE_ID, slug: `body-${format}` }))?.featuredMediaId, null);
   }
   const listResponse = await fetch(`${baseUrl}/blog`);
   assert.equal(listResponse.status, 200);
   const list = await listResponse.text();
   for (const format of ["doc", "html"] as const) {
-    assert.ok(list.includes(`<article class="post-card"><img src="/m/${MEDIA_SLUG}/public.v1/image.jpg" alt="Alt ${format}" width="1600" height="900" decoding="async" loading="lazy">`));
+    assert.ok(list.includes(`<article class="post-card"><img src="/m/${MEDIA_SLUG}/public.v1/image.jpg?v=aaaaaaaaaaaa" alt="Alt ${format}" width="1600" height="900" decoding="async" loading="lazy">`));
   }
   assert.equal((list.match(/<img /g) ?? []).length, 2, "the empty post must not produce a broken image tag");
 });
@@ -146,7 +146,7 @@ test("REGRESSION: a static post template shows the post's featured image", async
 
   assert.match(
     html,
-    new RegExp(`<figure class="post-featured"><img src="/m/${MEDIA_SLUG}/public\\.v\\d+/image\\.jpg" alt="Post with-cover" width="1600" height="900"`),
+    new RegExp(`<figure class="post-featured"><img src="/m/${MEDIA_SLUG}/public\\.v\\d+/image\\.jpg\\?v=aaaaaaaaaaaa" alt="Post with-cover" width="1600" height="900"`),
     "the featured image must render inside the theme's own wrapper, with alt text and its size"
   );
   assert.ok(!html.includes('"type":"featured-image"'), "the marker must not reach the visitor");

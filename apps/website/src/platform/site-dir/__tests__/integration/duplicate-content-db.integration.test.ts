@@ -11,7 +11,7 @@ import Database from "better-sqlite3";
 import { migrateSqliteContentFile, openSqliteContentConnection } from "../../../db/sqlite/content-db.js";
 import { InternalError } from "../../errors.js";
 import { openChatDb } from "../../../db/sqlite/chat-db.js";
-import { initSite } from "../../init-site.js";
+import { initSite } from "#src/server/runtime/composition/site-dir";
 import { duplicateContentDb } from "../../duplicate-content-db.js";
 
 /**

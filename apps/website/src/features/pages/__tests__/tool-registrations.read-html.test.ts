@@ -14,7 +14,8 @@ const workspaceId = "page-reader-workspace";
 const clock = { nowMs: () => Date.parse("2026-10-23T00:00:00.000Z") };
 const hero = '<section data-agent-element="hero"><h1>Hello</h1><section data-agent-element="nested">Inside</section></section>';
 const html = hero + '<section data-agent-element="cta">Contact</section>';
-const theme = { manifest: { id: "ink" }, status: "valid", tokens: { "--ink": "#111" }, tokensLight: {} } as DiscoveredTheme;
+const theme: DiscoveredTheme = { manifest: { id: "ink", name: "Ink", version: "1", tier: "static", engine: 1 }, status: "valid", tokens: { "--ink": "#111" }, tokensLight: {},
+  dir: "/unused", templates: {}, liquidTemplates: {}, handlebarsTemplates: {}, pages: {}, partials: {}, css: "", source: "site", errors: [] };
 
 interface PageRead {
   id: string;

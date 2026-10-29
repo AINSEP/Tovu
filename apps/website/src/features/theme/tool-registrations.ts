@@ -1,4 +1,9 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/theme.js';
+export { contributeSetActiveThemeTools, type SetActiveThemeToolDeps } from "./set-active-theme-tool.js";
+export { contributePreviewSwitcherTools, type PreviewSwitcherToolDeps } from "./preview-switcher-tools.js";
+export { contributeTrashThemeTools, type TrashThemeToolDeps } from "./trash-theme-tool.js";
+export { contributeDuplicateThemeTools } from "./duplicate-theme-tool.js";
+export { contributeImportThemeFileTools } from "./import-theme-file-tool.js";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 /**
  * @file Themes' half of ADR-049 Decision 4: maps every one of `agent-tools.ts`'s catalog entries
@@ -39,7 +44,7 @@ import { statSync } from "node:fs";
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import {
   getThemesAgentToolCatalog,
@@ -80,6 +85,8 @@ import {
 } from "./file-identity-lock.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
+const MUTATES_DURABLE_STATE = "mutates-durable-state";
 
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: getThemesAgentToolCatalog() });
@@ -187,15 +194,9 @@ class ThemeFileIdentityLockedError extends Error {
  * genuine I/O failure (a permission-denied disk, a full volume) is not one of these and propagates
  * undecorated, because retrying with different arguments would not help. */
 export function isShapeRejection(error: unknown): boolean {
-  return (
-    error instanceof ThemePathError ||
-    error instanceof ThemeNotFoundError ||
-    error instanceof ThemeFileReadOnlyError ||
-    error instanceof ThemeFileEditMatchError ||
-    error instanceof ThemeFileIdentityLockedError ||
-    error instanceof ThemeFileNoOriginalError ||
-    error instanceof ThemeOriginalLayoutMismatchError
-  );
+  return [ThemePathError, ThemeNotFoundError, ThemeFileReadOnlyError, ThemeFileEditMatchError,
+    ThemeFileIdentityLockedError, ThemeFileNoOriginalError, ThemeOriginalLayoutMismatchError]
+    .some(ErrorType => error instanceof ErrorType);
 }
 
 /**
@@ -484,9 +485,9 @@ const THEME_TRASH_TOOL_ID = "theme_trash_file";
  * declaration.
  */
 export const themesDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
-  ["preview_reload", "mutates-durable-state"],
+  ["preview_reload", MUTATES_DURABLE_STATE],
   // -> rescanThemes(): replaces the live discovered-theme registry in place.
-  ["theme_rescan", "mutates-durable-state"],
+  ["theme_rescan", MUTATES_DURABLE_STATE],
   // -> routeDeps.themes.map(): reads already-discovered in-memory state, no I/O at all.
   ["theme_list", "none"],
   // Reload and shared publication predicates: files read, no state changes.
@@ -497,25 +498,25 @@ export const themesDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolS
   ["theme_read_file", "none"],
   // -> writeThemeFile(): mkdir + writeFileSync on disk, then loadTheme() + in-place replacement of
   //    the live routeDeps.themes entry. Durable on both counts.
-  ["theme_write_file", "mutates-durable-state"],
+  ["theme_write_file", MUTATES_DURABLE_STATE],
   // -> readThemeFile() + writeThemeFile(): same durable write as theme_write_file, just computed
   //    from a read instead of taking the whole content as input.
-  ["theme_edit_file", "mutates-durable-state"],
+  ["theme_edit_file", MUTATES_DURABLE_STATE],
   // -> resetThemeFileToOriginal(): a byte compare against the catalog copy, then copyFileSync to a
   //    temp file renamed over the live file when the bytes differ, then loadTheme() + in-place
   //    replacement. Same durable write as theme_write_file, just sourced from the theme's own stored
   //    original instead of caller-supplied content. An already-pristine file is not written.
-  ["theme_reset_file", "mutates-durable-state"],
+  ["theme_reset_file", MUTATES_DURABLE_STATE],
   // -> renameThemeFile(): renameSync on disk, then loadTheme() + in-place replacement. Durable.
-  ["theme_rename_file", "mutates-durable-state"],
+  ["theme_rename_file", MUTATES_DURABLE_STATE],
   // -> copyThemeFile(): copyFileSync creating a NEW file on disk, then loadTheme() + in-place
   //    replacement. Durable, same class as theme_write_file's own create-or-overwrite.
-  ["theme_copy_file", "mutates-durable-state"],
+  ["theme_copy_file", MUTATES_DURABLE_STATE],
   // -> renameThemeFile() into .trash/: same durable move as theme_rename_file, just to a
   //    system-computed destination. Reversible (theme_restore_trashed_file), but still a disk write.
-  ["theme_trash_file", "mutates-durable-state"],
+  ["theme_trash_file", MUTATES_DURABLE_STATE],
   // -> renameThemeFile() out of .trash/: the mirror-image move. Durable.
-  ["theme_restore_trashed_file", "mutates-durable-state"],
+  ["theme_restore_trashed_file", MUTATES_DURABLE_STATE],
 ]);
 
 type ThemeReadSelection =
@@ -676,7 +677,7 @@ function renderThemeReadWindows(required: { lines: string[]; windows: readonly T
  * @complexity O(b) time and space in the bounded file size; substring length is capped at 200.
  */
 function selectThemeReadContent(content: string, selection: Exclude<ThemeReadSelection, { mode: "full" }>) {
-  const lines = content.match(/[^\n]*\n|[^\n]+$/g) ?? [];
+  const lines = content.match(/\n|[^\n]+\n?/g) ?? [];
   if (selection.mode === "find") return { ...findThemeReadWindows(lines, selection), totalLines: lines.length };
   const start = selection.startLine - 1;
   const end = Math.min(lines.length, start + selection.lineCount);
@@ -1150,6 +1151,6 @@ export function buildThemesRegistrations(
  * `installFirstPartyToolContributors()`, never as an import side effect.
  * Registration is a composition-root effect; feature imports must not reach back into the assistant.
  */
-export function contributeThemesTools(): ToolContributor {
+export function contributeThemesTools(): ToolContributor<ThemeToolDeps, AssistantSurfaceDeps> {
   return { domain: "themes", build: buildThemesRegistrations, risk: themesDerivedRisk };
 }

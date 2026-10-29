@@ -2,7 +2,7 @@ import { nowIso, type Clock } from "@jini-ai/core/primitives";
 
 import { isTrashed, type PostKind, type PostRecord, type PostRepoPort } from "../post/index.js";
 // Not from the barrel: it re-exports a fixed list, and this kind is not part of the Post API.
-import { EMAIL_TEMPLATE_KIND } from "../post/post.js";
+import { EMAIL_TEMPLATE_KIND } from "../post/index.js";
 import { PageConcurrentEditError, type PagesHtmlDocumentStoreFactory } from "../pages/index.js";
 import {
   emailTemplateSkeleton,
@@ -74,7 +74,8 @@ export interface EmailTemplatePreview {
 
 /** A template row: our kind, html format, not in the Trash. */
 function isTemplateRow(row: PostRecord | null): row is PostRecord & { bodyHtml: string } {
-  return row !== null && (row.kind as string) === EMAIL_TEMPLATE_KIND && row.bodyFormat === "html" && row.bodyHtml !== null && !isTrashed(row);
+  if (row === null) return false;
+  return (row.kind as string) === EMAIL_TEMPLATE_KIND && row.bodyFormat === "html" && row.bodyHtml !== null && !isTrashed(row);
 }
 
 async function loadTemplate({ deps, id }: { deps: EmailTemplateDeps; id: string }, _options: Record<string, never> = {}): Promise<PostRecord & { bodyHtml: string }> {

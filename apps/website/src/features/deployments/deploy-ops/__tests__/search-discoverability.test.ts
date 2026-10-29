@@ -1,7 +1,8 @@
+import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { ALL_CHAT_DELETE_TOOLS } from "../../../../assistant/permanent-delete-tool-gate.js";
 import { createContributionRegistry } from "@jini-ai/core";
-import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "@jini-ai/core";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
@@ -17,8 +18,8 @@ import { DOC2QUERY } from "../../../../assistant/tool-search-doc2query.js";
 import { KNOWN_GAPS } from "#src/assistant/__tests__/fixtures/tool-search-known-gaps";
 
 const contributions = {
-  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
-  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor<ReturnType<typeof toAssistantRegistryDeps>, AssistantSurfaceDeps> }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor<ReturnType<typeof toAssistantRegistryDeps>, AssistantSurfaceDeps> }) => contribution.domain }),
 };
 test("deploy ops owner phrasings rank in the top three of the real full catalog", async () => {
   contributions.contributors.clear({}); installFirstPartyToolContributors({ contributions });

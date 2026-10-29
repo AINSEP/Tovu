@@ -440,30 +440,15 @@ export interface StaticSiteTabProps {
   usePublishCredentialsHook?: typeof useWiredPublishCredentials;
 }
 
-/** Resolves each of {@link StaticSiteTabProps}'s DI seams to its real hook when a caller
- *  passes none — small resolvers rather than inline `??` expressions in
- *  `StaticSiteTab` itself, same complexity-gate reasoning `OverviewTab.tsx`'s own
- *  `resolveDeploymentOverviewHook` documents (a resolver here counts one branch each; four inline
- *  `??`s in the component body would count four against ITS OWN score instead). */
-function resolveStaticExportHook(override: typeof useWiredStaticExport | undefined): typeof useWiredStaticExport {
-  return override ?? useWiredStaticExport;
-}
-function resolveStaticPublishHook(override: typeof useWiredStaticPublish | undefined): typeof useWiredStaticPublish {
-  return override ?? useWiredStaticPublish;
-}
-function resolvePublishCredentialsHook(
-  override: typeof useWiredPublishCredentials | undefined
-): typeof useWiredPublishCredentials {
-  return override ?? useWiredPublishCredentials;
-}
-
 export function StaticSiteTab(props: StaticSiteTabProps) {
   const locale = useAdminLocale();
   const translate = (key: string): string => t({ locale: locale, key: key });
 
-  const useStaticExportHook = resolveStaticExportHook(props.useStaticExportHook);
-  const useStaticPublishHook = resolveStaticPublishHook(props.useStaticPublishHook);
-  const usePublishCredentialsHook = resolvePublishCredentialsHook(props.usePublishCredentialsHook);
+  // Keep the DI seams. Forwarding resolvers previously isolated these branches for the
+  // complexity gate; this component is small enough to resolve its defaults directly.
+  const useStaticExportHook = props.useStaticExportHook ?? useWiredStaticExport;
+  const useStaticPublishHook = props.useStaticPublishHook ?? useWiredStaticPublish;
+  const usePublishCredentialsHook = props.usePublishCredentialsHook ?? useWiredPublishCredentials;
 
   const exportController = useStaticExportHook();
   const publishController = useStaticPublishHook();
@@ -1207,8 +1192,7 @@ function StaticPublishTargetFields({ controller, t: translate }: { controller: S
  *  function over this repo's complexity convention once `pollError` (below) added one more branch on
  *  top of an already-over-budget function — splitting each `.deployment-action` block out the same
  *  way `PublishPreviewFacts`/`PublishRunResult` already are moves each block's branches into ITS OWN
- *  score instead, same reasoning `resolveStaticExportHook`'s own doc gives for this file's DI
- *  resolvers. No behavior moved, only where the branches are counted. */
+ *  score instead. No behavior moved, only where the branches are counted. */
 function PublishPreviewAction({
   canPreview,
   controller,

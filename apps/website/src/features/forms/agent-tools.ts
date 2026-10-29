@@ -47,6 +47,7 @@
  * and their rationale.
  */
 
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import {
   ATTRIBUTE_NAME_PATTERN,
   FIELD_ID_PATTERN,
@@ -60,24 +61,21 @@ import {
   MIN_MAX_LENGTH,
 } from "@jini-ai/cms/forms";
 import { MAX_NAME_LENGTH, MAX_NOTIFY_RECIPIENTS, SLUG_PATTERN } from "@jini-ai/cms/forms";
+import { DELIVERY_STATUS_MAX_LIMIT } from "#src/contracts/headless/index";
+export { DELIVERY_STATUS_MAX_LIMIT } from "#src/contracts/headless/index";
+
+const FORMS_MANAGE_PERMISSION = "admin.forms.manage" as const;
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
 
 export type AgentToolActorClassRule = "confirmer-must-equal-own-delegatedBy" | "user-only" | "none";
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  actorClassRule?: AgentToolActorClassRule;
-  /**
-   * JSON Schema for this tool's `input`, published to the model via `ToolDescriptor.inputSchema`
-   * (`assistant/tool-registrations.ts`, which refuses to wire any tool lacking one). Structurally
-   * identical to the content-types catalog's field of the same name.
-   */
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+/**
+ * JSON Schema for this tool's `input`, published to the model via `ToolDescriptor.inputSchema`
+ * (`assistant/tool-registrations.ts`, which refuses to wire any tool lacking one). Structurally
+ * identical to the content-types catalog's field of the same name.
+ */
+export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect };
 
 /** One entry of a `fields` array, as published to the model. Mirrors what `forms.ts`'s `validateFieldDescriptors` enforces. */
 const FIELD_DESCRIPTOR_SCHEMA = {
@@ -171,8 +169,6 @@ const FORM_ID_SCHEMA = {
  */
 const SUBMISSIONS_MIN_LIMIT = 1;
 const SUBMISSIONS_MAX_LIMIT = 100;
-/** `forms_delivery_status` lists at most this many unfinished deliveries (the status repo's own cap). */
-export const DELIVERY_STATUS_MAX_LIMIT = 50;
 
 const SUBMISSION_ID_SCHEMA = {
   type: "string",
@@ -209,7 +205,7 @@ export const formsAgentToolCatalog: AgentToolDefinition[] = [
     description:
       "Lists every form definition in the workspace with its id, name, slug, status, and field count. Read-only. Call this to find a form's opaque id from its name or slug before calling forms_update_definition, forms_set_definition_status, forms_list_submissions, or forms_get_submission — those tools take formId, not slug.",
     sideEffects: "none",
-    authorization: { permission: "admin.forms.manage" },
+    authorization: { permission: FORMS_MANAGE_PERMISSION },
     inputSchema: NO_INPUT_SCHEMA,
   },
   {
@@ -217,7 +213,7 @@ export const formsAgentToolCatalog: AgentToolDefinition[] = [
     description:
       "Creates a new form definition from a name, a URL slug, and a complete list of native field descriptors. For a dropdown, use type=select with options [{value,label}]. The slug must be unique within the workspace and can never be changed afterwards. To show this form in a post or other rich-text body, use widgets_create_instance to create a contact-form widget with config { formDefinitionId: <this form's id> }, then widgets_insert_embed it; HTML-format pages and theme templates can instead use a data-embed-config marker with {type:\"form\",id:<this form's id or slug>}.",
     sideEffects: "mutates-durable-state",
-    authorization: { permission: "admin.forms.manage" },
+    authorization: { permission: FORMS_MANAGE_PERMISSION },
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -239,7 +235,7 @@ export const formsAgentToolCatalog: AgentToolDefinition[] = [
     description:
       "Updates an existing form definition's name, field list, or notification recipients. The slug is immutable and is ignored if supplied. Existing field ids cannot be dropped — omitting one is rejected, not treated as a deletion.",
     sideEffects: "mutates-durable-state",
-    authorization: { permission: "admin.forms.manage" },
+    authorization: { permission: FORMS_MANAGE_PERMISSION },
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -257,7 +253,7 @@ export const formsAgentToolCatalog: AgentToolDefinition[] = [
     description:
       "Sets a form definition's status to 'active' or 'disabled'. Disabling is how a form is taken out of service without deleting it — no tool in this catalog can delete a form definition; permanent deletion happens only through the Trash.",
     sideEffects: "mutates-durable-state",
-    authorization: { permission: "admin.forms.manage" },
+    authorization: { permission: FORMS_MANAGE_PERMISSION },
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -311,7 +307,7 @@ export const formsAgentToolCatalog: AgentToolDefinition[] = [
     description:
       "Brings form submissions that a static export stored at its hosting provider back into Submissions here, checks them with the form's own rules, and sends the usual new-submission notifications. Only rows saved here are cleared at the host, so pulling again is always safe and never duplicates. Use it when the owner asks for new entries from a static export. Returns a plain summary per hosting target, counts per form (formId, formSlug, imported, alreadyImported, unmapped, failed) with totals, and ran: false with reason 'already-running' when another pull of the same host is still in progress.",
     sideEffects: "mutates-durable-state",
-    authorization: { permission: "admin.forms.manage" },
+    authorization: { permission: FORMS_MANAGE_PERMISSION },
     inputSchema: {
       type: "object",
       additionalProperties: false,

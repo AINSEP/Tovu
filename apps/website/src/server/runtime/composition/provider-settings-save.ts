@@ -78,7 +78,8 @@ function requiredSettingsRefusal({ fields, config }: { fields: readonly PluginPr
   const values = Object.fromEntries(fields.map((field) => [field.name, (field.secret ? config.secrets[field.name] : config.settings[field.name])?.trim() || field.default || ""]));
   const missing = fields.find((field) => isProviderSettingRequired({ field, values }) && !values[field.name]);
   if (!missing) return undefined;
-  return { code: "PROVIDER_SETTINGS_REQUIRED", error: `${missing.label} is required.${missing.hint ? ` ${missing.hint}` : ""}` };
+  const hint = missing.hint ? ` ${missing.hint}` : "";
+  return { code: "PROVIDER_SETTINGS_REQUIRED", error: `${missing.label} is required.${hint}` };
 }
 
 /**

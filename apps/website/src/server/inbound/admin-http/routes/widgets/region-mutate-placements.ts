@@ -9,7 +9,8 @@ import type { RouteRegistrar } from "#src/server/routes/types";
 function isPlacementShape(value: unknown): value is { placementId: string; widgetEntryId: string; enabled: boolean; content?: JsonObject } {
   if (typeof value !== "object" || value === null) return false;
   const v = value as Record<string, unknown>;
-  return typeof v.placementId === "string" && typeof v.widgetEntryId === "string" && typeof v.enabled === "boolean" && (v.content === undefined || (typeof v.content === "object" && v.content !== null && !Array.isArray(v.content)));
+  if (typeof v.placementId !== "string" || typeof v.widgetEntryId !== "string" || typeof v.enabled !== "boolean") return false;
+  return v.content === undefined || (typeof v.content === "object" && v.content !== null && !Array.isArray(v.content));
 }
 
 /**

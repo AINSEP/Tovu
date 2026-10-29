@@ -1,12 +1,12 @@
 import { homedir } from "node:os";
-import { siteKeySources } from "#src/features/webhooks/site-key-sources";
+import { siteKeySources } from "#src/features/webhooks/index";
 import type { Express } from "express";
 
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { DEFAULT_OWNER_PASSWORD } from "#src/features/identity/wiring";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { isAssistantDaemonKnownFailed } from "#src/server/runtime/lifecycle/readiness-state";
-import { inspectSiteKeyMaterial, type SiteKeyStatus } from "#src/features/webhooks/keyring.env";
+import { inspectSiteKeyMaterial, type SiteKeyStatus } from "#src/features/webhooks/index";
 import { resolveSiteKeySources } from "./site-key.js";
 import type { RouteDeps, SiteStoragePaths } from "#src/server/routes/types";
 

@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
-import type { RunHandlers, StartRunInput } from "@jini-ai/chat/react";
+import type { RunHandlers } from "@jini-ai/chat/react";
 import type { ExecutionConfig } from "@jini-ai/ui";
 
-import { buildLocalCliContextRef, createTovuAssistantTransport } from "../assistant-transport";
+import { createTovuAssistantTransport } from "../assistant-transport";
 import { FakeEventSource, resetFakeEventSource } from "./assistant-transport.test-helpers";
 
 /**
@@ -61,131 +61,20 @@ afterEach(() => {
  * `buildLocalCliContextRef` — the local-CLI `contextRef` assembly pulled out of `startRun`
  * (2026-08-06, complexity pass, second pass): three independent optional fields, each included only
  * when present. `startRun — guard and request shape` below still asserts the end-to-end POST body
- * these produce; these tests pin each field's own inclusion rule directly, with no `fetch` involved.
+ * these produce; Jini's transport suite pins each field's own inclusion rule directly.
  */
-describe("buildLocalCliContextRef", () => {
-  function input(overrides: Partial<StartRunInput> = {}): StartRunInput {
-    return { history: HISTORY, signal: new AbortController().signal, ...overrides } as StartRunInput;
-  }
-
-  // Cold starts need the complete history even when the resume prompt is only the newest turn.
-  const coldStartContext = "## user\nlist my posts";
-
-  test("always includes prompt and coldStartContext when context/attachments are absent", () => {
-    expect(buildLocalCliContextRef(input(), "the prompt")).toEqual({ prompt: "the prompt", coldStartContext });
-  });
-
-  test("includes frontendBindToken only when it is a non-empty string", () => {
-    expect(buildLocalCliContextRef(input({ context: { frontendBindToken: "tab-1" } }), "p")).toEqual({
-      prompt: "p", coldStartContext,
-      frontendBindToken: "tab-1",
-    });
-    expect(buildLocalCliContextRef(input({ context: { frontendBindToken: "" } }), "p")).toEqual({ prompt: "p", coldStartContext });
-    expect(buildLocalCliContextRef(input({ context: { frontendBindToken: 42 } }), "p")).toEqual({ prompt: "p", coldStartContext });
-  });
-
-  test("includes model only when it is a non-empty string", () => {
-    expect(buildLocalCliContextRef(input({ context: { model: "claude-opus-5" } }), "p")).toEqual({
-      prompt: "p", coldStartContext,
-      model: "claude-opus-5",
-    });
-    expect(buildLocalCliContextRef(input({ context: { model: "" } }), "p")).toEqual({ prompt: "p", coldStartContext });
-    expect(buildLocalCliContextRef(input({ context: { model: 42 } }), "p")).toEqual({ prompt: "p", coldStartContext });
-  });
-
-  // `reasoning` rides the same "opaque string, omit when absent" convention as `model` above. The
-  // end-to-end `startRun` suite below ("carries the reasoning effort through context when present")
-  // already covers this through a full fetch body, but pins it directly here too — same level of
-  // direct coverage every other field in this describe block gets, ahead of the complexity-reduction
-  // refactor pulling each field into its own helper.
-  test("includes reasoning only when it is a non-empty string", () => {
-    expect(buildLocalCliContextRef(input({ context: { reasoning: "max" } }), "p")).toEqual({
-      prompt: "p", coldStartContext,
-      reasoning: "max",
-    });
-    expect(buildLocalCliContextRef(input({ context: { reasoning: "" } }), "p")).toEqual({ prompt: "p", coldStartContext });
-    expect(buildLocalCliContextRef(input({ context: { reasoning: 3 } }), "p")).toEqual({ prompt: "p", coldStartContext });
-  });
-
-  test("includes attachmentIds (mapped to their opaque path) only when attachments is non-empty", () => {
-    expect(
-      buildLocalCliContextRef(
-        input({ attachments: [{ path: "attachment:1" }, { path: "attachment:2" }] as StartRunInput["attachments"] }),
-        "p",
-      ),
-    ).toEqual({ prompt: "p", coldStartContext, attachmentIds: ["attachment:1", "attachment:2"] });
-    expect(buildLocalCliContextRef(input({ attachments: [] as StartRunInput["attachments"] }), "p")).toEqual({ prompt: "p", coldStartContext });
-  });
-
-  test("does not let a spread of context shadow the reserved keys — reads frontendBindToken/model by name only", () => {
-    expect(
-      buildLocalCliContextRef(input({ context: { frontendBindToken: "tab-1", principalId: "should-not-appear" } }), "p"),
-    ).toEqual({ prompt: "p", coldStartContext, frontendBindToken: "tab-1" });
-  });
-
-  test("includes pluginRefIds (filtered to non-empty strings) only when at least one survives", () => {
-    expect(buildLocalCliContextRef(input({ context: { pluginRefIds: ["ui-ux-design"] } }), "p")).toEqual({
-      prompt: "p", coldStartContext,
-      pluginRefIds: ["ui-ux-design"],
-    });
-    // Same filtering posture as `attachmentIds`'s own decode side (`run-start-context.ts`'s
-    // `parseRunStartContextRef`) — a non-string or empty-string entry is dropped, not forwarded.
-    expect(buildLocalCliContextRef(input({ context: { pluginRefIds: ["ui-ux-design", "", 42, "second"] } }), "p")).toEqual({
-      prompt: "p", coldStartContext,
-      pluginRefIds: ["ui-ux-design", "second"],
-    });
-    expect(buildLocalCliContextRef(input({ context: { pluginRefIds: [] } }), "p")).toEqual({ prompt: "p", coldStartContext });
-    expect(buildLocalCliContextRef(input({ context: { pluginRefIds: "not-an-array" } }), "p")).toEqual({ prompt: "p", coldStartContext });
-  });
-
-  // 2026-09-16: the screen the message was sent from, so "this page" means something to the agent.
-  // Forwarded as an object (the daemon's `run-page-context.ts` validates and caps its fields); any
-  // non-object is dropped rather than sent.
-  test("includes pageContext only when it is a plain object", () => {
-    const pageContext = {
-      path: "/pages/4f22",
-      section: "pages",
-      view: "page-editor",
-      entry: { kind: "page", id: "4f22", title: "Landing sample — xai" },
-    };
-    expect(buildLocalCliContextRef(input({ context: { pageContext } }), "p")).toEqual({ prompt: "p", coldStartContext, pageContext });
-    expect(buildLocalCliContextRef(input({ context: { pageContext: "pages" } }), "p")).toEqual({ prompt: "p", coldStartContext });
-    expect(buildLocalCliContextRef(input({ context: { pageContext: ["pages"] } }), "p")).toEqual({ prompt: "p", coldStartContext });
-    expect(buildLocalCliContextRef(input({ context: { pageContext: null } }), "p")).toEqual({ prompt: "p", coldStartContext });
-  });
-
-  test("includes conversationId only when it is a non-empty string", () => {
-    expect(buildLocalCliContextRef(input({ context: { conversationId: "c1" } }), "p")).toEqual({
-      prompt: "p", coldStartContext,
-      conversationId: "c1",
-    });
-    expect(buildLocalCliContextRef(input({ context: { conversationId: "" } }), "p")).toEqual({ prompt: "p", coldStartContext });
-    expect(buildLocalCliContextRef(input({ context: { conversationId: 42 } }), "p")).toEqual({ prompt: "p", coldStartContext });
-  });
-
-  // Guards against an extraction that handles each field correctly in isolation but drops or
-  // overwrites a sibling when several are present at once (e.g. an aggregator that returns early,
-  // or per-field helpers that don't compose via a plain merge).
-  test("includes every optional field simultaneously when all are present", () => {
-    expect(
-      buildLocalCliContextRef(
-        input({
-          context: { frontendBindToken: "tab-1", model: "claude-opus-5", reasoning: "max", pluginRefIds: ["ui-ux-design"], conversationId: "c1" },
-          attachments: [{ path: "attachment:1" }] as StartRunInput["attachments"],
-        }),
-        "p",
-      ),
-    ).toEqual({
-      prompt: "p", coldStartContext,
-      frontendBindToken: "tab-1",
-      model: "claude-opus-5",
-      reasoning: "max",
-      attachmentIds: ["attachment:1"],
-      pluginRefIds: ["ui-ux-design"],
-      conversationId: "c1",
-    });
-  });
-});
+// Cold starts need the complete history even when the resume prompt is only the newest turn.
+// `reasoning` rides the same "opaque string, omit when absent" convention as `model` above. The
+// end-to-end `startRun` suite below ("carries the reasoning effort through context when present")
+// covers this through a full fetch body; Jini also pins individual field inclusion directly.
+// Same filtering posture as `attachmentIds`'s own decode side (`run-start-context.ts`'s
+// `parseRunStartContextRef`) — a non-string or empty-string entry is dropped, not forwarded.
+// 2026-09-16: the screen the message was sent from, so "this page" means something to the agent.
+// Forwarded as an object (the daemon's `run-page-context.ts` validates and caps its fields); any
+// non-object is dropped rather than sent.
+// Guards against an extraction that handles each field correctly in isolation but drops or
+// overwrites a sibling when several are present at once (e.g. an aggregator that returns early,
+// or per-field helpers that don't compose via a plain merge).
 
 describe("startRun — guard and request shape", () => {
   test("rejects a history with no user turn before making any request", async () => {

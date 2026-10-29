@@ -412,6 +412,21 @@ export function scheduleShutdown(processChildren, code, { kill = process.kill, e
   }, HARD_KILL_GRACE_MS).unref();
 }
 
+function reportFatalExit({ name, code, signal }, _options = {}) {
+  if (name === "electron") {
+    // Closing the window / Cmd+Q is the normal end of a dev session, not a crash — stop the
+    // watcher quietly and mirror Electron's own exit code.
+    console.log(`\ntovu desktop: electron exited (code ${code ?? "none"}, signal ${signal ?? "none"}).\n`);
+    shutdown(code ?? 0);
+    return;
+  }
+  console.error(
+    `\ntovu desktop: ${name} exited (code ${code ?? "none"}, signal ${signal ?? "none"}) — ` +
+    "stopping electron too so you don't keep working against a stale build.\n"
+  );
+  shutdown(code === 0 ? 1 : (code ?? 1));
+}
+
 /**
  * Spawns an `npm` child into its own process group and adopts it into {@link children}.
  *
@@ -437,18 +452,7 @@ function start(name, args, { cwd = DESKTOP_DIR, fatal = true, env, onExit } = {}
   child.on("exit", (code, signal) => {
     if (shuttingDown) return;
     if (!fatal) return onExit?.(code, signal);
-    if (name === "electron") {
-      // Closing the window / Cmd+Q is the normal end of a dev session, not a crash — stop the
-      // watcher quietly and mirror Electron's own exit code.
-      console.log(`\ntovu desktop: electron exited (code ${code ?? "none"}, signal ${signal ?? "none"}).\n`);
-      shutdown(code ?? 0);
-      return;
-    }
-    console.error(
-      `\ntovu desktop: ${name} exited (code ${code ?? "none"}, signal ${signal ?? "none"}) — ` +
-        "stopping electron too so you don't keep working against a stale build.\n"
-    );
-    shutdown(code === 0 ? 1 : (code ?? 1));
+    reportFatalExit({ name, code, signal });
   });
   children.push(child);
   return child;
@@ -556,7 +560,7 @@ async function main() {
 
   console.log(
     "tovu desktop: watching the renderer for changes — edit, then reload the window (Cmd+R) to see it.\n" +
-      "tovu desktop: Ctrl-C stops everything.\n"
+    "tovu desktop: Ctrl-C stops everything.\n"
   );
   // Cheap (0-3s worst case) and BEFORE the renderer watch, so a decision to start our own Vite
   // overlaps the renderer's ~2.7s first build instead of adding to it.
@@ -583,12 +587,7 @@ async function main() {
     });
   }
 
-  if (!shuttingDown) {
-    if (!(await rendererReady)) {
-      console.warn(
-        "\ntovu desktop: renderer build did not settle within 30s — starting Electron anyway.\n"
-      );
-    }
+  const waitForPlannedAdminVite = async (_required, _options = {}) => {
     // Hold Electron until the admin Vite answers, so a site window opened immediately does not miss
     // the probe in `apps/desktop/main.ts` and settle onto the static bundle for its whole lifetime.
     // In the common case this costs ~0s: Vite booted alongside the renderer build above.
@@ -598,10 +597,19 @@ async function main() {
       if (!up && !adminViteGone.signal.aborted) {
         console.warn(
           `\ntovu desktop: the admin Vite has not answered on :${adminVitePort} within 30s — starting Electron anyway.\n` +
-            "tovu desktop: any site window opened before it does will serve /admin from apps/admin/dist.\n"
+          "tovu desktop: any site window opened before it does will serve /admin from apps/admin/dist.\n"
         );
       }
     }
+  };
+
+  if (!shuttingDown) {
+    if (!(await rendererReady)) {
+      console.warn(
+        "\ntovu desktop: renderer build did not settle within 30s — starting Electron anyway.\n"
+      );
+    }
+    await waitForPlannedAdminVite({});
     if (!shuttingDown) start("electron", deriveElectronRunArgs(process.argv.slice(2)), { env: buildElectronEnv({ adminVitePort }) });
   }
 }

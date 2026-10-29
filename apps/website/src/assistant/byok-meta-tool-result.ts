@@ -120,5 +120,9 @@ export function mapToolExecutionResult(result: Awaited<ReturnType<ToolExecutor["
       return err(`tool "${toolId}" was cancelled`);
     case "failed":
       return err(result.error ?? `tool "${toolId}" failed`);
+    default: {
+      const unexpected: never = result.status;
+      throw new Error(`Unexpected tool execution result: ${unexpected}`);
+    }
   }
 }

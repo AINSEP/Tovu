@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 /**
  * @file Shared fixtures for the lipay suite. Since the 2026-10-21 move onto Jini's payments
  * kernel, the provider is the kernel testkit's deterministic LiPay fake (`createLipayFake`) — never
@@ -58,7 +59,7 @@ export interface Harness {
 
 /** A fully wired lipay adapter on `db`, with the kernel's LiPay fake registered. */
 export async function lipayOn(
-  db: PluginStore,
+  db: PluginStore | Database.Database,
   dbPath: string,
   optional: { startAt?: number } = {}
 ): Promise<Harness> {
@@ -69,7 +70,7 @@ export async function lipayOn(
   const contexts: ProviderContextPort = { resolve: async () => ({ ok: true, ctx: lipayFakeContext({ now }) }) };
   const grants = createMemoryGrantStore({ now, newToken: () => `grant-${++seq}` });
   const api = await activateLipay({
-    db,
+    db: contentKernel(db),
     dbPath,
     providers: createKernelProviderRegistry({ items: [{ pluginId: "lipay", module: provider }] }),
     contexts,

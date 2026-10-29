@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
@@ -10,7 +11,7 @@ import type { NavMenuReadModel } from "#src/features/navigation/index";
 import { buildMenuTrashFollowUpHooks } from "#src/features/navigation/menu-trash-follow-ups";
 import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
 
-import { createSqliteTrashDb } from "../db-port.sqlite.js";
+
 import { moveToTrash } from "../move-to-trash.js";
 import { buildTrashRegistry, type TrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "../table-adapter.js";
@@ -51,7 +52,7 @@ function harness(): Harness {
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
   const registry = buildTrashRegistry();
-  const trashDb = createSqliteTrashDb({ db });
+  const trashDb = contentKernel(db);
   const menuRepo = new SqliteMenuRepo(db);
   const bindingRepo = new SqliteNavLocationBindingRepo(db);
 
@@ -129,7 +130,7 @@ async function trashMenu(h: Harness, id: string, expectedVersion = 1): Promise<v
     {
       registry: h.registry,
       trash: h.trash,
-      db: createSqliteTrashDb({ db: h.db }),
+      db: contentKernel(h.db),
       authorize: async () => ({ allowed: true, reason: "matched" }),
       clock: createFakeClock({ startIso: AT2 }),
     }

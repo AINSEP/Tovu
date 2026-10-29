@@ -15,11 +15,11 @@
  * `ActionHookName` / `ContributionHookName` are derived FROM `HookSignatures`, not written by
  * hand, so a hook's `kind` can never drift between the catalog and the type map.
  *
- * Depends on `ContentEntryDraft`/`ExtPatch` from `./index.js` via `import type` only (erased at
- * build — no runtime circular dependency), because `index.ts` re-exports THIS file's `HOOK_POINTS`
- * (a runtime value) in the other direction.
+ * Depends on `ContentEntryDraft`/`ExtPatch` from `./content-contracts.js` via `import type` only
+ * (erased at build). The contract leaf avoids a circular dependency with `index.ts`, which
+ * re-exports THIS file's `HOOK_POINTS` (a runtime value).
  */
-import type { ContentEntryDraft, ExtPatch } from "./index.js";
+import type { ContentEntryDraft, ExtPatch } from "./content-contracts.js";
 
 /** The three shapes a hook point can be (hooks v2 plan §2 "Kinds"). */
 export type HookKind = "filter" | "action" | "contribution";

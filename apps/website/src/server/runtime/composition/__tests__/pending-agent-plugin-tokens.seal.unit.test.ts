@@ -23,7 +23,7 @@ for (const action of ["invalid", "refuse"] as const) {
     const dependentChecks: boolean[] = [];
     await assert.rejects(
       sealPendingAgentPluginTokensForNewSite({ siteDir: dir, siteKeyId: "k", tokens: { "plugin-a": "tok" } }, {
-        ensure: async (input) => { dependentChecks.push(await input.findSiteKeyDependentData!()); return { action } as never; },
+        ensure: async (input) => { dependentChecks.push(await input.findSiteKeyDependentData!(input.siteDir)); return { action } as never; },
         sealerFor: () => { throw new Error("must not build a sealer after a refusal"); },
       }),
       { message: `could not prepare the new site's key to store its access tokens (${action})` },

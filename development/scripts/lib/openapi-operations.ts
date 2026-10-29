@@ -54,41 +54,50 @@ function pathParamsOf(urlTemplate: string): string[] {
   return [...urlTemplate.matchAll(/\{([^}]+)\}/g)].map((m) => m[1]);
 }
 
+function operationDetails(
+  { doc, op, file, method, urlTemplate, docRequiresAuth }: {
+    doc: YamlNode; op: YamlNode; file: string; method: HttpMethod; urlTemplate: string; docRequiresAuth: boolean;
+  }, _options = {},
+): OpenApiOperation {
+  const responses: Record<string, YamlNode> = op.responses ?? {};
+  const statusCodes = Object.keys(responses);
+  const successStatus = statusCodes.filter((s) => /^2\d\d$/.test(s)).sort()[0];
+  return {
+    file,
+    method,
+    urlTemplate,
+    pathParams: pathParamsOf(urlTemplate),
+    operationId: typeof op.operationId === "string" ? op.operationId : `${method}_${urlTemplate}`,
+    tags: Array.isArray(op.tags) ? op.tags : [],
+    statusCodes,
+    requiresAuth: Array.isArray(op.security) ? op.security.length > 0 : docRequiresAuth,
+    requestBodyRequired: op.requestBody?.required === true,
+    successResponse: successStatus
+      ? { status: successStatus, description: resolveResponseDescription(doc, responses[successStatus]) }
+      : undefined,
+  };
+}
+
+function documentOperations({ doc, file }: { doc: YamlNode; file: string }, _options = {}): OpenApiOperation[] {
+  const operations: OpenApiOperation[] = [];
+  const paths: Record<string, YamlNode> = doc?.paths ?? {};
+  const docRequiresAuth = Array.isArray(doc?.security) && doc.security.length > 0;
+  for (const [urlTemplate, pathItem] of Object.entries(paths)) {
+    for (const method of HTTP_METHODS) {
+      const op: YamlNode = pathItem?.[method];
+      if (op) operations.push(operationDetails({ doc, op, file, method, urlTemplate, docRequiresAuth }));
+    }
+  }
+  return operations;
+}
+
 /** Reads and flattens every `openapi/*.yaml` fragment in `openApiDir` into operations. */
 export function loadOpenApiOperations(openApiDir: string): OpenApiOperation[] {
   const operations: OpenApiOperation[] = [];
   const files = fs.readdirSync(openApiDir).filter((f) => f.endsWith(".yaml")).sort();
-
   for (const file of files) {
     const doc: YamlNode = loadYaml(fs.readFileSync(path.join(openApiDir, file), "utf8"));
-    const paths: Record<string, YamlNode> = doc?.paths ?? {};
-    const docRequiresAuth = Array.isArray(doc?.security) && doc.security.length > 0;
-
-    for (const [urlTemplate, pathItem] of Object.entries(paths)) {
-      for (const method of HTTP_METHODS) {
-        const op: YamlNode = pathItem?.[method];
-        if (!op) continue;
-
-        const responses: Record<string, YamlNode> = op.responses ?? {};
-        const statusCodes = Object.keys(responses);
-        const successStatus = statusCodes.filter((s) => /^2\d\d$/.test(s)).sort()[0];
-
-        operations.push({
-          file,
-          method,
-          urlTemplate,
-          pathParams: pathParamsOf(urlTemplate),
-          operationId: typeof op.operationId === "string" ? op.operationId : `${method}_${urlTemplate}`,
-          tags: Array.isArray(op.tags) ? op.tags : [],
-          statusCodes,
-          requiresAuth: Array.isArray(op.security) ? op.security.length > 0 : docRequiresAuth,
-          requestBodyRequired: op.requestBody?.required === true,
-          successResponse: successStatus
-            ? { status: successStatus, description: resolveResponseDescription(doc, responses[successStatus]) }
-            : undefined,
-        });
-      }
-    }
+    operations.push(...documentOperations({ doc, file }));
   }
   return operations;
 }

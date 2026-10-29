@@ -64,7 +64,7 @@ export interface FolderDropEvent {
  *
  * Unlike an earlier version of this handler, a recovered folder path now `preventDefault`s AND
  * `stopPropagation`s instead of passing the event through: letting `ChatPane` see it is exactly
- * the bug this exists to fix (TODO.md, "Chat composer: folder drop should yield a path, not an
+ * the bug this exists to fix (desktop backlog, "Chat composer: folder drop should yield a path, not an
  * upload") — the owner dropped a folder wanting a path and got "You can attach at most 10 files
  * to one message." The path goes into the composer as TEXT via `composerHandle.insertText`
  * instead; the fleet agent already has filesystem/Bash access on this machine and can act on it

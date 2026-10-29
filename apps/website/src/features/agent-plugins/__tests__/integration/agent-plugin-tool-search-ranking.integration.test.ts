@@ -1,7 +1,8 @@
+import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { createContributionRegistry } from "@jini-ai/core";
-import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "@jini-ai/core";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdtemp } from "node:fs/promises";
@@ -23,8 +24,8 @@ import { buildToolCatalogQuery } from "#src/assistant/tool-catalog-query";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
 
 const contributions = {
-  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
-  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor<ReturnType<typeof toAssistantRegistryDeps>, AssistantSurfaceDeps> }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor<ReturnType<typeof toAssistantRegistryDeps>, AssistantSurfaceDeps> }) => contribution.domain }),
 };
 
 /**

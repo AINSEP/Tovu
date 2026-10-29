@@ -1,3 +1,4 @@
+import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 /** Serving-host ownership for admin Sites card previews: one service (one capture queue, one lazy
  * browser) per binding, the same lifetime rule `local-site-host.ts` applies to its supervisor. */
 import { isSiteSwitcherEnabled, type SiteBinding } from "#src/platform/site-dir/index";
@@ -23,7 +24,7 @@ export function sitePreviewServiceForHost({ binding }: { binding: SiteBinding },
   if (root === null) return undefined;
   const existing = hosts.get(binding.dir);
   if (existing) return existing;
-  const service = createSitePreviewService({ store: createSitePreviewStore({ root }), capture: createSitePreviewCaptureForHost() });
+  const service = createSitePreviewService({ store: createSitePreviewStore({ root }), capture: createSitePreviewCaptureForHost({ imageCodec: new SharpImageTransformer() }) });
   hosts.set(binding.dir, service);
   return service;
 }

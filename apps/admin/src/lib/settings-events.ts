@@ -67,7 +67,9 @@ export function subscribeToSettingsChanges(workspaceId: string, {
     key: `settings/${encodeURIComponent(workspaceId)}/${encodeURIComponent(principalId)}`,
     connect: ({ emit }) => {
       let source: Pick<EventSource, "addEventListener" | "close" | "readyState">;
-      const resume = `${cursor ? `&afterRevision=${encodeURIComponent(cursor)}` : ""}${themeRevision ? `&themeRevision=${encodeURIComponent(themeRevision)}` : ""}`;
+      const afterRevision = cursor ? "&afterRevision=" + encodeURIComponent(cursor) : "";
+      const themeRevisionParam = themeRevision ? "&themeRevision=" + encodeURIComponent(themeRevision) : "";
+      const resume = afterRevision + themeRevisionParam;
       try { source = open(eventsUrl(workspaceId) + resume); }
       catch (error) {
         console.warn("[admin] settings change feed unavailable", error);

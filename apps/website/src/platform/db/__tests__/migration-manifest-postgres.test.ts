@@ -1,3 +1,4 @@
+import { createCoreTableCatalog } from "#src/server/runtime/composition/database-transfer-adapters";
 /**
  * @file Live-Postgres proofs behind `src/platform/db/migration/manifest.ts`'s semantic classifications.
  *
@@ -512,7 +513,7 @@ test("publish backstop audit is workspace-scoped core data included once in the 
   assert.equal(classes.get("workspace_id"), "plain-text");
   assert.equal(classes.get("at"), "utc-timestamp-text");
   for (const name of ["items_json", "gap_labels_json", "details_json", "inverses_json"]) assert.equal(classes.get(name), "json-text", name);
-  const tables = collectTransferTables().filter(table => table.name === "publish_backstop_log");
+  const tables = collectTransferTables({ catalog: createCoreTableCatalog({}) }).filter(table => table.name === "publish_backstop_log");
   assert.equal(tables.length, 1);
   assert.equal(tables[0]!.keep, undefined, "copy every workspace's audit rows without a partial exclusion");
   assert.deepEqual(tables[0]!.primaryKey, ["id"]);

@@ -169,17 +169,21 @@ function launch({ cmd, args, cwd = REPO, env = process.env, stdio = ['ignore', '
   const child = spawn(cmd, args, { cwd, env, stdio, detached: true });
   const group = { child, stdout: '', stderr: '', error: null, duringCleanup };
   groups.add(group);
+  captureGroupOutput({ child, group, captureStdout });
+  group.closed = new Promise((resolveChild) => {
+    child.on('error', (error) => { group.error = error; });
+    child.on('close', (code, signal) => resolveChild({ code, signal, stdout: group.stdout, stderr: group.stderr, error: group.error }));
+  });
+  return group;
+}
+
+function captureGroupOutput({ child, group, captureStdout }, _options = {}) {
   if (captureStdout) {
     child.stdout?.setEncoding('utf8');
     child.stdout?.on('data', (data) => { group.stdout += data; });
   }
   child.stderr?.setEncoding('utf8');
   child.stderr?.on('data', (data) => { group.stderr += data; });
-  group.closed = new Promise((resolveChild) => {
-    child.on('error', (error) => { group.error = error; });
-    child.on('close', (code, signal) => resolveChild({ code, signal, stdout: group.stdout, stderr: group.stderr, error: group.error }));
-  });
-  return group;
 }
 
 /** Kill the tracked group even if its leader exits while descendants remain alive. */
@@ -466,6 +470,18 @@ function recordResult({ lane, row, tests, secs, note, data }) {
   console.log(`lane ${lane.index} row ${row.row} ${row.path}: ${record.mutants ?? '-'} mutants, ${record.survived ?? '-'} survived, ${note} (${secs}s)`);
 }
 
+function sweepOutcome({ result }, _options = {}) {
+  let note = result.note;
+  let data = parseSweep(result.stdout);
+  if (!data && (note === 'TIMEOUT' || note === 'STOPPED')) data = readProgress({ path: result.progress });
+  if (data?.results.length && note === 'TIMEOUT') note = 'TIMEOUT-PARTIAL';
+  if (!data) {
+    const tail = result.stdout.trim().split('\n').at(-1) || '';
+    note += ` NO-JSON ${tail.slice(0, 120)}`;
+  }
+  return { note, data };
+}
+
 async function sweepRow({ lane, row, index }) {
   const start = Date.now();
   const tests = testsFor({ path: row.path, explicitTests: row.explicitTests, index });
@@ -478,14 +494,7 @@ async function sweepRow({ lane, row, index }) {
     if (!present) note = 'MISSING';
     else if (tests.length) {
       const result = await runSweep({ lane, row, tests });
-      note = result.note;
-      data = parseSweep(result.stdout);
-      if (!data && (note === 'TIMEOUT' || note === 'STOPPED')) data = readProgress({ path: result.progress });
-      if (data?.results.length && note === 'TIMEOUT') note = 'TIMEOUT-PARTIAL';
-      if (!data) {
-        const tail = result.stdout.trim().split('\n').at(-1) || '';
-        note += ` NO-JSON ${tail.slice(0, 120)}`;
-      }
+      ({ note, data } = sweepOutcome({ result }));
     }
   } finally {
     // Check even when setup/execution fails; publishing a row must not bypass the guard.
@@ -531,18 +540,22 @@ async function workLane({ lane, index }) {
   finally { lane.state = 'done'; writeStatus(); }
 }
 
+function startWorkers({ index, target, tasks }, _options = {}) {
+  // Increasing lanes.target can add workers beyond the initial --lanes value.
+  while (queue.length && lanes.length < target) {
+    const lane = createLane(lanes.length);
+    lanes.push(lane);
+    tasks.push(workLane({ lane, index }));
+  }
+}
+
 async function runLanes(index) {
   const tasks = [];
   let lastStatus = 0;
   while (queue.length || lanes.some((lane) => lane.state !== 'done')) {
     checkStop();
     const target = stopping ? 0 : laneTarget();
-    // Increasing lanes.target can add workers beyond the initial --lanes value.
-    while (queue.length && lanes.length < target) {
-      const lane = createLane(lanes.length);
-      lanes.push(lane);
-      tasks.push(workLane({ lane, index }));
-    }
+    startWorkers({ index, target, tasks });
     if (stopping && lanes.every((lane) => lane.state === 'done')) break;
     if (Date.now() - lastStatus >= 60_000) { writeStatus(); lastStatus = Date.now(); }
     await pause(1000);
@@ -579,6 +592,13 @@ async function initialize() {
   return testIndex();
 }
 
+async function removeCopies({ errors }, _options = {}) {
+  for (const repo of copies) {
+    try { await removeCopy(repo); }
+    catch (error) { errors.push(`${repo}: ${error.message}`); }
+  }
+}
+
 function cleanup() {
   cleanupPromise ||= (async () => {
     stopping = true;
@@ -587,10 +607,7 @@ function cleanup() {
     const errors = [];
     const killed = await Promise.allSettled([...groups].map(stopGroup));
     for (const result of killed) if (result.status === 'rejected') errors.push(result.reason.message);
-    for (const repo of copies) {
-      try { await removeCopy(repo); }
-      catch (error) { errors.push(`${repo}: ${error.message}`); }
-    }
+    await removeCopies({ errors });
     if (config) {
       for (const lane of lanes) lane.state = 'done';
       writeStatus();

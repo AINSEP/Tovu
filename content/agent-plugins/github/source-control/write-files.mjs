@@ -26,6 +26,7 @@ import { createHash } from "node:crypto";
  *   | { ok: false, code: "network-unreachable", message: string, logDetail: string }} Failure
  */
 
+const PROVIDER_ERROR = "provider-error";
 const GITHUB_API_VERSION = "2026-03-10";
 const GITHUB_WRITE_FILES_TIMEOUT_MS = 30_000;
 /** The Contents API lists at most this many entries per directory; a full listing may be truncated. */
@@ -78,7 +79,7 @@ export function providerErrorMessage(response, fallback) {
 
 /** @param {string} path @returns {Failure} */
 function notRegularFileFailure(path) {
-  return { ok: false, code: "provider-error", message: `'${path}' already exists on the branch but is not a regular file — refusing to overwrite it with a blob` };
+  return { ok: false, code: PROVIDER_ERROR, message: `'${path}' already exists on the branch but is not a regular file — refusing to overwrite it with a blob` };
 }
 
 /** @param {string} path */
@@ -105,7 +106,17 @@ function headerOf(response, name) {
 
 /** @param {{ response: HttpResponse, status: number }} required */
 function isGitHubRateLimited({ response, status }, _options = {}) {
-  return status === 429 || (status === 403 && (headerOf(response, "retry-after") !== undefined || headerOf(response, "x-ratelimit-remaining") === "0" || SECONDARY_RATE_LIMIT_PATTERN.test(response.bodyText)));
+  if (status === 429) return true;
+  if (status !== 403) return false;
+  return headerOf(response, "retry-after") !== undefined || headerOf(response, "x-ratelimit-remaining") === "0" || SECONDARY_RATE_LIMIT_PATTERN.test(response.bodyText);
+}
+
+/** @param {{ response: HttpResponse, retryAfter: number, policy: RetryPolicy }} required */
+function gitHubRateLimitDelay({ response, retryAfter, policy }, _options = {}) {
+  if (Number.isFinite(retryAfter) && retryAfter >= 0) return retryAfter * 1000;
+  const reset = Number(headerOf(response, "x-ratelimit-reset"));
+  if (headerOf(response, "x-ratelimit-remaining") === "0" && Number.isFinite(reset)) return Math.max(0, reset * 1000 - Date.now()) + 1000;
+  return policy.rateLimitWaitMs;
 }
 
 /**
@@ -127,10 +138,7 @@ export function retryDelayMs(result, attempt, policy) {
   const retryAfter = Number(headerOf(result.response, "retry-after"));
   const rateLimited = isGitHubRateLimited({ response: result.response, status });
   if (!rateLimited) return status >= 500 && status <= 599 ? backoff : undefined;
-  if (Number.isFinite(retryAfter) && retryAfter >= 0) return retryAfter * 1000;
-  const reset = Number(headerOf(result.response, "x-ratelimit-reset"));
-  if (headerOf(result.response, "x-ratelimit-remaining") === "0" && Number.isFinite(reset)) return Math.max(0, reset * 1000 - Date.now()) + 1000;
-  return policy.rateLimitWaitMs;
+  return gitHubRateLimitDelay({ response: result.response, retryAfter, policy });
 }
 
 /**
@@ -207,9 +215,9 @@ export function createGitDataClient(kit, options = {}) {
     const result = await send(target, { method: "GET", url });
     if (result.kind !== "response") return nonResponseFailure(result);
     if (result.response.status === 404) return { ok: true, found: false };
-    if (!isOk(result.response)) return { ok: false, code: "provider-error", message: providerErrorMessage(result.response, failureFallback) };
+    if (!isOk(result.response)) return { ok: false, code: PROVIDER_ERROR, message: providerErrorMessage(result.response, failureFallback) };
     const body = parseJsonBody(result.response);
-    if (!body.ok) return { ok: false, code: "provider-error", message: body.message };
+    if (!body.ok) return { ok: false, code: PROVIDER_ERROR, message: body.message };
     return { ok: true, found: true, json: body.json };
   }
 
@@ -218,9 +226,9 @@ export function createGitDataClient(kit, options = {}) {
   async function postJson(target, url, body, failureFallback) {
     const result = await send(target, { method: "POST", url, body: JSON.stringify(body) });
     if (result.kind !== "response") return nonResponseFailure(result);
-    if (!isOk(result.response)) return { ok: false, code: "provider-error", message: providerErrorMessage(result.response, failureFallback) };
+    if (!isOk(result.response)) return { ok: false, code: PROVIDER_ERROR, message: providerErrorMessage(result.response, failureFallback) };
     const parsed = parseJsonBody(result.response);
-    if (!parsed.ok) return { ok: false, code: "provider-error", message: parsed.message };
+    if (!parsed.ok) return { ok: false, code: PROVIDER_ERROR, message: parsed.message };
     return { ok: true, json: parsed.json };
   }
 
@@ -230,7 +238,7 @@ export function createGitDataClient(kit, options = {}) {
     const result = await postJson(target, `${repoPathOf(target)}/git/blobs`, { content: bytes.toString("base64"), encoding: "base64" }, "GitHub blob creation failed");
     if (!result.ok) return result;
     const sha = extractStringField(result.json, "sha");
-    if (!sha) return { ok: false, code: "provider-error", message: "GitHub blob creation response did not include a sha" };
+    if (!sha) return { ok: false, code: PROVIDER_ERROR, message: "GitHub blob creation response did not include a sha" };
     return { ok: true, sha };
   }
 
@@ -242,7 +250,7 @@ export function createGitDataClient(kit, options = {}) {
     if (result.response.status === 422) {
       return { ok: false, code: "diverged", message: "the branch has moved since this write was confirmed — refusing to overwrite it" };
     }
-    if (!isOk(result.response)) return { ok: false, code: "provider-error", message: providerErrorMessage(result.response, "GitHub branch update failed") };
+    if (!isOk(result.response)) return { ok: false, code: PROVIDER_ERROR, message: providerErrorMessage(result.response, "GitHub branch update failed") };
     return { ok: true };
   }
 
@@ -296,6 +304,23 @@ export function createFileWriter(git) {
     return { ok: true };
   }
 
+  /** @param {{ target: Target, branch: string, dir: string, dirFiles: WriteFile[], stateByPath: Map<string, { path: string, exists: boolean }> }} required */
+  async function checkDirectoryFileExistence({ target, branch, dir, dirFiles, stateByPath }, _options = {}) {
+    const directoryPath = dir ? `/${encPath(dir)}` : "";
+    const listUrl = `${repoPathOf(target)}/contents${directoryPath}?ref=${enc(branch)}`;
+    const listResult = await git.getJson(target, listUrl, `GitHub directory lookup of '${dir}' failed`);
+    if (!listResult.ok) return listResult;
+    if (!listResult.found) {
+      for (const file of dirFiles) stateByPath.set(file.path, { path: file.path, exists: false });
+      return { ok: true };
+    }
+    const entries = listResult.json;
+    if (!Array.isArray(entries)) {
+      return { ok: false, code: PROVIDER_ERROR, message: `'${dir}' is a file on the branch, not a directory` };
+    }
+    return resolveDirectoryFileStates({ target, branch, dirFiles, entries, stateByPath });
+  }
+
   /** One directory listing per distinct parent directory, falling back to a per-file lookup only when
    *  a listing may be truncated. @param {Target} target @param {string} branch @param {readonly WriteFile[]} files */
   async function checkFileExistence(target, branch, files) {
@@ -304,18 +329,7 @@ export function createFileWriter(git) {
     /** @type {Map<string, { path: string, exists: boolean }>} */
     const stateByPath = new Map();
     for (const [dir, dirFiles] of filesByDir) {
-      const listUrl = `${repoPathOf(target)}/contents${dir ? `/${encPath(dir)}` : ""}?ref=${enc(branch)}`;
-      const listResult = await git.getJson(target, listUrl, `GitHub directory lookup of '${dir}' failed`);
-      if (!listResult.ok) return listResult;
-      if (!listResult.found) {
-        for (const file of dirFiles) stateByPath.set(file.path, { path: file.path, exists: false });
-        continue;
-      }
-      const entries = listResult.json;
-      if (!Array.isArray(entries)) {
-        return { ok: false, code: "provider-error", message: `'${dir}' is a file on the branch, not a directory` };
-      }
-      const resolved = await resolveDirectoryFileStates({ target, branch, dirFiles, entries, stateByPath });
+      const resolved = await checkDirectoryFileExistence({ target, branch, dir, dirFiles, stateByPath });
       if (!resolved.ok) return resolved;
     }
     return { ok: true, fileStates: files.map((file) => stateByPath.get(file.path)) };
@@ -328,13 +342,13 @@ export function createFileWriter(git) {
     if (!refJson.ok) return refJson;
     if (!refJson.found) return { ok: false, code: "branch-not-found", message: `branch '${input.branch}' does not exist in ${input.owner}/${input.repo}` };
     const parentCommitSha = extractStringField(refJson.json.object, "sha");
-    if (!parentCommitSha) return { ok: false, code: "provider-error", message: "GitHub branch lookup response did not include a sha" };
+    if (!parentCommitSha) return { ok: false, code: PROVIDER_ERROR, message: "GitHub branch lookup response did not include a sha" };
 
     const commitJson = await git.getJson(input, `${repoPath}/git/commits/${enc(parentCommitSha)}`, "GitHub parent-commit lookup failed");
     if (!commitJson.ok) return commitJson;
-    if (!commitJson.found) return { ok: false, code: "provider-error", message: "GitHub parent-commit lookup returned 404 for a sha this call just resolved" };
+    if (!commitJson.found) return { ok: false, code: PROVIDER_ERROR, message: "GitHub parent-commit lookup returned 404 for a sha this call just resolved" };
     const baseTreeSha = extractStringField(commitJson.json.tree, "sha");
-    if (!baseTreeSha) return { ok: false, code: "provider-error", message: "GitHub parent-commit response did not include a tree sha" };
+    if (!baseTreeSha) return { ok: false, code: PROVIDER_ERROR, message: "GitHub parent-commit response did not include a tree sha" };
 
     const existence = await checkFileExistence(input, input.branch, input.files);
     if (!existence.ok) return existence;
@@ -348,7 +362,7 @@ export function createFileWriter(git) {
       const result = await git.getJson(target, `${repoPathOf(target)}/git/trees/${enc(treeSha)}`, "GitHub file-mode lookup failed");
       if (!result.ok) return result;
       if (!result.found || !Array.isArray(result.json.tree) || result.json.truncated === true) {
-        return { ok: false, code: "provider-error", message: "GitHub returned an incomplete tree — refusing to guess file modes" };
+        return { ok: false, code: PROVIDER_ERROR, message: "GitHub returned an incomplete tree — refusing to guess file modes" };
       }
       tree = result.json.tree;
       trees.set(treeSha, tree);
@@ -361,6 +375,28 @@ export function createFileWriter(git) {
     return entry.type === "tree" && typeof entry.sha === "string" && !!entry.sha;
   }
 
+  /** @param {{ entry: any, path: string }} required */
+  function modeFromBlobEntry({ entry, path }, _options = {}) {
+    if (entry.type !== "blob" || !["100644", "100755"].includes(entry.mode)) return notRegularFileFailure(path);
+    return { ok: true, mode: entry.mode };
+  }
+
+  /** @param {{ target: Target, baseTreeSha: string, file: WriteFile, trees: Map<string, any[]> }} required */
+  async function readFileMode({ target, baseTreeSha, file, trees }, _options = {}) {
+    let treeSha = baseTreeSha;
+    const segments = file.path.split("/");
+    for (let index = 0; index < segments.length; index++) {
+      const loaded = await readModeTree({ target, treeSha, trees });
+      if (!loaded.ok) return loaded;
+      const entry = loaded.tree.find(entry => entry.path === segments[index]);
+      if (!entry) break;
+      if (index === segments.length - 1) return modeFromBlobEntry({ entry, path: file.path });
+      if (!isModeDirectory({ entry })) return notRegularFileFailure(file.path);
+      treeSha = entry.sha;
+    }
+    return { ok: true, mode: "100644" };
+  }
+
   /** Read each directory of the CONFIRMED tree, never the mutable branch. Non-recursive
    * lookups avoid GitHub's recursive-tree truncation limit and preserve executable blobs.
    * @param {{ target: Target, baseTreeSha: string, files: readonly WriteFile[] }} required */
@@ -370,35 +406,15 @@ export function createFileWriter(git) {
     /** @type {Map<string, string>} */
     const modes = new Map();
     for (const file of files) {
-      let treeSha = baseTreeSha;
-      const segments = file.path.split("/");
-      for (let index = 0; index < segments.length; index++) {
-        const loaded = await readModeTree({ target, treeSha, trees });
-        if (!loaded.ok) return loaded;
-        const tree = loaded.tree;
-        const entry = tree.find(entry => entry.path === segments[index]);
-        if (!entry) { modes.set(file.path, "100644"); break; }
-        if (index < segments.length - 1) {
-          if (!isModeDirectory({ entry })) return notRegularFileFailure(file.path);
-          treeSha = entry.sha;
-        } else {
-          if (entry.type !== "blob" || !["100644", "100755"].includes(entry.mode)) return notRegularFileFailure(file.path);
-          modes.set(file.path, entry.mode);
-        }
-      }
+      const result = await readFileMode({ target, baseTreeSha, file, trees });
+      if (!result.ok) return result;
+      modes.set(file.path, result.mode);
     }
     return { ok: true, modes };
   }
 
-  /**
-   * @param {Target & { branch: string, commitMessage: string, files: readonly WriteFile[] }} input
-   * @param {{ parentCommitSha: string, baseTreeSha: string }} plan
-   */
-  async function commitFiles(input, plan) {
-    const repoPath = repoPathOf(input);
-    const fileModes = await readFileModes({ target: input, baseTreeSha: plan.baseTreeSha, files: input.files });
-    if (!fileModes.ok) return fileModes;
-
+  /** @param {{ input: Target & { files: readonly WriteFile[] }, modes: Map<string, string> }} required */
+  async function buildWriteBlobEntries({ input, modes }, _options = {}) {
     /** @type {Map<string, string>} */
     const blobShaByHash = new Map();
     /** @type {Record<string, unknown>[]} */
@@ -412,13 +428,26 @@ export function createFileWriter(git) {
         blobSha = blobResult.sha;
         blobShaByHash.set(hash, blobSha);
       }
-      entries.push({ path: file.path, mode: fileModes.modes.get(file.path), type: "blob", sha: blobSha });
+      entries.push({ path: file.path, mode: modes.get(file.path), type: "blob", sha: blobSha });
     }
+    return { ok: true, entries };
+  }
 
-    const treeResult = await git.postJson(input, `${repoPath}/git/trees`, { tree: entries, base_tree: plan.baseTreeSha }, "GitHub tree creation failed");
+  /**
+   * @param {Target & { branch: string, commitMessage: string, files: readonly WriteFile[] }} input
+   * @param {{ parentCommitSha: string, baseTreeSha: string }} plan
+   */
+  async function commitFiles(input, plan) {
+    const repoPath = repoPathOf(input);
+    const fileModes = await readFileModes({ target: input, baseTreeSha: plan.baseTreeSha, files: input.files });
+    if (!fileModes.ok) return fileModes;
+    const blobs = await buildWriteBlobEntries({ input, modes: fileModes.modes });
+    if (!blobs.ok) return blobs;
+
+    const treeResult = await git.postJson(input, `${repoPath}/git/trees`, { tree: blobs.entries, base_tree: plan.baseTreeSha }, "GitHub tree creation failed");
     if (!treeResult.ok) return treeResult;
     const newTreeSha = extractStringField(treeResult.json, "sha");
-    if (!newTreeSha) return { ok: false, code: "provider-error", message: "GitHub tree creation response did not include a sha" };
+    if (!newTreeSha) return { ok: false, code: PROVIDER_ERROR, message: "GitHub tree creation response did not include a sha" };
 
     const commitResult = await git.postJson(
       input,
@@ -428,7 +457,7 @@ export function createFileWriter(git) {
     );
     if (!commitResult.ok) return commitResult;
     const commitSha = extractStringField(commitResult.json, "sha");
-    if (!commitSha) return { ok: false, code: "provider-error", message: "GitHub commit creation response did not include a sha" };
+    if (!commitSha) return { ok: false, code: PROVIDER_ERROR, message: "GitHub commit creation response did not include a sha" };
 
     const refResult = await git.updateRef(input, input.branch, commitSha);
     if (!refResult.ok) return refResult;

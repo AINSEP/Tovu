@@ -3,13 +3,14 @@ import { probeCredentialConnection } from "./credentialed-request.js";
 import type { PluginCredentialCard } from "./plugin-credential-card.js";
 import { invalidatePublishCredentialCompatibility } from "../deployments/publish-credentials/index.js";
 import { normalizeCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets";
-import type { DeployTargetRegistry } from "../deployments/deploy-targets/types.js";
+import type { DeployTargetRegistry } from "../deployments/contracts.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/custom-credentials.js';
-import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/secret-form-cards.js";
+import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
 import { withCustomCredentialSetup, type CredentialSetupFailure } from "./credential-recovery.js";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
 import { credentialText, formatCredentialHint, translateCredentialMessage } from '../../contracts/core/credential-copy.js';
-import { resolveOperatorLocale, type OperatorLocaleDeps } from '../agent-plugins/operator-locale.js';
+import { resolveOperatorLocale } from '../settings/index.js';
+import { type OperatorLocaleDeps } from '../../contracts/headless/index.js';
 import type { Clock } from "@jini-ai/core/primitives";
 import { buildAuthorizationHeader } from "@jini-ai/integrations/credentialed-http";
 import type { ToolExecutionContext, ToolExecutionOptions } from "@jini-ai/core";
@@ -40,7 +41,7 @@ import { approvalToolHandler } from "../../contracts/core/human-confirm.js";
 import { EgressRefusedError, type HttpClientPort } from "../../platform/http/index.js";
 import type { ObservabilityPort } from "../../platform/observability/index.js";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { customCredentialsAgentToolCatalog, WRITE_FILES_TOOL_ID } from "./agent-tools.js";
 import {
   CredentialedRequestValidationError,
@@ -898,7 +899,7 @@ async function openCreateCard(required: {
     outcome: ({ run }) => {
       if (run.status === 'saved') {
         const hint = formatCredentialHint({ hint: run.saved.tokenHint, locale });
-        return buildCreateOutcome({ label: run.saved.label, state: 'success', message: `${hint ? `${hint}. ` : ''}${credentialText({ id: 'saved', locale })}` });
+        return buildCreateOutcome({ label: run.saved.label, state: 'success', message: `${hint ? hint + '. ' : ''}${credentialText({ id: 'saved', locale })}` });
       }
       if (run.status === 'blank' || run.status === 'failed') return buildCreateOutcome({ label: displayLabel, state: 'failure',
         message: run.status === 'blank' ? credentialText({ id: 'blank', locale }) : run.safeMessage });
@@ -990,7 +991,7 @@ export function buildApiCredentialSaveHandlers({ routeDeps, surfaces }: { routeD
         outcome: ({ run }) => {
           if (run.status === "saved") {
             const hint = formatCredentialHint({ hint: run.saved.tokenHint, locale });
-            return setTokenOutcome({ label, state: "success", message: `${hint ? `${hint}. ` : ""}${credentialText({ id: "saved", locale })}` });
+            return setTokenOutcome({ label, state: "success", message: `${hint ? hint + ". " : ""}${credentialText({ id: "saved", locale })}` });
           }
           if (run.status === "blank" || run.status === "failed") return setTokenOutcome({ label, state: "failure",
             message: run.status === "blank" ? credentialText({ id: "blank", locale }) : run.safeMessage });
@@ -1236,6 +1237,6 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
  * `server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`,
  * not by importing this module.
  */
-export function contributeCustomCredentialsTools(): ToolContributor {
+export function contributeCustomCredentialsTools(): ToolContributor<CustomCredentialsToolDeps, AssistantSurfaceDeps> {
   return { domain: DOMAIN, build: buildCustomCredentialsRegistrations, risk: customCredentialsDerivedRisk };
 }

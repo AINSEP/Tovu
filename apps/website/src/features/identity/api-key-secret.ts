@@ -163,11 +163,15 @@ function parseStoredHash(storedHash: string): ParsedDigest | null {
   const params = parseStoredHashParams(rawN, rawR, rawP);
   if (!params) return null;
 
+  const bytes = decodeStoredHashBytes({ rawSalt, rawDigest });
+  return bytes ? { params, ...bytes } : null;
+}
+
+function decodeStoredHashBytes({ rawSalt, rawDigest }: { rawSalt: string; rawDigest: string }, _options = {}): Pick<ParsedDigest, "salt" | "digest"> | null {
   const salt = Buffer.from(rawSalt, "base64url");
   const digest = Buffer.from(rawDigest, "base64url");
   if (salt.length === 0 || digest.length === 0) return null;
-
-  return { params, salt, digest };
+  return { salt, digest };
 }
 
 /**

@@ -7,13 +7,13 @@ export function useSkillConfirmation(active: boolean, onCancel: () => void) {
   const dialogRef = useRef<HTMLDivElement>(null);
   useFocusTrap(dialogRef, active);
   useEffect(() => {
-    if (!active) return;
+    if (!active) return undefined;
     const previous = document.activeElement as HTMLElement | null;
     dialogRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
     return () => { previous?.focus(); };
   }, [active]);
   useEffect(() => {
-    if (!active) return;
+    if (!active) return undefined;
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") { event.preventDefault(); onCancel(); }
     }

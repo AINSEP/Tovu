@@ -353,7 +353,7 @@ export function buildDeploymentDescriptor(): DeploymentDescriptor {
 
   const port = Number(extractOrThrow(dockerfile, /^EXPOSE\s+(\d+)\s*$/m, "the container port", "Dockerfile (EXPOSE line)"));
   const dockerfilePath = "Dockerfile";
-  const appName = extractOrThrow(packageJson, /^\s*"name"\s*:\s*"([^"]+)"/m, "the default app name", "package.json (name)");
+  const appName = extractOrThrow(packageJson, /^[^\S\r\n\u2028\u2029]*"name"\s*:\s*"([^"]+)"/mu, "the default app name", "package.json (name)");
   const volumeName = `${appName}_sites`;
   const volumeMountPath = extractOrThrow(
     dockerfile,

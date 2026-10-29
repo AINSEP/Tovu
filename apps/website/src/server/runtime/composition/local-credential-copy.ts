@@ -31,7 +31,7 @@ export class LocalCredentialCopyError extends Error {
 }
 export interface CredentialCopyChoice {
   siteId: string; name: string;
-  keys: { kind: VaultKind; id: string; label: string; provider: string | null; last4?: string | undefined; worksFor: string[]; publishHosts?: string[] }[];
+  keys: { kind: VaultKind; id: string; label: string; provider: string | null; last4?: string; worksFor: string[]; publishHosts?: string[] }[];
   reasonCode?: string; message?: string;
   /** Desktop's existing startSite(id) uses the canonical project folder as its ID. Never logged. */
   actionHint?: { action: "start-site"; siteId: string; desktopSiteId: string };
@@ -77,8 +77,8 @@ export function createLocalCredentialCopy(required: {
       await kernel.run(async db => {
         for await (const row of db.selectFrom("secrets_vault").select(["kind", "meta"]).stream()) {
           const meta = typeof row.meta === "string" ? JSON.parse(row.meta) : row.meta;
-          if (Object.hasOwn(meta, "legacyAad") || row.kind === "custom" ||
-            (row.kind === "vendor" && (meta.credentialType == null || !Array.isArray(meta.worksFor)))) throw needsUpgrade({ source });
+          if (Object.hasOwn(meta, "legacyAad") || row.kind === "custom") throw needsUpgrade({ source });
+          if (row.kind === "vendor" && (meta.credentialType == null || !Array.isArray(meta.worksFor))) throw needsUpgrade({ source });
         }
       });
       const workspaceId = (await resolveWorkspace({ kernel: kernel as unknown as ContentKernel })).id;
@@ -110,18 +110,19 @@ export function createLocalCredentialCopy(required: {
       }
       for (const source of sources()) {
         try {
-          const keys = await readSource({ source, read: async ({ rows }) => rows.filter(row =>
-            VAULT_KINDS.some(kind => kind === row.kind) && required.registry.isCopyableKind[row.kind] &&
-            row.owner_key === "tovu" && row.principal_id === null && row.binding === null).map(row => {
+          const keys = await readSource({ source, read: async ({ rows }) => rows.filter(row => {
+            if (!(VAULT_KINDS as readonly VaultKind[]).includes(row.kind) || !required.registry.isCopyableKind[row.kind]) return false;
+            return row.owner_key === "tovu" && row.principal_id === null && row.binding === null;
+          }).map(row => {
               assertCredentialFreeField({ value: row.label, field: "label" });
               if (row.provider !== null) assertCredentialFreeField({ value: row.provider, field: "provider" });
               const meta = required.registry.metaParsers[row.kind]({ meta: typeof row.meta === "string" ? JSON.parse(row.meta) : row.meta });
               const worksFor = Array.isArray(meta.worksFor) ? [...meta.worksFor as string[]] : [];
+              const publicToken = row.kind !== "database-destination" && row.token_length !== null && row.token_length >= 12;
               return { kind: row.kind, id: row.id, label: row.label, provider: row.provider, worksFor,
                 ...(deployTargets ? { publishHosts: publishHostsForCredential({ credential: { ...row, meta }, registry: deployTargets }) } : {}),
                 // Keep the copy-card field present without exposing destination or short-token hints.
-                last4: row.kind !== "database-destination" && row.token_length !== null && row.token_length >= 12 && row.last4
-                  ? row.last4.slice(-4) : undefined };
+                last4: publicToken && row.last4 ? row.last4.slice(-4) : undefined };
             }) });
           choices.push({ siteId: source.siteId, name: source.name, keys });
         } catch (error) {
@@ -201,7 +202,7 @@ function vault({ kernel, workspaceId, keyring, sealer, metaParsers }: {
   return new SecretsVaultService({ repo: new SqlSecretsVaultRepo({ kernel: kernel as unknown as import("@jini-ai/db/kernel").StorageKernel<SecretsVaultDatabase> }), keyring, sealer, metaParsers,
     now: () => new Date().toISOString(), newId: () => { throw new VaultError({ code: "invalid-record" }); },
     authorize: async ({ context }) => {
-      if (context.workspaceId !== workspaceId || context.ownerKey !== "tovu" || context.principalId !== null ||
-        ("binding" in context && context.binding !== null)) throw new VaultError({ code: "context" });
+      if (context.workspaceId !== workspaceId || context.ownerKey !== "tovu" || context.principalId !== null) throw new VaultError({ code: "context" });
+      if ("binding" in context && context.binding !== null) throw new VaultError({ code: "context" });
     } });
 }

@@ -1,6 +1,7 @@
 import { ToolInputError } from "@jini-ai/core";
 import { federatedApprovalClassFor } from "../tool-approval-policy.js";
-import { approvalClassAsks, type ToolApprovalClass } from "../../contracts/headless/assistant-tool-approval-policy.js";
+import { approvalClassAsks } from "../assistant-tool-approval-policy.js";
+import { type ToolApprovalClass } from "../../contracts/headless/index.js";
 import { FEDERATED_ENTITY_TYPE, FEDERATED_TOOL_PERMISSION, federatedCallConfirmationForAction, federatedToolRequiresWriteGrant, writeShapedInputNames } from "@jini-ai/mcp/federation";
 import type { ToolRegistration, ToolExecutionContext, ToolExecutionOptions } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";

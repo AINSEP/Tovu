@@ -20,3 +20,12 @@ export {
   type CreateNodemailerSmtpTransportConfig, type SmtpMailerAdapterDeps,
   type SmtpMailPayload, type SmtpTransport,
 } from "./adapters/smtp.nodemailer.js";
+
+export type {
+  MailStatusReport, MailProviderField, MailProviderSetup, MailProviderConfiguration,
+  MailProviderConfigurationReport, MailProviderControl,
+} from "./mail-status.js";
+export type { SenderDomainVerification, SenderDomainVerificationPort } from "./sender-domain-verification.js";
+export type { MailPurposeGateProbe } from "./purpose-gate-probe.js";
+export { toJiniMailer, toTovuMailer } from "./purpose-scoped-mailer.js";
+export { credentialSecrets, safeMailProviderText } from "./provider-error.js";

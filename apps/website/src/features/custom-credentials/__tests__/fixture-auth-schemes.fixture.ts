@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { loadCredentialSchemeRegistryFromSource, type CredentialSchemeRule } from "../auth-schemes.js";
+import { loadCredentialSchemeRegistryFromSource, type CredentialSchemeRule } from "../../agent-plugins/auth-schemes.js";
 
 /**
  * @file Test fixture: the self-describing token scheme rules read straight from the neutral

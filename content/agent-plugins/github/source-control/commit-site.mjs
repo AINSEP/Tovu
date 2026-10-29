@@ -26,6 +26,7 @@ import { createHash } from "node:crypto";
  * @typedef {{ path: string, sha: string | undefined }} PreviouslyManagedFile
  */
 
+const PROVIDER_ERROR = "provider-error";
 const GITHUB_API = "https://api.github.com";
 /** Pinned to the same REST API version the GitHub Pages deploy target uses. */
 const GITHUB_API_VERSION = "2026-03-10";
@@ -66,6 +67,11 @@ function isPlainObject(value) {
   return typeof value === "object" && value !== null;
 }
 
+/** @param {{ err: unknown }} required */
+function isGitHubTimeout({ err }, _options = {}) {
+  return err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
+}
+
 /**
  * The commit operation, bound to one kit.
  *
@@ -86,7 +92,7 @@ export function createSiteCommitter(kit) {
       if (kit.isRedirectRefusal(err)) {
         return { kind: "provider-rejected", message: err instanceof Error ? err.message : String(err) };
       }
-      if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) {
+      if (isGitHubTimeout({ err })) {
         return { kind: "network-unreachable", message: `GitHub request to ${url} timed out after ${GITHUB_FETCH_TIMEOUT_MS}ms` };
       }
       return { kind: "network-unreachable", message: err instanceof Error ? err.message : String(err) };
@@ -111,7 +117,7 @@ export function createSiteCommitter(kit) {
 
   /** @param {{ kind: "network-unreachable" | "provider-rejected", message: string }} result @returns {StepFailure} */
   function nonResponseFailure(result) {
-    return { ok: false, code: result.kind === "network-unreachable" ? "network-unreachable" : "provider-error", message: result.message };
+    return { ok: false, code: result.kind === "network-unreachable" ? "network-unreachable" : PROVIDER_ERROR, message: result.message };
   }
 
   /** POSTs JSON and reads back `sha`. @param {string} url @param {unknown} body @param {string} what
@@ -120,11 +126,11 @@ export function createSiteCommitter(kit) {
     const result = await githubFetch(url, { method: "POST", headers: githubHeaders(token, { "Content-Type": "application/json" }), body: JSON.stringify(body) });
     if (result.kind !== "response") return nonResponseFailure(result);
     const { response } = result;
-    if (!response.ok) return { ok: false, code: "provider-error", message: await providerErrorMessage(response, `GitHub ${what} failed`) };
+    if (!response.ok) return { ok: false, code: PROVIDER_ERROR, message: await providerErrorMessage(response, `GitHub ${what} failed`) };
     const parsed = await readJsonBody(response);
-    if (!parsed.ok) return { ok: false, code: "provider-error", message: parsed.message };
+    if (!parsed.ok) return { ok: false, code: PROVIDER_ERROR, message: parsed.message };
     const sha = typeof parsed.json.sha === "string" ? parsed.json.sha : "";
-    if (!sha) return { ok: false, code: "provider-error", message: `GitHub ${what} response did not include a sha` };
+    if (!sha) return { ok: false, code: PROVIDER_ERROR, message: `GitHub ${what} response did not include a sha` };
     return { ok: true, sha };
   }
 
@@ -136,9 +142,9 @@ export function createSiteCommitter(kit) {
     if (response.status === 404) {
       return /** @type {const} */ ({ ok: false, code: "repository-not-found", message: `no repository '${owner}/${repo}' is reachable with this token — it may not exist, or the token cannot see it` });
     }
-    if (!response.ok) return { ok: false, code: "provider-error", message: await providerErrorMessage(response, "GitHub repository lookup failed") };
+    if (!response.ok) return { ok: false, code: PROVIDER_ERROR, message: await providerErrorMessage(response, "GitHub repository lookup failed") };
     const body = await readJsonBody(response);
-    if (!body.ok) return { ok: false, code: "provider-error", message: body.message };
+    if (!body.ok) return { ok: false, code: PROVIDER_ERROR, message: body.message };
     const defaultBranch = typeof body.json.default_branch === "string" ? body.json.default_branch : "main";
     return /** @type {const} */ ({ ok: true, defaultBranch });
   }
@@ -151,12 +157,12 @@ export function createSiteCommitter(kit) {
     if (result.kind !== "response") return nonResponseFailure(result);
     const { response } = result;
     if (response.status === 404) return { ok: true, tipSha: undefined };
-    if (!response.ok) return { ok: false, code: "provider-error", message: await providerErrorMessage(response, "GitHub branch lookup failed") };
+    if (!response.ok) return { ok: false, code: PROVIDER_ERROR, message: await providerErrorMessage(response, "GitHub branch lookup failed") };
     const body = await readJsonBody(response);
-    if (!body.ok) return { ok: false, code: "provider-error", message: body.message };
+    if (!body.ok) return { ok: false, code: PROVIDER_ERROR, message: body.message };
     const object = body.json.object;
     const sha = isPlainObject(object) && typeof object.sha === "string" ? object.sha : "";
-    if (!sha) return { ok: false, code: "provider-error", message: "GitHub branch lookup response did not include a sha" };
+    if (!sha) return { ok: false, code: PROVIDER_ERROR, message: "GitHub branch lookup response did not include a sha" };
     return { ok: true, tipSha: sha };
   }
 
@@ -166,12 +172,12 @@ export function createSiteCommitter(kit) {
     const result = await githubFetch(`${GITHUB_API}/repos/${enc(owner)}/${enc(repo)}/git/commits/${enc(commitSha)}`, { headers: githubHeaders(token) });
     if (result.kind !== "response") return nonResponseFailure(result);
     const { response } = result;
-    if (!response.ok) return { ok: false, code: "provider-error", message: await providerErrorMessage(response, "GitHub parent-commit lookup failed") };
+    if (!response.ok) return { ok: false, code: PROVIDER_ERROR, message: await providerErrorMessage(response, "GitHub parent-commit lookup failed") };
     const body = await readJsonBody(response);
-    if (!body.ok) return { ok: false, code: "provider-error", message: body.message };
+    if (!body.ok) return { ok: false, code: PROVIDER_ERROR, message: body.message };
     const tree = body.json.tree;
     const sha = isPlainObject(tree) && typeof tree.sha === "string" ? tree.sha : "";
-    if (!sha) return { ok: false, code: "provider-error", message: "GitHub parent-commit response did not include a tree sha" };
+    if (!sha) return { ok: false, code: PROVIDER_ERROR, message: "GitHub parent-commit response did not include a tree sha" };
     return { ok: true, treeSha: sha };
   }
 
@@ -182,24 +188,24 @@ export function createSiteCommitter(kit) {
     if (result.kind !== "response") return nonResponseFailure(result);
     const { response } = result;
     if (response.status === 404) return { ok: true, files: [] }; // verified: no manifest yet — safe, not "unreadable"
-    if (!response.ok) return { ok: false, code: "provider-error", message: await providerErrorMessage(response, "GitHub managed-manifest lookup failed") };
+    if (!response.ok) return { ok: false, code: PROVIDER_ERROR, message: await providerErrorMessage(response, "GitHub managed-manifest lookup failed") };
 
     const body = await readJsonBody(response);
-    if (!body.ok) return { ok: false, code: "provider-error", message: "GitHub managed-manifest response did not parse as JSON — cannot confirm which paths this adapter previously owned." };
+    if (!body.ok) return { ok: false, code: PROVIDER_ERROR, message: "GitHub managed-manifest response did not parse as JSON — cannot confirm which paths this adapter previously owned." };
     const content = typeof body.json.content === "string" ? body.json.content : undefined;
     if (content === undefined) {
-      return { ok: false, code: "provider-error", message: "GitHub managed-manifest response did not include file content — cannot confirm which paths this adapter previously owned." };
+      return { ok: false, code: PROVIDER_ERROR, message: "GitHub managed-manifest response did not include file content — cannot confirm which paths this adapter previously owned." };
     }
     /** @type {unknown} */
     let parsed;
     try {
       parsed = JSON.parse(Buffer.from(content, "base64").toString("utf8"));
     } catch {
-      return { ok: false, code: "provider-error", message: "GitHub managed-manifest content is not valid JSON — cannot confirm which paths this adapter previously owned." };
+      return { ok: false, code: PROVIDER_ERROR, message: "GitHub managed-manifest content is not valid JSON — cannot confirm which paths this adapter previously owned." };
     }
     const files = parseManagedManifestShape(parsed);
     if (files === undefined) {
-      return { ok: false, code: "provider-error", message: "GitHub managed-manifest content did not match a recognized shape — cannot confirm which paths this adapter previously owned." };
+      return { ok: false, code: PROVIDER_ERROR, message: "GitHub managed-manifest content did not match a recognized shape — cannot confirm which paths this adapter previously owned." };
     }
     return { ok: true, files };
   }
@@ -258,18 +264,15 @@ export function createSiteCommitter(kit) {
     /** @type {string[]} */
     const divergedPaths = [];
     for (const candidate of candidates) {
-      if (candidate.sha === undefined) {
-        divergedPaths.push(candidate.path);
-        continue;
-      }
-      const verdict = classifyLiveResult(await fetchLiveBlobSha(token, owner, repo, branch, candidate.path), candidate.sha);
+      const verdict = candidate.sha === undefined ? "diverged"
+        : classifyLiveResult(await fetchLiveBlobSha(token, owner, repo, branch, candidate.path), candidate.sha);
       if (verdict === "skip") continue;
       if (verdict === "diverged") {
         divergedPaths.push(candidate.path);
-        continue;
+      } else {
+        deletedPaths.push(candidate.path);
+        deletions.push({ path: candidate.path, mode: "100644", type: "blob", sha: null });
       }
-      deletedPaths.push(candidate.path);
-      deletions.push({ path: candidate.path, mode: "100644", type: "blob", sha: null });
     }
     return { deletions, deletedPaths, divergedPaths };
   }
@@ -284,11 +287,15 @@ export function createSiteCommitter(kit) {
     const candidates = (previousManagedFiles ?? []).filter((f) => !fileTree.currentPaths.has(f.path) && f.path !== MANAGED_MANIFEST_PATH);
     const { deletions, deletedPaths, divergedPaths } = await resolveDeletionCandidates(token, owner, repo, branch, candidates);
 
+    const sortedFiles = fileTree.currentFileShas.slice().sort((a, b) => {
+      if (a.path < b.path) return -1;
+      return a.path > b.path ? 1 : 0;
+    });
     const manifestBlob = await createBlob(
       token,
       owner,
       repo,
-      JSON.stringify({ version: 2, files: fileTree.currentFileShas.slice().sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)) })
+      JSON.stringify({ version: 2, files: sortedFiles })
     );
     if (!manifestBlob.ok) return manifestBlob;
 
@@ -320,7 +327,7 @@ export function createSiteCommitter(kit) {
     if (mode === "update" && response.status === 422) {
       return /** @type {const} */ ({ ok: false, code: "diverged", message: "the branch has moved since this commit started — refusing to overwrite it" });
     }
-    return { ok: false, code: "provider-error", message: await providerErrorMessage(response, `GitHub branch ${mode} failed`) };
+    return { ok: false, code: PROVIDER_ERROR, message: await providerErrorMessage(response, `GitHub branch ${mode} failed`) };
   }
 
   /** A new branch has no parent, no base tree and no manifest. @param {string} token @param {string} owner

@@ -9,7 +9,7 @@
   "keywords": {
     "library_list": "library documents document files markdown txt pdf docx csv json saved uploads earlier chat",
     "library_read": "library document read open source text markdown txt csv json saved file next page",
-    "library_save_attachment": "library document save attachment attached file persist keep permanent markdown pdf docx",
+    "library_save_attachment": "library document save attachment attached file persist keep permanent markdown pdf docx generated text content write brand notes private",
     "media_replace_file": "replace swap change image photo picture file bytes existing media in place same id slug version url local",
     "assistant_chats_list": "previous earlier interrupted chat conversation history search resume continue what we were doing",
     "assistant_chat_read": "read previous chat transcript history tail messages resume interrupted continue conversation",
@@ -353,11 +353,15 @@
     "project_keys_list": "project keys saved credentials used sites attach",
     "project_key_use": "apply use attach detach project saved key stop using site",
     "site_restart": "restart site provider settings apply",
-    "observability_send_test_error": "observability telemetry test error Sentry OpenTelemetry analytics delivery",
+    "observability_send_test_error": "observability telemetry test error analytics delivery",
     "image_transform": "image picture photo logo icon favicon ico resize scale crop rotate flip convert webp avif png jpeg thumbnail social og 1200x630 apple-touch sizes compress optimize",
-    "files_copy": "files copy import assets folder picked custom local site theme media url glob overwrite rename fonts images transfer"
+    "files_copy": "files copy import assets folder picked custom local site theme media url glob overwrite rename fonts images transfer save library private document documents markdown pdf docx brand"
   },
   "queries": {
+    "library_save_attachment": [
+      "Save this generated Markdown document to the private Library.",
+      "Save the BRAND.md text you wrote to the Library."
+    ],
     "media_replace_file": [
       "Replace this image in place.",
       "Change the file but keep the media id and references.",
@@ -457,6 +461,7 @@
       "Rotate the token on an existing saved account without changing the username.",
       "Connect an image or video generation provider with an API key.",
       "Save a source control credential for a repository host for commits and site backups.",
+      "Save a repository host source control credential.",
       "Set up repository backup credentials.",
       "Connect a static publishing host or object storage account.",
       "Use personal access token sign-in when a plugin OAuth connection cannot start."
@@ -2044,7 +2049,9 @@
       "Copy images from the picked folder into my theme.",
       "Import local assets into the site without Bash.",
       "Copy a folder of fonts and images with a glob.",
-      "Download an image URL into the media library."
+      "Download an image URL into the media library.",
+      "Save documents from the picked folder to the private Library.",
+      "Save a site file to the assistant Library."
     ]
   },
   "approvals": {

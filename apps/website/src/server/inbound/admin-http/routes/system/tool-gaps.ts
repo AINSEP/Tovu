@@ -1,6 +1,6 @@
 import type { Express } from 'express';
 import { getAuthedPrincipal } from '#src/server/inbound/admin-http/dev-auth';
-import type { ToolGapsToolDeps } from '#src/assistant/tool-gaps-tool';
+import type { ToolGapsToolDeps } from '#src/assistant/host-ports';
 
 /** Owner-only Observability filter over the existing tool audit store. No mutation endpoint. */
 export function registerAdminToolGapsRoute(app: Express, deps: ToolGapsToolDeps): void {

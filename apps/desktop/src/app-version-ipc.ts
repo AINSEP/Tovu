@@ -1,4 +1,5 @@
 /** Thin Tovu adapter: Electron owns the version; this channel exposes only its string value. */
+import { resolveOnPath } from '@jini-ai/agent-runtime';
 import { execFile } from 'node:child_process';
 import { RUNNER_APP_VERSION_CHANNEL } from './contracts/app-version.ts';
 
@@ -7,7 +8,9 @@ export type DescribeDesktopTag = (input: { cwd: string }) => Promise<string>;
 
 /** Real git port. Async so a slow or missing git never holds up the window opening. */
 export const describeDesktopTag: DescribeDesktopTag = ({ cwd }) => new Promise((resolve, reject) => {
-  execFile('git', ['describe', '--tags', '--match', 'desktop-v*', '--abbrev=0'],
+  const command = resolveOnPath({ bin: 'git' });
+  if (command === null) throw new Error('git executable is unavailable.');
+  execFile(command, ['describe', '--tags', '--match', 'desktop-v*', '--abbrev=0'],
     { cwd, timeout: 5_000, windowsHide: true },
     (error, stdout) => (error ? reject(error) : resolve(String(stdout))));
 });

@@ -9,7 +9,8 @@ import test from "node:test";
 import { openContentDbReadOnly } from "../../../db/sqlite/content-db.js";
 import { posts as postsTable } from "../../../db/schema.sqlite.js";
 import { ValidationError } from "../../errors.js";
-import { createSite as createSiteReal, describeSiteBinding as describeSiteBindingReal, includeServingSite, listSites as listSitesReal, listSitesForBinding, SITE_BINDING_NOT_SWITCHABLE_ENV, SITE_NAME_PATTERN, switcherBaseForBinding } from "../../site-registry.js";
+import { describeSiteBinding as describeSiteBindingReal, includeServingSite, listSites as listSitesReal, listSitesForBinding, SITE_BINDING_NOT_SWITCHABLE_ENV, SITE_NAME_PATTERN, switcherBaseForBinding } from "../../site-registry.js";
+import { createSite as createSiteReal } from "#src/server/runtime/composition/site-dir";
 
 /** Existing switcher characterizations deliberately configure their checkout fixture as home.
  * New shared-home tests separately cover the visible default and cross-app registry behavior. */

@@ -135,7 +135,8 @@ export interface DaemonSupervisor {
  * @complexity One OS command; the OS walks the process tree.
  */
 function taskkillTree(pid: number): void {
-  execFileSync("taskkill", ["/pid", String(pid), "/T", "/F"], { stdio: "ignore" });
+  const executable = path.win32.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "taskkill.exe");
+  execFileSync(executable, ["/pid", String(pid), "/T", "/F"], { stdio: "ignore" });
 }
 
 /** Same reasoning `index.ts` used for EADDRINUSE specifically: naming the real cause here is what

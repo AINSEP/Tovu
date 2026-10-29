@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readChatPermanentDeletesPolicy, type PermanentDeleteSettingsDeps } from "../permanent-delete-settings.js";
 import { createChatDeleteScope, ALL_CHAT_DELETE_TOOLS } from "../permanent-delete-tool-gate.js";
-import { isChatToolAllowed } from "../../contracts/headless/assistant-permanent-deletes-policy.js";
+import { isChatToolAllowed } from "../assistant-permanent-deletes-policy.js";
 
 function fixture() {
   let reads = 0;

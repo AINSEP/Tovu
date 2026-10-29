@@ -44,6 +44,9 @@ async function pickHostedFileId(config) {
       const action = data[picker.Response.ACTION];
       if (action === picker.Action.PICKED) resolve(data[picker.Response.DOCUMENTS]?.[0]?.[picker.Document.ID] ?? null);
       else if (action === picker.Action.CANCEL) resolve(null);
+      else {
+        // Intermediate Picker events do not settle the choice.
+      }
     };
     new picker.PickerBuilder()
       .setDeveloperKey(config.developerKey).setAppId(config.appId).setOAuthToken(config.accessToken)

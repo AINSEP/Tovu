@@ -484,6 +484,16 @@ export function classifyBlock(block: LcovBlock, sourceText?: string): BlockVerdi
     `present in this block's FNDA records -- two coverage images (real ESM + CJS wrapper) were merged ` +
     `here.${fnSummary} function coverage for this run is untrustworthy`;
 
+  return classifyWrapperFingerprint({ block, file, wrapperValues, contaminatedReason });
+}
+
+
+function classifyWrapperFingerprint(
+  { block, file, wrapperValues, contaminatedReason }: {
+    block: LcovBlock; file: string; wrapperValues: Set<number>; contaminatedReason: string;
+  },
+  _options = {},
+): BlockVerdict {
   // SEVERE escalation: does the wrapper image's own hit-count fingerprint also explain every DA line
   // value, i.e. did it ALSO win the line-hit merge? See doc comment above for the full rule and why
   // MIN_DA_RECORDS_FOR_SEVERE_HEURISTIC gates it.

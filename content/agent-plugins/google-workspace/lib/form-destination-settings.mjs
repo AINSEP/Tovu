@@ -28,7 +28,8 @@ function formSlugOf(binding) {
 function destinationOf(binding, formSlug) {
   const { spreadsheetId, accountId, tabs, title, tabTitle } = binding.config;
   const sheetId = tabs?.[formSlug]?.sheetId;
-  const valid = typeof spreadsheetId === 'string' && typeof accountId === 'string' && Number.isInteger(sheetId) && typeof title === 'string' && typeof tabTitle === 'string';
+  const validIdentity = typeof spreadsheetId === 'string' && typeof accountId === 'string';
+  const valid = validIdentity && Number.isInteger(sheetId) && typeof title === 'string' && typeof tabTitle === 'string';
   return valid ? { bindingId: binding.bindingId, enabled: binding.enabled, spreadsheetId, title, url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`, sheetId, tabTitle, accountId } : null;
 }
 

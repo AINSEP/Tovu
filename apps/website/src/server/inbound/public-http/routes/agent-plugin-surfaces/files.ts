@@ -54,7 +54,7 @@ export function registerAdminSurfaceFilesRoute(app: Express, deps: AdminSurfaceF
       const limit = await limiter.check({ key: resolveClientIp(req) });
       if (!limit.allowed) {
         res.status(429).set({ "Retry-After": String(limit.retryAfterSeconds), "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" }).type("text/plain").send("Too many requests");
-        return;
+        return undefined;
       }
       const surface = await findAdminSurface({ source, workspaceId: deps.workspaceId, pluginId: String(req.params.pluginId), surfaceId: String(req.params.surfaceId) });
       const file = surface ? await readSurfaceFile({ source, surface, path: String((req.params as Record<string, string>)[0]) }) : undefined;
@@ -64,5 +64,6 @@ export function registerAdminSurfaceFilesRoute(app: Express, deps: AdminSurfaceF
       // A containment refusal or read fault names server paths; never echoed.
       notFound(res);
     }
+    return undefined;
   });
 }

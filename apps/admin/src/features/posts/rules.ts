@@ -276,6 +276,12 @@ export function overridesThemePageFromSelectValue(value: string): boolean | null
   return value === "post";
 }
 
+/** The inverse of {@link overridesThemePageFromSelectValue}: the `<select>` value for a tri-state. */
+export function overridesThemePageSelectValue(overridesThemePage: boolean | null): "default" | "post" | "theme" {
+  if (overridesThemePage === null) return "default";
+  return overridesThemePage ? "post" : "theme";
+}
+
 /** A toolbar button's className for its active/inactive state — the one thing repeated across every
  *  formatting button in `PostEditor.tsx`'s `Toolbar`. Extracted so the eleven
  *  `${active ? " on" : ""}` ternaries that used to live inline in `Toolbar`'s JSX (its entire branch
@@ -677,7 +683,8 @@ export function postSlugFollowsTitle(
   { post, manuallyEdited = false }: { post: Pick<AdminPost, "kind" | "status" | "title" | "slug" | "everPublished">; manuallyEdited?: boolean },
   _optional: Record<string, never> = {},
 ): boolean {
-  return post.kind === "post" && post.status !== "published" && !post.everPublished && !manuallyEdited && isAutomaticPostSlug(post);
+  const neverPublished = post.status !== "published" && !post.everPublished;
+  return post.kind === "post" && neverPublished && !manuallyEdited && isAutomaticPostSlug(post);
 }
 
 /** Preview the same bounded base the server derives; the server chooses the available suffix. */

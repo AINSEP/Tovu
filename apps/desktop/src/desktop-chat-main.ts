@@ -16,7 +16,7 @@ import { readTrackedSites } from "./tracked-sites.ts";
 
 interface DesktopChatMainDeps {
   /** Optional site-settings binding; standalone desktop uses the same environment/default policy. */
-  readFullCliAccess?: (input: { addressee: TurnAddressee | null }, options?: {}) => Promise<boolean | import("../../website/src/contracts/headless/assistant-subagents-policy.ts").AssistantCliPermissions>;
+  readFullCliAccess?: (input: { addressee: TurnAddressee | null }, options?: {}) => Promise<boolean | import("../../website/src/contracts/headless/index.ts").AssistantCliPermissions>;
   /** Created once at app boot, shared by detection and execution, disposed by app shutdown. */
   agentRuntime: NativeAgentRuntime;
   ipcMain: ChatIpcMain;

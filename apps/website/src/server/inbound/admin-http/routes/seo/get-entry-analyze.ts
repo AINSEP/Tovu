@@ -1,6 +1,6 @@
 import { analyzeEntry, SeoEntryNotFoundError } from "@jini-ai/cms/seo";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { withCoverReadDeps } from "#src/features/seo/cover-image";
+import { withCoverReadDeps } from "#src/features/seo/index";
 import type { SeoRouteRegistrar } from "./deps.js";
 
 /** GET SEO score+issues for an entry (SPEC-008 api.spec.md `SEO_GET_ENTRY_ANALYZE`, tasks.md T047). */

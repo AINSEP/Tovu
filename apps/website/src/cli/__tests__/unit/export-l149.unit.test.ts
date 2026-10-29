@@ -27,7 +27,7 @@ for (const work of ["none", "legacy", "app", "both"] as const) {
       exportSite: async input => {
         assert.equal(input.outputDir, "/tmp/export"); assert.equal(input.clean, false);
         order.push("export");
-        return { outputDir: input.outputDir, routes: { succeeded: [], failed: [] }, assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [] };
+        return { outputDir: input.outputDir, routes: { succeeded: [], failed: [] }, assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [] };
       },
       closeSiteDirBoot: async (actualBoot, actualStore) => {
         assert.equal(actualBoot, boot); assert.equal(actualStore, store); order.push("close");

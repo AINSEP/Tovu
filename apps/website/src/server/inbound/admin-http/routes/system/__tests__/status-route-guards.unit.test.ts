@@ -46,7 +46,7 @@ const ROUTES: ReadonlyArray<{ name: string; method: "get" | "post" | "put"; path
   { name: "module-status", method: "get", path: "/api/admin/v1/workspaces/:workspaceId/system/module-status",
     register: (app, deps) => registerAdminModuleStatusRoute(app, deps), logPrefix: "[system/module-status] unexpected error" },
   { name: "observability-status", method: "get", path: "/api/admin/v1/workspaces/:workspaceId/system/observability-status",
-    register: (app, deps) => registerAdminObservabilityStatusRoute(app, deps), logPrefix: "[system/observability-status] unexpected error" },
+    register: (app, deps) => registerAdminObservabilityStatusRoute(app, { ...createRouteDeps(), ...deps }), logPrefix: "[system/observability-status] unexpected error" },
   { name: "server-logs", method: "get", path: "/api/admin/v1/workspaces/:workspaceId/system/server-logs",
     register: (app, deps) => registerAdminServerLogsRoute(app, deps), logPrefix: "[system/server-logs] unexpected error" },
   { name: "assistant-daemon restart", method: "post", path: "/api/admin/v1/workspaces/:workspaceId/system/assistant-daemon/restart",

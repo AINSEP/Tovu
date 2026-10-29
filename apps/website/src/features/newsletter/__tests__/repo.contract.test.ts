@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 /**
  * @file T004 — shared contract-test suite for the 6 Newsletter repo ports (C-001..C-006),
@@ -75,7 +76,7 @@ function makeContractCampaign(overrides: Partial<CampaignRecord> = {}): Campaign
 async function makeSqliteDb(): Promise<ContentDb> {
   const db = openContentDb(":memory:");
   await installNewsletterDataModule({
-    db: (db as unknown as { $client: import("better-sqlite3").Database }).$client,
+    db: contentKernel((db as unknown as { $client: import("better-sqlite3").Database }).$client),
     dbPath: ":memory:",
   });
   return db;

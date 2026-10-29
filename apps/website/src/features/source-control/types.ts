@@ -8,7 +8,7 @@ import type { CredentialProjectHalf } from "../vendor-credentials/project-scope.
 /** Source-control identities are separate from deploy targets: they carry authentication,
  * never a repository, owner or branch. The store seals the complete connection as one blob.
  * Provider ids and saved fields remain opaque when their plugin is absent. */
-export type SourceControlProviderId = string;
+export type SourceControlProviderId = import("@jini-ai/devops/source-control").SourceControlProviderDescriptor["id"];
 
 /** New writes follow the provider's existing credential declaration; persisted fields survive reads. */
 export interface SourceControlConnectionInput {

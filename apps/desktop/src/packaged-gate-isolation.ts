@@ -3,6 +3,7 @@
  * a packaged app resolves a missing dependency from the checkout's node_modules (Node walks up the
  * directory tree), which hid the 0.1.13–0.1.17 missing-peer bug from every gate.
  */
+import { resolveOnPath } from '@jini-ai/agent-runtime';
 import { cpSync, existsSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
@@ -42,7 +43,11 @@ export async function withIsolatedSmokeTargets(
     const copiedRoot = path.join(directory, path.basename(appRoot));
     // Keep framework-relative symlinks as-is. Never ditto: ditto-copied apps have hung before dyld.
     if (platform === "win32") cpSync(appRoot, copiedRoot, { recursive: true, verbatimSymlinks: true });
-    else execFileSync("cp", ["-R", appRoot, copiedRoot], { stdio: "pipe" });
+    else {
+      const command = resolveOnPath({ bin: 'cp' });
+      if (command === null) throw new Error('cp executable is unavailable.');
+      execFileSync(command, ["-R", appRoot, copiedRoot], { stdio: "pipe" });
+    }
     await run({
       executablePath: path.join(copiedRoot, path.relative(appRoot, targets.executablePath)),
       nodeModulesDir: path.join(copiedRoot, path.relative(appRoot, targets.nodeModulesDir)),

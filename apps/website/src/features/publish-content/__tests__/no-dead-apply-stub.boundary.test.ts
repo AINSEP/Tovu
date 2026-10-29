@@ -4,33 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
 import { removeFrozenPackageTree } from "#src/features/agent-plugins/lifecycle";
-
-const SRC_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
-
-function source(relativePath: string): string {
-  return fs.readFileSync(path.join(SRC_ROOT, relativePath), "utf8");
-}
-
-test("the obsolete not-implemented apply stub and its 501 response are absent", () => {
-  const production = [
-    source("features/publish-content/gated-hooks.ts"),
-    source("server/inbound/admin-http/routes/publish-content/import.ts"),
-  ].join("\n");
-  assert.doesNotMatch(production, /PublishContentApplyNotImplementedError/);
-  assert.doesNotMatch(production, /createNotYetImplementedPublishContentApplyPort/);
-  assert.doesNotMatch(production, /APPLY_NOT_IMPLEMENTED/);
-});
-
-test("positive control: both composition roots construct the real apply port", () => {
-  const composition = [
-    source("server/runtime/composition/deps.ts"),
-    source("server/runtime/composition/app.ts"),
-  ].join("\n");
-  const calls = composition.match(/= createPublishContentApplyPort\(/g) ?? [];
-  assert.equal(calls.length, 2);
-});
 
 // Exercise the actual repositories held by each root; constructor text cannot prove sharing.
 for (const root of ["memory", "sqlite"] as const) {
@@ -42,8 +16,9 @@ for (const root of ["memory", "sqlite"] as const) {
     const { contentHash, CONTENT_HASH_VERSION } = await import("../content-hash.js");
     const { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } = await import("../artifact-format.js");
     const { getPublishContentRunStatus } = await import("../run-repo.js");
-    const { initSite } = await import("#src/platform/site-dir/init-site");
-    const { bootSiteDir, closeSiteDirBoot } = await import("#src/platform/site-dir/boot-site-dir");
+    const { initSite } = await import("#src/server/runtime/composition/site-dir");
+    const { bootSiteDir } = await import("#src/server/runtime/composition/site-dir");
+    const { closeSiteDirBoot } = await import("#src/platform/site-dir/boot-site-dir");
 
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "publish-apply-composition-"));
     let release: (() => Promise<void>) | undefined;

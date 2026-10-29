@@ -282,7 +282,7 @@ export { useWidgetAddControl };
 export function WidgetSelectionDialog({ useAddControl = useWiredWidgetAddControl, agentHandle: base, onCancel, ...props }: {
   onResolved: WidgetAddControlProps["onResolved"];
   onCancel: () => void;
-  agentHandle?: string | undefined;
+  agentHandle?: string;
   useAddControl?: typeof useWiredWidgetAddControl;
   useDialog?: typeof useWiredWidgetPickerDialog;
 }, _optional: Record<string, never> = {}) {

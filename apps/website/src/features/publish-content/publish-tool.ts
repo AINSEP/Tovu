@@ -1,5 +1,5 @@
 import { ToolInputError } from "@jini-ai/core";
-import type { PublishContentToolDeps } from "./tool-registrations.js";
+import type { PublishContentToolDeps } from "./tool-deps.js";
 import { resolvePublishDestinationCredential } from "./destination-credential.js";
 import { selectConnectedDestination } from "./peers.js";
 import { canPublishToLive, PUBLISH_FROM_LIVE_SITE_ERROR } from "./live-site-policy.js";
@@ -45,8 +45,8 @@ function validReportRow(
   { row, outcomes }: { row: PublishContentReport["rows"][number]; outcomes: ReadonlySet<string> },
   _options: Record<string, never> = {},
 ): boolean {
-  return row && typeof row.entityType === "string" && typeof row.entityId === "string" &&
-    typeof row.writes === "boolean" && outcomes.has(row.outcome) &&
+  if (!row || typeof row.entityType !== "string" || typeof row.entityId !== "string") return false;
+  return typeof row.writes === "boolean" && outcomes.has(row.outcome) &&
     row.writes === ["created", "applied", "forced"].includes(row.outcome);
 }
 
@@ -152,11 +152,12 @@ export async function publishContentFromTool(
     const known = new Set(rows.map(row => row.key));
     const omitted = toPublishReportRows(initial.details).filter(row => !row.appliesOnExecute && !known.has(row.key) && !selection.deselectedKeys.has(row.key));
     skipped.push(...[...rows, ...omitted].filter(row => row.disposition === "skipped" && !selection.deselectedKeys.has(row.key)).map(row => ({ entityKey: row.key, title: row.entityLabel, reason: row.reason ?? "The live site skipped this item." })));
+    const publishedItemLabel = published.length === 1 ? "item" : "items";
     return {
       published, skipped, unchanged: [...rows, ...omitted].filter(row => row.disposition === "unchanged" && !selection.deselectedKeys.has(row.key)).map(row => ({ entityKey: row.key, title: row.entityLabel })),
       unmatchedItems: selection.unmatchedItems, unknownTypes: selection.unknownTypes, notSupportedByLive: confirmed.notSupportedByLive ?? [],
       runId: execution?.runId ?? null, verificationProblems: execution?.verificationProblems ?? [],
-      message: published.length ? `Published ${published.length} item${published.length === 1 ? "" : "s"} to ${credential.baseUrl}. Skipped ${skipped.length}.` : `Published nothing. Skipped ${skipped.length}.`
+      message: published.length ? `Published ${published.length} ${publishedItemLabel} to ${credential.baseUrl}. Skipped ${skipped.length}.` : `Published nothing. Skipped ${skipped.length}.`
     };
   }
 }

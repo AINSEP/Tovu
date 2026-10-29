@@ -20,11 +20,17 @@ export function unchangedSaveHandlers(
   const { flushPendingEdits } = optional;
   const saveOrWarn = async () => {
     const pending = flushPendingEdits ? await flushPendingEdits() : "unchanged";
-    if (pending === "changed") await save();
-    else if (pending === "unchanged") setConfirmingUnchangedSave(true);
+    if (pending === "changed") {
+      await save();
+      return;
+    }
+    if (pending === "unchanged") setConfirmingUnchangedSave(true);
   };
   return {
-    onSave: () => void (dirty ? save() : saveOrWarn()),
+    onSave: () => {
+      if (dirty) void save();
+      else void saveOrWarn();
+    },
     onUnchangedSaveConfirm: () => {
       setConfirmingUnchangedSave(false);
       void save();

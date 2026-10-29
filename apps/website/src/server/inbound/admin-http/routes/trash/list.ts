@@ -109,7 +109,8 @@ export function toAdminTrashResponse(item: TrashItem, now: string, usernameByPri
 
 /** @complexity O(n) in the filter's length. Unknown kinds are left in — the per-row filter drops them. */
 function readEntityTypes(raw: unknown): string[] | undefined {
-  const value = typeof raw === "string" ? raw : Array.isArray(raw) ? raw.join(",") : "";
+  const joined = Array.isArray(raw) ? raw.join(",") : "";
+  const value = typeof raw === "string" ? raw : joined;
   const types = value.split(",").map((part) => part.trim()).filter((part) => part.length > 0);
   return types.length > 0 ? types : undefined;
 }

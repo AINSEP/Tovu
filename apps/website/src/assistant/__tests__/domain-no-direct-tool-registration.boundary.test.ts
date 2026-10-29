@@ -205,6 +205,13 @@ test("no production file under src/{analytics,features,identity,media,navigation
 });
 
 
+test("plugin sign-in defaults and token persistence receive assistant effects from the host", () => {
+  for (const name of ["apply-connect-defaults.ts", "access-token-tool.ts"]) {
+    const file = path.join(SRC_ROOT, "features", "agent-plugins", name);
+    assert.deepEqual(runtimeEdges(fs.readFileSync(file, "utf8")).filter(edge => resolvesToAssistant(file, edge.specifier)), [], name);
+  }
+});
+
 test("the boundary sees each runtime syntax and exempts only type-only edges", () => {
   for (const source of [
     'import { registerToolContributor } from "#src/assistant/index";',

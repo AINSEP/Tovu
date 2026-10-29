@@ -64,7 +64,7 @@ export type LoadPluginCredentialCards = (workspaceId: string) => Promise<readonl
 export function buildPluginCredentialForm({ card }: { card: PluginCredentialCard }, _optional = {}): SecretCardForm & { preferredFrameSize: readonly [string, string] } {
   return {
     title: card.title,
-    description: `${card.intro ? `${card.intro} ` : ""}The key is sealed on the server the moment you submit — the assistant never sees it.`,
+    description: `${card.intro ? card.intro + " " : ""}The key is sealed on the server the moment you submit — the assistant never sees it.`,
     details: pluginCardDetails({ card }),
     submitLabel: "Save key",
     fields: [...(card.fields ?? []).map(field => ({ kind: "string" as const, ...field })), {

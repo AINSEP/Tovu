@@ -1,3 +1,5 @@
+import { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
+import * as externalMcpStore from "#src/assistant/index";
 import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
 import { protectProjectKeyDeletes } from "#src/features/project-keys/protected-vault";
 import { createProjectKeys } from "#src/features/project-keys/service";
@@ -10,7 +12,7 @@ import { createPluginExportSource } from "#src/features/agent-plugins/exports/so
 import { readSiteListenerOrigin } from "../boot/site-listener-origin.js";
 import { loadDeployWorkflowFiles } from "#src/features/deployments/index";
 import { createPluginAccountTokenResolver } from "../boot/mail-plugin-account-token.js";
-import { createCommentsCapability, ensureCommentsProviderDefinition } from '#src/features/comments/provider-selection';
+import { createCommentsCapability } from '#src/features/comments/provider-selection';
 import { composeVisitorToolsManagement } from "./visitor-tools-management.js";
 import { createCommentTargetLookup } from '#src/features/comments/comment-targets';
 import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
@@ -25,18 +27,20 @@ import { registerContentAnalytics } from './content-events.js';
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { createSiteShareBackend } from "#src/features/site-backup/share-backend";
 import { createSiteImportBackend } from "#src/features/site-backup/import-backend";
-import { rebuildImportDatabase } from "#src/platform/db/sqlite/import-database";
+import { rebuildImportDatabase, restoreStagedImport } from "#src/server/runtime/composition/site-portability";
 import { runtimeSchemaVersion } from "#src/platform/site-dir/schema-guard";
 import { startLocalSiteWhenRunning } from "#src/platform/site-dir/local-site-supervisor";
 import { SiteImportRegistry } from "#src/features/site-backup/import-registry";
 import { createShareArchiveReader } from "#src/features/site-backup/import-archive-reader";
+import { createUnpdfDocumentTextExtractor } from "@jini-ai/cms/media/plugins/document-text/unpdf";
+import { createMammothDocumentTextExtractor } from "@jini-ai/cms/media/plugins/document-text/mammoth";
 import * as importYauzl from "yauzl";
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { siteCreationBaseForBinding } from "#src/platform/site-dir/index";
 import { localSiteSupervisorForHost } from "../lifecycle/local-site-host.js";
 import { SiteShareRegistry } from "#src/features/site-backup/share-registry";
 import { prepareShareContent } from "#src/features/site-backup/share-preparation";
-import { sanitizeShareDatabase, rewriteArchiveMedia } from "#src/platform/db/sqlite/share-database";
+import { sanitizeShareDatabase, rewriteArchiveMedia } from "#src/server/runtime/composition/site-portability";
 import { createRuntimeShareDelivery, resolveShareDelivery } from "#src/features/site-backup/share-hosting";
 import { selectConnectedDestination } from "#src/features/publish-content/peers";
 import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
@@ -106,10 +110,10 @@ import { resolveSkillLayout } from "#src/features/skills/layout";
 import type { SiteBackupSources } from "#src/features/site-backup/sources";
 import { SqlitePublishHistoryStore } from "#src/platform/db/sqlite/publish-history-repo.sqlite";
 import { SqlitePublishContentBundleRepo } from "#src/platform/db/sqlite/publish-content-bundle-repo.sqlite";
-import { SqlitePublishContentPeerRepo } from "#src/platform/db/sqlite/publish-content-peer-repo.sqlite";
+import { SqlitePublishContentPeerRepo } from "#src/features/publish-content/publish-content-peer-repo.sqlite";
 import { SqlitePublishContentBaselineRepo } from "#src/platform/db/sqlite/publish-content-baseline-repo.sqlite";
 import { SqlitePublishContentRunRepo } from "#src/platform/db/sqlite/publish-content-run-repo.sqlite";
-import { publishTrustRevocationStoreFor } from "#src/platform/db/repos/publish-trust-revocations";
+import { publishTrustRevocationStoreFor } from "#src/features/publish-trust/publish-trust-revocations";
 import { type ContentKernel, contentKernel } from "#src/platform/db/content-kernel";
 import { createPublishContentApplyPort, toPublishContentApplyDeps } from "#src/features/publish-content/apply-loop";
 import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
@@ -121,7 +125,7 @@ import { composeFormDeliveryDeliverer } from "#src/server/runtime/composition/fo
 import { SqlFormDeliveryRepo, SqlFormPullLeaseRepo } from "#src/platform/db/repos/form-delivery-repo";
 import { ensureFormDeliverySettings, ensureMailSenderSettings, readMailSenderSetting } from "#src/features/settings/index";
 import { createSqlitePublishContentSeedHash } from "./publish-content-seed-hash.js";
-import { SqliteCustomCredentialSetRepo } from "#src/platform/db/sqlite/custom-credential-repo.sqlite";
+import { SqliteCustomCredentialSetRepo } from "#src/features/custom-credentials/custom-credential-repo.sqlite";
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import { createTestOriginHttpClientFactory } from "#src/platform/http/test-origin-allowlist";
 import {
@@ -136,7 +140,7 @@ import { loadMailCredentialCards } from "../boot/mail-provider-catalog.js";
 import { createDomainBindingSweep } from "./dns-change-deps.js";
 import { DOMAIN_DNS_EGRESS_POLICY } from "./domain-dns-adapters.js";
 import { loadDeployOpsRegistry } from "#src/features/deployments/deploy-ops/registry";
-import { loadCredentialSchemeRegistry } from "#src/features/custom-credentials/auth-schemes";
+import { loadCredentialSchemeRegistry } from "#src/features/agent-plugins/auth-schemes";
 import { loadSourceControlProviderRegistry } from "#src/features/source-control/provider-registry";
 import { loadMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { loadMediaProviderRegistry } from "#src/features/media-generation/media-provider-registry";
@@ -144,8 +148,8 @@ import { createMailCaptureRepo, createMailSendLedgerRepo, createMailSuppressionR
 import { createMailActivityRepo } from "#src/features/mail/activity.repo";
 import { createMailSuppressionAdminRepo } from "#src/features/mail/suppression-admin.repo";
 import { ensureMailProviderSettings } from "#src/features/settings/mail-provider";
-import { SqliteSourceControlCredentialSetRepo } from "#src/platform/db/sqlite/source-control-credential-repo.sqlite";
-import { SqliteVendorCredentialSetRepo } from "#src/platform/db/sqlite/vendor-credential-repo.sqlite";
+import { SqliteSourceControlCredentialSetRepo } from "#src/features/source-control/source-control-credential-repo.sqlite";
+import { SqliteVendorCredentialSetRepo } from "#src/features/vendor-credentials/vendor-credential-repo.sqlite";
 import { executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
 import { InMemoryPublishCredentialVerificationCache } from "#src/features/deployments/static-publish/index";
 import { loadDeployTargetRegistry, loadInstalledDeployTargets } from "#src/features/deployments/deploy-targets/registry";
@@ -155,8 +159,6 @@ import {
   createChatRunLedger,
   createChatStoreFactory,
   createSqliteAgentSessionStore,
-  ensurePublicAssistantSettingDefinitions,
-  ensureExecutionSettingDefinitions,
 } from "#src/assistant/index";
 import { SqlitePresentationSettingsRepo, resolveActiveThemeId } from "#src/features/presentation/index";
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
@@ -171,6 +173,7 @@ import type { ContentDb, ContentDbOpenOptions } from "#src/platform/db/sqlite/co
 import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
 import { openSiteContentDb } from "./open-site-content-db.js";
 import { openSiteStore, type SiteStore, type SiteStoreRole } from "./open-site-store.js";
+import { createSite } from "./site-dir.js";
 import { storeBoundServicesFor } from "./store-bound-services.js";
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
 import { isInMemoryDbPath } from "#src/features/plugins/snapshot";
@@ -186,7 +189,7 @@ import { resolveWorkspace } from "#src/platform/site-dir/resolve-workspace";
 import { createLiveSiteDisplayName, createSiteCreationTimeZone } from "#src/platform/site-dir/read-site-dir";
 import { createSiteTimeZonePort, ensureSiteTimeZoneSettingDefinition } from "#src/features/settings/site-timezone";
 import { seedSiteThemes } from "#src/platform/site-dir/seed-site-themes";
-import { resolveSiteRoot, resolveCheckoutRoot, describeSiteBinding, type SiteBinding } from "#src/platform/site-dir/index";
+import { resolveCheckoutRoot, describeSiteBinding, type SiteBinding } from "#src/platform/site-dir/index";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
 import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
 import { SqliteTokenStore } from "#src/platform/db/sqlite/gated-mutation-token-repo.sqlite";
@@ -194,7 +197,7 @@ import { openDatabaseJournalDb } from "#src/platform/db/sqlite/database-journal-
 import { warnOnOrphanedChatRows } from "#src/platform/db/sqlite/chat-orphan-check";
 import { SqliteMigrationRunsRepo, SqliteDatabaseLedgerRepo } from "#src/platform/db/sqlite/database-journal-repo";
 import { createSitemapService } from "@jini-ai/cms/seo";
-import { createSeoDeps, ensureSeoSettingDefinitions } from "#src/features/seo/index";
+import { createSeoDeps } from "#src/features/seo/index";
 import { installNewsletterDataModule } from "#src/features/newsletter/data-module-manifest";
 import { ensureDefaultList } from "#src/features/newsletter/lists";
 import { createHookRegistry } from "#src/features/newsletter/hooks";
@@ -233,12 +236,12 @@ import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";
 import { isSiteIdToken, readSiteMetaId, resolveSiteKeyId, siteKeySources, siteKeyEnvOnlySources } from "#src/features/webhooks/site-key-sources";
 import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyring";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { SqliteSiteAssistantCredentialRepo } from "#src/platform/db/sqlite/site-credential-repo.sqlite";
+import { SqliteSiteAssistantCredentialRepo } from "#src/assistant/site-credential-repo.sqlite";
 import { SealedDatabaseDestinationStore } from "#src/features/database-transfer/destination-store";
 import { DatabaseDestinationRepo } from "#src/features/database-transfer/destination-repo";
-import { SqliteAdminExecutionCredentialRepo } from "#src/platform/db/sqlite/execution-credential-repo.sqlite";
-import { SqliteMediaProviderCredentialRepo } from "#src/platform/db/sqlite/media-provider-credential-repo.sqlite";
-import { SqliteExternalMcpServerRepo } from "#src/platform/db/sqlite/external-mcp-repo.sqlite";
+import { SqliteAdminExecutionCredentialRepo } from "#src/assistant/execution-credential-repo.sqlite";
+import { SqliteMediaProviderCredentialRepo } from "#src/features/media/media-provider-credential-repo.sqlite";
+import { SqliteExternalMcpServerRepo } from "#src/assistant/external-mcp-repo.sqlite";
 import { SqliteExternalMcpToolApprovalRepo } from "#src/platform/db/sqlite/external-mcp-tool-approval-repo.sqlite";
 import { createSqliteConversationToolApprovalStore } from "#src/assistant/persistence/conversation-tool-approval-store";
 import {
@@ -261,8 +264,7 @@ import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "#src/feature
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
 import { formSubmissionAttemptsFor } from "#src/features/forms/index";
 import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
-import type { RouteDeps, SiteStoragePaths } from "../../routes/types.js";
-import { resolveChatAttachmentUploadDirectory } from "../../inbound/assistant/chat-attachment-directory.js";
+import type { RouteDeps } from "../../routes/types.js";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 import { createVerifiedOrigin, OriginRegistry } from "@jini-ai/http-kit/verified-origin";
 import { planOriginBoot } from "#src/features/origin/index";
@@ -309,15 +311,13 @@ import { wireCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
 import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
 import { createNavMenuReadModel } from "#src/features/navigation/index";
 import { createCommentsModule, HeuristicSpamCheck } from "@jini-ai/cms/comments";
-import { createCommentsHostPorts, ensureCommentsSettingDefinitions } from "#src/features/comments/index";
+import { createCommentsHostPorts } from "#src/features/comments/index";
 import {
-  ensureSettingsUiTabDefinitions,
   getEffective,
   set,
-  ensureSettingDefinitions,
   INSTRUCTIONS_NAMESPACE,
 } from "#src/features/settings/index";
-import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "#src/features/analytics/config.settings";
+import { createSettingsAnalyticsConfig } from "#src/features/analytics/config.settings";
 import {
   ensureSiteTitleSettingDefinition,
   preserveLegacySiteTitles,
@@ -336,7 +336,6 @@ import {
   createMediaTrashAdapter,
   createPostTrashAdapter,
   createRedirectTrashAdapter,
-  createSqliteTrashDb,
   createTableTrashAdapter,
   MEDIA_ENTITY_TYPE,
   PLUGIN_ENTITY_TYPE,
@@ -374,6 +373,10 @@ import { wrapMailerWithPurposeGate } from "#src/platform/mail/purpose-scoped-mai
 import { createExternalMcpOAuthService, resolvePublicAssistantAvailability } from "#src/assistant/index";
 import { createSqliteDeviceAuthorizationStore } from "#src/platform/db/sqlite/oauth-pending-store.sqlite";
 
+import { assertContentDbFileName, builtInThemesDir, defaultContentDbPath, mediaUploadsDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSiteStoragePaths, resolveSourceControlExportRootDir, siteDir, type SitePathResolverOptional } from "./site-paths.js";
+export { builtInThemesDir, defaultContentDbPath, mediaUploadsDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSiteStoragePaths, resolveSourceControlExportRootDir, siteDir, type SitePathResolverOptional } from "./site-paths.js";
+
+// Historical cycle context; shared resolvers now live in site-paths.ts.
 // Kept LAST on purpose. `app.ts` imports this file back (`builtInThemesDir` and the three
 // `resolve*RootDir` functions), so `createApp` below closes the `deps.ts` <-> `app.ts` cycle that
 // `.dependency-cruiser.mjs`'s `no-circular` header records. It is safe because neither module's
@@ -385,91 +388,7 @@ import { createSqliteDeviceAuthorizationStore } from "#src/platform/db/sqlite/oa
 // routing, page-head and event-subscription registries — exports and site inspection served no
 // redirects. `src/__tests__/no-first-party-require.boundary.test.ts` now forbids that pattern.
 import { exportSite } from "#src/features/site-export/index";
-import { createApp, siteAppBootWorkByDeps } from "./app.js";
-
-/**
- * The one site folder this process serves — the root every other runtime path below derives from.
- *
- * Replaces the old `infra/` convention (2026-08-27). `infra/` conflated two different things: the
- * repo's own scratch space, and the SITE's data. They have opposite lifecycles — upgrading Tovu
- * should replace the first and never touch the second — and keeping them in one directory is why
- * a site's themes ended up living inside the package (`src/themes/`), where an upgrade destroys
- * them along with their own "reset to original" backups.
- *
- * A site is a portable folder that owns its own `content.db`, `uploads/`, `themes/`, and journals
- * — ADR-012's install-dir model, already implemented for the CLI by SPEC-003's `tovu init` /
- * `tovu serve <dir>` (`site-dir/boot-site-dir.ts`). This function is that same model's DEFAULT for
- * the non-CLI boot path (`src/index.ts`), which previously had no site folder at all and derived
- * everything from `process.cwd()`.
- *
- * A thin `process`-reading wrapper, not the rule itself: {@link resolveSiteRoot} (`site-dir/`) owns
- * the `TOVU_SITE_DIR` / `TOVU_SITE` precedence, because `features/skills/layout.ts` and
- * `features/agent-plugins/layout.ts` need the same answer and must not import this composition
- * root to get it. Every `TOVU_*_DIR` below still overrides its own subpath independently, so a
- * deployment that relocates exactly one directory (a large uploads volume, say) does not have to
- * move the rest.
- */
-export function siteDir(): string {
-  return resolveSiteRoot();
-}
-
-/**
- * The optional inputs every `<site>/...` path resolver below shares. `env` defaults to
- * `process.env`; injectable so the `TOVU_*_DIR` precedence is testable without mutating the test
- * runner's own environment. Each resolver's `siteDir` input is the site the caller is serving: the
- * composition root passes its booted `siteBinding.dir`, never {@link siteDir}, because the two
- * differ for any composition that does not also pin `TOVU_SITE_DIR` (see
- * {@link resolveExportOutputRootDir}).
- */
-export interface SitePathResolverOptional {
-  readonly env?: NodeJS.ProcessEnv;
-}
-
-/**
- * Root directory `LocalFsBlobStore` writes blob bytes under (ADR-012 `uploads/` convention,
- * mirroring `defaultContentDbPath()` below).
- *
- * `optional.siteDir` defaults to {@link siteDir} — this process's env/cwd site — for the callers
- * outside a composition root that have no booted site in hand. `deployment-overview.ts` used to be
- * one; it now reads `RouteDeps.siteStoragePaths` ({@link resolveSiteStoragePaths}) instead. The
- * composition root passes its booted `siteBinding.dir`.
- */
-export function mediaUploadsDir(optional: SitePathResolverOptional & { siteDir?: string } = {}): string {
-  // Sibling of `defaultContentDbPath()`'s `<site>/content.db` — both now derive from the same
-  // {@link siteDir}. Note this one is NOT derived from `dirname(contentDbPath)`, so a deployment
-  // that overrides `TOVU_CONTENT_DB` alone still leaves uploads here; that independence is why
-  // `uploads/` was historically the one runtime directory that did not follow the database
-  // automatically, and it is preserved deliberately.
-  const env = optional.env ?? process.env;
-  return env.TOVU_MEDIA_UPLOADS_DIR ?? join(optional.siteDir ?? siteDir(), "uploads");
-}
-
-
-/**
- * The read-only STOCK themes tree that ships with the product: `content/themes/`, copied to
- * `dist/content/themes/` at build time (mirrors `content/templates/` -> `dist/content/templates/`)
- * and resolved package-relative to this file — never `process.cwd()` (CR-R04 fix: `tovu serve` used
- * to read `process.cwd()/themes`, which is wrong whenever the CLI is invoked from outside the repo
- * checkout).
- *
- * Walks up to find the product root rather than counting `../` segments — see `product-root.ts`'s
- * header for why a fixed count can't be correct in both the source and compiled trees after the
- * 2026-08-28 `apps/website/` rename (this file's own source and compiled locations are no longer
- * the same number of levels from `content/`, only the compiled one used to be assumed here).
- *
- * SEED SOURCE ONLY as of 2026-08-27. Nothing serves or writes this tree at runtime any more —
- * `RouteDeps.themesDir` is {@link siteThemesDir}, and `seedSiteThemes()` copies this into a site
- * once, on the first boot where the site has no `themes/` of its own. That split is the whole point
- * of the `infra/` -> `sites/` move: an upgrade replaces `src/` (and therefore this tree), so a
- * site's edited themes and their `__original-themes__/` backups cannot live here.
- *
- * The env var is `TOVU_STOCK_THEMES_DIR`, NOT `TOVU_THEMES_DIR` — the latter moved to
- * {@link siteThemesDir}, where "where MY themes live" is what an operator setting it actually
- * means.
- */
-export function builtInThemesDir(): string {
-  return process.env.TOVU_STOCK_THEMES_DIR ?? join(resolveProductRoot(), "content", "themes");
-}
+import { createApp, siteAppBootWorkByDeps, startSettingsRegistration } from "./app.js";
 
 /**
  * `TOVU_THEMES_DIR` env, then `<site>/themes` — the site's OWN themes root, and the only theme tree
@@ -548,55 +467,6 @@ export function bundledAgentPluginsDir(): string {
 }
 
 /**
- * `TOVU_EXPORT_DIR` env, then `<site>/out/export` — the static-site export engine's default output
- * directory root. Build OUTPUT, grouped under the site's `out/` so it is visibly regenerable and
- * never confused with the site's own source data (`content.db`, `uploads/`, `themes/`).
- * Read ONCE here (mirrors `siteThemesDir()`/`mediaUploadsDir()` immediately
- * above) rather than re-read deep in `features/deployments/export-run.ts` (the admin route's export
- * trigger + the `deployment_trigger_export` agent tool) or `cli/commands/export.ts` (`tovu export`)
- * — both now read `RouteDeps.exportOutputRootDir` instead, which this function feeds in both
- * composition roots (`server/app.ts`'s `createRouteDeps()` and this file's
- * `createSiteRouteDeps()`). See `routes/types.ts`'s `exportOutputRootDir` doc for the full
- * reasoning.
- *
- * `required.siteDir` is the site being served, not {@link siteDir}: `createSiteRouteDeps` passes
- * its booted `siteBinding.dir`. It used to call `siteDir()` here, the `TOVU_SITE_DIR` env var or
- * `<cwd>/sites/<name>`, which only `tovu serve` pins. Any other composition (`tovu export <dir>`,
- * a programmatic `createSiteRouteDeps` with an explicit `siteBinding`) wrote an admin-triggered
- * export under whatever site the working directory named, possibly another site's folder.
- */
-export function resolveExportOutputRootDir(required: { siteDir: string }, optional: SitePathResolverOptional = {}): string {
-  const env = optional.env ?? process.env;
-  return env.TOVU_EXPORT_DIR !== undefined ? resolve(env.TOVU_EXPORT_DIR) : join(required.siteDir, "out", "export");
-}
-
-/**
- * `TOVU_SOURCE_CONTROL_EXPORT_DIR` env, then `<site>/out/source-control-export` — the
- * `source-control` domain's own export scratch directory, deliberately separate from
- * {@link resolveExportOutputRootDir} above so a static-site export and a source-control commit
- * export never race over the same on-disk output (see `features/source-control/commit-site.ts`'s
- * header). Read ONCE here, same reasoning (and same served-site `required.siteDir`) as
- * {@link resolveExportOutputRootDir}.
- */
-export function resolveSourceControlExportRootDir(required: { siteDir: string }, optional: SitePathResolverOptional = {}): string {
-  const env = optional.env ?? process.env;
-  return env.TOVU_SOURCE_CONTROL_EXPORT_DIR !== undefined
-    ? resolve(env.TOVU_SOURCE_CONTROL_EXPORT_DIR)
-    : join(required.siteDir, "out", "source-control-export");
-}
-
-/**
- * `TOVU_PUBLISH_DIR` env, then `<site>/out/publish` — the static-publish flow's parent output
- * directory; each target gets its own subdirectory under it (see
- * `features/deployments/static-publish/adapter.ts`'s `publishOutputDir`). Read ONCE here, same
- * reasoning (and same served-site `required.siteDir`) as {@link resolveExportOutputRootDir}.
- */
-export function resolvePublishOutputRootDir(required: { siteDir: string }, optional: SitePathResolverOptional = {}): string {
-  const env = optional.env ?? process.env;
-  return env.TOVU_PUBLISH_DIR !== undefined ? resolve(env.TOVU_PUBLISH_DIR) : join(required.siteDir, "out", "publish");
-}
-
-/**
  * `TOVU_PLUGINS_DIR` env, then `<site>/plugins` — the per-site root `discoverPlugins()`
  * scans for site-installed plugins (SPEC-005 REQ-02's `<install-dir>/plugins/<id>/<version>/`
  * layout; this function resolves the `<install-dir>/plugins` segment itself, matching what
@@ -614,45 +484,6 @@ export function resolvePublishOutputRootDir(required: { siteDir: string }, optio
 export function pluginsInstallDir(required: { siteDir: string }, optional: SitePathResolverOptional = {}): string {
   const env = optional.env ?? process.env;
   return env.TOVU_PLUGINS_DIR !== undefined ? resolve(env.TOVU_PLUGINS_DIR) : join(required.siteDir, "plugins");
-}
-
-/**
- * @file SQLite-backed composition of route dependencies.
- *
- * Purpose:
- * Builds the same `RouteDeps` shape the in-memory path produces, but with the
- * three feature repos backed by a persistent content.db.
- *
- * How it relates to the project:
- * - Used by the process entrypoint (`index.ts`) for the running server.
- * - Tests keep using the in-memory default in `server/app.ts` (hermetic).
- *
- * Note: outbox + event bus remain in-memory for now (events are fire-on-write
- * side effects, not yet durable across restarts) — a durable outbox is a later
- * slice. Persistence here covers the content model (workspaces/posts/themes).
- */
-export function defaultContentDbPath(): string {
-  // `sites/<name>/content.db` (2026-08-27), via {@link siteDir}. Was `infra/content.db`, and before
-  // that the bare working directory. ADR-012's model is unchanged — a site is a portable folder
-  // owning its own content/assets — but the *default* names a real site rather than shared
-  // scratch space. Database journals/snapshots follow content.db into data.nosync or app-data;
-  // uploads/chat-attachments stay under the site root. A deployment passes an explicit dir, and `TOVU_CONTENT_DB` still
-  // overrides this outright. ABSOLUTE now, where the old `join("infra", "content.db")` was relative.
-  return assertContentDbFileName(process.env.TOVU_CONTENT_DB ?? resolveSiteDatabasePaths({ dir: siteDir() }).contentDbPath);
-}
-
-/**
- * The database folder is the site's identity: chat.db, ops/database-journal.db and ops/shares sit
- * beside content.db, so two databases in one folder would share all three (design 2026-10-27 I-A).
- * Placement only ever names the file content.db; this refuses the legacy paths that do not.
- * @throws When a file database is named anything but `content.db`.
- */
-function assertContentDbFileName(dbPath: string): string {
-  // Only the driver's own in-memory names: better-sqlite3 opens with URI interpretation off, so
-  // `file:a.db?mode=memory` is a real disk file and gets the content.db rule like any other path.
-  if (dbPath === ":memory:" || dbPath === "") return dbPath;
-  if (!dbPath.startsWith("file:") && basename(dbPath) === "content.db") return dbPath;
-  throw new Error(`Give each database its own folder, named content.db: move ${dbPath} to <its own folder>/content.db and point TOVU_CONTENT_DB at that file.`);
 }
 
 /**
@@ -886,30 +717,6 @@ function resolveSiteBackupSources(input: { siteDir: string; uploadsDir: string; 
     skillsDir: input.skillLayout.root,
     tovuVersion: readTovuVersion(),
     sitePlugins: input.sitePlugins,
-  };
-}
-
-/**
- * `RouteDeps.siteStoragePaths`: the served site's storage locations, from the SAME `dbPath` this root
- * opened and the SAME uploads root its blob store writes under, so a request handler never
- * re-derives them from `defaultContentDbPath()`/{@link siteDir} — the env/cwd site, which is not
- * necessarily this composition's `siteBinding.dir` (hardwiring audit #19).
- *
- * An in-memory `dbPath` (`:memory:`, tests) has no directory to anchor chat attachments to, so they
- * fall back to `<siteDir>/content.db`'s directory — the served site's own folder, never the cwd.
- *
- * @complexity O(1).
- */
-export function resolveSiteStoragePaths(
-  required: { contentDbPath: string; siteDir: string; uploadsDir: string },
-  optional: SitePathResolverOptional = {}
-): SiteStoragePaths {
-  // Uploads/attachments stay in the site even when the database moves to app-data.
-  const anchor = join(required.siteDir, "content.db");
-  return {
-    contentDbPath: required.contentDbPath,
-    mediaUploadsDir: required.uploadsDir,
-    chatAttachmentsDir: resolveChatAttachmentUploadDirectory({ contentDbPath: anchor }, optional),
   };
 }
 
@@ -1377,7 +1184,7 @@ async function composeSiteRouteDeps(
   // Rows written by OLDER projection code (e.g. HTML pages indexed before f7ca1e766 projected
   // `body_html`) are re-projected once per site by the same step when the stored projection version
   // is behind the code's — no resave needed (`reindexStalePostSearchIndex`). Not awaited by boot.
-  const postSearchBackfillReady = preparePostSearchIndex(kernel).catch((err) => {
+  const postSearchBackfillReady = preparePostSearchIndex({ kernel }).catch((err) => {
     console.error(`preparePostSearchIndex failed at boot: ${(err as Error).message}`);
   });
   // Canonical Jini clocks use milliseconds; existing CMS/DB host ports still read ISO timestamps.
@@ -1439,94 +1246,20 @@ async function composeSiteRouteDeps(
   // settings boot sequence being ready.
   // Presentation remains the live owner; boot must not write a second active-theme value.
   const settingsReady = Promise.resolve();
-  // SPEC-008 (ADR-PIPE-008 Decision §3, T050) — idempotently registers the 8 `site.seo.*`
-  // definitions at boot, mirroring `settingsReady`'s fire-and-forget shape. Chained AFTER
-  // `settingsReady` resolves, not fired in parallel with it — both are SQLite writers on the
-  // SAME single better-sqlite3 connection, and `SettingsWriteService`'s chokepoint opens a real
-  // `BEGIN IMMEDIATE` transaction; two independent async chains racing to BEGIN on one connection
-  // throws "cannot start a transaction within a transaction" (caught directly, not theoretical).
-  const seoReady = settingsReady.then(() =>
-    ensureSeoSettingDefinitions(
-      { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
-      { workspaceId: workspaceId, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
-    ).then(() => undefined)
-  );
-
-  // SPEC-035 (ADR-028 Settings Layered Ledger wiring for Comments) — idempotently registers the 6
-  // `comments.*` definitions at boot, mirroring `seoReady`'s exact fire-and-forget shape. Chained
-  // AFTER `seoReady` resolves, not fired in parallel — same single-SQLite-connection transaction
-  // hazard `seoReady`'s own comment documents immediately above.
-  const commentsSettingsReady = seoReady.then(() =>
-    ensureCommentsSettingDefinitions(
-      { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
-      { workspaceId: workspaceId, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
-    ).then(() => ensureCommentsProviderDefinition({
-      deps: { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
-      systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
-    }))
-  );
-
-  // The visitor-facing assistant's master switch (`assistant/public-assistant-settings.ts`).
-  // Chained after `commentsSettingsReady`, not fired in parallel, for the same
-  // single-SQLite-connection transaction hazard `seoReady`'s comment above documents. Registering
-  // the definition does NOT enable anything: its default is `false`.
-  const assistantSettingsReady = commentsSettingsReady.then(() =>
-    ensurePublicAssistantSettingDefinitions(
-      {
-        settingsRepo,
-        clock,
-        ids: idGen,
-        principals: settingsPrincipals,
-        ensureSettingDefinitions,
-      },
-      { workspaceId: workspaceId, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
-    ).then(() => undefined)
-  );
-
-  // The admin "Execution mode" tab's `core.execution.*` definitions
-  // (`assistant/execution-mode-settings.ts`). Chained after `assistantSettingsReady` rather than
-  // fired in parallel, for the identical single-SQLite-connection-transaction reason `seoReady`'s
-  // own comment above documents. `ownerKind: "core"` (not "site"), so unlike the three bindings
-  // above this one does not pass a `workspaceId` into the registration call — see that file's
-  // header for the namespace-fence reasoning.
-  const executionSettingsReady = assistantSettingsReady.then(() =>
-    ensureExecutionSettingDefinitions(
-      { settingsRepo, clock, ids: idGen, principals: settingsPrincipals, ensureSettingDefinitions },
-      { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
-    ).then(() => undefined)
-  );
-
-  // The remaining ledger-only settings-dialog tabs (Instructions, Notifications, Privacy).
-  // Chained after `executionSettingsReady` rather than fired alongside it for the same
-  // single-SQLite-connection-transaction reason every registration above documents.
-  const settingsUiTabsReady = executionSettingsReady.then(() =>
-    ensureSettingsUiTabDefinitions(
-      { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
-      { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
-    ).then(() => undefined)
-  );
-
-  // The public analytics beacon's `core.analytics.*` definitions (`analytics/config.settings.ts`).
-  // Chained after `settingsUiTabsReady` rather than fired alongside it, for the identical
-  // single-SQLite-connection-transaction reason every registration above documents.
-  const analyticsSettingsReady = settingsUiTabsReady.then(() =>
-    ensureAnalyticsSettingDefinitions(
-      { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
-      { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
-    ).then(() => undefined)
-  );
+  // Serial writes avoid nested SQLite transactions; see startSettingsRegistration in app.ts.
+  const { seoReady, commentsSettingsReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady, analyticsSettingsReady } = startSettingsRegistration({
+    deps: { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
+    settingsReady,
+    workspaceId: workspaceId,
+    systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
+  });
 
   // SPEC-050 `core.site.title` (`features/settings/site-title.ts`): registration, then the one-time
   // pin for every workspace the marker migration recorded as pre-existing (REQ-06). Chained after
   // `analyticsSettingsReady` for the single-SQLite-connection-transaction reason every registration
   // above documents; the pin writes through the same ledger.
   const siteTitlePreservationStore = new SqliteSiteTitlePreservationStore(kernel);
-  const siteDisplayName = createSiteDisplayNameSource(dbPath, overrides.siteBinding?.dir);
-  // Bug D: post dates render in `core.site.timezone`, else the zone recorded when the site was created.
-  const siteTimeZone = createSiteTimeZonePort({
-    settingsRepo,
-    ...(dbPath === ":memory:" ? {} : { creationTimeZone: createSiteCreationTimeZone({ dir: resolveSiteDirForDatabase({ dbPath, siteDir: overrides.siteBinding?.dir }) }) }),
-  });
+  const { siteDisplayName, siteTimeZone } = compositionSiteDisplaySources({ dbPath, overrides, settingsRepo });
   const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: settingsPrincipals };
   const siteTitleReady = analyticsSettingsReady
     // `core.interface` (`features/settings/admin-interface.ts`), chained here for the same
@@ -1577,7 +1310,6 @@ async function composeSiteRouteDeps(
       // eslint-disable-next-line no-console
       console.error(`rebuildNavLocationBindings failed at boot: ${(err as Error).message}`);
     });
-  void menuBindingsReady;
 
   // SPEC-011 (Newsletter, ADR-PIPE-011 T011/W-010): boot-time `declareDataModule()` invocation for
   // Newsletter's real 5-table manifest, on the storage kernel of the SAME connection as the Drizzle
@@ -1638,7 +1370,6 @@ async function composeSiteRouteDeps(
       // eslint-disable-next-line no-console
       console.error(`ensureCoreMediaTransform failed at boot: ${(err as Error).message}`);
     });
-  void mediaTransformReady;
 
   // Fills in stock blob BYTES for `media`/`asset_blobs` rows this site inherited from
   // `content.seed.db` (see `hydrate-blob-store-from-seed.ts`'s own header for the incident this
@@ -1711,7 +1442,8 @@ async function composeSiteRouteDeps(
     // The boot write is async (storage kernel); the origin repo's reads wait for it (`after`).
     if (originBoot.kind === "configured") {
       return registerConfiguredOrigin({ db: kernel, workspaceId: workspaceId, origin: originBoot.origin });
-    } else if (originBoot.kind === "dev-seed") {
+    }
+    if (originBoot.kind === "dev-seed") {
       const listenerOrigin = readSiteListenerOrigin({ fallbackScheme: devCapabilityScheme });
       return seedDevCapabilityOrigin({
         db: kernel,
@@ -1748,7 +1480,7 @@ async function composeSiteRouteDeps(
   // no edit below this line, only a new `registry.ts` `Map` entry — the adapter map beneath already
   // loops over every registered entry generically.
   const trashRegistry = buildTrashRegistry();
-  const sqliteTrashDb = createSqliteTrashDb({ db: kernel });
+  const sqliteTrashDb = kernel;
   // Finishes a hide/restore/purge a generic marker flip alone cannot (`follow-ups.ts`), per type.
   // `widget`: an adopted legacy widget keeps its `purged` payload while in the Trash (an older site
   // build still reads it), and its restore makes the payload active again. `routeDeps` is read at
@@ -1832,6 +1564,7 @@ async function composeSiteRouteDeps(
     [
       USER_ENTITY_TYPE,
       createUserTrashAdapter({
+        eventValues: outboxEventValues,
         db: kernel,
         assertAccountAction: async (required, optional) => {
           const service = identityServiceDepsFrom({ ...identity, clock, idGen });
@@ -1843,7 +1576,7 @@ async function composeSiteRouteDeps(
         // A fresh instance, not `identity.userPurge` (removed — see `wiring.ts`'s
         // `IdentityRouteDepsSlice.removeUser` doc): `purge`'s hard-delete is now reached only
         // through this adapter's own `purge()`, never directly from the route layer.
-        purge: new SqliteUserPurge(kernel),
+        purge: new SqliteUserPurge({ kernel, eventValues: outboxEventValues }),
         idGen: { next: () => randomUUID() },
         clock,
       }),
@@ -1949,7 +1682,7 @@ async function composeSiteRouteDeps(
   // header) but never constructed by any composition root until now. `SqliteRestorePointsRepo`
   // shares the same sidecar journal db/siteId as `databaseLedgerRepo` above.
   const restorePointsRepo = new SqliteRestorePointsRepo({ db: databaseJournalDb, siteId: workspaceId });
-  const dbOps = storeBound.dbOps;
+  const { dbOps } = storeBound;
   // ADR-041 §3 (this dispatch) — reuses the SAME already-open store `dbOps` above is bound to,
   // rather than opening a second connection to the same `content.db` file.
   const databaseIntrospection = new SqliteDatabaseIntrospectionAdapter({ db: kernel, dbPath });
@@ -2193,7 +1926,7 @@ async function composeSiteRouteDeps(
   // Local logging reads only the current site tracing scope, through the live gated provider ports.
   setServerLogTraceReader({ traceIds: () => observability.activeTraceIds?.() });
   lifecycleTracker = tracker;
-  for (const [input, options] of pendingLifecycleEvents.splice(0)) tracker.capture(input, options);
+  flushLifecycleEvents({ pending: pendingLifecycleEvents, tracker });
   instrumentStorageKernel({ kernel, observability });
   instrumentStorageKernel({ kernel: chat, observability });
   // `runtimeMode` itself is now resolved further up (see `newsletterKeyring`'s own hoisting
@@ -2228,12 +1961,6 @@ async function composeSiteRouteDeps(
   // SPEC-022's durable-outbox readiness, named once: the live mailer's purpose gate below and the
   // Email page's use readiness probe (`platform/mail/purpose-gate-probe.ts`) read the same function.
   const mailDurableOutboxReady = (_capabilityName: string): boolean => false;
-  // The From for members/newsletter/forms system mail (`platform/mail/sender-identity.ts`): the
-  // site's `core.mail.*` setting, read fresh per send, checked against the settled mailer.
-
-
-  const mailSenderIdentity = resolvedMailer.operations.mailSenderIdentity!;
-
   // `features/custom-credentials`'s two agent tools (`custom_credential_verify`/
   // `custom_credential_make_request`) need a guarded `HttpClientPort` of their own — see
   // `routes/types.ts`'s `customCredentialsHttpClient` doc for why this is a genuinely separate
@@ -2440,6 +2167,7 @@ async function composeSiteRouteDeps(
   });
   const pluginExports = createPluginExportRuntime({ workspaceId: workspaceId, source: createPluginExportSource({ lifecycle: agentPluginLifecycle }), listProviders: createReadyLoginProviderList({ sourceRoot: defaultBundledSourceRoot({ env: process.env }), loadContributions: agentPluginLifecycle.loadPluginContributions, credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer } }) });
   const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {
+    siteBackupSanitize: sanitizeShareDatabase,
     pluginExports,
     assistantAgentInventory,
     workspaceId: workspaceId,
@@ -2562,6 +2290,7 @@ async function composeSiteRouteDeps(
     // Same shared sealer/keyring again — one sealing capability across all three credential tables.
     mediaProviderCredentialRepo: new SqliteMediaProviderCredentialRepo(kernel),
     externalMcpServerRepo,
+    externalMcpStore, notifyRosterChanged: externalMcpStore.notifyExternalMcpRosterChanged,
     builtInExternalMcpServerIds: readBuiltInExternalMcpServerIds({ env: process.env }),
     externalMcpToolApprovalRepo: new SqliteExternalMcpToolApprovalRepo(kernel),
     /**
@@ -2579,7 +2308,7 @@ async function composeSiteRouteDeps(
       keyring: siteAssistantSecretKeyring,
       clock,
       devices: externalMcpOAuthDevices,
-      onConnected: createApplyConnectDefaults({ agentPluginLayout, workspaceId, repo: externalMcpServerRepo, clock }),
+      onConnected: createApplyConnectDefaults({ agentPluginLayout, workspaceId, repo: externalMcpServerRepo, clock, notifyRosterChanged: externalMcpStore.notifyExternalMcpRosterChanged }),
     }),
     externalMcpOAuthDevices,
     // See `routes/types.ts`'s `derivedPublicOrigin` doc; computed above with the plugin connection seams.
@@ -2592,8 +2321,7 @@ async function composeSiteRouteDeps(
     siteTitleReady,
     siteConsentReady,
     consentStore: createSiteConsentStore({ kernel, workspaceId }),
-    consentTrustedRegionHeader: process.env.TOVU_CONSENT_REGION_HEADER?.trim() || undefined,
-    cookieConsent: selectCookieConsent({ workspaceId, loadContributions: agentPluginLifecycle.loadPluginContributions }),
+    ...compositionConsentOptions({ workspaceId, loadContributions: agentPluginLifecycle.loadPluginContributions }, { env: process.env }),
     mailFeedbackRoute: createSiteMailFeedbackRoute({ db: kernel, workspaceId, credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer },
       loadAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }) }),
     siteTitlePreservationStore,
@@ -2632,6 +2360,7 @@ async function composeSiteRouteDeps(
     // the same cheap, side-effect-free env/path lookup, not a second filesystem walk.
     packageThemesDir: builtInThemesDir(),
     siteBinding: resolvedSiteBinding,
+    createSite,
     federatedMcpPresetRegistry,
     agentPluginLayout,
     agentPluginLifecycle,
@@ -2712,6 +2441,8 @@ async function composeSiteRouteDeps(
     mailProviderControl: { check: resolvedMailer.checkProvider, select: resolvedMailer.selectProvider, describe: resolvedMailer.describeProviders, invalidate: resolvedMailer.invalidate },
     // `dns_plan`/`dns_verify` `include: ["mail"]` read the provider's sender-domain records here.
     mailDomainRequirements: resolvedMailer.domainRequirements,
+    // The From for members/newsletter/forms system mail (`platform/mail/sender-identity.ts`): the
+    // site's `core.mail.*` setting, read fresh per send, checked against the settled mailer.
     ...resolvedMailer.operations,
     // Email page phase 4: send history over the ledgers, and the live purpose gate asked without sending.
     mailActivity: createMailActivityRepo({ db: kernel }),
@@ -2744,6 +2475,8 @@ async function composeSiteRouteDeps(
     assetRenditionRepo,
     mediaContentTypeStore,
     blobStore,
+    documentTextExtractors: [createUnpdfDocumentTextExtractor({}),
+      createMammothDocumentTextExtractor({ archiveReader: createShareArchiveReader({ yauzl: importYauzl }) })],
     // Boot-time blob hydration readiness — see the `blobHydrationReady` construction above (hoisted
     // alongside `blobStore` itself) for why this is fired independently and exposed here.
     blobHydrationReady,
@@ -2759,6 +2492,7 @@ async function composeSiteRouteDeps(
     // header for the still-real lazy-require rationale.
     transformDefinitionRepo,
     imageTransformer: new SharpImageTransformer(),
+    imageCodec: new SharpImageTransformer(),
     // SPEC-011 (Newsletter): real SQLite adapters for all 6 repo ports (the campaign pair is
     // Drizzle-backed; the 5 `p_newsletter__*` tables are raw-SQL, `declareDataModule()`-created —
     // see `newsletterReady` above). `membersConsentCapability` stays `null` (unbound) — Members has
@@ -3018,7 +2752,6 @@ async function composeSiteRouteDeps(
       // eslint-disable-next-line no-console
       console.error(`adoptLegacyTrashedWidgets failed at boot: ${(err as Error).message}`);
     });
-  void widgetAdoptionReady;
 
   // Keep the boot-tail contract used by shutdown. Legacy credentials are folded once by 0012;
   // recurring copies would resurrect a credential deleted from the vault.
@@ -3098,6 +2831,21 @@ async function composeSiteRouteDeps(
         const registry = new SiteShareRegistry({ directory: resolveShareDirectory({ siteDir: resolvedSiteBinding.dir, dbPath, contentRoots }) });
         const credentials = composePublishCredentialSource({ workspaceId, executionMode: routeDeps.publishExecutionMode,
           dbDeps: { repo: routeDeps.vendorCredentialSetRepo, sealer: siteAssistantSecretSealer, loadDeployTargets: routeDeps.loadDeployTargets } });
+        const resolveShareCredential = async ({ id }: { id: string }, _options = {}) => {
+          const resolved = await credentials.resolve({ workspaceId, target: artifactStoreTarget(id) });
+          return resolved.ok ? resolved : undefined;
+        };
+        const createShareHostKit = (_required: Record<string, never>, _options = {}) => {
+          // Reuse the plugin's signing/PUT/DELETE owner; pin only the anonymous verification hop.
+          // A normal publish's kit remains unchanged, including its observability.
+          const kit = createDeployHostKit({});
+          return { ...kit, fetch: async (url: string, init: RequestInit, options: { timeoutMs: number }) => {
+            // A provider whose own upload/delete API goes through kit.fetch (not SigV4) keeps it.
+            if (init.method !== "HEAD") return kit.fetch(url, init, options);
+            const response = await guardedOutboundHttpClient.send({ request: { method: "HEAD", url, headers: {}, idleTimeoutMs: options.timeoutMs, totalDeadlineMs: options.timeoutMs, maxResponseBytes: 1024, signal: init.signal ?? undefined } }, { redirect: "error" });
+            return new Response(null, { status: response.status, headers: response.headers });
+          } };
+        };
         // Token-bearing verification requests use the guarded HTTP owner without telemetry. Never
         // infer a recipient-facing URL from localhost, Host, or ephemeral deployment storage.
         routeDeps.siteShareBackend = createSiteShareBackend({ registry, site: workspaceId, zip: zipFolderFiles,
@@ -3121,20 +2869,11 @@ async function composeSiteRouteDeps(
               // the site's media choice wins so media and shares share one provider and connection.
               // Revoke passes the share's saved provider, so only that store may delete it.
               const chosen = await selectArtifactStoreProvider({ loaded: await mediaStorePorts().loadSiteRegistry(), preferredId: await readMediaObjectStoreSetting({ settingsRepo, workspaceId }),
-                resolveCredential: async ({ id }) => { const resolved = await credentials.resolve({ workspaceId, target: artifactStoreTarget(id) }); return resolved.ok ? resolved : undefined; } },
+                resolveCredential: resolveShareCredential },
               selection.provider === undefined ? {} : { savedProvider: selection.provider });
               if (!chosen) return undefined;
               const target = artifactStoreTarget(chosen.id), resolved = chosen.credential;
-              // Reuse the plugin's signing/PUT/DELETE owner; pin only the anonymous verification hop.
-              // A normal publish's kit remains unchanged, including its observability.
-              const kit = createDeployHostKit({});
-              const shareKit = { ...kit, fetch: async (url: string, init: RequestInit, options: { timeoutMs: number }) => {
-                // A provider whose own upload/delete API goes through kit.fetch (not SigV4) keeps it.
-                if (init.method !== "HEAD") return kit.fetch(url, init, options);
-                const response = await guardedOutboundHttpClient.send({ request: { method: "HEAD", url, headers: {}, idleTimeoutMs: options.timeoutMs, totalDeadlineMs: options.timeoutMs, maxResponseBytes: 1024, signal: init.signal ?? undefined } }, { redirect: "error" });
-                return new Response(null, { status: response.status, headers: response.headers });
-              } };
-              const store = chosen.provider.createArtifactStore({ credential: toDeployTargetCredential(resolved), config: {}, kit: shareKit });
+              const store = chosen.provider.createArtifactStore({ credential: toDeployTargetCredential(resolved), config: {}, kit: createShareHostKit({}) });
               return { provider: target, binding: artifactStoreBinding({ store, credential: resolved }), store };
             },
           }, selection),
@@ -3157,7 +2896,7 @@ async function composeSiteRouteDeps(
       // Import payloads live in app-data, outside every served/source tree, including app-data DBs.
       const registry = new SiteImportRegistry({ directory: join(workspace.config({}).appData, "site-imports", workspaceId) });
       const importHttp = createDefaultHttpClient(SITE_IMPORT_EGRESS_POLICY, { observability });
-      routeDeps.siteImportBackend = createSiteImportBackend({ registry, workspace, tracker, reader: createShareArchiveReader({ yauzl: importYauzl }), http: importHttp, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion(),
+      routeDeps.siteImportBackend = createSiteImportBackend({ registry, workspace, tracker, createSite, restoreStagedImport, reader: createShareArchiveReader({ yauzl: importYauzl }), http: importHttp, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion(),
         // Wait for the new site to answer, so the import's "Open" link never points at a port still booting.
         startSite: async input => importSupervisor ? startLocalSiteWhenRunning({ supervisor: importSupervisor, name: input.name }) : { adminUrl: null, status: "stopped" },
         setupBase: "/api/admin/v1/workspaces/" + encodeURIComponent(workspaceId) + "/site-imports",
@@ -3165,6 +2904,42 @@ async function composeSiteRouteDeps(
     }
   }
   routeDeps.siteConsent = bindSiteConsentService({ deps: routeDeps });
+  configureVisitorConsentAnalytics({ routeDeps, workspaceId });
+  await registerContentAnalytics({ deps: { bus, tracker, workspaceId } });
+  return routeDeps;
+}
+
+function compositionSiteDisplaySources(
+  { dbPath, overrides, settingsRepo }: { dbPath: string; overrides: Partial<CreateSiteRouteDepsOverrides>; settingsRepo: RouteDeps["settingsRepo"] },
+  _optional = {},
+) {
+  const siteDisplayName = createSiteDisplayNameSource(dbPath, overrides.siteBinding?.dir);
+  // Bug D: post dates render in `core.site.timezone`, else the zone recorded when the site was created.
+  const siteTimeZone = createSiteTimeZonePort({
+    settingsRepo,
+    ...(dbPath === ":memory:" ? {} : { creationTimeZone: createSiteCreationTimeZone({ dir: resolveSiteDirForDatabase({ dbPath, siteDir: overrides.siteBinding?.dir }) }) }),
+  });
+  return { siteDisplayName, siteTimeZone };
+}
+
+function flushLifecycleEvents(
+  { pending, tracker }: { pending: Array<Parameters<RouteDeps['tracker']['capture']>>; tracker: RouteDeps['tracker'] },
+  _optional = {},
+): void {
+  for (const [input, options] of pending.splice(0)) tracker.capture(input, options);
+}
+
+function compositionConsentOptions(
+  { workspaceId, loadContributions }: Parameters<typeof selectCookieConsent>[0],
+  { env }: { env: NodeJS.ProcessEnv },
+) {
+  return {
+    consentTrustedRegionHeader: env.TOVU_CONSENT_REGION_HEADER?.trim() || undefined,
+    cookieConsent: selectCookieConsent({ workspaceId, loadContributions }),
+  };
+}
+
+function configureVisitorConsentAnalytics({ routeDeps, workspaceId }: { routeDeps: RouteDeps; workspaceId: string }, _optional = {}): void {
   const visitorConsentPorts = createSiteConsentPorts({ deps: routeDeps }, { trustedRegionHeader: routeDeps.consentTrustedRegionHeader });
   // Site analytics off, or this visitor excluded (DNT/GPC/IP/host rules), means no visitor capture.
   const analyticsExcluded = async (request: import('express').Request) => {
@@ -3181,8 +2956,6 @@ async function composeSiteRouteDeps(
   };
   routeDeps.visitorAnalyticsDeliveryAllowed = ({ proof }) => allowsAnalyticsProof({ ports: visitorConsentPorts, proof });
   if (routeDeps.cookieConsent) bindCookieConsentAnalyticsGate({ deps: routeDeps }, { isExcluded: ({ request }) => analyticsExcluded(request) });
-  await registerContentAnalytics({ deps: { bus, tracker, workspaceId } });
-  return routeDeps;
 }
 
 /**

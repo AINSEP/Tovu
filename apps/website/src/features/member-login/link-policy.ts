@@ -1,4 +1,4 @@
-import type { MemberRecord } from "../members/types.js";
+import type { MemberRecord } from "../members/index.js";
 import type { VerifiedLoginIdentity } from "./types.js";
 
 export type LinkDecision = "sign_in" | "link" | "create" | "email_verification_required" | "blocked" | "conflict";

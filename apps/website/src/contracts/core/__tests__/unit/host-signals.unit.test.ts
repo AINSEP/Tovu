@@ -7,7 +7,7 @@ import { createSitePluginPolicy } from "#src/features/plugin-runtime/install";
 import { isHostedAssistantRuntime, resolveFullCliAccess, resolveAssistantCliPermissions } from "../../assistant-native-fallbacks.js";
 import { resolveAgentPermissionMode } from "../../agent-permission-mode.js";
 import { detectDeploymentSignals } from "#src/server/runtime/boot/boot-readiness-warnings";
-import { assistantCliPermissions } from "#src/contracts/headless/assistant-subagents-policy";
+import { assistantCliPermissions } from "#src/assistant/assistant-subagents-policy";
 
 export const declaration: HostSignalDeclaration = { signals: [
   { env: "EXAMPLE_APP", facts: { hosted: true, trustProxyHops: 1, nativeToolsRestricted: true }, label: "Example host" },

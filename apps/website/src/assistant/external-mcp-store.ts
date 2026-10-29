@@ -352,7 +352,7 @@ const MAX_ALLOWED_TOOLS = 64;
 const REMOTE_TOOL_NAME_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/;
 /** POSIX-ish environment variable name. Deliberately stricter than what a shell tolerates: a name
  *  outside this set is far more likely a mis-pasted line than an intentional variable. */
-const ENV_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const ENV_NAME_PATTERN = /^[A-Za-z_]\w*$/;
 /** Generous — a provider asking for more distinct scopes than this is misconfigured, not ambitious. */
 const MAX_OAUTH_SCOPES = 64;
 /** Bounds the single-line OAuth identity fields (client id, secret). A real one is far shorter; the
@@ -1542,7 +1542,7 @@ function resolveOAuthFields(
     oauthClientId: assertOAuthClientId(firstTrimmed(oauth.clientId, existing?.oauthClientId), selfConfigurable),
     oauthScopesJson: JSON.stringify(resolveSavedOAuthScopes(oauth, existing)),
     oauthTokenEnvName: resolveOAuthTokenEnvName(transport, oauth, existing),
-    clientSecret: oauth.clientSecret === '' ? undefined : oauth.clientSecret === undefined ? undefined : normalizeOAuthClientSecret({ value: oauth.clientSecret }),
+    clientSecret: oauth.clientSecret === '' || oauth.clientSecret === undefined ? undefined : normalizeOAuthClientSecret({ value: oauth.clientSecret }),
   };
 }
 
@@ -1612,7 +1612,7 @@ async function sealFreshExternalMcpEnv(
   try {
     const sealedEnv = await sealExternalMcpVaultPayload({ deps, identity, kind: "mcp-env", payload: env });
     return { sealedEnv, envNames, aadVersion: EXTERNAL_MCP_VAULT_VERSION };
-  } catch (err) {
+  } catch {
     throw new ExternalMcpSecretStoreUnconfiguredError(
       CREDENTIAL_MESSAGES.storage,
     );
@@ -1791,7 +1791,7 @@ export async function openExternalMcpOAuthPayload(
   let parsed: Record<string, unknown>;
   try {
     parsed = await openExternalMcpVaultPayload({ sealer, sealed: record.sealedOAuth, identity: record, kind: "mcp-auth" });
-  } catch (err) {
+  } catch {
     throw new ExternalMcpSecretStoreUnconfiguredError(
       "Stored OAuth credentials could not be decrypted.",
     );
@@ -1836,7 +1836,7 @@ export async function sealExternalMcpOAuthPayload(
       payload: JSON.parse(JSON.stringify({ ...payload, schemaVersion: EXTERNAL_MCP_OAUTH_PAYLOAD_VERSION })),
     });
     return { sealedOAuth, oauthAadVersion: EXTERNAL_MCP_VAULT_VERSION };
-  } catch (err) {
+  } catch {
     throw new ExternalMcpSecretStoreUnconfiguredError(
       CREDENTIAL_MESSAGES.storage,
     );
@@ -1865,14 +1865,11 @@ async function resolveSealedOAuthBlob(
   }
 
   const existingPayload = carryToken === null ? {} : await openExternalMcpOAuthPayload(deps.sealer, carryToken);
+  let nextClientSecret = clientSecret;
+  if (clientSecret === undefined) nextClientSecret = existingPayload.clientSecret;
+  if (clientSecret === "") nextClientSecret = undefined;
   const next: ExternalMcpSealedOAuthPayload = {
-    ...(clientSecret === undefined
-      ? existingPayload.clientSecret === undefined
-        ? {}
-        : { clientSecret: existingPayload.clientSecret }
-      : clientSecret === ""
-        ? {}
-        : { clientSecret }),
+    ...(nextClientSecret === undefined ? {} : { clientSecret: nextClientSecret }),
     ...(existingPayload.tokens === undefined ? {} : { tokens: existingPayload.tokens }),
   };
   return sealExternalMcpOAuthPayload(deps, identity, next);
@@ -1910,7 +1907,10 @@ function resolveWriteGrantAttribution(
 /** Tovu error adapter for the shared token policy. The store alone normalizes the value. */
 function normalizeOAuthClientSecret({ value }: { value: string }): string {
   try { return normalizeCredentialToken({ value, field: 'oauth.clientSecret' }); }
-  catch (err) { if (err instanceof CredentialInputError) throw new ExternalMcpValidationError(err.message, err.field); throw err; }
+  catch (err) {
+    if (err instanceof CredentialInputError) throw new ExternalMcpValidationError(err.message, err.field);
+    throw err;
+  }
 }
 
 export function normalizeExternalMcpAccessToken(

@@ -335,12 +335,14 @@ function initSiteDir(input: InitSiteDirInput): Promise<string> {
       if (code !== 0) {
         const cliError = parseCliErrorLine(output);
         const detail = cliError === null ? output.trim() : `${cliError.code}: ${cliError.message}`;
-        return reject(new Error(`tovu init failed for ${input.dir}: ${detail}`));
+        reject(new Error(`tovu init failed for ${input.dir}: ${detail}`));
+        return;
       }
       void tokenDelivery.then((deliveryError) => {
         if (deliveryError !== null) {
           const subject = withPassword ? "create credentials" : "Agent Plugin tokens";
-          return reject(new Error(`tovu init for ${input.dir} could not receive its ${subject}: ${deliveryError.message}`));
+          reject(new Error(`tovu init for ${input.dir} could not receive its ${subject}: ${deliveryError.message}`));
+          return;
         }
         input.onInitOutput?.(output);
         resolve(input.dir);

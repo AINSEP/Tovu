@@ -184,13 +184,13 @@ function checkMarkupFiles(files: readonly PackageWalkEntry[]): ThemeValidationIs
     const dot = file.relativePath.lastIndexOf(".");
     const ext = dot === -1 ? "" : file.relativePath.slice(dot).toLowerCase();
     if (!MARKUP_EXTENSIONS.has(ext)) continue;
-    let content: string;
+    let content: string | undefined;
     try {
       content = readFileSync(file.absolutePath, "utf8");
     } catch {
-      continue;
+      // A concurrently removed or unreadable file is skipped.
     }
-    issues.push(...checkMarkupFile({ relativePath: file.relativePath, content }));
+    if (content !== undefined) issues.push(...checkMarkupFile({ relativePath: file.relativePath, content }));
   }
   return issues;
 }

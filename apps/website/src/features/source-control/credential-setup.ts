@@ -1,9 +1,10 @@
 import { applyPluginCredentialCard, findPluginCredentialCard, type LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
 import { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-repo.js";
-import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/secret-form-cards.js";
+import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
 import { assertCredentialFreeField, CREDENTIAL_MESSAGES, type CredentialTokenHint, type CredentialConnection } from '../../contracts/core/credential-token.js';
 import { credentialText, formatCredentialHint } from '../../contracts/core/credential-copy.js';
-import { resolveOperatorLocale, type OperatorLocaleDeps } from '../agent-plugins/operator-locale.js';
+import { resolveOperatorLocale } from '../settings/index.js';
+import { type OperatorLocaleDeps } from '../../contracts/headless/index.js';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { optionalString, requireInputRecord, requireString } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
@@ -88,16 +89,7 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
       // Saves write through `vault`, so it must be forwarded (omitting it fails every save) with the same guard.
       const vault = store.vault;
       const repo: SourceControlCredentialSetupDeps['sourceControlCredentialSetRepo'] = {
-        ...(vault ? { vault: {
-          find: (input, options) => vault.find(input, options),
-          list: (input, options) => vault.list(input, options),
-          put: (input, options) => { signal.throwIfAborted(); return vault.put(input, options); },
-          patchMeta: (input, options) => vault.patchMeta(input, options),
-          delete: (input, options) => vault.delete(input, options),
-          ...(vault.findDefault ? { findDefault: (input: Parameters<NonNullable<typeof vault.findDefault>>[0], options?: Parameters<NonNullable<typeof vault.findDefault>>[1]) => vault.findDefault!(input, options) } : {}),
-          ...(vault.findOne ? { findOne: (input: Parameters<NonNullable<typeof vault.findOne>>[0], options?: Parameters<NonNullable<typeof vault.findOne>>[1]) => vault.findOne!(input, options) } : {}),
-          ...(vault.applyBatch ? { applyBatch: (input: Parameters<NonNullable<typeof vault.applyBatch>>[0], options?: Parameters<NonNullable<typeof vault.applyBatch>>[1]) => { signal.throwIfAborted(); return vault.applyBatch!(input, options); } } : {}),
-        } satisfies NonNullable<typeof vault> } : {}),
+        ...(vault ? { vault: sourceControlSaveVault({ vault, signal }) } : {}),
         insert: record => { signal.throwIfAborted(); return store.insert(record); },
         update: record => store.update(record),
         findById: input => store.findById(input),
@@ -132,8 +124,12 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
     outcome: ({ prep, run }) => {
       if (run.status === 'cancelled' || run.status === 'expired' || run.status === 'abandoned') return undefined;
       const saved = run.status === 'saved';
-      const message = saved ? savedMessage({ credential: run.saved, locale: prep.locale })
-        : run.status === 'blank' ? credentialText({ id: 'blank', locale: prep.locale }) : run.status === 'failed' ? run.safeMessage : PROPOSE_CREDENTIAL_SAVE_FAILED;
+      let message = PROPOSE_CREDENTIAL_SAVE_FAILED;
+      switch (run.status) {
+        case 'saved': message = savedMessage({ credential: run.saved, locale: prep.locale }); break;
+        case 'blank': message = credentialText({ id: 'blank', locale: prep.locale }); break;
+        case 'failed': message = run.safeMessage; break;
+      }
       return { title: saved ? 'Credential saved' : 'Credential not saved', state: saved ? 'success' : 'failure', message };
     },
   }, {
@@ -148,6 +144,20 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
     logFailure: metadata => console.warn(JSON.stringify(metadata)),
   });
   return card.handler({ surfaceExchanges: surfaces.surfaceExchanges, askThenReport })(ctx, optional);
+}
+
+/** Preserve this adapter's vault ABI and its write guards, including optional batch writes. */
+function sourceControlSaveVault({ vault, signal }: { vault: NonNullable<SourceControlCredentialSetupDeps['sourceControlCredentialSetRepo']['vault']>; signal: AbortSignal }, _options = {}): typeof vault {
+  return {
+    find: (input, options) => vault.find(input, options),
+    list: (input, options) => vault.list(input, options),
+    put: (input, options) => { signal.throwIfAborted(); return vault.put(input, options); },
+    patchMeta: (input, options) => vault.patchMeta(input, options),
+    delete: (input, options) => vault.delete(input, options),
+    ...(vault.findDefault ? { findDefault: (input: Parameters<NonNullable<typeof vault.findDefault>>[0], options?: Parameters<NonNullable<typeof vault.findDefault>>[1]) => vault.findDefault!(input, options) } : {}),
+    ...(vault.findOne ? { findOne: (input: Parameters<NonNullable<typeof vault.findOne>>[0], options?: Parameters<NonNullable<typeof vault.findOne>>[1]) => vault.findOne!(input, options) } : {}),
+    ...(vault.applyBatch ? { applyBatch: (input: Parameters<NonNullable<typeof vault.applyBatch>>[0], options?: Parameters<NonNullable<typeof vault.applyBatch>>[1]) => { signal.throwIfAborted(); return vault.applyBatch!(input, options); } } : {}),
+  };
 }
 
 /** Keep provider-defined names on the human form and canonical `token` on the store contract.
@@ -193,5 +203,5 @@ function declinedMessage({ prep, run }: { prep: CredentialPrep; run: Exclude<Sec
 /** Both projections use the same safe hint and connection copy. @complexity O(1). */
 function savedMessage({ credential, locale }: { credential: SavedCredential; locale: string }, _options = {}): string {
   const hint = formatCredentialHint({ hint: credential.tokenHint, locale });
-  return `${hint ? `${hint}. ` : ''}${credentialText({ id: credential.connection ?? 'saved', locale })}`;
+  return `${hint ? hint + '. ' : ''}${credentialText({ id: credential.connection ?? 'saved', locale })}`;
 }

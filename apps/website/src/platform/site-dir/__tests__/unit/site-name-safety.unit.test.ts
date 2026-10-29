@@ -2,7 +2,8 @@ import "../helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { importSiteSlug } from "../../../../features/site-backup/import-backend-steps.js";
-import { createSite, isInSitesWorkspace } from "../../site-registry.js";
+import { isInSitesWorkspace } from "../../site-registry.js";
+import { createSite } from "#src/server/runtime/composition/site-dir";
 import type { SitesWorkspace } from "../../sites-home.js";
 
 const refusal = { name: "ValidationError", message: "Site names must not use Windows device names or end with a dot or space." };
@@ -33,7 +34,7 @@ test("site creation and import reject trailing dots/spaces instead of trimming t
 test("Windows workspace membership resolves case and separators for the home and catalog", () => {
   const workspace = { home: () => "C:\\Users\\Owner\\Tovu\\", registry: () => ({ list: () => [
     { path: "D:\\Saved Sites\\Alpha" },
-  ] }) } as Pick<SitesWorkspace, "home" | "registry">;
+  ] }) };
   for (const dir of ["c:/users/OWNER/tovu/alpha", "C:\\Users\\Owner\\Tovu\\unused\\..\\alpha"]) {
     assert.equal(isInSitesWorkspace({ dir, workspace }, { platform: "win32" }), true);
   }
@@ -44,7 +45,7 @@ test("Windows workspace membership resolves case and separators for the home and
 });
 
 test("POSIX workspace membership resolves paths but preserves case", () => {
-  const workspace = { home: () => "/sites/", registry: () => ({ list: () => [{ path: "/adopted/Alpha" }] }) } as Pick<SitesWorkspace, "home" | "registry">;
+  const workspace = { home: () => "/sites/", registry: () => ({ list: () => [{ path: "/adopted/Alpha" }] }) };
   assert.equal(isInSitesWorkspace({ dir: "/sites/unused/../alpha", workspace }, { platform: "linux" }), true);
   assert.equal(isInSitesWorkspace({ dir: "/Sites/alpha", workspace }, { platform: "linux" }), false);
   assert.equal(isInSitesWorkspace({ dir: "/adopted/Alpha/", workspace }, { platform: "linux" }), true);

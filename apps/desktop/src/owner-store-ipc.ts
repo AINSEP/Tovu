@@ -22,23 +22,25 @@ export interface OwnerStoreController {
   execute: (input: { action: OwnerStoreAction; input: unknown }, options?: {}) => Promise<OwnerStoreReply>;
 }
 
+const INVALID_REQUEST = 'Invalid shared-key request.';
+
 /** Small strict outer request: destination paths/profile/unknown fields cannot become CLI options.
  * @throws A fixed error for invalid input; no submitted values are interpolated.
  * @complexity O(request bytes), capped at 64 KiB before spawning.
  */
 function requestInput({ action, input }: { action: OwnerStoreAction; input: unknown }, _options = {}): Record<string, unknown> {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Invalid shared-key request.');
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error(INVALID_REQUEST);
   const fields: Record<OwnerStoreAction, readonly string[]> = { status: [], list: ['store'], put: ['entry', 'store'],
     import: ['source', 'passphrase'] };
-  if (Object.keys(input).some(field => !fields[action].includes(field))) throw new Error('Invalid shared-key request.');
-  if ('store' in input && input.store !== 'project') throw new Error('Invalid shared-key request.');
-  if (Buffer.byteLength(JSON.stringify(input)) > 64 * 1024) throw new Error('Invalid shared-key request.');
+  if (Object.keys(input).some(field => !fields[action].includes(field))) throw new Error(INVALID_REQUEST);
+  if ('store' in input && input.store !== 'project') throw new Error(INVALID_REQUEST);
+  if (Buffer.byteLength(JSON.stringify(input)) > 64 * 1024) throw new Error(INVALID_REQUEST);
   return input as Record<string, unknown>;
 }
 
 /** Validate required string fields without exposing content in thrown errors. */
 function requiredString({ value }: { value: unknown }, _options = {}): string {
-  if (typeof value !== 'string' || !value.trim() || value.includes('\0')) throw new Error('Invalid shared-key request.');
+  if (typeof value !== 'string' || !value.trim() || value.includes('\0')) throw new Error(INVALID_REQUEST);
   return value;
 }
 
@@ -46,10 +48,10 @@ function requiredString({ value }: { value: unknown }, _options = {}): string {
 async function importFields({ request, ports }: { request: Record<string, unknown>; ports: OwnerStorePorts }, _options = {}): Promise<Omit<OwnerStoreCliFields['import'], 'apply'> | null> {
   const source = request.source as LegacyImportSource;
   if (source === 'owner-store') {
-    if (request.passphrase !== undefined) throw new Error('Invalid shared-key request.');
+    if (request.passphrase !== undefined) throw new Error(INVALID_REQUEST);
     return { source };
   }
-  if (source !== 'backup') throw new Error('Invalid shared-key request.');
+  if (source !== 'backup') throw new Error(INVALID_REQUEST);
   const passphrase = requiredString({ value: request.passphrase });
   const filePath = await ports.pickBackup();
   return filePath === null ? null : { source, filePath, passphrase };

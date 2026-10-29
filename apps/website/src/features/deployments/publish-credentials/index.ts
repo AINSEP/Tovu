@@ -16,7 +16,6 @@ export {
   findPublishCredentialRecord,
   hasDefaultForPublish,
   healAccountLabel,
-  isUniqueLabelViolation,
   listPublishCredentials,
   PublishCredentialDuplicateLabelError,
   PublishCredentialNotFoundError,

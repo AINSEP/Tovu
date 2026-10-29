@@ -16,7 +16,9 @@ export function registerPublicShareRoutes(required: { app: Express; registry?: S
       res.set("Content-Disposition", `attachment; filename="${row.file}"`);
       res.sendFile(`${row.shareId}.tovu.zip`, { root: required.registry!.directory, cacheControl: false, lastModified: false, acceptRanges: false, dotfiles: "deny" }, (error) => {
         if (error && !res.headersSent) res.sendStatus(404);
-        else if (error) res.destroy();
+        else {
+          if (error) res.destroy();
+        }
       });
     } catch { if (!res.headersSent) res.sendStatus(404); }
   });

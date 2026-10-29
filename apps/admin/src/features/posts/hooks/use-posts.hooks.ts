@@ -183,7 +183,8 @@ export function usePosts(deps: PostsListDependencies): PostsController {
       ) }) as Awaited<ReturnType<typeof port.updatePost>>;
       setPosts((prev) => (prev ? prev.map((p) => (p.id === updated.id ? updated : p)) : prev));
     } catch (e) {
-      setError(e instanceof Error ? e.message : `failed to ${nextStatus === "published" ? "publish" : "unpublish"} post`);
+      const action = nextStatus === "published" ? "publish" : "unpublish";
+      setError(e instanceof Error ? e.message : `failed to ${action} post`);
     } finally {
       // Only clear THIS row's lock — `rowSavingId` is shared with `removePost`'s delete-in-flight
       // lock (2026-09-20, S4b hardening). An unconditional `setRowSavingId(null)` here would wipe a

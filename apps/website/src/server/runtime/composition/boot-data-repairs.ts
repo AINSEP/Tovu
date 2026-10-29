@@ -1,3 +1,4 @@
+import { kernelStampWatermark } from "#src/platform/db/watermark-kernel";
 import { removeUnreadableOwnerEntries } from "#src/features/entries/unreadable-owner-entries-repair";
 import { migrateFooterPageLinks } from "#src/features/navigation/migrate-footer-page-links";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
@@ -23,8 +24,8 @@ import type { ContentKernel } from "#src/platform/db/content-kernel";
 export async function runBootDataRepairs(
   required: { kernel: ContentKernel },
   optional: {
-    migrateFooterPageLinks?: (required: { kernel: ContentKernel }) => Promise<unknown>;
-    removeUnreadableOwnerEntries?: (required: { kernel: ContentKernel }) => Promise<unknown>;
+    migrateFooterPageLinks?: typeof migrateFooterPageLinks;
+    removeUnreadableOwnerEntries?: typeof removeUnreadableOwnerEntries;
     logError?: (line: string) => void;
   } = {}
 ): Promise<void> {
@@ -34,9 +35,10 @@ export async function runBootDataRepairs(
     removeUnreadableOwnerEntries: unreadable = removeUnreadableOwnerEntries,
     logError = console.error,
   } = optional;
-  await footer({ kernel });
+  const stampWatermark = kernelStampWatermark(kernel);
+  await footer({ kernel, stampWatermark });
   try {
-    await unreadable({ kernel });
+    await unreadable({ kernel, stampWatermark });
   } catch (error) {
     logError(`[boot-repair] removing unreadable owner entries failed; the next boot retries: ${(error as Error).message}`);
   }

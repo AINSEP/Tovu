@@ -24,5 +24,8 @@ export function credentialDraftError(
 ): string | null {
   if (value === '' && !required) return null;
   try { assertToken({ value }); return null; }
-  catch (error) { if (error instanceof CredentialInputError) return translateCredentialMessage({ message: error.message, locale }); throw error; }
+  catch (error) {
+    if (error instanceof CredentialInputError) return translateCredentialMessage({ message: error.message, locale });
+    throw error;
+  }
 }

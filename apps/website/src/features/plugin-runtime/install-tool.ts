@@ -10,12 +10,13 @@ import {
   type ToolRegistration,
 } from "@jini-ai/core";
 
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { PluginInstallError, type PluginInstallerPort, type PluginInstallInput, type PluginInstallPreview } from "@jini-ai/plugins/host/node";
 import { sitePluginLocalInstallEnabled } from "./install.js";
 import { MAX_PLUGIN_ARCHIVE_BYTES } from "./install-archive.js";
 import { pluginInstallRiskSentence } from "./install-consent.js";
-import { PLUGIN_INSTALL_SOURCE_SCHEMA, readPluginInstallRequest, readPluginInstallArchive, type InstallAttachmentReader, type PluginInstallRequest } from "./install-source.js";
+import { readPluginInstallRequest, readPluginInstallArchive } from './install-source.js';
+import { PLUGIN_INSTALL_SOURCE_SCHEMA, type InstallAttachmentReader, type PluginInstallRequest } from '#src/contracts/headless/index';
 import type { PluginsToolDeps } from "./tool-registrations.js";
 
 /**
@@ -103,7 +104,10 @@ async function installInputFor(
 /** Inspects the package before anything is written; an installer refusal is the caller's input problem. */
 async function previewOrRefuse(required: { installer: PluginInstallerPort; input: PluginInstallInput }): Promise<PluginInstallPreview> {
   try { return await required.installer.preview(required.input); }
-  catch (error) { if (error instanceof PluginInstallError) throw new ToolInputError({ message: `${error.code}: ${error.message}` }); throw error; }
+  catch (error) {
+    if (error instanceof PluginInstallError) throw new ToolInputError({ message: `${error.code}: ${error.message}` });
+    throw error;
+  }
 }
 
 /** What the model relays after a successful install; the plugin always lands OFF. */
@@ -153,6 +157,6 @@ export function buildRegistrations(deps: PluginsInstallToolDeps, _optional: Reco
 }
 
 /** Contributes `plugins_install` as its own domain — see this file's header. */
-export function contributePluginsInstallTools(required: { readInstallAttachment?: InstallAttachmentReader } = {}, _optional: Record<string, never> = {}): ToolContributor {
+export function contributePluginsInstallTools(required: { readInstallAttachment?: InstallAttachmentReader } = {}, _optional: Record<string, never> = {}): ToolContributor<PluginsInstallToolDeps, unknown> {
   return { domain: "plugins-install", build: deps => buildRegistrations({ ...deps, ...required }), risk: derivedRisk };
 }

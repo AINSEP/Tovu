@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { hasPermission } from "@jini-ai/ui/panel-kit";
 import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { renderMarkdownToSafeHtml } from "@jini-ai/ui/renderers";
-import type { AdminMedia } from "@/lib/api";
+import { describeApiError, type AdminMedia } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { describeApiError, readFileAsBase64 } from "../../media/rules";
+import { readFileAsBase64 } from "../../media/rules";
 import { t as translate } from "../library-i18n";
 import {
   LIBRARY_KEYS,

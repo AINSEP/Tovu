@@ -11,6 +11,8 @@ import {
 // The segmented pill's look lives with the chat settings it was built for; imported here too so this
 // tab never depends on the dock having loaded it first.
 import "../../styles/assistant.css";
+import { asciiSlug } from "../../lib/ascii-slug";
+import { trimCharsEnd } from "@jini-ai/core/primitives";
 
 /**
  * "Visitor tools" tab (owner, 2026-10-22): the tool calls the visitor's assistant may make on a
@@ -26,7 +28,7 @@ const MODES: readonly { mode: VisitorToolMode; label: string }[] = [
 ];
 /** Agent handles are lowercase hyphenated words; tool ids are server data (`list_posts`, plugin ids). */
 function toolHandle(id: string, part: string): string {
-  const slug = id.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40).replace(/-+$/, "") || "tool";
+  const slug = trimCharsEnd({ text: asciiSlug(id).slice(0, 40), chars: "-" }) || "tool";
   return `ai-assistant-visitor-tool-${slug}-${part}`;
 }
 const GROUP_LABELS: Record<VisitorToolView["source"], string> = {

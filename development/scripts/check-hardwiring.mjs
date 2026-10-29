@@ -62,23 +62,31 @@ export function bootCoveredEnv({ inspector, wiringSource, refusalSource }, _opti
   }
   collectRefusals(refusal);
   const covered = new Set();
+  function isDefaultEquality({ value }, _options = {}) {
+    if (!ts.isBinaryExpression(value) || value.operatorToken.kind !== ts.SyntaxKind.EqualsEqualsEqualsToken) return false;
+    return ts.isBinaryExpression(ts.isParenthesizedExpression(value.left) ? value.left.expression : value.left);
+  }
+  function collectDefaultKey({ value }, _options = {}) {
+    // The owner-password gate compares both the fallback and an explicitly supplied default.
+    if (!isDefaultEquality({ value })) return;
+    const left = ts.isParenthesizedExpression(value.left) ? value.left.expression : value.left;
+    if (left.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken && left.right.getText(wiring) === value.right.getText(wiring)) {
+      const key = inspector.envKey({ node: left.left });
+      if (key) covered.add(key);
+    }
+  }
+  function collectCoveredValue({ value }, _options = {}) {
+    if (ts.isPrefixUnaryExpression(value) && value.operator === ts.SyntaxKind.ExclamationToken) {
+      const key = inspector.envKey({ node: value.operand });
+      if (key) covered.add(key);
+    }
+    collectDefaultKey({ value });
+  }
   function visit(node) {
     if (ts.isPropertyAssignment(node) && node.name.getText(wiring) === 'envSnapshot' && ts.isObjectLiteralExpression(node.initializer)) {
       for (const property of node.initializer.properties) {
         if (!ts.isPropertyAssignment(property) || !refusedFields.has(property.name.getText(wiring))) continue;
-        const value = property.initializer;
-        if (ts.isPrefixUnaryExpression(value) && value.operator === ts.SyntaxKind.ExclamationToken) {
-          const key = inspector.envKey({ node: value.operand });
-          if (key) covered.add(key);
-        }
-        // The owner-password gate compares both the fallback and an explicitly supplied default.
-        if (ts.isBinaryExpression(value) && value.operatorToken.kind === ts.SyntaxKind.EqualsEqualsEqualsToken && ts.isBinaryExpression(ts.isParenthesizedExpression(value.left) ? value.left.expression : value.left)) {
-          const left = ts.isParenthesizedExpression(value.left) ? value.left.expression : value.left;
-          if (left.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken && left.right.getText(wiring) === value.right.getText(wiring)) {
-            const key = inspector.envKey({ node: left.left });
-            if (key) covered.add(key);
-          }
-        }
+        collectCoveredValue({ value: property.initializer });
       }
     }
     ts.forEachChild(node, visit);

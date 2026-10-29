@@ -2,8 +2,8 @@ import type { Express, Response } from "express";
 import { defineJsonRoute, mountJsonRoute, ok, type HttpMethod, type JsonRouteAuthorize, type RouteInputContext } from "@jini-ai/http-kit";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { touchesAssistantSubagents } from "./assistant-subagents-access.js";
-import { ASSISTANT_PERMANENT_DELETES_WRITE_REASON } from "#src/contracts/headless/assistant-permanent-deletes-policy";
-import { ASSISTANT_SUBAGENTS_WRITE_REASON } from "#src/contracts/headless/assistant-subagents-policy";
+import { ASSISTANT_PERMANENT_DELETES_WRITE_REASON } from "#src/contracts/headless/index";
+import { ASSISTANT_SUBAGENTS_WRITE_REASON } from "#src/contracts/headless/index";
 
 import {
   createSettingsPrincipalLookup, refuseCommentsProviderClear, refuseCommentsProviderReset, set, type SettingScope, type SettingsWriteServiceDeps,

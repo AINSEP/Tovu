@@ -2,7 +2,7 @@ import type { ErrorRequestHandler, Express, NextFunction, Request, Response } fr
 
 import type { Logger } from "@jini-ai/core/primitives";
 import { logCompletedRequest } from "@jini-ai/http-kit/observability";
-import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker, TrackerSpan, RequestTrackingOutcome } from "@jini-ai/diagnostics/observability";
 
 import { runWithErrorReportScope, type ErrorReportScope } from "../../../platform/observability/report-error.js";
 import { REQUEST_ID_HEADER, resolveRequestId } from "./request-id.js";
@@ -81,7 +81,7 @@ export function applyRequestTracking(app: Express, deps: {
     res.setHeader(REQUEST_ID_HEADER, requestId);
     res.locals.requestId = requestId;
     const scope: ErrorReportScope = { reported: false };
-    void deps.tracker.trace({ name: "http.request", run: (span) => new Promise<void>((resolve) => {
+    const observeResponse = ({ span, resolve }: { span: TrackerSpan<RequestTrackingOutcome>; resolve: () => void }, _options = {}) => {
       res.once("finish", () => {
         const durationMs = performance.now() - startedAt;
         // After an error reaches the app's final handler Express has already reset `req.baseUrl`
@@ -103,7 +103,9 @@ export function applyRequestTracking(app: Express, deps: {
       // Routing and the handler run inside the request's scope, so a DB query or outbound call they
       // make is recorded as this request's child. The facade contains adapters without scoping.
       runWithErrorReportScope({ scope, work: next });
-    }) }, { request: { method: req.method, path: req.path, requestId } }).catch(next);
+    };
+    void deps.tracker.trace({ name: "http.request", run: (span) => new Promise<void>((resolve) => observeResponse({ span, resolve })) },
+      { request: { method: req.method, path: req.path, requestId } }).catch(next);
   });
 }
 

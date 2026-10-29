@@ -126,9 +126,11 @@ test("workspaceIdOverride supplied: the db opened for validation is the SAME han
     const source = ts.createSourceFile("deps.ts", fs.readFileSync(new URL("../../runtime/composition/deps.ts", import.meta.url), "utf8"), ts.ScriptTarget.Latest, true);
     const declaration = source.statements.find((node) => ts.isFunctionDeclaration(node) && node.name?.text === "createSiteRouteDepsForWorkspace");
     assert.ok(declaration);
-    const compiled = ts.transpileModule(declaration.getText(source).replace(/^export\s+/, ""), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+    const fileNameGuard = source.statements.find((node) => ts.isFunctionDeclaration(node) && node.name?.text === "assertContentDbFileName");
+    assert.ok(fileNameGuard);
+    const compiled = ts.transpileModule([fileNameGuard, declaration].map((node) => node.getText(source).replace(/^export\s+/, "")).join("\n"), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
     const composeWithPorts: typeof createSiteRouteDepsForWorkspace = runInNewContext(`${compiled}\ncreateSiteRouteDepsForWorkspace`, {
-      defaultContentDbPath, isInMemoryDbPath, dirname: path.dirname, resolveSiteStorage, resolveWorkspace, contentKernel, closeSqliteConnection,
+      defaultContentDbPath, isInMemoryDbPath, basename: path.basename, dirname: path.dirname, resolveSiteStorage, resolveWorkspace, contentKernel, closeSqliteConnection,
       resolveSiteDirForDatabase: ({ dbPath: file }: { dbPath: string }) => path.dirname(file),
       openSiteContentDb: async (file: string) => {
         const opened = await openSiteContentDb(file);

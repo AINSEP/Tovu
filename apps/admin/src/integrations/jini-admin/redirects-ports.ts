@@ -39,6 +39,9 @@ export function createRedirectsHostPorts({ transport }: { transport: RedirectsTr
     },
   };
   return {
+    /** POST a bulk-import batch (1-500 rules, `MAX_IMPORT_BATCH_SIZE`). Always answers `207` on the
+     * wire; `fetch`/`request()` treat 2xx (incl. 207) as success, so the per-item `created`/`failed`
+     * breakdown always comes back as the resolved value, never a thrown `ApiError`. */
     redirectsApi: createHttpRedirectsApi({ transport: hostTransport, basePath: `/workspaces/${workspaceId}/redirects` }),
     redirectsEvents,
   };

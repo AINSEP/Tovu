@@ -1,5 +1,5 @@
 import { resolveApproval } from "@jini-ai/core";
-import { directPageAction } from "@tovu/headless";
+import { directPageAction } from "../../../../website/src/assistant/assistant-tool-approval-policy.js";
 import {
   PAGE_CAPABILITIES, executePageCapability, toWebMcpTool,
   type PageDriver, type RequestUserInteraction, type WebMcpToolRegistration,

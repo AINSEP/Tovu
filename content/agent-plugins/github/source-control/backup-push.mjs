@@ -43,6 +43,8 @@ export const BACKUP_CLIENT_OPTIONS = {
 /** A UTF-8 file up to this size goes inline in a tree request instead of as its own blob. */
 export const BACKUP_INLINE_TEXT_MAX_BYTES = 512 * 1024;
 
+const PROVIDER_ERROR = "provider-error";
+
 /** One tree request's share of the folder: GitHub abandons a request it cannot finish in 10 s, so a
  *  large folder is built over several chained `base_tree` requests rather than one. */
 const TREE_CHUNK_MAX_ENTRIES = 300;
@@ -81,7 +83,8 @@ function treeEntry(entry) {
 export function createBackupPusher(git) {
   /** @param {{ json: any, name: string }} required */
   function checkBackupPrivacy({ json, name }, _options = {}) {
-    const visibility = typeof json.visibility === "string" ? json.visibility : json.private === true ? "private" : "public";
+    const fallbackVisibility = json.private === true ? "private" : "public";
+    const visibility = typeof json.visibility === "string" ? json.visibility : fallbackVisibility;
     if (json.private !== true || visibility !== "private") {
       return {
         ok: false,
@@ -111,7 +114,7 @@ export function createBackupPusher(git) {
     }
     const defaultBranch = extractStringField(json, "default_branch");
     const htmlUrl = extractStringField(json, "html_url");
-    if (!defaultBranch || !htmlUrl) return { ok: false, code: "provider-error", message: "GitHub repository lookup response did not include a default branch or URL" };
+    if (!defaultBranch || !htmlUrl) return { ok: false, code: PROVIDER_ERROR, message: "GitHub repository lookup response did not include a default branch or URL" };
     return { ok: true, defaultBranch, htmlUrl };
   }
 
@@ -125,10 +128,10 @@ export function createBackupPusher(git) {
       return { ok: false, code: "repo-empty", message: `repository ${name} is empty. Add a first commit (for example a README) on GitHub, then back up again.` };
     }
     if (refResponse.status === 404) return { ok: false, code: "branch-not-found", message: `branch '${branch}' does not exist in ${name}` };
-    if (!isOk(refResponse)) return { ok: false, code: "provider-error", message: providerErrorMessage(refResponse, "GitHub branch lookup failed") };
+    if (!isOk(refResponse)) return { ok: false, code: PROVIDER_ERROR, message: providerErrorMessage(refResponse, "GitHub branch lookup failed") };
     const refBody = parseJsonBody(refResponse);
     const parentCommitSha = refBody.ok ? extractStringField(refBody.json?.object, "sha") : "";
-    if (!parentCommitSha) return { ok: false, code: "provider-error", message: "GitHub branch lookup response did not include a sha" };
+    if (!parentCommitSha) return { ok: false, code: PROVIDER_ERROR, message: "GitHub branch lookup response did not include a sha" };
 
     return readBackupParentTree({ target, parentCommitSha });
   }
@@ -138,7 +141,7 @@ export function createBackupPusher(git) {
     const commitJson = await git.getJson(target, `${repoPathOf(target)}/git/commits/${enc(parentCommitSha)}`, "GitHub parent-commit lookup failed");
     if (!commitJson.ok) return commitJson;
     const baseTreeSha = commitJson.found ? extractStringField(commitJson.json.tree, "sha") : "";
-    if (!baseTreeSha) return { ok: false, code: "provider-error", message: "GitHub parent-commit lookup did not return a tree sha" };
+    if (!baseTreeSha) return { ok: false, code: PROVIDER_ERROR, message: "GitHub parent-commit lookup did not return a tree sha" };
     return { ok: true, parentCommitSha, baseTreeSha };
   }
 
@@ -187,7 +190,7 @@ export function createBackupPusher(git) {
       );
       if (!folderTree.ok) return folderTree;
       folderTreeSha = extractStringField(folderTree.json, "sha");
-      if (!folderTreeSha) return { ok: false, code: "provider-error", message: "GitHub folder tree creation response did not include a sha" };
+      if (!folderTreeSha) return { ok: false, code: PROVIDER_ERROR, message: "GitHub folder tree creation response did not include a sha" };
     }
     return { ok: true, sha: /** @type {string} */ (folderTreeSha) };
   }
@@ -211,7 +214,7 @@ export function createBackupPusher(git) {
     );
     if (!rootTree.ok) return rootTree;
     const rootTreeSha = extractStringField(rootTree.json, "sha");
-    if (!rootTreeSha) return { ok: false, code: "provider-error", message: "GitHub tree creation response did not include a sha" };
+    if (!rootTreeSha) return { ok: false, code: PROVIDER_ERROR, message: "GitHub tree creation response did not include a sha" };
 
     const commit = await git.postJson(
       input,
@@ -221,7 +224,7 @@ export function createBackupPusher(git) {
     );
     if (!commit.ok) return commit;
     const commitSha = extractStringField(commit.json, "sha");
-    if (!commitSha) return { ok: false, code: "provider-error", message: "GitHub commit creation response did not include a sha" };
+    if (!commitSha) return { ok: false, code: PROVIDER_ERROR, message: "GitHub commit creation response did not include a sha" };
 
     const ref = await git.updateRef(input, input.branch, commitSha);
     if (!ref.ok) {

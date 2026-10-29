@@ -94,8 +94,10 @@ export function createBuiltinCommentsProvider(deps: BuiltinCommentsDeps, _option
     const path = entryPath({ canonicalUrl: entry.canonicalUrl });
     const maxDepth = Math.min(20, Math.max(0, settings.maxDepth));
     const rows = page.items.filter(row => row.status === 'approved' && row.entryId === entry.id && row.workspaceId === siteId);
-    const more = page.nextCursor ? `<a rel="next" href="${escapeHtml(`${path}?commentCursor=${encodeURIComponent(page.nextCursor)}#comments`)}">More comments</a>` : '';
-    const first = optional.cursor === undefined ? '' : `<a href="${escapeHtml(`${path}#comments`)}">First comments</a>`;
+    const nextPath = page.nextCursor ? `${path}?commentCursor=${encodeURIComponent(page.nextCursor)}#comments` : '';
+    const more = page.nextCursor ? `<a rel="next" href="${escapeHtml(nextPath)}">More comments</a>` : '';
+    const firstPath = `${path}#comments`;
+    const first = optional.cursor === undefined ? '' : `<a href="${escapeHtml(firstPath)}">First comments</a>`;
     return { html: `<section id="comments" aria-label="Comments"><h2>Comments</h2><ol>${threadOrder({ rows }).map(row => commentHtml({ row, maxDepth })).join('')}</ol>${first}${more}${submissionForm({ entryId: entry.id, path })}</section>` };
   } };
   return { kind: 'stored', renderer,

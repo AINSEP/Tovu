@@ -26,6 +26,8 @@ export {
 
 export type { StaticPublishFormDestinationPort } from "./adapter.js";
 
+export { inspectStaticPublish } from "./inspection.js";
+
 export {
   getPublishRunSnapshot,
   runPublishAndAwait,

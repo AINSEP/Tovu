@@ -87,7 +87,7 @@ async function statusFrom(host: ApiConnectionHost, connection: DeclaredApiConnec
  * @complexity Each call: one contribution load plus one record read or one service call.
  */
 export function createSurfaceConnections(
-  required: SurfaceConnectionsDeps & { readonly pluginId: string; readonly workspaceId: string; readonly principalId?: string | undefined; readonly signal?: AbortSignal | undefined },
+  required: SurfaceConnectionsDeps & { readonly pluginId: string; readonly workspaceId: string; readonly principalId?: string; readonly signal?: AbortSignal },
   _optional: Record<string, never> = {},
 ): AdminSurfaceConnections {
   const { host, pluginId, workspaceId, principalId } = required;

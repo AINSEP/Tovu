@@ -2,7 +2,7 @@ import type { Selectable } from "kysely";
 
 import type { UUID } from "@jini-ai/core/primitives";
 
-import type { ExternalMcpToolApprovalRecord, ExternalMcpToolApprovalRepoPort } from "#src/assistant/external-mcp-tool-approval-ports";
+import type { ExternalMcpToolApprovalRecord, ExternalMcpToolApprovalRepoPort } from "#src/assistant/mcp-services";
 import type { ContentKernel } from "../content-kernel.js";
 import type { ExternalMcpToolApprovalsTable } from "../content-database.generated.js";
 

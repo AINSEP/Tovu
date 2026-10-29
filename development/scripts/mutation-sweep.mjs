@@ -67,19 +67,21 @@ function findTest(srcPath) {
   // holds the tests for src/assistant/mcp-federation/*).
   const dirs = [dir, dirname(dir), dirname(dirname(dir))];
   const candidates = dirs.flatMap((d) => [join(d, '__tests__'), join(d, '__tests__', 'unit'), join(d, '__tests__', 'integration'), d]);
+  return candidates.flatMap((directory) => matchingTests({ directory, stem }));
+}
+
+function matchingTests({ directory, stem }, _options = {}) {
+  if (!existsSync(directory)) return [];
   const found = [];
-  for (const c of candidates) {
-    if (!existsSync(c)) continue;
-    for (const f of readdirSync(c)) {
-      if (!/\.test\.(ts|tsx)$/.test(f)) continue;
-      const base = f.replace(/\.test\.(ts|tsx)$/, '');
-      // Token overlap, not substring: `adapter.stdio.ts` must match
-      // `mcp-federation.stdio-adapter.test.ts`, where the words are reversed.
-      const toks = (s) => new Set(s.toLowerCase().split(/[.\-_]/).filter((t) => t.length >= 3 &&
-        !['test', 'unit', 'src', 'the', 'index'].includes(t)));
-      const st = toks(stem), bt = toks(base);
-      if (st.size && [...st].every((t) => bt.has(t))) found.push(join(c, f));
-    }
+  for (const f of readdirSync(directory)) {
+    if (!/\.test\.(ts|tsx)$/.test(f)) continue;
+    const base = f.replace(/\.test\.(ts|tsx)$/, '');
+    // Token overlap, not substring: `adapter.stdio.ts` must match
+    // `mcp-federation.stdio-adapter.test.ts`, where the words are reversed.
+    const toks = (s) => new Set(s.toLowerCase().split(/[.\-_]/).filter((t) => t.length >= 3 &&
+      !['test', 'unit', 'src', 'the', 'index'].includes(t)));
+    const st = toks(stem), bt = toks(base);
+    if (st.size && [...st].every((t) => bt.has(t))) found.push(join(directory, f));
   }
   return found;
 }
@@ -122,6 +124,29 @@ function runTests() {
 
 const GUARDISH = /!|Ref\.current|\b(disposed|mounted|aborted|cancell?ed|stale|pending|inFlight|missing|fresh)\b|===|!==|==|\?/;
 
+function addGuardMutant({ line, i, trimmed, out }, _options = {}) {
+  // 1. neutralise a guard: `if (cond)` -> `if (false)` so the guard never fires
+  const ifm = line.match(/^(\s*(?:\}\s*else\s+)?if\s*\()(.+?)(\)\s*(?:\{|return|continue|break|throw|$).*)$/);
+  // An `if` that short-circuits IS a guard whatever its condition looks like. Testing the
+  // condition's shape instead missed `if (result.allowed) return;` — an inverted-phrasing
+  // authorization check with no `!` or comparison in it, i.e. exactly what this hunts.
+  const shortCircuits = ifm && /^\)\s*(return|continue|break|throw)/.test(ifm[3]);
+  if (ifm && (ALL_IFS || shortCircuits || GUARDISH.test(ifm[2]))) {
+    out.push({ line: i + 1, op: 'guard-never-fires', before: trimmed, priority: shortCircuits ? 0 : 1,
+      mutate: (ls) => { ls[i] = ifm[1] + 'false' + ifm[3]; } });
+  }
+}
+
+function addNullishMutant({ line, i, trimmed, out }, _options = {}) {
+  // 2. drop a nullish fallback: `a ?? b` -> `a`
+  if (/\?\?/.test(line) && !/\?\?=/.test(line)) {
+    const fallback = line.slice(line.indexOf('??') + 2);
+    const bareLiteral = /^\s*(?:\[\]|\{\}|''|""|``|null|undefined|0|false|true)\s*(?:\/\*.*?\*\/\s*)*(?=$|[;,)\]}]|\/\/)/.test(fallback);
+    out.push({ line: i + 1, op: 'drop-nullish-default', before: trimmed, priority: bareLiteral ? 3 : 2,
+      mutate: (ls) => { ls[i] = line.replace(/\s*\?\?\s*(?:\[\]|\{\}|''|""|`.*?`|null|undefined|0|false|true|[\w.]+(?:\([^)]*\))?)/, ''); } });
+  }
+}
+
 function mutants(source) {
   const lines = source.split('\n');
   const out = [];
@@ -129,24 +154,8 @@ function mutants(source) {
     const trimmed = line.trim();
     if (trimmed.startsWith('*') || trimmed.startsWith('//')) return;
 
-    // 1. neutralise a guard: `if (cond)` -> `if (false)` so the guard never fires
-    const ifm = line.match(/^(\s*(?:\}\s*else\s+)?if\s*\()(.+?)(\)\s*(?:\{|return|continue|break|throw|$).*)$/);
-    // An `if` that short-circuits IS a guard whatever its condition looks like. Testing the
-    // condition's shape instead missed `if (result.allowed) return;` — an inverted-phrasing
-    // authorization check with no `!` or comparison in it, i.e. exactly what this hunts.
-    const shortCircuits = ifm && /^\)\s*(return|continue|break|throw)/.test(ifm[3]);
-    if (ifm && (ALL_IFS || shortCircuits || GUARDISH.test(ifm[2]))) {
-      out.push({ line: i + 1, op: 'guard-never-fires', before: trimmed, priority: shortCircuits ? 0 : 1,
-        mutate: (ls) => { ls[i] = ifm[1] + 'false' + ifm[3]; } });
-    }
-
-    // 2. drop a nullish fallback: `a ?? b` -> `a`
-    if (/\?\?/.test(line) && !/\?\?=/.test(line)) {
-      const fallback = line.slice(line.indexOf('??') + 2);
-      const bareLiteral = /^\s*(?:\[\]|\{\}|''|""|``|null|undefined|0|false|true)\s*(?:\/\*.*?\*\/\s*)*(?=$|[;,)\]}]|\/\/)/.test(fallback);
-      out.push({ line: i + 1, op: 'drop-nullish-default', before: trimmed, priority: bareLiteral ? 3 : 2,
-        mutate: (ls) => { ls[i] = line.replace(/\s*\?\?\s*(?:\[\]|\{\}|''|""|`.*?`|null|undefined|0|false|true|[\w.]+(?:\([^)]*\))?)/, ''); } });
-    }
+    addGuardMutant({ line, i, trimmed, out });
+    addNullishMutant({ line, i, trimmed, out });
 
     // 3. remove optional chaining: `a?.b` -> `a.b` (throwing counts as killed)
     if (OPTIONAL && /\w\?\./.test(line)) {

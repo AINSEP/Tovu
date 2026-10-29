@@ -144,7 +144,7 @@ test("a recorded capture with missing bytes uses the shipped image", async () =>
 test("a rejected queue drain still rechecks and serves a completed capture", async () => {
   let calls = 0;
   const service: SitePreviewService = {
-    versions: () => (++calls < 3 ? {} : { "editorial-rose": 2_000 }),
+    versions: (): Record<string, number> => (++calls < 3 ? {} : { "editorial-rose": 2_000 }),
     read: () => Buffer.from("completed"),
     idle: async () => { throw new Error("drain failed after capture"); },
   };

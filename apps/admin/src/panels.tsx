@@ -5,7 +5,8 @@ import type { PanelAccessDeclaration } from "./lib/panel-access";
 import { Themes, ThemeExplore } from "./features/themes";
 import { AdminUi } from "./features/admin-ui";
 import { Dashboard } from "./features/dashboard";
-import { Placeholder } from "./components/Placeholder";
+import type { PanelRenderContext } from "./panel-contracts";
+export type { PanelRouteContext, PanelRenderContext } from "./panel-contracts";
 import { ImportExport } from "./features/import-export";
 import { CookieConsent } from "./features/consent";
 import { PostEditor, Posts } from "./features/posts";
@@ -90,13 +91,7 @@ import { Sites } from "./features/sites";
  * Each panel below does its own small `switch` on `view` rather than the router doing it, which is
  * what lets a panel own its URL space without editing a shared dispatch — see the file header.
  */
-export interface PanelRouteContext {
-  readonly view: string | null;
-  readonly params: Readonly<Record<string, string>>;
-  readonly query: URLSearchParams;
-}
-
-export type PanelRenderer = (ctx: PanelRouteContext) => ReactNode;
+export type PanelRenderer = (ctx: PanelRenderContext) => ReactNode;
 
 /**
  * A Tovu panel: Jini's `AdminPanel` plus `anyOfPermissions`, the permission ids its landing server
@@ -191,15 +186,13 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     id: "pages",
     anyOfPermissions: ["content.read"],
     render: (ctx) => {
-      switch (ctx.view) {
-        case "page-editor":
-          // Guaranteed present: this view only fires when `/:slug` matched. Despite the name, the
-          // server-side lookup this feeds (`getAdminPostByIdOrSlug`) accepts either a slug or a
-          // real id, so an old id-based bookmark still resolves — see that function's own doc.
-          return <PageEditor key={ctx.params.slug} slug={ctx.params.slug} />;
-        default:
-          return <Pages />;
+      if (ctx.view === "page-editor") {
+        // Guaranteed present: this view only fires when `/:slug` matched. Despite the name, the
+        // server-side lookup this feeds (`getAdminPostByIdOrSlug`) accepts either a slug or a
+        // real id, so an old id-based bookmark still resolves — see that function's own doc.
+        return <PageEditor key={ctx.params.slug} slug={ctx.params.slug} />;
       }
+      return <Pages />;
     },
     routes: [{ pattern: "/:slug", view: "page-editor" }],
     nav: {
@@ -212,22 +205,20 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     id: "posts",
     anyOfPermissions: ["content.read"],
     render: (ctx) => {
-      switch (ctx.view) {
-        case "post-editor":
-          // Guaranteed present: this view only fires when `/:postId` matched.
-          // `key` (2026-08-12 audit, blocker TM-TOVU-2026-08-12-A/F1): without it React reuses one
-          // component + hook instance across entity navigation, so `save()`'s closure stays bound to
-          // whichever entity was current when Save was clicked. Navigate mid-save and the late
-          // response commits over the newly-displayed entity — then the NEXT save reads the stale id
-          // and writes to the wrong record. Remounting per id closes the whole class at the routing
-          // layer instead of one hand-rolled staleness ref per hook. `Seo.tsx:245` already does this
-          // (`<SeoEntryPanel key={entryId} …>`) and is why that panel was never vulnerable.
-          // `postEditorRouteKey`: the editor's own save can rename the slug in the URL; that is the same
-          // record, so it keeps its key instead of remounting (see `post-editor-route-key.ts`).
-          return <PostEditor key={postEditorRouteKey(ctx.params.postId)} postId={ctx.params.postId} />;
-        default:
-          return <Posts />;
+      if (ctx.view === "post-editor") {
+        // Guaranteed present: this view only fires when `/:postId` matched.
+        // `key` (2026-08-12 audit, blocker TM-TOVU-2026-08-12-A/F1): without it React reuses one
+        // component + hook instance across entity navigation, so `save()`'s closure stays bound to
+        // whichever entity was current when Save was clicked. Navigate mid-save and the late
+        // response commits over the newly-displayed entity — then the NEXT save reads the stale id
+        // and writes to the wrong record. Remounting per id closes the whole class at the routing
+        // layer instead of one hand-rolled staleness ref per hook. `Seo.tsx:245` already does this
+        // (`<SeoEntryPanel key={entryId} …>`) and is why that panel was never vulnerable.
+        // `postEditorRouteKey`: the editor's own save can rename the slug in the URL; that is the same
+        // record, so it keeps its key instead of remounting (see `post-editor-route-key.ts`).
+        return <PostEditor key={postEditorRouteKey(ctx.params.postId)} postId={ctx.params.postId} />;
       }
+      return <Posts />;
     },
     nav: {
       // Was a plain 3-line stack (`M3 4h12M3 8h12M3 12h8`) — pixel-identical in silhouette to the
@@ -306,14 +297,12 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     id: "menus",
     anyOfPermissions: ["admin.menus.read"],
     render: (ctx) => {
-      switch (ctx.view) {
-        case "menu-editor":
-          // The `/new` pattern below captures no params, so `menuId` is `undefined` there — the
-          // same "new means null" mapping `App.tsx`'s old `parseRoute` did inline.
-          return <MenuEditor key={ctx.params.menuId ?? "new"} menuId={ctx.params.menuId ?? null} />;
-        default:
-          return <Menus />;
+      if (ctx.view === "menu-editor") {
+        // The `/new` pattern below captures no params, so `menuId` is `undefined` there — the
+        // same "new means null" mapping `App.tsx`'s old `parseRoute` did inline.
+        return <MenuEditor key={ctx.params.menuId ?? "new"} menuId={ctx.params.menuId ?? null} />;
       }
+      return <Menus />;
     },
     nav: {
       label: "Menus",
@@ -522,34 +511,32 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     // admin's own chrome), and this screen is about SITE themes — which is why the module it lives
     // in is `features/themes/`, not `features/appearance/`.
     render: (ctx) => {
-      switch (ctx.view) {
-        case "theme-explore":
-          // The theme id rides in `?theme=` rather than the path because it names a theme, not a
-          // resource in this app's own URL space. Read here from the router's own parsed `query`
-          // rather than off `window` so the component stays a pure function of its props.
-          //
-          // `?page=` (2026-08-27, optional) picks which of that theme's pages to open on — set by
-          // the Pages screen's "Theme Pages" rows. `?? undefined` opens the default page when
-          // absent. An absent `?theme=` now resolves to the active theme in ThemeExplore's hook
-          // before mounting the editor; an empty ID must never request the theme registry route.
-          //
-          // `?file=` (2026-08-30, optional) is the general, full-relative-path form this screen
-          // writes back for a NON-page file (`theme-explore-url.hooks.ts`'s
-          // `writeThemeExploreSelectionToUrl` — an ordinary page gets the short `?page=<label>` form
-          // instead, 2026-08-31) and takes priority over `?page=` when both are present.
-          return (
-            <ThemeExplore
-              themeId={ctx.query.get("theme") ?? ""}
-              pageId={ctx.query.get("page") ?? undefined}
-              fileId={ctx.query.get("file") ?? undefined}
-            />
-          );
-        default:
-          // `?tab=` picks the initially-active tier tab (Declarative/Static/Templated/Code)
-          // and stays in sync as the operator switches — same `?tab=` convention as
-          // `deployment`'s/`database`'s own entries elsewhere in this file (ADR-063).
-          return <Themes tabId={ctx.query.get("tab")} />;
+      if (ctx.view === "theme-explore") {
+        // The theme id rides in `?theme=` rather than the path because it names a theme, not a
+        // resource in this app's own URL space. Read here from the router's own parsed `query`
+        // rather than off `window` so the component stays a pure function of its props.
+        //
+        // `?page=` (2026-08-27, optional) picks which of that theme's pages to open on — set by
+        // the Pages screen's "Theme Pages" rows. `?? undefined` opens the default page when
+        // absent. An absent `?theme=` now resolves to the active theme in ThemeExplore's hook
+        // before mounting the editor; an empty ID must never request the theme registry route.
+        //
+        // `?file=` (2026-08-30, optional) is the general, full-relative-path form this screen
+        // writes back for a NON-page file (`theme-explore-url.hooks.ts`'s
+        // `writeThemeExploreSelectionToUrl` — an ordinary page gets the short `?page=<label>` form
+        // instead, 2026-08-31) and takes priority over `?page=` when both are present.
+        return (
+          <ThemeExplore
+            themeId={ctx.query.get("theme") ?? ""}
+            pageId={ctx.query.get("page") ?? undefined}
+            fileId={ctx.query.get("file") ?? undefined}
+          />
+        );
       }
+      // `?tab=` picks the initially-active tier tab (Declarative/Static/Templated/Code)
+      // and stays in sync as the operator switches — same `?tab=` convention as
+      // `deployment`'s/`database`'s own entries elsewhere in this file (ADR-063).
+      return <Themes tabId={ctx.query.get("tab")} />;
     },
     routes: [{ pattern: "/explore", view: "theme-explore" }],
     nav: {
@@ -759,15 +746,13 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     // The `/:subscriptionId` deliveries drill-down reads `routes/integrations/deliveries.ts`.
     anyOfPermissions: ["admin.integrations.manage"],
     render: (ctx) => {
-      switch (ctx.view) {
-        case "integration-deliveries":
-          // Guaranteed present: this view only fires when `/:subscriptionId` matched. Unchanged by
-          // the second pass — this is its own full screen, not a tab, and was never part of the
-          // `providers`/`integrations` tab merge.
-          return <IntegrationDeliveries subscriptionId={ctx.params.subscriptionId} />;
-        default:
-          return <IntegrationsRedirect />;
+      if (ctx.view === "integration-deliveries") {
+        // Guaranteed present: this view only fires when `/:subscriptionId` matched. Unchanged by
+        // the second pass — this is its own full screen, not a tab, and was never part of the
+        // `providers`/`integrations` tab merge.
+        return <IntegrationDeliveries subscriptionId={ctx.params.subscriptionId} />;
       }
+      return <IntegrationsRedirect />;
     },
     routes: [{ pattern: "/:subscriptionId", view: "integration-deliveries" }],
   },
@@ -782,7 +767,7 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     // (Stripe/PayPal, GitHub/AWS) to preview the way `payments`/`deployment` do. `soonPreviewable`
     // is still set, by owner decision: every row in Commerce previews as a real, clickable link
     // rather than a disabled one, so the section doesn't read as some rows working and others not.
-    render: () => <Placeholder sectionId="orders" agentHandle="orders" />,
+    render: ({ Placeholder }) => <Placeholder sectionId="orders" agentHandle="orders" />,
     nav: {
       label: "Orders",
       group: "Commerce",
@@ -799,7 +784,7 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     id: "products",
     // Same shape and reasoning as `orders` above: `p_store__products` exists as a table with rows
     // in it (`store-plugin.ts`), but no admin API or screen exists yet.
-    render: () => <Placeholder sectionId="products" agentHandle="products" />,
+    render: ({ Placeholder }) => <Placeholder sectionId="products" agentHandle="products" />,
     nav: {
       label: "Products",
       group: "Commerce",
@@ -825,7 +810,7 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     // plugin, no admin API. Verified via `grep` for their method names outside that one file and its
     // tests: no hits. This is the recurring-billing counterpart to Payments' provider configuration,
     // but with no reachable code path yet, not just an empty table waiting for traffic.
-    render: () => <Placeholder sectionId="subscriptions" agentHandle="subscriptions" />,
+    render: ({ Placeholder }) => <Placeholder sectionId="subscriptions" agentHandle="subscriptions" />,
     nav: {
       label: "Subscriptions",
       group: "Commerce",
@@ -846,7 +831,7 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     // operator pays to run the site. `soonPreviewable` matches the owner decision recorded on
     // `orders` above: every Commerce row previews as a real clickable link, so the section never
     // reads as some rows working and others not.
-    render: () => <Placeholder sectionId="billing" agentHandle="billing" />,
+    render: ({ Placeholder }) => <Placeholder sectionId="billing" agentHandle="billing" />,
     nav: {
       label: "Billing",
       group: "Commerce",
@@ -1021,7 +1006,7 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     // nav entry. Sits beside Recovery deliberately: both answer "what happened to my site," one
     // after the fact and one as a way back. The read side already exists in the tool catalog as
     // `database_query_timeline`, so this is a missing surface rather than a missing capability.
-    render: () => <Placeholder sectionId="activity-log" agentHandle="activity-log" />,
+    render: ({ Placeholder }) => <Placeholder sectionId="activity-log" agentHandle="activity-log" />,
     nav: {
       label: "Activity Log",
       group: "Operations",
@@ -1171,7 +1156,7 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     id: "newsletter",
     // No screen yet — renders `Placeholder`, exactly as `#/section/newsletter` did, and exactly
     // what a genuinely unbuilt-but-real `nav` entry (`soon: true`) is for.
-    render: () => <Placeholder sectionId="newsletter" agentHandle="newsletter" />,
+    render: ({ Placeholder }) => <Placeholder sectionId="newsletter" agentHandle="newsletter" />,
     nav: {
       label: "Newsletter",
       group: "Marketing",

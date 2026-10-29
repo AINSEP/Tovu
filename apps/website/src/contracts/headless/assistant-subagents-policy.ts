@@ -15,16 +15,4 @@ export const ASSISTANT_CLI_CAPABILITIES = [
 ] as const;
 export type AssistantCliCapability = typeof ASSISTANT_CLI_CAPABILITIES[number]["key"];
 export interface AssistantCliPermissions { enabled: boolean; capabilities: Record<AssistantCliCapability, boolean> }
-
-/** The master supplies defaults except personal MCP, which requires an explicit owner grant
- * (2026-10-23). Inherited MCP configuration stays excluded by default, even with CLI parity;
- * Tovu's staged MCP catalog remains available.
- * @param required - The master default and any explicit per-capability owner choices.
- * @returns A fresh, fixed-size permissions snapshot; pure, with no I/O or errors.
- * @complexity O(1) time/space for the fixed capability list.
- * @example assistantCliPermissions({ enabled: true, capabilities: { userMcp: true } }); */
-export function assistantCliPermissions(required: { enabled: boolean; capabilities?: Partial<Record<AssistantCliCapability, boolean>> }, _optional = {}): AssistantCliPermissions {
-  return { enabled: required.enabled, capabilities: Object.fromEntries(ASSISTANT_CLI_CAPABILITIES.map(({ key }) =>
-    [key, required.capabilities?.[key] ?? (key === "userMcp" ? false : required.enabled)])) as Record<AssistantCliCapability, boolean> };
-}
 export const ASSISTANT_SUBAGENTS_WRITE_REASON = "Only the owner can change Full CLI access through Admin AI Assistant settings.";

@@ -24,7 +24,7 @@ import test from "node:test";
 import { AGENT_DEFS, createAgentRuntimeState, type RuntimeAgentDef } from "@jini-ai/agent-runtime";
 import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle, type AgentExecutorRunInput, type McpJsonInjectionOptions } from "@jini-ai/daemon";
 import { readAssistantCliPermissions } from "#src/assistant/subagent-settings";
-import { ASSISTANT_CLI_CAPABILITIES } from "#src/contracts/headless/assistant-subagents-policy";
+import { ASSISTANT_CLI_CAPABILITIES } from "#src/contracts/headless/index";
 import { resolveAgentPermissionMode } from "#src/contracts/core/agent-permission-mode";
 import { resolveBundledHostSignals } from "#src/features/agent-plugins/host-signals";
 import { captureDaemonRun, daemonFunction, evaluateDaemonStatements } from "./helpers/daemon-source.js";

@@ -171,14 +171,25 @@ export function shownProviderId(providers: readonly MailProviderConfiguration[],
  * A segment's name: the provider's label without a trailing "(…)" aside — "Console (local
  * development, sends nothing)" reads as "Console"; the card keeps the full label. Pure.
  */
+/** `label` minus one trailing `(…)` group (no nested parentheses) and the whitespace around it;
+ *  `label` unchanged when it does not end in one. Same result as
+ *  `label.replace(/\s*\([^()]*\)\s*$/, "")`, in one linear pass. */
+function withoutTrailingParenthetical(label: string): string {
+  const body = label.trimEnd();
+  if (!body.endsWith(")")) return label;
+  const open = body.lastIndexOf("(");
+  if (open === -1 || body.slice(open + 1, -1).includes(")")) return label;
+  return body.slice(0, open).trimEnd();
+}
+
 export function segmentLabel(label: string): string {
-  return label.replace(/\s*\([^()]*\)\s*$/, "") || label;
+  return withoutTrailingParenthetical(label) || label;
 }
 
 export const ADD_PROVIDER_PART = "_add-provider";
 export const CAPABILITIES_PART = "_capabilities";
 
-function AddProvider(props: { controller: EmailProviderController; locale: string; onSelect?: ((id: string) => void) | undefined }) {
+function AddProvider(props: { controller: EmailProviderController; locale: string; onSelect?: (id: string) => void }) {
   const { controller, locale } = props;
   const select = (id: string | undefined) => { if (id) props.onSelect?.(id); };
   return (
@@ -205,7 +216,7 @@ function AddProvider(props: { controller: EmailProviderController; locale: strin
   );
 }
 
-function ProviderCards(props: { providers: readonly MailProviderConfiguration[]; controller: EmailProviderController; status: AdminMailStatus | null; locale: string; selectedId?: string | null | undefined; onSelect?: ((id: string) => void) | undefined }) {
+function ProviderCards(props: { providers: readonly MailProviderConfiguration[]; controller: EmailProviderController; status: AdminMailStatus | null; locale: string; selectedId?: string | null; onSelect?: (id: string) => void }) {
   const { providers, controller, locale } = props;
   const shownId = props.selectedId === ADD_PROVIDER_PART || props.selectedId === CAPABILITIES_PART ? props.selectedId : shownProviderId(providers, props.selectedId) ?? ADD_PROVIDER_PART;
   const items = [...providers.map((p) => ({ key: p.id, label: segmentLabel(p.label) })),
@@ -222,7 +233,7 @@ function ProviderCards(props: { providers: readonly MailProviderConfiguration[];
   );
 }
 
-export function EmailProviderTab(props: { controller: EmailProviderController; status: AdminMailStatus | null; locale: string; selectedId?: string | null | undefined; onSelect?: ((id: string) => void) | undefined }) {
+export function EmailProviderTab(props: { controller: EmailProviderController; status: AdminMailStatus | null; locale: string; selectedId?: string | null; onSelect?: (id: string) => void }) {
   const { controller, locale } = props;
   const pending = controller.pendingSwitch;
   return (

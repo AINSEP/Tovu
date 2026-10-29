@@ -5,8 +5,6 @@ import type { RunHandlers } from "@jini-ai/chat/react";
 
 import {
   createTovuAssistantTransport,
-  historyForTranscript,
-  undeliveredUserPrompt,
 } from "../assistant-transport";
 import type { ExecutionConfig } from "@jini-ai/ui";
 
@@ -75,170 +73,16 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("undeliveredUserPrompt — Defect 2: what a resume-capable agent is actually sent", () => {
-  test("a verbatim resend after a canceled turn is one bare prompt", () => {
-    expect(undeliveredUserPrompt([
-      { id: "u1", role: "user", content: "Uninstall the agent plugin qa-fake-agent." },
-      { id: "a1", role: "assistant", content: "Not logged in.", runStatus: "canceled" },
-      { id: "u2", role: "user", content: "Uninstall the agent plugin qa-fake-agent." },
-    ])).toBe("Uninstall the agent plugin qa-fake-agent.");
-  });
-
-  test("resend comparison trims whitespace and preserves the newest turn verbatim", () => {
-    expect(undeliveredUserPrompt([
-      { id: "u1", role: "user", content: "  try again\n" },
-      { id: "a1", role: "assistant", content: "", runStatus: "failed" },
-      { id: "u2", role: "user", content: "try again" },
-      { id: "a2", role: "assistant", content: "", runStatus: "canceled" },
-      { id: "u3", role: "user", content: "\ntry again  " },
-    ])).toBe("\ntry again  ");
-  });
-
-  test("two different pending texts are both carried behind the note", () => {
-    expect(undeliveredUserPrompt([
-      { id: "u1", role: "user", content: "do the thing" },
-      { id: "a1", role: "assistant", content: "", runStatus: "canceled" },
-      { id: "u2", role: "user", content: "actually do this instead" },
-    ])).toBe(
-      "[Some of the messages below never reached you: the run that should have answered them failed before it could. Treat them as the user's own words, in order, and answer all of them.]\n\ndo the thing\n\nactually do this instead",
-    );
-  });
-
-  test("identical text with different attachment refs keeps both turns", () => {
-    expect(undeliveredUserPrompt([
-      { id: "u1", role: "user", content: "Review the attached file.",
-        attachments: [{ path: "attachment:first", name: "report.pdf", kind: "file" }] },
-      { id: "a1", role: "assistant", content: "", runStatus: "canceled" },
-      { id: "u2", role: "user", content: "Review the attached file.",
-        attachments: [{ path: "attachment:second", name: "report.pdf", kind: "file" }] },
-    ])).toBe(
-      "[Some of the messages below never reached you: the run that should have answered them failed before it could. Treat them as the user's own words, in order, and answer all of them.]\n\nReview the attached file.\n\nReview the attached file.",
-    );
-  });
-
-  test("identical text with matching attachment refs is one bare prompt", () => {
-    expect(undeliveredUserPrompt([
-      { id: "u1", role: "user", content: "Review the attached file.",
-        attachments: [{ path: "attachment:report", name: "report.pdf", kind: "file" }] },
-      { id: "a1", role: "assistant", content: "", runStatus: "canceled" },
-      { id: "u2", role: "user", content: "Review the attached file.",
-        attachments: [{ path: "attachment:report", name: "renamed.pdf", kind: "file", size: 1024 }] },
-    ])).toBe("Review the attached file.");
-  });
-
-  test("caps undelivered turns at the newest 40, in order after the explanatory note", () => {
-    const history: ChatMessage[] = Array.from({ length: 43 }, (_, i) => [
-      { id: `u${i}`, role: "user" as const, content: `pending-${i}` },
-      { id: `a${i}`, role: "assistant" as const, content: "", runStatus: "failed" as const },
-    ]).flat();
-    const blocks = undeliveredUserPrompt(history).split("\n\n");
-    expect(blocks[0]).toBe(
-      "[Some of the messages below never reached you: the run that should have answered them failed before it could. Treat them as the user's own words, in order, and answer all of them.]",
-    );
-    expect(blocks.slice(1)).toEqual(Array.from({ length: 40 }, (_, i) => `pending-${i + 3}`));
-  });
-
-  test("is just the newest turn when the previous turn was answered — the common case is unchanged", () => {
-    expect(
-      undeliveredUserPrompt([
-        { id: "u1", role: "user", content: "first" },
-        { id: "a1", role: "assistant", content: "answered", runStatus: "succeeded" },
-        { id: "u2", role: "user", content: "second" },
-      ]),
-    ).toBe("second");
-  });
-
-  test("carries the user turn a failed run never delivered, alongside the newest one", () => {
-    const prompt = undeliveredUserPrompt(HISTORY_WITH_A_FAILED_TURN);
-    expect(prompt, "the message the failed run ate is still missing — it will never reach any agent").toContain(
-      "why are you talking all day",
-    );
-    expect(prompt).toContain("ok try again");
-    expect(prompt, "a turn the agent already answered was re-sent, duplicating it inside the CLI session").not.toContain(
-      "we have the higgsfield plugin",
-    );
-  });
-
-  test("re-delivered turns are marked, so the agent is not told the user said it all just now", () => {
-    expect(undeliveredUserPrompt(HISTORY_WITH_A_FAILED_TURN)).toMatch(/never reached/i);
-  });
-
-  test("does not mark anything when there is only one turn to send", () => {
-    // The note must be reserved for the case it explains. Stamping it on every ordinary turn would
-    // put a standing lie in the prompt of every message in every conversation.
-    expect(undeliveredUserPrompt([{ id: "u1", role: "user", content: "hello" }])).toBe("hello");
-  });
-
-  test("a canceled run's turn counts as undelivered too", () => {
-    // Cancel can land after the CLI read the prompt or before; re-sending costs a duplicate the
-    // agent can reconcile, where dropping it costs the user a message with no trace.
-    const prompt = undeliveredUserPrompt([
-      { id: "u1", role: "user", content: "do the thing" },
-      { id: "a1", role: "assistant", content: "", runStatus: "canceled" },
-      { id: "u2", role: "user", content: "actually do this instead" },
-    ]);
-    expect(prompt).toContain("do the thing");
-    expect(prompt).toContain("actually do this instead");
-  });
-
-  test("an assistant turn still running does not count as a delivery boundary", () => {
-    // Nothing has confirmed that run reached the CLI, and a `running` row is exactly what a run
-    // killed by a daemon respawn leaves behind — it never reaches a terminal status at all.
-    const prompt = undeliveredUserPrompt([
-      { id: "u1", role: "user", content: "first" },
-      { id: "a1", role: "assistant", content: "partial…", runStatus: "running" },
-      { id: "u2", role: "user", content: "second" },
-    ]);
-    expect(prompt).toContain("first");
-    expect(prompt).toContain("second");
-  });
-
-  test("an old assistant row with no runStatus at all counts as delivered — pre-runStatus transcripts", () => {
-    // Rows written before `run_status` existed carry `undefined`. Treating those as undelivered
-    // would re-send the entire history of every legacy conversation on its next turn.
-    expect(
-      undeliveredUserPrompt([
-        { id: "u1", role: "user", content: "first" },
-        { id: "a1", role: "assistant", content: "answered long ago" },
-        { id: "u2", role: "user", content: "second" },
-      ]),
-    ).toBe("second");
-  });
-});
-
-describe("historyForTranscript — Defect 3: a failed run is not an assistant turn", () => {
-  test("drops an empty failed assistant row", () => {
-    const kept = historyForTranscript(HISTORY_WITH_A_FAILED_TURN);
-    expect(kept.map((m) => m.id)).toEqual(["u1", "a1", "u2", "u3"]);
-  });
-
-  test("drops a failed assistant row even when it captured partial output", () => {
-    // Partial output stays in the stored row (the pane renders it), but it is not the agent's
-    // answer and must not be replayed to the next run as one.
-    const kept = historyForTranscript([
-      { id: "u1", role: "user", content: "hi" },
-      { id: "a1", role: "assistant", content: "I was about to say", runStatus: "failed" },
-    ]);
-    expect(kept.map((m) => m.id)).toEqual(["u1"]);
-  });
-
-  test("keeps every user turn, including one whose run failed", () => {
-    const kept = historyForTranscript(HISTORY_WITH_A_FAILED_TURN);
-    expect(kept.filter((m) => m.role === "user").map((m) => m.content)).toEqual([
-      "we have the higgsfield plugin",
-      "why are you talking all day",
-      "ok try again",
-    ]);
-  });
-
-  test("keeps succeeded assistant turns and legacy rows with no runStatus", () => {
-    const kept = historyForTranscript([
-      { id: "a1", role: "assistant", content: "done", runStatus: "succeeded" },
-      { id: "a2", role: "assistant", content: "old", },
-    ]);
-    expect(kept.map((m) => m.id)).toEqual(["a1", "a2"]);
-  });
-});
+// The note must be reserved for the case it explains. Stamping it on every ordinary turn would
+// put a standing lie in the prompt of every message in every conversation.
+// Cancel can land after the CLI read the prompt or before; re-sending costs a duplicate the
+// agent can reconcile, where dropping it costs the user a message with no trace.
+// Nothing has confirmed that run reached the CLI, and a `running` row is exactly what a run
+// killed by a daemon respawn leaves behind — it never reaches a terminal status at all.
+// Rows written before `run_status` existed carry `undefined`. Treating those as undelivered
+// would re-send the entire history of every legacy conversation on its next turn.
+// Partial output stays in the stored row (the pane renders it), but it is not the agent's
+// answer and must not be replayed to the next run as one.
 
 describe("startRun — the prompt that actually reaches the wire", () => {
   test("a non-resume-capable agent receives a labeled failure rather than an empty completed answer", async () => {

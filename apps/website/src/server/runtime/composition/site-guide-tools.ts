@@ -1,6 +1,6 @@
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInputError, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { toolMetadata } from "#src/contracts/core/tool-metadata/site-guide";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { createTovuSiteGuide, type TovuSiteGuideDeps } from "./site-guide.js";
 import type { SiteGuideEngine } from "#src/features/site-guide/index";
 
@@ -99,6 +99,6 @@ export function buildSiteGuideRegistrations({ deps }: { deps: TovuSiteGuideDeps 
 }
 
 /** Shared by every admin CLI vendor and BYOK through the existing first-party manifest. */
-export function contributeSiteGuideTools(_input: Record<string, never>, options: { engine?: SiteGuideEngine } = {}): ToolContributor {
+export function contributeSiteGuideTools(_input: Record<string, never>, options: { engine?: SiteGuideEngine } = {}): ToolContributor<TovuSiteGuideDeps, unknown> {
   return { domain: "site-guide", risk: siteGuideDerivedRisk, build: deps => buildSiteGuideRegistrations({ deps }, options) };
 }

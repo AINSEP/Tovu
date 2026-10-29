@@ -1611,9 +1611,15 @@ function interpolate(template: string, vars: Record<string, string | number> | u
  *   (short, fixed-shape) template string.
  * @overallScore 100 — no branches beyond the dictionary-miss fallback, no I/O, no state.
  */
+/** The two keys whose copy the settings dialog owns; every other key has none here. */
+function sharedSettingsCopy(locale: string, key: string): string | undefined {
+  if (key !== SECRET_REDACTED_NOTICE && key !== CREDENTIAL_CARD_GUIDANCE) return undefined;
+  return SETTINGS_DIALOG_DICTIONARIES[locale as Locale]?.[key];
+}
+
 export function createChatI18nAdapter(locale: string): I18nAdapter {
   return {
     locale,
-    t: (key, vars) => interpolate(CHAT_PANE_I18N_DICT[locale]?.[key] ?? ((key === SECRET_REDACTED_NOTICE || key === CREDENTIAL_CARD_GUIDANCE) ? SETTINGS_DIALOG_DICTIONARIES[locale as Locale]?.[key] : undefined) ?? key, vars),
+    t: (key, vars) => interpolate(CHAT_PANE_I18N_DICT[locale]?.[key] ?? sharedSettingsCopy(locale, key) ?? key, vars),
   };
 }

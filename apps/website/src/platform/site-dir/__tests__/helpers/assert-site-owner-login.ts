@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { resolveSiteDatabasePaths } from "../../site-databases.js";
@@ -22,7 +23,7 @@ export async function assertSiteOwnerLogin(
     const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };
     const idGen = { newId: () => randomUUID() };
     // Credentials deliberately omitted here: first serve sees the inherited deployment env.
-    const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, db: store.content, workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}) });
+    const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, db: contentKernel(store.content), workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}) });
     await identity.identityReady;
     const deps = identityServiceDepsFrom({ ...identity, clock, idGen });
     const input = { workspaceId, username: "admin", password };

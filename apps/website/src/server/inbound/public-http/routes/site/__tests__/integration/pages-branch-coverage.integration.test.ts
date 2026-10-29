@@ -10,6 +10,7 @@ import { InMemoryMenuRepo, NAV_DOC_TYPE } from "#src/features/navigation/index";
 import type { NavMenuEntry } from "#src/features/navigation/index";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import { assertDefaultConsentPage } from "#src/server/__tests__/helpers/default-consent-page";
 import { resolveHtmlEmbedsForRender, resolveMediaAssetMetadataForRender } from "#src/server/inbound/public-http/routes/site/pages";
 import type { RouteDeps } from "#src/server/routes/types";
 
@@ -235,7 +236,7 @@ test("integration: GET /:slug a normal published post renders through the generi
   assert.equal(res.status, 200);
   const html = await res.text();
   assert.match(html, /<p>hello<\/p>/);
-  assert.ok(html.includes('<img src="/m/integration-asset/public.v7/image.jpg" alt="Authored asset" width="640" height="480" class="integration-image" loading="lazy">'));
+  assert.ok(html.includes('<img src="/m/integration-asset/public.v7/image.jpg?v=sha-integrat" alt="Authored asset" width="640" height="480" class="integration-image" loading="lazy">'));
   // Since 5f237c87aa, a relative `src` is allowed. The authenticated admin-preview node still
   // degrades to the placeholder rather than emitting a URL public visitors cannot load.
   assert.ok(html.includes('<img src="legacy.jpg" alt="" loading="lazy" />'));
@@ -323,12 +324,20 @@ class ThrowsUnexpectedErrorOnListPostRepo extends InMemoryPostRepo {
 }
 
 test("integration: GET / 500s with a generic 'Site error' when an unexpected exception is thrown", async (t) => {
-  const app = createApp(testDeps({ postRepo: new ThrowsUnexpectedErrorOnListPostRepo([]) }));
+  const deps = testDeps({ postRepo: new ThrowsUnexpectedErrorOnListPostRepo([]) });
+  await deps.siteConsentReady;
+  // c5e98fea6's linked privacy page is a production bootstrap effect; this fixture seeds the link.
+  const definition = await deps.settingsRepo.findActiveDefinition({ namespace: "core.consent", key: "privacyPolicyUrl", workspaceId: null });
+  assert.ok(definition);
+  await deps.settingsRepo.saveWorkspaceValue({ settingId: definition.settingId, scope: "workspace",
+    workspaceId: deps.workspaceId, principalId: null, valueJson: "/privacy", state: "set",
+    defVersion: definition.version, seq: 1, updatedBy: "test-owner", updatedAt: "2026-10-28T00:00:00.000Z", originPluginId: null });
+  const app = createApp(deps);
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(baseUrl);
   assert.equal(res.status, 500);
-  assert.equal(await res.text(), "<h1>Site error</h1>");
+  assert.equal(assertDefaultConsentPage({ html: await res.text() }).contentHtml, "<h1>Site error</h1>");
 });
 
 /** Mirrors `pages.route.test.ts`'s unit-tier `staticThemeWithEmptyPage`/empty-page test -- see that

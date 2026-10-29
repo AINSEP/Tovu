@@ -14,7 +14,8 @@ test('bundled keywords are read only on first search use and then reused on both
   } });
   const { toolSearchKeywords, indexedDescriptionFor, stripSearchKeywords } = await import('../tool-search-keywords.js');
   assert.equal(reads, 0, 'import must not read plugin manifests');
-  const keywords = toolSearchKeywords({});
+  const { bundledContributionSources } = await import("../../features/agent-plugins/bundled-contribution-sources.js");
+  const keywords = toolSearchKeywords({}, { sources: bundledContributionSources });
   assert.strictEqual(toolSearchKeywords({}), keywords);
   assert.match(keywords.credential_save!, /lazy-provider/);
   for (const metadata of [undefined, {}]) {

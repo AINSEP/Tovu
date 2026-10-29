@@ -1094,7 +1094,7 @@ export function useThemeExplore(
   // outcome opens `readPath` (a no-op when it is already `selected`) and drops a held click in the same
   // render its buffer lands in, so the HTML tab never shows a file as open before its text is there.
   useEffect(() => {
-    if (readPath === null) return;
+    if (readPath === null) return undefined;
     // Non-text files are never fetched as text. `readFileSync(…, "utf8")` on a PNG returns mojibake,
     // and saving that back would genuinely corrupt the file — so the request is not made at all
     // rather than made and then guarded against in the UI. Gated on `readable`, NOT `editable`: a
@@ -1110,11 +1110,11 @@ export function useThemeExplore(
       // `selected` never asked to change), so `sourceLoaded` stayed wrongly true straight through the
       // transition and `save`'s guard never caught it.
       setLoadedFile(null);
-      return;
+      return undefined;
     }
     // Already open with its text. Clicking the open file again while another file's text is held
     // cancels that switch, and must not read the open file again over edits typed since.
-    if (readPathLoaded) return;
+    if (readPathLoaded) return undefined;
     let cancelled = false;
     textLoader.load()
       .then((r) => {

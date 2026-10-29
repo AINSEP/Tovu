@@ -179,7 +179,7 @@ export function useSiteRename(
   };
 
   useEffect(() => {
-    if (!renamingId) return;
+    if (!renamingId) return undefined;
     const onEscape = (event: KeyboardEvent) => dismissOnEscape({ event, dismiss: cancelRename, busy: saving });
     document.addEventListener('keydown', onEscape, true);
     return () => document.removeEventListener('keydown', onEscape, true);

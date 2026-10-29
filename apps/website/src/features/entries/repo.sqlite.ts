@@ -2,7 +2,7 @@ import { type ContentKernel, contentKernel } from "../../platform/db/content-ker
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { SqlEntryRepo } from "./repo.js";
 
-export type { EntryPublishReadPort } from "./repo.js";
+export type { EntryPublishReadPort } from "./contracts.js";
 
 /**
  * @file The entry repo on a site's SQLite `content.db`: {@link SqlEntryRepo} (the one Kysely query

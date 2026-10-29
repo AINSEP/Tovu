@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -38,7 +39,7 @@ const liveIndex = (db: Database.Database, name: string): { name: string; sql: st
 
 test("a declared composite index is created alongside its table", async () => {
   const { db, dbPath, dir } = openDb();
-  const result = await declareDataModule({ db, dbPath, decl: {
+  const result = await declareDataModule({ db: contentKernel(db), dbPath, decl: {
     pluginId: "idxtest",
     pluginTier: "tier-2",
     provenance: { sourceUrl: "test://idxtest", publisher: "test" },
@@ -68,7 +69,7 @@ test("a declared composite index is created alongside its table", async () => {
 
 test("an index referencing an undeclared column is rejected before any I/O", async () => {
   const { db, dbPath, dir } = openDb();
-  const result = await declareDataModule({ db, dbPath, decl: {
+  const result = await declareDataModule({ db: contentKernel(db), dbPath, decl: {
     pluginId: "idxtest",
     pluginTier: "tier-2",
     provenance: { sourceUrl: "test://idxtest", publisher: "test" },
@@ -90,7 +91,7 @@ test("an index referencing an undeclared column is rejected before any I/O", asy
 
 test("a unique index is enforced", async () => {
   const { db, dbPath, dir } = openDb();
-  await declareDataModule({ db, dbPath, decl: {
+  await declareDataModule({ db: contentKernel(db), dbPath, decl: {
     pluginId: "idxtest",
     pluginTier: "tier-2",
     provenance: { sourceUrl: "test://idxtest", publisher: "test" },
@@ -118,12 +119,12 @@ test("dataModule: a missing index on an already-existing table is added via CREA
   const v1 = { pluginId: "idxtest", pluginTier: "tier-2" as const, provenance, tables: [
     { name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }, { name: "workspace_id", type: "TEXT" as const, notNull: true }] },
   ] };
-  const first = await declareDataModule({ db, dbPath, decl: v1 });
+  const first = await declareDataModule({ db: contentKernel(db), dbPath, decl: v1 });
   assert.equal(first.ok, true, JSON.stringify(first.error));
   assert.equal(liveIndex(db, "idx_p_idxtest__widgets__by_workspace"), undefined, "not created yet");
 
   const v2 = { ...v1, tables: [{ ...v1.tables[0]!, indexes: [{ name: "by_workspace", columns: ["workspace_id"] }] }] };
-  const second = await declareDataModule({ db, dbPath, decl: v2 });
+  const second = await declareDataModule({ db: contentKernel(db), dbPath, decl: v2 });
 
   assert.equal(second.ok, true, JSON.stringify(second.error));
   assert.deepEqual(second.created, [], "no table was newly created");
@@ -145,12 +146,12 @@ test("dataModule: a live index whose shape no longer matches its declaration is 
       indexes: [{ name: "by_workspace", columns: ["workspace_id"] }],
     },
   ] };
-  await declareDataModule({ db, dbPath, decl: v1 });
+  await declareDataModule({ db: contentKernel(db), dbPath, decl: v1 });
   assert.match(liveIndex(db, "idx_p_idxtest__widgets__by_workspace")!.sql, /\("workspace_id"\)/);
 
   // v2 widens the SAME declared index (same short name) to a composite column list.
   const v2 = { ...v1, tables: [{ ...v1.tables[0]!, indexes: [{ name: "by_workspace", columns: ["workspace_id", "status"] }] }] };
-  const result = await declareDataModule({ db, dbPath, decl: v2 });
+  const result = await declareDataModule({ db: contentKernel(db), dbPath, decl: v2 });
 
   assert.equal(result.ok, true, JSON.stringify(result.error));
   assert.deepEqual(result.altered, ["p_idxtest__widgets"]);
@@ -158,7 +159,7 @@ test("dataModule: a live index whose shape no longer matches its declaration is 
   assert.ok(idx, "the index still exists under the same name — dropped and recreated, not left orphaned");
   assert.match(idx!.sql, /"workspace_id", "status"/, "the live index now reflects the new column list");
   for (const columns of [["status", "workspace_id"], ["id", "status"]]) {
-    const next = await declareDataModule({ db, dbPath, decl: { ...v1, tables: [{ ...v1.tables[0]!, indexes: [{ name: "by_workspace", columns }] }] } });
+    const next = await declareDataModule({ db: contentKernel(db), dbPath, decl: { ...v1, tables: [{ ...v1.tables[0]!, indexes: [{ name: "by_workspace", columns }] }] } });
     assert.equal(next.ok, true, JSON.stringify(next.error));
     const live = (db.prepare('PRAGMA index_info("idx_p_idxtest__widgets__by_workspace")').all() as Array<{ name: string }>).map((row) => row.name);
     assert.deepEqual(live, columns, "equal-length reorders and substitutions must reconcile exactly");
@@ -177,12 +178,12 @@ test("dataModule: a live index the current declaration no longer mentions is lef
       indexes: [{ name: "legacy_idx", columns: ["legacy_col"] }],
     },
   ] };
-  await declareDataModule({ db, dbPath, decl: v1 });
+  await declareDataModule({ db: contentKernel(db), dbPath, decl: v1 });
   assert.ok(liveIndex(db, "idx_p_idxtest__widgets__legacy_idx"));
 
   // v2's manifest no longer declares any index on this table at all.
   const v2 = { ...v1, tables: [{ name: "widgets", columns: v1.tables[0]!.columns }] };
-  const result = await declareDataModule({ db, dbPath, decl: v2 });
+  const result = await declareDataModule({ db: contentKernel(db), dbPath, decl: v2 });
 
   assert.equal(result.ok, true, JSON.stringify(result.error));
   assert.deepEqual(result.altered, [], "nothing needed reconciling — an undeclared index is not itself a reason to touch the table");
@@ -201,10 +202,10 @@ test("dataModule: a fully-reconciled index (already matching) produces no DROP/C
       indexes: [{ name: "unique_slug", columns: ["slug"], unique: true }],
     },
   ] };
-  await declareDataModule({ db, dbPath, decl });
+  await declareDataModule({ db: contentKernel(db), dbPath, decl });
 
   const migrationCountBefore = (db.prepare(`SELECT COUNT(*) AS n FROM _plugin_migrations`).get() as { n: number }).n;
-  const result = await declareDataModule({ db, dbPath, decl });
+  const result = await declareDataModule({ db: contentKernel(db), dbPath, decl });
   const migrationCountAfter = (db.prepare(`SELECT COUNT(*) AS n FROM _plugin_migrations`).get() as { n: number }).n;
 
   assert.equal(result.ok, true, JSON.stringify(result.error));
@@ -225,13 +226,13 @@ test("dataModule: ADVERSARIAL — recreating an index as UNIQUE against live dup
       indexes: [{ name: "by_slug", columns: ["slug"] }], // non-unique
     },
   ] };
-  await declareDataModule({ db, dbPath, decl: v1 });
+  await declareDataModule({ db: contentKernel(db), dbPath, decl: v1 });
   db.prepare(`INSERT INTO "p_idxtest__widgets" (id, slug) VALUES ('a', 'dup')`).run();
   db.prepare(`INSERT INTO "p_idxtest__widgets" (id, slug) VALUES ('b', 'dup')`).run(); // genuine duplicate
 
   // v2 tightens the SAME index to unique — recreating it against real duplicate data.
   const v2 = { ...v1, tables: [{ ...v1.tables[0]!, indexes: [{ name: "by_slug", columns: ["slug"], unique: true }] }] };
-  const result = await declareDataModule({ db, dbPath, decl: v2 });
+  const result = await declareDataModule({ db: contentKernel(db), dbPath, decl: v2 });
 
   assert.equal(result.ok, false);
   assert.equal(result.error?.code, "DDL_FAILED");
@@ -255,7 +256,7 @@ test("missing-index verification rolls back index, column and migration writes a
   const { db, dbPath, dir } = openDb();
   t.after(() => { db.close(); fs.rmSync(dir, { recursive: true, force: true }); });
   const v1 = { pluginId: "idxtest", pluginTier: "tier-2" as const, provenance, tables: [{ name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }] }] };
-  assert.equal((await declareDataModule({ db, dbPath, decl: v1 })).ok, true);
+  assert.equal((await declareDataModule({ db: contentKernel(db), dbPath, decl: v1 })).ok, true);
   const migrations = db.prepare("SELECT * FROM _plugin_migrations ORDER BY id").all();
   let indexReads = 0;
   const proxied = new Proxy(db, { get(target, prop) {
@@ -276,7 +277,7 @@ test("missing-index verification rolls back index, column and migration writes a
       } });
     };
   } });
-  const result = await declareDataModule({ db: proxied, dbPath, decl: { ...v1, tables: [{ ...v1.tables[0]!, columns: [...v1.tables[0]!.columns, { name: "sku", type: "TEXT" }], indexes: [{ name: "by_sku", columns: ["sku"] }] }] } });
+  const result = await declareDataModule({ db: contentKernel(proxied), dbPath, decl: { ...v1, tables: [{ ...v1.tables[0]!, columns: [...v1.tables[0]!.columns, { name: "sku", type: "TEXT" }], indexes: [{ name: "by_sku", columns: ["sku"] }] }] } });
   assert.equal(indexReads, 2, "the fault must reach post-DDL index verification");
   assert.equal(result.ok, false);
   assert.equal(result.error?.code, "DDL_FAILED");

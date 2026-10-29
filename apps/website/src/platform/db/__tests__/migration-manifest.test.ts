@@ -292,6 +292,14 @@ test("json-text classification agrees with a GENUINELY independent oracle: schem
   );
 });
 
+test("publish destination config is JSON text in the transfer manifest and native jsonb in Postgres", () => {
+  const column = classifyAllCoreColumns().find(column =>
+    column.sqlTableName === "publish_history" && column.sqlColumnName === "config_fields_json");
+  assert.equal(column?.columnClass.kind, "json-text");
+  assert.equal(pgSchema.publishHistory.configFieldsJson.getSQLType(), "jsonb");
+  assert.equal(pgSchema.publishHistory.configFieldsJson.notNull, false);
+});
+
 // --- round-3 audit (2026-08-12): REVIEWED_JSON_COLUMNS — the actual fix for the gap the LEDGER #14
 // comment above now correctly describes, paired with the same staleness discipline
 // REVIEWED_INTEGER_ID_COLUMNS gets (GATE B), plus a non-redundancy check so the allowlist can only ever

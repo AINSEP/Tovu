@@ -7,7 +7,10 @@ import test, { type TestContext } from "node:test";
 import { SpanKind } from "@opentelemetry/api";
 import { createContributionRegistry } from "@jini-ai/core";
 
-import { AGENT_DAEMON_TOKEN_ENV_VAR, type DerivedToolContributor, type ToolContributor } from "#src/assistant/index";
+import type { DerivedToolContributor, ToolContributor } from "@jini-ai/core";
+import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
+import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import { AGENT_DAEMON_TOKEN_ENV_VAR } from "#src/assistant/index";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { LIVE_PAGE_EGRESS_POLICY, WEB_FETCH_EGRESS_POLICY, WEB_SCREENSHOT_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import type { createDefaultHttpClient } from "#src/platform/http/client";
@@ -31,8 +34,8 @@ const TOKEN = "tok-installer-0c4";
 
 function freshContributions() {
   return {
-    contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
-    derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
+    contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
+    derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
   };
 }
 

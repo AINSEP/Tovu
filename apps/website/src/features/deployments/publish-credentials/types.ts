@@ -1,3 +1,4 @@
+import type { DeployTargetDescriptor } from "../deploy-targets/types.js";
 import type { CredentialTokenHint } from '../../../contracts/core/credential-token.js';
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
@@ -37,7 +38,7 @@ import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 /** A deploy target id (`DeployTargetDescriptor.id`) that takes a saved credential. Open: which ids
  *  exist is the deploy registry's business, validated where a connection is written (`store.ts`). */
-export type PublishProviderId = string;
+export type PublishProviderId = DeployTargetDescriptor["id"];
 
 /**
  * A saved connection: the target id plus the flat string fields that host's deploy-plugin descriptor

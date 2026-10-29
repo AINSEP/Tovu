@@ -245,8 +245,13 @@ function normalizeAskChoiceOption({ option }: { option: unknown }, _options = {}
   const { id, description, ...rest } = record;
   const label = visibleOptionLabel({ label: record.label, description });
   // Keep the original label as the default submitted value; display copy is never an answer id.
-  const value = Object.hasOwn(record, "id") ? id : Object.hasOwn(record, "value") ? record.value : record.label;
+  const value = submittedOptionValue({ record, id });
   return { ...rest, label, value };
+}
+
+function submittedOptionValue({ record, id }: { record: Record<string, unknown>; id: unknown }, _options = {}): unknown {
+  if (Object.hasOwn(record, "id")) return id;
+  return Object.hasOwn(record, "value") ? record.value : record.label;
 }
 
 

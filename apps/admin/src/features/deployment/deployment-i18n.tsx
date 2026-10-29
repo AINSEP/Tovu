@@ -1,3 +1,4 @@
+import { translationEntry } from "../../lib/translation-entry";
 import { COMMON_I18N } from "../../lib/i18n-common";
 import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
 import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
@@ -190,7 +191,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Production readiness gate": "Produktionsbereitschafts-Prüfung",
     Passed: "Bestanden",
     "Not applicable (local mode)": "Nicht zutreffend (lokaler Modus)",
-    "Owner password": "Besitzer-Passwort",
+    ...translationEntry("Owner password", "Besitzer-Passwort"),
     "Still the default — set TOVU_ADMIN_PASSWORD.": "Noch der Standard — TOVU_ADMIN_PASSWORD setzen.",
     "Changed from the default.": "Vom Standard geändert.",
     "Agent daemon": "Agent-Daemon",
@@ -1271,7 +1272,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Production readiness gate": "การตรวจสอบความพร้อมสำหรับโปรดักชัน",
     Passed: "ผ่าน",
     "Not applicable (local mode)": "ไม่เกี่ยวข้อง (โหมดโลคัล)",
-    "Owner password": "รหัสผ่านของเจ้าของ",
+    ...translationEntry("Owner password", "รหัสผ่านของเจ้าของ"),
     "Still the default — set TOVU_ADMIN_PASSWORD.": "ยังคงเป็นค่าเริ่มต้น — ตั้งค่า TOVU_ADMIN_PASSWORD",
     "Changed from the default.": "เปลี่ยนจากค่าเริ่มต้นแล้ว",
     "Agent daemon": "ดีมอนของเอเจนต์",

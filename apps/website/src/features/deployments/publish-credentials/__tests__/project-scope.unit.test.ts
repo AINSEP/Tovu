@@ -1,3 +1,4 @@
+import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
 import express from "express";
 import { createProjectKeys } from "#src/features/project-keys/service";
 import { registerAdminPublishCredentialsRoutes, type AdminPublishCredentialsDeps } from "#src/server/inbound/admin-http/routes/system/publish-credentials";
@@ -60,7 +61,7 @@ function site(project?: ProjectStoreFixture) {
   const vault = new InMemoryVaultRepo({});
   const half = <R>(repo: R) => project ? { project: { workspaceId: "project", repo, sealer: project.sealer, keyring: project.keyring } } : {};
   const vendorProject = project && half(new VendorCredentialSetVaultRepo({ vault: project.vault, kind: "vendor", vendor: true })).project as VendorCredentialProjectScope;
-  const deps: PublishCredentialWriteDeps = {
+  const deps: PublishCredentialWriteDeps & { clock: ReturnType<typeof createFakeClock> } = {
     repo: new VendorCredentialSetVaultRepo({ vault, kind: "vendor", vendor: true }, vendorProject ? { project: vendorProject } : {}),
     sealer: new AesGcmSecretSealer(keyring), keyring, clock: createFakeClock({ startIso: "2026-10-25T00:00:00.000Z" }),
     idGen: { newId: () => `cred-${++ids}` }, loadDeployTargets: loadBundledDeployTargets,
@@ -142,7 +143,7 @@ test("a project save whose vendor and label the site already uses is refused; a 
   await saveVercel(a.deps, SITE_A, "default", secret("own"), { scope: "site" });
   await assert.rejects(() => saveVercel(a.deps, SITE_A, "default", secret("again")), PublishCredentialDuplicateLabelError);
   await assert.rejects(() => saveVercel(a.deps, SITE_A, "other", secret("x"), { scope: "everywhere" }), PublishCredentialValidationError);
-  assert.equal((await project.vault.list({ workspaceId: "project", kind: "vendor", ownerKey: "tovu", principalId: null, binding: null })).length, 0);
+  assert.equal((await project.vault.list({ workspaceId: "project", kind: "vendor", ownerKey: "tovu", principalId: null })).length, 0);
 });
 
 test("readiness honors an attached project key among non-default peers and refuses an unattached key", async () => {
@@ -266,6 +267,7 @@ test('a Deployments-page save attaches its project key to this site and survives
   let rejectAttachment = false;
   const app = express();
   registerAdminPublishCredentialsRoutes(app, {
+    observability: createNoopObservabilityPort({}), publishExecutionMode: "hosted-api-only",
     workspaceId: SITE_A, authorize: async () => ({ allowed: true, reason: 'test' }), clock: a.deps.clock, idGen: a.deps.idGen,
     vendorCredentialSetRepo: a.deps.repo, siteAssistantSecretSealer: a.deps.sealer, siteAssistantSecretKeyring: a.deps.keyring,
     loadDeployTargets: loadBundledDeployTargets, publishCredentialVerificationCache: new InMemoryPublishCredentialVerificationCache(),
@@ -274,7 +276,7 @@ test('a Deployments-page save attaches its project key to this site and survives
       if (rejectAttachment) throw new Error('attachment unavailable');
       return keys.use(input, options);
     } },
-  } as AdminPublishCredentialsDeps);
+  });
   const path = '/api/admin/v1/workspaces/:workspaceId/system/publish/credentials';
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: 'owner' };

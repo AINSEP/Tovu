@@ -106,8 +106,9 @@ test("catalog bounds reject ambiguous identities; overflow reclaims only unavail
 });
 
 test("corrupt, future and oversized policies list as invalid/Off and accept only a revisioned site Off repair", async () => {
-  for (const valueJson of [{ corrupt: true }, { version: 2, tools: {} },
-    { version: 1, tools: Object.fromEntries(Array.from({ length: 129 }, (_, n) => [`old_${n}`, { mode: "off" }])) }]) {
+  const invalidPolicies: import("@jini-ai/core/primitives").JsonObject[] = [{ corrupt: true }, { version: 2, tools: {} },
+    { version: 1, tools: Object.fromEntries(Array.from({ length: 129 }, (_, n) => [`old_${n}`, { mode: "off" }])) }];
+  for (const valueJson of invalidPolicies) {
     const f = await visitorManagementFixture();
     await f.write();
     const definition = (await f.repo.findActiveDefinition({ namespace: "site.assistant", key: "visitor_tools", workspaceId: ws }))!;

@@ -47,7 +47,10 @@ export function protectProjectKeyDeletes({ vault, attachments, siteId, transacti
     ...(vault.applyBatch ? { applyBatch: (input, options) => transaction({ run: async () => {
       const deletes = input.ops.flatMap(op => "delete" in op ? [op.delete] : []);
       for (const row of deletes) await allowed({ keyId: row.id });
-      const before = await Promise.all(input.ops.map(op => "patchMeta" in op ? null : vault.find("put" in op ? op.put.record : op.delete)));
+      const before = await Promise.all(input.ops.map(op => {
+        if ("patchMeta" in op) return null;
+        return vault.find("put" in op ? op.put.record : op.delete);
+      }));
       const results = await vault.applyBatch!(input, options);
       for (const [index, op] of input.ops.entries()) {
         if ("delete" in op && results[index] === true) {

@@ -7,14 +7,14 @@ import { after, before, test } from "node:test";
 
 import { sql } from "kysely";
 
-import { readCatalog } from "#src/features/database-transfer/pg-store-copy";
+import { readCatalog } from "#src/platform/db/site-store-copy";
 import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
 import type { StorageKernel } from "#src/platform/db/kernel/index";
 import { openSiteStore } from "#src/server/runtime/composition/open-site-store";
 import { resolveSiteStorage } from "#src/platform/site-dir/site-storage";
 import { dropDatabase, freshPostgresDatabase } from "#src/platform/db/__tests__/postgres-database";
 import { ValidationError } from "#src/platform/site-dir/errors";
-import { initSite } from "#src/platform/site-dir/init-site";
+import { initSite } from "#src/server/runtime/composition/site-dir";
 import { SITE_META_FILENAME } from "#src/platform/site-dir/site-storage";
 import { STORAGE_SECRET_FILENAME } from "#src/server/runtime/composition/storage-secret";
 import { createProgram } from "../../program.js";

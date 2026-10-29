@@ -1,7 +1,7 @@
 import type { AdminPost } from "@/lib/api";
 import type { PostEditorPort } from "./post-editor-port.hooks";
 import { savedHideCoverImageInBody } from "./post-editor-state.rules";
-import type { PostFormState } from "./use-post-editor.hooks";
+import type { PostFormState } from "./post-editor-state.rules";
 
 /**
  * @file Pure pieces of `usePostEditor`'s `runSave` (`use-post-editor.hooks.ts`) — the PUT patch it

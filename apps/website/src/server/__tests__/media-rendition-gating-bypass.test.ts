@@ -246,7 +246,7 @@ test("media gate: a PUBLIC html Page's media embed marker keeps its asset ungate
 
     const res = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/p.webp`);
     assert.equal(res.status, 200);
-    assert.equal(res.headers.get("cache-control"), "public, max-age=31536000, immutable");
+    assert.equal(res.headers.get("cache-control"), "public, max-age=60, must-revalidate");
   });
 });
 
@@ -502,7 +502,7 @@ test("media gate: a PUBLIC entry with an unreadable body format gates nothing â€
 
     const res = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/up.webp`);
     assert.equal(res.status, 200);
-    assert.equal(res.headers.get("cache-control"), "public, max-age=31536000, immutable");
+    assert.equal(res.headers.get("cache-control"), "public, max-age=60, must-revalidate");
   });
 });
 
@@ -520,7 +520,7 @@ test("media gate: a REAL referrer outranks the unreadable-body fallback â€” an a
 
     const res = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/w.webp`);
     assert.equal(res.status, 200, "once the scan has FOUND the entries that embed an asset, an unrelated unreadable entry has no say");
-    assert.equal(res.headers.get("cache-control"), "public, max-age=31536000, immutable");
+    assert.equal(res.headers.get("cache-control"), "public, max-age=60, must-revalidate");
   });
 });
 

@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 /**
  * @file T010 🔴 REQUIRED, GATING (ADR-PIPE-011 Mitigations Required).
@@ -46,7 +47,7 @@ const ALL_NEWSLETTER_TABLE_NAMES = Object.values(NEWSLETTER_TABLE_NAMES);
 test("data-module-manifest: the real 5-table Newsletter manifest is well-formed and installs cleanly (happy path)", async () => {
   const { db, dbPath, dir } = openWithCore();
 
-  const result = await declareDataModule({ db, dbPath, decl: NEWSLETTER_DATA_MODULE });
+  const result = await declareDataModule({ db: contentKernel(db), dbPath, decl: NEWSLETTER_DATA_MODULE });
 
   assert.equal(result.ok, true, `expected the real manifest to install cleanly, got error: ${JSON.stringify(result.error)}`);
   assert.equal(result.created.length, 5, "all 5 p_newsletter__* tables were created");
@@ -87,7 +88,7 @@ test("data-module-manifest: a mid-DDL failure against the REAL 5-table manifest 
     ],
   };
 
-  const result = await declareDataModule({ db, dbPath, decl: poisonedManifest });
+  const result = await declareDataModule({ db: contentKernel(db), dbPath, decl: poisonedManifest });
 
   assert.equal(result.ok, false, "a within-call duplicate table name must fail, not silently succeed");
   assert.equal(result.error?.code, "DDL_FAILED");
@@ -142,10 +143,10 @@ test("data-module-manifest: after a rolled-back attempt, a clean retry of the RE
     provenance: NEWSLETTER_DATA_MODULE.provenance,
     tables: [...NEWSLETTER_DATA_MODULE.tables, { name: "lists", columns: [{ name: "id", type: "TEXT", primaryKey: true }] }],
   };
-  const failed = await declareDataModule({ db, dbPath, decl: poisoned });
+  const failed = await declareDataModule({ db: contentKernel(db), dbPath, decl: poisoned });
   assert.equal(failed.ok, false);
 
-  const retried = await declareDataModule({ db, dbPath, decl: NEWSLETTER_DATA_MODULE });
+  const retried = await declareDataModule({ db: contentKernel(db), dbPath, decl: NEWSLETTER_DATA_MODULE });
   assert.equal(retried.ok, true, "a clean retry after a rolled-back failure must succeed, not stay bricked");
   assert.equal(retried.created.length, 5);
   for (const fq of ALL_NEWSLETTER_TABLE_NAMES) {
@@ -161,7 +162,7 @@ test("installNewsletterDataModule rejects a real declaration failure instead of 
   const { db, dbPath, dir } = openWithCore();
   try {
     db.exec("CREATE TABLE p_newsletter__lists (id INTEGER PRIMARY KEY)");
-    await assert.rejects(() => installNewsletterDataModule({ db, dbPath }), /newsletter dataModule declaration failed: COLUMN_TYPE_MISMATCH/);
+    await assert.rejects(() => installNewsletterDataModule({ db: contentKernel(db), dbPath }), /newsletter dataModule declaration failed: COLUMN_TYPE_MISMATCH/);
     assert.deepEqual(db.prepare("SELECT * FROM workspaces").all(), [{ id: "ws-1", name: "Acme" }]);
     assert.equal(tableExists(db, NEWSLETTER_TABLE_NAMES.sends), false);
   } finally {
@@ -173,13 +174,13 @@ test("installNewsletterDataModule rejects a real declaration failure instead of 
 test("installNewsletterDataModule preserves existing newsletter rows on repeated boot", async (t) => {
   const { db, dbPath, dir } = openWithCore();
   t.after(() => { db.close(); fs.rmSync(dir, { recursive: true, force: true }); });
-  await installNewsletterDataModule({ db, dbPath });
+  await installNewsletterDataModule({ db: contentKernel(db), dbPath });
   db.prepare(`INSERT INTO p_newsletter__lists
     (id, workspace_id, name, slug, is_default, status, created_at, updated_at)
     VALUES ('list-1', 'ws-1', 'Weekly', 'weekly', 1, 'active', 'created', 'updated')`).run();
   const schema = db.prepare("SELECT name, sql FROM sqlite_master WHERE name LIKE 'p_newsletter__%' ORDER BY name").all();
 
-  await installNewsletterDataModule({ db, dbPath }, {});
+  await installNewsletterDataModule({ db: contentKernel(db), dbPath }, {});
 
   assert.deepEqual(db.prepare("SELECT * FROM p_newsletter__lists").all(), [{
     id: "list-1", workspace_id: "ws-1", name: "Weekly", slug: "weekly", is_default: 1,

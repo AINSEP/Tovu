@@ -9,6 +9,9 @@ import { otherCredentialRemoveDialogBody, removeDialogTitle } from "./security-i
 import type { OtherCredentialRowState, OtherCredentialsController } from "./hooks/use-other-credentials.hooks";
 import { rowHandleBase, useOtherCredentialRemoveDialog } from "./OtherCredentialsSection.hooks";
 
+/** "Remove from Tovu," never "Revoke": removal forgets the stored copy, the provider keeps the key. */
+const REMOVE_FROM_TOVU = "Remove from Tovu";
+
 /**
  * @file Tier 2 of the Access Tokens list — {@link OtherCredentialEntry}, the one top-level entry
  * component for the six single-row/per-item credential stores (`rules.ts`'s
@@ -138,10 +141,10 @@ function OtherCredentialStaticRow({ row, controller }: { row: OtherCredentialRow
           // renders unconditionally — no accordion, no menu — so two configured items under the
           // same store put two identically-labeled "Remove from Tovu" buttons on screen at once.
           // `row.name` is this row's own display name, already visible in its heading.
-          aria-label={`${translate("Remove from Tovu")} — ${row.name}`}
+          aria-label={`${translate(REMOVE_FROM_TOVU)} — ${row.name}`}
           {...agentHandle({ handle: `security-other-credentials-remove-${rowHandleBase({ row })}` }, { role: "button", label: `Remove ${row.name} from Tovu` })}
         >
-          {translate("Remove from Tovu")}
+          {translate(REMOVE_FROM_TOVU)}
         </button>
         {row.error ? (
           <p className="save-error" role="alert">
@@ -203,10 +206,10 @@ function OtherCredentialReplaceableRow({ row, controller }: { row: OtherCredenti
             onClick={() => dialogRef.current?.showModal()}
             // Same multi-item-per-store ambiguity as `OtherCredentialStaticRow`'s identical button
             // above.
-            aria-label={`${translate("Remove from Tovu")} — ${row.name}`}
+            aria-label={`${translate(REMOVE_FROM_TOVU)} — ${row.name}`}
             {...agentHandle({ handle: `security-other-credentials-remove-${rowHandleBase({ row })}` }, { role: "button", label: `Remove ${row.name} from Tovu` })}
           >
-            {translate("Remove from Tovu")}
+            {translate(REMOVE_FROM_TOVU)}
           </button>
           {row.error ? (
             <p className="save-error" role="alert">
@@ -258,7 +261,7 @@ const OtherCredentialRemoveDialog = forwardRef<HTMLDialogElement, { row: OtherCr
             {translate("Cancel")}
           </button>
           <button type="button" className="btn-danger" onClick={confirm}>
-            {translate("Remove from Tovu")}
+            {translate(REMOVE_FROM_TOVU)}
           </button>
         </div>
       </dialog>

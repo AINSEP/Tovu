@@ -387,7 +387,7 @@ async function pollRun(input, ctx) {
   if (!config) {
     return { ok: false, error: fail("INVALID_TARGET_CONFIG", "github target is missing owner/repo/environmentName") };
   }
-  if (!/^[1-9][0-9]*$/.test(input.providerRunRef)) {
+  if (!/^[1-9]\d*$/.test(input.providerRunRef)) {
     return { ok: false, error: fail("INVALID_TARGET_CONFIG", "providerRunRef is not a github deployment id") };
   }
   const credentials = requireCredentials(ctx.credentials);

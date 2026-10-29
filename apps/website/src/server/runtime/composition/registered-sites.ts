@@ -8,7 +8,8 @@ import { readSiteMetaJson } from "#src/features/webhooks/site-key-sources";
 import { bootLocalOwnerSignIn } from "../boot/local-owner-signin.js";
 import { detectDeploymentSignals } from "../boot/boot-readiness-warnings.js";
 
-export type RegisteredSiteSource = { siteId: string; name: string; dir: string };
+import type { RegisteredSiteSource } from '#src/assistant/host-contracts';
+export type { RegisteredSiteSource } from '#src/assistant/host-contracts';
 type RegisteredEntry = RegisteredSiteSource & { registeredId: string };
 
 /** Recognize desktop/local hosts without deployment signals. Never reads a site registry.
@@ -34,8 +35,8 @@ export function registeredSources({ workspace, targetSiteId, targetSiteDir, targ
   }
   const currentDir = fs.realpathSync(targetSiteDir);
   return entries.filter(source => {
-    if (source.siteId !== source.registeredId || source.siteId === targetSiteId || source.dir === currentDir ||
-      identities.get(source.siteId) !== 1 || folders.get(source.dir) !== 1) return false;
+    if (source.siteId !== source.registeredId || source.siteId === targetSiteId || source.dir === currentDir) return false;
+    if (identities.get(source.siteId) !== 1 || folders.get(source.dir) !== 1) return false;
     return hasSeparateDatabase({ source, workspace, targetFile });
   });
 }
@@ -47,8 +48,7 @@ function readRegisteredEntries({ workspace }: { workspace: SitesWorkspace }, _op
       const dir = fs.realpathSync(entry.path);
       if (!fs.statSync(dir).isDirectory() || dir.split(path.sep).includes("site-trash")) continue;
       const meta = readSiteMetaJson(dir);
-      if (typeof meta?.siteId !== "string" || !meta.siteId) continue;
-      entries.push({ siteId: meta.siteId, name: entry.name, dir, registeredId: entry.id });
+      if (typeof meta?.siteId === "string" && meta.siteId) entries.push({ siteId: meta.siteId, name: entry.name, dir, registeredId: entry.id });
     } catch { /* Missing/unreadable folders are unavailable choices, never repaired here. */ }
   }
   return entries;

@@ -33,12 +33,13 @@ export async function parseFormMultipart(
   _optional = {},
 ): Promise<Record<string, unknown>> {
   if (bytes.byteLength > MAX_MULTIPART_BYTES) throw new RangeError("form upload exceeds 12 MB");
-  const request = new Request("http://form.invalid/", { method: "POST", headers: { "content-type": contentType }, body: Buffer.from(bytes) });
+  const request = new Request("https://form.invalid/", { method: "POST", headers: { "content-type": contentType }, body: Buffer.from(bytes) });
   const data = await request.formData();
   const body: Record<string, unknown> = Object.create(null);
   let count = 0;
   for (const [name, raw] of data.entries()) {
-    if (++count > MAX_FORM_CONTROLS) throw new RangeError("too many form controls");
+    count += 1;
+    if (count > MAX_FORM_CONTROLS) throw new RangeError("too many form controls");
     if (!isEmptyFilePicker(raw)) appendControl({ body, name, value: await toFormValue(raw) });
   }
   return body;

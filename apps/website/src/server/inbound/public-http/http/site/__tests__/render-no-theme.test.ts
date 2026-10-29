@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PostRecord } from "#src/features/post/index";
+import type { PublicPostRecord } from "#src/features/post/index";
 import { renderSite, type SiteProduct } from "../render.js";
 
 /**
@@ -21,7 +21,7 @@ import { renderSite, type SiteProduct } from "../render.js";
  * just be a change-detector.
  */
 
-const POST: PostRecord = {
+const POST: PublicPostRecord = {
   id: "post-1",
   workspaceId: "workspace-local",
   title: "Welcome to Tovu",
@@ -30,10 +30,11 @@ const POST: PostRecord = {
   bodyFormat: "doc",
   bodyHtml: null,
   status: "published",
+  kind: "post",
   createdAt: "2026-04-06T00:00:00.000Z",
   updatedAt: "2026-04-06T00:00:00.000Z",
   version: 1,
-} as unknown as PostRecord;
+};
 
 const PRODUCT: SiteProduct = { id: "p1", slug: "thing", title: "Thing", price: 100 };
 
@@ -120,7 +121,7 @@ test("the post route's themeless body carries the post, not just chrome", async 
 });
 
 test("a themeless render dates a post by its go-live time (publishAt) on the list and the post page — owner decision 2026-10-05", async () => {
-  const scheduledThenLive = { ...POST, publishAt: "2026-03-20T12:00:00.000Z" } as PostRecord;
+  const scheduledThenLive: PublicPostRecord = { ...POST, publishAt: "2026-03-20T12:00:00.000Z" };
   for (const route of ["home", "post"] as const) {
     const html = await renderSite({ theme: null, route, siteTitle: "Acme", posts: [scheduledThenLive], post: scheduledThenLive });
     assert.match(html, /class="entry-meta">2026-03-20<\/p>/, `${route} must show publishAt`);

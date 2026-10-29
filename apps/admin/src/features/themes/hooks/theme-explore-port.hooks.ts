@@ -25,7 +25,8 @@
  *  Declared here (the wire-contract side) rather than in `use-theme-explore.hooks.ts`, which
  *  imports it from this file — the reverse would make the port file import from the hook it's
  *  meant to be injected into. */
-export type ThemeFileGroup = "page" | "partial" | "style" | "script" | "config" | "asset" | "other";
+import type { ThemeFileGroup } from "@/lib/api";
+export type { ThemeFileGroup };
 
 /** The live content record occupying a theme page's own slug — mirrors the server's
  *  `ThemeFileContentCollision` (`explore.ts`'s `describeThemeFile`). See

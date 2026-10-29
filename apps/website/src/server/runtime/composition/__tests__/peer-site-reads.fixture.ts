@@ -9,7 +9,9 @@ import sharp from 'sharp';
 import type { TestContext } from 'node:test';
 import { createContributionRegistry, type ToolExecutionContext } from '@jini-ai/core';
 import type { ToolAttemptAuditSink } from '@jini-ai/daemon/tool-audit';
-import type { ToolContributor, DerivedToolContributor } from '#src/assistant/index';
+import type { ToolContributor, DerivedToolContributor } from '@jini-ai/core';
+import type { AssistantToolRegistryDeps } from '#src/assistant/tool-registrations';
+import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
 import { buildAssistantToolRegistrations } from '#src/assistant/tool-registrations';
 import { toAssistantRegistryDeps } from '#src/assistant/__tests__/fixtures/registry-deps';
 import { createChatStoreFactory } from '#src/assistant/persistence/store-factory';
@@ -60,7 +62,7 @@ export async function peerFixture(t: TestContext, placement: 'inSite' | 'appData
     db.$client.prepare('INSERT INTO workspaces(id,name,slug,created_at) VALUES(?,?,?,?)').run(workspaceId, name, name, at);
     let sequence = 0;
     const clock = { nowMs: () => Date.parse(at), nowIso: () => at }, idGen = { newId: () => `${name}-id-${++sequence}` };
-    const identity = createSqliteIdentityRouteDeps({ db, workspaceId, ownerCredentials: DEFAULT_OWNER_CREDENTIALS,
+    const identity = createSqliteIdentityRouteDeps({ db: contentKernel(db), workspaceId, ownerCredentials: DEFAULT_OWNER_CREDENTIALS,
       permissionGrants: createAppPermissionGrants({}), clock, idGen });
     await identity.identityReady;
     await installCommentsDataModule({ db: kernel, dbPath: paths.contentDbPath });
@@ -98,8 +100,8 @@ export async function peerFixture(t: TestContext, placement: 'inSite' | 'appData
   };
   const a = await addSite('A'), b = await addSite('B');
   const contributions = {
-    contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
-    derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
+    contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
+    derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
   };
   installFirstPartyToolContributors({ contributions });
   const contentHandles: ReturnType<typeof openSqliteFileKernel<any>>[] = [], chatHandles: ReturnType<typeof openNativeSqlite>[] = [];

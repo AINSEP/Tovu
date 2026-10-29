@@ -21,6 +21,7 @@ import { NO_THEME_ID, renderStaticPage, type DiscoveredTheme } from "#src/featur
 import { registerResolvePhase } from "#src/platform/routing/adapter";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import { assertDefaultConsentPage } from "#src/server/__tests__/helpers/default-consent-page";
 import {
   finishStaticTierDocument,
   placeAfterCurrentContent,
@@ -297,7 +298,7 @@ test("GET /: a failing lookup of the page claiming / answers the generic 500", a
   const res = await withQuietConsole(() => fetch(`${baseUrl}/`));
 
   assert.equal(res.status, 500);
-  assert.equal(await res.text(), "<h1>Site error</h1>");
+  assert.equal(assertDefaultConsentPage({ html: await res.text() }).contentHtml, "<h1>Site error</h1>");
 });
 
 test("GET /: a members-only page claiming / is not shown to an anonymous visitor, who gets the default home", async (t) => {
@@ -313,7 +314,8 @@ test("GET /: a members-only page claiming / is not shown to an anonymous visitor
 
   assert.equal(gated.status, 200);
   assert.doesNotMatch(gatedHtml, /Members-only home body/);
-  assert.equal(gatedHtml, await (await fetch(`${defaultUrl}/`)).text());
+  assert.equal(assertDefaultConsentPage({ html: gatedHtml }).stableHtml,
+    assertDefaultConsentPage({ html: await (await fetch(`${defaultUrl}/`)).text() }).stableHtml);
 });
 
 // --- home see-more on an unstyled site ----------------------------------------------------------
@@ -352,10 +354,14 @@ test("GET /_more/1/12?…: a see-more URL with a form-result query answers the b
   const plain = await fetch(`${baseUrl}/_more/1/12`);
   const withFormResult = await fetch(`${baseUrl}/_more/1/12?form=contact&form_status=success`);
 
-  assert.notEqual(plain.headers.get("cache-control"), "private, no-store", "control: a plain batch is not private");
+  // c5e98fea6 enables visitor-specific consent even without a form result.
+  assert.equal(plain.status, 200);
+  assert.equal(plain.headers.get("cache-control"), "private, no-store");
+  assert.equal(plain.headers.get("vary"), "Cookie, Sec-GPC");
+  assert.match(assertDefaultConsentPage({ html: await plain.text() }).contentHtml, />Home Post 12</);
   assert.equal(withFormResult.status, 200);
   assert.equal(withFormResult.headers.get("cache-control"), "private, no-store");
-  assert.match(await withFormResult.text(), />Home Post 12</);
+  assert.match(assertDefaultConsentPage({ html: await withFormResult.text() }).contentHtml, />Home Post 12</);
 });
 
 // --- nested-path redirect fallback --------------------------------------------------------------

@@ -29,6 +29,10 @@ export interface CookieConsentProps {
 
 const TAB_LABELS: Readonly<Record<ConsentTabId, string>> = { overview: "Overview", banner: "Banner", look: "Look & Position", rules: "Rules" };
 
+function consentDelayOptions({ delayMs }: { delayMs: number | undefined }, _options = {}) {
+  return delayMs === undefined ? {} : { delayMs };
+}
+
 function tabsFor(t: Translate): TabBarTab[] {
   return (Object.keys(TAB_LABELS) as ConsentTabId[]).map((id) => ({
     id, label: t(TAB_LABELS[id]), handle: `consent-tab-${id}`, handleLabel: `Switch to the ${TAB_LABELS[id]} tab of Cookie Consent`,
@@ -97,8 +101,24 @@ function CssWarnings({ warnings, enabled, t }: { warnings: ConsentFieldProblem[]
   </div>;
 }
 
+function ConsentPreviewPane({ page, preview, fit, translation }: {
+  page: ConsentPageController;
+  preview: ReturnType<typeof useConsentPreview>;
+  fit: ReturnType<typeof useConsentPreviewScale>;
+  translation: ConsentTranslation;
+}) {
+  return (
+    <div className="card consent-preview-pane" ref={fit.ref} style={{ "--consent-preview-scale": fit.scale, "--consent-preview-desktop-width": `${CONSENT_PREVIEW_DESKTOP_WIDTH}px` } as CSSProperties}>
+      {preview.error && <p className="notice error" role="alert">{preview.error}</p>}
+      {/* "My own" and "None" render no Jini banner, so its skipped styles are noise there. */}
+      <CssWarnings warnings={preview.warnings} enabled={Boolean(page.editor?.bannerModes) && (page.value!.bannerMode ?? "jini") === "jini"} t={translation.t} />
+      <ConsentPreviewFrame html={preview.html} status={translation.t("Loading preview…")} dictionary={translation.dictionary} />
+    </div>
+  );
+}
+
 function EditorTab({ tab, page, port, translation, delays }: { tab: Exclude<ConsentTabId, "overview">; page: ConsentPageController; port: ConsentRevisionsPort; translation: ConsentTranslation; delays: CookieConsentProps["delays"] }) {
-  const preview = useConsentPreview({ port, config: tab === "rules" ? null : page.value, t: translation.t }, delays?.previewMs === undefined ? {} : { delayMs: delays.previewMs });
+  const preview = useConsentPreview({ port, config: tab === "rules" ? null : page.value, t: translation.t }, consentDelayOptions({ delayMs: delays?.previewMs }));
   const fit = useConsentPreviewScale();
   const value = page.value!;
   const fields = { value, onChange: page.onChange, problems: page.problems, dictionary: translation.dictionary, disabled: page.saveState === "conflict", limits: page.editor?.textLimits };
@@ -123,20 +143,34 @@ function EditorTab({ tab, page, port, translation, delays }: { tab: Exclude<Cons
         {tab === "banner" ? <ConsentBannerFields {...fields} bannerModes={page.editor?.bannerModes} /> : <ConsentLookFields {...fields} placements={page.editor?.placements} />}
         {tab === "look" && <ResetStyle page={page} t={translation.t} disabled={fields.disabled} />}
       </div>
-      <div className="card consent-preview-pane" ref={fit.ref} style={{ "--consent-preview-scale": fit.scale, "--consent-preview-desktop-width": `${CONSENT_PREVIEW_DESKTOP_WIDTH}px` } as CSSProperties}>
-        {preview.error && <p className="notice error" role="alert">{preview.error}</p>}
-        {/* "My own" and "None" render no Jini banner, so its skipped styles are noise there. */}
-        <CssWarnings warnings={preview.warnings} enabled={Boolean(page.editor?.bannerModes) && (value.bannerMode ?? "jini") === "jini"} t={translation.t} />
-        <ConsentPreviewFrame html={preview.html} status={translation.t("Loading preview…")} dictionary={translation.dictionary} />
-      </div>
+      <ConsentPreviewPane page={page} preview={preview} fit={fit} translation={translation} />
     </div>
   );
+}
+
+function ConsentTabContent({ activeTab, page, port, translation, delays, readiness }: {
+  activeTab: ConsentTabId;
+  page: ConsentPageController;
+  port: ConsentRevisionsPort;
+  translation: ConsentTranslation;
+  delays: CookieConsentProps["delays"];
+  readiness: ReturnType<typeof useConsentReadiness>;
+}) {
+  const { t } = translation;
+  return <>
+    {page.loadError && <p className="notice error" role="alert">{page.loadError}</p>}
+    {!page.value && !page.loadError && <p className="card-lead">{t("Loading…")}</p>}
+    {page.value && activeTab === "overview" && (
+      <ConsentOverviewTab liveEnabled={page.liveEnabled} hasUnpublished={page.hasUnpublished} readiness={readiness.readiness} readinessError={readiness.error} t={t} />
+    )}
+    {page.value && activeTab !== "overview" && <EditorTab tab={activeTab} page={page} port={port} translation={translation} delays={delays} />}
+  </>;
 }
 
 export function CookieConsent({ tabId, port = defaultConsentRevisionsPort, useTranslate = useConsentTranslate, delays }: CookieConsentProps) {
   const translation = useTranslate();
   const { t } = translation;
-  const page = useConsentPage({ port, t }, delays?.autosaveMs === undefined ? {} : { delayMs: delays.autosaveMs });
+  const page = useConsentPage({ port, t }, consentDelayOptions({ delayMs: delays?.autosaveMs }));
   const activeTab = resolveConsentTabId({ tabId });
   // Overview re-checks after each publication and whenever it is reopened on a newer draft.
   const readiness = useConsentReadiness({ port, refresh: `${page.publishedCount}:${activeTab === "overview" ? page.draftId : ""}`, t });
@@ -152,12 +186,7 @@ export function CookieConsent({ tabId, port = defaultConsentRevisionsPort, useTr
       </div>
       <Notices page={page} t={t} />
       <TabBar ariaLabel={t("Cookie Consent")} tabs={tabsFor(t)} activeId={activeTab} onChange={(next) => navigate(`/consent?tab=${next}`, { replace: true })} containerHandle="consent-tab-bar" />
-      {page.loadError && <p className="notice error" role="alert">{page.loadError}</p>}
-      {!page.value && !page.loadError && <p className="card-lead">{t("Loading…")}</p>}
-      {page.value && activeTab === "overview" && (
-        <ConsentOverviewTab liveEnabled={page.liveEnabled} hasUnpublished={page.hasUnpublished} readiness={readiness.readiness} readinessError={readiness.error} t={t} />
-      )}
-      {page.value && activeTab !== "overview" && <EditorTab tab={activeTab} page={page} port={port} translation={translation} delays={delays} />}
+      <ConsentTabContent activeTab={activeTab} page={page} port={port} translation={translation} delays={delays} readiness={readiness} />
     </div>
   );
 }

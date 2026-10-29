@@ -1,11 +1,9 @@
 import { is, SQL } from "drizzle-orm";
 import { getTableConfig, PgDialect, type IndexedColumn, type PgColumn, type PgTable } from "drizzle-orm/pg-core";
 
-import { computeCoreTableCopyOrder, DERIVED_OBJECTS } from "../../platform/db/migration/manifest.js";
-import * as pgSchema from "../../platform/db/schema.postgres.js";
 import { EXCLUDED_CORE_TABLES, PARTIALLY_EXCLUDED_TABLES, SECRET_COLUMN_PATTERN, TRANSFER_EXCLUSION_REASON_TEXT } from "./exclusions.js";
 import type { SourceColumn, SourceTableLayout, TransferSource } from "./sqlite-source.js";
-import { quoteIdent } from "./postgres-ddl.js";
+import { quoteIdent } from "@jini-ai/db/transfer";
 
 /**
  * @file What a copy carries: every table in the site's snapshot is either a {@link TransferTable}
@@ -20,6 +18,7 @@ import { quoteIdent } from "./postgres-ddl.js";
  */
 
 // Transfer types and affinity/exclusion rationale now live in @jini-ai/db/transfer.
+// DDL and constraint rationale live there too; identifier quoting uses the shared owner directly.
 export type { TransferColumn, TransferIndex, TransferForeignKey, TransferCheck, TransferTable, SnapshotTablePlan } from "@jini-ai/db/transfer";
 import { planSnapshotTables as planGenericSnapshot, introspectedTable, type TransferColumn, type TransferIndex, type TransferTable, type SnapshotTablePlan } from "@jini-ai/db/transfer";
 const dialect = new PgDialect();
@@ -58,7 +57,7 @@ function coreIndexes(cfg: ReturnType<typeof getTableConfig>): TransferIndex[] {
     // Drizzle's index rendering omits table qualifiers. Only the developer-owned schema supplies
     // expressions; introspected plugin expressions remain excluded by Jini's snapshot planner.
     ...(index.config.columns.some(column => is(column, SQL)) ? { expressions: index.config.columns.map(column =>
-      is(column, SQL) ? `(${dialect.sqlToQuery(new SQL(column.queryChunks).inlineParams(), "indexes").sql})` : quoteIdent((column as IndexedColumn).name!)) } : {}),
+      is(column, SQL) ? `(${dialect.sqlToQuery(new SQL(column.queryChunks).inlineParams(), "indexes").sql})` : quoteIdent({ name: (column as IndexedColumn).name! })) } : {}),
     unique: index.config.unique,
     // Only the developer-owned Postgres schema supplies SQL; plugin predicates stay excluded.
     ...(index.config.where === undefined ? {} : { where: dialect.sqlToQuery(index.config.where).sql }),
@@ -95,8 +94,9 @@ function coreTable(table: PgTable): TransferTable {
 }
 
 export interface CoreTableCatalogPorts {
-  schema?: Readonly<Record<string, PgTable | undefined>>;
-  copyOrder?: typeof computeCoreTableCopyOrder;
+  schema: Readonly<Record<string, PgTable | undefined>>;
+  copyOrder: () => readonly string[];
+  derivedNames: ReadonlySet<string>;
 }
 
 /**
@@ -104,9 +104,9 @@ export interface CoreTableCatalogPorts {
  *
  * @complexity O(tables + foreign keys).
  */
-export function collectTransferTables(_required: Record<string, never> = {}, optional: CoreTableCatalogPorts = {}): TransferTable[] {
-  const byExportName = optional.schema ?? (pgSchema as unknown as Readonly<Record<string, PgTable | undefined>>);
-  return (optional.copyOrder ?? computeCoreTableCopyOrder)().flatMap((exportName) => {
+export function collectTransferTables({ catalog }: { catalog: CoreTableCatalogPorts }, _optional: Record<string, never> = {}): TransferTable[] {
+  const byExportName = catalog.schema;
+  return catalog.copyOrder().flatMap((exportName) => {
     const table = byExportName[exportName];
     if (table === undefined) throw new Error(`schema.postgres.ts has no table exported as '${exportName}'; regenerate it`);
     if (getTableConfig(table).name in EXCLUDED_CORE_TABLES) return [];
@@ -120,9 +120,9 @@ export function collectTransferTables(_required: Record<string, never> = {}, opt
  *
  * @complexity O(tables + foreign keys).
  */
-export function collectSchemaTables(_required: Record<string, never> = {}, optional: CoreTableCatalogPorts = {}): TransferTable[] {
-  const byExportName = optional.schema ?? (pgSchema as unknown as Readonly<Record<string, PgTable | undefined>>);
-  return (optional.copyOrder ?? computeCoreTableCopyOrder)().map((exportName) => {
+export function collectSchemaTables({ catalog }: { catalog: CoreTableCatalogPorts }, _optional: Record<string, never> = {}): TransferTable[] {
+  const byExportName = catalog.schema;
+  return catalog.copyOrder().map((exportName) => {
     const table = byExportName[exportName];
     if (table === undefined) throw new Error(`schema.postgres.ts has no table exported as '${exportName}'; regenerate it`);
     return coreTable(table);
@@ -130,9 +130,9 @@ export function collectSchemaTables(_required: Record<string, never> = {}, optio
 }
 
 /** Every SQL table name `schema.postgres.ts` declares, copied or not. */
-function coreTableNames(): Set<string> {
+function coreTableNames(schema: CoreTableCatalogPorts["schema"]): Set<string> {
   const names = new Set<string>();
-  for (const value of Object.values(pgSchema) as unknown[]) {
+  for (const value of Object.values(schema) as unknown[]) {
     if (value !== null && typeof value === "object" && Symbol.for("drizzle:IsDrizzleTable") in value) names.add(getTableConfig(value as PgTable).name);
   }
   return names;
@@ -151,14 +151,14 @@ const CHAT_TABLES = ["ai_chats", "ai_chat_messages", "assistant_agent_sessions"]
  * Their row counts are still disclosed in the plan's `leftOut`.
  */
 const LEGACY_CONTENT_CHAT_REASON = "conversations are copied from chat.db; chat history still left in content.db from before the chat.db split is not copied";
-export function planSnapshotTables(source: TransferSource): SnapshotTablePlan {
+export function planSnapshotTables({ source, catalog }: { source: TransferSource; catalog: CoreTableCatalogPorts }, _optional = {}): SnapshotTablePlan {
   return planGenericSnapshot({ source, policy: {
-    coreTables: collectTransferTables(), coreNames: coreTableNames(),
+    coreTables: collectTransferTables({ catalog }), coreNames: coreTableNames(catalog.schema),
     excludedTables: {
       ...Object.fromEntries(Object.entries(EXCLUDED_CORE_TABLES).map(([name, reason]) => [name, TRANSFER_EXCLUSION_REASON_TEXT[reason]])),
       ...Object.fromEntries(CHAT_TABLES.map(name => [name, LEGACY_CONTENT_CHAT_REASON])),
     },
-    derivedNames: new Set(DERIVED_OBJECTS.map(object => object.name)), migrationLedgers: MIGRATION_LEDGERS,
+    derivedNames: catalog.derivedNames, migrationLedgers: MIGRATION_LEDGERS,
     bookkeepingPrefixes: ["sqlite_", "_plugin_", "_vault_backup_"], secretColumnPattern: SECRET_COLUMN_PATTERN,
   } });
 }

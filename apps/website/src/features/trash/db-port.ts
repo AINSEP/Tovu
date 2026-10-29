@@ -8,6 +8,11 @@
  *  - **no `RETURNING`, anywhere** — a version bump is always read back with a second select, never
  *    chained off the write.
  *  - **rows-affected, not the row** — a write's outcome is its affected-row count.
+ *
+ * `transaction` is the kernel's: `@jini-ai/cms/trash` calls it from inside `TrashService.trash`/
+ * `restore`/`purgeSelected`, which themselves run inside a domain's own already-open transaction
+ * (posts and redirects both open one around "marker + revision append"); a nested kernel
+ * transaction joins it.
  */
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 

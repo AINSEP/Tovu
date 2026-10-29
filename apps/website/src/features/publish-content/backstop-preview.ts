@@ -12,9 +12,10 @@ export interface BackstopPreview {
 }
 
 function safeValues({ row, workspaceId }: { row: RawRowSnapshot; workspaceId: string }, _optional = {}): string | null {
-  return checkRawTable({ table: row.table, columns: [...row.columns.map((column) => column.name), ...Object.keys(row.values)] }) ??
-    (Object.hasOwn(row.values, "workspace_id") && row.values.workspace_id !== workspaceId ? "This row belongs to a different workspace." : null) ??
-    checkRawValues({
+  const tableReason = checkRawTable({ table: row.table, columns: [...row.columns.map((column) => column.name), ...Object.keys(row.values)] });
+  if (tableReason !== null) return tableReason;
+  if (Object.hasOwn(row.values, "workspace_id") && row.values.workspace_id !== workspaceId) return "This row belongs to a different workspace.";
+  return checkRawValues({
       table: row.table, values: Object.fromEntries(Object.entries(row.values).map(([name, value]) => [name,
         typeof value === "object" && value !== null ? Buffer.from(value.blobBase64, "base64").toString("utf8") : value]))
     });

@@ -1,5 +1,5 @@
 import { createContributionRegistry } from "@jini-ai/core";
-import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
+import type { ToolContributions } from "@jini-ai/core";
 import assert from "node:assert/strict";
 import { createNoopTracker, type Tracker } from "@jini-ai/diagnostics/observability";
 import test from "node:test";
@@ -21,9 +21,9 @@ import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/a
 import { contributeMediaTools } from "../tool-registrations.js";
 import { TOVU_MAX_UPLOAD_BYTES } from "#src/contracts/core/upload-limits";
 
-const contributions = {
-  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
-  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+const contributions: ToolContributions<Parameters<typeof buildAssistantToolRegistrations>[0], NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>> = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }) => contribution.domain }),
 };
 
 /**
@@ -110,7 +110,7 @@ test("media_upload_asset records the SNIFFED content type (not the caller's decl
   assert.ok(stored);
   assert.equal(stored.slug, "logo");
   assert.equal(out.media.slug, stored.slug);
-  assert.equal(out.media.publicUrl, "/m/logo/public.v1/image.webp");
+  assert.equal(out.media.publicUrl, `/m/logo/public.v1/image.webp?v=${out.media.sha256.slice(0, 12)}`);
 });
 
 test("two uploads of different bytes each get their own recorded content type", async () => {

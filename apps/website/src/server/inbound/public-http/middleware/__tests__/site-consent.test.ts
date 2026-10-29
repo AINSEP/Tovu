@@ -72,10 +72,11 @@ test('live canonical metadata reaches crawlers on all public pages without a con
 test('live and audit gates retain active and preview theme scripts across overlapping requests', async t => {
   const f = await publicFixture({ t });
   f.deps.themes = ['first', 'second'].map(id => ({
-    manifest: { id, apiVersion: 2 }, status: 'valid',
+    manifest: { id, name: id, version: '1', tier: 'static', engine: 1 }, status: 'valid',
+    dir: '/unused', templates: {}, tokens: {}, tokensLight: {}, css: '', source: 'site', errors: [],
     pages: { index: '<script src="../scripts/nav.js"></script>' },
     partials: {}, liquidTemplates: {}, handlebarsTemplates: {},
-  } as DiscoveredTheme));
+  } satisfies DiscoveredTheme));
   const activate = (activeThemeId: string) => f.deps.presentationRepo.save({
     workspaceId: f.deps.workspaceId, activeThemeId, updatedAt: '2026-10-23T00:00:00Z',
   });
@@ -115,8 +116,10 @@ test('live and audit gates retain active and preview theme scripts across overla
 
 test('page requests need no active-theme source scan to run first-party assets', async t => {
   const f = await publicFixture({ t });
-  f.deps.themes = [{ manifest: { id: 'active', apiVersion: 2 }, status: 'valid',
-    get pages() { assert.fail('consent must not scan loaded theme templates'); } } as unknown as DiscoveredTheme];
+  const activeTheme: DiscoveredTheme = { manifest: { id: 'active', name: 'Active', version: '1', tier: 'static', engine: 1 }, status: 'valid',
+    dir: '/unused', templates: {}, tokens: {}, tokensLight: {}, partials: {}, liquidTemplates: {}, handlebarsTemplates: {}, css: '', source: 'site', errors: [],
+    get pages() { return assert.fail('consent must not scan loaded theme templates'); } };
+  f.deps.themes = [activeTheme];
   const app = express(); applySiteConsent({ app, deps: f.deps });
   app.get(['/', '/_themes/preview'], (_req, res) => res.type('html').send('<html><head></head><body>' +
     '<script src="/theme-assets/preview/scripts/nav.js"></script></body></html>'));
@@ -148,7 +151,7 @@ test('live conditional requests cannot reuse ungated HTML unless consent is off'
   assert.ok(state?.published);
   const published = state.published;
   const disabledStore = { ...f.store, read: async () => ({ ...state, published: {
-    ...published, config: { ...(published.config as object), enabled: false },
+    ...published, config: { ...published.config, enabled: false },
   } }) };
   f.deps.consentStore = disabledStore;
   const app = express(); applySiteConsent({ app, deps: f.deps });
@@ -385,7 +388,7 @@ test('a published policy with an empty Custom CSS is served with the default sty
   assert.ok(state?.published);
   const published = state.published;
   const serve = async (customCss: string) => {
-    f.deps.consentStore = { ...f.store, read: async () => ({ ...state, published: { ...published, config: { ...(published.config as object), customCss } } }) };
+    f.deps.consentStore = { ...f.store, read: async () => ({ ...state, published: { ...published, config: { ...published.config, customCss } } }) };
     return (await createSiteConsentPorts({ deps: f.deps }).config.get({})).customCss;
   };
   assert.equal(await serve(''), SITE_CONSENT_DEFAULT_CSS);
@@ -406,7 +409,7 @@ for (const scenario of [
   const state = await f.store.read({});
   assert.ok(state?.published);
   const published = state.published;
-  f.deps.consentStore = { ...f.store, read: async () => ({ ...state, published: { ...published, config: { ...(published.config as object), regionMode: 'auto' } } }) };
+  f.deps.consentStore = { ...f.store, read: async () => ({ ...state, published: { ...published, config: { ...published.config, regionMode: 'auto' } } }) };
   assert.equal((await createSiteConsentPorts({ deps: f.deps }).config.get({})).regionMode, 'auto');
   const trusted = await createSiteConsentPorts({ deps: f.deps }, { trustedRegionHeader: 'x-region' }).config.get({});
   assert.equal(trusted.regionMode, 'auto');

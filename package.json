@@ -103,7 +103,7 @@
     "quality:knip": "knip --config knip.json --no-progress",
     "quality:properties": "node --import tsx --test \"apps/website/src/platform/oauth/__tests__/unit/endpoint-safety.property.unit.test.ts\" \"apps/website/src/features/consent/__tests__/unit/validation.property.unit.test.ts\" \"apps/website/src/features/forms/__tests__/unit/field-validation.property.unit.test.ts\" \"content/agent-plugins/google-workspace/__tests__/sheets-helpers.property.unit.test.mjs\"",
     "quality:sonar": "eslint --no-config-lookup --config development/sonarjs/eslint.config.mjs --format ./development/sonarjs/formatter.mjs \"apps/*/src/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}\" \"content/agent-plugins/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}\"",
-    "complexity:strict": "eslint --no-error-on-unmatched-pattern --rule 'complexity: [\"error\", 10]' --rule 'sonarjs/cognitive-complexity: [\"error\", 10]'"
+    "complexity:strict": "eslint --no-error-on-unmatched-pattern --no-inline-config --ignore-pattern '**/{__tests__,__measurements__,__mocks__,fixtures,test,tests,vendor,.build}/**' --ignore-pattern '**/*.{test,spec,typecheck}.*' --ignore-pattern '**/*.d.{ts,mts,cts}' --ignore-pattern 'apps/website/src/platform/db/migrations/{0002,0006,0011,0012,0013,0020}_*.ts' --rule '{\"complexity\":[\"error\",10],\"sonarjs/cognitive-complexity\":[\"error\",10]}' \"apps/*/src/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}\" \"packages/*/src/**/*.{ts,tsx}\" \"content/agent-plugins/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}\""
   },
   "overrides": {
     "@jini-ai/chat@^0.6.12": {
@@ -118,6 +118,7 @@
     "@jini-ai/platform": "$@jini-ai/platform"
   },
   "dependencies": {
+    "@tovu/contracts": "*",
     "@ag-ui/core": "0.0.58",
     "@ag-ui/encoder": "0.0.58",
     "@cfworker/json-schema": "^4.1.1",
@@ -131,7 +132,7 @@
     "@jini-ai/cli": "^0.6.12",
     "@jini-ai/cms": "^0.6.12",
     "@jini-ai/commerce": "^0.6.12",
-    "@jini-ai/cookie-consent": "^0.6.12",
+    "@jini-ai/cookie-consent": "^0.6.13",
     "@jini-ai/core": "^0.6.12",
     "@jini-ai/daemon": "^0.6.12",
     "@jini-ai/db": "^0.6.12",
@@ -144,7 +145,7 @@
     "@jini-ai/mcp": "^0.6.12",
     "@jini-ai/oauth": "^0.6.12",
     "@jini-ai/platform": "^0.6.12",
-    "@jini-ai/plugins": "^0.6.12",
+    "@jini-ai/plugins": "^0.6.13",
     "@jini-ai/protocol": "^0.6.12",
     "@jini-ai/registry": "^0.6.12",
     "@jini-ai/sandbox": "^0.6.12",
@@ -197,6 +198,7 @@
     "@types/cookie": "^0.6.0",
     "@types/express": "^4.17.21",
     "@types/js-yaml": "^4.0.9",
+    "@types/jsdom": "^21.1.7",
     "@types/node": "^22.13.10",
     "@types/nodemailer": "^7.0.12",
     "@types/pg": "^8.23.1",

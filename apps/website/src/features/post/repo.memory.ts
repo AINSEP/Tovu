@@ -57,8 +57,8 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
 
   /** Same bounded kind-filtered contract as the SQL adapter. */
   async listHtmlByKind(required: { workspaceId: string; kind: import("./post.js").PostKind; limit: number; before?: { updatedAt: string; id: string } }, _options = {}): Promise<PostRecord[]> {
-    return this.rows.filter(row => row.workspaceId === required.workspaceId && row.kind === required.kind
-      && row.bodyFormat === "html" && row.bodyHtml !== null && !row.deletedAt)
+    return this.rows.filter(row => row.workspaceId === required.workspaceId && row.kind === required.kind)
+      .filter(row => row.bodyFormat === "html" && row.bodyHtml !== null && !row.deletedAt)
       .filter(row => !required.before || row.updatedAt < required.before.updatedAt || (row.updatedAt === required.before.updatedAt && row.id > required.before.id))
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id)).slice(0, required.limit);
   }

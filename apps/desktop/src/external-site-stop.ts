@@ -28,6 +28,7 @@
  * Never escalates to SIGKILL itself: a stack that does not exit inside the timeout is reported,
  * and left for the operator, rather than killed on a guess.
  */
+import { resolveOnPath } from '@jini-ai/agent-runtime';
 import { execFileSync } from "node:child_process";
 import { readProcessCommand, readProcessParentPid } from "./site-process-registry.ts";
 
@@ -145,7 +146,9 @@ export async function waitForExternalSiteStop(
 
 /** `ps` with `args`, in the C locale so its dates parse; throws when `ps` exits non-zero (a gone pid). */
 function runPsInCLocale(args: string[]): string {
-  return execFileSync("ps", args, { encoding: "utf8", env: { ...process.env, LC_ALL: "C" } });
+  const command = resolveOnPath({ bin: 'ps' });
+  if (command === null) throw new Error('ps executable is unavailable.');
+  return execFileSync(command, args, { encoding: "utf8", env: { ...process.env, LC_ALL: "C" } });
 }
 
 /**

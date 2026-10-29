@@ -1,4 +1,5 @@
 import { sql } from "kysely";
+import { openSqliteConnection } from "@jini-ai/db/sqlite";
 import { createKeyAttachments, type KeyAttachments, type ProjectKeyTransaction } from "#src/features/project-keys/attachments";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
@@ -145,12 +146,11 @@ export function projectIdFor({ sitesHome }: { sitesHome: string }, _optional: Re
  * re-checks the ledger first (Jini's runner), so the loser waits (busy_timeout) and then skips it.
  */
 function openProjectDb({ dbPath }: { dbPath: string }, _optional: Record<string, never> = {}): ReturnType<typeof openNativeSqlite> {
-  const db = openNativeSqlite(dbPath, { fileMustExist: false });
+  const db = openNativeSqlite(dbPath, { fileMustExist: false, timeout: 5000 });
   try {
     // The same pragmas every site database opener sets (`chat-db.ts`, `content-db.ts`): web and desktop
     // hold this file open together, so WAL readers never block on a writer, and a briefly held lock is
     // retried rather than thrown.
-    db.pragma("busy_timeout = 5000");
     enableProjectWal({ db });
   } catch (error) {
     closeSqliteConnection(db);
@@ -169,7 +169,7 @@ function enableProjectWal({ db }: { db: ReturnType<typeof openNativeSqlite> }, _
   const pause = new Int32Array(new SharedArrayBuffer(4));
   for (let attempt = 0; ; attempt++) {
     try {
-      db.pragma("journal_mode = WAL");
+      openSqliteConnection({ filePath: db.name, open: () => db });
       return;
     } catch (error) {
       if ((error as { code?: string } | null)?.code !== "SQLITE_BUSY" || attempt >= 20) throw error;

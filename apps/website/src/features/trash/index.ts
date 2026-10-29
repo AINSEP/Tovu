@@ -55,7 +55,6 @@ export type {
   TrashDisplayJoin,
 } from "./registry.js";
 
-export { createSqliteTrashDb } from "./db-port.sqlite.js";
 export type { TrashDb } from "./db-port.js";
 
 export { createTableTrashAdapter } from "./table-adapter.js";

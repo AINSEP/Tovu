@@ -13,7 +13,7 @@ function recording({ withRun }: { withRun: boolean }) {
   const port: ObservabilityPort = { ...noop,
     trackOperation: ({ name, attributes }) => {
       log.push(`start:${name}:${JSON.stringify(attributes ?? null)}`);
-      return { ...(withRun ? { run: <T>(fn: () => T) => { log.push("run"); return fn(); } } : {}), end: ({ outcome, failed }) => { log.push(`end:${outcome}:${failed}`); } };
+      return { ...noop.trackOperation({ name, attributes }), ...(withRun ? { run: <T>(fn: () => T) => { log.push("run"); return fn(); } } : {}), end: ({ outcome, failed }) => { log.push(`end:${outcome}:${failed}`); } };
     },
     reportError: ({ error, context }) => { log.push(`error:${context.operation}:${(error as Error).message}`); },
   };

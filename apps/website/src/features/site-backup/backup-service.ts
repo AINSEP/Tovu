@@ -22,15 +22,14 @@ import {
 import { buildAuthorizationHeader } from "@jini-ai/integrations/credentialed-http";
 import { normalizeWriteFilePath, validateBranch, validateCommitMessage, validateRepositoryTarget } from "../custom-credentials/write-files-validation.js";
 import type { SecretSealerPort } from "../webhooks/index.js";
-import { inspectSiteKeyMaterial } from "../webhooks/keyring.env.js";
-import { siteKeySources, siteKeySourcesForSiteDir } from "../webhooks/site-key-sources.js";
+import { inspectSiteKeyMaterial } from "../webhooks/index.js";
+import { siteKeySources, siteKeySourcesForSiteDir } from "../webhooks/index.js";
 import type { CredentialedRepositoryTarget, InspectBackupRepositoryResult, SourceControlProvider } from "../source-control/provider-module.js";
 import { buildSourceControlProviders, findReservedPath, pickSourceControlProviderForApi, type LoadSourceControlProviders } from "../source-control/provider-registry.js";
 import { resolveDefaultForSourceControl, SourceControlCredentialSecretStoreUnconfiguredError } from "../source-control/store.js";
 import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "../source-control/types.js";
 import type { SiteImportBackend } from "./import-backend.js";
 import type { SiteShareBackend } from "./share-backend.js";
-import { sanitizeShareDatabase } from "#src/platform/db/sqlite/share-database";
 import { SiteShareRefusal, type ShareDatabaseSanitizer } from "./share-policy.js";
 import { siteBackupPlanStore as DEFAULT_PLAN_STORE, type SiteBackupPlan, type SiteBackupPlanStore } from "./plan-store.js";
 import { CANCELLED, initialPushProgress, uploadPlannedContent, type SiteBackupPushProgress } from "./push-engine.js";
@@ -134,8 +133,8 @@ export interface SiteBackupToolDeps {
    *  folder — both tools then answer `UNAVAILABLE`. */
   readonly siteBackupSources?: SiteBackupSources;
   readonly siteShareBackend?: SiteShareBackend;
-  /** Test-only; defaults to {@link sanitizeShareDatabase}, the share/export policy. */
-  readonly siteBackupSanitize?: ShareDatabaseSanitizer;
+  /** Composition binds the same trusted catalogue and sanitizer as share/export. */
+  readonly siteBackupSanitize: ShareDatabaseSanitizer;
   /** Test-only; defaults to the process-wide store. */
   readonly siteBackupPlanStore?: SiteBackupPlanStore;
   /** Test-only; defaults to {@link siteAwareSiteKeyStatus} (site-aware — see that function's doc). */
@@ -211,7 +210,7 @@ function originOf(url: string): string | null {
 }
 
 function labelList(labels: readonly string[]): string {
-  return labels.length === 0 ? "none are saved" : `saved labels: ${labels.map((label) => `'${label}'`).join(", ")}`;
+  return labels.length === 0 ? "none are saved" : `saved labels: ${labels.map((label) => "'" + label + "'").join(", ")}`;
 }
 
 /**
@@ -614,7 +613,7 @@ async function captureBackupDatabase(required: { deps: SiteBackupToolDeps }): Pr
     return { ok: false, code: "DATABASE_SNAPSHOT_FAILED", message: snapshot.message };
   }
   try {
-    const projected = await (deps.siteBackupSanitize ?? sanitizeShareDatabase)({ snapshot: snapshot.bytes });
+    const projected = await deps.siteBackupSanitize({ snapshot: snapshot.bytes });
     return { ok: true, database: { bytes: projected.bytes, watermarkAtCapture: snapshot.watermarkAtCapture } };
   } catch (err) {
     if (err instanceof SiteShareRefusal) return { ok: false, code: err.code, message: err.message };

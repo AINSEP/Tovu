@@ -29,7 +29,7 @@
  * methods present in the baseline but missing from this run) — the CI gate.
  */
 
-import { Project, Node, SyntaxKind, type MethodDeclaration, type FunctionDeclaration, type VariableDeclaration } from "ts-morph";
+import { Project, Node, SyntaxKind, type ClassDeclaration, type ConstructorDeclaration, type MethodSignature, type MethodDeclaration, type FunctionDeclaration, type VariableDeclaration } from "ts-morph";
 import * as path from "node:path";
 import * as fs from "node:fs";
 
@@ -92,14 +92,18 @@ function enclosingFunctionName(node: Node): string {
   );
   if (!fn) return "(module scope)";
   if (Node.isMethodDeclaration(fn) || Node.isConstructorDeclaration(fn)) {
-    const cls = fn.getFirstAncestor(Node.isClassDeclaration);
-    const clsName = cls?.getName() ?? "(anon class)";
-    return `${clsName}.${Node.isMethodDeclaration(fn) ? fn.getName() : "constructor"}`;
+    return classMemberName({ fn });
   }
   if (Node.isFunctionDeclaration(fn)) return fn.getName() ?? "(anon function)";
   // Arrow/function expression: try the nearest variable declaration name.
   const varDecl = fn.getFirstAncestor(Node.isVariableDeclaration);
   return varDecl?.getName() ?? "(anonymous)";
+}
+
+function classMemberName({ fn }: { fn: MethodDeclaration | ConstructorDeclaration }, _options = {}): string {
+  const cls = fn.getFirstAncestor(Node.isClassDeclaration);
+  const clsName = cls?.getName() ?? "(anon class)";
+  return `${clsName}.${Node.isMethodDeclaration(fn) ? fn.getName() : "constructor"}`;
 }
 
 function isFunctionLike(n: Node): boolean {
@@ -138,26 +142,21 @@ const NON_PRODUCTION_FILE = /(__tests__|\.test\.ts$)/;
  */
 function findCallSites(declOrMethod: MethodDeclaration | FunctionDeclaration | VariableDeclaration): Node[] {
   const refs = declOrMethod.findReferencesAsNodes();
-  const sites: Node[] = [];
-  for (const ref of refs) {
-    if (NON_PRODUCTION_FILE.test(ref.getSourceFile().getFilePath())) continue;
+  return refs.filter((ref) => !NON_PRODUCTION_FILE.test(ref.getSourceFile().getFilePath()) && isCalledReference({ ref }));
+}
 
-    const parent = ref.getParent();
-    if (!parent) continue;
+function isCalledReference({ ref }: { ref: Node }, _options = {}): boolean {
+  const parent = ref.getParent();
+  if (!parent) return false;
 
-    // `x.method(...)` — ref is the tail of a property access that is itself called.
-    if (Node.isPropertyAccessExpression(parent)) {
-      const call = parent.getParent();
-      if (call && Node.isCallExpression(call) && call.getExpression() === parent) sites.push(ref);
-      continue;
-    }
-
-    // bare `fn(...)` — ref is the callee identifier directly.
-    if (Node.isCallExpression(parent) && parent.getExpression() === ref) {
-      sites.push(ref);
-    }
+  // `x.method(...)` — ref is the tail of a property access that is itself called.
+  if (Node.isPropertyAccessExpression(parent)) {
+    const call = parent.getParent();
+    return !!call && Node.isCallExpression(call) && call.getExpression() === parent;
   }
-  return sites;
+
+  // bare `fn(...)` — ref is the callee identifier directly.
+  return Node.isCallExpression(parent) && parent.getExpression() === ref;
 }
 
 /**
@@ -256,47 +255,45 @@ function classifyCoverage(node: Node, depth = 0, seen: Set<Node> = new Set()): C
 
 function collectTableWriteSites(project: Project, tableFilter?: string): WriteSite[] {
   const schemaFile = project.getSourceFileOrThrow(SCHEMA_FILE);
-  const sites: WriteSite[] = [];
+  return schemaFile.getVariableDeclarations().flatMap((decl) =>
+    collectTableDeclarationSites({ decl, tableFilter, schemaPath: schemaFile.getFilePath() }));
+}
 
-  for (const decl of schemaFile.getVariableDeclarations()) {
-    if (!decl.hasExportKeyword() && !decl.isExported()) continue;
-    const init = decl.getInitializer();
-    if (!init || !Node.isCallExpression(init)) continue;
-    if (init.getExpression().getText() !== "sqliteTable") continue;
+function collectTableDeclarationSites(
+  { decl, tableFilter, schemaPath }: { decl: VariableDeclaration; tableFilter?: string; schemaPath: string },
+  _options = {},
+): WriteSite[] {
+  if (!decl.hasExportKeyword() && !decl.isExported()) return [];
+  const init = decl.getInitializer();
+  if (!init || !Node.isCallExpression(init)) return [];
+  if (init.getExpression().getText() !== "sqliteTable") return [];
 
-    const tableName = decl.getName();
-    if (tableFilter && tableName !== tableFilter) continue;
+  const tableName = decl.getName();
+  if (tableFilter && tableName !== tableFilter) return [];
 
-    const nameNode = decl.getNameNode();
-    if (!Node.isIdentifier(nameNode)) continue; // a destructured binding is never a `sqliteTable(...)` export
-    const refs = nameNode.findReferencesAsNodes();
+  const nameNode = decl.getNameNode();
+  if (!Node.isIdentifier(nameNode)) return []; // a destructured binding is never a `sqliteTable(...)` export
+  return nameNode.findReferencesAsNodes().flatMap((ref) => tableReferenceWriteSite({ ref, schemaPath, tableName }));
+}
 
-    for (const ref of refs) {
-      if (ref.getSourceFile().getFilePath() === schemaFile.getFilePath()) continue; // skip the declaration site itself
-
-      const call = ref.getFirstAncestor(Node.isCallExpression);
-      if (!call) continue; // type-only usage (e.g. typeof posts.$inferSelect) — not a query site
-
-      const calleeText = call.getExpression().getText();
-      const isWrite = /\.(insert|update|delete)$/.test(calleeText);
-      const isRead = /\.(select|from|query)$/.test(calleeText) || /\bquery\./.test(calleeText);
-      if (!isWrite) {
-        if (isRead) continue;
-        continue; // unrecognized call shape against a table symbol — not classified as a write site
-      }
-
-      sites.push({
-        source: "table",
-        contractMethod: `${tableName} via ${calleeText}`,
-        caller: enclosingFunctionName(ref),
-        file: relFile(ref),
-        line: ref.getStartLineNumber(),
-        coverageClass: classifyCoverage(ref),
-      });
-    }
+function tableReferenceWriteSite(
+  { ref, schemaPath, tableName }: { ref: Node; schemaPath: string; tableName: string }, _options = {},
+): WriteSite[] {
+  if (ref.getSourceFile().getFilePath() === schemaPath) return []; // skip the declaration site itself
+  const call = ref.getFirstAncestor(Node.isCallExpression);
+  if (!call) return []; // type-only usage (e.g. typeof posts.$inferSelect) — not a query site
+  const calleeText = call.getExpression().getText();
+  const isWrite = /\.(insert|update|delete)$/.test(calleeText);
+  const isRead = /\.(select|from|query)$/.test(calleeText) || /\bquery\./.test(calleeText);
+  if (!isWrite) {
+    if (isRead) return [];
+    return []; // unrecognized call shape against a table symbol — not classified as a write site
   }
-
-  return sites;
+  return [{
+    source: "table", contractMethod: `${tableName} via ${calleeText}`,
+    caller: enclosingFunctionName(ref), file: relFile(ref), line: ref.getStartLineNumber(),
+    coverageClass: classifyCoverage(ref),
+  }];
 }
 
 // ---------- Denominator 2: *Port/*Repo/*Sink/*Store interface methods ----------
@@ -322,71 +319,56 @@ function collectPortWriteSites(project: Project): WriteSite[] {
     );
 
     for (const method of iface.getMethods()) {
-      const methodName = method.getName();
-      const nameMatchesReader = READER_PREFIX.test(methodName);
-
-      if (implementors.length === 0) {
-        // No resolvable implementation body — classify by name alone.
-        if (!nameMatchesReader) {
-          sites.push({
-            source: "port",
-            contractMethod: `${ifaceName}.${methodName}`,
-            caller: "(no implementation found in project)",
-            file: relFile(method),
-            line: method.getStartLineNumber(),
-            coverageClass: "unknown",
-          });
-        }
-        continue;
-      }
-
-      for (const cls of implementors) {
-        const implMethod = cls.getMethod(methodName);
-        if (!implMethod) continue; // inherited/mixin — not directly resolvable here
-
-        const body = implMethod.getBody();
-        const bodyText = body ? body.getText() : "";
-        const hasMutationEvidence = MUTATION_EVIDENCE.some((re) => re.test(bodyText));
-
-        if (!nameMatchesReader || hasMutationEvidence) {
-          // The repo/adapter method's own body is never where executeCommand/
-          // outbox/ledger orchestration lives — walk UP to its actual callers
-          // (across the whole project, resolved via the interface too) and
-          // classify each caller's enclosing scope instead. One row per
-          // distinct caller — different call sites can have different
-          // coverage, so this deliberately does not collapse to one verdict.
-          const callSites = findCallSites(implMethod);
-
-          if (callSites.length === 0) {
-            sites.push({
-              source: "port",
-              contractMethod: `${ifaceName}.${methodName}`,
-              implementingClass: cls.getName(),
-              caller: "(no caller found in project)",
-              file: relFile(implMethod),
-              line: implMethod.getStartLineNumber(),
-              coverageClass: "unknown",
-            });
-            continue;
-          }
-
-          for (const site of callSites) {
-            sites.push({
-              source: "port",
-              contractMethod: `${ifaceName}.${methodName}`,
-              implementingClass: cls.getName(),
-              caller: enclosingFunctionName(site),
-              file: relFile(site),
-              line: site.getStartLineNumber(),
-              coverageClass: classifyCoverage(site),
-            });
-          }
-        }
-      }
+      sites.push(...collectPortMethodSites({ ifaceName, method, implementors }));
     }
   }
 
   return sites;
+}
+
+function collectPortMethodSites(
+  { ifaceName, method, implementors }: { ifaceName: string; method: MethodSignature; implementors: ClassDeclaration[] },
+  _options = {},
+): WriteSite[] {
+  const methodName = method.getName();
+  const nameMatchesReader = READER_PREFIX.test(methodName);
+  if (implementors.length === 0) {
+    // No resolvable implementation body — classify by name alone.
+    if (nameMatchesReader) return [];
+    return [{ source: "port", contractMethod: `${ifaceName}.${methodName}`,
+      caller: "(no implementation found in project)", file: relFile(method),
+      line: method.getStartLineNumber(), coverageClass: "unknown" }];
+  }
+  return implementors.flatMap((cls) => collectImplementedPortMethodSites({ ifaceName, methodName, nameMatchesReader, cls }));
+}
+
+function collectImplementedPortMethodSites(
+  { ifaceName, methodName, nameMatchesReader, cls }: {
+    ifaceName: string; methodName: string; nameMatchesReader: boolean; cls: ClassDeclaration;
+  }, _options = {},
+): WriteSite[] {
+  const implMethod = cls.getMethod(methodName);
+  if (!implMethod) return []; // inherited/mixin — not directly resolvable here
+  const body = implMethod.getBody();
+  const bodyText = body ? body.getText() : "";
+  const hasMutationEvidence = MUTATION_EVIDENCE.some((re) => re.test(bodyText));
+  if (nameMatchesReader && !hasMutationEvidence) return [];
+
+  // The repo/adapter method's own body is never where executeCommand/
+  // outbox/ledger orchestration lives — walk UP to its actual callers
+  // (across the whole project, resolved via the interface too) and
+  // classify each caller's enclosing scope instead. One row per
+  // distinct caller — different call sites can have different
+  // coverage, so this deliberately does not collapse to one verdict.
+  const callSites = findCallSites(implMethod);
+  if (callSites.length === 0) {
+    return [{ source: "port", contractMethod: `${ifaceName}.${methodName}`, implementingClass: cls.getName(),
+      caller: "(no caller found in project)", file: relFile(implMethod),
+      line: implMethod.getStartLineNumber(), coverageClass: "unknown" }];
+  }
+  return callSites.map((site) => ({ source: "port", contractMethod: `${ifaceName}.${methodName}`,
+    implementingClass: cls.getName(), caller: enclosingFunctionName(site), file: relFile(site),
+    line: site.getStartLineNumber(), coverageClass: classifyCoverage(site) }));
 }
 
 // ---------- Baseline diff / CI gate ----------

@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import { createNodeReachabilityPorts } from "@jini-ai/devops/deploy/node";
 import type { lookup } from "node:dns";
 import { AwsClient } from "aws4fetch";
@@ -131,13 +132,13 @@ export function createDeployHostKit(options: { readonly fetchFn?: typeof fetch; 
     probeContent: ({ url, expected }) => withReachability(ports => probeDeploymentContent({ ports, url, expected })),
     fetch: (url, init, fetchOptions) => fetchWithTimeout(fetchFn, url, init, fetchOptions),
     timeouts: options.timeouts ?? DEPLOY_FETCH_TIMEOUTS,
-    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    sleep: (ms) => sleep(ms),
     // Standalone installed plugins keep their ABI. Every shared helper receives
     // object args and explicit host ports, including native fetch and polling time.
     checkDeploymentUrl: (url, options) => withReachability(reachability => checkDeploymentUrl({ url, ...reachability }, reachabilityOptions(options))),
     waitForReachableDeploymentUrl: (urls, options) => withReachability(reachability => waitForReachableDeploymentUrl({
       urls, ...reachability, now: () => Date.now(),
-      sleep: ({ ms }) => new Promise(resolve => setTimeout(resolve, ms)),
+      sleep: ({ ms }) => sleep(ms),
     }, reachabilityOptions(options))),
     normalizeDeploymentUrl: (url) => normalizeDeploymentUrl({ url }),
     safeDnsLabel: (raw) => safeDnsLabel({ raw }),

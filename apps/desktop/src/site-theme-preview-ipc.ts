@@ -28,7 +28,11 @@ export function registerSiteThemePreviewIpc(
     sender.removeListener('destroyed', owner.destroy);
     for (const off of owner.claims.values()) off();
   };
-  const inputId = (input: unknown) => input && typeof input === 'object' && 'subscriptionId' in input && typeof input.subscriptionId === 'string' && /^[\w-]{1,100}$/.test(input.subscriptionId) ? input.subscriptionId : undefined;
+  const inputId = (input: unknown) => {
+    if (!input || typeof input !== 'object' || !('subscriptionId' in input)) return undefined;
+    const { subscriptionId } = input;
+    return typeof subscriptionId === 'string' && /^[\w-]{1,100}$/.test(subscriptionId) ? subscriptionId : undefined;
+  };
   ipcMain.handle(channels.watch, ({ sender }, input) => {
     const id = inputId(input);
     if (!allowed(sender) || sender.isDestroyed() || !id) return;

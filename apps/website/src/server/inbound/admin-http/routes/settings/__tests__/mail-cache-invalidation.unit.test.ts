@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 import { ensureSettingDefinitions, InMemorySettingsRepo, SCOPE_BIT } from "@jini-ai/core/settings";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { createTtlCache } from "#src/server/runtime/boot/mail-status-cache";
+import { createTtlCache } from "@jini-ai/platform/mail";
 import { readMailProviderSetting, ensureMailProviderSettings } from "#src/features/settings/mail-provider";
 import { registerAdminSettingsSetRoute } from "../set.js";
 import { registerAdminSettingsClearRoute } from "../clear.js";
@@ -20,7 +20,7 @@ async function fixture() {
   const idGen = { newId: () => `setting-${++next}` };
   const principals = { findById: async ({ id }: { id: string }) => ({ id, workspaceId: WS, status: "active" }) };
   await ensureMailProviderSettings({ deps: { settingsRepo, clock, ids: idGen, principals } as never, systemPrincipalId: "system" });
-  await ensureSettingDefinitions({ settingsRepo, clock, ids: idGen, principals } as never, { namespace: "core.other", systemPrincipalId: "system", definitions: [{ key: "enabled", schema: { type: "boolean" }, defaultValue: false, scopes: SCOPE_BIT.workspace, secret: false }] });
+  await ensureSettingDefinitions({ settingsRepo, clock, ids: idGen, principals } as never, { namespace: "core.other", systemPrincipalId: "system", definitions: [{ key: "enabled", schema: { type: "boolean" }, defaultValue: false, scopes: SCOPE_BIT.workspace }] });
   const cache = createTtlCache({ load: () => { loads++; return readMailProviderSetting({ settingsRepo, workspaceId: WS }); }, ttlMs: 30_000, nowMs: () => 0 });
   const deps = { workspaceId: WS, settingsRepo, clock, idGen, principalRepo: principals, settingsReady: Promise.resolve(),
     authorize: async () => ({ allowed, reason: "test" }), mailProviderControl: { invalidate: () => { invalidations++; cache.invalidate(); } } } as unknown as SettingsRouteDeps;

@@ -8,6 +8,7 @@ import type { ToolExecutionContext, ToolExecutionOptions } from '@jini-ai/core';
 import { buildConsentRegistrations, consentDerivedRisk, contributeConsentTools } from '../tool-registrations.js';
 import { consentFixture } from './fixture.js';
 import { nativeToolMetadata } from '#src/contracts/core/tool-metadata/index';
+import { SITE_CONSENT_DEFAULT_CSS } from '../config.js';
 
 function tools({ t }: { t: import('node:test').TestContext }, _options = {}) {
   const f = consentFixture({ t });
@@ -129,6 +130,30 @@ test('contributeConsentTools contributes the consent domain builder and its deri
   assert.equal(contribution.domain, 'consent');
   assert.equal(contribution.build, buildConsentRegistrations);
   assert.equal(contribution.risk, consentDerivedRisk);
+});
+
+for (const toolId of ['consent_update_settings', 'consent_publish_settings']) test(`${toolId} shows structured configuration changes with unchanged CSS collapsed`, async t => {
+  const f = tools({ t });
+  const previous = { ...f.config, title: 'Previous banner title', customCss: SITE_CONSENT_DEFAULT_CSS };
+  const saved = await f.service.saveDraft({ principalId: 'owner', config: previous, expectedDraftId: null });
+  await f.service.publish({ principalId: 'owner', draftId: saved.revision.id, expectedPublishedId: null });
+  const config = { ...previous, title: 'Updated banner title' };
+  const draft = toolId === 'consent_publish_settings'
+    ? await f.service.saveDraft({ principalId: 'owner', config, expectedDraftId: saved.revision.id }) : null;
+  const input = draft ? { draftId: draft.revision.id, expectedPublishedId: saved.revision.id } : { config, expectedDraftId: saved.revision.id };
+  let html = '';
+  const answer = f.answer(toolId, 'cancel');
+  await f.call(toolId, input, { emitSurface: async emission => {
+    html = (emission.payload as { resource: { resource: { text: string } } }).resource.resource.text;
+    await answer.emitSurface!(emission);
+  } });
+  assert.match(html, /<dt>Title<\/dt>/);
+  assert.match(html, /mcpui-detail-change[\s\S]*Before[\s\S]*Previous banner title[\s\S]*After[\s\S]*Updated banner title/);
+  assert.match(html, /<details class="[^"]*mcpui-detail-unchanged"[\s\S]*Unchanged fields/);
+  assert.match(html, /<dt>Privacy policy URL<\/dt>/);
+  assert.match(html, /<dt>Custom CSS<\/dt><dd><details class="[^"]*mcpui-detail-code"/);
+  assert.match(html, /View raw/);
+  assert.equal((await f.store.read({})).published?.config.title, previous.title, 'cancel keeps the published configuration');
 });
 
 for (const toolId of ['consent_update_settings', 'consent_publish_settings']) test(`${toolId} warns about unsafe-eval on the human confirmation card`, async t => {

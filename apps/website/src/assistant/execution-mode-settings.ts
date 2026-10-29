@@ -1,6 +1,6 @@
 import type { UUID } from "@jini-ai/core/primitives";
-import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_KEY } from "../contracts/headless/assistant-permanent-deletes-policy.js";
-import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_KEY, ASSISTANT_CLI_PERMISSIONS_KEY } from "#src/contracts/headless/assistant-subagents-policy";
+import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_KEY } from "../contracts/headless/index.js";
+import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_KEY, ASSISTANT_CLI_PERMISSIONS_KEY } from "#src/contracts/headless/index";
 import { SCOPE_BIT } from "@jini-ai/core/settings";
 import { type EnsureSettingDefinitionsDeps, type SettingDefinitionSpec } from "../features/settings/index.js";
 

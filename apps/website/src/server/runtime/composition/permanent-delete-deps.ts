@@ -102,7 +102,10 @@ async function mayPurgeItem(deps: Deps, item: TrashItem, principalId: string): P
     }
     return callerMayManageUserTrash({ deps: identity, workspaceId: deps.workspaceId, callerPrincipalId: principalId });
   }
-  const forcePermission = item.entityType === "media" ? "media.delete.force" : item.entityType === "comment" ? "comments.delete.force" : null;
+  let forcePermission: string | null;
+  if (item.entityType === "media") forcePermission = "media.delete.force";
+  else if (item.entityType === "comment") forcePermission = "comments.delete.force";
+  else forcePermission = null;
   if (forcePermission) {
     return (await deps.authorize({ workspaceId: deps.workspaceId, principalId, permission: forcePermission, entityType: item.entityType, entityId: item.entityId })).allowed;
   }
@@ -248,6 +251,8 @@ export function buildPermanentDeleteDeps(deps: Deps): PermanentDeleteToolDeps {
           return recordPlan({ toolId, id, load: () => describeSourceControlCredential({ repo: credentialDeletionRepo({ repo: deps.sourceControlCredentialSetRepo }) }, key), label: credential => credential.label,
             warning: "Deletes the saved source-control credential. Another credential may become the default. Repositories remain; the token is not revoked at its provider.",
             remove: async () => { await deleteSourceControlCredential({ repo: credentialDeletionRepo({ repo: deps.sourceControlCredentialSetRepo }) }, key); return { removed: true, id }; } });
+        // Preserve the undefined fallback for runtime inputs outside this exhaustive union.
+        default: return undefined as never;
       }
     }) as PermanentDeleteToolDeps["prepare"],
   };

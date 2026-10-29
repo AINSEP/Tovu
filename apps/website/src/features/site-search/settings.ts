@@ -15,7 +15,7 @@ import {
 } from "@jini-ai/core/settings";
 import { BUILTIN_SEARCH_PROVIDER_ID } from "@jini-ai/search";
 
-import { set } from "../settings/site-title-write.js";
+import { set } from "../settings/index.js";
 
 export const SEARCH_SETTINGS_NAMESPACE = "core.search";
 export const SEARCH_PROVIDER_KEY = "provider";

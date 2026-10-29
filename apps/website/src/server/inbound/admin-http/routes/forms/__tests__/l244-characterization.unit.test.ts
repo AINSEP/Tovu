@@ -101,7 +101,7 @@ for (const register of [registerAdminFormsAuthoringRoute, registerAdminFormsDele
   });
 }
 
-for (const outcome of [{ ok: true }, { ok: false, reason: 'not-found' }, { ok: false, reason: 'version-changed' }] as const) {
+for (const outcome of [{ ok: true, version: null }, { ok: false, reason: 'not-found' }, { ok: false, reason: 'version-changed' }] as const) {
   test(`L244 deletion: Trash outcome ${JSON.stringify(outcome)} keeps its HTTP contract`, async () => {
     const { deps } = fixture(() => {});
     const { definition } = await createFormDefinition({ deps: { ...deps, repo: deps.formDefinitionRepo }, input: {

@@ -321,7 +321,7 @@ test("a missing install id is logged once and leaves every target unconfigured",
 test("the context resolver answers null for a provider the registry does not hold, without touching the vault or install id", async () => {
   const touched: string[] = [];
   const resolve = createSearchContextResolver({
-    registry: createSearchProviderRegistry(), log: message => touched.push(message),
+    registry: createSearchProviderRegistry(), isPluginActive: async () => true, log: message => touched.push(message),
     installId: async () => { touched.push("installId"); return "x"; },
     resolveCredential: async () => { touched.push("vault"); return null; },
     httpClient: { send: async () => ({}) as HttpResponse }, now: () => NOW,

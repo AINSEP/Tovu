@@ -2,7 +2,7 @@ import type { Selectable } from "kysely";
 
 import type { ContentKernel } from "../content-kernel.js";
 import type { OutboxEventsTable } from "../content-database.generated.js";
-import { DEFAULT_OUTBOX_CLAIM_LEASE_MS } from "#src/contracts/core/events/outbox-worker";
+import { DEFAULT_OUTBOX_CLAIM_LEASE_MS } from "#src/contracts/core/events/index";
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 import type { DomainEvent, OutboxPort, OutboxRecord } from "@jini-ai/cms/core";
 
@@ -153,9 +153,4 @@ export class SqlOutboxAdapter implements OutboxPort {
         .execute()
     );
   }
-}
-
-/** The outbox on `kernel`'s database, whichever dialect. */
-export function outboxFor(kernel: ContentKernel, optional: { claimLeaseMs?: number } = {}): OutboxPort {
-  return new SqlOutboxAdapter(kernel, optional);
 }

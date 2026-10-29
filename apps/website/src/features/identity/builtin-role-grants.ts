@@ -147,19 +147,19 @@ async function grantToRoleBindings(
     if (!policy?.isBuiltin) continue;
 
     const held = await deps.policyPermissions.listByPolicyId({ workspaceId, policyId: policy.id });
-    if (held.some((row) => row.permission === grant.permission)) continue;
-
-    await deps.policyPermissions.save({
-      id: deps.idGen.newId(),
-      workspaceId,
-      policyId: policy.id,
-      permission: grant.permission,
-      // Unscoped, exactly as every seeded built-in grant is — a `resourceType` here would make
-      // the row match only one `entityType` and turn a missing grant into a subtler one.
-      resourceType: null,
-      constraintJson: null,
-    });
-    granted += 1;
+    if (!held.some((row) => row.permission === grant.permission)) {
+      await deps.policyPermissions.save({
+        id: deps.idGen.newId(),
+        workspaceId,
+        policyId: policy.id,
+        permission: grant.permission,
+        // Unscoped, exactly as every seeded built-in grant is — a `resourceType` here would make
+        // the row match only one `entityType` and turn a missing grant into a subtler one.
+        resourceType: null,
+        constraintJson: null,
+      });
+      granted += 1;
+    }
   }
 
   return granted;

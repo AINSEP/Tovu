@@ -35,6 +35,7 @@ const PATH = `/api/admin/v1/workspaces/${WORKSPACE_ID}/presentation`;
 function buildApp(depsOverrides: Partial<ContentRouteDeps> = {}): express.Express {
   const base = createRouteDeps();
   const deps: ContentRouteDeps = {
+    ...base,
     tracker: createNoopTracker({}),
     userRepo: base.userRepo,
     workspaceId: base.workspaceId,

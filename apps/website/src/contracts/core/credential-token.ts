@@ -4,7 +4,7 @@ export { CREDENTIAL_TOKEN_LIMIT, CREDENTIAL_MESSAGES, CredentialInputError, asse
   normalizeCredentialToken, credentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
 export type { CredentialMessageId, CredentialTokenHint, CredentialConnection } from "@jini-ai/platform/secrets/credential-token";
 import { assertCredentialFreeField as assertPlatformCredentialFreeField } from "@jini-ai/platform/secrets/credential-token";
-import { redactSecretShapes } from "./secret-redaction.js";
+import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 export function assertCredentialFreeField(required: { value: string; field: string }, optional = {}): void {
   assertPlatformCredentialFreeField({ ...required, containsSecret: ({ text }) => redactSecretShapes({ text }).redactions > 0 }, optional);
 }

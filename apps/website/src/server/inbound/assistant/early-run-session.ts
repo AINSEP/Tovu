@@ -1,5 +1,4 @@
-import type { DurableRunStore } from "#src/assistant/durable-runs/ports";
-import type { AgentSessionStore } from "#src/assistant/persistence/agent-session-store";
+import type { DurableRunStore, AgentSessionStore } from "#src/assistant/session-services";
 import type { ProcessStartReader } from "./attempt-process-identity.js";
 
 interface SessionEvent { readonly kind: string; readonly payload: unknown }

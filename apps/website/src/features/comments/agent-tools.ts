@@ -43,6 +43,7 @@
  * validators. Performs no I/O and no enforcement itself.
  */
 
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import { MAX_DEPTH_CEILING, MAX_PER_IP_PER_HOUR_CEILING } from "./settings.js";
 import { COMMENT_STATUSES } from "@jini-ai/cms/comments";
 
@@ -50,18 +51,11 @@ export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-toke
 
 export type AgentToolActorClassRule = "confirmer-must-equal-own-delegatedBy" | "user-only" | "none";
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  actorClassRule?: AgentToolActorClassRule;
-  /**
-   * JSON Schema for this tool's `input`, published to the model via `ToolDescriptor.inputSchema`
-   * (`assistant/tool-registrations.ts`, which refuses to wire any tool lacking one).
-   */
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+/**
+ * JSON Schema for this tool's `input`, published to the model via `ToolDescriptor.inputSchema`
+ * (`assistant/tool-registrations.ts`, which refuses to wire any tool lacking one).
+ */
+export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect };
 
 /** A comment's id, as returned by `content_read.comment_moderation_queue`'s `items[].id`. */
 const COMMENT_ID_SCHEMA = {
@@ -103,6 +97,8 @@ const NO_INPUT_SCHEMA = {
   properties: {},
 } as const;
 
+const MUTATES_DURABLE_STATE = 'mutates-durable-state' as const;
+
 /** Comments' fixed agent-tool catalog. */
 export const commentsAgentToolCatalog: AgentToolDefinition[] = [
   {
@@ -111,7 +107,7 @@ export const commentsAgentToolCatalog: AgentToolDefinition[] = [
   },
   {
     name: 'comments_set_provider', description: 'Select built-in comments or disable public comments with null after a human confirmation card. Read comments_get_provider first for expectedRevision. Stored comments, settings and history are preserved.',
-    sideEffects: 'mutates-durable-state', authorization: { permission: 'comments.configure' },
+    sideEffects: MUTATES_DURABLE_STATE, authorization: { permission: 'comments.configure' },
     inputSchema: { type: 'object', additionalProperties: false, required: ['providerId', 'expectedRevision'], properties: {
       providerId: { type: ['string', 'null'], enum: ['built-in', null] }, expectedRevision: { type: 'integer', minimum: 0 },
     } },
@@ -154,7 +150,7 @@ export const commentsAgentToolCatalog: AgentToolDefinition[] = [
     name: "comments_update_settings",
     description:
       "Updates one or more of the workspace's comments.* settings. A partial patch — omitted fields are left unchanged. At least one field must be supplied.",
-    sideEffects: "mutates-durable-state",
+    sideEffects: MUTATES_DURABLE_STATE,
     authorization: { permission: "comments.configure" },
     inputSchema: {
       type: "object",
@@ -182,14 +178,14 @@ export const commentsAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "comments_approve_comment",
     description: "Approves a pending (or previously spam/trashed) comment, making it publicly visible. Reversible via comments_mark_comment_spam, comments_trash_comment, or comments_restore_comment.",
-    sideEffects: "mutates-durable-state",
+    sideEffects: MUTATES_DURABLE_STATE,
     authorization: { permission: "comments.moderate" },
     inputSchema: MODERATION_ACTION_INPUT_SCHEMA,
   },
   {
     name: "comments_mark_comment_spam",
     description: "Marks a comment as spam, hiding it from public view. Reversible via comments_approve_comment or comments_restore_comment.",
-    sideEffects: "mutates-durable-state",
+    sideEffects: MUTATES_DURABLE_STATE,
     authorization: { permission: "comments.moderate" },
     inputSchema: MODERATION_ACTION_INPUT_SCHEMA,
   },
@@ -197,14 +193,14 @@ export const commentsAgentToolCatalog: AgentToolDefinition[] = [
     name: "comments_trash_comment",
     description:
       "Soft-deletes a comment (trash), hiding it from public view. This is NOT permanent — a trashed comment can be brought back with comments_restore_comment. For permanent removal, use comments_purge_comment if it is available to you; it waits for a human confirmation card. Otherwise link the human to /admin/trash.",
-    sideEffects: "mutates-durable-state",
+    sideEffects: MUTATES_DURABLE_STATE,
     authorization: { permission: "comments.delete" },
     inputSchema: MODERATION_ACTION_INPUT_SCHEMA,
   },
   {
     name: "comments_restore_comment",
     description: "Restores a trashed or spam comment back to approved and publicly visible. The v1 restore ladder always targets 'approved', regardless of which status the comment was previously in.",
-    sideEffects: "mutates-durable-state",
+    sideEffects: MUTATES_DURABLE_STATE,
     authorization: { permission: "comments.moderate" },
     inputSchema: MODERATION_ACTION_INPUT_SCHEMA,
   },

@@ -1,11 +1,11 @@
 /** Body-free observation of every policy result, including preflight refusals and captures. */
-import { safeMailProviderText } from "#src/platform/mail/provider-error";
+import { safeMailProviderText } from "#src/platform/mail/index";
 import { mailActivityUse } from "./activity.repo.js";
 import { randomUUID } from "node:crypto";
 import { sql } from "kysely";
 import { laneForPurpose } from "@jini-ai/platform/mail";
 import type { MailRepoDeps, MailRepoOptions } from "./ledger.repo.js";
-import type { MailTestModeSetting } from "#src/features/settings/mail-provider";
+import type { MailTestModeSetting } from "#src/features/settings/index";
 import type { MailerSendOptions, MailerSendResult, OutboundEmail } from "#src/platform/mail/index";
 
 /** The delivery policy's per-result observer. Declared here (not in server/) so features never import server code. */
@@ -20,7 +20,12 @@ export function createMailAttemptObserver<DB>({ db }: MailRepoDeps<DB>, options:
     const at = nowIso();
     const recipient = message.to.email.trim().toLowerCase();
     const effective = mode.mode === "redirect" ? mode.to.trim().toLowerCase() : recipient;
-    const outcome = result.ok ? ((result.providerMessageId.startsWith("captured:") || providerId === "console") ? "captured" : "sent") : (result.unknown ? "unknown" : "failed");
+    let outcome: string;
+    if (result.ok) {
+      outcome = result.providerMessageId.startsWith("captured:") || providerId === "console" ? "captured" : "sent";
+    } else {
+      outcome = result.unknown ? "unknown" : "failed";
+    }
     await db.execute(sql`INSERT INTO mail_activity_attempts
       (id, workspace_id, idempotency_key, recipient, effective_recipient, delivery_mode, use_id, lane, provider_id, outcome, provider_message_id, error_code, message, created_at, updated_at)
       VALUES (${newId()}, ${send.workspaceId}, ${send.idempotencyKey}, ${recipient}, ${effective}, ${mode.mode}, ${mailActivityUse({ idempotencyKey: send.idempotencyKey })}, ${laneForPurpose({ purpose: send.purpose })}, ${providerId}, ${outcome}, ${result.ok ? result.providerMessageId : null}, ${result.ok ? null : safeMailProviderText({ text: result.errorCode })}, ${result.ok ? null : safeMailProviderText({ text: result.message })}, ${at}, ${at})

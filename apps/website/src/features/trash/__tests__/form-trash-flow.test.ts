@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -8,7 +9,7 @@ import { submitForm, type SubmitFormDeps } from "#src/features/forms/index";
 import { FormDefinitionNotFoundError } from "@jini-ai/cms/forms";
 import { createContactFormResolver } from "@jini-ai/cms/widgets/resolvers";
 
-import { createSqliteTrashDb } from "../db-port.sqlite.js";
+
 import { moveToTrash } from "../move-to-trash.js";
 import { buildTrashRegistry, type TrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "../table-adapter.js";
@@ -40,7 +41,7 @@ function harness(): Harness {
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
   const registry = buildTrashRegistry();
-  const trashDb = createSqliteTrashDb({ db });
+  const trashDb = contentKernel(db);
   // Needed for `form`'s purgeFirst -> `form_submission` phantom-row cleanup (T1 item 5) — same ref
   // shape `deps.ts` builds at composition.
   const adapters = new Map<string, TrashAdapter>(
@@ -95,7 +96,7 @@ async function trashForm(h: Harness, id: string): Promise<void> {
     {
       registry: h.registry,
       trash: h.trash,
-      db: createSqliteTrashDb({ db: h.db }),
+      db: contentKernel(h.db),
       authorize: async () => ({ allowed: true, reason: "matched" }),
       clock: { nowIso: () => AT },
     }
@@ -213,7 +214,7 @@ test("a form_submission moved to the Trash shows the form's name and the time, n
     {
       registry: h.registry,
       trash: h.trash,
-      db: createSqliteTrashDb({ db: h.db }),
+      db: contentKernel(h.db),
       authorize: async (params) =>
         params.permission === "admin.forms.submissions.delete"
           ? { allowed: true, reason: "matched" }
@@ -247,7 +248,7 @@ test("purge of a form removes the Trash row of a submission that was independent
     {
       registry: h.registry,
       trash: h.trash,
-      db: createSqliteTrashDb({ db: h.db }),
+      db: contentKernel(h.db),
       authorize: async () => ({ allowed: true, reason: "matched" }),
       clock: { nowIso: () => AT },
     }

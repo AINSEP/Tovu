@@ -5,7 +5,7 @@ import path from 'node:path';
 import { bundledContributionSources } from '../../features/agent-plugins/bundled-contribution-sources.js';
 import { resolveProductRoot } from '../../platform/site-dir/product-root.js';
 import { nativeToolMetadata } from '../../contracts/core/tool-metadata/index.js';
-import { readBundledToolKeywords, indexedDescriptionFor, stripSearchKeywords } from '../tool-search-keywords.js';
+import { readBundledToolKeywords, toolSearchKeywords, indexedDescriptionFor, stripSearchKeywords } from '../tool-search-keywords.js';
 
 const declaration = (value: unknown) => JSON.stringify({ extensions: { tovu: { toolKeywords: value } } });
 
@@ -53,6 +53,7 @@ test('registered metadata retains its authority and enrichment strips back to au
 
 
 test('shipped tool words enrich both legacy and registered search without plugin activation', () => {
+  toolSearchKeywords({}, { sources: bundledContributionSources });
   const sources = bundledContributionSources({ sourceRoot: path.join(resolveProductRoot(), 'content', 'agent-plugins'), filename: 'plugin.json' });
   let declarations = 0;
   for (const source of sources) {

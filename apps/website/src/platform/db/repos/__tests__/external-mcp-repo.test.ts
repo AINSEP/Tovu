@@ -13,7 +13,7 @@ import { openContentDb, openSqliteContentConnection } from "../../sqlite/content
 import type { ExternalMcpServerRecord } from "#src/assistant/index";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect, freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { SqlExternalMcpServerRepo } from "../external-mcp-repo.js";
+import { SqlExternalMcpServerRepo } from "../../../../assistant/external-mcp-repo.js";
 
 /**
  * @file `SqlExternalMcpServerRepo` against a real, migrated content database on every dialect

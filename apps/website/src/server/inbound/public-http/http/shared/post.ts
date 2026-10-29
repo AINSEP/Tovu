@@ -1,5 +1,5 @@
 import { isPublicPost, PostNotFoundError, type PostRecord, type PublicPostRecord } from "#src/features/post/index";
-import { postAuthorForDisplay } from "#src/features/post/author";
+import { postAuthorForDisplay } from "#src/contracts/core/post-author";
 import type { AdminPost, ContentPost } from "#src/contracts/headless/index";
 
 /**

@@ -90,6 +90,7 @@ function fakeDeps(options: FakeDepsOptions = {}): FakeDeps {
   ];
 
   const routeDeps: SitesToolDeps = {
+    createSite: async () => assert.fail("unexpected site creation"),
     workspaceId: WORKSPACE_ID,
     sitesWorkspace,
     authorize: async () => ({ allowed: options.allow ?? true, reason: options.allow === false ? "denied" : "matched" }),

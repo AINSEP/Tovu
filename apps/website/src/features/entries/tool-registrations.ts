@@ -6,7 +6,7 @@ import { withToolMetadata } from '@jini-ai/core';
  * Contributors are installed explicitly at the composition root; importing a feature must not
  * register tools or create an assistant-to-feature runtime cycle.
  */
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import {
   buildEntriesRegistrations,
   entriesDerivedRisk,
@@ -59,7 +59,7 @@ const ENTRIES_MODEL_FACING_RULES: readonly ModelFacingErrorRule[] = [
  * were fixed at the source — see `contracts/core/model-facing-tool-errors.ts`'s header), so without
  * this wrap every entries failure reached the model as a redacted `INTERNAL_ERROR` 500.
  */
-export function contributeEntriesTools(): ToolContributor {
+export function contributeEntriesTools(): ToolContributor<EntriesToolDeps, unknown> {
   return {
     domain: "entries",
     build: (deps) => withModelFacingRegistrationErrors({ registrations: withToolMetadata({ registrations: buildEntriesRegistrations(deps), metadata: toolMetadata }), rules: ENTRIES_MODEL_FACING_RULES }),

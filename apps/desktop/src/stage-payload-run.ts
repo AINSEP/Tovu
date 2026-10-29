@@ -150,8 +150,7 @@ function stageJiniPackages(layout: StageLayout, { fs, steps }: StagePorts): stri
     if (!fs.existsSync(manifest)) continue;
     roots.push(src);
     const dest = path.join(layout.outDir, "node_modules", readJson(fs, manifest).name);
-    if (fs.existsSync(dest)) continue;
-    steps.stageDir(src, dest, true);
+    if (!fs.existsSync(dest)) steps.stageDir(src, dest, true);
   }
   return roots;
 }
@@ -413,8 +412,9 @@ export function runStagePayload({ repoRoot, desktopDir }: { repoRoot: string; de
     `stage-payload: stripped ${stripped.declaration} declarations, ${stripped.sourceMap} third-party source maps, ` +
       `${stripped.coverage} coverage reports (${megabytes(stripped.bytes)} MB on disk)\n`
   );
+  const targetLabels = targets.map((target) => `${target.platform}-${target.arch}`).join(" + ");
   ports.stdout.write(
-    `stage-payload: native prebuilds kept for ${targets.map((target) => `${target.platform}-${target.arch}`).join(" + ")} only; ` +
+    `stage-payload: native prebuilds kept for ${targetLabels} only; ` +
       `removed ${pruned.prebuilds} other-architecture prebuilds and ${pruned.buildInputs} from-source build inputs ` +
       `(${megabytes(pruned.bytes)} MB on disk)\n`
   );

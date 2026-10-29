@@ -1,8 +1,8 @@
 import { fullCliEnvLock, isHostedAssistantRuntime, resolveAssistantCliPermissions } from "#src/contracts/core/assistant-native-fallbacks";
 import { resolveBundledHostSignals } from "#src/features/agent-plugins/host-signals";
-import { readAssistantCliPermissions } from "#src/assistant/subagent-settings";
-import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_CLI_PERMISSIONS_KEY, ASSISTANT_SUBAGENTS_WRITE_REASON,
-  ASSISTANT_CLI_CAPABILITIES, assistantCliPermissions, type AssistantCliCapability } from "#src/contracts/headless/assistant-subagents-policy";
+import { readAssistantCliPermissions } from "#src/assistant/runtime-settings";
+import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_CLI_PERMISSIONS_KEY, ASSISTANT_SUBAGENTS_WRITE_REASON, ASSISTANT_CLI_CAPABILITIES, type AssistantCliCapability } from "#src/contracts/headless/index";
+import { assistantCliPermissions } from "#src/assistant/runtime-settings";
 import { rejectSettingsRequest } from "../settings/shared.js";
 import { registerAssistantOwnerGrantRoutes, type AssistantOwnerGrantDeps } from "./assistant-owner-grant.js";
 import type { Express } from "express";
@@ -25,15 +25,19 @@ export function registerAdminAssistantSubagentsRoutes(required: { app: Express; 
     projectRead: ({ settings, isOwner }) => {
       const envLock = fullCliEnvLock({ env: process.env });
       const hostSignals = resolveBundledHostSignals({ env: process.env });
-      return { ...resolveAssistantCliPermissions({ isOwner, env: process.env, settings }, { hostSignals }),
-        ...(isHostedAssistantRuntime({ env: process.env }, { hostSignals }) ? { unavailableReason: "Not available on hosted sites" }
-          : !isOwner ? { unavailableReason: "Only the owner can change agent permissions." }
-          : envLock ? { unavailableReason: `Turned off on this computer by ${envLock}.` } : {}) };
+      const permissions = resolveAssistantCliPermissions({ isOwner, env: process.env, settings }, { hostSignals });
+      let availability: { unavailableReason?: string };
+      if (isHostedAssistantRuntime({ env: process.env }, { hostSignals })) availability = { unavailableReason: "Not available on hosted sites" };
+      else if (!isOwner) availability = { unavailableReason: "Only the owner can change agent permissions." };
+      else if (envLock) availability = { unavailableReason: `Turned off on this computer by ${envLock}.` };
+      else availability = {};
+      return { ...permissions, ...availability };
     },
     parse: body => {
       const overrides = body.capabilities;
-      if (overrides !== undefined && (!overrides || typeof overrides !== "object" || Array.isArray(overrides) ||
-        Object.entries(overrides).some(([key, value]) => !ASSISTANT_CLI_CAPABILITIES.some(item => item.key === key) || typeof value !== "boolean"))) {
+      const malformed = overrides !== undefined && (!overrides || typeof overrides !== "object" || Array.isArray(overrides));
+      const unknownCapability = !malformed && overrides !== undefined && Object.entries(overrides).some(([key, value]) => !ASSISTANT_CLI_CAPABILITIES.some(item => item.key === key) || typeof value !== "boolean");
+      if (malformed || unknownCapability) {
         rejectSettingsRequest({ status: 400, code: "VALIDATION_ERROR", error: "Unknown capability or non-boolean value." });
       }
       return assistantCliPermissions({ enabled: body.enabled as boolean,

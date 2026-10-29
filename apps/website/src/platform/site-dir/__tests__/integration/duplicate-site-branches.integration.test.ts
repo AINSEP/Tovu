@@ -8,7 +8,7 @@ import path from "node:path";
 import test, { type TestContext } from "node:test";
 
 import { duplicateSite } from "../../duplicate-site.js";
-import { initSite } from "../../init-site.js";
+import { initSite } from "#src/server/runtime/composition/site-dir";
 import { createSitesWorkspace } from "../../sites-home.js";
 
 /**

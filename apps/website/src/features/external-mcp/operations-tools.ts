@@ -2,7 +2,7 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/external-mcp.js
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { createRateLimiter, OUTBOUND_CALL_PER_IP } from "../../contracts/core/rate-limit/rate-limit.js";
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { EXTERNAL_MCP_MANAGE_PERMISSION } from "./agent-tools.js";
@@ -103,6 +103,6 @@ export function buildExternalMcpOperationsRegistrations(deps: ExternalMcpToolDep
  * @example contributeExternalMcpOperationsTools({ probe: probeExternalMcpServer, admissions: fetchDaemonAdmissions })
  * @complexity O(1) time and space.
  */
-export function contributeExternalMcpOperationsTools(operations: ExternalMcpOperations): ToolContributor {
+export function contributeExternalMcpOperationsTools(operations: ExternalMcpOperations): ToolContributor<ExternalMcpToolDeps, unknown> {
   return { domain: "external-mcp-operations", build: deps => buildExternalMcpOperationsRegistrations(deps, operations), risk: externalMcpOperationsDerivedRisk };
 }

@@ -1,7 +1,6 @@
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { NavItemNode, NavMenuDoc } from "./index.js";
-import { kernelStampWatermark } from "#src/platform/db/watermark-kernel";
-import { postPublicPath } from "#src/platform/routing/adapter";
+import { postPublicPath } from "#src/platform/routing/index";
 
 const REPAIR_SETTING_ID = "tovu.internal.boot_repair.footer_page_links";
 
@@ -59,7 +58,7 @@ function pageItems({ items, index }: { items: readonly NavItemNode[]; index: Pag
  * concurrent editor write; edited menus remain author-controlled. Draft/trashed pages are deliberately
  * matched too, so their links become refs that the public availability filter can hide. */
 export async function migrateFooterPageLinks(
-  { kernel }: { kernel: ContentKernel },
+  { kernel, stampWatermark }: { kernel: ContentKernel; stampWatermark: () => Promise<void> },
   { now = () => new Date().toISOString() }: { now?: () => string } = {},
 ): Promise<{ converted: number }> {
   return kernel.transaction(async () => {
@@ -86,7 +85,7 @@ export async function migrateFooterPageLinks(
       if (Number(written.numUpdatedRows) > 0) converted += result.converted;
     }
     if (converted > 0) {
-      await kernelStampWatermark(kernel)();
+      await stampWatermark();
     }
     // Reserved settings row, like the unreadable-owner repair: no schema or public definition.
     await kernel.run((db) => db.insertInto("setting_values_global").values({

@@ -74,8 +74,3 @@ export class SqlPublishContentBundleRepo implements PublishContentBundleRepoPort
     return Number(result.numDeletedRows);
   }
 }
-
-/** The publish-content bundle repo on `kernel`'s database, whichever dialect. */
-export function publishContentBundleRepoFor(kernel: ContentKernel): PublishContentBundleRepoPort {
-  return new SqlPublishContentBundleRepo(kernel);
-}

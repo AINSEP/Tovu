@@ -1,5 +1,5 @@
 import { checkTreePath } from "./file-tree-policy.js";
-import { scanTextForSecrets } from "#src/features/webhooks/secret-scan-guard";
+import { scanTextForSecrets } from "#src/features/webhooks/index";
 
 /** CMS-specific, immutable boundaries, run on BOTH peers. Neither a grant nor a confirmation
  * can relax these. Plugin tables are allowed (owner B3, 2026-10-04), subject to the same rules. */
@@ -20,12 +20,12 @@ export function checkRawTable(
   { table, columns }: { table: string; columns: readonly string[] },
   _optional: Record<string, never> = {},
 ): string | null {
-  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(table)) return "The table name is not a valid database identifier.";
+  if (!/^[A-Za-z_]\w*$/.test(table)) return "The table name is not a valid database identifier.";
   if (BACKSTOP_DENIED_TABLE_PATTERNS.some((pattern) => pattern.test(table))) {
     return `Table '${table}' holds private or per-install data and is never sent.`;
   }
   for (const column of columns) {
-    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(column) || column === "__proto__") return "The column name is not a valid database identifier.";
+    if (!/^[A-Za-z_]\w*$/.test(column) || column === "__proto__") return "The column name is not a valid database identifier.";
     if (BACKSTOP_DENIED_COLUMN_PATTERN.test(column)) return `Column '${column}' may hold a key or password; this row is never sent.`;
   }
   return null;
@@ -75,10 +75,10 @@ export function gapLabelFor(
 /** Private names are denied at every depth, including backup and key suffix variants. */
 function isProtectedRawComponent({ part }: { part: string }, _optional: Record<string, never> = {}): boolean {
   const lower = part.toLowerCase();
-  return BACKSTOP_DENIED_FILE_ROOTS.some((root) => root === lower) || lower.startsWith("restore-point-") ||
-      lower.startsWith(".env") || /^\.mcp(?:\..*)?\.json$/.test(lower) ||
-      [".npmrc", ".netrc", ".fs-custom-root.json", ".site-meta.json", ".storage-secret.json", "config.json"].includes(lower) ||
-      /^id_(?:rsa|dsa|ecdsa|ed25519)(?:\.|$)/.test(lower) || /\.(?:pem|key|p12|pfx)(?:[.-]|$)/.test(lower) || /\.(?:db.*|sqlite.*)$/.test(lower);
+  if (BACKSTOP_DENIED_FILE_ROOTS.some((root) => root === lower) || lower.startsWith("restore-point-") ||
+      lower.startsWith(".env") || /^\.mcp(?:\..*)?\.json$/.test(lower)) return true;
+  if ([".npmrc", ".netrc", ".fs-custom-root.json", ".site-meta.json", ".storage-secret.json", "config.json"].includes(lower)) return true;
+  return /^id_(?:rsa|dsa|ecdsa|ed25519)(?:\.|$)/.test(lower) || /\.(?:pem|key|p12|pfx)(?:[.-]|$)/.test(lower) || /\.(?:db.*|sqlite.*)$/.test(lower);
 }
 
 /** Installation settings stay local independently of the generic secret scan. */

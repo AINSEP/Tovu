@@ -25,7 +25,7 @@ export const DEFAULT_SITE_STORAGE: SiteStorage = Object.freeze({ kind: "sqlite" 
 const SECRET_BEARING_KEYS = ["connectionString", "url", "password"] as const;
 
 /** An environment variable name: letters, digits and `_`, not starting with a digit. */
-const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const ENV_NAME = /^[A-Za-z_]\w*$/;
 
 function invalid(reason: string): never {
   throw new SiteDirInvalidError(`${SITE_META_FILENAME} storage ${reason}`);

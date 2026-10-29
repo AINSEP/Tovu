@@ -38,3 +38,5 @@ export type {
   NewsletterConfirmationTokenRepoPort,
   MembersConsentCapability,
 } from "./ports.js";
+
+export { evaluateLaunchGate, type LaunchGateDeps, type LaunchGatePrecondition } from "./launch-gate.js";

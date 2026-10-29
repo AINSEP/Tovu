@@ -6,9 +6,9 @@ import { eq } from "drizzle-orm";
 
 import { seedWorkspaces } from "#src/platform/db/kernel/__tests__/content-seeds";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { SqlSourceControlCredentialSetRepo } from "../source-control-credential-repo.js";
+import { SqlSourceControlCredentialSetRepo } from "../../../../features/source-control/source-control-credential-repo.js";
 import { openContentDb } from "../../sqlite/content-db.js";
-import { SqliteSourceControlCredentialSetRepo } from "../../sqlite/source-control-credential-repo.sqlite.js";
+import { SqliteSourceControlCredentialSetRepo } from "../../../../features/source-control/source-control-credential-repo.sqlite.js";
 import { workspaces } from "../../schema.sqlite.js";
 import type { SourceControlCredentialSetRecord } from "#src/features/source-control/types";
 
@@ -327,7 +327,7 @@ test("the vault FK rejects a workspace that does not exist", async () => {
 
 test("deleting a workspace CASCADEs to its credential sets", async () => {
   const db = await openSeededDb();
-  const repo = new SqliteSourceControlCredentialSetRepo(db);
+  const repo = new SqliteSourceControlCredentialSetRepo(contentKernel(db));
   await repo.insert(makeRecord());
 
   db.delete(workspaces).where(eq(workspaces.id, WORKSPACE)).run();

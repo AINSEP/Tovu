@@ -273,8 +273,8 @@ const CONTENT_EDIT_LOCKED_GROUPS: ReadonlySet<ThemeExploreFileGroup> = new Set([
  * @complexity O(k) time and space for k characters in the relative path; no I/O.
  */
 function isThemeFileWritable(relativePath: string, apiVersion: 2 | undefined): boolean {
+  if (!isTextReadable(relativePath)) return false;
   return (
-    isTextReadable(relativePath) &&
     // v2's render/pages grouping must not turn the read-only Liquid preview into an edit surface.
     !relativePath.toLowerCase().endsWith(".liquid") &&
     !CONTENT_EDIT_LOCKED_GROUPS.has(fileGroup(relativePath, apiVersion)) &&

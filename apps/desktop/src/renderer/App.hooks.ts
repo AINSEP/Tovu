@@ -106,7 +106,7 @@ export function useSitesPolling(
     const bridge = getBridge();
     if (bridge === undefined) {
       setProjectsLoading(false);
-      return;
+      return undefined;
     }
     let cancelled = false;
 
@@ -580,7 +580,7 @@ export function useExpandedMode(showSiteTab: boolean): {
   // `expandedAfterKeyDown` returns the SAME value for every key that is not Escape, so the updater
   // form costs nothing for the other keys: React bails out of the re-render when state is unchanged.
   useEffect(() => {
-    if (!expanded) return;
+    if (!expanded) return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
       setExpanded((on) => expandedAfterKeyDown(on, event.key));
     };
@@ -608,7 +608,7 @@ export function useDismissibleDropdown<T extends HTMLElement = HTMLDivElement>()
   const containerRef = useRef<T>(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) return undefined;
     const onPointerDown = (event: PointerEvent) => {
       if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
     };
@@ -659,7 +659,7 @@ export function useMenuKeyboard<T extends HTMLElement = HTMLDivElement, B extend
   const menuRef = useRef<T>(null);
   const triggerRef = useRef<B>(null);
   useEffect(() => {
-    if (!open) return;
+    if (!open) return undefined;
     menuRef.current?.querySelector<HTMLElement>(MENU_ENTRIES)?.focus();
     return () => {
       const active = document.activeElement;
@@ -773,7 +773,7 @@ export function useDeleteConfirmation(onDelete: (id: string) => Promise<void>): 
 
   const cancelDelete = () => setPendingId(null);
   useEffect(() => {
-    if (!pendingId) return;
+    if (!pendingId) return undefined;
     const onEscape = (event: KeyboardEvent) => dismissOnEscape({ event, dismiss: cancelDelete, busy: deletingId !== null });
     document.addEventListener('keydown', onEscape, true);
     return () => document.removeEventListener('keydown', onEscape, true);
@@ -1007,14 +1007,14 @@ export function useWebviewLoadFailure(
     // view switch a clean slate rather than a permanent black mark; without a genuine reference
     // to it here, Biome's exhaustive-deps rule reads the dependency as dead weight and asks to
     // drop it, which would drop the reset along with it.
-    void resetKey;
+    resetKey;
     setLoaded(false);
     setFailed(false);
     setStalled(false);
   }, [resetKey]);
 
   useEffect(() => {
-    if (guest === null) return;
+    if (guest === null) return undefined;
 
     const STALL_TIMEOUT_MS = 8000;
     const stallTimer = timers.setTimeout(() => setStalled(true), STALL_TIMEOUT_MS);
@@ -1230,7 +1230,8 @@ export function useRunnerConversations(
   const select = useCallback(
     (id: string) => {
       if (bridge === undefined) return;
-      const seq = ++switchSeqRef.current;
+      switchSeqRef.current++;
+      const seq = switchSeqRef.current;
       const commit = (messages: ChatMessage[]) => {
         // A slower load for a conversation the operator has since navigated away from must not land.
         if (switchSeqRef.current !== seq) return;
@@ -1259,7 +1260,8 @@ export function useRunnerConversations(
     // Claimed BEFORE the request and re-checked after, so a selection made after the click (while
     // the create is still in flight) wins rather than yanking the operator back into a new, empty
     // pane the moment the slower create resolves.
-    const seq = ++switchSeqRef.current;
+    switchSeqRef.current++;
+    const seq = switchSeqRef.current;
     const conversation = await bridge.createConversation();
     setConversations((current) => [conversation, ...current]);
     if (switchSeqRef.current !== seq) return;
@@ -1475,11 +1477,9 @@ function createProjectDatabaseEndpoint(input: {
   supabaseUrl: string;
   customConnection: string;
 }, _options = {}): string | undefined {
-  return input.database === 'supabase'
-    ? input.supabaseUrl.trim()
-    : input.database === 'custom'
-      ? input.customConnection.trim()
-      : undefined;
+  if (input.database === 'supabase') return input.supabaseUrl.trim();
+  if (input.database === 'custom') return input.customConnection.trim();
+  return undefined;
 }
 
 /** Pure — takes every value it needs as an explicit argument rather than closing over component
@@ -1494,8 +1494,9 @@ export function buildCreateProjectInput(input: {
   customCredential: string;
 }): CreateSiteInput {
   const endpoint = createProjectDatabaseEndpoint(input);
-  const credentialValue =
-    input.database === 'supabase' ? input.supabaseKey : input.database === 'custom' ? input.customCredential : '';
+  let credentialValue = '';
+  if (input.database === 'supabase') credentialValue = input.supabaseKey;
+  if (input.database === 'custom') credentialValue = input.customCredential;
 
   return {
     displayName: input.displayName,
@@ -1530,7 +1531,7 @@ export function siteSlug(name: string): string {
     .trim()
     .toLowerCase()
     .replace(/[^\p{L}\p{N}\p{M}]+/gu, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/^-|-$/g, '');
 }
 
 export interface CreateWebsiteFormState {
@@ -1575,7 +1576,7 @@ export function useCreateWebsiteForm(
   // Tracked but not read below — see the parity note on `hasSupabaseKey`. A custom provider's
   // credential is optional (the form says so), so `customReady` never gates on it; kept as state
   // so a future required-credential provider has somewhere to plug in without a new field.
-  const [hasCustomCredential, setHasCustomCredential] = useState(false);
+  const [, setHasCustomCredential] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const supabaseKeyRef = useRef<HTMLInputElement>(null);

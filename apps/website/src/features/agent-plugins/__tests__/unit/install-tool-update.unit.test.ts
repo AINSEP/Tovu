@@ -10,7 +10,7 @@ import test from "node:test";
 import { ToolInputError, createToolRegistry } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
-import { approvalClassAsks } from "../../../../contracts/headless/assistant-tool-approval-policy.js";
+import { approvalClassAsks } from "../../../../assistant/assistant-tool-approval-policy.js";
 import { InMemoryExternalMcpServerRepo } from "#src/assistant/index";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
