@@ -1,0 +1,762 @@
+TAP version 13
+# [widgets] resolveHtmlPageEmbeds: unknown embed type, every occurrence degrades to the placeholder {
+#   type: 'some-future-type',
+#   workspaceId: 'ws-html-embeds',
+#   occurrences: 1
+# }
+# [widgets] resolveHtmlPageEmbeds: unresolved "widget" reference — missing or invalid "id"/"slug" in data-embed-config { workspaceId: 'ws-html-embeds' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "widget" reference — no widget with that slug { workspaceId: 'ws-html-embeds', slug: 'does-not-exist' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "widget" reference — no widget with that slug { workspaceId: 'ws-html-embeds', slug: 'shared-slug-name' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset { workspaceId: 'ws-html-embeds', assetId: 'does-not-exist' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "media" reference — transform not registered {
+#   workspaceId: 'ws-html-embeds',
+#   assetId: 'asset-1',
+#   transformName: 'public'
+# }
+# [widgets] resolveHtmlPageEmbeds: unresolved "media" reference — missing or invalid "id"/"slug"/"variant" in data-embed-config { workspaceId: 'ws-html-embeds' }
+# [widgets] resolveHtmlPageEmbeds: "media" embeds present but no mediaRepo/transformRepo dependency was supplied — every occurrence degrades to the placeholder { workspaceId: 'ws-html-embeds', occurrences: 1 }
+# [widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset { workspaceId: 'ws-html-embeds', assetId: 'does-not-exist' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — no such published entity { workspaceId: 'ws-content-embeds', entityId: 'draft-1' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — no such published entity { workspaceId: 'ws-content-embeds', entityId: 'trashed-1' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render) { workspaceId: 'ws-content-embeds', entityId: 'html-1' }
+# [widgets] resolveHtmlPageEmbeds: "content" embeds present but no postRepo dependency was supplied — every occurrence degrades to the placeholder { workspaceId: 'ws-content-embeds', occurrences: 1 }
+# [widgets] resolveHtmlPageEmbeds: unresolved "post" reference — no such published post { workspaceId: 'ws-content-embeds', postId: 'draft-2' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — no such published entity { workspaceId: 'ws-content-embeds', entityId: 'draft-slug' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — no such published entity { workspaceId: 'ws-content-embeds', entityId: 'trashed-slug' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset { workspaceId: 'ws-html-embeds', assetId: 'missing-media' }
+# [widgets] resolveHtmlPageEmbeds: unresolved "content" reference — no such published entity { workspaceId: 'ws-html-embeds', entityId: 'missing-content' }
+# Subtest: resolveHtmlPageEmbeds: a "widget" embed resolves to the referenced widget's real IR, batched through the same resolveWidgetInstances resolvePageWidgets uses
+ok 1 - resolveHtmlPageEmbeds: a "widget" embed resolves to the referenced widget's real IR, batched through the same resolveWidgetInstances resolvePageWidgets uses
+  ---
+  duration_ms: 3.623257
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "widget" embed referencing a nonexistent id never throws — it is simply absent from the resolved map (the caller degrades it to the REQ-28 placeholder)
+ok 2 - resolveHtmlPageEmbeds: a "widget" embed referencing a nonexistent id never throws — it is simply absent from the resolved map (the caller degrades it to the REQ-28 placeholder)
+  ---
+  duration_ms: 0.383284
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a contact-form WIDGET instance resolves through the REAL contact-form resolver — the mechanism that replaced the removed "form" embed type, producing the identical contact-form IR
+ok 3 - resolveHtmlPageEmbeds: a contact-form WIDGET instance resolves through the REAL contact-form resolver — the mechanism that replaced the removed "form" embed type, producing the identical contact-form IR
+  ---
+  duration_ms: 1.27981
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: the RESTORED "form" embed type resolves by form id AND slug through the SAME contact-form resolver, producing the identical IR a contact-form widget produces
+ok 4 - resolveHtmlPageEmbeds: the RESTORED "form" embed type resolves by form id AND slug through the SAME contact-form resolver, producing the identical IR a contact-form widget produces
+  ---
+  duration_ms: 0.901716
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a contact-form widget referencing a DISABLED form definition degrades to the REQ-28 placeholder IR (REQ-38's EC-05 taxonomy), never throws
+ok 5 - resolveHtmlPageEmbeds: a contact-form widget referencing a DISABLED form definition degrades to the REQ-28 placeholder IR (REQ-38's EC-05 taxonomy), never throws
+  ---
+  duration_ms: 0.471429
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a text widget and a contact-form widget on the same page each resolve to their own type's IR in ONE batched pass
+ok 6 - resolveHtmlPageEmbeds: a text widget and a contact-form widget on the same page each resolve to their own type's IR in ONE batched pass
+  ---
+  duration_ms: 0.58216
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a page with more than MAX_HTML_EMBEDS_PER_PAGE distinct widget refs only resolves the first cap-worth (resource bound, REQ-25-style)
+ok 7 - resolveHtmlPageEmbeds: a page with more than MAX_HTML_EMBEDS_PER_PAGE distinct widget refs only resolves the first cap-worth (resource bound, REQ-25-style)
+  ---
+  duration_ms: 1.020381
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: no embeds in the html resolves to an empty result, no repo calls beyond what an empty referencedIds set needs
+ok 8 - resolveHtmlPageEmbeds: no embeds in the html resolves to an empty result, no repo calls beyond what an empty referencedIds set needs
+  ---
+  duration_ms: 0.56402
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: an unregistered/future embed type produces no entry in the result at all — HTML_EMBED_RESOLVERS has no arm for it, so the caller (render.ts) leaves every occurrence as authored
+ok 9 - resolveHtmlPageEmbeds: an unregistered/future embed type produces no entry in the result at all — HTML_EMBED_RESOLVERS has no arm for it, so the caller (render.ts) leaves every occurrence as authored
+  ---
+  duration_ms: 1.033382
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: "menu"/"partial" markers — theme-structural types resolved by a LATER stage (features/theme/static-render.ts), never by this registry — do not log the "unknown embed type" warning, even though HTML_EMBED_RESOLVERS has no entry for either
+ok 10 - resolveHtmlPageEmbeds: "menu"/"partial" markers — theme-structural types resolved by a LATER stage (features/theme/static-render.ts), never by this registry — do not log the "unknown embed type" warning, even though HTML_EMBED_RESOLVERS has no entry for either
+  ---
+  duration_ms: 0.559036
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "post-author" marker, filled later by static-render.ts's injectPostAuthor, does not log the "unknown embed type" warning
+ok 11 - resolveHtmlPageEmbeds: a "post-author" marker, filled later by static-render.ts's injectPostAuthor, does not log the "unknown embed type" warning
+  ---
+  duration_ms: 0.343928
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a genuinely unregistered/typo embed type still logs the "unknown embed type" warning — the menu/partial carve-out must not silence a real author mistake
+ok 12 - resolveHtmlPageEmbeds: a genuinely unregistered/typo embed type still logs the "unknown embed type" warning — the menu/partial carve-out must not silence a real author mistake
+  ---
+  duration_ms: 0.271483
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "widget" embed with no id key never throws and resolves nothing for that occurrence
+ok 13 - resolveHtmlPageEmbeds: a "widget" embed with no id key never throws and resolves nothing for that occurrence
+  ---
+  duration_ms: 0.429831
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "widget" embed addressed by SLUG resolves to the same real IR an id-addressed embed would — the concrete form/contact-form use case this feature exists for
+ok 14 - resolveHtmlPageEmbeds: a "widget" embed addressed by SLUG resolves to the same real IR an id-addressed embed would — the concrete form/contact-form use case this feature exists for
+  ---
+  duration_ms: 0.628679
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a slug-addressed "widget" marker re-serialized by a DOM (double-quoted, &quot;-encoded, as the Interactive canvas saves it) still resolves
+ok 15 - resolveHtmlPageEmbeds: a slug-addressed "widget" marker re-serialized by a DOM (double-quoted, &quot;-encoded, as the Interactive canvas saves it) still resolves
+  ---
+  duration_ms: 0.83885
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "widget" embed referencing an UNKNOWN slug never throws — absent from the resolved map, degrading exactly like a dangling id (render.ts substitutes the REQ-28 placeholder)
+ok 16 - resolveHtmlPageEmbeds: a "widget" embed referencing an UNKNOWN slug never throws — absent from the resolved map, degrading exactly like a dangling id (render.ts substitutes the REQ-28 placeholder)
+  ---
+  duration_ms: 0.416682
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: "id" is authoritative over "slug" when a marker carries both — the slug is not even looked up
+ok 17 - resolveHtmlPageEmbeds: "id" is authoritative over "slug" when a marker carries both — the slug is not even looked up
+  ---
+  duration_ms: 0.327225
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: slug lookups are workspace+type scoped — a same-slug widget in a DIFFERENT workspace never resolves across the boundary
+ok 18 - resolveHtmlPageEmbeds: slug lookups are workspace+type scoped — a same-slug widget in a DIFFERENT workspace never resolves across the boundary
+  ---
+  duration_ms: 0.566103
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: two DIFFERENT slug-addressed widgets on the same page each resolve independently in ONE batched pass (mirrors the pre-existing multi-id coverage above)
+ok 19 - resolveHtmlPageEmbeds: two DIFFERENT slug-addressed widgets on the same page each resolve independently in ONE batched pass (mirrors the pre-existing multi-id coverage above)
+  ---
+  duration_ms: 0.340553
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "media" embed with no variant resolves against CORE_PUBLIC_TRANSFORM_NAME ("public") by default
+not ok 20 - resolveHtmlPageEmbeds: a "media" embed with no variant resolves against CORE_PUBLIC_TRANSFORM_NAME ("public") by default
+  ---
+  duration_ms: 5.670564
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts:1:17751'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    ... Skipped lines
+    
+      {
+        componentId: 'media-image',
+        props: {
+          alt: 'A scenic photo',
+          assetId: 'asset-1',
+    ...
+          htmlAttributes: null,
+    +     sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          slug: null,
+          transformName: 'public',
+          version: 2,
+          width: 640
+        }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    componentId: 'media-image'
+    props:
+      assetId: 'asset-1'
+      slug: ~
+      transformName: 'public'
+      version: 2
+      alt: 'A scenic photo'
+      width: 640
+      height: 480
+      cssClass: 'rounded'
+      htmlAttributes: ~
+  actual:
+    componentId: 'media-image'
+    props:
+      assetId: 'asset-1'
+      slug: ~
+      sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+      transformName: 'public'
+      version: 2
+      alt: 'A scenic photo'
+      width: 640
+      height: 480
+      cssClass: 'rounded'
+      htmlAttributes: ~
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts:540:10)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "media" embed whose asset is a recorded VIDEO resolves to a video IR — contentType present, no transformName/version, and no transform needs to be registered at all
+not ok 21 - resolveHtmlPageEmbeds: a "media" embed whose asset is a recorded VIDEO resolves to a video IR — contentType present, no transformName/version, and no transform needs to be registered at all
+  ---
+  duration_ms: 0.982851
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts:1:18680'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    ... Skipped lines
+    
+      {
+        componentId: 'media-image',
+        props: {
+          alt: 'A hero clip',
+          assetId: 'asset-1',
+    ...
+          htmlAttributes: null,
+    +     sha256: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+          slug: null,
+          width: 1920
+        }
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    componentId: 'media-image'
+    props:
+      assetId: 'asset-1'
+      slug: ~
+      contentType: 'video/mp4'
+      alt: 'A hero clip'
+      width: 1920
+      height: 1080
+      cssClass: 'hero-video'
+      htmlAttributes: ~
+  actual:
+    componentId: 'media-image'
+    props:
+      assetId: 'asset-1'
+      slug: ~
+      sha256: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+      contentType: 'video/mp4'
+      alt: 'A hero clip'
+      width: 1920
+      height: 1080
+      cssClass: 'hero-video'
+      htmlAttributes: ~
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts:571:10)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "media" embed with mediaContentTypeStore supplied but no recorded type for this asset's sha256 falls through to the ordinary image path unchanged
+not ok 22 - resolveHtmlPageEmbeds: a "media" embed with mediaContentTypeStore supplied but no recorded type for this asset's sha256 falls through to the ordinary image path unchanged
+  ---
+  duration_ms: 0.602279
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts:1:19815'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    ... Skipped lines
+    
+      {
+        componentId: 'media-image',
+        props: {
+          alt: 'A scenic photo',
+          assetId: 'asset-1',
+    ...
+          htmlAttributes: null,
+    +     sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          slug: null,
+          transformName: 'public',
+          version: 2,
+          width: 640
+        }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    componentId: 'media-image'
+    props:
+      assetId: 'asset-1'
+      slug: ~
+      transformName: 'public'
+      version: 2
+      alt: 'A scenic photo'
+      width: 640
+      height: 480
+      cssClass: 'rounded'
+      htmlAttributes: ~
+  actual:
+    componentId: 'media-image'
+    props:
+      assetId: 'asset-1'
+      slug: ~
+      sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+      transformName: 'public'
+      version: 2
+      alt: 'A scenic photo'
+      width: 640
+      height: 480
+      cssClass: 'rounded'
+      htmlAttributes: ~
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts:597:10)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "media" embed with an explicit variant resolves against that transform name, not the default
+ok 23 - resolveHtmlPageEmbeds: a "media" embed with an explicit variant resolves against that transform name, not the default
+  ---
+  duration_ms: 0.380559
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "media" embed referencing a nonexistent asset never throws — absent from the resolved map, degrades to the REQ-28 placeholder
+ok 24 - resolveHtmlPageEmbeds: a "media" embed referencing a nonexistent asset never throws — absent from the resolved map, degrades to the REQ-28 placeholder
+  ---
+  duration_ms: 0.382867
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "media" embed whose asset exists but whose transform was never registered never throws — absent from the resolved map
+ok 25 - resolveHtmlPageEmbeds: a "media" embed whose asset exists but whose transform was never registered never throws — absent from the resolved map
+  ---
+  duration_ms: 0.405152
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "media" embed with a slash-smuggling variant never reaches the transform lookup — shape-rejected before becoming a /m/ URL path segment
+ok 26 - resolveHtmlPageEmbeds: a "media" embed with a slash-smuggling variant never reaches the transform lookup — shape-rejected before becoming a /m/ URL path segment
+  ---
+  duration_ms: 0.307915
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: with NO mediaRepo/transformRepo dependency supplied, a "media" embed never throws and simply cannot resolve — widget embeds on the same page are unaffected
+ok 27 - resolveHtmlPageEmbeds: with NO mediaRepo/transformRepo dependency supplied, a "media" embed never throws and simply cannot resolve — widget embeds on the same page are unaffected
+  ---
+  duration_ms: 0.547136
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: media and widget embeds on the same page all resolve independently, keyed by type
+ok 28 - resolveHtmlPageEmbeds: media and widget embeds on the same page all resolve independently, keyed by type
+  ---
+  duration_ms: 0.584066
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a media marker with only "slug" resolves to that asset, keyed by the slug
+ok 29 - resolveHtmlPageEmbeds: a media marker with only "slug" resolves to that asset, keyed by the slug
+  ---
+  duration_ms: 0.460678
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a media marker with both id and slug uses id and never consults slug
+ok 30 - resolveHtmlPageEmbeds: a media marker with both id and slug uses id and never consults slug
+  ---
+  duration_ms: 0.372029
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: an unknown media slug degrades to no entry (placeholder), never a throw
+ok 31 - resolveHtmlPageEmbeds: an unknown media slug degrades to no entry (placeholder), never a throw
+  ---
+  duration_ms: 0.548374
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: an asset whose stored slug is EMPTY (a pre-backfill row) emits slug: null, the IR's documented "has no slug"; a real slug still passes through
+ok 32 - resolveHtmlPageEmbeds: an asset whose stored slug is EMPTY (a pre-backfill row) emits slug: null, the IR's documented "has no slug"; a real slug still passes through
+  ---
+  duration_ms: 0.410768
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "content" embed resolves a published, "doc"-format row (Post OR Page) to real data
+ok 33 - resolveHtmlPageEmbeds: a "content" embed resolves a published, "doc"-format row (Post OR Page) to real data
+  ---
+  duration_ms: 1.31056
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "content" embed with NO header key in its marker resolves props.header: true — the no-silent-behavior-change default
+ok 34 - resolveHtmlPageEmbeds: a "content" embed with NO header key in its marker resolves props.header: true — the no-silent-behavior-change default
+  ---
+  duration_ms: 0.322737
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "content" embed with "header":false in its marker resolves props.header: false
+ok 35 - resolveHtmlPageEmbeds: a "content" embed with "header":false in its marker resolves props.header: false
+  ---
+  duration_ms: 0.181847
+  type: 'test'
+  ...
+# Subtest: GUARD 2: resolveHtmlPageEmbeds — a "content" embed referencing a DRAFT row never resolves, regardless of kind
+ok 36 - GUARD 2: resolveHtmlPageEmbeds — a "content" embed referencing a DRAFT row never resolves, regardless of kind
+  ---
+  duration_ms: 0.296964
+  type: 'test'
+  ...
+# Subtest: GUARD 2: resolveHtmlPageEmbeds — a "content" embed referencing a TRASHED row never resolves
+ok 37 - GUARD 2: resolveHtmlPageEmbeds — a "content" embed referencing a TRASHED row never resolves
+  ---
+  duration_ms: 0.352877
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "content" embed referencing an "html"-format row does not resolve at the registry stage — it is the recursive pre-splice pass's target, not this one's
+ok 38 - resolveHtmlPageEmbeds: a "content" embed referencing an "html"-format row does not resolve at the registry stage — it is the recursive pre-splice pass's target, not this one's
+  ---
+  duration_ms: 0.308569
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: with NO postRepo dependency supplied, a "content" embed never throws and simply cannot resolve
+ok 39 - resolveHtmlPageEmbeds: with NO postRepo dependency supplied, a "content" embed never throws and simply cannot resolve
+  ---
+  duration_ms: 0.223608
+  type: 'test'
+  ...
+# Subtest: GUARD 2: resolveHtmlPageEmbeds — the legacy "post" embed type also refuses a DRAFT (retrofitted alongside "content", same hazard)
+ok 40 - GUARD 2: resolveHtmlPageEmbeds — the legacy "post" embed type also refuses a DRAFT (retrofitted alongside "content", same hazard)
+  ---
+  duration_ms: 0.468765
+  type: 'test'
+  ...
+# Subtest: GUARD 2 NEGATIVE VERIFICATION: a published row DOES resolve via "content" and "post" — proves the guard filters on status, not merely "postRepo present"
+ok 41 - GUARD 2 NEGATIVE VERIFICATION: a published row DOES resolve via "content" and "post" — proves the guard filters on status, not merely "postRepo present"
+  ---
+  duration_ms: 0.333565
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "content" embed addressed by SLUG resolves the same published row an id-addressed embed would, keyed by the slug
+ok 42 - resolveHtmlPageEmbeds: a "content" embed addressed by SLUG resolves the same published row an id-addressed embed would, keyed by the slug
+  ---
+  duration_ms: 0.395239
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "post" embed addressed by SLUG resolves the same way "content" does
+ok 43 - resolveHtmlPageEmbeds: a "post" embed addressed by SLUG resolves the same way "content" does
+  ---
+  duration_ms: 0.215331
+  type: 'test'
+  ...
+# Subtest: GUARD 2 (slug twin): resolveHtmlPageEmbeds — a "content" embed addressed by a slug naming a DRAFT row never resolves
+ok 44 - GUARD 2 (slug twin): resolveHtmlPageEmbeds — a "content" embed addressed by a slug naming a DRAFT row never resolves
+  ---
+  duration_ms: 0.263154
+  type: 'test'
+  ...
+# Subtest: GUARD 2 (slug twin): resolveHtmlPageEmbeds — a "content" embed addressed by a slug naming a TRASHED row never resolves
+ok 45 - GUARD 2 (slug twin): resolveHtmlPageEmbeds — a "content" embed addressed by a slug naming a TRASHED row never resolves
+  ---
+  duration_ms: 0.544822
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "content" embed with both id and slug uses id and never consults slug — same precedent as the media/widget resolvers
+ok 46 - resolveHtmlPageEmbeds: a "content" embed with both id and slug uses id and never consults slug — same precedent as the media/widget resolvers
+  ---
+  duration_ms: 0.305559
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: pendingContentOverride matches a slug-only ref by override.slug, the same way it already matches an id-only ref by override.id
+ok 47 - resolveHtmlPageEmbeds: pendingContentOverride matches a slug-only ref by override.slug, the same way it already matches an id-only ref by override.id
+  ---
+  duration_ms: 0.191809
+  type: 'test'
+  ...
+# Subtest: collectMediaRefAssetIds resolves media at depth 10000 without truncating or overflowing
+not ok 48 - collectMediaRefAssetIds resolves media at depth 10000 without truncating or overflowing
+  ---
+  duration_ms: 4.175013
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts:1:39680'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        'asset-1': {
+          contentType: null,
+          cssClass: 'deep-asset',
+          height: 600,
+          htmlAttributes: null,
+    +     sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          slug: null,
+          width: 900
+        }
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    asset-1:
+      width: 900
+      height: 600
+      cssClass: 'deep-asset'
+      htmlAttributes: ~
+      slug: ~
+      contentType: ~
+  actual:
+    asset-1:
+      width: 900
+      height: 600
+      cssClass: 'deep-asset'
+      htmlAttributes: ~
+      slug: ~
+      sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+      contentType: ~
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts:1114:10)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "content" embed's bodyJson containing a ref-based image resolves mediaTransformVersions/mediaAssetMetadata into its IR props — the exact data renderWidgetPostContent needs to render a real <img> instead of the placeholder
+not ok 49 - resolveHtmlPageEmbeds: a "content" embed's bodyJson containing a ref-based image resolves mediaTransformVersions/mediaAssetMetadata into its IR props — the exact data renderWidgetPostContent needs to render a real <img> instead of the placeholder
+  ---
+  duration_ms: 0.561733
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts:1:40968'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        'asset-1': {
+          contentType: null,
+          cssClass: 'hero',
+          height: 600,
+          htmlAttributes: null,
+    +     sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          slug: null,
+          width: 900
+        }
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    asset-1:
+      width: 900
+      height: 600
+      cssClass: 'hero'
+      htmlAttributes: ~
+      slug: ~
+      contentType: ~
+  actual:
+    asset-1:
+      width: 900
+      height: 600
+      cssClass: 'hero'
+      htmlAttributes: ~
+      slug: ~
+      sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+      contentType: ~
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts:1136:10)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: resolveHtmlPageEmbeds: the legacy "post" embed type resolves the SAME mediaTransformVersions/mediaAssetMetadata for its bodyJson's ref-based images (both "post-content" IR builders shared the same gap, not just "content")
+ok 50 - resolveHtmlPageEmbeds: the legacy "post" embed type resolves the SAME mediaTransformVersions/mediaAssetMetadata for its bodyJson's ref-based images (both "post-content" IR builders shared the same gap, not just "content")
+  ---
+  duration_ms: 0.293816
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "content" embed's bodyJson with a ref-based image, but NO mediaRepo/transformRepo supplied, still resolves the post data — mediaTransformVersions/mediaAssetMetadata degrade to empty rather than the whole embed failing (REQ-27, same never-throws discipline every resolver here follows)
+ok 51 - resolveHtmlPageEmbeds: a "content" embed's bodyJson with a ref-based image, but NO mediaRepo/transformRepo supplied, still resolves the post data — mediaTransformVersions/mediaAssetMetadata degrade to empty rather than the whole embed failing (REQ-27, same never-throws discipline every resolver here follows)
+  ---
+  duration_ms: 0.283997
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: the "content" embed's pendingContentOverride branch (template-preview's unsaved-edit path) ALSO resolves mediaTransformVersions/mediaAssetMetadata for its override bodyJson — this is the editor's own "Preview" tab, the other surface the owner reported as broken alongside the published page
+ok 52 - resolveHtmlPageEmbeds: the "content" embed's pendingContentOverride branch (template-preview's unsaved-edit path) ALSO resolves mediaTransformVersions/mediaAssetMetadata for its override bodyJson — this is the editor's own "Preview" tab, the other surface the owner reported as broken alongside the published page
+  ---
+  duration_ms: 0.23088
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: the "content" embed's pendingContentOverride branch (the admin Preview tab's own path) resolves mediaTransformVersions/mediaAssetMetadata for a GENERIC "media" node too, not just the legacy "image" node — otherwise a real image/video referenced through `media` renders as a placeholder in Preview even though the asset is fine
+not ok 53 - resolveHtmlPageEmbeds: the "content" embed's pendingContentOverride branch (the admin Preview tab's own path) resolves mediaTransformVersions/mediaAssetMetadata for a GENERIC "media" node too, not just the legacy "image" node — otherwise a real image/video referenced through `media` renders as a placeholder in Preview even though the asset is fine
+  ---
+  duration_ms: 0.436353
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts:1:45638'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        'asset-1': {
+          contentType: null,
+          cssClass: null,
+          height: 500,
+          htmlAttributes: null,
+    +     sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          slug: null,
+          width: 800
+        }
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    asset-1:
+      width: 800
+      height: 500
+      cssClass: ~
+      htmlAttributes: ~
+      slug: ~
+      contentType: ~
+  actual:
+    asset-1:
+      width: 800
+      height: 500
+      cssClass: ~
+      htmlAttributes: ~
+      slug: ~
+      sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+      contentType: ~
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts:1247:10)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: resolveHtmlPageEmbeds: the legacy "post" embed type resolves the SAME mediaTransformVersions for a "media" node in its own bodyJson (both "post-content" IR builders share the one collector, so both share the fix)
+ok 54 - resolveHtmlPageEmbeds: the legacy "post" embed type resolves the SAME mediaTransformVersions for a "media" node in its own bodyJson (both "post-content" IR builders share the one collector, so both share the fix)
+  ---
+  duration_ms: 0.327949
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "content" embed's DB branch resolves contentType for a "media" node's asset, so a VIDEO asset renders a real <video> through render.ts's renderWidgetIr — the exact path a live post rendered through a static-tier theme's own template takes for its OWN body, not only a page that embeds the post
+not ok 55 - resolveHtmlPageEmbeds: a "content" embed's DB branch resolves contentType for a "media" node's asset, so a VIDEO asset renders a real <video> through render.ts's renderWidgetIr — the exact path a live post rendered through a static-tier theme's own template takes for its OWN body, not only a page that embeds the post
+  ---
+  duration_ms: 0.582593
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts:1:48107'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        contentType: 'video/mp4',
+        cssClass: null,
+        height: null,
+        htmlAttributes: null,
+    +   sha256: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+        slug: null,
+        width: null
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    width: ~
+    height: ~
+    cssClass: ~
+    htmlAttributes: ~
+    slug: ~
+    contentType: 'video/mp4'
+  actual:
+    width: ~
+    height: ~
+    cssClass: ~
+    htmlAttributes: ~
+    slug: ~
+    sha256: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
+    contentType: 'video/mp4'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts:1303:10)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: resolveHtmlPageEmbeds: CONTROL for the test above — the same "content" DB branch still renders a real <img>, not <video>, for an image/* asset through the identical path (proves the fix does not make everything look like a video)
+not ok 56 - resolveHtmlPageEmbeds: CONTROL for the test above — the same "content" DB branch still renders a real <img>, not <video>, for an image/* asset through the identical path (proves the fix does not make everything look like a video)
+  ---
+  duration_ms: 11.965864
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts:1:49788'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /src="\/m\/asset-1\/public\.v1\/image\.jpg"/. Input:
+    
+    '<img src="/m/asset-1/public.v1/image.jpg?v=dddddddddddd" alt="media probe" loading="lazy">'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: '<img src="/m/asset-1/public.v1/image.jpg?v=dddddddddddd" alt="media probe" loading="lazy">'
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts:1337:10)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: resolveHtmlPageEmbeds: the "content" embed's pendingContentOverride branch resolves props.header from the SAME marker's header:false, exactly like the DB branch — the two branches must not disagree (html-embeds.ts's own doc names this exact divergence class)
+ok 57 - resolveHtmlPageEmbeds: the "content" embed's pendingContentOverride branch resolves props.header from the SAME marker's header:false, exactly like the DB branch — the two branches must not disagree (html-embeds.ts's own doc names this exact divergence class)
+  ---
+  duration_ms: 0.345801
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: the "content" embed's pendingContentOverride branch defaults props.header to true when the marker has no header key, matching the DB branch's default
+ok 58 - resolveHtmlPageEmbeds: the "content" embed's pendingContentOverride branch defaults props.header to true when the marker has no header key, matching the DB branch's default
+  ---
+  duration_ms: 0.192497
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "content" embed's DB branch resolves the post body's inline widgetEmbed nodes, so renderWidgetIr renders the real widget (trashed/missing widgets still degrade to the placeholder) — the path every post rendered through a static-tier theme template takes
+ok 59 - resolveHtmlPageEmbeds: a "content" embed's DB branch resolves the post body's inline widgetEmbed nodes, so renderWidgetIr renders the real widget (trashed/missing widgets still degrade to the placeholder) — the path every post rendered through a static-tier theme template takes
+  ---
+  duration_ms: 0.856998
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: the "content" embed's pendingContentOverride branch (the admin Preview tab) resolves inline widgetEmbed nodes the same way as the DB branch
+ok 60 - resolveHtmlPageEmbeds: the "content" embed's pendingContentOverride branch (the admin Preview tab) resolves inline widgetEmbed nodes the same way as the DB branch
+  ---
+  duration_ms: 0.66703
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: the legacy "post" embed type resolves inline widgetEmbed nodes in its bodyJson too (all three "post-content" IR builders share one context helper)
+ok 61 - resolveHtmlPageEmbeds: the legacy "post" embed type resolves inline widgetEmbed nodes in its bodyJson too (all three "post-content" IR builders share one context helper)
+  ---
+  duration_ms: 0.614773
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a missing explicit id never falls back to a valid competing slug for widget, media or content
+ok 62 - resolveHtmlPageEmbeds: a missing explicit id never falls back to a valid competing slug for widget, media or content
+  ---
+  duration_ms: 0.557155
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a "content" embed's DB branch dates a live post by its publishAt, not updatedAt
+ok 63 - resolveHtmlPageEmbeds: a "content" embed's DB branch dates a live post by its publishAt, not updatedAt
+  ---
+  duration_ms: 1.742607
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: the "content" embed's pendingContentOverride branch (a scheduled post's Preview) dates the post by its future publishAt
+ok 64 - resolveHtmlPageEmbeds: the "content" embed's pendingContentOverride branch (a scheduled post's Preview) dates the post by its future publishAt
+  ---
+  duration_ms: 0.526189
+  type: 'test'
+  ...
+# Subtest: resolveHtmlPageEmbeds: a post with no publishAt keeps dating by updatedAt (unchanged)
+ok 65 - resolveHtmlPageEmbeds: a post with no publishAt keeps dating by updatedAt (unchanged)
+  ---
+  duration_ms: 0.597027
+  type: 'test'
+  ...
+1..65
+# tests 65
+# suites 0
+# pass 57
+# fail 8
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1369.594442

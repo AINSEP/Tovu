@@ -1,0 +1,110 @@
+TAP version 13
+# Subtest: REQ-08/AC-10: @tovu/sdk's runtime export surface is exactly the certified set — no more, no less
+ok 1 - REQ-08/AC-10: @tovu/sdk's runtime export surface is exactly the certified set — no more, no less
+  ---
+  duration_ms: 1.206743
+  type: 'test'
+  ...
+# Subtest: REQ-04: the three v1 capability tokens are the exact, pinned literal strings
+ok 2 - REQ-04: the three v1 capability tokens are the exact, pinned literal strings
+  ---
+  duration_ms: 0.14921
+  type: 'test'
+  ...
+# Subtest: REQ-05: the hook-point constant is the exact, pinned literal string
+ok 3 - REQ-05: the hook-point constant is the exact, pinned literal string
+  ---
+  duration_ms: 0.074684
+  type: 'test'
+  ...
+# Subtest: hooks v2 §3.1: HOOK_POINTS has exactly one entry, content.entry.beforeSave, kind filter, capability hooks.attach, since 0.1.0
+ok 4 - hooks v2 §3.1: HOOK_POINTS has exactly one entry, content.entry.beforeSave, kind filter, capability hooks.attach, since 0.1.0
+  ---
+  duration_ms: 0.160358
+  type: 'test'
+  ...
+# Subtest: REQ-08/C-001: definePlugin is a function export
+ok 5 - REQ-08/C-001: definePlugin is a function export
+  ---
+  duration_ms: 0.080199
+  type: 'test'
+  ...
+# Subtest: REQ-08/C-001: definePlugin(def) returns the same definition, typed as Plugin (pure identity, no I/O)
+ok 6 - REQ-08/C-001: definePlugin(def) returns the same definition, typed as Plugin (pure identity, no I/O)
+  ---
+  duration_ms: 0.119285
+  type: 'test'
+  ...
+# Subtest: REQ-08/C-001: definePlugin performs no filesystem writes or fetches and throws nothing
+ok 7 - REQ-08/C-001: definePlugin performs no filesystem writes or fetches and throws nothing
+  ---
+  duration_ms: 0.990129
+  type: 'test'
+  ...
+# Subtest: SDK consumer types resolve for sync/async filters and route/tool/widget/provider contributions
+ok 8 - SDK consumer types resolve for sync/async filters and route/tool/widget/provider contributions
+  ---
+  duration_ms: 460.877122
+  type: 'test'
+  ...
+# Subtest: SDK external type contracts are declared package dependencies for standalone consumers
+not ok 9 - SDK external type contracts are declared package dependencies for standalone consumers
+  ---
+  duration_ms: 2.816473
+  type: 'test'
+  location: '/home/user/Tovu/packages/sdk/src/__tests__/unit/sdk-public-api.unit.test.ts:12:1209'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'file:/home/user/Jini/packages/plugins'
+    - '^0.6.13'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: '^0.6.13'
+  actual: 'file:/home/user/Jini/packages/plugins'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/packages/sdk/src/__tests__/unit/sdk-public-api.unit.test.ts:142:10)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+    Test.postRun (node:internal/test_runner/test:1542:19)
+    Test.run (node:internal/test_runner/test:1467:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: REQ-08/ADR-005 rule 1: @tovu/sdk exports nothing from @tovu/core — no import of '@tovu/core' or a relative reach into ../../../../src anywhere in the package's own source
+ok 10 - REQ-08/ADR-005 rule 1: @tovu/sdk exports nothing from @tovu/core — no import of '@tovu/core' or a relative reach into ../../../../src anywhere in the package's own source
+  ---
+  duration_ms: 3.901655
+  type: 'test'
+  ...
+# Subtest: REQ-08/AC-10: package.json's exports map blocks deep imports into anything but the package root
+ok 11 - REQ-08/AC-10: package.json's exports map blocks deep imports into anything but the package root
+  ---
+  duration_ms: 18.069348
+  type: 'test'
+  ...
+# Subtest: the package root export targets exist and @tovu/sdk is importable
+ok 12 - the package root export targets exist and @tovu/sdk is importable
+  ---
+  duration_ms: 3.054155
+  type: 'test'
+  ...
+# Subtest: plugwire: executable route/tool/widget capability names are pinned public exports
+ok 13 - plugwire: executable route/tool/widget capability names are pinned public exports
+  ---
+  duration_ms: 0.124032
+  type: 'test'
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 12
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1001.423326

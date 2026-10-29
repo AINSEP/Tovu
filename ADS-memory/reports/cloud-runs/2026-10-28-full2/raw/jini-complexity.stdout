@@ -1,0 +1,12 @@
+
+Oops! Something went wrong! :(
+
+ESLint: 10.8.0
+
+A configuration object specifies rule "sonarjs/cognitive-complexity", but could not find plugin "sonarjs".
+
+Common causes of this problem include:
+
+1. The "sonarjs" plugin is not defined in your configuration file.
+2. The "sonarjs" plugin is not defined within the same configuration object in which the "sonarjs/cognitive-complexity" rule is applied.
+

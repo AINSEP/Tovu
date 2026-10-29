@@ -1,0 +1,31 @@
+TAP version 13
+# Subtest: SEC-1 restore: restoring a sanitized GitHub backup keeps the target site's owner and member, and both can still sign in
+not ok 1 - SEC-1 restore: restoring a sanitized GitHub backup keeps the target site's owner and member, and both can still sign in
+  ---
+  duration_ms: 1033.586305
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/source-control/__tests__/github-backup-restore-accounts.integration.test.ts:1:1824'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/source-control/__tests__/github-backup-restore-accounts.integration.test.ts:67:19)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2537.469899

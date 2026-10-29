@@ -1,0 +1,280 @@
+TAP version 13
+# Subtest: input boundary refuses malformed source/options null
+ok 1 - input boundary refuses malformed source/options null
+  ---
+  duration_ms: 1.632934
+  type: 'test'
+  ...
+# Subtest: input boundary refuses malformed source/options undefined
+ok 2 - input boundary refuses malformed source/options undefined
+  ---
+  duration_ms: 0.152017
+  type: 'test'
+  ...
+# Subtest: input boundary refuses malformed source/options []
+ok 3 - input boundary refuses malformed source/options []
+  ---
+  duration_ms: 0.1055
+  type: 'test'
+  ...
+# Subtest: input boundary refuses malformed source/options false
+ok 4 - input boundary refuses malformed source/options false
+  ---
+  duration_ms: 0.060936
+  type: 'test'
+  ...
+# Subtest: input boundary refuses malformed source/options "url"
+ok 5 - input boundary refuses malformed source/options "url"
+  ---
+  duration_ms: 0.063465
+  type: 'test'
+  ...
+# Subtest: input boundary refuses malformed source/options {"url":1}
+ok 6 - input boundary refuses malformed source/options {"url":1}
+  ---
+  duration_ms: 0.131623
+  type: 'test'
+  ...
+# Subtest: input boundary refuses malformed source/options {"url":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ok 7 - input boundary refuses malformed source/options {"url":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+  ---
+  duration_ms: 0.082167
+  type: 'test'
+  ...
+# Subtest: input boundary refuses malformed source/options {"url":"not a URL"}
+ok 8 - input boundary refuses malformed source/options {"url":"not a URL"}
+  ---
+  duration_ms: 0.089883
+  type: 'test'
+  ...
+# Subtest: input boundary refuses malformed source/options {"url":"https://:password@example.com"}
+ok 9 - input boundary refuses malformed source/options {"url":"https://:password@example.com"}
+  ---
+  duration_ms: 0.09014
+  type: 'test'
+  ...
+# Subtest: input boundary refuses malformed source/options {"url":"https://example.com/\#fragment"}
+ok 10 - input boundary refuses malformed source/options {"url":"https://example.com/\#fragment"}
+  ---
+  duration_ms: 0.189307
+  type: 'test'
+  ...
+# Subtest: input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","displayName":null}
+ok 11 - input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","displayName":null}
+  ---
+  duration_ms: 0.190815
+  type: 'test'
+  ...
+# Subtest: input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","displayName":4}
+ok 12 - input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","displayName":4}
+  ---
+  duration_ms: 0.648694
+  type: 'test'
+  ...
+# Subtest: input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","displayName":""}
+ok 13 - input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","displayName":""}
+  ---
+  duration_ms: 0.110521
+  type: 'test'
+  ...
+# Subtest: input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","displayName":" "}
+ok 14 - input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","displayName":" "}
+  ---
+  duration_ms: 0.054764
+  type: 'test'
+  ...
+# Subtest: input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","displayName":"xxxxxxxxx
+ok 15 - input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","displayName":"xxxxxxxxx
+  ---
+  duration_ms: 0.062607
+  type: 'test'
+  ...
+# Subtest: input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","requestId":null}
+ok 16 - input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","requestId":null}
+  ---
+  duration_ms: 0.040794
+  type: 'test'
+  ...
+# Subtest: input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","requestId":4}
+ok 17 - input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","requestId":4}
+  ---
+  duration_ms: 0.042334
+  type: 'test'
+  ...
+# Subtest: input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","requestId":""}
+ok 18 - input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","requestId":""}
+  ---
+  duration_ms: 0.101328
+  type: 'test'
+  ...
+# Subtest: input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","requestId":"bad space"}
+ok 19 - input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","requestId":"bad space"}
+  ---
+  duration_ms: 0.071731
+  type: 'test'
+  ...
+# Subtest: input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","requestId":"xxxxxxxxxxx
+ok 20 - input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","requestId":"xxxxxxxxxxx
+  ---
+  duration_ms: 0.033659
+  type: 'test'
+  ...
+# Subtest: input boundary refuses malformed source/options {"uploadId":null}
+ok 21 - input boundary refuses malformed source/options {"uploadId":null}
+  ---
+  duration_ms: 0.104113
+  type: 'test'
+  ...
+# Subtest: input boundary refuses malformed source/options {"uploadId":1}
+ok 22 - input boundary refuses malformed source/options {"uploadId":1}
+  ---
+  duration_ms: 0.034742
+  type: 'test'
+  ...
+# Subtest: input boundary refuses malformed source/options {"uploadId":"bad-id"}
+ok 23 - input boundary refuses malformed source/options {"uploadId":"bad-id"}
+  ---
+  duration_ms: 0.047654
+  type: 'test'
+  ...
+# Subtest: input boundary refuses malformed source/options {"uploadId":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}
+ok 24 - input boundary refuses malformed source/options {"uploadId":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}
+  ---
+  duration_ms: 0.046704
+  type: 'test'
+  ...
+# Subtest: source boundary accepts bounded optional metadata and normalizes HTTPS URLs
+ok 25 - source boundary accepts bounded optional metadata and normalizes HTTPS URLs
+  ---
+  duration_ms: 0.607166
+  type: 'test'
+  ...
+# Subtest: registry protects principal boundaries, invalid identifiers, unreadable history and private permissions
+ok 26 - registry protects principal boundaries, invalid identifiers, unreadable history and private permissions
+  ---
+  duration_ms: 578.652275
+  type: 'test'
+  ...
+# Subtest: registry expires only old staged payloads and pending owner rows, retaining ready history and corrupt evidence
+ok 27 - registry expires only old staged payloads and pending owner rows, retaining ready history and corrupt evidence
+  ---
+  duration_ms: 499.752079
+  type: 'test'
+  ...
+# Subtest: upload budget refuses a fifth payload and low disk space before retaining bytes
+ok 28 - upload budget refuses a fifth payload and low disk space before retaining bytes
+  ---
+  duration_ms: 538.494924
+  type: 'test'
+  ...
+# Subtest: upload metadata failure removes the private ZIP and releases the transfer lock
+ok 29 - upload metadata failure removes the private ZIP and releases the transfer lock
+  ---
+  duration_ms: 441.831051
+  type: 'test'
+  ...
+# Subtest: in-flight import rejects another operation, then releases its lane on verification failure
+ok 30 - in-flight import rejects another operation, then releases its lane on verification failure
+  ---
+  duration_ms: 625.184554
+  type: 'test'
+  ...
+# Subtest: a consumed upload cannot create a second import, while request replay is idempotent and source-bound
+not ok 31 - a consumed upload cannot create a second import, while request replay is idempotent and source-bound
+  ---
+  duration_ms: 485.542015
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-failures.integration.test.ts:1:7711'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-failures.integration.test.ts:109:19)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: unfinished creation without an allocation is classified as failed only under the lane lock
+ok 32 - unfinished creation without an allocation is classified as failed only under the lane lock
+  ---
+  duration_ms: 422.670693
+  type: 'test'
+  ...
+# Subtest: owner creation remains ready and idempotent after no URL
+not ok 33 - owner creation remains ready and idempotent after no URL
+  ---
+  duration_ms: 567.258065
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-failures.integration.test.ts:1:9379'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-failures.integration.test.ts:129:19)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: owner creation remains ready and idempotent after supervisor error
+not ok 34 - owner creation remains ready and idempotent after supervisor error
+  ---
+  duration_ms: 524.850632
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-failures.integration.test.ts:1:9379'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-failures.integration.test.ts:129:19)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: owner creation checks volume space before allocating and keeps staged data for retry
+not ok 35 - owner creation checks volume space before allocating and keeps staged data for retry
+  ---
+  duration_ms: 524.833236
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-failures.integration.test.ts:1:11117'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-failures.integration.test.ts:145:19)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+1..35
+# tests 35
+# suites 0
+# pass 31
+# fail 4
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6863.297194

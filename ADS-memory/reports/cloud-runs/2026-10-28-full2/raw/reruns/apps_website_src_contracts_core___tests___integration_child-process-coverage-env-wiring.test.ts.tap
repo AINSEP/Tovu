@@ -1,0 +1,185 @@
+TAP version 13
+# Subtest: the wiring guard rejects commented or unused helper calls and checks every spawn
+ok 1 - the wiring guard rejects commented or unused helper calls and checks every spawn
+  ---
+  duration_ms: 3.217746
+  type: 'test'
+  ...
+# Subtest: CLI spawner discovery includes the previously omitted adopt and serve lifecycle entry points
+ok 2 - CLI spawner discovery includes the previously omitted adopt and serve lifecycle entry points
+  ---
+  duration_ms: 0.151637
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/export-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 3 - apps/website/src/cli/__tests__/integration/export-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 3.218409
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/theme-validate-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 4 - apps/website/src/cli/__tests__/integration/theme-validate-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 1.563065
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/theme-normalize-build-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 5 - apps/website/src/cli/__tests__/integration/theme-normalize-build-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 1.602068
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/theme-migrate-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 6 - apps/website/src/cli/__tests__/integration/theme-migrate-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 1.5128
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/introspect-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 7 - apps/website/src/cli/__tests__/integration/introspect-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 1.139187
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/init-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 8 - apps/website/src/cli/__tests__/integration/init-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 1.149943
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/help-and-unknown-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 9 - apps/website/src/cli/__tests__/integration/help-and-unknown-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 0.843267
+  type: 'test'
+  ...
+# Subtest: apps/website/src/features/theme/__tests__/astro-real-bundler-conformance.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 10 - apps/website/src/features/theme/__tests__/astro-real-bundler-conformance.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 1.310116
+  type: 'test'
+  ...
+# Subtest: apps/website/src/platform/db/__tests__/schema-postgres-drift.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 11 - apps/website/src/platform/db/__tests__/schema-postgres-drift.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 1.810423
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/serve-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+not ok 12 - apps/website/src/cli/__tests__/integration/serve-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 17.463572
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/contracts/core/__tests__/integration/child-process-coverage-env-wiring.test.ts:11:1277'
+  failureType: 'testCodeFailure'
+  error: |-
+    apps/website/src/cli/__tests__/integration/serve-command.integration.test.ts has a spawn whose environment bypasses the coverage helper
+    + actual - expected
+    
+    + [
+    +   'spawn(process.execPath, ["--import", TSX_LOADER, CLI_MAIN, "serve", ...args], { env: childEnv, cwd })'
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0: 'spawn(process.execPath, ["--import", TSX_LOADER, CLI_MAIN, "serve", ...args], { env: childEnv, cwd })'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/contracts/core/__tests__/integration/child-process-coverage-env-wiring.test.ts:138:12)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+    Test.postRun (node:internal/test_runner/test:1542:19)
+    Test.run (node:internal/test_runner/test:1467:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: apps/website/src/server/inbound/assistant/__tests__/integration/daemon-boots.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 13 - apps/website/src/server/inbound/assistant/__tests__/integration/daemon-boots.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 1.330179
+  type: 'test'
+  ...
+# Subtest: apps/website/src/platform/site-dir/__tests__/integration/init-site-fault-injection.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 14 - apps/website/src/platform/site-dir/__tests__/integration/init-site-fault-injection.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 1.365238
+  type: 'test'
+  ...
+# Subtest: apps/website/src/__tests__/integration/port-in-use.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 15 - apps/website/src/__tests__/integration/port-in-use.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 0.879174
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/adopt-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 16 - apps/website/src/cli/__tests__/integration/adopt-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 3.12945
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/deploy-config-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 17 - apps/website/src/cli/__tests__/integration/deploy-config-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 0.808566
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/export-command-migration-recovery.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 18 - apps/website/src/cli/__tests__/integration/export-command-migration-recovery.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 0.854689
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/export-command-plugin-sdk-resolver.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 19 - apps/website/src/cli/__tests__/integration/export-command-plugin-sdk-resolver.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 1.001413
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/init-admin-password.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 20 - apps/website/src/cli/__tests__/integration/init-admin-password.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 0.801007
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/owner-store.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 21 - apps/website/src/cli/__tests__/integration/owner-store.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 3.234113
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/serve-command-boot-lifecycle.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 22 - apps/website/src/cli/__tests__/integration/serve-command-boot-lifecycle.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 2.446904
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/serve-command-plugin-sdk-resolver.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 23 - apps/website/src/cli/__tests__/integration/serve-command-plugin-sdk-resolver.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 1.897961
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/serve-command-site-key.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 24 - apps/website/src/cli/__tests__/integration/serve-command-site-key.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 1.737392
+  type: 'test'
+  ...
+# Subtest: apps/website/src/cli/__tests__/integration/theme-sync-originals-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+ok 25 - apps/website/src/cli/__tests__/integration/theme-sync-originals-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment
+  ---
+  duration_ms: 0.606739
+  type: 'test'
+  ...
+1..25
+# tests 25
+# suites 0
+# pass 24
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 820.175137

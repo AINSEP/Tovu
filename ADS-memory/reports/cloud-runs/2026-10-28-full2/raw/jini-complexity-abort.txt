@@ -1,0 +1,1 @@
+ERR: configuration object specifies rule sonarjs/cognitive-complexity but could not find plugin sonarjs (js/mjs files matched by complexity:strict globs, no sonarjs plugin in their config objects) exit 2

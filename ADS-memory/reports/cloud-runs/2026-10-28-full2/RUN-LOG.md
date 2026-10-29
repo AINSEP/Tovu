@@ -9,3 +9,4 @@
 - 2026-10-29T00:24:32Z Shard 0 done exit1; admin vitest done (1 fail: login-default-credential, stale path wiring.ts -> constant now platform/site-dir/new-site-owner.ts:10; rerun fails again). Desktop tests started. Shards 3-7 running.
 - 2026-10-29T00:34:12Z Desktop npm test: 1 fail (site-error-feedback D-24, appScreen not defined; rerun fails). Tovu complexity:strict done: 11 complexity/cognitive violations, all in old migrations 0006/0011/0012/0013; 1280 other sonarjs msgs (strict config enables full sonarjs set). Shard 3 done. Waiting 4-7.
 - 2026-10-29T00:49:21Z shards 0-4 done; 5,6,7 running.
+- 2026-10-29T01:05:51Z ALL 8 shards done (exit 1 each; fails=129 leaf+99 cancelled in 63 files). Coverage merged: all-files 86.04% lines, 1232 NEVER-LOADED; route floor passes (99.92/79.81/98.98 — NOT failing as expected). classify + per-file route table written. Reruns of 63 failing files in progress.

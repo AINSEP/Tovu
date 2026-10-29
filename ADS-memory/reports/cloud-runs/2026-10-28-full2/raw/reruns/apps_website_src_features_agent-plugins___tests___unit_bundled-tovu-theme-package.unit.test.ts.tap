@@ -1,0 +1,133 @@
+TAP version 13
+# Subtest: tovu-theme and site-import load ui-ux-design before designing themes or writing page layouts
+ok 1 - tovu-theme and site-import load ui-ux-design before designing themes or writing page layouts
+  ---
+  duration_ms: 7.197726
+  type: 'test'
+  ...
+# Subtest: Part C discovers the active theme through the site profile, rather than treating the theme list as an active id
+ok 2 - Part C discovers the active theme through the site profile, rather than treating the theme list as an active id
+  ---
+  duration_ms: 0.988945
+  type: 'test'
+  ...
+# Subtest: every tool tovu-theme's skill and references cite is a real native tool or a per-plugin tool
+not ok 3 - every tool tovu-theme's skill and references cite is a real native tool or a per-plugin tool
+  ---
+  duration_ms: 4.578087
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/bundled-tovu-theme-package.unit.test.ts:1:3959'
+  failureType: 'testCodeFailure'
+  error: |-
+    the skill tells agents to call tools that do not exist
+    + actual - expected
+    
+    + [
+    +   'SKILL.md: media_list_assets (retired — use content_read.media_asset)'
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0: 'SKILL.md: media_list_assets (retired — use content_read.media_asset)'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/bundled-tovu-theme-package.unit.test.ts:100:10)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: matching a reference site uses theme_duplicate only as a scaffold and rebuilds layout, not just colours
+ok 4 - matching a reference site uses theme_duplicate only as a scaffold and rebuilds layout, not just colours
+  ---
+  duration_ms: 1.723481
+  type: 'test'
+  ...
+# Subtest: the compare loop is mandatory: source and own page, desktop and mobile, capped rounds, never done without a capture
+ok 5 - the compare loop is mandatory: source and own page, desktop and mobile, capped rounds, never done without a capture
+  ---
+  duration_ms: 0.929789
+  type: 'test'
+  ...
+# Subtest: theme guidance checks all pages at both sizes and uses asset tools
+ok 6 - theme guidance checks all pages at both sizes and uses asset tools
+  ---
+  duration_ms: 0.646189
+  type: 'test'
+  ...
+# Subtest: the header menu is wired by the menu marker's id, the way static themes resolve menus
+ok 7 - the header menu is wired by the menu marker's id, the way static themes resolve menus
+  ---
+  duration_ms: 1.193798
+  type: 'test'
+  ...
+# Subtest: site-import hands its theme step to tovu-theme and keeps no duplicate-and-tweak recipe
+ok 8 - site-import hands its theme step to tovu-theme and keeps no duplicate-and-tweak recipe
+  ---
+  duration_ms: 1.384033
+  type: 'test'
+  ...
+# Subtest: importing the homepage also imports the main menu and the header call-to-action
+ok 9 - importing the homepage also imports the main menu and the header call-to-action
+  ---
+  duration_ms: 0.906798
+  type: 'test'
+  ...
+# Subtest: neither skill gates copying on ownership or the right to copy
+ok 10 - neither skill gates copying on ownership or the right to copy
+  ---
+  duration_ms: 2.521632
+  type: 'test'
+  ...
+# Subtest: Part C copies the source's real text, images, logo, brand names and fonts verbatim, never placeholder copy
+ok 11 - Part C copies the source's real text, images, logo, brand names and fonts verbatim, never placeholder copy
+  ---
+  duration_ms: 1.292687
+  type: 'test'
+  ...
+# Subtest: fonts are imported into the theme with theme_import_file_from_url; linking the source's font URLs is only the fallback
+ok 12 - fonts are imported into the theme with theme_import_file_from_url; linking the source's font URLs is only the fallback
+  ---
+  duration_ms: 0.846748
+  type: 'test'
+  ...
+# Subtest: the compare loop sees the theme copy through themeId, never by activating it, and reports cite the saved capture paths
+ok 13 - the compare loop sees the theme copy through themeId, never by activating it, and reports cite the saved capture paths
+  ---
+  duration_ms: 1.210255
+  type: 'test'
+  ...
+# Subtest: copying a site is modular: every header and footer link list is a menu rendered through a marker, never hard-coded
+ok 14 - copying a site is modular: every header and footer link list is a menu rendered through a marker, never hard-coded
+  ---
+  duration_ms: 0.973958
+  type: 'test'
+  ...
+# Subtest: site-import builds the footer link columns as menus too and hands their slugs to the theme step
+ok 15 - site-import builds the footer link columns as menus too and hands their slugs to the theme step
+  ---
+  duration_ms: 1.1291
+  type: 'test'
+  ...
+# Subtest: Tovuize asks exactly one unchecked static opt-out before either conversion branch
+ok 16 - Tovuize asks exactly one unchecked static opt-out before either conversion branch
+  ---
+  duration_ms: 1.310869
+  type: 'test'
+  ...
+# Subtest: Tovuize reuses local Media and shared Page mapping with matching family shells; static makes no Pages
+ok 17 - Tovuize reuses local Media and shared Page mapping with matching family shells; static makes no Pages
+  ---
+  duration_ms: 2.114266
+  type: 'test'
+  ...
+1..17
+# tests 17
+# suites 0
+# pass 16
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 310.806722

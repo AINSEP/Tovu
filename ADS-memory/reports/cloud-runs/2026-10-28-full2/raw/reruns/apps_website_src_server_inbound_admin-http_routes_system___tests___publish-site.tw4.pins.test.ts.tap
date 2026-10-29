@@ -1,0 +1,41 @@
+TAP version 13
+# [publish-site] unexpected error triggering a publish ForbiddenError: principal 'owner' is not authorized for 'system.publish' (principal_disabled)
+#     at requireToolPermission (/home/user/Jini/packages/core/src/tool-permissions.ts:79:30)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+#     at async Object.deploymentCheck (/home/user/Tovu/apps/website/src/features/consent/service.ts:167:5)
+#     at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/publish-site.ts:272:11) {
+#   permission: 'system.publish',
+#   reason: 'principal_disabled'
+# }
+# Subtest: publish trigger preserves shape errors, validation order, and domain confirmation before consent
+not ok 1 - publish trigger preserves shape errors, validation order, and domain confirmation before consent
+  ---
+  duration_ms: 256.904431
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/publish-site.tw4.pins.test.ts:1:552'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    500 !== 409
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 409
+  actual: 500
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/publish-site.tw4.pins.test.ts:53:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4150.658211

@@ -1,0 +1,62 @@
+TAP version 13
+# Subtest: createSeoDeps: siteTitle counts only an explicit workspace title, never the registered default
+ok 1 - createSeoDeps: siteTitle counts only an explicit workspace title, never the registered default
+  ---
+  duration_ms: 2.357526
+  type: 'test'
+  ...
+# Subtest: createSeoDeps: static bindings, clock/transform receivers and public-access decision
+not ok 2 - createSeoDeps: static bindings, clock/transform receivers and public-access decision
+  ---
+  duration_ms: 3.096786
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/seo/__tests__/index.unit.test.ts:1:2598'
+  failureType: 'testCodeFailure'
+  error: |-
+    listByName keeps its receiver
+    + actual - expected
+    
+      [
+    +   'transform-repo:[object Object]'
+    -   'transform-repo:og'
+      ]
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 'transform-repo:og'
+  actual:
+    0: 'transform-repo:[object Object]'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/seo/__tests__/index.unit.test.ts:67:10)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: createSeoDeps: liveness and url ports delegate to the scheduled-publish and routing owners
+ok 3 - createSeoDeps: liveness and url ports delegate to the scheduled-publish and routing owners
+  ---
+  duration_ms: 0.276743
+  type: 'test'
+  ...
+# Subtest: createSeoDeps: dispatch drains the outbox through the host outbox worker
+ok 4 - createSeoDeps: dispatch drains the outbox through the host outbox worker
+  ---
+  duration_ms: 1.119954
+  type: 'test'
+  ...
+# Subtest: createSeoPostPort: every port method calls through the host repo with its receiver intact
+ok 5 - createSeoPostPort: every port method calls through the host repo with its receiver intact
+  ---
+  duration_ms: 0.900537
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 4
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1398.24894

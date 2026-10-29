@@ -1,0 +1,73 @@
+TAP version 13
+# Subtest: Ask advertises but never runs until this visitor clicks allow=true
+ok 1 - Ask advertises but never runs until this visitor clicks allow=true
+  ---
+  duration_ms: 12.652459
+  type: 'test'
+  ...
+# Subtest: Ask advertises but never runs until this visitor clicks allow=false
+ok 2 - Ask advertises but never runs until this visitor clicks allow=false
+  ---
+  duration_ms: 1.918753
+  type: 'test'
+  ...
+# Subtest: timeout while waiting refuses uniformly with a terminal audit
+ok 3 - timeout while waiting refuses uniformly with a terminal audit
+  ---
+  duration_ms: 6.626183
+  type: 'test'
+  ...
+# Subtest: disconnect while waiting refuses uniformly with a terminal audit
+ok 4 - disconnect while waiting refuses uniformly with a terminal audit
+  ---
+  duration_ms: 1.191107
+  type: 'test'
+  ...
+# Subtest: off while waiting refuses uniformly with a terminal audit
+ok 5 - off while waiting refuses uniformly with a terminal audit
+  ---
+  duration_ms: 3.162526
+  type: 'test'
+  ...
+# Subtest: restored while waiting refuses uniformly with a terminal audit
+ok 6 - restored while waiting refuses uniformly with a terminal audit
+  ---
+  duration_ms: 1.925725
+  type: 'test'
+  ...
+# Subtest: corrupt while waiting refuses uniformly with a terminal audit
+ok 7 - corrupt while waiting refuses uniformly with a terminal audit
+  ---
+  duration_ms: 1.85903
+  type: 'test'
+  ...
+# Subtest: storage-error while waiting refuses uniformly with a terminal audit
+ok 8 - storage-error while waiting refuses uniformly with a terminal audit
+  ---
+  duration_ms: 4.568192
+  type: 'test'
+  ...
+# Subtest: input is detached before the confirmation wait
+ok 9 - input is detached before the confirmation wait
+  ---
+  duration_ms: 1.545912
+  type: 'test'
+  ...
+# Subtest: a revision change after the click is refused before the effect
+ok 10 - a revision change after the click is refused before the effect
+  ---
+  duration_ms: 1.828653
+  type: 'test'
+  ...
+# Subtest: policy read failure before a prompt fails closed and retains diagnostics
+ok 11 - policy read failure before a prompt fails closed and retains diagnostics
+  ---
+  duration_ms: 0.593489
+  type: 'test'
+  ...
+# Subtest: a policy switch before the delegate and an Auto-to-Ask switch cannot bypass the click
+ok 12 - a policy switch before the delegate and an Auto-to-Ask switch cannot bypass the click
+  ---
+  duration_ms: 0.470526
+  type: 'test'
+  ...

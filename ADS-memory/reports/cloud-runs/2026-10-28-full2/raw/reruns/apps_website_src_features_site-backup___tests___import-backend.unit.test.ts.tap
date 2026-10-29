@@ -1,0 +1,641 @@
+TAP version 13
+# Subtest: input with null is refused as a source error
+ok 1 - input with null is refused as a source error
+  ---
+  duration_ms: 1.746899
+  type: 'test'
+  ...
+# Subtest: input with a string is refused as a source error
+ok 2 - input with a string is refused as a source error
+  ---
+  duration_ms: 0.144492
+  type: 'test'
+  ...
+# Subtest: input with an array is refused as a source error
+ok 3 - input with an array is refused as a source error
+  ---
+  duration_ms: 0.201614
+  type: 'test'
+  ...
+# Subtest: input with an unknown key is refused as a source error
+ok 4 - input with an unknown key is refused as a source error
+  ---
+  duration_ms: 0.125268
+  type: 'test'
+  ...
+# Subtest: input with both sources is refused as a source error
+ok 5 - input with both sources is refused as a source error
+  ---
+  duration_ms: 0.098701
+  type: 'test'
+  ...
+# Subtest: input with no source is refused as a source error
+ok 6 - input with no source is refused as a source error
+  ---
+  duration_ms: 0.066703
+  type: 'test'
+  ...
+# Subtest: an array carrying a url property is refused as a source error
+ok 7 - an array carrying a url property is refused as a source error
+  ---
+  duration_ms: 0.162593
+  type: 'test'
+  ...
+# Subtest: displayName 42 is refused
+ok 8 - displayName 42 is refused
+  ---
+  duration_ms: 0.165359
+  type: 'test'
+  ...
+# Subtest: displayName "  " is refused
+ok 9 - displayName "  " is refused
+  ---
+  duration_ms: 0.284054
+  type: 'test'
+  ...
+# Subtest: displayName "xxxxxxxxxxx is refused
+ok 10 - displayName "xxxxxxxxxxx is refused
+  ---
+  duration_ms: 0.166131
+  type: 'test'
+  ...
+# Subtest: requestId 7 is refused
+ok 11 - requestId 7 is refused
+  ---
+  duration_ms: 0.18662
+  type: 'test'
+  ...
+# Subtest: requestId "" is refused
+ok 12 - requestId "" is refused
+  ---
+  duration_ms: 0.105639
+  type: 'test'
+  ...
+# Subtest: requestId "has space" is refused
+ok 13 - requestId "has space" is refused
+  ---
+  duration_ms: 0.072759
+  type: 'test'
+  ...
+# Subtest: requestId "xxxxxxxxxxx is refused
+ok 14 - requestId "xxxxxxxxxxx is refused
+  ---
+  duration_ms: 0.038987
+  type: 'test'
+  ...
+# Subtest: url 42 is refused as not an HTTPS share URL
+ok 15 - url 42 is refused as not an HTTPS share URL
+  ---
+  duration_ms: 0.118641
+  type: 'test'
+  ...
+# Subtest: url "https://a.examp is refused as not an HTTPS share URL
+ok 16 - url "https://a.examp is refused as not an HTTPS share URL
+  ---
+  duration_ms: 0.039318
+  type: 'test'
+  ...
+# Subtest: url "not a url" is refused as not an HTTPS share URL
+ok 17 - url "not a url" is refused as not an HTTPS share URL
+  ---
+  duration_ms: 0.071744
+  type: 'test'
+  ...
+# Subtest: url http://a.example/x.zip is refused for scheme, credentials or fragment
+ok 18 - url http://a.example/x.zip is refused for scheme, credentials or fragment
+  ---
+  duration_ms: 0.126208
+  type: 'test'
+  ...
+# Subtest: url https://user@a.example/x.zip is refused for scheme, credentials or fragment
+ok 19 - url https://user@a.example/x.zip is refused for scheme, credentials or fragment
+  ---
+  duration_ms: 0.045283
+  type: 'test'
+  ...
+# Subtest: url https://:pw@a.example/x.zip is refused for scheme, credentials or fragment
+ok 20 - url https://:pw@a.example/x.zip is refused for scheme, credentials or fragment
+  ---
+  duration_ms: 0.03562
+  type: 'test'
+  ...
+# Subtest: url https://a.example/x.zip\#frag is refused for scheme, credentials or fragment
+ok 21 - url https://a.example/x.zip\#frag is refused for scheme, credentials or fragment
+  ---
+  duration_ms: 0.057573
+  type: 'test'
+  ...
+# Subtest: uploadId 7 is refused
+ok 22 - uploadId 7 is refused
+  ---
+  duration_ms: 0.112405
+  type: 'test'
+  ...
+# Subtest: uploadId "../../etc/passw is refused
+ok 23 - uploadId "../../etc/passw is refused
+  ---
+  duration_ms: 0.068877
+  type: 'test'
+  ...
+# Subtest: uploadId "0F8FAD5B-D9CB-4 is refused
+ok 24 - uploadId "0F8FAD5B-D9CB-4 is refused
+  ---
+  duration_ms: 0.060853
+  type: 'test'
+  ...
+# Subtest: a URL source is normalised to its href and optional fields are kept only when given
+ok 25 - a URL source is normalised to its href and optional fields are kept only when given
+  ---
+  duration_ms: 0.52647
+  type: 'test'
+  ...
+# Subtest: an upload over the archive cap is refused with the upload cap message
+ok 26 - an upload over the archive cap is refused with the upload cap message
+  ---
+  duration_ms: 510.685523
+  type: 'test'
+  ...
+# Subtest: a fifth staged payload is refused with the staging budget message
+ok 27 - a fifth staged payload is refused with the staging budget message
+  ---
+  duration_ms: 401.246622
+  type: 'test'
+  ...
+# Subtest: low private staging space is refused with the staging space message
+ok 28 - low private staging space is refused with the staging space message
+  ---
+  duration_ms: 406.666625
+  type: 'test'
+  ...
+# Subtest: a URL import checks the staging budget; an upload import does not
+not ok 29 - a URL import checks the staging budget; an upload import does not
+  ---
+  duration_ms: 661.246673
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:4553'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:84:17)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: a request id reused for another source is refused
+not ok 30 - a request id reused for another source is refused
+  ---
+  duration_ms: 564.151085
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:5234'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:88:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: a consumed upload is refused and recorded on the failed row
+not ok 31 - a consumed upload is refused and recorded on the failed row
+  ---
+  duration_ms: 700.199202
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:5674'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:93:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: an already-aborted caller signal fails the import before anything is fetched
+ok 32 - an already-aborted caller signal fails the import before anything is fetched
+  ---
+  duration_ms: 466.934988
+  type: 'test'
+  ...
+# Subtest: the download request is a bounded identity GET of the share URL
+not ok 33 - the download request is a bounded identity GET of the share URL
+  ---
+  duration_ms: 548.050555
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:6868'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:108:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: a download with a non-200 status is refused as a failed download
+ok 34 - a download with a non-200 status is refused as a failed download
+  ---
+  duration_ms: 494.346287
+  type: 'test'
+  ...
+# Subtest: a download with no body is refused as a failed download
+ok 35 - a download with no body is refused as a failed download
+  ---
+  duration_ms: 464.23653
+  type: 'test'
+  ...
+# Subtest: a download with a truncated body is refused as a failed download
+ok 36 - a download with a truncated body is refused as a failed download
+  ---
+  duration_ms: 465.322473
+  type: 'test'
+  ...
+# Subtest: a download with content type {} is refused
+ok 37 - a download with content type {} is refused
+  ---
+  duration_ms: 487.724143
+  type: 'test'
+  ...
+# Subtest: a download with content type {"content-type":""} is refused
+ok 38 - a download with content type {"content-type":""} is refused
+  ---
+  duration_ms: 486.247529
+  type: 'test'
+  ...
+# Subtest: a download with content type {"content-type":"text/html"} is refused
+ok 39 - a download with content type {"content-type":"text/html"} is refused
+  ---
+  duration_ms: 431.790485
+  type: 'test'
+  ...
+# Subtest: an archive reader error that is not a share refusal is recorded with the generic message
+ok 40 - an archive reader error that is not a share refusal is recorded with the generic message
+  ---
+  duration_ms: 426.273317
+  type: 'test'
+  ...
+# Subtest: the imported site name comes from the archive unless a display name was given
+not ok 41 - the imported site name comes from the archive unless a display name was given
+  ---
+  duration_ms: 612.292036
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:9132'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:134:17)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: site_imported fires exactly once after owner commit, including a repeated completion
+not ok 42 - site_imported fires exactly once after owner commit, including a repeated completion
+  ---
+  duration_ms: 600.227314
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:9812'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:147:19)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: site_imported stays silent when creating the imported site fails
+not ok 43 - site_imported stays silent when creating the imported site fails
+  ---
+  duration_ms: 542.498741
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:11059'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:167:19)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: owner setup on a failed import is refused as not awaiting setup
+not ok 44 - owner setup on a failed import is refused as not awaiting setup
+  ---
+  duration_ms: 580.665958
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:12122'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async pendingImport (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:175:19)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:179:26)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: owner password undefined is refused
+not ok 45 - owner password undefined is refused
+  ---
+  duration_ms: 529.750983
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:12647'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async pendingImport (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:175:19)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:185:28)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: owner password tovu-dev is refused
+not ok 46 - owner password tovu-dev is refused
+  ---
+  duration_ms: 462.201441
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:12647'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async pendingImport (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:175:19)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:185:28)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: low sites-home space is refused with the sites-home message
+not ok 47 - low sites-home space is refused with the sites-home message
+  ---
+  duration_ms: 476.294404
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:12985'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async pendingImport (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:175:19)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:190:26)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: an already-aborted owner setup is refused before the row is marked creating
+not ok 48 - an already-aborted owner setup is refused before the row is marked creating
+  ---
+  duration_ms: 461.099029
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:13431'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async pendingImport (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:175:19)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:195:26)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: a failed site creation is rolled back and recorded
+not ok 49 - a failed site creation is rolled back and recorded
+  ---
+  duration_ms: 437.35147
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:13872'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async pendingImport (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:175:19)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:200:26)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: a created site started with no admin URL records its start outcome
+not ok 50 - a created site started with no admin URL records its start outcome
+  ---
+  duration_ms: 490.611891
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:14916'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async pendingImport (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:175:19)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:213:28)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: a created site started with a supervisor error records its start outcome
+not ok 51 - a created site started with a supervisor error records its start outcome
+  ---
+  duration_ms: 413.133923
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:14916'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async pendingImport (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:175:19)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:213:28)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: a created site started with an admin URL records its start outcome
+not ok 52 - a created site started with an admin URL records its start outcome
+  ---
+  duration_ms: 451.919911
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:14916'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async pendingImport (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:175:19)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:213:28)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: a pending import view carries the default setup URL and owner instructions
+not ok 53 - a pending import view carries the default setup URL and owner instructions
+  ---
+  duration_ms: 461.17705
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:15418'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async pendingImport (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:175:19)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:220:23)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: progress reports every stored status in order
+not ok 54 - progress reports every stored status in order
+  ---
+  duration_ms: 409.244322
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:15820'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:227:19)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: a replayed request id returns the original import without starting another
+not ok 55 - a replayed request id returns the original import without starting another
+  ---
+  duration_ms: 513.486558
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:16371'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:233:17)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: a second operation while one holds the import lane is refused as busy
+ok 56 - a second operation while one holds the import lane is refused as busy
+  ---
+  duration_ms: 348.593192
+  type: 'test'
+  ...
+1..56
+# tests 56
+# suites 0
+# pass 37
+# fail 19
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 16920.175431

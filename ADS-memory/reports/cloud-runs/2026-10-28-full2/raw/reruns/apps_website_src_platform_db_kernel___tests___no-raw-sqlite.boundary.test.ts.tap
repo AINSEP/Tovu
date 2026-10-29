@@ -1,0 +1,77 @@
+TAP version 13
+# Subtest: comment stripping: prose never counts, SQL in strings and templates does
+ok 1 - comment stripping: prose never counts, SQL in strings and templates does
+  ---
+  duration_ms: 8.721135
+  type: 'test'
+  ...
+# Subtest: a bare `.prepare()` (a lifecycle hook, no SQL) is not a prepared statement
+ok 2 - a bare `.prepare()` (a lifecycle hook, no SQL) is not a prepared statement
+  ---
+  duration_ms: 0.934966
+  type: 'test'
+  ...
+# Subtest: an object-literal `.prepare({...})` (the secrets vault port) is not a prepared statement
+ok 3 - an object-literal `.prepare({...})` (the secrets vault port) is not a prepared statement
+  ---
+  duration_ms: 1.010166
+  type: 'test'
+  ...
+# Subtest: better-sqlite3's inTransaction property counts; the kernel port's inTransaction() call does not
+ok 4 - better-sqlite3's inTransaction property counts; the kernel port's inTransaction() call does not
+  ---
+  duration_ms: 1.384034
+  type: 'test'
+  ...
+# Subtest: literal computed prepare calls cannot bypass the SQLite ratchet
+ok 5 - literal computed prepare calls cannot bypass the SQLite ratchet
+  ---
+  duration_ms: 1.727088
+  type: 'test'
+  ...
+# Subtest: no new raw SQLite outside the storage kernel (ratchet: the baseline only shrinks)
+not ok 6 - no new raw SQLite outside the storage kernel (ratchet: the baseline only shrinks)
+  ---
+  duration_ms: 1215.662317
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/no-raw-sqlite.boundary.test.ts:1:1784'
+  failureType: 'testCodeFailure'
+  error: |-
+    New raw SQLite outside platform/db/kernel. Use the storage kernel (run/transaction + Drizzle, dialect.ts helpers) instead.
+    + actual - expected
+    
+    + [
+    +   'apps/website/src/features/project-keys/attachments.ts: insert-or 0 -> 1',
+    +   'apps/website/src/platform/db/migrations/project/0000_project_vault.ts: sqlite-json 0 -> 2',
+    +   'apps/website/src/platform/db/migrations/project/0001_project_credential_kinds.ts: sqlite-json 0 -> 2',
+    +   'apps/website/src/server/runtime/composition/project-store.ts: pragma 0 -> 2'
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0: 'apps/website/src/features/project-keys/attachments.ts: insert-or 0 -> 1'
+    1: 'apps/website/src/platform/db/migrations/project/0000_project_vault.ts: sqlite-json 0 -> 2'
+    2: 'apps/website/src/platform/db/migrations/project/0001_project_credential_kinds.ts: sqlite-json 0 -> 2'
+    3: 'apps/website/src/server/runtime/composition/project-store.ts: pragma 0 -> 2'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/no-raw-sqlite.boundary.test.ts:83:10)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+    Test.postRun (node:internal/test_runner/test:1542:19)
+    Test.run (node:internal/test_runner/test:1467:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 5
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1880.218376

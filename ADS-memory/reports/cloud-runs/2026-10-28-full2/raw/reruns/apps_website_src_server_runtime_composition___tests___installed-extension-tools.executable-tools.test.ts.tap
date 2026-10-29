@@ -1,0 +1,88 @@
+TAP version 13
+# Subtest: executable plugin tools land on the process registry and are gated by the live activation record per call
+ok 1 - executable plugin tools land on the process registry and are gated by the live activation record per call
+  ---
+  duration_ms: 25.0906
+  type: 'test'
+  ...
+# Subtest: a write tool asks through the process's confirmation transport, with the plugin's disclosed rows
+not ok 2 - a write tool asks through the process's confirmation transport, with the plugin's disclosed rows
+  ---
+  duration_ms: 9.187749
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/installed-extension-tools.executable-tools.test.ts:1:3777'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      [
+        [
+    +     'Connection ref',
+    +     'conn-1'
+    -     'Tool',
+    -     'p_acme_office__append_rows'
+        ]
+      ]
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0:
+      0: 'Tool'
+      1: 'p_acme_office__append_rows'
+  actual:
+    0:
+      0: 'Connection ref'
+      1: 'conn-1'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/installed-extension-tools.executable-tools.test.ts:79:10)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: without agentPluginTools the executable family is skipped
+ok 3 - without agentPluginTools the executable family is skipped
+  ---
+  duration_ms: 3.014833
+  type: 'test'
+  ...
+# Subtest: without surfaces the executable family is skipped
+ok 4 - without surfaces the executable family is skipped
+  ---
+  duration_ms: 1.219756
+  type: 'test'
+  ...
+# Subtest: without executablePluginToolRegistry the executable family is skipped
+ok 5 - without executablePluginToolRegistry the executable family is skipped
+  ---
+  duration_ms: 1.243362
+  type: 'test'
+  ...
+# Subtest: loader refusals are logged with the registrar's prefix and the valid tools still register
+ok 6 - loader refusals are logged with the registrar's prefix and the valid tools still register
+  ---
+  duration_ms: 1.892091
+  type: 'test'
+  ...
+# Subtest: a loader failure is logged and never thrown; the pass continues without the family
+ok 7 - a loader failure is logged and never thrown; the pass continues without the family
+  ---
+  duration_ms: 1.430955
+  type: 'test'
+  ...
+# Subtest: every family that fails is logged once with the registrar's prefix, a non-Error reason verbatim, and the pass never throws
+ok 8 - every family that fails is logged once with the registrar's prefix, a non-Error reason verbatim, and the pass never throws
+  ---
+  duration_ms: 0.476566
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 7
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1892.091274

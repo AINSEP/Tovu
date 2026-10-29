@@ -1,0 +1,41 @@
+TAP version 13
+# (node:11074) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:11074) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+# Subtest: sweep CLI discovers reordered test tokens, emits each mutation, and restores its source
+ok 1 - sweep CLI discovers reordered test tokens, emits each mutation, and restores its source
+  ---
+  duration_ms: 13.251148
+  type: 'test'
+  ...
+# Subtest: lanes CLI records a sweep and a no-test row, then removes its isolated copy
+not ok 2 - lanes CLI records a sweep and a no-test row, then removes its isolated copy
+  ---
+  duration_ms: 5.049049
+  type: 'test'
+  location: '/home/user/Tovu/development/scripts/__tests__/unit/mutation-cli-characterization.unit.test.ts:1:3407'
+  failureType: 'testCodeFailure'
+  error: 'Cannot redefine property: constants'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    defineProperty (<anonymous>)
+    Object.cjsMockModuleLoad (node:internal/test_runner/mock/mock:1012:5)
+    wrapModuleLoad (node:internal/modules/cjs/loader:261:19)
+    loadCJSModuleWithModuleLoad (node:internal/modules/esm/translators:372:15)
+    ModuleWrap.<anonymous> (node:internal/modules/esm/translators:244:9)
+    ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+    async node:internal/modules/esm/loader:647:26
+    async TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/unit/mutation-cli-characterization.unit.test.ts:155:3)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 1
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 183.272839

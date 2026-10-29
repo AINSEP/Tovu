@@ -1,0 +1,44 @@
+TAP version 13
+# Subtest: publishing only a video media item carries its poster along, and the receiving site renders the embed as a <video> with a poster that resolves
+not ok 1 - publishing only a video media item carries its poster along, and the receiving site renders the embed as a <video> with a poster that resolves
+  ---
+  duration_ms: 12.093781
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/publish-content/__tests__/media-video-embed.round-trip.test.ts:1:2897'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /<video\b[^>]*\bsrc="\/m\/promo-01\/original\.mp4"/. Input:
+    
+    '<figure class="hero-media"><div class="video-embed"><video src="/m/promo-01/original.mp4?v=7af950870f90" controls poster="/m/promo-poster/public.v1/image.webp" autoplay muted loop playsinline>Promo clip</video></div></figure>'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: '<figure class="hero-media"><div class="video-embed"><video src="/m/promo-01/original.mp4?v=7af950870f90" controls poster="/m/promo-poster/public.v1/image.webp" autoplay muted loop playsinline>Promo clip</video></div></figure>'
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/publish-content/__tests__/media-video-embed.round-trip.test.ts:142:10)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+# Subtest: the post-publish check repairs a video an older build published without a recorded type, so its embed renders as <video>
+ok 2 - the post-publish check repairs a video an older build published without a recorded type, so its embed renders as <video>
+  ---
+  duration_ms: 1.440028
+  type: 'test'
+  ...
+# Subtest: the post-publish check names a media item that arrived without its file
+ok 3 - the post-publish check names a media item that arrived without its file
+  ---
+  duration_ms: 0.697019
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 2
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1461.503442

@@ -1,0 +1,1129 @@
+{
+ "apps/website/src/assistant/site/__tests__/visitor-executor-confirmation.unit.test.ts": [
+  {
+   "name": "without a value-row snapshot Ask fails closed; signal remains an optional adapter port",
+   "type": "testTimeoutFailure",
+   "err": "'test timed out after 600000ms'",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 600051.5109\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/assistant/site/__tests__/visitor-executor-confirmation.unit.test.ts:1:6503'\nfailureType: 'testTimeoutFailure'\nerror: 'test timed out after 600000ms'\ncode: 'ERR_TEST_FAILURE'\n..."
+  }
+ ],
+ "apps/website/src/features/publish-content/__tests__/media-video-embed.round-trip.test.ts": [
+  {
+   "name": "publishing only a video media item carries its poster along, and the receiving site renders the embed as a <video> with a poster that resolves",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 16.432738\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/publish-content/__tests__/media-video-embed.round-trip.test.ts:1:2897'\nfailureType: 'testCodeFailure'\nerror: |-\n  The input did not match the regular expression /<video\\b[^>]*\\bsrc=\"\\/m\\/promo-01\\/original\\.mp4\"/. Input:\n  \n  '<figure class=\"hero-media\"><div class=\"video-embed\"><video src=\"/m/promo-01/original.mp4?v=7af950870f90\" controls poster=\"/m/promo-poster/public.v1/image.webp\" autoplay muted loop playsinline>Promo clip</video></div></figure>'\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\nactual: '<figure class=\"hero-media\"><div class=\"video-embed\"><video src=\"/m/promo-01/original.mp4?v=7af950870f90\" controls poster=\"/m/promo-poster/public.v1/image.webp\" autoplay muted loop playsinline>Promo clip</video></div></figure>'\noperator: 'match'\nstack: |-\n  TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/publish-content/__tests__/media-video-embed.round-trip.test.ts:142:10)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+  }
+ ],
+ "apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts": [
+  {
+   "name": "a URL import checks the staging budget; an upload import does not",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 1573.137746\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:4553'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:84:17)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "a request id reused for another source is refused",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 1393.123329\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:5234'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:88:3)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "a consumed upload is refused and recorded on the failed row",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 844.082079\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:5674'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:93:3)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "the download request is a bounded identity GET of the share URL",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 661.747166\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:6868'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:108:3)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "the imported site name comes from the archive unless a display name was given",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 996.131567\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:9132'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:134:17)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "site_imported fires exactly once after owner commit, including a repeated completion",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 780.570413\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:9812'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:147:19)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "site_imported stays silent when creating the imported site fails",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 866.503813\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:11059'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:167:19)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "owner setup on a failed import is refused as not awaiting setup",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 704.919793\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:12122'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async pendingImport (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:175:19)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:179:26)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "owner password undefined is refused",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 866.800956\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:12647'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async pendingImport (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:175:19)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:185:28)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "owner password tovu-dev is refused",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 746.817884\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:12647'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async pendingImport (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:175:19)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:185:28)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "low sites-home space is refused with the sites-home message",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 762.716511\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:12985'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async pendingImport (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:175:19)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:190:26)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "an already-aborted owner setup is refused before the row is marked creating",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 830.06196\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:13431'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async pendingImport (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:175:19)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:195:26)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "a failed site creation is rolled back and recorded",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 882.185505\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:13872'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async pendingImport (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:175:19)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:200:26)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "a created site started with no admin URL records its start outcome",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 1379.590082\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:14916'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async pendingImport (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:175:19)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:213:28)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "a created site started with a supervisor error records its start outcome",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 1877.439745\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:14916'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async pendingImport (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:175:19)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:213:28)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "a created site started with an admin URL records its start outcome",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 1465.253499\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:14916'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async pendingImport (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:175:19)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:213:28)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "a pending import view carries the default setup URL and owner instructions",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 1615.135703\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:15418'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async pendingImport (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:175:19)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:220:23)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "progress reports every stored status in order",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 1548.944319\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:15820'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:227:19)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "a replayed request id returns the original import without starting another",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 1401.727332\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:1:16371'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-backend.unit.test.ts:233:17)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  }
+ ],
+ "apps/website/src/features/source-control/__tests__/github-backup-restore-accounts.integration.test.ts": [
+  {
+   "name": "SEC-1 restore: restoring a sanitized GitHub backup keeps the target site's owner and member, and both can still sign in",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 2387.922784\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/source-control/__tests__/github-backup-restore-accounts.integration.test.ts:1:1824'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/source-control/__tests__/github-backup-restore-accounts.integration.test.ts:67:19)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+  }
+ ],
+ "apps/website/src/platform/db/kernel/__tests__/no-raw-sqlite.boundary.test.ts": [
+  {
+   "name": "no new raw SQLite outside the storage kernel (ratchet: the baseline only shrinks)",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 4180.536334\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/no-raw-sqlite.boundary.test.ts:1:1784'\nfailureType: 'testCodeFailure'\nerror: |-\n  New raw SQLite outside platform/db/kernel. Use the storage kernel (run/transaction + Drizzle, dialect.ts helpers) instead.\n  + actual - expected\n  \n  + [\n  +   'apps/website/src/features/project-keys/attachments.ts: insert-or 0 -> 1',\n  +   'apps/website/src/platform/db/migrations/project/0000_project_vault.ts: sqlite-json 0 -> 2',\n  +   'apps/website/src/platform/db/migrations/project/0001_project_credential_kinds.ts: sqlite-json 0 -> 2',\n  +   'apps/website/src/server/runtime/composition/project-store.ts: pragma 0 -> 2'\n  + ]\n  - []\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\nactual:\n  0: 'apps/website/src/features/project-keys/attachments.ts: insert-or 0 -> 1'\n  1: 'apps/website/src/platform/db/migrations/project/0000_project_vault.ts: sqlite-json 0 -> 2'\n  2: 'apps/website/src/platform/db/migrations/project/0001_project_credential_kinds.ts: sqlite-json 0 -> 2'"
+  }
+ ],
+ "apps/website/src/server/runtime/composition/__tests__/installed-extension-tools.executable-tools.test.ts": [
+  {
+   "name": "a write tool asks through the process's confirmation transport, with the plugin's disclosed rows",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 39.245876\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/installed-extension-tools.executable-tools.test.ts:1:3777'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly deep-equal:\n  + actual - expected\n  \n    [\n      [\n  +     'Connection ref',\n  +     'conn-1'\n  -     'Tool',\n  -     'p_acme_office__append_rows'\n      ]\n    ]\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\n  0:\n    0: 'Tool'\n    1: 'p_acme_office__append_rows'"
+  }
+ ],
+ "development/scripts/__tests__/unit/mutation-cli-characterization.unit.test.ts": [
+  {
+   "name": "lanes CLI records a sweep and a no-test row, then removes its isolated copy",
+   "type": "testCodeFailure",
+   "err": "'Cannot redefine property: constants'",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 12.907468\ntype: 'test'\nlocation: '/home/user/Tovu/development/scripts/__tests__/unit/mutation-cli-characterization.unit.test.ts:1:3407'\nfailureType: 'testCodeFailure'\nerror: 'Cannot redefine property: constants'\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  defineProperty (<anonymous>)\n  Object.cjsMockModuleLoad (node:internal/test_runner/mock/mock:1012:5)\n  wrapModuleLoad (node:internal/modules/cjs/loader:261:19)\n  loadCJSModuleWithModuleLoad (node:internal/modules/esm/translators:372:15)\n  ModuleWrap.<anonymous> (node:internal/modules/esm/translators:244:9)\n  ModuleJob.run (node:internal/modules/esm/module_job:561:25)\n  async node:internal/modules/esm/loader:647:26\n  async TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/unit/mutation-cli-characterization.unit.test.ts:155:3)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  }
+ ],
+ "apps/website/src/features/agent-plugins/__tests__/unit/bundled-tovu-theme-package.unit.test.ts": [
+  {
+   "name": "every tool tovu-theme's skill and references cite is a real native tool or a per-plugin tool",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 8.365541\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/bundled-tovu-theme-package.unit.test.ts:1:3959'\nfailureType: 'testCodeFailure'\nerror: |-\n  the skill tells agents to call tools that do not exist\n  + actual - expected\n  \n  + [\n  +   'SKILL.md: media_list_assets (retired â use content_read.media_asset)'\n  + ]\n  - []\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\nactual:\n  0: 'SKILL.md: media_list_assets (retired â use content_read.media_asset)'\noperator: 'deepStrictEqual'\nstack: |-\n  TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/bundled-tovu-theme-package.unit.test.ts:100:10)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)"
+  }
+ ],
+ "apps/website/src/features/site-backup/__tests__/share-plugin-policy.integration.test.ts": [
+  {
+   "name": "import refuses tampered portable plugin DDL and private plugin tables",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 825.285272\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/share-plugin-policy.integration.test.ts:1:802'\nfailureType: 'testCodeFailure'\nerror: |-\n  The validation function is expected to return \"true\". Received false\n  \n  Caught error:\n  \n  TypeError: Cannot read properties of undefined (reading 'endsWith')\ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nstack: |-\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/share-plugin-policy.integration.test.ts:33:7)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "import refuses a portable row owned by a workspace the archive does not contain",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 656.19413\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/share-plugin-policy.integration.test.ts:1:1450'\nfailureType: 'testCodeFailure'\nerror: |-\n  The validation function is expected to return \"true\". Received false\n  \n  Caught error:\n  \n  TypeError: Cannot read properties of undefined (reading 'endsWith')\ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nstack: |-\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/share-plugin-policy.integration.test.ts:50:5)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  }
+ ],
+ "apps/website/src/features/source-control/__tests__/github-backup-secrets.integration.test.ts": [
+  {
+   "name": "SEC-1: GitHub backup excludes password hashes, sessions, magic-link tokens and sealed vault rows",
+   "type": "testCodeFailure",
+   "err": "'deps.siteBackupSanitize is not a function'",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 208.03427\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/source-control/__tests__/github-backup-secrets.integration.test.ts:1:1237'\nfailureType: 'testCodeFailure'\nerror: 'deps.siteBackupSanitize is not a function'\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  captureBackupDatabase (/home/user/Tovu/apps/website/src/features/site-backup/backup-service.ts:616:34)\n  async prepareContent (/home/user/Tovu/apps/website/src/features/site-backup/backup-service.ts:633:22)\n  async planSiteBackup (/home/user/Tovu/apps/website/src/features/site-backup/backup-service.ts:550:20)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/source-control/__tests__/github-backup-secrets.integration.test.ts:97:16)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+  }
+ ],
+ "apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts": [
+  {
+   "name": "resolveHtmlPageEmbeds: a \"media\" embed with no variant resolves against CORE_PUBLIC_TRANSFORM_NAME (\"public\") by default",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 25.306594\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts:1:17751'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly deep-equal:\n  + actual - expected\n  ... Skipped lines\n  \n    {\n      componentId: 'media-image',\n      props: {\n        alt: 'A scenic photo',\n        assetId: 'asset-1',\n  ...\n        htmlAttributes: null,\n  +     sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',\n        slug: null,\n        transformName: 'public',\n        version: 2,\n        width: 640\n      }\n  "
+  },
+  {
+   "name": "resolveHtmlPageEmbeds: a \"media\" embed whose asset is a recorded VIDEO resolves to a video IR â contentType present, no transformName/version, and no transform needs to be registered at all",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 1.872903\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts:1:18680'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly deep-equal:\n  + actual - expected\n  ... Skipped lines\n  \n    {\n      componentId: 'media-image',\n      props: {\n        alt: 'A hero clip',\n        assetId: 'asset-1',\n  ...\n        htmlAttributes: null,\n  +     sha256: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',\n        slug: null,\n        width: 1920\n      }\n    }\n  \ncode: 'ERR_ASSERTION'"
+  },
+  {
+   "name": "resolveHtmlPageEmbeds: a \"media\" embed with mediaContentTypeStore supplied but no recorded type for this asset's sha256 falls through to the ordinary image path unchanged",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 0.697868\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts:1:19815'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly deep-equal:\n  + actual - expected\n  ... Skipped lines\n  \n    {\n      componentId: 'media-image',\n      props: {\n        alt: 'A scenic photo',\n        assetId: 'asset-1',\n  ...\n        htmlAttributes: null,\n  +     sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',\n        slug: null,\n        transformName: 'public',\n        version: 2,\n        width: 640\n      }\n  "
+  },
+  {
+   "name": "collectMediaRefAssetIds resolves media at depth 10000 without truncating or overflowing",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 54.251268\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts:1:39680'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly deep-equal:\n  + actual - expected\n  \n    {\n      'asset-1': {\n        contentType: null,\n        cssClass: 'deep-asset',\n        height: 600,\n        htmlAttributes: null,\n  +     sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',\n        slug: null,\n        width: 900\n      }\n    }\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:"
+  },
+  {
+   "name": "resolveHtmlPageEmbeds: a \"content\" embed's bodyJson containing a ref-based image resolves mediaTransformVersions/mediaAssetMetadata into its IR props â the exact data renderWidgetPostContent needs to render a real <img> instead of the placeholder",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 1.035477\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts:1:40968'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly deep-equal:\n  + actual - expected\n  \n    {\n      'asset-1': {\n        contentType: null,\n        cssClass: 'hero',\n        height: 600,\n        htmlAttributes: null,\n  +     sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',\n        slug: null,\n        width: 900\n      }\n    }\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:"
+  },
+  {
+   "name": "resolveHtmlPageEmbeds: the \"content\" embed's pendingContentOverride branch (the admin Preview tab's own path) resolves mediaTransformVersions/mediaAssetMetadata for a GENERIC \"media\" node too, not just the legacy \"image\" node â otherwise a real image/video referenced through `media` renders as a placeholder in Preview even though the asset is fine",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 0.550672\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts:1:45638'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly deep-equal:\n  + actual - expected\n  \n    {\n      'asset-1': {\n        contentType: null,\n        cssClass: null,\n        height: 500,\n        htmlAttributes: null,\n  +     sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',\n        slug: null,\n        width: 800\n      }\n    }\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:"
+  },
+  {
+   "name": "resolveHtmlPageEmbeds: a \"content\" embed's DB branch resolves contentType for a \"media\" node's asset, so a VIDEO asset renders a real <video> through render.ts's renderWidgetIr â the exact path a live post rendered through a static-tier theme's own template takes for its OWN body, not only a page that embeds the post",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 1.222657\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts:1:48107'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly deep-equal:\n  + actual - expected\n  \n    {\n      contentType: 'video/mp4',\n      cssClass: null,\n      height: null,\n      htmlAttributes: null,\n  +   sha256: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',\n      slug: null,\n      width: null\n    }\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\n  width: ~\n  height: ~"
+  },
+  {
+   "name": "resolveHtmlPageEmbeds: CONTROL for the test above â the same \"content\" DB branch still renders a real <img>, not <video>, for an image/* asset through the identical path (proves the fix does not make everything look like a video)",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 11.833824\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts:1:49788'\nfailureType: 'testCodeFailure'\nerror: |-\n  The input did not match the regular expression /src=\"\\/m\\/asset-1\\/public\\.v1\\/image\\.jpg\"/. Input:\n  \n  '<img src=\"/m/asset-1/public.v1/image.jpg?v=dddddddddddd\" alt=\"media probe\" loading=\"lazy\">'\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\nactual: '<img src=\"/m/asset-1/public.v1/image.jpg?v=dddddddddddd\" alt=\"media probe\" loading=\"lazy\">'\noperator: 'match'\nstack: |-\n  TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts:1337:10)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  }
+ ],
+ "apps/website/src/platform/db/__tests__/parity/vault-boundary-parity.test.ts": [
+  {
+   "name": "vault boundary parity [sqlite]",
+   "type": "hookFailed",
+   "err": "\"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"",
+   "code": "ERR_MODULE_NOT_FOUND",
+   "block": "---\nduration_ms: 138.426026\ntype: 'suite'\nlocation: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-boundary-parity.test.ts:1:1620'\nfailureType: 'hookFailed'\nerror: \"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"\ncode: 'ERR_MODULE_NOT_FOUND'\nstack: |-\n  finalizeResolution (node:internal/modules/esm/resolve:272:11)\n  moduleResolve (node:internal/modules/esm/resolve:879:10)\n  defaultResolve (node:internal/modules/esm/resolve:1006:11)\n  #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)\n  #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)\n  nextStep (node:internal/modules/customization_hooks:189:26)\n  resolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)\n  resolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)\n  resolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)\n  resolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343)\n..."
+  },
+  {
+   "name": "vault boundary parity [pglite]",
+   "type": "hookFailed",
+   "err": "\"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"",
+   "code": "ERR_MODULE_NOT_FOUND",
+   "block": "---\nduration_ms: 0.087295\ntype: 'suite'\nlocation: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-boundary-parity.test.ts:1:2903'\nfailureType: 'hookFailed'\nerror: \"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"\ncode: 'ERR_MODULE_NOT_FOUND'\nstack: |-\n  finalizeResolution (node:internal/modules/esm/resolve:272:11)\n  moduleResolve (node:internal/modules/esm/resolve:879:10)\n  defaultResolve (node:internal/modules/esm/resolve:1006:11)\n  #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)\n  #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)\n  nextStep (node:internal/modules/customization_hooks:189:26)\n  resolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)\n  resolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)\n  resolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)\n  resolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343)\n..."
+  },
+  {
+   "name": "seed-site's credential prune list covers the vault",
+   "type": "hookFailed",
+   "err": "\"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"",
+   "code": "ERR_MODULE_NOT_FOUND",
+   "block": "---\nduration_ms: 0.099671\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-boundary-parity.test.ts:1:3231'\nfailureType: 'hookFailed'\nerror: \"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"\ncode: 'ERR_MODULE_NOT_FOUND'\nstack: |-\n  finalizeResolution (node:internal/modules/esm/resolve:272:11)\n  moduleResolve (node:internal/modules/esm/resolve:879:10)\n  defaultResolve (node:internal/modules/esm/resolve:1006:11)\n  #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)\n  #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)\n  nextStep (node:internal/modules/customization_hooks:189:26)\n  resolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)\n  resolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)\n  resolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)\n  resolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343)\n..."
+  }
+ ],
+ "apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts": [
+  {
+   "name": "the content history through the current head applies on real Postgres",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 1455.603247\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts:1:1778'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly deep-equal:\n  + actual - expected\n  ... Skipped lines\n  \n    [\n      '0000_legacy_baseline',\n      '0001_post_search',\n      '0002_drop_empty_legacy_chat_tables',\n      '0003_coercion_json_as_json',\n  ...\n      '0036_publish_history_config_jsonb',\n  +   '0037_media_source_metadata'\n    ]\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\n  0: '0000_legacy_baseline'"
+  }
+ ],
+ "apps/website/src/server/__tests__/integration/member-magic-link-real-composition.unrun.integration.test.ts": [
+  {
+   "name": "[unrun] member magic link [sqlite]: the sixth request for one email within the hour is 429 with Retry-After, case-insensitively; another email still passes",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "RATE_LIMIT_EXCEEDED",
+   "block": "---\nduration_ms: 2092.050168\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/server/__tests__/integration/member-magic-link-real-composition.unrun.integration.test.ts:1:10661'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly deep-equal:\n  + actual - expected\n  \n    {\n      code: 'RATE_LIMIT_EXCEEDED',\n  +   error: 'too many member authentication requests'\n  -   error: 'too many sign-in requests for this email'\n    }\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\n  error: 'too many sign-in requests for this email'\n  code: 'RATE_LIMIT_EXCEEDED'\nactual:\n  error: 'too many member authentication requests'\n  code: 'RATE_LIMIT_EXCEEDED'\noperator: 'deepStrictEqual'"
+  },
+  {
+   "name": "[unrun] member magic link [pglite]: the sixth request for one email within the hour is 429 with Retry-After, case-insensitively; another email still passes",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "RATE_LIMIT_EXCEEDED",
+   "block": "---\nduration_ms: 8002.879238\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/server/__tests__/integration/member-magic-link-real-composition.unrun.integration.test.ts:1:10661'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly deep-equal:\n  + actual - expected\n  \n    {\n      code: 'RATE_LIMIT_EXCEEDED',\n  +   error: 'too many member authentication requests'\n  -   error: 'too many sign-in requests for this email'\n    }\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\n  error: 'too many sign-in requests for this email'\n  code: 'RATE_LIMIT_EXCEEDED'\nactual:\n  error: 'too many member authentication requests'\n  code: 'RATE_LIMIT_EXCEEDED'\noperator: 'deepStrictEqual'"
+  }
+ ],
+ "apps/website/src/server/inbound/admin-http/routes/system/__tests__/publish-site.tw4.pins.test.ts": [
+  {
+   "name": "publish trigger preserves shape errors, validation order, and domain confirmation before consent",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 442.705998\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/publish-site.tw4.pins.test.ts:1:552'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly equal:\n  \n  500 !== 409\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected: 409\nactual: 500\noperator: 'strictEqual'\nstack: |-\n  TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/publish-site.tw4.pins.test.ts:53:10)\n  process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+  }
+ ],
+ "development/scripts/__tests__/unit/script-inventory-characterization.unit.test.ts": [
+  {
+   "name": "rigor CLI preserves tags, runner selection and cyclic source-to-test mapping",
+   "type": "testCodeFailure",
+   "err": "'Cannot redefine property: constants'",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 31.66137\ntype: 'test'\nlocation: '/home/user/Tovu/development/scripts/__tests__/unit/script-inventory-characterization.unit.test.ts:1:316'\nfailureType: 'testCodeFailure'\nerror: 'Cannot redefine property: constants'\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  defineProperty (<anonymous>)\n  Object.cjsMockModuleLoad (node:internal/test_runner/mock/mock:1012:5)\n  wrapModuleLoad (node:internal/modules/cjs/loader:261:19)\n  loadCJSModuleWithModuleLoad (node:internal/modules/esm/translators:372:15)\n  ModuleWrap.<anonymous> (node:internal/modules/esm/translators:244:9)\n  ModuleJob.run (node:internal/modules/esm/module_job:561:25)\n  async node:internal/modules/esm/loader:647:26\n  async TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/unit/script-inventory-characterization.unit.test.ts:52:3)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+  },
+  {
+   "name": "write-path CLI resolves table mutations, bare/property callers and unresolved ports",
+   "type": "testCodeFailure",
+   "err": "'Cannot redefine property: CodeBlockWriter'",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 112.98474\ntype: 'test'\nlocation: '/home/user/Tovu/development/scripts/__tests__/unit/script-inventory-characterization.unit.test.ts:5:1694'\nfailureType: 'testCodeFailure'\nerror: 'Cannot redefine property: CodeBlockWriter'\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  defineProperty (<anonymous>)\n  Object.cjsMockModuleLoad (node:internal/test_runner/mock/mock:1012:5)\n  wrapModuleLoad (node:internal/modules/cjs/loader:261:19)\n  loadCJSModuleWithModuleLoad (node:internal/modules/esm/translators:372:15)\n  ModuleWrap.<anonymous> (node:internal/modules/esm/translators:244:9)\n  ModuleJob.run (node:internal/modules/esm/module_job:561:25)\n  async node:internal/modules/esm/loader:647:26\n  async TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/unit/script-inventory-characterization.unit.test.ts:99:3)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "theme CLI lists catalog and installed themes with optional lineage",
+   "type": "testCodeFailure",
+   "err": "'Cannot redefine property: constants'",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 15.600463\ntype: 'test'\nlocation: '/home/user/Tovu/development/scripts/__tests__/unit/script-inventory-characterization.unit.test.ts:5:4102'\nfailureType: 'testCodeFailure'\nerror: 'Cannot redefine property: constants'\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  defineProperty (<anonymous>)\n  Object.cjsMockModuleLoad (node:internal/test_runner/mock/mock:1012:5)\n  wrapModuleLoad (node:internal/modules/cjs/loader:261:19)\n  loadCJSModuleWithModuleLoad (node:internal/modules/esm/translators:372:15)\n  ModuleWrap.<anonymous> (node:internal/modules/esm/translators:244:9)\n  ModuleJob.run (node:internal/modules/esm/module_job:561:25)\n  async node:internal/modules/esm/loader:647:26\n  async TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/unit/script-inventory-characterization.unit.test.ts:137:3)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  }
+ ],
+ "apps/website/src/contracts/core/__tests__/integration/child-process-coverage-env-wiring.test.ts": [
+  {
+   "name": "apps/website/src/cli/__tests__/integration/serve-command.integration.test.ts: every child spawn feeds childProcessCoverageEnv into its environment",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 42.11558\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/contracts/core/__tests__/integration/child-process-coverage-env-wiring.test.ts:11:1277'\nfailureType: 'testCodeFailure'\nerror: |-\n  apps/website/src/cli/__tests__/integration/serve-command.integration.test.ts has a spawn whose environment bypasses the coverage helper\n  + actual - expected\n  \n  + [\n  +   'spawn(process.execPath, [\"--import\", TSX_LOADER, CLI_MAIN, \"serve\", ...args], { env: childEnv, cwd })'\n  + ]\n  - []\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\nactual:\n  0: 'spawn(process.execPath, [\"--import\", TSX_LOADER, CLI_MAIN, \"serve\", ...args], { env: childEnv, cwd })'\noperator: 'deepStrictEqual'\nstack: |-\n  TestContext.<anonymous> (/home/user/Tovu/apps/website/src/contracts/core/__tests__/integration/child-process-coverage-env-wiring.test.ts:138:12)\n  Test.runInAsyncScope (node:async_hooks:227:14)\n  Test.run (node:internal/test_runner/test:1402:25)"
+  }
+ ],
+ "apps/website/src/features/agent-plugins/executable-tools/__tests__/executable-tools.vertical-slice.test.ts": [
+  {
+   "name": "a confirmed write tool call runs end to end through the registry, approval owner and host capabilities",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 47.53823\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/agent-plugins/executable-tools/__tests__/executable-tools.vertical-slice.test.ts:1:150'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly deep-equal:\n  + actual - expected\n  \n    [\n  +   'Connection ref',\n  +   'Table',\n  +   'Values',\n  -   'Tool',\n  -   'Input',\n      'Account',\n      'Affects'\n    ]\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\n  0: 'Tool'\n  1: 'Input'"
+  }
+ ],
+ "apps/website/src/features/site-backup/__tests__/import-download.integration.test.ts": [
+  {
+   "name": "B guarded HTTPS import pins public download, refuses private initial/redirect peers, propagates caps and cancellation",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 1743.305358\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-download.integration.test.ts:1:476'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-download.integration.test.ts:28:17)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+  },
+  {
+   "name": "B download admits only ZIP/binary MIME and still verifies ZIP bytes",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 848.976662\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-download.integration.test.ts:1:2985'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-download.integration.test.ts:55:19)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  }
+ ],
+ "apps/website/src/platform/db/__tests__/parity/vault-cascade-parity.test.ts": [
+  {
+   "name": "vault cascade parity [sqlite]",
+   "type": "hookFailed",
+   "err": "\"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"",
+   "code": "ERR_MODULE_NOT_FOUND",
+   "block": "---\nduration_ms: 133.734986\ntype: 'suite'\nlocation: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-cascade-parity.test.ts:1:608'\nfailureType: 'hookFailed'\nerror: \"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"\ncode: 'ERR_MODULE_NOT_FOUND'\nstack: |-\n  finalizeResolution (node:internal/modules/esm/resolve:272:11)\n  moduleResolve (node:internal/modules/esm/resolve:879:10)\n  defaultResolve (node:internal/modules/esm/resolve:1006:11)\n  #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)\n  #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)\n  nextStep (node:internal/modules/customization_hooks:189:26)\n  resolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)\n  resolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)\n  resolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)\n  resolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343)\n..."
+  },
+  {
+   "name": "vault cascade parity [pglite]",
+   "type": "hookFailed",
+   "err": "\"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"",
+   "code": "ERR_MODULE_NOT_FOUND",
+   "block": "---\nduration_ms: 0.036959\ntype: 'suite'\nlocation: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-cascade-parity.test.ts:1:608'\nfailureType: 'hookFailed'\nerror: \"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"\ncode: 'ERR_MODULE_NOT_FOUND'\nstack: |-\n  finalizeResolution (node:internal/modules/esm/resolve:272:11)\n  moduleResolve (node:internal/modules/esm/resolve:879:10)\n  defaultResolve (node:internal/modules/esm/resolve:1006:11)\n  #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)\n  #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)\n  nextStep (node:internal/modules/customization_hooks:189:26)\n  resolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)\n  resolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)\n  resolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)\n  resolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343)\n..."
+  }
+ ],
+ "packages/sdk/src/__tests__/unit/sdk-public-api.unit.test.ts": [
+  {
+   "name": "SDK external type contracts are declared package dependencies for standalone consumers",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 5.569952\ntype: 'test'\nlocation: '/home/user/Tovu/packages/sdk/src/__tests__/unit/sdk-public-api.unit.test.ts:12:1209'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly equal:\n  + actual - expected\n  \n  + 'file:/home/user/Jini/packages/plugins'\n  - '^0.6.13'\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected: '^0.6.13'\nactual: 'file:/home/user/Jini/packages/plugins'\noperator: 'strictEqual'\nstack: |-\n  TestContext.<anonymous> (/home/user/Tovu/packages/sdk/src/__tests__/unit/sdk-public-api.unit.test.ts:142:10)\n  Test.runInAsyncScope (node:async_hooks:227:14)\n  Test.run (node:internal/test_runner/test:1402:25)\n  Test.processPendingSubtests (node:internal/test_runner/test:974:18)\n  Test.postRun (node:internal/test_runner/test:1542:19)\n  Test.run (node:internal/test_runner/test:1467:12)"
+  }
+ ],
+ "apps/website/src/features/seo/__tests__/index.unit.test.ts": [
+  {
+   "name": "createSeoDeps: static bindings, clock/transform receivers and public-access decision",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 11.978538\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/seo/__tests__/index.unit.test.ts:1:2598'\nfailureType: 'testCodeFailure'\nerror: |-\n  listByName keeps its receiver\n  + actual - expected\n  \n    [\n  +   'transform-repo:[object Object]'\n  -   'transform-repo:og'\n    ]\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\n  0: 'transform-repo:og'\nactual:\n  0: 'transform-repo:[object Object]'\noperator: 'deepStrictEqual'\nstack: |-\n  TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/seo/__tests__/index.unit.test.ts:67:10)\n  async Test.run (node:internal/test_runner/test:1409:7)"
+  }
+ ],
+ "apps/website/src/features/site-backup/__tests__/import-failures.integration.test.ts": [
+  {
+   "name": "a consumed upload cannot create a second import, while request replay is idempotent and source-bound",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 1822.399161\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-failures.integration.test.ts:1:7711'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-failures.integration.test.ts:109:19)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "owner creation remains ready and idempotent after no URL",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 1263.500658\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-failures.integration.test.ts:1:9379'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-failures.integration.test.ts:129:19)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "owner creation remains ready and idempotent after supervisor error",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 1749.806435\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-failures.integration.test.ts:1:9379'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-failures.integration.test.ts:129:19)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "owner creation checks volume space before allocating and keeps staged data for retry",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 1360.541167\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-failures.integration.test.ts:1:11117'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-failures.integration.test.ts:145:19)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  }
+ ],
+ "apps/website/src/platform/db/__tests__/parity/vault-hot-path.test.ts": [
+  {
+   "name": "vault hot paths [sqlite]",
+   "type": "hookFailed",
+   "err": "\"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"",
+   "code": "ERR_MODULE_NOT_FOUND",
+   "block": "---\nduration_ms: 133.134173\ntype: 'suite'\nlocation: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-hot-path.test.ts:5:88'\nfailureType: 'hookFailed'\nerror: \"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"\ncode: 'ERR_MODULE_NOT_FOUND'\nstack: |-\n  finalizeResolution (node:internal/modules/esm/resolve:272:11)\n  moduleResolve (node:internal/modules/esm/resolve:879:10)\n  defaultResolve (node:internal/modules/esm/resolve:1006:11)\n  #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)\n  #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)\n  nextStep (node:internal/modules/customization_hooks:189:26)\n  resolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)\n  resolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)\n  resolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)\n  resolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343)\n..."
+  },
+  {
+   "name": "vault hot paths [pglite]",
+   "type": "hookFailed",
+   "err": "\"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"",
+   "code": "ERR_MODULE_NOT_FOUND",
+   "block": "---\nduration_ms: 0.130614\ntype: 'suite'\nlocation: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-hot-path.test.ts:5:88'\nfailureType: 'hookFailed'\nerror: \"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"\ncode: 'ERR_MODULE_NOT_FOUND'\nstack: |-\n  finalizeResolution (node:internal/modules/esm/resolve:272:11)\n  moduleResolve (node:internal/modules/esm/resolve:879:10)\n  defaultResolve (node:internal/modules/esm/resolve:1006:11)\n  #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)\n  #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)\n  nextStep (node:internal/modules/customization_hooks:189:26)\n  resolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)\n  resolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)\n  resolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)\n  resolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343)\n..."
+  }
+ ],
+ "apps/website/src/server/inbound/public-http/routes/site/__tests__/commerce-strip-parity.test.ts": [
+  {
+   "name": "the transfer catalog loses exactly the six commerce tables and gains the named later columns",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 13.467233\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/commerce-strip-parity.test.ts:6:1940'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly deep-equal:\n  + actual - expected\n  ... Skipped lines\n  \n    [\n      [\n        'agent_tool_attempts',\n        [\n          'id',\n  ...\n          'source_sha256',\n  +       'source_metadata_json',\n          'status',\n          'created_at',\n          'updated_at',\n          'version',\n          'width',\n  "
+  },
+  {
+   "name": "the manifest classifies every other table's columns as before",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 6.038179\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/commerce-strip-parity.test.ts:6:3021'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly deep-equal:\n  + actual - expected\n  ... Skipped lines\n  \n    {\n      agent_tool_attempts: {\n        at: 'utc-timestamp-text',\n        attempt_id: 'plain-text',\n        detail: 'plain-text',\n  ...\n        slug: 'plain-text',\n  +     source_metadata_json: 'json-text',\n        source_sha256: 'plain-text',\n        status: 'plain-text',\n        title: 'plain-text',\n        updated_at: 'utc-timestamp-text',\n        version: 'plain-integer',\n  "
+  }
+ ],
+ "apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.edge-paths.route.test.ts": [
+  {
+   "name": "GET /: a failing lookup of the page claiming / answers the generic 500",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 341.209956\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.edge-paths.route.test.ts:1:11079'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly equal:\n  + actual - expected\n  \n  + undefined\n  - 'Privacy policy'\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected: 'Privacy policy'\noperator: 'strictEqual'\nstack: |-\n  assertDefaultConsentPage (/home/user/Tovu/apps/website/src/server/__tests__/helpers/default-consent-page.ts:31:12)\n  TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.edge-paths.route.test.ts:301:16)\n  process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "GET /: a members-only page claiming / is not shown to an anonymous visitor, who gets the default home",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 581.899114\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.edge-paths.route.test.ts:1:11468'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly equal:\n  + actual - expected\n  \n  + undefined\n  - 'Privacy policy'\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected: 'Privacy policy'\noperator: 'strictEqual'\nstack: |-\n  assertDefaultConsentPage (/home/user/Tovu/apps/website/src/server/__tests__/helpers/default-consent-page.ts:31:12)\n  TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.edge-paths.route.test.ts:317:16)\n  process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "GET /_more/1/12?â¦: a see-more URL with a form-result query answers the batch as a private response",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 279.890516\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.edge-paths.route.test.ts:1:13073'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly equal:\n  + actual - expected\n  \n  + undefined\n  - 'Privacy policy'\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected: 'Privacy policy'\noperator: 'strictEqual'\nstack: |-\n  assertDefaultConsentPage (/home/user/Tovu/apps/website/src/server/__tests__/helpers/default-consent-page.ts:31:12)\n  TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.edge-paths.route.test.ts:361:16)\n  process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  }
+ ],
+ "development/scripts/__tests__/openapi-contract-fixtures.test.ts": [
+  {
+   "name": "OpenAPI contract: all 29 original mismatches reach the documented condition with real HTTP inputs",
+   "type": "testCodeFailure",
+   "err": "'Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.'",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 145.062898\ntype: 'test'\nlocation: '/home/user/Tovu/development/scripts/__tests__/openapi-contract-fixtures.test.ts:1:2406'\nfailureType: 'testCodeFailure'\nerror: 'Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.'\ncode: 'ERR_TEST_FAILURE'\nstack: |-\n  assertTestHomeIsolation (/home/user/Tovu/apps/website/src/platform/site-dir/sites-home.ts:53:11)\n  createSitesWorkspace (/home/user/Tovu/apps/website/src/platform/site-dir/sites-home.ts:20:3)\n  resolveSiteRoot (/home/user/Tovu/apps/website/src/platform/site-dir/site-root.ts:78:21)\n  describeSiteBinding (/home/user/Tovu/apps/website/src/platform/site-dir/site-registry.ts:479:15)\n  createRouteDeps (/home/user/Tovu/apps/website/src/server/runtime/composition/app.ts:1114:23)\n  startTovuServer (/home/user/Tovu/development/scripts/lib/tovu-test-server.ts:23:21)\n  TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/openapi-contract-fixtures.test.ts:46:24)\n  Test.runInAsyncScope (node:async_hooks:227:14)\n  Test.run (node:internal/test_runner/test:1402:25)\n  Test.start (node:internal/test_runner/test:1262:17)\n..."
+  }
+ ],
+ "apps/website/src/assistant/persistence/__tests__/release-manifests.test.ts": [
+  {
+   "name": "root/admin/site-chat select the same new chat release and preserve the UI override",
+   "type": "testCodeFailure",
+   "err": "'Invalid comparator: file:/home/user/Jini/packages/chat'",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 35.122704\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/release-manifests.test.ts:1:321'\nfailureType: 'testCodeFailure'\nerror: 'Invalid comparator: file:/home/user/Jini/packages/chat'\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  Comparator.parse (/home/user/Tovu/node_modules/semver/classes/comparator.js:41:13)\n  new Comparator (/home/user/Tovu/node_modules/semver/classes/comparator.js:25:10)\n  /home/user/Tovu/node_modules/semver/classes/range.js:157:47\n  Array.map (<anonymous>)\n  Range.parseRange (/home/user/Tovu/node_modules/semver/classes/range.js:157:35)\n  /home/user/Tovu/node_modules/semver/classes/range.js:42:22\n  Array.map (<anonymous>)\n  new Range (/home/user/Tovu/node_modules/semver/classes/range.js:42:8)\n  Object.minVersion (/home/user/Tovu/node_modules/semver/ranges/min-version.js:8:11)\n  TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/release-manifests.test.ts:11:26)\n..."
+  }
+ ],
+ "apps/website/src/cli/__tests__/unit/plugin-install-real-site.unit.test.ts": [
+  {
+   "name": "apps/website/src/cli/__tests__/unit/plugin-install-real-site.unit.test.ts",
+   "type": "testCodeFailure",
+   "err": "'test failed'",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 10196.821377\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/cli/__tests__/unit/plugin-install-real-site.unit.test.ts:1:1'\nfailureType: 'testCodeFailure'\nexitCode: ~\nsignal: 'SIGTRAP'\nerror: 'test failed'\ncode: 'ERR_TEST_FAILURE'\n..."
+  }
+ ],
+ "apps/website/src/features/site-backup/__tests__/import-interruption.integration.test.ts": [
+  {
+   "name": "B hard interruption allocated reconciles under locks: inSite",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 945.321104\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-interruption.integration.test.ts:1:488'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-interruption.integration.test.ts:17:21)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+  },
+  {
+   "name": "B hard interruption restored reconciles under locks: inSite",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 853.417008\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-interruption.integration.test.ts:1:488'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-interruption.integration.test.ts:17:21)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "B hard interruption before-register reconciles under locks: inSite",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 775.28505\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-interruption.integration.test.ts:1:488'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-interruption.integration.test.ts:17:21)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "B hard interruption registered reconciles under locks: inSite",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 626.962319\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-interruption.integration.test.ts:1:488'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-interruption.integration.test.ts:17:21)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "B hard interruption allocated reconciles under locks: appData",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 729.22989\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-interruption.integration.test.ts:1:488'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-interruption.integration.test.ts:17:21)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "B hard interruption restored reconciles under locks: appData",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 710.873287\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-interruption.integration.test.ts:1:488'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-interruption.integration.test.ts:17:21)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "B hard interruption before-register reconciles under locks: appData",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 575.222971\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-interruption.integration.test.ts:1:488'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-interruption.integration.test.ts:17:21)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "B hard interruption registered reconciles under locks: appData",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 776.102726\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-interruption.integration.test.ts:1:488'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-interruption.integration.test.ts:17:21)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  }
+ ],
+ "apps/website/src/features/site-backup/__tests__/share-refusals.integration.test.ts": [
+  {
+   "name": "export of populated undeclared store tables refuses by name with a clear next step; empty ones do not block",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 1165.125764\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/share-refusals.integration.test.ts:1:6243'\nfailureType: 'testCodeFailure'\nerror: |-\n  The input did not match the regular expression /schema|database/i. Input:\n  \n  \"TypeError: Cannot read properties of undefined (reading 'endsWith')\"\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\nactual:\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async waitForActual (node:assert:646:5)"
+  },
+  {
+   "name": "export of populated undeclared lipay tables refuses by name with a clear next step; empty ones do not block",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 1140.853959\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/share-refusals.integration.test.ts:1:6243'\nfailureType: 'testCodeFailure'\nerror: |-\n  The input did not match the regular expression /schema|database/i. Input:\n  \n  \"TypeError: Cannot read properties of undefined (reading 'endsWith')\"\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\nactual:\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async waitForActual (node:assert:646:5)"
+  }
+ ],
+ "apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts": [
+  {
+   "name": "vault read parity [postgres]",
+   "type": "hookFailed",
+   "err": "\"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"",
+   "code": "ERR_MODULE_NOT_FOUND",
+   "block": "---\nduration_ms: 85.568372\ntype: 'suite'\nlocation: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:1:1337'\nfailureType: 'hookFailed'\nerror: \"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"\ncode: 'ERR_MODULE_NOT_FOUND'\nstack: |-\n  finalizeResolution (node:internal/modules/esm/resolve:272:11)\n  moduleResolve (node:internal/modules/esm/resolve:879:10)\n  defaultResolve (node:internal/modules/esm/resolve:1006:11)\n  #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)\n  #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)\n  nextStep (node:internal/modules/customization_hooks:189:26)\n  resolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)\n  resolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)\n  resolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)\n  resolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343)\n..."
+  },
+  {
+   "name": "vault hot paths [postgres]",
+   "type": "hookFailed",
+   "err": "\"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"",
+   "code": "ERR_MODULE_NOT_FOUND",
+   "block": "---\nduration_ms: 0.062585\ntype: 'suite'\nlocation: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts:1:2248'\nfailureType: 'hookFailed'\nerror: \"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"\ncode: 'ERR_MODULE_NOT_FOUND'\nstack: |-\n  finalizeResolution (node:internal/modules/esm/resolve:272:11)\n  moduleResolve (node:internal/modules/esm/resolve:879:10)\n  defaultResolve (node:internal/modules/esm/resolve:1006:11)\n  #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)\n  #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)\n  nextStep (node:internal/modules/customization_hooks:189:26)\n  resolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)\n  resolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)\n  resolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)\n  resolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343)\n..."
+  }
+ ],
+ "apps/website/src/server/inbound/admin-http/routes/media/__tests__/library.test.ts": [
+  {
+   "name": "Library HTTP: allowed formats ignore MIME labels, list/download/rename/text preserve bytes and metadata",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 123.893398\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/media/__tests__/library.test.ts:1:2578'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly equal:\n  \n  500 !== 400\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected: 400\nactual: 500\noperator: 'strictEqual'\nstack: |-\n  TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/media/__tests__/library.test.ts:61:12)\n  process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+  }
+ ],
+ "apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts": [
+  {
+   "name": "vendor neutrality end to end: a second provider plugin connects, stores sealed tokens, runs a confirmed write tool, a surface action and a push form delivery",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 126.463367\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:1:13403'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly deep-equal:\n  + actual - expected\n  \n    [\n      [\n  +     'Values',\n  +     'Ada'\n  +   ],\n  +   [\n        'Account',\n        'Ada'\n      ],\n      [\n        'Affects',\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:"
+  }
+ ],
+ "content/agent-plugins/fly/__tests__/credential-schemes.test.mjs": [
+  {
+   "name": "content/agent-plugins/fly/__tests__/credential-schemes.test.mjs",
+   "type": "testCodeFailure",
+   "err": "'test failed'",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 160.977192\ntype: 'test'\nlocation: '/home/user/Tovu/content/agent-plugins/fly/__tests__/credential-schemes.test.mjs:1:1'\nfailureType: 'testCodeFailure'\nexitCode: 1\nsignal: ~\nerror: 'test failed'\ncode: 'ERR_TEST_FAILURE'\n..."
+  }
+ ],
+ "content/agent-plugins/google-workspace/__tests__/sheets-admin.vertical-slice.test.mjs": [
+  {
+   "name": "vertical slice: a confirmed sheets_tab_modify rename registers, discloses, waits for the click and sends one batchUpdate",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 81.692565\ntype: 'test'\nlocation: '/home/user/Tovu/content/agent-plugins/google-workspace/__tests__/sheets-admin.vertical-slice.test.mjs:21:1'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly deep-equal:\n  + actual - expected\n  \n    [\n      [\n  +     'Action',\n  +     'rename'\n  +   ],\n  +   [\n  +     'Sheet ID',\n  +     '7'\n  +   ],\n  +   [\n  +     'Title',\n  +     'Leads 2026'\n  +   ],\n  +   [\n        'Account',"
+  }
+ ],
+ "development/scripts/__tests__/dead-path-sweep.test.ts": [
+  {
+   "name": "dead-path sweep: no path reference outside the known-broken register resolves to nothing",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 4668.940487\ntype: 'test'\nlocation: '/home/user/Tovu/development/scripts/__tests__/dead-path-sweep.test.ts:1:2753'\nfailureType: 'testCodeFailure'\nerror: |-\n  a path reference under development/scripts or the db tooling points at a file that does not exist\n  + actual - expected\n  \n  + [\n  +   'development/scripts/__tests__/unit/mutation-cli-characterization.unit.test.ts:59 [relative-import] \"../../mutation-sweep.mjs?characterization\" -> none of development/scripts/mutation-sweep.mjs?characterization exist',\n  +   'development/scripts/__tests__/unit/mutation-cli-characterization.unit.test.ts:155 [relative-import] \"../../mutation-lanes.mjs?characterization\" -> none of development/scripts/mutation-lanes.mjs?characterization exist',\n  +   'development/scripts/check-admin-complexity-drift.ts:77 [repo-relative-string] \"sonarjs/cognitive-complexity\" -> none of sonarjs exist',\n  +   'development/scripts/check-admin-complexity-drift.ts:110 [repo-relative-string] \"sonarjs/cognitive-complexity\" -> none of sonarjs exist',\n  +   'development/scripts/check-coverage-integrity.ts:167 [repo-relative-string] \"development/coverage/lcov.info\" -> none of development/coverage exist',\n  +   'development/scripts/check-src-complexity-drift.ts:196 [repo-relative-string] \"sonarjs/cognitive-complexity\" -> none of sonarjs exist',\n  +   'development/scripts/check-src-complexity-drift.ts:246 [repo-relative-string] \"sonarjs/cognitive-complexity\" -> none of sonarjs exist',\n  +   'development/scripts/check-test-baseline.ts:90 [repo-relative-string] \"development/coverage/test-results.tap\" -> none of development/coverage exist',\n  +   'development/scripts/coverage-changed.ts:33 [repo-relative-string] \"ADS-memory/.local-artifacts/test-slots/run-gated.sh\" -> none of ADS-memory/.local-artifacts/test-slots exist',\n  +   'development/scripts/coverage-changed.ts:34 [repo-relative-string] \"ADS-memory/.local-artifacts/codex-waves/features-2026-10-04/common.md\" -> none of ADS-memory/.local-artifacts/codex-waves/features-2026-10-04 exist',\n  +   'development/scripts/coverage-changed.ts:478 [repo-relative-string] \"ADS-memory/.local-artifacts/coverage-changed\" -> none of ADS-memory/.local-artifacts exist',\n  +   'development/scripts/report-churn-hotspots.ts:133 [repo-relative-string] \"sonarjs/cognitive-complexity\" -> none of sonarjs exist',\n  +   'development/scripts/report-churn-hotspots.ts:176 [repo-relative-string] \"sonarjs/cognitive-complexity\" -> none of sonarjs exist',\n  +   'development/scripts/route-coverage-lib.ts:33 [repo-relative-string] \"development/coverage/lcov.info\" -> none of development/coverage exist',"
+  },
+  {
+   "name": "generated coverage artifacts are not reported as dead paths",
+   "type": "testCodeFailure",
+   "err": "\"development/coverage/lcov.unit.info's parent directory should exist\"",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 0.401802\ntype: 'test'\nlocation: '/home/user/Tovu/development/scripts/__tests__/dead-path-sweep.test.ts:30:10169'\nfailureType: 'testCodeFailure'\nerror: \"development/coverage/lcov.unit.info's parent directory should exist\"\ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected: true\nactual: false\noperator: '=='\nstack: |-\n  TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/dead-path-sweep.test.ts:792:12)\n  Test.runInAsyncScope (node:async_hooks:227:14)\n  Test.run (node:internal/test_runner/test:1402:25)\n  Test.processPendingSubtests (node:internal/test_runner/test:974:18)\n  Test.postRun (node:internal/test_runner/test:1542:19)\n  Test.run (node:internal/test_runner/test:1467:12)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  }
+ ],
+ "development/scripts/__tests__/repair-site.test.ts": [
+  {
+   "name": "repair-site.ts: dry run (no --apply) prints the plan and writes NOTHING",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 1664.460082\ntype: 'test'\nlocation: '/home/user/Tovu/development/scripts/__tests__/repair-site.test.ts:1:1207'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly equal:\n  \n  1 !== 0\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected: 0\nactual: 1\noperator: 'strictEqual'\nstack: |-\n  TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/repair-site.test.ts:54:10)\n  Test.runInAsyncScope (node:async_hooks:227:14)\n  Test.run (node:internal/test_runner/test:1402:25)\n  Test.processPendingSubtests (node:internal/test_runner/test:974:18)\n  Test.postRun (node:internal/test_runner/test:1542:19)\n  Test.run (node:internal/test_runner/test:1467:12)\n  async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+  },
+  {
+   "name": "repair-site.ts: --apply writes real, readable marker files",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 1764.976717\ntype: 'test'\nlocation: '/home/user/Tovu/development/scripts/__tests__/repair-site.test.ts:2:327'\nfailureType: 'testCodeFailure'\nerror: |-\n  expected exit 0, got output:\n  Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.\n  \n  \n  1 !== 0\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected: 0\nactual: 1\noperator: 'strictEqual'\nstack: |-\n  TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/repair-site.test.ts:68:10)\n  Test.runInAsyncScope (node:async_hooks:227:14)\n  Test.run (node:internal/test_runner/test:1402:25)\n  Test.processPendingSubtests (node:internal/test_runner/test:974:18)\n  Test.postRun (node:internal/test_runner/test:1542:19)\n  Test.run (node:internal/test_runner/test:1467:12)"
+  }
+ ],
+ "apps/website/src/features/site-backup/__tests__/import-malicious.integration.test.ts": [
+  {
+   "name": "an installed site plugin's data/ folder stays out of the export, which then imports cleanly",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 1194.82421\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-malicious.integration.test.ts:1:6349'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-malicious.integration.test.ts:152:19)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "B untrusted schema objects and partial restore errors leave no site, including app-data DBs",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 710.05145\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-malicious.integration.test.ts:1:15379'\nfailureType: 'testCodeFailure'\nerror: |-\n  The input did not match the regular expression /schema|database/i. Input:\n  \n  \"TypeError: Cannot read properties of undefined (reading 'endsWith')\"\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\nactual:\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async waitForActual (node:assert:646:5)"
+  }
+ ],
+ "apps/website/src/features/site-backup/__tests__/import.integration.test.ts": [
+  {
+   "name": "B valid archive and recipient-only owner: inSite",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 829.660219\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import.integration.test.ts:1:457'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import.integration.test.ts:20:19)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+  },
+  {
+   "name": "B valid archive and recipient-only owner: appData",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 648.088597\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import.integration.test.ts:1:457'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import.integration.test.ts:20:19)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "B compiled static output renders through the theme owner while authored build source remains quarantined",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 1014.364819\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import.integration.test.ts:1:3553'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import.integration.test.ts:66:19)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  }
+ ],
+ "apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts": [
+  {
+   "name": "vault read parity [sqlite]",
+   "type": "hookFailed",
+   "err": "\"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"",
+   "code": "ERR_MODULE_NOT_FOUND",
+   "block": "---\nduration_ms: 122.551344\ntype: 'suite'\nlocation: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:834'\nfailureType: 'hookFailed'\nerror: \"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"\ncode: 'ERR_MODULE_NOT_FOUND'\nstack: |-\n  finalizeResolution (node:internal/modules/esm/resolve:272:11)\n  moduleResolve (node:internal/modules/esm/resolve:879:10)\n  defaultResolve (node:internal/modules/esm/resolve:1006:11)\n  #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)\n  #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)\n  nextStep (node:internal/modules/customization_hooks:189:26)\n  resolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)\n  resolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)\n  resolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)\n  resolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343)\n..."
+  },
+  {
+   "name": "vault read parity [pglite]",
+   "type": "hookFailed",
+   "err": "\"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"",
+   "code": "ERR_MODULE_NOT_FOUND",
+   "block": "---\nduration_ms: 0.117892\ntype: 'suite'\nlocation: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.test.ts:1:834'\nfailureType: 'hookFailed'\nerror: \"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"\ncode: 'ERR_MODULE_NOT_FOUND'\nstack: |-\n  finalizeResolution (node:internal/modules/esm/resolve:272:11)\n  moduleResolve (node:internal/modules/esm/resolve:879:10)\n  defaultResolve (node:internal/modules/esm/resolve:1006:11)\n  #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)\n  #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)\n  nextStep (node:internal/modules/customization_hooks:189:26)\n  resolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)\n  resolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)\n  resolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)\n  resolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343)\n..."
+  }
+ ],
+ "apps/website/src/platform/db/sqlite/__tests__/share-database.integration.test.ts": [
+  {
+   "name": "apps/website/src/platform/db/sqlite/__tests__/share-database.integration.test.ts",
+   "type": "testCodeFailure",
+   "err": "'test failed'",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 1716.525375\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/platform/db/sqlite/__tests__/share-database.integration.test.ts:1:1'\nfailureType: 'testCodeFailure'\nexitCode: 1\nsignal: ~\nerror: 'test failed'\ncode: 'ERR_TEST_FAILURE'\n..."
+  }
+ ],
+ "apps/website/src/server/__tests__/routes/seo-og-image-crawlability.test.ts": [
+  {
+   "name": "SEO/media fix: a dedicated (never-embedded) OG image with NO pre-existing rendition still gets an og:image tag, and the exact published URL 200s anonymously with an image content-type",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 580.042471\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/server/__tests__/routes/seo-og-image-crawlability.test.ts:1:3100'\nfailureType: 'testCodeFailure'\nerror: |-\n  The input did not match the regular expression /\\/og\\.v1\\/image\\.jpg$/. Input:\n  \n  'http://127.0.0.1:42209/m/cover/og.v1/image.jpg?v=1301fff68554'\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\nactual: 'http://127.0.0.1:42209/m/cover/og.v1/image.jpg?v=1301fff68554'\noperator: 'match'\nstack: |-\n  TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/routes/seo-og-image-crawlability.test.ts:142:10)\n  process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+  }
+ ],
+ "apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.member-access.route.test.ts": [
+  {
+   "name": "GET /:slug and / -- an unknown member cookie cannot expose gated content",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 359.630476\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.member-access.route.test.ts:1:4652'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly equal:\n  + actual - expected\n  \n  + undefined\n  - 'Privacy policy'\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected: 'Privacy policy'\noperator: 'strictEqual'\nstack: |-\n  assertDefaultConsentPage (/home/user/Tovu/apps/website/src/server/__tests__/helpers/default-consent-page.ts:31:12)\n  TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.member-access.route.test.ts:175:18)\n  process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "GET /:slug and / -- an expired member cookie cannot expose gated content",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 280.15155\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.member-access.route.test.ts:1:4652'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly equal:\n  + actual - expected\n  \n  + undefined\n  - 'Privacy policy'\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected: 'Privacy policy'\noperator: 'strictEqual'\nstack: |-\n  assertDefaultConsentPage (/home/user/Tovu/apps/website/src/server/__tests__/helpers/default-consent-page.ts:31:12)\n  TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.member-access.route.test.ts:175:18)\n  process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  }
+ ],
+ "apps/website/src/server/runtime/composition/__tests__/provider-plugins.unit.test.ts": [
+  {
+   "name": "nothing configured: nothing is loaded, every contract is the shared noop, and AI tracing is off",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 1.404803\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/provider-plugins.unit.test.ts:1:10312'\nfailureType: 'testCodeFailure'\nerror: |-\n  Values have same structure but are not reference-equal:\n  \n  {\n    activeTraceIds: [Function: activeTraceIds],\n    capture: [Function: capture],\n    error: [Function: error],\n    metric: [Function: metric],\n    trace: [AsyncFunction: trace]\n  }\n  \ncode: 'ERR_TEST_FAILURE'\n..."
+  }
+ ],
+ "apps/website/src/assistant/__tests__/agent-plugin-executable-tools.characterization.test.ts": [
+  {
+   "name": "a policy confirmation card shows exactly the Tool and Input rows (pinned before G7)",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 17.287791\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/assistant/__tests__/agent-plugin-executable-tools.characterization.test.ts:1:1180'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly deep-equal:\n  + actual - expected\n  \n    [\n  +   'ID'\n  -   'Tool',\n  -   'Input'\n    ]\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\n  0: 'Tool'\n  1: 'Input'\nactual:\n  0: 'ID'\noperator: 'deepStrictEqual'\nstack: |-"
+  }
+ ],
+ "apps/website/src/assistant/__tests__/domain-no-direct-tool-registration.boundary.test.ts": [
+  {
+   "name": "no production file under src/{analytics,features,identity,media,navigation,origin,seo,widgets}/ value-imports from src/assistant/ (type-only ToolContributor imports are fine)",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 4851.338091\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/assistant/__tests__/domain-no-direct-tool-registration.boundary.test.ts:1:3931'\nfailureType: 'testCodeFailure'\nerror: |-\n  Domain/feature modules must not call assistant's tool-contribution registry directly â only server/tool-catalog-manifest.ts may. Offending edges:\n    apps/website/src/features/agent-plugins/automatic-agent-plugins.ts value-imports \"../../assistant/ask-choice-tool.js\"\n  + actual - expected\n  \n  + [\n  +   'apps/website/src/features/agent-plugins/automatic-agent-plugins.ts value-imports \"../../assistant/ask-choice-tool.js\"'\n  + ]\n  - []\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\nactual:\n  0: 'apps/website/src/features/agent-plugins/automatic-agent-plugins.ts value-imports \"../../assistant/ask-choice-tool.js\"'\noperator: 'deepStrictEqual'\nstack: |-\n  TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/domain-no-direct-tool-registration.boundary.test.ts:200:10)\n  Test.runInAsyncScope (node:async_hooks:227:14)"
+  }
+ ],
+ "apps/website/src/features/site-backup/__tests__/import-private-rows.integration.test.ts": [
+  {
+   "name": "B successfully strips hostile schema-valid accounts, sessions and secrets before and after owner setup",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 828.39853\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-private-rows.integration.test.ts:1:452'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-private-rows.integration.test.ts:35:19)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+  },
+  {
+   "name": "B refuses a schema-valid archive with multiple workspaces without staging or creating a site",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 825.042844\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-private-rows.integration.test.ts:1:3010'\nfailureType: 'testCodeFailure'\nerror: |-\n  The input did not match the regular expression /database|workspace/i. Input:\n  \n  \"TypeError: Cannot read properties of undefined (reading 'endsWith')\"\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\nactual:\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async waitForActual (node:assert:646:5)"
+  }
+ ],
+ "apps/website/src/features/site-backup/__tests__/share-round-trip.integration.test.ts": [
+  {
+   "name": "A production preparation â public download â B import preserves content: inSite",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 1500.688429\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/share-round-trip.integration.test.ts:1:4511'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/share-round-trip.integration.test.ts:128:19)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "A production preparation â public download â B import preserves content: appData",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 1011.209849\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/share-round-trip.integration.test.ts:1:4511'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/share-round-trip.integration.test.ts:128:19)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  }
+ ],
+ "apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts": [
+  {
+   "name": "vault write parity [sqlite]",
+   "type": "hookFailed",
+   "err": "\"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"",
+   "code": "ERR_MODULE_NOT_FOUND",
+   "block": "---\nduration_ms: 119.199475\ntype: 'suite'\nlocation: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:689'\nfailureType: 'hookFailed'\nerror: \"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"\ncode: 'ERR_MODULE_NOT_FOUND'\nstack: |-\n  finalizeResolution (node:internal/modules/esm/resolve:272:11)\n  moduleResolve (node:internal/modules/esm/resolve:879:10)\n  defaultResolve (node:internal/modules/esm/resolve:1006:11)\n  #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)\n  #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)\n  nextStep (node:internal/modules/customization_hooks:189:26)\n  resolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)\n  resolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)\n  resolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)\n  resolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343)\n..."
+  },
+  {
+   "name": "vault write parity [pglite]",
+   "type": "hookFailed",
+   "err": "\"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"",
+   "code": "ERR_MODULE_NOT_FOUND",
+   "block": "---\nduration_ms: 0.026886\ntype: 'suite'\nlocation: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:689'\nfailureType: 'hookFailed'\nerror: \"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"\ncode: 'ERR_MODULE_NOT_FOUND'\nstack: |-\n  finalizeResolution (node:internal/modules/esm/resolve:272:11)\n  moduleResolve (node:internal/modules/esm/resolve:879:10)\n  defaultResolve (node:internal/modules/esm/resolve:1006:11)\n  #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)\n  #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)\n  nextStep (node:internal/modules/customization_hooks:189:26)\n  resolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)\n  resolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)\n  resolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)\n  resolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343)\n..."
+  },
+  {
+   "name": "vault write parity [memory]",
+   "type": "hookFailed",
+   "err": "\"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"",
+   "code": "ERR_MODULE_NOT_FOUND",
+   "block": "---\nduration_ms: 0.022762\ntype: 'suite'\nlocation: '/home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-write-parity.test.ts:1:689'\nfailureType: 'hookFailed'\nerror: \"Cannot find module '/home/user/Tovu/apps/website/src/platform/db/repos/site-credential-repo.ts' imported from /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/parity-harness.ts\"\ncode: 'ERR_MODULE_NOT_FOUND'\nstack: |-\n  finalizeResolution (node:internal/modules/esm/resolve:272:11)\n  moduleResolve (node:internal/modules/esm/resolve:879:10)\n  defaultResolve (node:internal/modules/esm/resolve:1006:11)\n  #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)\n  #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)\n  nextStep (node:internal/modules/customization_hooks:189:26)\n  resolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)\n  resolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)\n  resolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)\n  resolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343)\n..."
+  }
+ ],
+ "apps/website/src/server/inbound/public-http/routes/site/__tests__/integration/taxonomy-render-surface.integration.test.ts": [
+  {
+   "name": "integration: GET /:slug places the terms block right after the entry's content, inside the article and before the footer",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 337.998116\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/integration/taxonomy-render-surface.integration.test.ts:1:3225'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly equal:\n  + actual - expected\n  \n  + undefined\n  - 'Privacy policy'\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected: 'Privacy policy'\noperator: 'strictEqual'\nstack: |-\n  assertDefaultConsentPage (/home/user/Tovu/apps/website/src/server/__tests__/helpers/default-consent-page.ts:31:12)\n  TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/integration/taxonomy-render-surface.integration.test.ts:155:27)\n  process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  }
+ ],
+ "apps/website/src/server/runtime/composition/__tests__/peer-site-reads.test.ts": [
+  {
+   "name": "inSite: reads B's posts/media/forms and owner chats through the real catalog; audits only A",
+   "type": "testCodeFailure",
+   "err": "\"media_view_image: media asset 'media' could not be decoded as an image (image/png) â its stored file may be damaged.\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 908.020346\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/peer-site-reads.test.ts:1:1514'\nfailureType: 'testCodeFailure'\nerror: \"media_view_image: media asset 'media' could not be decoded as an image (image/png) â its stored file may be damaged.\"\ncode: 'ERR_TEST_FAILURE'\nname: 'ToolInputError'\nstack: |-\n  refusal (/home/user/Tovu/apps/website/src/features/media/view-image-tool.ts:104:10)\n  renderForModel (/home/user/Tovu/apps/website/src/features/media/view-image-tool.ts:170:11)\n  Object.media_view_image (/home/user/Tovu/apps/website/src/features/media/view-image-tool.ts:205:30)\n  async Object.handler (/home/user/Jini/packages/core/src/model-facing-tool-errors.ts:150:18)\n  async Object.handler (/home/user/Tovu/apps/website/src/server/runtime/composition/peer-site-reads.ts:435:24)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/peer-site-reads.test.ts:64:17)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+  },
+  {
+   "name": "appData: reads B's posts/media/forms and owner chats through the real catalog; audits only A",
+   "type": "testCodeFailure",
+   "err": "\"media_view_image: media asset 'media' could not be decoded as an image (image/png) â its stored file may be damaged.\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 686.641376\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/peer-site-reads.test.ts:1:1514'\nfailureType: 'testCodeFailure'\nerror: \"media_view_image: media asset 'media' could not be decoded as an image (image/png) â its stored file may be damaged.\"\ncode: 'ERR_TEST_FAILURE'\nname: 'ToolInputError'\nstack: |-\n  refusal (/home/user/Tovu/apps/website/src/features/media/view-image-tool.ts:104:10)\n  renderForModel (/home/user/Tovu/apps/website/src/features/media/view-image-tool.ts:170:11)\n  Object.media_view_image (/home/user/Tovu/apps/website/src/features/media/view-image-tool.ts:205:30)\n  async Object.handler (/home/user/Jini/packages/core/src/model-facing-tool-errors.ts:150:18)\n  async Object.handler (/home/user/Tovu/apps/website/src/server/runtime/composition/peer-site-reads.ts:435:24)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/peer-site-reads.test.ts:64:17)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  }
+ ],
+ "development/scripts/__tests__/check-idle-motion.test.ts": [
+  {
+   "name": "the live tree has no idle-CPU offenders and no stale allowlist entries",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 590.116255\ntype: 'test'\nlocation: '/home/user/Tovu/development/scripts/__tests__/check-idle-motion.test.ts:1:921'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly deep-equal:\n  + actual - expected\n  \n  + [\n  +   {\n  +     detail: 'setInterval( â use a visibility-aware timer or allowlist it with a reason',\n  +     file: 'apps/desktop/src/product-memory-telemetry.ts',\n  +     line: 56,\n  +     rule: 'bare-interval'\n  +   },\n  +   {\n  +     detail: 'setInterval( â use a visibility-aware timer or allowlist it with a reason',\n  +     file: 'apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx',\n  +     line: 741,\n  +     rule: 'bare-interval'\n  +   },\n  +   {\n  +     detail: '.provider-settings-spinner { animation: provider-settings-spin 0.8s linear infinite }',"
+  }
+ ],
+ "development/scripts/__tests__/request-site-binding.guard.test.ts": [
+  {
+   "name": "request surfaces and their feature helpers use the booted site binding",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 9439.230983\ntype: 'test'\nlocation: '/home/user/Tovu/development/scripts/__tests__/request-site-binding.guard.test.ts:1:2993'\nfailureType: 'testCodeFailure'\nerror: |-\n  Resolve layouts at boot and inject them into request handlers\n  + actual - expected\n  \n  + [\n  +   'features/site-backup/import-plugin-state.ts: resolveAgentPluginLayout'\n  + ]\n  - []\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\nactual:\n  0: 'features/site-backup/import-plugin-state.ts: resolveAgentPluginLayout'\noperator: 'deepStrictEqual'\nstack: |-\n  TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/request-site-binding.guard.test.ts:79:10)\n  Test.runInAsyncScope (node:async_hooks:227:14)\n  Test.run (node:internal/test_runner/test:1402:25)"
+  }
+ ],
+ "development/scripts/__tests__/unit/af-cli-characterization.unit.test.ts": [
+  {
+   "name": "outbox CLI ignores comment/string decoys and distinguishes raw adapters from unresolved deps",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 200.323656\ntype: 'test'\nlocation: '/home/user/Tovu/development/scripts/__tests__/unit/af-cli-characterization.unit.test.ts:24:481'\nfailureType: 'testCodeFailure'\nerror: |-\n  The input did not match the regular expression /example\\.ts:6.*publishEntry.*outbox: raw/. Input:\n  \n  'check:outbox-bridge â 1 OUTBOX_BRIDGE_SKIPPED finding(s):\\n' +\n    '  source/example.ts:3 â `createEntry(...)` needs `toEntryOutbox(...)`, got: outbox: wrong\\n' +\n    'check:outbox-bridge â 3 UNRESOLVED finding(s) (failing closed â verify by hand):\\n' +\n    '  source/example.ts:5 â `createTerm(...)`: resolved `deps` object has no `outbox:` field and no same-file helper spread to follow (chokepoint requires one)\\n' +\n    '  source/example.ts:6 â `publishEntry(...)`: resolved `deps` object has no `outbox:` field and no same-file helper spread to follow (chokepoint requires one)\\n' +\n    '  source/example.ts:7 â `assignTerms(...)`: `deps: missingDeps()` â helper `missingDeps` not found (or not resolvable) in the same file\\n' +\n    '\\n' +\n    'Fix: wrap the raw outbox adapter with the named bridge before it reaches the chokepoint call, e.g. `outbox: toEntryOutbox(deps)` (see server/routes/admin/entries/create.ts for the reference pattern).\\n'\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\nactual: |-\n  check:outbox-bridge â 1 OUTBOX_BRIDGE_SKIPPED finding(s):\n    source/example.ts:3 â `createEntry(...)` needs `toEntryOutbox(...)`, got: outbox: wrong\n  check:outbox-bridge â 3 UNRESOLVED finding(s) (failing closed â verify by hand):"
+  },
+  {
+   "name": "brand icon CLI keeps the letter and removes the disconnected frame from the simplified master",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 375.018191\ntype: 'test'\nlocation: '/home/user/Tovu/development/scripts/__tests__/unit/af-cli-characterization.unit.test.ts:24:1892'\nfailureType: 'testCodeFailure'\nerror: |-\n  build-brand-icons: full-logo artwork (170,170)-(1089,1089) is not fully inside the 904px crop at (178,178); it would be clipped.\n  \n  \n  1 !== 0\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected: 0\nactual: 1\noperator: 'strictEqual'\nstack: |-\n  TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/unit/af-cli-characterization.unit.test.ts:133:10)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  }
+ ],
+ "apps/website/src/assistant/__tests__/declared-tool-keywords.contract.test.ts": [
+  {
+   "name": "shipped tool words enrich both legacy and registered search without plugin activation",
+   "type": "testCodeFailure",
+   "err": "'fly: credential_save: fly'",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 9.474079\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/assistant/__tests__/declared-tool-keywords.contract.test.ts:1:3061'\nfailureType: 'testCodeFailure'\nerror: 'fly: credential_save: fly'\ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected: true\nactual: false\noperator: '=='\nstack: |-\n  TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/declared-tool-keywords.contract.test.ts:67:65)\n  Test.runInAsyncScope (node:async_hooks:227:14)\n  Test.run (node:internal/test_runner/test:1402:25)\n  Test.processPendingSubtests (node:internal/test_runner/test:974:18)\n  Test.postRun (node:internal/test_runner/test:1542:19)\n  Test.run (node:internal/test_runner/test:1467:12)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  }
+ ],
+ "apps/website/src/features/deployments/deploy-targets/__tests__/no-vendor-in-core.boundary.test.ts": [
+  {
+   "name": "real core tree has only reviewed pattern exceptions, each with its exact current total",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 9877.032499\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/deployments/deploy-targets/__tests__/no-vendor-in-core.boundary.test.ts:1:11351'\nfailureType: 'testCodeFailure'\nerror: |-\n  Vendor knowledge belongs in its plugin. Uncovered file/vendor/count pairs:\n  + actual - expected\n  \n  + [\n  +   'apps/website/src/contracts/core/assistant-native-fallbacks.ts: anthropic 1',\n  +   'apps/website/src/server/runtime/composition/data-modules.ts: lipay 1'\n  + ]\n  - []\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\nactual:\n  0: 'apps/website/src/contracts/core/assistant-native-fallbacks.ts: anthropic 1'\n  1: 'apps/website/src/server/runtime/composition/data-modules.ts: lipay 1'\noperator: 'deepStrictEqual'\nstack: |-\n  TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/deployments/deploy-targets/__tests__/no-vendor-in-core.boundary.test.ts:194:10)"
+  }
+ ],
+ "apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts": [
+  {
+   "name": "L3 local: share/import preserves private documents and deduplicates blobs",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 1079.358723\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:5163'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:119:19)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+  },
+  {
+   "name": "L3 s3: share/import preserves private documents and deduplicates blobs",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 1034.248736\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:5163'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:119:19)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "L3 import explicitly rejects missing document before creating a site",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 604.086208\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:12418'\nfailureType: 'testCodeFailure'\nerror: |-\n  The input did not match the regular expression /document|database/i. Input:\n  \n  \"TypeError: Cannot read properties of undefined (reading 'endsWith')\"\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\nactual:\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async waitForActual (node:assert:646:5)"
+  },
+  {
+   "name": "L3 import explicitly rejects corrupt document before creating a site",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 755.680564\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:12418'\nfailureType: 'testCodeFailure'\nerror: |-\n  The input did not match the regular expression /document|database/i. Input:\n  \n  \"TypeError: Cannot read properties of undefined (reading 'endsWith')\"\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\nactual:\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async waitForActual (node:assert:646:5)"
+  },
+  {
+   "name": "L3 import explicitly rejects invalid-json document before creating a site",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 675.907789\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:12418'\nfailureType: 'testCodeFailure'\nerror: |-\n  The input did not match the regular expression /document|database/i. Input:\n  \n  \"TypeError: Cannot read properties of undefined (reading 'endsWith')\"\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\nactual:\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async waitForActual (node:assert:646:5)"
+  },
+  {
+   "name": "L3 import explicitly rejects invalid-docx document before creating a site",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 646.538977\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:12418'\nfailureType: 'testCodeFailure'\nerror: |-\n  The input did not match the regular expression /document|database/i. Input:\n  \n  \"TypeError: Cannot read properties of undefined (reading 'endsWith')\"\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\nactual:\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async waitForActual (node:assert:646:5)"
+  },
+  {
+   "name": "L3 import explicitly rejects bad-key document before creating a site",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 642.415963\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:12418'\nfailureType: 'testCodeFailure'\nerror: |-\n  The input did not match the regular expression /document|database/i. Input:\n  \n  \"TypeError: Cannot read properties of undefined (reading 'endsWith')\"\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\nactual:\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async waitForActual (node:assert:646:5)"
+  },
+  {
+   "name": "L3 forged ordinary rendition cannot expose a private document through anonymous media retrieval",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 639.291828\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:15750'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly equal:\n  + actual - expected\n  \n  + undefined\n  - 'INVALID_DATABASE'\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected: 'INVALID_DATABASE'\noperator: 'strictEqual'\nstack: |-\n  TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:230:12)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "L3 genuine pre-L3 share omits Trash and orphan payloads but rejects arbitrary uploads",
+   "type": "testCodeFailure",
+   "err": "\"Cannot read properties of undefined (reading 'endsWith')\"",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 547.533815\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:17997'\nfailureType: 'testCodeFailure'\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\ncode: 'ERR_TEST_FAILURE'\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:267:19)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "L3 valid DOCX package expansion is bounded within entry limits",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 1607.70126\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:19607'\nfailureType: 'testCodeFailure'\nerror: |-\n  The input did not match the regular expression /DOCX expanded size|DOCX compression ratio/. Input:\n  \n  \"TypeError: Cannot read properties of undefined (reading 'endsWith')\"\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\nactual:\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async waitForActual (node:assert:646:5)"
+  },
+  {
+   "name": "L3 isolated guard: oversize",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 1020.407151\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:21797'\nfailureType: 'testCodeFailure'\nerror: |-\n  The input did not match the regular expression /10 MiB/. Input:\n  \n  \"TypeError: Cannot read properties of undefined (reading 'endsWith')\"\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\nactual:\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async waitForActual (node:assert:646:5)"
+  },
+  {
+   "name": "L3 isolated guard: wrong-signature",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 607.594315\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:21797'\nfailureType: 'testCodeFailure'\nerror: |-\n  The input did not match the regular expression /PDF signature/. Input:\n  \n  \"TypeError: Cannot read properties of undefined (reading 'endsWith')\"\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\nactual:\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async waitForActual (node:assert:646:5)"
+  },
+  {
+   "name": "L3 isolated guard: destination-collision",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 614.194016\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:21797'\nfailureType: 'testCodeFailure'\nerror: |-\n  The input did not match the regular expression /Referenced media is missing or failed its hash/. Input:\n  \n  \"TypeError: Cannot read properties of undefined (reading 'endsWith')\"\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\nactual:\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async waitForActual (node:assert:646:5)"
+  },
+  {
+   "name": "L3 isolated guard: forged-cross-owner",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 597.554291\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts:1:21797'\nfailureType: 'testCodeFailure'\nerror: |-\n  The input did not match the regular expression /database/i. Input:\n  \n  \"TypeError: Cannot read properties of undefined (reading 'endsWith')\"\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\nactual:\nerror: \"Cannot read properties of undefined (reading 'endsWith')\"\nname: 'TypeError'\nstack: |-\n  importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)\n  Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)\n  async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)\n  async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)\n  async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)\n  async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)\n  async waitForActual (node:assert:646:5)"
+  }
+ ],
+ "apps/website/src/features/site-export/__tests__/site-exporter.test.ts": [
+  {
+   "name": "live site: a request carrying the static-export marker gets no widget AND a never-store Cache-Control",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 431.789358\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/features/site-export/__tests__/site-exporter.test.ts:1:6749'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly equal:\n  + actual - expected\n  \n  + undefined\n  - 'Privacy policy'\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected: 'Privacy policy'\noperator: 'strictEqual'\nstack: |-\n  assertDefaultConsentPage (/home/user/Tovu/apps/website/src/server/__tests__/helpers/default-consent-page.ts:31:12)\n  TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-export/__tests__/site-exporter.test.ts:246:9)\n  process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  }
+ ],
+ "apps/website/src/platform/db/migrations/__tests__/member-external-identities-step.test.ts": [
+  {
+   "name": "[sqlite] 0035 adds only identity metadata, preserves members and applies once",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 91.372395\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/member-external-identities-step.test.ts:1:515'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly equal:\n  + actual - expected\n  \n  + '0036_publish_history_config_jsonb'\n  - '0034_member_auth'\n        ^\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected: '0034_member_auth'\nactual: '0036_publish_history_config_jsonb'\noperator: 'strictEqual'\nstack: |-\n  TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/member-external-identities-step.test.ts:21:12)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n..."
+  },
+  {
+   "name": "[pglite] 0035 adds only identity metadata, preserves members and applies once",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 3198.664104\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/member-external-identities-step.test.ts:1:515'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly equal:\n  + actual - expected\n  \n  + '0036_publish_history_config_jsonb'\n  - '0034_member_auth'\n        ^\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected: '0034_member_auth'\nactual: '0036_publish_history_config_jsonb'\noperator: 'strictEqual'\nstack: |-\n  TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/member-external-identities-step.test.ts:21:12)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  }
+ ],
+ "apps/website/src/server/inbound/admin-http/routes/assistant/__tests__/agent-probe-characterization.test.ts": [
+  {
+   "name": "detect-agents reads injected inventory with strict force undefined",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 4.2186\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/assistant/__tests__/agent-probe-characterization.test.ts:1:3482'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly deep-equal:\n  + actual - expected\n  ... Skipped lines\n  \n    {\n      data: [\n        {\n          authStatus: 'ok',\n          discoveryPending: true,\n  ...\n          ],\n  +       modelsSource: 'live'\n        }\n      ]\n    }\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'"
+  },
+  {
+   "name": "detect-agents reads injected inventory with strict force false",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 0.836807\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/assistant/__tests__/agent-probe-characterization.test.ts:1:3482'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly deep-equal:\n  + actual - expected\n  ... Skipped lines\n  \n    {\n      data: [\n        {\n          authStatus: 'ok',\n          discoveryPending: true,\n  ...\n          ],\n  +       modelsSource: 'live'\n        }\n      ]\n    }\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'"
+  },
+  {
+   "name": "detect-agents reads injected inventory with strict force true",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 0.651672\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/assistant/__tests__/agent-probe-characterization.test.ts:1:3482'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly deep-equal:\n  + actual - expected\n  ... Skipped lines\n  \n    {\n      data: [\n        {\n          authStatus: 'ok',\n          discoveryPending: true,\n  ...\n          ],\n  +       modelsSource: 'live'\n        }\n      ]\n    }\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'"
+  },
+  {
+   "name": "detect-agents reads injected inventory with strict force true",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 0.520681\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/assistant/__tests__/agent-probe-characterization.test.ts:1:3482'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly deep-equal:\n  + actual - expected\n  ... Skipped lines\n  \n    {\n      data: [\n        {\n          authStatus: 'ok',\n          discoveryPending: true,\n  ...\n          ],\n  +       modelsSource: 'live'\n        }\n      ]\n    }\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'"
+  }
+ ],
+ "apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.route.test.ts": [
+  {
+   "name": "GET / 500s with a generic 'Site error' when an unexpected exception is thrown",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 318.444307\ntype: 'test'\nlocation: '/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.route.test.ts:1:12586'\nfailureType: 'testCodeFailure'\nerror: |-\n  Expected values to be strictly equal:\n  + actual - expected\n  \n  + undefined\n  - 'Privacy policy'\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected: 'Privacy policy'\noperator: 'strictEqual'\nstack: |-\n  assertDefaultConsentPage (/home/user/Tovu/apps/website/src/server/__tests__/helpers/default-consent-page.ts:31:12)\n  TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.route.test.ts:479:27)\n  process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n  async Test.run (node:internal/test_runner/test:1409:7)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  }
+ ],
+ "development/scripts/__tests__/check-menu-href-allowlist-sync.test.ts": [
+  {
+   "name": "live: jini:isAllowedHref, render.ts:safeHref, and static-render.ts:safeHref agree on every table row",
+   "type": "testCodeFailure",
+   "err": "'extractSafeHrefDeclaration: could not find the SAFE_HREF_RESOLUTION_BASE/ORIGIN const pair in /home/user/Tovu/apps/website/src/features/theme/static-render.ts'",
+   "code": "ERR_TEST_FAILURE",
+   "block": "---\nduration_ms: 8.693086\ntype: 'test'\nlocation: '/home/user/Tovu/development/scripts/__tests__/check-menu-href-allowlist-sync.test.ts:17:2423'\nfailureType: 'testCodeFailure'\nerror: 'extractSafeHrefDeclaration: could not find the SAFE_HREF_RESOLUTION_BASE/ORIGIN const pair in /home/user/Tovu/apps/website/src/features/theme/static-render.ts'\ncode: 'ERR_TEST_FAILURE'\nstack: |-\n  extractSafeHrefDeclaration (/home/user/Tovu/development/scripts/check-menu-href-allowlist-sync.ts:155:11)\n  loadHrefChecker (/home/user/Tovu/development/scripts/check-menu-href-allowlist-sync.ts:182:23)\n  runMenuHrefAllowlistSync (/home/user/Tovu/development/scripts/check-menu-href-allowlist-sync.ts:255:5)\n  TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/check-menu-href-allowlist-sync.test.ts:177:28)\n  Test.runInAsyncScope (node:async_hooks:227:14)\n  Test.run (node:internal/test_runner/test:1402:25)\n  Test.processPendingSubtests (node:internal/test_runner/test:974:18)\n  Test.postRun (node:internal/test_runner/test:1542:19)\n  Test.run (node:internal/test_runner/test:1467:12)\n  async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n..."
+  },
+  {
+   "name": "CLI returns nonzero for mismatch and reports the reason",
+   "type": "testCodeFailure",
+   "err": "|-",
+   "code": "ERR_ASSERTION",
+   "block": "---\nduration_ms: 237.420212\ntype: 'test'\nlocation: '/home/user/Tovu/development/scripts/__tests__/check-menu-href-allowlist-sync.test.ts:17:2741'\nfailureType: 'testCodeFailure'\nerror: |-\n  The input did not match the regular expression /produced disagreement/. Input:\n  \n  'check:menu-href-allowlist-sync â could not run the comparison at all (extraction failure, not a behavioral mismatch): extractSafeHrefDeclaration: could not find the SAFE_HREF_RESOLUTION_BASE/ORIGIN const pair in /home/user/Tovu/apps/website/src/features/theme/static-render.ts\\n'\n  \ncode: 'ERR_ASSERTION'\nname: 'AssertionError'\nexpected:\nactual: |-\n  check:menu-href-allowlist-sync â could not run the comparison at all (extraction failure, not a behavioral mismatch): extractSafeHrefDeclaration: could not find the SAFE_HREF_RESOLUTION_BASE/ORIGIN const pair in /home/user/Tovu/apps/website/src/features/theme/static-render.ts\n  \noperator: 'match'\nstack: |-\n  TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/check-menu-href-allowlist-sync.test.ts:207:16)\n  Test.runInAsyncScope (node:async_hooks:227:14)\n  Test.run (node:internal/test_runner/test:1402:25)\n  Test.processPendingSubtests (node:internal/test_runner/test:974:18)\n  Test.postRun (node:internal/test_runner/test:1542:19)\n  Test.run (node:internal/test_runner/test:1467:12)"
+  }
+ ]
+}

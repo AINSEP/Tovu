@@ -1,0 +1,50 @@
+TAP version 13
+# Subtest: a confirmed write tool call runs end to end through the registry, approval owner and host capabilities
+not ok 1 - a confirmed write tool call runs end to end through the registry, approval owner and host capabilities
+  ---
+  duration_ms: 16.048548
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/agent-plugins/executable-tools/__tests__/executable-tools.vertical-slice.test.ts:1:150'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      [
+    +   'Connection ref',
+    +   'Table',
+    +   'Values',
+    -   'Tool',
+    -   'Input',
+        'Account',
+        'Affects'
+      ]
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 'Tool'
+    1: 'Input'
+    2: 'Account'
+    3: 'Affects'
+  actual:
+    0: 'Connection ref'
+    1: 'Table'
+    2: 'Values'
+    3: 'Account'
+    4: 'Affects'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/executable-tools/__tests__/executable-tools.vertical-slice.test.ts:18:10)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 655.934128

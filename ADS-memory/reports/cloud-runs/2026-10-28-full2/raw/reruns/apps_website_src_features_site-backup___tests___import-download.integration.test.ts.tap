@@ -1,0 +1,64 @@
+TAP version 13
+# Subtest: B guarded HTTPS import pins public download, refuses private initial/redirect peers, propagates caps and cancellation
+not ok 1 - B guarded HTTPS import pins public download, refuses private initial/redirect peers, propagates caps and cancellation
+  ---
+  duration_ms: 798.12104
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-download.integration.test.ts:1:476'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-download.integration.test.ts:28:17)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+# Subtest: B truncated/unknown-completeness downloads and oversized uploads fail without registering sites
+ok 2 - B truncated/unknown-completeness downloads and oversized uploads fail without registering sites
+  ---
+  duration_ms: 609.013719
+  type: 'test'
+  ...
+# Subtest: B download admits only ZIP/binary MIME and still verifies ZIP bytes
+not ok 3 - B download admits only ZIP/binary MIME and still verifies ZIP bytes
+  ---
+  duration_ms: 537.933173
+  type: 'test'
+  location: '/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-download.integration.test.ts:1:2985'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'endsWith')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    importWorkerLaunch (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:25:32)
+    Object.rebuildImportDatabase (/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts:44:34)
+    async verifySiteImport (/home/user/Tovu/apps/website/src/features/site-backup/import-verifier.ts:40:22)
+    async verifyAndStage (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:80:24)
+    async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:288:19)
+    async exclusive (/home/user/Tovu/apps/website/src/features/site-backup/import-backend.ts:61:18)
+    async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-download.integration.test.ts:55:19)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: failed HTTP status or missing binary body records a failed import without staging a site
+ok 4 - failed HTTP status or missing binary body records a failed import without staging a site
+  ---
+  duration_ms: 451.919661
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 2
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4040.232563
