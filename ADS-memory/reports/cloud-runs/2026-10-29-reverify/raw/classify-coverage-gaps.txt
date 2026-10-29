@@ -1,0 +1,15 @@
+/home/user/Tovu/development/scripts/route-coverage-lib.ts:134
+    throw new Error(
+          ^
+
+Error: /home/user/Tovu/development/coverage/lcov.unit.info does not exist. Run `npm run test:cov` first — these gates only parse its output, they do not run tests themselves.
+    at loadLcov (/home/user/Tovu/development/scripts/route-coverage-lib.ts:134:11)
+    at loadRouteCoverage (/home/user/Tovu/development/scripts/route-coverage-lib.ts:158:10)
+    at main (/home/user/Tovu/development/scripts/classify-coverage-gaps.ts:110:23)
+    at <anonymous> (/home/user/Tovu/development/scripts/classify-coverage-gaps.ts:174:3)
+    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.22.0
+EXIT=1

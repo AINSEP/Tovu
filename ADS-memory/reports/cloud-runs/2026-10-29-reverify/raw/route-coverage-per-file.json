@@ -1,0 +1,2333 @@
+[
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/site-key.ts",
+  "lines": 78.68,
+  "branches": 69.23,
+  "funcs": 20.59,
+  "uncovered_lines": 132
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/backstop.ts",
+  "lines": 59.78,
+  "branches": 65.85,
+  "funcs": 56,
+  "uncovered_lines": 109
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/database/migrate-forward.ts",
+  "lines": 59.09,
+  "branches": 100,
+  "funcs": 33.33,
+  "uncovered_lines": 72
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/taxonomy/merge-term.ts",
+  "lines": 56.52,
+  "branches": 100,
+  "funcs": 33.33,
+  "uncovered_lines": 70
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/publish-site.ts",
+  "lines": 88.82,
+  "branches": 31.51,
+  "funcs": 86.67,
+  "uncovered_lines": 53
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/site-imports.ts",
+  "lines": 50.47,
+  "branches": 100,
+  "funcs": 14.29,
+  "uncovered_lines": 53
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/update-campaign.ts",
+  "lines": 68.1,
+  "branches": 100,
+  "funcs": 25,
+  "uncovered_lines": 52
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts",
+  "lines": 63.31,
+  "branches": 100,
+  "funcs": 20,
+  "uncovered_lines": 51
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/browser-telemetry.ts",
+  "lines": 70.25,
+  "branches": 63.64,
+  "funcs": 41.67,
+  "uncovered_lines": 47
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/posts/autosave.ts",
+  "lines": 76.29,
+  "branches": 100,
+  "funcs": 18.18,
+  "uncovered_lines": 46
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/agent-plugins/install.ts",
+  "lines": 67.18,
+  "branches": 100,
+  "funcs": 28.57,
+  "uncovered_lines": 43
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/plugins/preview.ts",
+  "lines": 73.38,
+  "branches": 100,
+  "funcs": 25,
+  "uncovered_lines": 41
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/pages.ts",
+  "lines": 98.67,
+  "branches": 78.75,
+  "funcs": 96.97,
+  "uncovered_lines": 41
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/redirects/create.ts",
+  "lines": 58.51,
+  "branches": 100,
+  "funcs": 50,
+  "uncovered_lines": 39
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/site-shares.ts",
+  "lines": 54.12,
+  "branches": 100,
+  "funcs": 16.67,
+  "uncovered_lines": 39
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/members/request-magic-link.ts",
+  "lines": 67.52,
+  "branches": 100,
+  "funcs": 33.33,
+  "uncovered_lines": 38
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/change-sets/revert.ts",
+  "lines": 67.26,
+  "branches": 100,
+  "funcs": 50,
+  "uncovered_lines": 37
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/agent-plugins/memory.ts",
+  "lines": 48.57,
+  "branches": 100,
+  "funcs": 42.86,
+  "uncovered_lines": 36
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/themes/preview.ts",
+  "lines": 72.31,
+  "branches": 100,
+  "funcs": 33.33,
+  "uncovered_lines": 36
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/mail-activity.ts",
+  "lines": 70.09,
+  "branches": 100,
+  "funcs": 21.43,
+  "uncovered_lines": 35
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/themes/duplicate.ts",
+  "lines": 62.79,
+  "branches": 100,
+  "funcs": 50,
+  "uncovered_lines": 32
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/original.ts",
+  "lines": 88.85,
+  "branches": 90,
+  "funcs": 50,
+  "uncovered_lines": 31
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/redirects/update.ts",
+  "lines": 53.13,
+  "branches": 100,
+  "funcs": 50,
+  "uncovered_lines": 30
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/delete.ts",
+  "lines": 58.9,
+  "branches": 100,
+  "funcs": 50,
+  "uncovered_lines": 30
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/agent-plugins/install-response.ts",
+  "lines": 81.05,
+  "branches": 42.86,
+  "funcs": 28.57,
+  "uncovered_lines": 29
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/content/posts/get-by-slug.ts",
+  "lines": 64.63,
+  "branches": 100,
+  "funcs": 50,
+  "uncovered_lines": 29
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/create-campaign.ts",
+  "lines": 71.13,
+  "branches": 100,
+  "funcs": 50,
+  "uncovered_lines": 28
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/seo/get-entry.ts",
+  "lines": 45.1,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 28
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/create.ts",
+  "lines": 75.45,
+  "branches": 46.15,
+  "funcs": 66.67,
+  "uncovered_lines": 27
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/replace.ts",
+  "lines": 68.67,
+  "branches": 66.67,
+  "funcs": 66.67,
+  "uncovered_lines": 26
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/redirects/get-by-id.ts",
+  "lines": 38.1,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 26
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/seo/get-entry-analyze.ts",
+  "lines": 45.83,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 26
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/source-control-credentials.ts",
+  "lines": 87.56,
+  "branches": 50,
+  "funcs": 66.67,
+  "uncovered_lines": 26
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/themes/list.ts",
+  "lines": 74,
+  "branches": 100,
+  "funcs": 50,
+  "uncovered_lines": 26
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/update.ts",
+  "lines": 77.59,
+  "branches": 42.11,
+  "funcs": 66.67,
+  "uncovered_lines": 26
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/mail-test-send.ts",
+  "lines": 67.95,
+  "branches": 100,
+  "funcs": 33.33,
+  "uncovered_lines": 25
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/peer-transport.ts",
+  "lines": 92.9,
+  "branches": 50,
+  "funcs": 68.42,
+  "uncovered_lines": 24
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/redirects/import.ts",
+  "lines": 58.62,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 24
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/change-sets/get.ts",
+  "lines": 59.65,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 23
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/create-subscription.ts",
+  "lines": 60.34,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 23
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/plugins/uninstall.ts",
+  "lines": 72.62,
+  "branches": 44.44,
+  "funcs": 75,
+  "uncovered_lines": 23
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/consent/routes.ts",
+  "lines": 65.08,
+  "branches": 100,
+  "funcs": 30,
+  "uncovered_lines": 22
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/peers.ts",
+  "lines": 84.62,
+  "branches": 66.67,
+  "funcs": 50,
+  "uncovered_lines": 22
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/recovery/deep-link.ts",
+  "lines": 55.1,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 22
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/redirects/tombstone.ts",
+  "lines": 55.1,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 22
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/mail-providers.ts",
+  "lines": 80.87,
+  "branches": 100,
+  "funcs": 25,
+  "uncovered_lines": 22
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/external-mcp/oauth.ts",
+  "lines": 88.71,
+  "branches": 57.14,
+  "funcs": 80,
+  "uncovered_lines": 21
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/plugins/set-enabled.ts",
+  "lines": 88.65,
+  "branches": 69.12,
+  "funcs": 80,
+  "uncovered_lines": 21
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/assistant-owner-grant.ts",
+  "lines": 65.57,
+  "branches": 100,
+  "funcs": 40,
+  "uncovered_lines": 21
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/list-send-log.ts",
+  "lines": 45.95,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 20
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/plugins/chart-providers.ts",
+  "lines": 59.18,
+  "branches": 100,
+  "funcs": 40,
+  "uncovered_lines": 20
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/plugins/files.ts",
+  "lines": 71.43,
+  "branches": 100,
+  "funcs": 50,
+  "uncovered_lines": 20
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/server-logs.ts",
+  "lines": 64.91,
+  "branches": 100,
+  "funcs": 50,
+  "uncovered_lines": 20
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/text.ts",
+  "lines": 58.7,
+  "branches": 100,
+  "funcs": 33.33,
+  "uncovered_lines": 19
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/members/get-by-id.ts",
+  "lines": 71.64,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 19
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/get-campaign.ts",
+  "lines": 44.12,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 19
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/pages/delete.ts",
+  "lines": 85.71,
+  "branches": 58.33,
+  "funcs": 85.71,
+  "uncovered_lines": 19
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/seo/get-settings.ts",
+  "lines": 48.65,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 19
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/sites/site-previews.ts",
+  "lines": 75.32,
+  "branches": 66.67,
+  "funcs": 80,
+  "uncovered_lines": 19
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/resolve-test-agent-outcome.ts",
+  "lines": 75.68,
+  "branches": 100,
+  "funcs": 25,
+  "uncovered_lines": 18
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/change-sets/list.ts",
+  "lines": 55,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 18
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/database/restore-points.ts",
+  "lines": 91.59,
+  "branches": 70.59,
+  "funcs": 84.62,
+  "uncovered_lines": 18
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/create-list.ts",
+  "lines": 57.14,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 18
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/blob-get.ts",
+  "lines": 85.6,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 18
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/site/profile.ts",
+  "lines": 90.82,
+  "branches": 100,
+  "funcs": 33.33,
+  "uncovered_lines": 18
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/members/list.ts",
+  "lines": 76.39,
+  "branches": 100,
+  "funcs": 50,
+  "uncovered_lines": 17
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/sites/sites-home.ts",
+  "lines": 81.93,
+  "branches": 61.4,
+  "funcs": 81.82,
+  "uncovered_lines": 15
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/members/disable.ts",
+  "lines": 78.79,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 14
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/cancel-campaign.ts",
+  "lines": 65.85,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 14
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/pause-campaign.ts",
+  "lines": 61.11,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 14
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/resume-campaign.ts",
+  "lines": 61.11,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 14
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/destination.ts",
+  "lines": 95.04,
+  "branches": 52.94,
+  "funcs": 84.62,
+  "uncovered_lines": 14
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/recovery/disclosure.ts",
+  "lines": 76.27,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 14
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/assistant-daemon.ts",
+  "lines": 84.62,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 14
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/agent-plugins/files.ts",
+  "lines": 80,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 13
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/members/delete.ts",
+  "lines": 58.06,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 13
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/archive-list.ts",
+  "lines": 63.89,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 13
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/list-subscriptions.ts",
+  "lines": 62.86,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 13
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/trash/items.ts",
+  "lines": 87.96,
+  "branches": 55.56,
+  "funcs": 100,
+  "uncovered_lines": 13
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/write-policy-permission.ts",
+  "lines": 86.73,
+  "branches": 33.33,
+  "funcs": 100,
+  "uncovered_lines": 13
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/fs-files/folder-picker.ts",
+  "lines": 82.09,
+  "branches": 100,
+  "funcs": 40,
+  "uncovered_lines": 12
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/update.ts",
+  "lines": 91.3,
+  "branches": 43.75,
+  "funcs": 85.71,
+  "uncovered_lines": 12
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/list-lists.ts",
+  "lines": 62.5,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 12
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/resend-confirmation.ts",
+  "lines": 78.95,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 12
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/pages/create.ts",
+  "lines": 90.32,
+  "branches": 53.57,
+  "funcs": 100,
+  "uncovered_lines": 12
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/import.ts",
+  "lines": 96.03,
+  "branches": 64,
+  "funcs": 100,
+  "uncovered_lines": 12
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/mail-status.ts",
+  "lines": 80.95,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 12
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/delete-role.ts",
+  "lines": 79.31,
+  "branches": 50,
+  "funcs": 75,
+  "uncovered_lines": 12
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/remove-subscription.ts",
+  "lines": 79.25,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 11
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/assistant-subagents.ts",
+  "lines": 77.08,
+  "branches": 100,
+  "funcs": 28.57,
+  "uncovered_lines": 11
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/members/password-sign-in.ts",
+  "lines": 63.33,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 11
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/members/set-password.ts",
+  "lines": 60.71,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 11
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/media-rendition.ts",
+  "lines": 98.47,
+  "branches": 72.88,
+  "funcs": 90.63,
+  "uncovered_lines": 11
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/member-pages.ts",
+  "lines": 94.27,
+  "branches": 100,
+  "funcs": 85.71,
+  "uncovered_lines": 11
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/list-campaigns.ts",
+  "lines": 75,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 10
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/settings/register-definitions.ts",
+  "lines": 94.05,
+  "branches": 66.67,
+  "funcs": 100,
+  "uncovered_lines": 10
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/themes/explore.ts",
+  "lines": 99.22,
+  "branches": 81.55,
+  "funcs": 92.45,
+  "uncovered_lines": 10
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/create-role.ts",
+  "lines": 78.26,
+  "branches": 50,
+  "funcs": 100,
+  "uncovered_lines": 10
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/database/timeline.ts",
+  "lines": 88.89,
+  "branches": 63.64,
+  "funcs": 83.33,
+  "uncovered_lines": 9
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/forms/list-submissions.ts",
+  "lines": 90.63,
+  "branches": 78.95,
+  "funcs": 100,
+  "uncovered_lines": 9
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/mail-dns.ts",
+  "lines": 83.64,
+  "branches": 100,
+  "funcs": 60,
+  "uncovered_lines": 9
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/database/schema-state.ts",
+  "lines": 87.69,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 8
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/pages/get-by-id.ts",
+  "lines": 91.21,
+  "branches": 60.87,
+  "funcs": 57.14,
+  "uncovered_lines": 8
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/redirects/shared.ts",
+  "lines": 84,
+  "branches": 100,
+  "funcs": 14.29,
+  "uncovered_lines": 8
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/settings/shared.ts",
+  "lines": 96.89,
+  "branches": 81.52,
+  "funcs": 100,
+  "uncovered_lines": 8
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/observability-status.ts",
+  "lines": 90.48,
+  "branches": 45.83,
+  "funcs": 100,
+  "uncovered_lines": 8
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/workspace/delete.ts",
+  "lines": 93.55,
+  "branches": 73.68,
+  "funcs": 100,
+  "uncovered_lines": 8
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/content-types/lifecycle.ts",
+  "lines": 92.39,
+  "branches": 50,
+  "funcs": 100,
+  "uncovered_lines": 7
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/pages/update.ts",
+  "lines": 97.12,
+  "branches": 55.56,
+  "funcs": 88.89,
+  "uncovered_lines": 7
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/posts/update.ts",
+  "lines": 97.4,
+  "branches": 40,
+  "funcs": 80,
+  "uncovered_lines": 7
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/assistant-permanent-deletes.ts",
+  "lines": 75.86,
+  "branches": 100,
+  "funcs": 40,
+  "uncovered_lines": 7
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/sites.ts",
+  "lines": 98.42,
+  "branches": 52.63,
+  "funcs": 93.75,
+  "uncovered_lines": 7
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/members/forgot-password.ts",
+  "lines": 68.18,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 7
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/members/sign-out.ts",
+  "lines": 69.57,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 7
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/trash.ts",
+  "lines": 93.33,
+  "branches": 46.15,
+  "funcs": 71.43,
+  "uncovered_lines": 6
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/seo/put-settings.ts",
+  "lines": 88.68,
+  "branches": 45.45,
+  "funcs": 100,
+  "uncovered_lines": 6
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/credential-copy.ts",
+  "lines": 90.63,
+  "branches": 97.3,
+  "funcs": 100,
+  "uncovered_lines": 6
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/agent-plugin-surfaces/export-files.ts",
+  "lines": 90.77,
+  "branches": 56.25,
+  "funcs": 85.71,
+  "uncovered_lines": 6
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/members/reset-password.ts",
+  "lines": 66.67,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 6
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/agent-plugins/set-enabled.ts",
+  "lines": 98.28,
+  "branches": 97.92,
+  "funcs": 100,
+  "uncovered_lines": 5
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/pages/list.ts",
+  "lines": 87.8,
+  "branches": 50,
+  "funcs": 100,
+  "uncovered_lines": 5
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/import-errors.ts",
+  "lines": 88.37,
+  "branches": 76.92,
+  "funcs": 100,
+  "uncovered_lines": 5
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/deployment-overview.ts",
+  "lines": 97.52,
+  "branches": 63.16,
+  "funcs": 100,
+  "uncovered_lines": 5
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/delete-policy.ts",
+  "lines": 91.38,
+  "branches": 50,
+  "funcs": 100,
+  "uncovered_lines": 5
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/remove-policy-permission.ts",
+  "lines": 94.38,
+  "branches": 64,
+  "funcs": 100,
+  "uncovered_lines": 5
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/members/complete-sign-in.ts",
+  "lines": 94.57,
+  "branches": 55,
+  "funcs": 85.71,
+  "uncovered_lines": 5
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/api-keys/revoke.ts",
+  "lines": 90,
+  "branches": 100,
+  "funcs": 66.67,
+  "uncovered_lines": 4
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/content-types/list.ts",
+  "lines": 90,
+  "branches": 85.71,
+  "funcs": 100,
+  "uncovered_lines": 4
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/content-types/register.ts",
+  "lines": 95.29,
+  "branches": 68.42,
+  "funcs": 100,
+  "uncovered_lines": 4
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/list.ts",
+  "lines": 92.73,
+  "branches": 33.33,
+  "funcs": 75,
+  "uncovered_lines": 4
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/export.ts",
+  "lines": 97.01,
+  "branches": 61.54,
+  "funcs": 100,
+  "uncovered_lines": 4
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/route-helpers.ts",
+  "lines": 96.88,
+  "branches": 76,
+  "funcs": 90,
+  "uncovered_lines": 4
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/recovery/restore-points.ts",
+  "lines": 90.24,
+  "branches": 66.67,
+  "funcs": 100,
+  "uncovered_lines": 4
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/recovery/restore.ts",
+  "lines": 98.37,
+  "branches": 55.77,
+  "funcs": 93.33,
+  "uncovered_lines": 4
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/regions-list.ts",
+  "lines": 88.89,
+  "branches": 75,
+  "funcs": 100,
+  "uncovered_lines": 4
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/workspace/get.ts",
+  "lines": 90.48,
+  "branches": 66.67,
+  "funcs": 100,
+  "uncovered_lines": 4
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/workspace/update.ts",
+  "lines": 94.44,
+  "branches": 66.67,
+  "funcs": 100,
+  "uncovered_lines": 4
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/newsletter-confirm.ts",
+  "lines": 92.45,
+  "branches": 90,
+  "funcs": 80,
+  "uncovered_lines": 4
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/stored-credential-probe.ts",
+  "lines": 98.68,
+  "branches": 90,
+  "funcs": 100,
+  "uncovered_lines": 3
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/comments/moderation-queue.ts",
+  "lines": 95.65,
+  "branches": 75,
+  "funcs": 100,
+  "uncovered_lines": 3
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/external-mcp/admissions.ts",
+  "lines": 95.08,
+  "branches": 66.67,
+  "funcs": 100,
+  "uncovered_lines": 3
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/forms/update.ts",
+  "lines": 97.39,
+  "branches": 83.33,
+  "funcs": 100,
+  "uncovered_lines": 3
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/posts/template-preview-render.ts",
+  "lines": 98.58,
+  "branches": 91.89,
+  "funcs": 100,
+  "uncovered_lines": 3
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/sites/local-sites.ts",
+  "lines": 95.65,
+  "branches": 83.33,
+  "funcs": 100,
+  "uncovered_lines": 3
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/agent-tools.ts",
+  "lines": 99.06,
+  "branches": 98.89,
+  "funcs": 100,
+  "uncovered_lines": 3
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/publish-trust/handshake.ts",
+  "lines": 98.76,
+  "branches": 52.63,
+  "funcs": 92.86,
+  "uncovered_lines": 3
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/forms-multipart.ts",
+  "lines": 94.44,
+  "branches": 75,
+  "funcs": 100,
+  "uncovered_lines": 3
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/put-execution-credential.ts",
+  "lines": 98.11,
+  "branches": 96,
+  "funcs": 100,
+  "uncovered_lines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/external-mcp/probe.ts",
+  "lines": 97.75,
+  "branches": 58.33,
+  "funcs": 100,
+  "uncovered_lines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/import-url.ts",
+  "lines": 97.56,
+  "branches": 81.82,
+  "funcs": 100,
+  "uncovered_lines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/posts/delete.ts",
+  "lines": 98.69,
+  "branches": 52.38,
+  "funcs": 88.89,
+  "uncovered_lines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/recovery/status.ts",
+  "lines": 97.14,
+  "branches": 66.67,
+  "funcs": 100,
+  "uncovered_lines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/settings/get-raw.ts",
+  "lines": 97.56,
+  "branches": 76.47,
+  "funcs": 100,
+  "uncovered_lines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/assign-role.ts",
+  "lines": 96.88,
+  "branches": 80,
+  "funcs": 100,
+  "uncovered_lines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/attach-policy.ts",
+  "lines": 96.92,
+  "branches": 95.83,
+  "funcs": 100,
+  "uncovered_lines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/list.ts",
+  "lines": 98.04,
+  "branches": 61.11,
+  "funcs": 90.91,
+  "uncovered_lines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/update.ts",
+  "lines": 95.35,
+  "branches": 64.29,
+  "funcs": 100,
+  "uncovered_lines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/comments-submit.ts",
+  "lines": 98.28,
+  "branches": 65.96,
+  "funcs": 92.31,
+  "uncovered_lines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/search.ts",
+  "lines": 98.85,
+  "branches": 95.95,
+  "funcs": 88.24,
+  "uncovered_lines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/sitemap.ts",
+  "lines": 94.12,
+  "branches": 62.5,
+  "funcs": 100,
+  "uncovered_lines": 2
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/get-chat-attachment.ts",
+  "lines": 99.07,
+  "branches": 88.89,
+  "funcs": 100,
+  "uncovered_lines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/list-models.ts",
+  "lines": 99.36,
+  "branches": 81.48,
+  "funcs": 100,
+  "uncovered_lines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/comments/get-settings.ts",
+  "lines": 97.73,
+  "branches": 66.67,
+  "funcs": 100,
+  "uncovered_lines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/external-mcp/tool-approvals.ts",
+  "lines": 98,
+  "branches": 80.95,
+  "funcs": 100,
+  "uncovered_lines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/forms/pull-submissions.ts",
+  "lines": 98.61,
+  "branches": 94.29,
+  "funcs": 100,
+  "uncovered_lines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/integrations/list.ts",
+  "lines": 98.81,
+  "branches": 80,
+  "funcs": 85.71,
+  "uncovered_lines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/upload.ts",
+  "lines": 99.52,
+  "branches": 74.76,
+  "funcs": 100,
+  "uncovered_lines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/presentation/get.ts",
+  "lines": 99.26,
+  "branches": 96,
+  "funcs": 100,
+  "uncovered_lines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/settings/get-effective.ts",
+  "lines": 98.91,
+  "branches": 64.29,
+  "funcs": 100,
+  "uncovered_lines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/skills/list.ts",
+  "lines": 98.33,
+  "branches": 85.71,
+  "funcs": 100,
+  "uncovered_lines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/workspace/list.ts",
+  "lines": 97.06,
+  "branches": 71.43,
+  "funcs": 100,
+  "uncovered_lines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/agent-plugin-surfaces/files.ts",
+  "lines": 98.55,
+  "branches": 83.33,
+  "funcs": 100,
+  "uncovered_lines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/newsletter-unsubscribe.ts",
+  "lines": 98.15,
+  "branches": 90,
+  "funcs": 80,
+  "uncovered_lines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/products.ts",
+  "lines": 99.21,
+  "branches": 73.17,
+  "funcs": 100,
+  "uncovered_lines": 1
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/agent-plugins/admin-surfaces.ts",
+  "lines": 100,
+  "branches": 93.18,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/agent-plugins/connection-sign-in.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/agent-plugins/list.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/analytics/recent-hits.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/api-keys/create-principal.ts",
+  "lines": 100,
+  "branches": 66.67,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/api-keys/issue.ts",
+  "lines": 100,
+  "branches": 66.67,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/delete-execution-credential.ts",
+  "lines": 100,
+  "branches": 87.5,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/delete-site-credential.ts",
+  "lines": 100,
+  "branches": 84.62,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/detect-agents.ts",
+  "lines": 100,
+  "branches": 89.11,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/execution-request-fields.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/get-execution-credential.ts",
+  "lines": 100,
+  "branches": 87.5,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/get-settings.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/get-site-credential.ts",
+  "lines": 100,
+  "branches": 84.62,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/put-settings.ts",
+  "lines": 100,
+  "branches": 86.67,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/put-site-credential.ts",
+  "lines": 100,
+  "branches": 88.57,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/test-agent.ts",
+  "lines": 100,
+  "branches": 72.73,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/test-connection.ts",
+  "lines": 100,
+  "branches": 86.21,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/assistant/visitor-tools.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/comments/moderate.ts",
+  "lines": 100,
+  "branches": 84.93,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/comments/put-settings.ts",
+  "lines": 100,
+  "branches": 66.67,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/content-types/update-fields.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/content-types/write-error-status.ts",
+  "lines": 100,
+  "branches": 96.43,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/email-templates/routes.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/entries/create.ts",
+  "lines": 100,
+  "branches": 75.86,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/entries/lifecycle.ts",
+  "lines": 100,
+  "branches": 80.95,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/entries/list.ts",
+  "lines": 100,
+  "branches": 85.71,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/entries/update.ts",
+  "lines": 100,
+  "branches": 80.77,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/entries/write-error-status.ts",
+  "lines": 100,
+  "branches": 83.33,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/external-mcp/delete.ts",
+  "lines": 100,
+  "branches": 76.92,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/external-mcp/guard.ts",
+  "lines": 100,
+  "branches": 87.5,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/external-mcp/list.ts",
+  "lines": 100,
+  "branches": 87.5,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/external-mcp/put.ts",
+  "lines": 100,
+  "branches": 79.31,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/forms/authoring.ts",
+  "lines": 100,
+  "branches": 95.56,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/forms/create.ts",
+  "lines": 100,
+  "branches": 90.48,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/forms/delete-submission.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/forms/get-by-id.ts",
+  "lines": 100,
+  "branches": 91.67,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/forms/get-submission.ts",
+  "lines": 100,
+  "branches": 89.47,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/forms/list.ts",
+  "lines": 100,
+  "branches": 90.91,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/forms/resolve-definition.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/fs-files/custom-root.ts",
+  "lines": 100,
+  "branches": 92.86,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/integrations/create.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/integrations/delete.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/integrations/deliveries.ts",
+  "lines": 100,
+  "branches": 75,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/integrations/pause.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/byte-size.ts",
+  "lines": 100,
+  "branches": 75,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/content-type.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/delete.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 80,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/get-providers.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/parse.ts",
+  "lines": 100,
+  "branches": 86.84,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/put-providers.ts",
+  "lines": 100,
+  "branches": 93.33,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/route-guards.ts",
+  "lines": 100,
+  "branches": 85,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/stored-media-response.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/media/where-used.ts",
+  "lines": 100,
+  "branches": 83.33,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/menus/assign-location.ts",
+  "lines": 100,
+  "branches": 92.31,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/menus/create.ts",
+  "lines": 100,
+  "branches": 68,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/menus/delete.ts",
+  "lines": 100,
+  "branches": 85.71,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/menus/get-by-id.ts",
+  "lines": 100,
+  "branches": 90.91,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/menus/list.ts",
+  "lines": 100,
+  "branches": 78.57,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/menus/update-tree.ts",
+  "lines": 100,
+  "branches": 82.46,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/import-subscriptions.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/schedule-campaign.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/send-campaign.ts",
+  "lines": 100,
+  "branches": 84.62,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/send-test-campaign.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts",
+  "lines": 100,
+  "branches": 71.11,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/plugins/install.ts",
+  "lines": 100,
+  "branches": 94.49,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/plugins/list.ts",
+  "lines": 100,
+  "branches": 85.71,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/plugins/local-installer.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/posts/create.ts",
+  "lines": 100,
+  "branches": 82.14,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/posts/get-by-id.ts",
+  "lines": 100,
+  "branches": 71.43,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/posts/list.ts",
+  "lines": 100,
+  "branches": 83.33,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/posts/template-preview.ts",
+  "lines": 100,
+  "branches": 82.35,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/presentation/patch-active-theme.ts",
+  "lines": 100,
+  "branches": 84.85,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/presentation/rescan-themes.ts",
+  "lines": 100,
+  "branches": 83.33,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/apply-report.ts",
+  "lines": 100,
+  "branches": 37.5,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/blob-put.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/blobs-probe.ts",
+  "lines": 100,
+  "branches": 81.58,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/bundle-create.ts",
+  "lines": 100,
+  "branches": 77.02,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/capabilities.ts",
+  "lines": 100,
+  "branches": 89.66,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/report-dto.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/redirects/hits.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/redirects/list.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/seo/post-sitemap-regenerate.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/seo/put-entry.ts",
+  "lines": 100,
+  "branches": 82.35,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/settings/assistant-subagents-access.ts",
+  "lines": 100,
+  "branches": 66.04,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/settings/clear.ts",
+  "lines": 100,
+  "branches": 69.05,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/settings/events.ts",
+  "lines": 100,
+  "branches": 68.6,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/settings/list-definitions.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 80,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/settings/preview-feed-access.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/settings/reset.ts",
+  "lines": 100,
+  "branches": 86.36,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/settings/set.ts",
+  "lines": 100,
+  "branches": 71.74,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/skills/files.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/skills/manage.ts",
+  "lines": 100,
+  "branches": 98.08,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/custom-credentials.ts",
+  "lines": 100,
+  "branches": 74.46,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/dockerfile-source.ts",
+  "lines": 100,
+  "branches": 82.14,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/export-site.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/module-status.ts",
+  "lines": 100,
+  "branches": 81.82,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/publish-credentials.ts",
+  "lines": 100,
+  "branches": 88.89,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/site-backups.ts",
+  "lines": 100,
+  "branches": 95.65,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/system/tool-gaps.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/taxonomy/assign-terms.ts",
+  "lines": 100,
+  "branches": 89.29,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/taxonomy/create-taxonomy.ts",
+  "lines": 100,
+  "branches": 93.75,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/taxonomy/create-term.ts",
+  "lines": 100,
+  "branches": 79.49,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/taxonomy/delete-taxonomy.ts",
+  "lines": 100,
+  "branches": 70.59,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/taxonomy/delete-term.ts",
+  "lines": 100,
+  "branches": 79.17,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/taxonomy/list.ts",
+  "lines": 100,
+  "branches": 90,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/taxonomy/rename-term.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/trash/list.ts",
+  "lines": 100,
+  "branches": 70,
+  "funcs": 92.31,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/trash/purge.ts",
+  "lines": 100,
+  "branches": 86.36,
+  "funcs": 83.33,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/trash/restore.ts",
+  "lines": 100,
+  "branches": 83.33,
+  "funcs": 85.71,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/create-policy.ts",
+  "lines": 100,
+  "branches": 88,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/disable.ts",
+  "lines": 100,
+  "branches": 87.5,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/enable.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/list-policies.ts",
+  "lines": 100,
+  "branches": 62.5,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/list-policy-permissions.ts",
+  "lines": 100,
+  "branches": 61.54,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/list-roles.ts",
+  "lines": 100,
+  "branches": 62.5,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/reset-password.ts",
+  "lines": 100,
+  "branches": 82.05,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/update-policy.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/users/update-role.ts",
+  "lines": 100,
+  "branches": 82.14,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/create.ts",
+  "lines": 100,
+  "branches": 88.46,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/embed-insert.ts",
+  "lines": 100,
+  "branches": 77.78,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/embed-remove.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/embed-reorder.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/get-by-id.ts",
+  "lines": 100,
+  "branches": 90,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/list.ts",
+  "lines": 100,
+  "branches": 75,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/preview-render.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/preview.ts",
+  "lines": 100,
+  "branches": 94.44,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/region-bind.ts",
+  "lines": 100,
+  "branches": 90,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/region-get.ts",
+  "lines": 100,
+  "branches": 81.58,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/region-mutate-placements.ts",
+  "lines": 100,
+  "branches": 86.67,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/widgets/trash.ts",
+  "lines": 100,
+  "branches": 90,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/workspace/create.ts",
+  "lines": 100,
+  "branches": 63.64,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/api-connections/oauth-callback.ts",
+  "lines": 100,
+  "branches": 79.35,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/external-mcp/oauth-callback-url.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/external-mcp/oauth-callback.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/mail-feedback.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 87.5,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/members/analytics.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/members/me.ts",
+  "lines": 100,
+  "branches": 88,
+  "funcs": 88.89,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/members/oidc-callback.ts",
+  "lines": 100,
+  "branches": 96.97,
+  "funcs": 63.64,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/members/oidc-deps.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/members/oidc-start.ts",
+  "lines": 100,
+  "branches": 87.5,
+  "funcs": 85.71,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/members/oidc-verify-email.ts",
+  "lines": 100,
+  "branches": 80.77,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/members/sign-in.ts",
+  "lines": 100,
+  "branches": 91.67,
+  "funcs": 85.71,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/members/unlink-identity.ts",
+  "lines": 100,
+  "branches": 78.79,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/oauth/callback-page.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/oauth/public-origin.ts",
+  "lines": 100,
+  "branches": 73.68,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/ops/health.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/plugin-contributions.ts",
+  "lines": 100,
+  "branches": 89.22,
+  "funcs": 96,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site-assistant-confirm.ts",
+  "lines": 100,
+  "branches": 89.09,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site-share.ts",
+  "lines": 100,
+  "branches": 66.67,
+  "funcs": 80,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/analytics-ingest.ts",
+  "lines": 100,
+  "branches": 77.14,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/chat-comparison-html.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/chat-comparison.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/feed.ts",
+  "lines": 100,
+  "branches": 85.71,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/forms-submit.ts",
+  "lines": 100,
+  "branches": 90,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/llms.ts",
+  "lines": 100,
+  "branches": 75,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/newsletter-deps.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/robots.ts",
+  "lines": 100,
+  "branches": 88.89,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/public-http/routes/site/store.ts",
+  "lines": 100,
+  "branches": 87.8,
+  "funcs": 100,
+  "uncovered_lines": 0
+ },
+ {
+  "file": "apps/website/src/server/inbound/admin-http/routes/commerce/status.ts",
+  "lines": 100,
+  "branches": 100,
+  "funcs": 100,
+  "uncovered_lines": 0
+ }
+]

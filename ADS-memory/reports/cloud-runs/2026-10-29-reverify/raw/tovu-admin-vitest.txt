@@ -54,3 +54,103 @@ Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_
     at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
 Sourcemap for "/home/user/Jini/node_modules/.pnpm/openid-client@6.8.8/node_modules/openid-client/build/index.js" points to missing source files
 Sourcemap for "/home/user/Jini/node_modules/.pnpm/oauth4webapi@3.8.8/node_modules/oauth4webapi/build/index.js" points to missing source files
+ ❯ src/components/AssistantDock/__tests__/use-assistant-runtime-preferences.hooks.unit.test.ts (4 tests | 1 failed) 1356ms
+     × keeps the optimistic reply until stored reply length agrees, then accepts external changes 1063ms
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+Not implemented: Window's confirm() method
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/unit/app-admin-assistant-dock-visibility.unit.test.tsx > keeps the assistant dock mounted, outside the expanded post-preview's containing block, while a post's Preview tab is expanded
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/unit/app-admin-assistant-dock-visibility.unit.test.tsx:154:1
+    152| }
+    153|
+    154| it("keeps the assistant dock mounted, outside the expanded post-previe…
+       | ^
+    155|   vi.stubGlobal("fetch", stubFetchWithPost({ data: { publicEnabled: fa…
+    156|   window.history.replaceState(null, "", "/admin/posts/p1");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  src/__tests__/unit/app-confirm-dialog-i18n.unit.test.tsx > translates the logout confirm's Cancel button under a non-English locale
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/unit/app-confirm-dialog-i18n.unit.test.tsx:78:1
+     76| }
+     77|
+     78| it("translates the logout confirm's Cancel button under a non-English …
+       | ^
+     79|   const user = userEvent.setup();
+     80|   // Availability reads belong to a stable session object, just like u…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  src/__tests__/unit/main-entry-signed-in.unit.test.tsx > mounts the signed-in shell, not the login screen, once the session has a user
+Error: Test timed out in 30000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/unit/main-entry-signed-in.unit.test.tsx:33:1
+     31| afterAll(() => { vi.unstubAllGlobals(); });
+     32|
+     33| it("mounts the signed-in shell, not the login screen, once the session…
+       | ^
+     34|   // Imported here, after the stubs: the entry module renders into #ro…
+     35|   await import("../../main");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  src/components/AssistantDock/__tests__/use-assistant-runtime-preferences.hooks.unit.test.ts > reply length through the runtime preferences hook > keeps the optimistic reply until stored reply length agrees, then accepts external changes
+AssertionError: expected 'short' to be 'detailed' // Object.is equality
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div />[39m
+  [36m</body>[39m
+[36m</html>[39m
+
+Expected: "detailed"
+Received: "short"
+
+ ❯ src/components/AssistantDock/__tests__/use-assistant-runtime-preferences.hooks.unit.test.ts:50:72
+     48|     await act(async () => {});
+     49|     act(() => refresh({ replyLength: "detailed" }));
+     50|     await waitFor(() => expect(result.current.preferences.replyLength)…
+       |                                                                        ^
+     51|   });
+     52|
+ ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  4 failed | 829 passed (833)
+      Tests  4 failed | 13541 passed | 2 skipped (13547)
+   Start at  23:02:15
+   Duration  2427.65s (transform 189.00s, setup 266.96s, import 1617.12s, tests 1132.59s, environment 1098.45s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 99.18% ( 22952/23141 )
+Branches     : 98.19% ( 15267/15547 )
+Functions    : 98.75% ( 8263/8367 )
+Lines        : 99.33% ( 19088/19215 )
+================================================================================
+EXIT=1

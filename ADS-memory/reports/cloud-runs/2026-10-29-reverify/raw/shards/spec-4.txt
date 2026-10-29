@@ -392,3 +392,199 @@ Could not parse CSS @import URL "./page-actions.css" relative to base URL "about
 ✔ identity_policy_list/create/update/delete/attach are wired, but identity_policy_write_permission is NOT — the one policy transition with a shared-object blast radius stays human-UI-only (40.203401ms)
 ✔ every wired identity tool declares user.manage or role.manage — never a read-only or unrelated permission (15.854871ms)
 ✔ chat delete policy defaults off; checked identity deletes retain a plan confirmation (35.358763ms)
+✔ plugins_set_enabled is present in the BUILT registration list, reached through the real contributor seam (80.417008ms)
+✔ plugins_set_enabled has a DERIVED_RISK_BY_TOOL_ID entry — the wiring gate fails closed without one (0.312149ms)
+✔ plugins_set_enabled is redeemable from the MCP-UI callback endpoint — its confirmation dialog posts back through it (1.649892ms)
+✔ the catalog schema requires 'family' and enumerates exactly the two real plugin systems (1.367312ms)
+✔ plugins_set_enabled: a missing 'family' is a ToolInputError, not an opaque 500 (6.398101ms)
+✔ plugins_set_enabled: an unrecognized 'family' is a ToolInputError naming both valid values (4.716856ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ plugins_set_enabled: enabling refuses outright when the execution context has no confirmation channel (167.128684ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ plugins_set_enabled: disabling an Agent Plugin needs no confirmation — it only ever removes capability (167.855725ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ plugins_set_enabled: disabling an explicitly enabled Agent Plugin persists false without a confirmation channel (403.938615ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+[agent-plugins] 'higgsfield-media': plugins_set_enabled refused — agent-plugin activation: activations.json is not valid JSON (Expected property name or '}' in JSON at position 2 (line 1 column 3)) (/tmp/tovu-plugin-family-FHgfrK/ws/55555555-5555-4555-8555-555555555555/activations.json). The file was left untouched and nothing was written, so no recorded enable/disable decision was lost. Until it is repaired, this workspace's Agent Plugin tool calls and plugin-pinned runs are refused, and no Agent Plugin can be enabled, disabled, seeded or uninstalled. To recover, fix the JSON by hand; or stop the host, move the file aside and start the host again — bundled plugins are then recorded as disabled again, but every operator-installed plugin you had disabled starts enabled and must be disabled again.
+✔ plugins_set_enabled: a corrupt activations file returns changed:false with an activations-unreadable reason — no confirmation, no throw (480.060313ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ t91 §7.2: ENABLING on a corrupt activations file returns activations-unreadable WITHOUT raising the confirmation dialog (509.170616ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ plugins_set_enabled: a confirmed enable writes the Agent Plugin's activation record (167.864557ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ plugins_set_enabled: a confirmed in-chat enable also provisions the plugin's declared remote MCP server, exactly like the admin toggle (813.85104ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ plugins_set_enabled: a declined enable writes nothing and says so (200.494231ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ the confirmation dialog is a real MCP-UI resource naming the plugin, and calls back into THIS tool id (220.846493ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ enabling an Agent Plugin reports restartRequired:true and says why — its tool is registered only at daemon boot (323.064468ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ disabling reports restartRequired:false — the activation gate is re-read per run, so an off switch lands immediately (348.63232ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ plugins_set_enabled: an Agent Plugin id that is not installed in this workspace is a ToolInputError (254.512185ms)
+✔ plugins_set_enabled: family 'site-runtime' still enables a .tovu-plugin through executeCommand, behind the same confirmation (6.005619ms)
+✔ plugins_set_enabled: disabling a site-runtime plugin says its tool is refused from now on, not merely that it stays listed (7.479681ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ disabling an Agent Plugin says exactly what stopped — and that its provisioned external MCP connections did NOT (622.421272ms)
+✔ plugins_set_enabled: authorize() runs before any confirmation dialog is raised (6.440174ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ plugins_set_enabled: a denied Agent Plugin enable emits nothing and preserves activations (39.434513ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ plugins_set_enabled: a denied Agent Plugin disable emits nothing and preserves activations (20.352086ms)
+✔ enabling reuses one saved identity grant; changed versions ask again and revocation still refuses (7.395025ms)
+✔ a version changed while enabling was approved is refused without an activation write (5.336648ms)
+✔ daemon-composed approval memory asks on first enable, skips the same version, and asks on a new version (617.178861ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ a provider plugin's assistant face is never switched on its own: no dialog, nothing written, the note names the provider plugin (179.129977ms)
+✔ theme_duplicate: wires with its catalog schema, a mutating risk class, and is not read-only (43.88557ms)
+✔ theme_duplicate: the contributor registers under its own 'theme-duplicate' domain key (0.478087ms)
+✔ theme_duplicate: copies the source into a new, valid, discovered theme and leaves the live site on the source (63.503987ms)
+✔ theme_duplicate: a derived id that is taken is suffixed, not refused (14.461317ms)
+✔ theme_duplicate: activate:true also switches the live theme and returns the previous id for undo (78.878695ms)
+✔ theme_duplicate: activate:true without theme.set is refused before anything is copied (2.8495ms)
+✔ theme_duplicate: a principal without theme.edit is refused and nothing is written (24.100399ms)
+✔ theme_duplicate: an unknown source is refused by name with the published schema attached for retry (7.156746ms)
+✔ theme_duplicate: an explicit newId that is already taken is refused, not suffixed (9.442944ms)
+✔ exactly the 6 webhooks catalog entries are registered — nothing withheld as a stub in this domain (76.405758ms)
+✔ subscription update is available while signing-secret rotation and reveal remain absent (11.262208ms)
+✔ every wired webhooks registration publishes its catalog contract, including the shared delete plan (21.388207ms)
+✔ requiresConfirmation is unset on every wired webhooks tool (2.275537ms)
+✔ the independent risk classification agrees with the catalog for every wired webhooks tool (9.316953ms)
+✔ a webhooks catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for webhooks_create_subscription fails the build (0.843997ms)
+✔ the ToolPolicy layer is a pass-through 'allow' for every wired webhooks registration (2.029485ms)
+✔ content_read.webhook_subscription: calls authorize() with 'admin.integrations.manage' and the run's principal (24.000041ms)
+✔ content_read.webhook_subscription: a denied principal is rejected and nothing is written (25.395501ms)
+✔ webhooks_create_subscription: calls authorize() with 'admin.integrations.manage' and the run's principal (17.56241ms)
+✔ webhooks_create_subscription: a denied principal is rejected and nothing is written (14.687238ms)
+✔ webhooks_create_subscription: rejects a non-https target the same way the domain function does (2.362288ms)
+✔ webhooks_create_subscription: rejects a target the egress allowlist disallows (2.748758ms)
+✔ webhooks_get_deliveries: an unknown subscriptionId propagates WebhookSubscriptionNotFoundError unwrapped (8.96415ms)
+✔ webhooks_get_deliveries returns recent delivery details in newest-first order with a limit, and listing reports the latest delivery (34.020348ms)
+✔ workflow: create a subscription, list to confirm it appears, pause it, list again to confirm the status change, then remove it (92.816498ms)
+✔ chat delete policy defaults off; checked webhook delete retains a human card (23.070943ms)
+✔ direct: webhook delete plan refuses every foreign item spelling before preparation or confirmation (38.099362ms)
+✔ delegated: webhook delete plan refuses every foreign item spelling before preparation or confirmation (2301.176017ms)
+✔ webhook delete plan canonicalizes every item and retains one confirmation and the 25-item cap (46.146963ms)
+✔ 'schedule this post for next monday' ranks a content_post write tool in the top 3 (1256.515286ms)
+✔ 'set the featured image on this post' ranks a content_post write tool in the top 3 (964.09595ms)
+✔ workspace adapters keep partitions and host record shape exact (10.911037ms)
+✔ conversation adapters keep grants bound to the person and chat (0.702489ms)
+✔ the workspace adapter's upsert and listByScope stay inside the bound workspace (0.408452ms)
+✔ the conversation adapter forwards identity grants only when the host store supports them (0.485385ms)
+▶ chat expiry sweep [sqlite]
+  ✔ one host pass drains more than one 500-row package batch and retains never-expiring chats (139.395597ms)
+  ✔ deletes an expired guest chat and its messages; keeps unexpired and never-expiring chats (64.084917ms)
+  ✔ a chat expiring exactly now is swept; a second pass deletes nothing (8.599872ms)
+  ✔ startChatExpirySweep sweeps at start and stops cleanly (10.715322ms)
+  ✔ stop() resolves only after the pass in flight has finished (49.068019ms)
+  ✔ a tick that fires while a pass is still running is skipped, never overlapped, and later ticks sweep again (15.284252ms)
+  ✔ a failed sweep reports the error and a later tick still sweeps (11.879921ms)
+✔ chat expiry sweep [sqlite] (301.829699ms)
+▶ chat expiry sweep [pglite]
+  ✔ one host pass drains more than one 500-row package batch and retains never-expiring chats (13555.059072ms)
+  ✔ deletes an expired guest chat and its messages; keeps unexpired and never-expiring chats (409.342511ms)
+  ✔ a chat expiring exactly now is swept; a second pass deletes nothing (37.619193ms)
+  ✔ startChatExpirySweep sweeps at start and stops cleanly (43.728891ms)
+  ✔ stop() resolves only after the pass in flight has finished (24.322661ms)
+  ✔ a tick that fires while a pass is still running is skipped, never overlapped, and later ticks sweep again (98.077828ms)
+  ✔ a failed sweep reports the error and a later tick still sweeps (174.830677ms)
+✔ chat expiry sweep [pglite] (14360.751292ms)
+✖ root/admin/site-chat select the same new chat release and preserve the UI override (11.9147ms)
+✔ visitorsafe: every diagnostic maps to fixed visitor text and a matching redacted log id (31.233609ms)
+✔ visitorsafe: rate, message-length, body-length and validation errors keep friendly fixed text (9.461611ms)
+✔ visitorsafe: raw and circular diagnostics stay operator-only without truncation (1.003164ms)
+✔ visitorsafe: an Error without a stack still logs its message for operators (0.409319ms)
+✔ the whole point: a marker-less but working site directory is REFUSED by serve, and tovu adopt is what makes it servable (140458.698879ms)
+✔ adopt DERIVES the schema stamp from the db's own applied migrations — a db behind this runtime is stamped with ITS index, never the runtime's latest (58999.457786ms)
+✔ --dry-run prints the exact stamp it would write and writes NOTHING (66214.590428ms)
+✔ adopt is idempotent: a re-run is a no-op that exits 0 and leaves both markers BYTE-identical (never a rewrite with a fresh siteId) (91449.05965ms)
+✔ adopt is reversible: deleting the two markers returns the directory to exactly its prior state (56058.361655ms)
+✔ adopt leaves content.db byte-identical — markers are written BESIDE the database, never into it (52266.738847ms)
+✔ a PARTIALLY adopted directory is refused by name, and neither completed nor overwritten (71778.84276ms)
+✔ config.json beside a key-only .site-meta.json (a dev site) is adopted by completing the meta, keeping the key fields and config.json (108908.70689ms)
+✔ a key-only .site-meta.json with no config.json is adopted like a marker-less dir, carrying the key fields forward (62211.610924ms)
+✔ a directory with no content.db is refused, and any other .db files present are named as candidates rather than silently adopted (25365.659847ms)
+✔ a content.db that has never been migrated is refused rather than stamped with an invented version (29097.222213ms)
+✔ a DIVERGENT schema lineage is refused with SITE_NEWER_THAN_RUNTIME (exit 4), not silently stamped — the case a wrong stamp would turn into data loss (60111.584684ms)
+✔ adopt --name sets the display name config.json carries, and defaults to the directory basename without it (115899.946453ms)
+✔ adopt on a path that is not an existing directory is refused, never created (27347.537825ms)
+✔ adopt is a discoverable, registered command: it appears in --help and in the introspect manifest a programmatic caller reads (55200.237295ms)
+✔ AC-01/api.spec.md §5: tovu init <dir> --name <name> exits 0, prints the created-site stdout contract, and produces a real install dir (29811.008906ms)
+✔ BR-03: omitting --name defaults the site name to the directory basename, end to end through the CLI (26935.230786ms)
+✔ AC-04/EC-01: tovu init against an existing non-empty directory exits 3 with INIT_DIR_NOT_EMPTY, directory left untouched (24759.206796ms)
+✔ EC-02: tovu init against a path that exists as a regular file exits 3 with INIT_DIR_NOT_EMPTY (23765.136305ms)
+✔ EC-06: an empty --name exits 2 with VALIDATION, nothing created (23688.057825ms)
+✔ VALIDATION: tovu init with no dir argument at all exits 2 with usage (a missing required positional argument is a usage error) (25159.04464ms)
+✔ behavior.spec.md §4: --port outside 1..65535, or non-integer, is rejected as VALIDATION (exit 2) rather than falling through to a default — boundary-value coverage of the documented range (213614.609997ms)
+✔ behavior.spec.md §4: --port at the exact boundary values 1 and 65535 is ACCEPTED (not a validation error) — proves the range check is inclusive, not off-by-one (128004.379103ms)
+✔ AC-05: serve against a dir missing .site-meta.json (crashed init) exits 3 with SITE_DIR_INVALID (24367.581105ms)
+✔ AC-06: serve against a site with a newer schemaVersion than the runtime exits 4 with SITE_NEWER_THAN_RUNTIME (40791.259358ms)
+✔ AC-09: serve against a site whose content.db has zero workspace rows exits 5 with SITE_CORRUPT (37950.259097ms)
+✔ EC-04: serve exits 1 with PORT_IN_USE when the resolved port is already bound (49569.569229ms)
+✔ BR-02/AC-11: --port flag takes precedence over config.json.port (48394.271782ms)
+✔ BR-02/AC-11: config.json.port is used when no --port flag is given (69578.050696ms)
+✔ BR-07: SIGTERM triggers a graceful stop (exit 0), and BR-04/EC-08: an explicit dir argument overrides TOVU_CONTENT_DB with a logged warning, serving the DIR's real content rather than the (nonexistent) env-var path (49598.554458ms)
+✔ B1: serve against a site whose content.db has 2 workspace rows succeeds (boots + responds), defaulting to the oldest — no more boot-bricking on a legitimately multi-workspace install (80063.858899ms)
+✔ B1: --workspace <id> selects a non-default workspace explicitly (55032.226422ms)
+✔ --workspace <id> naming no existing workspace is rejected as VALIDATION (exit 2) (38304.72334ms)
+✔ CR-R04/CR-R01 (systemic gap): tovu serve spawned from a DIFFERENT cwd than the install dir still finds built-in themes and never leaks a themes/uploads dir into that foreign cwd — the whole suite otherwise always spawns from the repo root, which accidentally made the process.cwd()-relative bug invisible (49151.122976ms)
+✔ AC-08 (CLI-specific slice): a real HTTP request against a spawned tovu serve process reaches the seeded content end to end (45597.2558ms)
+✔ an identity re-seed failure from a non-built-in owner role conflict must be logged while the serve process continues serving content (73372.149296ms)
