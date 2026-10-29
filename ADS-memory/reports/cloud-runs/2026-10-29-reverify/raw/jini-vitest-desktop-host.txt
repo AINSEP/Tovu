@@ -1,0 +1,139 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/desktop-host
+      Coverage enabled with v8
+
+ ✓ src/__tests__/window-navigation-policy.test.ts (28 tests) 14ms
+ ✓ src/electron/__tests__/electron-url-capture.test.ts (17 tests) 330ms
+ ✓ src/speech/macos/__tests__/mac-on-device-transcriber.test.ts (17 tests) 13ms
+ ✓ src/__tests__/node-toolchain.test.ts (19 tests) 344ms
+ ✓ src/__tests__/auto-update-controller.test.ts (20 tests) 37ms
+ ✓ src/__tests__/logging.test.ts (19 tests) 142ms
+ ✓ src/speech/__tests__/speech-ipc.test.ts (13 tests) 165ms
+ ✓ src/electron/usability/__tests__/spellcheck-menu.test.ts (12 tests) 10ms
+ ✓ src/electron/updates/__tests__/framework-adapters.test.ts (10 tests) 37ms
+ ✓ src/__tests__/bridge.test.ts (23 tests) 20ms
+ ✓ src/electron/__tests__/electron-render-service.test.ts (13 tests) 55ms
+ ✓ src/__tests__/update-policy.test.ts (13 tests) 10ms
+ ✓ src/__tests__/sidecar.test.ts (13 tests) 2898ms
+   ✓ createNodeSidecarLauncher > shutdown falls through to process-level termination when requestShutdown rejects 2009ms
+ ✓ src/__tests__/render-service.test.ts (19 tests) 67ms
+ ✓ src/tauri/__tests__/tauri-sidecar.test.ts (9 tests) 252ms
+ ✓ src/__tests__/sidecar-readiness-regressions.test.ts (7 tests) 27ms
+ ✓ src/__tests__/render-bridge.test.ts (5 tests) 27ms
+ ✓ src/electron/usability/__tests__/window-bounds-store.test.ts (13 tests) 114ms
+ ✓ src/electron/__tests__/url-capture.characterization.test.ts (16 tests) 116ms
+ ✓ src/__tests__/paths.test.ts (13 tests) 30ms
+ ✓ src/electron/usability/__tests__/find-in-page-ipc.test.ts (6 tests) 6ms
+ ✓ src/node-toolchain/__tests__/publication.characterization.test.ts (11 tests) 15ms
+ ✓ src/speech/macos/__tests__/mac-on-device-transcriber.async.test.ts (5 tests) 25ms
+ ✓ src/electron/__tests__/electron-shell.test.ts (11 tests) 22ms
+ ✓ src/__tests__/render-bridge-deadline.test.ts (2 tests) 15ms
+ ✓ src/electron/updates/__tests__/controller-paths.test.ts (5 tests) 30ms
+ ✓ src/__tests__/instance-presence.test.ts (10 tests) 62ms
+ ✓ src/__tests__/webview-guest-policy.test.ts (9 tests) 6ms
+ ✓ src/__tests__/integration-contract.test.ts (4 tests) 9ms
+ ✓ src/electron/usability/__tests__/host-ports.test.ts (5 tests) 7ms
+ ✓ src/tauri/__tests__/tauri-shell.test.ts (10 tests) 16ms
+ ✓ src/__tests__/api-convention.test.ts (6 tests) 13ms
+ ✓ src/electron/__tests__/create-electron-desktop-host.test.ts (3 tests) 17ms
+ ✓ src/speech/macos/__tests__/mac-on-device-transcriber.l138b.characterization.test.ts (17 tests) 65ms
+ ✓ src/electron/__tests__/electron-window-lifecycle.test.ts (6 tests) 30ms
+ ✓ src/__tests__/windows-registry.test.ts (6 tests) 19ms
+ ✓ src/electron/navigation-policy/__tests__/framework-navigation.test.ts (3 tests) 7ms
+ ✓ src/__tests__/bridge.characterization.test.ts (19 tests) 38ms
+ ✓ src/__tests__/host-edge-paths.test.ts (7 tests) 63ms
+ ✓ src/speech/__tests__/pcm-wav-encoder.test.ts (6 tests) 6ms
+ ✓ src/electron/__tests__/render-window.characterization.test.ts (6 tests) 10ms
+ ✓ src/__tests__/shutdown-tracker.test.ts (6 tests) 5ms
+ ✓ src/__tests__/protocol.test.ts (6 tests) 17ms
+ ✓ src/tauri/__tests__/tauri-window-lifecycle.test.ts (5 tests) 11ms
+ ✓ src/speech/__tests__/speech-bridge.test.ts (3 tests) 7ms
+ ✓ src/__tests__/index.test.ts (3 tests) 10ms
+ ✓ src/__tests__/config.test.ts (5 tests) 95ms
+ ✓ src/tauri/__tests__/create-tauri-desktop-host.test.ts (3 tests) 12ms
+ ✓ src/__tests__/quit-signals.test.ts (8 tests) 8ms
+ ✓ src/__tests__/paths.characterization.test.ts (20 tests) 16ms
+ ✓ src/__tests__/url-capture.l138b.characterization.test.ts (64 tests) 74ms
+ ✓ src/tauri/__tests__/window-close-regressions.test.ts (2 tests) 55ms
+ ✓ src/speech/__tests__/transcription-port.test.ts (5 tests) 7ms
+ ✓ src/electron/usability/__tests__/zoom-menu.test.ts (3 tests) 7ms
+ ✓ src/__tests__/window-lifecycle.test.ts (3 tests) 12ms
+ ✓ src/speech/macos/__tests__/compile-failure-shapes.test.ts (6 tests) 42ms
+ ✓ src/__tests__/quit-drain-gate.test.ts (7 tests) 6ms
+ ↓ src/speech/macos/__tests__/speech-helper.native.test.ts (1 test | 1 skipped)
+ ✓ src/tauri/__tests__/testing.test.ts (3 tests) 41ms
+ ✓ src/tauri/__tests__/index.test.ts (2 tests) 5ms
+ ✓ src/electron/usability/__tests__/find-menu.test.ts (3 tests) 8ms
+ ✓ src/electron/__tests__/shell-dialog-and-fakes.test.ts (3 tests) 13ms
+ ✓ src/electron/__tests__/index.test.ts (2 tests) 5ms
+ ✓ src/tauri/__tests__/shell-and-window-fakes.test.ts (2 tests) 9ms
+ ✓ src/tauri/__tests__/sidecar-lifetime-w2g.unit.test.ts (2 tests) 23ms
+ ✓ src/__tests__/tokens.test.ts (2 tests) 6ms
+ ✓ src/electron/__tests__/electron-process-memory.test.ts (2 tests) 8ms
+ ✓ src/__tests__/single-instance.test.ts (2 tests) 6ms
+ ✓ src/electron/__tests__/capture-pool-w2g.unit.test.ts (2 tests) 9ms
+ ✓ src/electron/__tests__/electron-single-instance.test.ts (3 tests) 7ms
+ ✓ src/__tests__/product-neutrality.test.ts (1 test) 6ms
+ ✓ src/tauri/__tests__/tauri-single-instance.test.ts (2 tests) 6ms
+ ✓ src/electron/__tests__/electron-protocol.test.ts (1 test) 64ms
+ ✓ src/__tests__/guest-preload-diagnostic.test.ts (1 test) 5ms
+ ✓ src/__tests__/native-speech-contract.test.ts (1 test) 4ms
+ ✓ src/tauri/__tests__/tauri-render-service.test.ts (1 test) 19ms
+ ✓ src/tauri/__tests__/tauri-protocol.test.ts (1 test) 6ms
+ ✓ src/electron/__tests__/testing.test.ts (1 test) 8ms
+
+<--- Last few GCs --->
+
+[18233:0x3d74e000]    53130 ms: Mark-Compact (reduce) 2047.0 (2049.7) -> 2047.0 (2048.7) MB, pooled: 0 MB, 2319.80 / 0.00 ms  (+ 14.0 ms in 20 steps since start of marking, biggest step 10.6 ms, walltime since start of marking 2379 ms) (average mu = 0.354[18233:0x3d74e000]    56563 ms: Mark-Compact (reduce) 2048.0 (2049.0) -> 2048.0 (2049.7) MB, pooled: 0 MB, 2618.35 / 0.00 ms  (+ 7.9 ms in 12 steps since start of marking, biggest step 7.1 ms, walltime since start of marking 2644 ms) (average mu = 0.297, 
+FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 0x942e80  [node (vitest 2)]
+ 2: 0x75f71e node::OOMErrorHandler(char const*, v8::OOMDetails const&) [node (vitest 2)]
+ 3: 0xc98c20  [node (vitest 2)]
+ 4: 0xc98d0f  [node (vitest 2)]
+ 5: 0xf3c5e5  [node (vitest 2)]
+ 6: 0xf4df4c  [node (vitest 2)]
+ 7: 0xf23403  [node (vitest 2)]
+ 8: 0xef8554  [node (vitest 2)]
+ 9: 0xee3448  [node (vitest 2)]
+10: 0xef4816  [node (vitest 2)]
+11: 0x112123d  [node (vitest 2)]
+12: 0x114d2e3  [node (vitest 2)]
+13: 0x11df299  [node (vitest 2)]
+14: 0x11df7b8  [node (vitest 2)]
+15: 0x13f9867  [node (vitest 2)]
+16: 0x7fac5be769b6 
+ ✓ src/__tests__/shell.test.ts (1 test) 4ms
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: Worker exited unexpectedly
+ ❯ ChildProcess.onUnexpectedExit ../../node_modules/.pnpm/tinypool@1.1.1/node_modules/tinypool/dist/index.js:118:30
+ ❯ ChildProcess.emit node:events:526:24
+ ❯ ChildProcess._handle.onexit node:internal/child_process:324:12
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+ Test Files  78 passed | 1 skipped (80)
+      Tests  643 passed | 1 skipped (685)
+     Errors  1 error
+   Start at  22:16:01
+   Duration  64.20s (transform 2.81s, setup 0ms, collect 6.56s, tests 5.84s, environment 29ms, prepare 10.64s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 99.53% ( 2372/2383 )
+Branches     : 98.76% ( 1280/1296 )
+Functions    : 100% ( 405/405 )
+Lines        : 99.53% ( 2372/2383 )
+================================================================================
+ERROR: Coverage for lines (99.53%) does not meet global threshold (100%)
+ERROR: Coverage for statements (99.53%) does not meet global threshold (100%)
+ERROR: Coverage for branches (98.76%) does not meet global threshold (100%)
+EXIT=1

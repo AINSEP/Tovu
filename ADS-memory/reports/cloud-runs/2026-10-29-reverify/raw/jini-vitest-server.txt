@@ -1,0 +1,198 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/server
+      Coverage enabled with v8
+
+ ✓ src/storage/__tests__/legacy-sqlite.test.ts (68 tests) 2917ms
+stderr | src/__tests__/builtin-features.test.ts > agents > clears its promise cache when a probe fails, so the next request retries instead of serving a poisoned rejection forever
+[@jini-ai/http-kit] internal error (GET /api/agents, correlationId=fcdd1bbf-555e-4ea5-94db-c1139fd8b194) Error: probe exploded
+    at /home/user/Jini/packages/server/src/__tests__/builtin-features.test.ts:145:30
+    at mockCall (file:///home/user/Jini/node_modules/.pnpm/@vitest+spy@2.1.9/node_modules/@vitest/spy/dist/index.js:61:17)
+    at spy (file:///home/user/Jini/node_modules/.pnpm/tinyspy@3.0.2/node_modules/tinyspy/dist/index.js:45:80)
+    at scanAgents (/home/user/Jini/packages/server/src/builtin-features.ts:311:61)
+    at Object.listAgents (/home/user/Jini/packages/server/src/builtin-features.ts:335:82)
+    at Object.handle (/home/user/Jini/packages/daemon/src/http/agents.ts:71:254)
+    at /home/user/Jini/packages/http-kit/src/adapter.ts:132:33
+    at Layer.handle [as handle_request] (/home/user/Jini/node_modules/.pnpm/express@4.22.2/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/user/Jini/node_modules/.pnpm/express@4.22.2/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/home/user/Jini/node_modules/.pnpm/express@4.22.2/node_modules/express/lib/router/route.js:119:3)
+
+stderr | src/__tests__/builtin-features.test.ts > agents > a slow scan failing after a newer rescan already succeeded must not evict the newer scan's cache
+[@jini-ai/http-kit] internal error (GET /api/agents, correlationId=172da2db-ff5f-449d-a256-4a6430b55e47) Error: the slow probe finally failed
+    at /home/user/Jini/packages/server/src/__tests__/builtin-features.test.ts:190:18
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+    at file:///home/user/Jini/node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:126:11
+    at withEnv (file:///home/user/Jini/node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:90:5)
+
+stderr | src/__tests__/create-local-node-daemon.test.ts > createLocalNodeDaemon > delegated tool calls > refuses tool execution when the host supplies no principal resolver
+[@jini-ai/http-kit] internal error (resolve-principal, correlationId=d40a098e-c87e-440d-8e84-f9a7d7248d9c) Error: Delegated tool calls require a host principal resolver
+    at resolveDelegatedToolPrincipal (/home/user/Jini/packages/server/src/builtin-features.ts:67:32)
+    at Object.resolvePrincipal (/home/user/Jini/packages/server/src/builtin-features.ts:504:50)
+    at Object.handle (/home/user/Jini/packages/daemon/src/http/delegated-tools.ts:311:30)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at /home/user/Jini/packages/http-kit/src/adapter.ts:132:22
+
+ ✓ src/__tests__/builtin-features.test.ts (49 tests) 1160ms
+ ✓ src/__tests__/compose-jini-kernel.test.ts (45 tests) 1388ms
+ ✓ src/__tests__/feature-activation.test.ts (33 tests) 37ms
+ ✓ src/__tests__/dbpkg-server-contract.test.ts (15 tests) 115ms
+stderr | src/__tests__/create-local-node-daemon.test.ts > createLocalNodeDaemon > resolveRunInput, when supplied with no onRunStarted, builds a default RunStartHandler that drives the real zero-config AgentExecutor
+[@jini-ai/http-kit] internal error (run-start, correlationId=17b000bc-28d1-47ca-b287-ee2174fc35ab) AgentExecutorError: AgentExecutor: unknown agentId "no-such-agent"
+    at Object.failBeforeSpawn (/home/user/Jini/packages/daemon/src/agent-executor/launch.ts:1028:11)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at prepareRunContext (/home/user/Jini/packages/daemon/src/agent-executor/launch.ts:1061:22)
+    at Object.run (/home/user/Jini/packages/daemon/src/agent-executor/launch.ts:1377:42)
+    at Object.onStarted (/home/user/Jini/packages/daemon/src/continuation/run-start-handler.ts:120:5)
+    at Object.handle (/home/user/Jini/packages/daemon/src/http/runs.ts:224:9)
+    at /home/user/Jini/packages/http-kit/src/adapter.ts:132:22 {
+  code: 'AGENT_NOT_FOUND'
+}
+
+ ✓ src/__tests__/host-bootstrap.test.ts (20 tests) 318ms
+ ✓ src/__tests__/kernel-base.test.ts (12 tests) 189ms
+stderr | src/__tests__/create-local-node-daemon.test.ts > createLocalNodeDaemon > binds an IPv6 loopback host to a URL that actually parses and answers
+IPv6 loopback unavailable: this platform cannot bind ::1 (EAFNOSUPPORT).
+
+ ✓ src/lifecycle/__tests__/boot-lifecycle.test.ts (8 tests) 14ms
+ ✓ src/lifecycle/__tests__/boot-lifecycle.characterization.unit.test.ts (8 tests) 18ms
+ ✓ src/__tests__/create-local-node-daemon.test.ts (92 tests | 1 skipped) 10723ms
+   ✓ createLocalNodeDaemon > serves GET /api/agents, projecting the real @jini-ai/agent-runtime registry with zero config 2726ms
+ ✓ src/__tests__/graceful-shutdown.integration.test.ts (4 tests) 6268ms
+   ✓ installGracefulShutdown wired into a real createLocalNodeDaemon child process > negative control: without the guard, a real SIGTERM kills the daemon immediately with no graceful teardown — proves the daemon has no default handling, so the positive case below is a real effect 1623ms
+   ✓ installGracefulShutdown wired into a real createLocalNodeDaemon child process > positive case: with the guard installed, a real SIGTERM runs stop() and the process exits cleanly with the HTTP listener already closed 1779ms
+   ✓ installGracefulShutdown wired into a real createLocalNodeDaemon child process > reacts to a real SIGINT the same way 1293ms
+   ✓ installGracefulShutdown wired into a real createLocalNodeDaemon child process > is re-entrant against a real double signal: a second SIGTERM sent immediately after the first does not crash, hang, or double-run shutdown 1571ms
+ ✓ src/storage/__tests__/host-injection.test.ts (6 tests) 452ms
+stderr | src/__tests__/kernel-runtime.test.ts > forwards explicit executor options through the local preset and disposes its supplied state
+[@jini-ai/http-kit] internal error (run-start, correlationId=34837990-da12-42a8-ba79-59d72177a150) AgentExecutorError: AgentExecutor: unknown agentId "host-only-fixture"
+    at Object.failBeforeSpawn (/home/user/Jini/packages/daemon/src/agent-executor/launch.ts:1028:11)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at prepareRunContext (/home/user/Jini/packages/daemon/src/agent-executor/launch.ts:1061:22)
+    at Object.run (/home/user/Jini/packages/daemon/src/agent-executor/launch.ts:1377:42)
+    at Object.onStarted (/home/user/Jini/packages/daemon/src/continuation/run-start-handler.ts:120:5)
+    at Object.handle (/home/user/Jini/packages/daemon/src/http/runs.ts:224:9)
+    at /home/user/Jini/packages/http-kit/src/adapter.ts:132:22 {
+  code: 'AGENT_NOT_FOUND'
+}
+
+ ✓ src/__tests__/kernel-runtime.test.ts (2 tests) 257ms
+ ✓ src/storage/__tests__/backend-config.test.ts (13 tests) 17ms
+ ✓ src/owner-store/__tests__/legacy.test.ts (7 tests) 482ms
+ ✓ src/storage/__tests__/backend-config.characterization.unit.test.ts (25 tests) 13ms
+ ✓ src/__tests__/create-local-node-daemon.headers.test.ts (2 tests) 15ms
+ ✓ src/owner-store/__tests__/backup.test.ts (44 tests) 13807ms
+   ✓ refuses invalid portable secret hints {"last4":"abc","tokenLength":12} 570ms
+   ✓ refuses invalid portable secret hints {"last4":1234,"tokenLength":12} 321ms
+   ✓ refuses invalid portable secret hints {"last4":"abcd","tokenLength":11} 313ms
+   ✓ refuses invalid portable secret hints {"last4":null,"tokenLength":-1} 389ms
+   ✓ accepts a four-character hint exactly at the twelve-character token boundary 357ms
+   ✓ rejects a grant with a extra field 319ms
+   ✓ rejects a grant with a missing destination 307ms
+   ✓ rejects an unreconciled list with a duplicate entry 304ms
+   ✓ rejects a pending cleanup with a duplicate pair 478ms
+   ✓ rejects a pending cleanup with a missing workspace 337ms
+   ✓ rejects a pending cleanup with a empty consumer 318ms
+   ✓ rejects a pending cleanup with a extra field 438ms
+   ✓ rejects an entry with an invalid suffix type 363ms
+   ✓ rejects an entry with an invalid length type 329ms
+   ✓ rejects an entry with an invalid negative length 418ms
+   ✓ rejects an entry with an invalid unconfigured hint 353ms
+   ✓ rejects an entry with an invalid database hint 358ms
+   ✓ rejects an authenticated but invalid extra-field snapshot 355ms
+   ✓ rejects an authenticated but invalid format snapshot 316ms
+ ✓ src/__tests__/builtin-features.terminal-lifecycle.test.ts (1 test) 25ms
+ ✓ src/lifecycle/__tests__/readiness-state.test.ts (4 tests) 10ms
+ ✓ src/storage/__tests__/legacy-ownership.test.ts (2 tests) 20ms
+ ✓ src/owner-store/__tests__/unit/legacy-empty-m2.unit.test.ts (2 tests) 59ms
+ ✓ src/storage/__tests__/hardwiring-ports.test.ts (1 test) 28ms
+ ✓ src/__tests__/index.test.ts (3 tests) 4ms
+ ✓ src/storage/__tests__/sqlite-ownership.test.ts (2 tests) 6ms
+npm notice
+npm notice New major version of npm available! 11.19.1 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice
+ ❯ tests/storage/loads-without-driver.test.ts (1 test | 1 failed) 15713ms
+   × memory composition runs from the packed server with no SQLite, pg, PGlite or React installed 15710ms
+     → node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'smol-toml' imported from /tmp/c2-server-memory-TPtpkI/node_modules/@jini-ai/daemon/dist/agent-executor/codex/isolation.js
+Did you mean to import "smol-toml/dist/index.cjs"?
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:331:9)
+    at packageResolve (node:internal/modules/esm/resolve:784:25)
+    at moduleResolve (node:internal/modules/esm/resolve:873:18)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)
+    at #resolve (node:internal/modules/esm/loader:687:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:276:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.22.0
+: expected 1 to be +0 // Object.is equality
+ ✓ src/__tests__/delegated-principal.security.test.ts (2 tests) 9ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/storage/loads-without-driver.test.ts > memory composition runs from the packed server with no SQLite, pg, PGlite or React installed
+AssertionError: node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'smol-toml' imported from /tmp/c2-server-memory-TPtpkI/node_modules/@jini-ai/daemon/dist/agent-executor/codex/isolation.js
+Did you mean to import "smol-toml/dist/index.cjs"?
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:331:9)
+    at packageResolve (node:internal/modules/esm/resolve:784:25)
+    at moduleResolve (node:internal/modules/esm/resolve:873:18)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)
+    at #resolve (node:internal/modules/esm/loader:687:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:276:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.22.0
+: expected 1 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ tests/storage/loads-without-driver.test.ts:17:40
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 26 passed (27)
+      Tests  1 failed | 469 passed | 1 skipped (471)
+   Start at  22:25:59
+   Duration  51.62s (transform 4.96s, setup 0ms, collect 21.34s, tests 54.06s, environment 10ms, prepare 3.63s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 99.76% ( 3387/3395 )
+Branches     : 98.15% ( 1066/1086 )
+Functions    : 94.52% ( 276/292 )
+Lines        : 99.76% ( 3387/3395 )
+================================================================================
+ERROR: Coverage for lines (99.76%) does not meet global threshold (100%)
+ERROR: Coverage for functions (94.52%) does not meet global threshold (100%)
+ERROR: Coverage for statements (99.76%) does not meet global threshold (100%)
+ERROR: Coverage for branches (98.15%) does not meet global threshold (100%)
+EXIT=1

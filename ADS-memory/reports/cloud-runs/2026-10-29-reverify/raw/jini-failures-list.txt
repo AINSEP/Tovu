@@ -1,0 +1,268 @@
+[admin]  FAIL  src/__tests__/fqfix-loading.unit.test.tsx [ src/__tests__/fqfix-loading.unit.test.tsx ]
+[admin]  FAIL  src/media/react/__tests__/library-parity.test.tsx [ src/media/react/__tests__/library-parity.test.tsx ]
+[admin]  FAIL  src/media/react/__tests__/media-component-states.test.tsx [ src/media/react/__tests__/media-component-states.test.tsx ]
+[admin]  FAIL  src/media/react/__tests__/media.test.tsx > renders the optional credential tab without exposing saved secrets
+[admin]  FAIL  src/media/react/__tests__/providers-tab-hooks.test.tsx [ src/media/react/__tests__/providers-tab-hooks.test.tsx ]
+[admin]  FAIL  src/seo/react/__tests__/MediaRefField.hooks.unit.test.ts [ src/seo/react/__tests__/MediaRefField.hooks.unit.test.ts ]
+[admin]  FAIL  src/seo/react/__tests__/MediaRefField.unit.test.tsx [ src/seo/react/__tests__/MediaRefField.unit.test.tsx ]
+[admin]  FAIL  src/seo/react/__tests__/Seo.unit.test.tsx [ src/seo/react/__tests__/Seo.unit.test.tsx ]
+[admin]  FAIL  src/seo/react/__tests__/SitemapModal.unit.test.tsx [ src/seo/react/__tests__/SitemapModal.unit.test.tsx ]
+[admin]  FAIL  src/seo/react/__tests__/copy-polish.unit.test.tsx [ src/seo/react/__tests__/copy-polish.unit.test.tsx ]
+[admin]  FAIL  src/seo/react/__tests__/seo-binding.unit.test.tsx > seo module binding > mounts the standalone defaults tab once settings load
+[admin]  FAIL  src/seo/react/__tests__/seo-binding.unit.test.tsx > seo module binding > mounts the standalone entries tab
+[admin]  FAIL  src/seo/react/__tests__/seo-binding.unit.test.tsx > seo module binding > opens the shell sitemap modal from the sitemap tab and closes it on dismiss
+[admin]  FAIL  src/seo/react/__tests__/seo-binding.unit.test.tsx > seo module binding > reports tab switches to the host
+[admin]  FAIL  src/seo/react/__tests__/seo-binding.unit.test.tsx > seo module binding > shows the standalone tab load error when settings cannot be read
+[admin]  FAIL  src/seo/react/__tests__/share-image-warning.unit.test.tsx [ src/seo/react/__tests__/share-image-warning.unit.test.tsx ]
+[admin]  FAIL  src/seo/react/__tests__/use-entry-picker.unit.test.ts [ src/seo/react/__tests__/use-entry-picker.unit.test.ts ]
+[admin]  FAIL  src/seo/react/__tests__/use-seo-entry-panel.unit.test.ts [ src/seo/react/__tests__/use-seo-entry-panel.unit.test.ts ]
+[admin]  FAIL  src/seo/react/__tests__/use-seo.unit.test.ts [ src/seo/react/__tests__/use-seo.unit.test.ts ]
+[admin]  ❯ ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+[admin]  ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+[admin]  ❯ PluginContainer.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18
+[admin]  ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+[admin]  ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+[admin]  ❯ TransformPluginContext.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+[admin]  ❯ ViteNodeServer._fetchModule ../../node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:504:17
+[admin]  ❯ ViteNodeServer._transformRequest ../../node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:537:16
+[admin]  ❯ loadAndTransform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27
+[admin]  ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+[admin]  ❯ src/__tests__/fqfix-loading.unit.test.tsx (0 test)
+[admin]  ❯ src/media/react/__tests__/library-parity.test.tsx (0 test)
+[admin]  ❯ src/media/react/__tests__/media-component-states.test.tsx (0 test)
+[admin]  ❯ src/media/react/__tests__/media.test.tsx (11 tests | 1 failed) 17362ms
+[admin]  ❯ src/media/react/__tests__/media.test.tsx:295:35
+[admin]  ❯ src/media/react/__tests__/providers-tab-hooks.test.tsx (0 test)
+[admin]  ❯ src/seo/react/__tests__/MediaRefField.hooks.unit.test.ts (0 test)
+[admin]  ❯ src/seo/react/__tests__/MediaRefField.unit.test.tsx (0 test)
+[admin]  ❯ src/seo/react/__tests__/Seo.unit.test.tsx (0 test)
+[admin]  ❯ src/seo/react/__tests__/SitemapModal.unit.test.tsx (0 test)
+[admin]  ❯ src/seo/react/__tests__/copy-polish.unit.test.tsx (0 test)
+[admin]  ❯ src/seo/react/__tests__/seo-binding.unit.test.tsx (12 tests | 5 failed) 75705ms
+[admin]  ❯ src/seo/react/__tests__/seo-binding.unit.test.tsx:43:34
+[admin]  ❯ src/seo/react/__tests__/seo-binding.unit.test.tsx:50:25
+[admin]  ❯ src/seo/react/__tests__/seo-binding.unit.test.tsx:56:25
+[admin]  ❯ src/seo/react/__tests__/seo-binding.unit.test.tsx:61:34
+[admin]  ❯ src/seo/react/__tests__/seo-binding.unit.test.tsx:69:25
+[admin]  ❯ src/seo/react/__tests__/share-image-warning.unit.test.tsx (0 test)
+[admin]  ❯ src/seo/react/__tests__/use-entry-picker.unit.test.ts (0 test)
+[admin]  ❯ src/seo/react/__tests__/use-seo-entry-panel.unit.test.ts (0 test)
+[admin]  ❯ src/seo/react/__tests__/use-seo.unit.test.ts (0 test)
+[admin]  ❯ waitForWrapper ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+[agent-plugins]  FAIL  src/lifecycle/__tests__/unit/set-enabled-compatibility.unit.test.ts > activation observers run only for committed transitions and cannot undo a toggle
+[agent-plugins]  ❯ src/lifecycle/__tests__/unit/set-enabled-compatibility.unit.test.ts (8 tests | 1 failed) 1861ms
+[agent-plugins]  ❯ src/lifecycle/__tests__/unit/set-enabled-compatibility.unit.test.ts:49:3
+[agent-plugins]  ❯ src/lifecycle/__tests__/unit/set-enabled-compatibility.unit.test.ts:62:69
+[agent-plugins]  ❯ withHarness src/lifecycle/__tests__/unit/set-enabled-compatibility.unit.test.ts:42:5
+[chat]  ❯ Object.writeFile node:internal/fs/promises:1972:14
+[chat]  ❯ open node:internal/fs/promises:1345:25
+[chat]  ❯ src/core/__tests__/turn-usage-w2g.unit.test.ts (2 tests | 1 failed) 22ms
+[chat]  ❯ src/react/__tests__/index.test.ts (0 test)
+[chat]  ❯ src/react/components/__tests__/AttachmentGallery.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/Composer.guards.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/Composer.history.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/Composer.mid-run.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/Composer.slash-guard.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/Composer.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/ComposerDiscovery.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/McpUiSurfaceCard.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/MessageList.jump-to-latest.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/MessageList.l199.characterization.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/MessageList.queued-attachments.cov-j2.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/MessageList.streaming-renders.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/MessageList.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/MessageRow.display.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/MessageRow.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/MidRunUserMessage.cov-j2.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/MidRunUserMessage.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/QuestionForm.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/QuestionsPanel.j5-03.characterization.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/QuestionsPanel.l199.characterization.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/QuestionsPanel.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/SentAttachment.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/ToolCard.long-chat-memory.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/answered-question.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/conversation-cost.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/durable-run-notice.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/mid-run-transcript.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/owned-renderer-registries.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/standalone-approval.test.tsx (0 test)
+[chat]  ❯ src/react/components/__tests__/surface-question-replay.test.tsx (0 test)
+[chat]  ❯ src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx (0 test)
+[chat]  ❯ src/react/features/chat-pane/__tests__/components/ChatPane.cov-j2.test.tsx (0 test)
+[chat]  ❯ src/react/features/chat-pane/__tests__/components/ChatPane.long-transcript.bench.test.tsx (0 test)
+[chat]  ❯ src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx (0 test)
+[chat]  ❯ src/react/features/chat-pane/__tests__/components/ChatPane.typing-render.test.tsx (0 test)
+[chat]  ❯ src/react/features/chat-pane/__tests__/components/RuntimeDropUp.cov-j2.test.tsx (0 test)
+[chat]  ❯ src/react/features/chat-pane/__tests__/components/RuntimeDropUp.test.tsx (0 test)
+[chat]  ❯ src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.cov-j2.test.tsx (0 test)
+[chat]  ❯ src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.test.tsx (0 test)
+[chat]  ❯ src/react/features/chat-pane/__tests__/index.test.ts (0 test)
+[chat]  ❯ src/react/features/chat-pane/__tests__/styles-lone-send-button.test.tsx (0 test)
+[chat]  ❯ src/react/features/chat-pane/__tests__/styles-user-bubbles.test.tsx (0 test)
+[chat]  ❯ src/react/hooks/__tests__/secret-redaction.test.tsx (0 test)
+[chat]  ❯ src/react/hooks/__tests__/useComposer.draft-debounce.test.tsx (0 test)
+[cli]  FAIL  src/__tests__/run-command.pins.test.ts > run-command pins: watchRunEvents > maps a non-ok response through structuredHttpFailure
+[cli]  FAIL  src/__tests__/run-command.pins.test.ts > run-command pins: watchRunEvents > maps an ok response with a null body to the daemon-not-running fallback
+[cli]  FAIL  src/__tests__/run-command.test.ts > watchRunEvents / runWatchCommand > exits via the structured-error path on a non-ok response
+[cli]  ❯ Module.structuredHttpFailure src/errors.ts:146:10
+[cli]  ❯ exit src/__tests__/run-command.pins.test.ts:40:53
+[cli]  ❯ exitWithStructuredError src/errors.ts:73:10
+[cli]  ❯ mockCall ../../node_modules/.pnpm/@vitest+spy@2.1.9/node_modules/@vitest/spy/dist/index.js:61:17
+[cli]  ❯ processTicksAndRejections node:internal/process/task_queues:104:5
+[cli]  ❯ spy ../../node_modules/.pnpm/tinyspy@3.0.2/node_modules/tinyspy/dist/index.js:45:80
+[cli]  ❯ src/__tests__/run-command.pins.test.ts (20 tests | 2 failed) 56ms
+[cli]  ❯ src/__tests__/run-command.pins.test.ts:73:87
+[cli]  ❯ src/__tests__/run-command.pins.test.ts:80:87
+[cli]  ❯ src/__tests__/run-command.test.ts (59 tests | 1 failed) 232ms
+[cli]  ❯ src/__tests__/run-command.test.ts:454:117
+[cli]  ❯ src/__tests__/run-command.test.ts:55:69
+[cookie-consent]  FAIL  src/__tests__/bundle.smoke.test.ts > dist/client.min.js > Accept grants the adapter, runs the inert tag, writes the cookie and closes the banner
+[cookie-consent]  FAIL  src/__tests__/bundle.smoke.test.ts > dist/client.min.js > Reject grants nothing; reopening and rejecting after Accept revokes the adapter
+[cookie-consent]  FAIL  src/__tests__/bundle.smoke.test.ts > dist/client.min.js > boots from the page config, shows the banner and drains the queue without granting
+[cookie-consent]  ❯ src/__tests__/bundle.smoke.test.ts (4 tests | 3 failed) 345ms
+[cookie-consent]  ❯ src/__tests__/bundle.smoke.test.ts:39:43
+[cookie-consent]  ❯ src/__tests__/bundle.smoke.test.ts:52:54
+[cookie-consent]  ❯ src/__tests__/bundle.smoke.test.ts:63:41
+[db]  FAIL  src/__tests__/import-isolation.test.ts > database import isolation > scans every production TypeScript file and confines optional dependencies
+[db]  FAIL  src/__tests__/loads-without-driver.test.ts > @jini-ai/db in an install with no database driver present > ./migrate imports alone, works, and loads only migrate + kernel + core
+[db]  FAIL  src/__tests__/loads-without-driver.test.ts > @jini-ai/db in an install with no database driver present > ./owner-store imports alone, works, and loads only owner-store + owner-store/migrations + migrate
+[db]  ❯ src/__tests__/import-isolation.test.ts (16 tests | 1 failed) 1165ms
+[db]  ❯ src/__tests__/import-isolation.test.ts:63:129
+[db]  ❯ src/__tests__/loads-without-driver.test.ts (29 tests | 2 failed) 17348ms
+[db]  ❯ src/__tests__/loads-without-driver.test.ts:267:79
+[desktop-host]  ❯ ChildProcess._handle.onexit node:internal/child_process:324:12
+[desktop-host]  ❯ ChildProcess.emit node:events:526:24
+[desktop-host]  ❯ ChildProcess.onUnexpectedExit ../../node_modules/.pnpm/tinypool@1.1.1/node_modules/tinypool/dist/index.js:118:30
+[mcp]  FAIL  src/server/__tests__/tool-server.test.ts > a rejected transport close on stdin EOF still completes hosting and disposes idle tracking
+[mcp]  ❯ src/server/__tests__/tool-server.test.ts (38 tests | 1 failed) 155ms
+[mcp]  ❯ src/server/__tests__/tool-server.test.ts:132:15
+[plugins]  FAIL  src/host/__tests__/unit/loader.unit.test.ts > maps package snapshot refusal PLUGIN_PACKAGE_TOO_LARGE to integrity failure
+[plugins]  FAIL  src/host/__tests__/unit/loader.unit.test.ts > maps package snapshot refusal PLUGIN_PACKAGE_UNSAFE to integrity failure
+[plugins]  ❯ src/host/__tests__/unit/loader.unit.test.ts (22 tests | 2 failed) 70ms
+[plugins]  ❯ src/host/__tests__/unit/loader.unit.test.ts:40:22
+[provider-plugins]  FAIL  src/__tests__/core-boundary.test.ts > no core package imports or declares a vendor SDK
+[provider-plugins]  FAIL  src/__tests__/payments-stripe-manifest.test.ts > registers one stateless commerce factory without collecting credentials at initialization
+[provider-plugins]  FAIL  src/__tests__/unit/exporter-completion-m2.unit.test.ts > a synchronous exporter failure is sanitized and flush/shutdown retain the borrowed exporter
+[provider-plugins]  FAIL  src/__tests__/unit/exporter-completion-m2.unit.test.ts > an exception from the consumer after export completion is not recast as a second export failure
+[provider-plugins]  FAIL  src/payments-stripe/__tests__/payments-stripe-kernel.test.ts > leaves a lost response unknown without redispatch, alerts when aged, then settles a late signed webhook
+[provider-plugins]  FAIL  src/payments-stripe/__tests__/provider.test.ts > Stripe commerce provider > retrieves with expanded PI and honors its evidence: "pi_1"
+[provider-plugins]  FAIL  src/payments-stripe/__tests__/provider.test.ts > Stripe commerce provider > retrieves with expanded PI and honors its evidence: {"status":"canceled"}
+[provider-plugins]  ❯ src/__tests__/core-boundary.test.ts (28 tests | 1 failed) 98735ms
+[provider-plugins]  ❯ src/__tests__/payments-stripe-manifest.test.ts (2 tests | 1 failed) 32ms
+[provider-plugins]  ❯ src/__tests__/payments-stripe-manifest.test.ts:9:18
+[provider-plugins]  ❯ src/__tests__/unit/exporter-completion-m2.unit.test.ts (2 tests | 2 failed) 26ms
+[provider-plugins]  ❯ src/__tests__/unit/exporter-completion-m2.unit.test.ts:14:18
+[provider-plugins]  ❯ src/__tests__/unit/exporter-completion-m2.unit.test.ts:28:18
+[provider-plugins]  ❯ src/payments-stripe/__tests__/payments-stripe-kernel.test.ts (16 tests | 1 failed) 140ms
+[provider-plugins]  ❯ src/payments-stripe/__tests__/payments-stripe-kernel.test.ts:191:24
+[provider-plugins]  ❯ src/payments-stripe/__tests__/provider.test.ts (25 tests | 2 failed) 37ms
+[provider-plugins]  ❯ src/payments-stripe/__tests__/provider.test.ts:43:16
+[server]  FAIL  tests/storage/loads-without-driver.test.ts > memory composition runs from the packed server with no SQLite, pg, PGlite or React installed
+[server]  ❯ tests/storage/loads-without-driver.test.ts (1 test | 1 failed) 15713ms
+[server]  ❯ tests/storage/loads-without-driver.test.ts:17:40
+[ui]  FAIL  src/__tests__/index.test.ts [ src/__tests__/index.test.ts ]
+[ui]  FAIL  src/__tests__/unit/agent-icon-generation.unit.test.ts > generates an empty map when there are no supported icons
+[ui]  FAIL  src/__tests__/unit/agent-icon-generation.unit.test.ts > generates deterministic inline SVG and PNG bytes while excluding unsupported assets
+[ui]  FAIL  src/features/execution/__tests__/index.test.ts [ src/features/execution/__tests__/index.test.ts ]
+[ui]  FAIL  src/features/execution/__tests__/react/components/ByokProviderForm.behaviour.test.tsx [ src/features/execution/__tests__/react/components/ByokProviderForm.behaviour.test.tsx ]
+[ui]  FAIL  src/features/execution/__tests__/react/components/ByokProviderForm.credential-hygiene.test.tsx [ src/features/execution/__tests__/react/components/ByokProviderForm.credential-hygiene.test.tsx ]
+[ui]  FAIL  src/features/execution/__tests__/react/components/ByokProviderForm.form-footer.test.tsx [ src/features/execution/__tests__/react/components/ByokProviderForm.form-footer.test.tsx ]
+[ui]  FAIL  src/features/execution/__tests__/react/components/ByokProviderForm.host-layout.test.tsx [ src/features/execution/__tests__/react/components/ByokProviderForm.host-layout.test.tsx ]
+[ui]  FAIL  src/features/execution/__tests__/react/components/ByokProviderForm.i18n.test.tsx [ src/features/execution/__tests__/react/components/ByokProviderForm.i18n.test.tsx ]
+[ui]  FAIL  src/features/execution/__tests__/react/components/ByokProviderForm.layout.test.tsx [ src/features/execution/__tests__/react/components/ByokProviderForm.layout.test.tsx ]
+[ui]  FAIL  src/features/execution/__tests__/react/components/ByokProviderForm.reveal.test.tsx [ src/features/execution/__tests__/react/components/ByokProviderForm.reveal.test.tsx ]
+[ui]  FAIL  src/features/execution/__tests__/react/components/ExecutionTab.slots.test.tsx [ src/features/execution/__tests__/react/components/ExecutionTab.slots.test.tsx ]
+[ui]  FAIL  src/features/execution/__tests__/react/components/ExecutionTab.test.tsx [ src/features/execution/__tests__/react/components/ExecutionTab.test.tsx ]
+[ui]  FAIL  src/features/execution/__tests__/react/components/ExecutionTab.wiring.test.tsx [ src/features/execution/__tests__/react/components/ExecutionTab.wiring.test.tsx ]
+[ui]  FAIL  src/features/execution/__tests__/react/components/LocalCliAgentCard.test.tsx [ src/features/execution/__tests__/react/components/LocalCliAgentCard.test.tsx ]
+[ui]  FAIL  src/features/execution/__tests__/react/components/LocalCliAgentList.test.tsx [ src/features/execution/__tests__/react/components/LocalCliAgentList.test.tsx ]
+[ui]  FAIL  src/features/execution/react/components/__tests__/LocalCliAgentCard.pin.test.tsx [ src/features/execution/react/components/__tests__/LocalCliAgentCard.pin.test.tsx ]
+[ui]  FAIL  src/features/execution/react/components/__tests__/LocalCliAgentList.pin.test.tsx [ src/features/execution/react/components/__tests__/LocalCliAgentList.pin.test.tsx ]
+[ui]  FAIL  src/features/execution/react/components/__tests__/LocalCliAgentSettings.pin.test.tsx [ src/features/execution/react/components/__tests__/LocalCliAgentSettings.pin.test.tsx ]
+[ui]  FAIL  src/features/external-mcp/react/components/__tests__/ExternalMcpTab.actions.test.tsx [ src/features/external-mcp/react/components/__tests__/ExternalMcpTab.actions.test.tsx ]
+[ui]  FAIL  src/features/external-mcp/react/components/__tests__/ExternalMcpTab.characterization.unit.test.tsx [ src/features/external-mcp/react/components/__tests__/ExternalMcpTab.characterization.unit.test.tsx ]
+[ui]  FAIL  src/features/media-providers/__tests__/catalog-ports.test.ts [ src/features/media-providers/__tests__/catalog-ports.test.ts ]
+[ui]  FAIL  src/features/media-providers/__tests__/index.test.ts [ src/features/media-providers/__tests__/index.test.ts ]
+[ui]  FAIL  src/features/media-providers/__tests__/missing-peer.test.ts > imports generic UI root, core and feature entries without the integrations peer
+[ui]  FAIL  src/features/media-providers/__tests__/react/components/MediaProvidersTab.test.tsx [ src/features/media-providers/__tests__/react/components/MediaProvidersTab.test.tsx ]
+[ui]  FAIL  src/features/source-config-list/__tests__/SourceConfigAddForm.test.tsx [ src/features/source-config-list/__tests__/SourceConfigAddForm.test.tsx ]
+[ui]  FAIL  src/features/source-config-list/__tests__/SourceConfigField.test.tsx [ src/features/source-config-list/__tests__/SourceConfigField.test.tsx ]
+[ui]  FAIL  src/features/source-config-list/__tests__/SourceConfigItemCard.test.tsx [ src/features/source-config-list/__tests__/SourceConfigItemCard.test.tsx ]
+[ui]  FAIL  src/features/source-config-list/__tests__/SourceConfigListView.test.tsx [ src/features/source-config-list/__tests__/SourceConfigListView.test.tsx ]
+[ui]  FAIL  src/features/source-config-list/agent-handles.test.tsx [ src/features/source-config-list/agent-handles.test.tsx ]
+[ui]  FAIL  src/features/source-config-list/index.test.ts [ src/features/source-config-list/index.test.ts ]
+[ui]  FAIL  src/features/source-config-list/react/components/SourceConfigList.test.tsx [ src/features/source-config-list/react/components/SourceConfigList.test.tsx ]
+[ui]  FAIL  src/react/__tests__/components/remixicon-css-export.build-output.test.ts > the ./remixicon.css subpath export reaches built output > has been built at least once for this suite to check
+[ui]  FAIL  src/react/__tests__/components/remixicon-css-export.build-output.test.ts > the ./remixicon.css subpath export reaches built output > is the real RemixIcon stylesheet, not an empty or placeholder file
+[ui]  FAIL  src/react/__tests__/components/remixicon-css-export.build-output.test.ts > the ./remixicon.css subpath export reaches built output > ships the woff2 beside it, because the @font-face src is relative
+[ui]  FAIL  src/react/components/SecretInput.test.tsx [ src/react/components/SecretInput.test.tsx ]
+[ui]  ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+[ui]  ❯ PluginContainer.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18
+[ui]  ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+[ui]  ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+[ui]  ❯ TransformPluginContext.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+[ui]  ❯ loadAndTransform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27
+[ui]  ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+[ui]  ❯ scripts/generate-agent-icon-data-uris.mjs:30:100
+[ui]  ❯ src/__tests__/index.test.ts (0 test)
+[ui]  ❯ src/__tests__/unit/agent-icon-generation.unit.test.ts (2 tests | 2 failed) 95ms
+[ui]  ❯ src/__tests__/unit/agent-icon-generation.unit.test.ts:14:3
+[ui]  ❯ src/__tests__/unit/agent-icon-generation.unit.test.ts:26:3
+[ui]  ❯ src/features/execution/__tests__/index.test.ts (0 test)
+[ui]  ❯ src/features/execution/__tests__/react/components/ByokProviderForm.behaviour.test.tsx (0 test)
+[ui]  ❯ src/features/execution/__tests__/react/components/ByokProviderForm.credential-hygiene.test.tsx (0 test)
+[ui]  ❯ src/features/execution/__tests__/react/components/ByokProviderForm.form-footer.test.tsx (0 test)
+[ui]  ❯ src/features/execution/__tests__/react/components/ByokProviderForm.host-layout.test.tsx (0 test)
+[ui]  ❯ src/features/execution/__tests__/react/components/ByokProviderForm.i18n.test.tsx (0 test)
+[ui]  ❯ src/features/execution/__tests__/react/components/ByokProviderForm.layout.test.tsx (0 test)
+[ui]  ❯ src/features/execution/__tests__/react/components/ByokProviderForm.reveal.test.tsx (0 test)
+[ui]  ❯ src/features/execution/__tests__/react/components/ExecutionTab.slots.test.tsx (0 test)
+[ui]  ❯ src/features/execution/__tests__/react/components/ExecutionTab.test.tsx (0 test)
+[ui]  ❯ src/features/execution/__tests__/react/components/ExecutionTab.wiring.test.tsx (0 test)
+[ui]  ❯ src/features/execution/__tests__/react/components/LocalCliAgentCard.test.tsx (0 test)
+[ui]  ❯ src/features/execution/__tests__/react/components/LocalCliAgentList.test.tsx (0 test)
+[ui]  ❯ src/features/execution/react/components/__tests__/LocalCliAgentCard.pin.test.tsx (0 test)
+[ui]  ❯ src/features/execution/react/components/__tests__/LocalCliAgentList.pin.test.tsx (0 test)
+[ui]  ❯ src/features/execution/react/components/__tests__/LocalCliAgentSettings.pin.test.tsx (0 test)
+[ui]  ❯ src/features/external-mcp/react/components/__tests__/ExternalMcpTab.actions.test.tsx (0 test)
+[ui]  ❯ src/features/external-mcp/react/components/__tests__/ExternalMcpTab.characterization.unit.test.tsx (0 test)
+[ui]  ❯ src/features/media-providers/__tests__/catalog-ports.test.ts (0 test)
+[ui]  ❯ src/features/media-providers/__tests__/index.test.ts (0 test)
+[ui]  ❯ src/features/media-providers/__tests__/missing-peer.test.ts (1 test | 1 failed) 332ms
+[ui]  ❯ src/features/media-providers/__tests__/react/components/MediaProvidersTab.test.tsx (0 test)
+[ui]  ❯ src/features/source-config-list/__tests__/SourceConfigAddForm.test.tsx (0 test)
+[ui]  ❯ src/features/source-config-list/__tests__/SourceConfigField.test.tsx (0 test)
+[ui]  ❯ src/features/source-config-list/__tests__/SourceConfigItemCard.test.tsx (0 test)
+[ui]  ❯ src/features/source-config-list/__tests__/SourceConfigListView.test.tsx (0 test)
+[ui]  ❯ src/features/source-config-list/agent-handles.test.tsx (0 test)
+[ui]  ❯ src/features/source-config-list/index.test.ts (0 test)
+[ui]  ❯ src/features/source-config-list/react/components/SourceConfigList.test.tsx (0 test)
+[ui]  ❯ src/react/__tests__/components/remixicon-css-export.build-output.test.ts (5 tests | 3 failed) 33ms
+[ui]  ❯ src/react/__tests__/components/remixicon-css-export.build-output.test.ts:53:7
+[ui]  ❯ src/react/__tests__/components/remixicon-css-export.build-output.test.ts:58:17
+[ui]  ❯ src/react/__tests__/components/remixicon-css-export.build-output.test.ts:69:17
+[ui]  ❯ src/react/components/SecretInput.test.tsx (0 test)
+[user-management]  FAIL  src/react/__tests__/integration-reconcile.test.tsx [ src/react/__tests__/integration-reconcile.test.tsx ]
+[user-management]  FAIL  src/react/__tests__/screens.test.tsx [ src/react/__tests__/screens.test.tsx ]
+[user-management]  FAIL  src/react/auth/__tests__/Login.unit.test.tsx [ src/react/auth/__tests__/Login.unit.test.tsx ]
+[user-management]  FAIL  src/react/members/__tests__/Members.host-ports.test.tsx [ src/react/members/__tests__/Members.host-ports.test.tsx ]
+[user-management]  FAIL  src/react/users/__tests__/Users.complexity-pins.test.tsx [ src/react/users/__tests__/Users.complexity-pins.test.tsx ]
+[user-management]  FAIL  src/react/users/__tests__/Users.coverage.test.tsx [ src/react/users/__tests__/Users.coverage.test.tsx ]
+[user-management]  FAIL  src/react/users/__tests__/account-protections.ported.test.tsx [ src/react/users/__tests__/account-protections.ported.test.tsx ]
+[user-management]  FAIL  src/react/users/__tests__/change-username.hooks.test.tsx [ src/react/users/__tests__/change-username.hooks.test.tsx ]
+[user-management]  ❯ ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+[user-management]  ❯ PluginContainer.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18
+[user-management]  ❯ TransformPluginContext._formatError ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+[user-management]  ❯ TransformPluginContext.error ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+[user-management]  ❯ TransformPluginContext.transform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+[user-management]  ❯ loadAndTransform ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27
+[user-management]  ❯ normalizeUrl ../../node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+[user-management]  ❯ src/react/__tests__/integration-reconcile.test.tsx (0 test)
+[user-management]  ❯ src/react/__tests__/screens.test.tsx (0 test)
+[user-management]  ❯ src/react/auth/__tests__/Login.unit.test.tsx (0 test)
+[user-management]  ❯ src/react/members/__tests__/Members.host-ports.test.tsx (0 test)
+[user-management]  ❯ src/react/users/__tests__/Users.complexity-pins.test.tsx (0 test)
+[user-management]  ❯ src/react/users/__tests__/Users.coverage.test.tsx (0 test)
+[user-management]  ❯ src/react/users/__tests__/account-protections.ported.test.tsx (0 test)
+[user-management]  ❯ src/react/users/__tests__/change-username.hooks.test.tsx (0 test)

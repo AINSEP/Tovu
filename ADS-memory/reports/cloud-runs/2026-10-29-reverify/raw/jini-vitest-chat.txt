@@ -356,3 +356,67 @@ stdout | src/server/durable-runs/__tests__/missing-resume.test.ts > reconstructs
    ✓ PGlite socket additional invariants > retention includes equality, cascades, bounds 1..500 and preserves missing expiry 5298ms
    ✓ PGlite socket transactions > joins the exact kernel transaction so a throwing write rolls back ledger and transcript 5427ms
    ✓ PGlite socket transactions > controlled terminal settlement prevents a queued late browser save from replacing final text 5236ms
+ ✓ src/store/__tests__/pglite.test.ts (51 tests) 194306ms
+   ✓ PGlite clock and object methods > persists a shared core clock and preserves its receiver across create, append, rename and touch 7381ms
+   ✓ PGlite clock and object methods > applies the second paging bag and binds continuation to the owner 4479ms
+   ✓ PGlite clock and object methods > uses system wall time when no clock is supplied 4139ms
+   ✓ PGlite > cross-owner reads > returns null when another user fetches a chat by id 4225ms
+   ✓ PGlite > cross-owner reads > returns null across workspaces even for the same owner id 3533ms
+   ✓ PGlite > cross-owner reads > returns null across owner kinds even for the same owner id 4569ms
+   ✓ PGlite > cross-owner reads > omits other owners chats from list 4553ms
+   ✓ PGlite > cross-owner reads > returns no messages when another user asks for them 4469ms
+   ✓ PGlite > cross-owner writes are no-ops, not errors > does not delete another owners chat 4227ms
+   ✓ PGlite > cross-owner writes are no-ops, not errors > does not rename another owners chat 4551ms
+   ✓ PGlite > cross-owner writes are no-ops, not errors > refuses to append a message into another owners chat 3669ms
+   ✓ PGlite > cross-owner writes are no-ops, not errors > does not overwrite another owners message when appending a colliding id to its OWN chat 4026ms
+   ✓ PGlite > cross-owner writes are no-ops, not errors > does not touch another owners chat 3681ms
+   ✓ PGlite > append semantics > updates a message in place when the same id is appended again to the same chat 3677ms
+   ✓ PGlite > append semantics > keeps position stable across an in-place update 3565ms
+   ✓ PGlite > deletion > cascades to the conversation messages 3402ms
+   ✓ PGlite > title source > lets a generated title replace a fallback one 3710ms
+   ✓ PGlite > title source > never lets a generated title clobber a manual rename 3514ms
+   ✓ PGlite > retention sweep > deletes only expired rows and never touches never-expiring history 3417ms
+   ✓ PGlite > retention sweep > honours its chunk limit so one call cannot hold a long write lock 3482ms
+   ✓ PGlite > message ordering > assigns sequential positions and returns messages in that order 3460ms
+   ✓ PGlite > message ordering > updates a message in place without allocating a new position 3431ms
+   ✓ PGlite parity > conversation summaries include mid-run user messages and tolerate damaged event JSON 3448ms
+   ✓ PGlite parity > create then get and list round-trip every conversation field 3543ms
+   ✓ PGlite parity > list is most-recently-updated first and counts messages 3371ms
+   ✓ PGlite parity > messages round-trip every stored field, in position order 3781ms
+   ✓ PGlite parity > a malformed events column reads as no events, not an error 3583ms
+   ✓ PGlite parity > appending an existing id updates it in place at the same position 3572ms
+   ✓ PGlite parity > appending bumps the conversation's updatedAt 3610ms
+   ✓ PGlite parity > rename: a generated title replaces a fallback one but never a manual one 3449ms
+   ✓ PGlite parity > touch bumps updatedAt and, when asked, the expiry 3468ms
+   ✓ PGlite parity > delete cascades to messages, agent sessions and tool approvals 3376ms
+   ✓ PGlite parity > another owner, workspace or owner kind sees nothing and changes nothing 3193ms
+   ✓ PGlite parity > appending an id that lives in another owner's chat never overwrites that row 3667ms
+   ✓ PGlite parity > an append inside a rolled-back transaction leaves nothing 3628ms
+   ✓ PGlite parity > concurrent appends to one chat get distinct, gap-free positions 3588ms
+   ✓ PGlite paging > provides bounded conversation and message reads on the owner-scoped store 3825ms
+   ✓ PGlite paging > pages tied timestamps with UTF-8 ordinal opaque ids, without skips or duplicates 3510ms
+   ✓ PGlite paging > orders different recencies descending and retains deleted anchor continuations 3613ms
+   ✓ PGlite paging > accepts limits 1 and 200, defaults to 50, and refuses invalid bounds 4261ms
+   ✓ PGlite paging > rejects owner, workspace, kind, read-kind and conversation cursor reuse before a data read 3713ms
+   ✓ PGlite paging > keeps message positions on updates and discovers append after a deleted anchor 3633ms
+   ✓ PGlite paging > unknown and other-owned message pages have exactly the same empty output 3497ms
+   ✓ PGlite paging > a page selects only limit plus one rows instead of loading the compatibility transcript 3679ms
+   ✓ PGlite additional invariants > copies the owner tuple so mutation cannot rebind a store 3737ms
+   ✓ PGlite additional invariants > duplicate creates hide the existing owner and preserve their causes 3710ms
+   ✓ PGlite additional invariants > upserts change only the ai_* mutable fields and re-read exactly one projected row 4291ms
+   ✓ PGlite additional invariants > malformed optional JSON leaves readable text and no damaged optional values 3605ms
+   ✓ PGlite additional invariants > retention includes equality, cascades, bounds 1..500 and preserves missing expiry 3378ms
+   ✓ PGlite transactions > joins the exact kernel transaction so a throwing write rolls back ledger and transcript 3590ms
+   ✓ PGlite transactions > controlled terminal settlement prevents a queued late browser save from replacing final text 3819ms
+
+⎯⎯⎯⎯ Unhandled Rejection ⎯⎯⎯⎯⎯
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/ADS-memory/reports/cloud-runs/2026-10-29-reverify/raw/jini-cov/chat/.tmp/coverage-263.json'
+ ❯ open node:internal/fs/promises:1345:25
+ ❯ Object.writeFile node:internal/fs/promises:1972:14
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { errno: -2, code: 'ENOENT', syscall: 'open', path: '/home/user/Tovu/ADS-memory/reports/cloud-runs/2026-10-29-reverify/raw/jini-cov/chat/.tmp/coverage-263.json' }
+
+
+
+EXIT=1

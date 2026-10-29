@@ -1,0 +1,62 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/oauth
+      Coverage enabled with v8
+
+ ✓ tests/token-refresh.test.ts (26 tests) 52ms
+ ✓ tests/authorization-code.test.ts (36 tests) 100ms
+ ✓ tests/token-endpoint.test.ts (49 tests) 116ms
+ ✓ tests/discovery.port.test.ts (22 tests) 310ms
+ ✓ tests/device-code.test.ts (40 tests) 83ms
+ ✓ tests/loopback-receiver.security.test.ts (42 tests) 281ms
+ ✓ tests/discovery.test.ts (20 tests) 76ms
+ ✓ tests/ports-and-options.test.ts (16 tests) 76ms
+ ✓ tests/guarded-transport.contract.test.ts (28 tests) 87ms
+ ✓ tests/oidc-and-revocation.test.ts (34 tests) 1967ms
+ ✓ tests/pkce-and-state.test.ts (25 tests) 71ms
+ ✓ tests/dynamic-registration.port.test.ts (11 tests) 171ms
+ ✓ tests/dynamic-registration.test.ts (18 tests) 36ms
+ ✓ tests/__tests__/registration.l145b.characterization.test.ts (33 tests) 54ms
+ ✓ tests/retirement-security.test.ts (30 tests) 74ms
+ ✓ tests/__tests__/authorization-code.l145a.characterization.test.ts (23 tests) 31ms
+ ✓ tests/__tests__/helpers.l194.characterization.test.ts (15 tests) 270ms
+ ✓ tests/__tests__/sealed-state.l145b.characterization.test.ts (41 tests) 30ms
+ ✓ tests/loopback-callback.unit.test.ts (33 tests) 25ms
+ ✓ tests/sealed-state.test.ts (7 tests) 43ms
+ ✓ tests/args-convention.test.ts (7 tests) 40ms
+ ✓ tests/providers.test.ts (16 tests) 21ms
+ ✓ tests/__tests__/pending-authorizations.l145a.characterization.test.ts (17 tests) 63ms
+ ✓ tests/integration-contract.test.ts (6 tests) 57ms
+ ✓ tests/protected-resource.test.ts (11 tests) 35ms
+ ✓ tests/file-cache.test.ts (4 tests) 65ms
+ ✓ tests/__tests__/file-registration-cache.l145a.characterization.test.ts (27 tests) 21ms
+ ✓ tests/__tests__/endpoint-safety.l145a.characterization.test.ts (16 tests) 15ms
+ ✓ tests/loopback-receiver.slice.test.ts (1 test) 100ms
+ ✓ tests/endpoint-safety.test.ts (10 tests) 8ms
+ ✓ tests/bounded-json.test.ts (5 tests) 15ms
+stdout | tests/__tests__/unit/endpoint-safety.property.unit.test.ts
+[fast-check oauth/endpoint-safety] seed=20261020, numRuns=150
+
+ ✓ tests/__tests__/unit/endpoint-safety.property.unit.test.ts (5 tests) 392ms
+ ✓ tests/api.test.ts (5 tests) 15ms
+ ✓ tests/loopback-receiver.bounds.test.ts (2 tests) 46ms
+ ✓ tests/__tests__/discovery-policy.l145a.characterization.test.ts (14 tests) 29ms
+ ✓ tests/options.test.ts (5 tests) 14ms
+ ✓ tests/__tests__/unit/discovery-candidates-m2.unit.test.ts (2 tests) 23ms
+ ✓ tests/errors.characterization.test.ts (2 tests) 5ms
+ ✓ tests/bounded-json-cleanup.test.ts (2 tests) 18ms
+ ✓ tests/redact.test.ts (3 tests) 4ms
+
+ Test Files  40 passed (40)
+      Tests  709 passed (709)
+   Start at  22:20:35
+   Duration  15.65s (transform 1.63s, setup 0ms, collect 7.08s, tests 4.94s, environment 17ms, prepare 4.86s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 100% ( 1833/1833 )
+Branches     : 99.89% ( 986/987 )
+Functions    : 100% ( 193/193 )
+Lines        : 100% ( 1833/1833 )
+================================================================================
+EXIT=0
