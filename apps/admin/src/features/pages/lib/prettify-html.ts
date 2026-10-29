@@ -229,14 +229,12 @@ function isOpeningBlockTag(token: Token): token is Extract<Token, { kind: "tag" 
  *  between them in the source — see the file header for why this specific boundary is safe to fill.
  *  `prev === undefined` (the very first token) replaces the original `idx > 0` guard: `tokens[-1]` is
  *  already `undefined` in JS, so the caller can pass `tokens[idx - 1]` directly without computing `idx > 0`. */
+function isBlockTag(token: Token): boolean {
+  return token.kind === "tag" && BLOCK_ELEMENTS.has(token.name);
+}
+
 function isZeroGapBlockBoundary(prev: Token | undefined, token: Token): boolean {
-  return (
-    prev !== undefined &&
-    prev.kind === "tag" &&
-    BLOCK_ELEMENTS.has(prev.name) &&
-    token.kind === "tag" &&
-    BLOCK_ELEMENTS.has(token.name)
-  );
+  return prev !== undefined && isBlockTag(prev) && isBlockTag(token);
 }
 
 /**

@@ -7,9 +7,9 @@ const settingsKey = ["admin-assistant", "subagents"] as const;
 export function useAssistantSubagentsSettings(required: { port: AssistantSubagentsPort; mode: string; agentId: string | null }, _optional = {}) {
   const state = useAssistantOwnerGrantSettings({ ...required, namespace: SUBAGENTS_NAMESPACE, key: settingsKey });
   // A stale cached ON value cannot establish the current grant after a failed refresh.
-  const tooltipKey = !state.loadError && required.mode === "local-cli" && required.agentId !== null &&
-    (state.settings?.capabilities?.subagents ?? state.settings?.enabled)
-    ? "This chat can use subagents" : null;
+  const localAgent = required.mode === "local-cli" && required.agentId !== null;
+  const granted = state.settings?.capabilities?.subagents ?? state.settings?.enabled;
+  const tooltipKey = !state.loadError && localAgent && granted ? "This chat can use subagents" : null;
   return { ...state, tooltipKey };
 }
 /** Subagent-specific copy and boolean payload; the shared hook owns locking and errors. */
@@ -65,8 +65,11 @@ export function useDockAgentPermissions(required: { t: (key: string) => string; 
     unavailableReason: state.settings?.unavailableReason,
     capabilities: view.capabilities,
     onChange: ({ key, enabled }: { key?: string; enabled: boolean }) => {
-      if (key === undefined) void state.setEnabled({ enabled });
-      else if (isCliCapability(key)) void state.setCapability({ key, enabled });
+      if (key === undefined) {
+        void state.setEnabled({ enabled });
+        return;
+      }
+      if (isCliCapability(key)) void state.setCapability({ key, enabled });
     },
   };
 }

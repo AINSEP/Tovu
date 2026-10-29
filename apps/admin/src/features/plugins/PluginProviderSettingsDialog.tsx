@@ -65,6 +65,12 @@ function SettingsFooter({ shown, saving, pluginName, agentHandleBase, onClose, t
   );
 }
 
+/** What an empty input stands for: a saved secret counts as present, else the declared default. */
+function unenteredFieldValue(field: { secret?: boolean; saved?: boolean; default?: string }): string {
+  if (field.secret && field.saved) return "saved";
+  return field.default ?? "";
+}
+
 function SettingsSubtitle({ card, t }: { card: AdminPluginProviderSettings | null; t: (key: string) => string }) {
   if (!card) return null;
   return <p className="provider-settings-subtitle">{settingsSubtitleText(card, t)}</p>;
@@ -88,7 +94,7 @@ export function PluginProviderSettingsDialog({ plugin, agentHandleBase, onClose,
   const fields = card?.fields ?? [];
   // Presence only: a saved alternate secret satisfies the same manifest rule as an entered value.
   const effectiveValues = Object.fromEntries(fields.map(field => [field.name,
-    values[field.name]?.trim() || (field.secret && field.saved ? "saved" : field.default ?? "")]));
+    values[field.name]?.trim() || unenteredFieldValue(field)]));
   useProviderSettingsFocus({ card, fieldId });
   return (
     <Dialog open title={interpolate({ template: t("{name} settings"), vars: { name: plugin.name } })} pending={saving} onClose={() => onClose()} className="settings-dialog jini-domain-dialog provider-settings-dialog">

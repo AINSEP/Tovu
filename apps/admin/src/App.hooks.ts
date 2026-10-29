@@ -843,11 +843,8 @@ export function useChatDockLayout(): UseChatDockLayout {
   // the user's own focus once the dock has been open for a while.
   const chatWasOpen = useRef(false);
   useEffect(() => {
-    if (chatOpen && !chatWasOpen.current) {
-      chatDockRef.current?.focus();
-    } else if (!chatOpen && chatWasOpen.current) {
-      chatFabRef.current?.focus();
-    }
+    // Only an open/closed transition moves focus: into the dock on open, back to the FAB on close.
+    if (chatOpen !== chatWasOpen.current) (chatOpen ? chatDockRef : chatFabRef).current?.focus();
     chatWasOpen.current = chatOpen;
   }, [chatOpen]);
 

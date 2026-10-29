@@ -5,8 +5,9 @@ export type PageMenuTarget = AdminMenuTarget & { entryType?: string; lastKnownHr
 export type MenuTargetEditorKind = AdminMenuTarget["kind"] | "page";
 
 export function menuTargetEditorKind({ target, pages }: { target: PageMenuTarget; pages?: readonly MenuPageChoice[] }, _optional = {}): MenuTargetEditorKind {
-  return target.kind === "entryRef" && (target.entryType === "page" ||
-    (target.entryType === undefined && pages?.some((page) => page.id === target.entryId))) ? "page" : target.kind;
+  if (target.kind !== "entryRef") return target.kind;
+  const untypedPage = target.entryType === undefined && pages?.some((page) => page.id === target.entryId);
+  return target.entryType === "page" || untypedPage ? "page" : target.kind;
 }
 
 export function hasPageLinks({ items }: { items: readonly AdminMenuItem[] }, _optional = {}): boolean {

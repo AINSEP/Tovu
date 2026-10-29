@@ -60,10 +60,10 @@ export function captureSkillDrop(
   if (!hasFolder) return false;
   event.preventDefault(); event.stopPropagation();
   const saved = { ...event, preventDefault: () => {}, stopPropagation: () => {}, dataTransfer: { ...event.dataTransfer, files, types: Array.from(event.dataTransfer.types ?? []), items: items.map(item => ({ kind: "file", getAsFile: () => item.file, webkitGetAsEntry: () => item.entry })) } } as unknown as DragEvent<HTMLElement>;
-  void collect(entries).then(({ files: leaves, paths }) => {
-    if (leaves.some(file => file.name === "SKILL.md")) proposeFiles(leaves, paths);
-    else fallback(saved);
-  }).catch(error => {
+  // The proposal's own promise is returned so its rejection reaches the catch below.
+  void collect(entries).then(({ files: leaves, paths }) =>
+    leaves.some(file => file.name === "SKILL.md") ? proposeFiles(leaves, paths) : fallback(saved),
+  ).catch(error => {
     if (error === NOT_A_SKILL) fallback(saved);
     else onError(error instanceof Error ? error.message : "Could not read skill folder.");
   });

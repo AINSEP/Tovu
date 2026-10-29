@@ -60,13 +60,9 @@ async function readSkillsSnapshot(
 }
 
 function isInstalledSkillSummary(value: unknown): value is InstalledSkillSummary {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    typeof (value as { toolId?: unknown }).toolId === "string" &&
-    typeof (value as { name?: unknown }).name === "string" &&
-    typeof (value as { description?: unknown }).description === "string"
-  );
+  if (typeof value !== "object" || value === null) return false;
+  const summary = value as { toolId?: unknown; name?: unknown; description?: unknown };
+  return typeof summary.toolId === "string" && typeof summary.name === "string" && typeof summary.description === "string";
 }
 
 /**
