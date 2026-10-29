@@ -1,0 +1,646 @@
+
+apps/admin/src/App.hooks.ts
+   131:23  warning  Extract this increment operation into a dedicated statement                                                                 sonarjs/no-nested-incdec
+   190:16  warning  Refactor this function to use "return" consistently                                                                         sonarjs/no-inconsistent-returns
+   213:23  warning  Extract this increment operation into a dedicated statement                                                                 sonarjs/no-nested-incdec
+   224:70  warning  This statement will not be executed conditionally; only the first statement will be. The rest will execute unconditionally  sonarjs/no-unenclosed-multiline-block
+   319:16  warning  Refactor this function to use "return" consistently                                                                         sonarjs/no-inconsistent-returns
+   631:16  warning  Refactor this function to use "return" consistently                                                                         sonarjs/no-inconsistent-returns
+   778:16  warning  Refactor this function to use "return" consistently                                                                         sonarjs/no-inconsistent-returns
+   800:16  warning  Refactor this function to use "return" consistently                                                                         sonarjs/no-inconsistent-returns
+   818:16  warning  Refactor this function to use "return" consistently                                                                         sonarjs/no-inconsistent-returns
+   848:7   warning  Add the missing "else" clause                                                                                               sonarjs/elseif-without-else
+  1109:16  warning  Refactor this function to use "return" consistently                                                                         sonarjs/no-inconsistent-returns
+  1132:16  warning  Refactor this function to use "return" consistently                                                                         sonarjs/no-inconsistent-returns
+
+apps/admin/src/App.tsx
+  115:37  warning  Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking  sonarjs/super-linear-regex
+
+apps/admin/src/admin-themes/use-admin-theme.hooks.ts
+  112:16  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+apps/admin/src/components/AssistantDock/AgentFailureCard.hooks.ts
+  23:26  warning  Extract this increment operation into a dedicated statement  sonarjs/no-nested-incdec
+
+apps/admin/src/components/AssistantDock/AssistantDock.tsx
+  642:9  warning  Remove this commented out code  sonarjs/no-commented-code
+
+apps/admin/src/components/AssistantDock/FolderDropError.tsx
+  27:10  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+apps/admin/src/components/AssistantDock/SlowRunNoticeCard.hooks.ts
+  61:47  warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant  sonarjs/no-redundant-optional
+
+apps/admin/src/components/AssistantDock/agent-failure.ts
+  32:14  warning  Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking  sonarjs/super-linear-regex
+  32:41  warning  Remove this control character                                                                                   sonarjs/no-control-regex
+  32:46  warning  Remove this control character                                                                                   sonarjs/no-control-regex
+  33:16  warning  Remove this control character                                                                                   sonarjs/no-control-regex
+  33:42  warning  Use concise character class syntax '\d' instead of '[0-9]'                                                      sonarjs/concise-regex
+  33:56  warning  Use concise character class syntax '\d' instead of '[0-9]'                                                      sonarjs/concise-regex
+  35:14  warning  Simplify this regular expression to reduce its complexity from 37 to the 20 allowed                             sonarjs/regex-complexity
+  35:66  warning  Replace this character class by the character itself                                                            sonarjs/single-char-in-character-classes
+  35:83  warning  Replace this character class by the character itself                                                            sonarjs/single-char-in-character-classes
+  37:14  warning  Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking  sonarjs/super-linear-regex
+  37:14  warning  Simplify this regular expression to reduce its complexity from 35 to the 20 allowed                             sonarjs/regex-complexity
+  44:40  warning  Replace this character class by the character itself                                                            sonarjs/single-char-in-character-classes
+  47:20  warning  Simplify this regular expression to reduce its complexity from 21 to the 20 allowed                             sonarjs/regex-complexity
+  47:26  warning  Replace this character class by the character itself                                                            sonarjs/single-char-in-character-classes
+
+apps/admin/src/components/AssistantDock/assistant-dock-i18n.ts
+  1617:35  warning  Reduce the number of conditional operators (4) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+
+apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx
+  254:24  warning  Extract this increment operation into a dedicated statement  sonarjs/no-nested-incdec
+  458:16  warning  Refactor this function to use "return" consistently          sonarjs/no-inconsistent-returns
+  660:24  warning  Extract this increment operation into a dedicated statement  sonarjs/no-nested-incdec
+  708:16  warning  Refactor this function to use "return" consistently          sonarjs/no-inconsistent-returns
+  719:23  warning  Extract this increment operation into a dedicated statement  sonarjs/no-nested-incdec
+
+apps/admin/src/components/AssistantDock/hooks/chat-package-kind.ts
+  106:21  warning  Reduce the number of conditional operators (4) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+
+apps/admin/src/components/AssistantDock/hooks/resolve-composer-discovery-outcome.ts
+  51:23  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+apps/admin/src/components/AssistantDock/hooks/use-assistant-runtime-preferences.hooks.ts
+  45:9  warning  Reduce the number of conditional operators (5) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+
+apps/admin/src/components/AssistantDock/hooks/use-selected-agent-auth-warning.hooks.ts
+  45:18  warning  Extract this increment operation into a dedicated statement  sonarjs/no-nested-incdec
+
+apps/admin/src/components/AssistantDock/hooks/useOverflowDetection.hooks.ts
+  69:16  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+apps/admin/src/components/DevicePreview/DevicePreview.hooks.ts
+  160:16  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+apps/admin/src/components/EmbedInsertControl/EmbedInsertControl.hooks.tsx
+  32:74  warning  Make sure that using this pseudorandom number generator is safe here  sonarjs/pseudo-random
+
+apps/admin/src/components/MediaPickerDialog/JiniMediaPicker.hooks.ts
+  18:16  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+apps/admin/src/components/MediaPickerDialog/MediaPickerDialog.tsx
+  89:15  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+apps/admin/src/components/TemplateSource/use-template-source.hooks.ts
+  111:7  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+apps/admin/src/components/WidgetConfigFields/WidgetConfigFields.tsx
+  179:65  warning  Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking  sonarjs/super-linear-regex
+
+apps/admin/src/components/WidgetConfigFields/media-content-rules.ts
+  276:3  warning  Reduce the total number of "break" and "continue" statements in this loop to use one at most  sonarjs/too-many-break-or-continue-in-loop
+
+apps/admin/src/components/WidgetPickerDialog/WidgetPickerDialog.tsx
+  285:14  warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant  sonarjs/no-redundant-optional
+
+apps/admin/src/features/ai-assistant/AssistantToggleRow.tsx
+  18:11  warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant  sonarjs/no-redundant-optional
+  22:14  warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant  sonarjs/no-redundant-optional
+  24:10  warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant  sonarjs/no-redundant-optional
+  26:13  warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant  sonarjs/no-redundant-optional
+  27:13  warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant  sonarjs/no-redundant-optional
+  30:12  warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant  sonarjs/no-redundant-optional
+
+apps/admin/src/features/ai-assistant/VisitorToolsPanel.tsx
+  29:69   warning  Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking  sonarjs/super-linear-regex
+  29:106  warning  Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking  sonarjs/super-linear-regex
+
+apps/admin/src/features/ai-assistant/hooks/use-admin-subagents.hooks.ts
+  10:22  warning  Reduce the number of conditional operators (5) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+  69:7   warning  Add the missing "else" clause                                                              sonarjs/elseif-without-else
+
+apps/admin/src/features/ai-assistant/hooks/use-ai-assistant.hooks.ts
+  118:40  warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant  sonarjs/no-redundant-optional
+
+apps/admin/src/features/ai-assistant/hooks/use-visitor-credential-form.hooks.ts
+  503:16  warning  Refactor this function to use "return" consistently               sonarjs/no-inconsistent-returns
+  516:52  warning  Refactor this code to not nest functions more than 4 levels deep  sonarjs/no-nested-functions
+  572:16  warning  Refactor this function to use "return" consistently               sonarjs/no-inconsistent-returns
+  597:31  warning  Refactor this code to not nest functions more than 4 levels deep  sonarjs/no-nested-functions
+
+apps/admin/src/features/ai-assistant/rules.ts
+  171:81  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+apps/admin/src/features/auth/auth-i18n.ts
+   7:121  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+  27:113  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+
+apps/admin/src/features/collections/hooks/collections-dependencies.hooks.ts
+  45:59  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+apps/admin/src/features/collections/hooks/use-collections.hooks.ts
+  60:53  warning  Replace this union type with a type alias  sonarjs/use-type-alias
+
+apps/admin/src/features/collections/rules.ts
+  162:20  warning  Extract this increment operation into a dedicated statement  sonarjs/no-nested-incdec
+  168:45  warning  Extract this increment operation into a dedicated statement  sonarjs/no-nested-incdec
+
+apps/admin/src/features/consent/rules.ts
+  60:10  warning  Reduce the number of conditional operators (5) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+
+apps/admin/src/features/consent/settings.hooks.ts
+  88:112  warning  Refactor this code to not use nested template literals  sonarjs/no-nested-template-literals
+
+apps/admin/src/features/consent/use-consent-page.hooks.ts
+   76:28  warning  Refactor this code to not nest functions more than 4 levels deep  sonarjs/no-nested-functions
+  141:20  warning  Extract this increment operation into a dedicated statement       sonarjs/no-nested-incdec
+  145:70  warning  Refactor this code to not nest functions more than 4 levels deep  sonarjs/no-nested-functions
+
+apps/admin/src/features/content-analysis/content-analysis-i18n.ts
+  34:3  warning  Define a constant instead of duplicating this literal 6 times  sonarjs/no-duplicate-string
+
+apps/admin/src/features/content-analysis/rules.ts
+   81:5  warning  Reduce the number of conditional operators (5) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+  117:5  warning  Reduce the number of conditional operators (7) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+
+apps/admin/src/features/dashboard/dashboard-i18n.ts
+   431:67  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+   535:67  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+  1055:67  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+  1783:67  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+  1784:24  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+
+apps/admin/src/features/dashboard/hooks/use-dashboard.hooks.ts
+  17:47  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+
+apps/admin/src/features/database/hooks/use-migrate-forward-section.hooks.ts
+  171:5  warning  Add the missing "else" clause  sonarjs/elseif-without-else
+
+apps/admin/src/features/deployment/OverviewTab.tsx
+  185:67  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+apps/admin/src/features/deployment/deployment-i18n.tsx
+   193:23  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+  1274:23  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+
+apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts
+  154:114  warning  Define a constant instead of duplicating this literal 5 times  sonarjs/no-duplicate-string
+
+apps/admin/src/features/deployment/rules.ts
+  260:14  warning  Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking                                                                                    sonarjs/super-linear-regex
+  445:3   warning  Provide a default value for 'ok' so that the logic of the function is more evident when this parameter is missing. Consider defining another function if providing default value is not possible  sonarjs/bool-param-default
+
+apps/admin/src/features/email/EmailActivityTab.tsx
+  236:21   warning  Extract this nested ternary operation into an independent statement            sonarjs/no-nested-conditional
+  257:100  warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant  sonarjs/no-redundant-optional
+
+apps/admin/src/features/email/EmailOverviewTab.tsx
+  79:100  warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant  sonarjs/no-redundant-optional
+
+apps/admin/src/features/email/EmailProviderTab.tsx
+  175:24   warning  Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking  sonarjs/super-linear-regex
+  181:92   warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant                                   sonarjs/no-redundant-optional
+  208:177  warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant                                   sonarjs/no-redundant-optional
+  208:215  warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant                                   sonarjs/no-redundant-optional
+  225:138  warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant                                   sonarjs/no-redundant-optional
+  225:176  warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant                                   sonarjs/no-redundant-optional
+
+apps/admin/src/features/email/EmailSenderTab.tsx
+  169:76   warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant  sonarjs/no-redundant-optional
+  186:126  warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant  sonarjs/no-redundant-optional
+
+apps/admin/src/features/email/EmailTemplateEditor.tsx
+  211:10  warning  Reduce the number of conditional operators (5) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+
+apps/admin/src/features/email/hooks/use-email-overview.hooks.ts
+  31:115  warning  Make sure that using this pseudorandom number generator is safe here  sonarjs/pseudo-random
+
+apps/admin/src/features/email/hooks/use-email-provider.hooks.ts
+  55:94  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+  77:41  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+apps/admin/src/features/email/hooks/use-email-sender.hooks.ts
+  33:17  warning  Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking  sonarjs/super-linear-regex
+
+apps/admin/src/features/email/hooks/use-email-template-editor.hooks.ts
+  85:16  warning  Refactor this function to use "return" consistently               sonarjs/no-inconsistent-returns
+  96:62  warning  Refactor this code to not nest functions more than 4 levels deep  sonarjs/no-nested-functions
+
+apps/admin/src/features/library/Library.tsx
+  198:7  warning  Add the missing "else" clause  sonarjs/elseif-without-else
+
+apps/admin/src/features/media/hooks/media-dependencies.hooks.ts
+  55:78  warning  Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking  sonarjs/super-linear-regex
+
+apps/admin/src/features/media/hooks/use-media-card-details.hooks.ts
+  17:16  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+apps/admin/src/features/menus/MenuEditor.tsx
+  53:18  warning  Provide a default value for 'value' so that the logic of the function is more evident when this parameter is missing. Consider defining another function if providing default value is not possible  sonarjs/bool-param-default
+  84:17  warning  Refactor this function to use "return" consistently                                                                                                                                                  sonarjs/no-inconsistent-returns
+
+apps/admin/src/features/menus/hooks/use-menu-editor.hooks.ts
+  236:16  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+apps/admin/src/features/menus/page-link-rules.ts
+   8:10  warning  Reduce the number of conditional operators (4) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+  48:17  warning  Refactor this function to use "return" consistently                                        sonarjs/no-inconsistent-returns
+
+apps/admin/src/features/observability/Observability.tsx
+   67:91   warning  Refactor this code to not use nested template literals                         sonarjs/no-nested-template-literals
+  109:87   warning  Extract this nested ternary operation into an independent statement            sonarjs/no-nested-conditional
+  109:120  warning  Refactor this code to not use nested template literals                         sonarjs/no-nested-template-literals
+  156:8    warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant  sonarjs/no-redundant-optional
+
+apps/admin/src/features/observability/hooks/use-observability-tab.hooks.ts
+  10:44  warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant  sonarjs/no-redundant-optional
+
+apps/admin/src/features/observability/recent-errors-rules.ts
+   21:20  warning  Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking  sonarjs/super-linear-regex
+   56:66  warning  Extract this nested ternary operation into an independent statement                                             sonarjs/no-nested-conditional
+  126:23  warning  Simplify this regular expression to reduce its complexity from 22 to the 20 allowed                             sonarjs/regex-complexity
+
+apps/admin/src/features/pages/PageEditor.tsx
+  293:36  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts
+   443:5   warning  Reduce the number of conditional operators (4) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+   762:16  warning  Refactor this function to use "return" consistently                                        sonarjs/no-inconsistent-returns
+   784:11  warning  Add the missing "else" clause                                                              sonarjs/elseif-without-else
+   868:5   warning  Merge this if statement with the nested one                                                sonarjs/no-collapsible-if
+   890:16  warning  Refactor this function to use "return" consistently                                        sonarjs/no-inconsistent-returns
+  1167:17  warning  Reduce the number of conditional operators (4) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+
+apps/admin/src/features/pages/hooks/use-pages.hooks.ts
+  192:62  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+apps/admin/src/features/pages/hooks/use-theme-canvas-styling.hooks.ts
+  155:72  warning  Refactor this code to not use nested template literals  sonarjs/no-nested-template-literals
+  267:16  warning  Refactor this function to use "return" consistently     sonarjs/no-inconsistent-returns
+
+apps/admin/src/features/pages/lib/prettify-html.ts
+   89:3   warning  Simplify this regular expression to reduce its complexity from 39 to the 20 allowed        sonarjs/regex-complexity
+  129:72  warning  Extract this nested ternary operation into an independent statement                        sonarjs/no-nested-conditional
+  233:5   warning  Reduce the number of conditional operators (4) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+
+apps/admin/src/features/plugins/PackageFilesModal.tsx
+   34:20  warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant  sonarjs/no-redundant-optional
+   50:25  warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant  sonarjs/no-redundant-optional
+  281:19  warning  Extract this nested ternary operation into an independent statement            sonarjs/no-nested-conditional
+
+apps/admin/src/features/plugins/PluginProviderSettingsDialog.tsx
+  70:80   warning  Extract this nested ternary operation into an independent statement                        sonarjs/no-nested-conditional
+  70:250  warning  Extract this nested ternary operation into an independent statement                        sonarjs/no-nested-conditional
+  85:5    warning  Reduce the number of conditional operators (4) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+
+apps/admin/src/features/plugins/Plugins.tsx
+  103:16   warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant  sonarjs/no-redundant-optional
+  211:16   warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant  sonarjs/no-redundant-optional
+  339:174  warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant  sonarjs/no-redundant-optional
+
+apps/admin/src/features/plugins/hooks/agent-plugin-install-dependencies.hooks.ts
+  8:67  warning  Refactor this code to not use nested template literals  sonarjs/no-nested-template-literals
+
+apps/admin/src/features/plugins/hooks/plugins-dependencies.hooks.ts
+  124:42  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+  126:86  warning  Refactor this code to not use nested template literals               sonarjs/no-nested-template-literals
+
+apps/admin/src/features/plugins/hooks/use-admin-surface-frame.hooks.ts
+   91:33  warning  Refactor this function to use "return" consistently               sonarjs/no-inconsistent-returns
+  112:45  warning  Refactor this function to use "return" consistently               sonarjs/no-inconsistent-returns
+  132:53  warning  Refactor this code to not nest functions more than 4 levels deep  sonarjs/no-nested-functions
+
+apps/admin/src/features/plugins/hooks/use-linked-lock-tip.hooks.ts
+  41:71  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+apps/admin/src/features/plugins/hooks/use-package-file-tree.hooks.ts
+  81:59  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+apps/admin/src/features/plugins/hooks/use-plugin-install.hooks.ts
+  69:24  warning  Extract this increment operation into a dedicated statement  sonarjs/no-nested-incdec
+
+apps/admin/src/features/plugins/hooks/use-plugin-package-files.hooks.ts
+  76:7  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+apps/admin/src/features/plugins/installed-skills-composer-source.ts
+   64:5   warning  Reduce the number of conditional operators (4) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+  124:21  warning  Extract this increment operation into a dedicated statement                                sonarjs/no-nested-incdec
+
+apps/admin/src/features/plugins/rules.ts
+  252:34  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+apps/admin/src/features/plugins/selected-skills.ts
+  12:67  warning  Reduce the number of conditional operators (4) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+
+apps/admin/src/features/posts/PostEditor.tsx
+  1238:60  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+apps/admin/src/features/posts/hooks/use-post-editor-ui.hooks.ts
+  185:16  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+  210:16  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts
+  377:5   warning  Reduce the number of conditional operators (6) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+  473:51  warning  Replace this union type with a type alias                                                  sonarjs/use-type-alias
+  911:16  warning  Refactor this function to use "return" consistently                                        sonarjs/no-inconsistent-returns
+
+apps/admin/src/features/posts/hooks/use-post-featured-image.hooks.ts
+  64:33  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+apps/admin/src/features/posts/hooks/use-posts.hooks.ts
+  186:62  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+apps/admin/src/features/posts/rules.ts
+  680:10  warning  Reduce the number of conditional operators (4) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+
+apps/admin/src/features/publish-content/PublishContentDialog.tsx
+  349:10  warning  Reduce the number of conditional operators (5) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+
+apps/admin/src/features/publish-content/hooks/use-publish-content-confirm.hooks.ts
+   444:7   warning  Add the missing "else" clause                                                                           sonarjs/elseif-without-else
+   709:17  warning  Extract this nested ternary operation into an independent statement                                     sonarjs/no-nested-conditional
+  1287:27  warning  Immediately return this expression instead of assigning it to the temporary variable "primaryDisabled"  sonarjs/prefer-immediate-return
+  1287:27  warning  Reduce the number of conditional operators (5) used in the expression (maximum allowed 3)               sonarjs/expression-complexity
+  1323:10  warning  Reduce the number of conditional operators (5) used in the expression (maximum allowed 3)               sonarjs/expression-complexity
+
+apps/admin/src/features/roles/Roles.tsx
+  193:19  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+apps/admin/src/features/roles/hooks/use-roles.hooks.ts
+  432:24  warning  Extract this increment operation into a dedicated statement  sonarjs/no-nested-incdec
+
+apps/admin/src/features/security/AccessTokensTab.tsx
+  316:8    warning  Reduce the number of conditional operators (4) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+  410:128  warning  Define a constant instead of duplicating this literal 5 times                              sonarjs/no-duplicate-string
+
+apps/admin/src/features/security/OtherCredentialsSection.tsx
+  141:36  warning  Define a constant instead of duplicating this literal 5 times  sonarjs/no-duplicate-string
+
+apps/admin/src/features/security/Security.tsx
+  93:27  warning  Define a constant instead of duplicating this literal 5 times  sonarjs/no-duplicate-string
+
+apps/admin/src/features/security/SiteKeyTab.tsx
+  154:51  warning  Provide a default value for 'invalid' so that the logic of the function is more evident when this parameter is missing. Consider defining another function if providing default value is not possible  sonarjs/bool-param-default
+  277:9   warning  Extract this nested ternary operation into an independent statement                                                                                                                                    sonarjs/no-nested-conditional
+
+apps/admin/src/features/security/hooks/use-access-tokens.hooks.ts
+  317:70  warning  Define a constant instead of duplicating this literal 7 times  sonarjs/no-duplicate-string
+  628:18  warning  Refactor this function to use "return" consistently            sonarjs/no-inconsistent-returns
+
+apps/admin/src/features/security/hooks/use-copy-keys.hooks.ts
+   25:10  warning  Reduce the number of conditional operators (5) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+   39:81  warning  Refactor this code to not use nested template literals                                     sonarjs/no-nested-template-literals
+   60:61  warning  Refactor this code to not use nested template literals                                     sonarjs/no-nested-template-literals
+   96:16  warning  Refactor this function to use "return" consistently                                        sonarjs/no-inconsistent-returns
+  138:50  warning  Refactor this code to not nest functions more than 4 levels deep                           sonarjs/no-nested-functions
+
+apps/admin/src/features/security/hooks/use-other-credentials.hooks.ts
+  161:10  warning  Refactor this function to use "return" consistently               sonarjs/no-inconsistent-returns
+  225:31  warning  Refactor this code to not nest functions more than 4 levels deep  sonarjs/no-nested-functions
+
+apps/admin/src/features/security/hooks/use-site-key.hooks.ts
+  74:89  warning  Define a constant instead of duplicating this literal 5 times  sonarjs/no-duplicate-string
+
+apps/admin/src/features/security/rules.ts
+  125:9  warning  Define a constant instead of duplicating this literal 7 times  sonarjs/no-duplicate-string
+
+apps/admin/src/features/security/security-i18n.ts
+  2200:90  warning  Refactor this code to not use nested template literals  sonarjs/no-nested-template-literals
+
+apps/admin/src/features/seo/seo-i18n.ts
+  55:20  warning  Define a constant instead of duplicating this literal 21 times  sonarjs/no-duplicate-string
+
+apps/admin/src/features/settings/SettingsUi.tsx
+  329:5  warning  Reduce the number of conditional operators (4) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+
+apps/admin/src/features/settings/ai-agent-presentation.ts
+  47:18  warning  Extract this increment operation into a dedicated statement  sonarjs/no-nested-incdec
+
+apps/admin/src/features/settings/hooks/use-external-mcp-oauth-connect.hooks.ts
+  97:27  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+apps/admin/src/features/settings/hooks/use-external-mcp.hooks.ts
+  133:102  warning  Refactor this code to not use nested template literals  sonarjs/no-nested-template-literals
+
+apps/admin/src/features/settings/hooks/use-settings-active-tab-scroll.hooks.ts
+  19:16  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+apps/admin/src/features/sites/hooks/use-local-sites.hooks.ts
+  72:16  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+  93:7   warning  Add the missing "else" clause                        sonarjs/elseif-without-else
+
+apps/admin/src/features/sites/hooks/use-sites-config.hooks.ts
+  49:75  warning  This statement will not be executed conditionally; only the first statement will be. The rest will execute unconditionally  sonarjs/no-unenclosed-multiline-block
+
+apps/admin/src/features/sites/site-transfer-i18n.ts
+  12:2501  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+  14:2650  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+  21:3162  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+  26:2401  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+  26:2683  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+  26:3647  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+  30:1734  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+  30:2743  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+  31:1737  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+  31:2744  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+
+apps/admin/src/features/skills/skill-drop.ts
+  24:9   warning  Extract this increment operation into a dedicated statement          sonarjs/no-nested-incdec
+  63:57  warning  Refactor this function to use "return" consistently                  sonarjs/no-inconsistent-returns
+  66:71  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+apps/admin/src/features/skills/use-skill-confirmation.hooks.ts
+   9:16  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+  15:16  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+apps/admin/src/features/skills/use-skill-files.hooks.ts
+  30:95  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+apps/admin/src/features/skills/use-skill-install.hooks.ts
+  14:21  warning  Extract this increment operation into a dedicated statement                                                                 sonarjs/no-nested-incdec
+  25:94  warning  This statement will not be executed conditionally; only the first statement will be. The rest will execute unconditionally  sonarjs/no-unenclosed-multiline-block
+
+apps/admin/src/features/taxonomy/TaxonomyRowMenu.hooks.ts
+  34:22  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+  60:16  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+apps/admin/src/features/taxonomy/TermPicker.tsx
+  35:40  warning  Remove this useless assignment to variable "selected"  sonarjs/no-dead-store
+  35:50  warning  Remove this useless assignment to variable "toggle"    sonarjs/no-dead-store
+
+apps/admin/src/features/themes/ThemeExplore.tsx
+  262:5  warning  Add the missing "else" clause  sonarjs/elseif-without-else
+
+apps/admin/src/features/themes/hooks/themes-dependencies.hooks.ts
+  60:76  warning  Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking  sonarjs/super-linear-regex
+
+apps/admin/src/features/themes/hooks/use-theme-explore-theme.hooks.ts
+  15:16  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts
+  1096:16  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+apps/admin/src/features/users/users-i18n.ts
+    31:13   warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+   262:31   warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+   278:64   warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+   328:31   warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+   344:64   warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+   657:24   warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+   658:31   warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+   662:23   warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+   671:33   warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+   674:64   warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+  1119:24   warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+  1120:31   warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+  1123:21   warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+  1124:23   warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+  1133:33   warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+  1354:15   warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+  1414:33   warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+  1414:133  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+  1421:33   warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+  1421:72   warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+  1421:105  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+  1421:148  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+  1451:7    warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+  1471:7    warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+
+apps/admin/src/features/voice-input/hooks/push-to-talk-state.hooks.ts
+  105:17  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+apps/admin/src/features/voice-input/hooks/use-push-to-talk.hooks.ts
+  176:55  warning  Refactor this code to not nest functions more than 4 levels deep  sonarjs/no-nested-functions
+
+apps/admin/src/hooks/use-cms-sidebar-label-tooltips.hooks.ts
+   8:16  warning  Refactor this function to use "return" consistently                                           sonarjs/no-inconsistent-returns
+  13:7   warning  Reduce the total number of "break" and "continue" statements in this loop to use one at most  sonarjs/too-many-break-or-continue-in-loop
+
+apps/admin/src/hooks/use-dock-auto-rail.hooks.ts
+  94:16  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+apps/admin/src/hooks/use-list-table-cell-labels.hooks.ts
+  26:35  warning  Define a constant instead of duplicating this literal 5 times  sonarjs/no-duplicate-string
+
+apps/admin/src/hooks/use-sidebar-empty-click-toggle.hooks.ts
+  86:16  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+apps/admin/src/hooks/use-sites-sidebar-nav.hooks.ts
+  64:16  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+  78:22  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+  84:22  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+apps/admin/src/hooks/use-tovu-execution-policy.hooks.ts
+  23:16  warning  Refactor this function to use "return" consistently                                                                         sonarjs/no-inconsistent-returns
+  27:57  warning  This statement will not be executed conditionally; only the first statement will be. The rest will execute unconditionally  sonarjs/no-unenclosed-multiline-block
+
+apps/admin/src/lib/addons-routes.ts
+  30:38  warning  Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking  sonarjs/super-linear-regex
+
+apps/admin/src/lib/agent-screenshot.ts
+  186:47  warning  Extract this nested ternary operation into an independent statement                           sonarjs/no-nested-conditional
+  201:3   warning  Reduce the total number of "break" and "continue" statements in this loop to use one at most  sonarjs/too-many-break-or-continue-in-loop
+
+apps/admin/src/lib/api.ts
+   689:13   warning  Remove this redundant type alias and replace its occurrences with "AdminPublishCredentialProviderId"  sonarjs/redundant-type-aliases
+   814:13   warning  Remove this redundant type alias and replace its occurrences with "string"                            sonarjs/redundant-type-aliases
+  1010:13   warning  Remove this redundant type alias and replace its occurrences with "string"                            sonarjs/redundant-type-aliases
+  2424:10   warning  Reduce the number of conditional operators (4) used in the expression (maximum allowed 3)             sonarjs/expression-complexity
+  2718:45   warning  Extract this nested ternary operation into an independent statement                                   sonarjs/no-nested-conditional
+  3000:67   warning  Refactor this code to not use nested template literals                                                sonarjs/no-nested-template-literals
+  3025:16   warning  Replace this union type with a type alias                                                             sonarjs/use-type-alias
+  3195:75   warning  Refactor this code to not use nested template literals                                                sonarjs/no-nested-template-literals
+  3413:91   warning  Refactor this code to not use nested template literals                                                sonarjs/no-nested-template-literals
+  3688:64   warning  Refactor this code to not use nested template literals                                                sonarjs/no-nested-template-literals
+  3794:33   warning  Refactor this code to not use nested template literals                                                sonarjs/no-nested-template-literals
+  3877:135  warning  Refactor this code to not use nested template literals                                                sonarjs/no-nested-template-literals
+  3894:118  warning  Refactor this code to not use nested template literals                                                sonarjs/no-nested-template-literals
+  3916:178  warning  Refactor this code to not use nested template literals                                                sonarjs/no-nested-template-literals
+  4003:91   warning  Refactor this code to not use nested template literals                                                sonarjs/no-nested-template-literals
+
+apps/admin/src/lib/assistant-prompt-bus.ts
+  51:9  warning  Add the missing "else" clause  sonarjs/elseif-without-else
+
+apps/admin/src/lib/assistant-transport-ag-ui.ts
+  63:24  warning  Make sure that using this pseudorandom number generator is safe here  sonarjs/pseudo-random
+
+apps/admin/src/lib/assistant-transport.ts
+  19:140  warning  Make sure that using this pseudorandom number generator is safe here  sonarjs/pseudo-random
+
+apps/admin/src/lib/boot-token-fragment.ts
+  50:67  warning  Refactor this code to not use nested template literals  sonarjs/no-nested-template-literals
+
+apps/admin/src/lib/browser-telemetry.ts
+  33:34  warning  Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking  sonarjs/super-linear-regex
+
+apps/admin/src/lib/credential-copy.ts
+  27:133  warning  This statement will not be executed conditionally; only the first statement will be. The rest will execute unconditionally  sonarjs/no-unenclosed-multiline-block
+
+apps/admin/src/lib/durable-run-subscription.ts
+  42:47  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+  42:59  warning  Refactor this code to not use nested template literals               sonarjs/no-nested-template-literals
+  51:84  warning  Refactor this code to not use nested template literals               sonarjs/no-nested-template-literals
+
+apps/admin/src/lib/execution-settings.ts
+  279:10  warning  Reduce the number of conditional operators (4) used in the expression (maximum allowed 3)              sonarjs/expression-complexity
+  478:57  warning  Arguments 'previous' and 'next' have the same names but not the same order as the function parameters  sonarjs/arguments-order
+
+apps/admin/src/lib/media-embed-extension.hooks.ts
+  71:16  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+apps/admin/src/lib/publish-criteria-deep-link.ts
+  52:49  warning  Refactor this code to not use nested template literals  sonarjs/no-nested-template-literals
+
+apps/admin/src/lib/router.ts
+  120:54  warning  Refactor this code to not use nested template literals  sonarjs/no-nested-template-literals
+
+apps/admin/src/lib/settings-events.ts
+  70:34   warning  Refactor this code to not use nested template literals  sonarjs/no-nested-template-literals
+  70:104  warning  Refactor this code to not use nested template literals  sonarjs/no-nested-template-literals
+
+apps/admin/src/lib/stored-credential-endpoint.ts
+  33:33  warning  Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking  sonarjs/super-linear-regex
+
+apps/admin/src/lib/stream-activity.ts
+  23:44  warning  This statement will not be executed conditionally; only the first statement will be. The rest will execute unconditionally  sonarjs/no-unenclosed-multiline-block
+
+apps/admin/src/lib/tab-event-source.ts
+  35:43  warning  This statement will not be executed conditionally; only the first statement will be. The rest will execute unconditionally  sonarjs/no-unenclosed-multiline-block
+
+apps/admin/src/lib/unchanged-save-warning.ts
+  24:5   warning  Add the missing "else" clause           sonarjs/elseif-without-else
+  27:24  warning  Remove this use of the "void" operator  sonarjs/void-use
+
+apps/admin/src/lib/visible-interval.ts
+  56:27  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+apps/admin/src/lib/widget-embed-extension.tsx
+  39:74  warning  Make sure that using this pseudorandom number generator is safe here  sonarjs/pseudo-random
+
+apps/admin/src/media-panel.ts
+  9:3  warning  Replace this "switch" statement by "if" statements to increase readability  sonarjs/no-small-switch
+
+apps/admin/src/panels.tsx
+  194:7  warning  Replace this "switch" statement by "if" statements to increase readability  sonarjs/no-small-switch
+  215:7  warning  Replace this "switch" statement by "if" statements to increase readability  sonarjs/no-small-switch
+  309:7  warning  Replace this "switch" statement by "if" statements to increase readability  sonarjs/no-small-switch
+  525:7  warning  Replace this "switch" statement by "if" statements to increase readability  sonarjs/no-small-switch
+  762:7  warning  Replace this "switch" statement by "if" statements to increase readability  sonarjs/no-small-switch
+
+apps/website/src/features/theme/hardcoded-link-lists.ts
+  81:5  warning  Remove this assignment of "offset"  sonarjs/updated-loop-counter
+
+apps/website/src/platform/db/migrations/0000_legacy_baseline.ts
+  32:16  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+apps/website/src/platform/db/migrations/0002_drop_empty_legacy_chat_tables.ts
+  28:3  warning  Reduce the total number of "break" and "continue" statements in this loop to use one at most  sonarjs/too-many-break-or-continue-in-loop
+
+apps/website/src/platform/db/migrations/0020_vault_api_connection_kind.ts
+  66:16  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+content/agent-plugins/netlify/targets/netlify.mjs
+  230:10  warning  Make sure this weak hash algorithm is not used in a sensitive context here  sonarjs/hashing
+
+content/agent-plugins/vercel/targets/vercel.mjs
+  72:17  warning  Make sure this weak hash algorithm is not used in a sensitive context here  sonarjs/hashing
+
+packages/sdk/src/index.ts
+  135:43  warning  Define a constant instead of duplicating this literal 5 times  sonarjs/no-duplicate-string
+
+✖ 324 problems (0 errors, 324 warnings)
+  0 errors and 1 warning potentially fixable with the `--fix` option.
+
