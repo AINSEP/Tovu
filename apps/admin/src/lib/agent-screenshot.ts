@@ -183,7 +183,8 @@ function parseDataUrl(dataUrl: string): { readonly mimeType: string; readonly da
  * @complexity O(1) — reads `.length` and up to 2 trailing characters, never the whole string content.
  */
 function estimateBase64ByteLength(base64: string): number {
-  const padding = base64.endsWith("==") ? 2 : base64.endsWith("=") ? 1 : 0;
+  let padding = 0;
+  if (base64.endsWith("=")) padding = base64.endsWith("==") ? 2 : 1;
   return Math.floor((base64.length * 3) / 4) - padding;
 }
 

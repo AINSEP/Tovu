@@ -483,6 +483,11 @@ function buildCriteriaPublishResult(
  * @complexity Time: O(n) per re-render in the plan's row count (row shaping + the summary counts);
  * space: O(n) for the shaped rows. Native dialog dismissal is owned by Jini.
  */
+/** A replan's scope: just the peer, plus the ticked overwrite keys when there are any. */
+function planScope(peerId: string, overwriteKeys: ReadonlySet<string>): { peerId: string; overwriteEntityKeys?: string[] } {
+  return overwriteKeys.size === 0 ? { peerId } : { peerId, overwriteEntityKeys: Array.from(overwriteKeys) };
+}
+
 export function usePublishContentConfirm(props: {
   onCancel: () => void;
   t: Translate;
@@ -705,11 +710,7 @@ export function usePublishContentConfirm(props: {
         try {
           const replanned = useBase
             ? base
-            : await planInScope(
-                nextOverwriteKeys.size === 0
-                  ? { peerId }
-                  : { peerId, overwriteEntityKeys: Array.from(nextOverwriteKeys) }
-              );
+            : await planInScope(planScope(peerId, nextOverwriteKeys));
           if (!isCurrentReplan({})) return;
           setReplanPending(false);
           if (

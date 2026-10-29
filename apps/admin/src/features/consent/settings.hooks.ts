@@ -85,7 +85,7 @@ export function createConsentRevisionsPort({ request }: { request: ConsentReques
   const base = `/workspaces/${encodeURIComponent(workspaceId)}/consent`;
   return {
     get: () => request({ method: 'GET', path: `${base}/settings` }),
-    readiness: ({ path } = {}) => request({ method: 'GET', path: `${base}/readiness${path === undefined ? '' : `?path=${encodeURIComponent(path)}`}` }),
+    readiness: ({ path } = {}) => request({ method: 'GET', path: `${base}/readiness${path === undefined ? '' : '?path=' + encodeURIComponent(path)}` }),
     dryRun: body => request({ method: 'POST', path: `${base}/dry-run`, body }),
     preview: body => request({ method: 'POST', path: `${base}/preview`, body }),
     saveDraft: body => request({ method: 'PUT', path: `${base}/settings`, body }),

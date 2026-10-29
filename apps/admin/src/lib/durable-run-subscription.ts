@@ -3,6 +3,7 @@ import { followDurableRun as follow } from "@jini-ai/chat/transports/http";
 import type { DurableRunBinding, DurableSubscriptionPorts } from "@jini-ai/chat/transports/http";
 import { RUN_NOTICES } from "@tovu/assistant-run-events";
 import { subscriptionEnded, type TrackedRunHandlers } from "./stream-activity";
+import { querySuffix } from "./query-suffix";
 export type { DurableRunBinding, DurableSubscriptionPorts } from "@jini-ai/chat/transports/http";
 export const durableRunBindings = new Map<string, DurableRunBinding>();
 /** Jini owns recovery, continuation, polling and terminal disposal. A missing durable row ends
@@ -37,9 +38,10 @@ export function browserDurableSubscriptionPorts(_required = {}, {
   return {
     async read({ runId, messageId }, { recover = true }: { recover?: boolean } = {}) {
       const path = `/api/runs/${encodeURIComponent(runId)}`;
+      const checkpointQuery = messageId ? "messageId=" + encodeURIComponent(messageId) : "";
       const response = recover ? await request(`${path}/recover`, {
         method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messageId }),
-      }) : await request(`${path}/checkpoint${messageId ? `?messageId=${encodeURIComponent(messageId)}` : ""}`, {
+      }) : await request(`${path}/checkpoint${querySuffix(checkpointQuery)}`, {
         method: "GET", credentials: "same-origin",
       });
       if (response.status === 404) return "gone";
@@ -48,7 +50,7 @@ export function browserDurableSubscriptionPorts(_required = {}, {
       return payload.message;
     },
     stream({ runId, cursor, frame, dropped }, _options) {
-      const source = open(`/api/runs/${encodeURIComponent(runId)}/events${cursor ? `?afterCursor=${encodeURIComponent(cursor)}` : ""}`);
+      const source = open(`/api/runs/${encodeURIComponent(runId)}/events${querySuffix(cursor ? "afterCursor=" + encodeURIComponent(cursor) : "")}`);
       for (const kind of ["agent", "stdout", "stderr", "end", "error"]) {
         source.addEventListener(kind, (event) => {
           const message = event as MessageEvent<string>;

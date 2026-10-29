@@ -114,16 +114,20 @@ export function createFakePluginsPort(options: FakePluginsPortOptions = {}): Plu
       // Like the server: a blank secret is kept only while every public field is unchanged (a blank
       // public field means its declared default, so filling in that default is no change).
       const effective = (field: (typeof card.fields)[number], value: string | undefined) => value || field.default || "";
+      const effectiveFieldValue = (field: (typeof card.fields)[number], entered: string | undefined) => {
+        if (!field.secret) return effective(field, entered ?? field.value);
+        if (entered) return entered;
+        return field.saved ? "saved" : "";
+      };
       const changed = card.fields.filter((field) => !field.secret && values[field.name] !== undefined && effective(field, values[field.name]!.trim()) !== effective(field, field.value));
       const kept = card.fields.filter((field) => field.secret && field.saved && !values[field.name]?.trim());
       if (changed.length > 0 && kept.length > 0) {
         const labels = (list: typeof kept) => list.map((field) => field.label).join(", ");
         throw new ApiError(`Changing ${labels(changed)} needs ${labels(kept)} entered again.`, 400, "PROVIDER_SETTINGS_SECRET_REENTRY");
       }
-      const effectiveValues = Object.fromEntries(card.fields.map((field) => [field.name, field.secret
-        ? values[field.name]?.trim() || (field.saved ? "saved" : "") : effective(field, values[field.name]?.trim() ?? field.value)]));
+      const effectiveValues = Object.fromEntries(card.fields.map((field) => [field.name, effectiveFieldValue(field, values[field.name]?.trim())]));
       const missing = card.fields.find((field) => providerSettingRequiredHere({ field, fields: card.fields, entered: values, values: effectiveValues }) && !effectiveValues[field.name]);
-      if (missing) throw new ApiError(`${missing.label} is required.${missing.hint ? ` ${missing.hint}` : ""}`, 400, "PROVIDER_SETTINGS_REQUIRED");
+      if (missing) throw new ApiError(`${missing.label} is required.${missing.hint ? " " + missing.hint : ""}`, 400, "PROVIDER_SETTINGS_REQUIRED");
       const fields = card.fields.map((field) => {
         const value = values[field.name]?.trim();
         if (value === undefined) return field;

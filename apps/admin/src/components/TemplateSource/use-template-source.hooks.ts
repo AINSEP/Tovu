@@ -107,10 +107,9 @@ export function useTemplateSource(
   // surviving the second mount (apps/admin/INFO.md's disposed-flag trap).
   // Nothing to fetch — the caller renders the tier explanation instead for non-static themes.
   const query = useFetchQuery({ key: ["themes", "template-source", themeId, themeApiVersion ?? 1, templateFilename], fetch: queryFetch }, { enabled: themeTier === "static", staleTime: 0 });
-  const state: TemplateSourceFetchState = query.error ? { status: "error", message: query.error.message }
-    : query.data !== undefined ? { status: "loaded", html: query.data } : { status: "loading" };
-
-  return state;
+  if (query.error) return { status: "error", message: query.error.message };
+  if (query.data !== undefined) return { status: "loaded", html: query.data };
+  return { status: "loading" };
 }
 
 /**

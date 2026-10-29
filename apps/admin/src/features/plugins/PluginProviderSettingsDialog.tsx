@@ -67,7 +67,13 @@ function SettingsFooter({ shown, saving, pluginName, agentHandleBase, onClose, t
 
 function SettingsSubtitle({ card, t }: { card: AdminPluginProviderSettings | null; t: (key: string) => string }) {
   if (!card) return null;
-  return <p className="provider-settings-subtitle">{card.store === "project" ? card.usedBy.length ? interpolate({ template: t("Used by {sites}"), vars: { sites: card.usedBy.join(", ") } }) : t("Saved to your project — not used by any site yet") : t(card.projectAvailable ? "Saved for this site only" : "Saved for this site")}</p>;
+  return <p className="provider-settings-subtitle">{settingsSubtitleText(card, t)}</p>;
+}
+
+function settingsSubtitleText(card: AdminPluginProviderSettings, t: (key: string) => string): string {
+  if (card.store !== "project") return t(card.projectAvailable ? "Saved for this site only" : "Saved for this site");
+  if (card.usedBy.length) return interpolate({ template: t("Used by {sites}"), vars: { sites: card.usedBy.join(", ") } });
+  return t("Saved to your project — not used by any site yet");
 }
 
 function useProviderSettingsFocus({ card, fieldId }: { card: AdminPluginProviderSettings | null; fieldId: string }, _options = {}) {

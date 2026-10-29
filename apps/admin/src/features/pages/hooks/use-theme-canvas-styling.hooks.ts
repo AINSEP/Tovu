@@ -152,7 +152,7 @@ function isSafeToken([name, value]: [string, string]): boolean {
  */
 export function tokensToCanvasCss(tokens: ThemeTokens, lightTokens: ThemeTokens | undefined): string {
   const block = (selector: string, entries: [string, string][]) =>
-    entries.length === 0 ? "" : `${selector}{${entries.map(([k, v]) => `${k}:${v};`).join("")}}`;
+    entries.length === 0 ? "" : `${selector}{${entries.map(([k, v]) => k + ":" + v + ";").join("")}}`;
   const defaultBlock = block(":root", Object.entries(tokens).filter(isSafeToken));
   if (!defaultBlock) return "";
   return defaultBlock + block(':root[data-theme="light"]', Object.entries(lightTokens ?? {}).filter(isSafeToken));

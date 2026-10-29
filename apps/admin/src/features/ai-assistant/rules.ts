@@ -168,7 +168,8 @@ export type VisitorAssistantStatus = "on" | "off" | "needs-key";
 export function visitorAssistantStatus(required: { publicEnabled: boolean; hasStoredKey: boolean }, _optional = {}): {
   status: VisitorAssistantStatus; canEnable: boolean;
 } {
-  const status: VisitorAssistantStatus = !required.hasStoredKey ? "needs-key" : required.publicEnabled ? "on" : "off";
+  const enabledStatus: VisitorAssistantStatus = required.publicEnabled ? "on" : "off";
+  const status: VisitorAssistantStatus = required.hasStoredKey ? enabledStatus : "needs-key";
   return { status, canEnable: required.hasStoredKey || required.publicEnabled };
 }
 

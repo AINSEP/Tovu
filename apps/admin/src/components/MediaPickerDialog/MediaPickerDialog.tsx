@@ -84,15 +84,15 @@ function LegacyMediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agentH
 
         <div className="media-picker-body">
           {error ? <div className="notice error">{error}</div> : null}
-          {items === null ? (
-            <p className="notice">{t("Loading media…")}</p>
-          ) : items.length === 0 ? (
+          {items === null ? <p className="notice">{t("Loading media…")}</p> : null}
+          {items?.length === 0 ? (
             <p className="notice">
               {emptyStateBefore}
               <a href="/admin/media">{t("Media")}</a>
               {emptyStateAfter}
             </p>
-          ) : (
+          ) : null}
+          {items && items.length > 0 ? (
             <div className="media-picker-grid">
               {items.map((item, index) => (
                 <button
@@ -108,7 +108,7 @@ function LegacyMediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agentH
                 </button>
               ))}
             </div>
-          )}
+          ) : null}
         </div>
 
         <div className="widget-picker-footer">

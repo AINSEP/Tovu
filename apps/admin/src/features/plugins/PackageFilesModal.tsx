@@ -278,9 +278,8 @@ export function PackageFilesModal({
                   agentHandleBase={fileHandleByPath.get(selectedFile.relativePath)!}
                   t={t}
                 />
-              ) : status ? (
-                <p role={status.role}>{status.text}</p>
               ) : null}
+              {!selectedFile && status ? <p role={status.role}>{status.text}</p> : null}
             </div>
           ),
         },

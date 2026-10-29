@@ -189,7 +189,8 @@ export function usePages(deps: PagesDependencies): PagesController {
       ) }) as Awaited<ReturnType<typeof port.updatePost>>;
       setPages((prev) => (prev ? prev.map((p) => (p.id === updated.id ? updated : p)) : prev));
     } catch (e) {
-      setError(e instanceof Error ? e.message : `failed to ${nextStatus === "published" ? "publish" : "unpublish"} page`);
+      const action = nextStatus === "published" ? "publish" : "unpublish";
+      setError(e instanceof Error ? e.message : `failed to ${action} page`);
     } finally {
       // Only clear THIS row's lock — `rowSavingId` is shared with `removePage`'s delete-in-flight
       // lock (2026-09-20, S4b hardening; mirrors `use-posts.hooks.ts`'s identical fix). An

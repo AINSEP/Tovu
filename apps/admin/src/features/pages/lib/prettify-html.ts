@@ -126,7 +126,8 @@ function parseTagMeta(raw: string, tagName: string): {
   const isClose = raw.startsWith("</");
   const isSelfClose = !isClose && raw.endsWith("/>");
   const name = tagName.toLowerCase();
-  const tagKind: "open" | "close" | "self-close" = isClose ? "close" : isSelfClose ? "self-close" : "open";
+  const openKind: "open" | "self-close" = isSelfClose ? "self-close" : "open";
+  const tagKind: "open" | "close" | "self-close" = isClose ? "close" : openKind;
   return { name, tagKind };
 }
 

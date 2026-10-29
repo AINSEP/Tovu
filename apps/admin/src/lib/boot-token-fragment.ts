@@ -47,7 +47,8 @@ export function takeBootToken(location: BootTokenLocation, history: BootTokenHis
   // trailing `#`.
   params.delete("boot");
   const rest = params.toString();
-  const nextUrl = `${location.pathname}${location.search}${rest ? `#${rest}` : ""}`;
+  const fragment = rest ? "#" + rest : "";
+  const nextUrl = `${location.pathname}${location.search}${fragment}`;
   history.replaceState(null, "", nextUrl);
 
   return token;

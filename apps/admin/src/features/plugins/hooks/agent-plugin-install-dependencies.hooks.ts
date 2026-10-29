@@ -5,7 +5,7 @@ import type { AgentPluginInstallPort, AgentPluginInstallResult } from "./agent-p
 export const defaultAgentPluginInstallPort: AgentPluginInstallPort = {
   installZip: ({ file, sha256, replace = false, update }) =>
     authenticatedAdminRequest<AgentPluginInstallResult>({
-      path: `/workspaces/${WORKSPACE_ID}/agent-plugins/${update ? `${encodeURIComponent(update.pluginId)}/update/zip` : "install/zip"}?${new URLSearchParams({ expectedSha256: sha256, replace: String(replace), ...(update ? { expectedOldDigest: update.expectedOldDigest } : {}) })}`,
+      path: `/workspaces/${WORKSPACE_ID}/agent-plugins/${update ? encodeURIComponent(update.pluginId) + "/update/zip" : "install/zip"}?${new URLSearchParams({ expectedSha256: sha256, replace: String(replace), ...(update ? { expectedOldDigest: update.expectedOldDigest } : {}) })}`,
       method: "POST",
       body: file.slice(0, file.size, "application/zip"),
     }),

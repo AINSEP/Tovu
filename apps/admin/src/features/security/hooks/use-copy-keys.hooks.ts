@@ -36,7 +36,8 @@ function startRequest({ source, sourceSiteId, startSite }: {
 
 /** Label, provider (or kind) and the server's hint, shown only when it is exactly four characters. */
 function keyText(key: CopyKey): string {
-  return `${key.label} · ${key.provider ?? key.kind}${key.last4?.length === 4 ? ` · …${key.last4}` : ""}`;
+  const hint = key.last4?.length === 4 ? " · …" + key.last4 : "";
+  return `${key.label} · ${key.provider ?? key.kind}${hint}`;
 }
 
 /** Works-for ids win; publish hosts are the fallback only for an empty list. */
@@ -57,7 +58,8 @@ function resultRows({ source, results, t }: {
   const labels = new Map(source?.keys.map(key => [key.id, key.label] as const));
   return results.map((result, index) => {
     const label = labels.get(result.id);
-    return { key: `${result.id}:${index}`, text: `${label ? `${label} · ` : ""}${copyKeysResultText({ result, t })}` };
+    const prefix = label ? label + " · " : "";
+    return { key: `${result.id}:${index}`, text: prefix + copyKeysResultText({ result, t }) };
   });
 }
 

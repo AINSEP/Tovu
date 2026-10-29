@@ -14,6 +14,7 @@ import { isPageUnloading } from "./page-lifecycle";
 import { siteUrl } from "./site-url";
 import { shareSettingsEffectiveRead } from "./settings-effective-reads";
 import { serverReconnect, shouldRetryAfterReconnect, UPSTREAM_REFUSED_HEADER, UPSTREAM_REFUSED_VALUE, type ServerReconnect } from "./server-reconnect";
+import { querySuffix } from "./query-suffix";
 
 export const WORKSPACE_ID = "workspace-local";
 
@@ -2709,15 +2710,20 @@ export interface AuthenticatedAdminRequestOptions {
   errorFactory?: (input: { response: Response; error: ApiError }) => ApiError;
 }
 
+/** The fetch init fragment for a body: none, a raw Blob with its own type, or JSON. */
+function requestPayload(body: unknown): { body?: BodyInit; headers?: Record<string, string> } {
+  if (body === undefined) return {};
+  if (body instanceof Blob) return { body, headers: { "Content-Type": body.type || "application/octet-stream" } };
+  return { body: JSON.stringify(body) };
+}
+
 /** Authenticated package adapters share cookies, bounded requests and session invalidation
  * with every native screen; paths are relative to the explicitly selected local API prefix. */
 export function authenticatedAdminRequest<T>(
   { path, method, body }: { path: string; method: string; body?: unknown },
   options: AuthenticatedAdminRequestOptions = {},
 ): Promise<T> {
-  const payload = body === undefined ? {} : body instanceof Blob
-    ? { body, headers: { "Content-Type": body.type || "application/octet-stream" } }
-    : { body: JSON.stringify(body) };
+  const payload = requestPayload(body);
   return request<T>(path, {
     method,
     ...payload,
@@ -2997,7 +3003,7 @@ export const api = {
        *  list using the theme's optional `templateFor`; other callers retain the full catalog. */
       activeThemeTemplates: string[];
       activeThemeStaticPageIds: string[];
-    }>(`/workspaces/${WORKSPACE_ID}/presentation${required.kind ? `?kind=${required.kind}` : ""}`),
+    }>(`/workspaces/${WORKSPACE_ID}/presentation${querySuffix(required.kind ? "kind=" + required.kind : "")}`),
   /**
    * One theme's editable surface: which pages it ships, which root partials, and where it was
    * copied from. Drives the Explore screen's file list and its "you are editing a copy" banner.
@@ -3192,7 +3198,7 @@ export const api = {
     }),
   listRecentAnalyticsHits: (options: { limit?: number } = {}) =>
     request<{ hits: AdminAnalyticsHit[] }>(
-      `/workspaces/${WORKSPACE_ID}/analytics/recent-hits${options.limit ? `?limit=${options.limit}` : ""}`
+      `/workspaces/${WORKSPACE_ID}/analytics/recent-hits${querySuffix(options.limit ? "limit=" + options.limit : "")}`
     ),
   listMenus: () =>
     request<{ menus: AdminMenu[] }>(`/workspaces/${WORKSPACE_ID}/menus`),
@@ -3410,7 +3416,7 @@ export const api = {
   /** A Markdown/text/CSV/JSON document's UTF-8 source, 64 KiB per page (`nextOffset` continues it). */
   readDocumentText: ({ id }: { id: string }, options: { offset?: number } = {}) =>
     request<{ id: string; text: string; offset: number; nextOffset: number | null; totalBytes: number; truncated: boolean }>(
-      `/workspaces/${WORKSPACE_ID}/media/${encodeURIComponent(id)}/text${options.offset ? `?offset=${options.offset}` : ""}`,
+      `/workspaces/${WORKSPACE_ID}/media/${encodeURIComponent(id)}/text${querySuffix(options.offset ? "offset=" + options.offset : "")}`,
     ),
   listUsers: () => request<{ users: AdminIdentityUser[] }>(`/workspaces/${WORKSPACE_ID}/users`),
   createUser: (
@@ -3685,7 +3691,7 @@ export const api = {
       body: JSON.stringify({ op, expectedVersion }),
     }),
   listEntries: (options: { type?: string } = {}) =>
-    request<{ items: AdminEntry[] }>(`/entries${options.type ? `?type=${encodeURIComponent(options.type)}` : ""}`),
+    request<{ items: AdminEntry[] }>(`/entries${querySuffix(options.type ? "type=" + encodeURIComponent(options.type) : "")}`),
   createEntry: (
     input: { type: string; slug: string; title: string },
     options: { fieldsJson?: unknown; bodyJson?: unknown } = {}
@@ -3791,7 +3797,7 @@ export const api = {
     if (options.limit) params.set("limit", String(options.limit));
     const qs = params.toString();
     return request<{ items: AdminLedgerRow[]; nextCursor: string | null }>(
-      `/database/timeline${qs ? `?${qs}` : ""}`
+      `/database/timeline${querySuffix(qs)}`
     );
   },
   /** ADR-041 §3 — this site's drift classification. Read-only: there is deliberately no matching
@@ -3874,7 +3880,7 @@ export const api = {
     if (options.cursor) params.set("cursor", options.cursor);
     if (options.limit) params.set("limit", String(options.limit));
     const qs = params.toString();
-    return authenticatedAdminRequest<AdminCommentsQueuePage>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/comments/queue${qs ? `?${qs}` : ""}` });
+    return authenticatedAdminRequest<AdminCommentsQueuePage>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/comments/queue${querySuffix(qs)}` });
   },
 
   // -------------------------------------------------------------------------
@@ -3891,7 +3897,7 @@ export const api = {
     if (options.limit) params.set("limit", String(options.limit));
     if (options.entityTypes?.length) params.set("entityTypes", options.entityTypes.join(","));
     const qs = params.toString();
-    return authenticatedAdminRequest<AdminTrashPage>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/trash${qs ? `?${qs}` : ""}` });
+    return authenticatedAdminRequest<AdminTrashPage>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/trash${querySuffix(qs)}` });
   },
   restoreTrashItems: ({ items }: { items: { entityType: string; entityId: string }[] }) =>
     authenticatedAdminRequest<AdminTrashRestoreReport>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/trash/restore`, body: { items } }),
@@ -3913,7 +3919,7 @@ export const api = {
     const qs = params.toString();
     // `skippedCount`/`skippedIds` (dossier C5 follow-up, 2026-08-03) are additive and optional —
     // present only when the server dropped one or more malformed records. Absent in the common case.
-    return authenticatedAdminRequest<{ widgets: AdminWidget[]; skippedCount?: number; skippedIds?: string[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/widgets${qs ? `?${qs}` : ""}` });
+    return authenticatedAdminRequest<{ widgets: AdminWidget[]; skippedCount?: number; skippedIds?: string[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/widgets${querySuffix(qs)}` });
   },
   getWidget: (id: string) =>
     authenticatedAdminRequest<{ widget: AdminWidget; whereUsed: AdminWidgetWhereUsed }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/widgets/${encodeURIComponent(id)}` }),
@@ -4000,7 +4006,7 @@ export const api = {
   getServerLogs: (query: AdminServerLogsQuery = {}) => {
     const params = new URLSearchParams(Object.entries(query).filter(([, value]) => value !== undefined).map(([key, value]) => [key, String(value)]));
     const qs = params.toString();
-    return request<AdminServerLogs>(`/workspaces/${WORKSPACE_ID}/system/server-logs${qs ? `?${qs}` : ""}`);
+    return request<AdminServerLogs>(`/workspaces/${WORKSPACE_ID}/system/server-logs${querySuffix(qs)}`);
   },
   /** Whether outbound email really sends — the form editor greys out its notify settings when not. */
   getMailStatus: () => request<AdminMailStatus>(`/workspaces/${WORKSPACE_ID}/system/mail-status`),

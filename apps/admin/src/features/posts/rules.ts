@@ -276,6 +276,12 @@ export function overridesThemePageFromSelectValue(value: string): boolean | null
   return value === "post";
 }
 
+/** The inverse of {@link overridesThemePageFromSelectValue}: the `<select>` value for a tri-state. */
+export function overridesThemePageSelectValue(overridesThemePage: boolean | null): "default" | "post" | "theme" {
+  if (overridesThemePage === null) return "default";
+  return overridesThemePage ? "post" : "theme";
+}
+
 /** A toolbar button's className for its active/inactive state — the one thing repeated across every
  *  formatting button in `PostEditor.tsx`'s `Toolbar`. Extracted so the eleven
  *  `${active ? " on" : ""}` ternaries that used to live inline in `Toolbar`'s JSX (its entire branch

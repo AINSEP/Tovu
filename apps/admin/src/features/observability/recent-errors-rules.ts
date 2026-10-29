@@ -53,12 +53,18 @@ export function summarizeErrorMessage({ message }: { message: string }): ErrorSu
   const scopeMatch = SCOPE_PREFIX.exec(first);
   const headline = scopeMatch ? first.slice(scopeMatch[0].length) : first;
   const cause = findThrownErrorText(lines.slice(firstIndex + 1));
-  const joined = !cause || headline.includes(cause) ? headline : headline ? `${headline} — ${cause}` : cause;
+  const joined = joinHeadlineAndCause(headline, cause);
   // A line that is ONLY a tag ("[assistant]") with no error text after it keeps the tag visible.
   return { scope: scopeMatch ? scopeMatch[1] : null, summary: truncate(joined || first) };
 }
 
 /** The first `XError: text` line before the stack frames begin, or `null`. */
+/** The headline, then its thrown cause when that adds something; the cause alone when there is no headline. */
+function joinHeadlineAndCause(headline: string, cause: string | null): string {
+  if (!cause || headline.includes(cause)) return headline;
+  return headline ? `${headline} — ${cause}` : cause;
+}
+
 function findThrownErrorText(lines: string[]): string | null {
   for (const line of lines) {
     if (STACK_FRAME.test(line)) return null;

@@ -63,6 +63,9 @@ export function captureSkillDrop(
   void collect(entries).then(({ files: leaves, paths }) => {
     if (leaves.some(file => file.name === "SKILL.md")) proposeFiles(leaves, paths);
     else fallback(saved);
-  }).catch(error => error === NOT_A_SKILL ? fallback(saved) : onError(error instanceof Error ? error.message : "Could not read skill folder."));
+  }).catch(error => {
+    if (error === NOT_A_SKILL) fallback(saved);
+    else onError(error instanceof Error ? error.message : "Could not read skill folder.");
+  });
   return true;
 }
