@@ -1,3 +1,4 @@
+import { translationEntry } from "../../lib/translation-entry";
 import { COMMON_I18N } from "../../lib/i18n-common";
 import { mergeLocaleOverlays } from "../../lib/merge-locale-overlays";
 /**
@@ -28,7 +29,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
 
   Username: "Nombre de usuario",
   "Email (optional)": "Correo electrónico (opcional)",
-  Password: "Contraseña",
+  ...translationEntry("Password", "Contraseña"),
   "Create user": "Crear usuario",
 
   Email: "Correo electrónico",
@@ -259,7 +260,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     Manage: "管理",
 
     "Reset password?": "重置密码？",
-    "Set a new password for": "为以下用户设置新密码：",
+    ...translationEntry("Set a new password for", "为以下用户设置新密码："),
     "Every active session for this user will be signed out.":
       "该用户的所有活动会话都将被登出。",
     "New password": "新密码",
@@ -275,7 +276,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to reset password": "重置密码失败",
     "failed to change status": "更改状态失败",
     "failed to delete user": "删除用户失败",
-    "Password changed. Sign in again with your new password.": "密码已更改。请使用新密码重新登录。",
+    ...translationEntry("Password changed. Sign in again with your new password.", "密码已更改。请使用新密码重新登录。"),
   },
   "zh-TW": {
     // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
@@ -325,7 +326,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     Manage: "管理",
 
     "Reset password?": "重設密碼？",
-    "Set a new password for": "為以下使用者設定新密碼：",
+    ...translationEntry("Set a new password for", "為以下使用者設定新密碼："),
     "Every active session for this user will be signed out.":
       "該使用者的所有現行工作階段都將被登出。",
     "New password": "新密碼",
@@ -341,7 +342,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to reset password": "重設密碼失敗",
     "failed to change status": "變更狀態失敗",
     "failed to delete user": "刪除使用者失敗",
-    "Password changed. Sign in again with your new password.": "密碼已變更。請使用新密碼重新登入。",
+    ...translationEntry("Password changed. Sign in again with your new password.", "密碼已變更。請使用新密碼重新登入。"),
   },
   "pt-BR": {
     // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
@@ -654,12 +655,12 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Move to trash": "ゴミ箱に移動",
     Manage: "管理",
 
-    "Reset password?": "パスワードをリセットしますか？",
-    "Set a new password for": "新しいパスワードの設定対象：",
+    ...translationEntry("Reset password?", "パスワードをリセットしますか？"),
+    ...translationEntry("Set a new password for", "新しいパスワードの設定対象："),
     "Every active session for this user will be signed out.":
       "このユーザーのすべてのアクティブなセッションがサインアウトされます。",
     "New password": "新しいパスワード",
-    "Reset password": "パスワードをリセット",
+    ...translationEntry("Reset password", "パスワードをリセット"),
 
     "Loading users…": "ユーザーを読み込み中…",
 
@@ -668,10 +669,10 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to assign role": "ロールの割り当てに失敗しました",
     "failed to attach policy": "ポリシーの付与に失敗しました",
     "failed to update email": "メールアドレスの更新に失敗しました",
-    "failed to reset password": "パスワードのリセットに失敗しました",
+    ...translationEntry("failed to reset password", "パスワードのリセットに失敗しました"),
     "failed to change status": "ステータスの変更に失敗しました",
     "failed to delete user": "ユーザーの削除に失敗しました",
-    "Password changed. Sign in again with your new password.": "パスワードを変更しました。新しいパスワードで再度サインインしてください。",
+    ...translationEntry("Password changed. Sign in again with your new password.", "パスワードを変更しました。新しいパスワードで再度サインインしてください。"),
   },
   ko: {
     // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
@@ -1116,12 +1117,12 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Move to trash": "ย้ายไปที่ถังขยะ",
     Manage: "จัดการ",
 
-    "Reset password?": "รีเซ็ตรหัสผ่านหรือไม่?",
-    "Set a new password for": "ตั้งรหัสผ่านใหม่สำหรับ",
+    ...translationEntry("Reset password?", "รีเซ็ตรหัสผ่านหรือไม่?"),
+    ...translationEntry("Set a new password for", "ตั้งรหัสผ่านใหม่สำหรับ"),
     "Every active session for this user will be signed out.":
       "ทุกเซสชันที่ใช้งานอยู่ของผู้ใช้รายนี้จะถูกออกจากระบบ",
-    "New password": "รหัสผ่านใหม่",
-    "Reset password": "รีเซ็ตรหัสผ่าน",
+    ...translationEntry("New password", "รหัสผ่านใหม่"),
+    ...translationEntry("Reset password", "รีเซ็ตรหัสผ่าน"),
 
     "Loading users…": "กำลังโหลดผู้ใช้…",
 
@@ -1130,7 +1131,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to assign role": "กำหนดบทบาทไม่สำเร็จ",
     "failed to attach policy": "แนบนโยบายไม่สำเร็จ",
     "failed to update email": "อัปเดตอีเมลไม่สำเร็จ",
-    "failed to reset password": "รีเซ็ตรหัสผ่านไม่สำเร็จ",
+    ...translationEntry("failed to reset password", "รีเซ็ตรหัสผ่านไม่สำเร็จ"),
     "failed to change status": "เปลี่ยนสถานะไม่สำเร็จ",
     "failed to delete user": "ลบผู้ใช้ไม่สำเร็จ",
     "Password changed. Sign in again with your new password.": "เปลี่ยนรหัสผ่านแล้ว โปรดลงชื่อเข้าใช้อีกครั้งด้วยรหัสผ่านใหม่ของคุณ",
@@ -1351,7 +1352,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
 
     Username: "ইউজারনেম",
     "Email (optional)": "ইমেইল (ঐচ্ছিক)",
-    Password: "পাসওয়ার্ড",
+    ...translationEntry("Password", "পাসওয়ার্ড"),
     "Create user": "ব্যবহারকারী তৈরি করুন",
 
     Email: "ইমেইল",
@@ -1411,14 +1412,14 @@ const PASSWORD_FIELD_TRANSLATIONS: Record<string, Record<string, string>> = {
   ru: { "Confirm new password": "Подтвердите новый пароль", "Show password": "Показать пароль", "Hide password": "Скрыть пароль", "Passwords do not match.": "Пароли не совпадают." },
   fa: { "Confirm new password": "تأیید رمز عبور جدید", "Show password": "نمایش رمز عبور", "Hide password": "پنهان کردن رمز عبور", "Passwords do not match.": "رمزهای عبور یکسان نیستند." },
   ar: { "Confirm new password": "تأكيد كلمة المرور الجديدة", "Show password": "إظهار كلمة المرور", "Hide password": "إخفاء كلمة المرور", "Passwords do not match.": "كلمتا المرور غير متطابقتين." },
-  ja: { "Confirm new password": "新しいパスワードを確認", "Show password": "パスワードを表示", "Hide password": "パスワードを隠す", "Passwords do not match.": "パスワードが一致しません。" },
+  ja: { ...translationEntry("Confirm new password", "新しいパスワードを確認"), "Show password": "パスワードを表示", "Hide password": "パスワードを隠す", ...translationEntry("Passwords do not match.", "パスワードが一致しません。") },
   ko: { "Confirm new password": "새 비밀번호 확인", "Show password": "비밀번호 표시", "Hide password": "비밀번호 숨기기", "Passwords do not match.": "비밀번호가 일치하지 않습니다." },
   pl: { "Confirm new password": "Potwierdź nowe hasło", "Show password": "Pokaż hasło", "Hide password": "Ukryj hasło", "Passwords do not match.": "Hasła nie są zgodne." },
   hu: { "Confirm new password": "Új jelszó megerősítése", "Show password": "Jelszó megjelenítése", "Hide password": "Jelszó elrejtése", "Passwords do not match.": "A jelszavak nem egyeznek." },
   fr: { "Confirm new password": "Confirmer le nouveau mot de passe", "Show password": "Afficher le mot de passe", "Hide password": "Masquer le mot de passe", "Passwords do not match.": "Les mots de passe ne correspondent pas." },
   uk: { "Confirm new password": "Підтвердьте новий пароль", "Show password": "Показати пароль", "Hide password": "Приховати пароль", "Passwords do not match.": "Паролі не збігаються." },
   tr: { "Confirm new password": "Yeni parolayı doğrula", "Show password": "Parolayı göster", "Hide password": "Parolayı gizle", "Passwords do not match.": "Parolalar eşleşmiyor." },
-  th: { "Confirm new password": "ยืนยันรหัสผ่านใหม่", "Show password": "แสดงรหัสผ่าน", "Hide password": "ซ่อนรหัสผ่าน", "Passwords do not match.": "รหัสผ่านไม่ตรงกัน" },
+  th: { ...translationEntry("Confirm new password", "ยืนยันรหัสผ่านใหม่"), ...translationEntry("Show password", "แสดงรหัสผ่าน"), ...translationEntry("Hide password", "ซ่อนรหัสผ่าน"), ...translationEntry("Passwords do not match.", "รหัสผ่านไม่ตรงกัน") },
   it: { "Confirm new password": "Conferma nuova password", "Show password": "Mostra password", "Hide password": "Nascondi password", "Passwords do not match.": "Le password non corrispondono." },
   hi: { "Confirm new password": "नया पासवर्ड पुष्टि करें", "Show password": "पासवर्ड दिखाएँ", "Hide password": "पासवर्ड छिपाएँ", "Passwords do not match.": "पासवर्ड मेल नहीं खाते।" },
   ur: { "Confirm new password": "نئے پاس ورڈ کی تصدیق کریں", "Show password": "پاس ورڈ دکھائیں", "Hide password": "پاس ورڈ چھپائیں", "Passwords do not match.": "پاس ورڈ ایک جیسے نہیں ہیں۔" },
@@ -1447,8 +1448,8 @@ const RESET_PASSWORD_INFO_TRANSLATIONS: Record<string, Record<string, string>> =
       "尚未提供\"忘记密码\"邮件。如果有人被锁定，所有者可以在此重置其密码。",
   },
   "zh-TW": {
-    "No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.":
-      "尚未提供「忘記密碼」電子郵件功能。如果有人被鎖定，擁有者可以在這裡重設密碼。",
+    ...translationEntry("No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.",
+      "尚未提供「忘記密碼」電子郵件功能。如果有人被鎖定，擁有者可以在這裡重設密碼。"),
   },
   "pt-BR": {
     "No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.":
@@ -1467,8 +1468,8 @@ const RESET_PASSWORD_INFO_TRANSLATIONS: Record<string, Record<string, string>> =
       "لا توجد رسالة \"نسيت كلمة المرور\" بعد. إذا تم قفل حساب أحدهم، يمكن للمالك إعادة تعيين كلمة مروره من هنا.",
   },
   ja: {
-    "No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.":
-      "「パスワードを忘れた場合」のメールはまだありません。ロックアウトされた場合は、オーナーがここでパスワードをリセットできます。",
+    ...translationEntry("No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.",
+      "「パスワードを忘れた場合」のメールはまだありません。ロックアウトされた場合は、オーナーがここでパスワードをリセットできます。"),
   },
   ko: {
     "No 'forgot password' email yet. If someone is locked out, the owner can reset their password here.":

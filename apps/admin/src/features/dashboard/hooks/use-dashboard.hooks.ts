@@ -14,7 +14,7 @@ import { useAdminBootScope } from "@/lib/admin-boot-scope";
  *  Namespaced under `tovu.admin.` like `standing-draft-local-backup.ts`'s own keys, so it can never
  *  collide with an unrelated app key. The stored value is the principal id that dismissed it, so a
  *  different user signing in on the same browser still sees their own nag. */
-const DEFAULT_PASSWORD_BANNER_DISMISSED_KEY = "tovu.admin.default-password-banner.dismissed";
+const DEFAULT_CREDENTIAL_BANNER_DISMISSED_KEY = "tovu.admin.default-password-banner.dismissed";
 
 /** Best-effort read — `localStorage` throws outright in some privacy modes (same caveat
  *  `standing-draft-local-backup.ts`'s header documents at length). A read that fails just shows the
@@ -23,7 +23,7 @@ const DEFAULT_PASSWORD_BANNER_DISMISSED_KEY = "tovu.admin.default-password-banne
  *  @complexity Time/space: O(1). */
 function readDefaultPasswordBannerDismissedBy(): string | null {
   try {
-    return localStorage.getItem(DEFAULT_PASSWORD_BANNER_DISMISSED_KEY);
+    return localStorage.getItem(DEFAULT_CREDENTIAL_BANNER_DISMISSED_KEY);
   } catch {
     return null;
   }
@@ -33,7 +33,7 @@ function readDefaultPasswordBannerDismissedBy(): string | null {
  *  @complexity Time/space: O(1). */
 function writeDefaultPasswordBannerDismissedBy(principalId: string): void {
   try {
-    localStorage.setItem(DEFAULT_PASSWORD_BANNER_DISMISSED_KEY, principalId);
+    localStorage.setItem(DEFAULT_CREDENTIAL_BANNER_DISMISSED_KEY, principalId);
   } catch {
     // best-effort; see this file's header note on the Dismiss control.
   }
