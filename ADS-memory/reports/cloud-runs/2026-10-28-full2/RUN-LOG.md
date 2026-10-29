@@ -8,3 +8,4 @@
 - 2026-10-29T00:09:03Z Tovu shards 1,2 done (exit 1; 20+5 fails). Shard 0, 3-7 + admin vitest running.
 - 2026-10-29T00:24:32Z Shard 0 done exit1; admin vitest done (1 fail: login-default-credential, stale path wiring.ts -> constant now platform/site-dir/new-site-owner.ts:10; rerun fails again). Desktop tests started. Shards 3-7 running.
 - 2026-10-29T00:34:12Z Desktop npm test: 1 fail (site-error-feedback D-24, appScreen not defined; rerun fails). Tovu complexity:strict done: 11 complexity/cognitive violations, all in old migrations 0006/0011/0012/0013; 1280 other sonarjs msgs (strict config enables full sonarjs set). Shard 3 done. Waiting 4-7.
+- 2026-10-29T00:49:21Z shards 0-4 done; 5,6,7 running.
