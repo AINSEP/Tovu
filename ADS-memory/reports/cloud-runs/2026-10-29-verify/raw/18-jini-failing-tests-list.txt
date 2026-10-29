@@ -1,0 +1,30 @@
+## agent-plugins
+ FAIL  src/lifecycle/__tests__/unit/set-enabled-compatibility.unit.test.ts > activation observers run only for committed transitions and cannot undo a toggle
+## cookie-consent
+ FAIL  src/__tests__/bundle.smoke.test.ts > dist/client.min.js > Accept grants the adapter, runs the inert tag, writes the cookie and closes the banner
+ FAIL  src/__tests__/bundle.smoke.test.ts > dist/client.min.js > Reject grants nothing; reopening and rejecting after Accept revokes the adapter
+ FAIL  src/__tests__/bundle.smoke.test.ts > dist/client.min.js > boots from the page config, shows the banner and drains the queue without granting
+## db
+ FAIL  src/__tests__/import-isolation.test.ts > database import isolation > scans every production TypeScript file and confines optional dependencies
+ FAIL  src/__tests__/loads-without-driver.test.ts > @jini-ai/db in an install with no database driver present > ./migrate imports alone, works, and loads only migrate + kernel + core
+ FAIL  src/__tests__/loads-without-driver.test.ts > @jini-ai/db in an install with no database driver present > ./owner-store imports alone, works, and loads only owner-store + owner-store/migrations + migrate
+## mcp
+ FAIL  src/server/__tests__/tool-server.test.ts > a rejected transport close on stdin EOF still completes hosting and disposes idle tracking
+## plugins
+ FAIL  src/host/__tests__/unit/loader.unit.test.ts > maps package snapshot refusal PLUGIN_PACKAGE_TOO_LARGE to integrity failure
+ FAIL  src/host/__tests__/unit/loader.unit.test.ts > maps package snapshot refusal PLUGIN_PACKAGE_UNSAFE to integrity failure
+## provider-plugins
+ FAIL  src/__tests__/unit/exporter-completion-m2.unit.test.ts > a synchronous exporter failure is sanitized and flush/shutdown retain the borrowed exporter
+ FAIL  src/__tests__/unit/exporter-completion-m2.unit.test.ts > an exception from the consumer after export completion is not recast as a second export failure
+## server
+ FAIL  tests/storage/loads-without-driver.test.ts > memory composition runs from the packed server with no SQLite, pg, PGlite or React installed
+## user-management (rerun)
+ FAIL  src/react/users/__tests__/Users.coverage.test.tsx > UserResetPasswordDialog > reveals only the new-password field through its own toggle, flipping its icon and labels
+## chat (rerun)
+ FAIL  src/core/__tests__/turn-usage-w2g.unit.test.ts > legacy boundary data without an id splits every reply, while a repeated receipt id splits once
+## ui (rerun)
+ FAIL  src/__tests__/unit/agent-icon-generation.unit.test.ts > generates an empty map when there are no supported icons
+ FAIL  src/__tests__/unit/agent-icon-generation.unit.test.ts > generates deterministic inline SVG and PNG bytes while excluding unsupported assets
+## desktop-host
+FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory
+Error: Worker exited unexpectedly

@@ -1,1 +1,4 @@
 admin exit=0
+chat exit=1
+ui exit=1
+ALLDONE

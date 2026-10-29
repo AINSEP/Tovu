@@ -1,0 +1,9 @@
+apps/website/src/features/site-backup/__tests__/share-delivery.integration.test.ts exit=0
+apps/website/src/features/deployments/deploy-targets/__tests__/no-vendor-in-core.boundary.test.ts exit=1
+apps/website/src/features/site-export/__tests__/site-exporter.test.ts exit=1
+content/agent-plugins/resend/__tests__/resend-mcp.test.mjs exit=1
+development/scripts/__tests__/unit/af-cli-characterization.unit.test.ts exit=1
+apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts exit=1
+apps/website/src/platform/db/kernel/__tests__/no-raw-sqlite.boundary.test.ts exit=1
+apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/backstop.routes.pins.test.ts exit=0
+ALLDONE

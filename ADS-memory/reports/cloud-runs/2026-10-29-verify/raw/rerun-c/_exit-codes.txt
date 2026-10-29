@@ -1,0 +1,10 @@
+apps/website/src/assistant/persistence/__tests__/release-manifests.test.ts exit=1
+content/agent-plugins/github-pages/targets/__tests__/github-pages.test.mjs exit=1
+apps/website/src/server/__tests__/unit/stock-content-dirs.unit.test.ts exit=1
+development/scripts/__tests__/dead-path-sweep.test.ts exit=1
+apps/website/src/features/plugins/store/__tests__/store-plugin.dialects.test.ts exit=1
+apps/website/src/features/webhooks/__tests__/seal-aad-invariant.test.ts exit=0
+apps/website/src/server/__tests__/integration/create-sqlite-route-deps-for-workspace.integration.test.ts exit=1
+apps/website/src/server/inbound/admin-http/routes/pages/__tests__/unit/h4-delete.unit.test.ts exit=1
+apps/website/src/server/runtime/boot/__tests__/agent-plugin-token-boot-order.unit.test.ts exit=1
+ALLDONE

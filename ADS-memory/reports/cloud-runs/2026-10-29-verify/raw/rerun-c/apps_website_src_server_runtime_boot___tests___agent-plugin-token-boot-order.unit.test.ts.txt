@@ -1,0 +1,34 @@
+[agent-plugins] could not apply this site's pending access tokens: disk went away
+[agent-plugins] could not connect 'supabase' with the access token given when this site was created (will retry next start).
+[agent-plugins] could not connect 'supabase' with the access token given when this site was created (will retry next start).
+✔ pending onboarding tokens are applied first, and the env import skips every plugin that had one (1.558812ms)
+✔ a failed pending apply still keeps the env import off the pending plugins (0.806243ms)
+✔ memory mode has no site folder: only the env import runs, skipping nothing (0.160215ms)
+✖ default boot adapters preserve a failed onboarding token over a conflicting ambient token and retry it (17.294103ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 3
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4940.326664
+
+✖ failing tests:
+
+test at apps/website/src/server/runtime/boot/__tests__/agent-plugin-token-boot-order.unit.test.ts:1:2169
+✖ default boot adapters preserve a failed onboarding token over a conflicting ambient token and retry it (17.294103ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(saved?.sealedOAuth)
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/boot/__tests__/agent-plugin-token-boot-order.unit.test.ts:100:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

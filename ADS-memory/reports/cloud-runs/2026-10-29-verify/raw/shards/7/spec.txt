@@ -14489,3 +14489,1551 @@ Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-comp
 ✔ PUT posts/:postId 400 when expectedVersion is an explicit null — never silently downgraded to an unguarded save (955.147231ms)
 ✔ PUT posts/:postId 400 when expectedVersion is a boolean — never silently downgraded to an unguarded save (431.524814ms)
 ✔ postpolish: REST update derives a title slug, validates cover choice, and GET exposes publication history (642.463658ms)
+✔ PUT posts/:postId: when the row was invisible to captureInverse but present for the update (a create racing in between), a failed change-set record cannot compensate and surfaces as a 500 (1747.82194ms)
+✔ status reports installed:true once the audit table exists (286.411949ms)
+✔ status answers its own 500 when authorization fails (207.985383ms)
+✔ run summary is the 503 when audit storage is not installed (299.724915ms)
+✔ run summary hides a source-side log as not found (182.011132ms)
+✔ run summary offers undo for a failure only when it recorded inverses (228.049884ms)
+✔ run summary answers its own 500 when the audit read fails (184.977907ms)
+✔ gaps: foreign workspace 404, denied 403, uninstalled [], installed list, failure 500 (1024.609421ms)
+✔ send-by-hand refuses a body with no peerId (183.646302ms)
+✔ send-by-hand answers an unknown peer with 404 (182.260349ms)
+✔ send-by-hand answers a non-Error failure with its fixed 409 text (235.169782ms)
+✔ send-by-hand is the 503 when audit storage is not installed (279.932858ms)
+✔ an action that is neither plan nor send is refused after the address check (298.257986ms)
+✔ send refuses no logId with 409 before dialing the peer (304.049408ms)
+✔ send refuses unknown log with 409 before dialing the peer (297.481593ms)
+✔ send refuses destination-side log with 409 before dialing the peer (319.801293ms)
+✔ send refuses another actor's plan with 409 before dialing the peer (279.903379ms)
+✔ send refuses a plan for another address with 409 before dialing the peer (290.730721ms)
+✔ send refuses a plan already sent with 409 before dialing the peer (217.969586ms)
+✔ send refuses a different reason with 409 before dialing the peer (370.22857ms)
+✔ send refuses a plan for another peer with 409 before dialing the peer (191.928248ms)
+✔ send confirms and executes the checked plan on the peer and records the run (319.773966ms)
+✔ plan with nothing to send answers an empty plan and records nothing (192.70961ms)
+✔ plan refuses overwrite keys that are a non-array (234.376149ms)
+✔ plan refuses overwrite keys that are a key outside the selection (183.744676ms)
+✔ plan refuses overwrite keys that are a non-string key (236.245609ms)
+✔ plan pushes the selected rows with their audit metadata and records the planned send (346.626151ms)
+✔ plan forwards selected overwrite keys to the peer and echoes them (207.41457ms)
+✔ plan to a live site that cannot take raw rows fails the send with 409 and records the failure (417.860499ms)
+✔ undo is the 503 when audit storage is not installed (549.243234ms)
+✔ undo refuses a run with no undo available: missing, source-side, undone, or a failure without inverses (408.006657ms)
+✔ undo answers a failure with the error's own message as 409 (212.584556ms)
+✔ every backstop route 404s a foreign workspace before anything else (885.768192ms)
+✔ run summary refuses a machine credential before reading the audit log (867.940529ms)
+✖ plan uploads a selected file's bytes the peer is missing before staging the bundle (1957.772404ms)
+✔ mounted without a body parser, plan/confirm/execute answer 400 with their own validation text (153.670339ms)
+[publish-content] import failed: TypeError: Cannot read properties of undefined (reading 'gatewayDeps')
+    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/publish-content/import.ts:167:66)
+    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)
+    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15
+    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)
+    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)
+    at router.process_params (/home/user/Tovu/node_modules/express/lib/router/index.js:421:3)
+    at next (/home/user/Tovu/node_modules/express/lib/router/index.js:280:10)
+✔ an overwriteEntityKeys list over 1000 keys is refused; exactly 1000 strings passes the shape check (83.43307ms)
+✔ a run-status read whose store fails answers 500 INTERNAL_ERROR with fixed text, never the store's message (16.284805ms)
+✔ routeParam reads an absent or null param as an empty string, never the literal 'undefined'/'null' (1.779471ms)
+✔ rejectForeignWorkspace sends the 404 for an absent workspace param (1.210024ms)
+✔ rejectForeignWorkspace lets the matching workspace through without writing (0.300236ms)
+✔ readOverwriteEntityKeys reads absent and null as 'force nothing' (0.124122ms)
+✔ readOverwriteEntityKeys refuses a non-array, a non-string entry, and more than 1000 entries (0.547756ms)
+✔ readOverwriteEntityKeys accepts exactly 1000 string entries (0.70318ms)
+✔ acceptOverwriteEntityKeys sends the exact 400 for malformed ticks and never asks the rule (0.356339ms)
+✔ acceptOverwriteEntityKeys answers OVERWRITE_REFUSED when the route's rule refuses (0.13754ms)
+✔ acceptOverwriteEntityKeys passes the read ticks to the rule and returns them when allowed (0.703766ms)
+✔ put-entry: mismatched workspaceId 404s (811.218195ms)
+✔ put-entry: a principal with no grants is denied 403 (642.582335ms)
+✔ put-entry: an unregistered field 400s (938.606119ms)
+✔ put-entry: an unsafe canonical scheme 400s (977.025789ms)
+✔ put-entry: an unknown entry id 404s (500.330889ms)
+✔ put-entry: a valid patch succeeds (200) and persists across a second GET (357.541484ms)
+✔ put-entry: an unexpected repo failure 500s (425.270216ms)
+✔ put-entry: `req.body ?? {}` fallback, forced via a direct handler call -- `express.json()` always defaults `req.body` to `{}` on any real request, so the only way to genuinely pass `undefined` through is a forced direct call -- treated as an empty (no-op) patch, still 200s (391.818075ms)
+✔ put-entry: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call on the REAL composed app (Express itself can never leave a required :workspaceId segment unset) -- still 404s as a mismatch (461.234966ms)
+✔ put-entry: `req.params.entryId ?? ""` fallback, forced via a direct handler call on the REAL composed app -- falls through to setEntrySeoOverrides with entryId:"", 404s with the not-found message for an empty id (452.745591ms)
+✔ GET settings/effective without a namespace query param is a 400 VALIDATION_ERROR (888.219331ms)
+✔ POST settings/definitions with a non-array 'definitions' is a 400 VALIDATION_ERROR (401.502282ms)
+✔ POST settings/definitions refuses to rewrite the code-owned site.assistant namespace before any item writes (641.083743ms)
+✔ POST settings/definitions registers a platform-owned (theme) definition in the platform partition, not this workspace's (671.892783ms)
+✔ settings JSON route: a request without a :workspaceId param is a 404, forced via a direct handler call (444.050276ms)
+✔ POST settings/definitions with no body at all is a 400, forced via a direct handler call (express.json() always sets one) (279.226669ms)
+✔ DELETE settings/value refuses a generic clear of the owner-only Full CLI namespace (403) before reaching the write (515.189712ms)
+✔ get /config preserves admission order and permission (315.693186ms)
+✔ put /config preserves admission order and permission (432.382531ms)
+✔ put /home preserves admission order and permission (168.69597ms)
+✔ settings routes retain Error boundaries and fallback messages (71.467137ms)
+✔ settings routes retain opaque boundaries and fallback messages (91.909684ms)
+✔ directory validation retains absolute/nonempty/NUL, type, directory and mounted-parent checks (512.7146ms)
+✔ directory probe errors keep their original message or route-specific fallback (98.705268ms)
+✔ settings expose raw Error details (reported, not fixed) (48.280367ms)
+[skills] installed { workspaceId: 'workspace-local', toolId: 'skill_uploaded_check' }
+[skills] enabled changed {
+  workspaceId: 'workspace-local',
+  toolId: 'skill_uploaded_check',
+  enabled: false
+}
+[skills] removed { workspaceId: 'workspace-local', toolId: 'skill_uploaded_check' }
+✔ the composed skills module installs, lists, loads, disables and removes an uploaded skill over authenticated HTTP (2245.830545ms)
+✔ copy admission preserves session, workspace, owner, RBAC, instance and capability order (8.724065ms)
+✔ copy local admission rejects socket, forwarding, URL, Host and Origin mismatches (3.751986ms)
+✔ copy selection pins every shape and length check before the injected transfer (7.422357ms)
+✔ a transfer refusal is a 409 carrying its own reason, and any other failure a fixed 500 that never echoes the cause (3.813685ms)
+✔ publish trigger preserves shape errors, validation order, and domain confirmation before consent (632.16001ms)
+✔ mail-status: a request with no :workspaceId param 404s before authorizing (direct handler call) (4.526223ms)
+✔ mail-status: an unexpected failure is a fixed 500 that never echoes the cause, which is only logged (1.236936ms)
+✔ module-status: a request with no :workspaceId param 404s before authorizing (direct handler call) (0.746068ms)
+✔ module-status: an unexpected failure is a fixed 500 that never echoes the cause, which is only logged (0.543293ms)
+✔ observability-status: a request with no :workspaceId param 404s before authorizing (direct handler call) (480.508651ms)
+✔ observability-status: an unexpected failure is a fixed 500 that never echoes the cause, which is only logged (415.882257ms)
+✔ server-logs: a request with no :workspaceId param 404s before authorizing (direct handler call) (3.897286ms)
+✔ server-logs: an unexpected failure is a fixed 500 that never echoes the cause, which is only logged (4.438766ms)
+✔ assistant-daemon restart: a request with no :workspaceId param 404s before authorizing (direct handler call) (4.204836ms)
+✔ assistant-daemon restart: an unexpected failure is a fixed 500 that never echoes the cause, which is only logged (1.955214ms)
+✔ dockerfile GET: a request with no :workspaceId param 404s before authorizing (direct handler call) (1.46031ms)
+✔ dockerfile GET: an unexpected failure is a fixed 500 that never echoes the cause, which is only logged (8.024999ms)
+✔ dockerfile PUT: a request with no :workspaceId param 404s before authorizing (direct handler call) (1.084715ms)
+✔ dockerfile PUT: an unexpected failure is a fixed 500 that never echoes the cause, which is only logged (1.019734ms)
+✔ deployment-overview: a request with no :workspaceId param 404s before authorizing (direct handler call) (291.695657ms)
+✔ deployment-overview: an unexpected failure is a fixed 500 that never echoes the cause, which is only logged (301.908837ms)
+✔ server-logs: a repeated query param (?level=error&level=debug) is filtered by its FIRST value only (7.739518ms)
+✔ dockerfile PUT: a JSON body that is not an object is a 400 before any write (1.638038ms)
+✔ assigned-terms maps workspace and content-type mismatches to 400 VALIDATION_ERROR (13.373506ms)
+✔ assigned-terms maps a non-Error failure to a generic 500 and an Error to its own message (5.397172ms)
+✔ hasOriginal is true when a catalog original exists (197.417005ms)
+✔ hasOriginal is false with no catalog (21.737701ms)
+✔ malformed theme.json: the route still 200s on a theme loadTheme marked invalid (13.857726ms)
+✔ an unrecognized theme root triggers the route's outer catch-all 500 (11.118592ms)
+✔ reset restores a binary original's exact bytes, including bytes that are not valid UTF-8, and the file then lists as unmodified (122.612615ms)
+✔ reset of a file over the 1 MB text-read limit succeeds, restores its exact bytes, and returns content: null (87.700186ms)
+✔ reset of a file already byte-identical to its original writes nothing: same inode, same mtime, wasModified: false (50.095362ms)
+✔ saves the theme's current files as its hidden original; the theme then has one and Reset restores from it (271.120024ms)
+✔ refuses (409 ORIGINAL_EXISTS) a theme that already has a stored original, leaving it untouched (38.295771ms)
+✔ an unknown theme id answers 404 and writes nothing (70.980185ms)
+✔ HTTP delete: self is refused with SELF_DELETE, including seeded owner (304.708589ms)
+✔ HTTP disable: self is refused with SELF_DELETE, including seeded owner (101.560611ms)
+✔ HTTP delete: non-owner cannot target built-in admin (153.36681ms)
+✔ HTTP delete: non-owner cannot target built-in owner (180.846397ms)
+✔ HTTP delete: owner may target another admin, admin may target ordinary users (167.018874ms)
+✔ HTTP disable: non-owner cannot target built-in admin (98.048358ms)
+✔ HTTP disable: non-owner cannot target built-in owner (209.802285ms)
+✔ HTTP disable: owner may target another admin, admin may target ordinary users (261.958006ms)
+✔ HTTP reset-password: non-owner cannot target built-in admin (268.978102ms)
+✔ HTTP reset-password: non-owner cannot target built-in owner (532.688983ms)
+✔ HTTP reset-password: owner may target another admin, admin may target ordinary users (879.090792ms)
+✔ assistant disable and trash_item use the same self and admin protections (339.075839ms)
+✔ all manual purge entry points reject self/seeded owner/admin targets even when base authorize allows (169.266545ms)
+✔ PATCH ignores status/roleIds; enable cannot mutate status to disabled (58.943278ms)
+✔ last owner wildcard cannot be removed through policy-permission DELETE; transaction rolls back (67.228595ms)
+✔ owner role delete route refuses built-in owner; role removal has no route/tool (37.61952ms)
+✔ owner role patch route refuses built-in owner; role removal has no route/tool (34.960412ms)
+✔ roster labels policy owners and builtin owner/admin targets without changing username (291.780647ms)
+✔ assistant status/profile schemas cannot disable through enable/update; no role unassign or password-reset tool exists (299.484135ms)
+✔ DELETE_USER route: 404 when workspaceId does not match (927.656488ms)
+✔ DELETE_USER route: direct invoke fallback for nullish params.workspaceId (576.528938ms)
+✔ DELETE_USER route: an omitted principalId reports an empty missing target (752.791175ms)
+✔ DELETE_USER route: 204 trashes an existing user (619.829381ms)
+✔ DELETE_USER route: 204 is idempotent when the target is already in the Trash (1402.551302ms)
+✔ DELETE_USER route: 403 FORBIDDEN when the caller is neither the owner nor the built-in admin role (638.725553ms)
+✔ DELETE_USER route: 204 when the caller holds the built-in admin role (not owner) — OWNER DECISION 2026-09-24 (1121.210682ms)
+✔ DELETE_USER route: 409 OWNER_REQUIRED when a non-owner admin with user.manage trashes another owner (924.033724ms)
+✔ DELETE_USER route: 409 SELF_DELETE when the caller targets their own principal (777.737742ms)
+✔ DELETE_USER route: 409 OWNER_REQUIRED for the seeded owner (694.670877ms)
+✔ DELETE_USER route: 404 RESOURCE_NOT_FOUND for an unknown principalId (769.124165ms)
+✔ DELETE_USER route: 501 NOT_SUPPORTED when the composition root has no Trash wiring (288.610659ms)
+✔ DELETE_USER route: 500 internal error when an unexpected error is thrown (174.788696ms)
+✔ DELETE_USER route: 400 VALIDATION_ERROR when the target is a system principal (848.412743ms)
+✔ permission removal refuses a different workspace without deleting the permission (1067.671063ms)
+✔ permission removal hides storage failures, retains the row on failure, and allows a subsequent removal (452.760067ms)
+✔ preview body rejects non-object, null and array envelopes (1.22022ms)
+✔ preview body rejects unknown keys, invalid widget types and invalid content independently (0.279337ms)
+✔ preview body accepts empty and 100-character widget types without trimming and preserves content identity (1.257496ms)
+✔ preview body accepts class instances and null-prototype records as envelopes and content (0.352139ms)
+✔ preview body accepts exactly 128 KiB and rejects one byte over using UTF-8 bytes (0.469102ms)
+✔ preview body rejects invalid fields before attempting serialization (0.155408ms)
+✔ preview body propagates serialization errors for otherwise valid fields (0.65613ms)
+﹣ the daemon entry's static runtime graph reaches none of ADR-070's forbidden modules (1.176719ms) # un-skipped by W3-C
+✔ the walk resolves relative and #src imports from the real daemon entry and never throws (17311.114886ms)
+✔ type-only imports and dynamic import() are not runtime edges; every other import form is (3.420494ms)
+✔ the forbidden list matches the ADR's modules and nothing next to them (0.881339ms)
+[reload-test] mcp-federation: 'probe' registered 1 federated tool(s): mcp__probe__lookup
+▶ agent-daemon-server.ts — federation runtime wiring (S3)
+  ✔ every run's prompt carries the runtime's live refusal prefix (1.637801ms)
+  ✔ the refusal-diagnosis decorator reads the runtime's live reports (0.368109ms)
+  ✔ start() assigns toolExtensions, awaits installed extensions, then the federation boot pass (0.499898ms)
+  ✔ onAdmitted rebinds the live catalog, and no reload can reach it before liveToolCatalog exists (0.221975ms)
+  ✔ extensions.federation.reload() has exactly two callers: the reload route and the agent-daemon-local roster-change listener (S6, 3cdf21c52) (1.415994ms)
+  ✔ the admissions route reads the runtime's reports and merges the source's config failures with the runtime's own connect failures (0.349261ms)
+✔ agent-daemon-server.ts — federation runtime wiring (S3) (6.513491ms)
+✔ onStarted reads the federation refusal prefix afresh for each run (8747.612616ms)
+✔ the daemon's composed executor diagnoses a refusal introduced after construction (146.290269ms)
+✔ the daemon-mounted admissions handler reads live reports and both failure channels (12.380336ms)
+✔ a real federation reload makes native and newly admitted tools searchable and describable through existing daemon routes (980.551807ms)
+✔ runtime: cold and resumed CLI cwd defaults to the site directory (815.347063ms)
+✔ runtime: cold and resumed CLI cwd ignores TOVU_AGENT_CWD (owner 2026-10-23) (356.072333ms)
+✔ runtime: a new CLI session receives prior conversation context, while a resumed session keeps its compact prompt (256.711845ms)
+✔ runtime: first switches, A→B→A repeats and lost sessions select one transcript and isolate conversations (294.316601ms)
+✔ runtime: a cold dispatch waits for durable persistence and resumes that exact executor session next turn (271.806882ms)
+✔ runtime: concurrent dispatches serialize the lookup and pending write, minting only one session (233.8938ms)
+▶ Defect 1 wiring — the conversation/session binding must be written at DISPATCH
+  ✔ imports the host-minting decisions from the pure decision module (0.829215ms)
+  ✔ a binding write exists at dispatch rather than only in the event subscription (0.348412ms)
+  ✖ the dispatch-time write is awaited, so the binding is durable before the CLI is ever spawned (11.36981ms)
+  ✖ the minted id is both persisted and handed to AgentExecutor.run — one id, not two (0.539724ms)
+  ✔ the mint decision is gated on the def actually accepting a host-minted id (0.248076ms)
+✖ Defect 1 wiring — the conversation/session binding must be written at DISPATCH (14.239634ms)
+▶ Defect 1 wiring — run starts must be serialized per conversation
+  ✔ imports createConversationStartLock and constructs exactly one module-level instance (0.37382ms)
+  ✖ the stored-session lookup AND the dispatch-time write both run inside the lock (0.327513ms)
+  ✔ agentExecutor.run is NOT inside the locked section (0.15348ms)
+✖ Defect 1 wiring — run starts must be serialized per conversation (0.998845ms)
+✔ personal MCP opt-in discloses its boundary; personal hooks and permissions are always excluded (1.5622ms)
+✔ Windows shell disclosure follows the shell grant and only the Claude sandbox exception (0.284259ms)
+✔ the delegated route blocks an unknown identical mutation with exact structured error and allows read-only verification (14.312989ms)
+✔ a read-only gateway call is never ledgered: the daemon runs it read-only or refuses it unexecuted (0.405458ms)
+✔ an unregistered tool id reaches the daemon without a 409 or any durable tool event (0.301901ms)
+✔ a stale delegated attempt is fenced even for a read-only tool and even after its message binding disappears (10.022139ms)
+✔ the mutation response is withheld until its completed result is durably recorded (0.443067ms)
+✔ durable daemon starts use the accepted attempt id and never dispatch an unowned or canceled binding (0.467372ms)
+✔ duplicate accepted POSTs keep the chosen attempt id and call the executor once (0.382043ms)
+✔ daemon intake sanitizes both bound and headless starts before lifecycle persistence (1.736699ms)
+✔ credential intake passes absent bodies and non-string contextRef values through unchanged (3.878977ms)
+✔ credential intake rejects invalid JSON and non-object JSON with the exact 400 (4.647485ms)
+✔ durable starts pass absent bodies and non-string runId values to the ordinary daemon route (0.290791ms)
+✔ durable starts reject terminal and missing run statuses before dispatch (0.31596ms)
+✔ durable starts prefer a supplied string context and return the lifecycle's latest run (0.357121ms)
+✔ durable starts fall back to saved context, empty principal and the started run without dispatching duplicates (0.442019ms)
+✔ durable start failures reach next(err) without sending a success (0.541743ms)
+✔ delegated calls pass absent bodies and either non-string id through before consulting registration (0.32468ms)
+✔ delegated calls without a durable store fall through without read-only or binding lookups (0.251915ms)
+✔ only literal requireReadOnly true bypasses mutation guarding (0.524157ms)
+✔ registered read-only metadata skips both mutation guarding and completed-result capture (4.448785ms)
+✔ a missing durable run without a chat binding retains the daemon's execution policy (0.327669ms)
+✔ canceled and inactive delegated attempts are fenced before mutation or read-only execution (0.726891ms)
+✔ a stale guardTool outcome is reported as stale rather than an unknown mutation (0.302529ms)
+✔ mutations without a toolUseId are guarded but do not capture completed responses (2.44974ms)
+✔ captured responses pass non-completed and absent results through without persistence (0.431932ms)
+✔ queued mutations persist completed outputs including the undefined-to-null fallback (0.427693ms)
+✔ completed-result persistence rejection returns 503 TOOL_OUTCOME_UNKNOWN without publishing success (0.411646ms)
+✔ delegated guard failures reach next(err) without execution or a response (4.704916ms)
+✔ mid-run screenshot refs become authorized pixels on the same message as its text (53.411087ms)
+✔ text-only live messages preserve the accepted ID without reading uploads (14.682175ms)
+✔ unreadable or foreign screenshots never deliver their text alone (8.560945ms)
+✔ non-image files defer the complete message to idle delivery (8.079356ms)
+✔ unsupported or ended live inputs report a fallback without consuming the upload (27.663345ms)
+✔ public member preserves name and disabled status while excluding private fields (5.336394ms)
+✔ baseline: both submit-button rules (Builder and HTML mode) use the primary-button colours, never the accent fill (2.038823ms)
+✔ baseline: both field rules put inputs on the page background, not the card-coloured --surface (0.320246ms)
+✔ tovu-theme: the form submit matches the theme's own .btn/.btn-solid, fields sit on --bg, and both shipped copies match the fixture (1.150102ms)
+[widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset { workspaceId: 'workspace-local', assetId: 'tovu-promo-01' }
+[widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset { workspaceId: 'workspace-local', assetId: 'take15-cut-v3-cropped' }
+[widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset {
+  workspaceId: 'workspace-local',
+  assetId: 'demo-v1-contact-page-zoom'
+}
+[widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset {
+  workspaceId: 'workspace-local',
+  assetId: 'demo-v2-ai-images-article-zoom'
+}
+[widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset { workspaceId: 'workspace-local', assetId: 'demo-v3-sales-chart-zoom' }
+[theme] static page 'landing-test/post' is missing the exact token stylesheet sentinel; design tokens were not injected
+[widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset { workspaceId: 'workspace-local', assetId: 'tovu-promo-01' }
+[widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset { workspaceId: 'workspace-local', assetId: 'take15-cut-v3-cropped' }
+[widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset {
+  workspaceId: 'workspace-local',
+  assetId: 'demo-v1-contact-page-zoom'
+}
+[widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset {
+  workspaceId: 'workspace-local',
+  assetId: 'demo-v2-ai-images-article-zoom'
+}
+[widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset { workspaceId: 'workspace-local', assetId: 'demo-v3-sales-chart-zoom' }
+[theme] static page 'landing-test/post' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ fixture carries the page scripts and button icons this file pins (1.289462ms)
+✔ no-theme public render keeps the landing page scripts and button SVGs (7.220384ms)
+✔ static-tier template render keeps the landing page scripts and button SVGs, saved and pending (1534.750849ms)
+✔ block tree: a non-object child renders nothing (15.575877ms)
+✔ block tree: a doc block without a content array renders nothing (8.651265ms)
+✔ block tree: a node with a non-string type falls through to the content-doc renderer (0.562432ms)
+✔ block tree: a TipTap paragraph inside a template renders as content-doc markup (0.264552ms)
+✔ block tree: a component block with a non-string id renders the unknown-component comment (0.214373ms)
+✔ block tree: an unregistered component id renders the escaped unknown-component comment (0.13274ms)
+✔ block tree: a component block whose props are not an object renders with empty props (2.574367ms)
+✔ block tree: a slot with a non-string name renders the unknown-slot comment (0.447005ms)
+✔ block tree: the title slot renders the site title off the post route (0.222798ms)
+✔ block tree: the title slot renders the post title on the post route (3.220418ms)
+✔ block tree: the content slot renders nothing without a post (0.260854ms)
+✔ block tree: the entry-list slot renders the post index (0.26486ms)
+✔ block tree: a region block with a non-string key renders no declared region (0.360541ms)
+✔ renderBlockSeam: a region prop renders that widget region (0.346858ms)
+✔ renderSite: a static theme without an index page renders the fallback body inside the page shell (0.300763ms)
+✔ renderSite: a templated theme with no Liquid template for the route renders the fallback body (0.262817ms)
+✔ renderSite: a product without a slug links by its id in the fallback product list (0.231015ms)
+✔ renderSite: the product route without a product renders no product article (0.112838ms)
+✔ renderSite: an html-format post with no stored body renders an empty prose block (43.381122ms)
+✔ pageShell: an extraHead carrying its own <title> suppresses the shell's title (0.225683ms)
+✔ pageShell: an extraHead without a <title> keeps the shell's title (0.198342ms)
+✔ injectExtraHeadIntoStaticPage: a theme <title> with no closing tag is left in place (0.345855ms)
+✔ injectSiteAssistantIntoStaticPage: a page without </head> or </body> is returned unchanged (9.255979ms)
+✔ injectSiteAssistantIntoStaticPage: without TOVU_SITE_CHAT_DIST, readiness is checked against the product's own site-chat dist (1.694191ms)
+✔ gallery widget: a URL image renders through the document image renderer (1.506958ms)
+✔ gallery widget: a managed image renders the resolved rendition with a 1x srcset (1.089028ms)
+✔ media widget: raw HTML mode resolves a data-media-slug element to the canonical rendition (15.489003ms)
+✔ post-content widget: a title without a body renders the widget placeholder (0.282134ms)
+✔ post-content widget: a publishAt date is shown instead of updatedAt (0.950052ms)
+✔ post-content widget: the date label is the calendar day in the IR's site time zone, UTC without one (0.985768ms)
+✔ post-content widget: a non-object body falls back to the plain title heading (0.163244ms)
+✔ post-content widget: a body without a content array falls back to the plain title heading (1.037961ms)
+✔ post-content widget: a title node without inline content renders an empty heading (0.26031ms)
+✔ post-content widget: serialized media transform versions and asset metadata size a body image; malformed entries are ignored (0.459305ms)
+✔ post-content widget: serialized inline widgets render at their placement (0.268334ms)
+✔ post-content widget: asset metadata without a contentType still renders the body image (0.22144ms)
+✔ managed document media, markers and nested post content emit the current content version (6.270958ms)
+✔ image src: a non-string src renders the image placeholder (10.05554ms)
+✔ image src: a root-relative path is trimmed and kept (4.37198ms)
+✔ image src: a page-relative path is kept (4.0681ms)
+✔ image src: an empty src renders the placeholder (0.363445ms)
+✔ image src: whitespace inside a relative src renders the placeholder (0.176452ms)
+✔ image src: a backslash in a relative src renders the placeholder (0.125635ms)
+✔ image src: a non-http scheme renders the placeholder (0.095948ms)
+✔ image src: a protocol-relative src renders the placeholder (0.126783ms)
+✔ image src: a relative src the URL parser resolves off-site renders the placeholder (0.15409ms)
+✔ image src: an absolute URL the URL parser rejects renders the placeholder (0.213527ms)
+✔ image src: the admin original-media route renders the placeholder (0.126999ms)
+✔ image src: an absolute URL with a username renders the placeholder (0.124959ms)
+✔ image src: an absolute URL with only a password renders the placeholder (0.121748ms)
+✔ image src: a plain https URL is kept (0.190577ms)
+✔ image node: no attrs renders the default placeholder label (0.200455ms)
+✔ image node: an unresolvable managed asset never falls back to its src (0.145818ms)
+✔ image node: string and number title/width/height are emitted, other types are not (0.216644ms)
+✔ image node: a resolvable managed asset renders the ref image (0.16562ms)
+✔ media node: no attrs renders the media placeholder (24.723801ms)
+✔ media node: a non-string assetId renders the placeholder with its alt (0.257071ms)
+✔ media node: an implausible assetId renders the placeholder (0.11786ms)
+✔ media node: a video asset renders a video tag with asset style (0.792832ms)
+✔ media node: node cssClass and htmlAttributes override the asset's on video (0.390047ms)
+✔ media node: an audio asset renders an audio tag without dimensions (0.227083ms)
+✔ media node: node style overrides the asset's on audio (0.153377ms)
+✔ media node: an image asset renders the ref image with node style (0.162869ms)
+✔ media node: an asset missing from metadata still renders as a ref image (0.118291ms)
+✔ media node: an image whose transform cannot resolve renders the placeholder (0.238448ms)
+✔ widgetEmbed: no attrs renders the widget placeholder (0.291775ms)
+✔ widgetEmbed: a non-string placementId renders the widget placeholder (0.115434ms)
+✔ widgetEmbed: a resolved bare node renders the widget alone (0.305797ms)
+✔ widgetEmbed: empty cssClass and htmlAttributes still render the widget alone (0.166916ms)
+✔ widgetEmbed: cssClass alone wraps the widget (0.352422ms)
+✔ widgetEmbed: htmlAttributes alone wraps the widget and folds its class (0.13662ms)
+✔ widgetEmbed: cssClass then the htmlAttributes class, with other attributes (0.733919ms)
+✔ page body: an unowned marker type is left exactly as authored (2.478762ms)
+✔ page body: a content marker naming no entity is left as authored (0.45039ms)
+✔ page body: a post marker naming no entity is left as authored (0.156253ms)
+✔ page body: a content marker with an unresolved id renders the placeholder (0.391131ms)
+✔ page body: an unresolved widget renders nothing (0.505504ms)
+✔ page body: a widget resolves by id (0.474913ms)
+✔ page body: a widget resolves by slug when it has no id (0.219372ms)
+✔ page body: a widget with inline content resolves by its placement key (0.275371ms)
+✔ page body: a media marker with nothing resolved renders the placeholder (0.83598ms)
+✔ page body: a contact form marker in html mode renders the html-mode form (3.385057ms)
+✔ page body: a contact form marker without html mode keeps the builder form (0.781606ms)
+✔ page body: html mode on a non-form widget changes nothing (0.305952ms)
+✔ page body: the current post's content marker (by id) carries its byline (0.576883ms)
+✔ page body: the current post's content marker (by slug) carries its byline (0.260129ms)
+✔ page body: another post's content marker gets no byline (0.225195ms)
+✔ page body: a post marker for the current post gets no byline (0.195111ms)
+✔ page body: a content marker resolving to a non post-content IR gets no byline (0.147587ms)
+✔ page body: the presented post (by id) has its body projected (1.113743ms)
+✔ page body: a post marker for the presented post (by slug) has its body projected (0.473378ms)
+✔ page body: a marker for a different post is not projected (0.302787ms)
+✔ page body: a different slug is not projected (0.502519ms)
+✔ page body: a presented post's widget marker is not projected (0.308044ms)
+✔ page body: a presented post's non post-content IR is not projected (0.215162ms)
+✔ media-image IR: a missing assetId renders the widget placeholder (0.105099ms)
+✔ media-image IR: an implausible assetId renders the widget placeholder (0.082648ms)
+✔ media-image IR: an audio asset renders an audio tag without dimensions (0.350602ms)
+✔ media-image IR: a video asset renders a sized video tag (0.142578ms)
+✔ media-image IR: an image needs a string transform name (0.879797ms)
+✔ media-image IR: an image needs a numeric version (0.170103ms)
+✔ media-image IR: an image needs a plausible transform name (0.066674ms)
+✔ media-image IR: a non-string content type renders as an image (0.264007ms)
+✔ media-image IR: an image renders a responsive-off img tag (0.306848ms)
+✔ media node: an unresolvable image without alt uses the default placeholder label (0.282456ms)
+✔ page body: a media marker naming no id or slug renders the placeholder (0.291582ms)
+✔ page body: a presented post whose cover asset has no metadata keeps that image in its body (0.408818ms)
+✔ renderDocNode contract: bold mark (11.89974ms)
+✔ renderDocNode contract: italic mark (0.227306ms)
+✔ renderDocNode contract: code mark (inline) — distinct from the codeBlock node below (0.215802ms)
+✔ renderDocNode contract: underline mark — one of the two marks that shipped in the toolbar and rendered nothing publicly (154a5be) (0.112255ms)
+✔ renderDocNode contract: strike mark — the other mark from 154a5be (in the toolbar for weeks, never rendered) (0.135936ms)
+✔ renderDocNode contract: link mark (0.277283ms)
+✔ renderDocNode contract: highlight mark, no color attr (plain toolbar toggle) — landed live during this session (0.182487ms)
+✔ renderDocNode contract: highlight mark with an allowlisted color attr renders an inline background-color (0.242209ms)
+✔ renderDocNode contract: subscript mark — backfilled 2026-08-12 (0.156178ms)
+✔ renderDocNode contract: superscript mark — backfilled 2026-08-12 (0.085107ms)
+✔ renderDocNode contract: textStyle mark, color attr only — backfilled 2026-08-12 (0.292759ms)
+✔ renderDocNode contract: textStyle mark, all five style attrs combined into ONE span (Color/BackgroundColor/FontFamily/FontSize/LineHeight all attach to the same shared mark) — backfilled 2026-08-12 (0.300483ms)
+✔ renderDocNode contract: textStyle mark, no attrs survive the allowlist — renders bare text, no empty style="" span — backfilled 2026-08-12 (0.067454ms)
+✔ renderDocNode contract: textStyle mark security guard: safeCssColor/safeCssFontFamily/safeCssLength are each INDEPENDENT — a rejected injection value in one attr does not invalidate a valid sibling attr in the same mark — backfilled 2026-08-12 (0.130441ms)
+✔ renderDocNode contract: hardBreak — Shift+Enter, no toolbar button, the fourth historical bug (b184940) (0.104957ms)
+✔ renderDocNode contract: paragraph, no textAlign attr (0.09843ms)
+✔ renderDocNode contract: paragraph, textAlign justify — the first historical bug (8624306) (0.225901ms)
+✔ renderDocNode contract: paragraph, textAlign left — the CSS default, never emitted as an explicit style (regression guard) (0.058875ms)
+✔ renderDocNode contract: heading level 1, no align (1.626743ms)
+✔ renderDocNode contract: heading level 3, textAlign right — id comes first, then the align style (0.160236ms)
+✔ renderDocNode contract: bulletList + listItem — GAP CLOSED (no prior test coverage for either type) (0.096759ms)
+✔ renderDocNode contract: orderedList + listItem — GAP CLOSED (0.058233ms)
+✔ renderDocNode contract: blockquote — GAP CLOSED (0.103246ms)
+✔ renderDocNode contract: codeBlock, content escaped like any other text — GAP CLOSED (0.168056ms)
+✔ renderDocNode contract: codeBlock, attrs.language emits a language-* class token — backfilled 2026-08-12 (0.136154ms)
+✔ renderDocNode contract: codeBlock, attrs.language injection rejected by the alphanumeric+hyphen allowlist — falls back to a bare <code>, no class — backfilled 2026-08-12 (0.090342ms)
+✔ renderDocNode contract: image, LEGACY src-only node: a plain https URL now RENDERS (safeImageSrc allowlist, 2026-08-12) — the 'Img by URL' toolbar control was removed and then restored the same day, and this row is what proves the restored control actually reaches the public page (0.690369ms)
+✔ renderDocNode contract: image security guard: a javascript: src is rejected by safeImageSrc's http(s)-only ALLOWLIST (not a denylist, so an unforeseen scheme fails closed) and degrades to the same placeholder an unresolvable ref gets (0.324064ms)
+✔ renderDocNode contract: image security guard: a data: blob src is rejected — this is the base64-inlining shape the FileHandler upload path exists to avoid, and it must never reach a public page (0.558604ms)
+✔ renderDocNode contract: image security guard: the AUTHENTICATED admin media URL is rejected — the editor's own node view legitimately previews via /workspaces/{ws}/media/{id}/original, so it really can land in attrs.src; emitting it publicly would give every reader a broken image and disclose internal routing. This is the specific case the old blanket src refusal existed to stop. (0.199257ms)
+✔ renderDocNode contract: image security guard, round 2 (TM-TOVU-2026-08-12-A): a `/./` dot-segment interposed in the admin media path is STILL rejected — the old check tested the raw string, and `[^/]+` cannot span a `/`, so this exact shape evaded it while a browser resolves the `.` away and lands on the real blocked route anyway (confirmed with `new URL()` before the fix). Proves the check now tests the WHATWG-normalized pathname. (0.073699ms)
+✔ renderDocNode contract: image security guard, round 2 (TM-TOVU-2026-08-12-A): a `/../` dot-segment traversal is STILL rejected — same mechanism as the `/./` row above, the other direction a raw-string regex cannot see across a `/`. (0.047132ms)
+✔ renderDocNode contract: image security guard, round 2 (TM-TOVU-2026-08-12-A): embedded userinfo credentials are rejected — unlike a link href, an <img> auto-fires the request with no reader click and no address-bar text to warn them, so whatever an author pasted as user:pass would silently ship to a third-party host on every page view. (3.463714ms)
+✔ renderDocNode contract: horizontalRule — GAP CLOSED (0.12064ms)
+✔ renderDocNode contract: taskList + taskItem, checked and unchecked — checkbox rendered disabled publicly (no click handler on the site) — backfilled 2026-08-12 (0.12822ms)
+✔ renderDocNode contract: table + tableRow + tableHeader + tableCell, basic 2x2 grid — backfilled 2026-08-12 (0.18239ms)
+✔ renderDocNode contract: tableCell colspan/rowspan within the 1-1000 bound render as attributes; colspan/rowspan of exactly 1 is omitted (HTML default, not written out) — backfilled 2026-08-12 (0.04793ms)
+✔ renderDocNode contract: tableCell colspan/rowspan security guard: out-of-bound (1001 > 1000 ceiling) and a non-numeric injection string both fall back to the default 1 (omitted), never an unbounded or malformed attribute — backfilled 2026-08-12 (0.034694ms)
+✔ renderDocNode contract: tableCell/tableHeader align: center/right accepted, justify rejected (a single cell's own normalizeTableCellAlign never produces it) — backfilled 2026-08-12 (0.039763ms)
+✔ renderDocNode contract: image, ref-based (assetId+transformName resolved) — real <img> against the /m/ URL contract (0.686342ms)
+✔ renderDocNode contract: media, resolved asset's contentType is video/* — renders a real <video> against the /m/{id}/original byte-passthrough route, NOT an <img> (0.941584ms)
+✔ renderDocNode contract: media, resolved asset's contentType is image/* — falls through to the EXACT same tryRenderRefImage path the image node itself uses, byte-identical output (0.120096ms)
+✔ renderDocNode contract: media, mediaAssetMetadata entry present but contentType is null (asset resolved, blob not yet sniffed) — reads as "not video", not as unresolved, and still renders the real image (0.052893ms)
+✔ renderDocNode contract: media node style override: a node cssClass applies even with NO matching mediaAssetMetadata entry at all — a per-post override needs no Media Library sizing UI involvement (0.10958ms)
+✔ renderDocNode contract: media node style override: node cssClass WINS over the asset's own cssClass, but width/height still come from the asset — proves the precedence is per-field, not all-or-nothing (0.061983ms)
+✔ renderDocNode contract: media node style override: node leaves cssClass unset (null) — the asset's own cssClass still applies, same as before this task existed (0.045029ms)
+✔ renderDocNode contract: media node style override: a node htmlAttributes value merges alongside the asset's own cssClass — each field resolved independently, never all-or-nothing (0.617166ms)
+✔ renderDocNode contract: media node style override security guard: a disallowed node-level htmlAttributes name (onerror) is rejected by the SAME allowlist the asset-level field uses — fails closed, omitted from the tag, no new parser needed (0.15646ms)
+✔ renderDocNode contract: media node style override applies on the VIDEO dispatch branch too — node cssClass wins over the asset's own cssClass on the <video> tag, same precedence rule as the image branch (0.080505ms)
+✔ renderDocNode contract: media security/safety guard: an asset absent from mediaAssetMetadata entirely (deleted, wrong workspace, no render/test threaded the map through) degrades to the SAME placeholder the image node's own unresolved ref gets — never silence, never a crash (0.04718ms)
+✔ renderDocNode contract: media with no assetId at all (malformed/empty attrs) degrades to the placeholder immediately, with its own "Media" default label (not image's "Image" default) (0.053957ms)
+✔ renderDocNode contract: youtube, a recognized watch-URL shape re-derives the video id into a nocookie embed with start time — backfilled 2026-08-12 (0.288633ms)
+✔ renderDocNode contract: youtube security guard: a non-YouTube/javascript: src is never trusted into an <iframe src> — degrades to the media placeholder — backfilled 2026-08-12 (0.123042ms)
+✔ renderDocNode contract: mention, a real slug+label renders a link — the fifth silent-drop bug: this case did not exist until this same backfill pass added it (2026-08-12) (0.122547ms)
+✔ renderDocNode contract: mention security guard: an id that fails the post feature's own SLUG_FORMAT_PATTERN (path traversal attempt) renders nothing rather than an unsafe/malformed href — backfilled 2026-08-12 (0.09629ms)
+✔ renderDocNode contract: mention with no label renders nothing (a link with no text is not a usable link) — backfilled 2026-08-12 (0.048383ms)
+✔ renderDocNode contract: widgetEmbed, resolved through inlineResolved — a bare node (no cssClass/htmlAttributes) is byte-identical to before W1 (D5, 2026-09-23 embed-attributes-everywhere plan): no wrapper div at all (0.242302ms)
+✔ renderDocNode contract: widgetEmbed with cssClass (D5/W1, like the media node's own cssClass): wrapped in a widget-embed div carrying the base class plus the node's own escaped class (6.802908ms)
+✔ renderDocNode contract: widgetEmbed with htmlAttributes (S1, 2026-09-23 widget-attrs plan): the shared embed allowlist is wider than data-*/aria-* now — loading (a pre-existing media extra, harmless if meaningless on a div) survives alongside data-*/aria-*, since the widget wrapper no longer applies its own extra data-/aria-only restriction on top of the shared allowlist (0.324702ms)
+✔ renderDocNode contract: widgetEmbed security guard (S1, 2026-09-23 widget-attrs plan): an htmlAttributes string carrying an on* handler now drops ONLY that one token — data-x and style (now allowlisted, for styling/animation) both survive; onclick alone is rejected (0.292057ms)
+✔ renderDocNode contract: widgetEmbed with class/id/style in htmlAttributes (S1, 2026-09-23 widget-attrs plan): style/id now pass through for animation/layout, and htmlAttributes' own class token is appended after the node's cssClass, never emitted as a separate class attribute (0.152725ms)
+✔ renderDocNode contract: media node style override (S1, 2026-09-23 widget-attrs plan): style now survives the shared allowlist alongside data-*/aria-*, while onerror on the SAME node is still dropped on its own — one bad token, not the whole string (0.194905ms)
+✔ renderDocNode contract: widgetEmbed missing widget (D5/W1): an unresolved placementId still falls back to the placeholder, and the placeholder is still wrapped when the node itself carries cssClass (0.095653ms)
+✔ renderDocNode contract: title node — deliberately contributes NOTHING to a generic doc walk (post.title prints separately elsewhere; see the post-content table below for the node's real render target) (0.140455ms)
+✔ renderWidgetIr('post-content') contract: serialized media and inline-widget maps reach the post body renderer (1.110409ms)
+✔ renderWidgetIr('post-content') contract: title node with text + center align drives the <h1>, not props.title (0.119288ms)
+✔ renderWidgetIr('post-content') contract: EMPTY title node (select-all-backspace on the title leaves an empty, non-deleted node — the schema's own "title block+" content spec guarantees this is reachable) renders a real but EMPTY <h1>, never a placeholder and never a fallback to props.title (0.071349ms)
+✔ drift guard: every registered node type has at least one contract-table row (5.916833ms)
+✔ drift guard: every registered mark type has at least one contract-table row (0.345185ms)
+✔ drift guard: every contract-table row's types are all in the maintained checklist (a row cannot silently outrun the checklist) (0.287957ms)
+✔ drift guard: the actual editor schema's node and mark vocabulary has contract rows (2166.524633ms)
+✔ preview mount: an authenticated revision's CSS is rewritten to the preview prefix, uncached, with the security headers (197.193705ms)
+✔ preview mount: a HEAD for authenticated CSS answers the rewritten length with no body (81.799781ms)
+✔ preview mount: an upper-case .CSS extension is rewritten too (16.22488ms)
+✔ preview mount: a revision the predicate does not trust serves the CSS bytes unchanged, uncached and without validators (17.290655ms)
+✔ preview mount: with no revision predicate configured, CSS serves unchanged (24.117985ms)
+✔ preview mount: a revision of exactly 100 word characters is trusted (15.241769ms)
+✔ preview mount: a 101-character revision is never offered to the predicate (51.071203ms)
+✔ preview mount: a revision with a character outside [A-Za-z0-9_-] is never offered to the predicate (140.393518ms)
+✔ preview mount: a revision already authenticated upstream (res.locals) wins over the URL's and is URL-encoded into the rewrite (71.890981ms)
+✔ preview mount: a non-string res.locals revision blocks the rewrite even when the URL's revision is trusted (169.356646ms)
+✔ public mount: a res.locals revision never rewrites public CSS, which keeps its normal cache policy (19.720689ms)
+✔ preview mount: a POST is not rewritten and falls through to the next middleware, still marked no-store (28.001248ms)
+✔ preview mount: an undecodable path skips every remaining theme folder and falls through to the next middleware (29.311205ms)
+✔ preview and public mounts refuse CSS under dot-prefixed directories (24.677669ms)
+✔ preview mount: a dot-prefixed CSS file name is neither rewritten nor served (28.489292ms)
+✔ preview mount: an encoded traversal out of the theme folder is not read by the rewrite and is refused (47.59736ms)
+✔ preview mount: an authenticated non-CSS asset is served as-is by the static handler, uncached (34.238322ms)
+✔ preview mount: CSS missing from the renamed folder is read from the retired folder and rewritten (18.536317ms)
+✔ preview mount: authenticated CSS missing from every folder falls through to the next middleware (30.913784ms)
+✔ preview mount: an unknown theme falls through without the no-store header (7.807061ms)
+✔ static handler errors are forwarded to the error handler instead of trying the next folder (16.840661ms)
+✔ T40: end-only HTML over 4 MiB and empty HEAD responses pass through with their validators (26.608302ms)
+✔ T41: collector requests from rotating IPv6 addresses share one /64 rate budget (631.057414ms)
+[plugin-runtime] boot re-attach failed for 'auth-sample': plugin 'auth-sample' failed to load (PLUGIN_EXPORT_INVALID)
+✔ host authenticates real member and operator cookies independently, including revocation and disabled members (1903.527204ms)
+✔ export file catalog-error is a private, uncached 404 (4.646053ms)
+✔ export file read-error is a private, uncached 404 (0.827629ms)
+✔ export file duplicate-owner is a private, uncached 404 (0.48881ms)
+✔ export file missing-component is a private, uncached 404 (0.385138ms)
+✔ export file no-assets is a private, uncached 404 (0.860207ms)
+✔ export file disabled is a private, uncached 404 (0.590602ms)
+[site/comments-submit] unexpected error Error: private database credentials
+    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/comments-submit.test.ts:161:48)
+    at Object.submit (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/comments-submit.test.ts:38:14)
+    at Object.submit (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/comments-submit.ts:88:20)
+    at <anonymous> (/home/user/Jini/packages/cms/src/comments/express/submit-handler.ts:108:36)
+[site/comments-submit] unexpected error TypeError: Cannot convert object to primitive value
+    at String (<anonymous>)
+    at buildCommentSubmission (/home/user/Jini/packages/cms/src/comments/express/submit-handler.ts:56:14)
+    at <anonymous> (/home/user/Jini/packages/cms/src/comments/express/submit-handler.ts:105:26)
+    at submit (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/comments-submit.ts:113:12)
+    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/comments-submit.test.ts:81:5)
+    at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/comments-submit.test.ts:174:21)
+    at async Test.run (node:internal/test_runner/test:1409:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+✔ comments-submit: parentId/authorEmail/authorUrl present and entryId/authorName/body absent are normalized, the honeypot field is captured, and a 422 ingress rejection is surfaced verbatim (8.24443ms)
+✔ comments-submit: `req.ip ?? req.socket.remoteAddress ?? "unknown"` double fallback, forced via a direct handler call with both left undefined -- still succeeds and hashes "unknown" (2.052339ms)
+✔ comments-submit: unexpected ingress and body-conversion failures finish with a secret-free 500 (17.949002ms)
+✔ comments-submit: authorIpHash uses the injected salt, never COMMENTS_IP_SALT from the environment (3.413226ms)
+✔ comments-submit: a salt that never resolves to a usable value fails the request through next(error), not at registration (7.200624ms)
+✔ comments-submit: registering without ipHashSalt refuses with a named TypeError (4.250096ms)
+✔ no-JS form uses urlencoded parsing and safe 303 destinations for accepted and rejected comments (1.400595ms)
+✔ origin is required and forged or cross-site origins never reach hashing, budgets or ingress (0.821815ms)
+✔ provider submission dispatch preserves hashes and refuses disabled/embedded providers (5.450485ms)
+✔ same-origin gate: JSON without Origin is a non-browser client; forwarded https, forms and opaque origins are judged by Origin (0.651651ms)
+✔ behind a trusted proxy hop, two visitors sharing the proxy socket get separate rate-limit buckets (not one shared key) (159.206278ms)
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+✔ integration: GET / 500s with 'No themes installed' when resolveActiveTheme finds none (841.971183ms)
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+✔ integration: GET /:slug 500s with 'No themes installed' when resolveActiveTheme finds none (545.036168ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-404-integration-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-404-integration-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-404-integration-theme/404' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ integration: GET /:slug a static theme's own pages/404.html renders instead of the bare fallback 404 (441.012714ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-menu-integration-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-menu-integration-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-menu-integration-theme/about' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ integration: GET /about a static theme's own menu marker resolves through a real seeded menu, exercising every NavTarget kind (614.523573ms)
+✔ integration: resolveHtmlEmbedsForRender/resolveMediaAssetMetadataForRender's !post guards, called directly (386.673013ms)
+✔ integration: GET /:slug a normal published post renders through the generic (non-template) path, with both a real and a legacy image node in its body (593.913131ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-diagnostic-integration-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-diagnostic-integration-theme', which is whichever theme discovery happened to list first
+✔ integration: GET /:slug a static theme with an empty templateChoice renders the missing-template diagnostic page (554.632098ms)
+[widgets] resolveHtmlPageEmbeds: unresolved "content" reference — no such published entity {
+  workspaceId: 'workspace-local',
+  entityId: 'post-broken-canonical-int'
+}
+✔ integration: GET /:slug (post route) buildExtraHead's canonical falls back to /<slug> when urlFor can't resolve the post's own entryRef (802.790494ms)
+[site/pages] GET / failed Error: boom (integration)
+    at ThrowsUnexpectedErrorOnListPostRepo.list (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/integration/pages-branch-coverage.integration.test.ts:322:11)
+    at listPublishedPosts (/home/user/Tovu/apps/website/src/features/post/post.ts:2249:42)
+    at serveHomePage (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages.ts:2783:5)
+    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages.ts:2981:7)
+✔ integration: GET / 500s with a generic 'Site error' when an unexpected exception is thrown (651.314135ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-empty-page-integration-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-empty-page-integration-theme', which is whichever theme discovery happened to list first
+✔ integration: GET /empty-page-int falls through to the ordinary post lookup (404s) instead of rendering an empty 200 (360.188457ms)
+✔ GET / with the theme off serves a real, unstyled page — 200, not the no-themes 500 (699.659421ms)
+✔ GET /:slug with the theme off serves the post, unstyled (510.229681ms)
+✔ GET /products with the theme off serves the storefront, unstyled (250.183829ms)
+✔ a themeless public page emits no `data-theme` and no theme badge on ANY route (488.499468ms)
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+✔ turning the theme off does NOT disable the no-themes 500 — an empty install is still an error (307.133285ms)
+✔ a slug with no post still 404s with the theme off — the themeless path is not a catch-all 200 (331.913992ms)
+✔ resolveHtmlEmbedsForRender: an undefined post short-circuits to undefined, never touching resolveHtmlPageEmbeds (502.030557ms)
+✔ resolveHtmlEmbedsForRender: an html-format post with a null bodyHtml falls back to an empty string, not a crash (230.787687ms)
+✔ resolveMediaAssetMetadataForRender: an undefined post short-circuits to an empty map, never scanning for image assetIds (136.599516ms)
+✔ resolveMediaAssetMetadataForRender: a malformed bodyJson tree (a bare primitive and a literal null among the content array) is walked without crashing (164.348157ms)
+✔ resolveMediaAssetMetadataForRender: an image node whose attrs is itself an array (not a plain object) is skipped, not crashed on (336.164682ms)
+✔ resolveMediaAssetMetadataForRender: a media node's assetId resolves contentType through the REAL mediaRepo/mediaContentTypeStore pair, keyed by the resolved record's source.sha256 (not by assetId) — the end-to-end plumbing render.ts's renderDocMedia dispatch depends on, not just its own hand-built-map contract tests (186.846835ms)
+✔ resolveMediaAssetMetadataForRender: an asset whose blob has never been sniffed (no mediaContentTypeStore entry for its sha256) resolves contentType: null, not a crash or a fabricated guess (225.107045ms)
+✔ resolveMediaAssetMetadataForRender: image AND media ref nodes are collected in document (pre-order) order, through nested content (162.138527ms)
+✔ a purchase preserves existing return query parameters and places the message before the fragment (6.336947ms)
+✔ a public route rejects a 200 KB JSON body with a JSON 413 (581.503683ms)
+✔ an anonymous admin request is refused by the session gate before its body is parsed (340.656413ms)
+✔ an authenticated media upload still accepts a 20 MB body (999.851444ms)
+✔ an authenticated ordinary admin route accepts 1 MB but rejects 16 MB with a JSON 413 (806.336451ms)
+✔ login stays reachable (parsed at the public limit, ahead of the gate) (560.47484ms)
+✔ isAuthenticatedBodyPath matches every session-gated prefix on a segment boundary, case-insensitively (0.609733ms)
+✔ jsonBodyLimitForAuthenticatedRequest gives the upload limit only to the three large-body routes (0.318555ms)
+✔ authenticated parsers deliver the complete 20 MB upload and 1 MB ordinary JSON to downstream handlers (96.77365ms)
+✔ login's public parser refuses 200 KB before authentication (3.263697ms)
+✔ an authenticated upload declared above 75 MB takes the JSON 413 error path (3.804254ms)
+✔ malformed authenticated JSON and errors after headers are sent are forwarded unchanged (3.097795ms)
+✔ telemetry's first authenticated parser limits decoded streamed bytes to 16 KiB (9.357073ms)
+✔ resolveBindHost: undefined with fallback '127.0.0.1' returns the fallback (1.496893ms)
+✔ resolveBindHost: undefined with fallback undefined returns undefined (0.170742ms)
+✔ resolveBindHost: a whitespace-only raw value is treated as unset -- returns the fallback (0.151312ms)
+✔ resolveBindHost: '0.0.0.0' passes through verbatim (0.498502ms)
+✔ resolveBindHost: an arbitrary IPv4 literal passes through verbatim (0.449677ms)
+✔ resolveBindHost: '::1' passes through verbatim (3.486515ms)
+✔ resolveBindHost: '::' resolves to undefined (Node's own all-interfaces default) (0.301666ms)
+✔ resolveBindHost: 'localhost' throws ValidationError with the exact documented text (2.205501ms)
+✔ resolveBindHost: a hostname with a space throws ValidationError naming the given value (0.249494ms)
+✔ isLoopbackHost: 127.0.0.1 is loopback (0.122944ms)
+✔ isLoopbackHost: another 127.x.x.x literal is loopback (0.066108ms)
+✔ isLoopbackHost: ::1 is loopback (0.10211ms)
+✔ isLoopbackHost: 0.0.0.0 is not loopback (0.063713ms)
+✔ isLoopbackHost: undefined (all interfaces) is not loopback (5.161296ms)
+✔ isLoopbackHost: an arbitrary LAN literal is not loopback (0.166664ms)
+✔ DEFAULT_LOCAL_BIND_HOST is '127.0.0.1' (0.656358ms)
+✔ a lost running lock rejects boot into one actionable diagnostic followed by exit 1 (1.482311ms)
+✔ other composition and readiness failures also exit, with a single diagnostic line (0.267208ms)
+✔ the raw reason reaches the log so the stack survives in server.log (0.977604ms)
+✔ non-Error rejections retain their reason and fail boot (0.197844ms)
+✔ a broken diagnostic sink cannot leave the startup listener alive (0.557448ms)
+✔ the real index entrypoint catches main's rejection with the fatal boot adapter (64.663951ms)
+✔ default ports report on console.error and exit the real process with code 1 (8.969031ms)
+✔ installUnhandledRejectionGuard's default logger writes the rejection to console.error (0.870976ms)
+✔ domain-read fallback refuses a wrong plugin before decryption (13.551048ms)
+✔ domain-read fallback refuses a disabled account before decryption (2.246617ms)
+✔ domain-read fallback refuses a missing row before decryption (0.374366ms)
+✔ domain-read fallback refuses a OAuth MCP account before decryption (6.13354ms)
+✔ domain-read fallback refuses a unknown auth mode before decryption (3.599836ms)
+✔ domain-read fallback refuses HTTP before looking up an account key (3.344947ms)
+✔ domain-read fallback returns the active plugin's enabled static key at its declared HTTPS API (1.965493ms)
+✔ separate rejection occurrences remain reportable; fatal reports flush before exiting (30.132547ms)
+✔ a hung fatal drain exits at its deadline, once, even when the drain later settles (21.015207ms)
+✔ a rejected fatal drain still exits and a failing logger cannot skip the drain (1.956147ms)
+✔ without flush: retain rejection + monitor listeners exactly, with no fatal handler, log or exit (3.048261ms)
+✔ fatal path logs, reports, awaits flush and exits 1 in that order (2.580111ms)
+✔ fatal flush is bounded to 2000ms even if a caller requests a longer deadline (1.965205ms)
+✔ default (var unset) leaves the admin assistant ENABLED — absent config is bit-for-bit today's behavior (1.326487ms)
+✔ only the exact value "off" disables — case-insensitive and whitespace-tolerant (0.40342ms)
+✔ a typo or any other value leaves it ENABLED — a mistyped var must never silently disable a feature the operator believes is running (0.374301ms)
+✔ daemon still starts when the assistant is ON, regardless of external MCP (0.146549ms)
+✔ daemon is skipped only when the assistant is OFF *and* no external MCP is configured (0.190657ms)
+✔ assistant OFF but external MCP configured still starts the daemon — the daemon owns federation, not just chat (0.166858ms)
+✔ loading composition/app.ts registers nothing: a live Redirects registration survives the module's first load (9655.161083ms)
+✔ admin HTML injection follows the durable metrics setting and handles streamed HTML once (390.138201ms)
+✔ live configuration check exposes only current opaque revisions, including provider removal (0.722737ms)
+✔ createApp(): a later call replaces an earlier call's page-head registration instead of accumulating alongside it (747.703068ms)
+[migrations] /tmp/tovu-project-credentials-I0Jhjt/Tovu/site-a/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[migrations] /tmp/tovu-project-credentials-I0Jhjt/Tovu/site-b/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[migrations] /tmp/tovu-project-publish-credentials-KQQMs5/Tovu/site-a/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+✔ a key saved from site A lands in project.db and site B cannot use it until attached (5086.185358ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[migrations] /tmp/tovu-project-publish-credentials-KQQMs5/Tovu/site-b/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[migrations] /tmp/tovu-project-credentials-down-YxxhSh/site/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+✔ a publish-host connection saved from site A deploys from site B only after attachment (3394.66731ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ a project store that can't open: a key still saves, in the site's own vault (2147.822604ms)
+✔ end to end: a submission is planned, delivered through the OAuth connection with a fresh token, and a replayed event adds no row (91.335172ms)
+✔ an account switch after planning: the frozen job is refused (authorization-required, kept), never delivered to the new account (154.827114ms)
+✔ a binding re-pointed at the switched account delivers the next submission there (36.98308ms)
+✔ reconnect required (the provider refuses the refresh with invalid_grant): authorization-required, the job kept in the ledger, nothing sent (21.631876ms)
+✔ a binding naming a saved custom credential still resolves behind the OAuth port (the OAuth port does not own its ref) (530.080165ms)
+✔ a job of another workspace is never served by this site's OAuth host: no connection resolves, authorization-required (16.3125ms)
+✔ end to end: the surface saves a binding (connection id and form slug in, ref and form row id stored) and a submission delivers through it (34.92541ms)
+✔ security: an adapter the surface declares but the plugin does not contribute is refused (adapter-not-owned); nothing stored (16.941379ms)
+✔ security: another adapter's binding is invisible to the surface and can be neither overwritten nor removed (20.364978ms)
+✔ the surface lists and removes its own binding; the removal reaches the stored setting (31.785286ms)
+✔ security: an adapter id the surface declares but ANOTHER plugin contributes is refused (adapter-not-owned); nothing stored (17.293399ms)
+✔ committed forms require original and still-active consent; delayed events never contain receipt data (3.672478ms)
+[migration-recovery] restored /tmp/tovu-open-site-content-db-ibly3k/content.db from /tmp/tovu-open-site-content-db-ibly3k/content.db.snapshot-crashed-plugin-1793310277601 (interrupted dataModule migration of plugin 'crashed-plugin')
+[migrations] /tmp/tovu-open-site-content-db-ibly3k/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   backed up the database to /tmp/tovu-open-site-content-db-ibly3k/ops/pre-migrations-2026-10-29T21-44-37-751Z.db before migrating it
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+[migrations] /tmp/tovu-open-site-content-db-fresh-jmeGij/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+✔ openSiteContentDb restores a crash-interrupted dataModule attempt, then prepares the restored file (1285.881537ms)
+✔ openSiteContentDb on a fresh path creates, migrates, seeds once and writes the watermark row (595.47924ms)
+[migrations] /tmp/tovu-open-site-content-db-backup-icL6Ed/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   backed up the database to /tmp/tovu-open-site-content-db-backup-icL6Ed/ops/pre-migrations-2026-10-29T21-44-39-104Z.db before migrating it
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+[migrations] /tmp/tovu-open-site-content-db-fail-w8XGqy/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+✔ openSiteContentDb copies an existing unadopted file to ops/ first and keeps only the newest copy (931.157097ms)
+✔ openSiteContentDb closes its connection when a boot step rejects (a checksum mismatch here) (637.219424ms)
+✔ no pending file: nothing is imported and nothing is logged (5.052784ms)
+✔ every token imported: each is opened with its plugin id, logged without the token, and the file is deleted (4.701588ms)
+✔ an operator-off plugin: the token is saved, the log says it stays off, and the file is deleted (3.435754ms)
+✔ an import that throws keeps only that token for the next boot, still sealed and 0600 (5.71111ms)
+✔ a token that will not open with this site's key is dropped with a warning, never imported (2.795399ms)
+✔ a token sealed for one plugin id does not open as another's (2.212144ms)
+✔ a file that is not valid JSON is removed with a warning (1.886043ms)
+✔ listPendingAgentPluginTokenIds: the plugin ids in the file, without opening a token; none for a missing or unreadable file (2.733579ms)
+✔ production onboarding writer round-trips multiple tokens through a freshly constructed boot sealer (4.016193ms)
+✔ L058a mixed batch drops unopened tokens, retains failed imports, and handles both saved outcomes (6.936559ms)
+✔ L058a importer errors never expose tokens and retain the import for retry (11.948069ms)
+✔ removing a plugin with no install dir configured is refused, naming the plugin (11.962289ms)
+✔ an id that is not a single safe path segment is refused before any filesystem access (78.363542ms)
+✔ the live dir is listed only when it exists, and the parked dir sits in the sibling -trash root (99.935511ms)
+✔ a live-dir probe failure other than not-found propagates instead of reading as absent (7.343033ms)
+✔ package files: a built-in without a source dir or a site plugin without an install dir has none (4.087763ms)
+✔ package files: an unsafe site plugin id or version is refused as a path error (14.92378ms)
+✔ browser restart after a committed attached save produces a success card with reload guidance (30.126769ms)
+✔ the chat card saves the provider's settings into the PROJECT store, not the site vault; the key never reaches the result, transcript or model input (72.575522ms)
+✔ a Custom… choice saves the typed host (3.978757ms)
+✔ the shared re-entry rule: a changed host with the saved key kept is refused and nothing is written (4.777738ms)
+✔ a blank key with an unchanged host keeps the saved key (3.84992ms)
+✔ a provider plugin that is not installed opens no card (3.00251ms)
+✔ the chat save refuses a missing conditional token with exact guidance and accepts explicit no auth (4.946404ms)
+✔ provider_status reports presence only: configured, missing, store, never a value (3.342794ms)
+✔ a different key card explains site isolation and retains the manifest's help and purposes (0.50966ms)
+✔ provider_status exposes manifest requirements and choices with the command that opens settings (0.947224ms)
+✔ the provider_status settings command opens the manifest card without an agent plugin (15.275677ms)
+✔ assistant reports saved settings with the plugin startup reason and correction, never restart guidance (7.184741ms)
+✔ grants: no env var and no committed file → absent, no grants (17.940499ms)
+✔ grants: an EMPTY env var is the kill switch — revoked from env, and the committed file is not consulted (25.818063ms)
+✔ grants: with no env var, the committed file under TOVU_REPO_ROOT is what is read (11.402528ms)
+✔ grants: read once per process — a later change to the file is not seen by the same resolver (4.625166ms)
+✔ grants: an unreadable config resolves to invalid with a plain reason (never rejects), and the failure is NOT cached (11.749327ms)
+✔ revocations: a readable deny list is passed through unchanged, and the store is re-read on every call (0.455041ms)
+✔ revocations: a store that throws becomes { ok: false } with a plain reason — never a rejection (0.285776ms)
+✔ revocations: a non-Error throw still becomes { ok: false } with the generic reason (0.174497ms)
+✔ grants: a config read that rejects with a non-Error is invalid with a generic reason, and the next call retries the read (2.958065ms)
+✔ site_guide registers as a read-class tool and binds identity from execution context (4.316291ms)
+✔ site_guide refuses the assistant-use floor before constructing the engine (0.458788ms)
+✔ site_guide modes have exact corrective input errors (0.453816ms)
+✔ site_guide searches visible topic text with query alias, without reading hidden facts (59.754904ms)
+✔ hidden-topic errors retain their exact message and classify as tool input rejection (1.203071ms)
+✔ every admin execution path receives the same vendor-neutral learning pointer (0.449673ms)
+✔ site_guide search metadata reaches the shared projection and the production catalog (515.22263ms)
+✔ the composed host guide keeps membership enablement unknown even with a wired repo (2.630564ms)
+✔ an editor sees permitted plugin workflows without plugin-inventory permission (3.715373ms)
+✔ normalization: site guide overview gives the exact HTTPS/dev or desktop listener origin (21.386245ms)
+✔ listener pin uses actual dev TLS, desktop host and selected port before guide composition (1.58959ms)
+✔ backup guide gates source-control pointers and private-backup workflow without reading credentials (1.687367ms)
+[migrations] /tmp/tovu-site-search-ebrv0R/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ the real composition serves search from one runtime: 503 until a provider exists, a recorded boot target, four tools (3778.431715ms)
+✔ only an explicit true allows sending; unset, false and a non-boolean mean no (2.49687ms)
+✔ a settings read error rejects (the guard treats a rejected consent as no) (1.295594ms)
+✔ the revision changes before and after every value write, so an in-flight approval is invalidated (0.588018ms)
+✔ a failed write still advances the revision and rethrows (1.185922ms)
+✔ sqlite: plugin settings survive restart and the connection surface stays disconnected (895.373363ms)
+✔ pglite: plugin settings survive restart and the connection surface stays disconnected (9302.467683ms)
+[assistant-byok] tool schema fallback {
+  toolId: 'search_tools',
+  protocol: 'anthropic',
+  reason: 'unsupported-schema'
+}
+[assistant-byok] tool schema fallback {
+  toolId: 'execute_delegated_tool',
+  protocol: 'anthropic',
+  reason: 'open-map'
+}
+✔ BYOK generations: real provider frames, content=false, operator consent=true (748.858793ms)
+[assistant-byok] tool schema fallback {
+  toolId: 'search_tools',
+  protocol: 'anthropic',
+  reason: 'unsupported-schema'
+}
+[assistant-byok] tool schema fallback {
+  toolId: 'execute_delegated_tool',
+  protocol: 'anthropic',
+  reason: 'open-map'
+}
+✔ BYOK generations: real provider frames, content=true, operator consent=true (463.70331ms)
+[assistant-byok] tool schema fallback {
+  toolId: 'search_tools',
+  protocol: 'anthropic',
+  reason: 'unsupported-schema'
+}
+[assistant-byok] tool schema fallback {
+  toolId: 'execute_delegated_tool',
+  protocol: 'anthropic',
+  reason: 'open-map'
+}
+✔ BYOK generations: real provider frames, content=true, operator consent=false (464.754803ms)
+✔ reconnect pins: fresh status 200 after a dropped stream (48.373753ms)
+✔ reconnect pins: fresh status 404 after a dropped stream (7.071594ms)
+✔ reconnect pins: fresh status 503 after a dropped stream (3.246771ms)
+✔ reconnect pins: fresh status null after a dropped stream (5.371735ms)
+✔ reconnect pins: events 404 cannot override live status, and live runs survive repeated reconnect exhaustion (92.433851ms)
+✔ reconnect pins: inconclusive probes retry before the limit and events 404 resolves immediately (4.564939ms)
+✔ reconnect pins: durable recovery relinquishing a live attempt stops its watch (2.433799ms)
+✔ reconnect pins: elapsed deadline resolves an inconclusive dropped stream before retry exhaustion (1.28933ms)
+✔ allocateFreePort resolves the port the OS-assigned address reports, after releasing the socket (2.247438ms)
+✔ allocateFreePort rejects with the close error instead of handing out a port it could not release (0.740559ms)
+✔ allocateFreePort rejects when the listener reports no TCP address (null) (0.228691ms)
+✔ allocateFreePort rejects when the listener reports no TCP address (/tmp/pipe.sock) (0.106846ms)
+✔ allocateFreePort's default probe binds a real ephemeral port (9.364719ms)
+✔ production resolver honors JINI_AGENT_DAEMON_URL across ensure/getUrl/getPortForSpawnEnv (0.332954ms)
+✔ before ensure() with nothing configured there is no spawn-env port to hand the daemon child (0.353249ms)
+
+Interrupted while running:
+
+⚠ apps/website/src/server/runtime/lifecycle/__tests__/close-store-on-shutdown.test.ts (apps/website/src/server/runtime/lifecycle/__tests__/close-store-on-shutdown.test.ts:1:1)

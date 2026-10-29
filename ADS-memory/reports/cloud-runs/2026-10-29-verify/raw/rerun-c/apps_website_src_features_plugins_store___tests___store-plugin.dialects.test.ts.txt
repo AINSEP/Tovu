@@ -1,0 +1,52 @@
+▶ store plugin data [sqlite]
+  ✔ declares both tables with the manifest's column types (129.897046ms)
+  ✔ seeds once, lists by title with numeric fields, and a second activation does not re-seed (109.520787ms)
+  ✔ checkout decrements stock, bumps the version and writes one order; refusals write nothing (108.829718ms)
+  ✖ an order INSERT failure rolls back the preceding stock and version update (136.96066ms)
+  ✔ concurrent checkouts never oversell (103.588607ms)
+✖ store plugin data [sqlite] (590.463348ms)
+▶ store plugin data [pglite]
+  ✔ declares both tables with the manifest's column types (3555.358585ms)
+  ✔ seeds once, lists by title with numeric fields, and a second activation does not re-seed (69.356083ms)
+  ✔ checkout decrements stock, bumps the version and writes one order; refusals write nothing (53.003036ms)
+  ✖ an order INSERT failure rolls back the preceding stock and version update (40.761467ms)
+  ✔ concurrent checkouts never oversell (59.644841ms)
+✖ store plugin data [pglite] (3779.166118ms)
+ℹ tests 10
+ℹ suites 2
+ℹ pass 8
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5695.239831
+
+✖ failing tests:
+
+test at apps/website/src/features/plugins/store/__tests__/store-plugin.dialects.test.ts:1:3021
+✖ an order INSERT failure rolls back the preceding stock and version update (136.96066ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/plugins/store/__tests__/store-plugin.dialects.test.ts:96:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /unique|duplicate/i,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/plugins/store/__tests__/store-plugin.dialects.test.ts:1:3021
+✖ an order INSERT failure rolls back the preceding stock and version update (40.761467ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/plugins/store/__tests__/store-plugin.dialects.test.ts:96:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /unique|duplicate/i,
+    operator: 'rejects',
+    diff: 'simple'
+  }

@@ -1,0 +1,41 @@
+✔ comment stripping: prose never counts, SQL in strings and templates does (12.33053ms)
+✔ a bare `.prepare()` (a lifecycle hook, no SQL) is not a prepared statement (1.359258ms)
+✔ an object-literal `.prepare({...})` (the secrets vault port) is not a prepared statement (1.622177ms)
+✔ better-sqlite3's inTransaction property counts; the kernel port's inTransaction() call does not (2.347393ms)
+✔ literal computed prepare calls cannot bypass the SQLite ratchet (2.596556ms)
+✖ no new raw SQLite outside the storage kernel (ratchet: the baseline only shrinks) (2470.35052ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 5
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3507.329168
+
+✖ failing tests:
+
+test at apps/website/src/platform/db/kernel/__tests__/no-raw-sqlite.boundary.test.ts:1:1784
+✖ no new raw SQLite outside the storage kernel (ratchet: the baseline only shrinks) (2470.35052ms)
+  AssertionError [ERR_ASSERTION]: New raw SQLite outside platform/db/kernel. Use the storage kernel (run/transaction + Drizzle, dialect.ts helpers) instead.
+  + actual - expected
+  
+  + [
+  +   'apps/website/src/platform/db/sqlite/fresh-content-db.ts: $client 1 -> 2'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/no-raw-sqlite.boundary.test.ts:83:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ 'apps/website/src/platform/db/sqlite/fresh-content-db.ts: $client 1 -> 2' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

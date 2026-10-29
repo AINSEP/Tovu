@@ -1,0 +1,14 @@
+✔ peer artifact PUT → anonymous HEAD/GET → DELETE uses remote workspace and no receiver env opt-in (178.514961ms)
+✔ delivery selection prefers connected live, falls back to object storage then ZIP, and pins revoke binding (0.883245ms)
+✔ backend revoke resolves local rows without a delivery and disables exactly once (12.35796ms)
+✔ a failed peer verification removes the remote upload and keeps the source row failed (8.245059ms)
+✔ no delivery returns a private ZIP download and a clear link-setup message (89.979627ms)
+✔ peer deletion treats only 404 as already absent and never sends an invalid artifact path (1.050021ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2674.860367

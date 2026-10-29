@@ -1,0 +1,5 @@
+check:route-coverage-floor — 333 measurable src/server/routes/** files
+  line:   99.41% (floor 99%)
+  branch: 79.65% (floor 68%)
+  funcs:  98.45% (floor 93%)
+check:route-coverage-floor — OK

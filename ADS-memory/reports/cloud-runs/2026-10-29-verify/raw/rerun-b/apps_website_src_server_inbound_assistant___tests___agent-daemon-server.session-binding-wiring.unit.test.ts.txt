@@ -1,0 +1,84 @@
+✔ runtime: cold and resumed CLI cwd defaults to the site directory (244.025738ms)
+✔ runtime: cold and resumed CLI cwd ignores TOVU_AGENT_CWD (owner 2026-10-23) (119.393236ms)
+✔ runtime: a new CLI session receives prior conversation context, while a resumed session keeps its compact prompt (75.189234ms)
+✔ runtime: first switches, A→B→A repeats and lost sessions select one transcript and isolate conversations (111.862903ms)
+✔ runtime: a cold dispatch waits for durable persistence and resumes that exact executor session next turn (65.894536ms)
+✔ runtime: concurrent dispatches serialize the lookup and pending write, minting only one session (53.28193ms)
+▶ Defect 1 wiring — the conversation/session binding must be written at DISPATCH
+  ✔ imports the host-minting decisions from the pure decision module (0.781802ms)
+  ✔ a binding write exists at dispatch rather than only in the event subscription (0.463331ms)
+  ✖ the dispatch-time write is awaited, so the binding is durable before the CLI is ever spawned (4.992289ms)
+  ✖ the minted id is both persisted and handed to AgentExecutor.run — one id, not two (0.620227ms)
+  ✔ the mint decision is gated on the def actually accepting a host-minted id (3.033974ms)
+✖ Defect 1 wiring — the conversation/session binding must be written at DISPATCH (10.703847ms)
+▶ Defect 1 wiring — run starts must be serialized per conversation
+  ✔ imports createConversationStartLock and constructs exactly one module-level instance (0.355255ms)
+  ✖ the stored-session lookup AND the dispatch-time write both run inside the lock (0.367023ms)
+  ✔ agentExecutor.run is NOT inside the locked section (0.127112ms)
+✖ Defect 1 wiring — run starts must be serialized per conversation (1.078428ms)
+ℹ tests 14
+ℹ suites 2
+ℹ pass 11
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2107.434484
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:6:4911
+✖ the dispatch-time write is awaited, so the binding is durable before the CLI is ever spawned (4.992289ms)
+  AssertionError [ERR_ASSERTION]: the awaited agentExecutor.run call must exist
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:274:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:6:6467
+✖ the minted id is both persisted and handed to AgentExecutor.run — one id, not two (0.620227ms)
+  AssertionError [ERR_ASSERTION]: the mint decision must be made before agentExecutor.run is called
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:300:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:6:8822
+✖ the stored-session lookup AND the dispatch-time write both run inside the lock (0.367023ms)
+  AssertionError [ERR_ASSERTION]: the lock must be entered before agentExecutor.run is reached
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:340:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1905:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

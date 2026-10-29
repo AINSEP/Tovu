@@ -1,0 +1,44 @@
+### 20-tovu-typecheck-root
+apps/website/src/assistant/duplicate-resource-registry.ts(97,10): error TS2352: Conversion of type 'DuplicateResourceHandlerContributor<never>[]' to type 'readonly DuplicateResourceHandlerContributor<TDeps>[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the express
+apps/website/src/server/inbound/admin-http/routes/system/assistant-permanent-deletes.ts(23,46): error TS2769: No overload matches this call.
+apps/website/src/server/inbound/admin-http/routes/system/assistant-permanent-deletes.ts(23,76): error TS18046: 'body.allowedToolIds' is of type 'unknown'.
+apps/website/src/server/inbound/admin-http/routes/system/assistant-permanent-deletes.ts(26,70): error TS2488: Type 'unknown' must have a '[Symbol.iterator]()' method that returns an iterator.
+apps/website/src/server/runtime/composition/tool-catalog-manifest.ts(422,52): error TS2345: Argument of type 'DnsRouteDeps' is not assignable to parameter of type 'SavedHostingDeps'.
+### 20b-tovu-typecheck-e2e
+apps/website/src/assistant/duplicate-resource-registry.ts(97,10): error TS2352: Conversion of type 'DuplicateResourceHandlerContributor<never>[]' to type 'readonly DuplicateResourceHandlerContributor<TDeps>[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the express
+apps/website/src/server/inbound/admin-http/routes/system/assistant-permanent-deletes.ts(23,46): error TS2769: No overload matches this call.
+apps/website/src/server/inbound/admin-http/routes/system/assistant-permanent-deletes.ts(23,76): error TS18046: 'body.allowedToolIds' is of type 'unknown'.
+apps/website/src/server/inbound/admin-http/routes/system/assistant-permanent-deletes.ts(26,70): error TS2488: Type 'unknown' must have a '[Symbol.iterator]()' method that returns an iterator.
+apps/website/src/server/runtime/composition/tool-catalog-manifest.ts(422,52): error TS2345: Argument of type 'DnsRouteDeps' is not assignable to parameter of type 'SavedHostingDeps'.
+### 21-tovu-typecheck-scripts
+apps/website/src/assistant/duplicate-resource-registry.ts(97,10): error TS2352: Conversion of type 'DuplicateResourceHandlerContributor<never>[]' to type 'readonly DuplicateResourceHandlerContributor<TDeps>[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the express
+apps/website/src/server/inbound/admin-http/routes/system/assistant-permanent-deletes.ts(23,46): error TS2769: No overload matches this call.
+apps/website/src/server/inbound/admin-http/routes/system/assistant-permanent-deletes.ts(23,76): error TS18046: 'body.allowedToolIds' is of type 'unknown'.
+apps/website/src/server/inbound/admin-http/routes/system/assistant-permanent-deletes.ts(26,70): error TS2488: Type 'unknown' must have a '[Symbol.iterator]()' method that returns an iterator.
+apps/website/src/server/runtime/composition/tool-catalog-manifest.ts(422,52): error TS2345: Argument of type 'DnsRouteDeps' is not assignable to parameter of type 'SavedHostingDeps'.
+development/evals/tool-search-eval-registry.ts(89,48): error TS2314: Generic type 'AssistantToolContributions<TDeps, TSurfaces>' requires 2 type argument(s).
+development/evals/tool-search-eval-registry.ts(91,90): error TS2314: Generic type 'ToolContributor' requires 2 type argument(s).
+development/evals/tool-search-eval-registry.ts(92,97): error TS2314: Generic type 'DerivedToolContributor' requires 2 type argument(s).
+### 24-tovu-typecheck-desktop-main
+apps/website/src/platform/site-dir/site-trash.ts(87,3): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+### 25-tovu-typecheck-tests
+apps/website/src/assistant/duplicate-resource-registry.ts(97,10): error TS2352: Conversion of type 'DuplicateResourceHandlerContributor<never>[]' to type 'readonly DuplicateResourceHandlerContributor<TDeps>[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the express
+apps/website/src/features/agent-plugins/__tests__/unit/access-token-tool.unit.test.ts(95,70): error TS2345: Argument of type '{ workspaceId: string; authorize: AuthorizeFn; clock: { nowMs: () => number; nowIso: () => string; }; externalMcpServerRepo: InMemoryExternalMcpServerRepo; ... 10 more ...; skillLayout: SkillLayout; }' is
+apps/website/src/features/agent-plugins/__tests__/unit/import-access-token.unit.test.ts(80,80): error TS2345: Argument of type '{ workspaceId: string; clock: { nowMs: () => number; nowIso: () => string; }; externalMcpServerRepo: InMemoryExternalMcpServerRepo; siteAssistantSecretSealer: AesGcmSecretSealer; ... 8 more ...; skillLa
+apps/website/src/server/inbound/admin-http/routes/members/__tests__/unit/h4-magic-link.unit.test.ts(28,48): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/server/inbound/admin-http/routes/sites/__tests__/unit/h4-site-effects.unit.test.ts(22,28): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/server/inbound/admin-http/routes/system/__tests__/unit/h4-sites.unit.test.ts(42,30): error TS7031: Binding element 'name' implicitly has an 'any' type.
+apps/website/src/server/inbound/admin-http/routes/system/assistant-permanent-deletes.ts(23,46): error TS2769: No overload matches this call.
+apps/website/src/server/inbound/admin-http/routes/system/assistant-permanent-deletes.ts(23,76): error TS18046: 'body.allowedToolIds' is of type 'unknown'.
+apps/website/src/server/inbound/admin-http/routes/system/assistant-permanent-deletes.ts(26,70): error TS2488: Type 'unknown' must have a '[Symbol.iterator]()' method that returns an iterator.
+apps/website/src/server/inbound/public-http/middleware/__tests__/site-consent-policy.unit.test.ts(77,18): error TS18047: 'host' is possibly 'null'.
+apps/website/src/server/inbound/public-http/middleware/__tests__/site-consent-policy.unit.test.ts(77,18): error TS18047: 'host.shadowRoot' is possibly 'null'.
+apps/website/src/server/inbound/public-http/middleware/__tests__/site-consent-policy.unit.test.ts(78,18): error TS18047: 'host' is possibly 'null'.
+apps/website/src/server/inbound/public-http/routes/members/__tests__/unit/h4-oidc.unit.test.ts(26,102): error TS2353: Object literal may only specify known properties, and 'nowIso' does not exist in type 'Clock | PortMethods<Clock>'.
+apps/website/src/server/inbound/public-http/routes/members/__tests__/unit/h4-oidc.unit.test.ts(123,12): error TS2352: Conversion of type '{ identities: { listByMember: () => Promise<({ providerId: string; unlinkedAt: null; } | { providerId: string; unlinkedAt: string; })[]>; }; }' to type 'MemberLoginLinkDeps' may be a mistake b
+apps/website/src/server/inbound/public-http/routes/site/__tests__/unit/h4-pages.unit.test.ts(11,72): error TS2322: Type '(name: string) => string' is not assignable to type '{ (name: "set-cookie"): string[] | undefined; (name: string): string | undefined; }'.
+apps/website/src/server/runtime/composition/__tests__/provider-settings-required.unit.test.ts(116,25): error TS2322: Type '{ auth: string; } | { auth?: undefined; }' is not assignable to type 'Readonly<Record<string, string>>'.
+apps/website/src/server/runtime/composition/tool-catalog-manifest.ts(422,52): error TS2345: Argument of type 'DnsRouteDeps' is not assignable to parameter of type 'SavedHostingDeps'.
+development/evals/tool-search-eval-registry.ts(89,48): error TS2314: Generic type 'AssistantToolContributions<TDeps, TSurfaces>' requires 2 type argument(s).
+development/evals/tool-search-eval-registry.ts(91,90): error TS2314: Generic type 'ToolContributor' requires 2 type argument(s).
+development/evals/tool-search-eval-registry.ts(92,97): error TS2314: Generic type 'DerivedToolContributor' requires 2 type argument(s).

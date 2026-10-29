@@ -1,0 +1,42 @@
+✔ status reports installed:true once the audit table exists (298.122111ms)
+✔ status answers its own 500 when authorization fails (134.223107ms)
+✔ run summary is the 503 when audit storage is not installed (218.689084ms)
+✔ run summary hides a source-side log as not found (176.035355ms)
+✔ run summary offers undo for a failure only when it recorded inverses (159.999272ms)
+✔ run summary answers its own 500 when the audit read fails (142.091772ms)
+✔ gaps: foreign workspace 404, denied 403, uninstalled [], installed list, failure 500 (728.520388ms)
+✔ send-by-hand refuses a body with no peerId (157.755266ms)
+✔ send-by-hand answers an unknown peer with 404 (144.384163ms)
+✔ send-by-hand answers a non-Error failure with its fixed 409 text (150.120764ms)
+✔ send-by-hand is the 503 when audit storage is not installed (132.552282ms)
+✔ an action that is neither plan nor send is refused after the address check (178.203658ms)
+✔ send refuses no logId with 409 before dialing the peer (141.893711ms)
+✔ send refuses unknown log with 409 before dialing the peer (152.979562ms)
+✔ send refuses destination-side log with 409 before dialing the peer (140.672848ms)
+✔ send refuses another actor's plan with 409 before dialing the peer (176.499061ms)
+✔ send refuses a plan for another address with 409 before dialing the peer (180.858171ms)
+✔ send refuses a plan already sent with 409 before dialing the peer (132.555319ms)
+✔ send refuses a different reason with 409 before dialing the peer (133.56987ms)
+✔ send refuses a plan for another peer with 409 before dialing the peer (184.473765ms)
+✔ send confirms and executes the checked plan on the peer and records the run (120.249886ms)
+✔ plan with nothing to send answers an empty plan and records nothing (110.404834ms)
+✔ plan refuses overwrite keys that are a non-array (111.418716ms)
+✔ plan refuses overwrite keys that are a key outside the selection (108.869509ms)
+✔ plan refuses overwrite keys that are a non-string key (334.672525ms)
+✔ plan pushes the selected rows with their audit metadata and records the planned send (187.037577ms)
+✔ plan forwards selected overwrite keys to the peer and echoes them (124.874583ms)
+✔ plan to a live site that cannot take raw rows fails the send with 409 and records the failure (136.603635ms)
+✔ undo is the 503 when audit storage is not installed (176.114176ms)
+✔ undo refuses a run with no undo available: missing, source-side, undone, or a failure without inverses (156.869354ms)
+✔ undo answers a failure with the error's own message as 409 (138.284793ms)
+✔ every backstop route 404s a foreign workspace before anything else (125.272256ms)
+✔ run summary refuses a machine credential before reading the audit log (234.798561ms)
+✔ plan uploads a selected file's bytes the peer is missing before staging the bundle (1050.653729ms)
+ℹ tests 34
+ℹ suites 0
+ℹ pass 34
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13710.640714

@@ -1,0 +1,5 @@
+
+> tovu@0.1.0 coverage:all-files
+> node --import tsx development/scripts/coverage-all-files.ts --repo . --coverage development/coverage/lcov.info --out ADS-memory/reports/cloud-runs/2026-10-29-verify/raw/coverage-all-files
+
+All-files: 3313 files; 1241 NEVER-LOADED; lines 294146/343091 (85.73%)

@@ -1,0 +1,37 @@
+✔ stock themes resolve to content/themes via the product-root walk-up, landing on the real repo root's content/ (1.217325ms)
+✔ bundled agent plugins resolve to content/agent-plugins via the product-root walk-up (0.387218ms)
+✖ stock resolvers work from a dist/src module layout independently of cwd (79.269229ms)
+✔ site templates resolve to content/templates via the product-root walk-up (0.703144ms)
+✔ no stock data directory is left behind inside src/ (0.468533ms)
+✔ the build script copies stock data to dist/content, not dist/src (16.220099ms)
+✔ every asset copy in the build script cleans its destination first (8.40561ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 6
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5699.641653
+
+✖ failing tests:
+
+test at apps/website/src/server/__tests__/unit/stock-content-dirs.unit.test.ts:1:2225
+✖ stock resolvers work from a dist/src module layout independently of cwd (79.269229ms)
+  AssertionError [ERR_ASSERTION]: missing resolver builtInThemesDir
+      at <anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/unit/stock-content-dirs.unit.test.ts:119:12)
+      at Array.map (<anonymous>)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/unit/stock-content-dirs.unit.test.ts:117:73)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

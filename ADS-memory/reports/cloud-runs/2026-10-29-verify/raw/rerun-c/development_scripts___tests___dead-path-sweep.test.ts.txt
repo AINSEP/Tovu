@@ -1,0 +1,78 @@
+✔ sweepFiles emits the complete finding for a planted single-segment path.join (6.535459ms)
+✖ dead-path sweep: no path reference outside the known-broken register resolves to nothing (825.948495ms)
+✔ known-broken register has no stale entries — every listed reference is still actually broken (665.762861ms)
+✔ known-broken register is exactly the 1 reference remaining after the theme-tool repair — growth needs a deliberate edit (0.296015ms)
+✔ module-relative fixture URLs resolve beside the importer and still report missing files (3.1633ms)
+✔ every known-broken entry carries a non-empty rationale (0.46201ms)
+✔ the sweep actually looks at something — target enumeration is not silently empty (1.63404ms)
+✔ historical: the pre-921d705f generate-seed-content.ts imports are flagged as dead (0.844541ms)
+✔ historical: the fixed generate-seed-content.ts imports resolve, so the check above is not trivially true (0.542872ms)
+✔ historical: the pre-7fb47f55 drizzle.config.ts path strings are flagged as dead (5.020939ms)
+✔ historical: a repointed drizzle config's path strings resolve, so the check above is not trivially true (4.759071ms)
+✔ historical [adversarial]: the pre-678b6464 route-coverage-lib.ts prefixes are flagged as dead now that trailing-/ literals with real directory structure are classified (4.527245ms)
+✔ historical: the current route-coverage-lib.ts prefixes resolve, so the check above is not trivially true (4.75994ms)
+✔ extractPathJoinSegments finds the trailing string-literal run and ignores the non-literal base (0.223013ms)
+✔ extractPathJoinSegments stops the trailing run at the first non-literal argument, however many literals came before it (0.095557ms)
+✔ extractPathJoinSegments finds nothing when no argument is a trailing string literal (0.062732ms)
+✔ extractPathJoinSegments ignores calls other than path.join/path.resolve (0.090782ms)
+✔ extractPathJoinSegments finds the literal directory run BEFORE a trailing non-literal argument, not just before the end (0.075077ms)
+✔ dropLeadingParentSegments strips only the leading .. run, keeping a .. that appears later (0.127816ms)
+✔ dropLeadingParentSegments: given the file's depth, only an EXACT '..' count is trusted to land at repo root (0.125ms)
+✔ fileDirectoryDepth counts directory levels below the repo root (0.061638ms)
+✔ closed: dropLeadingParentSegments + fileDirectoryDepth reject a real file's mismatched '..' count end to end (0.082314ms)
+✔ closed: a SINGLE meaningful segment in a path.join/path.resolve call is no longer invisible — closes the check-outbox-bridge.ts / rewrite-deep-imports.ts blind spot (8.814986ms)
+✔ historical [direct]: the pre-fix SRC_DIR/SERVER_DIR shapes resolve to nothing under REPO_ROOT — both the one-segment and two-segment forms (3.645693ms)
+✔ historical: the current check-outbox-bridge.ts, check-capability-inventory.ts, and rewrite-deep-imports.ts path.join/path.resolve calls resolve, so the checks above are not trivially true (4.737521ms)
+✔ stripComments blanks comments without touching string literals or line numbers (0.166002ms)
+✔ stripComments keeps a // sequence that lives inside a string literal (0.118526ms)
+✔ extractRelativeImportSpecifiers finds from/side-effect/dynamic/require forms and ignores bare specifiers (0.13685ms)
+✔ resolveImportCandidates applies the .js-written/.ts-on-disk rewrite (0.176001ms)
+✔ ESM queries and fragments resolve the file while missing queried modules remain dead (0.203048ms)
+✔ installed ESLint rule IDs are not paths; unknown files under that segment remain checked (0.146932ms)
+✔ resolveImportCandidates really resolves this repo's own .js-written imports (0.242155ms)
+✔ classifyRepoRelativeString names the rule for every string it declines (0.217598ms)
+✔ SKIP_REASONS is exactly the SkipReason union — neither the rule tables nor the type can grow alone (0.226883ms)
+✔ classifyRepoRelativeString hands a `./` literal that is also an import specifier back to class 1 (0.162404ms)
+✔ classifyRepoRelativeString recognizes a first segment that only exists deeper in the tree — the whole point (3.687232ms)
+✔ classifyRepoRelativeString [adversarial]: a trailing-/ literal with real directory structure is classified and checked, not exempted — the route-coverage-lib.ts escape (3.30534ms)
+✔ classifyRepoRelativeString: a trailing-/ literal naming only ONE segment stays skipped — no regression for real non-path usage (10.001718ms)
+✔ pathThatMustExist requires source files whole and non-source paths only down to their directory (0.208333ms)
+✔ generated coverage artifacts are not reported as dead paths (728.61649ms)
+✔ shouldScanStringsIn excludes test files' fixture paths but not their imports (772.885215ms)
+ℹ tests 41
+ℹ suites 0
+ℹ pass 40
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4171.756011
+
+✖ failing tests:
+
+test at development/scripts/__tests__/dead-path-sweep.test.ts:1:2753
+✖ dead-path sweep: no path reference outside the known-broken register resolves to nothing (825.948495ms)
+  AssertionError [ERR_ASSERTION]: a path reference under development/scripts or the db tooling points at a file that does not exist
+  + actual - expected
+  
+  + [
+  +   'development/scripts/coverage-changed.ts:33 [repo-relative-string] "ADS-memory/.local-artifacts/test-slots/run-gated.sh" -> none of ADS-memory/.local-artifacts/test-slots exist',
+  +   'development/scripts/coverage-changed.ts:34 [repo-relative-string] "ADS-memory/.local-artifacts/codex-waves/features-2026-10-04/common.md" -> none of ADS-memory/.local-artifacts/codex-waves/features-2026-10-04 exist',
+  +   'development/scripts/coverage-changed.ts:478 [repo-relative-string] "ADS-memory/.local-artifacts/coverage-changed" -> none of ADS-memory/.local-artifacts exist'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/dead-path-sweep.test.ts:230:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ 'development/scripts/coverage-changed.ts:33 [repo-relative-string] "ADS-memory/.local-artifacts/test-slots/run-gated.sh" -> none of ADS-memory/.local-artifacts/test-slots exist', 'development/scripts/coverage-changed.ts:34 [repo-relative-string] "ADS-memory/.local-artifacts/codex-waves/features-2026-10-04/common.md" -> none of ADS-memory/.local-artifacts/codex-waves/features-2026-10-04 exist', 'development/scripts/coverage-changed.ts:478 [repo-relative-string] "ADS-memory/.local-artifacts/coverage-changed" -> none of ADS-memory/.local-artifacts exist' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

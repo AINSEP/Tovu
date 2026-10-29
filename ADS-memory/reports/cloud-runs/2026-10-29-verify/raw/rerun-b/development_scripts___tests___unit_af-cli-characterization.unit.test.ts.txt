@@ -1,0 +1,39 @@
+✔ admin route CLI resolves nested placeholders and reports the unmatched concrete URL (305.978546ms)
+✔ activation CLI lists explicit provenance and writes the enable decision through its owner (384.410109ms)
+✔ outbox CLI ignores comment/string decoys and distinguishes raw adapters from unresolved deps (259.904188ms)
+✔ registry drift CLI skips projects with no registry Jini dependencies (146.811131ms)
+✖ brand icon CLI keeps the letter and removes the disconnected frame from the simplified master (627.44891ms)
+✔ trash backfill CLI opens dry runs read-only and reports absent domain tables (319.656521ms)
+✔ OpenAPI contract CLI selects every applicable probe and closes after idempotency replays (224.513887ms)
+✔ secret leak CLI preserves the canary pair during the sweep and fails on a leaked canary (230.667623ms)
+✔ coverage triage CLI includes complexity-only files absent from both coverage tiers (266.857867ms)
+✔ web dev CLI attaches to the selected running site and opens its admin URL (353.516762ms)
+✔ desktop dev CLI builds preload before watching and forwards Electron flags on normal exit (544.486714ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 10
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3965.12306
+
+✖ failing tests:
+
+test at development/scripts/__tests__/unit/af-cli-characterization.unit.test.ts:24:1892
+✖ brand icon CLI keeps the letter and removes the disconnected frame from the simplified master (627.44891ms)
+  AssertionError [ERR_ASSERTION]: build-brand-icons: full-logo artwork (170,170)-(1089,1089) is not fully inside the 904px crop at (178,178); it would be clipped.
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/unit/af-cli-characterization.unit.test.ts:133:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

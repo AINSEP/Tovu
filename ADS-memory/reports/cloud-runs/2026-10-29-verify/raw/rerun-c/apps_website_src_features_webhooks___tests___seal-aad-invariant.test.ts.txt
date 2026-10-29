@@ -1,0 +1,28 @@
+✔ a call with aad as a plain property is compliant (5.837808ms)
+✔ a call with aad built from a helper call is compliant (1.020625ms)
+✔ a call with no aad property at all is a missing-aad violation (0.521947ms)
+✔ MULTILINE call with no aad is still caught — the exact shape a single-line grep missed (1.878496ms)
+✔ MULTILINE call WITH aad (the real shape after the fix) is compliant (0.854551ms)
+✔ aad explicitly set to the literal `undefined` is a violation, not a pass (0.893649ms)
+✔ a spread argument is fail-closed as unresolved, not silently passed (0.554222ms)
+✔ a pre-built variable argument is fail-closed as unresolved, not silently passed (0.300472ms)
+✔ an unrelated .seal( on some other object is still scanned (name-based, not type-resolved) — documented trade-off (6.50001ms)
+✔ the documented non-secret port.seal call is exempt only in apps/website/src/features/plugin-runtime/source-tools.ts (1.376095ms)
+✔ secret seals in apps/website/src/features/plugin-runtime/source-tools.ts still fail closed, including on receiver port (2.093252ms)
+✔ the documented non-secret capture.seal call is exempt only in apps/website/src/server/runtime/composition/plugin-runtime.ts (1.460172ms)
+✔ secret seals in apps/website/src/server/runtime/composition/plugin-runtime.ts still fail closed, including on receiver capture (0.543ms)
+✔ a .open( call is never flagged — this invariant only covers seal() (0.288347ms)
+✔ REGRESSION: every real SecretSealerPort.seal() call site under apps/website/src supplies aad today (1776.804987ms)
+✔ filesystem scan ignores node_modules and dist but reports a violation outside them (3.26863ms)
+✔ the CLI exits successfully and prints OK when the real repository has no seal violations (2527.749941ms)
+✔ filesystem scan and CLI report a known violating file with a nonzero exit (671.511194ms)
+✔ a quoted or computed 'aad' key is not recognised as aad, so the call fails closed as missing-aad (0.63016ms)
+✔ a .tsx display path is parsed as TSX, so JSX around a seal() call does not hide it (1.453537ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5817.544363

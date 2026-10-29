@@ -1,0 +1,526 @@
+[
+ {
+  "shard": "0",
+  "file": "apps/site-chat/src/__tests__/SiteAssistantActivation.test.ts",
+  "line": 1,
+  "name": "apps/site-chat/src/__tests__/SiteAssistantActivation.test.ts",
+  "err": [
+   "  'test failed'"
+  ]
+ },
+ {
+  "shard": "0",
+  "file": "apps/website/src/server/inbound/admin-http/routes/sites/__tests__/unit/h4-site-effects.unit.test.ts",
+  "line": 1,
+  "name": "sites settings validate every root before calling the settings writer",
+  "err": [
+   "  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+   "  + actual - expected",
+   "    {",
+   "      jsonBody: {",
+   "  +     error: 'Sites folder is unavailable: /private/tmp. Mount it or choose an existing local folder.'",
+   "  -     error: 'Choose an absolute folder path for sites settings.'",
+   "      },",
+   "      statusCode: 400",
+   "    }",
+   "    generatedMessage: true,",
+   "    code: 'ERR_ASSERTION',",
+   "    actual: { statusCode: 400, jsonBody: { error: 'Sites folder is unavailable: /private/tmp. Mount it or choose an existing local folder.' } },",
+   "    expected: { statusCode: 400, jsonBody: { error: 'Choose an absolute folder path for sites settings.' } },",
+   "    operator: 'deepStrictEqual',",
+   "    diff: 'simple'"
+  ]
+ },
+ {
+  "shard": "0",
+  "file": "apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-resume-wiring.unit.test.ts",
+  "line": 1,
+  "name": "hasConcurrentLiveRun gates whether this run may read/pass a stored resumeSessionId",
+  "err": [
+   "  AssertionError [ERR_ASSERTION]: this test's own anchor (the agentExecutor.run call) must still exist verbatim",
+   "    generatedMessage: false,",
+   "    code: 'ERR_ASSERTION',",
+   "    actual: false,",
+   "    expected: true,",
+   "    operator: '==',",
+   "    diff: 'simple'",
+   "  }"
+  ]
+ },
+ {
+  "shard": "0",
+  "file": "apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-resume-wiring.unit.test.ts",
+  "line": 1,
+  "name": "the context-loss check runs, and refuses the run (finish + return), strictly before agentExecutor.run is called",
+  "err": [
+   "  AssertionError [ERR_ASSERTION]: this test's own anchor (the agentExecutor.run call) must still exist verbatim",
+   "    generatedMessage: false,",
+   "    code: 'ERR_ASSERTION',",
+   "    actual: false,",
+   "    expected: true,",
+   "    operator: '==',",
+   "    diff: 'simple'",
+   "  }"
+  ]
+ },
+ {
+  "shard": "1",
+  "file": "apps/site-chat/src/__tests__/SiteAssistantHeader.test.ts",
+  "line": 1,
+  "name": "apps/site-chat/src/__tests__/SiteAssistantHeader.test.ts",
+  "err": [
+   "  'test failed'"
+  ]
+ },
+ {
+  "shard": "1",
+  "file": "apps/website/src/server/inbound/assistant/__tests__/assistant-system-overlay.unit.test.ts",
+  "line": 1,
+  "name": "native fallback guidance stops after one denial and confines genuine shell gaps for every CLI",
+  "err": [
+   "  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /no ~\\/\\.claude\\/tool-results or other CLI spill-file reads/. Input:",
+   "  'Before planning or building this site, call site_guide({\"operation\":\"overview\"}), then site_guide({\"operation\":\"explain\",\"topic\":\"<topic id from overview>\"}) for the relevant building blocks. If tools are proxied, use",
+   "    generatedMessage: true,",
+   "    code: 'ERR_ASSERTION',",
+   "    actual: 'Before planning or building this site, call site_guide({\"operation\":\"overview\"}), then site_guide({\"operation\":\"explain\",\"topic\":\"<topic id from overview>\"}) for the relevant building blocks. If tools are pr",
+   "    expected: /no ~\\/\\.claude\\/tool-results or other CLI spill-file reads/,",
+   "    operator: 'match',",
+   "    diff: 'simple'",
+   "  }"
+  ]
+ },
+ {
+  "shard": "1",
+  "file": "content/agent-plugins/vercel/targets/__tests__/vercel.test.mjs",
+  "line": 715,
+  "name": "returns the last known deployment state once polling exhausts its 30-attempt budget without a terminal readyState",
+  "err": [
+   "  'test timed out after 20000ms'"
+  ]
+ },
+ {
+  "shard": "1",
+  "file": "content/agent-plugins/vercel/targets/__tests__/vercel.test.mjs",
+  "line": 821,
+  "name": "includes teamId (preferred over teamSlug) or teamSlug in the query string when configured",
+  "err": [
+   "  AssertionError [ERR_ASSERTION]: expected [\"/v2/files\",\"/v13/deployments\",\"/v13/deployments/dpl_never_ready\",\"/v13/deployments/dpl_scoped\"] to equal [\"/v2/files\",\"/v13/deployments\",\"/v13/deployments/dpl_scoped\"]",
+   "    generatedMessage: false,",
+   "    code: 'ERR_ASSERTION',",
+   "    actual: undefined,",
+   "    expected: undefined,",
+   "    operator: 'fail',",
+   "    diff: 'simple'",
+   "  }"
+  ]
+ },
+ {
+  "shard": "1",
+  "file": "development/scripts/__tests__/unit/script-inventory-characterization.unit.test.ts",
+  "line": 5,
+  "name": "write-path CLI resolves table mutations, bare/property callers and unresolved ports",
+  "err": [
+   "  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+   "  + actual - expected",
+   "    [",
+   "      {",
+   "        caller: '(no implementation found in project)',",
+   "        contractMethod: 'MissingRepo.save',",
+   "        coverageClass: 'unknown'",
+   "      },",
+   "      {",
+   "  +     caller: '(anonymous)',",
+   "  -     caller: 'write',",
+   "        contractMethod: 'DraftPort.save',",
+   "        coverageClass: 'executeCommand'",
+   "      }",
+   "    ]"
+  ]
+ },
+ {
+  "shard": "2",
+  "file": "apps/site-chat/src/__tests__/SiteAssistantWidget.confirmation.test.ts",
+  "line": 1,
+  "name": "apps/site-chat/src/__tests__/SiteAssistantWidget.confirmation.test.ts",
+  "err": [
+   "  'test failed'"
+  ]
+ },
+ {
+  "shard": "2",
+  "file": "apps/site-chat/src/__tests__/entries.test.ts",
+  "line": 1,
+  "name": "main mounts the React widget, runs a queued highlight, and creates its own root when a page has none",
+  "err": [
+   "  Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@jini-ai/ui-kit' imported from /home/user/Jini/packages/ui/dist/react/components/SecretInput.js",
+   "    code: 'ERR_MODULE_NOT_FOUND'",
+   "  }"
+  ]
+ },
+ {
+  "shard": "2",
+  "file": "apps/website/src/platform/site-dir/__tests__/integration/duplicate-pglite-site.integration.test.ts",
+  "line": 1,
+  "name": "apps/website/src/platform/site-dir/__tests__/integration/duplicate-pglite-site.integration.test.ts",
+  "err": [
+   "  'test failed'"
+  ]
+ },
+ {
+  "shard": "2",
+  "file": "apps/website/src/server/runtime/composition/__tests__/webhook-delivery-worker.shutdown.test.ts",
+  "line": 1,
+  "name": "a receiver trickling bytes forever is cut off by the total deadline through the guarded client",
+  "err": [
+   "  AssertionError [ERR_ASSERTION]: the receiver was still sending when it was cut off",
+   "    generatedMessage: false,",
+   "    code: 'ERR_ASSERTION',",
+   "    actual: false,",
+   "    expected: true,",
+   "    operator: '==',",
+   "    diff: 'simple'",
+   "  }"
+  ]
+ },
+ {
+  "shard": "2",
+  "file": "packages/sdk/src/__tests__/unit/sdk-public-api.unit.test.ts",
+  "line": 12,
+  "name": "SDK external type contracts are declared package dependencies for standalone consumers",
+  "err": [
+   "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+   "  'next' !== '^0.6.13'",
+   "    generatedMessage: true,",
+   "    code: 'ERR_ASSERTION',",
+   "    actual: 'next',",
+   "    expected: '^0.6.13',",
+   "    operator: 'strictEqual',",
+   "    diff: 'simple'",
+   "  }"
+  ]
+ },
+ {
+  "shard": "3a",
+  "file": "apps/website/src/assistant/persistence/__tests__/release-manifests.test.ts",
+  "line": 1,
+  "name": "root/admin/site-chat select the same new chat release and preserve the UI override",
+  "err": [
+   "  TypeError [Error]: Invalid comparator: next"
+  ]
+ },
+ {
+  "shard": "3b",
+  "file": "apps/website/src/features/site-backup/__tests__/share-delivery.integration.test.ts",
+  "line": 1,
+  "name": "no delivery returns a private ZIP download and a clear link-setup message",
+  "err": [
+   "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+   "  + actual - expected",
+   "  + undefined",
+   "  - null",
+   "    generatedMessage: true,",
+   "    code: 'ERR_ASSERTION',",
+   "    actual: undefined,",
+   "    expected: null,",
+   "    operator: 'strictEqual',",
+   "    diff: 'simple'",
+   "  }"
+  ]
+ },
+ {
+  "shard": "3c",
+  "file": "content/agent-plugins/github-pages/targets/__tests__/github-pages.test.mjs",
+  "line": 566,
+  "name": "proceeds to the reachability wait using whatever Pages URL it already has when the build poll exhausts its 30-attempt budget",
+  "err": [
+   "  'test timed out after 20000ms'"
+  ]
+ },
+ {
+  "shard": "3c",
+  "file": "content/agent-plugins/github-pages/targets/__tests__/github-pages.test.mjs",
+  "line": 793,
+  "name": "keeps polling past a builds/latest entry with a non-string commit or status field before matching the real build",
+  "err": [
+   "  AssertionError [ERR_ASSERTION]: expected 4 to be 3",
+   "    generatedMessage: false,",
+   "    code: 'ERR_ASSERTION',",
+   "    actual: undefined,",
+   "    expected: undefined,",
+   "    operator: 'fail',",
+   "    diff: 'simple'",
+   "  }"
+  ]
+ },
+ {
+  "shard": "4",
+  "file": "apps/website/src/server/__tests__/unit/stock-content-dirs.unit.test.ts",
+  "line": 1,
+  "name": "stock resolvers work from a dist/src module layout independently of cwd",
+  "err": [
+   "  AssertionError [ERR_ASSERTION]: missing resolver builtInThemesDir",
+   "    generatedMessage: false,",
+   "    code: 'ERR_ASSERTION',",
+   "    actual: undefined,",
+   "    expected: true,",
+   "    operator: '==',",
+   "    diff: 'simple'",
+   "  }"
+  ]
+ },
+ {
+  "shard": "4",
+  "file": "development/scripts/__tests__/dead-path-sweep.test.ts",
+  "line": 1,
+  "name": "dead-path sweep: no path reference outside the known-broken register resolves to nothing",
+  "err": [
+   "  AssertionError [ERR_ASSERTION]: a path reference under development/scripts or the db tooling points at a file that does not exist",
+   "  + actual - expected",
+   "  + [",
+   "  +   'development/scripts/check-coverage-integrity.ts:167 [repo-relative-string] \"development/coverage/lcov.info\" -> none of development/coverage exist',",
+   "  +   'development/scripts/check-test-baseline.ts:90 [repo-relative-string] \"development/coverage/test-results.tap\" -> none of development/coverage exist',",
+   "  +   'development/scripts/coverage-changed.ts:33 [repo-relative-string] \"ADS-memory/.local-artifacts/test-slots/run-gated.sh\" -> none of ADS-memory/.local-artifacts/test-slots exist',",
+   "  +   'development/scripts/coverage-changed.ts:34 [repo-relative-string] \"ADS-memory/.local-artifacts/codex-waves/features-2026-10-04/common.md\" -> none of ADS-memory/.local-artifacts/codex-waves/features-2026-10-04 exis",
+   "  +   'development/scripts/coverage-changed.ts:478 [repo-relative-string] \"ADS-memory/.local-artifacts/coverage-changed\" -> none of ADS-memory/.local-artifacts exist',",
+   "  +   'development/scripts/route-coverage-lib.ts:33 [repo-relative-string] \"development/coverage/lcov.info\" -> none of development/coverage exist',",
+   "  +   'development/scripts/route-coverage-lib.ts:36 [repo-relative-string] \"development/coverage/lcov.unit.info\" -> none of development/coverage exist',",
+   "  +   'development/scripts/route-coverage-lib.ts:39 [repo-relative-string] \"development/coverage/lcov.integration.info\" -> none of development/coverage exist'",
+   "  + ]",
+   "  - []",
+   "    generatedMessage: false,",
+   "    code: 'ERR_ASSERTION',"
+  ]
+ },
+ {
+  "shard": "4",
+  "file": "development/scripts/__tests__/dead-path-sweep.test.ts",
+  "line": 30,
+  "name": "generated coverage artifacts are not reported as dead paths",
+  "err": [
+   "  AssertionError [ERR_ASSERTION]: development/coverage/lcov.unit.info's parent directory should exist",
+   "    generatedMessage: false,",
+   "    code: 'ERR_ASSERTION',",
+   "    actual: false,",
+   "    expected: true,",
+   "    operator: '==',",
+   "    diff: 'simple'",
+   "  }"
+  ]
+ },
+ {
+  "shard": "5",
+  "file": "apps/website/src/features/plugins/store/__tests__/store-plugin.dialects.test.ts",
+  "line": 1,
+  "name": "an order INSERT failure rolls back the preceding stock and version update",
+  "err": [
+   "  AssertionError [ERR_ASSERTION]: Missing expected rejection.",
+   "    generatedMessage: false,",
+   "    code: 'ERR_ASSERTION',",
+   "    actual: undefined,",
+   "    expected: /unique|duplicate/i,",
+   "    operator: 'rejects',",
+   "    diff: 'simple'",
+   "  }"
+  ]
+ },
+ {
+  "shard": "5",
+  "file": "apps/website/src/features/plugins/store/__tests__/store-plugin.dialects.test.ts",
+  "line": 1,
+  "name": "an order INSERT failure rolls back the preceding stock and version update",
+  "err": [
+   "  AssertionError [ERR_ASSERTION]: Missing expected rejection.",
+   "    generatedMessage: false,",
+   "    code: 'ERR_ASSERTION',",
+   "    actual: undefined,",
+   "    expected: /unique|duplicate/i,",
+   "    operator: 'rejects',",
+   "    diff: 'simple'",
+   "  }"
+  ]
+ },
+ {
+  "shard": "5",
+  "file": "apps/website/src/features/webhooks/__tests__/seal-aad-invariant.test.ts",
+  "line": 20,
+  "name": "the CLI exits successfully and prints OK when the real repository has no seal violations",
+  "err": [
+   "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+   "  + actual - expected",
+   "  + Error: spawnSync /root/.local/node24/bin/node ETIMEDOUT",
+   "  +     at Object.spawnSync (node:internal/child_process:1191:20)",
+   "  +     at spawnSync (node:child_process:929:24)",
+   "  +     at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/webhooks/__tests__/seal-aad-invariant.test.ts:172:18)",
+   "  +     at Test.runInAsyncScope (node:async_hooks:227:14)",
+   "  +     at Test.run (node:internal/test_runner/test:1402:25)",
+   "  +     at Test.processPendingSubtests (node:internal/test_runner/test:974:18)",
+   "  +     at Test.postRun (node:internal/test_runner/test:1542:19)",
+   "  +     at Test.run (node:internal/test_runner/test:1467:12)",
+   "  +     at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {",
+   "  +   code: 'ETIMEDOUT',",
+   "  +   errno: -110,",
+   "  +   path: '/root/.local/node24/bin/node',"
+  ]
+ },
+ {
+  "shard": "5",
+  "file": "apps/website/src/server/__tests__/integration/create-sqlite-route-deps-for-workspace.integration.test.ts",
+  "line": 1,
+  "name": "workspaceIdOverride supplied: the db opened for validation is the SAME handle the returned deps read from (not a second, divergent connection)",
+  "err": [
+   "  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:",
+   "    assert.ok(fileNameGuard)",
+   "    generatedMessage: true,",
+   "    code: 'ERR_ASSERTION',",
+   "    actual: undefined,",
+   "    expected: true,",
+   "    operator: '==',",
+   "    diff: 'simple'",
+   "  }"
+  ]
+ },
+ {
+  "shard": "5",
+  "file": "apps/website/src/server/inbound/admin-http/routes/pages/__tests__/unit/h4-delete.unit.test.ts",
+  "line": 1,
+  "name": "page delete compensates a failed audit write using its captured page",
+  "err": [
+   "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+   "  + actual - expected",
+   "  + undefined",
+   "  - null",
+   "    generatedMessage: true,",
+   "    code: 'ERR_ASSERTION',",
+   "    actual: undefined,",
+   "    expected: null,",
+   "    operator: 'strictEqual',",
+   "    diff: 'simple'",
+   "  }"
+  ]
+ },
+ {
+  "shard": "5",
+  "file": "apps/website/src/server/runtime/boot/__tests__/agent-plugin-token-boot-order.unit.test.ts",
+  "line": 1,
+  "name": "default boot adapters preserve a failed onboarding token over a conflicting ambient token and retry it",
+  "err": [
+   "  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:",
+   "    assert.ok(saved?.sealedOAuth)",
+   "    generatedMessage: true,",
+   "    code: 'ERR_ASSERTION',",
+   "    actual: null,",
+   "    expected: true,",
+   "    operator: '==',",
+   "    diff: 'simple'",
+   "  }"
+  ]
+ },
+ {
+  "shard": "6",
+  "file": "apps/website/src/features/deployments/deploy-targets/__tests__/no-vendor-in-core.boundary.test.ts",
+  "line": 1,
+  "name": "real core tree has only reviewed pattern exceptions, each with its exact current total",
+  "err": [
+   "  AssertionError [ERR_ASSERTION]: Vendor knowledge belongs in its plugin. Uncovered file/vendor/count pairs:",
+   "  + actual - expected",
+   "  + [",
+   "  +   'apps/admin/src/components/AssistantDock/agent-failure-scanners.ts: github 1'",
+   "  + ]",
+   "  - []",
+   "    generatedMessage: false,",
+   "    code: 'ERR_ASSERTION',",
+   "    actual: [ 'apps/admin/src/components/AssistantDock/agent-failure-scanners.ts: github 1' ],",
+   "    expected: [],",
+   "    operator: 'deepStrictEqual',",
+   "    diff: 'simple'",
+   "  }"
+  ]
+ },
+ {
+  "shard": "6",
+  "file": "apps/website/src/features/site-export/__tests__/site-exporter.test.ts",
+  "line": 1,
+  "name": "live site: a request carrying the static-export marker gets no widget AND a never-store Cache-Control",
+  "err": [
+   "  AssertionError [ERR_ASSERTION]: /products: visitor-specific consent and live comments stay private; owner-OFF public pages stay cacheable",
+   "  + actual - expected",
+   "  + 'public, max-age=60, stale-while-revalidate=300'",
+   "  - 'private, no-store'",
+   "    generatedMessage: false,",
+   "    code: 'ERR_ASSERTION',",
+   "    actual: 'public, max-age=60, stale-while-revalidate=300',",
+   "    expected: 'private, no-store',",
+   "    operator: 'strictEqual',",
+   "    diff: 'simple'",
+   "  }"
+  ]
+ },
+ {
+  "shard": "6",
+  "file": "content/agent-plugins/resend/__tests__/resend-mcp.test.mjs",
+  "line": 222,
+  "name": "resend_account_connection_is_key_based",
+  "err": [
+   "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+   "  + actual - expected",
+   "  + 'not-connected'",
+   "  - 'connected'",
+   "    generatedMessage: true,",
+   "    code: 'ERR_ASSERTION',",
+   "    actual: 'not-connected',",
+   "    expected: 'connected',",
+   "    operator: 'strictEqual',",
+   "    diff: 'simple'",
+   "  }"
+  ]
+ },
+ {
+  "shard": "6",
+  "file": "development/scripts/__tests__/unit/af-cli-characterization.unit.test.ts",
+  "line": 24,
+  "name": "brand icon CLI keeps the letter and removes the disconnected frame from the simplified master",
+  "err": [
+   "  AssertionError [ERR_ASSERTION]: build-brand-icons: full-logo artwork (170,170)-(1089,1089) is not fully inside the 904px crop at (178,178); it would be clipped.",
+   "  1 !== 0",
+   "    generatedMessage: false,",
+   "    code: 'ERR_ASSERTION',",
+   "    actual: 1,",
+   "    expected: 0,",
+   "    operator: 'strictEqual',",
+   "    diff: 'simple'",
+   "  }"
+  ]
+ },
+ {
+  "shard": "7",
+  "name": "no new raw SQLite outside the storage kernel (ratchet: the baseline only shrinks)",
+  "file": null,
+  "err": [
+   "(shard killed before summary; name only)"
+  ]
+ },
+ {
+  "shard": "7",
+  "name": "plan uploads a selected file's bytes the peer is missing before staging the bundle",
+  "file": null,
+  "err": [
+   "(shard killed before summary; name only)"
+  ]
+ },
+ {
+  "shard": "7",
+  "name": "Defect 1 wiring — the conversation/session binding must be written at DISPATCH",
+  "file": null,
+  "err": [
+   "(shard killed before summary; name only)"
+  ]
+ },
+ {
+  "shard": "7",
+  "name": "Defect 1 wiring — run starts must be serialized per conversation",
+  "file": null,
+  "err": [
+   "(shard killed before summary; name only)"
+  ]
+ }
+]

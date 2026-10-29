@@ -9,3 +9,4 @@
 - 2026-10-29T20:39:31Z desktop: 2 fail (taskkill mock; loading-overlay stale SiteStartPanel). Admin vitest rerun in bg after ui asset workaround. Shards 6,7 started early, 3-5 queued.
 - 2026-10-29T21:22:05Z admin vitest done after env fixes (tiptap peers/tl-dom/ui assets): 1 real failing test main-entry-signed-in. Shards 0-2 done (exit 1), others running. Jini rerun of ui-dependent pkgs started.
 - 2026-10-29T21:25:23Z shard 3 stuck in slow CLI serve tests; killed (partial kept in shards/3-killed-partial; one test file killed by accident) and re-split into 3a/3b/3c.
+- 2026-10-29T22:05:04Z DONE — all steps run except Tovu shard-7 coverage (see RESULTS §5). RESULTS.md + raw/ pushed to cloud/verify-1029-results. Elapsed ~2h25m.

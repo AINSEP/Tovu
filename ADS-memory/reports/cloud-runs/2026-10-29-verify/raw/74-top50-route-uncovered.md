@@ -1,0 +1,54 @@
+| # | file | lines% | branches% | funcs% | uncovered lines |
+|--|--|--|--|--|--|
+| 1 | inbound/admin-http/routes/publish-content/backstop.ts | 69.4 | 72.3 | 72.0 | 83 |
+| 2 | inbound/admin-http/routes/users/delete.ts | 58.9 | 100.0 | 50.0 | 30 |
+| 3 | inbound/admin-http/routes/posts/autosave.ts | 92.8 | 53.5 | 83.3 | 14 |
+| 4 | inbound/admin-http/routes/fs-files/folder-picker.ts | 82.1 | 100.0 | 40.0 | 12 |
+| 5 | inbound/admin-http/routes/newsletter/resume-campaign.ts | 72.2 | 57.1 | 100.0 | 10 |
+| 6 | inbound/admin-http/routes/content-types/lifecycle.ts | 92.4 | 50.0 | 100.0 | 7 |
+| 7 | inbound/admin-http/routes/taxonomy/merge-term.ts | 95.7 | 60.7 | 100.0 | 7 |
+| 8 | inbound/admin-http/routes/system/credential-copy.ts | 90.6 | 97.3 | 100.0 | 6 |
+| 9 | inbound/admin-http/routes/agent-plugins/set-enabled.ts | 98.3 | 97.9 | 100.0 | 5 |
+| 10 | inbound/admin-http/routes/system/server-logs.ts | 93.0 | 80.0 | 100.0 | 4 |
+| 11 | inbound/admin-http/routes/external-mcp/oauth.ts | 98.4 | 76.7 | 100.0 | 3 |
+| 12 | inbound/admin-http/routes/sites/sites-home.ts | 96.4 | 75.2 | 90.9 | 3 |
+| 13 | inbound/admin-http/routes/system/site-key.ts | 99.5 | 78.0 | 92.5 | 3 |
+| 14 | inbound/admin-http/routes/assistant/put-execution-credential.ts | 98.1 | 96.0 | 100.0 | 2 |
+| 15 | inbound/admin-http/routes/newsletter/create-list.ts | 95.2 | 35.7 | 100.0 | 2 |
+| 16 | inbound/admin-http/routes/posts/update.ts | 99.3 | 42.6 | 90.0 | 2 |
+| 17 | inbound/admin-http/routes/settings/get-raw.ts | 97.6 | 66.7 | 100.0 | 2 |
+| 18 | inbound/admin-http/routes/settings/register-definitions.ts | 98.8 | 73.9 | 100.0 | 2 |
+| 19 | inbound/admin-http/routes/system/publish-site.ts | 99.6 | 68.3 | 100.0 | 2 |
+| 20 | inbound/admin-http/routes/themes/explore.ts | 99.8 | 75.7 | 100.0 | 2 |
+| 21 | inbound/public-http/routes/agent-plugin-surfaces/export-files.ts | 96.9 | 75.0 | 100.0 | 2 |
+| 22 | inbound/public-http/routes/site/comments-submit.ts | 98.3 | 62.1 | 92.3 | 2 |
+| 23 | inbound/admin-http/routes/assistant/list-models.ts | 99.4 | 81.5 | 100.0 | 1 |
+| 24 | inbound/admin-http/routes/publish-content/blob-get.ts | 99.2 | 41.2 | 100.0 | 1 |
+| 25 | inbound/admin-http/routes/settings/get-effective.ts | 98.9 | 76.5 | 100.0 | 1 |
+| 26 | inbound/admin-http/routes/system/assistant-daemon.ts | 98.9 | 83.3 | 100.0 | 1 |
+| 27 | inbound/admin-http/routes/system/deployment-overview.ts | 99.5 | 76.9 | 100.0 | 1 |
+| 28 | inbound/admin-http/routes/users/remove-policy-permission.ts | 98.9 | 73.0 | 100.0 | 1 |
+| 29 | inbound/public-http/routes/site/pages.ts | 100.0 | 75.2 | 100.0 | 1 |
+| 30 | inbound/admin-http/routes/agent-plugins/admin-surfaces.ts | 100.0 | 87.0 | 100.0 | 0 |
+| 31 | inbound/admin-http/routes/agent-plugins/connection-sign-in.ts | 100.0 | 100.0 | 100.0 | 0 |
+| 32 | inbound/admin-http/routes/agent-plugins/files.ts | 100.0 | 80.0 | 100.0 | 0 |
+| 33 | inbound/admin-http/routes/agent-plugins/install-response.ts | 100.0 | 82.8 | 100.0 | 0 |
+| 34 | inbound/admin-http/routes/agent-plugins/install.ts | 100.0 | 100.0 | 100.0 | 0 |
+| 35 | inbound/admin-http/routes/agent-plugins/list.ts | 100.0 | 100.0 | 100.0 | 0 |
+| 36 | inbound/admin-http/routes/agent-plugins/memory.ts | 100.0 | 100.0 | 100.0 | 0 |
+| 37 | inbound/admin-http/routes/analytics/recent-hits.ts | 100.0 | 100.0 | 100.0 | 0 |
+| 38 | inbound/admin-http/routes/api-keys/create-principal.ts | 100.0 | 81.8 | 100.0 | 0 |
+| 39 | inbound/admin-http/routes/api-keys/issue.ts | 100.0 | 91.7 | 100.0 | 0 |
+| 40 | inbound/admin-http/routes/api-keys/revoke.ts | 100.0 | 90.0 | 100.0 | 0 |
+| 41 | inbound/admin-http/routes/assistant/delete-execution-credential.ts | 100.0 | 87.5 | 100.0 | 0 |
+| 42 | inbound/admin-http/routes/assistant/delete-site-credential.ts | 100.0 | 78.6 | 100.0 | 0 |
+| 43 | inbound/admin-http/routes/assistant/detect-agents.ts | 100.0 | 76.7 | 100.0 | 0 |
+| 44 | inbound/admin-http/routes/assistant/execution-request-fields.ts | 100.0 | 100.0 | 100.0 | 0 |
+| 45 | inbound/admin-http/routes/assistant/get-chat-attachment.ts | 100.0 | 72.7 | 100.0 | 0 |
+| 46 | inbound/admin-http/routes/assistant/get-execution-credential.ts | 100.0 | 87.5 | 100.0 | 0 |
+| 47 | inbound/admin-http/routes/assistant/get-settings.ts | 100.0 | 83.3 | 100.0 | 0 |
+| 48 | inbound/admin-http/routes/assistant/get-site-credential.ts | 100.0 | 84.6 | 100.0 | 0 |
+| 49 | inbound/admin-http/routes/assistant/put-settings.ts | 100.0 | 75.0 | 100.0 | 0 |
+| 50 | inbound/admin-http/routes/assistant/put-site-credential.ts | 100.0 | 78.6 | 100.0 | 0 |
+
+files with any uncovered line: 29 of 333

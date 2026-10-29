@@ -1,0 +1,51 @@
+######## chat
+ FAIL  src/core/__tests__/turn-usage-w2g.unit.test.ts > legacy boundary data without an id splits every reply, while a repeated receipt id splits once
+AssertionError: expected [ [ { kind: 'text', …(1) } ], …(3) ] to deeply equal [ [ { kind: 'text', …(1) } ], …(3) ]
+
+- Expected
++ Received
+
+  Array [
+    Array [
+      Object {
+        "kind": "text",
+        "text": "reply",
+      },
+    ],
+    Array [
+      Object {
+        "kind": "text",
+######## ui
+ FAIL  src/__tests__/unit/agent-icon-generation.unit.test.ts > generates deterministic inline SVG and PNG bytes while excluding unsupported assets
+Error: [vitest] No "default" export is defined on the "node:fs" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+vi.mock(import("node:fs"), async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    // your mocked methods
+  }
+})
+
+ ❯ scripts/generate-agent-icon-data-uris.mjs:30:100
+     29| // bundler in front of it), Vitest/jsdom, or any other bundler.
+     30| import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+     31| import { dirname, extname, join } from 'node:path';
+
+ FAIL  src/__tests__/unit/agent-icon-generation.unit.test.ts > generates an empty map when there are no supported icons
+Error: [vitest] No "default" export is defined on the "node:fs" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+vi.mock(import("node:fs"), async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    // your mocked methods
+  }
+})
+
+ ❯ scripts/generate-agent-icon-data-uris.mjs:30:100
+     29| // bundler in front of it), Vitest/jsdom, or any other bundler.
+     30| import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+     31| import { dirname, extname, join } from 'node:path';
