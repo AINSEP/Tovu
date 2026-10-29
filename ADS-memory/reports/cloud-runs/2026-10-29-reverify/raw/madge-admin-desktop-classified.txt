@@ -1,0 +1,24 @@
+## admin
+- own: 3
+- website-only: 0
+- jini-dist: 2
+- mixed: 1
+  - [own] components/WidgetPickerDialog/WidgetPickerDialog.tsx -> components/WidgetPickerDialog/WidgetPickerDialog.hooks.tsx
+  - [own] features/pages/hooks/use-theme-pages.hooks.ts -> features/pages/lib/theme-page-publish-state.ts
+  - [own] features/pages/rules.ts -> features/pages/hooks/use-theme-pages.hooks.ts
+  - [jini-dist] ../../../../Jini/packages/chat/dist/react/hooks/useUserTextGuard.d.ts -> ../../../../Jini/packages/chat/dist/react/index.d.ts
+  - [jini-dist] ../../../../Jini/packages/ui/dist/features/panel-kit/helpers/standing-draft-local-backup.d.ts -> ../../../../Jini/packages/ui/dist/features/panel-kit/hooks/use-standing-draft-autosave.hooks.d.ts
+  - [mixed] components/MediaPickerDialog/MediaPickerDialog.tsx -> components/MediaPickerDialog/JiniMediaPicker.hooks.ts
+## desktop
+- own: 1
+- website-only: 5
+- jini-dist: 2
+- mixed: 0
+  - [own] renderer/use-site-workspace.hooks.ts -> renderer/site-theme-preview.hooks.ts
+  - [website-only] ../../website/src/assistant/external-mcp-oauth.ts -> ../../website/src/assistant/external-mcp-revocation.ts -> ../../website/src/assistant/external-mcp-store.ts -> ../../website/src/features/external-mcp/auth-mode.ts -> ../../website/src/features/webhooks/index.ts -> ../../website/src/features/webhooks/keyring.env.ts -> ../../website/src/features/webhooks/site-key-sources.ts -> ../../website/src/platform/site-dir/index.ts -> ../../website/src/platform/site-dir/duplicate-site.ts -> ../../website/src/platform/site-dir/init-site.ts -> ../../website/src/platform/db/site-store-copy.ts -> ../../website/src/platform/db/vault-credential-inventory.ts -> ../../website/src/platform/db/repos/oauth-pending-store.ts -> ../../website/src/assistant/mcp-services.ts
+  - [website-only] ../../website/src/assistant/external-mcp-store.ts -> ../../website/src/features/external-mcp/auth-mode.ts -> ../../website/src/features/webhooks/index.ts -> ../../website/src/features/webhooks/keyring.env.ts -> ../../website/src/features/webhooks/site-key-sources.ts -> ../../website/src/platform/site-dir/index.ts -> ../../website/src/platform/site-dir/duplicate-site.ts -> ../../website/src/platform/site-dir/init-site.ts -> ../../website/src/platform/db/site-store-copy.ts -> ../../website/src/platform/db/vault-credential-inventory.ts -> ../../website/src/platform/db/repos/oauth-pending-store.ts -> ../../website/src/assistant/mcp-services.ts
+  - [website-only] ../../website/src/features/webhooks/index.ts -> ../../website/src/features/webhooks/keyring.env.ts -> ../../website/src/features/webhooks/site-key-sources.ts -> ../../website/src/platform/site-dir/index.ts -> ../../website/src/platform/site-dir/duplicate-site.ts -> ../../website/src/platform/site-dir/init-site.ts -> ../../website/src/platform/db/site-store-copy.ts -> ../../website/src/platform/db/vault-credential-inventory.ts -> ../../website/src/platform/db/repos/oauth-pending-store.ts
+  - [website-only] ../../website/src/features/webhooks/index.ts -> ../../website/src/features/webhooks/keyring.env.ts -> ../../website/src/features/webhooks/site-key-sources.ts -> ../../website/src/platform/site-dir/index.ts -> ../../website/src/platform/site-dir/duplicate-site.ts -> ../../website/src/platform/site-dir/init-site.ts -> ../../website/src/platform/site-dir/ports.ts -> ../../website/src/platform/site-dir/site-store.ts -> ../../website/src/platform/site-dir/types.ts -> ../../website/src/features/post/index.ts -> ../../website/src/features/post/featured-image.ts -> ../../website/src/features/media/index.ts -> ../../website/src/features/media/provider-credential-store.ts -> ../../website/src/features/media/provider-credential-contracts.ts
+  - [website-only] ../../website/src/features/webhooks/index.ts -> ../../website/src/features/webhooks/keyring.env.ts -> ../../website/src/features/webhooks/site-key-sources.ts -> ../../website/src/platform/site-dir/index.ts -> ../../website/src/platform/site-dir/duplicate-site.ts -> ../../website/src/platform/site-dir/init-site.ts -> ../../website/src/platform/site-dir/ports.ts -> ../../website/src/platform/site-dir/site-store.ts -> ../../website/src/platform/site-dir/types.ts -> ../../website/src/features/post/index.ts -> ../../website/src/features/post/featured-image.ts -> ../../website/src/features/media/index.ts -> ../../website/src/features/media/provider-credential-store.ts
+  - [jini-dist] ../../../../Jini/packages/chat/dist/react/hooks/useUserTextGuard.d.ts -> ../../../../Jini/packages/chat/dist/react/index.d.ts
+  - [jini-dist] ../../../../Jini/packages/ui/dist/features/panel-kit/helpers/standing-draft-local-backup.d.ts -> ../../../../Jini/packages/ui/dist/features/panel-kit/hooks/use-standing-draft-autosave.hooks.d.ts

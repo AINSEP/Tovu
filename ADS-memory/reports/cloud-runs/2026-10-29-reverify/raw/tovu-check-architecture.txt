@@ -1,0 +1,104 @@
+check:architecture — 2020 files, 73 modules, production files only
+
+  cross-feature import edges (all-import)              435
+  propagation cost (all-import)                        13.94%
+  propagation cost (runtime-only)                      3.80%
+  back-edges into composition root                     0
+    └ back-edges, runtime-only (informational)         0
+  module cycles (mutual pairs, runtime-only)           7
+  largest strongly-connected component (runtime-only)  33
+  module API surface (files exposed)                   765
+    └ deep-import edges (informational)                2451
+  bidirectional hub count                              18.17% (367/2020)
+
+  Martin instability: informational, not ratcheted — pass --list for the per-module gradient.
+  NEW cross-feature edge: apps/website/src/features/agent-plugins/access-token-tool.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/agent-plugins/install-tool.ts -> apps/website/src/features/plugin-runtime/install-source.ts
+  NEW cross-feature edge: apps/website/src/features/agent-plugins/uninstall-tool.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/asset-destinations.ts -> apps/website/src/features/media/index.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/asset-destinations.ts -> apps/website/src/features/theme/asset-operations.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/asset-sources.ts -> apps/website/src/features/theme/asset-operations.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/copy-tool.ts -> apps/website/src/features/media/document-archive.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/copy-tool.ts -> apps/website/src/features/theme/asset-operations.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/store.ts -> apps/website/src/features/vendor-credentials/index.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/tool-registrations.ts -> apps/website/src/features/deployments/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/tool-registrations.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/database-transfer/tool-registrations.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/deployments/deploy-ops/secrets.ts -> apps/website/src/features/webhooks/index.ts
+  NEW cross-feature edge: apps/website/src/features/deployments/deploy-ops/typed-secret-card.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/deployments/publish-agent-tools.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/deployments/publish-credentials/store.ts -> apps/website/src/features/vendor-credentials/index.ts
+  NEW cross-feature edge: apps/website/src/features/entries/publish-content.ts -> apps/website/src/features/taxonomy/term-sync.ts
+  NEW cross-feature edge: apps/website/src/features/entries/unreadable-owner-entries-repair.ts -> apps/website/src/features/content-types/index.ts
+  NEW cross-feature edge: apps/website/src/features/external-mcp/tool-registrations.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/image-transform/tool.ts -> apps/website/src/features/theme/asset-operations.ts
+  NEW cross-feature edge: apps/website/src/features/mail-status/test-send.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/mail-status/use-readiness.ts -> apps/website/src/features/newsletter/index.ts
+  NEW cross-feature edge: apps/website/src/features/mail/attempts.repo.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/media-generation/providers-tools.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/media/where-used.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/member-login/link-policy.ts -> apps/website/src/features/members/index.ts
+  NEW cross-feature edge: apps/website/src/features/member-login/link-service.ts -> apps/website/src/features/members/index.ts
+  NEW cross-feature edge: apps/website/src/features/object-storage/artifact-provider.ts -> apps/website/src/features/deployments/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/object-storage/registry.ts -> apps/website/src/features/deployments/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/pages/html-document-store.memory.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/pages/html-document-store.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/pages/html-document-store.ts -> apps/website/src/features/post/index.ts
+  NEW cross-feature edge: apps/website/src/features/plugin-runtime/declarative-content-types.ts -> apps/website/src/features/entries/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/plugin-runtime/widget-partials.ts -> apps/website/src/features/theme/rendering.ts
+  NEW cross-feature edge: apps/website/src/features/post/publish-content.ts -> apps/website/src/features/taxonomy/term-sync.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/backstop-policy.ts -> apps/website/src/features/webhooks/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/file-tree-policy.ts -> apps/website/src/features/webhooks/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/peer-transport.ts -> apps/website/src/features/deployments/static-publish/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/push-plan.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/tool-deps.ts -> apps/website/src/features/deployments/static-publish/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/tool-registrations.ts -> apps/website/src/features/deployments/static-publish/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/type-registry.ts -> apps/website/src/features/entries/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/type-registry.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/type-registry.ts -> apps/website/src/features/taxonomy/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/type-registry.ts -> apps/website/src/features/theme/catalog.ts
+  NEW cross-feature edge: apps/website/src/features/seo/cover-image.ts -> apps/website/src/features/post/rendering.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/import-restore-placement.ts -> apps/website/src/features/theme/catalog.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/share-database/repo.sqlite.ts -> apps/website/src/features/settings/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/site-export/media-original-urls.ts -> apps/website/src/features/media/index.ts
+  NEW cross-feature edge: apps/website/src/features/site-inspection/deps.ts -> apps/website/src/features/presentation/index.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/access.ts -> apps/website/src/features/members/index.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/access.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/cms-document-source.ts -> apps/website/src/features/members/index.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/cms-document-source.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/cms-document-source.ts -> apps/website/src/features/post/read-model.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/settings.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/credential-setup.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/store.ts -> apps/website/src/features/vendor-credentials/index.ts
+  NEW cross-feature edge: apps/website/src/features/theme/preview-switcher-tools.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/theme/static-render.ts -> apps/website/src/features/navigation/render-entry.ts
+  NEW cross-feature edge: apps/website/src/features/trash/adapters/redirect.ts -> apps/website/src/features/redirects/index.ts
+  NEW cross-feature edge: apps/website/src/features/widgets/deps.ts -> apps/website/src/features/media/index.ts
+
+  module cycles — 2 new pair(s) introduced:
+    + assistant <-> contracts
+    + features/agent-plugins <-> features/plugin-runtime
+
+  largest strongly-connected component grew: 22 → 33
+
+  WARNING (ratchet, non-blocking): propagation cost (runtime-only) regressed: 3.06 → 3.8
+
+  WARNING (ratchet, non-blocking): bidirectional hub count regressed: 335 → 367
+
+  propagation cost (all-import) improved: 15.52 → 13.94
+
+  module API surface (files exposed) improved: 821 → 765
+
+========================================================================
+  TRADE DETECTED — this run bought improvement on one metric with regression on another
+========================================================================
+  regressed: propagation cost (runtime-only)     3.06 → 3.80  (+0.74 pts, +24.18%)
+  regressed: bidirectional hub count             335 → 367  (+32, +9.55%)
+  regressed: module cycles / SCC (runtime-only)  +2 cycle pair(s), largest SCC 22 → 33
+  improved:  propagation cost (all-import)       15.52 → 13.94  (-1.58 pts, -10.18%)
+  improved:  module API surface (files exposed)  821 → 765  (-56, -6.82%)
+========================================================================
+
+check:architecture — FAILED: 2 metric(s) regressed against a hard constraint.
+Either fix the regression or, if genuinely intended, run with --update to move the baseline.
+EXIT=1

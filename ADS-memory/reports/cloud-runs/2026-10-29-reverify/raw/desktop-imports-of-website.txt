@@ -1,0 +1,9 @@
+      3 ../../website/src/platform/server-logs/redact-local-text.ts
+      2 ../../website/src/server/runtime/composition/product-telemetry.ts
+      2 ../../website/src/contracts/headless/index.ts
+      2 ../../website/src/contracts/core/host-signals.ts
+      1 ../../website/src/server/runtime/composition/product-events.ts
+      1 ../../website/src/platform/server-logs/console-tee.ts
+      1 ../../website/src/features/agent-plugins/host-signals.ts
+      1 ../../website/src/contracts/core/assistant-native-fallbacks.ts
+      1 ../../website/src/assistant/assistant-subagents-policy.ts
