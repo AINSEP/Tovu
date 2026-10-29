@@ -28,8 +28,9 @@ export async function readAssistantPermanentDeletesPolicy(required: PermanentDel
     scopeContext: { workspaceId: required.workspaceId },
   });
   const value = result?.value as Partial<AssistantPermanentDeletesPolicy> | null;
-  if (!value || typeof value.enabled !== "boolean" || !Array.isArray(value.allowedToolIds) ||
-    value.allowedToolIds.length > PERMANENT_DELETE_TOOLS.length || new Set(value.allowedToolIds).size !== value.allowedToolIds.length ||
+  const fallback = { ...DEFAULT_PERMANENT_DELETES_POLICY, allowedToolIds: [] };
+  if (!value || typeof value.enabled !== "boolean" || !Array.isArray(value.allowedToolIds)) return fallback;
+  if (value.allowedToolIds.length > PERMANENT_DELETE_TOOLS.length || new Set(value.allowedToolIds).size !== value.allowedToolIds.length ||
     value.allowedToolIds.some(id => !PERMANENT_DELETE_TOOLS.some(tool => tool.id === id))) {
     return { ...DEFAULT_PERMANENT_DELETES_POLICY, allowedToolIds: [] };
   }

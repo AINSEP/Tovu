@@ -1,4 +1,4 @@
-import sharp, { type Sharp } from "sharp";
+import type { ImageCodecPort } from "@jini-ai/cms/media";
 import { Validator, type Schema } from "@cfworker/json-schema";
 
 /**
@@ -21,7 +21,6 @@ export const IMAGE_FORMATS = Object.keys(FORMATS) as ImageFormat[];
 export const IMAGE_CONTENT_TYPES: Record<ImageFormat, string> = { png: "image/png", jpeg: "image/jpeg", webp: "image/webp", avif: "image/avif", ico: "image/x-icon" };
 const SOURCE_FORMATS = new Set(["png", "jpeg", "webp", "gif", "heif", "avif", "tiff", "svg"]);
 const DEFAULT_ICO_SIZES = [16, 32, 48];
-const CLEAR = { r: 0, g: 0, b: 0, alpha: 0 };
 
 export interface ImageOutput {
   path: string; format: ImageFormat; stripMetadata: boolean; icoSizes: number[];
@@ -60,7 +59,10 @@ function normalizeOne(raw: unknown, index: number): ImageOutput {
   const o = (raw ?? {}) as Record<string, unknown>;
   const at = `outputs[${index}]`;
   const validation = outputValidator.validate(o);
-  if (!validation.valid) refuse(`${at}: ${validation.errors.map((error) => `${error.instanceLocation.replaceAll("/", ".")} ${error.error}`).join("; ")}`);
+  if (!validation.valid) {
+    const errors = validation.errors.map((error) => `${error.instanceLocation.replaceAll("/", ".")} ${error.error}`).join("; ");
+    refuse(`${at}: ${errors}`);
+  }
   const format = o.format as ImageFormat;
   if (!(FORMATS[format] as readonly string[]).includes((o.path as string).split(".").pop()!.toLowerCase())) refuse(`${at}: ${format} needs a .${FORMATS[format][0]} extension on '${String(o.path)}'`);
   return { ...o, format, stripMetadata: o.stripMetadata !== false, icoSizes: (o.icoSizes as number[] | undefined) ?? DEFAULT_ICO_SIZES } as ImageOutput;
@@ -77,41 +79,25 @@ export function normalizeOutputs({ outputs }: { outputs: unknown }, _optional = 
   return normalized;
 }
 
-const open = (source: Buffer, limits: ImageLimits): Sharp => sharp(source, { limitInputPixels: limits.maxInputPixels }).timeout({ seconds: limits.timeoutSeconds });
-
 /** Size, format and pixel caps on the source. Undecodable bytes become a caller-facing refusal. */
-async function checkSource(source: Buffer, limits: ImageLimits) {
+async function checkSource({ source, limits, imageCodec }: { source: Buffer; limits: ImageLimits; imageCodec: ImageCodecPort }, _options = {}) {
   if (source.length > limits.maxSourceBytes) refuse(`the source is larger than ${limits.maxSourceBytes} bytes`);
-  const meta = await open(source, limits).metadata().catch((error: Error) => refuse(`the source is not a supported image or exceeds the input pixel limit: ${error.message}`));
+  const meta = await imageCodec.inspect({ source }, limits).catch((error: Error) => refuse(`the source is not a supported image or exceeds the input pixel limit: ${error.message}`));
   if (!SOURCE_FORMATS.has(meta.format ?? "")) refuse(`the source is not a supported image (it is ${meta.format})`);
   if (meta.width * meta.height > limits.maxInputPixels) refuse(`the source has more than ${limits.maxInputPixels} pixels`);
   return meta;
 }
 
 /** Source facts for planning, without rendering anything. @complexity one header decode. */
-export async function inspectImage({ source }: { source: Buffer }, { limits = {} }: { limits?: Partial<ImageLimits> } = {}) {
-  const meta = await checkSource(source, { ...IMAGE_LIMITS, ...limits });
+export async function inspectImage({ source, imageCodec }: { source: Buffer; imageCodec: ImageCodecPort }, { limits = {} }: { limits?: Partial<ImageLimits> } = {}) {
+  const meta = await checkSource({ source, limits: { ...IMAGE_LIMITS, ...limits }, imageCodec });
   return { format: meta.format === "heif" ? "avif" : meta.format, width: meta.autoOrient.width, height: meta.autoOrient.height, hasAlpha: meta.hasAlpha, bytes: source.length };
 }
 
-/** Geometry in a fixed order: orient, crop, rotate, mirror, resize. */
-function geometry(image: Sharp, o: ImageOutput): Sharp {
-  const background = o.background ?? CLEAR;
-  let next = image.autoOrient();
-  if (o.extract) next = next.extract(o.extract);
-  if (o.rotate) next = next.rotate(o.rotate, { background });
-  if (o.flip) next = next.flip();
-  if (o.flop) next = next.flop();
-  return o.resize ? next.resize({ ...o.resize, background }) : next;
-}
-
-async function encode(source: Buffer, o: ImageOutput, limits: ImageLimits): Promise<RenderedImage> {
-  let image = geometry(open(source, limits), o);
-  if (o.format === "jpeg") image = image.flatten({ background: o.background ?? "#ffffff" });
-  if (!o.stripMetadata) image = image.keepMetadata();
-  const { data, info } = await image.toFormat(o.format as Exclude<ImageFormat, "ico">, { quality: o.quality }).toBuffer({ resolveWithObject: true });
-  if (Math.max(info.width, info.height) > limits.maxDimension) refuse(`${o.path}: output exceeds ${limits.maxDimension}px per side`);
-  return { path: o.path, format: o.format, width: info.width, height: info.height, bytes: data };
+async function encode({ source, output: o, limits, imageCodec }: { source: Buffer; output: ImageOutput; limits: ImageLimits; imageCodec: ImageCodecPort }, _options = {}): Promise<RenderedImage> {
+  const { bytes, width, height } = await imageCodec.encode({ source, ...o, format: o.format as Exclude<ImageFormat, "ico">, autoOrient: true, flatten: o.format === "jpeg" ? { background: o.background ?? "#ffffff" } : undefined }, limits);
+  if (Math.max(width, height) > limits.maxDimension) refuse(`${o.path}: output exceeds ${limits.maxDimension}px per side`);
+  return { path: o.path, format: o.format, width, height, bytes: Buffer.from(bytes) };
 }
 
 /** ICONDIR + one 16-byte entry per PNG; a 256px side is stored as 0. @complexity O(total bytes). */
@@ -130,10 +116,10 @@ export function encodeIco({ entries }: { entries: readonly RenderedImage[] }, _o
   return Buffer.concat([head, ...entries.map(({ bytes }) => bytes)]);
 }
 
-async function renderOne(source: Buffer, o: ImageOutput, limits: ImageLimits): Promise<RenderedImage> {
-  if (o.format !== "ico") return encode(source, o, limits);
+async function renderOne({ source, output: o, limits, imageCodec }: { source: Buffer; output: ImageOutput; limits: ImageLimits; imageCodec: ImageCodecPort }, _options = {}): Promise<RenderedImage> {
+  if (o.format !== "ico") return encode({ source, output: o, limits, imageCodec });
   const pngs = [];
-  for (const size of o.icoSizes) pngs.push(await encode(source, { ...o, format: "png", resize: { ...o.resize, fit: o.resize?.fit === "cover" ? "cover" : "contain", width: size, height: size, withoutEnlargement: false } }, limits));
+  for (const size of o.icoSizes) pngs.push(await encode({ source, output: { ...o, format: "png", resize: { ...o.resize, fit: o.resize?.fit === "cover" ? "cover" : "contain", width: size, height: size, withoutEnlargement: false } }, limits, imageCodec }));
   const largest = pngs.reduce((a, b) => (b.width > a.width ? b : a), pngs[0]!);
   return { path: o.path, format: "ico", width: largest.width, height: largest.height, bytes: encodeIco({ entries: pngs }) };
 }
@@ -169,13 +155,13 @@ function resizedSides({ sides, resize }: { sides: [number, number]; resize: Imag
  * @throws {ImageTransformError} For a capped, unsupported or undecodable source, or an option sharp rejects.
  * @complexity O(outputs × pixels); each encode bounded by the pixel cap and timeout.
  */
-export async function renderOutputs({ source, outputs }: { source: Buffer; outputs: readonly ImageOutput[] }, { limits = {} }: { limits?: Partial<ImageLimits> } = {}): Promise<RenderedImage[]> {
+export async function renderOutputs({ source, outputs, imageCodec }: { source: Buffer; outputs: readonly ImageOutput[]; imageCodec: ImageCodecPort }, { limits = {} }: { limits?: Partial<ImageLimits> } = {}): Promise<RenderedImage[]> {
   const merged = { ...IMAGE_LIMITS, ...limits };
-  const meta = await checkSource(source, merged);
+  const meta = await checkSource({ source, limits: merged, imageCodec });
   for (const output of outputs) checkOutputSize({ output, width: meta.autoOrient.width, height: meta.autoOrient.height, maxSide: merged.maxDimension });
   const rendered: RenderedImage[] = [];
   for (const output of outputs) {
-    rendered.push(await renderOne(source, output, merged).catch((error: Error) => refuse(error instanceof ImageTransformError ? error.message : `${output.path}: ${error.message}`)));
+    rendered.push(await renderOne({ source, output, limits: merged, imageCodec }).catch((error: Error) => refuse(error instanceof ImageTransformError ? error.message : `${output.path}: ${error.message}`)));
   }
   return rendered;
 }

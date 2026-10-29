@@ -40,8 +40,10 @@ function nativeCaptureError({ error }: { error: unknown }, _options = {}): PageC
   if (!(error instanceof RenderServiceError)) {
     return new PageCaptureError({ kind: 'failed', message: 'native capture failed' });
   }
-  const kind = error.code === 'timeout' || error.code === 'aborted' ? 'timeout'
-    : error.code === 'navigation-blocked' ? 'refused' : 'failed';
+  if (error.code === 'timeout' || error.code === 'aborted') {
+    return new PageCaptureError({ kind: 'timeout', message: error.message });
+  }
+  const kind = error.code === 'navigation-blocked' ? 'refused' : 'failed';
   return new PageCaptureError({ kind, message: error.message });
 }
 

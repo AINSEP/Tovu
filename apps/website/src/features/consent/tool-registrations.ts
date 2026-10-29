@@ -1,7 +1,7 @@
 /** @file Consent tools share the HTTP service and Jini's held confirmation lifecycle. */
 import { buildDomainRegistrations, indexCatalogById, ToolInputError, type AgentToolDefinition, type DerivedRiskByToolId, type ToolRegistration } from '@jini-ai/core';
 import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
-import type { ToolContributor } from '#src/assistant/index';
+import type { ToolContributor } from '@jini-ai/core';
 import { approvalToolHandler } from '#src/contracts/core/human-confirm';
 import { toolMetadata } from '#src/contracts/core/tool-metadata/consent';
 import type { SiteConsentService } from './service.js';
@@ -47,10 +47,10 @@ export function buildConsentRegistrations(deps: ConsentToolDeps, surfaces: Assis
     consent_update_settings: approvalToolHandler({ surfaces,
       prepare: async ({ ctx }) => {
         const input = readConsentRequest({ body: ctx.input, fields: ['config', 'expectedDraftId'] });
-        await service().read({ principalId: ctx.principal.id });
-        return { config: parseConsentConfig({ value: input.config }), expectedDraftId: consentRevisionToken({ input, key: 'expectedDraftId' }) };
+        const state = await service().read({ principalId: ctx.principal.id });
+        return { config: parseConsentConfig({ value: input.config }), previous: state.draft?.config ?? state.effective, expectedDraftId: consentRevisionToken({ input, key: 'expectedDraftId' }) };
       },
-      describe: ({ prepared }) => ({ toolId: 'consent_update_settings', errorCode: 'CONSENT', title: 'Save this cookie consent draft?', details: [{ label: 'Configuration', value: JSON.stringify(prepared.config) }], warning: unsafeEvalWarning({ config: prepared.config }), confirmLabel: 'Save draft' }),
+      describe: ({ prepared }) => ({ toolId: 'consent_update_settings', errorCode: 'CONSENT', title: 'Save this cookie consent draft?', details: [{ label: 'Configuration', value: prepared.config, previous: prepared.previous }], warning: unsafeEvalWarning({ config: prepared.config }), confirmLabel: 'Save draft' }),
       run: ({ ctx, prepared }) => service().saveDraft({ principalId: ctx.principal.id, config: prepared.config, expectedDraftId: prepared.expectedDraftId }),
     }, { flag: 'saved' }),
     consent_publish_settings: approvalToolHandler({ surfaces,
@@ -59,16 +59,16 @@ export function buildConsentRegistrations(deps: ConsentToolDeps, surfaces: Assis
         const state = await service().read({ principalId: ctx.principal.id });
         const draftId = consentRevisionToken({ input, key: 'draftId' });
         if (!draftId || state.draft?.id !== draftId) throw new ToolInputError({ message: 'Reload the saved consent draft before publishing.' });
-        return { draftId, expectedPublishedId: consentRevisionToken({ input, key: 'expectedPublishedId' }), config: parseConsentConfig({ value: state.draft.config }) };
+        return { draftId, expectedPublishedId: consentRevisionToken({ input, key: 'expectedPublishedId' }), config: parseConsentConfig({ value: state.draft.config }), previous: state.effective };
       },
-      describe: ({ prepared }) => ({ toolId: 'consent_publish_settings', errorCode: 'CONSENT', title: 'Publish this cookie consent policy?', details: [{ label: 'Revision', value: prepared.draftId }, { label: 'Configuration', value: JSON.stringify(prepared.config) }], warning: [unsafeEvalWarning({ config: prepared.config }), prepared.config.enabled ? 'Visitors will be asked again for this policy revision.' : 'The banner and optional-content enforcement will be disabled. Optional scripts may run without a visitor choice.'].filter(Boolean).join(' '), confirmLabel: 'Publish policy' }),
+      describe: ({ prepared }) => ({ toolId: 'consent_publish_settings', errorCode: 'CONSENT', title: 'Publish this cookie consent policy?', details: [{ label: 'Revision', value: prepared.draftId }, { label: 'Configuration', value: prepared.config, previous: prepared.previous }], warning: [unsafeEvalWarning({ config: prepared.config }), prepared.config.enabled ? 'Visitors will be asked again for this policy revision.' : 'The banner and optional-content enforcement will be disabled. Optional scripts may run without a visitor choice.'].filter(Boolean).join(' '), confirmLabel: 'Publish policy' }),
       run: ({ ctx, prepared }) => service().publish({ principalId: ctx.principal.id, draftId: prepared.draftId, expectedPublishedId: prepared.expectedPublishedId }),
     }, { flag: 'published' }),
   } });
 }
 
 /** Explicit composition contribution; no import-time registration or separate tool lifecycle. */
-export function contributeConsentTools(_required = {}, _options = {}): ToolContributor {
+export function contributeConsentTools(_required = {}, _options = {}): ToolContributor<ConsentToolDeps, AssistantSurfaceDeps> {
   return { domain: 'consent', build: buildConsentRegistrations, risk: consentDerivedRisk };
 }
 

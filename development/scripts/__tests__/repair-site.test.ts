@@ -1,7 +1,7 @@
+import { isolatedCatalogEnv, isolatedCatalogHome } from "../../../apps/website/src/platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
@@ -13,14 +13,14 @@ import { openContentDb } from "../../../apps/website/src/platform/db/sqlite/cont
  * `repairSite`/`planRepairSite` functions it wraps, already certified by
  * `repair-site.integration.test.ts`) is exercised exactly as an operator would invoke it.
  *
- * Every fixture is a throwaway directory under `os.tmpdir()` — never
+ * Every fixture is a throwaway directory inside the isolated temporary HOME — never
  * `apps/website/sites/tovu-com/`.
  */
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../..");
 
 function mkSiteDir(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-repair-site-script-"));
+  const dir = fs.mkdtempSync(path.join(isolatedCatalogHome, "tovu-repair-site-script-"));
   const db = openContentDb(path.join(dir, "content.db"));
   db.$client.close();
   return dir;
@@ -28,8 +28,9 @@ function mkSiteDir(): string {
 
 function run(args: string[]): { status: number | null; output: string } {
   try {
-    const stdout = execFileSync("node", ["--import", "tsx", path.join("development", "scripts", "repair-site.ts"), ...args], {
+    const stdout = execFileSync(process.execPath, ["--import", "tsx", path.join("development", "scripts", "repair-site.ts"), ...args], {
       cwd: REPO_ROOT,
+      env: { ...process.env, ...isolatedCatalogEnv },
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
     });

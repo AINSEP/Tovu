@@ -340,7 +340,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     }
     await assertNoConflicts(pluginId, discovery);
     // Provider plugins initialize once, at boot, before application work (`loadProviderPlugins`).
-    if (declaresProviders({ manifest: record.manifest })) return;
+    if (declaresProviders({ manifest: record.manifest })) return undefined;
     // No manifest ⇒ an invalid record: `attachPlugin`'s own fail-closed path reports it.
     if (!record.manifest) return attachPlugin(pluginId, record);
     // Declared contributions (AW-7 Tier 1) are applied only now, after the conflict gate; a tier-1
@@ -350,6 +350,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
       required.declaredContentTypes ? { contentTypes: required.declaredContentTypes } : {},
     );
     loadedVersions.set(pluginId, record.version);
+    return undefined;
   }
 
   /** Load + attach one already-cleared plugin — `onPluginEnabled`'s body after its gates, shared
@@ -700,7 +701,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
       pruneVersions: ({ id }) => pruneSitePluginVersions({ id, installDir, repo: activationRepo }),
       builtInIds: sources.map(source => source.manifest.id),
       // readDefinedPlugin accepts this SDK wrapper ABI; no package imports are needed from an
-      // external site's Documents folder. Owner: full server access for now. TODO: sandbox tier-3.
+      // external site's Documents folder. Owner: full server access for now. Follow-up: sandbox tier-3.
       scaffoldEntry: `export default { definition: { setup(sdk) {
   /* Register declared content filters here.
    * To add the examples below, declare capabilities http.route.register and tools.register,

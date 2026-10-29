@@ -28,7 +28,10 @@ import {
   SYSTEM_PREAMBLE,
 } from "../runtime/composition/modules/assistant-byok.js";
 import { registerAuthRoutes } from "../inbound/admin-http/dev-auth.js";
-import { MCP_UI_TOOL_CALLS_PATH, createByokToolSurface, type ByokToolSurface, type DerivedToolContributor, type ToolContributor } from "../../assistant/index.js";
+import type { DerivedToolContributor, ToolContributor } from "@jini-ai/core";
+import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
+import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import { MCP_UI_TOOL_CALLS_PATH, createByokToolSurface, type ByokToolSurface } from "../../assistant/index.js";
 import { installFirstPartyToolContributors } from "../runtime/composition/tool-catalog-manifest.js";
 import { formatCustomInstructionsOverlay } from "../../assistant/custom-instructions.js";
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
@@ -926,8 +929,8 @@ async function seedTrashedPostAndStubPurgeTurn(t: import("node:test").TestContex
  *  must pass them itself. */
 function firstPartyContributions() {
   const contributions = {
-    contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
-    derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
+    contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
+    derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
   };
   installFirstPartyToolContributors({ contributions });
   return contributions;

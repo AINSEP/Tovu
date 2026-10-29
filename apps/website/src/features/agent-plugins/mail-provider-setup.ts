@@ -106,9 +106,11 @@ function parseFieldHead(required: { entry: Readonly<Record<string, unknown>>; at
   return { key: entry.key, label: entry.label.trim(), type: type as MailProviderField["type"] };
 }
 
+type OptionalTextName = "defaultValue" | "placeholder" | "help";
+
 /** The present optional strings, or the name of the first malformed one. @complexity O(n) names. */
-function optionalTexts(entry: Readonly<Record<string, unknown>>, names: readonly ("defaultValue" | "placeholder" | "help")[]): Partial<Record<"defaultValue" | "placeholder" | "help", string>> | string {
-  const out: Partial<Record<"defaultValue" | "placeholder" | "help", string>> = {};
+function optionalTexts(entry: Readonly<Record<string, unknown>>, names: readonly OptionalTextName[]): Partial<Record<OptionalTextName, string>> | string {
+  const out: Partial<Record<OptionalTextName, string>> = {};
   for (const name of names) {
     if (entry[name] === undefined) continue;
     if (!isText(entry[name])) return name;

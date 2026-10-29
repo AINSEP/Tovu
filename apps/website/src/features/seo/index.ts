@@ -16,11 +16,13 @@ import { findMediaByIdOrSlug, mediaPublicPath, mediaUrlKey, type TransformDefini
 import { resolvePostMemberAccess } from "../members/index.js";
 import { getEffective, type SettingsRepoPort } from "../settings/index.js";
 import { normalizeSiteTitle, SITE_TITLE_KEY, SITE_TITLE_NAMESPACE } from "../settings/site-title.js";
-import { postPublicPath, urlFor } from "#src/platform/routing/adapter";
+import { postPublicPath, urlFor } from "#src/platform/routing/index";
 import { isScheduledAt, isLiveAt, postDisplayDateIso } from "../../contracts/core/scheduled-publish.js";
 import { resolveRuntimeMode } from "../../contracts/core/runtime-mode.js";
 import { processOutbox } from "../../contracts/core/events/index.js";
 import { getSeoSettings, isDefaultRobotsNoindexExplicitlySet } from "./settings.js";
+
+export { withCoverReadDeps, withContentImageSource } from "./cover-image.js";
 
 export {
   ensureSeoSettingDefinitions, getSeoSettings, setSeoSettings, isDefaultRobotsNoindexExplicitlySet,
@@ -57,7 +59,7 @@ export function createSeoFeaturedImagePort({ deps }: { deps: FeaturedImageDeps }
   return {
     findMediaByIdOrSlug: (input) => findMediaByIdOrSlug({ deps, input }),
     mediaUrlKey: ({ asset }) => mediaUrlKey(asset),
-    mediaPublicPath: ({ key, variant }) => mediaPublicPath(key, variant),
+    mediaPublicPath: (input) => mediaPublicPath(input),
     resolveFeaturedImageRef: (input) => resolveFeaturedImageRef({ deps, input }),
   };
 }

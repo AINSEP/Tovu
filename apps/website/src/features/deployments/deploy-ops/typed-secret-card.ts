@@ -4,7 +4,7 @@ import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions } 
 import { defineSecretCardTool } from "@jini-ai/ui/mcp-ui/secret-card";
 import { credentialText } from "#src/contracts/core/credential-copy";
 import { askThenReport, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import { resolveOperatorLocale } from "#src/features/agent-plugins/operator-locale";
+import { resolveOperatorLocale } from "#src/contracts/headless/operator-locale";
 import { boundContext, DeployCredentialSetupRequired, type DeployOpsToolDeps } from "./run-ops.js";
 import { runSetSecret, type SecretConfirm, type SetSecretInput } from "./secrets.js";
 

@@ -106,6 +106,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session, screen, crashReporter, webContents } from "electron";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
+import { createElectronUrlCapturePool } from "@jini-ai/desktop-host/electron";
 
 import { startTovuServer, DEFAULT_STOP_GRACE_MS } from "./src/tovu-server.ts";
 import { startDesktopCaptureBridge } from "./src/desktop-capture.ts";
@@ -147,6 +148,7 @@ import { bootDesktopProductTelemetry, desktopProductLaunch, reportDesktopProcess
 import { createProductConsentReader, readProductTelemetryPreference, writeProductTelemetryPreference, offerProductTelemetryConsent, productTelemetryMenu } from './src/product-telemetry-preference.ts';
 import { registerProductTelemetryIpc } from './src/product-telemetry-ipc.ts';
 import { startProductMemoryTelemetry } from './src/product-memory-telemetry.ts';
+import { startVisibleInterval } from './src/renderer/visible-interval.ts';
 import { registerResourcesIpc } from "./src/resources-ipc.ts";
 import { runOwnerStoreCli } from "./src/owner-store-cli.ts";
 import { createOwnerStoreController, importConfirmation, registerOwnerStoreIpc, settleLegacyOwnerStore } from "./src/owner-store-ipc.ts";
@@ -176,21 +178,7 @@ import { automaticUpdatesMenu, readAutomaticUpdates, writeAutomaticUpdates } fro
 import { desktopCopy } from "./src/desktop-i18n.ts";
 import { presenceDirPath } from "./src/instance-presence.ts";
 // Owner 2026-10-06: DMG window already shows drag-to-Applications; prompt redundant.
-// Restore: uncomment these imports, the helper and its call, and re-enable the wiring tests.
-// import { createInstancePresence } from "./src/instance-presence.ts";
-/*
-import {
-  MOVE_PROMPT,
-  applicationsTargetPath,
-  bundlePathFromExecPath,
-  moveDeclineFilePath,
-  movePromptSkipReason,
-  readBundleVersion,
-  readDeclinedVersion,
-  recordDeclinedVersion,
-  runMoveToApplicationsPrompt,
-} from "./src/move-to-applications.ts";
-*/
+// Restore the removed prompt imports, helper and call from git history, then re-enable wiring tests.
 import type { AutoUpdateController } from "./src/auto-update-controller.ts";
 import type { MenuItemConstructorOptions } from "electron";
 import type { QuitPhase } from "@jini-ai/desktop-host/shutdown";
@@ -460,7 +448,11 @@ async function initializeDesktopProductTelemetry(): Promise<void> {
   const memory = startProductMemoryTelemetry({ monitor: desktopResources, tracker: desktopProduct.tracker, readConsent,
     desktopPid: process.pid, rendererPids: () => new Set(webContents.getAllWebContents().map(contents => contents.getOSProcessId())),
     heapUsedBytes: () => process.memoryUsage().heapUsed, uptime: () => process.uptime(),
-  });
+  }, { schedule: (tick, ms) => startVisibleInterval(tick, ms, {
+    get visibilityState() { return BrowserWindow.getFocusedWindow() ? 'visible' : 'hidden'; },
+    addEventListener: (_type, listener) => { app.on('browser-window-focus', listener); app.on('browser-window-blur', listener); },
+    removeEventListener: (_type, listener) => { app.off('browser-window-focus', listener); app.off('browser-window-blur', listener); },
+  }) });
   productDisposers.push(memory.dispose);
   armFirstProductConsent();
 }
@@ -530,6 +522,8 @@ const pendingTeardowns = createShutdownTracker({});
 
 /** One app-owned Jini runtime, shared with desktop chat when its paused boot wiring is enabled. */
 const desktopAgentRuntime = createNativeAgentRuntime({ env: process.env });
+// Electron partitions live for the process; every site's bridge must share their FIFO leases.
+const capturePool = createElectronUrlCapturePool({});
 
 /** Where `before-quit`'s graceful multi-site shutdown is: `"idle"`, `"draining"` (stopping every open
  *  site and waiting on in-flight teardowns), or `"drained"` (finished, its own `app.quit()` going
@@ -849,7 +843,7 @@ async function startSiteBackend(siteDir: string, ctx: SiteOpenCtx, options: Site
   // rather than set optimistically.
   const adminDevProxyUrl = await resolveAdminDevProxyUrl({ isPackaged: app.isPackaged, env: process.env });
 
-  const captureBridge = await startDesktopCaptureBridge({ createWindow: options => new BrowserWindow(options) });
+  const captureBridge = await startDesktopCaptureBridge({ createWindow: options => new BrowserWindow(options), capturePool });
   let server: TovuServerHandle;
   try { server = await startTovuServer({
     productTelemetry: desktopProduct.launch,
@@ -1725,52 +1719,7 @@ function explainOthersOpen(count: number): void {
  * unwritable `userData` on "Not Now") and boots on.
  */
 // Owner 2026-10-06: DMG window already shows drag-to-Applications; prompt redundant.
-// Restore: uncomment this helper, its imports and call, and re-enable the wiring tests.
-/*
-async function offerMoveToApplications(): Promise<void> {
-  const userDataDir = app.getPath("userData");
-  const declinePath = moveDeclineFilePath(userDataDir);
-  const bundlePath = bundlePathFromExecPath(process.execPath);
-  const skip = movePromptSkipReason({
-    platform: process.platform,
-    isPackaged: app.isPackaged,
-    isMas: process.mas === true,
-    selftest: SELFTEST,
-    unattended: isUnattendedSiteLaunch(),
-    inApplications: process.platform === "darwin" && app.isInApplicationsFolder(),
-    otherInstancesOpen: createInstancePresence({ directory: presenceDirPath(userDataDir) }).readLive().filter((record) => record.pid !== process.pid).length,
-    currentVersion: app.getVersion(),
-    declinedVersion: readDeclinedVersion(declinePath),
-  });
-  if (skip !== null || bundlePath === null) {
-    console.log(`[tovu-desktop] move to Applications not offered: ${skip ?? "not inside an .app bundle"}`);
-    return;
-  }
-  const outcome = await runMoveToApplicationsPrompt({
-    currentVersion: app.getVersion(),
-    targetPath: applicationsTargetPath(bundlePath),
-    ask: async () => {
-      const { response } = await dialog.showMessageBox({
-        type: "question",
-        buttons: [MOVE_PROMPT.moveButton, MOVE_PROMPT.notNowButton],
-        defaultId: 0,
-        cancelId: 1,
-        message: MOVE_PROMPT.message,
-        detail: MOVE_PROMPT.detail,
-      });
-      return response === 0 ? "move" : "not-now";
-    },
-    move: (conflictHandler) => app.moveToApplicationsFolder({ conflictHandler }),
-    readExistingVersion: readBundleVersion,
-    openExisting: (appPath) => void shell.openPath(appPath),
-    quit: () => app.quit(),
-    recordDeclined: () => recordDeclinedVersion(declinePath, app.getVersion()),
-    showError: (message) => dialog.showErrorBox("Tovu", message),
-    showInfo: (message) => void dialog.showMessageBoxSync({ type: "info", message }),
-  });
-  console.log(`[tovu-desktop] move to Applications: ${outcome}`);
-}
-*/
+// The disabled helper is recoverable with its imports and call from git history.
 
 app
   .whenReady()
@@ -1792,8 +1741,7 @@ app
 
     // Before the updater and any site server: a successful move quits this process at once.
     // Owner 2026-10-06: DMG window already shows drag-to-Applications; prompt redundant.
-    // Restore: uncomment this call, its helper and imports, and re-enable the wiring tests.
-    // await offerMoveToApplications().catch((error: Error) => console.error(`[tovu-desktop] move to Applications failed: ${error.message}`));
+    // Restore the call, helper and imports from git history, then re-enable wiring tests.
 
     // Registered before either boot-mode branch below so a window's very first `isAvailable()`
     // call (fired from the preload the instant the page mounts) never races an unregistered

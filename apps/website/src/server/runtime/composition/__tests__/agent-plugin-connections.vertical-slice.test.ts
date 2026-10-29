@@ -226,7 +226,7 @@ test("vendor neutrality end to end: a second provider plugin connects, stores se
   });
   assert.deepEqual(refusals, []);
   const call = await startConfirmingCall({ executor: createToolExecutor({ registry }), surfaces }, "p_acme_office__append_row", { connectionRef, table: "Leads", values: ["Ada"] });
-  assert.deepEqual(call.rows.slice(2), [["Account", "Ada"], ["Affects", "table Leads"]]);
+  assert.deepEqual(call.rows, [["Connection ref", connectionRef], ["Table", "Leads"], ["Values", "Ada"], ["Account", "Ada"], ["Affects", "table Leads"]]);
   assert.equal(appended.length, 0, "nothing is written before the human confirms");
   call.answer("confirm");
   const written = await call.pending;

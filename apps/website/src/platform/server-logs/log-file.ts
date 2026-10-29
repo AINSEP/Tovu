@@ -99,7 +99,8 @@ export function createRotatingLogFileSink(required: { filePath: string }, option
 function isEntry(value: unknown): value is ServerLogEntry {
   if (typeof value !== "object" || value === null) return false;
   const e = value as Record<string, unknown>;
-  return typeof e.seq === "number" && typeof e.at === "string" && typeof e.level === "string" && typeof e.source === "string" && typeof e.message === "string";
+  const validStamp = typeof e.seq === "number" && typeof e.at === "string";
+  return validStamp && typeof e.level === "string" && typeof e.source === "string" && typeof e.message === "string";
 }
 
 /** Parses complete log entries, ignoring malformed fragments and torn lines. O(text length). */

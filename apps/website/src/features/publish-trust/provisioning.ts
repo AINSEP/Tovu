@@ -312,6 +312,8 @@ export function describePublishTrustState(res: PublishTrustResolution): string {
       return `This site's publishing settings could not be read, so nobody can publish to it. ${res.reason ?? ""}`.trim();
     case "absent":
       return "No computer is connected to this site for publishing yet. Connect one, then deploy — the connection travels with the deploy, and there is nothing to copy.";
+    default:
+      return undefined as never;
   }
 }
 

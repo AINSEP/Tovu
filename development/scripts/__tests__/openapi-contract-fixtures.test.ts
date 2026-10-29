@@ -1,3 +1,4 @@
+import "../../../apps/website/src/platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";

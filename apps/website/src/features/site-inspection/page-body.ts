@@ -4,7 +4,7 @@ import { parse, type DefaultTreeAdapterMap } from "parse5";
 /** t08: shared HTML/text/find projection. Network producers also enforce a raw 1 MB ceiling. */
 export const DEFAULT_MAX_BODY_BYTES = 20_000;
 export const MAX_MAX_BODY_BYTES = 1_000_000;
-export interface PageBodyOptions { maxBytes?: number | undefined; find?: string | undefined; textOnly?: boolean | undefined }
+export interface PageBodyOptions { maxBytes?: number; find?: string; textOnly?: boolean }
 export type ShapedPageBody = { bodyBytes: number; truncated: boolean } & (
   { body: string; matches?: never; matchCount?: never } |
   { matches: Array<{ offset: number; snippet: string }>; matchCount: number; body?: never }
@@ -21,7 +21,8 @@ export function readPageBodyOptions(input: Record<string, unknown>): PageBodyOpt
 
 /** Keeps the numeric budget validation and its boundary error together. */
 function assertMaxBodyBytes({ maxBytes }: { maxBytes: unknown }, _options: Record<string, never> = {}): void {
-  if (maxBytes !== undefined && (typeof maxBytes !== "number" || !Number.isInteger(maxBytes) || maxBytes < 1 || maxBytes > MAX_MAX_BODY_BYTES)) throw new ToolInputError({ message: "maxBytes must be an integer of 1..1000000." });
+  if (maxBytes === undefined) return;
+  if (typeof maxBytes !== "number" || !Number.isInteger(maxBytes) || maxBytes < 1 || maxBytes > MAX_MAX_BODY_BYTES) throw new ToolInputError({ message: "maxBytes must be an integer of 1..1000000." });
 }
 
 const OMITTED_ELEMENTS = new Set(["script", "style", "noscript", "template"]);

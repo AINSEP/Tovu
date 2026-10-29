@@ -123,6 +123,8 @@ export function gatedPrincipalKindFor(kind: AuthCredentialKind): PrincipalKind {
       return "api_key";
     case "publish_key":
       return "publish_key";
+    // Preserve the undefined fallback for runtime inputs outside this exhaustive union.
+    default: return undefined as never;
   }
 }
 
@@ -417,7 +419,8 @@ export function requireAdminSession(deps: SessionAuthDeps,
  * client on a dual-stack listener, so it belongs here; `localhost` deliberately does not, because
  * this is compared against a resolved socket address, never a name.
  */
-const LOOPBACK_PEERS = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
+const IPV4_LOOPBACK = "127.0.0.1";
+const LOOPBACK_PEERS = new Set([IPV4_LOOPBACK, "::1", `::ffff:${IPV4_LOOPBACK}`]);
 
 /**
  * Whether this request came from this machine.

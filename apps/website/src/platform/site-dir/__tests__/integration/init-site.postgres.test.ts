@@ -7,7 +7,7 @@ import test, { after } from "node:test";
 
 import { dropDatabase, freshPostgresDatabase, psql } from "#src/platform/db/__tests__/postgres-database";
 
-import { initSite } from "../../init-site.js";
+import { initSite } from "#src/server/runtime/composition/site-dir";
 
 /** `initSite`'s empty-database admission names few occupied tables exactly. Real Postgres, one temp database. */
 const DATABASE = "tovu_init_site_occupied";

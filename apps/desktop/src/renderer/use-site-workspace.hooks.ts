@@ -88,6 +88,8 @@ export function siteWorkspaceReducer(state: SiteWorkspaceState, action: SiteWork
     case 'guest-changed':
       return { ...state, liveUrl: null, history: action.history };
   }
+  // Typed cases are exhaustive; preserve undefined fallthrough for untyped callers.
+  return undefined as never;
 }
 
 /**
@@ -121,7 +123,9 @@ export function siteSurfaceUrl(
     return page ? new URL(`/admin/${page}`, input.externalUrl).href : input.externalUrl;
   }
   const { origin } = sitePortPresentation(input);
-  return origin ? `${origin}${input.view === 'site' ? '/' : `/admin/${page}`}` : '';
+  if (!origin) return '';
+  const pathname = input.view === 'site' ? '/' : `/admin/${page}`;
+  return `${origin}${pathname}`;
 }
 
 /** Which surface a guest url belongs to: the admin by its path, everything else is the site. */
@@ -237,11 +241,12 @@ export function createWorkspaceActions(input: {
   // A guest that is not attached yet throws from `reload()`/`loadURL()`; remounting it is the only
   // load left to try.
   const loadOrRemount = (load: (target: WorkspaceGuest) => void) => {
-    if (guest === null) return remount();
+    if (guest === null) { remount(); return; }
     try {
       load(guest);
     } catch {
-      return remount();
+      remount();
+      return;
     }
     dispatch({ type: 'soft-load' });
   };

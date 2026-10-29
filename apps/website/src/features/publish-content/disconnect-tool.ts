@@ -3,7 +3,7 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, type DerivedRiskByToolId, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { disconnectDestination, PublishTrustConnectError } from "../publish-trust/connect.js";
 import { disconnectAndForgetDestination } from "./connect-destination.js";
 import { defaultProvisioning, type PublishContentToolDeps } from "./tool-registrations.js";
@@ -49,6 +49,6 @@ export function buildRegistrations(deps: Deps): ToolRegistration[] {
 }
 
 /** Contributes a distinct domain so status/connect tools remain registered. */
-export function contributePublishContentDisconnectTools(): ToolContributor {
+export function contributePublishContentDisconnectTools(): ToolContributor<Deps, unknown> {
   return { domain: "publish-content-disconnect", build: buildRegistrations, risk: derivedRisk };
 }

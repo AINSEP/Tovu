@@ -39,7 +39,7 @@ export const registerAdminPageDeleteRoute: ContentRouteRegistrar = (app, deps) =
     const pageId = String(req.params.pageId ?? "");
     const idempotencyKey = req.get("Idempotency-Key") || undefined;
 
-    let priorPost: PostRecord | null = null;
+    let priorPost: PostRecord;
 
     try {
       const principal = getAuthedPrincipal(res);
@@ -78,7 +78,6 @@ export const registerAdminPageDeleteRoute: ContentRouteRegistrar = (app, deps) =
             }),
           captureEntityVersion: ({ result }) => result.post.version,
           rollback: async () => {
-            if (!priorPost) return;
             // See `posts/delete.ts`'s identical note: `forgetRemoved` drops the Trash index row
             // `deletePost` wrote, inside the same transaction as the restore.
             await restorePostForward({

@@ -3,9 +3,9 @@ import { listPublishContentPeers } from "#src/features/publish-content/peers";
 import { getPublishTrustContext, publishTrustAuthorizeFor } from "#src/server/inbound/admin-http/publish-trust-auth";
 import type { Express } from "express";
 import { ToolInputError } from "@jini-ai/core";
-import { inspectStaticPublish } from "#src/features/deployments/static-publish/inspection";
 
 import {
+  inspectStaticPublish,
   composePublishCredentialSource,
   getPublishRunSnapshot,
   listPublishDestinations,
@@ -21,10 +21,14 @@ import type {
   DeployTargetCredentialSpec,
   DeployTargetRegistry,
   LoadedDeployTarget,
-} from "#src/features/deployments/deploy-targets/types";
+} from "#src/features/deployments/contracts";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
+
+const WORKSPACE_NOT_FOUND = "workspace was not found";
+const SITE_PUBLISH_ENTITY = "site-publish";
+const INTERNAL_ERROR_MESSAGE = "internal error";
 
 /**
  * @file Admin Deployment panel → publish-to-a-static-host backend.
@@ -98,7 +102,6 @@ export type AdminPublishSiteDeps = RouteDeps;
  *  {@link registerAdminPublishSiteRoutes} — see that function's own first lines for where this is now
  *  built. */
 
-
 /**
  * Parses and shape-validates the trigger request body's TARGET-INDEPENDENT fields. Never throws —
  * every malformed shape maps to a `{ok:false, error}` result this route turns into a `400`, matching
@@ -141,7 +144,6 @@ function parsePublishRequestBody(
 function validOptionalCredential({ value }: { value: unknown }, _options = {}): boolean {
   return value === undefined || (typeof value === "string" && value.trim() !== "");
 }
-
 
 /**
  * Resolves `targetId` in this workspace's registry and reads its descriptor-declared config fields
@@ -240,7 +242,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
 
   app.post("/api/admin/v1/workspaces/:workspaceId/system/publish", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
+      res.status(404).json({ error: WORKSPACE_NOT_FOUND });
       return;
     }
 
@@ -250,7 +252,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
         principalId: principal.id,
         permission: "system.publish",
         workspaceId: deps.workspaceId,
-        entityType: "site-publish",
+        entityType: SITE_PUBLISH_ENTITY,
       });
       if (!authorized) { deps.tracker.capture({ name: "site_publish_blocked", userId: principal.id }, { properties: { reasonClass: "auth", source: "admin" } }); return; }
 
@@ -315,13 +317,13 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
       // (see its own call site comment) so a failure inside the run it starts can never reach this
       // catch — only a failure BEFORE that point can, e.g. `deps.authorize` itself throwing.
       console.error("[publish-site] unexpected error triggering a publish", err);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      res.status(500).json({ error: INTERNAL_ERROR_MESSAGE, code: "INTERNAL_ERROR" });
     }
   });
 
   app.get("/api/admin/v1/workspaces/:workspaceId/system/publish", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
+      res.status(404).json({ error: WORKSPACE_NOT_FOUND });
       return;
     }
 
@@ -331,20 +333,20 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
         principalId: principal.id,
         permission: "system.publish",
         workspaceId: deps.workspaceId,
-        entityType: "site-publish",
+        entityType: SITE_PUBLISH_ENTITY,
       });
       if (!authorized) return;
 
       res.status(200).json(getPublishRunSnapshot());
     } catch (err) {
       console.error("[publish-site] unexpected error polling publish status", err);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      res.status(500).json({ error: INTERNAL_ERROR_MESSAGE, code: "INTERNAL_ERROR" });
     }
   });
 
   app.get("/api/admin/v1/workspaces/:workspaceId/system/publish/preview", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
+      res.status(404).json({ error: WORKSPACE_NOT_FOUND });
       return;
     }
 
@@ -354,7 +356,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
         principalId: principal.id,
         permission: "system.read",
         workspaceId: deps.workspaceId,
-        entityType: "site-publish",
+        entityType: SITE_PUBLISH_ENTITY,
       });
       if (!authorized) return;
 
@@ -392,14 +394,14 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
         return;
       }
       console.error("[publish-site] unexpected error building a publish preview", err);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      res.status(500).json({ error: INTERNAL_ERROR_MESSAGE, code: "INTERNAL_ERROR" });
     }
   });
 
   // Listing is read-only: execution still goes through the system.publish-gated POST above.
   app.get("/api/admin/v1/workspaces/:workspaceId/system/publish/destinations", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
+      res.status(404).json({ error: WORKSPACE_NOT_FOUND });
       return;
     }
     try {
@@ -408,7 +410,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
         principalId: principal.id,
         permission: "system.read",
         workspaceId: deps.workspaceId,
-        entityType: "site-publish",
+        entityType: SITE_PUBLISH_ENTITY,
       });
       if (!authorized) return;
       const registry = await deps.loadDeployTargets(deps.workspaceId);
@@ -427,7 +429,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
       }));
     } catch (err) {
       console.error("[publish-site] unexpected error listing publish destinations", err);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      res.status(500).json({ error: INTERNAL_ERROR_MESSAGE, code: "INTERNAL_ERROR" });
     }
   });
 
@@ -436,7 +438,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
   // that text (`i18n`) only: a module path, a vendor id or a refusal reason stays server-side.
   app.get("/api/admin/v1/workspaces/:workspaceId/system/publish-targets", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
+      res.status(404).json({ error: WORKSPACE_NOT_FOUND });
       return;
     }
 
@@ -446,7 +448,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
         principalId: principal.id,
         permission: "system.read",
         workspaceId: deps.workspaceId,
-        entityType: "site-publish",
+        entityType: SITE_PUBLISH_ENTITY,
       });
       if (!authorized) return;
 
@@ -466,7 +468,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
       });
     } catch (err) {
       console.error("[publish-site] unexpected error listing publish targets", err);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      res.status(500).json({ error: INTERNAL_ERROR_MESSAGE, code: "INTERNAL_ERROR" });
     }
   });
 }

@@ -21,27 +21,18 @@ import { DEFAULT_MAX_AGE_MS, parseStored } from '@jini-ai/cookie-consent/policy'
 import { renderBanner, type RenderedBanner } from '@jini-ai/cookie-consent/render';
 import { handleReceipt, readConsent, resolveRegion, type ConsentRecord } from '@jini-ai/cookie-consent/server';
 import { consentRateLimitKey, createConsentFileRecords, createNodeConsentFiles } from '@jini-ai/cookie-consent/node';
+import { createNodeAtomicFilesystem, writeJsonFileAtomic } from '@jini-ai/platform/fs';
 import { createRateLimiter, resolveClientIp } from '#src/contracts/core/rate-limit/rate-limit';
+import type { SiteCookieConsentDeps, ConsentPluginHttp, ConsentPluginContribution } from '#src/contracts/headless/site-cookie-consent';
 import { renderSiteConsentPreview, siteBannerMode, toSiteCookieConsent, type SiteConsentSource } from '#src/features/consent/cookie-consent';
 import type { ConsentDryRunGate } from '#src/features/consent/readiness';
 import { withSiteConsentSettingsLink } from '#src/features/consent/settings-link';
-import { writeJsonFileAtomic } from '#src/platform/site-dir/atomic-write';
 import type { RouteDeps } from '#src/server/routes/types';
 import { insertBeforeUncommentedTag } from '../http/site/render.js';
 import { isStaticExportRequest } from '../routes/site/pages.js';
 import { CONSENT_RECEIPTS_DIR_NAME, CONSENT_SAVE_PROFILE, readSiteConsentPolicy, resolveSiteConsentOrigin } from './site-consent.js';
 
-/** The one switch's payload: present = this engine serves the site. */
-export interface SiteCookieConsentDeps {
-  /** This site's region readers (configured ingress plugin + legacy header); empty = strict. */
-  regionResolvers: () => Promise<readonly RegionResolver[]>;
-}
-/** A same-origin plugin handler (the PostHog adapter's SDK, adapter module and collector). */
-export interface ConsentPluginHttp {
-  path: string;
-  handle(required: { method: string; path: string; body: Uint8Array; contentType: string; analyticsLevel?: ConsentState['analyticsLevel'] }): Promise<{ status: number; body: string | Uint8Array; contentType?: string; cacheControl?: string }>;
-}
-export interface ConsentPluginContribution { adapter: RawContribution; http?: ConsentPluginHttp }
+export type { SiteCookieConsentDeps, ConsentPluginHttp, ConsentPluginContribution } from '#src/contracts/headless/site-cookie-consent';
 type SiteRenderedBanner = RenderedBanner & { mode?: BannerMode };
 
 export const CONSENT_ENDPOINT = '/_consent';
@@ -105,21 +96,25 @@ export const cookieConsentPreviewGate = (({ html, config, regionMode }: { html: 
 }) as unknown as ConsentDryRunGate;
 
 /** Any body chunk Node accepts (string, Buffer, Uint8Array) as bytes. */
-const toBuffer = ({ chunk, encoding }: { chunk: string | Uint8Array; encoding: unknown }, _optional = {}): Buffer => typeof chunk === 'string'
-  ? Buffer.from(chunk, typeof encoding === 'string' ? encoding as BufferEncoding : 'utf8') : Buffer.from(chunk);
+const toBuffer = ({ chunk, encoding }: { chunk: string | Uint8Array; encoding: unknown }, _optional = {}): Buffer => {
+  if (typeof chunk !== 'string') return Buffer.from(chunk);
+  return Buffer.from(chunk, typeof encoding === 'string' ? encoding as BufferEncoding : 'utf8');
+};
 
 /** Buffer one HTML response and hand the full body to `transform` at `end`. A response that is not
  * HTML, already flushed, or over the cap goes out untouched (the page then has no banner: nothing
  * optional runs without the client). @complexity O(body bytes). */
 export function captureHtml({ res, transform }: { res: Response; transform: (required: { html: string }) => Promise<string> }, { maxBytes = MAX_HTML_BYTES }: { maxBytes?: number } = {}): void {
-  const write = res.write, end = res.end;
+  const { write, end } = res;
   const chunks: Buffer[] = [];
   let size = 0;
   const isHtml = () => String(res.getHeader('content-type') ?? '').includes('text/html') && !res.getHeader('content-encoding') && !res.headersSent;
   // `res.send` ends with one chunk and never calls `write`, so the cap is checked here too. An empty
   // body (HEAD) has nothing to transform, and its Content-Length/ETag describe the GET body.
-  const untouched = (body: Buffer) => !isHtml() || body.length === 0 || body.length > maxBytes
-    || res.statusCode >= 400 || res.statusCode === 204 || res.statusCode === 304;
+  const untouched = (body: Buffer) => {
+    if (!isHtml() || body.length === 0 || body.length > maxBytes) return true;
+    return res.statusCode >= 400 || res.statusCode === 204 || res.statusCode === 304;
+  };
   const passThrough = () => { res.write = write; res.end = end; const held = Buffer.concat(chunks); chunks.length = 0; if (held.length) Reflect.apply(write, res, [held]); };
   res.write = function (this: Response, chunk: unknown, encoding?: unknown, callback?: unknown) {
     const buffer = toBuffer({ chunk: chunk as string | Uint8Array, encoding });
@@ -170,7 +165,7 @@ function siteReceiptStore({ deps }: { deps: RouteDeps }, _optional = {}) {
   return createConsentFileRecords({ directory: path.join(deps.siteBinding.dir, CONSENT_RECEIPTS_DIR_NAME), files: createNodeConsentFiles({
     atomicWrite: async ({ filePath, data }, { createParent, mode, refuseSymlink }) => {
       if (createParent) await fs.promises.mkdir(path.dirname(filePath), { recursive: true, mode: 0o700 });
-      writeJsonFileAtomic({ filePath, data }, { mode, refuseSymlink });
+      writeJsonFileAtomic({ filePath, data, fs: createNodeAtomicFilesystem({}, {}) }, { mode, refuseSymlink });
     } }) });
 }
 

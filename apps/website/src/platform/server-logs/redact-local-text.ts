@@ -18,7 +18,9 @@ const NOT_PATH_CONTINUATION = "(?![A-Za-z0-9._-])";
  */
 export function redactLocalText({ text }: { text: string }, { homeDir = os.homedir() }: { homeDir?: string } = {}): string {
   const redacted = redactText({ text }, { username: path.basename(homeDir) });
-  const home = homeDir.replace(/[\\/]+$/, "");
+  let end = homeDir.length;
+  while (end > 0 && (homeDir[end - 1] === "/" || homeDir[end - 1] === "\\")) end -= 1;
+  const home = homeDir.slice(0, end);
   if (!home || path.parse(homeDir).root === homeDir) return redacted;
   const escaped = home.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return redacted.replace(new RegExp(`${escaped}${NOT_PATH_CONTINUATION}`, "g"), "~");

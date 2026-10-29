@@ -33,9 +33,11 @@ import type { ContentDatabase } from "../../platform/db/content-database.generat
 import type { SqliteConnectionSource } from "../../platform/db/kernel/drivers/sqlite.js";
 import { createSqliteTrashDb } from "./db-port.sqlite.js";
 import type { TrashDb } from "./db-port.js";
-import { entryWhere, loose, qualified } from "./entry-sql.js";
+import { entryWhere, loose, qualified, type LooseExpressionBuilder } from "./entry-sql.js";
 import type { TrashAdapter, TrashEntityType, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
 import type { TrashCascadeSpec, TrashEntry, TrashMarkerSpec } from "./registry.js";
+
+const VERSION_CHANGED = "version-changed";
 
 /** The row shape every `hide`/`unhide`/`purge` read needs: the marker's raw value, plus the version
  *  column when the entry has one. */
@@ -231,7 +233,7 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
         const before = await readMarkerRow(workspaceId, entityId);
         if (!before) return { ok: false, reason: "not-found" };
         if (hasVersionChanged({ entry, row: before, expectedVersion })) {
-          return { ok: false, reason: "version-changed" };
+          return { ok: false, reason: VERSION_CHANGED };
         }
         if (!isMarkerValueLive(entry.marker, before.marker)) {
           // Already trashed -- idempotent success, no write (mirrors `flipMarker`'s fallback branch).
@@ -242,7 +244,7 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
         if (blocked) return blocked;
 
         const written = await writeMarker(workspaceId, entityId, entry.marker.kind === "timestamp" ? at : entry.marker.trashed, at, before);
-        if (!written) return { ok: false, reason: "version-changed" };
+        if (!written) return { ok: false, reason: VERSION_CHANGED };
 
         const version = await readVersion(workspaceId, entityId);
         // `priorMarker` is additive (migration 0072) and only meaningful for a status marker's
@@ -272,7 +274,7 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
         const before = await readMarkerRow(workspaceId, entityId);
         if (!before) return { ok: false, reason: "not-found" };
         if (hasVersionChanged({ entry, row: before, expectedVersion })) {
-          return { ok: false, reason: "version-changed" };
+          return { ok: false, reason: VERSION_CHANGED };
         }
         if (isMarkerValueLive(entry.marker, before.marker)) {
           // Already live -- idempotent success, no write. `noop: true`, same as `hide`'s mirror
@@ -287,7 +289,7 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
           at,
           before
         );
-        if (!written) return { ok: false, reason: "version-changed" };
+        if (!written) return { ok: false, reason: VERSION_CHANGED };
 
         return { ok: true, version: await readVersion(workspaceId, entityId) };
       });
@@ -309,26 +311,27 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
         await lockRow(workspaceId, entityId);
         const row = await readMarkerRow(workspaceId, entityId);
         if (!row) return "already-gone";
-        if (isMarkerValueLive(entry.marker, row.marker)) return "version-changed"; // never purge a live row
-        if (hasVersionChanged({ entry, row, expectedVersion })) return "version-changed";
+        if (isMarkerValueLive(entry.marker, row.marker)) return VERSION_CHANGED; // never purge a live row
+        if (hasVersionChanged({ entry, row, expectedVersion })) return VERSION_CHANGED;
 
         // A domain writer does not take Trash's advisory lock. Claim the exact pre-image with a
         // no-op UPDATE before touching children: it both checks the read and holds the database's
         // row write lock through the cascades and parent delete, without bumping any domain fields.
+        const claimWhere = (eb: LooseExpressionBuilder) => {
+          const guards = [
+            entryWhere(eb, { entry, workspaceId, entityId }),
+            eb(qualified(entry.table, entry.marker.column), "=", row.marker),
+          ];
+          if (entry.versionColumn && row.version !== null && row.version !== undefined) {
+            guards.push(eb(qualified(entry.table, entry.versionColumn), "=", row.version));
+          }
+          return eb.and(guards);
+        };
         const claimed = await run((db) =>
-          loose(db).updateTable(entry.table).set({ [entry.marker.column]: row.marker }).where((eb) => {
-            const guards = [
-              entryWhere(eb, { entry, workspaceId, entityId }),
-              eb(qualified(entry.table, entry.marker.column), "=", row.marker),
-            ];
-            if (entry.versionColumn && row.version !== null && row.version !== undefined) {
-              guards.push(eb(qualified(entry.table, entry.versionColumn), "=", row.version));
-            }
-            return eb.and(guards);
-          }).executeTakeFirst()
+          loose(db).updateTable(entry.table).set({ [entry.marker.column]: row.marker }).where(claimWhere).executeTakeFirst()
         );
         if (affected(claimed.numUpdatedRows) === 0) {
-          return (await readMarkerRow(workspaceId, entityId)) ? "version-changed" : "already-gone";
+          return (await readMarkerRow(workspaceId, entityId)) ? VERSION_CHANGED : "already-gone";
         }
 
         for (const cascade of entry.purgeFirst ?? []) {
@@ -336,15 +339,16 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
         }
 
         const versionColumn = entry.versionColumn;
+        const deleteWhere = (eb: LooseExpressionBuilder) => {
+          const base = entryWhere(eb, { entry, workspaceId, entityId });
+          return versionColumn && expectedVersion !== null
+            ? eb.and([base, eb(qualified(entry.table, versionColumn), "=", expectedVersion)])
+            : base;
+        };
         const result = await run((db) =>
           loose(db)
             .deleteFrom(entry.table)
-            .where((eb) => {
-              const base = entryWhere(eb, { entry, workspaceId, entityId });
-              return versionColumn && expectedVersion !== null
-                ? eb.and([base, eb(qualified(entry.table, versionColumn), "=", expectedVersion)])
-                : base;
-            })
+            .where(deleteWhere)
             .executeTakeFirst()
         );
         if (affected(result.numDeletedRows) > 0) return "purged";
@@ -352,7 +356,7 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
         // Raced between the read above and this delete (the row lock above makes this unreachable
         // in practice, but the classification stays correct if that ever changes): distinguish
         // "gone" from "moved" the same way `compareAndDelete` does.
-        return (await readMarkerRow(workspaceId, entityId)) ? "version-changed" : "already-gone";
+        return (await readMarkerRow(workspaceId, entityId)) ? VERSION_CHANGED : "already-gone";
       });
     },
   };

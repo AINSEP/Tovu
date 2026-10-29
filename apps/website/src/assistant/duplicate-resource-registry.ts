@@ -1,5 +1,3 @@
-import type { AssistantToolRegistryDeps } from "./tool-registrations.js";
-
 /**
  * @file Resource-owned duplication handlers for content_duplicate. A generic tool dispatches
  * to each resource's own copy implementation instead of requiring a bespoke duplicate tool per resource.
@@ -16,7 +14,7 @@ import type { AssistantToolRegistryDeps } from "./tool-registrations.js";
  *
  * Why `assistant/` owns this file rather than a `features/` package, mirroring
  * `tool-contribution-registry.ts`'s own identical reasoning: {@link DuplicateResourceHandlerContributor}
- * is typed against {@link AssistantToolRegistryDeps}, assembled in `assistant/tool-registrations.ts`
+ * is generic in its consumed deps, bound to `AssistantToolRegistryDeps` in `assistant/tool-registrations.ts`
  * from every domain's own `*ToolDeps` via TYPE-ONLY imports (erased at compile time — no runtime
  * module edge). A resource feature (e.g. `features/post`) reaches INTO this registry with a
  * `import type` for {@link DuplicateResourceHandlerContributor} (zero runtime edge — see
@@ -69,12 +67,13 @@ export interface DuplicateResourceHandler {
  * surfaces)` (run per real composition, later) is what actually resolves every registered
  * contributor into a real handler.
  */
-export interface DuplicateResourceHandlerContributor {
+export interface DuplicateResourceHandlerContributor<TDeps> {
   readonly resource: string;
-  readonly build: (routeDeps: AssistantToolRegistryDeps) => DuplicateResourceHandler;
+  readonly build: (routeDeps: TDeps) => DuplicateResourceHandler;
 }
 
-let contributors: DuplicateResourceHandlerContributor[] = [];
+// Erase dependencies only in storage; the host binds registration and listing to the same deps.
+let contributors: DuplicateResourceHandlerContributor<never>[] = [];
 
 /**
  * Registers one resource's duplicate contribution, called once by a composition root during the
@@ -84,7 +83,7 @@ let contributors: DuplicateResourceHandlerContributor[] = [];
  * reasoning to `registerToolContributor`: idempotent per catalog instance, safe for a test process
  * that legitimately re-registers. Registration order is otherwise preserved.
  */
-export function registerDuplicateResourceHandler(contributor: DuplicateResourceHandlerContributor): void {
+export function registerDuplicateResourceHandler<TDeps>(contributor: DuplicateResourceHandlerContributor<TDeps>): void {
   const existing = contributors.findIndex((candidate) => candidate.resource === contributor.resource);
   if (existing >= 0) {
     contributors[existing] = contributor;
@@ -94,8 +93,8 @@ export function registerDuplicateResourceHandler(contributor: DuplicateResourceH
 }
 
 /** Every resource contributor registered so far, in registration order. */
-export function listDuplicateResourceHandlers(): readonly DuplicateResourceHandlerContributor[] {
-  return contributors;
+export function listDuplicateResourceHandlers<TDeps>(): readonly DuplicateResourceHandlerContributor<TDeps>[] {
+  return contributors as readonly DuplicateResourceHandlerContributor<TDeps>[];
 }
 
 /** Test-only reset of the module-level registry (mirrors `resetToolContributorsForTests`). */

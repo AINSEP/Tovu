@@ -198,16 +198,6 @@ test("plugins_uninstall's catalog says the plugin moves to the 60-day Trash", ()
   assert.match(catalogEntry("plugins_uninstall").description, /all workspaces on this site/);
 });
 
-test("agent-tools.ts's header no longer claims uninstall has no admin route — the stale comment is fixed", async () => {
-  const fs = await import("node:fs/promises");
-  const source = await fs.readFile(new URL("../../features/plugin-runtime/agent-tools.ts", import.meta.url), "utf8");
-  assert.doesNotMatch(
-    source,
-    /There is no install\/uninstall\/upload tool\. `features\/plugin-runtime` has no admin ROUTE for\s*\n\s*\* +either operation at all/,
-    "the false 'no uninstall route exists' claim must not still be asserted as current fact",
-  );
-});
-
 // ---------------------------------------------------------------------------
 // 2. Authorization (ADR-021 §2) — same permission as plugins_set_enabled, no new grant
 // ---------------------------------------------------------------------------

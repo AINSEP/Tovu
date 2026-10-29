@@ -1,7 +1,7 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/server-logs.js';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInputError, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
@@ -46,6 +46,6 @@ export function buildServerLogsRegistrations(deps: ServerLogsToolDeps): ToolRegi
 }
 
 /** Keeps the diagnostic under its own contributor domain. */
-export function contributeServerLogsTools(): ToolContributor {
+export function contributeServerLogsTools(): ToolContributor<ServerLogsToolDeps, unknown> {
   return { domain: "system-server-logs", build: buildServerLogsRegistrations, risk: serverLogsDerivedRisk };
 }

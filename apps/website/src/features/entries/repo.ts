@@ -50,7 +50,7 @@ export interface EntryPublishReadPort {
  * can only be a caller that skipped that validation, and it matches nothing rather than throwing
  * (today's behaviour) — the name never reaches SQL either way.
  */
-const SITE_FIELD_KEY = /^[A-Za-z0-9_]+$/;
+const SITE_FIELD_KEY = /^\w+$/;
 
 /** The path of a custom field's value inside `entries.fields_json`. */
 const siteFieldPath = (field: string): string[] => ["ext", "site", field];
@@ -109,7 +109,7 @@ export class SqlEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayL
    *         ``expected no entry '<id>', found <stored>`` when a create finds the id taken.
    * @complexity O(1).
    */
-  async save(record: EntryRecord, options: { expectedVersion?: number | null | undefined } = {}): Promise<void> {
+  async save(record: EntryRecord, options: { expectedVersion?: number | null } = {}): Promise<void> {
     const values = toRow(record);
     try {
       if (options.expectedVersion === null) {

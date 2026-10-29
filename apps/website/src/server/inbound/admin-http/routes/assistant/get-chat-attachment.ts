@@ -1,7 +1,6 @@
 import type { Express } from "express";
 
-import { sniffContentType } from "#src/features/media/index";
-import { readChatAttachmentForOwner } from "#src/features/media/read-chat-attachment";
+import { sniffContentType, readChatAttachmentForOwner } from "#src/features/media/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { parseRangeHeader } from "#src/server/inbound/admin-http/range";
 import {

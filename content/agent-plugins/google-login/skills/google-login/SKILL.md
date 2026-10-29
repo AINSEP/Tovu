@@ -59,7 +59,7 @@ Tovu member login and Google Workspace have separate credentials and activation.
 
 ## Embed the sign-in button on a public page
 
-Use the existing `plugins_list` export contract for `tovu/google-login` → `sign-in-button`.
+Use the existing `content_read.plugin` export contract for `tovu/google-login` → `sign-in-button`.
 The plugin must be enabled and its Google client configured. `host-unavailable` means finish
 setup first; `props-required` means the host is configured and the author must choose a variant.
 The required `variant` is `light`, `dark`, or `neutral`; no template defaults or logic are added.

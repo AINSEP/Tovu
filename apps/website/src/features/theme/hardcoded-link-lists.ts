@@ -22,7 +22,9 @@ const MAX_NAMED_LINKS = 10;
 
 /** `nav.html`, `site-header.html`, `footer-minimal.html`, `navbar.hbs` — the partials that carry link lists. */
 const CHROME_PARTIAL = /(?:^|[-_.])(?:header|footer|nav|navbar|navigation|menu)(?:[-_.][^/]*)?\.(?:html?|hbs|handlebars|liquid)$/i;
-const ANCHOR_HREF = /<a\b(?:[^>"']|"[^"]*"|'[^']*')*?\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>"']+))/gi;
+const ANCHOR_START = /<a\b/gi;
+const HREF_PREFIX = /\bhref\s*=\s*/iy;
+const HREF_VALUE = /(?:"([^"]*)"|'([^']*)'|([^\s>"']+))/y;
 /** `https:`, `mailto:`, `tel:`, `javascript:` … — not a link to a page of this site. */
 const URL_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
 
@@ -51,13 +53,47 @@ function maskMenusAndNonRenderable(html: string): string {
  */
 export function findHardcodedLinks({ html }: { html: string }, _optional: {} = {}): readonly string[] {
   const hrefs: string[] = [];
-  for (const match of maskMenusAndNonRenderable(html).matchAll(ANCHOR_HREF)) {
-    // ANCHOR_HREF's three value groups are alternatives, so exactly one is captured and the other
-    // two are undefined; join("") renders undefined as "", yielding the one authored value.
-    const href = match.slice(1).join("");
-    if (isInternalHref(href)) hrefs.push(href.trim());
+  const masked = maskMenusAndNonRenderable(html);
+  const anchors = new RegExp(ANCHOR_START);
+  for (let anchor = anchors.exec(masked); anchor; anchor = anchors.exec(masked)) {
+    const found = anchorHref({ html: masked, start: anchors.lastIndex });
+    if (found) {
+      anchors.lastIndex = found.end;
+      if (isInternalHref(found.href)) hrefs.push(found.href.trim());
+    }
   }
   return hrefs;
+}
+
+/** Keep the tolerant scanner's first valid href, skipping complete quoted attributes.
+ * An incomplete href can still be followed by a valid one on the same anchor. */
+function anchorHref({ html, start }: { html: string; start: number }, _options = {}): { href: string; end: number } | undefined {
+  const prefix = new RegExp(HREF_PREFIX);
+  const value = new RegExp(HREF_VALUE);
+  for (let offset = start; offset < html.length; offset++) {
+    const char = html[offset]!;
+    if (char === ">") return undefined;
+    const captured = anchorHrefAt({ html, offset, prefix, value });
+    if (captured) return captured;
+    const quoted = char === '"' || char === "'";
+    const end = quoted ? html.indexOf(char, offset + 1) : offset;
+    if (end === -1) return undefined;
+    offset = end;
+  }
+  return undefined;
+}
+
+/** Mutates only this scan's sticky matchers; an invalid value leaves the scanner free to
+ * look for a later href. Quoted attributes are skipped by the caller. */
+function anchorHrefAt({ html, offset, prefix, value }: {
+  html: string; offset: number; prefix: RegExp; value: RegExp;
+}, _options = {}): { href: string; end: number } | undefined {
+  prefix.lastIndex = offset;
+  if (!prefix.exec(html)) return undefined;
+  value.lastIndex = prefix.lastIndex;
+  const captured = value.exec(html);
+  // The value groups are alternatives; join renders the two undefined groups as empty text.
+  return captured ? { href: captured.slice(1).join(""), end: value.lastIndex } : undefined;
 }
 
 /**

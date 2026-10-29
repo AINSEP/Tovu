@@ -96,12 +96,17 @@ async function resolveTarget(required: DnsChangeRequest & { errorPrefix: string 
   const binding = (await ports.bindings?.get({ hostname: required.hostname })) ?? null;
   const providerId = binding?.providerId ?? MANUAL_DNS_PROVIDER_ID;
   const provider = providerFor({ ...required, providerId }, ports);
-  const base = required.requirements ?? binding?.requirements ?? [];
+  const base = requestedRequirements({ required, binding });
   const requirements = required.include?.includes("mail") ? await withMailRequirements({ ...required, requirements: base }, { ...ports, provider }) : base;
   if (requirements.length === 0) {
     throw new ToolInputError({ message: `${required.errorPrefix}: no DNS requirements are saved for ${required.hostname}; pass requirements (the records the host or mail provider asked for).` });
   }
   return { hostname: required.hostname, providerId, provider, requirements, binding };
+}
+
+/** Explicit requirements, including an empty list, take precedence over a saved binding. */
+function requestedRequirements({ required, binding }: { required: DnsChangeRequest; binding: DomainBinding | null }, _options = {}): DnsPlanRequirement[] {
+  return required.requirements ?? binding?.requirements ?? [];
 }
 
 /** The provider's zone for the hostname; the saved zone (or the hostname) when none answers. */

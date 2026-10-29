@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import Database from "better-sqlite3";
 import { contentKernel } from "#src/platform/db/content-kernel";
-import { createRawRowSqlitePort } from "#src/platform/db/sqlite/publish-backstop-row.sqlite";
+import { createRawRowSqlitePort } from "#src/features/publish-content/publish-backstop-row.sqlite";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { contributeRawRowPublish } from "../raw-row-contributor.js";

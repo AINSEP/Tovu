@@ -22,10 +22,7 @@ import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
  * Wired where the OAuth service is composed (`composition/app.ts`, `composition/deps.ts`,
  * `agent-daemon-server.ts`).
  */
-import {
-  notifyExternalMcpRosterChanged,
-  type ExternalMcpStoreDeps,
-} from "#src/assistant/index";
+import type { ExternalMcpStoreDeps } from "#src/assistant/index";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "./activation-effects.js";
@@ -76,8 +73,8 @@ export interface ApplyConnectDefaultsDeps extends Pick<ExternalMcpStoreDeps, "re
   /** Injected for tests. Defaults to {@link switchPluginOnUnlessOperatorOff}; `false` means an
    *  operator's "off" stopped it, and nothing is granted. */
   readonly enablePlugin?: (input: { workspaceId: string; pluginId: string; actor: string }) => Promise<unknown>;
-  /** Injected for tests. Defaults to `notifyExternalMcpRosterChanged`. */
-  readonly notifyRosterChanged?: () => Promise<void>;
+  /** Host supplies the assistant's `notifyExternalMcpRosterChanged` port. */
+  readonly notifyRosterChanged: () => Promise<void>;
   /** Injected for tests. Defaults to {@link isPluginOffByOperator} on this workspace's activations. */
   readonly isPluginOffByOperator?: (pluginId: string) => Promise<boolean>;
 }
@@ -89,11 +86,10 @@ export interface ApplyConnectDefaultsDeps extends Pick<ExternalMcpStoreDeps, "re
  * failing the sign-in.
  * @complexity O(s) in the plugin's declared server count, plus one row write and one activation write.
  */
-export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps): (serverId: string) => Promise<void> {
+export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps, _options = {}): (serverId: string) => Promise<void> {
   const resolveServers = deps.resolveServers ?? ((input: { workspaceId: string; pluginId: string }) => resolveAgentPluginMcpServers({ ...input, agentPluginLayout: deps.agentPluginLayout }));
   const enablePlugin =
     deps.enablePlugin ?? ((input: { workspaceId: string; pluginId: string }) => switchPluginOnUnlessOperatorOff({ ...input, agentPluginLayout: deps.agentPluginLayout }));
-  const notifyRosterChanged = deps.notifyRosterChanged ?? (() => notifyExternalMcpRosterChanged());
   const isOff = deps.isPluginOffByOperator ?? ((pluginId: string) => isPluginOffByOperator({ workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, pluginId }));
 
   return async (serverId) => {
@@ -125,6 +121,6 @@ export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps): (ser
       writeGrantsUpdatedAt: nowIso,
       updatedAt: nowIso,
     });
-    await notifyRosterChanged();
+    await deps.notifyRosterChanged();
   };
 }

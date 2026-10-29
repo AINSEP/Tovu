@@ -8,7 +8,7 @@ import { isSiteSwitcherEnabled } from "../../platform/site-dir/index.js";
 import { devRestartPortFromEnv, type DevRestartPort } from "../../platform/dev-supervisor/index.js";
 import { toAssistantRegistryDeps } from "./fixtures/registry-deps.js";
 import { buildAssistantToolRegistrations, type AssistantToolRegistryDeps } from "../tool-registrations.js";
-import type { AssistantToolContributions, ToolContributor, DerivedToolContributor } from "../tool-contribution-registry.js";
+import type { AssistantToolContributions, ToolContributor, DerivedToolContributor } from "../tool-registrations.js";
 import type { AssistantPermanentDeletesPolicy } from "../../contracts/headless/assistant-permanent-deletes-policy.js";
 
 function contributions(_required: object, _optional = {}): AssistantToolContributions {

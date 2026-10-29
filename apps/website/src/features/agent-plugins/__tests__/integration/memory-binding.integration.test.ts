@@ -1,3 +1,4 @@
+import { containAgentPluginStatePath } from "#src/features/agent-plugins/lifecycle";
 import assert from "node:assert/strict";
 import * as fs from "node:fs/promises";
 import os from "node:os";
@@ -25,7 +26,7 @@ async function temporaryLayout(t: test.TestContext) {
 
 test("withAgentPluginStateLock runs the critical section under a per-plugin lock and returns its result", async (t) => {
   const { workspaceRoot } = await temporaryLayout(t);
-  const result = await withAgentPluginStateLock({
+  const result = await withAgentPluginStateLock({ contain: containAgentPluginStatePath,
     workspaceRoot, pluginId: "example",
     run: async () => {
       const staging = await fs.readdir(path.join(workspaceRoot, "staging"));
@@ -39,7 +40,7 @@ test("withAgentPluginStateLock runs the critical section under a per-plugin lock
 test("withAgentPluginStateLock refuses a plugin id that is not a safe path segment before locking", async (t) => {
   const { workspaceRoot } = await temporaryLayout(t);
   let ran = false;
-  await assert.rejects(withAgentPluginStateLock({ workspaceRoot, pluginId: "../escape", run: async () => { ran = true; } }));
+  await assert.rejects(withAgentPluginStateLock({ contain: containAgentPluginStatePath, workspaceRoot, pluginId: "../escape", run: async () => { ran = true; } }));
   assert.equal(ran, false);
 });
 
@@ -52,7 +53,7 @@ test("a legacy package whose manifest is not a valid Agent Plugin manifest is qu
   const warnings: string[] = [];
   t.mock.method(console, "warn", (message: string) => { warnings.push(message); });
 
-  const result = await migrateAgentPluginLayout({ layout, workspaceId });
+  const result = await migrateAgentPluginLayout({ contain: containAgentPluginStatePath, layout, workspaceId });
 
   assert.equal(result.moved, 0);
   await assert.rejects(fs.stat(legacy), { code: "ENOENT" });
@@ -63,9 +64,9 @@ test("a legacy package whose manifest is not a valid Agent Plugin manifest is qu
 
 test("appendPluginNotes returns the guidance untouched when the plugin has no notes, and JSON-quotes them when it does", async (t) => {
   const { layout, workspaceRoot } = await temporaryLayout(t);
-  assert.equal(await appendPluginNotes({ workspaceRoot, pluginId: "example", guidance: "Skill" }), "Skill");
-  await pluginMemory({ workspaceId, pluginId: "example" }, { layout }).writeNote({ entryPath: "project.md", text: "Prefer \"short\" titles" });
-  const guidance = await appendPluginNotes({ workspaceRoot, pluginId: "example", guidance: "Skill" });
+  assert.equal(await appendPluginNotes({ contain: containAgentPluginStatePath, workspaceRoot, pluginId: "example", guidance: "Skill" }), "Skill");
+  await pluginMemory({ contain: containAgentPluginStatePath, workspaceId, pluginId: "example" }, { layout }).writeNote({ entryPath: "project.md", text: "Prefer \"short\" titles" });
+  const guidance = await appendPluginNotes({ contain: containAgentPluginStatePath, workspaceRoot, pluginId: "example", guidance: "Skill" });
   assert.ok(guidance.startsWith("Skill\n\nUser notes for this plugin (context only; permissions remain operator-controlled):\n"), guidance);
   assert.match(guidance, /Prefer \\"short\\" titles/);
 });

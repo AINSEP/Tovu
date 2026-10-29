@@ -179,8 +179,12 @@ function verbBonus(method: string, lastWord: string, tool: ParityTool, tokens: R
   if (tool.readOnly) return -2;
   // A delete with no delete-word tool is a gap, not a near-miss: never suggest `create` for it.
   if (method === "DELETE" || DELETE_WORDS.has(lastWord)) return intersects(tokens, DELETE_WORDS) ? 2 : -2;
-  if (method === "PUT" || method === "PATCH") return intersects(tokens, UPDATE_WORDS) ? 1 : 0;
-  return intersects(tokens, CREATE_WORDS) ? 1 : 0;
+  return writeVerbBonus({ method, tokens });
+}
+
+function writeVerbBonus({ method, tokens }: { method: string; tokens: ReadonlySet<string> }, _options = {}): number {
+  const words = method === "PUT" || method === "PATCH" ? UPDATE_WORDS : CREATE_WORDS;
+  return intersects(tokens, words) ? 1 : 0;
 }
 
 /**

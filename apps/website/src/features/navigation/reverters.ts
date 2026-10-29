@@ -3,8 +3,8 @@ import type { OutboxPort } from "@jini-ai/cms/core";
 
 import type { EntityReverter, RevertRegistry } from "../../contracts/core/commands/index.js";
 
-import { updateMenuTree } from "./index.js";
-import type { MenuRepoPort, NavItemNode } from "./index.js";
+import { updateMenuTree } from "@jini-ai/cms/navigation";
+import type { MenuRepoPort, NavItemNode } from "@jini-ai/cms/navigation";
 
 /**
  * @file Menu-domain entity reverters — R4 of

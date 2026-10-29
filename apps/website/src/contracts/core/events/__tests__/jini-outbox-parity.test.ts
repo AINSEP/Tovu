@@ -5,7 +5,7 @@ import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { outboxFor } from "#src/platform/db/repos/outbox-repo";
+import { SqlOutboxAdapter } from "#src/platform/db/repos/outbox-repo";
 import { InMemoryEventBus, InMemoryOutbox, processOutbox, startOutboxDrainer, toEnqueueOnlyOutbox } from "../index.js";
 
 const NOW = "2026-10-07T00:00:00.000Z";
@@ -168,7 +168,7 @@ test("only the explicitly started serving drainer executes effects; inline drain
 for (const each of eachDialect({ tables: ["outbox_events"], make: (kernel) => kernel })) {
   test(`kysely/${each.name}: a timed-out attempt's late success still settles the row its timeout returned to pending`, async () => {
     const kernel = each.make();
-    const outbox = outboxFor(kernel);
+    const outbox = new SqlOutboxAdapter(kernel);
     const bus = new InMemoryEventBus();
     const finish = deferred();
     let runs = 0;

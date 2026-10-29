@@ -35,6 +35,7 @@ export interface HumanConfirmSpec {
   readonly errorCode: string;
   readonly title: string;
   readonly description?: string;
+  /** Jini renders structured JSON values, optional previous snapshots and explicit field labels. */
   readonly details: readonly SurfaceDetail[];
   readonly warning?: string;
   readonly danger?: boolean;

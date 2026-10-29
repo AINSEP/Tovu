@@ -256,6 +256,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
       if (!p) throw unwired(`PublishContentDeps.ports.${portsKey}`);
       const { entity, expectedVersion } = input;
       const rollbacks: Array<() => Promise<void>> = [];
+      const onRollback = (undo: () => Promise<void>): void => { rollbacks.push(undo); };
       const ctx = (existing: Row | null): RepoWriteContext<Row, Ports> => ({
         ports: p,
         deps,
@@ -265,18 +266,20 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
         existing,
         expectedVersion,
         principalId: input.principalId,
-        onRollback: (undo) => void rollbacks.push(undo),
+        onRollback,
       });
 
       /** The three CAS failures (plan §2.2 step 2), then the write with its errors mapped. */
       async function write(existing: Row | null): Promise<RepoWriteResult> {
         const found = existing ? versionOf(existing) : null;
-        const mismatch =
-          expectedVersion === undefined
-            ? found !== null && `expected no existing row, found version ${found}`
-            : found === null
-              ? `expected version ${expectedVersion}, but the row is gone`
-              : found !== expectedVersion && `expected version ${expectedVersion}, found version ${found}`;
+        let mismatch: string | false = false;
+        if (expectedVersion === undefined) {
+          if (found !== null) mismatch = `expected no existing row, found version ${found}`;
+        } else if (found === null) {
+          mismatch = `expected version ${expectedVersion}, but the row is gone`;
+        } else {
+          if (found !== expectedVersion) mismatch = `expected version ${expectedVersion}, found version ${found}`;
+        }
         if (mismatch) throw conflict(entity.id, mismatch);
         try {
           return (await config.write(ctx(existing))) ?? {};

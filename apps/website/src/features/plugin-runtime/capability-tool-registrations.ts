@@ -239,15 +239,13 @@ export async function loadEnabledPluginCapabilityToolSources(deps: {
   const sources: PluginCapabilityToolSource[] = [];
 
   for (const record of discovery) {
-    if (record.status !== "valid" || !record.manifest) continue;
-    if (record.manifest.fields.length === 0) continue; // nothing this plugin's tool could ever return
-
-    if (!(await isPluginEnabledInWorkspace(deps.pluginActivationRepo, deps.workspaceId, record.id))) continue; // disabled (or never activated) — see this file's header
+    // No fields means nothing this plugin's tool could ever return. Disabled (or never activated)
+    // plugins stay out too — see this file's header. Preserve that short-circuit order.
+    if (record.status !== "valid" || !record.manifest || record.manifest.fields.length === 0 ||
+      !(await isPluginEnabledInWorkspace(deps.pluginActivationRepo, deps.workspaceId, record.id))) continue;
 
     const fields = buildFieldSources(record.manifest);
-    if (fields.length === 0) continue;
-
-    sources.push({
+    if (fields.length > 0) sources.push({
       id: capabilityToolIdFor({ pluginId: record.id }),
       pluginId: record.id,
       pluginName: record.manifest.name,

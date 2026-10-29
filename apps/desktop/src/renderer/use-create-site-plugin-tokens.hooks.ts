@@ -76,10 +76,10 @@ export function useCreateSitePluginTokens(
 
   useEffect(() => {
     // Owner 2026-10-06: hidden — do not offer tokens while the service section is unavailable.
-    if (!enabled) return;
+    if (!enabled) return undefined;
     let live = true;
     const list = getBridge()?.listTokenSignInPlugins;
-    if (!list) return;
+    if (!list) return undefined;
     list()
       .then((found) => {
         if (live) setPlugins(found);

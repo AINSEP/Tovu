@@ -1,8 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createDurableJsonFile, createNodeDurableJsonPorts, withFileLock } from "@jini-ai/platform/fs";
-import type { SiteCreationAllocation } from "#src/platform/site-dir/site-registry";
+import type { SiteCreationAllocation } from "#src/platform/site-dir/index";
 import { SiteShareRefusal } from "./share-policy.js";
+
+const UPLOAD_METADATA_SUFFIX = ".upload.json";
 
 export interface SiteImportRecord {
   importId: string;
@@ -72,9 +74,9 @@ export class SiteImportRegistry {
   }
   uploadPath(required: { uploadId: string }, _options: Record<string, never> = {}): string { return this.file(required.uploadId, ".upload.zip"); }
   stagePath(required: { importId: string }, _options: Record<string, never> = {}): string { return this.file(required.importId, ".stage"); }
-  saveUpload(required: { row: SiteImportUpload }, _options: Record<string, never> = {}): void { this.store(required.row.uploadId, ".upload.json").write({ value: required.row }); }
+  saveUpload(required: { row: SiteImportUpload }, _options: Record<string, never> = {}): void { this.store(required.row.uploadId, UPLOAD_METADATA_SUFFIX).write({ value: required.row }); }
   getUpload(required: { uploadId: string; principalId: string }, _options: Record<string, never> = {}): SiteImportUpload {
-    const read = this.store(required.uploadId, ".upload.json").read({});
+    const read = this.store(required.uploadId, UPLOAD_METADATA_SUFFIX).read({});
     const row = read.state === "ok" ? read.value as SiteImportUpload : undefined;
     if (!row || row.principalId !== required.principalId || row.createdAt + UPLOAD_TTL_MS < Date.now()) throw new SiteShareRefusal({ code: "NOT_FOUND", message: "Upload not found or expired. Upload the ZIP again." });
     return row;
@@ -86,10 +88,10 @@ export class SiteImportRegistry {
   /** Removes an upload (payload, then record) once it is past its one-hour claim window. */
   private expireUpload(required: { id: string }): void {
     if (!ID.test(required.id)) return;
-    const read = this.store(required.id, ".upload.json").read({});
+    const read = this.store(required.id, UPLOAD_METADATA_SUFFIX).read({});
     if (read.state !== "ok" || (read.value as SiteImportUpload).createdAt + UPLOAD_TTL_MS >= Date.now()) return;
     fs.rmSync(this.uploadPath({ uploadId: required.id }), { force: true });
-    fs.rmSync(this.file(required.id, ".upload.json"), { force: true });
+    fs.rmSync(this.file(required.id, UPLOAD_METADATA_SUFFIX), { force: true });
   }
   /** Fails an owner setup past its deadline and discards its stage; history keeps the named failure. */
   private expireOwnerSetup(required: { importId: string }): void {
@@ -103,7 +105,7 @@ export class SiteImportRegistry {
   }
   /** Removes a ZIP whose metadata is missing or unreadable: a crash between the two writes. */
   private removeOrphanUpload(required: { id: string }): void {
-    if (!ID.test(required.id) || this.store(required.id, ".upload.json").read({}).state === "ok") return;
+    if (!ID.test(required.id) || this.store(required.id, UPLOAD_METADATA_SUFFIX).read({}).state === "ok") return;
     fs.rmSync(this.uploadPath({ uploadId: required.id }), { force: true });
   }
   /** Removes a stage no in-progress record owns; an unreadable record keeps its stage untouched. */
@@ -122,10 +124,13 @@ export class SiteImportRegistry {
   expire(_required: Record<string, never>, _options: Record<string, never> = {}): void {
     for (const filename of fs.readdirSync(this.directory)) {
       const importId = recordIdOf(filename);
-      if (filename.endsWith(".upload.json")) this.expireUpload({ id: filename.slice(0, -12) });
+      if (filename.endsWith(UPLOAD_METADATA_SUFFIX)) this.expireUpload({ id: filename.slice(0, -12) });
       else if (filename.endsWith(".upload.zip")) this.removeOrphanUpload({ id: filename.slice(0, -11) });
       else if (filename.endsWith(".stage")) this.removeOrphanStage({ importId: filename.slice(0, -6) });
       else if (importId !== undefined) this.expireOwnerSetup({ importId });
+      else {
+        // Unrecognized files are outside the import registry.
+      }
     }
   }
 }

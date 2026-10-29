@@ -23,12 +23,13 @@ export async function resolveMediaByteSizes(
   let cursor = 0;
   const worker = async () => {
     while (cursor < sha256s.length) {
-      const sha256 = sha256s[cursor++]!;
+      const sha256 = sha256s[cursor]!;
+      cursor += 1;
       let size: number | null = null;
       try {
         if (store.sizeOf) {
           const blob = await deps.assetBlobRepo.findByHash({ workspaceId: deps.workspaceId, sha256 });
-          if (blob) size = await store.sizeOf({ storageKey: blob.storageKey });
+          size = blob ? await store.sizeOf({ storageKey: blob.storageKey }) : null;
         }
       } catch {
         // Per-row failure stays unknown; the adapter does not cache absent/error results.

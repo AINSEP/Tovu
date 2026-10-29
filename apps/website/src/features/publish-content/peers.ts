@@ -173,7 +173,8 @@ function peerVault({ repo, sealer, keyring, now }: {
  * @complexity O(metadata size) validation, then fixed projection.
  */
 function peerRecord({ record }: { record: VaultRecord }, _options = {}): PublishContentPeerRecord {
-  if (record.kind !== "publish-peer" || record.ownerKey !== "tovu" || record.principalId !== null || record.provider !== null || record.binding !== null) throw new VaultError({ code: "context" });
+  const wrongKind = record.kind !== "publish-peer" || record.ownerKey !== "tovu";
+  if (wrongKind || record.principalId !== null || record.provider !== null || record.binding !== null) throw new VaultError({ code: "context" });
   const meta = peerKinds.metaParsers["publish-peer"]({ meta: record.meta });
   return { workspaceId: record.workspaceId, id: record.id, label: record.label, baseUrl: meta.baseUrl as string,
     remoteWorkspaceId: meta.remoteWorkspaceId as string, sealed: record.sealed,

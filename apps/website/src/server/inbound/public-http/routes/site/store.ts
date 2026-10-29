@@ -1,4 +1,4 @@
-import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
+import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
 /**
  * @file SPIKE — public `/store` page + `/store/buy` (D). Renders products that live in a
  * PLUGIN-owned table (`p_store__products`), and a buy action that runs the plugin's checkout
@@ -94,7 +94,7 @@ export function registerStoreRoutes(app: Express, deps: { store?: StoreApi }): v
     const msg = result.ok
       ? `Purchased — order ${result.orderId}, ${result.remainingStock} left.`
       : `Could not buy: ${result.reason}.`;
-    const target = new URL(returnTo, "http://store-return.invalid");
+    const target = new URL(returnTo, "https://store-return.invalid");
     // Keep the established message encoding while preserving authored query and fragment parts.
     const query = target.search ? `${target.search}&` : "?";
     res.redirect(`${target.pathname}${query}msg=${encodeURIComponent(msg)}${target.hash}`);

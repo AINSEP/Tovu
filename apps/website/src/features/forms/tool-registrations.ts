@@ -19,7 +19,8 @@ import type { AuthorizeFn, ChangeSetRepoPort } from "../../contracts/core/comman
 import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { type OutboxPort, ForbiddenError, adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
-import type { ToolContributor, DuplicateResourceHandlerContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
+import type { DuplicateResourceHandlerContributor } from "../../assistant/duplicate-resource-registry.js";
 import { forbiddenRule, withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import { DELIVERY_STATUS_MAX_LIMIT, formsAgentToolCatalog } from "./agent-tools.js";
 import type { FormSubmissionsPullPort } from "./import-remote-submissions.js";
@@ -596,7 +597,7 @@ async function duplicateFormDefinition(
  * `domain-no-direct-assistant-tool-registration` rule bans any non-type-only `features/** ->
  * assistant/**` import, so this function returns plain data and imports only the registry's TYPE.
  */
-export function contributeFormsDuplicateHandlers(): DuplicateResourceHandlerContributor[] {
+export function contributeFormsDuplicateHandlers(): DuplicateResourceHandlerContributor<FormsToolDeps>[] {
   return [
     {
       resource: "form",
@@ -618,6 +619,6 @@ export function contributeFormsDuplicateHandlers(): DuplicateResourceHandlerCont
  * `widgets` off the static `DOMAIN_SLICES` array first, `assistant -> widgets -> forms -> assistant`
  * cannot close.
  */
-export function contributeFormsTools(): ToolContributor {
+export function contributeFormsTools(): ToolContributor<FormsToolDeps, unknown> {
   return { domain: "forms", build: buildFormsRegistrations, risk: formsDerivedRisk };
 }

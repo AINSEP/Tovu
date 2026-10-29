@@ -1,10 +1,11 @@
+import { containAgentPluginStatePath } from "#src/features/agent-plugins/lifecycle";
 import { projectAgentPluginSearchPage, describeAgentPluginCompatibility, agentPluginDependentWarnings } from "@jini-ai/agent-plugins/lifecycle";
 import { readInstalledAgentPluginIdentity, UNTESTED_PLUGIN_GUIDANCE, type PluginMaturity } from "./identity.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/agent-plugins.js';
 import { withExtensionApprovalPolicy } from '../../contracts/headless/assistant-tool-approval-policy.js';
 import { buildPluginMemoryRegistrations } from "./memory-tools.js";
 import { WRITE_PLUGIN_NOTE, pluginNoteCatalog, pluginNoteRisk, pluginNoteHandler } from "./write-note-tool.js";
-import type { OperatorLocaleDeps } from "./operator-locale.js";
+import type { OperatorLocaleDeps } from "../../contracts/headless/operator-locale.js";
 import { appendPluginNotes } from "./memory.js";
 
 // Jini owns activation lifecycle; this host binding owns its effects.
@@ -32,7 +33,7 @@ import type { SkillFileResult } from "@jini-ai/agent-plugins/lifecycle";
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./lifecycle.js";
 import { isInstalledDigestPresent, listInstalledPlugins, readInstalledSkillFile } from "./lifecycle.js";
 import { rankInstalledAgentPlugins, type AgentPluginSearchCandidate } from "./lifecycle.js";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 
 /**
  * @file Registers each installed, active Agent Plugin as one real ToolRegistry tool.
@@ -344,11 +345,12 @@ export async function loadInstalledAgentPluginToolSources(ctx: {
 
     try {
       assertSingleDigestPerPlugin(digestByPluginId, plugin);
-      if (plugin.skills.length === 0) continue; // nothing this plugin's tool could ever return
-
-      const skills = await resolveSkillsForPlugin(plugin);
-      const identity = await readInstalledAgentPluginIdentity({ plugin });
-      sourceByPluginId.set(plugin.pluginId, buildToolSource({ ...plugin, maturity: identity.maturity, publisherId: identity.id, keywords: identity.keywords, provides: identity.provides }, skills));
+      // Empty skills leave nothing this plugin's tool could ever return.
+      if (plugin.skills.length > 0) {
+        const skills = await resolveSkillsForPlugin(plugin);
+        const identity = await readInstalledAgentPluginIdentity({ plugin });
+        sourceByPluginId.set(plugin.pluginId, buildToolSource({ ...plugin, maturity: identity.maturity, publisherId: identity.id, keywords: identity.keywords, provides: identity.provides }, skills));
+      }
     } catch (error) {
       // Isolated per plugin so one bad install (digest ambiguity, an unreadable SKILL.md, ...)
       // cannot take every OTHER installed plugin's tool down with it — see this file's header,
@@ -680,7 +682,7 @@ export async function registerInstalledAgentPluginTools(
     const handler = registration.handler;
     registry.register({ ...registration, handler: async (execution, optional) => {
       const result = await handler(execution, optional) as { pluginId: string; guidance: string };
-      return { ...result, guidance: await appendPluginNotes({
+      return { ...result, guidance: await appendPluginNotes({ contain: containAgentPluginStatePath,
         workspaceRoot: ctx.agentPluginLayout.forWorkspace(ctx.workspaceId).root,
         pluginId: result.pluginId, guidance: result.guidance,
       }) };
@@ -971,7 +973,7 @@ export function buildAgentPluginSearchRegistrations(routeDeps: AgentPluginSearch
  * other domain's `contribute<Domain>Tools()` uses. See this section's own header for why this tool
  * uses that seam while `registerInstalledAgentPluginTools` above deliberately does not.
  */
-export function contributeAgentPluginSearchTools(): ToolContributor {
+export function contributeAgentPluginSearchTools(): ToolContributor<AgentPluginSearchToolDeps, unknown> {
   return { domain: "agent-plugin-search", build: buildAgentPluginSearchRegistrations, risk: agentPluginSearchDerivedRisk };
 }
 
@@ -1015,7 +1017,7 @@ const agentPluginConnectDomainRisk: DerivedRiskByToolId = new Map([...agentPlugi
 
 /** Contributes plugin sign-in and notes to the assistant's static
  *  tool catalog — called once by `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`. */
-export function contributeAgentPluginConnectTools(): ToolContributor {
+export function contributeAgentPluginConnectTools(): ToolContributor<AgentPluginAccessTokenToolDeps & OperatorLocaleDeps, AssistantSurfaceDeps> {
   return { domain: "agent-plugin-connect", build: buildAgentPluginConnectRegistrations, risk: agentPluginConnectDomainRisk };
 }
 
@@ -1040,7 +1042,8 @@ async function readPluginSkillGuidance(
   { selected }: { selected: AgentPluginSkillDetail },
   optional: { file?: string } = {},
 ) {
-  const content = selected.readFile ? await selected.readFile({}, optional.file !== undefined ? { file: optional.file } : {}) : undefined;
+  const fileOptions = optional.file !== undefined ? { file: optional.file } : {};
+  const content = selected.readFile ? await selected.readFile({}, fileOptions) : undefined;
   // An unknown/refused file keeps the skill's instructions available, like unknown-skill recovery.
   return {
     guidance: content && !(content.note && !content.text) ? content.text : selected.markdown,

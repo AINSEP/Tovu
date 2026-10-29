@@ -15,6 +15,10 @@ const CONTENT_ATTRIBUTES = new Set('src srcset href alt width height controls pr
 // those execute, load external resources, or rewrite attributes after this check runs.
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 const SVG_ELEMENTS = new Set('svg g path rect circle ellipse line polyline polygon defs title desc linearGradient radialGradient stop clipPath mask'.split(' '));
+const ELEMENTS_BY_NAMESPACE: ReadonlyMap<string, ReadonlySet<string>> = new Map([
+  ['http://www.w3.org/1999/xhtml', SAFE_ELEMENTS],
+  [SVG_NAMESPACE, SVG_ELEMENTS],
+]);
 // Presentation/geometry names only (parse5 keeps SVG camelCase). Values still pass the URL-value check.
 const SVG_ATTRIBUTES = new Set('viewBox preserveAspectRatio focusable d points x y x1 y1 x2 y2 cx cy r rx ry width height transform fill fill-rule fill-opacity stroke stroke-width stroke-linecap stroke-linejoin stroke-miterlimit stroke-dasharray stroke-dashoffset stroke-opacity opacity clip-path clip-rule clipPathUnits mask maskUnits vector-effect offset stop-color stop-opacity gradientUnits gradientTransform fx fy pathLength'.split(' '));
 function safeSrcset({ value }: { value: string }, _options: Record<string, never> = {}): boolean {
@@ -51,7 +55,7 @@ export function sanitizePageHtml({ html }: { html: string }, { reportDrops = ({ 
       if (!('tagName' in child)) return child.nodeName === '#text';
       // Bound native serializer recursion as well as our own traversal on imported HTML.
       if (depth >= 128) return drop(child.tagName);
-      const allowed = child.namespaceURI === 'http://www.w3.org/1999/xhtml' ? SAFE_ELEMENTS : child.namespaceURI === SVG_NAMESPACE ? SVG_ELEMENTS : undefined;
+      const allowed = ELEMENTS_BY_NAMESPACE.get(child.namespaceURI);
       if (!allowed?.has(child.tagName)) return drop(child.tagName);
       if (child.tagName === 'style') {
         const css = child.childNodes.map(node => 'value' in node ? node.value : '').join('');
@@ -59,7 +63,7 @@ export function sanitizePageHtml({ html }: { html: string }, { reportDrops = ({ 
         // Validate with the shared stylesheet context without changing the authored rule bytes.
         if (!safeAttribute({ name: 'style', value: css }, { styleContext: 'stylesheet' })) return drop('style');
       }
-      child.attrs = child.attrs.filter(attr => safeAttribute(attr) || drop(`${child.tagName}@${attr.prefix ? `${attr.prefix}:` : ''}${attr.name}`));
+      child.attrs = child.attrs.filter(attr => safeAttribute(attr) || drop(`${child.tagName}@${attr.prefix ? attr.prefix + ':' : ''}${attr.name}`));
       // A collection marker's authored <template> keeps its item markup in the inert `content`
       // fragment, not childNodes: hold that markup to the same element/attribute rules.
       parents.push({ parent: 'content' in child ? child.content : child, depth: depth + 1 });

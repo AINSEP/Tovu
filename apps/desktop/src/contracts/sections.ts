@@ -60,7 +60,7 @@ export interface RunnerSection {
   label: string;
   /**
    * Hidden from the nav, but still registered. Seven sections are parked this way
-   * (see TODO.md): six because twelve entries was more than the app can currently
+   * (see the desktop backlog): six because twelve entries was more than the app can currently
    * justify and their shape isn't settled yet, plus `tasks` (owner request, 2026-09-12
    * — remove the icon from the nav without breaking the public `RunnerSectionId`
    * contract or dropping its verbs). Kept in the registry rather than deleted or

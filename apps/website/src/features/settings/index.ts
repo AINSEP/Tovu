@@ -150,7 +150,6 @@ export {
 export { getSettingsAgentToolCatalog } from "@jini-ai/core/settings";
 export type { AgentToolDefinition } from "@jini-ai/core";
 
-export { ensureFeatureFlag, readFeatureFlag, FEATURE_FLAGS_NAMESPACE, type FeatureFlagDefinition } from './feature-flags.js';
 export { ensureFormDeliverySettings, parseFormDeliveryBindings, readFormDeliveryBindings, readFormsAutoPull } from "./form-delivery.js";
 export { ensureMailSenderSettings, readMailSenderSetting, MAIL_SENDER_NAMESPACE, MAIL_SENDER_EMAIL_KEY, MAIL_SENDER_NAME_KEY } from "./mail-sender.js";
 export { writeFormDeliveryBindings, FormDeliveryBindingsConflictError } from "./form-delivery-write.js";

@@ -13,6 +13,7 @@ import type { MemberSessionRecord } from "#src/features/members/index";
 import { InMemoryMemberSessionRepo } from "#src/features/members/index";
 import { loadTheme } from "#src/features/theme/index";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
+import { assertDefaultConsentPage } from "#src/server/__tests__/helpers/default-consent-page";
 
 /**
  * @file Regression coverage for the 2026-09-02 member-gating dispatch (ADR-030 §4).
@@ -171,7 +172,8 @@ for (const tokenKind of ["unknown", "expired"] as const) {
     const denied = await fetch(`${baseUrl}/${gated.slug}`, { headers: { cookie } });
     assert.equal(denied.status, 404);
     const deniedHtml = await denied.text();
-    assert.equal(deniedHtml, anonymousPostHtml, "invalid sessions must get the anonymous denial");
+    assert.equal(assertDefaultConsentPage({ html: deniedHtml }).stableHtml,
+      assertDefaultConsentPage({ html: anonymousPostHtml }).stableHtml, "invalid sessions must get the anonymous denial, including the same default consent state");
     assert.doesNotMatch(deniedHtml, /Members Only Post/);
 
     const anonymousHome = await fetch(baseUrl);

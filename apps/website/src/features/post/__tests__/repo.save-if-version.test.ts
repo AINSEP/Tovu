@@ -7,7 +7,7 @@ import test from "node:test";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import type { PostAutosaveSnapshot, PostRecord, PostRepoPort } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { SqlitePostSearchIndex } from "../search-index.sqlite.js";
+import { SqlitePostSearchIndex } from "../search-index.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
 import { makePglitePostRepo } from "./pglite-repo.fixture.js";
 

@@ -340,7 +340,11 @@ const HAND_WRITTEN_RULES = [
           "^apps/website/src/features/agent-plugins/federate-mcp\\.ts$",
         ],
       },
-      to: { path: "^apps/website/src/assistant", dependencyTypesNot: ["type-only"] },
+      to: {
+        path: "^apps/website/src/assistant",
+        pathNot: "^apps/website/src/assistant/mcp-services\\.ts$",
+        dependencyTypesNot: ["type-only"],
+      },
     },
 ];
 
@@ -431,8 +435,9 @@ const GUARDED_MODULES = [
 // flag as a `no-deep-imports` violation) rather than tracking the move.
 const COMPOSITION_ROOTS = [
   "^apps/website/src/index\\.ts$",
-  "^apps/website/src/server/runtime/composition/deps\\.ts$",
-  "^apps/website/src/server/runtime/composition/app\\.ts$",
+  // app/deps now delegate wiring to modules and helpers in this directory. Keep inbound
+  // handlers and runtime lifecycle code outside this composition-only exemption.
+  "^apps/website/src/server/runtime/composition/",
   // `adopt.ts` joined 2026-09-06 for the identical reason `export.ts` did: it is one more CLI
   // composition root of the same shape, reaching `site-dir/repair-site.ts`'s
   // `repairSite`/`planRepairSite`/`classifySiteMarkers` and `site-dir/resolve-install-dir-target.ts`
@@ -440,6 +445,10 @@ const COMPOSITION_ROOTS = [
   // deliberately does not re-export them (see `site-dir/index.ts`'s own header).
   "^apps/website/src/cli/commands/(serve|init|introspect|export|adopt)\\.ts$",
 ];
+
+// Tests need concrete internals to exercise implementations. Match the architecture checker's
+// __tests__ / .test. / .spec. scope, including colocated tests, without exempting test-helpers.ts.
+const TEST_FILES = "(^|/)__tests__/|\\.(test|spec)\\.";
 
 // db/sqlite adapters implement other modules' port interfaces by definition (ports-and-adapters).
 // They legitimately need the port TYPE from wherever it's declared, even when that declaration
@@ -654,29 +663,88 @@ const PROMOTED_NO_DEEP_IMPORTS = new Set([
   "platform/site-dir",
 ]);
 
+// Curated entries from r26's multi-entry plan; implementations and registration wiring stay private.
+const PUBLIC_ENTRIES = {
+  assistant: ["mcp-services"],
+  "features/deployments": ["contracts"],
+  "features/media": ["contracts", "public-urls", "attachment-tools"],
+  "features/post": ["contracts", "rendering", "read-model"],
+  "features/theme": ["catalog", "rendering", "asset-operations"],
+  "platform/site-dir": ["moves"],
+};
+
+// r26 Part A c-dispositions, IDs 15,16,18,30,32,37,81,87,88,89,91,92,94,95,
+// 101,102,103,104,105,126,130,158,159,162. These are edges, never blanket caller exemptions.
+const REVIEWED_IMPORT_PAIRS = [
+  ["features/asset-transfer/copy-tool.ts", "features/media/document-archive.ts"],
+  ["features/site-backup/import-verifier-projection.ts", "features/media/document-archive.ts"],
+  ["features/site-export/media-original-urls.ts", "features/media/public-path.ts"],
+  ["server/inbound/admin-http/routes/media/upload.ts", "features/media/document-archive.ts"],
+  ["server/inbound/assistant/agent-daemon-server.ts", "features/media/document-archive.ts"],
+  ["server/inbound/public-http/http/site/render.ts", "features/media/public-path.ts"],
+  ["features/deployments/static-publish/adapter.ts", "features/theme/public-page-security-headers.ts"],
+  ["features/site-export/static-security-headers.ts", "features/theme/public-page-security-headers.ts"],
+  ["features/site-export/theme-preview-manifest.ts", "features/theme/preview-switcher-html.ts"],
+  ["features/site-export/theme-preview-manifest.ts", "features/theme/preview-switcher.ts"],
+  ["server/inbound/admin-http/routes/presentation/get.ts", "features/theme/theme-preview-image.ts"],
+  ["server/inbound/admin-http/routes/themes/preview.ts", "features/theme/theme-preview-image.ts"],
+  ["server/inbound/public-http/http/site/handlebars-render.ts", "features/theme/handlebars-allowlist.ts"],
+  ["server/inbound/public-http/http/site/liquid-render.ts", "features/theme/liquid-allowlist.ts"],
+  ["server/inbound/public-http/middleware/public-page-security-headers.ts", "features/theme/public-page-security-headers.ts"],
+  ["server/inbound/public-http/middleware/theme-asset-dirs.ts", "features/theme/theme-id-aliases.ts"],
+  ["server/inbound/public-http/middleware/theme-preview-switcher.ts", "features/theme/active-theme.ts"],
+  ["server/inbound/public-http/middleware/theme-preview-switcher.ts", "features/theme/preview-switcher-html.ts"],
+  ["server/inbound/public-http/middleware/theme-preview-switcher.ts", "features/theme/preview-switcher.ts"],
+  ["cli/commands/plugin/install.ts", "platform/site-dir/boot-site-dir.ts"],
+  ["cli/commands/storage-move.ts", "platform/site-dir/resolve-install-dir-target.ts"],
+  ["server/runtime/boot/content-db-schema-guard.ts", "platform/site-dir/read-applied-schema-identity.ts"],
+  ["server/runtime/boot/content-db-schema-guard.ts", "platform/site-dir/schema-guard.ts"],
+  ["server/runtime/lifecycle/local-site-process.ts", "platform/site-dir/read-site-dir.ts"],
+].map((pair) => pair.map((file) => `^apps/website/src/${file.replaceAll(".", "\\.")}$`));
+
 function noDeepImportRules(mod) {
   const modPath = `^apps/website/src/${mod}`;
   const internals = `^apps/website/src/${mod}/(?!index\\.ts$).+`;
-  const extraToExempt = EXTRA_TO_EXEMPT[mod] ?? [];
+  const extraToExempt = [
+    ...(EXTRA_TO_EXEMPT[mod] ?? []),
+    ...(PUBLIC_ENTRIES[mod] ?? []).map((entry) => `^apps/website/src/${mod}/${entry}\\.ts$`),
+  ];
+  const reviewedPairs = REVIEWED_IMPORT_PAIRS.filter(([, to]) => to.startsWith(`^apps/website/src/${mod}/`));
+  const reviewedCallers = [...new Set(reviewedPairs.map(([from]) => from))];
 
+  const moduleRule = {
+    name: `no-deep-imports:${mod}`,
+    severity: PROMOTED_NO_DEEP_IMPORTS.has(mod) ? "error" : "warn", // see plan doc §5 for the promotion criteria
+    comment: `ADR-009 Decision §1 — ${mod}'s public surface is its index.ts and named public entries; nothing outside the module (or db/sqlite reaching for a value rather than a type, or the tool-registration seam reaching anything other than tool-registrations.ts/agent-tools.ts) may import its internals directly.`,
+    from: {
+      path: "^apps/website/src",
+      pathNot: [
+        modPath,
+        TEST_FILES,
+        DB_SQLITE,
+        ...COMPOSITION_ROOTS,
+        TOOL_REGISTRATION_SEAM_FROM,
+        TOOL_REGISTRATION_TEST_FROM,
+        ...TOOL_REGISTRATION_TEST_FROM_EXTRA,
+      ],
+    },
+    to: { path: internals, pathNot: extraToExempt },
+  };
   return [
     {
-      name: `no-deep-imports:${mod}`,
-      severity: PROMOTED_NO_DEEP_IMPORTS.has(mod) ? "error" : "warn", // see plan doc §5 for the promotion criteria
-      comment: `ADR-009 Decision §1 — ${mod}'s public surface is its index.ts; nothing outside the module (or db/sqlite reaching for a value rather than a type, or the tool-registration seam reaching anything other than tool-registrations.ts/agent-tools.ts) may import its internals directly.`,
-      from: {
-        path: "^apps/website/src",
-        pathNot: [
-          modPath,
-          DB_SQLITE,
-          ...COMPOSITION_ROOTS,
-          TOOL_REGISTRATION_SEAM_FROM,
-          TOOL_REGISTRATION_TEST_FROM,
-          ...TOOL_REGISTRATION_TEST_FROM_EXTRA,
-        ],
-      },
-      to: { path: internals, pathNot: extraToExempt },
+      ...moduleRule,
+      from: { ...moduleRule.from, pathNot: [...moduleRule.from.pathNot, ...reviewedCallers] },
     },
+    // Re-police each reviewed caller against every other private target, at the same severity.
+    ...reviewedCallers.map((caller) => ({
+      ...moduleRule,
+      name: `${moduleRule.name}:${caller}`,
+      from: { ...moduleRule.from, path: caller },
+      to: { path: internals, pathNot: [
+        ...extraToExempt,
+        ...reviewedPairs.filter(([from]) => from === caller).map(([, to]) => to),
+      ] },
+    })),
     {
       // `from.pathNot: ".*/__tests__/.*"` (2026-08-18, never-investigated-rule triage): the
       // remaining 3 violations across all 30 modules were all `db/sqlite/__tests__/*.sqlite.
@@ -697,7 +765,7 @@ function noDeepImportRules(mod) {
       name: `no-deep-value-imports-from-db-sqlite:${mod}`,
       severity: "warn",
       comment: `db/sqlite adapters may deep-import ${mod}'s port TYPES (the contract they implement) but never a runtime value.`,
-      from: { path: DB_SQLITE, pathNot: ".*/__tests__/.*" },
+      from: { path: DB_SQLITE, pathNot: TEST_FILES },
       to: { path: internals, pathNot: extraToExempt, dependencyTypesNot: ["type-only"] },
     },
     {

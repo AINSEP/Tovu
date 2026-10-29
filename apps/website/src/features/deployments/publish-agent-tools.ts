@@ -1,3 +1,6 @@
+export type { StaticPublishToolDeps } from "./publish-tool-deps.js";
+import type { StaticPublishToolDeps } from "./publish-tool-deps.js";
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import type { LoadInstalledDeployTargets, InstalledDeployTarget } from "./deploy-targets/types.js";
 import { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-repo.js";
 export { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-repo.js";
@@ -12,7 +15,7 @@ import { defineSecretCardTool, type SecretCardField, type SecretCardForm } from 
 import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
 import { assertCredentialFreeField, type CredentialTokenHint } from '../../contracts/core/credential-token.js';
 import { credentialText, formatCredentialHint, translateCredentialMessage } from '../../contracts/core/credential-copy.js';
-import { resolveOperatorLocale, type OperatorLocaleDeps } from '../agent-plugins/operator-locale.js';
+import { resolveOperatorLocale, type OperatorLocaleDeps } from '../../contracts/headless/operator-locale.js';
 import { PublishCredentialDuplicateLabelError, PublishCredentialValidationError } from './publish-credentials/store.js';
 import { summarizeCredentialSources, type CredentialCopyToolDeps } from '../custom-credentials/index.js';
 import { verifyPublishCredentialById, verifySubmittedPublishCredential } from './static-publish/verify.js';
@@ -45,7 +48,7 @@ import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import type { PublishExecutionMode } from "./publish-credentials/index.js";
 import type { VendorCredentialSetRepoPort } from "../vendor-credentials/index.js";
 
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 
 import { askThenReport, type AssistantSurfaceDeps, type SurfaceExchange } from "@jini-ai/daemon/surface-exchanges";
 // `SurfaceEmission` itself is `@jini-ai/core`'s own type (`@jini-ai/daemon/surface-exchanges` re-exports the
@@ -78,13 +81,7 @@ import {
   type StaticPublishTargetId,
 } from "./static-publish/index.js";
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+export type AgentToolDefinition = SharedAgentToolDefinition;
 
 /** No arguments — parameterless read tool. Matches `agent-tools.ts`'s own `NO_INPUT_SCHEMA` exactly;
  *  declared separately here rather than imported from that sibling file, per this file's own
@@ -146,10 +143,11 @@ const PREVIEW_STATIC_PUBLISH_SCHEMA = {
   additionalProperties: { type: "string" },
   required: ["target"],
   properties: {
-    projectName: { type: "string", description: "Use the same project label at preview and execute. Required for authenticated provider resource/domain inspection." },
-    credentialId: { type: "string", description: "Optional saved connection chosen by the person; preview and execute use this exact connection." },
+    projectName: { type: "string", title: "Project name", description: "Use the same project label at preview and execute. Required for authenticated provider resource/domain inspection." },
+    credentialId: { type: "string", title: "Saved connection", description: "Optional saved connection chosen by the person; preview and execute use this exact connection." },
     target: {
       type: "string",
+      title: "Hosting provider",
       description:
         "Which host to publish to: one of the providerId values deployment_get_static_publish_capabilities lists. Pass that host's configFields as top-level string fields next to target (for example { target, <fieldName>: '<value>' }); a field the host does not declare is refused. The base path is computed from the host and the config, never passed in.",
     },
@@ -168,6 +166,7 @@ const EXECUTE_STATIC_PUBLISH_SCHEMA = {
     ...PREVIEW_STATIC_PUBLISH_SCHEMA.properties,
     projectName: {
       type: "string",
+      title: "Project name",
       description: "Human-facing label for this publish run: the host uses it as the commit message or the project-name seed. 1-200 characters.",
     },
   },
@@ -193,6 +192,9 @@ const GENERATE_BUCKET_HOSTING_SETUP_SCHEMA = {
   },
 } as const;
 
+const DEPLOYMENTS_READ_PERMISSION = "deployments.read";
+const SITE_PUBLISH_ENTITY = "site-publish";
+
 /**
  * This domain's fixed agent-tool catalog. All five entries are wired — see this file's header for
  * why `deployment_execute_static_publish` (destructive/irreversible) needs no `actorClassRule` despite
@@ -207,7 +209,7 @@ export const staticPublishAgentToolCatalog: AgentToolDefinition[] = [
     description:
       "Previews publishing the current site WITHOUT publishing anything. Hosts with authenticatedPreview require projectName (same value at execute) and resolve the selected credential server-side for authenticated READS of resource collisions and current domain records/bindings/routes. providerInspection includes the exact hosting/domain changes and per-hostname states; inventoryStatus unknown refuses domain changes. This never uploads or provisions. Other hosts retain local-only previews: validates the target's config fields, reports the base path a real publish would use (computed from the host and its config, never passed in, so it can never mismatch the export), and reports whether a publish credential is configured for that target (true/false only, never the credential itself). Use this before telling a human what a publish would do, or to check readiness. This tool NEVER publishes or changes remote state. Authenticated previews send provider API reads; secrets never reach the caller. Account fields: when a host's config field names the account to publish under (an owner, user or organization), do NOT guess it from the human's name, email address or any other context. Call deployment_get_static_publish_capabilities first: a verified credential reports its real account login as that provider's accountLabel. Use the requested account, or default to accountLabel when present. Ask only when the target account is missing or ambiguous. If accountLabel is null and no account was supplied the account is UNKNOWN: say so plainly and ask the human directly. Never soften that question with an illustrative example, placeholder, or 'e.g. <name>' value of any kind: this tool cannot know whether a made-up example matches a real account, and offering one is how an invented account name once got published to.",
     sideEffects: "none",
-    authorization: { permission: "deployments.read" },
+    authorization: { permission: DEPLOYMENTS_READ_PERMISSION },
     inputSchema: PREVIEW_STATIC_PUBLISH_SCHEMA,
   },
   {
@@ -215,7 +217,7 @@ export const staticPublishAgentToolCatalog: AgentToolDefinition[] = [
     description:
       "Reports live publish readiness for every static-publish host the installed hosting plugins provide, including disabled ones (enabled:false, with guidance to turn them on), WITHOUT exposing any credential. If no hosts are listed, install a hosting plugin under Agent Plugins. Server-side unsealing derives only safe length and last-4 hints; short tokens expose length alone. For each provider: providerId and label; defaultForNewDestination (prefer this for a NEW destination; retain lastPublish target/config for an existing destination or explicit choice), authenticatedPreview (needs projectName and may issue authenticated provider READS); configFields (the fields to pass to deployment_preview_static_publish/deployment_execute_static_publish as top-level strings: name, label, required, help); whether it is ready to publish to right now (ready is true ONLY when a credential is configured AND it was last verified to actually work against the real provider; a saved-but-unverified or saved-but-failing credential is reported as NOT ready, distinctly from no credential at all); credentialConfigured (true iff a credential row/env var exists at all for this provider. This reports configuration, not saved-key presence; credentialOrigin is 'saved' when savedCredentials is nonempty, 'environment' when only the server environment configures it, or null when neither exists. It is kept deliberately separate from verified/accountLabel below: credentialConfigured:true with accountLabel:null means a credential EXISTS but its account identity is not yet known (never verified, or a verify that has not run since), which is a completely different situation from credentialConfigured:false, where no usable credential is configured for this provider and the human needs to configure one); every named credential set saved for it (id, label, isDefault, createdAt, updatedAt, tokenHint: the server-derived length and last4, with no characters exposed for tokens shorter than 12; tokenTail: the same safe last4 or an empty string, so it can be shown to a human as a short identifier like '••••ab12' when they have more than one saved connection for a provider; it is NEVER the full token, a longer fragment, or any ciphertext); the cached verification state (verified: 'valid' | 'invalid' | 'unreachable' | null, and verifiedAt. null means configured but never verified; 'unreachable' means the last check could not reach the provider due to a network issue and does NOT mean the credential is bad, distinctly from 'invalid', which means the provider itself rejected it; this is a CACHED result from the last time a human verified it, possibly stale, never a live check made by this call); accountLabel (the verified credential's own public account login/username, or null when not yet verified or for a provider with no such field to report; NEVER an email, plan, or org. Use it as the default for a config field that names the account to publish under, instead of guessing one from the human's name or email address, using the requested account when supplied. Ask only when the account is missing or ambiguous; when accountLabel is null and no account was supplied, say plainly that the account is not known yet and ask the human directly. NEVER offer an example, placeholder, or 'e.g. <name>' value to illustrate the answer, even a made-up-looking one, since this tool has no way to know whether it happens to match a real account); lastPublish (the last successful publish to this provider from this server: target, url, reachable, status, projectName, publishedAt and the config it used, or null if this provider has never been published to from here. When the human asks to 'publish again' or 'publish the same way as last time', use this to fill the config fields and projectName without asking, and report the previous url when relevant); and, for a provider that is NOT ready, a human-readable reason naming what is missing or wrong (no credential saved for this workspace, a required credential field is not configured, the credential has never been verified yet, it was rejected by the provider, or the last check could not reach the provider). Also reports this install's executionMode ('self-hosted-cli' or 'hosted-api-only'), which affects whether a server-environment-variable credential can ever be used as a fallback. credentialOrigin 'environment' means a working server key exists; publish with it; never open credential_save for that host unless a publish with it failed. credentialOrigin 'environment' with verified null is publishable even when ready is false. Call this before telling a human what publishing would do, before calling deployment_execute_static_publish, or whenever asked something like 'can I publish, and to where'. Do NOT ask the user to paste an API token, access key, or any other secret into this chat, ever, for any reason: a value typed into chat is written into the conversation transcript, which is exactly what this workspace's encrypted credential store exists to avoid, and this tool has no way to accept one anyway (it takes no input). When a host lacks a saved key, local installation owners also receive credentialSources, including for environment-configured hosts: registered site names with matching credential labels and publishHosts, never secret values. An empty keys list means that site has no saved key for a host lacking a saved key; a reasonCode means that source could not be inspected. If the owner named a source with no matching key, name the sites that do have one and ask before changing the source; use credential_copy_from_project for its human selection card. Do not copy an unrelated host token or silently choose another site. Saved worksFor IDs declare compatibility; labels never imply it. Compatible vendor-group defaults take precedence, then a sole compatible key; choose an explicit id when ambiguous. If no existing key can be reused, or a credential was rejected, call credential_save with kind publish-host in this turn to open its secure card, then retry once after a successful save. The admin's Static Site tab (Deployment panel → Static Site → Publish) is an alternative for manual setup.",
     sideEffects: "none",
-    authorization: { permission: "deployments.read" },
+    authorization: { permission: DEPLOYMENTS_READ_PERMISSION },
     inputSchema: NO_INPUT_SCHEMA,
   },
   {
@@ -237,7 +239,7 @@ export const staticPublishAgentToolCatalog: AgentToolDefinition[] = [
     description:
       "Generates the exact steps (and, where applicable, the exact policy JSON with the real names substituted in) a host needs in the human's own console before a published site is reachable, such as making a storage bucket publicly readable. Only some hosts have such steps; for the others this refuses with the reason. Tovu composes this but NEVER applies it: the human applies it themselves in their own provider console. This is a PURE READ: it writes nothing, calls no API, and does not need a saved credential (call it before or after credential_save with kind publish-host). Relay the returned 'steps' as prose plus copyable code blocks for any 'consoleJson' present, and relay 'warning' verbatim if present: it can say the step needs a DIFFERENT login than the saved credential, so say so plainly.",
     sideEffects: "none",
-    authorization: { permission: "deployments.read" },
+    authorization: { permission: DEPLOYMENTS_READ_PERMISSION },
     inputSchema: GENERATE_BUCKET_HOSTING_SETUP_SCHEMA,
   },
 ];
@@ -272,75 +274,6 @@ export const staticPublishDerivedRisk: DerivedRiskByToolId = new Map<string, Age
   // credential). No write, no network call, no decrypt.
   ["deployment_generate_bucket_hosting_setup", "none"],
 ]);
-
-/** Composition-root-bound export operation, typed locally to avoid cross-feature type coupling.
- * The composition root closes over full application dependencies; this feature passes only options.
- */
-type ExportSiteBoundFn = (options: { outputDir: string; clean?: boolean; basePath?: string }) => Promise<ExportReport>;
-
-/** Only ports the tool handlers read, declared structurally without importing RouteDeps.
- * A real publish needs the full application graph for export; exportSiteBound captures it at the
- * composition root, so that requirement does not widen this feature's dependency contract.
- * Every other field is a direct port type, never indexed from the composition root's wide bag.
- */
-export interface StaticPublishToolDeps extends OperatorLocaleDeps {
-  readonly loadPluginCredentialCards?: LoadPluginCredentialCards;
-  readonly siteConsent?: Pick<SiteConsentService, "deploymentCheck">;
-  /** Existing shared gateway; required when publishing with infrastructure changes. */
-  readonly gatedMutations?: { readonly gatewayDeps: GatewayDeps };
-  readonly hostKit?: StaticPublishDeps["hostKit"];
-  /** `RouteDeps.formDestination`: the site's forms and receiver key, for a host that receives submissions. */
-  readonly formDestination?: StaticPublishDeps["formDestination"];
-  readonly localCredentialCopy?: CredentialCopyToolDeps['localCredentialCopy'];
-  readonly ownerPrincipalId?: Promise<string>;
-  readonly authorize: AuthorizeFn;
-  readonly workspaceId: string;
-  readonly clock: Clock;
-  readonly idGen: { newId(): string };
-  readonly siteAssistantSecretSealer: SecretSealerPort;
-  readonly siteAssistantSecretKeyring: KeyringPort;
-  readonly publishExecutionMode: PublishExecutionMode;
-  readonly publishHistoryStore: PublishHistoryStore;
-  readonly publishCredentialVerificationCache: PublishCredentialVerificationCache;
-  readonly vendorCredentialSetRepo: VendorCredentialSetRepoPort;
-  /** `RouteDeps.publishOutputRootDir`, threaded down for the same reason `exportSiteBound` above is —
-   *  `publishStaticSite`'s `StaticPublishInput.publishOutputRootDir` needs it directly. */
-  readonly publishOutputRootDir: string;
-  /** The pre-bound export call — see {@link ExportSiteBoundFn}'s own doc above for what it is and why
-   *  it replaces the `routeDeps: RouteDeps` field this interface used to carry (via `extends RouteDeps`). */
-  readonly exportSiteBound: ExportSiteBoundFn;
-  /** Test-only override — when supplied, replaces the composed `PublishCredentialSource` entirely
-   *  (DB-backed + env-fallback composition, `vendorCredentialSetRepo`/`siteAssistantSecretSealer`/
-   *  `publishExecutionMode` are all ignored). Production never sets this. */
-  credentialSource?: PublishCredentialSource;
-  /** Test-only override for `publishStaticSite`'s own `StaticPublishDeps.buildTarget` — lets a test
-   *  substitute a fake `DeployTarget` so `deployment_execute_static_publish`'s CONFIRMED path can be
-   *  exercised end-to-end without ever constructing a real host plugin's
-   *  client or touching `fetch` (mirrors `static-publish/adapter.ts`'s own test-injection seam,
-   *  "adapter tests with a faked deploy target — do not hit real providers in tests"). Production
-   *  never sets this — `publishStaticSite`'s own default (the real Jini adapters) applies. */
-  buildTarget?: StaticPublishDeps["buildTarget"];
-  /** `RouteDeps.loadDeployTargets` — this workspace's deploy registry, which decides which config
-   *  fields a target takes and judges them. Production composition injects the installed deploy Agent Plugin
-   *  (`loadDeployTargetRegistry`); a test injects a registry read from the plugin's source. */
-  loadDeployTargets: (workspaceId: string) => Promise<DeployTargetRegistry>;
-  /** Installed metadata; production binds the data contribution loader, never executable discovery. */
-  readonly loadInstalledDeployTargets?: LoadInstalledDeployTargets;
-  /** Post-save connection checks share the verifier's HTTP seam; fixtures never need real egress. */
-  readonly fetchFn?: typeof fetch;
-  /** Test-only override for `RouteDeps.publishHistoryStore` (2026-08-16 rework — that field is now
-   *  the real, DB-backed `SqlitePublishHistoryStore` in production; see `routes/types.ts`'s own doc)
-   *  — lets a test inject an `InMemoryPublishHistoryStore` so it can assert on a recorded publish (or
-   *  a capabilities read) without touching a real database. Passed straight through to
-   *  `runPublishAndAwait` on a confirmed publish AND used by the capabilities handler's own read, so a
-   *  test sees one consistent store on both sides. Production never sets this; both paths fall back to
-   *  `deps.publishHistoryStore`, so a real publish's history is visible to this tool with no wiring
-   *  change outside this domain (see `publish-run.ts`'s header, "Publish history"). */
-  historyStore?: PublishHistoryStore;
-  /** `RouteDeps.observability`, forwarded so a confirmed publish's deploy egress is traced. */
-  readonly observability?: ObservabilityPort;
-  readonly tracker?: import("@jini-ai/diagnostics/observability").Tracker;
-}
 
 /** {@link StaticPublishToolDeps.loadDeployTargets}, bound by composition to installed plugins or trusted source. */
 function deployTargetsLoader(deps: StaticPublishToolDeps): (workspaceId: string) => Promise<DeployTargetRegistry> {
@@ -445,7 +378,8 @@ function buildPublishOutcomeResource(spec: {
   url?: string;
 }): UIResource {
   const { exchangeId, config, detailRows, projectName, state, message, url } = spec;
-  const title = state === "success" ? "Published" : state === "partial" ? "Uploaded, not live yet" : "Publish failed";
+  const unsuccessfulTitle = state === "partial" ? "Uploaded, not live yet" : "Publish failed";
+  const title = state === "success" ? "Published" : unsuccessfulTitle;
   return buildOutcomeSurface({
     uri: publishConfirmationUri(exchangeId),
     title,
@@ -600,7 +534,8 @@ async function buildProviderCapability(loaded: LoadedDeployTarget, ctx: Provider
   const verification = readiness.configured ? ctx.deps.publishCredentialVerificationCache.get({ workspaceId: ctx.deps.workspaceId, target: providerId }) : undefined;
   const verified = verification ? verification.status : null;
   const ready = readiness.configured && verified === "valid";
-  const credentialOrigin = savedCredentials.length ? "saved" : readiness.configured ? "environment" : null;
+  const fallbackOrigin = readiness.configured ? "environment" : null;
+  const credentialOrigin = savedCredentials.length ? "saved" : fallbackOrigin;
   const guidance = buildCapabilityGuidance({ providerId, readiness, verification, credentialOrigin });
 
   return { ...buildProviderCapabilityResult({ descriptor: loaded.descriptor, ready, readiness, verified, verification, defaultCredential, lastPublish, savedCredentials, credentialOrigin, guidance }),
@@ -809,8 +744,11 @@ function publishConnectionValues({ targetId, credential, values }: {
     // on create and keeps the stored one on update.
     const blankOptionalSecret = values[field.name] === "" && field.secret === true && !field.required;
     // The explicit remove choice wins over typed text; blank alone still keeps the saved secret.
-    if (values[`clear-${field.name}`] === true) connection[field.name] = null;
-    else if (typeof values[field.name] === "string" && !blankOptionalSecret) connection[field.name] = values[field.name];
+    if (values[`clear-${field.name}`] === true) {
+      connection[field.name] = null;
+      continue;
+    }
+    if (typeof values[field.name] === "string" && !blankOptionalSecret) connection[field.name] = values[field.name];
   }
   return connection;
 }
@@ -910,7 +848,7 @@ async function saveProposeCredential(required: {
   } catch { connection = 'unreachable'; }
   const hint = formatCredentialHint({ hint: saveResult.tokenHint, locale });
   return { saved: true as const, credentialId: saveResult.credentialId, providerId: targetId, connected: connection === 'connected', connection,
-    tokenHint: saveResult.tokenHint, message: `${hint ? `${hint}. ` : ''}${credentialText({ id: connection, locale })}` };
+    tokenHint: saveResult.tokenHint, message: `${hint ? hint + '. ' : ''}${credentialText({ id: connection, locale })}` };
 
 }
 
@@ -921,6 +859,11 @@ function credentialConnectionStatus({ verification }: {
   if (verification?.status === 'valid') return 'connected';
   if (verification?.status === 'invalid') return 'auth';
   return verification?.message === credentialText({ id: 'timeout' }) ? 'timeout' : 'unreachable';
+}
+
+/** All blocked assistant publishes report the same event and product source. */
+function trackBlockedToolPublish({ deps, principalId, target, reasonClass }: { deps: StaticPublishToolDeps; principalId: string; target: string; reasonClass: "config" | "consent" | "busy" }, _options = {}): void {
+  deps.tracker?.capture({ name: "site_publish_blocked", userId: principalId }, { properties: { target, reasonClass, source: "assistant" } });
 }
 
 /** Consent remains a fail-closed preflight before credential reads or publishing. */
@@ -964,7 +907,7 @@ export function buildPublishHostCredentialHandler({ deps, surfaces }: { deps: St
       const { descriptor, credential } = requireCredentialTarget(raw, await deployTargetsLoader(deps)(deps.workspaceId));
       const prefill = readCredentialHints(raw, descriptor);
 
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "deployments.credentials.write" }, { entityType: "site-publish" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "deployments.credentials.write" }, { entityType: SITE_PUBLISH_ENTITY });
 
       // Fail closed rather than degrade — identical posture to the execute-publish guard above.
       // The engine supplies a ToolInputError so the refusal remains caller-safe through transport.
@@ -993,18 +936,33 @@ export function buildPublishHostCredentialHandler({ deps, surfaces }: { deps: St
         outcome: ({ prep, run }) => {
           if (run.status === 'cancelled' || run.status === 'expired' || run.status === 'abandoned') return undefined;
           const saved = run.status === 'saved';
-          const message = saved ? run.saved.message : run.status === 'blank' ? credentialText({ id: 'blank', locale: prep.locale }) : run.status === 'failed' ? run.safeMessage : credentialText({ id: 'unreachable', locale: prep.locale });
+          let message: string;
+          if (run.status === 'saved') message = run.saved.message;
+          else if (run.status === 'blank') message = credentialText({ id: 'blank', locale: prep.locale });
+          else if (run.status === 'failed') message = run.safeMessage;
+          else message = credentialText({ id: 'unreachable', locale: prep.locale });
           return { title: credentialText({ id: saved ? 'savedTitle' : 'unreachable', locale: prep.locale }), state: saved ? 'success' : 'failure', message };
         },
       }, {
         uriHost: 'tovu',
         text: { noEmitter: "deployment_propose_custom_provider_credential: this execution context has no interactive confirmation channel " +
           "(no emitSurface), so a credential form cannot be shown here. Nothing was saved.", saveFailure: credentialText({ id: 'unreachable', locale }) },
-        safeError: err => err instanceof PublishCredentialDuplicateLabelError ? err.message : err instanceof PublishCredentialValidationError ? translateCredentialMessage({ message: err.message, locale }) : undefined,
+        safeError: err => {
+          if (err instanceof PublishCredentialDuplicateLabelError) return err.message;
+          return err instanceof PublishCredentialValidationError ? translateCredentialMessage({ message: err.message, locale }) : undefined;
+        },
         logFailure: metadata => console.warn(JSON.stringify(metadata)),
       });
       return card.handler({ surfaceExchanges: surfaces.surfaceExchanges, askThenReport })(ctx, optional);
   };
+}
+
+/** Keep copy inventory keys that can fill a missing publish credential, after owner admission. */
+function matchingCredentialSources({ sources, missingSaved }: {
+  sources: ReturnType<typeof summarizeCredentialSources>; missingSaved: ReadonlySet<string>;
+}, _options = {}) {
+  return sources.map(source => ({ ...source,
+    keys: source.keys.filter(key => key.publishHosts.some(host => missingSaved.has(host))) }));
 }
 
 export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
@@ -1024,7 +982,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       const loaded = requireStaticPublishTarget(raw, registry);
       const target = loaded.descriptor.id;
 
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "deployments.read" }, { entityType: "site-publish" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: DEPLOYMENTS_READ_PERMISSION }, { entityType: SITE_PUBLISH_ENTITY });
 
       const { config, plan } = planToolPublish(registry, raw, loaded);
       const validationError = plan.ok ? null : plan.message;
@@ -1052,7 +1010,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
      */
     deployment_get_static_publish_capabilities: async (ctx) => {
       requireNoInput({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "deployments.read" }, { entityType: "site-publish" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: DEPLOYMENTS_READ_PERMISSION }, { entityType: SITE_PUBLISH_ENTITY });
 
       const loadDeployTargets = deployTargetsLoader(deps);
       // Owner policy: unseal only server-side to derive the safe hint.
@@ -1075,9 +1033,8 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       if (missingSaved.size && deps.localCredentialCopy?.localHost && ctx.principal.id === await deps.ownerPrincipalId) {
         try {
           const sources = summarizeCredentialSources({ sources: await deps.localCredentialCopy.list({}) });
-          return { executionMode: deps.publishExecutionMode, providers, refusals,
-            credentialSources: sources.map(source => ({ ...source,
-              keys: source.keys.filter(key => key.publishHosts.some(host => missingSaved.has(host))) })) };
+          const credentialSources = matchingCredentialSources({ sources, missingSaved });
+          return { executionMode: deps.publishExecutionMode, providers, refusals, credentialSources };
         } catch {
           return { executionMode: deps.publishExecutionMode, providers, refusals, credentialSourcesUnavailable: true };
         }
@@ -1095,16 +1052,16 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       const target = loaded.descriptor.id;
       const projectName = requireString({ input: raw, key: "projectName" });
 
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "deployments.publish" }, { entityType: "site-publish" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "deployments.publish" }, { entityType: SITE_PUBLISH_ENTITY });
 
       const { config, plan, detailRows } = planToolPublish(registry, raw, loaded);
       if (!plan.ok) {
-        deps.tracker?.capture({ name: "site_publish_blocked", userId: ctx.principal.id }, { properties: { target, reasonClass: "config", source: "assistant" } });
+        trackBlockedToolPublish({ deps, principalId: ctx.principal.id, target, reasonClass: "config" });
         throw new ToolInputError({ message: `deployment_execute_static_publish: ${plan.message}` });
       }
       const consent = await checkToolPublishConsent({ deps, principalId: ctx.principal.id });
       if (consent) {
-        deps.tracker?.capture({ name: "site_publish_blocked", userId: ctx.principal.id }, { properties: { target, reasonClass: "consent", source: "assistant" } });
+        trackBlockedToolPublish({ deps, principalId: ctx.principal.id, target, reasonClass: "consent" });
         return { published: false, cancelled: false, ...consent };
       }
 
@@ -1117,7 +1074,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       // Refuse unavailable credentials before starting an export.
       const readiness = await credentialSource.isConfigured({ workspaceId: deps.workspaceId, target, ...toolCredentialChoice({ raw }) });
       if (!readiness.configured) {
-        deps.tracker?.capture({ name: "site_publish_blocked", userId: ctx.principal.id }, { properties: { target, reasonClass: "config", source: "assistant" } });
+        trackBlockedToolPublish({ deps, principalId: ctx.principal.id, target, reasonClass: "config" });
         return {
           published: false,
           cancelled: false,
@@ -1129,7 +1086,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
 
       if (ctx.signal.aborted) return { published: false, cancelled: false, reason: "abandoned" };
       if (getPublishRunSnapshot().status === "running") {
-        deps.tracker?.capture({ name: "site_publish_blocked", userId: ctx.principal.id }, { properties: { target, reasonClass: "busy", source: "assistant" } });
+        trackBlockedToolPublish({ deps, principalId: ctx.principal.id, target, reasonClass: "busy" });
         return { published: false, cancelled: false, code: "ALREADY_RUNNING", message: "A publish is already running. Wait for it to finish before publishing again." };
       }
       const outcome = await runPublishAndAwait(
@@ -1165,7 +1122,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       if (module.hostingSetup === undefined) throw new ToolInputError({ message: `${descriptor.id} has no hosting-setup steps: publishing to it serves the site.` });
       const fields = readCredentialHints(raw, descriptor);
 
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "deployments.read" }, { entityType: "site-publish" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: DEPLOYMENTS_READ_PERMISSION }, { entityType: SITE_PUBLISH_ENTITY });
 
       try {
         return module.hostingSetup({ fields });
@@ -1191,6 +1148,6 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
  * `installFirstPartyToolContributors()`, never as an import side effect.
  * See ./tool-registrations.ts for the shared deployments/credential dependency boundary.
  */
-export function contributeStaticPublishTools(): ToolContributor {
+export function contributeStaticPublishTools(): ToolContributor<StaticPublishToolDeps, AssistantSurfaceDeps> {
   return { domain: "static-publish", build: buildStaticPublishRegistrations, risk: staticPublishDerivedRisk };
 }

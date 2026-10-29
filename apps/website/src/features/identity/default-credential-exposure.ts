@@ -90,13 +90,8 @@ function listFiles(dir: string): string[] {
 
     const full = path.join(dir, entry);
     const isDir = statIsDirectory(full);
-    if (isDir === null) continue;
-
-    if (isDir) {
-      out.push(...listFiles(full));
-    } else if (isScannableFile(entry)) {
-      out.push(full);
-    }
+    if (isDir) out.push(...listFiles(full));
+    if (isDir === false && isScannableFile(entry)) out.push(full);
   }
   return out;
 }

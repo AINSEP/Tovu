@@ -14,7 +14,7 @@ import { buildDomainRegistrations, indexCatalogById, requireInputRecord, require
 import { type AuthorizeFn, type EventBusPort, type OutboxPort, adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { MailerPort, MailSenderIdentityPort } from "../../platform/mail/index.js";
 import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import {
@@ -60,6 +60,8 @@ import {
   type UnsubscribeSubscriptionDeps,
 } from "./subscriptions.js";
 import type { CampaignRecord, NewsletterListRow, SendRow, SubscriptionRow } from "./types.js";
+
+const MUTATES_DURABLE_STATE = "mutates-durable-state" as const;
 
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: newsletterAgentToolCatalog });
@@ -197,22 +199,22 @@ export const newsletterDerivedRisk: DerivedRiskByToolId = new Map<string, AgentT
   // -> newsletterSendRepo.listByCampaign: read only.
   ["newsletter_list_send_log", "none"],
   // -> saveCampaign (campaign-write-service.ts): campaign row + revision write in one tx.
-  ["newsletter_create_campaign", "mutates-durable-state"],
-  ["newsletter_update_campaign", "mutates-durable-state"],
+  ["newsletter_create_campaign", MUTATES_DURABLE_STATE],
+  ["newsletter_update_campaign", MUTATES_DURABLE_STATE],
   // -> cancelCampaign (campaign-write-service.ts): status transition + revision.
-  ["newsletter_cancel_campaign", "mutates-durable-state"],
+  ["newsletter_cancel_campaign", MUTATES_DURABLE_STATE],
   // -> pauseCampaign (send-pipeline.ts): status transition + revision; only ever HALTS sending.
-  ["newsletter_pause_campaign", "mutates-durable-state"],
+  ["newsletter_pause_campaign", MUTATES_DURABLE_STATE],
   // -> saveList (lists.ts): list row write.
-  ["newsletter_create_list", "mutates-durable-state"],
+  ["newsletter_create_list", MUTATES_DURABLE_STATE],
   // -> archiveList (lists.ts): status flip.
-  ["newsletter_archive_list", "mutates-durable-state"],
+  ["newsletter_archive_list", MUTATES_DURABLE_STATE],
   // -> saveSubscription (subscriptions.ts): subscription row write + mints/sends one confirmation email.
-  ["newsletter_create_subscription", "mutates-durable-state"],
+  ["newsletter_create_subscription", MUTATES_DURABLE_STATE],
   // -> unsubscribeSubscription (subscriptions.ts): status flip + conditional consent revoke.
-  ["newsletter_remove_subscription", "mutates-durable-state"],
+  ["newsletter_remove_subscription", MUTATES_DURABLE_STATE],
   // -> issueConfirmationToken (confirmation.ts): invalidates prior tokens, writes a new token row, sends mail.
-  ["newsletter_resend_confirmation", "mutates-durable-state"],
+  ["newsletter_resend_confirmation", MUTATES_DURABLE_STATE],
 ]);
 
 /** Model-facing campaign view — drops `workspaceId` (same reasoning as every other `to*View` in this codebase) and the pipeline-internal `audienceSnapshotId`/`sendStartedAt`/`createdByPrincipal` (plumbing no wired tool's follow-up call consumes). */
@@ -542,6 +544,6 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps, _surfaces
  * `tool-contribution-registry.ts`'s header for why: this edge used to close a module cycle with
  * `assistant`, and a one-directional `newsletter -> assistant` registration call does not).
  */
-export function contributeNewsletterTools(): ToolContributor {
+export function contributeNewsletterTools(): ToolContributor<NewsletterToolDeps, AssistantSurfaceDeps> {
   return { domain: "newsletter", build: buildNewsletterRegistrations, risk: newsletterDerivedRisk };
 }

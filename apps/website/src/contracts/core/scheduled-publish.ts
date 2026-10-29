@@ -51,7 +51,8 @@ export function comparePostsByDisplayDate(
   const left = postDisplayDateIso(a);
   const right = postDisplayDateIso(b);
   if (left !== right) return left < right ? 1 : -1;
-  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  if (a.id < b.id) return -1;
+  return a.id > b.id ? 1 : 0;
 }
 
 /** Published, not trashed, and past its go-live time — the whole public-visibility rule for a post

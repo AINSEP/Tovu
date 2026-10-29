@@ -2,7 +2,7 @@ import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInputError,
   type AgentToolDefinition, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { ValueValidationFailedError, type SettingsToolDeps } from "@jini-ai/core/settings";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import type { set } from "#src/features/settings/site-title-write";
 import { resolveActiveThemeId } from "#src/features/presentation/index";
 import { toolMetadata } from "../../contracts/core/tool-metadata/theme.js";
@@ -60,6 +60,6 @@ export function buildPreviewSwitcherRegistrations({ deps }: { deps: PreviewSwitc
 }
 
 /** Separate contributor key preserves the theme file and activation tools. */
-export function contributePreviewSwitcherTools(_required = {}, _options = {}): ToolContributor {
+export function contributePreviewSwitcherTools(_required = {}, _options = {}): ToolContributor<PreviewSwitcherToolDeps, unknown> {
   return { domain: "theme-preview-switcher", build: deps => buildPreviewSwitcherRegistrations({ deps }), risk };
 }

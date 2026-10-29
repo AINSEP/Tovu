@@ -1,5 +1,4 @@
-import { listSites } from "#src/platform/site-dir/site-registry";
-import { runningSiteUrl } from "#src/platform/site-dir/site-running";
+import { listSites, runningSiteUrl } from "#src/platform/site-dir/index";
 import { rm } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { Writable } from "node:stream";
@@ -17,8 +16,8 @@ import { createNodeDaemonProcessAdapter } from "@jini-ai/sidecar/supervisor/node
 import { listProcessSnapshots, readFlagValue } from "@jini-ai/platform/process";
 import { omitEnvironmentKeys } from "@jini-ai/platform/child-environment";
 import type { SpawnedDaemonProcess } from "@jini-ai/sidecar/supervisor";
-import type { LocalSiteProcessPort, LocalSiteProcess } from "#src/platform/site-dir/local-site-supervisor";
-import { LocalSiteError, assertLocalSiteName } from "#src/platform/site-dir/local-site-supervisor";
+import type { LocalSiteProcessPort, LocalSiteProcess } from "#src/platform/site-dir/index";
+import { LocalSiteError, assertLocalSiteName } from "#src/platform/site-dir/index";
 import { readSiteDir } from "#src/platform/site-dir/read-site-dir";
 import { resolveCheckoutRoot } from "#src/platform/site-dir/product-root";
 import { resolveDevTls, resolveDevTlsCertPaths } from "../boot/dev-tls.js";

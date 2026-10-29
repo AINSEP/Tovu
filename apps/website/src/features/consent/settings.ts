@@ -10,8 +10,9 @@ export const SITE_CONSENT_OFF: SiteConsentSettings = { ...SITE_CONSENT_DEFAULTS,
 
 /** The ledger's `enabled` default stays OFF: its default layer only means "no owner choice yet",
  * which {@link resolveSiteConsentActivation} turns into the product default (on) for all sites.
- * Keeping it unchanged also means no boot-time rewrite of existing sites' enabled ledgers. */
-const LEDGER_DEFAULTS: SiteConsentSettings = SITE_CONSENT_OFF;
+ * Keeping it unchanged also means no boot-time rewrite of existing sites' enabled ledgers.
+ * The blank privacy ledger lets bootstrap choose an existing site page before saving its URL. */
+const LEDGER_DEFAULTS: SiteConsentSettings = { ...SITE_CONSENT_OFF, privacyPolicyUrl: '' };
 
 /** The shared registrar owns legacy scalar definitions and their ledger revisions.
  * Complete published policies use the site snapshot adapter, avoiding partial field publication.
@@ -67,7 +68,7 @@ export async function resolveSiteConsentActivation(deps: Deps, _options = {}): P
 async function readValues(deps: Deps): Promise<Omit<SiteConsentSettings, 'enabled'>> {
   const entries = await Promise.all(Object.entries(SITE_CONSENT_DEFAULTS).filter(([key]) => key !== 'enabled').map(async ([key, fallback]) => {
     const resolved = await readSetting(deps, key as keyof SiteConsentSettings);
-    const value = resolved === null || (key === 'regionMode' && resolved.sourceLayer === 'default') ? fallback : resolved.value;
+    const value = resolved === null || (['regionMode', 'privacyPolicyUrl'].includes(key) && resolved.sourceLayer === 'default') ? fallback : resolved.value;
     if (typeof value !== typeof fallback) throw new Error(`Invalid cookie consent setting: ${key}.`);
     if (typeof value === 'string' && value.length > 2000) throw new Error(`Cookie consent setting ${key} exceeds 2000 characters.`);
     return [key, value] as const;

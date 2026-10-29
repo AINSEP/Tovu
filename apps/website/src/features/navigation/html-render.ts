@@ -7,13 +7,13 @@ export interface HtmlMenuItem {
   readonly href: string | null;
   readonly available: boolean;
   readonly isCurrent: boolean;
-  readonly isActive?: boolean | undefined;
+  readonly isActive?: boolean;
   readonly attrs?: {
-    readonly description?: string | undefined;
-    readonly icon?: string | undefined;
-    readonly rel?: string | undefined;
-    readonly openInNewTab?: boolean | undefined;
-  } | undefined;
+    readonly description?: string;
+    readonly icon?: string;
+    readonly rel?: string;
+    readonly openInNewTab?: boolean;
+  };
   readonly children: readonly HtmlMenuItem[];
 }
 

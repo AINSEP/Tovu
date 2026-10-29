@@ -25,15 +25,19 @@ export function registerAdminAssistantSubagentsRoutes(required: { app: Express; 
     projectRead: ({ settings, isOwner }) => {
       const envLock = fullCliEnvLock({ env: process.env });
       const hostSignals = resolveBundledHostSignals({ env: process.env });
-      return { ...resolveAssistantCliPermissions({ isOwner, env: process.env, settings }, { hostSignals }),
-        ...(isHostedAssistantRuntime({ env: process.env }, { hostSignals }) ? { unavailableReason: "Not available on hosted sites" }
-          : !isOwner ? { unavailableReason: "Only the owner can change agent permissions." }
-          : envLock ? { unavailableReason: `Turned off on this computer by ${envLock}.` } : {}) };
+      const permissions = resolveAssistantCliPermissions({ isOwner, env: process.env, settings }, { hostSignals });
+      let availability: { unavailableReason?: string };
+      if (isHostedAssistantRuntime({ env: process.env }, { hostSignals })) availability = { unavailableReason: "Not available on hosted sites" };
+      else if (!isOwner) availability = { unavailableReason: "Only the owner can change agent permissions." };
+      else if (envLock) availability = { unavailableReason: `Turned off on this computer by ${envLock}.` };
+      else availability = {};
+      return { ...permissions, ...availability };
     },
     parse: body => {
       const overrides = body.capabilities;
-      if (overrides !== undefined && (!overrides || typeof overrides !== "object" || Array.isArray(overrides) ||
-        Object.entries(overrides).some(([key, value]) => !ASSISTANT_CLI_CAPABILITIES.some(item => item.key === key) || typeof value !== "boolean"))) {
+      const malformed = overrides !== undefined && (!overrides || typeof overrides !== "object" || Array.isArray(overrides));
+      const unknownCapability = !malformed && overrides !== undefined && Object.entries(overrides).some(([key, value]) => !ASSISTANT_CLI_CAPABILITIES.some(item => item.key === key) || typeof value !== "boolean");
+      if (malformed || unknownCapability) {
         rejectSettingsRequest({ status: 400, code: "VALIDATION_ERROR", error: "Unknown capability or non-boolean value." });
       }
       return assistantCliPermissions({ enabled: body.enabled as boolean,

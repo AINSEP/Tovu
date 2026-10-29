@@ -8,8 +8,8 @@ import { createSitesWorkspace } from "../../sites-home.js";
 import { resolveSiteDatabasePaths, resolveSiteDirForDatabase } from "../../site-databases.js";
 import { listSites } from "../../site-registry.js";
 import { resolveSiteRoot } from "../../site-root.js";
-import { initSite } from "../../init-site.js";
-import { bootSiteDir, closeSiteDirBoot } from "../../boot-site-dir.js";
+import { initSite, bootSiteDir } from "#src/server/runtime/composition/site-dir";
+import { closeSiteDirBoot } from "../../boot-site-dir.js";
 function fixture() {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-sites-config-")));
   const options = { homeDir: root, cwd: path.join(root, "repo"), env: {}, platform: "linux" as const, sourceRoots: [] };

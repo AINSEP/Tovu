@@ -21,6 +21,7 @@ import { createPluginRouteAuthPorts, registerPluginContributionRoutes, type Plug
 const workspaceId = 'site';
 const pluginId = 'pin-plugin';
 const sdk: PluginSdk = {
+  providers: { register: () => {} },
   content: { read: () => ({ workspaceId, ext: {} }), extend: () => {} },
   addFilter: () => {}, addAction: () => {}, addContribution: () => {},
   routes: { add: () => {} }, tools: { add: () => {} }, widgets: { add: () => {} },

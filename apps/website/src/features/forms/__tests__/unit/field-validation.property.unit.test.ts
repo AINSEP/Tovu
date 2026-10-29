@@ -22,7 +22,7 @@ function definition({ fields }: { fields: FieldDescriptor[] }, _options = {}): F
 }
 
 before(t => {
-  t.diagnostic(`fast-check seed=${parameters.seed}, numRuns=${parameters.numRuns}`);
+  if ("diagnostic" in t) t.diagnostic(`fast-check seed=${parameters.seed}, numRuns=${parameters.numRuns}`);
 });
 
 test('unique well-formed descriptors are accepted without mutating the caller', () => {

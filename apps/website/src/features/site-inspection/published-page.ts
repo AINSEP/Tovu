@@ -134,9 +134,9 @@ const UNTRACED = createNoopObservabilityPort({});
 
 export interface FetchPublishedPageOptions extends PageBodyOptions {
   /** Body bytes to keep, clamped to `[1, MAX_MAX_BODY_BYTES]`. */
-  maxBytes?: number | undefined;
+  maxBytes?: number;
   /** Wall clock for the whole call. */
-  timeoutMs?: number | undefined;
+  timeoutMs?: number;
 }
 
 /**
@@ -262,6 +262,10 @@ function disallowedFormReason(check: SitePathCheck, raw: string): string | null 
       return "path decodes to a backslash or control character, which is refused.";
     case "reserved":
       return `path must not target '/${check.surface}' — that is the authenticated admin/API surface, not a published page.`;
+    default: {
+      const unhandled: never = check;
+      throw new TypeError(`Unknown site path verdict: ${String(unhandled)}`);
+    }
   }
 }
 
@@ -374,19 +378,18 @@ export async function readBoundedBody(
   let truncated = false;
 
   try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (!value) continue;
-      const remaining = maxBytes - total;
-      if (value.byteLength > remaining) {
-        chunks.push(value.subarray(0, remaining));
-        total += remaining;
-        truncated = true;
-        break;
+    let done = false;
+    while (!done && !truncated) {
+      const next = await reader.read();
+      done = next.done === true;
+      const value = next.value;
+      if (!done && value) {
+        const remaining = maxBytes - total;
+        truncated = value.byteLength > remaining;
+        const size = truncated ? remaining : value.byteLength;
+        chunks.push(value.subarray(0, size));
+        total += size;
       }
-      chunks.push(value);
-      total += value.byteLength;
     }
   } finally {
     await reader.cancel().catch(() => {

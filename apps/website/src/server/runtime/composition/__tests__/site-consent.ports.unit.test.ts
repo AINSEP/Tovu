@@ -34,7 +34,7 @@ test("readiness uses the required consent gate; region trust follows the configu
 test("receipt storage reports the site's receipt directory health, creating it on first check", async (t) => {
   const dir = tempDir(t);
   writeFileSync(path.join(dir, "not-a-receipt.txt"), "");
-  const health = await portsFor({ siteBinding: { dir } }).receiptStorage();
+  const health = await portsFor({ siteBinding: { dir } }).receiptStorage({});
   assert.deepEqual(health, { writable: true, count: 0 });
 });
 
@@ -44,7 +44,7 @@ test("a receipt-storage fault is logged without detail and rethrown unchanged", 
   writeFileSync(blocker, "");
   const logged: unknown[][] = [];
   t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
-  await assert.rejects(portsFor({ siteBinding: { dir: blocker } }).receiptStorage(), { code: "ENOTDIR" });
+  await assert.rejects(portsFor({ siteBinding: { dir: blocker } }).receiptStorage({}), { code: "ENOTDIR" });
   assert.deepEqual(logged, [["[consent] receipt storage check failed"]]);
 });
 

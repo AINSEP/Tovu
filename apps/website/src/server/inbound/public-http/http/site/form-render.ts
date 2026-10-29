@@ -26,7 +26,8 @@ import { isNonArrayRecord } from "@jini-ai/core/records";
 import { escapeHtml } from "#src/platform/html/escape";
 import { formValidationMessages, formDocumentLocale } from "./form-validation-message.js";
 import { FORM_ATTEMPT_FIELD } from "@jini-ai/cms/forms/submission-attempts";
-import { FORM_SUBMISSION_TOO_FAST_MESSAGE, type FieldDescriptor } from "@jini-ai/cms/forms";
+import { FORM_SUBMISSION_TOO_FAST_MESSAGE } from "@jini-ai/cms/forms/html-render";
+import type { FieldDescriptor } from "@jini-ai/cms/forms";
 import { fieldMaxChars } from "#src/features/forms/field-length-caps";
 
 const FORM_CLASS = "tovu-form";
@@ -493,7 +494,7 @@ function setInputValueAttr(tag: string, escapedValue: string): string {
     return tag.replace(existingValueAttr, (_match, leadingSpace: string) => `${leadingSpace}value="${escapedValue}"`);
   }
   const selfClosing = /\/>$/.test(tag);
-  const beforeClose = tag.slice(0, tag.length - (selfClosing ? 2 : 1)).replace(/\s+$/, "");
+  const beforeClose = tag.slice(0, tag.length - (selfClosing ? 2 : 1)).trimEnd();
   return `${beforeClose} value="${escapedValue}"${selfClosing ? "/>" : ">"}`;
 }
 
@@ -637,7 +638,7 @@ function stampControlMaxLength(tag: string, caps: ReadonlyMap<string, number>): 
   const max = caps.get(/\sname="([^"]*)"/i.exec(tag)?.[1] ?? "");
   if (max === undefined || /\smaxlength\s*=/i.test(tag) || /\stype="hidden"/i.test(tag)) return tag;
   const selfClosing = /\/>$/.test(tag);
-  return `${tag.slice(0, tag.length - (selfClosing ? 2 : 1)).replace(/\s+$/, "")} maxlength="${max}"${selfClosing ? "/>" : ">"}`;
+  return `${tag.slice(0, tag.length - (selfClosing ? 2 : 1)).trimEnd()} maxlength="${max}"${selfClosing ? "/>" : ">"}`;
 }
 
 /** Adds `maxlength` to every text input/textarea of a rendered public form (Builder or HTML mode) so

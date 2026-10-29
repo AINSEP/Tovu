@@ -7,7 +7,7 @@ import test from "node:test";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { renderTemplateBranchIfEligible } from "#src/server/inbound/public-http/routes/site/pages";
-import type { PostRecord } from "#src/features/post/index";
+import type { PublicPostRecord } from "#src/features/post/index";
 import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render";
 import { injectCurrentEntityContentId, injectPageTitle, renderStaticPage, resolveTemplate } from "../static-render.js";
 import type { DiscoveredTheme, StaticMenuItem } from "../index.js";
@@ -284,7 +284,7 @@ test("canary: real Post and Page records render their selected templates through
       status: "published", bodyFormat: "doc", bodyHtml: null,
       bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: `Distinct ${kind} body` }] }] },
       templateChoice: templateFor(theme, kind), updatedAt: new Date().toISOString(), version: 1,
-    } as PostRecord;
+    } as PublicPostRecord;
     await deps.postRepo.save(record);
     const html = await renderTemplateBranchIfEligible(deps, theme, record, {}, false);
     assert.ok(html);

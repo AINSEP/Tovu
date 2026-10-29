@@ -1,3 +1,5 @@
+import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { isolatedCatalogHome } from "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
@@ -46,7 +48,9 @@ async function fixture({ t }: { t: TestContext }, _options = {}) {
   } satisfies Pick<AdminSiteKeyDeps, "workspaceId" | "authorize" | "siteBinding" | "dbOps" | "idGen" | "clock">;
   const app = express(); app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
-  registerAdminSiteKeyRoutes(app, { ...ports, restorePointsRepo: { save } } as AdminSiteKeyDeps, writer);
+  const baseDeps = createRouteDeps();
+  t.mock.method(baseDeps.restorePointsRepo, "save", save);
+  registerAdminSiteKeyRoutes(app, { ...baseDeps, ...ports }, writer);
   const base = await startTestServer(app, t);
   const post = async ({ verb, body = {} }: { verb: string; body?: unknown }, _options = {}) => {
     const response = await fetch(`${base}/api/admin/v1/workspaces/ws/system/site-key/${verb}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });

@@ -5,7 +5,7 @@ import type { ContentDatabase } from "../content-database.generated.js";
 import type { ContentKernel } from "../content-kernel.js";
 import { type ChatDatabase, type ChatKernel, pgChatKernel } from "../chat-kernel.js";
 import type { StorageKernel } from "../kernel/port.js";
-import type { SiteStorage } from "../../site-dir/types.js";
+import type { SiteStorage } from "../../site-dir/index.js";
 
 /**
  * @file The agent daemon's leaf DB client (ADR-070 draft, memory plan §2.7): a site's content and

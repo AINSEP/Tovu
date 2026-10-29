@@ -4,8 +4,7 @@ import { authorizeOrRespond } from "../../authorize-guard.js";
 import { getAuthedPrincipal } from "../../dev-auth.js";
 import type { RouteDeps } from "#src/server/routes/types";
 import { resolveSiteSwitchBase } from "#src/features/sites/index";
-import { LocalSiteError, type LocalSiteSupervisorPort } from "#src/platform/site-dir/local-site-supervisor";
-import { trashSite, restoreSite, permanentlyDeleteTrashedSite, siteTrashName } from "#src/platform/site-dir/site-trash";
+import { LocalSiteError, type LocalSiteSupervisorPort, trashSite, restoreSite, permanentlyDeleteTrashedSite, siteTrashName } from "#src/platform/site-dir/index";
 
 export interface LocalSitesRouteDeps extends Pick<RouteDeps, "workspaceId" | "authorize" | "siteBinding"> {
   localSiteSupervisor?: LocalSiteSupervisorPort;

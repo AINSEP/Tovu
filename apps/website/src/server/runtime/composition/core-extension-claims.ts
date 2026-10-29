@@ -1,5 +1,5 @@
 import type { ExtensionClaim } from "@jini-ai/plugins/host";
-import { FIRST_PARTY_DATA_MODULES } from "#src/features/plugins/data-modules";
+import { FIRST_PARTY_DATA_MODULES } from "#src/server/runtime/composition/data-modules";
 
 /**
  * @file The names Tovu core itself holds, as conflict-detection claims (2026-10-04) — what a

@@ -646,6 +646,20 @@ test("resolveImportCandidates applies the .js-written/.ts-on-disk rewrite", () =
   assert.ok(candidates.includes("/repo/development/scripts/route-coverage-lib.ts"));
 });
 
+test("ESM queries and fragments resolve the file while missing queried modules remain dead", () => {
+  const importer = path.join(REPO_ROOT, "development/scripts/__tests__/unit/probe.ts");
+  const candidates = resolveImportCandidates(importer, "../../mutation-sweep.mjs?characterization#probe");
+  assert.ok(candidates.includes(path.join(REPO_ROOT, "development/scripts/mutation-sweep.mjs")));
+  assert.ok(candidates.some(candidate => fs.existsSync(candidate)));
+  assert.ok(resolveImportCandidates(importer, "../../missing-module.mjs?characterization").every(candidate => !fs.existsSync(candidate)));
+});
+
+test("installed ESLint rule IDs are not paths; unknown files under that segment remain checked", () => {
+  const options = { knownRepoSegments: new Set(["sonarjs"]) };
+  assert.deepEqual(classifyRepoRelativeString("sonarjs/cognitive-complexity", options), { kind: "skipped", reason: "eslint-rule-id" });
+  assert.deepEqual(classifyRepoRelativeString("sonarjs/missing.ts", options), { kind: "repo-relative-path", repoRelative: "sonarjs/missing.ts" });
+});
+
 test("resolveImportCandidates really resolves this repo's own .js-written imports", () => {
   const importerAbs = path.join(REPO_ROOT, "development/scripts/list-server-test-files.ts");
   const candidates = resolveImportCandidates(importerAbs, "./route-coverage-lib.js");
@@ -685,6 +699,7 @@ test("SKIP_REASONS is exactly the SkipReason union — neither the rule tables n
   // The Record forces TypeScript to reject this file if a SkipReason is added to the union without a
   // key here; the assertion rejects it if a rule is added to the tables without the union.
   const everyReason: Record<SkipReason, true> = {
+    "eslint-rule-id": true,
     "own-import-specifier": true,
     "url-scheme": true,
     "glob-or-regex-metacharacter": true,

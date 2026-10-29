@@ -265,13 +265,46 @@ export function rewriteBundlerHtml(
   return html;
 }
 
-/** Matches a CSS `url(...)` function, capturing an optional surrounding quote (`'`/`"`, or none) and the
- * raw URL content between the parens. Does not attempt to handle an escaped quote or parenthesis INSIDE
+/** Matches the start of a CSS `url(...)` function. Does not attempt to handle an escaped quote or parenthesis INSIDE
  * the URL itself (`url('foo\'bar.png')`) — a real but narrower gap than the directory-shift problem this
  * exists to fix, and not a shape any bundler in this codebase's toolchain emits (matching the precedent
  * `rewriteAssetPaths`'s own doc in `static-asset-contract.ts` sets for scoping a regex to observed shapes
  * rather than every theoretical one). */
-const CSS_URL_FUNCTION = /url\(\s*(["']?)([^"')]*)\1\s*\)/gi;
+const CSS_URL_START = /url\(/gi;
+
+/** One closing-paren-delimited segment can contain several failed starts, but only one
+ * successful URL. Quote positions are scanned once so malformed input stays linear. */
+function rewriteCssUrlSegment({ segment }: { segment: string }, _options = {}): string {
+  const starts = new RegExp(CSS_URL_START);
+  const whitespace = /\s*/y;
+  const quotes = [...segment.matchAll(/["']/g)];
+  const contentEnd = segment.trimEnd().length;
+  let quoteIndex = 0;
+  for (let match = starts.exec(segment); match; match = starts.exec(segment)) {
+    whitespace.lastIndex = starts.lastIndex;
+    const leading = whitespace.exec(segment)!;
+    const start = leading.index + leading[0].length;
+    while (quoteIndex < quotes.length && quotes[quoteIndex]!.index < start) quoteIndex++;
+    const parsed = cssUrlContent({ segment, start, contentEnd, quotes, quoteIndex });
+    if (parsed) {
+      if (!isRelativeCssUrl(parsed.rawUrl)) return segment;
+      return segment.slice(0, match.index) + `url(${parsed.quote}../${parsed.rawUrl}${parsed.quote}`;
+    }
+  }
+  return segment;
+}
+
+/** Unquoted URLs retain trailing whitespace; quoted URLs require a matching final quote.
+ * Both quote characters are excluded inside the URL, as in the original build-output grammar. */
+function cssUrlContent({ segment, start, contentEnd, quotes, quoteIndex }: {
+  segment: string; start: number; contentEnd: number; quotes: readonly RegExpExecArray[]; quoteIndex: number;
+}, _options = {}): { quote: string; rawUrl: string } | undefined {
+  const first = quotes[quoteIndex];
+  if (!first) return { quote: "", rawUrl: segment.slice(start) };
+  const last = quotes[quoteIndex + 1];
+  if (first.index !== start || !last || last[0] !== first[0] || last.index + 1 !== contentEnd) return undefined;
+  return { quote: first[0], rawUrl: segment.slice(start + 1, last.index) };
+}
 
 /** Whether a CSS `url(...)` reference is affected by its stylesheet moving one directory level deeper —
  * true for an ordinary relative path (`foo.png`, `../fonts/x.woff2`, `media/logo.png`), false for
@@ -293,13 +326,12 @@ function isRelativeCssUrl(value: string): boolean {
  * reference gains one more `../` to compensate. Scheme-prefixed, root-relative, protocol-relative, and
  * fragment-only URLs are left untouched — see {@link isRelativeCssUrl}.
  *
- * @complexity O(n) over `cssContent`'s length — one regex scan.
+ * @complexity O(n) over `cssContent`'s length — each segment and quote is scanned once.
  */
 export function rewriteCssRelativeUrls(cssContent: string): string {
-  return cssContent.replace(CSS_URL_FUNCTION, (match, quote: string, rawUrl: string) => {
-    if (!isRelativeCssUrl(rawUrl)) return match;
-    return `url(${quote}../${rawUrl}${quote})`;
-  });
+  const segments = cssContent.split(")");
+  return segments.map((segment, index) => index === segments.length - 1
+    ? segment : rewriteCssUrlSegment({ segment }) + ")").join("");
 }
 
 /** {@link normalizeBuildOutputDirectory}'s result: what moved, what was rewritten, and what was deleted.

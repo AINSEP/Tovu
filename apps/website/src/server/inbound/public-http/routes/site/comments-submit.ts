@@ -101,14 +101,14 @@ export function registerCommentsSubmitRoute(app: Express, deps: CommentsSubmitDe
   const submit: RequestHandler = async (request, response, next) => {
     if (!isSameOriginCommentPost({ request })) {
       response.status(403).json({ error: 'A same-origin comment submission is required' });
-      return;
+      return undefined;
     }
     let built: RequestHandler;
     try {
       built = await handler;
     } catch (error) {
       next(error);
-      return;
+      return undefined;
     }
     return built(request, response, next);
   };

@@ -32,7 +32,7 @@ test("five installed hosts include two disabled hosts; enabling permits only the
   assert.deepEqual(inventory.items.map(item => [item.pluginId, item.enabled]), [
     ["host-a", true], ["host-b", true], ["host-c", true], ["host-d", false], ["host-e", false],
   ]);
-  assert.deepEqual(f.imports, []);
+  assert.deepEqual([...f.imports], []);
   const registry = await loadDeployTargetRegistry({ workspaceId: "site" }, { loadContributions: f.loadPluginContributions });
   assert.deepEqual(registry.list().map(item => item.descriptor.id), ["host-a", "host-b", "host-c"]);
   f.enabled.add("host-d");

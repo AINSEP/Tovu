@@ -24,13 +24,15 @@ let headers: SecurityHeaderSet | undefined;
 /** Load product-owned resource data on first use, then reuse it. Read/parse failures propagate
  * at use rather than import and are not cached. @complexity O(b) file bytes once, then O(1). */
 export function publicThemeResources(_required: Record<string, never>, _optional: Record<string, never> = {}): PublicThemeResources {
-  return resources ??= readPublicThemeResources({
+  resources ??= readPublicThemeResources({
     resourceFile: path.join(resolveProductRoot(), "content", "themes", "public-resources.json"),
   });
+  return resources;
 }
 
 /** Reuse the frozen report-only header set after first use; resource errors propagate.
  * @complexity O(r) declared resource URLs once, then O(1). */
 export function publicPageSecurityHeaders(_required: Record<string, never>, _optional: Record<string, never> = {}): SecurityHeaderSet {
-  return headers ??= createPublicPageSecurityHeaderSet({ resources: publicThemeResources({}) });
+  headers ??= createPublicPageSecurityHeaderSet({ resources: publicThemeResources({}) });
+  return headers;
 }

@@ -39,7 +39,7 @@ import {
 } from "../../contracts/core/gated-mutations/gateway.js";
 import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
@@ -74,6 +74,8 @@ import {
 } from "./index.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
+const MUTATES_DURABLE_STATE = "mutates-durable-state";
 
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: taxonomyAgentToolCatalog });
@@ -128,24 +130,24 @@ export const taxonomyDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToo
   //    with contentTypeRepo.findByKey for collection validation; reads only.
   ["taxonomy_get_assigned_terms", "none"],
   // -> createTaxonomy (write-service.ts): taxonomies.insert + revisions.insert in effect.
-  ["taxonomy_create_taxonomy", "mutates-durable-state"],
+  ["taxonomy_create_taxonomy", MUTATES_DURABLE_STATE],
   // -> createTerm (write-service.ts): terms.insert + revisions.insert.
-  ["taxonomy_create_term", "mutates-durable-state"],
+  ["taxonomy_create_term", MUTATES_DURABLE_STATE],
   // -> renameTerm (write-service.ts): terms.update + revisions.insert.
-  ["taxonomy_rename_term", "mutates-durable-state"],
+  ["taxonomy_rename_term", MUTATES_DURABLE_STATE],
   // -> assignTerms (write-service.ts): entryTerms.upsert per termId (INV-05: no revision row, see
   //    that function's own doc comment for the disclosed narrowing this implements).
-  ["taxonomy_assign_terms", "mutates-durable-state"],
+  ["taxonomy_assign_terms", MUTATES_DURABLE_STATE],
   // -> unassignTerms (write-service.ts): entryTerms.remove per termId — same INV-05 no-revision-row
   //    narrowing as assignTerms (that function's own doc comment discloses it applies equally here).
-  ["taxonomy_unassign_terms", "mutates-durable-state"],
+  ["taxonomy_unassign_terms", MUTATES_DURABLE_STATE],
   // -> gateway.ts's plan() via buildMergeTermHooks: authorizes, then recomputes a plan and returns
   //    it — verified directly against plan()'s own body, which persists nothing (AC-10).
   ["taxonomy_plan_merge_term", "none"],
   // -> gateway confirm() (as the human, after their click) + execute() via buildMergeTermHooks:
   //    entryTerms.repointTerm (re-points, then deletes the source rows) + terms.update (deprecate)
   //    + revisions.insert.
-  ["taxonomy_execute_merge_term", "mutates-durable-state"],
+  ["taxonomy_execute_merge_term", MUTATES_DURABLE_STATE],
 ]);
 
 const MERGE_TOOL_ID = "taxonomy_execute_merge_term";
@@ -437,6 +439,6 @@ export function buildTaxonomyRegistrations(
  * rollout — no sibling domain still statically wired through `assistant` imports `taxonomy`, so this
  * one-directional `taxonomy -> assistant` call closes no new cycle).
  */
-export function contributeTaxonomyTools(): ToolContributor {
+export function contributeTaxonomyTools(): ToolContributor<TaxonomyToolDeps, AssistantSurfaceDeps> {
   return { domain: "taxonomy", build: buildTaxonomyRegistrations, risk: taxonomyDerivedRisk };
 }

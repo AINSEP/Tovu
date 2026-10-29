@@ -120,8 +120,10 @@ function safely(log: (line: string) => void, lines: readonly string[]): void {
  * than the one that was actually checked. Nothing here reads key material.
  */
 export function siteKeyBootNoticeLines(status: SiteKeyStatus): readonly string[] {
+  const source = status.source === "env"
+    ? `${status.envVarName ?? "TOVU_SITE_KEY"} environment variable` : `key file at ${status.keyFilePath}`;
   const cause = status.invalid
-    ? `the ${status.source === "env" ? `${status.envVarName ?? "TOVU_SITE_KEY"} environment variable` : `key file at ${status.keyFilePath}`} is present but not usable (${status.reason ?? "unreadable"})`
+    ? `the ${source} is present but not usable (${status.reason ?? "unreadable"})`
     : `TOVU_SITE_KEY is not set and there is no key file at ${status.keyFilePath}`;
 
   return [

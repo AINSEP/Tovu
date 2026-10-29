@@ -6,7 +6,7 @@ import { approvalToolHandler, notConfirmedResult } from "../../contracts/core/hu
 
 import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginUpdateError } from "@jini-ai/agent-plugins/lifecycle";
 import { FileLockTimeoutError } from "@jini-ai/platform/fs/file-lock";
-import { resolveOperatorLocale } from "./operator-locale.js";
+import { resolveOperatorLocale } from "../../contracts/headless/operator-locale.js";
 import {
   AgentPluginChangedSincePreviewError,
   AgentPluginNotFoundError,

@@ -6,36 +6,21 @@
  * DNS: there is no apply engine in v1, so `dns_instructions` hands a person copyable rows and
  * `dns_verify` checks the zone's authoritative nameservers afterwards.
  */
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import { ToolInputError, buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import type { DomainRecordRequirement } from "@jini-ai/core/provider-registry";
-import type { AuthoritativeDnsPort, DnsPlanRequirement, DnsProviderContext, DnsProviderRegistry } from "@jini-ai/devops/dns";
+import type { DnsPlanRequirement } from "@jini-ai/devops/dns";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
-import type { ToolContributor } from "#src/assistant/index";
-import type { AuthorizeFn } from "#src/contracts/core/commands/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { toolMetadata } from "../../contracts/core/tool-metadata/domain-dns.js";
-import type { DomainBindingStore } from "./binding.repo.js";
 import { domainDnsInstructions, planDomainDns, verifyDomainDns, type DnsChangeRequest, type DomainDnsPlan } from "./dns-changes.js";
-import type { DnsRequirementInclude, MailRequirementsPort } from "./mail-requirements.js";
+import type { DnsRequirementInclude } from "./mail-requirements.js";
 import { buildDomainDnsRegistrations, domainDnsDerivedRisk, readPublicDnsName, readPublicDomain, type DomainDnsToolDeps } from "./tools.js";
 import { mailDnsRecordStatus } from "./mail-dns-status.js";
 import { buildMailDnsRegistrations, mailDnsDerivedRisk } from "./mail-dns-tools.js";
-import type { SenderDomainVerificationPort } from "../../platform/mail/sender-domain-verification.js";
 
-/** Workspace authorization plus the DNS kernel ports built in the composition root. */
-export interface DnsChangeToolDeps {
-  workspaceId: string;
-  authorize: AuthorizeFn;
-  registry: DnsProviderRegistry;
-  resolver: AuthoritativeDnsPort;
-  context: DnsProviderContext;
-  /** Absent when the composition has no content database (hermetic roots): `dns_verify` refuses. */
-  bindings?: DomainBindingStore;
-  /** The resolved mailer's `domainRequirements` (`include: ["mail"]`). Absent: that include refuses. */
-  mailRequirements?: MailRequirementsPort;
-  /** The mail provider's own sender-domain verdict, for `mail_dns_status`. Absent: reported as `null`. */
-  senderDomainVerification?: SenderDomainVerificationPort;
-  now: () => number;
-}
+import type { DnsChangeToolDeps } from "./tool-deps.js";
+export type { DnsChangeToolDeps } from "./tool-deps.js";
 
 const RECORD_TYPES = ["A", "AAAA", "CNAME", "TXT", "MX", "CAA", "NS", "SRV"] as const;
 const PURPOSES = ["site", "mail", "tls"] as const;
@@ -74,13 +59,7 @@ const includeSchema = {
 };
 const inputSchema = { type: "object", additionalProperties: false, required: ["hostname"], properties: { hostname: hostnameSchema, requirements: requirementsSchema, include: includeSchema } };
 
-interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema: Readonly<Record<string, unknown>>;
-}
+type AgentToolDefinition = SharedAgentToolDefinition & { inputSchema: Readonly<Record<string, unknown>> };
 export const dnsChangeAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "dns_plan",
@@ -230,14 +209,15 @@ export function buildDnsChangeRegistrations(deps: DnsChangeToolDeps): ToolRegist
 /**
  * One `domain-dns` contributor for the read-only diagnostics, the DNS change tools and the two
  * mail DNS status tools (`mail-dns-tools.ts`).
+ * Supplies Tovu's ports from the composition root without constructing network clients here.
  * @param required Host dependency factories; invoked only during tool catalog assembly.
  * @complexity O(1).
  * @example contributeDomainDnsAndChangeTools({ createDeps, createDnsDeps })
  */
-export function contributeDomainDnsAndChangeTools({ createDeps, createDnsDeps }: {
-  createDeps: (routeDeps: Parameters<ToolContributor["build"]>[0]) => DomainDnsToolDeps;
-  createDnsDeps: (routeDeps: Parameters<ToolContributor["build"]>[0]) => DnsChangeToolDeps;
-}): ToolContributor {
+export function contributeDomainDnsAndChangeTools<TDeps>({ createDeps, createDnsDeps }: {
+  createDeps: (routeDeps: TDeps) => DomainDnsToolDeps;
+  createDnsDeps: (routeDeps: TDeps) => DnsChangeToolDeps;
+}): ToolContributor<TDeps, unknown> {
   return {
     domain: "domain-dns",
     build: routeDeps => {

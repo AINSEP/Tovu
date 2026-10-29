@@ -1,6 +1,6 @@
 import type { ArtifactStorePort } from "@jini-ai/devops/deploy";
 
-import type { DeployTargetCredential } from "../deployments/deploy-targets/types.js";
+import type { DeployTargetCredential } from "../deployments/contracts.js";
 
 import type { LoadedObjectStoreRegistry } from "./registry.js";
 
@@ -44,8 +44,7 @@ export async function selectArtifactStoreProvider<C>(
     const credential = await required.resolveCredential({ id: entry.id });
     if (credential === undefined) continue;
     const provider = entry.provider as unknown as ArtifactStoreCapable;
-    if (provider.acceptsArtifactCredential?.({ credential }) === false) continue;
-    return { id: entry.id, provider, credential };
+    if (provider.acceptsArtifactCredential?.({ credential }) !== false) return { id: entry.id, provider, credential };
   }
   return undefined;
 }

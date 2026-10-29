@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import test, { describe } from "node:test";
 import { createContributionRegistry, createToolRegistry } from "@jini-ai/core";
-import type { AssistantToolContributions } from "#src/assistant/tool-contribution-registry";
+import type { AssistantToolContributions } from "#src/assistant/tool-registrations";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";

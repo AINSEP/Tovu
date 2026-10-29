@@ -21,8 +21,8 @@ interface ShareYauzl {
 function requireMatchingLocalHeader(required: { buffer: Buffer; entry: ShareZipEntry }): void {
   const { buffer, entry } = required;
   const local = entry.relativeOffsetOfLocalHeader;
-  if (local < 0 || local + 30 > buffer.length || buffer.readUInt32LE(local) !== 0x04034b50 ||
-      buffer.readUInt16LE(local + 6) !== entry.generalPurposeBitFlag || buffer.readUInt16LE(local + 8) !== entry.compressionMethod ||
+  const invalidPrefix = local < 0 || local + 30 > buffer.length || buffer.readUInt32LE(local) !== 0x04034b50;
+  if (invalidPrefix || buffer.readUInt16LE(local + 6) !== entry.generalPurposeBitFlag || buffer.readUInt16LE(local + 8) !== entry.compressionMethod ||
       buffer.subarray(local + 30, local + 30 + buffer.readUInt16LE(local + 26)).toString("utf8") !== entry.fileName) {
     throw new SiteShareRefusal({ code: "UNSAFE_ARCHIVE", message: "ZIP local and central entry headers disagree." });
   }

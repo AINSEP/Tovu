@@ -53,8 +53,10 @@ export interface MailFeedbackSetupReport {
 
 /** Mirrors `features/newsletter/confirmation.ts`'s private `composeOriginUrl` (default ports elided). */
 function originUrl(origin: VerifiedOrigin, _options: Record<string, never> = {}): string {
-  const isDefaultPort = origin.port === undefined || (origin.scheme === "https" && origin.port === 443) || (origin.scheme === "http" && origin.port === 80);
-  return `${origin.scheme}://${isDefaultPort ? origin.host : `${origin.host}:${origin.port}`}${origin.basePath ?? ""}`;
+  const matchesDefaultPort = (origin.scheme === "https" && origin.port === 443) || (origin.scheme === "http" && origin.port === 80);
+  const isDefaultPort = origin.port === undefined || matchesDefaultPort;
+  const authority = isDefaultPort ? origin.host : `${origin.host}:${origin.port}`;
+  return `${origin.scheme}://${authority}${origin.basePath ?? ""}`;
 }
 
 async function siteOrigin(deps: MailFeedbackSetupDeps, _options: Record<string, never> = {}): Promise<string | null> {

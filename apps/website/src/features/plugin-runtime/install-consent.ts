@@ -6,7 +6,9 @@ export function pluginInstallRiskSentence(required: { preview: PluginInstallPrev
   const p = required.preview;
   // A tier-1 package has nothing to run (install.ts refuses one that ships a code file), so the
   // full-access warning would be false; say what it does instead.
-  return p.hasCode ? "This plugin runs code with full access to this computer and every site on it." : `This plugin contains no code.${p.contentTypes.length > 0 ? ` It adds content types: ${p.contentTypes.join(", ")}.` : ""}`;
+  if (p.hasCode) return "This plugin runs code with full access to this computer and every site on it.";
+  const contentTypes = p.contentTypes.length > 0 ? ` It adds content types: ${p.contentTypes.join(", ")}.` : "";
+  return `This plugin contains no code.${contentTypes}`;
 }
 
 export const PLUGIN_INSTALL_STAYS_OFF = "It stays off in every workspace until you turn it on.";

@@ -126,6 +126,25 @@ export function isFileLevelRollup(entry: string): boolean {
   return /[\\/]/.test(entry) && /\.(test|spec)\.[cm]?[jt]sx?$/.test(entry);
 }
 
+function captureBaseline({ tapPath, baselinePath }: { tapPath: string; baselinePath: string }, _options = {}): void {
+  const all = [...parseFailingTestNames(readFileSync(tapPath, "utf8"))];
+  const rollups = all.filter(isFileLevelRollup);
+  const knownFailures = all.filter((n) => !isFileLevelRollup(n)).sort((a, b) => a.localeCompare(b));
+  const existing = existsSync(baselinePath)
+    ? (JSON.parse(readFileSync(baselinePath, "utf8")) as Baseline & { _comment?: string[] })
+    : undefined;
+  writeFileSync(
+    baselinePath,
+    `${JSON.stringify({ _comment: existing?._comment, knownFailures }, null, 2)}\n`,
+    "utf8"
+  );
+  console.log(
+    `check:route-test-baseline — CAPTURED ${knownFailures.length} failing test(s) into ${path.relative(REPO_ROOT, baselinePath)}` +
+    (rollups.length ? ` (excluded ${rollups.length} file-level roll-up(s) — they can never match)` : "")
+  );
+  console.log("Review this diff before committing: every entry is debt you are agreeing to tolerate.");
+}
+
 function main(): void {
   const args = process.argv.slice(2);
   // `--capture` seeds (or re-seeds) a baseline from a TAP file instead of checking against one.
@@ -152,22 +171,7 @@ function main(): void {
   }
 
   if (capture) {
-    const all = [...parseFailingTestNames(readFileSync(tapPath, "utf8"))];
-    const rollups = all.filter(isFileLevelRollup);
-    const knownFailures = all.filter((n) => !isFileLevelRollup(n)).sort((a, b) => a.localeCompare(b));
-    const existing = existsSync(baselinePath)
-      ? (JSON.parse(readFileSync(baselinePath, "utf8")) as Baseline & { _comment?: string[] })
-      : undefined;
-    writeFileSync(
-      baselinePath,
-      `${JSON.stringify({ _comment: existing?._comment, knownFailures }, null, 2)}\n`,
-      "utf8"
-    );
-    console.log(
-      `check:route-test-baseline — CAPTURED ${knownFailures.length} failing test(s) into ${path.relative(REPO_ROOT, baselinePath)}` +
-        (rollups.length ? ` (excluded ${rollups.length} file-level roll-up(s) — they can never match)` : "")
-    );
-    console.log("Review this diff before committing: every entry is debt you are agreeing to tolerate.");
+    captureBaseline({ tapPath, baselinePath });
     return;
   }
 
@@ -185,29 +189,33 @@ function main(): void {
   const fileRollups = unmatched.filter(isFileLevelRollup);
   const fixedFailures = [...knownFailures].filter((name) => !currentFailures.has(name));
 
-  // Deliberately console.error (not console.log) even though this block is advisory, not a
-  // failure: on POSIX, Node.js writes to a *pipe* (not a TTY or a plain file) are asynchronous,
-  // and GitHub Actions captures step output through a pipe. When this block and the NEW-failures
-  // block below both fire in the same run, two independently-buffered async streams (stdout for
-  // console.log, stderr for console.error) get interleaved by the log capturer in ARRIVAL order,
-  // not call order -- verified 2026-08-17 against two real CI runs where this list's bullets, and
-  // even the final "Fix it..." message, appeared shuffled together out of program order. Writing
-  // both blocks to the same stream keeps them in one FIFO queue, so relative order is guaranteed
-  // regardless of sync/async pipe behavior.
-  if (fixedFailures.length > 0) {
-    console.error(
-      `check:route-test-baseline — ${fixedFailures.length} baseline entr${fixedFailures.length === 1 ? "y" : "ies"} no longer fail(s); delete from ${path.relative(REPO_ROOT, baselinePath)}:`
-    );
-    for (const name of fixedFailures) console.error(`  - ${name}`);
-  }
+  const reportKnownFailures = (_required: Record<string, never>, _options = {}): void => {
+    // Deliberately console.error (not console.log) even though this block is advisory, not a
+    // failure: on POSIX, Node.js writes to a *pipe* (not a TTY or a plain file) are asynchronous,
+    // and GitHub Actions captures step output through a pipe. When this block and the NEW-failures
+    // block below both fire in the same run, two independently-buffered async streams (stdout for
+    // console.log, stderr for console.error) get interleaved by the log capturer in ARRIVAL order,
+    // not call order -- verified 2026-08-17 against two real CI runs where this list's bullets, and
+    // even the final "Fix it..." message, appeared shuffled together out of program order. Writing
+    // both blocks to the same stream keeps them in one FIFO queue, so relative order is guaranteed
+    // regardless of sync/async pipe behavior.
+    if (fixedFailures.length > 0) {
+      console.error(
+        `check:route-test-baseline — ${fixedFailures.length} baseline entr${fixedFailures.length === 1 ? "y" : "ies"} no longer fail(s); delete from ${path.relative(REPO_ROOT, baselinePath)}:`
+      );
+      for (const name of fixedFailures) console.error(`  - ${name}`);
+    }
 
-  // Same stream as every other block here, for the pipe-ordering reason documented above.
-  if (fileRollups.length > 0) {
-    console.error(
-      `check:route-test-baseline — ${fileRollups.length} file-level roll-up entr${fileRollups.length === 1 ? "y" : "ies"} (informational, NOT gated — a file path can never match a description-keyed baseline; any real failure inside these is reported separately by name):`
-    );
-    for (const name of fileRollups) console.error(`  - ${name}`);
-  }
+    // Same stream as every other block here, for the pipe-ordering reason documented above.
+    if (fileRollups.length > 0) {
+      console.error(
+        `check:route-test-baseline — ${fileRollups.length} file-level roll-up entr${fileRollups.length === 1 ? "y" : "ies"} (informational, NOT gated — a file path can never match a description-keyed baseline; any real failure inside these is reported separately by name):`
+      );
+      for (const name of fileRollups) console.error(`  - ${name}`);
+    }
+
+  };
+  reportKnownFailures({});
 
   if (newFailures.length === 0) {
     console.log(

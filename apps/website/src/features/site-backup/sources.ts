@@ -223,7 +223,7 @@ async function enterShareDirectory(required: { sink: WalkSink; absDir: string; r
   return true;
 }
 
-function skippedWalkEntry(required: { sink: WalkSink; relDir: string; name: string }, optional: { excludeTopLevel?: ReadonlySet<string> | undefined }): boolean {
+function skippedWalkEntry(required: { sink: WalkSink; relDir: string; name: string }, optional: { excludeTopLevel?: ReadonlySet<string> }): boolean {
   const { name } = required;
   // Finder writes .DS_Store into any folder it opens; it is junk, never content, so drop it before the share refusal list sees it.
   if (name === ".DS_Store") return true;
@@ -462,7 +462,7 @@ async function walkSitePlugins(required: { sink: WalkSink; sources: SiteBackupSo
     if (files) sink.files.push(...files);
     else leftOut.push(name);
   }
-  if (leftOut.length > 0) required.scopeNotes.plugins = `Left out because they aren't valid installed plugins (damaged manifest, version not installed, or changed files): ${leftOut.sort().map(name => `'${name}'`).join(", ")}.`;
+  if (leftOut.length > 0) required.scopeNotes.plugins = `Left out because they aren't valid installed plugins (damaged manifest, version not installed, or changed files): ${leftOut.sort().map(name => "'" + name + "'").join(", ")}.`;
 }
 
 /** One plugin's planned files, each through the walk's guards, read once through no linked folder and

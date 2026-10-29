@@ -66,7 +66,7 @@ const RENDER_TS_PATH = path.join(
   REPO_ROOT,
   "apps/website/src/server/inbound/public-http/http/site/render.ts"
 );
-const STATIC_RENDER_TS_PATH = path.join(REPO_ROOT, "apps/website/src/features/theme/static-render.ts");
+const STATIC_RENDER_TS_PATH = path.join(REPO_ROOT, "apps/website/src/features/theme/render-contract.ts");
 
 /** A single implementation's accept/reject predicate, normalized to a boolean regardless of whether
  *  the underlying function rejects (returns `false`) or coerces (returns `"#"`) on failure. */

@@ -23,6 +23,7 @@ import { resolveSelectedPreset, type ExecutionConfig } from "@jini-ai/ui";
 import { buildSandboxProxyDataUrl } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import { navigate } from "@/lib/router";
+import { startVisibleInterval } from "@/lib/visible-interval";
 import { ApiError, authenticatedAdminRequest } from "@/lib/api";
 import { createChatAttachmentValidator } from "@/lib/chat-attachment-liveness";
 import { readAgentsSnapshot, writeAgentsSnapshot } from "@/lib/assistant-agents-snapshot";
@@ -712,7 +713,7 @@ export function useComposerCapabilities(_input: Record<string, never> = {}, _opt
     let cancelled = false;
     let generation = 0;
     let shown = "";
-    let timer: ReturnType<typeof setInterval> | undefined;
+    let stopPolling = () => {};
     /** Reproject only current work; an unchanged catalog retains its React state identity. */
     const reload = (_required = {}, { force = false } = {}) => {
       const current = ++generation;
@@ -735,10 +736,9 @@ export function useComposerCapabilities(_input: Record<string, never> = {}, _opt
     };
     // Polling belongs to the dock's visible lifetime, including an unfocused visible window.
     const syncPolling = (_required = {}, _options = {}) => {
-      clearInterval(timer);
-      timer = undefined;
+      stopPolling();
       if (getAssistantDockOpen() && document.visibilityState !== "hidden") {
-        timer = setInterval(() => { void reload(); }, 60_000);
+        stopPolling = startVisibleInterval(() => { void reload(); }, 60_000);
       }
     };
     const visibilityChanged = () => { syncPolling(); refreshVisible(); };
@@ -753,7 +753,7 @@ export function useComposerCapabilities(_input: Record<string, never> = {}, _opt
     document.addEventListener("visibilitychange", visibilityChanged);
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      stopPolling();
       stopDockSubscription();
       window.removeEventListener(SKILLS_CHANGED_EVENT, skillsChanged);
       window.removeEventListener("focus", refreshVisible);

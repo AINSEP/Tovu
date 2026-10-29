@@ -10,7 +10,10 @@ import { collectPageEvidence } from "../../collect-page-evidence.js";
 import { openPlaywrightSiteEvidenceBrowser as openDiagnosticBrowser } from "@jini-ai/diagnostics/web-evidence/playwright";
 
 const openPlaywrightSiteEvidenceBrowser = (required: Record<string, never>) => openDiagnosticBrowser(required, {
-  moduleLoader: { load: async () => await import("playwright") },
+  moduleLoader: { load: async () => {
+    const { chromium } = await import("playwright");
+    return { chromium: { launch: options => chromium.launch({ ...options, args: options?.args ? [...options.args] : undefined }) } };
+  } },
   launchOptions: { headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] },
 });
 

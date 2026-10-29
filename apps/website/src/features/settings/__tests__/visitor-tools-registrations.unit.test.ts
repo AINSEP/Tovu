@@ -25,7 +25,7 @@ async function harness(t: TestContext) {
     const emissions: SurfaceEmission[] = [];
     let emitted!: () => void;
     const seen = new Promise<void>(resolve => { emitted = resolve; });
-    const mutable = { expectedRevisionSeq: (await f.list()).revisionSeq, ...input };
+    const mutable: Record<string, unknown> = { expectedRevisionSeq: (await f.list()).revisionSeq, ...input };
     const pending = handler("visitor_tool_configure")(context(mutable), { emitSurface: async emission => { emissions.push(emission); emitted(); } });
     await seen;
     const exchangeId = `visitor-card-${cardId}`;

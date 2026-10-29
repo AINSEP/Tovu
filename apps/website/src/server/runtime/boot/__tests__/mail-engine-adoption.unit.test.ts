@@ -12,8 +12,8 @@ import type { HttpClientPort, HttpRequest } from "#src/platform/http/index";
 import type { MailerSendOptions } from "#src/platform/mail/index";
 import { credentialSecrets, safeMailProviderText } from "#src/platform/mail/provider-error";
 import { createMailPolicyWrapper } from "../mail-delivery-policy.js";
-import { readMailDomain, isDomainReadPermissionRefused } from "../mail-domain-read.js";
-import { createTtlCache, MAIL_STATUS_TTL_MS } from "../mail-status-cache.js";
+import { readMailDomain, isDomainReadPermissionRefused } from "@jini-ai/platform/mail";
+import { createTtlCache, MAIL_STATUS_TTL_MS } from "@jini-ai/platform/mail";
 import { createResolvedMailer } from "../resolve-mailer.js";
 
 /** Mail-engine extraction shard 8, binding OPUS review changes 3–8.

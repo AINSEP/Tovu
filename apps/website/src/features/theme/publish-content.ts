@@ -30,6 +30,8 @@ import type {
 import { MIGRATION_STAGING_DIR_PREFIX, PUBLISH_PREVIOUS_DIR, PUBLISH_STAGING_DIR, THEME_CATALOG_DIR } from "./theme.js";
 import { isGeneratedThemePath } from "./theme-files.js";
 
+const THEME_FILES_KIND = "theme-files";
+
 /**
  * @file `publish-files-plan-2026-09-24.md` §6 S-F3/S-F4 — `theme-files`'s publish-content
  * contribution: the SOURCE half (`pack()`) and the DESTINATION half (`inspect`, `seedHash`,
@@ -286,7 +288,7 @@ function buildTreeState(
   sortedFiles: readonly { readonly path: string; readonly sha256: string; readonly size: number; readonly mode: number }[]
 ): Record<string, unknown> {
   const files = sortedFiles.map((file) => ({ path: file.path, sha256: file.sha256, size: file.size, mode: file.mode }));
-  return { title: treeTitle(treeKey), kind: "theme-files", treeKey, files };
+  return { title: treeTitle(treeKey), kind: THEME_FILES_KIND, treeKey, files };
 }
 
 /**
@@ -310,7 +312,7 @@ async function packOneThemeTree(input: {
   const treeKey = `${input.tier}/${input.id}`;
   const title = treeTitle(treeKey);
 
-  if (resolveTreeRelativePath("theme-files", [input.tier, input.id]) === null) {
+  if (resolveTreeRelativePath(THEME_FILES_KIND, [input.tier, input.id]) === null) {
     return { skippedTree: { treeKey, reason: `${title} was not published: '${treeKey}' is not a valid theme tree address` } };
   }
 
@@ -322,7 +324,7 @@ async function packOneThemeTree(input: {
     mode: file.mode,
     textSample: file.textSample,
   }));
-  const blockReason = checkTreeFiles("theme-files", policyInputs);
+  const blockReason = checkTreeFiles(THEME_FILES_KIND, policyInputs);
   if (blockReason) {
     return { skippedTree: { treeKey, reason: wrapTreePolicyReason(title, blockReason), ...(label ? { label } : {}) } };
   }
@@ -336,10 +338,10 @@ async function packOneThemeTree(input: {
 
   return {
     entity: {
-      entityType: "theme-files",
+      entityType: THEME_FILES_KIND,
       id: treeKey,
       schemaVersion: 1,
-      contentHash: contentHash("theme-files", state),
+      contentHash: contentHash(THEME_FILES_KIND, state),
       hashVersion: CONTENT_HASH_VERSION,
       requiredBlobs: sortedFiles.map((file) => file.sha256),
       state,
@@ -400,7 +402,7 @@ function parseTreeAddress(id: string): ThemeTreeAddress | null {
   if (segments.length !== 2) return null;
   const [tier, themeId] = segments;
   if (!THEME_FILE_TREE_TIERS.includes(tier)) return null;
-  if (resolveTreeRelativePath("theme-files", [tier, themeId]) === null) return null;
+  if (resolveTreeRelativePath(THEME_FILES_KIND, [tier, themeId]) === null) return null;
   return { tier, themeId, treeKey: id };
 }
 
@@ -415,7 +417,7 @@ async function hashTreeAt(absDir: string, treeKey: string): Promise<string | nul
   const info = await lstatIfPresent({ absPath: absDir });
   if (!info?.isDirectory()) return null;
   const walked = await walkThemeTree(absDir);
-  return contentHash("theme-files", buildTreeState(treeKey, sortByPath(walked)));
+  return contentHash(THEME_FILES_KIND, buildTreeState(treeKey, sortByPath(walked)));
 }
 
 /**
@@ -469,7 +471,7 @@ interface IncomingThemeFile {
 function readIncomingFiles(entity: PackedEntity): { files: readonly IncomingThemeFile[] } | { reason: string } {
   const notDescribed = { reason: `its file list does not describe '${entity.id}'` };
   const { state } = entity;
-  if (state.kind !== "theme-files" || state.treeKey !== entity.id || !Array.isArray(state.files)) return notDescribed;
+  if (state.kind !== THEME_FILES_KIND || state.treeKey !== entity.id || !Array.isArray(state.files)) return notDescribed;
   const raws = state.files as unknown[];
   if (!raws.every(isIncomingFileShape)) return notDescribed;
   return { files: raws.map((file) => ({ path: file.path, sha256: file.sha256, size: file.size, mode: normalizeMode(file.mode) })) };
@@ -478,14 +480,8 @@ function readIncomingFiles(entity: PackedEntity): { files: readonly IncomingThem
 /** One raw `state.files[]` entry has the {@link IncomingThemeFile} shape (mode not yet normalized). */
 function isIncomingFileShape(raw: unknown): raw is IncomingThemeFile {
   const file = raw as Partial<IncomingThemeFile> | null;
-  return (
-    Boolean(file) &&
-    typeof file!.path === "string" &&
-    typeof file!.sha256 === "string" &&
-    /^[0-9a-f]{64}$/.test(file!.sha256) &&
-    typeof file!.size === "number" &&
-    typeof file!.mode === "number"
-  );
+  if (!file || typeof file.path !== "string" || typeof file.sha256 !== "string") return false;
+  return /^[0-9a-f]{64}$/.test(file.sha256) && typeof file.size === "number" && typeof file.mode === "number";
 }
 
 /** True when this site cannot vouch that `sha256` is not a library document: no media port wired,
@@ -582,8 +578,9 @@ async function incomingTextSample({ deps, file }: { deps: PublishContentDeps; fi
 /** `apply()`'s gateway wiring, or the error naming what to wire. @complexity O(1). */
 function requireApplyWiring({ deps }: { deps: PublishContentDeps }) {
   const { changeSets, authorize, outbox } = deps;
-  const themesDir = deps.ports["theme-files"]?.themesDir;
-  if (!changeSets || !authorize || !outbox || !deps.ports.media?.blobStore || !themesDir) {
+  const themesDir = deps.ports[THEME_FILES_KIND]?.themesDir;
+  const missingGateway = !changeSets || !authorize || !outbox;
+  if (missingGateway || !deps.ports.media?.blobStore || !themesDir) {
     throw new Error(
       "publish-content: theme-files.apply() requires PublishContentDeps.changeSets/authorize/outbox, " +
         "ports.media.blobStore and ports['theme-files'].themesDir — wire them from the real " +
@@ -604,11 +601,11 @@ function swapPaths({ themesDir, address, keyHash }: { themesDir: string; address
 }
 
 function buildHandler(deps: PublishContentDeps): PublishContentHandler {
-  const entityType = "theme-files";
+  const entityType = THEME_FILES_KIND;
   const schemaVersion = 1;
   // F2 — `theme-files`' own port. `blobStore` is deliberately NOT part of it: it reuses the SAME
   // ADR-027 store instance `ports.media` carries (one composition-root singleton, threaded to both).
-  const themePort = deps.ports["theme-files"];
+  const themePort = deps.ports[THEME_FILES_KIND];
 
   async function* pack(): AsyncIterable<PackedEntity> {
     // Absent the port degrades to "nothing to export" — the same convention every other optional
@@ -680,7 +677,7 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
 
     const policy = await incomingPolicyInputs({ deps, files: incoming.files });
     if ("reason" in policy) return policy;
-    const policyReason = checkTreeFiles("theme-files", policy.inputs);
+    const policyReason = checkTreeFiles(THEME_FILES_KIND, policy.inputs);
     return policyReason ? { reason: wrapTreePolicyReason(title, policyReason) } : incoming;
   }
 
@@ -825,5 +822,5 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
  * — see this file's header.
  */
 export function contributeThemeFilesPublish(): PublishContentContributor {
-  return { entityType: "theme-files", coversRoots: ["themes"], dependsOn: THEME_FILES_DEPENDS_ON, build: buildHandler };
+  return { entityType: THEME_FILES_KIND, coversRoots: ["themes"], dependsOn: THEME_FILES_DEPENDS_ON, build: buildHandler };
 }

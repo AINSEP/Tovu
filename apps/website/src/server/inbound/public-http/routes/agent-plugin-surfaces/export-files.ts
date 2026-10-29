@@ -49,7 +49,7 @@ export function registerPluginExportFilesRoute(required: { app: Express; deps: E
       const limit = await limiter.check({ key: resolveClientIp(req) });
       if (!limit.allowed) {
         res.status(429).set({ "Retry-After": String(limit.retryAfterSeconds), "Cache-Control": "no-store" }).send("Too many requests");
-        return;
+        return undefined;
       }
       const file = await resolveFile({ source, workspaceId: deps.workspaceId, pluginId: String(req.params.pluginId),
         component: String(req.params.component), path: String((req.params as Record<string, string>)[0]) });
@@ -60,5 +60,6 @@ export function registerPluginExportFilesRoute(required: { app: Express; deps: E
     } catch {
       notFound({ res });
     }
+    return undefined;
   });
 }

@@ -1,3 +1,4 @@
+import { createSite } from "#src/server/runtime/composition/site-dir";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -228,8 +229,8 @@ for (const failure of [new Error("disk full"), "volume offline"]) {
   });
 }
 
-test("createSiteForOwner defaults to the real name validator without creating an invalid site", async () => {
-  assert.deepEqual(await createSiteForOwner({ workspaceId: "ws", switcherBase: "/unused", name: "../invalid" }), {
+test("createSiteForOwner uses the injected real name validator without creating an invalid site", async () => {
+  assert.deepEqual(await createSiteForOwner({ workspaceId: "ws", switcherBase: "/unused", name: "../invalid" }, { createSite }), {
     ok: false, code: "VALIDATION_ERROR", error: "createSite: name must be 1..100 lowercase letters, digits, and dashes",
   });
 });

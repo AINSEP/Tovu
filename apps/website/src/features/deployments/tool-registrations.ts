@@ -9,7 +9,7 @@ import { requireToolPermission } from "@jini-ai/cms/core";
 // redacting it into a message-stripped 500.
 import { ToolInputError } from "@jini-ai/core";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { deploymentsAgentToolCatalog } from "./agent-tools.js";
 import { readDockerfileSource, writeDockerfileSourceWithIfMatch } from "./dockerfile.js";
 import { assertExportNotRunning, diagnoseStaticExport, getExportRunSnapshot, startExportRun, type ExportEngine, type ExportRunReportLike } from "./export-run.js";
@@ -189,6 +189,6 @@ export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): T
  * Credential lookup and GitHub-login extraction are injected into credential owners so this
  * feature does not acquire a runtime path back to the assistant through credential discovery.
  */
-export function contributeDeploymentsTools(): ToolContributor {
+export function contributeDeploymentsTools(): ToolContributor<DeploymentsToolDeps, unknown> {
   return { domain: "deployments", build: buildDeploymentsRegistrations, risk: deploymentsDerivedRisk };
 }

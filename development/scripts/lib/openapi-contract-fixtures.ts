@@ -44,6 +44,26 @@ export interface ContractProbeRequest {
   readonly body: string | undefined;
 }
 
+function resourceProbeParams(
+  { operation, params }: { operation: OpenApiOperation; params: Record<string, string> }, _options = {},
+): void {
+  params[operation.pathParams[operation.pathParams.length - 1]] = "does-not-exist-resource-id";
+  if (operation.operationId === "get_media_rendition") {
+    // filename is cosmetic. The asset must be missing and the transform segment well formed.
+    params.assetId = "does-not-exist-resource-id";
+    params.transformSpec = "thumb.v1";
+    params.filename = "probe.jpg";
+  }
+}
+
+function probeBody(
+  { operation, probeType }: { operation: OpenApiOperation; probeType: ContractProbeType }, _options = {},
+): string | undefined {
+  const bodies = probeType === "VALIDATION_400" ? INVALID_BODIES : VALID_BODIES;
+  const bodyValue = bodies[operation.operationId] ?? {};
+  return operation.requestBodyRequired || probeType === "VALIDATION_400" ? JSON.stringify(bodyValue) : undefined;
+}
+
 /** Build a request that isolates its named condition, with all other inputs valid. */
 export function buildContractProbeRequest(
   { operation, probeType, workspaceId, headers }: {
@@ -61,13 +81,7 @@ export function buildContractProbeRequest(
   let expectedStatus = probeType.slice(probeType.lastIndexOf("_") + 1);
 
   if (probeType === "RESOURCE_404") {
-    params[operation.pathParams[operation.pathParams.length - 1]] = "does-not-exist-resource-id";
-    if (operation.operationId === "get_media_rendition") {
-      // filename is cosmetic. The asset must be missing and the transform segment well formed.
-      params.assetId = "does-not-exist-resource-id";
-      params.transformSpec = "thumb.v1";
-      params.filename = "probe.jpg";
-    }
+    resourceProbeParams({ operation, params });
     if (operation.operationId === "list_newsletter_subscriptions") {
       // Its 404 is workspace-only; the spec explicitly documents an empty 200 for unknown lists.
       actualProbeType = "RESOURCE_EMPTY_200";
@@ -79,10 +93,7 @@ export function buildContractProbeRequest(
     params.slug = formSlug;
   }
 
-  const bodyValue = probeType === "VALIDATION_400"
-    ? (INVALID_BODIES[operation.operationId] ?? {})
-    : (VALID_BODIES[operation.operationId] ?? {});
-  const body = operation.requestBodyRequired || probeType === "VALIDATION_400" ? JSON.stringify(bodyValue) : undefined;
+  const body = probeBody({ operation, probeType });
   return {
     probeType: actualProbeType,
     expectedStatus,

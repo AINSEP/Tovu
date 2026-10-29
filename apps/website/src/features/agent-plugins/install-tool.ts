@@ -6,7 +6,7 @@ import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, ToolInputError, type AgentToolDefinition, type DerivedRiskByToolId, type ToolRegistration, type ToolExecutionContext } from "@jini-ai/core";
 import { FolderZipError } from "@jini-ai/agent-plugins/folder-zip";
 import { zipLocalFolder } from "@jini-ai/agent-plugins/folder-zip/node";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import { PLUGIN_INSTALL_SOURCE_SCHEMA, readPluginInstallRequest, readPluginInstallArchive, type InstallAttachmentReader } from "../../contracts/headless/plugin-install-source.js";
 import { AgentPluginInstallError, listInstalledPlugins, maxAgentPluginInstallArchiveBytes, seedBundledAgentPlugins } from "./lifecycle.js";
@@ -198,16 +198,17 @@ async function installBundledPlugin(
     await seedMissingBundledPlugin({ deps, sourceRoot, id });
   }
   const { verdict } = await agentPluginActivations.resolveAgentPluginActivation({ workspaceRoot, pluginId: id });
+  const installedNote = verdict === "active" ? "Installed ON (seeded enabled by default)." : "Installed OFF. Enable with plugins_set_enabled (family 'agent-plugin') if requested.";
   return { installed: true, alreadyInstalled: existing, enabled: verdict === "undetermined" ? null : verdict === "active", plugin: { id },
     note: existing ? `Bundled plugin '${id}' is already installed; activation was not changed.`
-      : verdict === "active" ? "Installed ON (seeded enabled by default)." : "Installed OFF. Enable with plugins_set_enabled (family 'agent-plugin') if requested.",
+      : installedNote,
   };
 }
 
 export function contributeAgentPluginsInstallTools(
   required: { readInstallAttachment?: InstallAttachmentReader } = {},
   _optional: Record<string, never> = {},
-): ToolContributor {
+): ToolContributor<AgentPluginsInstallToolDeps, unknown> {
   return { domain: "agent-plugins-install", build: deps => buildRegistrations({ ...deps, ...required }), risk: derivedRisk };
 }
 

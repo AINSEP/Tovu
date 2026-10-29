@@ -91,6 +91,7 @@ function setupTrees(t: { after: (fn: () => void) => void }): Trees {
 function routeDeps(binding: SiteBinding, overrides: Partial<AdminSitesDeps> = {}): AdminSitesDeps {
   return {
     workspaceId: WORKSPACE_ID,
+    createSite: async () => assert.fail("unexpected site creation"),
     authorize: async () => ({ allowed: true, reason: "test" }),
     siteBinding: binding,
     isSiteSwitcherEnabled: () => true,

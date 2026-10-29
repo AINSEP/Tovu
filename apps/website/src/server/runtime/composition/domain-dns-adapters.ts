@@ -177,7 +177,8 @@ function dnsJsonEndpointUrl({ declaration }: { readonly declaration: { format?: 
 
 /** URL shape policy, independent of declaration shape and URL parsing. O(1). */
 function isBareHttpsEndpoint({ url }: { url: URL }, _options = {}): boolean {
-  return url.protocol === "https:" && !url.username && !url.password && !url.search && !url.hash;
+  if (url.protocol !== "https:" || url.username || url.password) return false;
+  return !url.search && !url.hash;
 }
 
 /** Resolve immutable shipped metadata once. A failure refuses DNS queries without breaking catalog boot. */

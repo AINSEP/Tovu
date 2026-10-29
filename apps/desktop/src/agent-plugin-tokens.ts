@@ -96,7 +96,7 @@ function initTokenOptions(
   sink: { output: string },
 ): { agentPluginTokens?: Readonly<Record<string, string>>; onInitOutput?: (output: string) => void } {
   if (Object.keys(tokens).length === 0) return {};
-  return { agentPluginTokens: tokens, onInitOutput: (output) => void (sink.output = output) };
+  return { agentPluginTokens: tokens, onInitOutput: (output) => { sink.output = output; } };
 }
 
 /** `record`, plus the token outcome `tovu init` printed when there was one. */
@@ -159,7 +159,8 @@ async function listTokenSignInPlugins(input: {
     });
     if (code !== 0) {
       const cliError = parseCliErrorLine(stderr);
-      throw new Error(`tovu agent-plugins token-sign-in failed: ${cliError === null ? stderr.trim() : `${cliError.code}: ${cliError.message}`}`);
+      const detail = cliError === null ? stderr.trim() : `${cliError.code}: ${cliError.message}`;
+      throw new Error(`tovu agent-plugins token-sign-in failed: ${detail}`);
     }
     return parsePluginList(stdout);
   } finally {

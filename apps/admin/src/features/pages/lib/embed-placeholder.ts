@@ -148,8 +148,8 @@ function pluginPlaceholder(required: { config: Readonly<Record<string, unknown>>
   const { config, t } = required;
   const plugin = typeof config.plugin === "string" ? config.plugin : t("Unknown plugin");
   const component = typeof config.component === "string" ? config.component : t("Unknown component");
-  const label = plugin === "tovu/google-login" ? "Google Login" : truncateTargetValue(plugin);
   const row = required.rows.find(item => item.plugin === plugin && item.component === component);
+  const label = truncateTargetValue(row?.displayName || plugin);
   const status = pluginAvailabilityLabel({ availability: row?.availability, t });
   return { kindLabel: label, identityLabel: `${truncateTargetValue(component)} — ${status}`,
     guidanceLabel: t("Preview shows the current button or your fallback. Static exports always use your fallback.") };

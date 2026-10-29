@@ -7,7 +7,7 @@ import { getWorkspaceAgentToolCatalog } from './agent-tools.js';
  * Contributors are installed explicitly at the composition root; importing a feature must not
  * register tools or create an assistant-to-feature runtime cycle.
  */
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import {
   buildWorkspaceRegistrations as buildSharedWorkspaceRegistrations,
   workspaceDerivedRisk as sharedWorkspaceDerivedRisk,
@@ -105,5 +105,5 @@ export function contributeWorkspaceTools() {
     domain: "workspace",
     build: (deps: WorkspaceToolDeps) => withModelFacingRegistrationErrors({ registrations: withToolMetadata({ registrations: buildWorkspaceRegistrations(deps), metadata: toolMetadata }), rules: WORKSPACE_MODEL_FACING_RULES }),
     risk: workspaceDerivedRisk,
-  } satisfies ToolContributor;
+  } satisfies ToolContributor<WorkspaceToolDeps, unknown>;
 }

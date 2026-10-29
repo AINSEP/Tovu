@@ -9,7 +9,7 @@ import { SqlitePostRepo } from "../repo.sqlite.js";
 import { searchAdminPosts, type PostSearchHit } from "../search.js";
 import { backfillPostSearchIndex, postSearchIndexFor } from "../search-index.js";
 import { contentKernel } from "#src/platform/db/content-kernel";
-import { SqlitePostSearchIndex } from "../search-index.sqlite.js";
+import { SqlitePostSearchIndex } from "../search-index.js";
 import { removeVia } from "./remove-post-double.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 

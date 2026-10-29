@@ -1,16 +1,9 @@
 /** Policy/input binding for the visitor delegate; Jini remains the execution lifecycle owner. */
-import { createHash } from "node:crypto";
+import { canonicalArgumentDigest } from "@jini-ai/core/records";
 import { stripControlSequences } from "@jini-ai/core/text";
 import type { ExecutionDelegate, ToolConfirmationRequest, ToolExecutor } from "@jini-ai/daemon";
 import { resolveVisitorToolChoice } from "../../contracts/site-assistant/visitor-tools.js";
-import type { VisitorExecutionPorts } from "./visitor-executor.js";
-
-/** No values are retained in the challenge binding or audit. Input is detached before execution.
- * @complexity O(n) in the bounded tool input's serialized size.
- */
-function digest({ input }: { input: unknown }, _options = {}): string {
-  return createHash("sha256").update(JSON.stringify(input) ?? "null").digest("hex");
-}
+import type { VisitorExecutionPorts } from "./visitor-execution-ports.js";
 
 /** A cancelled/revised held plan is refused without reporting an operational handler error. */
 export class VisitorPlanRefused extends Error {
@@ -47,6 +40,7 @@ function confirmationCopy({ request }: { request: ToolConfirmationRequest }, _op
 /** Only Ask registrations enter this delegate. Each approval binds one immutable execution.
  * Re-read both after the click and immediately before the handler; changed-and-restored settings
  * still differ by value-row seq. IDs and argument digests never become model-facing results.
+ * No values are retained in the challenge binding or audit. Input is detached before execution.
  * @complexity O(1) per execution plus bounded policy reads and input hashing; four calls per turn.
  */
 export function createVisitorConfirmationGate({ ports, resume }: { ports: VisitorExecutionPorts; resume: ToolExecutor["resumeConfirmation"] }, _options = {}) {
@@ -69,10 +63,11 @@ export function createVisitorConfirmationGate({ ports, resume }: { ports: Visito
       const captured = await ports.readSnapshot!();
       if (!captured.policy || !ports.confirmation) return;
       if (resolveVisitorToolChoice({ policy: captured.policy, toolId: request.tool.id }).mode !== "ask") return;
-      const inputDigest = digest({ input: request.input });
+      // An object envelope keeps omitted arguments JSON-serializable without changing handler input.
+      const inputDigest = await canonicalArgumentDigest({ args: { input: request.input } });
       const validate = async ({ input }: { input: unknown }, _optional = {}) => {
         const live = await ports.readSnapshot!();
-        return live.policy !== null && live.revision === captured.revision && digest({ input }) === inputDigest;
+        return live.policy !== null && live.revision === captured.revision && await canonicalArgumentDigest({ args: { input } }) === inputDigest;
       };
       allow = await ports.confirmation.request({
         binding: { runId: ports.runId, executionId: request.executionId, ip: ports.ip },

@@ -47,6 +47,8 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { rules as sonarRules } from "eslint-plugin-sonarjs";
 
 // ---------------------------------------------------------------------------
 // Comment stripping
@@ -70,6 +72,8 @@ import path from "node:path";
  * @param source raw file text
  * @returns text of identical length with comment bytes replaced by spaces (newlines kept)
  * @complexity O(n) time in source length, O(1) auxiliary space beyond the output buffer.
+ * The original scanner rationale is retained below; the former whole-function waiver is
+ * superseded by the owner's current complexity limits. Transitions now stay in local helpers.
  * @tradeoffs Cyclomatic complexity 26, over this repo's ceiling of 9, and deliberately left whole.
  * The branches ARE the state-transition table of a character scanner; splitting them across helpers
  * hides which transitions exist and makes the lexer harder to verify, not easier. Nesting stays at
@@ -86,43 +90,41 @@ export function stripComments(source: string): string {
     for (let k = from; k < to; k++) if (out[k] !== "\n") out[k] = " ";
   };
 
-  while (i < source.length) {
-    const c = source[i];
-    const next = source[i + 1];
-
-    if (state === "code") {
-      if (c === "/" && next === "/") {
-        const start = i;
-        while (i < source.length && source[i] !== "\n") i++;
-        blank(start, i);
-        continue;
-      }
-      if (c === "/" && next === "*") {
-        const start = i;
-        i += 2;
-        while (i < source.length && !(source[i] === "*" && source[i + 1] === "/")) i++;
-        i = Math.min(i + 2, source.length);
-        blank(start, i);
-        continue;
-      }
-      if (c === "'") state = "single";
-      else if (c === '"') state = "double";
-      else if (c === "`") {
-        state = "template";
-        templateStack.push(0);
-      } else if (c === "}" && templateStack.length > 0) {
-        // closing a `${ ... }` interpolation returns us to the enclosing template literal
-        state = "template";
-      }
-      i++;
-      continue;
+  const consumeBlockComment = (_required: Record<string, never>, _options = {}): void => {
+    while (i < source.length && !(source[i] === "*" && source[i + 1] === "/")) i++;
+    i = Math.min(i + 2, source.length);
+  };
+  const skipComment = ({ c, next }: { c: string; next: string | undefined }, _options = {}): boolean => {
+    if (c === "/" && next === "/") {
+      const start = i;
+      while (i < source.length && source[i] !== "\n") i++;
+      blank(start, i);
+      return true;
     }
-
-    if (c === "\\") {
+    if (c === "/" && next === "*") {
+      const start = i;
       i += 2;
-      continue;
+      consumeBlockComment({});
+      blank(start, i);
+      return true;
     }
+    return false;
+  };
+  const scanCode = ({ c, next }: { c: string; next: string | undefined }, _options = {}): void => {
+    if (skipComment({ c, next })) return;
+    if (c === "'") state = "single";
+    else if (c === '"') state = "double";
+    else if (c === "`") {
+      state = "template";
+      templateStack.push(0);
+    } else if (c === "}" && templateStack.length > 0) {
+      // closing a `${ ... }` interpolation returns us to the enclosing template literal
+      state = "template";
+    }
+    i++;
+  };
 
+  const scanString = ({ c, next }: { c: string | undefined; next: string | undefined }, _options = {}): boolean => {
     if (state === "single" && c === "'") state = "code";
     else if (state === "double" && c === '"') state = "code";
     else if (state === "template") {
@@ -132,9 +134,27 @@ export function stripComments(source: string): string {
       } else if (c === "$" && next === "{") {
         state = "code";
         i += 2;
-        continue;
+        return true;
       }
     }
+    return false;
+  };
+
+  while (i < source.length) {
+    const c = source[i];
+    const next = source[i + 1];
+
+    if (state === "code") {
+      scanCode({ c: c!, next });
+      continue;
+    }
+
+    if (c === "\\") {
+      i += 2;
+      continue;
+    }
+
+    if (scanString({ c, next })) continue;
     i++;
   }
 
@@ -175,6 +195,7 @@ export interface DeadPathFinding extends PathReference {
  * skipped a given string rather than "it didn't match".
  */
 export type SkipReason =
+  | "eslint-rule-id"
   | "url-scheme"
   | "glob-or-regex-metacharacter"
   | "contains-whitespace"
@@ -210,6 +231,47 @@ export interface StringToken {
  *  `from "x"`, `import "x"`, `import("x")`, `require("x")`. */
 const IMPORT_POSITION = /(?:\bfrom|\bimport|\brequire)\s*\(?\s*$/;
 
+
+function isLiteralEnd(
+  { c, quote, depth }: { c: string | undefined; quote: string; depth: number },
+  _options = {},
+): boolean {
+  // unterminated single/double-quoted literal — do not run past the line
+  return (quote !== "`" && c === "\n") || (c === quote && depth === 0);
+}
+
+function stringLiteralEnd(
+  { code, start, quote }: { code: string; start: number; quote: string },
+  _options = {},
+): number {
+  let depth = 0;
+  let i = start;
+  const consumeInterpolation = ({ c }: { c: string | undefined }, _options = {}): boolean => {
+    if (c === "$" && code[i + 1] === "{") {
+      depth++;
+      i += 2;
+      return true;
+    }
+    if (c === "}" && depth > 0) {
+      depth--;
+      i++;
+      return true;
+    }
+    return false;
+  };
+  while (i < code.length) {
+    const c = code[i];
+    if (c === "\\") {
+      i += 2;
+      continue;
+    }
+    if (quote === "`" && consumeInterpolation({ c })) continue;
+    if (isLiteralEnd({ c, quote, depth })) break;
+    i++;
+  }
+  return i;
+}
+
 /**
  * Splits comment-stripped source into its TOP-LEVEL string literals — literals written in code, not
  * ones nested inside another literal's text.
@@ -227,6 +289,8 @@ const IMPORT_POSITION = /(?:\bfrom|\bimport|\brequire)\s*\(?\s*$/;
  * @param source raw file text
  * @returns the literals in source order, each with its line and preceding code context
  * @complexity O(n) time in source length.
+ * The original scanner rationale is retained below; the former whole-function waiver is
+ * superseded by the owner's current complexity limits. Transitions now stay in local helpers.
  * @tradeoffs Cyclomatic complexity 15, over the ceiling of 9, for the same reason as
  * `stripComments`: this is a scanner's transition table, not accidental branching.
  */
@@ -244,30 +308,7 @@ export function tokenizeStringLiterals(source: string): readonly StringToken[] {
     }
     const open = i;
     i++;
-    let depth = 0;
-    while (i < code.length) {
-      const c = code[i];
-      if (c === "\\") {
-        i += 2;
-        continue;
-      }
-      if (quote === "`") {
-        if (c === "$" && code[i + 1] === "{") {
-          depth++;
-          i += 2;
-          continue;
-        }
-        if (c === "}" && depth > 0) {
-          depth--;
-          i++;
-          continue;
-        }
-      } else if (c === "\n") {
-        break; // unterminated single/double-quoted literal — do not run past the line
-      }
-      if (c === quote && depth === 0) break;
-      i++;
-    }
+    i = stringLiteralEnd({ code, start: i, quote: quote! });
     const close = i;
     tokens.push({
       value: code.slice(open + 1, close),
@@ -441,39 +482,44 @@ function splitCallArguments(code: string, openParen: number): readonly string[] 
   let i = start;
   let quote: '"' | "'" | "`" | null = null;
 
-  while (i < code.length && depth > 0) {
-    const c = code[i];
-    if (quote) {
-      if (c === "\\") i += 2;
-      else {
-        if (c === quote) quote = null;
-        i++;
-      }
-      continue;
+  const scanQuoted = ({ c }: { c: string | undefined }, _options = {}): void => {
+    if (c === "\\") i += 2;
+    else {
+      if (c === quote) quote = null;
+      i++;
     }
+  };
+  const scanArgument = ({ c }: { c: string | undefined }, _options = {}): void => {
+
     if (c === '"' || c === "'" || c === "`") {
       quote = c;
       i++;
-      continue;
+      return;
     }
-    if (c === "(" || c === "[" || c === "{") {
+    if (["(", "[", "{"].includes(c!)) {
       depth++;
       i++;
-      continue;
+      return;
     }
-    if (c === ")" || c === "]" || c === "}") {
+    if ([")", "]", "}"].includes(c!)) {
       depth--;
-      if (depth === 0) break;
+      if (depth === 0) return;
       i++;
-      continue;
+      return;
     }
     if (c === "," && depth === 1) {
       args.push(code.slice(start, i).trim());
       start = i + 1;
       i++;
-      continue;
+      return;
     }
     i++;
+  };
+
+  while (i < code.length && depth > 0) {
+    const c = code[i];
+    if (quote) scanQuoted({ c });
+    else scanArgument({ c });
   }
   if (depth !== 0) return null;
   const last = code.slice(start, i).trim();
@@ -578,6 +624,7 @@ interface SkipRule {
  *  shadow a more specific one: `url-scheme` runs before `colon-bearing-specifier` so an https URL is
  *  reported as a URL rather than as punctuation. */
 const RAW_SKIP_RULES: readonly SkipRule[] = [
+  { reason: "eslint-rule-id", rejects: (v) => v.startsWith("sonarjs/") && Object.hasOwn(sonarRules, v.slice(8)) },
   { reason: "own-import-specifier", rejects: (v, o) => o.ownImportSpecifiers?.has(v) === true },
   { reason: "url-scheme", rejects: (v) => v.includes("://") },
   { reason: "glob-or-regex-metacharacter", rejects: (v) => /[*?{}[\]!()|^$+\\]/.test(v) },
@@ -766,7 +813,7 @@ export function collectRepoSegments(repoRoot: string, maxDepth = 4): ReadonlySet
  * @complexity O(1) — a fixed candidate list.
  */
 export function resolveImportCandidates(importerAbsPath: string, specifier: string): readonly string[] {
-  const base = path.resolve(path.dirname(importerAbsPath), specifier);
+  const base = fileURLToPath(new URL(specifier, pathToFileURL(importerAbsPath)));
   const candidates: string[] = [base];
 
   const jsLike = /\.(js|mjs|cjs)$/.exec(base);
@@ -867,24 +914,31 @@ function sweepOneFile(
   if (!scanStrings) return findings;
 
   const ownImportSpecifiers = new Set(imports.map((i) => i.specifier));
-  for (const { value, line } of extractStringLiterals(source)) {
-    const classified = classifyRepoRelativeString(value, { knownRepoSegments: segments, ownImportSpecifiers });
-    if (classified.kind !== "repo-relative-path") continue;
-    const required = pathThatMustExist(classified.repoRelative);
-    if (fs.existsSync(path.join(repoRoot, required))) continue;
-    findings.push({ file, line, kind: "repo-relative-string", specifier: value, attempted: [required] });
-  }
+  const checkStrings = (_required: Record<string, never>, _options = {}): void => {
+    for (const { value, line } of extractStringLiterals(source)) {
+      const classified = classifyRepoRelativeString(value, { knownRepoSegments: segments, ownImportSpecifiers });
+      if (classified.kind !== "repo-relative-path") continue;
+      const required = pathThatMustExist(classified.repoRelative);
+      if (fs.existsSync(path.join(repoRoot, required))) continue;
+      findings.push({ file, line, kind: "repo-relative-string", specifier: value, attempted: [required] });
+    }
 
-  for (const { segments: rawSegments, line } of extractPathJoinSegments(source)) {
-    const meaningful = dropLeadingParentSegments(rawSegments, fileDirectoryDepth(file));
-    if (meaningful === null) continue; // ".." count doesn't reach exactly to repo root - can't classify safely
-    if (meaningful.length < 1) continue; // nothing left but ".." segments - no target to check
-    const classified = classifyPathJoinSegments(meaningful, { knownRepoSegments: segments, ownImportSpecifiers });
-    if (classified.kind !== "repo-relative-path") continue;
-    const required = pathThatMustExist(classified.repoRelative);
-    if (fs.existsSync(path.join(repoRoot, required))) continue;
-    findings.push({ file, line, kind: "path-join-call", specifier: classified.repoRelative, attempted: [required] });
-  }
+  };
+  const checkJoins = (_required: Record<string, never>, _options = {}): void => {
+    for (const { segments: rawSegments, line } of extractPathJoinSegments(source)) {
+      const meaningful = dropLeadingParentSegments(rawSegments, fileDirectoryDepth(file));
+      if (meaningful === null) continue; // ".." count doesn't reach exactly to repo root - can't classify safely
+      if (meaningful.length < 1) continue; // nothing left but ".." segments - no target to check
+      const classified = classifyPathJoinSegments(meaningful, { knownRepoSegments: segments, ownImportSpecifiers });
+      if (classified.kind !== "repo-relative-path") continue;
+      const required = pathThatMustExist(classified.repoRelative);
+      if (fs.existsSync(path.join(repoRoot, required))) continue;
+      findings.push({ file, line, kind: "path-join-call", specifier: classified.repoRelative, attempted: [required] });
+    }
+
+  };
+  checkStrings({});
+  checkJoins({});
 
   return findings;
 }

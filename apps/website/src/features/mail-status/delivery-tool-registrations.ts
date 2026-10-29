@@ -3,7 +3,7 @@ import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInp
 import { adaptLegacyAuthorize, ForbiddenError, requireToolPermission } from "@jini-ai/cms/core";
 import { forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { approvalToolHandler } from "#src/contracts/core/human-confirm";
 import { mailDeliveryAgentToolCatalog } from "./delivery-agent-tools.js";
 import { getMailActivity, listMailActivity, MailActivityForbiddenError, MailActivityUnavailableError, readMailActivityId, readMailActivityQuery, type MailActivityDeps } from "./activity.js";
@@ -99,6 +99,6 @@ export function buildMailDeliveryRegistrations(deps: MailDeliveryToolDeps, surfa
 }
 
 /** Registers the delivery visibility tools under their own contributor domain. */
-export function contributeMailDeliveryTools(): ToolContributor {
+export function contributeMailDeliveryTools(): ToolContributor<MailDeliveryToolDeps, AssistantSurfaceDeps> {
   return { domain: "system-mail-delivery", build: buildMailDeliveryRegistrations, risk: mailDeliveryDerivedRisk };
 }

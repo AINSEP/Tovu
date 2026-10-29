@@ -36,7 +36,7 @@ const DEFAULT_ARM: CapabilityManifestArm = "off";
 /** Mirrors `resolveAgentPluginDeliveryMode`'s own typed-env-param shape so both are testable without
  *  touching global `process.env`. */
 export function resolveCapabilityManifestArm(
-  env: { readonly TOVU_CAPABILITY_MANIFEST_ARM?: string | undefined } = process.env,
+  env: { readonly TOVU_CAPABILITY_MANIFEST_ARM?: string } = process.env,
 ): CapabilityManifestArm {
   const value = env.TOVU_CAPABILITY_MANIFEST_ARM;
   if (value === "passive" || value === "gate" || value === "mandate") return value;

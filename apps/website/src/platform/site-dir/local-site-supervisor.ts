@@ -73,8 +73,7 @@ export function createLocalSiteSupervisor(
   }
   async function allocate(): Promise<number> {
     for (let port = 3101; port < 4101; port++) {
-      if (reserved.has(port)) continue;
-      if (!(await processPort.isPortFree({ port }))) continue;
+      if (reserved.has(port) || !(await processPort.isPortFree({ port }))) continue;
       reserved.add(port);
       return port;
     }

@@ -1,3 +1,4 @@
+import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -11,9 +12,11 @@ import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import { createByokToolSurface, type ByokToolSurfaceDeps } from "#src/assistant/byok-tool-surface";
-import { encodeScreenshotTiles } from "../screenshot-image.js";
+import { createScreenshotTileEncoder } from "../screenshot-image.js";
 import { buildWebScreenshotRegistrations, contributeWebScreenshotTools, webScreenshotDerivedRisk, type WebScreenshotToolDeps } from "../tool-registrations.js";
 import { createWebScreenshotService, WEB_SCREENSHOT_TOOL_ID, type PageCapturePort, type WebScreenshotPorts } from "../web-screenshot.js";
+
+const encodeScreenshotTiles = createScreenshotTileEncoder({ imageCodec: new SharpImageTransformer() });
 
 /**
  * @file `web_screenshot_page`'s registration: the permission gate, read-only classification, and the

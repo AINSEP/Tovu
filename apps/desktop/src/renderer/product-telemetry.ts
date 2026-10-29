@@ -15,7 +15,8 @@ export function installShellErrorReporting({ target }: { target: Pick<Window, 'a
   report = reportShellTelemetry,
 }: { report?: typeof reportShellTelemetry } = {}): () => void {
   const send = (failure: unknown, fallback: string) => {
-    const error = failure instanceof Error ? failure : new Error(typeof failure === 'string' ? failure : fallback);
+    const message = typeof failure === 'string' ? failure : fallback;
+    const error = failure instanceof Error ? failure : new Error(message);
     report({ payload: { kind: 'error', message: error.message.slice(0, 1000), stack: (error.stack ?? '').slice(0, 8000) } });
   };
   const error = (event: ErrorEvent) => send(event.error, event.message);

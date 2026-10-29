@@ -62,7 +62,7 @@ export function useTabStrip(
   const tabKey = JSON.stringify(projects.map((project) => [project.id, project.displayName]));
   useEffect(() => {
     const strip = stripRef.current;
-    if (!strip) return;
+    if (!strip) return undefined;
     const update = () => setOverflow(tabOverflow({ strip }));
     const reveal = () => { revealActiveTab({ strip }); update(); };
     reveal();

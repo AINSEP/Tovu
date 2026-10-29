@@ -157,7 +157,7 @@ describe("H2 wiring — overlapping runs on one conversation must not both resum
     const getSessionIdIndex = onStartedSource.indexOf("routeDeps.agentSessions.getSessionId(");
     assert.ok(getSessionIdIndex > -1, "this test's own anchor (the getSessionId call) must still exist verbatim");
 
-    const runCallIndex = onStartedSource.indexOf("await assistantRuntimeGuidanceContext.run(runtimeLaunch.guidance, () => assistantNativeToolsContext.run(nativeToolAccess, () => assistantCliCapabilitiesContext.run(nativeCapabilities, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({");
+    const runCallIndex = onStartedSource.indexOf("await assistantRuntimeGuidanceContext.run(runGuidance, () => assistantNativeToolsContext.run(nativeToolAccess, () => assistantCliCapabilitiesContext.run(nativeCapabilities, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({");
     assert.ok(runCallIndex > -1, "this test's own anchor (the agentExecutor.run call) must still exist verbatim");
     assert.ok(
       hasConcurrentIndex < runCallIndex && getSessionIdIndex < runCallIndex,
@@ -214,7 +214,7 @@ describe("H2-context-loss wiring — a forced-cold run must not silently drop co
     const carriesOwnMemoryCallIndex = onStartedSource.indexOf("agentCarriesOwnMemory({ agentId: agentId }, {})");
     assert.ok(carriesOwnMemoryCallIndex > -1, "onStarted must pass agentCarriesOwnMemory({ agentId: agentId }, {}) into the decision — without it every run would look non-resume-capable and the check would never fire");
 
-    const runCallIndex = onStartedSource.indexOf("await assistantRuntimeGuidanceContext.run(runtimeLaunch.guidance, () => assistantNativeToolsContext.run(nativeToolAccess, () => assistantCliCapabilitiesContext.run(nativeCapabilities, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({");
+    const runCallIndex = onStartedSource.indexOf("await assistantRuntimeGuidanceContext.run(runGuidance, () => assistantNativeToolsContext.run(nativeToolAccess, () => assistantCliCapabilitiesContext.run(nativeCapabilities, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({");
     assert.ok(runCallIndex > -1, "this test's own anchor (the agentExecutor.run call) must still exist verbatim");
 
     assert.ok(

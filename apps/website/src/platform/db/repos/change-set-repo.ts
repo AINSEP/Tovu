@@ -176,8 +176,3 @@ export class SqlChangeSetRepo implements ChangeSetRepoPort {
     );
   }
 }
-
-/** The change-set repo on `kernel`'s database, whichever dialect. */
-export function changeSetRepoFor(kernel: ContentKernel): ChangeSetRepoPort {
-  return new SqlChangeSetRepo(kernel);
-}

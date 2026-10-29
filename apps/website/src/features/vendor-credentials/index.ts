@@ -6,4 +6,4 @@
  */
 export type { VendorCredentialSetRecord, VendorCredentialSetRepoPort, VendorCredentialSetSummary } from "./types.js";
 
-export { InMemoryVendorCredentialSetRepo } from "../deployments/publish-credentials/repo.memory.js";
+export { InMemoryVendorCredentialSetRepo } from "./repo.memory.js";

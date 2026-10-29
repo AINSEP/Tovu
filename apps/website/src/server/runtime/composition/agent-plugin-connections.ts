@@ -145,7 +145,7 @@ export function composeAgentPluginConnections(
   const issuedTokens = createIssuedTokenMemories();
   const signIns = createIssuedSignInCollector();
   const delivery = optional.deliveryBindings;
-  const deliveryBindingsFor = delivery && ((scope: { readonly pluginId: string; readonly workspaceId: string; readonly principalId?: string | undefined }) => createSurfaceDeliveryBindings({
+  const deliveryBindingsFor = delivery && ((scope: { readonly pluginId: string; readonly workspaceId: string; readonly principalId?: string }) => createSurfaceDeliveryBindings({
     ...scope, siteWorkspaceId: workspaceId, forms: delivery.forms, newBindingId: delivery.newBindingId, bindings: formDeliveryBindingsStore({ settings: delivery.settings }),
     declaredConnectionIds: async ({ pluginId }) => (await host.listConnections({ pluginId })).map((connection) => connection.descriptor.connectionId),
     contributedAdapterIds: async ({ workspaceId: scopeWorkspaceId, pluginId }) => (await loadFormDestinationRegistry({ workspaceId: scopeWorkspaceId }, { loadContributions })).list()

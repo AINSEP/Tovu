@@ -1,5 +1,5 @@
 import type { PublishHistoryStore } from "../static-publish/publish-history.js";
-import type { OperatorLocaleDeps } from "#src/features/agent-plugins/operator-locale";
+import type { OperatorLocaleDeps } from "#src/contracts/headless/operator-locale";
 import { issueCredentialSetup, type ToolFailureDiagnostic } from "#src/contracts/core/tool-failure-diagnostics";
 import { nowIso } from "@jini-ai/core/primitives";
 import { ToolInputError } from "@jini-ai/core";
@@ -78,7 +78,8 @@ async function credentialLabel(deps: DeployOpsToolDeps, platform: LoadedDeployOp
 function requirePlatformUrl({ rawUrl, platform }: { rawUrl: string; platform: LoadedDeployOps }, _optional = {}): URL {
   let url: URL;
   try { url = new URL(rawUrl); } catch { throw new ToolInputError({ message: "Deployment ops module supplied an invalid URL." }); }
-  if (url.protocol !== "https:" || url.username || url.password || url.port || !platform.descriptor.hosts.includes(url.hostname)) throw new ToolInputError({ message: `Deployment ops platform '${platform.descriptor.id}' does not allow host '${url.hostname}'.` });
+  const unsafeAuthority = url.username || url.password || url.port;
+  if (url.protocol !== "https:" || unsafeAuthority || !platform.descriptor.hosts.includes(url.hostname)) throw new ToolInputError({ message: `Deployment ops platform '${platform.descriptor.id}' does not allow host '${url.hostname}'.` });
   return url;
 }
 
@@ -145,8 +146,11 @@ export async function boundContext(deps: DeployOpsToolDeps, platform: LoadedDepl
       return result;
     } } };
     // `content-type` only with a body: some APIs refuse a bodyless DELETE/POST that claims JSON.
-    const write = method === "GET" ? {} : body === undefined ? { headers: { accept: "application/json" } }
-      : { headers: { "content-type": "application/json", accept: "application/json" }, body: JSON.stringify(body) };
+    let write: { headers?: Record<string, string>; body?: string } = {};
+    if (method !== "GET") {
+      write = body === undefined ? { headers: { accept: "application/json" } }
+        : { headers: { "content-type": "application/json", accept: "application/json" }, body: JSON.stringify(body) };
+    }
     try { response = await makeCredentialedRequest(boundedDeps, { workspaceId: deps.workspaceId, label, method, url: rawUrl, ...write }); }
     catch (error) { throw requestFailure({ error, signal, method, host: url.hostname, label }, {}); }
     if (signal?.aborted) throw aborted();
@@ -269,7 +273,7 @@ async function boundedPoll(status: (signal: AbortSignal) => Promise<DeployOpsSta
     timer = setTimeout(() => { controller.abort(); reject(TIMEOUT); }, remaining);
   });
   try { return await Promise.race([status(controller.signal), stopped]); }
-  finally { if (timer) clearTimeout(timer); if (onAbort) signal?.removeEventListener("abort", onAbort); }
+  finally { if (timer) { clearTimeout(timer); } if (onAbort) { signal?.removeEventListener("abort", onAbort); } }
 }
 
 async function pollBeforeDeadline({ status, clock, deadline }: { status(signal: AbortSignal): Promise<DeployOpsStatus>; clock: WaitClock; deadline: number }, { signal }: { signal?: AbortSignal } = {}): Promise<DeployOpsStatus | typeof TIMEOUT> {
@@ -277,7 +281,7 @@ async function pollBeforeDeadline({ status, clock, deadline }: { status(signal: 
     const observation = await boundedPoll(status, deadline - clock.now(), signal);
     if (signal?.aborted) throw aborted();
     return observation;
-  } catch (error) { if (error === TIMEOUT) return TIMEOUT; throw error; }
+  } catch (error) { if (error === TIMEOUT) { return TIMEOUT; } throw error; }
 }
 
 function reachedCondition({ until, state }: { until: "healthy" | "finished"; state: DeployOpsStatus["state"] }, _optional = {}): boolean {

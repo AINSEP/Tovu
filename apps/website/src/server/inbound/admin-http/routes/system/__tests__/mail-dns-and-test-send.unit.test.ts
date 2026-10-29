@@ -51,6 +51,21 @@ test("mail-dns GET answers the unsaved status under deployments.read; POST verif
   assert.deepEqual(asked, ["deployments.read:domain-dns", "deployments.publish:domain-dns"]);
 });
 
+test('mail-dns verification failure is private and does not persist a DNS verdict', async t => {
+  t.mock.method(console, 'error', () => {});
+  let writes = 0;
+  const dns = dnsDeps(['deployments.publish']);
+  const bindings = dns.bindings;
+  assert.ok(bindings);
+  t.mock.method(bindings, 'put', async () => { writes++; throw new Error('private binding failure'); });
+  const app = express();
+  registerAdminMailDnsRoutes(app, { workspaceId: WS, dns });
+  assert.deepEqual(await callRoute(app, 'post', VERIFY_PATH, {}), {
+    statusCode: 500, jsonBody: { error: 'internal error', code: 'INTERNAL_ERROR' },
+  });
+  assert.equal(writes, 1);
+});
+
 test("mail-dns: a missing grant is a 403 naming it; another workspace is a 404; a fault is a fixed 500", async (t) => {
   const app = express();
   registerAdminMailDnsRoutes(app, { workspaceId: WS, dns: dnsDeps(["deployments.read"]) });

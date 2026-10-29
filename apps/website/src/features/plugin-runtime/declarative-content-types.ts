@@ -259,8 +259,11 @@ function incompatibilities(decl: DeclaredContentType, existing: ContentTypeRecor
   const reasons: string[] = [];
   for (const field of decl.fields) {
     const held = existing.fields.find((candidate) => candidate.name === field.name);
-    if (!held) reasons.push(`content type '${decl.key}' already exists without field '${field.name}'`);
-    else if (held.kind !== field.kind) reasons.push(`content type '${decl.key}' already exists with field '${field.name}' as '${held.kind}', not '${field.kind}'`);
+    if (!held) {
+      reasons.push(`content type '${decl.key}' already exists without field '${field.name}'`);
+      continue;
+    }
+    if (held.kind !== field.kind) reasons.push(`content type '${decl.key}' already exists with field '${field.name}' as '${held.kind}', not '${field.kind}'`);
   }
   return reasons;
 }

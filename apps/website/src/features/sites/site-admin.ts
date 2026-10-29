@@ -1,6 +1,6 @@
 import type { Tracker } from "@jini-ai/diagnostics/observability";
 import {
-  createSite as createSiteReal,
+  type CreateSitePort,
   listSites as listSitesReal,
   persistActiveSite as persistActiveSiteReal,
   switcherBaseForBinding,
@@ -132,7 +132,7 @@ export interface CreateSiteForOwnerRequired {
 
 export interface CreateSiteForOwnerPorts {
   tracker?: Tracker;
-  createSite?: typeof createSiteReal;
+  createSite: CreateSitePort;
   /** The guarded outbound client a token check probes through. Absent, a given token is refused as
    *  not checkable rather than saved unchecked. */
   customCredentialsHttpClient?: HttpClientPort;
@@ -202,7 +202,7 @@ function classifyCreateSiteError(err: unknown): SiteAdminRefusal | null {
  */
 export async function createSiteForOwner(
   required: CreateSiteForOwnerRequired,
-  ports: CreateSiteForOwnerPorts = {},
+  ports: CreateSiteForOwnerPorts,
 ): Promise<CreateSiteForOwnerResult | SiteAdminRefusal> {
   try {
     const adminPassword = resolveNewSiteAdminPassword(required);
@@ -213,11 +213,8 @@ export async function createSiteForOwner(
     }
     const refusal = await checkTokensBeforeCreate(required.workspaceId, ports, parsedTokens.tokens);
     if (refusal) return refusal;
-    const result = await (ports.createSite ?? createSiteReal)({ name: required.name, adminPassword }, { cwd: required.switcherBase });
-    // initSite has committed; later optional credential setup cannot turn this into another creation.
-    try { ports.tracker?.capture({ name: "site_created", userId: required.actorId ?? `system:${required.workspaceId}` }, { properties: {
-      targetSiteId: result.siteId, templateKind: "default", source: required.source ?? "service",
-    } }); } catch { /* Product analytics cannot fail an already-created site. */ }
+    const result = await ports.createSite({ name: required.name, adminPassword }, { cwd: required.switcherBase });
+    trackCreatedSite({ required, site: result }, ports);
     const agentPluginTokens = await storeTokensForNewSite(ports, result, parsedTokens.tokens);
     return { ok: true, site: { name: result.name, dir: result.dir, siteId: result.siteId }, agentPluginTokens };
   } catch (err) {
@@ -225,6 +222,13 @@ export async function createSiteForOwner(
     if (classified) return classified;
     throw err;
   }
+}
+
+function trackCreatedSite({ required, site }: { required: CreateSiteForOwnerRequired; site: CreateSiteForOwnerResult["site"] }, ports: Pick<CreateSiteForOwnerPorts, "tracker">): void {
+  // initSite has committed; later optional credential setup cannot turn this into another creation.
+  try { ports.tracker?.capture({ name: "site_created", userId: required.actorId ?? `system:${required.workspaceId}` }, { properties: {
+    targetSiteId: site.siteId, templateKind: "default", source: required.source ?? "service",
+  } }); } catch { /* Product analytics cannot fail an already-created site. */ }
 }
 
 /** What the person is told when the dev supervisor is restarting the server for them (S2). */
@@ -315,6 +319,12 @@ export function activateSite(
   const refusal = runningSiteRefusal({ dir: match.dir, name }, ports);
   if (refusal) return refusal;
   (ports.persistActiveSite ?? persistActiveSiteReal)({ name }, { cwd: switcherBase });
+  return siteActivationRestartResult(required, ports);
+}
+
+/** Selection is persisted before any restart decision or supervisor request. */
+function siteActivationRestartResult(required: ActivateSiteRequired, ports: Pick<ActivateSitePorts, "devRestart">): ActivateSiteResult {
+  const { name } = required;
   const base = { ok: true as const, activeSiteName: name, restartRequired: true as const };
   if (!required.restartNow) return { ...base, restartInstructions: SITE_SWITCH_RESTART_INSTRUCTIONS };
   const decision = restartDecision(required, ports.devRestart);

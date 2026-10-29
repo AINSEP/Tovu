@@ -137,8 +137,10 @@ function turnPrompt(prompt: string, addressee: TurnAddressee | null): string {
  */
 function bearerToken(header: string | undefined): string | undefined {
   if (header === undefined) return undefined;
-  const match = /^Bearer\s+(.+)$/i.exec(header.trim());
-  return match?.[1];
+  const value = header.trim();
+  if (!/^Bearer\s/i.test(value)) return undefined;
+  const token = value.slice(6).trimStart();
+  return token.length > 0 && !/[\r\n\u2028\u2029]/.test(token) ? token : undefined;
 }
 
 type AuthDecision = { allowed: true } | { allowed: false; status: 401 | 403; error: string };
@@ -333,7 +335,7 @@ async function createDesktopAgentRuntime(
   app.use(express.json({ limit: "4mb" }));
   app.use((req: Request, res: Response, next: NextFunction) => {
     const decision = authorizeBridgeRequest({ path: req.path, authorization: req.header("authorization"), body: req.body }, credentials);
-    if (decision.allowed) return next();
+    if (decision.allowed) { next(); return; }
     res.status(decision.status).json({ error: decision.error });
   });
   const adapter = { resolvedPortRef: { current: 0 }, env: required.agentRuntime.hostEnv, allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" };

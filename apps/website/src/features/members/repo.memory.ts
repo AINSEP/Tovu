@@ -13,6 +13,7 @@
  * follow-up build. Repos enforce persistence invariants; the write service and
  * resolver own member lifecycle and authentication decisions.
  */
+import { matchesRecordFields, upsertRecord } from "@jini-ai/core/records";
 import { MemberAuthError, MemberConflictError } from "./types.js";
 import type {
   ConsentPurpose,
@@ -191,7 +192,11 @@ export class InMemoryMemberRepo implements MemberRepoPort {
   }): Promise<MemberRecord[]> {
     const rows = this.rows
       .filter((row) => row.workspaceId === required.workspaceId && row.status !== "trash")
-      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+      .sort((a, b) => {
+        if (a.id < b.id) return -1;
+        if (a.id > b.id) return 1;
+        return 0;
+      });
 
     const afterIndex = required.afterId ? rows.findIndex((row) => row.id === required.afterId) : -1;
     const start = afterIndex === -1 ? 0 : afterIndex + 1;
@@ -209,9 +214,9 @@ export class InMemoryMemberRepo implements MemberRepoPort {
 
     // Match the durable adapter: stale writes cannot resurrect a trashed member.
     const existing = this.rows[index]!;
-    if (existing.status === "trash" || existing.version > record.version
-      || (existing.credentialsRevokedAt !== undefined
-        && (record.credentialsRevokedAt === undefined || existing.credentialsRevokedAt > record.credentialsRevokedAt))) {
+    const cutoffRegressed = existing.credentialsRevokedAt !== undefined
+      && (record.credentialsRevokedAt === undefined || existing.credentialsRevokedAt > record.credentialsRevokedAt);
+    if (existing.status === "trash" || existing.version > record.version || cutoffRegressed) {
       throw new MemberConflictError("member changed or is in Trash; re-read it before updating");
     }
     this.rows[index] = record;
@@ -231,10 +236,7 @@ export class InMemoryMemberTierRepo implements MemberTierRepoPort {
   }
 
   async findById(required: { workspaceId: string; id: string }): Promise<MemberTierRecord | null> {
-    return (
-      this.rows.find((row) => row.workspaceId === required.workspaceId && row.id === required.id) ??
-      null
-    );
+    return this.rows.find(record => matchesRecordFields({ record, fields: { workspaceId: required.workspaceId, id: required.id } })) ?? null;
   }
 
   async findBySlug(required: {
@@ -253,13 +255,7 @@ export class InMemoryMemberTierRepo implements MemberTierRepoPort {
   }
 
   async save(record: MemberTierRecord): Promise<void> {
-    const index = this.rows.findIndex((row) => row.id === record.id);
-    if (index === -1) {
-      this.rows.push(record);
-      return;
-    }
-
-    this.rows[index] = record;
+    upsertRecord({ records: this.rows, record, identity: { id: record.id } });
   }
 }
 
@@ -284,10 +280,7 @@ export class InMemoryMemberSubscriptionRepo implements MemberSubscriptionRepoPor
     workspaceId: string;
     id: string;
   }): Promise<MemberSubscriptionRecord | null> {
-    return (
-      this.rows.find((row) => row.workspaceId === required.workspaceId && row.id === required.id) ??
-      null
-    );
+    return this.rows.find(record => matchesRecordFields({ record, fields: { workspaceId: required.workspaceId, id: required.id } })) ?? null;
   }
 
   async listByMember(required: {
@@ -296,7 +289,11 @@ export class InMemoryMemberSubscriptionRepo implements MemberSubscriptionRepoPor
   }): Promise<MemberSubscriptionRecord[]> {
     return this.rows
       .filter((row) => row.workspaceId === required.workspaceId && row.memberId === required.memberId)
-      .sort((a, b) => (a.startedAt < b.startedAt ? 1 : a.startedAt > b.startedAt ? -1 : 0));
+      .sort((a, b) => {
+        if (a.startedAt < b.startedAt) return 1;
+        if (a.startedAt > b.startedAt) return -1;
+        return 0;
+      });
   }
 
   async listActiveByMember(required: {
@@ -305,22 +302,16 @@ export class InMemoryMemberSubscriptionRepo implements MemberSubscriptionRepoPor
     nowIso: string;
   }): Promise<MemberSubscriptionRecord[]> {
     return this.rows.filter(
-      (row) =>
-        row.workspaceId === required.workspaceId &&
-        row.memberId === required.memberId &&
-        (row.status === "active" || row.status === "comped") &&
-        (!row.currentPeriodEnd || row.currentPeriodEnd > required.nowIso)
+      (row) => {
+        if (row.workspaceId !== required.workspaceId || row.memberId !== required.memberId) return false;
+        return (row.status === "active" || row.status === "comped")
+          && (!row.currentPeriodEnd || row.currentPeriodEnd > required.nowIso);
+      }
     );
   }
 
   async save(record: MemberSubscriptionRecord): Promise<void> {
-    const index = this.rows.findIndex((row) => row.id === record.id);
-    if (index === -1) {
-      this.rows.push(record);
-      return;
-    }
-
-    this.rows[index] = record;
+    upsertRecord({ records: this.rows, record, identity: { id: record.id } });
   }
 }
 
@@ -343,11 +334,7 @@ export class InMemoryMemberSessionRepo implements MemberSessionRepoPort {
     workspaceId: string;
     tokenHash: string;
   }): Promise<MemberSessionRecord | null> {
-    return (
-      this.rows.find(
-        (row) => row.workspaceId === required.workspaceId && row.tokenHash === required.tokenHash
-      ) ?? null
-    );
+    return this.rows.find(record => matchesRecordFields({ record, fields: { workspaceId: required.workspaceId, tokenHash: required.tokenHash } })) ?? null;
   }
 
   async listByMember(required: {
@@ -360,13 +347,7 @@ export class InMemoryMemberSessionRepo implements MemberSessionRepoPort {
   }
 
   async save(record: MemberSessionRecord): Promise<void> {
-    const index = this.rows.findIndex((row) => row.id === record.id);
-    if (index === -1) {
-      this.rows.push(record);
-      return;
-    }
-
-    this.rows[index] = record;
+    upsertRecord({ records: this.rows, record, identity: { id: record.id } });
   }
 
   async revoke(required: { workspaceId: string; id: string; revokedAt: string }): Promise<void> {
@@ -425,21 +406,11 @@ export class InMemoryMagicLinkTokenRepo implements MagicLinkTokenRepoPort {
     workspaceId: string;
     tokenHash: string;
   }): Promise<MagicLinkTokenRecord | null> {
-    return (
-      this.rows.find(
-        (row) => row.workspaceId === required.workspaceId && row.tokenHash === required.tokenHash
-      ) ?? null
-    );
+    return this.rows.find(record => matchesRecordFields({ record, fields: { workspaceId: required.workspaceId, tokenHash: required.tokenHash } })) ?? null;
   }
 
   async save(record: MagicLinkTokenRecord): Promise<void> {
-    const index = this.rows.findIndex((row) => row.id === record.id);
-    if (index === -1) {
-      this.rows.push(record);
-      return;
-    }
-
-    this.rows[index] = record;
+    upsertRecord({ records: this.rows, record, identity: { id: record.id } });
   }
 
   /** Same-tick check-and-increment mirrors the durable conditional UPDATE: no await can split them. */
@@ -503,17 +474,12 @@ export class InMemoryMemberConsentRepo implements MemberConsentRepoPort {
   }
 
   async save(record: MemberConsentRecord): Promise<void> {
-    const index = this.rows.findIndex((row) => row.id === record.id);
-    if (index === -1) {
-      this.rows.push(record);
-      return;
-    }
-
-    this.rows[index] = record;
+    upsertRecord({ records: this.rows, record, identity: { id: record.id } });
   }
 
   async appendRevision(record: Omit<MemberConsentRevisionRecord, "seq">): Promise<number> {
-    const seq = this.nextSeq++;
+    const seq = this.nextSeq;
+    this.nextSeq += 1;
     this.revisions.push({ ...record, seq });
     return seq;
   }

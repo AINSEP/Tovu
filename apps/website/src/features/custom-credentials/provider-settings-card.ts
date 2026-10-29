@@ -43,13 +43,20 @@ export type ProviderSettingsSaveResult =
 const CUSTOM = "__custom";
 const customName = (name: string) => `${name}__custom`;
 
+/** All controls retain the provider's conditional requirement metadata. */
+function fieldRequirements({ field }: { field: PluginProviderSettingField }, _options = {}) {
+  return {
+    ...(field.requiredUnless ? { requiredUnless: field.requiredUnless } : {}),
+    ...(field.requiredWhen ? { requiredWhen: field.requiredWhen } : {}),
+  };
+}
+
 /** A declared public field with choices: a select (plus "Custom…" and its text field when allowed). */
 function choiceFields({ field, value }: { field: PluginProviderSettingField; value?: string }): SecretCardField[] {
   const options = field.options ?? [];
   const custom = Boolean(value) && !options.some((option) => option.value === value);
   const select: SecretCardField = { kind: "enum", name: field.name, label: field.label, required: field.required === true,
-    ...(field.requiredUnless ? { requiredUnless: field.requiredUnless } : {}),
-    ...(field.requiredWhen ? { requiredWhen: field.requiredWhen } : {}),
+    ...fieldRequirements({ field }),
     options: [...options, ...(field.allowCustom ? [{ value: CUSTOM, label: "Custom…" }] : [])], value: custom && field.allowCustom ? CUSTOM : value ?? field.default };
   if (!field.allowCustom) return [select];
   return [select, { kind: "string", name: customName(field.name), label: `Custom ${field.label.toLowerCase()}`, ...(field.hint ? { hint: field.hint } : {}), ...(custom ? { value } : {}) }];
@@ -73,8 +80,8 @@ function formFieldsOf({ field, saved }: { field: PluginProviderSettingField; sav
   const value = saved?.settings[field.name] || undefined;
   if (field.options?.length) return choiceFields({ field, value });
   const initial = value ?? field.default;
-  return [{ kind: "string", name: field.name, label: field.label, required, ...(field.requiredUnless ? { requiredUnless: field.requiredUnless } : {}),
-    ...(field.requiredWhen ? { requiredWhen: field.requiredWhen } : {}), ...(field.hint ? { hint: field.hint } : {}), ...(initial ? { value: initial } : {}) }];
+  return [{ kind: "string", name: field.name, label: field.label, required, ...fieldRequirements({ field }),
+    ...(field.hint ? { hint: field.hint } : {}), ...(initial ? { value: initial } : {}) }];
 }
 
 /** The declared card's help, key-entry hint and purposes; values never come from saved settings. */
@@ -99,7 +106,7 @@ export function buildProviderSettingsForm({ prep }: { prep: Prep }, _optional = 
   const otherUse = otherSiteKeyNotice({ usage: prep.usage, label: card?.label ?? "provider" });
   return {
     title: card?.title ?? "Connect provider",
-    description: `${card?.intro ? `${card.intro} ` : ""}Keys are sealed on the server the moment you submit — the assistant never sees them.${otherUse}`,
+    description: `${card?.intro ? card.intro + " " : ""}Keys are sealed on the server the moment you submit — the assistant never sees them.${otherUse}`,
     details: providerCardDetails({ card }),
     submitLabel: "Save",
     fields: prep.fields.flatMap((field) => formFieldsOf({ field, saved: prep.saved })),
@@ -128,9 +135,12 @@ function resultOf({ run, pluginId }: { run: { status: string; saved?: Saved; saf
 /** A committed save can need browser reload or provider startup without becoming a failed save. */
 function savedMessage({ result }: { result: Extract<ProviderSettingsSaveResult, { saved: true }> }, _optional = {}): string {
   if (result.appliesAt === "failed") return result.message ?? "Saved, but the provider could not start. Check the plugin settings and save again.";
-  const location = result.store === "site" ? "Saved for this site." : result.usedBy?.length
-    ? `Saved. Used by ${result.usedBy.join(", ")}. Other sites pick it up within 30 seconds.`
-    : "Saved to your project — not used by any site yet.";
+  let location = "Saved for this site.";
+  if (result.store !== "site") {
+    location = result.usedBy?.length
+      ? `Saved. Used by ${result.usedBy.join(", ")}. Other sites pick it up within 30 seconds.`
+      : "Saved to your project — not used by any site yet.";
+  }
   if (!result.configured) return location;
   return location + (result.appliesAt === "now" ? " Now sending." : " Reload open pages or restart this site to finish applying the saved settings.");
 }

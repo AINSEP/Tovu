@@ -144,3 +144,12 @@ export { purgeMedia } from "./purge-media.js";
 
 export { MAX_DOCUMENT_BYTES, DOCUMENT_CONTENT_TYPES, documentContentType, validateDocumentIngress, decodeDocumentUtf8, documentDisplayFilename, DOCUMENT_TEXT_PAGE_BYTES, readDocumentText, isDocumentOnlyBlob } from "@jini-ai/cms/media";
 export type { MediaKind, DocumentArchiveReaderPort } from "@jini-ai/cms/media";
+
+export { saveLibraryDocument } from "./library-save-attachment.js";
+export { readStoredBytes } from "./original-bytes.js";
+export { resolveContentTypes, readRecordedContentType, type ContentTypeDeps } from "./content-type-resolution.js";
+export { readChatAttachmentForOwner, type ChatAttachmentReadResult } from "./read-chat-attachment.js";
+export { captureMediaUploaded } from "./analytics.js";
+export { findMediaWhereUsed } from "./where-used.js";
+export { guardMediaRenditionRepo } from "./guard-rendition-repo.js";
+export type { HydrateBlobStoreFromSeedResult } from "./hydrate-blob-store-from-seed.js";

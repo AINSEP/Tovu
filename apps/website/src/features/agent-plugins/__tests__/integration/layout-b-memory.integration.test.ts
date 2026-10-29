@@ -1,3 +1,4 @@
+import { containAgentPluginStatePath } from "#src/features/agent-plugins/lifecycle";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -23,7 +24,7 @@ async function fixture() {
   const temporary = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "plugin-layout-b-")));
   const layout = resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: temporary } });
   const workspace = layout.forWorkspace(workspaceId);
-  const memory = (pluginId = "example") => pluginMemory({ workspaceId, pluginId }, { layout });
+  const memory = (pluginId = "example") => pluginMemory({ contain: containAgentPluginStatePath, workspaceId, pluginId }, { layout });
   const install = async (pluginId = "example", version = "1.0.0", seedText?: string) => {
     const archive = Buffer.from(`${pluginId}:${version}:${seedText ?? ""}`);
     const files: Record<string, string> = { "plugin.json": JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: pluginId, version,
@@ -133,7 +134,7 @@ test("notes autoload in pinned skill guidance; learned knowledge does not; packa
     assert.match(result.promptPrefix, /USER-NOTE-CONTEXT/);
     assert.doesNotMatch(result.promptPrefix, /LEARNED-ON-DEMAND/);
     await f.memory().writeNote({ entryPath: "project.md", text: "FRESH-NOTE" });
-    assert.match(await appendPluginNotes({ workspaceRoot: f.workspace.root, pluginId: "example", guidance: "Skill" }), /FRESH-NOTE/);
+    assert.match(await appendPluginNotes({ contain: containAgentPluginStatePath, workspaceRoot: f.workspace.root, pluginId: "example", guidance: "Skill" }), /FRESH-NOTE/);
   } finally { await forceRemove(f.temporary); }
 });
 
@@ -196,12 +197,12 @@ test("migration moves legacy packages, Layout A memory and PLUGIN_DATA once, pre
     const workspaceAlias = path.join(f.temporary, "workspace-alias");
     await fs.symlink(f.workspace.root, workspaceAlias, "dir");
     const aliasedLayout = { ...f.layout, forWorkspace: (id: string) => ({ ...f.layout.forWorkspace(id), root: workspaceAlias }) };
-    assert.equal((await migrateAgentPluginLayout({ layout: aliasedLayout, workspaceId })).complete, true);
+    assert.equal((await migrateAgentPluginLayout({ contain: containAgentPluginStatePath, layout: aliasedLayout, workspaceId })).complete, true);
     assert.equal(await f.memory().read({ kind: "notes", entryPath: "project.md" }), "Legacy note");
     assert.equal(await fs.readFile(path.join(f.workspace.pluginDataDir("example"), "cache"), "utf8"), "Legacy data");
     assert.equal((await fs.stat(plugin.packageRoot)).mode & 0o777, 0o555);
     assert.equal(await fs.readFile(path.join(f.workspace.root, "activations.json"), "utf8"), '{"plugins":{}}');
-    assert.deepEqual(await migrateAgentPluginLayout({ layout: f.layout, workspaceId }), { complete: true, moved: 0 });
+    assert.deepEqual(await migrateAgentPluginLayout({ contain: containAgentPluginStatePath, layout: f.layout, workspaceId }), { complete: true, moved: 0 });
   } finally { await forceRemove(f.temporary); }
 });
 
@@ -262,7 +263,7 @@ test("malformed legacy entries are quarantined once and bundled seeding proceeds
     assert.equal(runs.length, 1);
     const savedManifest = path.join(quarantine, runs[0]!, "packages", "sha256", "f".repeat(64), "plugin.json");
     assert.equal(await fs.readFile(savedManifest, "utf8"), "bad json");
-    assert.deepEqual(await migrateAgentPluginLayout({ layout: f.layout, workspaceId }), { complete: true, moved: 0 });
+    assert.deepEqual(await migrateAgentPluginLayout({ contain: containAgentPluginStatePath, layout: f.layout, workspaceId }), { complete: true, moved: 0 });
     const second = await seedBundledAgentPlugins(request);
     assert.equal(second.outcomes.length, 1);
     assert.equal(second.outcomes[0]?.status, "seeded");
@@ -282,7 +283,7 @@ test("site boot migrates every existing workspace before seeding the active one"
       await fs.mkdir(legacy, { recursive: true });
       await fs.writeFile(path.join(legacy, "plugin.json"), '{"$schema":"https://agent-plugins.org/schemas/1.0.0/plugin.schema.json","name":"example"}');
     }
-    assert.equal((await migrateSiteAgentPluginLayouts({ layout: f.layout, workspaceId })).complete, true);
+    assert.equal((await migrateSiteAgentPluginLayouts({ contain: containAgentPluginStatePath, layout: f.layout, workspaceId })).complete, true);
     for (const workspaceId of ["workspace-local", "ws-second"]) {
       const workspace = f.layout.forWorkspace(workspaceId);
       assert.equal((await listInstalledPlugins(workspace.root))[0]?.pluginId, "example");

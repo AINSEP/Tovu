@@ -73,7 +73,7 @@ export type MailTestSendResult =
 
 const MAX_ADDRESS = 254;
 // One mailbox, no display name, no list: anything else is refused rather than guessed at.
-const ADDRESS = /^[^\s@<>()[\]",;:\\]+@[^\s@<>()[\]",;:\\]+\.[^\s@<>()[\]",;:\\]+$/;
+const ADDRESS = /^[^\s@<>()[\]",;:\\]+@[^\s@<>()[\]",;:\\]+$/;
 
 /**
  * A chosen recipient, or a caller error. Only one plain address is accepted.
@@ -82,7 +82,10 @@ const ADDRESS = /^[^\s@<>()[\]",;:\\]+@[^\s@<>()[\]",;:\\]+\.[^\s@<>()[\]",;:\\]
 export function readTestRecipient(required: { value: unknown }, _options: Record<string, never> = {}): string | undefined {
   if (required.value === undefined) return undefined;
   const value = typeof required.value === "string" ? required.value.trim() : "";
-  if (value.length === 0 || value.length > MAX_ADDRESS || !ADDRESS.test(value)) {
+  const domain = value.slice(value.indexOf("@") + 1);
+  // Keep the plain-mailbox grammar while finding the domain dot without regex backtracking.
+  const hasDomainDot = domain.lastIndexOf(".", domain.length - 2) > 0;
+  if (value.length === 0 || value.length > MAX_ADDRESS || !ADDRESS.test(value) || !hasDomainDot) {
     throw new ToolInputError({ message: "to must be one email address, such as owner@example.com. Nothing was sent." });
   }
   return value;
@@ -154,7 +157,7 @@ export async function runMailTestSend(
   required: { deps: MailTestSendDeps; principalId: string; plan: MailTestSendPlan; ref: string },
   optional: { now?: () => number } = {},
 ): Promise<MailTestSendResult> {
-  const { deps, plan } = required;
+  const { deps } = required;
   const key = `${required.principalId}:${required.ref}`;
   const existing = deps.mailTestRequests?.get(key);
   if (existing) return existing;

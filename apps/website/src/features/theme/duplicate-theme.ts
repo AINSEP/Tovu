@@ -90,9 +90,9 @@ export function themeIdFromName(name: string): string {
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
+    .replace(/^-|-$/g, "")
     .slice(0, 48)
-    .replace(/-+$/g, "");
+    .replace(/-$/, "");
 }
 
 /** Trimmed, length-checked, control-character-free display name, or a refusal. */
@@ -266,13 +266,14 @@ function rewriteCopiedAssetPaths(required: {
     if (fileGroup(file.relativePath, undefined) === "asset" && fileExtension(file.relativePath) !== ".svg") continue;
     const filePath = join(stagingDir, file.relativePath);
     const bytes = readFileSync(filePath);
-    if (bytes.includes(0) || !isUtf8(bytes)) continue;
-    const original = bytes.toString("utf8");
-    const rewritten = rewriteThemeAssetPaths(
-      { content: original, sourceThemeId, rules: [{ v1Prefix: "", v2Prefix: "" }] },
-      { targetThemeId }
-    );
-    if (rewritten !== original) writeFileSync(filePath, rewritten, "utf8");
+    if (!bytes.includes(0) && isUtf8(bytes)) {
+      const original = bytes.toString("utf8");
+      const rewritten = rewriteThemeAssetPaths(
+        { content: original, sourceThemeId, rules: [{ v1Prefix: "", v2Prefix: "" }] },
+        { targetThemeId }
+      );
+      if (rewritten !== original) writeFileSync(filePath, rewritten, "utf8");
+    }
   }
 }
 

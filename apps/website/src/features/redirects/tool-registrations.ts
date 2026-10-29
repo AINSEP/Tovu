@@ -18,7 +18,7 @@ import { type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { forbiddenRule, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { getRedirectsAgentToolCatalog } from "./agent-tools.js";
@@ -28,6 +28,8 @@ import { REDIRECT_MATCH_TYPES, REDIRECT_SOURCES, REDIRECT_STATUSES, RedirectConf
 import type { CreateRedirectInput, RedirectMatchType, RedirectRecord, RedirectStatus, RedirectStatusCode } from "@jini-ai/cms/redirects";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
+const MANAGE_REDIRECTS_PERMISSION = "admin.redirects.manage" as const;
 
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: getRedirectsAgentToolCatalog() });
@@ -129,7 +131,7 @@ export function buildRedirectsRegistrations(
   const handlers: Record<string, ToolHandler> = {
     redirects_list: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.redirects.manage" }, { entityType: "redirect" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_REDIRECTS_PERMISSION }, { entityType: "redirect" });
 
       // Rules in the Trash are left out (Bug B) — the same list the admin Redirects screen shows.
       const rules = await listRedirects({
@@ -146,7 +148,7 @@ export function buildRedirectsRegistrations(
 
     redirects_get: async (ctx) => {
       const id = requireString({ input: requireInputRecord({ input: ctx.input }), key: "id" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.redirects.manage" }, { entityType: "redirect", entityId: id });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_REDIRECTS_PERMISSION }, { entityType: "redirect", entityId: id });
 
       const rule = await routeDeps.redirectRepo.findById({ workspaceId: routeDeps.workspaceId, id });
       if (!rule) throw new RedirectNotFoundError(`redirect '${id}' was not found`);
@@ -155,7 +157,7 @@ export function buildRedirectsRegistrations(
 
     redirects_get_hits: async (ctx) => {
       const id = requireString({ input: requireInputRecord({ input: ctx.input }), key: "id" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.redirects.manage" }, { entityType: "redirect", entityId: id });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_REDIRECTS_PERMISSION }, { entityType: "redirect", entityId: id });
 
       const rule = await routeDeps.redirectRepo.findById({ workspaceId: routeDeps.workspaceId, id });
       if (!rule) throw new RedirectNotFoundError(`redirect '${id}' was not found`);
@@ -166,7 +168,7 @@ export function buildRedirectsRegistrations(
 
     redirects_create: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.redirects.manage" }, { entityType: "redirect" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_REDIRECTS_PERMISSION }, { entityType: "redirect" });
 
       const { record } = await createRedirect({
         deps: routeDeps.redirectsWriteDeps,
@@ -187,7 +189,7 @@ export function buildRedirectsRegistrations(
     redirects_update: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
       const id = requireString({ input: input, key: "id" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.redirects.manage" }, { entityType: "redirect", entityId: id });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_REDIRECTS_PERMISSION }, { entityType: "redirect", entityId: id });
 
       const { record } = await updateRedirect({
         deps: routeDeps.redirectsWriteDeps,
@@ -210,7 +212,7 @@ export function buildRedirectsRegistrations(
     /** Moves the redirect to the Trash after authorization; removing one already there is a no-op. */
     redirects_tombstone: async (ctx) => {
       const id = requireString({ input: requireInputRecord({ input: ctx.input }), key: "id" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.redirects.manage" }, { entityType: "redirect", entityId: id });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_REDIRECTS_PERMISSION }, { entityType: "redirect", entityId: id });
 
       const rule = await routeDeps.redirectRepo.findById({ workspaceId: routeDeps.workspaceId, id });
       if (!rule) throw new RedirectNotFoundError(`redirect '${id}' was not found`);
@@ -228,7 +230,7 @@ export function buildRedirectsRegistrations(
     // gate: same reversible, single-chokepoint risk envelope as `redirects_create`, just N rows.
     redirects_import: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.redirects.manage" }, { entityType: "redirect" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_REDIRECTS_PERMISSION }, { entityType: "redirect" });
 
       if (!Array.isArray(input.rules) || input.rules.length < 1 || input.rules.length > MAX_IMPORT_BATCH_SIZE) {
         throw new ToolInputError({ message: `'rules' (array of 1-${MAX_IMPORT_BATCH_SIZE} items) is required` });
@@ -275,6 +277,6 @@ export function buildRedirectsRegistrations(
  * rollout — no sibling domain still statically wired through `assistant` imports `redirects`, so this
  * one-directional `redirects -> assistant` call closes no new cycle).
  */
-export function contributeRedirectsTools(): ToolContributor {
+export function contributeRedirectsTools(): ToolContributor<RedirectsToolDeps, AssistantSurfaceDeps> {
   return { domain: "redirects", build: buildRedirectsRegistrations, risk: redirectsDerivedRisk };
 }

@@ -13,7 +13,7 @@ test("a refused publish is one site.publish operation labelled by target and fai
   const noop = createNoopObservabilityPort({});
   const observability: ObservabilityPort = { ...noop, trackOperation: ({ name, attributes }) => {
     log.push(`start:${name}:${JSON.stringify(attributes)}`);
-    return { end: ({ outcome, failed }) => { log.push(`end:${outcome}:${failed}`); } };
+    return { ...noop.trackOperation({ name, attributes }), end: ({ outcome, failed }) => { log.push(`end:${outcome}:${failed}`); } };
   } };
   const outcome = await publishStaticSite({ tracker: createTracker({ observability }) } as never, { projectName: " ", config: { target: "cloudflare-pages" } } as never);
   assert.deepEqual(outcome, { ok: false, code: "INVALID_CONFIG", message: "projectName must be 1-200 characters" });

@@ -8,7 +8,7 @@ import type { NextFunction, Request, Response } from "express";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { createPost } from "#src/features/post/index";
 import { createPluginExportRuntime } from "#src/features/agent-plugins/exports/runtime";
-import { harness, config } from "#src/features/agent-plugins/__tests__/fixtures/plugin-exports";
+import { harness, config, owner } from "#src/features/agent-plugins/__tests__/fixtures/plugin-exports";
 import { embedMarkerSnippetFromConfig } from "@jini-ai/cms/widgets/markers";
 import { createCapturingResponse, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { ContentRouteDeps } from "../../content/deps.js";
@@ -42,12 +42,12 @@ test("U1: page cards receive only authored export identities and safe host readi
   await createPost({ deps: { repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: WS, id: "embed-page", title: "Embed", kind: "page" } });
   const store = deps.pagesHtmlStore({ workspaceId: WS, postId: "embed-page" });
   await store.ensureHtmlFormat(embedMarkerSnippetFromConfig({ config }));
-  const { source } = harness();
+  const { source } = harness({ packages: [{ ...owner, displayName: "Example sign-in" }] });
   deps.pluginExports = createPluginExportRuntime({ workspaceId: WS, source, listProviders: async () => [] });
   const capture = await callDirect(app, "get", "/api/admin/v1/workspaces/:workspaceId/pages/:pageId", { params: { workspaceId: WS, pageId: "embed-page" } });
   assert.equal(capture.statusCode, 200);
   const body = capture.jsonBody as { pluginEmbeds: unknown };
-  assert.deepEqual(body.pluginEmbeds, [{ plugin: "tovu/demo", component: "button", availability: "host-unavailable" }]);
+  assert.deepEqual(body.pluginEmbeds, [{ plugin: "tovu/demo", component: "button", displayName: "Example sign-in", availability: "host-unavailable" }]);
   assert.equal(JSON.stringify(body.pluginEmbeds).includes("not-exposed"), false);
 });
 

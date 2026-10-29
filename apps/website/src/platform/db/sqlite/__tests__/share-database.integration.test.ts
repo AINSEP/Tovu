@@ -11,7 +11,8 @@ import { NEWSLETTER_DATA_MODULE } from "#src/features/newsletter/data-module-man
 import { sqliteKernel } from "../../kernel/drivers/sqlite.js";
 import { listColumns, listTables } from "../../kernel/dialect.js";
 import { openContentDb } from "../content-db.js";
-import { prepareSharePluginTables, sanitizeShareDatabase, type StagingSpacePort } from "../share-database.js";
+import { sanitizeShareDatabase } from "#src/server/runtime/composition/site-portability";
+import { prepareSharePluginTables, type StagingSpacePort } from "#src/features/site-backup/share-database/repo.sqlite";
 
 /**
  * @file Boundary pins for the share projection (`../share-database.ts`) against real in-memory
@@ -422,7 +423,7 @@ test("plugin tables: present portable tables are built with only their policy co
     fixtureModule([{ name: "audit", columns: NOTES_COLUMNS, portability: { kind: "private" } }], "privateonly"),
   ];
   const present = new Set(["p_fixture__notes", "p_fixture__secrets", "p_fixture__plain"]);
-  const result = await prepareSharePluginTables({ target, present }, { modules });
+  const result = await prepareSharePluginTables({ target, present, modules });
   assert.deepEqual(result, { portable: new Set(["p_fixture__notes"]), private: new Set(["p_fixture__secrets", "p_privateonly__audit"]) });
   assert.deepEqual((await listTables(target)).filter(name => !before.has(name) && name.startsWith("p_")), ["p_fixture__notes"]);
   assert.deepEqual((await listColumns(target, "p_fixture__notes")).map(column => column.name), ["id", "body"]);
@@ -431,11 +432,11 @@ test("plugin tables: present portable tables are built with only their policy co
 test("plugin tables: a portable policy naming an undeclared column refuses with UNSUPPORTED_SCHEMA", async t => {
   const target = await pluginTarget(t);
   const modules = [fixtureModule([{ name: "notes", columns: NOTES_COLUMNS, portability: { kind: "portable", columns: ["id", "missing"] } }])];
-  await assert.rejects(prepareSharePluginTables({ target, present: new Set(["p_fixture__notes"]) }, { modules }), refusal("UNSUPPORTED_SCHEMA", "Invalid portable columns for 'p_fixture__notes': its portability policy names a column the table does not declare."));
+  await assert.rejects(prepareSharePluginTables({ target, present: new Set(["p_fixture__notes"]), modules }), refusal("UNSUPPORTED_SCHEMA", "Invalid portable columns for 'p_fixture__notes': its portability policy names a column the table does not declare."));
 });
 
 test("plugin tables: a declaration the trusted DDL owner rejects refuses with UNSUPPORTED_SCHEMA and its reason", async t => {
   const target = await pluginTarget(t);
   const modules = [fixtureModule([{ name: "notes", columns: [{ name: "bad name", type: "TEXT" }], portability: { kind: "portable", columns: ["bad name"] } }])];
-  await assert.rejects(prepareSharePluginTables({ target, present: new Set(["p_fixture__notes"]) }, { modules }), refusal("UNSUPPORTED_SCHEMA", "Cannot build portable plugin schema for 'fixture': invalid column name: bad name"));
+  await assert.rejects(prepareSharePluginTables({ target, present: new Set(["p_fixture__notes"]), modules }), refusal("UNSUPPORTED_SCHEMA", "Cannot build portable plugin schema for 'fixture': invalid column name: bad name"));
 });

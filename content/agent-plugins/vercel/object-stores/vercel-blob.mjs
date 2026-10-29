@@ -23,7 +23,7 @@ const BLOB_CACHE_MAX_AGE_SECONDS = "60";
 /** The token is 16 ASCII letters, the shape core's `SHARE_TOKEN` mints (a plugin cannot import core). */
 const SHARE_KEY = /^_share\/[A-Za-z]{16}\/[a-z0-9][a-z0-9-]{0,79}\.tovu\.zip$/;
 /** `vercel_blob_rw_<storeId>_<secret>`: the store id names the public host, as `@vercel/blob` reads it. */
-const BLOB_TOKEN = /^vercel_blob_rw_([A-Za-z0-9]+)_[A-Za-z0-9_]+$/;
+const BLOB_TOKEN = /^vercel_blob_rw_([A-Za-z0-9]+)_\w+$/;
 
 /**
  * The Blob store's public origin. `new URL` lowercases the host, as Blob serves it.

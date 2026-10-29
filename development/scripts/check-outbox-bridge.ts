@@ -120,49 +120,57 @@ function collectSourceFiles(dir: string): string[] {
 function stripCommentsAndStrings(source: string): string {
   const out = source.split("");
   let i = 0;
+  const blankLineComment = (_required: Record<string, never>, _options = {}): void => {
+    while (i < out.length && out[i] !== "\n") {
+      out[i] = " ";
+      i++;
+    }
+  };
+  const blankBlockComment = (_required: Record<string, never>, _options = {}): void => {
+    out[i] = " ";
+    out[i + 1] = " ";
+    i += 2;
+    while (i < out.length && !(out[i] === "*" && out[i + 1] === "/")) {
+      if (out[i] !== "\n") out[i] = " ";
+      i++;
+    }
+    if (i < out.length) {
+      out[i] = " ";
+      out[i + 1] = " ";
+      i += 2;
+    }
+  };
+  const blankString = ({ quote }: { quote: string }, _options = {}): void => {
+    out[i] = " ";
+    i++;
+    while (i < out.length && out[i] !== quote) {
+      if (out[i] === "\\") {
+        out[i] = " ";
+        i++;
+        if (i < out.length) out[i] = " ";
+      } else if (out[i] !== "\n") {
+        out[i] = " ";
+      }
+      i++;
+    }
+    if (i < out.length) {
+      out[i] = " ";
+      i++;
+    }
+  };
   while (i < out.length) {
     const ch = out[i];
     const next = out[i + 1];
     if (ch === "/" && next === "/") {
-      while (i < out.length && out[i] !== "\n") {
-        out[i] = " ";
-        i++;
-      }
+      blankLineComment({});
       continue;
     }
     if (ch === "/" && next === "*") {
-      out[i] = " ";
-      out[i + 1] = " ";
-      i += 2;
-      while (i < out.length && !(out[i] === "*" && out[i + 1] === "/")) {
-        if (out[i] !== "\n") out[i] = " ";
-        i++;
-      }
-      if (i < out.length) {
-        out[i] = " ";
-        out[i + 1] = " ";
-        i += 2;
-      }
+      blankBlockComment({});
       continue;
     }
     if (ch === "'" || ch === '"' || ch === "`") {
-      const quote = ch;
-      out[i] = " ";
-      i++;
-      while (i < out.length && out[i] !== quote) {
-        if (out[i] === "\\") {
-          out[i] = " ";
-          i++;
-          if (i < out.length) out[i] = " ";
-        } else if (out[i] !== "\n") {
-          out[i] = " ";
-        }
-        i++;
-      }
-      if (i < out.length) {
-        out[i] = " ";
-        i++;
-      }
+      blankString({ quote: ch });
       continue;
     }
     i++;
@@ -188,6 +196,34 @@ function matchBracketEnd(stripped: string, openIndex: number): number {
   return stripped.length;
 }
 
+function bracketDepthAt({ text, end }: { text: string; end: number }, _options = {}): number {
+  let depth = 0;
+  for (let i = 0; i < end; i++) {
+    const ch = text[i];
+    if (["{", "(", "["].includes(ch!)) depth++;
+    else if (["}", ")", "]"].includes(ch!)) depth--;
+  }
+  return depth;
+}
+
+function fieldValueEnd({ text, valueStart }: { text: string; valueStart: number }, _options = {}): number {
+  let i = valueStart;
+  let depth2 = 0;
+  while (i < text.length) {
+    const ch = text[i];
+    if (["(", "{", "["].includes(ch!)) depth2++;
+    else if ([")", "]"].includes(ch!)) depth2--;
+    else if (ch === "}") {
+      if (depth2 === 0) break;
+      depth2--;
+    } else if (ch === "," && depth2 === 0) {
+      break;
+    }
+    i++;
+  }
+  return i;
+}
+
 /** Extracts the value text of `key:` inside `strippedObjectText` (starting at its own `{`),
  * stopping at the first top-level comma or the object's own closing brace. `originalObjectText`
  * must be the same-length, non-stripped text at the same offsets, used only for the returned
@@ -196,29 +232,11 @@ function extractFieldValue(strippedObjectText: string, originalObjectText: strin
   const fieldPattern = new RegExp(`(?:^|[{,])\\s*${key}\\s*:`, "g");
   let match: RegExpExecArray | null;
   while ((match = fieldPattern.exec(strippedObjectText))) {
-    let depth = 0;
-    for (let i = 0; i < match.index; i++) {
-      const ch = strippedObjectText[i];
-      if (ch === "{" || ch === "(" || ch === "[") depth++;
-      else if (ch === "}" || ch === ")" || ch === "]") depth--;
-    }
-    if (depth !== 1) continue; // not directly inside the outer `{` (depth 1) — nested, skip
+    const depth = bracketDepthAt({ text: strippedObjectText, end: match.index + match[0].length });
+    if (depth !== (strippedObjectText.startsWith("(") ? 2 : 1)) continue; // Only the outer `{`, including its opening delimiter; call arguments add one enclosing `(`.
 
     const valueStart = match.index + match[0].length;
-    let i = valueStart;
-    let depth2 = 0;
-    while (i < strippedObjectText.length) {
-      const ch = strippedObjectText[i];
-      if (ch === "(" || ch === "{" || ch === "[") depth2++;
-      else if (ch === ")" || ch === "]") depth2--;
-      else if (ch === "}") {
-        if (depth2 === 0) break;
-        depth2--;
-      } else if (ch === "," && depth2 === 0) {
-        break;
-      }
-      i++;
-    }
+    const i = fieldValueEnd({ text: strippedObjectText, valueStart });
     return originalObjectText.slice(valueStart, i).trim();
   }
   return null;
@@ -334,6 +352,37 @@ function lineOf(source: string, index: number): number {
   return line;
 }
 
+function resolveDepsExpression(
+  { stripped, original, depsValue, callArgsOriginal, parenIndex }: {
+    stripped: string; original: string; depsValue: string; callArgsOriginal: string; parenIndex: number;
+  },
+  _options = {},
+): { resolved: { stripped: string; original: string } } | { detail: string } {
+  let resolved: { stripped: string; original: string } | null = null;
+  if (depsValue.trimStart().startsWith("{")) {
+    // Re-locate the object literal within the (stripped) call-args text to get aligned offsets.
+    const relOffset = callArgsOriginal.indexOf(depsValue);
+    const absOffset = parenIndex + (relOffset === -1 ? 0 : relOffset);
+    const objStrippedStart = stripped.indexOf("{", absOffset);
+    const objEnd = matchBracketEnd(stripped, objStrippedStart);
+    resolved = { stripped: stripped.slice(objStrippedStart, objEnd), original: original.slice(objStrippedStart, objEnd) };
+  } else {
+    const helperCallMatch = /^([A-Za-z_$][A-Za-z0-9_$]*)\s*\(/.exec(depsValue);
+    if (helperCallMatch) {
+      resolved = resolveHelperObjectLiteral(stripped, original, helperCallMatch[1]);
+      if (resolved === null) {
+        return {
+          detail: `\`deps: ${depsValue}\` — helper \`${helperCallMatch[1]}\` not found (or not resolvable) in the same file`,
+        };
+      }
+    } else {
+      return { detail: `\`deps: ${depsValue}\` is neither an object literal nor a same-file helper call` };
+    }
+  }
+
+  return { resolved: resolved! };
+}
+
 function checkFile(original: string, relPath: string): Finding[] {
   const stripped = stripCommentsAndStrings(original);
   const findings: Finding[] = [];
@@ -354,34 +403,12 @@ function checkFile(original: string, relPath: string): Finding[] {
       continue;
     }
 
-    let resolved: { stripped: string; original: string } | null = null;
-    if (depsValue.trimStart().startsWith("{")) {
-      // Re-locate the object literal within the (stripped) call-args text to get aligned offsets.
-      const relOffset = callArgsOriginal.indexOf(depsValue);
-      const absOffset = parenIndex + (relOffset === -1 ? 0 : relOffset);
-      const objStrippedStart = stripped.indexOf("{", absOffset);
-      const objEnd = matchBracketEnd(stripped, objStrippedStart);
-      resolved = { stripped: stripped.slice(objStrippedStart, objEnd), original: original.slice(objStrippedStart, objEnd) };
-    } else {
-      const helperCallMatch = /^([A-Za-z_$][A-Za-z0-9_$]*)\s*\(/.exec(depsValue);
-      if (helperCallMatch) {
-        resolved = resolveHelperObjectLiteral(stripped, original, helperCallMatch[1]);
-        if (resolved === null) {
-          findings.push({
-            kind: "unresolved",
-            file: relPath,
-            line,
-            fn: fnName,
-            bridge,
-            detail: `\`deps: ${depsValue}\` — helper \`${helperCallMatch[1]}\` not found (or not resolvable) in the same file`,
-          });
-          continue;
-        }
-      } else {
-        findings.push({ kind: "unresolved", file: relPath, line, fn: fnName, bridge, detail: `\`deps: ${depsValue}\` is neither an object literal nor a same-file helper call` });
-        continue;
-      }
+    const resolution = resolveDepsExpression({ stripped, original, depsValue, callArgsOriginal, parenIndex });
+    if ("detail" in resolution) {
+      findings.push({ kind: "unresolved", file: relPath, line, fn: fnName, bridge, detail: resolution.detail });
+      continue;
     }
+    const resolved = resolution.resolved;
 
     const outboxResult = findOutboxValue(stripped, original, resolved.stripped, resolved.original, 1, new Set());
     if ("unresolvedDetail" in outboxResult) {

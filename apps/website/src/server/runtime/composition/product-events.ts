@@ -95,11 +95,9 @@ function declaredProperties({ rules, properties }: { rules: Rules; properties: P
   for (const [key, rule] of Object.entries(rules)) {
     const value = properties?.[key];
     if (value === undefined) continue;
-    if (!allowedValue({ rule, value })) {
-      if (Array.isArray(rule)) continue;
-      return undefined;
-    }
-    projected[key] = value;
+    if (allowedValue({ rule, value })) projected[key] = value;
+    else if (!Array.isArray(rule)) return undefined;
+    else { /* Invalid enum values are omitted. */ }
   }
   return projected;
 }

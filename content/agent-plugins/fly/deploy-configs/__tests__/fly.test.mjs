@@ -135,6 +135,7 @@ primary_region = "iad"
   TOVU_RUNTIME_MODE = "production"
   PORT = "3000"
   TOVU_SITE = "tovu-com"
+  TOVU_SITE_ID = "fly-site-fixture"
   TOVU_PUBLIC_URL = "https://tovu.dev"
 
 [[mounts]]
@@ -161,7 +162,7 @@ test("renderFlyToml preserves every production field, including the live volume 
     ...FIXTURE_DESCRIPTOR, appName: "tovu", port: 3000, volumeName: "tovu_sites",
   }, {
     region: "iad",
-    env: { TOVU_SITE: "tovu-com", TOVU_PUBLIC_URL: "https://tovu.dev" },
+    env: { TOVU_SITE: "tovu-com", TOVU_SITE_ID: "fly-site-fixture", TOVU_PUBLIC_URL: "https://tovu.dev" },
     buildArgs: { TOVU_INSTALL_BROWSER: "0" },
   });
   assert.equal(result.contents, PRODUCTION_FLY_TOML);
@@ -188,7 +189,7 @@ test("the production workflow's generation command uses the plugin and emits the
   copyFileSync(MODULE_PATH, moduleCopy);
   const result = spawnSync("bash", ["-eu", "-c", steps[index].run], {
     cwd: root, encoding: "utf8",
-    env: { PATH: process.env.PATH, ...workflow.env, TOVU_ADMIN_PASSWORD: "never-render-this-secret" },
+    env: { PATH: process.env.PATH, ...workflow.env, TOVU_SITE_ID: "fly-site-fixture", TOVU_ADMIN_PASSWORD: "never-render-this-secret" },
   });
   assert.equal(result.status, 0, result.stderr);
   assert.equal(readFileSync(path.join(root, "fly.toml"), "utf8"), PRODUCTION_FLY_TOML);

@@ -6,7 +6,7 @@ import { humanConfirmedToolHandler } from '#src/contracts/core/human-confirm';
 import { plan, confirm, execute, PlanStaleError, ForbiddenError, type GatedMutationHooks, type GatewayDeps } from '#src/contracts/core/gated-mutations/gateway';
 import { TokenExpiredError, TokenAlreadyRedeemedError } from '#src/contracts/core/gated-mutations/token';
 import { planHashOf, resolveActorClassIdentity } from '#src/contracts/core/gated-mutations/composition';
-import type { StaticPublishToolDeps } from '../publish-agent-tools.js';
+import type { StaticPublishToolDeps } from '../publish-tool-deps.js';
 import type { StaticPublishConfig, StaticPublishOutcome, PublishCredentialSource } from './types.js';
 import { inspectStaticPublish, type StaticPublishInspection } from './inspection.js';
 import { getPublishRunSnapshot, runPublishAndAwait } from './publish-run.js';

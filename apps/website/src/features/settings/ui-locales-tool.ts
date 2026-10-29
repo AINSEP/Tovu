@@ -4,7 +4,7 @@ import { buildDomainRegistrations, indexCatalogById, requireNoInput, type AgentT
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import { ADMIN_LOCALES } from "../../contracts/core/admin-locales.js";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 
 /** n05's real gap: supported admin language codes were only discoverable by shell reads.
  * Uses the canonical kernel catalog contract shared by the native feature tools. */
@@ -77,6 +77,6 @@ export function buildUiLocalesRegistrations(deps: UiLocalesToolDeps): ToolRegist
  * @complexity O(1).
  * @example registerToolContributor(contributeUiLocalesTools())
  */
-export function contributeUiLocalesTools(): ToolContributor {
+export function contributeUiLocalesTools(): ToolContributor<UiLocalesToolDeps, unknown> {
   return { domain: "settings-ui-locales", build: buildUiLocalesRegistrations, risk: uiLocalesDerivedRisk };
 }

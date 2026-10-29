@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { compileFunction } from 'node:vm';
 import ts from 'typescript';
 import React from 'react';
 
@@ -12,7 +13,8 @@ export function sourceFunction(source: string, name: string, bindings: Record<st
     compilerOptions: { target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React },
   }).outputText;
   const globals = { React, ...bindings };
-  return new Function(...Object.keys(globals), `${code}\nreturn ${name};`)(...Object.values(globals));
+  // Only the parsed repository declaration is compiled; bindings stay function parameters.
+  return compileFunction(`${code}\nreturn ${name};`, Object.keys(globals))(...Object.values(globals));
 }
 
 /** Walk the elements actually returned by a component, including private child components. */
@@ -34,7 +36,8 @@ export function hookHarness() {
   let queued: (() => void)[] = [];
   const bindings = {
     useState(initial: any) {
-      const index = cursor++;
+      const index = cursor;
+      cursor++;
       if (!(index in states)) {
         states[index] = typeof initial === 'function' ? initial() : initial;
         setters[index] = (next: any) => {
@@ -46,7 +49,8 @@ export function hookHarness() {
     },
     useCallback(callback: any) { cursor++; return callback; },
     useEffect(effect: () => (() => void) | void, deps: readonly unknown[]) {
-      const index = cursor++;
+      const index = cursor;
+      cursor++;
       const previous = effects[index];
       if (previous && deps.length === previous.deps.length && deps.every((dep, i) => Object.is(dep, previous.deps[i]))) return;
       queued.push(() => {

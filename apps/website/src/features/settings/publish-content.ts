@@ -66,14 +66,19 @@ export interface SiteSettingRow {
 type Ports = PublishContentPorts["site-setting"];
 
 /** Loopback, private-range and `.local` hosts: a URL naming one only works on this computer. */
-const LOCAL_HOST = /^(?:localhost|.*\.localhost|.*\.local|127(?:\.\d+){3}|0\.0\.0\.0|\[::1?\]|10(?:\.\d+){3}|192\.168(?:\.\d+){2}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d+){2})$/i;
+const LOCAL_HOSTS = [
+  /^(?:localhost|.*\.localhost|.*\.local|0\.0\.0\.0|\[::1?\])$/i,
+  /^(?:127|10)(?:\.\d+){3}$/,
+  /^(?:192\.168(?:\.\d+){2}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d+){2})$/,
+];
 
 /** An absolute URL whose host is this computer or its private network. A media ref (`<id>:<transform>`)
  *  or a public URL is fine. @complexity O(n) in the value's length. */
 export function pointsAtThisComputer(value: unknown): boolean {
   if (typeof value !== "string" || !/^[a-z][a-z\d+.-]*:\/\//i.test(value.trim())) return false;
   try {
-    return LOCAL_HOST.test(new URL(value.trim()).hostname);
+    const hostname = new URL(value.trim()).hostname;
+    return LOCAL_HOSTS.some(pattern => pattern.test(hostname));
   } catch {
     return true;
   }

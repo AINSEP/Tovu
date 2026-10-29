@@ -119,3 +119,39 @@ export function isPartialFilePath(relativePath: string, apiVersion?: 2): boolean
   const { partialsDir } = resolveThemeLayout(apiVersion);
   return partialsDir === "" ? !relativePath.includes("/") : relativePath.startsWith(`${partialsDir}/`);
 }
+
+/**
+ * Named engine-specific subfolders under a themes root, one per {@link ThemeTier} except `code`
+ * (not built yet) — every tier's themes live under its own subfolder so `themes/` doesn't mix
+ * formats in one flat listing (2026-08-10: `declarative` moved off the bare top level, and the
+ * LiquidJS-tier folder renamed from `liquidjs/` to `templated/` to match its `ThemeTier` value —
+ * `templated` names the tier, not the engine, so more templating engines can land under this same
+ * folder later without another rename). Scanning a missing subfolder is a no-op (`discoverThemes`'s
+ * own missing-dir ⇒ empty-list behavior), so adding an engine here ahead of its first theme costs
+ * nothing.
+ *
+ * Exported because it is also the containment boundary the `themes` agent-tool domain enforces
+ * (`agent-tools.ts`/`tool-registrations.ts`): a theme folder that is not a direct child of the
+ * themes root or of one of THESE subfolders is not a recognized theme root, and no agent-driven file
+ * write may resolve into it.
+ */
+// Before extraction, theme-files imported these names from theme discovery, which imported
+// GENERATED_THEME_DIRS/isSourceDirGeneratedConflict back. That cycle was safe only because those
+// values were consumed inside loadTheme, never at module evaluation; the layout leaf removes it.
+export const ENGINE_SUBFOLDERS = ["declarative", "templated", "handlebars", "static"] as const;
+
+/**
+ * The pristine-originals catalog under a themes root: shipped themes kept untouched so a copy can
+ * always be compared against, reset to, or re-forked from what it started as.
+ *
+ * It is NOT a tier and NOT a theme — it holds its own `<tier>/<theme>/` tree — so discovery skips it
+ * outright. A catalog theme is never runnable, never listed, and never the active theme; it becomes
+ * either of those only by being COPIED into a real tier folder, which is the whole point: editing
+ * your copy can never damage the thing you'd want to compare it against.
+ *
+ * The `__` prefix is load-bearing rather than decorative. It makes "this is not an installed theme"
+ * a property of the name that any code path can check, instead of a list every new write path has to
+ * remember to consult — see the containment note on {@link ENGINE_SUBFOLDERS}, which already refuses
+ * agent-driven writes to anything that isn't a direct child of the root or of an engine subfolder.
+ */
+export const THEME_CATALOG_DIR = "__original-themes__";

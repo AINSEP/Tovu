@@ -73,6 +73,7 @@ const CASES: readonly ModuleCase[] = [
       `POST ${W}/agent-plugins/:pluginId/surfaces/:surfaceId/bootstrap`,
       `POST ${W}/agent-plugins/:pluginId/surfaces/:surfaceId/actions`,
       "GET /api/agent-plugin-surfaces/v1/:pluginId/:surfaceId/*",
+      "GET /api/agent-plugin-exports/v1/:pluginId/:component/*",
       // Session-gated: a hosted sign-in link binds the starting browser, then redirects to the provider.
       `GET ${W}/agent-plugins/connections/sign-in/:handoffId`,
       // PUBLIC: plugin-declared API connections' hosted OAuth callback (session-less by necessity).
@@ -142,7 +143,7 @@ const CASES: readonly ModuleCase[] = [
   },
   {
     name: "members",
-    create: () => createMembersModule({ admin: noDeps, public: noDeps }),
+    create: () => createMembersModule({ admin: noDeps, public: noDeps }, { oidc: noDeps }),
     routes: [
       `GET ${W}/members`,
       `GET ${W}/members/:memberId`,
@@ -151,6 +152,17 @@ const CASES: readonly ModuleCase[] = [
       `POST ${W}/members/request-magic-link`,
       "POST /api/members/v1/workspaces/:workspaceId/sign-in",
       "POST /api/members/v1/workspaces/:workspaceId/sign-in/complete",
+      "POST /api/members/v1/workspaces/:workspaceId/password/sign-in",
+      "POST /api/members/v1/workspaces/:workspaceId/forgot-password",
+      "POST /api/members/v1/workspaces/:workspaceId/reset-password",
+      "POST /api/members/v1/workspaces/:workspaceId/password/set",
+      "GET /api/members/v1/workspaces/:workspaceId/me",
+      "POST /api/members/v1/workspaces/:workspaceId/sign-out",
+      "GET /api/members/v1/workspaces/:workspaceId/login-providers",
+      "GET /api/members/v1/workspaces/:workspaceId/oidc/:providerId/start",
+      "GET /api/members/v1/workspaces/:workspaceId/oidc/:providerId/callback",
+      "POST /api/members/v1/workspaces/:workspaceId/oidc/:providerId/verify-email",
+      "POST /api/members/v1/workspaces/:workspaceId/identities/:providerId/unlink",
     ],
   },
   {
@@ -175,6 +187,9 @@ const CASES: readonly ModuleCase[] = [
       `PATCH ${W}/plugins/:pluginId`,
       `DELETE ${W}/plugins/:pluginId`,
       `GET ${W}/plugins/:pluginId/files`,
+      `GET ${W}/plugins/:pluginId/provider-settings`,
+      `PUT ${W}/plugins/:pluginId/provider-settings`,
+      `PUT ${W}/project-keys/:keyId/use`,
       `POST ${W}/plugins/install/preview`,
       `POST ${W}/plugins/install`,
       `POST ${W}/plugins/install/zip/preview`,
@@ -279,7 +294,7 @@ const CASES: readonly ModuleCase[] = [
 ];
 
 interface ExpressRouteLayer {
-  route?: { path: string; methods: Record<string, boolean> };
+  route?: { path: string | string[]; methods: Record<string, boolean> };
 }
 
 function routesOf(app: express.Express): string[] {
@@ -288,7 +303,8 @@ function routesOf(app: express.Express): string[] {
     layer.route
       ? Object.keys(layer.route.methods)
           .filter((m) => layer.route!.methods[m])
-          .map((m) => `${m.toUpperCase()} ${layer.route!.path}`)
+          // OIDC's unavailable handler mounts several explicit paths on one Express route.
+          .flatMap((m) => [layer.route!.path].flat().map((path) => `${m.toUpperCase()} ${path}`))
       : []
   );
 }

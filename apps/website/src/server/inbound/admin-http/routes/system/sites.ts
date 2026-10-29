@@ -1,15 +1,15 @@
-import { createSitesWorkspace, type SitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { registerSitesHomeRoutes } from "../sites/sites-home.js";
 import { registerLocalSitesRoutes, type LocalSitesRouteDeps } from "../sites/local-sites.js";
 import { localSiteSupervisorForHost } from "#src/server/runtime/lifecycle/local-site-host";
 import { registerSitePreviewRoutes, servingAddressOf, sitePreviewTargets } from "../sites/site-previews.js";
 import { sitePreviewServiceForHost } from "#src/server/runtime/lifecycle/site-preview-host";
 import type { SitePreviewService } from "#src/features/sites/index";
-import { listSiteTrash } from "#src/platform/site-dir/site-trash";
 import type { Express, Request, Response } from "express";
 
 import {
-  type createSite as createSiteReal,
+  createSitesWorkspace,
+  type SitesWorkspace,
+  listSiteTrash,
   includeServingSite,
   listSites as listSitesReal,
   listSitesForBinding,
@@ -122,7 +122,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * key into its folder and applied on that site's first boot
  * (`composition/pending-agent-plugin-tokens.ts`). Leaving it out creates the site exactly as before.
  */
-export type AdminSitesDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "siteBinding"> & {
+export type AdminSitesDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "siteBinding" | "createSite"> & {
   tracker?: RouteDeps["tracker"];
   sitesWorkspace?: SitesWorkspace;
   localSiteSupervisor?: LocalSitesRouteDeps["localSiteSupervisor"];
@@ -139,7 +139,6 @@ export type AdminSitesDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "site
   /** Injectable so a route test proves both branches without touching the real filesystem or
    *  `sites/`. Each defaults to the real `site-dir`/`site-switcher-enabled` implementation. */
   listSites?: (optional?: Parameters<typeof listSitesReal>[0]) => readonly SiteListEntry[];
-  createSite?: typeof createSiteReal;
   persistActiveSite?: typeof persistActiveSiteReal;
   readSiteRunning?: typeof readSiteRunning;
   isSiteSwitcherEnabled?: typeof isSiteSwitcherEnabledReal;
@@ -241,10 +240,9 @@ function listingPreviewVersions({ req, sites, binding, localSites, sitePreviews,
   isSiteSwitcherEnabled: ListingContext["isSiteSwitcherEnabled"];
 }, _options = {}) {
   // Reads capture mtimes and only ENQUEUES due captures — never awaited here (see the service).
-  const previewVersions = sitePreviews && isSiteSwitcherEnabled()
+  return sitePreviews && isSiteSwitcherEnabled()
     ? sitePreviews.versions({ sites, targets: sitePreviewTargets({ servingName: binding.name, localSites }, { serving: servingAddressOf({ req }) }) })
     : {};
-  return previewVersions;
 }
 
 /** Whether this boot can restart onto another site. @complexity O(1) time/space. */
@@ -252,7 +250,8 @@ function canSwitchListingSite({ isSiteSwitcherEnabled, devRestart, binding, swit
   isSiteSwitcherEnabled: ListingContext["isSiteSwitcherEnabled"]; devRestart: DevRestartPort | null;
   binding: AdminSitesDeps["siteBinding"]; switcherBase: string | null;
 }, _options = {}) {
-  return isSiteSwitcherEnabled() && devRestart !== null && devRestart.canSwitchSite !== false && !binding.dirOverridden && switcherBase !== null;
+  if (!isSiteSwitcherEnabled() || devRestart === null || devRestart.canSwitchSite === false) return false;
+  return !binding.dirOverridden && switcherBase !== null;
 }
 
 /** HTTP management capabilities and Trash snapshot; failures propagate to the listing route.

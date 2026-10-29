@@ -3,7 +3,7 @@ import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnosti
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
 import { defineSecretCardTool, type SecretCardRun } from '@jini-ai/ui/mcp-ui/secret-card';
 import { credentialText, formatCredentialHint, formatCredentialHints, translateCredentialMessage } from '../../contracts/core/credential-copy.js';
-import { resolveOperatorLocale } from '../agent-plugins/operator-locale.js';
+import { resolveOperatorLocale } from '../../contracts/headless/operator-locale.js';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { UUID } from "@jini-ai/core/primitives";
@@ -13,7 +13,7 @@ import {
   askThenReport,
   type AssistantSurfaceDeps,
 } from "@jini-ai/daemon/surface-exchanges";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 // Value imports from `#src/assistant/index` — the same seam `server/inbound/admin-http/routes/
 // external-mcp/{put,probe}.ts` already use for the identical operations. See `deps.ts`'s own header,
 // which anticipates exactly this: "This domain's `tool-registrations.ts` ALREADY value-imports
@@ -126,6 +126,8 @@ import { buildExternalMcpSaveForm, mergeExternalMcpSavePrefill, EXTERNAL_MCP_SAV
  * case for that refusal is a future composition root that forgot to, not "the operator forgot an env
  * var".
  */
+
+const EXTERNAL_MCP_ENTITY_TYPE = "external-mcp-server" as const;
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: externalMcpAgentToolCatalog });
 
@@ -387,7 +389,8 @@ async function saveSubmittedExternalMcpConfiguration(
     server, routeDeps, locale,
   });
   const hint = [formatCredentialHint({ hint: server.accessTokenHint, locale }), formatCredentialHints({ hints: server.envTokenHints, locale })].filter(Boolean).join(' · ');
-  return { saved: true, server, connection: connectionCode, message: `${hint ? `${hint}. ` : ''}${connection}` };
+  const hintPrefix = hint ? `${hint}. ` : '';
+  return { saved: true, server, connection: connectionCode, message: `${hintPrefix}${connection}` };
 }
 
 /** Report reachability after a durable save; probe failure does not undo that save. */
@@ -404,7 +407,11 @@ async function probeSavedExternalMcpConfiguration(
   try {
     const result = await routeDeps.externalMcpProbe({ serverId: server.serverId });
     const connectionCode = result.ok ? "connected" : String(result.body.code ?? "MCP_SERVER_UNREACHABLE");
-    const id = result.ok ? "connected" : connectionCode === "MCP_AUTH_REJECTED" ? "auth" : connectionCode === "MCP_TIMEOUT" ? "timeout" : "unreachable";
+    let id: "connected" | "auth" | "timeout" | "unreachable";
+    if (result.ok) id = "connected";
+    else if (connectionCode === "MCP_AUTH_REJECTED") id = "auth";
+    else if (connectionCode === "MCP_TIMEOUT") id = "timeout";
+    else id = "unreachable";
     return { connectionCode, connection: credentialText({ id, locale }) };
   } catch {
     return { connectionCode: "MCP_SERVER_UNREACHABLE", connection: credentialText({ id: "unreachable", locale }) };
@@ -439,7 +446,7 @@ function externalMcpSaveHandler({ routeDeps, surfaces }: { routeDeps: ExternalMc
       prepare: async ({ ctx }) => {
         const input = requireInputRecord({ input: ctx.input });
         await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
-          workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: "external-mcp-server" });
+          workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: EXTERNAL_MCP_ENTITY_TYPE });
         const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
         errorLocale = locale;
         const modelInput = buildModelSaveInput(input);
@@ -513,7 +520,7 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
     external_mcp_list: async (ctx) => {
       requireNoInput({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
-        workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: "external-mcp-server" });
+        workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: EXTERNAL_MCP_ENTITY_TYPE });
 
       const servers = await listExternalMcpServerViews({ repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer }, routeDeps.workspaceId);
       return { servers };
@@ -533,7 +540,7 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
       const input = requireInputRecord({ input: ctx.input });
       const id = requireString({ input, key: "id" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
-        workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: "external-mcp-server",
+        workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: EXTERNAL_MCP_ENTITY_TYPE,
         entityId: id });
 
       const record = await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: id });
@@ -555,7 +562,7 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
       const input = requireInputRecord({ input: ctx.input });
       const id = requireString({ input, key: "id" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
-        workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: "external-mcp-server",
+        workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: EXTERNAL_MCP_ENTITY_TYPE,
         entityId: id });
 
       if (!routeDeps.externalMcpOAuth) {
@@ -584,7 +591,7 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
       const input = requireInputRecord({ input: ctx.input });
       const id = requireString({ input, key: "id" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
-        workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: "external-mcp-server",
+        workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: EXTERNAL_MCP_ENTITY_TYPE,
         entityId: id });
 
       if (!routeDeps.externalMcpOAuth) {
@@ -618,6 +625,6 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
  * `server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not
  * by importing this module. See this file's header for what was unreachable before this existed.
  */
-export function contributeExternalMcpTools({ probe }: { probe?: (deps: ExternalMcpToolDeps, serverId: string) => Promise<{ ok: boolean; body: Readonly<Record<string, unknown>> }> } = {}, _optional = {}): ToolContributor {
+export function contributeExternalMcpTools({ probe }: { probe?: (deps: ExternalMcpToolDeps, serverId: string) => Promise<{ ok: boolean; body: Readonly<Record<string, unknown>> }> } = {}, _optional = {}): ToolContributor<ExternalMcpToolDeps, AssistantSurfaceDeps> {
   return { domain: "external-mcp", build: (deps, surfaces) => buildExternalMcpRegistrations({ ...deps, ...(probe ? { externalMcpProbe: ({ serverId }: { serverId: string }) => probe(deps, serverId) } : {}) }, surfaces), risk: externalMcpDerivedRisk };
 }

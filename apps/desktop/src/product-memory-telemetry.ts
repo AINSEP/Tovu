@@ -40,11 +40,11 @@ function reportMemoryMetrics({ tracker, processes, uptimeSeconds }: { tracker: T
   tracker.metric({ name: 'process.uptime', value: Math.round(uptimeSeconds) }, { kind: 'gauge', unit: 's', attributes: { process: 'main' } });
 }
 
-/** Reuses the exact monitor instance read by Resources IPC. Hidden windows still get a five-minute
- * observation; no sampler/timer exists per window or site. In-flight ticks coalesce and disposal
+/** Reuses the exact monitor instance read by Resources IPC. The host pauses scheduling while inactive;
+ * no sampler/timer exists per window or site. In-flight ticks coalesce and disposal
  * blocks late sends. Consent is checked again after the asynchronous monitor read.
  * @param required Existing monitor, tracker, consent and Electron process-metadata ports.
- * @param options Cadence, clock and scheduling ports; defaults are five minutes and native timers.
+ * @param options Host scheduling port, cadence and clock; default cadence is five minutes.
  * @returns tick for deterministic tests and dispose for the desktop drain.
  * @complexity O(p*w) bounded by the existing monitor and Jini detector; at most 64 points/process.
  */
@@ -52,9 +52,7 @@ export function startProductMemoryTelemetry({ monitor, tracker, readConsent, des
   monitor: { get(input: { panelOpen: boolean }): Promise<ResourcesSnapshot> }; tracker: Tracker;
   readConsent: () => ProductConsent; desktopPid: number; rendererPids: () => ReadonlySet<number>;
   heapUsedBytes: () => number; uptime: () => number;
-}, { intervalMs = 5 * 60_000, now = Date.now, schedule = (tick, ms) => {
-  const timer = setInterval(tick, ms); timer.unref(); return () => clearInterval(timer);
-} }: { intervalMs?: number; now?: () => number; schedule?: (tick: () => void, ms: number) => () => void } = {}): ProductMemoryTelemetry {
+}, { intervalMs = 5 * 60_000, now = Date.now, schedule }: { intervalMs?: number; now?: () => number; schedule: (tick: () => void, ms: number) => () => void }): ProductMemoryTelemetry {
   const cadenceMs = Math.max(60_000, intervalMs);
   const growth = createMemoryGrowthDetector({ now }, { maxSamples: Math.min(64, Math.ceil(60 * 60_000 / cadenceMs) + 2), maxGapMs: cadenceMs * 2 });
   let disposed = false;
@@ -80,5 +78,13 @@ export function startProductMemoryTelemetry({ monitor, tracker, readConsent, des
     return pending;
   }
   const cancel = schedule(() => { void tick(); }, cadenceMs);
-  return { tick, dispose() { if (disposed) return; disposed = true; cancel(); growth.reset(); } };
+  return {
+    tick,
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      cancel();
+      growth.reset();
+    },
+  };
 }

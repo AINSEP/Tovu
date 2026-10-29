@@ -19,9 +19,11 @@ import { maskNonRenderableRegions } from "@jini-ai/cms/widgets/markers";
 export const MAX_REVEAL_FINDINGS = 10;
 
 const START_TAG = /<([a-z][a-z0-9-]*)\b((?:[^>"']|"[^"]*"|'[^']*')*)>/gi;
-const ATTRIBUTE = /([^\s=/>"']+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>"']+)))?/g;
+const ATTRIBUTE_NAME = /([^\s=/>"']+)/g;
+const ATTRIBUTE_VALUE = /\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>"']+))/y;
 /** Exactly zero opacity or `visibility: hidden` — `opacity: 0.5` is a design choice, not hidden. */
-const HIDING_DECLARATION = /(?:^|;)\s*(opacity\s*:\s*0(?:\.0+)?%?|visibility\s*:\s*hidden)\s*(?:!important\s*)?(?=;|$)/i;
+const ZERO_OPACITY = /^\s*(opacity\s*:\s*0(?:\.0+)?%?)\s*(?:!important\s*)?$/i;
+const HIDDEN_VISIBILITY = /^\s*(visibility\s*:\s*hidden)\s*(?:!important\s*)?$/i;
 /** Attributes only scroll-reveal libraries write (AOS, SAL, ScrollReveal). */
 const REVEAL_ATTRIBUTES: readonly string[] = ["data-aos", "data-sal", "data-sr-id"];
 /** Classes only scroll-reveal libraries need (WOW.js hides `.wow` until it runs). */
@@ -32,16 +34,25 @@ const HTML_COMMENT = /<!--[\s\S]*?-->/g;
 const STYLE_BLOCK = /<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi;
 const CSS_COMMENT = /\/\*[\s\S]*?\*\//g;
 const KEYFRAMES_BLOCK = /@(?:-[a-z]+-)?keyframes[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/gi;
-const CSS_RULE = /([^{}]+)\{([^{}]*)\}/g;
 
 function readAttributes(raw: string): Map<string, string> {
   const attributes = new Map<string, string>();
-  for (const match of raw.matchAll(ATTRIBUTE)) attributes.set(match[1]!.toLowerCase(), match[2] ?? match[3] ?? match[4] ?? "");
+  ATTRIBUTE_NAME.lastIndex = 0;
+  for (let name = ATTRIBUTE_NAME.exec(raw); name; name = ATTRIBUTE_NAME.exec(raw)) {
+    ATTRIBUTE_VALUE.lastIndex = ATTRIBUTE_NAME.lastIndex;
+    const value = ATTRIBUTE_VALUE.exec(raw);
+    if (value) ATTRIBUTE_NAME.lastIndex = ATTRIBUTE_VALUE.lastIndex;
+    attributes.set(name[1]!.toLowerCase(), value?.[1] ?? value?.[2] ?? value?.[3] ?? "");
+  }
   return attributes;
 }
 
 function hidingDeclaration(declarations: string): string | undefined {
-  return HIDING_DECLARATION.exec(declarations.trim())?.[1];
+  for (const declaration of declarations.trim().split(";")) {
+    const hidden = ZERO_OPACITY.exec(declaration) ?? HIDDEN_VISIBILITY.exec(declaration);
+    if (hidden) return hidden[1];
+  }
+  return undefined;
 }
 
 /** The one reason this element is hidden until a script runs, or `undefined`. */
@@ -62,7 +73,20 @@ function elementFindings(html: string): string[] {
     const reason = elementReason(attributes);
     if (reason === undefined) continue;
     const className = attributes.get("class");
-    findings.push(`<${match[1]!.toLowerCase()}${className ? ` class="${className}"` : ""}> has ${reason}`);
+    const classAttribute = className ? ` class="${className}"` : "";
+    findings.push(`<${match[1]!.toLowerCase()}${classAttribute}> has ${reason}`);
+  }
+  return findings;
+}
+
+function cssRuleFindings({ css }: { css: string }, _optional: Record<string, never> = {}): string[] {
+  const findings: string[] = [];
+  const parts = css.split(/([{}])/);
+  for (let i = 1; i + 2 < parts.length; i += 2) {
+    if (parts[i] !== "{" || parts[i + 2] !== "}" || parts[i - 1] === "") continue;
+    const selector = parts[i - 1]!.trim().replace(/\s+/g, " ");
+    const hidden = hidingDeclaration(parts[i + 1]!);
+    if (hidden !== undefined && !selector.startsWith("@") && REVEAL_SELECTOR.test(selector)) findings.push(`<style> rule "${selector}" sets ${hidden}`);
   }
   return findings;
 }
@@ -71,11 +95,7 @@ function styleRuleFindings(html: string): string[] {
   const findings: string[] = [];
   for (const block of html.replace(HTML_COMMENT, "").matchAll(STYLE_BLOCK)) {
     const css = block[1]!.replace(CSS_COMMENT, "").replace(KEYFRAMES_BLOCK, "");
-    for (const rule of css.matchAll(CSS_RULE)) {
-      const selector = rule[1]!.trim().replace(/\s+/g, " ");
-      const hidden = hidingDeclaration(rule[2]!);
-      if (hidden !== undefined && !selector.startsWith("@") && REVEAL_SELECTOR.test(selector)) findings.push(`<style> rule "${selector}" sets ${hidden}`);
-    }
+    findings.push(...cssRuleFindings({ css }));
   }
   return findings;
 }

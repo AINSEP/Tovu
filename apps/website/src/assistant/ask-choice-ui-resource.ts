@@ -4,8 +4,8 @@ const HTML_MIME_TYPES: ReadonlySet<string> = new Set(["text/html", "text/html;pr
 
 /** Narrows the renderer's unknown package boundary without casting a required presentation port. */
 export function isAskChoiceUiResource(ui: unknown): ui is UIResource {
-  return isRecord(ui) && ui.type === "resource" && isRecord(ui.resource)
-    && hasUiUri({ resource: ui.resource }) && hasHtmlText({ resource: ui.resource });
+  if (!isRecord(ui) || ui.type !== "resource" || !isRecord(ui.resource)) return false;
+  return hasUiUri({ resource: ui.resource }) && hasHtmlText({ resource: ui.resource });
 }
 
 /** Any non-null object; properties are then read as unknown. A positional parameter because a type

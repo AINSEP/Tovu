@@ -1,15 +1,17 @@
 import { createTracker, createTrackerWarning, createTelemetryTestProbe } from "@jini-ai/diagnostics/observability/node";
-import type { ConsentPluginContribution } from '../../inbound/public-http/middleware/site-cookie-consent.js';
+import type { ConsentPluginContribution } from '#src/contracts/headless/site-cookie-consent';
 import { createHash } from 'node:crypto';
 import { createTelemetryDeliveryMonitor, describeTelemetryFailure, type Tracker, type ProviderTelemetryReport, type TelemetryTestResult } from "@jini-ai/diagnostics/observability";
 import { combineObservabilityPorts, createNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 import { createAiGenerationSink, createNoopProductAnalytics, fanOutProductAnalytics, withProductAnalyticsGuards, type ProductAnalyticsConsent, type ProductAnalyticsConsentRevision, type ProductAnalyticsPort, type BrowserAnalyticsContribution } from "@jini-ai/analytics/product";
 import { createFanOutAiTraceSink, type AiTraceSink } from "@jini-ai/agent-runtime/ai-trace";
-import { createPluginProviderHost, pluginProviderStartupGuidance, isProviderSettingRequired, type PluginContributionRegistry, type PluginProviderContract, type PluginProviderDeclaration, type PluginProviderLease } from "@jini-ai/plugins/host";
+import { createPluginProviderHost, pluginProviderStartupGuidance, isProviderSettingRequired, type PluginContributionRegistry, type PluginProviderDeclaration, type PluginProviderLease } from "@jini-ai/plugins/host";
 
 import type { ProviderConfigSource, ProviderPluginConfig } from "./provider-config-source.js";
 import { bootProductTelemetryFromEnv, type ProductTelemetry, type ProductTelemetryOptions } from './product-telemetry.js';
 import { processBuildRelease } from './build-release.js';
+import { PROVIDER_CONTRACTS } from "./provider-contracts.js";
+export { PROVIDER_CONTRACTS } from "./provider-contracts.js";
 
 /**
  * @file Provider plugins at boot (provider wave 2, 2026-10-25): observability, product analytics and
@@ -39,7 +41,7 @@ export type ProviderContract = "observability" | "product_analytics" | "ai_trace
 export interface SiteIdentity {
   readonly siteId: string;
   readonly siteSlug: string;
-  readonly environment: "local" | "desktop" | "fly";
+  readonly environment: "local" | "desktop" | "production";
   readonly projectId: string;
 }
 
@@ -91,26 +93,6 @@ export function providerInputOf({ declaration, saved }: { declaration: PluginPro
   const present = (name: string) => (values[name] ?? "").trim() !== "";
   if (fields.some((field) => isProviderSettingRequired({ field, values }) && !present(field.name))) return undefined;
   return Object.fromEntries(fields.filter((field) => present(field.name)).map((field) => [field.name, values[field.name]!]));
-}
-
-const hasMethods = ({ value, names }: { value: unknown; names: readonly string[] }): boolean =>
-  typeof value === "object" && value !== null && names.every((name) => typeof (value as Record<string, unknown>)[name] === "function");
-
-/** Domain-owned port checks; a plugin never supplies or replaces these validators. */
-export const PROVIDER_CONTRACTS: readonly PluginProviderContract[] = [
-  // `metric` is not required: contract v1 providers predate it, and gatedPort routes a missing method to the noop.
-  { contract: "observability", validate: ({ provider }) => hasMethods({ value: provider, names: ["trackRequest", "trackDbQuery", "trackOutboundCall", "trackAgentRun", "trackOperation", "reportError"] }) ? undefined : "not an ObservabilityPort" },
-  { contract: "product_analytics", validate: ({ provider }) => hasMethods({ value: provider, names: ["capture", "identify"] }) && validAiCapability({ provider }) ? undefined : "not a ProductAnalyticsPort" },
-  { contract: "ai_trace", validate: ({ provider }) => hasMethods({ value: provider, names: ["record"] }) ? undefined : "not an AiTraceSink" },
-];
-
-/** Optional capabilities remain optional; malformed declarations are refused before composition.
- * @complexity O(1). */
-function validAiCapability({ provider }: { provider: unknown }): boolean {
-  const port = provider as ProductAnalyticsPort;
-  return (port.captureAiGeneration === undefined || typeof port.captureAiGeneration === "function")
-    && (port.browserAnalytics === undefined || typeof port.browserAnalytics === 'function')
-    && (port.includeAiContent === undefined || typeof port.includeAiContent === "boolean");
 }
 
 export interface ProviderPluginRuntime {

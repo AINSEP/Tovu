@@ -2,7 +2,7 @@
  * endpoint is inherited by serve and its agent daemon; it never enters preload or site storage.
  */
 import type { BrowserWindow, BrowserWindowConstructorOptions } from 'electron';
-import { createElectronRenderService, type ElectronBrowserWindowFactory, type ElectronWebContentsLike } from '@jini-ai/desktop-host/electron';
+import { createElectronRenderService, type ElectronBrowserWindowFactory, type ElectronWebContentsLike, type ElectronUrlCapturePoolPort } from '@jini-ai/desktop-host/electron';
 import { RenderServiceError } from '@jini-ai/desktop-host';
 
 /** Native bindings only; Jini owns rendering, bounds, request policy and destruction.
@@ -71,12 +71,16 @@ export function desktopCaptureWindowFactory({ createWindow }: { createWindow: (o
 }
 
 /** One capability per spawned site; authenticated children may capture only loopback pages.
+ * The host supplies the same capture pool to every site's bridge.
  * @returns Environment contract and disposer tied to the server's exit.
  * @complexity O(1) setup, plus bounded native capture work.
  */
-export async function startDesktopCaptureBridge({ createWindow }: { createWindow: (options: BrowserWindowConstructorOptions) => BrowserWindow }, _options = {}) {
+export async function startDesktopCaptureBridge({ createWindow, capturePool }: {
+  createWindow: (options: BrowserWindowConstructorOptions) => BrowserWindow;
+  capturePool: ElectronUrlCapturePoolPort;
+}, _options = {}) {
   const { startRenderBridge } = await import('@jini-ai/desktop-host/render-bridge');
-  const service = createElectronRenderService({ createBrowserWindow: desktopCaptureWindowFactory({ createWindow }) });
+  const service = createElectronRenderService({ createBrowserWindow: desktopCaptureWindowFactory({ createWindow }), capturePool });
   return startRenderBridge({ capture: { async captureUrl(request, options) {
     const url = new URL(request.url);
     if (!['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)) {

@@ -24,13 +24,14 @@ test("a regional tag falls back to its base language, bare pt to pt-BR, and an u
   assert.equal(formValidationCopy({ locale: "pt" }), FORM_VALIDATION_COPY["pt-BR"]);
   assert.equal(formValidationCopy({ locale: "pt-PT" }), FORM_VALIDATION_COPY["pt-BR"]);
   assert.equal(formValidationCopy({ locale: "xx-YY" }), FORM_VALIDATION_COPY.en);
-  assert.deepEqual(formValidationCopy({ locale: "" }), ["Please enter {label}.", "Please select {label}.", "Please shorten {label}.", "Please check {label}.", "this field"]);
+  assert.deepEqual(formValidationCopy({ locale: "" }), ["Please enter {label}.", "Please select {label}.", "Please shorten {label}.", "Please check {label}.", "this field", "Please keep {label} to {max} characters or fewer."]);
 });
 
-test("every locale row carries the four {label} templates plus a fallback field name", () => {
+test("every locale row carries four templates, a fallback field name, and the bounded-length template (d6d0618b0)", () => {
   for (const [locale, row] of Object.entries(FORM_VALIDATION_COPY)) {
-    assert.equal(row.length, 5, locale);
+    assert.equal(row.length, 6, locale);
     for (const template of row.slice(0, 4)) assert.ok(template.includes("{label}"), `${locale}: ${template}`);
     assert.ok(!row[4].includes("{label}"), locale);
+    assert.ok(row[5].includes("{label}") && row[5].includes("{max}"), locale);
   }
 });

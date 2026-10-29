@@ -3,7 +3,7 @@ import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInp
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import type { UserRepoPort } from "@jini-ai/user-management";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { approvalToolHandler } from "#src/contracts/core/human-confirm";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
@@ -125,6 +125,6 @@ export function buildMailStatusRegistrations(deps: MailStatusToolDeps, surfaces:
 }
 
 /** Keeps the diagnostic and its controls under a unique contributor domain. */
-export function contributeMailStatusTools(): ToolContributor {
+export function contributeMailStatusTools(): ToolContributor<MailStatusToolDeps, AssistantSurfaceDeps> {
   return { domain: "system-mail", build: buildMailStatusRegistrations, risk: mailStatusDerivedRisk };
 }

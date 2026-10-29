@@ -88,13 +88,34 @@ test("search-first applies when no visible tool fits or before a native fallback
 });
 
 test("native file fallbacks and Tool gap reports require a search and retry with named queries", () => {
-  assert.match(TOOLS_FIRST_RULE, /Before any Bash or direct file read\/edit\/write of site files \(themes, content, config\), call search_tools describing the job/);
+  assert.match(TOOLS_FIRST_RULE, /Before any shell command or direct file read\/edit\/write of site files \(themes, content, config\), call search_tools describing the job/);
   assert.match(TOOLS_FIRST_RULE, /retry with different phrasing or a higher limit/);
   assert.match(TOOLS_FIRST_RULE, /Only if those searches find no suitable Tovu tool may you use native fallbacks/);
   assert.match(TOOLS_FIRST_RULE, /Only after those searches, report the fallback/);
   assert.ok(TOOLS_FIRST_RULE.includes("`Tool gap: <what you needed> — no Tovu tool for it.`"));
   assert.match(TOOLS_FIRST_RULE, /Include the queries you searched in <what you needed>/);
   assert.ok(buildBaseSystemOverlay(false, { nativeToolAccess: true }).includes(TOOLS_FIRST_RULE));
+});
+
+test("native fallback guidance maps shell intents to existing tools and states the PDF limit", () => {
+  const overlay = buildBaseSystemOverlay(false, { nativeToolAccess: true });
+  assert.match(overlay, /theme list\/read\/search → theme_list_files \/ theme_read_file \(find, startLine, lineCount\)/);
+  assert.match(overlay, /site\/handoff\/plugin text → fs_list_files \/ fs_read_file/);
+  assert.match(overlay, /page HTML\/localhost routes → fetch_published_page \(site path, never curl\)/);
+  assert.match(overlay, /picked-folder copies → files_copy/);
+  assert.match(overlay, /images → media_view_image/);
+  assert.match(overlay, /documents → library_list \/ library_read \(text only; PDFs are download-only, so PDF inspection is a Tool gap\)/);
+});
+
+test("native fallback guidance stops after one denial and confines genuine shell gaps for every CLI", () => {
+  const overlay = buildBaseSystemOverlay(false, { nativeToolAccess: true });
+  assert.match(overlay, /After ONE "Operation not permitted" or permission refusal, do not retry the same kind of command/);
+  assert.match(overlay, /even with another shell, flags or path spelling/);
+  assert.match(overlay, /Switch to the mapped tool; otherwise stop and tell the owner in one line: `Tool gap:/);
+  assert.match(overlay, /Native fallback gaps are recorded automatically; tool_gaps_list reads that audit/);
+  assert.match(overlay, /Shell is only for genuine tool gaps: literal paths inside granted roots, no paths computed at run time/);
+  assert.match(overlay, /no ~\/\.claude\/tool-results or other CLI spill-file reads/);
+  assert.match(overlay, /Applies to every agent CLI/);
 });
 
 test("every overlay prefers Tovu visual tools and requires fresh Chrome DevTools page ids", () => {

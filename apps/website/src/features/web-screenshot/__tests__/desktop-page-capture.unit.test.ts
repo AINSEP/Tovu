@@ -79,7 +79,7 @@ test('native option guards precede transport and numeric waits override settling
   }
   await assert.rejects(port.capture({ ...request, allowedOrigins: [], dismissCookieBanners: true }),
     { kind: 'refused', message: 'desktop capture requires sitePath on this site' });
-  assert.deepEqual(received, []);
+  assert.deepEqual([...received], []);
   await port.capture({ ...request, waitFor: 0, dismissCookieBanners: false });
   await port.capture({ ...request, waitFor: 1.5 });
   assert.deepEqual(received.map(({ input, options }) => [input.settleMs, options]), [[0, {}], [1500, {}]]);

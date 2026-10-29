@@ -103,11 +103,11 @@ export const registerAgentPluginInstallRoute: AgentPluginsRouteRegistrar = (app,
   const installHandler: RequestHandler = async (req, res) => {
     if (String(req.params.workspaceId) !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
-      return;
+      return undefined;
     }
     try {
       const principal = getAuthedPrincipal(res);
-      if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: "admin.plugins.enable", workspaceId: deps.workspaceId }))) return;
+      if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: "admin.plugins.enable", workspaceId: deps.workspaceId }))) return undefined;
       const target = readUpdateTarget({ req });
       if ("status" in target) return sendRefusal(res, target);
       const upload = await readZipUpload({ req, res, parseZip });
@@ -124,6 +124,7 @@ export const registerAgentPluginInstallRoute: AgentPluginsRouteRegistrar = (app,
       if (refusal.status === 500) console.error("[agent-plugins] install/update request failed", error);
       sendRefusal(res, refusal);
     }
+    return undefined;
   };
   app.post("/api/admin/v1/workspaces/:workspaceId/agent-plugins/install/zip", installHandler);
   app.post("/api/admin/v1/workspaces/:workspaceId/agent-plugins/:pluginId/update/zip", installHandler);

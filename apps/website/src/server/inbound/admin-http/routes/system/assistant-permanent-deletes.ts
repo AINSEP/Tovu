@@ -17,10 +17,10 @@ export function registerAdminAssistantPermanentDeletesRoutes(required: { app: Ex
     validationError: "enabled must be a boolean; enabling permanent deletes requires riskAcknowledged: true.",
     read: () => readAssistantPermanentDeletesPolicy({ ...required.deps, settingsReady: required.deps.settingsUiTabsReady }),
     parse: body => {
-      if (Object.keys(body).some(key => !["enabled", "allowedToolIds", "riskAcknowledged"].includes(key)) ||
-        !Array.isArray(body.allowedToolIds) || body.allowedToolIds.length > PERMANENT_DELETE_TOOLS.length ||
-        body.allowedToolIds.some(id => !PERMANENT_DELETE_TOOLS.some(tool => tool.id === id)) ||
-        new Set(body.allowedToolIds).size !== body.allowedToolIds.length) {
+      const validKeys = !Object.keys(body).some(key => !["enabled", "allowedToolIds", "riskAcknowledged"].includes(key));
+      const validIds = Array.isArray(body.allowedToolIds) && body.allowedToolIds.length <= PERMANENT_DELETE_TOOLS.length
+        && !body.allowedToolIds.some(id => !PERMANENT_DELETE_TOOLS.some(tool => tool.id === id));
+      if (!validKeys || !validIds || new Set(body.allowedToolIds).size !== body.allowedToolIds.length) {
         rejectSettingsRequest({ status: 400, code: "VALIDATION_ERROR", error: "allowedToolIds must contain unique ids from the 13 supported permanent delete tools. Unknown and forbidden ids are rejected." });
       }
       return { enabled: body.enabled as boolean, allowedToolIds: [...body.allowedToolIds] as string[] };

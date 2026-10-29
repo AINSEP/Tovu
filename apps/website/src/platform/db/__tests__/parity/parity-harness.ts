@@ -1,6 +1,6 @@
 import { exampleRegistry } from "#src/features/source-control/__tests__/fixtures/example-provider";
 import assert from "node:assert/strict";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import type { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
@@ -26,9 +26,10 @@ import { SealedDatabaseDestinationStore } from "#src/features/database-transfer/
 /**
  * @file Query-parity harness (DBMERGE-PLAN §2b/§2d). The pre-vault stores and repos are gone from
  * the tree, so ONE scripted transcript runs against either code generation: `loadParityModules`
- * imports the same store and repo paths from a source root (the working tree, or a `git archive` of
+ * imports the same stores and repos from a source root (the working tree, or a `git archive` of
  * the last pre-vault commit for the one-time golden capture). Store and repo names and signatures
- * did not change across 0012, which is what makes a single transcript possible. Sealed bytes
+ * did not change across 0012, which is what makes a single transcript possible. Repo paths moved
+ * to their domains in 2a0c60acb; the archived pre-vault source retains platform/db/repos. Sealed bytes
  * legitimately change (0012 copies, the boot re-seal rewrites), so the transcript records the
  * consumer projection: views, decrypted plaintext, hints, order, and error classes.
  */
@@ -44,7 +45,7 @@ export const GOLDEN_PATH = join(import.meta.dirname, "__fixtures__/vault-parity.
 /** Every module the transcripts touch, imported from `root` (an `apps/website/src` tree). */
 export async function loadParityModules(root: string): Promise<ParityModules> {
   const load = (path: string) => import(pathToFileURL(join(root, path)).href);
-  const repos = "platform/db/repos/";
+  const loadRepo = (relative: string) => load(root === CURRENT_SRC ? relative : `platform/db/repos/${basename(relative)}`);
   return {
     site: await load("assistant/site-credential-store.ts"),
     exec: await load("assistant/execution-credential-store.ts"),
@@ -56,14 +57,14 @@ export async function loadParityModules(root: string): Promise<ParityModules> {
     source: await load("features/source-control/store.ts"),
     publish: await load("features/deployments/publish-credentials/store.ts"),
     mcp: await load("assistant/external-mcp-store.ts"),
-    siteRepo: await load(`${repos}site-credential-repo.ts`),
-    execRepo: await load(`${repos}execution-credential-repo.ts`),
-    mediaRepo: await load(`${repos}media-provider-credential-repo.ts`),
-    customRepo: await load(`${repos}custom-credential-repo.ts`),
-    vendorRepo: await load(`${repos}vendor-credential-repo.ts`),
-    sourceRepo: await load(`${repos}source-control-credential-repo.ts`),
-    peerRepo: await load(`${repos}publish-content-peer-repo.ts`),
-    mcpRepo: await load(`${repos}external-mcp-repo.ts`),
+    siteRepo: await loadRepo("assistant/site-credential-repo.ts"),
+    execRepo: await loadRepo("assistant/execution-credential-repo.ts"),
+    mediaRepo: await loadRepo("features/media/media-provider-credential-repo.ts"),
+    customRepo: await loadRepo("features/custom-credentials/custom-credential-repo.ts"),
+    vendorRepo: await loadRepo("features/vendor-credentials/vendor-credential-repo.ts"),
+    sourceRepo: await loadRepo("features/source-control/source-control-credential-repo.ts"),
+    peerRepo: await loadRepo("features/publish-content/publish-content-peer-repo.ts"),
+    mcpRepo: await loadRepo("assistant/external-mcp-repo.ts"),
     userPurge: await load("features/identity/user-purge.ts"),
     tableCatalog: await load("features/database-transfer/table-catalog.ts"),
     snapshotSource: await load("features/database-transfer/sqlite-source.ts"),

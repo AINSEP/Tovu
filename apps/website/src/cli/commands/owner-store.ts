@@ -10,7 +10,7 @@ import { isCopyableKind, SecretsVaultService, VAULT_KINDS, VaultError,
 import { assertCredentialFreeField } from "#src/contracts/core/credential-token";
 import { openNativeSqlite } from "#src/platform/db/kernel/drivers/sqlite";
 import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
-import { assertTestHomeIsolation, createSitesWorkspace, type SitesWorkspace } from "#src/platform/site-dir/sites-home";
+import { assertTestHomeIsolation, createSitesWorkspace, type SitesWorkspace } from "#src/platform/site-dir/index";
 import { openProjectStore } from '#src/server/runtime/composition/project-store';
 import { EMPTY_IMPORT, importLegacyKeys, type LegacyImportReport } from "./owner-store-import.js";
 

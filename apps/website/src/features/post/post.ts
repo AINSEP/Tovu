@@ -1,5 +1,5 @@
 import { deriveAvailableName } from "@jini-ai/core/naming";
-import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
+import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
 import { isAutomaticPostSlug, derivePostSlugBase, MAX_SLUG_LENGTH, DERIVED_SLUG_SUFFIX_ROOM, SLUG_FORMAT_PATTERN } from "./slug.js";
 import { isDeepStrictEqual } from "node:util";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
@@ -9,21 +9,11 @@ import type { OutboxPort } from "@jini-ai/cms/core";
 import { isTrashed } from "../../contracts/core/soft-delete.js";
 import { currentIso, isLiveAt } from "../../contracts/core/scheduled-publish.js";
 import { announcePendingGoLive } from "./go-live.js";
-import { toSlug } from "#src/platform/html/slug";
-import { postPublicPath } from "#src/platform/routing/adapter";
+import { postPublicPath } from "#src/platform/routing/index";
 import { type SlugChangeCapture } from '@jini-ai/cms/routing';
 
-export type PostStatus = "draft" | "published";
-
-/**
- * Storage kinds sharing the bespoke `posts` table. A post is a blog-style entry; a page is a
- * standalone document (About, Contact, …). They share their record shape, repository and editor,
- * with separate admin lists. Email templates share storage through the Pages HTML store but
- * belong only to mail authoring; public, theme, SEO and widget readers accept PublicPostKind.
- * Fixed at creation; v1 has no kind-conversion path.
- */
-export type PostKind = "post" | "page" | "email-template";
-export type PublicPostKind = Exclude<PostKind, "email-template">;
+import type { PostKind, PostStatus, PublicPostKind } from "./post-vocabulary.js";
+export type { PostKind, PostStatus, PublicPostKind } from "./post-vocabulary.js";
 
 /**
  * The `posts.kind` of an email template (`features/email-templates`). Deliberately NOT a
@@ -1107,24 +1097,6 @@ export const MAX_TITLE_LENGTH = 200;
  * reason as {@link MAX_TITLE_LENGTH}. */
 export { MAX_SLUG_LENGTH } from "./slug.js";
 
-/**
- * Room a derived slug keeps under {@link MAX_SLUG_LENGTH} for `createPost`'s collision suffix
- * (numbered suffixes, BR-02's bound): a derived slug must itself pass the rule every `updatePost`
- * applies, or the post it names can never be saved again.
- */
-// The shared slug rules export DERIVED_SLUG_SUFFIX_ROOM for this policy and the editor.
-
-/**
- * The base `createPost` derives from a title when the caller sent no slug: {@link toSlug}, cut to
- * leave {@link DERIVED_SLUG_SUFFIX_ROOM}, with any dash the cut leaves at the end dropped, or
- * `"untitled"` when nothing usable remains.
- *
- * @complexity O(n) in the title's length.
- */
-function deriveSlugBase(title: string): string {
-  return derivePostSlugBase({ title });
-}
-
 export { SLUG_FORMAT_PATTERN } from "./slug.js";
 
 /**
@@ -1575,7 +1547,7 @@ function validateUpdatePostInput(
 
   if (!title) throw new PostValidationError("title is required");
   // An UNCHANGED title or slug is not re-validated: a row stored before these bounds existed (or a
-  // slug derived before `deriveSlugBase` bounded it) would otherwise refuse every unrelated edit —
+  // slug derived before `derivePostSlugBase` bounded it) would otherwise refuse every unrelated edit —
   // a body-only save, and in the Page editor the HTML save that follows its metadata write.
   if (title !== existing.title) assertTitleWithinLimit(title);
   // `existing.kind` is immutable (PostKind's own doc: "Fixed at creation; v1 has no post<->page
@@ -1874,11 +1846,18 @@ function slugTakenMessage({ base }: { base: string }): string {
   return `slug '${base}' already exists`;
 }
 
-/** Reuse the platform collision search with post numbering from 1 and page numbering from 2. */
+/**
+ * Reuse the platform collision search with post numbering from 1 and page numbering from 2.
+ * `derivePostSlugBase` slugifies the title, drops trailing dashes after cutting to leave
+ * {@link DERIVED_SLUG_SUFFIX_ROOM}, or uses `"untitled"` when nothing usable remains. This room
+ * under {@link MAX_SLUG_LENGTH} is for `createPost`'s numbered collision suffix (BR-02's bound):
+ * a derived slug must pass the rule every `updatePost` applies, or the post can never be saved again.
+ * The shared slug rules export DERIVED_SLUG_SUFFIX_ROOM for this policy and the editor.
+ */
 async function availablePostSlug(required: { repo: PostRepoPort; workspaceId: UUID; title: string; kind: PostKind; selfId?: UUID }, _optional: Record<string, never> = {}) {
   let trashedHolder: PostRecord | null = null;
   const slug = await deriveAvailableName({
-    base: deriveSlugBase(required.title),
+    base: derivePostSlugBase({ title: required.title }),
     isTaken: async ({ candidate }) => {
       if (RESERVED_SEGMENTS.has(candidate.toLowerCase())) return true;
       const holder = await required.repo.findBySlug({ workspaceId: required.workspaceId, slug: candidate });

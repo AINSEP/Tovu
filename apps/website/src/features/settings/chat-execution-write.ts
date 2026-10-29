@@ -1,7 +1,7 @@
 import { ToolInputError } from "@jini-ai/core";
 import { getEffective, resolveDefinitionRaw } from "@jini-ai/core/settings";
 import { type DetectedAgent, validateRuntimeSelection } from "@jini-ai/agent-runtime";
-import type { SettingsToolDeps } from "./tool-registrations.js";
+import type { SettingsToolDeps } from "./tool-deps.js";
 
 /** These coordinates already belong to the composer ledger; no parallel selection store. */
 export const CHAT_EXECUTION_KEYS = ["localCli.agentId", "localCli.model", "localCli.reasoning"] as const;

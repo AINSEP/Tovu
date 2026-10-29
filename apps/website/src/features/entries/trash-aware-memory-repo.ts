@@ -90,7 +90,7 @@ export class TrashAwareInMemoryEntryRepo implements EntryRepoPort, EntryListPort
    * @throws VersionConflictError when the compare-and-set misses or a create finds the id taken.
    * @complexity O(n) over stored entries (one slug scan).
    */
-  async save(row: EntryRecord, options: { expectedVersion?: number | null | undefined } = {}): Promise<void> {
+  async save(row: EntryRecord, options: { expectedVersion?: number | null } = {}): Promise<void> {
     if (this.deletedAt.has(row.id) && options.expectedVersion !== null) {
       if (options.expectedVersion === undefined) return;
       throw new VersionConflictError({ message: `expected version ${options.expectedVersion} for entry '${row.id}', found none` });

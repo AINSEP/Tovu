@@ -35,7 +35,7 @@ const regionContribution: PluginContributionDefinition<RawContribution, PluginRe
 /** Turn data entries into resolvers through the package's own trust boundary; refused entries drop.
  * `legacyHeader` absorbs the older TOVU_CONSENT_REGION_HEADER setting as one more header reader.
  * @complexity O(entries). */
-export function toRegionResolvers({ entries }: { entries: readonly RawContribution[] }, { legacyHeader }: { legacyHeader?: string | undefined } = {}): RegionResolver[] {
+export function toRegionResolvers({ entries }: { entries: readonly RawContribution[] }, { legacyHeader }: { legacyHeader?: string } = {}): RegionResolver[] {
   const all = legacyHeader ? [...entries, { kind: 'region-resolver', id: 'configured-header', header: legacyHeader }] : entries;
   return all.flatMap(contribution => {
     const accepted = REGION_SLOT.accept({ contribution });
@@ -47,7 +47,7 @@ export function toRegionResolvers({ entries }: { entries: readonly RawContributi
  * header. A plugin fault leaves the site strict; it never fails a page. @complexity O(p) plugins. */
 export async function loadSiteRegionResolvers(
   { workspaceId, loadContributions }: { workspaceId: string; loadContributions: LoadPluginContributions },
-  { ingress, legacyHeader }: { ingress?: string | undefined; legacyHeader?: string | undefined } = {},
+  { ingress, legacyHeader }: { ingress?: string; legacyHeader?: string } = {},
 ): Promise<RegionResolver[]> {
   let entries: RawContribution[] = [];
   if (ingress) {

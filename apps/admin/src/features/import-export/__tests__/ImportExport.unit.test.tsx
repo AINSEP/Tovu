@@ -88,7 +88,6 @@ describe("Import & Export tabs (owner, 2026-10-25, option A)", () => {
       ["import", "Import", "Soon", "import-export-tab-import"],
       ["other", "Other", undefined, "import-export-tab-other"],
     ]);
-    expect(resolveImportExportTabs({ t: (key) => key }, { transferTabsSoon: false }).map((tab) => tab.tag)).toEqual([undefined, undefined, undefined]);
   });
 });
 

@@ -4,14 +4,14 @@ import type { UUID } from "@jini-ai/core/primitives";
 
 import type { PostRecord, PostRepoPort } from "#src/features/post/index";
 import { NO_THEME_ID, resolveActiveTheme, isStandaloneThemePage } from "#src/features/theme/index";
-import { postPublicPath } from "#src/platform/routing/adapter";
+import { postPublicPath } from "#src/platform/routing/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import type { PresentationSettingsRepoPort } from "#src/features/presentation/index";
 import type { RedirectRecord, RedirectRepoPort } from "@jini-ai/cms/redirects";
-import type { ManifestRoute, ManifestSkip, RouteManifest, RouteManifestPort } from "./ports.js";
+import type { ManifestRoute, ManifestSkip, RouteManifest } from "./ports.js";
 
 /**
- * @file The one implementation of {@link RouteManifestPort} (`ports.ts`).
+ * @file The public-site route enumerator, shared by the exporter and theme previews.
  *
  * Reuses the SAME selection logic the real public routes render with — rather than re-deriving
  * "which theme is active" or "which products are live" a second time, so a manifest built from
@@ -181,10 +181,11 @@ function buildThemePageRoutes(
     if (!isStandaloneThemePage(theme, pageId)) continue;
 
     const collidingPost = postBySlug.get(pageId);
-    if (collidingPost && collidingPost.overridesThemePage !== false) continue; // the post loop adds it instead.
-
-    routes.push({ path: `/${pageId}`, kind: "theme-page", label: pageId });
-    shadowedSlugs.add(pageId);
+    // An overriding post is added by the post loop instead.
+    if (!collidingPost || collidingPost.overridesThemePage === false) {
+      routes.push({ path: `/${pageId}`, kind: "theme-page", label: pageId });
+      shadowedSlugs.add(pageId);
+    }
   }
   return { routes, shadowedSlugs };
 }
@@ -335,10 +336,4 @@ export async function buildRouteManifest(deps: RouteManifestDeps): Promise<Route
   routes.push({ path: chooseNotFoundProbePath(claimedPaths), kind: "not-found", label: "404" });
 
   return { routes, skipped, activeTheme };
-}
-
-/** Constructs a {@link RouteManifestPort} bound to one workspace's deps — the DI seam callers
- *  (the exporter engine, the CLI command, tests) depend on instead of the free function above. */
-export function createRouteManifestReader(deps: RouteManifestDeps): RouteManifestPort {
-  return { build: () => buildRouteManifest(deps) };
 }

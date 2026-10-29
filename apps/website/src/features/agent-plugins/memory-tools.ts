@@ -1,3 +1,4 @@
+import { containAgentPluginStatePath } from "#src/features/agent-plugins/lifecycle";
 import { toolMetadata } from '../../contracts/core/tool-metadata/agent-plugins.js';
 import { withExtensionApprovalPolicy } from '../../contracts/headless/assistant-tool-approval-policy.js';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString,
@@ -42,7 +43,7 @@ export function buildPluginMemoryRegistrations(required: {
         const input = requireInputRecord({ input: ctx.input });
         const allowed = operation === "read" ? ["entryPath"] : ["entryPath", "text"];
         if (Object.keys(input).some(key => !allowed.includes(key))) throw new Error("Memory tool accepts no plugin id, kind, or other fields");
-        const memory = pluginMemory({ workspaceId: required.workspaceId, pluginId: source.pluginId }, { layout: required.agentPluginLayout });
+        const memory = pluginMemory({ contain: containAgentPluginStatePath, workspaceId: required.workspaceId, pluginId: source.pluginId }, { layout: required.agentPluginLayout });
         if (operation === "read") return readMemory({ memory, pluginId: source.pluginId, input });
         return memory.learned.write({ entryPath: requireString({ input, key: "entryPath" }), text: requireString({ input, key: "text" }) });
       };

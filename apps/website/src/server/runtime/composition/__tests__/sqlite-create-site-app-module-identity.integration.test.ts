@@ -13,8 +13,8 @@ import { createApp } from "#src/server/runtime/composition/app";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/memory-bus";
 import type { DomainEvent, EventBusPort } from "@jini-ai/cms/core";
-import { bootSiteDir, closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
-import { initSite } from "#src/platform/site-dir/init-site";
+import { closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
+import { bootSiteDir, initSite } from "#src/server/runtime/composition/site-dir";
 import { removeFrozenPackageTree } from "#src/features/agent-plugins/lifecycle";
 import { registerResolvePhase, runPreContentPhase } from "#src/platform/routing/adapter";
 import type { RedirectRecord, RedirectRevision } from "@jini-ai/cms/redirects";
@@ -85,7 +85,7 @@ async function drainBootReadiness(deps: NewsletterRouteDeps): Promise<void> {
 }
 
 /** A fresh site directory + the same SQLite composition root `tovu serve <dir>` builds for it. */
-async function bootSqliteSite(t: TestContext): Promise<{ deps: NewsletterRouteDeps; close: () => Promise<void> }> {
+async function bootSqliteSite(t: TestContext) {
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), "app-module-identity-"));
   const dir = path.join(parent, "site");
   await initSite({ dir, name: "Module Identity Site" });

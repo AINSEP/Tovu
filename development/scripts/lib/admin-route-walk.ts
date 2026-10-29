@@ -33,17 +33,32 @@ export function resolveRoute(stack: readonly RouterLayer[], method: string, url:
   let pathSeen = false;
   for (const layer of stack) {
     if (!layer.match(url)) continue;
-    if (layer.route) {
-      if (layer.route.methods[method.toLowerCase()] || layer.route.methods._all) return "ok";
-      pathSeen = true;
-    } else if (layer.handle?.stack) {
-      const rest = url.slice((layer.path ?? "").length) || "/";
-      const inner = resolveRoute(layer.handle.stack, method, rest.startsWith("/") ? rest : `/${rest}`);
-      if (inner === "ok") return "ok";
-      if (inner === "wrong-method") pathSeen = true;
-    }
+    const resolution = resolveMatchedLayer({ layer, method, url });
+    if (resolution === "ok") return "ok";
+    if (resolution === "wrong-method") pathSeen = true;
   }
   return pathSeen ? "wrong-method" : "no-route";
+}
+
+function resolveMatchedLayer(
+  { layer, method, url }: { layer: RouterLayer; method: string; url: string },
+  _options = {},
+): Resolution {
+  if (layer.route) return acceptsMethod({ layer, method }) ? "ok" : "wrong-method";
+  if (layer.handle?.stack) return resolveNestedRoute({ layer, method, url });
+  return "no-route";
+}
+
+function acceptsMethod({ layer, method }: { layer: RouterLayer; method: string }, _options = {}): boolean {
+  return Boolean(layer.route!.methods[method.toLowerCase()] || layer.route!.methods._all);
+}
+
+function resolveNestedRoute(
+  { layer, method, url }: { layer: RouterLayer; method: string; url: string },
+  _options = {},
+): Resolution {
+  const rest = url.slice((layer.path ?? "").length) || "/";
+  return resolveRoute(layer.handle.stack!, method, rest.startsWith("/") ? rest : `/${rest}`);
 }
 
 /**
@@ -65,16 +80,31 @@ export function listRoutes(stack: readonly RouterLayer[], prefix = ""): Register
   const out: RegisteredRoute[] = [];
   for (const layer of stack) {
     if (layer.route) {
-      const paths = Array.isArray(layer.route.path) ? layer.route.path : [layer.route.path];
-      for (const p of paths) {
-        const full = `${prefix}${typeof p === "string" ? p : String(p)}`;
-        for (const [verb, on] of Object.entries(layer.route.methods)) {
-          if (on) out.push({ method: verb === "_all" ? "ALL" : verb.toUpperCase(), path: full });
-        }
-      }
+      out.push(...routesForLayer({ layer, prefix }));
     } else if (layer.handle?.stack) {
       out.push(...listRoutes(layer.handle.stack, `${prefix}${mountPathOf(layer)}`));
     }
+  }
+  return out;
+}
+
+function routesForLayer(
+  { layer, prefix }: { layer: RouterLayer; prefix: string },
+  _options = {},
+): RegisteredRoute[] {
+  const out: RegisteredRoute[] = [];
+  const paths = Array.isArray(layer.route!.path) ? layer.route!.path : [layer.route!.path];
+  for (const p of paths) {
+    const full = `${prefix}${typeof p === "string" ? p : String(p)}`;
+    out.push(...methodsForPath({ layer, full }));
+  }
+  return out;
+}
+
+function methodsForPath({ layer, full }: { layer: RouterLayer; full: string }, _options = {}): RegisteredRoute[] {
+  const out: RegisteredRoute[] = [];
+  for (const [verb, on] of Object.entries(layer.route!.methods)) {
+    if (on) out.push({ method: verb === "_all" ? "ALL" : verb.toUpperCase(), path: full });
   }
   return out;
 }

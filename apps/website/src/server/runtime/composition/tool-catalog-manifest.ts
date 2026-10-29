@@ -1,3 +1,6 @@
+import { toolSearchKeywords } from "#src/assistant/tool-search-keywords";
+import { bundledContributionSources } from "#src/features/agent-plugins/bundled-contribution-sources";
+import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 import { buildProjectKeyRegistrations, projectKeysRisk } from "#src/features/project-keys/tools";
 import { devRestartPortFromEnv } from "#src/platform/dev-supervisor/dev-restart";
 import { readBundledDeployConfigCandidatePaths } from "#src/features/deployments/index";
@@ -60,7 +63,7 @@ import { htmlToMarkdown } from "@jini-ai/platform/web";
 import { contributeWebScreenshotTools } from "#src/features/web-screenshot/tool-registrations";
 import { playwrightModuleLoader } from "#src/platform/headless-browser/playwright-loader";
 import { createPageCaptureForHost } from "#src/features/web-screenshot/desktop-page-capture";
-import { encodeScreenshotTiles } from "#src/features/web-screenshot/screenshot-image";
+import { createScreenshotTileEncoder } from "#src/features/web-screenshot/screenshot-image";
 import { createOwnSiteOpener } from "#src/features/web-screenshot/own-site-opener";
 import { captureRootFor, createCaptureFileWriter } from "#src/features/web-screenshot/capture-files";
 import { DOMAIN_DNS_EGRESS_POLICY, createBundledPublicDnsResolver, createTlsProbe, listSavedHostingHosts } from "./domain-dns-adapters.js";
@@ -73,7 +76,7 @@ import { contributeExternalMcpTools } from "#src/features/external-mcp/tool-regi
 import { contributeExternalMcpOperationsTools } from "#src/features/external-mcp/operations-tools";
 import { probeExternalMcpServer } from "#src/server/runtime/services/external-mcp-probe";
 import { fetchDaemonAdmissions } from "#src/server/runtime/services/external-mcp-admissions";
-import { contributeFilesCopyTools } from "#src/features/fs-files/copy-tool";
+import { contributeFilesCopyTools } from "#src/features/asset-transfer/copy-tool";
 import { contributeFsFilesTools } from "#src/features/fs-files/tool-registrations";
 import { contributePagesTools } from "#src/features/pages/tool-registrations";
 import { contributeEmailTemplatesTools } from "#src/features/email-templates/tool-registrations";
@@ -362,6 +365,7 @@ export function installFirstPartyToolContributors(
     readInstallAttachment?: InstallAttachmentReader;
   } = {},
 ): void {
+  toolSearchKeywords({}, { sources: bundledContributionSources });
   contributions.contentTargetInputs = bindContentTargetInputs;
   contributions.contributors.register({ contribution: contributeContentStatsTools() });
   contributions.contributors.register({ contribution: contributeAnalyticsTools() });
@@ -509,7 +513,7 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeWebScreenshotTools(
     { ports: {
       capture: createPageCaptureForHost({ httpClient: createHttpClient(WEB_SCREENSHOT_EGRESS_POLICY, { observability }) }, { browserPool: publicBrowserPool, allowUnsandboxed: true }),
-      encodeTiles: encodeScreenshotTiles,
+      encodeTiles: createScreenshotTileEncoder({ imageCodec: new SharpImageTransformer() }),
       nowMs: () => Date.now(),
       observe: (event) => console.info(JSON.stringify({ timestamp: new Date().toISOString(), level: "info", service: "web-screenshot", message: "web_screenshot_page", context: event })),
     } },

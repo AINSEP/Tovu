@@ -1051,7 +1051,7 @@ test("form analytics captures only a committed submission, never honeypots or du
     await delivered;
   }
   // Delivery is deliberately asynchronous at the public boundary; drain any pending event before asserting.
-  await processOutbox({ outbox, bus, clock: { nowIso: () => NOW, nowMs: () => Date.parse(NOW) } });
+  await processOutbox({ outbox, bus, clock: { nowMs: () => Date.parse(NOW) } });
   assert.equal((await submissionRepo.listByDefinition({ workspaceId: WORKSPACE_ID, formDefinitionId: "def-1", limit: 10 })).items.length, 1);
   // The discarded request allocated only a request subject. The committed row/event then use
   // id-3/id-4; a duplicate's fresh provenance must never create a second conversion.

@@ -181,8 +181,9 @@ export type PublishablePostState = Pick<PostRecord, (typeof PACKED_POST_FIELDS)[
 export function toPublishableState(post: PostRecord): Record<string, unknown> {
   const state: Record<string, unknown> = {};
   for (const field of PACKED_POST_FIELDS) {
-    if (OMIT_WHEN_ABSENT.has(field) && post[field] === undefined) continue;
-    if ((field === "author" && post.author === null) || (field === "showAuthor" && post.showAuthor === false)) continue;
+    const absent = OMIT_WHEN_ABSENT.has(field) && post[field] === undefined;
+    const defaultValue = (field === "author" && post.author === null) || (field === "showAuthor" && post.showAuthor === false);
+    if (absent || defaultValue) continue;
     state[field] = post[field] ?? null;
   }
   return state;
@@ -491,7 +492,8 @@ function postRetireMethods(deps: PublishContentDeps, kind: PostKind) {
     const { changeSets, authorize, outbox } = deps;
     const forgetRemovedPost = deps.ports.post?.forgetRemoved;
     const removePost = deps.ports.post?.remove;
-    if (!changeSets || !authorize || !outbox || !postRepo || !forgetRemovedPost || !removePost) {
+    const missingGateway = !changeSets || !authorize || !outbox;
+    if (missingGateway || !postRepo || !forgetRemovedPost || !removePost) {
       throw new Error(
         `publish-content: ${entityType}.retire() requires PublishContentDeps.changeSets/authorize/` +
           "outbox and ports.post.repo/forgetRemoved/remove — wire them from the real apply-loop " +

@@ -110,8 +110,10 @@ test("empty Trash refuses an empty list and includes every page of a large selec
   const plan = await large.deps.prepare("trash_empty", null, "owner");
   assert.equal(plan.details.length, 2);
   assert.deepEqual(plan.details[0], { label: "Count", value: "201" });
-  assert.equal(plan.details[1]?.format, "code");
-  assert.deepEqual(plan.details[1]?.value.split("\n"), Array.from({ length: 201 }, (_, i) => `post: Title ${i} (${i})`));
+  const selection = plan.details[1];
+  assert.equal(selection?.format, "code");
+  assert.ok(typeof selection?.value === "string");
+  assert.deepEqual(selection.value.split("\n"), Array.from({ length: 201 }, (_, i) => `post: Title ${i} (${i})`));
   const result = await plan.execute();
   assert.equal(result.purged, 201);
   assert.equal(large.effects.length, 201);

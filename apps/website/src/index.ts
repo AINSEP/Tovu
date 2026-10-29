@@ -245,8 +245,9 @@ async function main(): Promise<void> {
   let siteStore: SiteStore | undefined;
   // The in-memory root scans no plugin folder unless one is named: an explicit TOVU_PLUGINS_DIR
   // (journeys, local opt-in installs) gets the same installer the SQLite root always has.
+  const memoryOptions = useMemory && process.env.TOVU_PLUGINS_DIR ? { installDir: resolvePath(process.env.TOVU_PLUGINS_DIR) } : {};
   const deps = useMemory
-    ? createRouteDeps(process.env.TOVU_PLUGINS_DIR ? { installDir: resolvePath(process.env.TOVU_PLUGINS_DIR) } : {})
+    ? createRouteDeps(memoryOptions)
     : await createSiteRouteDeps(defaultContentDbPath(), { onStoreOpened: (store) => (siteStore = store) });
   // Unhandled rejections/exceptions reach the error tracker too, now that its port exists.
   installProcessErrorReporting({ tracker: deps.tracker, processRole: "server" }, { flush: deps.flushTelemetry });

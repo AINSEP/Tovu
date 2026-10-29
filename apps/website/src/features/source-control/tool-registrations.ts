@@ -13,7 +13,7 @@ import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 
 import { type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import {
   commitSiteToSourceControl,
   previewCommitExport,
@@ -125,7 +125,7 @@ async function requireKnownHost({ deps, providerId, authorizeSavedLookup }: {
   await authorizeSavedLookup();
   if (await findSavedDefault({ deps, providerId })) return { label: providerId };
   const hosts = registry.list().map((loaded) => `'${loaded.descriptor.id}'`);
-  throw new ToolInputError({ message: `source_control_execute_commit: '${providerId}' is not a source control host. ${hosts.length > 0 ? `Hosts: ${hosts.join(", ")}` : "No turned-on Agent Plugin provides one"} (see source_control_get_capabilities).` });
+  throw new ToolInputError({ message: `source_control_execute_commit: '${providerId}' is not a source control host. ${hosts.length > 0 ? "Hosts: " + hosts.join(", ") : "No turned-on Agent Plugin provides one"} (see source_control_get_capabilities).` });
 }
 
 /** Saved default metadata for any opaque id, never decrypted; null when no default exists. */
@@ -490,6 +490,6 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
  * Credential resolution is injected with structural signatures; importing this feature from
  * credential discovery would close a runtime cycle back through the assistant.
  */
-export function contributeSourceControlTools(): ToolContributor {
+export function contributeSourceControlTools(): ToolContributor<SourceControlToolDeps, AssistantSurfaceDeps> {
   return { domain: "source-control", build: buildSourceControlRegistrations, risk: sourceControlDerivedRisk };
 }

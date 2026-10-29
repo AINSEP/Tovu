@@ -42,6 +42,7 @@ function buildApp(depsOverrides: Partial<MediaRouteDeps> = {}): express.Express 
     mediaContentTypeStore: base.mediaContentTypeStore,
     transformDefinitionRepo: base.transformDefinitionRepo,
     imageTransformer: base.imageTransformer,
+    imageCodec: base.imageCodec,
     ...depsOverrides,
   };
   const app = express();
@@ -114,6 +115,7 @@ test("update: a nonexistent mediaId is rejected with 404 naming it, not 500 or a
     mediaContentTypeStore: base.mediaContentTypeStore,
     transformDefinitionRepo: base.transformDefinitionRepo,
     imageTransformer: base.imageTransformer,
+    imageCodec: base.imageCodec,
     idGen: base.idGen,
     clock: base.clock,
   });
@@ -132,6 +134,7 @@ test("update: alt: null clears the field to empty string", async (t) => {
     mediaContentTypeStore: base.mediaContentTypeStore,
     transformDefinitionRepo: base.transformDefinitionRepo,
     imageTransformer: base.imageTransformer,
+    imageCodec: base.imageCodec,
     idGen: base.idGen,
     clock: base.clock,
   });
@@ -151,6 +154,7 @@ test("update: caption: null clears the field to empty string", async (t) => {
     mediaContentTypeStore: base.mediaContentTypeStore,
     transformDefinitionRepo: base.transformDefinitionRepo,
     imageTransformer: base.imageTransformer,
+    imageCodec: base.imageCodec,
     idGen: base.idGen,
     clock: base.clock,
   });
@@ -170,6 +174,7 @@ test("update: credit: null clears the field to empty string", async (t) => {
     mediaContentTypeStore: base.mediaContentTypeStore,
     transformDefinitionRepo: base.transformDefinitionRepo,
     imageTransformer: base.imageTransformer,
+    imageCodec: base.imageCodec,
     idGen: base.idGen,
     clock: base.clock,
   });
@@ -189,6 +194,7 @@ test("update: title: null is rejected with 400 and an exact message (title canno
     mediaContentTypeStore: base.mediaContentTypeStore,
     transformDefinitionRepo: base.transformDefinitionRepo,
     imageTransformer: base.imageTransformer,
+    imageCodec: base.imageCodec,
     idGen: base.idGen,
     clock: base.clock,
   });
@@ -208,6 +214,7 @@ test("update: alt: {} (non-string, non-null) is rejected with 400 and an exact m
     mediaContentTypeStore: base.mediaContentTypeStore,
     transformDefinitionRepo: base.transformDefinitionRepo,
     imageTransformer: base.imageTransformer,
+    imageCodec: base.imageCodec,
     idGen: base.idGen,
     clock: base.clock,
   });
@@ -227,6 +234,7 @@ test("update: caption: [1,2] (array) is rejected with 400 and an exact message",
     mediaContentTypeStore: base.mediaContentTypeStore,
     transformDefinitionRepo: base.transformDefinitionRepo,
     imageTransformer: base.imageTransformer,
+    imageCodec: base.imageCodec,
     idGen: base.idGen,
     clock: base.clock,
   });
@@ -246,6 +254,7 @@ test("update: each field omitted leaves the existing value unchanged", async (t)
     mediaContentTypeStore: base.mediaContentTypeStore,
     transformDefinitionRepo: base.transformDefinitionRepo,
     imageTransformer: base.imageTransformer,
+    imageCodec: base.imageCodec,
     idGen: base.idGen,
     clock: base.clock,
   });
@@ -273,6 +282,7 @@ test("update: a normal string value is stored trimmed", async (t) => {
     mediaContentTypeStore: base.mediaContentTypeStore,
     transformDefinitionRepo: base.transformDefinitionRepo,
     imageTransformer: base.imageTransformer,
+    imageCodec: base.imageCodec,
     idGen: base.idGen,
     clock: base.clock,
   });
@@ -299,6 +309,7 @@ test("update: slug is persisted — asserted by re-reading the repo, not just a 
     mediaContentTypeStore: base.mediaContentTypeStore,
     transformDefinitionRepo: base.transformDefinitionRepo,
     imageTransformer: base.imageTransformer,
+    imageCodec: base.imageCodec,
     idGen: base.idGen,
     clock: base.clock,
   });
@@ -321,6 +332,7 @@ test("update: a slug already claimed by ANOTHER row in the same workspace is ref
     mediaContentTypeStore: base.mediaContentTypeStore,
     transformDefinitionRepo: base.transformDefinitionRepo,
     imageTransformer: base.imageTransformer,
+    imageCodec: base.imageCodec,
     idGen: base.idGen,
     clock: base.clock,
   });
@@ -347,6 +359,7 @@ test("update: re-submitting a row's OWN current slug alongside another field cha
     mediaContentTypeStore: base.mediaContentTypeStore,
     transformDefinitionRepo: base.transformDefinitionRepo,
     imageTransformer: base.imageTransformer,
+    imageCodec: base.imageCodec,
     idGen: base.idGen,
     clock: base.clock,
   });
@@ -367,6 +380,7 @@ test("update: a malformed slug (uppercase/space/symbol) is rejected with 400 nam
     mediaContentTypeStore: base.mediaContentTypeStore,
     transformDefinitionRepo: base.transformDefinitionRepo,
     imageTransformer: base.imageTransformer,
+    imageCodec: base.imageCodec,
     idGen: base.idGen,
     clock: base.clock,
   });
@@ -389,6 +403,7 @@ test("update: renaming the title alone leaves the slug untouched, end to end thr
     mediaContentTypeStore: base.mediaContentTypeStore,
     transformDefinitionRepo: base.transformDefinitionRepo,
     imageTransformer: base.imageTransformer,
+    imageCodec: base.imageCodec,
     idGen: base.idGen,
     clock: base.clock,
   });
@@ -415,6 +430,7 @@ function buildMediaApp(base: ReturnType<typeof createRouteDeps>): express.Expres
     mediaContentTypeStore: base.mediaContentTypeStore,
     transformDefinitionRepo: base.transformDefinitionRepo,
     imageTransformer: base.imageTransformer,
+    imageCodec: base.imageCodec,
     idGen: base.idGen,
     clock: base.clock,
   });
@@ -492,6 +508,7 @@ test("update: a trashed media row is refused with 409 ENTITY_IN_TRASH and left u
     mediaContentTypeStore: base.mediaContentTypeStore,
     transformDefinitionRepo: base.transformDefinitionRepo,
     imageTransformer: base.imageTransformer,
+    imageCodec: base.imageCodec,
     idGen: base.idGen,
     clock: base.clock,
   });

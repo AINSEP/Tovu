@@ -68,11 +68,6 @@ export interface PersistedSiteAssistantState {
 
 const EMPTY_STATE: PersistedSiteAssistantState = { open: false, messages: [] };
 
-/** Deliberately `unknown` — SPEC-046 REQ-4 through REQ-8 (the typed `client_directive` payload) are a
- *  separate slice; whatever they eventually queue must be JSON-serializable (it round-trips through
- *  `sessionStorage` via `JSON.stringify`/`JSON.parse`), but no shape beyond that is asserted here. */
-export type QueuedAction = unknown;
-
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -175,8 +170,11 @@ export function clearPersistedState(storage: SessionStore): void {
  * visitor action ("take me there"), so there is never a legitimate reason for two directives to be
  * in flight for the same visitor at once, and a queue with unbounded depth would just be more
  * unclaimed state to leak across an abandoned navigation.
- */
-export function enqueueAction(storage: SessionStore, action: QueuedAction): void {
+ *
+ * Deliberately `unknown` — SPEC-046 REQ-4 through REQ-8 (the typed `client_directive` payload) are a
+ *  separate slice; whatever they eventually queue must be JSON-serializable (it round-trips through
+ *  `sessionStorage` via `JSON.stringify`/`JSON.parse`), but no shape beyond that is asserted here. */
+export function enqueueAction(storage: SessionStore, action: unknown): void {
   try {
     storage.setItem(ACTION_QUEUE_STORAGE_KEY, JSON.stringify(action));
   } catch {
@@ -200,7 +198,7 @@ export function enqueueAction(storage: SessionStore, action: QueuedAction): void
  * @complexity O(1) — two storage calls and one JSON parse, independent of anything else in the app.
  * @overallScore 100
  */
-export function drainQueuedAction(storage: SessionStore): QueuedAction | null {
+export function drainQueuedAction(storage: SessionStore): unknown {
   let raw: string | null;
   try {
     raw = storage.getItem(ACTION_QUEUE_STORAGE_KEY);
@@ -219,7 +217,7 @@ export function drainQueuedAction(storage: SessionStore): QueuedAction | null {
   }
 
   try {
-    return JSON.parse(raw) as QueuedAction;
+    return JSON.parse(raw) as unknown;
   } catch {
     // Already deleted above, so this degrades to "nothing was queued" with no residue left behind.
     return null;
@@ -245,11 +243,11 @@ export function clearSiteAssistantState(): void {
   clearPersistedState(browserStorage);
 }
 
-export function enqueuePageAction(action: QueuedAction): void {
+export function enqueuePageAction(action: unknown): void {
   enqueueAction(browserStorage, action);
 }
 
-export function drainQueuedPageAction(): QueuedAction | null {
+export function drainQueuedPageAction(): unknown {
   return drainQueuedAction(browserStorage);
 }
 

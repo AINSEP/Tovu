@@ -2,8 +2,9 @@ import { collectReferencedMediaKeys, collectPlacedWidgetMediaKeys } from "#src/f
 import { parseWidgetInstancePayload } from "@jini-ai/cms/widgets";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { Request, Response } from "express";
+import { createHash } from "node:crypto";
 
-import { guardMediaRenditionRepo } from "#src/features/media/guard-rendition-repo";
+import { guardMediaRenditionRepo } from "#src/features/media/index";
 import { findMediaByIdOrSlug, ImageSourceCorruptError, ImageTransformUnavailableError, resolveMediaRendition, sanitizeSvg, sniffContentType, type MediaRecord } from "#src/features/media/index";
 import { isTrashed, type PostRecord } from "#src/features/post/index";
 import { DefaultMemberAccessResolver, resolvePostMemberAccess, type MemberAccessResolver } from "#src/features/members/index";
@@ -11,6 +12,8 @@ import { parseRangeHeader } from "#src/server/inbound/admin-http/range";
 import type { MediaRenditionRouteDeps, MediaRenditionRouteRegistrar } from "#src/server/inbound/admin-http/routes/media/deps";
 import { SVG_CONTENT_SECURITY_POLICY, DISALLOWED_INLINE_CONTENT_TYPES, resolveMediaOriginalBlob, sendMediaOriginalResponse } from "#src/server/inbound/admin-http/routes/media/original";
 import { MEMBER_SESSION_COOKIE } from "../members/complete-sign-in.js";
+
+const CACHE_CONTROL_HEADER = "Cache-Control";
 
 /**
  * @file Public, unauthenticated media rendition serving route (ADR-027 §4
@@ -40,17 +43,18 @@ const TRANSFORM_SPEC_PATTERN = /^(.+)\.v(\d+)$/;
  *  independently would have drifted the same way. */
 const PRIVATE_NO_STORE = "private, no-store";
 
-/** The long-lived shared/CDN header an UNGATED 200 keeps, when the request spelled the asset by its
- *  immutable `id`. Never reachable from a gated outcome — see {@link sendMediaRenditionResult}'s own
- *  `access.gated` note. */
+/** Long-lived caching requires an UNGATED id URL with the CURRENT source hash prefix in `v`.
+ *  Replacement preserves ids, so identity alone cannot promise immutable bytes. Never reachable
+ *  from a gated outcome — see {@link renditionCacheControl}'s `access.gated` note. */
 const IMMUTABLE_PUBLIC = "public, max-age=31536000, immutable";
+const REVALIDATING_PUBLIC = "public, max-age=60, must-revalidate";
 
 /** The header an UNGATED 200 gets instead, when the request spelled the asset by its (editable)
- *  `slug` — current or retired (readable-slugs plan, S2b). A slug can be renamed; the only way a
- *  slug URL can ever point at DIFFERENT bytes is a permanent delete followed by reuse of the freed
- *  name, and this 1-hour TTL caps how long any cache (shared or the browser's own) can keep serving
- *  the old bytes under the reused name after that. An id-keyed URL has no such hazard — an id is
- *  never reassigned — so it keeps {@link IMMUTABLE_PUBLIC} unchanged. */
+ *  `slug` — current or retired (readable-slugs plan, S2b). A slug can be renamed; its URL can
+ *  point at DIFFERENT bytes through replacement or permanent delete and name reuse.
+ *  This 1-hour TTL caps old cached bytes after either operation; validators permit revalidation.
+ *  Ids are never reassigned, but replacement changes their bytes too: bare/stale-version id URLs
+ *  therefore use {@link REVALIDATING_PUBLIC}; only current-version ids get {@link IMMUTABLE_PUBLIC}. */
 const SLUG_KEYED_PUBLIC = "public, max-age=3600";
 
 /**
@@ -67,7 +71,7 @@ const SLUG_KEYED_PUBLIC = "public, max-age=3600";
  * @complexity O(1).
  */
 function sendMediaNotFound(res: Response, error: string): void {
-  res.status(404).set("Cache-Control", PRIVATE_NO_STORE).json({ error });
+  res.status(404).set(CACHE_CONTROL_HEADER, PRIVATE_NO_STORE).json({ error });
 }
 
 /**
@@ -372,7 +376,6 @@ async function resolveAssetAliases(
 }
 
 
-
 /** No cookie-parser middleware is mounted. The shared request-cookie reader replaces the
  * route-local copy and handles direct tests whose requests carry no headers bag. */
 
@@ -531,7 +534,7 @@ async function sendMediaRenditionResult(
       // ADR-027 §4: a purged/gone asset is `410 no-store`. See
       // `rendition-service.ts`'s doc comment for the disclosed
       // trashed-stands-in-for-purged mapping this build uses.
-      res.status(410).set("Cache-Control", "no-store").end();
+      res.status(410).set(CACHE_CONTROL_HEADER, "no-store").end();
       return;
     }
 
@@ -555,9 +558,16 @@ async function sendMediaRenditionResult(
       res.set("X-Content-Type-Options", "nosniff");
       res.set("Content-Security-Policy", SVG_CONTENT_SECURITY_POLICY);
     }
+    // Express's send owns If-None-Match (lists, weak comparison and 304); hash the served bytes
+    // as well as source/rendition identity so this is a strong validator even for sanitized SVG.
+    if (!access.gated) {
+      const identity = `${access.record?.source.sha256}:${transformName}:${version}:`;
+      const digest = createHash("sha256").update(identity).update(result.bytes).digest("hex");
+      res.set("ETag", `"${digest}"`);
+    }
     res
       .status(200)
-      .set("Cache-Control", renditionCacheControl(access, assetId))
+      .set(CACHE_CONTROL_HEADER, renditionCacheControl({ access, assetId, contentVersion: req.query.v }))
       .set("Content-Type", result.contentType)
       .send(Buffer.from(result.bytes));
   } catch (err) {
@@ -566,19 +576,18 @@ async function sendMediaRenditionResult(
 }
 
 /** The `Cache-Control` for an ALLOWED 200 rendition. @complexity O(1). */
-function renditionCacheControl(access: { gated: boolean; record: MediaRecord | null }, assetId: string): string {
+function renditionCacheControl({ access, assetId, contentVersion }: { access: { gated: boolean; record: MediaRecord | null }; assetId: string; contentVersion: unknown }, _optional: Record<string, never> = {}): string {
   // `access.gated`: a gated asset's ALLOW outcome is per-viewer (it depended on this
   // request's session cookie), so it must never be handed either of the two ungated,
   // shared/CDN-facing headers below — the next, possibly unentitled, visitor to hit a
   // public/shared cache would be served this same cached response.
   //
-  // Ungated (the overwhelming common case) still splits in two (S2b): `assetId` (the raw
-  // request segment) equals `access.record.id` only when the request spelled the asset by its
-  // immutable id, which keeps the original year-long immutable header. Any other spelling —
-  // the current slug, or a retired one now falling back through slug history — gets the short
-  // TTL, since only an id can never come to mean a different asset.
+  // An id is stable identity, not stable bytes after replacement. A matching content version
+  // makes new HTML cacheable for a year; old HTML's bare ids and stale versions revalidate.
+  // Editable/reusable slugs (including retired aliases) retain their existing one-hour bound.
   if (access.gated) return PRIVATE_NO_STORE;
-  return access.record?.id === assetId ? IMMUTABLE_PUBLIC : SLUG_KEYED_PUBLIC;
+  if (access.record?.id !== assetId) return SLUG_KEYED_PUBLIC;
+  return contentVersion === access.record.source.sha256.slice(0, 12) ? IMMUTABLE_PUBLIC : REVALIDATING_PUBLIC;
 }
 
 /** Maps a failure while resolving/generating a rendition to its HTTP response. @complexity O(1). */
@@ -587,7 +596,7 @@ function sendRenditionFailure(res: Response, err: unknown): void {
     // The transform is valid and generation was allowed, but the real pixel-operation
     // adapter can't run in this environment (disclosed `sharp`-not-installed blocker — see
     // `image-transformer.sharp.ts`). Service-unavailable, not a routine 404/410/500.
-    res.status(503).set("Cache-Control", "no-store").json({ error: err.message });
+    res.status(503).set(CACHE_CONTROL_HEADER, "no-store").json({ error: err.message });
     return;
   }
   if (err instanceof ImageSourceCorruptError) {
@@ -597,7 +606,7 @@ function sendRenditionFailure(res: Response, err: unknown): void {
     // magic-byte sniff while still failing here). A data condition on this one asset, not a
     // server fault — 422, never the opaque catch-all 500, and never cached (a future fix to
     // the stored blob must not stay masked by a long-lived negative cache entry).
-    res.status(422).set("Cache-Control", "no-store").json({ error: "source image could not be processed" });
+    res.status(422).set(CACHE_CONTROL_HEADER, "no-store").json({ error: "source image could not be processed" });
     return;
   }
   res.status(500).json({ error: "internal error" });

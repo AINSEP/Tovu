@@ -31,7 +31,7 @@ export interface ConsentServicePorts {
   /** The engine consent gate used by dry runs; omitted means the real `gateConsentHtml`. */
   consentGate?: ConsentDryRunGate;
   /** Set when `@jini-ai/cookie-consent` serves the site: banner modes are editable, a bad CSS rule is
-   * dropped alone instead of blocking, and static exports carry the banner. TODO(P4): always on. */
+   * dropped alone instead of blocking, and static exports carry the banner. P4 coexistence keeps this opt-in until the legacy engine is retired. */
   cookieConsent?: boolean;
 }
 
@@ -154,6 +154,13 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
     await store.publish({ draftId, expectedPublishedId });
     return { published: true, revisionId: draftId };
   };
+  const staticDeploymentRefusal = async ({ config }: { config: ConsentConfig }, _options = {}) => {
+    const blockingProblems = await problems({ config });
+    // The cookie-consent banner works on a static host (choices kept in the browser, labelled so).
+    if (ports.cookieConsent) return blockingProblems.length ? deploymentRefusal({ problems: blockingProblems }) : null;
+    blockingProblems.push({ code: 'STATIC_RECEIPTS_UNAVAILABLE', message: 'Static delivery cannot save consent receipts. Keep the banner on a live server, or explicitly publish with the banner disabled.' });
+    return deploymentRefusal({ problems: blockingProblems });
+  };
   /** Static publication has no receipt backend. A choice offers existing settings APIs, never a bypass.
    * Unknown configuration is blocking; OFF must be explicitly readable before exporting. */
   const deploymentCheck = async ({ principalId, permission }: { principalId: string; permission: 'system.publish' | 'deployments.publish' }, _optional = {}) => {
@@ -169,11 +176,7 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
       // Explicit OFF remains a rollback even when saved legacy copy exceeds today's editor limits.
       if (effective.enabled === false) return null;
       const config = parseConsentConfig({ value: effective });
-      const blockingProblems = await problems({ config });
-      // The cookie-consent banner works on a static host (choices kept in the browser, labelled so).
-      if (ports.cookieConsent) return blockingProblems.length ? deploymentRefusal({ problems: blockingProblems }) : null;
-      blockingProblems.push({ code: 'STATIC_RECEIPTS_UNAVAILABLE', message: 'Static delivery cannot save consent receipts. Keep the banner on a live server, or explicitly publish with the banner disabled.' });
-      return deploymentRefusal({ problems: blockingProblems });
+      return await staticDeploymentRefusal({ config });
     } catch {
       return deploymentRefusal({ problems: [{ code: 'CONSENT_UNAVAILABLE', message: 'The published consent policy could not be verified. Deployment was not started.' }] });
     }

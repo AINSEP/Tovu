@@ -6,6 +6,7 @@ import type { NewsletterRouteDeps } from "../../../inbound/admin-http/routes/new
 const lifecycle = await import("#src/features/agent-plugins/lifecycle");
 const tokens = await import("#src/features/agent-plugins/import-access-token");
 const renames = await import("#src/features/agent-plugins/apply-tool-renames");
+const faces = await import("#src/features/agent-plugins/provider-plugin-link");
 const calls: string[] = [];
 let report: SeedBundledAgentPluginsResult = { sourceRoot: "bundled", outcomes: [], retirements: [] };
 mock.module("#src/features/agent-plugins/lifecycle", { namedExports: { ...lifecycle,
@@ -16,6 +17,9 @@ mock.module("#src/features/agent-plugins/import-access-token", { namedExports: {
 } });
 mock.module("#src/features/agent-plugins/apply-tool-renames", { namedExports: { ...renames,
   applyAgentPluginToolRenames: async () => { calls.push("renames"); },
+} });
+mock.module("#src/features/agent-plugins/provider-plugin-link", { namedExports: { ...faces,
+  syncProviderFaces: async () => { calls.push("faces"); },
 } });
 const { buildBootModules } = await import("../bootstrap.js");
 // Only the bundled prepare step runs; its collaborators are replaced above.
@@ -46,10 +50,10 @@ test("TW2: bundled preparation reports failures and retirements in order before 
     "info:[bundled-agent-plugins] retired 'old' (moved into 'new'; successor: not-needed)",
     "info:[bundled-agent-plugins] retired 'disabled' (moved into 'new'; successor: left-disabled-by-operator)",
     "warn:[bundled-agent-plugins] 'disabled' was enabled but its successor 'new' is turned off by an operator and was left off — turn it on in Agent Plugins to keep that capability",
-    "tokens", "renames",
+    "faces", "tokens", "renames",
   ]);
   calls.length = 0;
   report = { sourceRoot: "bundled", outcomes: [], retirements: [] };
   await bundled.prepare();
-  assert.deepEqual(calls, ["seed", "tokens", "renames"]);
+  assert.deepEqual(calls, ["seed", "faces", "tokens", "renames"]);
 });

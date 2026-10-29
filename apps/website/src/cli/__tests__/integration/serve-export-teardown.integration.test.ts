@@ -9,7 +9,7 @@ import { after, before, test } from "node:test";
 import { sql } from "kysely";
 
 import { SiteDirInvalidError, ValidationError } from "#src/platform/site-dir/index";
-import { initSite } from "#src/platform/site-dir/init-site";
+import { initSite } from "#src/server/runtime/composition/site-dir";
 import { openSiteStore, PG_SOCKET_ENV } from "#src/server/runtime/composition/open-site-store";
 import { PortInUseError } from "../../errors.js";
 import { removeFixtureTree } from "../helpers/remove-fixture-tree.js";

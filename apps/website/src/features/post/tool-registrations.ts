@@ -63,8 +63,9 @@ import { withPluginHookRefusals } from "../../contracts/core/plugin-hook-failed-
 import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../contracts/core/commands/index.js";
 import { processOutbox } from "../../contracts/core/events/index.js";
-import { entryPublicPath } from "#src/platform/routing/adapter";
-import type { ToolContributor, DuplicateResourceHandlerContributor } from "#src/assistant/index";
+import { entryPublicPath } from "#src/platform/routing/index";
+import type { ToolContributor } from "@jini-ai/core";
+import type { DuplicateResourceHandlerContributor } from "../../assistant/duplicate-resource-registry.js";
 import { type AgentToolDefinition as PostAgentToolDefinition } from "@jini-ai/core";
 import { POST_LIST_FIELDS, postAgentToolCatalog } from "./agent-tools.js";
 import {
@@ -111,6 +112,9 @@ import { resolveFeaturedImageRef, type FeaturedImageDeps } from "./featured-imag
 import { currentIso, isScheduledAt } from "../../contracts/core/scheduled-publish.js";
 import { resolveRuntimeMode, type RuntimeMode } from "../../contracts/core/runtime-mode.js";
 import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
+
+const CONTENT_READ_PERMISSION = "content.read" as const;
+const CONTENT_WRITE_PERMISSION = "content.write" as const;
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: postAgentToolCatalog });
 
@@ -896,7 +900,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
      */
     content_post_search: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "content.read" }, { entityType: "post" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: CONTENT_READ_PERMISSION }, { entityType: "post" });
 
       return withSchemaOnRejection({ toolId: "content_post_search", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isPostShapeRejection(error), fn: async () => {
         const query = requireString({ input: input, key: "query" });
@@ -932,7 +936,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
      */
     content_post_list: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "content.read" }, { entityType: "post" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: CONTENT_READ_PERMISSION }, { entityType: "post" });
 
       const kind = input.kind === undefined ? undefined : requirePostKind(input);
       const limit = clampPostListLimit(optionalNumber({ input: input, key: "limit" }));
@@ -963,7 +967,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
     content_post_get: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
       const id = requireString({ input: input, key: "id" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "content.read" }, { entityType: "post", entityId: id });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: CONTENT_READ_PERMISSION }, { entityType: "post", entityId: id });
 
       const kind = input.kind === undefined ? undefined : requirePostKind(input);
       const { post } = await getAdminPostById({ deps: { repo: routeDeps.postRepo }, input: { workspaceId: routeDeps.workspaceId, id } });
@@ -998,7 +1002,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
             workspaceId: routeDeps.workspaceId,
             actor: { id: ctx.principal.id, kind: AGENT_TOOL_PRINCIPAL_KIND },
             summary: `Agent create ${kind} '${title}'`,
-            permission: "content.write",
+            permission: CONTENT_WRITE_PERMISSION,
           },
           mutation: {
             entityType: "post",
@@ -1099,7 +1103,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
             workspaceId: routeDeps.workspaceId,
             actor: { id: ctx.principal.id, kind: AGENT_TOOL_PRINCIPAL_KIND },
             summary: `Agent update ${kind} '${id}'`,
-            permission: "content.write",
+            permission: CONTENT_WRITE_PERMISSION,
           },
           mutation: {
             entityType: "post",
@@ -1211,7 +1215,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
 
       // Gated exactly like content_post_get, and performed before opening anything so a caller with
       // no read access learns nothing and never causes a dialog to be raised.
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "content.read" }, { entityType: "post", entityId: id });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: CONTENT_READ_PERMISSION }, { entityType: "post", entityId: id });
 
       // Kind guard applied inside the loader rather than in `deletePost`, mirroring `pages/delete.ts`/
       // `pages/update.ts` — and carrying the same disclosed asymmetry the rest of this catalog has:
@@ -1231,7 +1235,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
           actor: { id: ctx.principal.id, kind: AGENT_TOOL_PRINCIPAL_KIND },
           // Attribute the reversible removal to the agent and the row read for this operation.
           summary: `Agent trash: Delete ${existing.kind} '${existing.title}' (${existing.slug})`,
-          permission: "content.write",
+          permission: CONTENT_WRITE_PERMISSION,
         },
         mutation: {
           entityType: "post",
@@ -1364,7 +1368,7 @@ async function duplicatePostOrPage(
   // runs). `content_duplicate`'s own handler ALSO checks this resource's declared permission
   // (content.write) before calling here at all — see `contributePostDuplicateHandlers` below — so
   // this is a second, narrower gate on top of that outer one, not a replacement for it.
-  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: input.principalId, permission: "content.read" }, { entityType: "post", entityId: sourceId });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: input.principalId, permission: CONTENT_READ_PERMISSION }, { entityType: "post", entityId: sourceId });
 
   const { post: source } = await getAdminPostById({
     deps: { repo: routeDeps.postRepo },
@@ -1414,7 +1418,7 @@ async function duplicatePostOrPage(
       workspaceId: routeDeps.workspaceId,
       actor: { id: input.principalId, kind: AGENT_TOOL_PRINCIPAL_KIND },
       summary: `Agent duplicate ${source.kind} '${source.title}' as '${title}'`,
-      permission: "content.write",
+      permission: CONTENT_WRITE_PERMISSION,
     },
     mutation: {
       entityType: "post",
@@ -1488,19 +1492,19 @@ async function duplicatePostOrPage(
  * this domain's own `contributePostTools` history already fought to close. This function only
  * returns data; it imports the registry's TYPE, never its register function.
  */
-export function contributePostDuplicateHandlers(): DuplicateResourceHandlerContributor[] {
+export function contributePostDuplicateHandlers(): DuplicateResourceHandlerContributor<PostToolDeps>[] {
   return [
     {
       resource: "post",
       build: (routeDeps) => ({
-        permission: "content.write",
+        permission: CONTENT_WRITE_PERMISSION,
         duplicate: (input) => duplicatePostOrPage(routeDeps, "post", input),
       }),
     },
     {
       resource: "page",
       build: (routeDeps) => ({
-        permission: "content.write",
+        permission: CONTENT_WRITE_PERMISSION,
         duplicate: (input) => duplicatePostOrPage(routeDeps, "page", input),
       }),
     },
@@ -1511,7 +1515,7 @@ export function contributePostDuplicateHandlers(): DuplicateResourceHandlerContr
 // through structural, type-only ports: a feature-to-assistant registration value import would close
 // a cycle against the site's post reader. Keep the published-post predicate with its domain owner;
 // moving it into PostRepoPort would trade a correctness boundary for a dependency-graph shortcut.
-export function contributePostTools(): ToolContributor {
+export function contributePostTools(): ToolContributor<PostToolDeps, AssistantSurfaceDeps> {
   return { domain: "post", build: buildPostRegistrations, risk: postDerivedRisk };
 }
 

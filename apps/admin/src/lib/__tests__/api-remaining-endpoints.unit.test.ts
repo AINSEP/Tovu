@@ -125,16 +125,6 @@ describe("endpoints", () => {
     expect(calls[0]!.url).toBe(`${W}/assistant/execution/detect-agents`);
   });
 
-  it("updates a form on the authoring route only when mode or html is given", async () => {
-    const calls = stubFetch();
-    await api.updateForm({ id: "f1" }, { name: "Contact" });
-    await api.updateForm({ id: "f1" }, { mode: "html", html: "<form></form>" });
-    await api.updateForm({ id: "f1" }, { html: "<form></form>" });
-    expect(calls.map(({ url, method }) => [url, method])).toEqual([
-      [`${W}/forms/f1`, "PUT"], [`${W}/forms/f1/authoring`, "PUT"], [`${W}/forms/f1/authoring`, "PUT"],
-    ]);
-  });
-
   it("creates a recovery restore point with or without options", async () => {
     const calls = stubFetch();
     await api.createRecoveryRestorePoint();

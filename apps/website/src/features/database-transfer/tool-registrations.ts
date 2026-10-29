@@ -1,14 +1,14 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/database-transfer.js';
 import { requireHumanConfirm } from "../../contracts/core/human-confirm.js";
 import { createDestinationExchangeReporter } from './destination-exchange.js';
-import { resolveOperatorLocale, type OperatorLocaleDeps } from '../agent-plugins/operator-locale.js';
+import { resolveOperatorLocale, type OperatorLocaleDeps } from '../../contracts/headless/operator-locale.js';
 import { assertCredentialToken, CredentialInputError } from '../../contracts/core/credential-token.js';
 import { readFile } from "node:fs/promises";
 
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission, adaptLegacyAuthorize } from "@jini-ai/cms/core";
 
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
 import { describeErrorForLog, forbiddenRule } from "../../contracts/core/model-facing-tool-errors.js";
@@ -113,7 +113,7 @@ export function buildDatabaseTransferRegistrations(deps: DatabaseTransferToolDep
     destinations,
     target: connectionString => {
       try { assertCredentialToken({ value: connectionString, field: 'address', hosted: false }); }
-      catch (err) { if (err instanceof CredentialInputError) throw new InvalidConnectionStringError(err.message); throw err; }
+      catch (err) { if (err instanceof CredentialInputError) { throw new InvalidConnectionStringError(err.message); } throw err; }
       return (deps.databaseTransferTarget ?? createPsqlPostgresTarget)(connectionString);
     },
     requirePermission: request => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: request.principalId, permission: request.permission }, { entityType: request.entityType }),
@@ -141,6 +141,6 @@ export function buildDatabaseTransferRegistrations(deps: DatabaseTransferToolDep
     handlers: withModelFacingErrors({ handlers: Object.fromEntries(tools.map(tool => [tool.descriptor.id, tool.handler])), rules: DATABASE_TRANSFER_MODEL_FACING_ERRORS }), derivedRisk: databaseTransferDerivedRisk });
 }
 /** Called once by server/runtime/composition/tool-catalog-manifest.ts. */
-export function contributeDatabaseTransferTools(): ToolContributor {
+export function contributeDatabaseTransferTools(): ToolContributor<DatabaseTransferToolDeps, AssistantSurfaceDeps> {
   return { domain: DOMAIN, build: buildDatabaseTransferRegistrations, risk: databaseTransferDerivedRisk };
 }

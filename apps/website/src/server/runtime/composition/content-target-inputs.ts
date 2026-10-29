@@ -2,7 +2,7 @@ import { mediaAgentToolCatalog } from "@jini-ai/cms/media";
 import { ToolInputError } from "@jini-ai/core";
 import { applyContentTargetInputs } from "#src/assistant/content-target-inputs";
 import { currentToolIdFor } from "#src/assistant/content-read-tool";
-import type { AssistantToolContributions } from "#src/assistant/tool-contribution-registry";
+import type { AssistantToolContributions } from "#src/assistant/tool-registrations";
 import { getAdminPostByIdOrSlug, PostNotFoundError } from "#src/features/post/index";
 import { postAgentToolCatalog } from "#src/features/post/agent-tools";
 import { postPreviewAgentToolCatalog } from "#src/features/post/preview-tool";

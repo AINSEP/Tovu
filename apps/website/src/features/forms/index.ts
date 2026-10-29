@@ -138,7 +138,8 @@ export interface SubmitFormDeps extends Omit<PackageSubmitDeps, "dispatcher" | "
   files?: FormFileStorage;
 }
 /** Trusted request-bound evidence; never supplied by public form answers. */
-export interface FormAnalyticsProvenance { granted: true; subjectId: string; consentProof?: import('@jini-ai/cms/consent').ConsentAnalyticsProof; }
+export type { FormAnalyticsProvenance } from "./analytics-provenance.js";
+import type { FormAnalyticsProvenance } from "./analytics-provenance.js";
 export interface SubmitFormRequired { deps: SubmitFormDeps; input: SubmitFormInput; }
 
 /** One attempt store per submission store: the same process-lifetime scope the store has. */

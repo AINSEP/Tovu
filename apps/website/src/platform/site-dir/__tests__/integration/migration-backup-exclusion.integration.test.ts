@@ -15,7 +15,7 @@ import { checkTreePath } from "#src/features/publish-content/file-tree-policy";
 import { collectSiteBackupFiles } from "#src/features/site-backup/sources";
 import { MIGRATION_BACKUP_PREFIX } from "#src/platform/db/sqlite/content-db";
 import { duplicateSite } from "../../duplicate-site.js";
-import { initSite } from "../../init-site.js";
+import { initSite } from "#src/server/runtime/composition/site-dir";
 import { resolveSiteDatabasePaths } from "../../site-databases.js";
 import { isPortableSiteEntry } from "../../layout.js";
 import { createGitIgnoreFixture } from "./git-ignore.fixture.js";

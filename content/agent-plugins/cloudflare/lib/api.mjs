@@ -82,8 +82,9 @@ function apiFailure({ kit, json, method, path, status }, _options = {}) {
 function requestInit({ method, body, token }, _options = {}) {
   const headers = { Authorization: `Bearer ${token}` };
   const init = { method, headers, redirect: 'error' };
+  if (body === undefined) return init;
   if (body instanceof FormData) init.body = body;
-  else if (body !== undefined) { headers['Content-Type'] = 'application/json'; init.body = JSON.stringify(body); }
+  else { headers['Content-Type'] = 'application/json'; init.body = JSON.stringify(body); }
   return init;
 }
 

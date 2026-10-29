@@ -5,7 +5,7 @@ import { nowIso } from "@jini-ai/core/primitives";
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { notConfirmedResult, approvalToolHandler } from "#src/contracts/core/human-confirm";
 import { SITE_KEY_MANAGE_PERMISSION } from "#src/features/identity/site-key-permission";
 import type { ToolExecutionContext, ToolExecutionOptions } from "@jini-ai/core";
@@ -147,6 +147,6 @@ export function buildDeployOpsRegistrations(deps: DeployOpsToolDeps, surfaces?: 
   return buildDomainRegistrations({ metadata: toolMetadata, domain: "deploy-ops", catalogModule: "features/deployments/deploy-ops/agent-tools.ts", catalog: indexCatalogById({ catalog: catalog }), handlers, derivedRisk: deployOpsDerivedRisk });
 }
 /** Contribute five read-only tools, the deploy tool and the secret writers; the composition root supplies a gated registry for daemon schemas. */
-export function contributeDeployOpsTools(options: { registry?: DeployOpsRegistry } = {}): ToolContributor {
+export function contributeDeployOpsTools(options: { registry?: DeployOpsRegistry } = {}): ToolContributor<DeployOpsToolDeps, ChatDeleteSurfaceDeps> {
   return { domain: "deploy-ops", build: (deps, surfaces) => buildDeployOpsRegistrations({ ...deps, ...(options.registry ? { deployOpsRegistry: options.registry } : {}) }, surfaces), risk: deployOpsDerivedRisk };
 }

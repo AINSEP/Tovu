@@ -10,7 +10,9 @@ function text(node: Node): string {
   while (stack.length) {
     const current = stack.pop()!;
     if (current.nodeName === "#text" && "value" in current) result += current.value;
-    else if ("tagName" in current && !["input", "textarea", "select", "script", "style", "template"].includes(current.tagName)) stack.push(...[...current.childNodes].reverse());
+    else {
+      if ("tagName" in current && !["input", "textarea", "select", "script", "style", "template"].includes(current.tagName)) stack.push(...[...current.childNodes].reverse());
+    }
   }
   return result;
 }
@@ -70,7 +72,8 @@ function fieldMessage(
   { field, reason, nodes, labels, copy }: { field: string; reason: string; nodes: readonly Element[]; labels: readonly Element[]; copy: Copy },
 ): { field: string; message: string } {
   const control = nodes.find((node) => CONTROL_TAGS.includes(node.tagName) && attribute(node, "name") === field);
-  const trimmed = authoredLabel(control, labels)?.trim().replace(/\s*\*\s*$/, "") || copy[4];
+  const authored = authoredLabel(control, labels)?.trim();
+  const trimmed = (authored?.endsWith("*") ? authored.slice(0, -1).trimEnd() : authored) || copy[4];
   const label = copy === FORM_VALIDATION_COPY.en ? englishPhrase(trimmed) : trimmed;
   return { field, message: messageTemplate(copy, reason, control).replace("{label}", () => label) };
 }

@@ -1,6 +1,6 @@
 import { postJsonToDaemon, readPromptFromFlags } from "@jini-ai/cli";
 import { parseSiteImportInput } from "#src/features/site-backup/import-backend";
-import { ValidationError } from "#src/platform/site-dir/errors";
+import { ValidationError } from "#src/platform/site-dir/index";
 import { isLoopbackHost } from "#src/server/runtime/boot/bind-host";
 import { isIP } from "node:net";
 
@@ -30,8 +30,9 @@ export async function runImportSiteCommand(required: { server: string; workspace
 function parseImportServer({ value }: { value: string }, _options: Record<string, never> = {}): URL {
   let server: URL;
   try { server = new URL(value); } catch { throw new ValidationError("import: --server must be an admin server origin."); }
-  if (server.username || server.password || server.pathname !== "/" || server.search || server.hash ||
-      !isImportProtocolAllowed({ server })) throw new ValidationError("import: use an HTTPS server origin, or HTTP loopback for local development.");
+  const hasCredentials = server.username || server.password;
+  const hasPath = server.pathname !== "/" || server.search || server.hash;
+  if (hasCredentials || hasPath || !isImportProtocolAllowed({ server })) throw new ValidationError("import: use an HTTPS server origin, or HTTP loopback for local development.");
   return server;
 }
 

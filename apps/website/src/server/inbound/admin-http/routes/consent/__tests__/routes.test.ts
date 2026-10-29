@@ -26,12 +26,12 @@ for (const route of cases) test(`${route.method} consent/${route.path}: permissi
   registerAdminConsentRoutes({ app, deps: { workspaceId: 'ws', authorize: f.ports.authorize }, service: f.service });
   const base = await startTestServer(app, t);
   const body = route.path === 'publish' ? { draftId: 'revision-1', expectedPublishedId: null } : route.method === 'PUT' ? { config: f.config, expectedDraftId: null } : {};
-  const request = (workspace = 'ws', payload = body) => fetch(`${base}/api/admin/v1/workspaces/${workspace}/consent/${route.path}`, { method: route.method, ...(route.method === 'GET' ? {} : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) }) });
+  const request = (workspace = 'ws', payload: unknown = body) => fetch(`${base}/api/admin/v1/workspaces/${workspace}/consent/${route.path}`, { method: route.method, ...(route.method === 'GET' ? {} : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) }) });
   assert.equal((await request('foreign')).status, 404);
   if (route.path === 'publish') await f.service.saveDraft({ principalId: 'owner', config: f.config, expectedDraftId: null });
   assert.equal((await request()).status, 200);
   if (route.method === 'PUT') assert.equal((await request()).status, 409);
-  if (route.method !== 'GET') assert.equal((await request('ws', { ...body, confirm: true } as typeof body)).status, 400);
+  if (route.method !== 'GET') assert.equal((await request('ws', { ...body, confirm: true })).status, 400);
   f.ports.store = undefined;
   assert.equal((await request()).status, 503);
   f.deny();

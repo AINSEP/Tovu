@@ -1,6 +1,6 @@
 /** @file Consent tool discovery and confirmation policy; projected by the native registry. */
 import type { ToolMetadataById } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-policy.js';
+import type { ToolApprovalPolicy } from './approval-policy.js';
 export const toolMetadata = {
   consent_get_settings: { search: { keywords: 'cookie consent banner current settings draft published privacy', queries: ['Read the cookie banner settings.'] }, approval: { class: 'read', confirmation: 'direct' } },
   consent_get_readiness: { search: { keywords: 'cookie consent readiness preview dry run trackers scripts categories placement', queries: ['Is my cookie banner ready to turn on?'] }, approval: { class: 'read', confirmation: 'direct' } },

@@ -8,7 +8,7 @@ import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 /** Open string, not a closed union — see `features/plugins/lipay/ports.ts`'s `PaymentProviderId`
  * for why (a closed union makes every new provider a core edit). `"github"` is the only value with
  * a real adapter this pass (`content/agent-plugins/github/deployments/github.mjs`). */
-export type DeploymentProviderId = string;
+export type DeploymentProviderId = DeploymentTargetRecord["providerId"];
 
 
 /** One provider connection, scoped to a single environment. `config` carries non-secret provider
@@ -18,7 +18,7 @@ export interface DeploymentTargetRecord {
   readonly workspaceId: UUID;
   readonly id: UUID;
   readonly environmentId: UUID;
-  readonly providerId: DeploymentProviderId;
+  readonly providerId: string;
   readonly label: string;
   readonly config: Readonly<Record<string, unknown>>;
   readonly enabled: boolean;

@@ -7,7 +7,7 @@ import { ensureVaultRepoFixture } from "#src/platform/db/repos/__tests__/vault-r
 import { contentKernel, type ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { openContentDb } from "../../sqlite/content-db.js";
-import { SqlAdminExecutionCredentialRepo } from "../execution-credential-repo.js";
+import { SqlAdminExecutionCredentialRepo } from "../../../../assistant/execution-credential-repo.js";
 import { principals, workspaces } from "../../schema.sqlite.js";
 import { setExecutionCredential, type AdminExecutionCredentialRecord } from "#src/assistant/execution-credential-store";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";

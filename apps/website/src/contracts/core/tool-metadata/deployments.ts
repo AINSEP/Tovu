@@ -1,9 +1,11 @@
 import type { ToolMetadataById } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-policy.js';
+import type { ToolApprovalPolicy } from './approval-policy.js';
 
 /** deployments registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
   "deployment_execute_static_publish": {
+    title: 'Publish static site',
+    actionVerb: 'Publish',
     search: {
       keywords: "deploy push ship go live make it live publish the site hosting static host custom domain apex www dns",
       queries: ["Publish the site.", "Publish the site to production hosting.", "Deploy this website and make it live.", "Push my site live on my static host."],

@@ -7,7 +7,7 @@ import { closeSqliteConnection } from "../../../platform/db/kernel/drivers/sqlit
 import { openContentDb } from "../../../platform/db/sqlite/content-db.js";
 import { readTemplate } from "../../../platform/site-dir/read-template.js";
 import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databases.js";
-import { createSite } from "../../../platform/site-dir/site-registry.js";
+import { createSite } from "#src/server/runtime/composition/site-dir";
 import { importFixture, OWNER_PASSWORD, stamp } from "../../site-backup/__tests__/import.fixture.js";
 import { SHARE_LIMITS } from "../../site-backup/share-policy.js";
 

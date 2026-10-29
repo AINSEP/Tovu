@@ -24,7 +24,6 @@ export {
   deleteCustomCredential,
   describeCredential,
   describeCredentialByLabel,
-  isUniqueLabelViolation,
   listCustomCredentials,
   listCustomCredentialInventory,
   resolveCustomCredentialByLabel,

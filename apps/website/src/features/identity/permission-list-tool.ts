@@ -2,7 +2,7 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/identity.js';
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type DerivedRiskByToolId, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import type { PolicyRepoPort, PolicyPermissionRepoPort } from "@jini-ai/user-management";
 
 /** Read ports only; no permission grants or user credentials. */
@@ -44,6 +44,6 @@ export function buildRegistrations(deps: Deps): ToolRegistration[] {
   });
 }
 /** Installs this distinct domain without replacing its existing sibling tools. */
-export function contributeIdentityPolicyListPermissionsTools(): ToolContributor {
+export function contributeIdentityPolicyListPermissionsTools(): ToolContributor<Deps, unknown> {
   return { domain: "identity-policy-list-permissions", build: buildRegistrations, risk: derivedRisk };
 }

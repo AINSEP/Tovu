@@ -3,13 +3,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { ensureVaultRepoFixture } from "./vault-repo.fixture.js";
 
-import { createCustomCredential, updateCustomCredential, describeCredential, resolveCustomCredentialByLabel, isUniqueLabelViolation } from "#src/features/custom-credentials/store";
+import { createCustomCredential, updateCustomCredential, describeCredential, resolveCustomCredentialByLabel } from "#src/features/custom-credentials/store";
+import { isUniqueViolation } from "#src/platform/db/kernel/dialect";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import type { CustomCredentialSetRecord } from "#src/features/custom-credentials/types";
 import { seedWorkspaces } from "#src/platform/db/kernel/__tests__/content-seeds";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { SqlCustomCredentialSetRepo } from "../custom-credential-repo.js";
+import { SqlCustomCredentialSetRepo } from "../../../../features/custom-credentials/custom-credential-repo.js";
 import { InMemoryVaultRepo, VaultError, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
 import { CustomCredentialVaultRepo, customVaultRecord, customVaultScope } from "#src/features/custom-credentials/vault-repo";
 
@@ -276,7 +277,7 @@ describeEachDialect(
         (err: unknown) => {
           assert.ok(err instanceof Error);
           assert.match((err as Error).message, /UNIQUE constraint failed|violates unique constraint/);
-          assert.ok(isUniqueLabelViolation(err), "the store must recognise the violation to translate it");
+          assert.ok(isUniqueViolation(err), "the store must recognise the violation to translate it");
           return true;
         }
       );

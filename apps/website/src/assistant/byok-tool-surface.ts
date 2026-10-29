@@ -7,7 +7,7 @@
  * `executeMetaTool` forwards its live emitter; the admin redemption proxy tries this store first,
  * falling back to the daemon only on unknown-or-closed exchanges. The A2UI proxy does likewise.
  */
-import type { AssistantToolContributions } from "./tool-contribution-registry.js";
+import type { AssistantToolContributions } from "./tool-registrations.js";
 import {
   createToolRegistry,
   createToolExposure,

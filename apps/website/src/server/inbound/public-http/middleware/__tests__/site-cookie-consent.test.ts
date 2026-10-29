@@ -73,7 +73,7 @@ function postChoice({ base, policy }: { base: string; policy: string }, { origin
 }
 
 test('client asset serves injected bytes at its immutable URL without page cookies', async t => {
-  const f = await publicFixture({ t }, { resolvers: [{ id: 'us', kind: 'region-resolver', resolve: async () => 'us' }] });
+  const f = await publicFixture({ t }, { resolvers: [{ id: 'us', kind: 'region-resolver', resolve: async () => 'us' as const }] });
   const response = await fetch(f.base + CLIENT.src);
   assert.equal(response.status, 200);
   assert.match(response.headers.get('content-type')!, /javascript/);
@@ -188,7 +188,7 @@ test('plugin collectors require same-origin, current category consent and a rece
     assert.equal(response.status, 403);
     await response.text();
   }
-  assert.deepEqual(f.calls, []);
+  assert.deepEqual([...f.calls], []);
   const accepted = await send({ cookie });
   assert.equal(accepted.status, 200);
   assert.equal(accepted.headers.get('cache-control'), 'private, no-store');
@@ -224,7 +224,7 @@ for (const scenario of [
 
 test('static export uses local evidence, omits plugins and never resolves or sets region cookies', async t => {
   let regionReads = 0, pluginReads = 0;
-  const f = await publicFixture({ t }, { resolvers: [{ id: 'fixture', kind: 'region-resolver', resolve: async () => { regionReads++; return 'us'; } }] });
+  const f = await publicFixture({ t }, { resolvers: [{ id: 'fixture', kind: 'region-resolver', resolve: async () => { regionReads++; return 'us' as const; } }] });
   f.deps.consentAdapters = () => { pluginReads++; return []; };
   const response = await fetch(f.base, { headers: { 'x-tovu-static-export': '1', cookie: 'jini_region=us' } });
   assert.equal(response.status, 200);
@@ -238,7 +238,7 @@ test('static export uses local evidence, omits plugins and never resolves or set
     assert.equal(config.plugins, undefined);
     assert.ok(document.querySelector(`script[src="${CLIENT.src}"]`));
   } finally { dom.window.close(); }
-  assert.deepEqual(f.calls, []);
+  assert.deepEqual([...f.calls], []);
   assert.equal(regionReads, 0);
   assert.equal(pluginReads, 0);
 });
@@ -246,7 +246,7 @@ test('static export uses local evidence, omits plugins and never resolves or set
 for (const config of [{ bannerMode: 'off' as const }, { enabled: false }]) {
   test(`banner disabled by ${Object.keys(config)[0]} boots anonymous analytics without UI or region cookies`, async t => {
     let regions = 0;
-    const f = await publicFixture({ t }, { config, resolvers: [{ id: 'us', kind: 'region-resolver', resolve: () => { regions++; return 'us'; } }] });
+    const f = await publicFixture({ t }, { config, resolvers: [{ id: 'us', kind: 'region-resolver', resolve: () => { regions++; return 'us' as const; } }] });
     const response = await fetch(f.base);
     assert.equal(response.headers.get('set-cookie'), null);
     const dom = new JSDOM(await response.text());
@@ -277,7 +277,7 @@ for (const config of [{ bannerMode: 'off' as const }, { enabled: false }]) {
 
 test('admin, API and theme previews receive no banner or region cookie', async t => {
   let regionReads = 0;
-  const f = await publicFixture({ t }, { resolvers: [{ id: 'fixture', kind: 'region-resolver', resolve: async () => { regionReads++; return 'us'; } }] });
+  const f = await publicFixture({ t }, { resolvers: [{ id: 'fixture', kind: 'region-resolver', resolve: async () => { regionReads++; return 'us' as const; } }] });
   for (const route of ['/admin/example', '/api/example', '/theme-preview/example']) {
     const response = await fetch(f.base + route);
     assert.equal(await response.text(), PAGE);
@@ -326,7 +326,7 @@ test('plugin paths with dot segments or encoded separators never reach a plugin 
   for (const requestPath of [PLUGIN_PATH + '/../fixture/adapter.mjs', PLUGIN_PATH + '/%2e%2e/secret', PLUGIN_PATH + '/a%2fb', PLUGIN_PATH + '/./adapter.mjs']) {
     assert.equal(await rawGet({ base: f.base, path: requestPath }), 404, requestPath);
   }
-  assert.deepEqual(f.calls, []);
+  assert.deepEqual([...f.calls], []);
 });
 
 test('detached delivery rechecks the receipt: a forged, withdrawn or stale-policy proof never delivers', async t => {
@@ -348,7 +348,8 @@ test('detached delivery rechecks the receipt: a forged, withdrawn or stale-polic
 test('US no-choice collectors allow analytics except under DNT; strict regions deny', async t => {
   const f = await publicFixture({ t });
   const send = (headers: Record<string, string>) => fetch(f.base + PLUGIN_PATH + '/collect', { method: 'POST', headers: { origin: f.base, ...headers }, body: 'event' });
-  for (const headers of [{ cookie: 'jini_region=us', dnt: '1' }, { cookie: 'jini_region=de' }, { cookie: 'jini_region=gb' }, {}]) {
+  const deniedHeaders: Record<string, string>[] = [{ cookie: 'jini_region=us', dnt: '1' }, { cookie: 'jini_region=de' }, { cookie: 'jini_region=gb' }, {}];
+  for (const headers of deniedHeaders) {
     const res = await send(headers);
     assert.equal(res.status, 403);
     await res.text();

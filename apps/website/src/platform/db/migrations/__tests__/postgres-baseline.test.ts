@@ -54,7 +54,14 @@ describe("0000_legacy_baseline on Postgres (PGlite)", () => {
       CONTENT_MIGRATIONS.filter(step => step.id < "0012_secrets_vault").map(step => ({ id: step.id })));
     const actual = await readSchemaShape(kernel, { exclude: ["tovu_migrations", "post_search_document", ...backups] });
     const expected = withoutNotValid(await readSchemaShape(reference));
-    assert.deepEqual(Object.keys(actual.tables).sort(), Object.keys(expected.tables).sort());
+    // 0021–0030 add these outside Drizzle; 0035's member_external_identities is in both schemas.
+    const migrationOnlyTables = [
+      "site_consent_revisions", "site_consent_heads", "mail_send_ledger", "mail_suppression",
+      "mail_feedback_inbox", "mail_capture", "domain_binding", "search_index_state",
+      "search_index_watermarks", "search_index_targets", "search_index_retired",
+      "mail_activity_attempts", "mail_suppression_removals",
+    ];
+    assert.deepEqual(Object.keys(actual.tables).sort(), [...Object.keys(expected.tables), ...migrationOnlyTables].sort());
     // ALTER TABLE appends columns; their definitions, defaults and constraints must still match.
     for (const name of Object.keys(expected.tables)) assert.deepEqual(
       { ...actual.tables[name], columns: [...actual.tables[name].columns].sort() },

@@ -1,9 +1,8 @@
 /** Stopped-site CLI owner, reused by automatic desktop startup relocation. Dry-run performs no stop, mkdir, lock cleanup, registry write or move. */
 import fs from "node:fs";
 import path from "node:path";
-import Database from "better-sqlite3";
-import { verifySqliteIntegrity } from "@jini-ai/db/sqlite";
-import { checkpointStoppedSqliteWal } from "../db/kernel/checkpoint-stopped-wal.js";
+import { assertDatabaseStopped, inspectStoppedDatabase } from "../db/kernel/stopped-database.js";
+export { assertDatabaseStopped, inspectStoppedDatabase } from "../db/kernel/stopped-database.js";
 import { resolveSiteDatabasePaths } from "./site-databases.js";
 import { withFileLock, moveDirectoryVerified } from "@jini-ai/platform/fs";
 import { createSitesWorkspace, type SitesWorkspace } from "./sites-home.js";
@@ -78,8 +77,11 @@ function planRootMoves({ root, home, workspace, selectedNames }: { root: string;
   for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
     const from = path.join(root, entry.name);
-    if (!isSiteFolder({ name: entry.name, dir: from })) onSkipped?.({ dir: from });
-    else if (isSelected({ name: entry.name, selectedNames })) plans.push(planSiteMove({ from, to: path.join(home, entry.name), workspace }));
+    if (!isSiteFolder({ name: entry.name, dir: from })) {
+      onSkipped?.({ dir: from });
+    } else {
+      if (isSelected({ name: entry.name, selectedNames })) plans.push(planSiteMove({ from, to: path.join(home, entry.name), workspace }));
+    }
   }
   return plans;
 }
@@ -235,51 +237,6 @@ function relocateSite({ plan, workspace }: { plan: MovePlan; workspace: SitesWor
     })), verifyFile: verifyDatabase,
   });
 }
-/** Released hosts have no lease. SQLite's exclusive lock is the admission proof. Never copy a live SQLite inode.
- * A WAL/SHM that survives while this probe holds that lock was left by an unclean stop (no process has the DB):
- * its committed frames are checkpointed into the main file, exactly as the site's next open would, and the
- * stale SHM is removed under the lock; close deletes the emptied WAL. Any journal still present afterwards refuses.
- * @complexity O(1) probes per DB, plus one checkpoint of a leftover WAL; no rows are read.
- */
-export function assertDatabaseStopped({ path: file }: { path: string }, _options = {}): void {
-  const db = new Database(file, { fileMustExist: true, timeout: 0 });
-  try {
-    // EXCLUSIVE locking mode keeps the lock until close and uses a heap wal-index, never the stale SHM.
-    db.exec("PRAGMA locking_mode=EXCLUSIVE; BEGIN EXCLUSIVE; ROLLBACK;");
-    checkpointStoppedSqliteWal({ db, path: file });
-    fs.rmSync(file + "-shm", { force: true });
-  } catch (error) {
-    if ((error as { code?: string }).code?.startsWith("SQLITE_BUSY")) throw new Error(`Database is open in another process: ${file}. Stop it before moving it.`);
-    throw error;
-  } finally { db.close(); }
-  for (const suffix of ["-wal", "-shm"]) {
-    if (fs.existsSync(file + suffix)) throw new Error(`Database journal exists: ${file + suffix}. Stop the site and close/checkpoint its database before moving it.`);
-  }
-}
-/** Read-only verification of every user table plus SQLite's full integrity check through Jini's
- * existing SQLite inspector. It now supports strict counts; its diagnostics mode still reports
- * partial results. No process is signalled: a recycled PID is not permission to stop another app.
- * Row counts include tables with unusual quoted names and distinguish identical totals per table.
- * @param options.verifyIntegrity - Integrity/row-count inspector; defaults to Jini's SQLite inspector.
- * @complexity O(database pages + all table rows), one stopped connection per verification.
- */
-export function inspectStoppedDatabase({ path: file }: { path: string }, { verifyIntegrity = verifySqliteIntegrity }: { verifyIntegrity?: typeof verifySqliteIntegrity } = {}): string {
-  // SQLite can create WAL/SHM even for a readonly connection. Remember exactly what existed;
-  // only this inspection's artifacts may be removed, never a pre-existing journal.
-  const absentSidecars = ["-wal", "-shm"].map((suffix) => file + suffix).filter((sidecar) => !fs.existsSync(sidecar));
-  let db: Database.Database | undefined;
-  try {
-    db = new Database(file, { readonly: true, fileMustExist: true });
-    const checked = verifyIntegrity({ db }, { includeRowCounts: true });
-    if (!checked.ok) throw new Error(`SQLite integrity_check failed for ${path.basename(file)}: ${checked.issues.map((issue) => issue.message).join('; ')}`);
-    if (!checked.rowCounts) throw new Error("Build @jini-ai/db before running the stopped-site database mover.");
-    return JSON.stringify(checked.rowCounts);
-  } finally {
-    try { db?.close(); }
-    finally { for (const sidecar of absentSidecars) fs.rmSync(sidecar, { force: true }); }
-  }
-}
-
 /** Move one selected nested-default site through the existing stopped/verified mover.
  * Callers resolve the directory from their catalog; this boundary rejects arbitrary source roots.
  * @returns The verified destination; throws on a running site, missing marker or collision.

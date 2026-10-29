@@ -16,7 +16,7 @@ import {
   resolveDefaultTimeoutMs as resolveWorkerTimeout,
   type WorkerFactory,
 } from "@jini-ai/sandbox/node-worker";
-import type { SiteRenderContext } from "./render.js";
+import type { SiteRenderContext } from "./render-context.js";
 import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 
 export type { SandboxRenderResult } from "@jini-ai/sandbox/node-worker";
@@ -139,9 +139,11 @@ export async function renderInWorkerSandbox(
   const isTsSource = import.meta.filename.endsWith(".ts");
   const productRoot = options.productRoot ?? resolveProductRoot();
   const isThemeWorker = workerBasename === "handlebars-worker" || workerBasename === "liquid-worker";
-  const workerDir = isTsSource && isThemeWorker
-    ? await (sourceWorkers ??= compileSourceWorkers({ productRoot }))
-    : import.meta.dirname;
+  let workerDir = import.meta.dirname;
+  if (isTsSource && isThemeWorker) {
+    sourceWorkers ??= compileSourceWorkers({ productRoot });
+    workerDir = await sourceWorkers;
+  }
   const env = { ...process.env };
   if (isTsSource) delete env.NODE_V8_COVERAGE;
   const workerFactory = options.workerFactory ?? createNodeWorkerFactory({ env });

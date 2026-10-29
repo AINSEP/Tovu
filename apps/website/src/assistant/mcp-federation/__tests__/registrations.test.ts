@@ -16,10 +16,6 @@ import { InMemoryMcpSession } from "../adapter.memory.js";
 import { attachFederatedMcpTools } from "../bootstrap.js";
 import { FEDERATED_ENTITY_TYPE, FEDERATED_TOOL_PERMISSION, McpAuthFailedError, type ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { FederatedMcpConnectionConfig, RemoteToolDescriptor, RemoteToolResult } from "@jini-ai/mcp/federation";
-import {
-  registerFederatedMcpPreset as registerPreset,
-  resetFederatedMcpPresetsForTests as resetPresets,
-} from "../presets.js";
 import { buildFederatedMcpRegistrations, federateSession } from "../registrations.js";
 
 /**
@@ -29,7 +25,7 @@ import { buildFederatedMcpRegistrations, federateSession } from "../registration
  * untrusted envelope — plus the preset-registry seam and the fail-open bootstrap.
  *
  * Vendor-blind by construction: nothing here imports a preset module. Where a preset is needed, the
- * test registers its own fake one through `presets.ts`, which is also the most direct check that the
+ * test registers its own fake one through Jini's registry, which is also the most direct check that the
  * seam works for a vendor core has never heard of.
  *
  * The `fakeDeps` here follows `tool-registrations.database-recovery.test.ts`'s technique exactly:
@@ -38,8 +34,6 @@ import { buildFederatedMcpRegistrations, federateSession } from "../registration
  */
 
 const presetRegistry = createFederatedMcpPresetRegistry({});
-const registerFederatedMcpPreset = (preset: Parameters<typeof registerPreset>[0]) => registerPreset(preset, { registry: presetRegistry });
-const resetFederatedMcpPresetsForTests = () => resetPresets({ registry: presetRegistry });
 
 const WORKSPACE_ID = "ws-federation";
 const PRINCIPAL_ID = "principal-under-test";
@@ -554,12 +548,12 @@ const FAKE_LAUNCH = { command: "unused", args: [] as string[], env: {} };
 
 /** A vendor core has never heard of, resolved entirely through the public seam. */
 function fakePreset(options: { presetId: string; resolve: (env: NodeJS.ProcessEnv) => ResolvedFederatedConnection | null }) {
-  registerFederatedMcpPreset({ presetId: options.presetId, resolve: options.resolve });
+  presetRegistry.register({ preset: { presetId: options.presetId, resolve: ({ env }) => options.resolve(env) } });
 }
 
 test("a preset registered from outside core is resolved and connected without core knowing the vendor", async (t) => {
-  t.after(resetFederatedMcpPresetsForTests);
-  resetFederatedMcpPresetsForTests();
+  t.after(() => presetRegistry.reset({}));
+  presetRegistry.reset({});
 
   const seenEnv: NodeJS.ProcessEnv[] = [];
   fakePreset({
@@ -585,8 +579,8 @@ test("a preset registered from outside core is resolved and connected without co
 });
 
 test("a preset that declines contributes nothing, silently — 'not configured' is the default state", async (t) => {
-  t.after(resetFederatedMcpPresetsForTests);
-  resetFederatedMcpPresetsForTests();
+  t.after(() => presetRegistry.reset({}));
+  presetRegistry.reset({});
 
   fakePreset({ presetId: "acme", resolve: () => null });
 
@@ -599,8 +593,8 @@ test("a preset that declines contributes nothing, silently — 'not configured' 
 });
 
 test("two presets both contribute, and one vendor's broken config does not disable the other's working one", async (t) => {
-  t.after(resetFederatedMcpPresetsForTests);
-  resetFederatedMcpPresetsForTests();
+  t.after(() => presetRegistry.reset({}));
+  presetRegistry.reset({});
 
   fakePreset({
     presetId: "broken",
@@ -619,8 +613,8 @@ test("two presets both contribute, and one vendor's broken config does not disab
 });
 
 test("re-registering the same presetId replaces it, so a module imported twice cannot self-collide", async (t) => {
-  t.after(resetFederatedMcpPresetsForTests);
-  resetFederatedMcpPresetsForTests();
+  t.after(() => presetRegistry.reset({}));
+  presetRegistry.reset({});
 
   // Two connections with the same `connectionId` would make R1's collision assertion drop the
   // second one for shadowing what is really itself.
@@ -670,14 +664,14 @@ test("with no configuration, the daemon boots exactly as it did before federatio
 });
 
 test("omitting `env` reads the real process.env, not just the explicit `env: {}` every other test here supplies", async (t) => {
-  resetFederatedMcpPresetsForTests();
-  t.after(resetFederatedMcpPresetsForTests);
+  presetRegistry.reset({});
+  t.after(() => presetRegistry.reset({}));
   const key = "TOVU_TEST_FEDERATION_ENV_SENTINEL";
   const prior = process.env[key];
   process.env[key] = "env-from-process";
   t.after(() => { if (prior === undefined) delete process.env[key]; else process.env[key] = prior; });
   let seen: NodeJS.ProcessEnv | undefined;
-  registerFederatedMcpPreset({ presetId: "env-observer", resolve: (env) => { seen = env; return null; } });
+  presetRegistry.register({ preset: { presetId: "env-observer", resolve: ({ env }) => { seen = env; return null; } } });
   const registry = fakeRegistry(["database_get_health"]);
   const result = await attachFederatedMcpTools({ presetRegistry, registry, deps: fakeDeps().deps });
   assert.equal(seen, process.env, "the preset must receive the real environment");
@@ -772,8 +766,8 @@ test("a remote that fails mid-setup AND whose own close() also rejects still res
 });
 
 test("an invalid-but-enabled configuration warns and continues rather than throwing out of boot", async (t) => {
-  t.after(resetFederatedMcpPresetsForTests);
-  resetFederatedMcpPresetsForTests();
+  t.after(() => presetRegistry.reset({}));
+  presetRegistry.reset({});
 
   // A preset THROWS (rather than returning null) exactly when the operator asked for a connection
   // and got the settings wrong — the one case that must be loud without being fatal.
@@ -1267,7 +1261,7 @@ test("booted hosts isolate their presets and runtime boot consumes the injected 
   const hostB = createRouteDeps();
   assert.ok(hostA.federatedMcpPresetRegistry);
   assert.ok(hostB.federatedMcpPresetRegistry);
-  registerPreset({ presetId: "host-a", resolve: () => ({ config: { ...CONFIG, connectionId: "host-a" }, launch: FAKE_LAUNCH }) }, { registry: hostA.federatedMcpPresetRegistry });
+  hostA.federatedMcpPresetRegistry.register({ preset: { presetId: "host-a", resolve: () => ({ config: { ...CONFIG, connectionId: "host-a" }, launch: FAKE_LAUNCH }) } }, {});
   const attached: string[][] = [];
   for (const host of [hostA, hostB]) {
     const registry = fakeRegistry();

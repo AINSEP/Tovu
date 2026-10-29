@@ -8,10 +8,10 @@ import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
 import { SqliteChangeSetRepo } from "../change-set-repo.sqlite.js";
 import { openContentDb } from "../content-db.js";
 import { SqliteTokenStore } from "../gated-mutation-token-repo.sqlite.js";
-import { SqliteMediaProviderCredentialRepo } from "../media-provider-credential-repo.sqlite.js";
+import { SqliteMediaProviderCredentialRepo } from "../../../../features/media/media-provider-credential-repo.sqlite.js";
 import { SqliteMediaRepo } from "../media-repo.sqlite.js";
 import { SqliteOutboxAdapter } from "../outbox-repo.sqlite.js";
-import { SqliteVendorCredentialSetRepo } from "../vendor-credential-repo.sqlite.js";
+import { SqliteVendorCredentialSetRepo } from "../../../../features/vendor-credentials/vendor-credential-repo.sqlite.js";
 import { writeDuringOthersRollback } from "./concurrent-rollback.js";
 
 /**

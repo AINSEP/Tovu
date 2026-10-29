@@ -1,4 +1,4 @@
-import type { VisitorAnalyticsDeps } from "#src/server/inbound/public-http/visitor-analytics";
+import type { BrowserAnalyticsSource, VisitorAnalyticsDeps } from "./contracts.js";
 /** Tovu ports/presets around the shared ingestion engine; no normalization or buffer logic lives here. */
 import {
   createFanOutAnalyticsSink,
@@ -36,10 +36,10 @@ export const analyticsSaltContext: AnalyticsSaltContext = {
 };
 
 /** Existing HTTP dependencies retain the host clock, IDs and plugin hook ABI. */
-export interface AnalyticsIngestRouteDeps extends IngestDeps, VisitorAnalyticsDeps {
+export interface AnalyticsIngestRouteDeps<Request = unknown> extends IngestDeps, VisitorAnalyticsDeps<Request> {
   resolveWorkspaceForHost: (host: string) => Promise<string | null> | string | null;
   analyticsSeed: string;
-  browserAnalytics?: import('#src/server/routes/types').RouteDeps['browserAnalytics'];
+  browserAnalytics?: BrowserAnalyticsSource;
   /**
    * Per-request vendor forwarders (site `core.analytics.sink` + visitor consent, `forwarding.ts`).
    * Absent or empty → the built-in sink alone, exactly the pre-forwarding path.
@@ -61,8 +61,8 @@ const reportForwardFailure: AnalyticsForwardReport = ({ forwarderId, outcome, me
  * @example const { deps, optional } = createAnalyticsIngestBinding({ deps: hostDeps });
  * @complexity O(1).
  */
-export function createAnalyticsIngestBinding(
-  required: { deps: AnalyticsIngestRouteDeps },
+export function createAnalyticsIngestBinding<Request>(
+  required: { deps: AnalyticsIngestRouteDeps<Request> },
   optional: { forwarders?: readonly BoundAnalyticsForwarder[]; limiter?: AnalyticsForwardLimiter } = {},
 ): { deps: IngestHitDeps; optional: IngestHitOptional } {
   const host = required.deps;

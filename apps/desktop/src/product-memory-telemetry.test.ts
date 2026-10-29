@@ -4,6 +4,7 @@ import { createNoopTracker, type TrackerErrorContext } from '@jini-ai/diagnostic
 import { createDesktopResources } from './desktop-resources.ts';
 import { projectMemoryProcesses, startProductMemoryTelemetry } from './product-memory-telemetry.ts';
 import type { ProductConsent } from '../../website/src/server/runtime/composition/product-telemetry.ts';
+import { startVisibleInterval } from './renderer/visible-interval.ts';
 
 const MB = 1_000_000, MINUTE = 60_000, DAY = 24 * 60 * MINUTE;
 function fixture() {
@@ -49,6 +50,48 @@ test('one default-five-minute sample aggregates all kinds and reuses the Resourc
   assert.deepEqual(f.errors, []);
   for (const privateText of ['PRIVATE_RENDERER_NAME', 'private', 'site-name', 'pid', 'siteId', 'installationId']) assert.equal(JSON.stringify(f.metrics).includes(privateText), false);
   f.memory.dispose(); assert.equal(f.cancelled(), 1);
+});
+
+test('host visibility scheduling pauses memory sampling while inactive and disposes its subscriptions', async () => {
+  const f = fixture();
+  const snapshot = await f.monitor.get({ panelOpen: false });
+  f.memory.dispose();
+  let visible = false, reads = 0, cadence = 0;
+  const listeners = new Set<() => void>(), timers = new Map<number, () => void>();
+  const setVisible = (next: boolean) => { visible = next; for (const listener of listeners) listener(); };
+  const memory = startProductMemoryTelemetry({
+    monitor: { get: async () => { reads++; return snapshot; } }, tracker: createNoopTracker({}),
+    readConsent: () => ({ crashes: true, usage: true, installationId: 'FAKE_INSTALL' }),
+    desktopPid: 1, rendererPids: () => new Set([2]), heapUsedBytes: () => 0, uptime: () => 0,
+  }, { schedule: (tick, ms) => startVisibleInterval(tick, ms, {
+    get visibilityState() { return visible ? 'visible' : 'hidden'; },
+    addEventListener: (_type, listener) => { listeners.add(listener); },
+    removeEventListener: (_type, listener) => { assert.equal(listeners.delete(listener), true); },
+  }, {
+    setInterval: (callback, ms) => { timers.set(1, callback); cadence = ms; return 1; },
+    clearInterval: handle => { assert.equal(handle, 1); assert.equal(timers.delete(1), true); },
+  }) });
+  assert.equal(timers.size, 0);
+  assert.equal(reads, 0);
+  setVisible(true);
+  assert.equal(reads, 1);
+  await memory.tick();
+  assert.equal(cadence, 5 * MINUTE);
+  assert.equal(timers.size, 1);
+  timers.get(1)!();
+  assert.equal(reads, 2);
+  await memory.tick();
+  setVisible(false);
+  assert.equal(timers.size, 0);
+  assert.equal(reads, 2);
+  setVisible(true);
+  assert.equal(reads, 3);
+  await memory.tick();
+  memory.dispose();
+  assert.equal(timers.size, 0);
+  assert.equal(listeners.size, 0);
+  await memory.tick();
+  assert.equal(reads, 3);
 });
 
 test('consent off sends nothing and does not request an OS sample; usage and diagnostics are independent', async () => {

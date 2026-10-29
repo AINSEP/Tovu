@@ -128,6 +128,23 @@ function loadTargetRows(db: ContentDb): PostRow[] {
   return TARGET_SLUGS.map((slug) => stmt.get(slug) as PostRow | undefined).filter((row): row is PostRow => row !== undefined);
 }
 
+function conversionAction({ row }: { row: ReturnType<typeof loadTargetRows>[number] }, _options = {}): "convert" | "blocked" | "skip" {
+  if (row.kind !== "page") {
+    console.error(`SKIPPED (wrong kind): '${row.slug}' is kind='${row.kind}', not 'page'. Refusing to touch.`);
+    return "blocked";
+  }
+  if (row.bodyFormat === "html") {
+    console.log(`ALREADY HTML: '${row.slug}' — no-op (idempotent).`);
+    return "skip";
+  }
+  if (row.bodyFormat !== "doc") {
+    console.error(`SKIPPED (unexpected format): '${row.slug}' has bodyFormat='${row.bodyFormat}'.`);
+    return "blocked";
+  }
+
+  return "convert";
+}
+
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   // Prove the database is really there BEFORE opening it: `openContentDb` creates-and-migrates on
@@ -151,30 +168,7 @@ async function main(): Promise<void> {
   let blocked = false;
   let restorePointCaptured = false;
 
-  for (const row of rows) {
-    if (row.kind !== "page") {
-      console.error(`SKIPPED (wrong kind): '${row.slug}' is kind='${row.kind}', not 'page'. Refusing to touch.`);
-      blocked = true;
-      continue;
-    }
-    if (row.bodyFormat === "html") {
-      console.log(`ALREADY HTML: '${row.slug}' — no-op (idempotent).`);
-      continue;
-    }
-    if (row.bodyFormat !== "doc") {
-      console.error(`SKIPPED (unexpected format): '${row.slug}' has bodyFormat='${row.bodyFormat}'.`);
-      blocked = true;
-      continue;
-    }
-
-    const bodyJson = row.bodyJson ? JSON.parse(row.bodyJson) : {};
-    const seedHtml = renderDocNode(bodyJson);
-
-    if (!args.apply) {
-      console.log(`DRY RUN: '${row.slug}' would convert. Rendered body length: ${seedHtml.length} chars.`);
-      continue;
-    }
-
+  const captureRestorePointOnce = async (_required: Record<string, never>, _options = {}): Promise<void> => {
     if (!restorePointCaptured) {
       const dbOps = new SqliteDbOpsAdapter({ db, filePath: dbPath });
       const restorePoint = await dbOps.captureRestorePoint({ scopeId: "convert-legacy-doc-pages-to-html" });
@@ -184,10 +178,28 @@ async function main(): Promise<void> {
       restorePointCaptured = true;
     }
 
+  };
+
+  const convertRow = async ({ row }: { row: ReturnType<typeof loadTargetRows>[number] }, _options = {}): Promise<void> => {
+    const action = conversionAction({ row });
+    if (action === "blocked") blocked = true;
+    if (action !== "convert") return;
+
+    const bodyJson = row.bodyJson ? JSON.parse(row.bodyJson) : {};
+    const seedHtml = renderDocNode(bodyJson);
+
+    if (!args.apply) {
+      console.log(`DRY RUN: '${row.slug}' would convert. Rendered body length: ${seedHtml.length} chars.`);
+      return;
+    }
+
+    await captureRestorePointOnce({});
+
     const store = new PagesHtmlDocumentStore({ workspaceId: row.workspaceId, postId: row.id }, { db, clock, entryRefsRepo });
     await store.ensureHtmlFormat(seedHtml);
     console.log(`CONVERTED: '${row.slug}' (id=${row.id}). Rendered body length: ${seedHtml.length} chars.`);
-  }
+  };
+  for (const row of rows) await convertRow({ row });
 
   if (missing.length > 0 || blocked) {
     process.exitCode = 1;

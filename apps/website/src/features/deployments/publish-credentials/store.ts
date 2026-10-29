@@ -155,8 +155,10 @@ async function storeInventory({ deps, workspaceId }: { deps: PublishCredentialRe
   const unified = await service.list(credentialScope({ workspaceId, kind: "vendor" }));
   const legacy = await service.list(credentialScope({ workspaceId, kind: "custom" }));
   return [...unified, ...legacy]
-    .filter(row => row.workspaceId === workspaceId && (row.kind === "vendor" || row.kind === "custom") && row.ownerKey === "tovu" &&
-      row.principalId === null && row.binding === null && row.configured);
+    .filter(row => {
+      if (row.workspaceId !== workspaceId || (row.kind !== "vendor" && row.kind !== "custom")) return false;
+      return row.ownerKey === "tovu" && row.principalId === null && row.binding === null && row.configured;
+    });
 }
 
 /** Safe publish inventory; empty compatibility stays editable on vendor cards. Display host
@@ -203,8 +205,8 @@ export async function hasDefaultForPublish(deps: PublishCredentialReadDeps, inpu
 }
 
 function validatedWorksFor({ value }: { value: unknown }, _options = {}): string[] {
-  try { const ids = normalizeCredentialWorksFor({ value }); for (const id of ids) assertPlainField({ value: id, field: "worksFor" }); return ids; }
-  catch (error) { if (error instanceof VaultError) throw new PublishCredentialValidationError("worksFor must be an array of provider IDs"); throw error; }
+  try { const ids = normalizeCredentialWorksFor({ value }); for (const id of ids) { assertPlainField({ value: id, field: "worksFor" }); } return ids; }
+  catch (error) { if (error instanceof VaultError) { throw new PublishCredentialValidationError("worksFor must be an array of provider IDs"); } throw error; }
 }
 
 /** A provider move retargets the old host/vendor compatibility, preserving unrelated IDs.
@@ -297,11 +299,11 @@ interface ValidatedConnection {
  */
 function normalizeSecret(required: { value: unknown; field: string }): string {
   try { return normalizeCredentialToken(required); }
-  catch (err) { if (err instanceof CredentialInputError) throw new PublishCredentialValidationError(err.message); throw err; }
+  catch (err) { if (err instanceof CredentialInputError) { throw new PublishCredentialValidationError(err.message); } throw err; }
 }
 function assertPlainField(required: { value: string; field: string }): void {
   try { assertCredentialFreeField(required); }
-  catch (err) { if (err instanceof CredentialInputError) throw new PublishCredentialValidationError(err.message); throw err; }
+  catch (err) { if (err instanceof CredentialInputError) { throw new PublishCredentialValidationError(err.message); } throw err; }
 }
 
 function validateConnection(raw: unknown, registry: DeployTargetRegistry): ValidatedConnection {
@@ -350,13 +352,6 @@ function validatedConnectionField({ value, field, spec, providerId }: {
   return normalized;
 }
 
-/** True iff `err` is the label's UNIQUE `(workspace_id, vendor_id, label)` index rejecting a
- *  duplicate, on any database (`isUniqueViolation`, storage kernel: SQLite's code/message, Postgres
- *  SQLSTATE 23505). */
-export function isUniqueLabelViolation(err: unknown): boolean {
-  return isUniqueViolation(err);
-}
-
 export interface CreatePublishCredentialInput {
   workspaceId: UUID;
   label: unknown;
@@ -392,7 +387,9 @@ async function saveConnection({ deps, target, input, providerId }: { deps: Publi
     // Unattached project rows are hidden from normal reads. Use only deletion metadata to
     // distinguish a duplicate label from a CAS conflict; never attach or open the existing key.
     const labelRepo = target.scope === "project" ? credentialDeletionRepo({ repo: deps.repo }).project!.repo : target.deps.repo;
-    const duplicate = isUniqueLabelViolation(error) || error instanceof VaultError && error.code === "conflict" &&
+    // The storage kernel recognizes UNIQUE (workspace_id, vendor_id, label) via SQLite's
+    // code/message or Postgres SQLSTATE 23505.
+    const duplicate = isUniqueViolation(error) || error instanceof VaultError && error.code === "conflict" &&
       (await labelRepo.listByVendor({ workspaceId: input.workspaceId, vendorId: input.provider! })).some(row => row.id !== input.id && row.label === input.label);
     if (duplicate) throw new PublishCredentialDuplicateLabelError(input.workspaceId === 'project' ? `Your project already has a key named '${input.label}'. Use it here, or pick another name.` : `a '${providerId}' credential labeled '${input.label}' already exists in this workspace`);
     throw error;

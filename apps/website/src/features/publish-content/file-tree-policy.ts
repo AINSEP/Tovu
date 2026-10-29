@@ -277,8 +277,8 @@ function treePathShapeReason({ relPath }: { relPath: string }, _options = {}): s
   if (relPath.length > 512) return `"${relPath}" is longer than the 512-character path limit`;
   if (relPath.startsWith("/")) return `"${relPath}" must be relative, not start with '/'`;
   if (relPath.includes("\\")) return `"${relPath}" contains a backslash, which is never allowed in a tree path`;
-  // eslint-disable-next-line no-control-regex -- deliberately matching a literal NUL byte, not a typo.
-  if (/\u0000/.test(relPath)) return `"${relPath}" contains a NUL byte`;
+  // Deliberately reject a literal NUL byte.
+  if (relPath.includes("\0")) return `"${relPath}" contains a NUL byte`;
 
   return null;
 }
@@ -461,10 +461,8 @@ function treeFileReason({ file, spec, seenLowercase }: {
  * @complexity O(b) in sample length. */
 function treeFileContentReason({ file, spec }: { file: FileTreeFileInput; spec: FileTreeKindSpec }, _options = {}): string | null {
   const ext = extensionOf(file.path);
-  if (spec.allowedExtensions) {
-    if (!spec.allowedExtensions.includes(ext)) {
-      return disallowedExtensionReason(file.path);
-    }
+  if (spec.allowedExtensions && !spec.allowedExtensions.includes(ext)) {
+    return disallowedExtensionReason(file.path);
   }
 
   if (TEXT_LIKE_SCAN_EXTENSIONS.has(ext) && file.size <= MAX_SECRET_SCAN_BYTES) {

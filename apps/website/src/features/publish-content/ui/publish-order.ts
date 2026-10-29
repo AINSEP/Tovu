@@ -66,7 +66,8 @@ export function publishOrderComparator<T>(
     if (byLabel !== 0) return byLabel;
     const ta = ka.tieBreak ?? "";
     const tb = kb.tieBreak ?? "";
-    return ta < tb ? -1 : ta > tb ? 1 : 0;
+    if (ta < tb) return -1;
+    return ta > tb ? 1 : 0;
   };
 }
 

@@ -314,6 +314,8 @@ function checkTokens(value: unknown): ThemeValidationIssue[] {
         ruleId: "v2-tokens-default-mode",
         message: `theme.json: tokens.defaultMode '${value.defaultMode}' is not listed in tokens.modes`,
       });
+    } else {
+      // No default mode is named, or it belongs to the declared modes.
     }
   }
   issues.push({
@@ -402,9 +404,8 @@ function checkRenderer(): ThemeValidationIssue[] {
 function checkUnimplementedFieldSweep(raw: Record<string, unknown>, flaggedUnimplemented: ReadonlySet<string>): ThemeValidationIssue[] {
   const issues: ThemeValidationIssue[] = [];
   for (const key of Object.keys(raw)) {
-    if (!V2_TOP_LEVEL_KEYS.has(key)) continue; // already reported as v2-unknown-field above
-    if (V2_FIELDS_READ_BY_LOADER.has(key) || V2_RESERVED_METADATA_FIELDS.has(key)) continue;
-    if (flaggedUnimplemented.has(key)) continue; // already reported with its own specific rule id above
+    // Unknown keys and flagged fields already have their own specific rule id above.
+    if (!V2_TOP_LEVEL_KEYS.has(key) || V2_FIELDS_READ_BY_LOADER.has(key) || V2_RESERVED_METADATA_FIELDS.has(key) || flaggedUnimplemented.has(key)) continue;
     issues.push({
       ruleId: `v2-${key}-unimplemented`,
       message: `theme.json: ${key} is not yet read by the runtime loader (theme.ts) — this declaration will be silently ignored`,
@@ -520,6 +521,8 @@ function checkCompiledBuildRequirements(build: Record<string, JsonValue>): Theme
       ruleId: "v2-build-sourcedir-conflict",
       message: `theme.json: build.sourceDir '${build.sourceDir}' must not name or contain a reserved generated directory`,
     });
+  } else {
+    // The source directory has no reserved-directory conflict.
   }
   if (!isObject(build.artifactHashes) || Object.keys(build.artifactHashes as Record<string, unknown>).length === 0) {
     issues.push({

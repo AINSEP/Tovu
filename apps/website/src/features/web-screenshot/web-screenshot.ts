@@ -145,7 +145,8 @@ function readUrl(raw: unknown): string {
 
 /** A root-relative path on this site: one leading slash, no scheme-relative `//`, no backslashes. */
 function readSitePath(raw: unknown): string {
-  if (typeof raw !== "string" || !raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\") || raw.length > MAX_URL_LENGTH || /[\u0000-\u001f]/.test(raw)) {
+  const invalidPath = typeof raw !== "string" || !raw.startsWith("/") || raw.startsWith("//");
+  if (invalidPath || raw.includes("\\") || raw.length > MAX_URL_LENGTH || /[\u0000-\u001f]/.test(raw)) {
     throw refusal("sitePath must be a root-relative path on this site, e.g. '/' or '/about'.");
   }
   return raw;
@@ -179,7 +180,7 @@ export function readWebScreenshotInput(input: Readonly<Record<string, unknown>>)
 
 /** Lowercase ASCII words joined by `-`, capped so a long URL still makes a short file name. */
 function fileSlug(text: string): string {
-  return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60).replace(/-+$/, "");
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60).replace(/-$/, "");
 }
 
 /**
@@ -195,7 +196,7 @@ export function captureRelativePaths({ capturedAtMs, input, count }: { capturedA
     ? fileSlug(`${new URL(input.target.url).hostname} ${new URL(input.target.url).pathname}`)
     : fileSlug(`site ${input.target.path.split("?")[0]}`);
   const stem = [time, page || "page", input.viewport, ...(input.themeId ? [`theme-${fileSlug(input.themeId)}`] : [])].join("-");
-  return Array.from({ length: count }, (_, index) => `${iso.slice(0, 10)}/${stem}${count > 1 ? `-${index + 1}` : ""}.jpg`);
+  return Array.from({ length: count }, (_, index) => `${iso.slice(0, 10)}/${stem}${count > 1 ? "-" + (index + 1) : ""}.jpg`);
 }
 
 /** Saving is a convenience for citing captures later; a disk problem never costs the caller the pictures. */

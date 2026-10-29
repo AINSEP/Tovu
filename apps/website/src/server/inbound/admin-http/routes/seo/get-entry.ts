@@ -1,6 +1,6 @@
 import { getEntryMeta, SeoEntryNotFoundError } from "@jini-ai/cms/seo";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { withContentImageSource, withCoverReadDeps } from "#src/features/seo/cover-image";
+import { withContentImageSource, withCoverReadDeps } from "#src/features/seo/index";
 import type { SeoRouteRegistrar } from "./deps.js";
 
 /**

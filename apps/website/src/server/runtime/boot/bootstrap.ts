@@ -106,7 +106,8 @@ function logBundledPluginRetirements(
     if (retirement.status === "failed") {
       // eslint-disable-next-line no-console
       console.warn(`[bundled-agent-plugins] retired '${retirement.pluginId}' could not be removed: ${retirement.reason}`);
-    } else if (retirement.status === "retired") {
+    }
+    if (retirement.status === "retired") {
       // eslint-disable-next-line no-console
       console.info(`[bundled-agent-plugins] retired '${retirement.pluginId}' (moved into '${retirement.successorId}'; successor: ${retirement.successor})`);
       if (retirement.successor === "left-disabled-by-operator") {

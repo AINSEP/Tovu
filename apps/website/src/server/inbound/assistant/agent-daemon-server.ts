@@ -1,8 +1,9 @@
 import { buildAssistantFilesystemNotices } from "./assistant-filesystem-notices.js";
-import { buildLibrarySaveAttachmentTool } from "#src/features/media/library-save-attachment";
+import { buildLibrarySaveAttachmentTool, buildListPendingChatAttachmentsTool, buildPromoteChatAttachmentTool, MEDIA_PROMOTE_CHAT_ATTACHMENT_TOOL_ID } from "#src/features/media/attachment-tools";
 import { createDocumentArchiveReader } from "#src/features/media/document-archive";
 import { MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
-import { createAutomaticPluginRuns } from "../../../assistant/automatic-agent-plugins.js";
+import { createAutomaticPluginRuns } from "../../../features/agent-plugins/automatic-agent-plugins.js";
+import { askAgentPluginChoice } from "#src/assistant/ask-choice-tool";
 import { readLoginShellEnvironment } from "@jini-ai/platform/child-environment";
 import { resolveFullCliAccess, resolveAssistantCliPermissions } from "#src/contracts/core/assistant-native-fallbacks";
 import { resolveBundledHostSignals } from "#src/features/agent-plugins/host-signals";
@@ -19,7 +20,9 @@ import { prepareByokMessageAttachments } from "./byok-message-attachments.js";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
 import { resolveApiConnectionRuntime } from "../../runtime/composition/agent-plugin-connections.js";
 import { createSupervisorRegistry } from "@jini-ai/sidecar/supervisor/node";
-import type { ToolContributor, DerivedToolContributor } from "#src/assistant/index";
+import type { ToolContributor, DerivedToolContributor } from "@jini-ai/core";
+import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
+import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { createSkillRefreshMiddleware } from "#src/features/skills/live-registration";
 /**
  * @file The standalone agent daemon — a separate OS process from Tovu's own server, per the
@@ -118,7 +121,7 @@ type RunSessionBinding = {
 
 import { attachAssistantToolExtensions, type AssistantToolExtensions } from "#src/assistant/installed-extension-tools";
 import { createStoredExternalMcpConnectionSource, buildExternalMcpFederationDeps } from "#src/assistant/external-mcp-connection-source";
-import { onExternalMcpRosterChanged } from "#src/assistant/external-mcp-roster-change";
+import { onExternalMcpRosterChanged, notifyExternalMcpRosterChanged } from "#src/assistant/external-mcp-roster-change";
 import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-connect-defaults";
 import { assemblePromptWithPluginPrefix, resolveAgentPluginPromptPrefix } from "./plugin-prompt-prefix.js";
 import { buildCapabilityManifestPrefix, resolveCapabilityManifestArm } from "./capability-manifest-prefix.js";
@@ -199,8 +202,6 @@ import {
   buildAssistantToolRegistrations,
 } from "#src/assistant/agent-daemon-port";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { buildPromoteChatAttachmentTool, MEDIA_PROMOTE_CHAT_ATTACHMENT_TOOL_ID } from "#src/features/media/promote-chat-attachment";
-import { buildListPendingChatAttachmentsTool } from "#src/features/media/list-pending-chat-attachments";
 import { TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
 import { createLostFrontendBindings } from "#src/assistant/lost-frontend-binding";
 import { withPageNavigateErrorRewrap } from "#src/assistant/rewrap-page-navigate-error";
@@ -279,7 +280,6 @@ if (process.env.JINI_STOP_ON_STDIN_EOF === "1") {
   // A paused stream never reports EOF.
   process.stdin.resume();
 }
-
 
 /**
  * Self-termination watchdog, 2026-08-05 (`ADS-memory/reports/analysis/2026-08-05-e2e-teardown-root-cause.md`).
@@ -523,8 +523,8 @@ const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutSc
 // of any import). See `tool-catalog-manifest.ts`'s own header for why this call lives here and in
 // `assistant-byok.ts`, and nowhere else.
 const contributions = {
-  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
-  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
 };
 installFirstPartyToolContributors({ contributions }, { deployOpsRegistry: await routeDeps.loadDeployOps({ workspaceId: routeDeps.workspaceId }), observability: routeDeps.observability,
   chatAttachmentsDir: routeDeps.siteStoragePaths.chatAttachmentsDir,
@@ -717,7 +717,7 @@ const auditSink = routeDeps.toolAttemptAuditSink;
 // model as an opaque `INTERNAL_ERROR` that names neither the tool nor the reason. This layer catches
 // exactly that throw and, only when the id matches a refusal in `toolExtensions.federation.reports()`,
 // returns a real result naming the tool, the server, and the fix instead. See that file's own header.
-const automaticPluginRuns = createAutomaticPluginRuns({ deps: routeDeps, surfaces: { surfaceExchanges } });
+const automaticPluginRuns = createAutomaticPluginRuns({ deps: routeDeps, askAgentPluginChoice, surfaces: { surfaceExchanges } });
 registry.register(automaticPluginRuns.loadRegistration);
 const toolExecutor = withFederatedRefusalDiagnosis({ inner: createAssistantToolExecutor({
     registry,
@@ -980,6 +980,9 @@ async function resolveAttachmentRunFields(
 const captureEarlySession = createEarlySessionCapture({ sessions: routeDeps.agentSessions, durable: routeDeps.chatRunLedger.durable, readStart: readProcessStart }, {});
 
 const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) => {
+  function noteFullRunInput({ runId, input }: { runId: string; input: string }, _optional = {}): void {
+    if (routeDeps.aiTraceSink?.capture === "full") tracing.noteRunInput({ runId, input });
+  }
   let prompt: string;
   let coldStartContext: string | undefined;
   let principal: Principal;
@@ -1005,7 +1008,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     const decoded = parseRunStartContextRef(request.contextRef);
     coldStartContext = decoded.coldStartContext;
     prompt = decoded.prompt;
-    if (routeDeps.aiTraceSink?.capture === "full") tracing.noteRunInput({ runId: run.id, input: prompt });
+    noteFullRunInput({ runId: run.id, input: prompt });
     principal = { id: decoded.principalId };
     attachmentIds = decoded.attachmentIds;
     pluginRefIds = decoded.pluginRefIds;
@@ -1380,7 +1383,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     // Owner 2026-10-27: the folder picked with the composer's folder control is readable, never writable.
     const pickedFolder = getCustomFsRoot(routeDeps.workspaceId, { siteDir: routeDeps.siteBinding.dir });
     const runGuidance = pickedFolder ? { ...runtimeLaunch.guidance, pickedFolder } : runtimeLaunch.guidance;
-    await assistantRuntimeGuidanceContext.run(runGuidance, () => assistantNativeToolsContext.run(nativeToolAccess, () => assistantCliCapabilitiesContext.run(nativeCapabilities, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({
+    const executeRun = () => agentExecutor.run({
       runId: run.id,
       agentId: sessionBinding.agentId,
       prompt,
@@ -1420,7 +1423,11 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       // Claude in Chrome: `chromeIntegration` (+ its MCP server on the allow-list) for a supporting
       // runtime, nothing otherwise. Every deny above still applies; see `assistant-runtime-guidance.ts`.
       ...runtimeLaunch.runOptions,
-    }) }))));
+    });
+    const runWithCapabilities = () => assistantCliCapabilitiesContext.run(nativeCapabilities,
+      () => deleteScope.fresh({ principalId: principal.id, run: executeRun }));
+    await assistantRuntimeGuidanceContext.run(runGuidance,
+      () => assistantNativeToolsContext.run(nativeToolAccess, runWithCapabilities));
   }
 };
 
@@ -1637,7 +1644,7 @@ const externalMcpOAuth = createExternalMcpOAuthService({
   clock: routeDeps.clock,
   // Only a narrow composition without a device store falls back to an in-memory adapter.
   devices: routeDeps.externalMcpOAuthDevices ?? createDeviceAuthorizationStore(),
-  onConnected: createApplyConnectDefaults({ agentPluginLayout: routeDeps.agentPluginLayout, workspaceId: routeDeps.workspaceId, repo: routeDeps.externalMcpServerRepo, clock: routeDeps.clock }),
+  onConnected: createApplyConnectDefaults({ agentPluginLayout: routeDeps.agentPluginLayout, workspaceId: routeDeps.workspaceId, repo: routeDeps.externalMcpServerRepo, clock: routeDeps.clock, notifyRosterChanged: notifyExternalMcpRosterChanged }),
 });
 
 async function start(): Promise<void> {

@@ -92,7 +92,7 @@ export interface SiteInspectionToolDeps extends SiteProfileSourceDeps, LiveOrigi
    * Without it `site_describe_capabilities` reports its tools section `unavailable`/`not-wired`,
    * never an empty catalog.
    */
-  listCatalogTools?: (() => readonly SiteCapabilityToolRow[]) | undefined;
+  listCatalogTools?: (() => readonly SiteCapabilityToolRow[]);
 }
 
 /**

@@ -78,18 +78,17 @@ export function toAdminPluginResponse(
     tier: (discovery.tier ?? "tier-3") as AdminPluginEnvelope["tier"],
     status: discovery.status,
     enabled: activation?.enabled ?? false,
-    quarantine:
-      activation?.quarantinedAt !== undefined &&
-      activation.quarantineReason !== undefined &&
-      activation.quarantineFailureCount !== undefined
-        ? {
-            at: activation.quarantinedAt,
-            reason: activation.quarantineReason,
-            consecutiveFailures: activation.quarantineFailureCount,
-          }
-        : null,
+    quarantine: quarantineResponse({ activation }),
     errors: discovery.errors,
     conflicts: optional.conflicts ?? [],
     ...((discovery.manifest?.contributes?.providers ?? []).some((provider) => (provider.settings?.length ?? 0) > 0) ? { providerSettings: true as const } : {}),
   };
+}
+
+/** Partial activation metadata is not a quarantine in the admin wire contract. */
+function quarantineResponse({ activation }: { activation: PluginActivationRecord | null }, _options = {}): AdminPluginEnvelope["quarantine"] {
+  if (activation?.quarantinedAt !== undefined && activation.quarantineReason !== undefined && activation.quarantineFailureCount !== undefined) {
+    return { at: activation.quarantinedAt, reason: activation.quarantineReason, consecutiveFailures: activation.quarantineFailureCount };
+  }
+  return null;
 }

@@ -2,7 +2,7 @@ import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-h
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PostRecord } from "#src/features/post/index";
+import type { PublicPostRecord } from "#src/features/post/index";
 import type { MediaRecord } from "#src/features/media/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { resolveHtmlEmbedsForRender, resolveMediaAssetMetadataForRender } from "../pages.js";
@@ -12,8 +12,8 @@ import { resolveHtmlEmbedsForRender, resolveMediaAssetMetadataForRender } from "
  * branches that no real HTTP request reaches:
  *
  * - `resolveHtmlEmbedsForRender`/`resolveMediaAssetMetadataForRender`'s `!post` guard — both are
- *   declared `post: PostRecord | undefined`, but every real call site in `registerSiteRoutes`
- *   (`renderGenericPostPage`) only ever calls them with an already-resolved, defined `PostRecord`,
+ *   declared `post: PublicPostRecord | undefined`, but every real call site in `registerSiteRoutes`
+ *   (`renderGenericPostPage`) only ever calls them with an already-resolved, defined `PublicPostRecord`,
  *   so the `!post` arm is unreachable through any real request and only reachable by calling the
  *   exported function directly, the same reason `resolveHtmlFormatContentMarkers` gets its own
  *   direct-import test file rather than relying on HTTP round trips alone.
@@ -32,7 +32,7 @@ import { resolveHtmlEmbedsForRender, resolveMediaAssetMetadataForRender } from "
  * `createRouteDeps()`'s real (in-memory) adapters end to end rather than a fake.
  */
 
-function postRecord(overrides: Partial<PostRecord> = {}): PostRecord {
+function postRecord(overrides: Partial<PublicPostRecord> = {}): PublicPostRecord {
   return {
     id: "post-1",
     workspaceId: "workspace-local",
@@ -46,7 +46,7 @@ function postRecord(overrides: Partial<PostRecord> = {}): PostRecord {
     updatedAt: "2026-08-17T00:00:00.000Z",
     version: 1,
     ...overrides,
-  } as PostRecord;
+  } as PublicPostRecord;
 }
 
 test("resolveHtmlEmbedsForRender: an undefined post short-circuits to undefined, never touching resolveHtmlPageEmbeds", async () => {
@@ -146,6 +146,7 @@ test(
       cssClass: null,
       htmlAttributes: null,
       slug: "asset",
+      sha256: "sha-video-1",
       contentType: "video/mp4",
     });
   }
@@ -168,6 +169,7 @@ test(
       cssClass: null,
       htmlAttributes: null,
       slug: "asset",
+      sha256: "sha-unsniffed-1",
       contentType: null,
     });
   }
@@ -176,7 +178,7 @@ test(
 test("resolveMediaAssetMetadataForRender: image AND media ref nodes are collected in document (pre-order) order, through nested content", async () => {
   const deps = createRouteDeps();
   for (const id of ["asset-a", "asset-b", "asset-c"]) await deps.mediaRepo.save(mediaRecord({ id, slug: id, source: { sha256: `sha-${id}` } }));
-  const bodyJson: PostRecord["bodyJson"] = { type: "doc", content: [
+  const bodyJson: PublicPostRecord["bodyJson"] = { type: "doc", content: [
     { type: "bulletList", content: [{ type: "listItem", content: [{ type: "image", attrs: { assetId: "asset-a" } }] }] },
     { type: "media", attrs: { assetId: "asset-b" } },
     { type: "image", attrs: { assetId: "asset-c" } },

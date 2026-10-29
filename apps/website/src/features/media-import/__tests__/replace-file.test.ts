@@ -13,7 +13,7 @@ import { buildMediaImportRegistrations, type MediaImportToolDeps } from "../tool
 import { EgressRefusedError } from "../../../platform/http/index.js";
 
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
-const replacement = Buffer.concat([png, Buffer.from("new version")]);
+const replacement = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
 
 async function fixture(t: test.TestContext) {
   const db = openContentDb(":memory:");
@@ -44,10 +44,13 @@ async function fixture(t: test.TestContext) {
   return { deps, media, root, registration, run, permissions, fetches: () => fetches };
 }
 
-for (const source of ["local", "url"]) test(`${source} replacement preserves identity and metadata and invalidates old renditions`, async t => {
+for (const source of ["local", "url"]) test(`${source} replacement restamps JPEG type and provenance, preserves identity and metadata and invalidates old renditions`, async t => {
   const f = await fixture(t);
   fs.writeFileSync(path.join(f.root, "new.png"), replacement);
-  const input = source === "local" ? { root: "site", path: "new.png" } : { url: "https://cdn.example.com/new.png" };
+  const send = f.deps.mediaImportHttpClient.send;
+  f.deps.mediaImportHttpClient.send = async request => ({ ...await send(request), headers: { "Content-Type": "image/png" },
+    finalUrl: "https://user:secret@cdn.example.com/final.png?token=secret#private" });
+  const input = source === "local" ? { root: "site", path: "new.png" } : { url: "https://origin.example.com/new.png?token=secret#private" };
   const result = await f.run({ mediaId: f.media.id, ...input });
   const sha256 = createHash("sha256").update(replacement).digest("hex");
   assert.equal(result.media.id, f.media.id);
@@ -55,16 +58,41 @@ for (const source of ["local", "url"]) test(`${source} replacement preserves ide
   assert.equal(result.media.version, f.media.version + 1);
   assert.equal(result.media.sha256, sha256);
   assert.deepEqual(await f.deps.mediaRepo.findById({ workspaceId: f.deps.workspaceId, id: f.media.id }),
-    { ...f.media, source: { sha256 }, version: f.media.version + 1 });
+    // Current bytes own MIME/provenance; editorial fields retain their identity across replacement.
+    { ...f.media, source: { sha256, contentType: "image/jpeg", provenance: source === "local"
+      ? { kind: "upload", path: "new.png" } : { kind: "url", url: "https://cdn.example.com/final.png" } }, version: f.media.version + 1 });
   assert.equal((await f.deps.mediaRepo.list({ workspaceId: f.deps.workspaceId })).length, 1);
   const renditions = await f.deps.assetRenditionRepo.listByAsset({ workspaceId: f.deps.workspaceId, assetId: f.media.id });
   assert.equal(renditions.length, 1);
   assert.equal(renditions[0]!.transformName, "original");
   assert.deepEqual(Buffer.from(await f.deps.blobStore.get({ storageKey: renditions[0]!.storageKey })), replacement);
-  assert.equal((await f.deps.mediaContentTypeStore.getMany({ workspaceId: f.deps.workspaceId, sha256s: [sha256] })).get(sha256), "image/png");
+  assert.equal((await f.deps.mediaContentTypeStore.getMany({ workspaceId: f.deps.workspaceId, sha256s: [sha256] })).get(sha256), "image/jpeg");
   assert.equal((await f.deps.assetBlobRepo.findByHash({ workspaceId: f.deps.workspaceId, sha256: f.media.source.sha256 }))?.status, "active");
   assert.equal(f.fetches(), source === "url" ? 1 : 0);
   assert.deepEqual(f.permissions, [{ workspaceId: f.deps.workspaceId, principalId: "owner", permission: "media.update", entityType: "media", entityId: f.media.id }]);
+});
+
+test("metadata and Trash writes cannot overwrite current MIME or provenance from a stale draft", async t => {
+  const f = await fixture(t);
+  fs.writeFileSync(path.join(f.root, "new.png"), replacement);
+  await f.run({ mediaId: f.media.id, root: "site", path: "new.png" });
+  const current = (await f.deps.mediaRepo.findById({ workspaceId: f.deps.workspaceId, id: f.media.id }))!;
+  const source = { ...current.source, contentType: "image/png", provenance: { kind: "url" as const, url: "https://old.example.com/original.png" } };
+  await f.deps.mediaRepo.save({ ...current, source, title: "Edited title", status: "trashed", version: current.version + 1 });
+  const trashed = (await f.deps.mediaRepo.findById({ workspaceId: f.deps.workspaceId, id: f.media.id }))!;
+  assert.equal(trashed.title, "Edited title"); assert.equal(trashed.status, "trashed");
+  assert.deepEqual(trashed.source, current.source);
+  assert.deepEqual(await (f.deps.mediaRepo as SqliteMediaRepo).saveIfVersion({ record: { ...trashed, source, status: "active", version: trashed.version + 1 },
+    ifVersion: trashed.version }), { applied: true });
+  assert.deepEqual((await f.deps.mediaRepo.findById({ workspaceId: f.deps.workspaceId, id: f.media.id }))?.source, current.source);
+});
+
+test("replacing identical bytes still restamps the replacement origin", async t => {
+  const f = await fixture(t);
+  fs.writeFileSync(path.join(f.root, "same.png"), png);
+  await f.run({ mediaId: f.media.id, root: "site", path: "same.png" });
+  assert.deepEqual((await f.deps.mediaRepo.findById({ workspaceId: f.deps.workspaceId, id: f.media.id }))?.source,
+    { sha256: f.media.source.sha256, contentType: "image/png", provenance: { kind: "upload", path: "same.png" } });
 });
 
 test("permission denial precedes source reads and writes", async t => {
@@ -172,7 +200,7 @@ test("a traversal path or a file that is not valid media is refused as input, an
     await assert.rejects(f.run({ mediaId: f.media.id, ...input }), (error: Error) => { errors.push(error); return true; });
   }
   assert.deepEqual(errors.map(e => e.name), ["ToolInputError", "ToolInputError"]);
-  assert.match(errors[0]!.message, /^path '\.\.\/\.\.\/etc\/passwd' resolves outside the allowed root\. Fix the input and retry .*Schema for 'media_replace_file'/s);
+  assert.match(errors[0]!.message, /^path '\.\.\/\.\.\/etc\/passwd' resolves outside the allowed root\. For a file outside this site, use files_copy .*Fix the input and retry .*Schema for 'media_replace_file'/s);
   assert.match(errors[1]!.message, /^'notes\.txt' is not an importable file: its actual bytes are 'application\/octet-stream'\./);
   assert.deepEqual(await f.deps.mediaRepo.findById({ workspaceId: f.deps.workspaceId, id: f.media.id }), f.media);
 });

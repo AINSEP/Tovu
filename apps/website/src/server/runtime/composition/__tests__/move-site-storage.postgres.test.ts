@@ -15,7 +15,7 @@ import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
 import { openPostgresKernel, type StorageKernel } from "#src/platform/db/kernel/index";
 import { migrateChatDatabase, migrateContentDatabase } from "#src/platform/db/migrations/index";
 import { ValidationError } from "#src/platform/site-dir/errors";
-import { initSite } from "#src/platform/site-dir/init-site";
+import { initSite } from "#src/server/runtime/composition/site-dir";
 import { SITE_META_FILENAME } from "#src/platform/site-dir/site-storage";
 import { moveSiteStorage } from "../move-site-storage.js";
 import { openSiteStore, PG_SOCKET_ENV, type SiteStore } from "../open-site-store.js";

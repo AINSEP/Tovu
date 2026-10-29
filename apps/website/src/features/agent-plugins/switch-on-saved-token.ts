@@ -39,6 +39,7 @@ export interface SwitchOnSavedTokenDeps {
   readonly agentPluginLayout: AgentPluginLayout;
   readonly externalMcpServerRepo: ExternalMcpServerRepoPort;
   readonly clock: ClockPort;
+  readonly notifyRosterChanged: () => Promise<void>;
   /** Injected for tests. Defaults to `createApplyConnectDefaults`, the sign-in's own `onConnected`. */
   readonly onConnected?: (serverId: string) => Promise<void>;
   /** Injected for tests. Defaults to reading this workspace's activations file. */
@@ -62,7 +63,7 @@ export async function switchOnSavedTokenConnection(
   const isOff = deps.isPluginOffByOperator ?? ((pluginId: string) => defaultIsPluginOffByOperator({ ...deps, pluginId }));
   if (await isOff(target.pluginId)) return { state: "plugin-off-by-operator" };
 
-  const onConnected = deps.onConnected ?? createApplyConnectDefaults({ agentPluginLayout: deps.agentPluginLayout, workspaceId: deps.workspaceId, repo: deps.externalMcpServerRepo, clock: deps.clock });
+  const onConnected = deps.onConnected ?? createApplyConnectDefaults({ agentPluginLayout: deps.agentPluginLayout, workspaceId: deps.workspaceId, repo: deps.externalMcpServerRepo, clock: deps.clock, notifyRosterChanged: deps.notifyRosterChanged });
   await onConnected(target.connectionId);
 
   const row = await deps.externalMcpServerRepo.findByServerId({ workspaceId: deps.workspaceId, serverId: target.connectionId });
@@ -74,12 +75,10 @@ export async function switchOnSavedTokenConnection(
 
 /** The plain next-step line for each outcome. Never carries a token. */
 export function describeSavedTokenSwitch(outcome: SavedTokenSwitchOutcome, names: { readonly displayName: string; readonly connectionId: string }): string {
-  switch (outcome.state) {
-    case "on":
-      return `${names.displayName} is connected and switched on. Its tools are ready to use.`;
-    case "plugin-off-by-operator":
-      return `Token saved. ${names.displayName} stays off because an operator turned it off. To use it, switch '${names.displayName}' on in ${AGENT_PLUGINS_SCREEN}.`;
-    case "connection-off-by-operator":
-      return `Token saved. The '${names.connectionId}' connection stays off because an operator changed its settings. To use it, switch it on in ${EXTERNAL_MCP_SCREEN}.`;
-  }
+  const messages = {
+    on: `${names.displayName} is connected and switched on. Its tools are ready to use.`,
+    'plugin-off-by-operator': `Token saved. ${names.displayName} stays off because an operator turned it off. To use it, switch '${names.displayName}' on in ${AGENT_PLUGINS_SCREEN}.`,
+    'connection-off-by-operator': `Token saved. The '${names.connectionId}' connection stays off because an operator changed its settings. To use it, switch it on in ${EXTERNAL_MCP_SCREEN}.`,
+  };
+  return messages[outcome.state];
 }

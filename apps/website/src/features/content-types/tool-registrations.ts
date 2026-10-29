@@ -6,7 +6,7 @@ import { withToolMetadata } from '@jini-ai/core';
  * Contributors are installed explicitly at the composition root; importing a feature must not
  * register tools or create an assistant-to-feature runtime cycle.
  */
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import {
   contentTypesDerivedRisk,
   type ContentTypesToolDeps,
@@ -61,7 +61,7 @@ const CONTENT_TYPES_MODEL_FACING_RULES: readonly ModelFacingErrorRule[] = [forbi
  * instead of a redacted `INTERNAL_ERROR` — see {@link CONTENT_TYPES_MODEL_FACING_RULES} for why every
  * other content-types error needs no rule here.
  */
-export function contributeContentTypesTools(): ToolContributor {
+export function contributeContentTypesTools(): ToolContributor<ContentTypesToolDeps, unknown> {
   return {
     domain: "content-types",
     build: (deps) => withModelFacingRegistrationErrors({ registrations: withToolMetadata({ registrations: buildContentTypesRegistrations(deps), metadata: toolMetadata }), rules: CONTENT_TYPES_MODEL_FACING_RULES }),

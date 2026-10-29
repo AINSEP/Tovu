@@ -9,11 +9,11 @@ import type { PublishContentRunRecord } from "#src/features/publish-content/run-
 import type { PublishHistoryEntry } from "#src/features/deployments/static-publish/publish-history";
 import type { ContentKernel } from "../../content-kernel.js";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { publishContentBaselineRepoFor } from "../publish-content-baseline-repo.js";
-import { publishContentBundleRepoFor } from "../publish-content-bundle-repo.js";
-import { publishContentPeerRepoFor } from "../publish-content-peer-repo.js";
-import { publishContentRunRepoFor } from "../publish-content-run-repo.js";
-import { publishHistoryStoreFor } from "../publish-history-repo.js";
+import { SqlPublishContentBaselineRepo } from "../publish-content-baseline-repo.js";
+import { SqlPublishContentBundleRepo } from "../publish-content-bundle-repo.js";
+import { SqlPublishContentPeerRepo } from "../../../../features/publish-content/publish-content-peer-repo.js";
+import { SqlPublishContentRunRepo } from "../publish-content-run-repo.js";
+import { SqlPublishHistoryStore } from "../publish-history-repo.js";
 
 /**
  * @file The publish-content repos (baselines, bundles, peers, runs) and the static-publish history
@@ -41,11 +41,11 @@ function makeAll(base: ContentKernel) {
   const kernel = heldUntil(base, seeded);
   return {
     seeded,
-    baselines: publishContentBaselineRepoFor(kernel),
-    bundles: publishContentBundleRepoFor(kernel),
-    peers: publishContentPeerRepoFor(kernel),
-    runs: publishContentRunRepoFor(kernel),
-    history: publishHistoryStoreFor(kernel),
+    baselines: new SqlPublishContentBaselineRepo(kernel),
+    bundles: new SqlPublishContentBundleRepo(kernel),
+    peers: new SqlPublishContentPeerRepo(kernel),
+    runs: new SqlPublishContentRunRepo(kernel),
+    history: new SqlPublishHistoryStore(kernel),
   };
 }
 

@@ -103,7 +103,9 @@ export function normalizePeerBaseUrl(raw: string): PeerBaseUrlAccepted | PeerBas
 
   const host = normalizeHost(url.hostname);
   const authority = url.port === "" ? host : `${host}:${url.port}`;
-  const basePath = url.pathname.replace(/\/+$/, "");
+  let end = url.pathname.length;
+  while (end > 0 && url.pathname[end - 1] === "/") end -= 1;
+  const basePath = url.pathname.slice(0, end);
   return { baseUrl: `https://${authority}${basePath}` };
 }
 

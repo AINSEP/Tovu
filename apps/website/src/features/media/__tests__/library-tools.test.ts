@@ -56,7 +56,7 @@ test('Library read/list enforce site binding and permissions without a blob read
   const tools = buildMediaRegistrations(deps);
   const list = tools.find(row => row.descriptor.id === 'library_list')!;
   const read = tools.find(row => row.descriptor.id === 'library_read')!;
-  assert.deepEqual(await list.handler(libraryContext()), { documents: [] });
+  assert.deepEqual(await list.handler(libraryContext()), { documents: [], nextCursor: null });
   await assert.rejects(read.handler(libraryContext({ documentId: media.id })));
   const { media: local } = await uploadMedia({ deps: { ...deps, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo },
     input: { workspaceId: deps.workspaceId, kind: 'document', filename: 'local.md', contentType: 'text/markdown', bytes: Buffer.from('same-site private'), createdByPrincipal: 'owner' } });

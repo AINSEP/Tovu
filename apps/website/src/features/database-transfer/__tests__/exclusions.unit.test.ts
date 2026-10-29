@@ -59,13 +59,27 @@ test("partial exclusion counts skip settings tables absent from an older snapsho
 
 test("the copy excludes every agreed login, saved-key, confirmation and running-lock table", () => {
   assert.deepEqual(Object.keys(EXCLUDED_CORE_TABLES).sort(), [
-    "identity_users", "sessions", "api_keys", "member_sessions", "member_magic_tokens",
+    "identity_users", "sessions", "api_keys", "members", "member_sessions", "member_magic_tokens",
     "admin_execution_credentials", "custom_credential_sets", "database_transfer_destinations",
     "external_mcp_servers", "external_mcp_tool_approvals", "media_provider_credentials",
     "oauth_device_authorizations", "oauth_pending_authorizations", "publish_content_peers",
     "publish_credential_sets", "site_assistant_credentials", "source_control_credential_sets",
     "vendor_credential_sets", "gated_mutation_tokens", "secrets_vault", "form_receiver_pulls", "mail_capture",
   ].sort());
+});
+
+test("a snapshot with member password hashes leaves the whole credential table behind", (t) => {
+  const db = new Database(":memory:");
+  t.after(() => db.close());
+  db.exec("CREATE TABLE members (id TEXT PRIMARY KEY, password_hash TEXT)");
+  db.prepare("INSERT INTO members VALUES (?, ?)").run("member-1", "MEMBER_PASSWORD_HASH_CANARY");
+  const source = openSqliteSnapshotSource(db.serialize());
+  t.after(() => source.close());
+
+  assert.equal(source.countRows("members"), 1, "the snapshot really contains a member credential");
+  const plan = planSnapshotTables(source);
+  assert.equal(plan.tables.some(table => table.name === "members"), false);
+  assert.deepEqual(plan.leftOut, [{ table: "members", reason: "logins (password hashes, sessions and sign-in links) are not copied" }]);
 });
 
 test("a copy carries form delivery plans and job index rows with their outbox rows, never the receiver pull lease", () => {

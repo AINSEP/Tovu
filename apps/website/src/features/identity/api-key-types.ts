@@ -38,11 +38,11 @@ export interface ApiKeyRecord {
    * The `is_frozen` permission-snapshot policy minted for this key at issuance (F-054-01).
    * `revokeApiKey` retires it with the key so no orphan grant rows survive revocation.
    */
-  issuedPolicyId?: UUID | undefined;
+  issuedPolicyId?: UUID;
   createdAt: ISODateTime;
-  lastUsedAt?: ISODateTime | undefined;
-  expiresAt?: ISODateTime | undefined;
-  revokedAt?: ISODateTime | undefined;
+  lastUsedAt?: ISODateTime;
+  expiresAt?: ISODateTime;
+  revokedAt?: ISODateTime;
 }
 
 export interface ApiKeyRepoPort {

@@ -1,4 +1,6 @@
-/**
+
+
+const MANAGE_INTEGRATIONS_PERMISSION = "admin.integrations.manage";/**
  * @file The Integrations (webhooks) domain's agent-tool catalog, instantiating SPEC-016 REQ-22's
  * naming/callability convention (the same shape `features/workspace/agent-tools.ts`,
  * `newsletter/agent-tools.ts`, and every other domain catalog already use).
@@ -149,7 +151,7 @@ export function getWebhooksAgentToolCatalog(): AgentToolDefinition[] {
     {
       name: "webhooks_update_subscription",
       description: "Replaces a webhook subscription's label, HTTPS targetUrl and topics by subscriptionId. Supply all three fields; use content_read.webhook_subscription to read current values first. Returns {subscription}, with signing version metadata but no secret. Status and signing generation stay unchanged. Missing ids, empty labels/topics, malformed targets, denied permission and disallowed egress are refused. Requires admin.integrations.manage.",
-      sideEffects: "mutates-durable-state", authorization: { permission: "admin.integrations.manage" },
+      sideEffects: "mutates-durable-state", authorization: { permission: MANAGE_INTEGRATIONS_PERMISSION },
       inputSchema: { type: "object", additionalProperties: false, required: ["subscriptionId", "label", "targetUrl", "topics"], properties: {
         subscriptionId: { type: "string", minLength: 1 }, label: { type: "string", minLength: 1 }, targetUrl: { type: "string", minLength: 1 }, topics: { type: "array", minItems: 1, items: { type: "string" } },
       } },
@@ -158,7 +160,7 @@ export function getWebhooksAgentToolCatalog(): AgentToolDefinition[] {
       name: "webhooks_list_subscriptions",
       description: "Lists the workspace's webhook subscriptions, each annotated with its most recent delivery attempt (if any). Read-only.",
       sideEffects: "none",
-      authorization: { permission: "admin.integrations.manage" },
+      authorization: { permission: MANAGE_INTEGRATIONS_PERMISSION },
       inputSchema: {
         type: "object",
         additionalProperties: false,
@@ -170,7 +172,7 @@ export function getWebhooksAgentToolCatalog(): AgentToolDefinition[] {
       name: "webhooks_get_deliveries",
       description: "Fetches the delivery log (status, attempts, last response, timestamps) for one webhook subscription, newest first.",
       sideEffects: "none",
-      authorization: { permission: "admin.integrations.manage" },
+      authorization: { permission: MANAGE_INTEGRATIONS_PERMISSION },
       inputSchema: GET_DELIVERIES_SCHEMA,
     },
     {
@@ -178,14 +180,14 @@ export function getWebhooksAgentToolCatalog(): AgentToolDefinition[] {
       description:
         "Creates a new webhook subscription. Starts active at signing-secret generation 1 — the signing secret itself is never generated or exposed by this tool (it is derived at delivery time from the install site key, never stored).",
       sideEffects: "mutates-durable-state",
-      authorization: { permission: "admin.integrations.manage" },
+      authorization: { permission: MANAGE_INTEGRATIONS_PERMISSION },
       inputSchema: CREATE_SUBSCRIPTION_SCHEMA,
     },
     {
       name: "webhooks_pause_subscription",
       description: "Pauses or resumes a webhook subscription's deliveries. One tool, both directions (paused defaults to true). Refused if the subscription is already deleted (disabled).",
       sideEffects: "mutates-durable-state",
-      authorization: { permission: "admin.integrations.manage" },
+      authorization: { permission: MANAGE_INTEGRATIONS_PERMISSION },
       inputSchema: PAUSE_SUBSCRIPTION_SCHEMA,
     },
     {
@@ -200,7 +202,7 @@ export function getWebhooksAgentToolCatalog(): AgentToolDefinition[] {
       // (or this tool's caller's) perspective the effect is as final as a hard delete, even though
       // the row survives for audit. See the matching comment on `integrationsDerivedRisk` below.
       sideEffects: "deletes-durable-state",
-      authorization: { permission: "admin.integrations.manage" },
+      authorization: { permission: MANAGE_INTEGRATIONS_PERMISSION },
       inputSchema: SUBSCRIPTION_ID_SCHEMA,
     },
   ];

@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { validateSharePath } from "./share-file-policy.js";
-import { checkSourceDirContainment } from "#src/features/theme/validation/structure";
-import { loadTheme } from "#src/features/theme/theme";
+import { checkSourceDirContainment } from "#src/features/theme/catalog";
+import { loadTheme } from "#src/features/theme/catalog";
 
 /**
  * @file Where each staged import file may land: the live site, or the unserved
@@ -24,7 +24,10 @@ const QUARANTINE: ThemeManifestVerdict = { kind: "quarantine" };
 const THEME_MANIFEST = /^themes\/((?:__original-themes__\/)?(?:static|declarative))\/([^/]+)\/theme.json$/;
 const THEME_FILE = /^themes\/((?:__original-themes__\/)?(?:static|declarative))\/([^/]+)\/(.+)$/;
 const THEME_ID = /^themes\/((?:__original-themes__\/)?(?:static|declarative)\/[^/]+)\//;
-const STATIC_ASSET = /\.(?:html?|css|m?js|json|webmanifest|xml|liquid|map|png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf|otf|txt|md|mp4|webm|pdf)$/i;
+const STATIC_ASSETS = [
+  /\.(?:html?|css|m?js|json|webmanifest|xml|liquid|map|png|jpe?g)$/i,
+  /\.(?:gif|webp|avif|svg|ico|woff2?|ttf|otf|txt|md|mp4|webm|pdf)$/i,
+];
 
 /**
  * Reads every staged static/declarative `theme.json`: a tier that disagrees with its folder, an
@@ -80,10 +83,9 @@ export function liveThemeTrees(required: { files: readonly string[]; findings: T
     if (!match) continue;
     const id = match[1] + "/" + match[2];
     live.add(id);
-    if (isCompiledSource({ file, theme: id, compiledSources: required.findings.compiledSources })) continue;
     // Browser JS is an ordinary static asset, unlike TS/JS modules in a code theme. The whole
     // tree is quarantined if it includes build source or declares a different executable tier.
-    if (!STATIC_ASSET.test(match[3]!)) quarantined.add(id);
+    if (!isCompiledSource({ file, theme: id, compiledSources: required.findings.compiledSources }) && !STATIC_ASSETS.some(pattern => pattern.test(match[3]!))) quarantined.add(id);
   }
   for (const id of quarantined) live.delete(id);
   return live;

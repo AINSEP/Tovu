@@ -2,7 +2,7 @@ import { probeCredentialConnection } from "../custom-credentials/credentialed-re
 import { findPluginCredentialCard, type PluginCredentialCard, type LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/secret-form-cards.js";
 import { credentialText, translateCredentialMessage } from '../../contracts/core/credential-copy.js';
-import { resolveOperatorLocale, type OperatorLocaleDeps } from './operator-locale.js';
+import { resolveOperatorLocale, type OperatorLocaleDeps } from '../../contracts/headless/operator-locale.js';
 import { assertCredentialToken, CredentialInputError } from '../../contracts/core/credential-token.js';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
@@ -11,12 +11,8 @@ import { defineSecretCardTool, type SecretCardRun } from "@jini-ai/ui/mcp-ui/sec
 
 import { askThenReport, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import type { HttpClientPort } from "../../platform/http/index.js";
-import {
-  ExternalMcpSecretStoreUnconfiguredError,
-  ExternalMcpValidationError,
-  saveExternalMcpServer,
-  type ExternalMcpServerRecord,
-} from "#src/assistant/index";
+import type * as ExternalMcpStore from "#src/assistant/index";
+import type { ExternalMcpServerRecord } from "#src/assistant/index";
 
 import { buildAgentPluginAccessTokenForm, buildAgentPluginAccessTokenOutcome } from "./connect-card-ui.js";
 import { defaultResolveInstalledAgentPlugin, titleCaseFromPluginId, type AgentPluginConnectToolDeps } from "./connect-tool.js";
@@ -58,11 +54,11 @@ const AGENT_PLUGIN_ACCESS_TOKEN_PERMISSION = "admin.integrations.manage";
 export type AgentPluginTokenTargetDeps = Pick<
   AgentPluginConnectToolDeps,
   "agentPluginLayout" | "workspaceId" | "clock" | "externalMcpServerRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring" | "resolveInstalledPlugin"
->;
+> & { readonly externalMcpStore: Pick<typeof ExternalMcpStore, "saveExternalMcpServer" | "ExternalMcpSecretStoreUnconfiguredError" | "ExternalMcpValidationError"> };
 
 export interface AgentPluginAccessTokenToolDeps
-  extends AgentPluginConnectToolDeps, OperatorLocaleDeps,
-    Pick<SwitchOnSavedTokenDeps, "onConnected" | "isPluginOffByOperator" | "switchPluginOn"> {
+  extends AgentPluginConnectToolDeps, AgentPluginTokenTargetDeps, OperatorLocaleDeps,
+    Pick<SwitchOnSavedTokenDeps, "onConnected" | "isPluginOffByOperator" | "switchPluginOn" | "notifyRosterChanged"> {
   /** The guarded outbound client (ADR-038) whose egress policy already admits any public HTTPS host. */
   readonly customCredentialsHttpClient: HttpClientPort;
   readonly loadPluginCredentialCards?: LoadPluginCredentialCards;
@@ -176,7 +172,7 @@ export async function saveStaticAccessToken(routeDeps: AgentPluginTokenTargetDep
   const row = await requireTargetRow(routeDeps, target);
   // A row read or probe may finish after the run ends; never start a credential write then.
   optional.signal?.throwIfAborted();
-  await saveExternalMcpServer(
+  await routeDeps.externalMcpStore.saveExternalMcpServer(
     { repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer, keyring: routeDeps.siteAssistantSecretKeyring, clock: routeDeps.clock },
     {
       workspaceId: routeDeps.workspaceId,
@@ -198,7 +194,7 @@ export async function saveStaticAccessToken(routeDeps: AgentPluginTokenTargetDep
 
 /** Only the store's known validation/unconfigured errors are shown. Sealing failures can quote
  * plaintext, so unconfigured storage gets fixed copy; the engine redacts allowlisted messages. */
-function describeSaveError(err: unknown): string {
+function describeSaveError({ err, store: { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError } }: { err: unknown; store: AgentPluginTokenTargetDeps["externalMcpStore"] }, _options = {}): string {
   if (err instanceof ExternalMcpSecretStoreUnconfiguredError) return credentialText({ id: "storage", locale: "en" });
   const known = err instanceof ExternalMcpValidationError || err instanceof ToolInputError;
   return known ? (err as Error).message : MESSAGES.saveFailed;
@@ -218,13 +214,16 @@ async function saveSubmittedAccessToken(
 ): Promise<SetAccessTokenResult> {
   const submitted = values.token;
   try { assertCredentialToken({ value: submitted, field: 'token' }); }
-  catch (err) { if (err instanceof CredentialInputError) return { saved: false, reason: 'invalid', message: credentialText({ id: err.rule, locale }) }; throw err; }
+  catch (err) { if (err instanceof CredentialInputError) { return { saved: false, reason: 'invalid', message: credentialText({ id: err.rule, locale }) }; } throw err; }
 
   const token = (submitted as string).trim();
   const probe = await probeToken({ probeUrl: target.config.tovuTokenAuth.probeUrl, token }, { httpClient: routeDeps.customCredentialsHttpClient });
   signal.throwIfAborted();
   if (probe === "invalid") return { saved: false, reason: "invalid", message: translateCredentialMessage({ message: MESSAGES.tokenInvalid, locale }) };
-  if (probe === "refused") return { saved: false, reason: "refused", message: `This token was refused for this purpose.${credentialCard?.keyHint ? ` This card needs: ${credentialCard.keyHint}` : ''}` };
+  if (probe === "refused") {
+    const hint = credentialCard?.keyHint ? ` This card needs: ${credentialCard.keyHint}` : '';
+    return { saved: false, reason: "refused", message: `This token was refused for this purpose.${hint}` };
+  }
   if (probe === "unavailable") return { saved: false, reason: "unavailable", message: `${target.displayName} is unavailable right now. Try again shortly.` };
   await saveStaticAccessToken(routeDeps, target, principalId, token, { signal });
   let next: string;
@@ -285,6 +284,6 @@ export async function saveAgentPluginToken(
         title: result.saved ? "Token saved" : "Token not saved", message: result.saved ? result.next : result.message!,
       });
     },
-  }, { uriHost: "tovu", frameSize: ["100%", "380px"], safeError: describeSaveError, text: { saveFailure: MESSAGES.saveFailed } });
+  }, { uriHost: "tovu", frameSize: ["100%", "380px"], safeError: err => describeSaveError({ err, store: routeDeps.externalMcpStore }), text: { saveFailure: MESSAGES.saveFailed } });
   return card.handler({ surfaceExchanges: surfaces.surfaceExchanges, askThenReport })(ctx, optional);
 }

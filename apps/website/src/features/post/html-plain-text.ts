@@ -23,12 +23,16 @@ function decodeHtmlEntities(text: string): string {
       const name = entity.toLowerCase();
       return (Object.hasOwn(HTML_NAMED_ENTITIES, name) ? HTML_NAMED_ENTITIES[name] : undefined) ?? match;
     }
-    const codePoint = entity[1] === "x" || entity[1] === "X" ? parseInt(entity.slice(2), 16) : parseInt(entity.slice(1), 10);
-    // Stored prose may contain an invalid reference. Preserve it instead of throwing or creating
-    // an unpaired surrogate that cannot represent a Unicode scalar value.
-    return !Number.isInteger(codePoint) || codePoint < 0 || codePoint > 0x10ffff || (codePoint >= 0xd800 && codePoint <= 0xdfff)
-      ? match : String.fromCodePoint(codePoint);
+    return decodeNumericEntity({ entity, match });
   });
+}
+
+function decodeNumericEntity({ entity, match }: { entity: string; match: string }, _options = {}): string {
+  const codePoint = entity[1] === "x" || entity[1] === "X" ? parseInt(entity.slice(2), 16) : parseInt(entity.slice(1), 10);
+  // Stored prose may contain an invalid reference. Preserve it instead of throwing or creating
+  // an unpaired surrogate that cannot represent a Unicode scalar value.
+  if (!Number.isInteger(codePoint) || codePoint < 0 || codePoint > 0x10ffff) return match;
+  return codePoint >= 0xd800 && codePoint <= 0xdfff ? match : String.fromCodePoint(codePoint);
 }
 
 /** Opening tag of any element carrying the `post-detail-header` class (any attribute order/quoting,
@@ -85,6 +89,11 @@ function stripPostDetailHeader(html: string): string {
 export function extractPlainTextFromHtml(html: string): string {
   const withoutHeader = stripPostDetailHeader(html);
   const withoutNonProse = withoutHeader.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, " ");
-  const withoutTags = withoutNonProse.replace(/<[^>]+>/g, " ");
+  const parts = withoutNonProse.split(">");
+  const withoutTags = parts.map((part, index) => {
+    if (index === parts.length - 1) return part;
+    const open = part.indexOf("<");
+    return open !== -1 && open < part.length - 1 ? `${part.slice(0, open)} ` : `${part}>`;
+  }).join("");
   return decodeHtmlEntities(withoutTags);
 }

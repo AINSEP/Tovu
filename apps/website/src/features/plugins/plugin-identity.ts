@@ -90,7 +90,8 @@ async function mintPluginIdentity(kernel: PluginKernel, pluginId: string, proven
 }
 
 function provenanceEqual(a: PluginProvenance, b: PluginProvenance): boolean {
-  return a.sourceUrl === b.sourceUrl && a.publisher === b.publisher && (a.signature ?? null) === (b.signature ?? null);
+  if (a.sourceUrl !== b.sourceUrl || a.publisher !== b.publisher) return false;
+  return (a.signature ?? null) === (b.signature ?? null);
 }
 
 /**

@@ -103,7 +103,7 @@
  * was reconciled only on the CREATE path (`table.indexes` was only ever walked inside the
  * `plan.toCreate` loop), so a v2 manifest that added an index to an existing table got
  * `{ ok: true, altered: [...] }` back (truthfully reporting the column work, if any) with the
- * index itself silently never created — the identical bug class one level up. `getExistingIndexes`
+ * index itself silently never created — the identical bug class one level up. The kernel's `listIndexes`
  * reads `fqTableName`'s live indexes via `PRAGMA index_list` + `PRAGMA index_info`, filtered to
  * `origin: 'c'` rows only: SQLite also auto-creates an implicit index per `UNIQUE` column
  * constraint (`origin: 'u'`) and one for most `PRIMARY KEY` shapes (`origin: 'pk'`, e.g.
@@ -628,17 +628,6 @@ async function planColumnReconciliation(kernel: PluginKernel, table: TableDecl, 
   return columnsToAdd;
 }
 
-/**
- * Reads `fqTableName`'s live, explicitly-authored indexes through the kernel's `listIndexes`, keyed
- * by the index's live name. Only `CREATE INDEX` indexes are listed — the implicit ones a `UNIQUE`
- * column constraint or a `PRIMARY KEY` makes (SQLite origin `u`/`pk`, e.g. `sqlite_autoindex_*`;
- * Postgres constraint-backed indexes) were never declared through `IndexDecl` or created by this
- * module's own `indexSql` (see this file's header comment, INDEX-LEVEL RECONCILIATION).
- */
-async function getExistingIndexes(kernel: PluginKernel, fqTableName: string): Promise<Map<string, IndexInfo>> {
-  return listIndexes(kernel, fqTableName);
-}
-
 /** True when a declared index's shape (column list, in order, and uniqueness) matches its live index. */
 function indexMatches(idx: IndexDecl, existing: IndexInfo): boolean {
   const declaredUnique = idx.unique ?? false;
@@ -656,9 +645,14 @@ interface IndexReconciliationPlan {
  * Diffs one already-existing table's declared indexes against its live shape (see this file's
  * header comment, INDEX-LEVEL RECONCILIATION, for the full reasoning behind `indexesToAdd` vs.
  * `indexesToRecreate` vs. leaving an undeclared live index alone).
+ *
+ * The kernel's `listIndexes` keys explicitly-authored indexes by their live names. Only
+ * `CREATE INDEX` indexes are listed — the implicit ones a `UNIQUE` column constraint or a
+ * `PRIMARY KEY` makes (SQLite origin `u`/`pk`, e.g. `sqlite_autoindex_*`; Postgres constraint-backed
+ * indexes) were never declared through `IndexDecl` or created by this module's own `indexSql`.
  */
 async function planIndexReconciliation(kernel: PluginKernel, table: TableDecl, fqTableName: string): Promise<IndexReconciliationPlan> {
-  const existingIndexes = await getExistingIndexes(kernel, fqTableName);
+  const existingIndexes = await listIndexes(kernel, fqTableName);
   const indexesToAdd: IndexDecl[] = [];
   const indexesToRecreate: IndexDecl[] = [];
   for (const idx of table.indexes ?? []) {
@@ -666,9 +660,9 @@ async function planIndexReconciliation(kernel: PluginKernel, table: TableDecl, f
     const existing = existingIndexes.get(indexName);
     if (existing === undefined) {
       indexesToAdd.push(idx);
-    } else if (!indexMatches(idx, existing)) {
-      indexesToRecreate.push(idx);
+      continue;
     }
+    if (!indexMatches(idx, existing)) indexesToRecreate.push(idx);
   }
   return { indexesToAdd, indexesToRecreate };
 }
@@ -726,7 +720,7 @@ async function recordMigration(
  * only covers the alter path this fix adds, matching `missingColumns`'s scope one level up.
  */
 async function verifyAlteredIndexes(kernel: PluginKernel, alteration: TableAlterationPlan): Promise<string[]> {
-  const nowExistingIndexes = await getExistingIndexes(kernel, alteration.fqTableName);
+  const nowExistingIndexes = await listIndexes(kernel, alteration.fqTableName);
   const declaredIndexes = [...alteration.indexesToAdd, ...alteration.indexesToRecreate];
   return declaredIndexes
     .map((idx) => indexSql(alteration.fqTableName, idx).indexName)

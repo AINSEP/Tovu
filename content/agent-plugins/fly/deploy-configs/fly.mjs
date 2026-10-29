@@ -39,7 +39,7 @@
 function renderVariables({ values, secrets, label }, kit) {
   const secretNames = new Set(secrets.map(secret => secret.name));
   return Object.entries(values).map(([name, value]) => {
-    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name) || typeof value !== "string" || secretNames.has(name)) {
+    if (!/^[A-Za-z_]\w*$/.test(name) || typeof value !== "string" || secretNames.has(name)) {
       throw kit.validationError(`${label} must contain only non-secret string variables with valid names`);
     }
     // JSON permits a literal DEL character; TOML requires it to be escaped too.

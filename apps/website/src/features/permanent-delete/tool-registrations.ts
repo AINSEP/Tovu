@@ -13,12 +13,13 @@ import {
 } from "@jini-ai/core";
 import { requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 import type { SurfaceDetail } from "@jini-ai/ui/mcp-ui/surfaces";
-import type { ToolContributor } from "#src/assistant/index";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { ToolContributor } from "@jini-ai/core";
 import { approvalToolHandler, notConfirmedResult, refuseUnexpectedKeys } from "../../contracts/core/human-confirm.js";
 import { PERMANENT_DELETE_SPECS, permanentDeleteAgentToolCatalog, type PermanentDeleteToolId } from "./agent-tools.js";
 import type { ForgetRemovedEntity } from "@jini-ai/cms/trash";
 import type { StaticPublishToolDeps } from "../deployments/publish-agent-tools.js";
+
+const MUTATES_DURABLE_STATE = "mutates-durable-state" as const;
 
 /** Extra host ports read by the injected adapter, beyond the existing domains' deps slices. */
 export interface PermanentDeleteHostDeps {
@@ -43,23 +44,23 @@ export interface PermanentDeleteToolDeps {
 
 export const permanentDeleteDerivedRisk: DerivedRiskByToolId = new Map([
   // -> TrashPort.purgeSelected on the confirmed snapshot; per-row auth and compare-delete retained.
-  ["trash_empty", "mutates-durable-state"],
+  ["trash_empty", MUTATES_DURABLE_STATE],
   // -> TrashPort.purgeSelected for one confirmed Trash row.
-  ["trash_purge_item", "mutates-durable-state"],
+  ["trash_purge_item", MUTATES_DURABLE_STATE],
   // -> purgeMedia + forgetRemovedMedia: asset/rendition removal and blob tombstone.
-  ["media_purge_asset", "mutates-durable-state"],
+  ["media_purge_asset", MUTATES_DURABLE_STATE],
   // -> CommentWriteService.purge: row/index removal plus audit event.
-  ["comments_purge_comment", "mutates-durable-state"],
+  ["comments_purge_comment", MUTATES_DURABLE_STATE],
   // -> TrashPort.purgeSelected -> user adapter / SqlUserPurge: identity cascade.
-  ["identity_user_delete", "mutates-durable-state"],
+  ["identity_user_delete", MUTATES_DURABLE_STATE],
   // -> deleteExternalMcpServer: saved server/config/auth removal.
-  ["external_mcp_delete", "mutates-durable-state"],
+  ["external_mcp_delete", MUTATES_DURABLE_STATE],
   // -> deleteCustomCredential: deletes the saved encrypted credential.
-  ["custom_credential_delete", "mutates-durable-state"],
+  ["custom_credential_delete", MUTATES_DURABLE_STATE],
   // -> deletePublishCredential: deletes vendor credential, promotes next default.
-  ["deployment_delete_provider_credential", "mutates-durable-state"],
+  ["deployment_delete_provider_credential", MUTATES_DURABLE_STATE],
   // -> deleteSourceControlCredential: deletes source-control credential, promotes next default.
-  ["source_control_delete_credential", "mutates-durable-state"],
+  ["source_control_delete_credential", MUTATES_DURABLE_STATE],
 ]);
 
 /**
@@ -99,6 +100,6 @@ export function buildPermanentDeleteRegistrations(deps: PermanentDeleteToolDeps,
 }
 
 /** Compose with host adapters without importing server/assistant implementations into the feature. */
-export function contributePermanentDeleteTools(spec: { buildDeps: (routeDeps: Parameters<ToolContributor["build"]>[0]) => PermanentDeleteToolDeps }): ToolContributor {
+export function contributePermanentDeleteTools<TDeps>(spec: { buildDeps: (routeDeps: TDeps) => PermanentDeleteToolDeps }): ToolContributor<TDeps, ChatDeleteSurfaceDeps> {
   return { domain: "permanent-delete", build: (routeDeps, surfaces) => buildPermanentDeleteRegistrations(spec.buildDeps(routeDeps), surfaces), risk: permanentDeleteDerivedRisk };
 }

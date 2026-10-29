@@ -75,7 +75,9 @@ function validateInstallLocation(
   if (Object.hasOwn(source, "path") === Object.hasOwn(source, "attachmentRef")) throw new ToolInputError({ message: "Exactly one of source.path/source.attachmentRef is required." });
   if (Object.hasOwn(source, "attachmentRef")) {
     if (kind !== "zip" || typeof attachmentRef !== "string" || !CHAT_ATTACHMENT_REF_PATTERN.test(attachmentRef)) throw new ToolInputError({ message: "source.attachmentRef must be an attachment:<uuid> ZIP reference." });
-  } else if (typeof sourcePath !== "string" || !path.isAbsolute(sourcePath)) throw new ToolInputError({ message: "source.path must be an absolute path on the machine Tovu runs on (expand ~ first)." });
+  } else {
+    if (typeof sourcePath !== "string" || !path.isAbsolute(sourcePath)) throw new ToolInputError({ message: "source.path must be an absolute path on the machine Tovu runs on (expand ~ first)." });
+  }
 }
 
 function requireArchiveSize({ size, maxBytes }: { size: number; maxBytes: number }, _optional: Record<string, never> = {}): void {

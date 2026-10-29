@@ -37,7 +37,10 @@ const ACTIONS: readonly ActionSpec[] = [
 ];
 
 function parseExpectedVersion(raw: unknown): number | null {
-  const n = typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : NaN;
+  let n: number;
+  if (typeof raw === "number") n = raw;
+  else if (typeof raw === "string") n = Number(raw);
+  else return null;
   return Number.isInteger(n) && n >= 0 ? n : null;
 }
 

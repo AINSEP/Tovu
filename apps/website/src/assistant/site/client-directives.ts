@@ -1,5 +1,5 @@
 import { readAnonymousPublishedPosts, type AnonymousPublishedPostDeps } from "./public-content.js";
-import { postPublicPath } from "#src/platform/routing/adapter";
+import { postPublicPath } from "#src/platform/routing/index";
 
 /**
  * @file SPEC-046 REQ-4/REQ-6/REQ-8 — the client-directive channel's shared shape and its one

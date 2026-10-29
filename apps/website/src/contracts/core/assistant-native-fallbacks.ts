@@ -1,7 +1,10 @@
 import { assistantCliPermissions, type AssistantCliPermissions } from "../headless/assistant-subagents-policy.js";
 import { CORE_HOST_SIGNAL_FALLBACK, evaluateHostSignals, type HostSignalOptions } from "./host-signals.js";
 /** Product policy shared by the site daemon and Electron host. No I/O or framework imports. */
-export const TOOLS_FIRST_RULE = 'Use Tovu tools first. Before any Bash or direct file read/edit/write of site files (themes, content, config), call search_tools describing the job; if no candidate fits, retry with different phrasing or a higher limit. Only if those searches find no suitable Tovu tool may you use native fallbacks. Only after those searches, report the fallback in one line: `Tool gap: <what you needed> — no Tovu tool for it.` Include the queries you searched in <what you needed>. Reading theme or site files counts too: use theme_read_file (with find) or fs_read_file, never cat/grep/sed.';
+export const TOOLS_FIRST_RULE = 'Use Tovu tools first. Before any shell command or direct file read/edit/write of site files (themes, content, config), call search_tools describing the job; if no candidate fits, retry with different phrasing or a higher limit. Only if those searches find no suitable Tovu tool may you use native fallbacks. Only after those searches, report the fallback in one line: `Tool gap: <what you needed> — no Tovu tool for it.` Include the queries you searched in <what you needed>. ' +
+  'Map shell intents: theme list/read/search → theme_list_files / theme_read_file (find, startLine, lineCount); site/handoff/plugin text → fs_list_files / fs_read_file; page HTML/localhost routes → fetch_published_page (site path, never curl); picked-folder copies → files_copy; images → media_view_image; documents → library_list / library_read (text only; PDFs are download-only, so PDF inspection is a Tool gap). ' +
+  'After ONE "Operation not permitted" or permission refusal, do not retry the same kind of command, even with another shell, flags or path spelling. Switch to the mapped tool; otherwise stop and tell the owner in one line: `Tool gap: <job and searched queries> — <denial or missing capability>.` Native fallback gaps are recorded automatically; tool_gaps_list reads that audit. ' +
+  'Shell is only for genuine tool gaps: literal paths inside granted roots, no paths computed at run time, no CLI spill-file reads. Applies to every agent CLI.';
 
 /** Hosted signals override every owner opt-in, including legacy permission-mode overrides.
  * The host injects validated platform facts; absent facts retain the core baseline without I/O.
@@ -15,7 +18,8 @@ export function isHostedAssistantRuntime(required: {
 }, optional: HostSignalOptions = {}): boolean {
   const env = required.env;
   const hostSignals = optional.hostSignals ?? evaluateHostSignals({ env, declaration: CORE_HOST_SIGNAL_FALLBACK });
-  return env.TOVU_RUNTIME_MODE === 'production' || env.TOVU_HOSTED === '1' || env.TOVU_HOSTED === 'true' ||
+  const hosted = env.TOVU_RUNTIME_MODE === 'production' || env.TOVU_HOSTED === '1' || env.TOVU_HOSTED === 'true';
+  return hosted ||
     hostSignals.nativeToolsRestricted === true ||
     /^https?:\/\/(?:[^/]+\.)?tovu\.dev(?::\d+)?(?:\/|$)/i.test(env.TOVU_PUBLIC_URL ?? '');
 }
@@ -40,7 +44,7 @@ export function fullCliEnvLock(required: {
  * Platform facts are injected with the same snapshot used for permission-mode policy.
  */
 export function resolveFullCliAccess(required: {
-  isOwner: boolean; setting?: boolean | undefined; env: Readonly<Record<string, string | undefined>>;
+  isOwner: boolean; setting?: boolean; env: Readonly<Record<string, string | undefined>>;
 }, optional: HostSignalOptions = {}): boolean {
   const env = required.env;
   return required.isOwner && required.setting !== false && !isHostedAssistantRuntime({ env }, optional) &&

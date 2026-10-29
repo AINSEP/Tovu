@@ -139,23 +139,31 @@ function main(): void {
 
   console.log(`\nclassify-coverage-gaps — ${gaps.length} file(s) below tier threshold, ${allFiles.size} scanned:\n`);
 
-  if (architectureDebt.length > 0) {
-    console.log(`ARCHITECTURE_DEBT (${architectureDebt.length}) — refactor before chasing coverage:`);
-    for (const g of architectureDebt) {
-      console.log(`  - ${g.file}: unit ${g.evaluation.unit.detail}, integration ${g.evaluation.integration.detail}`);
-      for (const r of g.complexityReasons) console.log(`      ${r}`);
+  const reportArchitectureDebt = (_required: Record<string, never>, _options = {}): void => {
+    if (architectureDebt.length > 0) {
+      console.log(`ARCHITECTURE_DEBT (${architectureDebt.length}) — refactor before chasing coverage:`);
+      for (const g of architectureDebt) {
+        console.log(`  - ${g.file}: unit ${g.evaluation.unit.detail}, integration ${g.evaluation.integration.detail}`);
+        for (const r of g.complexityReasons) console.log(`      ${r}`);
+      }
+      console.log("");
     }
-    console.log("");
-  }
 
-  if (testGaps.length > 0) {
-    console.log(`TEST_GAP (${testGaps.length}) — clean complexity, write the missing test(s):`);
-    for (const g of testGaps) {
-      const tax = g.phantomTaxPlausible ? "  [small file — check DA hit counts before assuming this is a real gap]" : "";
-      console.log(`  - ${g.file}: unit ${g.evaluation.unit.detail}, integration ${g.evaluation.integration.detail}${tax}`);
+  };
+  reportArchitectureDebt({});
+
+  const reportTestGaps = (_required: Record<string, never>, _options = {}): void => {
+    if (testGaps.length > 0) {
+      console.log(`TEST_GAP (${testGaps.length}) — clean complexity, write the missing test(s):`);
+      for (const g of testGaps) {
+        const tax = g.phantomTaxPlausible ? "  [small file — check DA hit counts before assuming this is a real gap]" : "";
+        console.log(`  - ${g.file}: unit ${g.evaluation.unit.detail}, integration ${g.evaluation.integration.detail}${tax}`);
+      }
+      console.log("");
     }
-    console.log("");
-  }
+
+  };
+  reportTestGaps({});
 
   if (gaps.length === 0) {
     console.log(`nothing below threshold on either tier across ${allFiles.size} scanned file(s).`);

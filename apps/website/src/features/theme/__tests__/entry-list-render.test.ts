@@ -260,11 +260,11 @@ test("template: a placeholder in an attribute-name position gets the unquoted-at
 
 test("a see-more listing key wraps template items and marks the built-in list wrapper", () => {
   const items = [item({ title: "One" })];
-  const templated = assertRendered(renderEntryList(items, options({ template: "<i>{{title}}</i>", listingKey: "k1" })));
-  assert.match(templated, /data-jini-listing|k1/);
+  const templated = assertRendered(renderEntryList(items, options({ template: "<i>{{title}}</i>", listingKey: 1 })));
+  assert.match(templated, /data-jini-listing|1/);
   assert.match(templated, /<i>One<\/i>/);
-  const builtIn = assertRendered(renderEntryList(items, options({ layout: "list", listingKey: "k1" })));
-  assert.match(builtIn, /<ul class="entry-list entry-list--recipe entry-list--list" data-tovu-entry-list data-jini-listing="k1">/);
+  const builtIn = assertRendered(renderEntryList(items, options({ layout: "list", listingKey: 1 })));
+  assert.match(builtIn, /<ul class="entry-list entry-list--recipe entry-list--list" data-tovu-entry-list data-jini-listing="1">/);
 });
 
 test("list layout: an item with fields renders its <dl>", () => {

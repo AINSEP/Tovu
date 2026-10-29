@@ -2,7 +2,8 @@ import { toolMetadata } from "../../contracts/core/tool-metadata/mail-status.js"
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInputError, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, ForbiddenError, requireToolPermission } from "@jini-ai/cms/core";
 import { forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
+import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { MailProviderControl, MailProviderConfigurationReport } from "../../platform/mail/mail-status.js";
@@ -121,6 +122,6 @@ export function buildMailProviderRegistrations(deps: MailProviderToolDeps, _opti
 }
 
 /** Registers the provider configuration tools under their own contributor domain. */
-export function contributeMailProviderTools(): ToolContributor {
+export function contributeMailProviderTools(): ToolContributor<MailProviderToolDeps, AssistantSurfaceDeps> {
   return { domain: "system-mail-providers", build: buildMailProviderRegistrations, risk: mailProviderDerivedRisk };
 }

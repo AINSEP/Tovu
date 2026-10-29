@@ -9,7 +9,8 @@ import { pinSiteListenerOrigin } from "../../server/runtime/boot/site-listener-o
 import { ValidationError, type ConfigJson } from "../../platform/site-dir/index.js";
 import { SITE_BINDING_NOT_SWITCHABLE_ENV } from "../../platform/site-dir/site-registry.js";
 import { mintBootSessionToken } from "#src/features/identity/boot-session-token";
-import { bootSiteDir, closeSiteDirBoot, type BootSiteDirResult } from "../../platform/site-dir/boot-site-dir.js";
+import { closeSiteDirBoot, type BootSiteDirResult } from "../../platform/site-dir/boot-site-dir.js";
+import { bootSiteDir } from "#src/server/runtime/composition/site-dir";
 import type { SiteStore } from "../../server/runtime/composition/open-site-store.js";
 import { awaitBootWorkWithinBound } from "../../server/runtime/lifecycle/await-boot-work.js";
 import { closeStoreOnShutdown, stopServingWithinGrace } from "../../server/runtime/lifecycle/close-store-on-shutdown.js";
@@ -458,13 +459,15 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
       // within milliseconds, not seconds; a short grace window is more than enough before the
       // shared helper force-closes anything still lingering (BR-07 only promises the current
       // request finishes, not that an idle keep-alive socket outlives shutdown).
+      const stopOutbox = () => outboxDrainer.stop();
+      const stopTrash = () => trashSweeper.stop({});
       closeStoreOnShutdown({
         store: { storage: bootResult.storage, close: () => closeSiteDirBoot(bootResult, owned.composedStore) },
         onShutdown: shutdownAssistantDaemon,
       }, {
         bootWork: () => owned.bootWork,
         stopServing: () => stopServingWithinGrace({ server, workers: [
-          { stop: () => outboxDrainer.stop() }, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance,
+          { stop: stopOutbox }, { stop: stopTrash }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance,
         ] }),
         // Opt-in (the desktop on Windows): an ignored or terminal stdin must never stop the site.
         stopOnEnd: process.env.TOVU_STOP_ON_STDIN_EOF === "1" ? process.stdin : undefined,

@@ -7,7 +7,7 @@ import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/inde
 import type { ResolvedPeerCredential } from "./peers.js";
 import type { PackedEntity } from "./type-registry.js";
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
-import type { PublishHistoryStore, PublishTrigger } from "#src/features/deployments/static-publish/publish-history";
+import type { PublishHistoryStore, PublishTrigger } from "#src/features/deployments/static-publish/index";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —
@@ -256,10 +256,12 @@ export async function callPeer(
 
   if (response.status < 200 || response.status >= 300) {
     const reason = peerRefusalReason({ status: response.status, bodyText: response.bodyText });
+    const reasonSuffix = reason ? `. ${reason}` : "";
+    const message = isCredentialKindRefusal(response.status, response.bodyText)
+      ? credentialKindRefusalMessage(baseUrl)
+      : `the peer refused ${request.method} ${request.path} with HTTP ${response.status}${reasonSuffix}`;
     throw new PublishContentPeerTransportError(
-      isCredentialKindRefusal(response.status, response.bodyText)
-        ? credentialKindRefusalMessage(baseUrl)
-        : `the peer refused ${request.method} ${request.path} with HTTP ${response.status}${reason ? `. ${reason}` : ""}`,
+      message,
       "PEER_REJECTED",
       { peerStatus: response.status }
     );
@@ -814,17 +816,15 @@ export async function pullBlobsFromPeer(
     // must not consume the budget that bounds them.
     if (downloaded.length + unavailable.length >= maxBlobs) {
       deferredOverCap.push(sha256);
-      continue;
+    } else {
+      const bytes = await fetchVerifiedPeerBlob(deps, { sha256 });
+      if (bytes === null) {
+        unavailable.push(sha256);
+      } else {
+        await deps.blobSink.putIfAbsent({ workspaceId: deps.workspaceId, sha256, bytes });
+        downloaded.push(sha256);
+      }
     }
-
-    const bytes = await fetchVerifiedPeerBlob(deps, { sha256 });
-    if (bytes === null) {
-      unavailable.push(sha256);
-      continue;
-    }
-
-    await deps.blobSink.putIfAbsent({ workspaceId: deps.workspaceId, sha256, bytes });
-    downloaded.push(sha256);
   }
 
   return { downloaded, alreadyPresent, unavailable, deferredOverCap };

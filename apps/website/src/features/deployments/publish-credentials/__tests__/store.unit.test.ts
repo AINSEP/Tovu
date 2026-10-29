@@ -1108,7 +1108,7 @@ test("the providerId refusal names only hosts that declare a credential; an unkn
 });
 
 test("compatibility invalidation drops only the hosts a create (no before) or delete (no after) actually affects", async () => {
-  const registry = await loadBundledDeployTargets(WORKSPACE);
+  const registry = await loadBundledDeployTargets();
   const custom = { credentialType: "custom" as const, worksFor: ["vercel"] };
   const expected = publishHostsForCredential({ registry, credential: { kind: "vendor", provider: null, label: "", meta: custom } });
   assert.deepEqual(expected, ["vercel"]);

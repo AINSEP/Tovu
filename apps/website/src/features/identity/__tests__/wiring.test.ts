@@ -426,12 +426,13 @@ test("createInMemoryIdentityRouteDeps: identityReady grants pages.edit_html to t
     );
   }
 
-  // The owner policy holds only `*`; `authorize()` short-circuits on it, so a row here would mean
-  // the backfill had started writing onto the wildcard policy.
+  // `authorize()` short-circuits on the owner's `*`, so pages.edit_html needs no owner backfill.
+  // ffb1cd102 deliberately reconciles visitor-tools.manage to owner/admin; retain that exact
+  // post-boot policy while proving the pages backfill adds nothing to the wildcard policy.
   assert.deepEqual(
     await permissionsOfPolicyNamed("owner-builtin-policy"),
-    ["*"],
-    "the owner policy stays exactly its seeded wildcard"
+    ["*", "visitor-tools.manage"],
+    "the owner policy retains its wildcard and visitor-tools grant without pages.edit_html"
   );
 });
 
@@ -489,7 +490,7 @@ test("createSqliteIdentityRouteDeps: identityReady grants pages.edit_html to adm
     for (const name of ["editor-builtin-policy", "viewer-builtin-policy"] as const) {
       assert.ok(!(await permissionsOfPolicyNamed(name)).includes(PAGES_EDIT_HTML_PERMISSION), `${name} must NOT gain raw-page-HTML authoring`);
     }
-    assert.deepEqual(await permissionsOfPolicyNamed("owner-builtin-policy"), ["*"], "the owner policy stays exactly its seeded wildcard");
+    assert.deepEqual(await permissionsOfPolicyNamed("owner-builtin-policy"), ["*", "visitor-tools.manage"], "the owner policy retains its wildcard and visitor-tools grant without pages.edit_html");
   } finally {
     if (setupDb.$client.open) setupDb.$client.close();
     bootDb?.$client.close();

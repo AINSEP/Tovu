@@ -11,7 +11,7 @@ import { InMemoryChangeSetRepo } from '#src/contracts/core/commands/index';
 import { InMemoryOutbox } from '#src/contracts/core/events/index';
 import { contributeRawFilePublish } from '#src/features/publish-content/raw-file-contributor';
 import { contributeThemeFilesPublish } from '#src/features/theme/publish-content';
-import { createRawFileSitePort } from '#src/platform/site-dir/publish-backstop-file';
+import { createRawFileSitePort } from '#src/features/publish-content/publish-backstop-file';
 import { contentHash } from '#src/features/publish-content/content-hash';
 import { MAX_SECRET_SCAN_BYTES } from '#src/features/publish-content/file-tree-policy';
 import type { PackedEntity, PublishContentDeps } from '#src/features/publish-content/type-registry';

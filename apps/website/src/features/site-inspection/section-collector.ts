@@ -48,8 +48,8 @@ export type InspectionAuthorizeFn = (params: {
   principalId: string;
   permission: string;
   workspaceId: string;
-  entityType?: string | undefined;
-  entityId?: string | undefined;
+  entityType?: string;
+  entityId?: string;
 }) => Promise<{ allowed: boolean; reason: string }>;
 
 /** Default per-section wall clock. These are local reads; a section still hanging past this is a

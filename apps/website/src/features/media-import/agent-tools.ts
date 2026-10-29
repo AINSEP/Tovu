@@ -45,7 +45,7 @@ export interface AgentToolDefinition {
 }
 
 /** Owner-controlled recovery for a path outside the file browser's roots; never set roots from a tool. */
-export const LOCAL_FILE_IMPORT_RECOVERY = "Ask the owner to attach the file to the chat, then use media_promote_chat_attachment, or choose that folder using the folder control ('No folder set') in the admin chat composer, then retry with root 'custom'.";
+export const LOCAL_FILE_IMPORT_RECOVERY = 'For a file outside this site, use files_copy with sources:[{root:"picked",path:"<relative file path>"}], destination:{kind:"media"}; picked is the owner-selected folder grant from the admin chat composer. Ask the owner to choose that folder if needed. Alternatively, ask the owner to attach the file to this chat, then use media_promote_chat_attachment.';
 
 const LOCAL_IMPORT_SCHEMA = {
   type: "object",
@@ -55,7 +55,7 @@ const LOCAL_IMPORT_SCHEMA = {
     root: {
       type: "string",
       enum: FS_ROOT_IDS,
-      description: "Use the same root id as fs_list_files/fs_read_file: repo, site, or the owner's configured custom folder. The tool cannot choose or widen the custom folder.",
+      description: "Use site, or custom only when it resolves inside this site folder. repo and folders outside this site are refused; use files_copy with a picked source for the owner-selected external folder.",
     },
     path: {
       type: "string",
@@ -121,7 +121,7 @@ export const mediaImportAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "media_import_local_file",
     description:
-      "Put an image or video saved on this computer into the media library. Find the file with fs_list_files first, then pass the same root and relative path that fs_read_file takes. Use this for local files on disk, such as a video in Downloads, a photo on the Desktop, or a logo in a theme folder. For an https link use media_import_from_url. Accepts PNG, JPEG, GIF, WebP, AVIF, SVG, MP4 and WebM, up to 50 MiB, detected from the actual bytes. SVG is sanitized before storage; SVG fonts are refused. Returns { media: ImportedMediaView }, the same media object as media_import_from_url (id, slug, title, alt, caption, credit, sha256, status, version, publicUrl, sourceUrl); sourceUrl is empty for local files. Identical bytes share one stored blob. Files outside the file browser's roots, secrets, denied files, and oversized or unsupported files are refused. " + LOCAL_FILE_IMPORT_RECOVERY,
+      "Put an image or video saved inside this site folder into the media library. Find the file with fs_list_files first, then pass the same root and relative path that fs_read_file takes. Use this for site-local files, such as a logo in a theme folder. For an https link use media_import_from_url. Accepts PNG, JPEG, GIF, WebP, AVIF, SVG, MP4 and WebM, up to 50 MiB, detected from the actual bytes. SVG is sanitized before storage; SVG fonts are refused. Returns { media: ImportedMediaView }, the same media object as media_import_from_url (id, slug, title, alt, caption, credit, sha256, status, version, publicUrl, sourceUrl); sourceUrl is empty for local files. Identical bytes share one stored blob. Files outside this site, secrets, denied files, and oversized or unsupported files are refused. " + LOCAL_FILE_IMPORT_RECOVERY,
     sideEffects: "mutates-durable-state",
     authorization: { permission: "media.upload" },
     inputSchema: LOCAL_IMPORT_SCHEMA,

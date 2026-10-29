@@ -83,13 +83,15 @@ function pickProvenance(required: { meta: Record<string, unknown> }): Record<str
   // Pick named provenance fields; never spread site identity, paths, fingerprints or storage.
   for (const key of PROVENANCE_KEYS) {
     const value = required.meta[key];
-    if (typeof value === "string" && PROVENANCE_TEXT.test(value) || typeof value === "number" && Number.isSafeInteger(value) && value >= 0) provenance[key] = value;
+    const validText = typeof value === "string" && PROVENANCE_TEXT.test(value);
+    const validNumber = typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+    if (validText || validNumber) provenance[key] = value;
   }
   return provenance;
 }
 
 /** Read only the small, no-follow planned settings files; all other metadata is discarded. */
-async function readPortableJson(required: { file?: PlannedDiskFile | undefined }): Promise<Record<string, unknown>> {
+async function readPortableJson(required: { file?: PlannedDiskFile }): Promise<Record<string, unknown>> {
   if (!required.file) return {};
   if (required.file.bytes > SHARE_LIMITS.maxManifestBytes) throw new SiteShareRefusal({ code: "INVALID_SETTINGS", message: `Share settings '${required.file.path}' exceeds 2 MiB.` });
   const read = await readPlannedFile(required.file);

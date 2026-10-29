@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { BACKSTOP_LIMITS } from "#src/features/publish-content/backstop-policy";
-import { createRawFileSitePort, type BackstopFilesystem } from "../../publish-backstop-file.js";
+import { createRawFileSitePort, type BackstopFilesystem } from "../../../../features/publish-content/publish-backstop-file.js";
 
 /**
  * @file Real-filesystem pins for the CMS raw site-file adapter: every path-safety refusal, the size

@@ -1,3 +1,4 @@
+import { containAgentPluginStatePath } from "#src/features/agent-plugins/lifecycle";
 import { createTovuAgentPluginLifecycle } from "./lifecycle.js";
 import { planAgentPluginUpdate, AgentPluginUpdateError, type AgentPluginMcpProvisioningPort } from "@jini-ai/agent-plugins/lifecycle";
 import { readInstalledAgentPluginIdentity } from "./identity.js";
@@ -91,10 +92,10 @@ function withinPrefix(reader: AgentPluginArchiveReaderPort, prefix: string): Age
     async *entries(archive) {
       for await (const entry of reader.entries(archive)) {
         const name = entry.entryPath.replaceAll("\\", "/");
-        if (!name.startsWith(prefix)) continue;
-        const inner = name.slice(prefix.length);
-        if (!inner) continue;
-        yield { ...entry, entryPath: inner } as AgentPluginArchiveEntry;
+        if (name.startsWith(prefix)) {
+          const inner = name.slice(prefix.length);
+          if (inner) yield { ...entry, entryPath: inner } as AgentPluginArchiveEntry;
+        }
       }
     },
   };
@@ -119,7 +120,8 @@ async function readBounded(stream: AsyncIterable<Uint8Array>): Promise<Buffer> {
 async function locatePackage(reader: AgentPluginArchiveReaderPort, archive: Uint8Array): Promise<{ prefix: string; pluginId: string }> {
   const { manifests, topLevel } = await scanPackageManifests({ reader, archive });
   const folders = [...topLevel].filter((name) => name.endsWith("/"));
-  const prefix = manifests.has(MANIFEST) ? "" : topLevel.size === 1 && folders.length === 1 ? folders[0]! : null;
+  const enclosingFolder = topLevel.size === 1 && folders.length === 1 ? folders[0]! : null;
+  const prefix = manifests.has(MANIFEST) ? "" : enclosingFolder;
   const raw = prefix === null ? undefined : manifests.get(prefix + MANIFEST);
   if (prefix === null || raw === undefined) {
     throw new AgentPluginInstallError({ code: "MANIFEST_MISSING", message: "the archive does not contain a plugin.json at its root or inside one top-level folder" });
@@ -211,7 +213,7 @@ export async function installUploadedAgentPlugin(
         upgradeFrom = existing.flatMap(entry => entry.version ? [entry.version] : []);
         const staged: StagedTree[] = [];
         const packagesDir = workspaceLayout.pluginPackagesDir({ pluginId });
-        await assertOwnedPluginPath({ workspaceRoot: workspaceLayout.root, entryPath: path.relative(workspaceLayout.root, packagesDir) });
+        await assertOwnedPluginPath({ contain: containAgentPluginStatePath, workspaceRoot: workspaceLayout.root, entryPath: path.relative(workspaceLayout.root, packagesDir) });
         let installed: InstalledAgentPlugin;
         try {
           for (const previous of existing) staged.push(await stageForRemoval({ packagesDir, packageRoot: previous.packageRoot }));
@@ -334,7 +336,8 @@ async function scanPackageManifests(
   let count = 0;
   try {
     for await (const entry of reader.entries(archive)) {
-      if (++count > MAX_PREPASS_ENTRIES) throw new AgentPluginInstallError({ code: "TOO_MANY_ENTRIES", message: `archive exceeds the ${MAX_PREPASS_ENTRIES}-entry cap` });
+      count++;
+      if (count > MAX_PREPASS_ENTRIES) throw new AgentPluginInstallError({ code: "TOO_MANY_ENTRIES", message: `archive exceeds the ${MAX_PREPASS_ENTRIES}-entry cap` });
       await indexPackageManifest({ entry, manifests, topLevel });
     }
   } catch (error) {

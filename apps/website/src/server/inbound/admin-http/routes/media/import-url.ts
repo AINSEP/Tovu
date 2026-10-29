@@ -3,7 +3,7 @@ import type { Express } from "express";
 import { buildImportFilename, MediaImportValidationError } from "@jini-ai/cms/media/import";
 import { MediaValidationError, TOVU_MAX_UPLOAD_BYTES, uploadMedia } from "#src/features/media/index";
 import { fetchImage } from "#src/features/media-import/fetch-image";
-import { resolveMediaPublicUrls } from "#src/features/media/tool-registrations";
+import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import { EgressRefusedError } from "#src/platform/http/index";
 import type { RouteDeps } from "#src/server/routes/types";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";

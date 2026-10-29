@@ -60,11 +60,6 @@ export function sharedPort(port: AssistantChatsPort): SharedPort {
     saveMessage: ({ conversationId, message }) => port.saveMessage(conversationId, message),
   };
 }
-export function giveUpOutcome(error: unknown) { return client.giveUpOutcome({ error }, {}); }
-export function handleSaveFailure(error: unknown, conversationId: string, message: ChatMessage, attempt: number, isDisposed: () => boolean) { return client.handleSaveFailure({ error, conversationId, message, attempt, isDisposed }, {}); }
-export function attemptSave(port: AssistantChatsPort, conversationId: string, message: ChatMessage, attempt: number, isDisposed: () => boolean) { return client.attemptSave({ port: sharedPort(port), conversationId, message, attempt, isDisposed }, {}); }
-export function summarizeFlushOutcomes(results: Parameters<typeof client.summarizeFlushOutcomes>[0]["results"], isConversationStillActive: boolean) { return client.summarizeFlushOutcomes({ results, isConversationStillActive }, {}); }
-export function resolveRememberedConversation(required: Parameters<typeof client.resolveRememberedConversation>[0]) { return client.resolveRememberedConversation(required, {}); }
 export function useAssistantChats(port: AssistantChatsPort, options: { lastConversation?: LastConversationStore } = {}): UseAssistantChats {
   const chats = client.useAssistantChats({ port: sharedPort(port) }, options);
   // Keep existing component callbacks stable while Jini's boundary uses object-shaped calls.

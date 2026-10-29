@@ -8,6 +8,8 @@ import {
   TWITTER_SITE_MAX_LENGTH,
 } from "./settings.js";
 
+const MANAGE_SEO_PERMISSION = "admin.seo.manage";
+
 /**
  * @file The SEO domain's agent-tool catalog, instantiating SPEC-016 REQ-22's naming/callability
  * convention (the same shape `features/workspace/agent-tools.ts`, `newsletter/agent-tools.ts`, and
@@ -225,7 +227,7 @@ export function getSeoAgentToolCatalog(): AgentToolDefinition[] {
       description:
         "Resolves one entry's effective SEO meta (title, description, canonical, robots, OpenGraph, Twitter card, JSON-LD), applying the override > site-default > derived precedence. Read-only.",
       sideEffects: "none",
-      authorization: { permission: "admin.seo.manage" },
+      authorization: { permission: MANAGE_SEO_PERMISSION },
       inputSchema: ENTRY_ID_SCHEMA,
     },
     {
@@ -233,7 +235,7 @@ export function getSeoAgentToolCatalog(): AgentToolDefinition[] {
       description:
         "Runs the SEO analysis (score 0-100 plus a list of issues, e.g. missing title/description) over one entry's effective SEO meta. Read-only.",
       sideEffects: "none",
-      authorization: { permission: "admin.seo.manage" },
+      authorization: { permission: MANAGE_SEO_PERMISSION },
       inputSchema: ENTRY_ID_SCHEMA,
     },
     {
@@ -241,14 +243,14 @@ export function getSeoAgentToolCatalog(): AgentToolDefinition[] {
       description:
         "Sets one or more per-entry SEO field overrides, merged onto the entry's existing overrides (omitted fields are left unchanged; an unregistered field name is rejected). Pass null for a field to clear that override back to inheriting the site default / derived value. If the patch touches 'noindex' or 'canonical', the sitemap cache is invalidated so the next sitemap read reflects the change.",
       sideEffects: "mutates-durable-state",
-      authorization: { permission: "admin.seo.manage" },
+      authorization: { permission: MANAGE_SEO_PERMISSION },
       inputSchema: SET_ENTRY_OVERRIDES_SCHEMA,
     },
     {
       name: "seo_get_settings",
       description: "Reads the workspace's site-wide SEO settings (title template, default description/OG image/Twitter site, default robots directive, sitemap toggle, custom robots.txt rules). Read-only.",
       sideEffects: "none",
-      authorization: { permission: "admin.seo.manage" },
+      authorization: { permission: MANAGE_SEO_PERMISSION },
       inputSchema: NO_INPUT_SCHEMA,
     },
     {
@@ -256,7 +258,7 @@ export function getSeoAgentToolCatalog(): AgentToolDefinition[] {
       description:
         "Updates one or more of the workspace's site-wide SEO settings. All-or-nothing: if any field in the patch fails validation, nothing is written. Omitted fields are left unchanged.",
       sideEffects: "mutates-durable-state",
-      authorization: { permission: "admin.seo.manage" },
+      authorization: { permission: MANAGE_SEO_PERMISSION },
       inputSchema: SET_SETTINGS_SCHEMA,
     },
     {
@@ -264,7 +266,7 @@ export function getSeoAgentToolCatalog(): AgentToolDefinition[] {
       description:
         "Force-rebuilds the workspace's cached sitemap now, bypassing the cache-hit path. Never loses data — it only recomputes the same entries a normal cache-miss read would compute, sooner.",
       sideEffects: "mutates-durable-state",
-      authorization: { permission: "admin.seo.manage" },
+      authorization: { permission: MANAGE_SEO_PERMISSION },
       inputSchema: NO_INPUT_SCHEMA,
     },
   ];

@@ -1,4 +1,4 @@
-import { WIDGET_REGION_BINDINGS_TABLE } from "../widgets/repo.sqlite.js";
+import { WIDGET_REGION_BINDINGS_TABLE } from "../../contracts/core/widget-tables.js";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import { kernelStampWatermark } from "../../platform/db/watermark-kernel.js";
 import { DECLARED_CONTENT_TYPE_OWNERS } from "../content-types/declared-owners.js";

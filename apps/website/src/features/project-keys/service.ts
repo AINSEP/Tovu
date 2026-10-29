@@ -3,13 +3,8 @@ import type { VaultRecord, VaultRepoPort } from "@jini-ai/platform/secrets/crede
 import type { KeyAttachments, ProjectKeyTransaction } from "./attachments.js";
 import type { PluginCredentialCard } from "../custom-credentials/plugin-credential-card.js";
 
-export interface ProviderKeyUsage {
-  readonly keyId?: string;
-  readonly store: "project" | "site";
-  readonly usedByThisSite: boolean;
-  readonly usedBy: readonly string[];
-}
-export interface ProviderWriteResult extends ProviderKeyUsage { readonly keyId: string }
+import type { ProviderKeyUsage } from "@jini-ai/plugins/host";
+export type { ProviderKeyUsage, ProviderWriteResult } from "@jini-ai/plugins/host";
 export const providerKeyId = ({ pluginId }: { pluginId: string }, _optional = {}) => `plugin-state:${pluginId}:provider.config`;
 
 export const providerPluginOf = ({ keyId }: { keyId: string }, _optional = {}) => /^plugin-state:([a-z0-9-]+):provider\.config$/.exec(keyId)?.[1];

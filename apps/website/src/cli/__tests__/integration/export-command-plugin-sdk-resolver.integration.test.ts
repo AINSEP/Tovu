@@ -78,7 +78,7 @@ function buildProbeScript(dir: string, outDir: string, resultPath: string, plugi
   return [
     "import { writeFileSync } from 'node:fs';",
     "import { mock } from 'node:test';",
-    `const bootUrl = ${JSON.stringify(pathToFileURL(path.resolve(import.meta.dirname, "../../../platform/site-dir/boot-site-dir.ts")).href)};`,
+    `const bootUrl = ${JSON.stringify(pathToFileURL(path.resolve(import.meta.dirname, "../../../server/runtime/composition/site-dir.ts")).href)};`,
     "const boot = await import(bootUrl);",
     `const resolver = await import(${JSON.stringify(PLUGIN_SDK_RESOLVER_MODULE)});`,
     "let sdkAtBoot = false;",

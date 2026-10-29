@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import Database from "better-sqlite3";
-import { initSite } from "#src/platform/site-dir/init-site";
+import { initSite } from "#src/server/runtime/composition/site-dir";
 import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { openSqliteContentConnection } from "#src/platform/db/sqlite/content-db";

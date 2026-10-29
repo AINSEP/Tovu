@@ -8,7 +8,7 @@ import {
 } from "@jini-ai/cms/seo";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { withContentImageSource, withCoverReadDeps } from "#src/features/seo/cover-image";
+import { withContentImageSource, withCoverReadDeps } from "#src/features/seo/index";
 import { entityNotLiveResponse } from "#src/server/inbound/admin-http/http/entity-not-live";
 import type { SeoRouteRegistrar } from "./deps.js";
 

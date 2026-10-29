@@ -58,7 +58,10 @@ export class InMemoryDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPor
       .filter((row) => !filter.outcome || row.outcome === filter.outcome)
       .filter((row) => !filter.fromDate || row.createdAt >= filter.fromDate)
       .filter((row) => !filter.toDate || row.createdAt <= filter.toDate)
-      .sort((a, b) => (a.createdAt === b.createdAt ? (a.id < b.id ? 1 : -1) : a.createdAt < b.createdAt ? 1 : -1));
+      .sort((a, b) => {
+        if (a.createdAt === b.createdAt) return a.id < b.id ? 1 : -1;
+        return a.createdAt < b.createdAt ? 1 : -1;
+      });
 
     const startIndex = filter.cursor ? filtered.findIndex((row) => row.id === filter.cursor) + 1 : 0;
     const page = filtered.slice(startIndex, startIndex + filter.limit);

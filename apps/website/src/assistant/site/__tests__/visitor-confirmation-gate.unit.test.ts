@@ -5,6 +5,7 @@ import { createVisitorConfirmationGate, VisitorPlanRefused } from "../visitor-co
 import type { VisitorExecutionPorts } from "../visitor-executor.js";
 import { parseVisitorToolPolicy } from "../../../contracts/site-assistant/visitor-tools.js";
 import type { ToolConfirmationDirective } from "../visitor-confirmations.js";
+import { CanonicalJsonError } from "@jini-ai/core/records";
 
 function fixture({ mode = "ask", channel = true, allow = true, fail = false, resumeError = false, toolId = "list_categories" }: {
   mode?: string; channel?: boolean; allow?: boolean; fail?: boolean; resumeError?: boolean; toolId?: string;
@@ -74,6 +75,32 @@ test("the handler's input must match the approved input even when the delegate's
   assert.equal(await f.result, "confirm");
   await assert.rejects(f.gate.assertApproved({ executionId: "exec", input: { query: "normalized differently" } }), VisitorPlanRefused);
   assert.deepEqual(f.request.input, { query: "original" });
+});
+
+test("reordered nested argument keys retain approval while array order and value changes are refused", async () => {
+  const input = { query: "original", filter: { z: 2, a: 1 }, pages: [1, 2] };
+  const equivalent = { pages: [1, 2], filter: { a: 1, z: 2 }, query: "original" };
+  const allowed = fixture();
+  allowed.gate.delegate.onConfirm!({ ...allowed.request, input });
+  assert.equal(await allowed.result, "confirm");
+  await allowed.gate.assertApproved({ executionId: "exec", input: equivalent });
+  assert.deepEqual(allowed.errors, []);
+  for (const changed of [{ ...equivalent, pages: [2, 1] }, { ...equivalent, filter: { a: 1, z: 3 } }]) {
+    const refused = fixture();
+    refused.gate.delegate.onConfirm!({ ...refused.request, input });
+    assert.equal(await refused.result, "confirm");
+    await assert.rejects(refused.gate.assertApproved({ executionId: "exec", input: changed }), VisitorPlanRefused);
+  }
+});
+
+test("non-JSON arguments are denied before a confirmation is offered", async () => {
+  const f = fixture();
+  f.gate.delegate.onConfirm!({ ...f.request, input: { pages: [undefined] } });
+  assert.equal(await f.result, "deny");
+  assert.deepEqual(f.directives, []);
+  assert.equal(f.errors.length, 1);
+  assert.ok(f.errors[0] instanceof CanonicalJsonError);
+  await assert.rejects(f.gate.assertApproved({ executionId: "exec", input: {} }), VisitorPlanRefused);
 });
 
 test("a resume racing another cancellation is reported without an unhandled rejection", async () => {

@@ -87,10 +87,6 @@ interface ChatFrameText {
 interface ChatFrameError {
   readonly message: string;
 }
-interface ChatFrameEnd {
-  readonly reason: string;
-}
-
 /** SPEC-046 REQ-4: the one new SSE event kind. Carried through `@jini-ai/chat/core`'s `AgentEvent`
  *  via its `{ kind: 'ext', name, data }` escape hatch (`events.ts`'s own doc: "a host can carry its
  *  own product-specific event kinds... through the same envelope without this package knowing about
@@ -105,7 +101,7 @@ function parseSseFrame(frame: string): { event: string; data: string | null } {
   let data: string | null = null;
   for (const line of frame.split("\n")) {
     if (line.startsWith("event:")) event = line.slice("event:".length).trim();
-    else if (line.startsWith("data:")) data = line.slice("data:".length).trim();
+    if (line.startsWith("data:")) data = line.slice("data:".length).trim();
   }
   return { event, data };
 }
@@ -267,7 +263,7 @@ export function createSiteAssistantTransport(_required: Record<string, never> = 
             } else if (event === "error") {
               fail(new Error((data as ChatFrameError).message || "site assistant error"));
             } else if (event === "end") {
-              void (data as ChatFrameEnd); // reason is server telemetry only; nothing here branches on it.
+              // The end reason is server telemetry only; nothing here branches on it.
               finish();
             } else if (event === "client_directive") {
               if (consumeToolConfirmation({ data, settled, receive: options.onToolConfirmation })) return;
@@ -276,6 +272,8 @@ export function createSiteAssistantTransport(_required: Record<string, never> = 
               replied = true;
               collected.push(ev);
               handlers.onEvent(ev);
+            } else {
+              // Ignore event kinds outside this transport's protocol.
             }
           }, armIdleTimer);
           // Stream ended without an explicit "end" frame (e.g. the connection just closed) —

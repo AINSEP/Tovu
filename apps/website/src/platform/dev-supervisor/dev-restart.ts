@@ -69,7 +69,8 @@ function requestRestartAcceptance({ requestFile, reason }: { requestFile: string
           if (decision?.accepted === false && typeof decision.reason === "string") { resolve({ accepted: false, reason: decision.reason }); return; }
           throw new Error("Invalid supervisor acknowledgement");
         }
-        if (--remaining === 0) { resolve({ accepted: false, reason: "The dev supervisor did not confirm the restart request." }); return; }
+        remaining -= 1;
+        if (remaining === 0) { resolve({ accepted: false, reason: "The dev supervisor did not confirm the restart request." }); return; }
         options.schedule(poll, 100);
       } catch {
         resolve({ accepted: false, reason: "Could not confirm the restart with the dev supervisor." });
@@ -107,6 +108,7 @@ export function devRestartPortFromEnv(optional: DevRestartPortOptional = {}): De
           log(`[dev-restart] could not ask the dev supervisor to restart: ${err instanceof Error ? err.message : String(err)}`);
         }
       }, optional.delayMs ?? DEV_RESTART_DELAY_MS);
+      return undefined;
     },
   };
 }

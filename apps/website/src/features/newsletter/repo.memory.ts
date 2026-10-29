@@ -5,6 +5,7 @@
  * constructor(initialRows: X[] = []) { this.rows = [...initialRows]; }`, then plain array
  * find/filter/push-or-replace methods. Rule-of-two adapter #1 (`repo.sqlite.ts` is #2).
  */
+import { upsertRecord } from "@jini-ai/core/records";
 import type {
   AudienceSnapshotRow,
   CampaignRecord,
@@ -111,9 +112,7 @@ export class InMemoryNewsletterListRepo implements NewsletterListRepoPort {
   }
 
   async save(row: NewsletterListRow): Promise<void> {
-    const idx = this.rows.findIndex((r) => r.workspaceId === row.workspaceId && r.id === row.id);
-    if (idx >= 0) this.rows[idx] = row;
-    else this.rows.push(row);
+    upsertRecord({ records: this.rows, record: row, identity: { workspaceId: row.workspaceId, id: row.id } });
   }
 }
 
@@ -167,9 +166,7 @@ export class InMemoryNewsletterSubscriptionRepo implements NewsletterSubscriptio
   }
 
   async save(row: SubscriptionRow): Promise<void> {
-    const idx = this.rows.findIndex((r) => r.workspaceId === row.workspaceId && r.id === row.id);
-    if (idx >= 0) this.rows[idx] = row;
-    else this.rows.push(row);
+    upsertRecord({ records: this.rows, record: row, identity: { workspaceId: row.workspaceId, id: row.id } });
   }
 
   async remove(required: { workspaceId: string; id: string }): Promise<void> {
@@ -260,9 +257,7 @@ export class InMemoryNewsletterSendRepo implements NewsletterSendRepoPort {
   }
 
   async save(row: SendRow): Promise<void> {
-    const idx = this.rows.findIndex((r) => r.workspaceId === row.workspaceId && r.id === row.id);
-    if (idx >= 0) this.rows[idx] = row;
-    else this.rows.push(row);
+    upsertRecord({ records: this.rows, record: row, identity: { workspaceId: row.workspaceId, id: row.id } });
   }
 
   async saveBatch(rows: readonly SendRow[]): Promise<void> {
@@ -347,8 +342,6 @@ export class InMemoryNewsletterConfirmationTokenRepo implements NewsletterConfir
   }
 
   async save(row: ConfirmationTokenRecord): Promise<void> {
-    const idx = this.rows.findIndex((r) => r.workspaceId === row.workspaceId && r.id === row.id);
-    if (idx >= 0) this.rows[idx] = row;
-    else this.rows.push(row);
+    upsertRecord({ records: this.rows, record: row, identity: { workspaceId: row.workspaceId, id: row.id } });
   }
 }

@@ -1,5 +1,7 @@
 import type { ToolMetadataById } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-policy.js';
+import type { ToolApprovalPolicy } from './approval-policy.js';
+
+const THEME_AUTHORING = "theme-authoring";
 
 /** theme registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
@@ -17,7 +19,7 @@ export const toolMetadata = {
   },
 
   "theme_copy_file": {
-    guidanceCapabilities: ["theme-authoring", "ui-design"],
+    guidanceCapabilities: [THEME_AUTHORING, "ui-design"],
     search: {
       keywords: "theme file copy duplicate clone branch variant new name",
     },
@@ -25,7 +27,7 @@ export const toolMetadata = {
   },
   // The only tool that creates a theme: copies one into a new folder (owner-approved 2026-10-08).
   "theme_duplicate": {
-    guidanceCapabilities: ["theme-authoring", "ui-design"],
+    guidanceCapabilities: [THEME_AUTHORING, "ui-design"],
     search: {
       keywords: "theme duplicate copy clone fork new theme from existing create make start redesign variant based on scaffold",
       queries: [
@@ -39,7 +41,7 @@ export const toolMetadata = {
     approval: { class: 'edit', confirmation: 'direct' },
   },
   "theme_edit_file": {
-    guidanceCapabilities: ["theme-authoring", "ui-design"],
+    guidanceCapabilities: [THEME_AUTHORING, "ui-design"],
     search: {
       keywords: "theme stylesheet css template edit change design code file one line small change patch replace single word snippet section footer copyright text font fonts typography color colors colour primary brand palette style styles look",
     },
@@ -47,7 +49,7 @@ export const toolMetadata = {
   },
   // URL binary import (2026-10-08); local imports share its validation and persistence.
   "theme_import_file_from_url": {
-    guidanceCapabilities: ["theme-authoring", "ui-design"],
+    guidanceCapabilities: [THEME_AUTHORING, "ui-design"],
     search: {
       keywords: "theme import download fetch font fonts woff woff2 ttf otf typeface webfont self-host image logo icon favicon binary asset file from url into theme folder",
       queries: [
@@ -60,7 +62,7 @@ export const toolMetadata = {
     approval: { class: 'edit', confirmation: 'direct' },
   },
   "theme_import_local_file": {
-    guidanceCapabilities: ["theme-authoring", "ui-design"],
+    guidanceCapabilities: [THEME_AUTHORING, "ui-design"],
     search: {
       keywords: "theme import local file folder drop tovuize font woff woff2 ttf otf image logo icon favicon binary asset copy",
       queries: [
@@ -130,7 +132,7 @@ export const toolMetadata = {
   },
   // Prefer the dedicated copy tool; read+write remains a valid composition with pinned vocabulary.
   "theme_reset_file": {
-    guidanceCapabilities: ["theme-authoring", "ui-design"],
+    guidanceCapabilities: [THEME_AUTHORING, "ui-design"],
     search: {
       keywords: "theme file reset restore revert original undo pristine default discard changes modified changed header footer template",
       queries: [
@@ -194,7 +196,7 @@ export const toolMetadata = {
     approval: { class: 'trash', confirmation: 'policy' },
   },
   "theme_write_file": {
-    guidanceCapabilities: ["theme-authoring", "ui-design"],
+    guidanceCapabilities: [THEME_AUTHORING, "ui-design"],
     search: {
       keywords: "theme stylesheet css template edit change design code file overwrite replace whole file copy duplicate clone font fonts typography color colors colour primary brand palette style styles look",
       queries: [

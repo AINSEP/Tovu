@@ -106,11 +106,12 @@ export function findViolations(): Violation[] {
     // child of `__tests__/`, so a single-pattern check would miss it and report the render-churn
     // harness as a permanently-unfixable new violation the moment it landed.
     if (relPath.includes("__tests__/") || relPath.includes("__measurements__/")) continue;
-    for (const message of result.messages) {
+    violations.push(...result.messages.flatMap((message): Violation[] => {
       if (message.ruleId === "complexity" || message.ruleId === "sonarjs/cognitive-complexity") {
-        violations.push({ rule: message.ruleId, file: relPath, reason: message.message });
+        return [{ rule: message.ruleId, file: relPath, reason: message.message }];
       }
-    }
+      return [];
+    }));
   }
   return violations;
 }

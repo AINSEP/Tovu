@@ -6,7 +6,7 @@
  * Every table and column name reaching a query here comes from a `registry.ts` entry — module
  * constants, never caller input. Kysely quotes each one as an identifier.
  */
-import type { AliasedExpression, ExpressionBuilder, Kysely } from "kysely";
+import type { AliasedExpression, Kysely } from "kysely";
 
 import type { ContentDatabase } from "../../platform/db/content-database.generated.js";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
@@ -14,12 +14,8 @@ import { notTrashed } from "./not-trashed.js";
 import type { TrashEntityType } from "@jini-ai/cms/trash";
 import type { TrashEntry, TrashRegistry } from "./registry.js";
 
-/** Any table, any column: the shape a registry-driven query sees. A type alias, not an interface:
- *  Kysely's `withTables` needs the implicit index signature only an alias has. */
-export type LooseTables = Record<string, Record<string, unknown>>;
-
-/** The expression builder a registry-driven `WHERE` is written against. */
-export type LooseExpressionBuilder = ExpressionBuilder<LooseTables, string>;
+import type { LooseTables, LooseExpressionBuilder } from "./entry-sql.types.js";
+export type { LooseTables, LooseExpressionBuilder } from "./entry-sql.types.js";
 
 /** `db` with every table name accepted — for a query whose table comes from a registry entry.
  *  @complexity O(1). */

@@ -3,10 +3,13 @@ import { adaptLegacyAuthorize, requireToolPermission } from '@jini-ai/cms/core';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, ToolInputError, type AgentToolDefinition, type DerivedRiskByToolId, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from '@jini-ai/core';
 import { PluginInstallError, PluginSourceError, type PluginSourcePort } from '@jini-ai/plugins/host/node';
 import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
-import type { ToolContributor } from '#src/assistant/index';
+import type { ToolContributor } from '@jini-ai/core';
 import { approvalToolHandler } from '../../contracts/core/human-confirm.js';
 import { toolMetadata } from '../../contracts/core/tool-metadata/plugin-runtime.js';
 import type { PluginsToolDeps } from './tool-registrations.js';
+
+const MUTATES_DURABLE_STATE = "mutates-durable-state" as const;
+const ENABLE_PLUGIN_PERMISSION = "admin.plugins.enable" as const;
 
 const WORKFLOW = ' Site-local workflow: plugin_source_create (scaffold) or plugin_source_open (latest installed working copy) → list/read/write/edit draft files → plugin_source_seal → plugins_set_enabled (family site-runtime). Drafts never run. Site plugins support content filters, declarative content types and fields. Use sdk.routes.add with capability http.route.register and contributes.routes (e.g. GET /items); routes mount at /api/p/<plugin-id><path> and declare public/member/admin access. Use sdk.tools.add with tools.register and contributes.tools; assistant ids are p_<plugin-id with hyphens replaced by underscores>__<name>. Use sdk.widgets.add with render.contribute and contributes.widgets for public SSR partials. Every registration must match its manifest declaration. Tier-3 runs with full server access; sandboxing is deferred by owner decision.';
 const id = { type: 'string', pattern: '^[a-z0-9-]+$', minLength: 1, maxLength: 50, description: 'Site plugin id; not an Agent Plugin id.' };
@@ -18,31 +21,31 @@ function schema(properties: Record<string, unknown>, required: string[]): Readon
 /** Static contract consumed by the model and the domain registration contract suite. */
 export const pluginSourceAgentToolCatalog: AgentToolDefinition[] = [
   { name: 'plugin_source_create', description: 'Creates a minimal valid site-local tier-3 draft with a manifest, server entry and README. Existing drafts are retained; existing installs are opened without overwrite.' + WORKFLOW,
-    sideEffects: 'mutates-durable-state', authorization: { permission: 'admin.plugins.enable' }, inputSchema: schema({ name: text, description: text }, ['name', 'description']) },
+    sideEffects: MUTATES_DURABLE_STATE, authorization: { permission: ENABLE_PLUGIN_PERMISSION }, inputSchema: schema({ name: text, description: text }, ['name', 'description']) },
   { name: 'plugin_source_open', description: 'Creates a working draft from this site plugin’s latest installed version. Reopening retains all unsealed edits.' + WORKFLOW,
-    sideEffects: 'mutates-durable-state', authorization: { permission: 'admin.plugins.enable' }, inputSchema: schema({}, []) },
+    sideEffects: MUTATES_DURABLE_STATE, authorization: { permission: ENABLE_PLUGIN_PERMISSION }, inputSchema: schema({}, []) },
   { name: 'plugin_source_list', description: 'Lists paths and byte sizes in an opened plugin draft. Use before guessing filenames.' + WORKFLOW,
     sideEffects: 'none', authorization: { permission: 'admin.plugins.read' }, inputSchema: schema({}, []) },
   { name: 'plugin_source_read', description: 'Reads one draft file as text, up to 1 MiB. Read first before an exact edit.' + WORKFLOW,
     sideEffects: 'none', authorization: { permission: 'admin.plugins.read' }, inputSchema: schema({ path: file }, ['path']) },
   { name: 'plugin_source_write', description: 'Creates or overwrites one draft file as text (1 MiB per file; 8 MiB / 512 entries per draft). Use edit for a small change. Live installed bytes remain immutable.' + WORKFLOW,
-    sideEffects: 'mutates-durable-state', authorization: { permission: 'admin.plugins.enable' }, inputSchema: schema({ path: file, content: text }, ['path', 'content']) },
+    sideEffects: MUTATES_DURABLE_STATE, authorization: { permission: ENABLE_PLUGIN_PERMISSION }, inputSchema: schema({ path: file, content: text }, ['path', 'content']) },
   { name: 'plugin_source_edit', description: 'Replaces one exact occurrence of oldString with newString. Refuses zero or multiple matches without writing; use more context or replaceAll:true. Replacement text is literal.' + WORKFLOW,
-    sideEffects: 'mutates-durable-state', authorization: { permission: 'admin.plugins.enable' }, inputSchema: schema({ path: file, oldString: { type: 'string', minLength: 1 }, newString: text, replaceAll: { type: 'boolean' } }, ['path', 'oldString', 'newString']) },
+    sideEffects: MUTATES_DURABLE_STATE, authorization: { permission: ENABLE_PLUGIN_PERMISSION }, inputSchema: schema({ path: file, oldString: { type: 'string', minLength: 1 }, newString: text, replaceAll: { type: 'boolean' } }, ['path', 'oldString', 'newString']) },
   { name: 'plugin_source_delete', description: 'Permanently deletes one draft file after confirmation. Does not remove installed versions; plugins_uninstall owns that. A changed file refuses the approved deletion.' + WORKFLOW,
-    sideEffects: 'deletes-durable-state', authorization: { permission: 'admin.plugins.enable' }, inputSchema: schema({ path: file }, ['path']) },
+    sideEffects: 'deletes-durable-state', authorization: { permission: ENABLE_PLUGIN_PERMISSION }, inputSchema: schema({ path: file }, ['path']) },
   { name: 'plugin_source_seal', description: 'Validates the draft manifest, computes integrity for every package file, uses a higher manifest version or bumps the latest patch on updates, and installs through the existing installer. Keeps active versions plus the newest three for rollback after a successful reload and reloads enabled code through the controlled loader; initially disabled plugins stay OFF. Validation errors explain what to fix. Check installed/reloaded/reloadError. Runs directly on desktop/dev; hosted installs require TOVU_PLUGIN_LOCAL_INSTALL=1.' + WORKFLOW,
-    sideEffects: 'mutates-durable-state', authorization: { permission: 'admin.plugins.enable' }, inputSchema: schema({}, []) },
+    sideEffects: MUTATES_DURABLE_STATE, authorization: { permission: ENABLE_PLUGIN_PERMISSION }, inputSchema: schema({}, []) },
   { name: 'plugin_source_rollback', description: 'Reinstalls the previous package’s bytes as a new patch version through the same seal/installer/reload path. Preserves active versions, the newest three releases and your unsealed draft. Fails plainly when no previous version exists. If reload quarantined the plugin, enable it after rollback.' + WORKFLOW,
-    sideEffects: 'mutates-durable-state', authorization: { permission: 'admin.plugins.enable' }, inputSchema: schema({}, []) },
+    sideEffects: MUTATES_DURABLE_STATE, authorization: { permission: ENABLE_PLUGIN_PERMISSION }, inputSchema: schema({}, []) },
 ];
 /** Independently derived from calls to the source port: reads are read-only, delete unlinks,
  * and create/open/write/edit/seal/rollback durably publish bytes. */
 export const pluginSourceDerivedRisk: DerivedRiskByToolId = new Map([
-  ['plugin_source_create', 'mutates-durable-state'], ['plugin_source_open', 'mutates-durable-state'],
-  ['plugin_source_list', 'none'], ['plugin_source_read', 'none'], ['plugin_source_write', 'mutates-durable-state'],
-  ['plugin_source_edit', 'mutates-durable-state'], ['plugin_source_delete', 'deletes-durable-state'],
-  ['plugin_source_seal', 'mutates-durable-state'], ['plugin_source_rollback', 'mutates-durable-state'],
+  ['plugin_source_create', MUTATES_DURABLE_STATE], ['plugin_source_open', MUTATES_DURABLE_STATE],
+  ['plugin_source_list', 'none'], ['plugin_source_read', 'none'], ['plugin_source_write', MUTATES_DURABLE_STATE],
+  ['plugin_source_edit', MUTATES_DURABLE_STATE], ['plugin_source_delete', 'deletes-durable-state'],
+  ['plugin_source_seal', MUTATES_DURABLE_STATE], ['plugin_source_rollback', MUTATES_DURABLE_STATE],
 ]);
 type SourceDeps = Pick<PluginsToolDeps, 'workspaceId' | 'authorize' | 'pluginSource'>;
 
@@ -108,7 +111,7 @@ export function buildPluginSourceRegistrations(required: { deps: SourceDeps; sur
   // neither the model's input nor a later draft edit can stand in for human approval.
   handlers.plugin_source_delete = approvalToolHandler({ surfaces,
     prepare: async ({ ctx }) => {
-      await authorize(ctx, 'admin.plugins.enable');
+      await authorize(ctx, ENABLE_PLUGIN_PERMISSION);
       const input = requireInputRecord({ input: ctx.input });
       const target = { id: requireString({ input, key: 'id' }), path: requireString({ input, key: 'path' }) };
       const prior = await relay(() => source().read(target, {}));
@@ -117,7 +120,7 @@ export function buildPluginSourceRegistrations(required: { deps: SourceDeps; sur
     describe: ({ prepared }) => ({ toolId: 'plugin_source_delete', errorCode: 'PLUGIN_SOURCE_DELETE_CONFIRM', title: 'Permanently delete this draft file?', danger: true,
       details: [{ label: 'Plugin', value: prepared.target.id }, { label: 'Draft file', value: prepared.target.path }], confirmLabel: 'Delete', cancelLabel: 'Cancel' }),
     run: async ({ ctx, prepared }) => {
-      await authorize(ctx, 'admin.plugins.enable');
+      await authorize(ctx, ENABLE_PLUGIN_PERMISSION);
       return relay(() => source().delete(prepared.target, { expectedDigest: prepared.prior.digest }));
     },
   }, { flag: 'deleted' });
@@ -125,6 +128,6 @@ export function buildPluginSourceRegistrations(required: { deps: SourceDeps; sur
 }
 
 /** Register beside the theme and plugin lifecycle tools in the first-party catalog. */
-export function contributePluginSourceTools(_required = {}, _optional = {}): ToolContributor {
+export function contributePluginSourceTools(_required = {}, _optional = {}): ToolContributor<SourceDeps, AssistantSurfaceDeps> {
   return { domain: 'plugin-source', build: (deps, surfaces) => buildPluginSourceRegistrations({ deps, surfaces }, {}), risk: pluginSourceDerivedRisk };
 }

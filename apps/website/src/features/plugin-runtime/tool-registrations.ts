@@ -75,7 +75,8 @@ import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { approvalToolHandler, notConfirmedResult } from "../../contracts/core/human-confirm.js";
 import { federatedToolApprovalFingerprint } from "@jini-ai/mcp/federation";
-import type { ExternalMcpStoreDeps, ToolContributor } from "#src/assistant/index";
+import type { ExternalMcpStoreDeps } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 // Keep the domain projection local: importing it from server/admin would invert the composition boundary.
 import { toAdminPluginResponse } from "./admin-response.js";
 import { addedPluginCapabilities, pluginCapabilitySet, setPluginEnabled, type PluginActivationRecord, type PluginActivationRepoPort } from "@jini-ai/plugins/host";
@@ -119,6 +120,8 @@ import { describeUninstallApproval, PLUGINS_UNINSTALL_TOOL_ID } from "./uninstal
 // (a separate workstream's file; not touched here, same reasoning as the `set-enabled.js` import
 // above). See that file's header for the merge.
 import type { PluginInstallerPort } from "@jini-ai/plugins/host/node";
+
+const AGENT_PLUGIN_FAMILY = "agent-plugin" as const;
 
 /** The historical cross-family rationale above still applies; the composition root now binds
  * those owners behind a host capability. A missing binding is an explicit refusal. */
@@ -277,7 +280,7 @@ interface SetEnabledRequest {
  *  never reach it. @complexity O(1). */
 function readFamily(input: Record<string, unknown>): PluginFamily {
   const raw = input["family"];
-  if (raw === "site-runtime" || raw === "agent-plugin") return raw;
+  if (raw === "site-runtime" || raw === AGENT_PLUGIN_FAMILY) return raw;
   throw new ToolInputError({ message: "'family' is required and must be exactly one of: 'site-runtime' (a .tovu-plugin site plugin, as listed by " +
       "content_read.plugin) or 'agent-plugin' (an Agent Plugin, as returned by search_agent_plugin_local). Tovu has two " +
       "unrelated plugin systems and this tool never guesses between them — if you are unsure, call the matching list/search " +
@@ -315,7 +318,7 @@ export async function pluginApprovalIdentity(
   let label: string | undefined;
   let discovery: readonly PluginDiscoveryRecord[] | undefined;
   let schema: Readonly<Record<string, unknown>> = {};
-  if (request.family === "agent-plugin") {
+  if (request.family === AGENT_PLUGIN_FAMILY) {
     const plugins = await listInstalledAgentPlugins(routeDeps);
     const installed = plugins.filter(plugin => plugin.pluginId === request.pluginId);
     if (installed.length === 0) throw new ToolInputError({ message: `Agent Plugin '${request.pluginId}' is not installed` });
@@ -414,7 +417,7 @@ async function uninstallConfirmedPlugin(
  * @complexity O(1).
  */
 function restartNoteFor(request: SetEnabledRequest): string {
-  if (request.family === "agent-plugin") {
+  if (request.family === AGENT_PLUGIN_FAMILY) {
     return request.enabled
       ? `Enabled and saved. Read its guidance now with load_agent_plugin({pluginId:"${request.pluginId}"}) and use ` +
           `agent_plugin_connect for account sign-in when needed. Its legacy agent_plugin_${request.pluginId} tool may ` +
@@ -742,7 +745,7 @@ async function requireEnablePermission(
 /** `plugins_set_enabled`'s permission check, scoped to the family's own entity type. @complexity O(1) plus one evaluation. */
 function requireSetEnabledPermission(routeDeps: PluginsToolDeps, required: { readonly principalId: string; readonly request: SetEnabledRequest }): Promise<void> {
   const { principalId, request } = required;
-  return requireEnablePermission(routeDeps, { principalId, entityType: request.family === "agent-plugin" ? "agent-plugin" : "plugin", entityId: request.pluginId });
+  return requireEnablePermission(routeDeps, { principalId, entityType: request.family === AGENT_PLUGIN_FAMILY ? AGENT_PLUGIN_FAMILY : "plugin", entityId: request.pluginId });
 }
 
 /** What the owner's consent to a site-package enable rests on. Only a site-sourced `.tovu-plugin`
@@ -804,7 +807,7 @@ async function prepareSetEnabled(routeDeps: PluginsToolDeps, required: { readonl
   const { ctx } = required;
   const request = readSetEnabledRequest(ctx.input);
   await requireSetEnabledPermission(routeDeps, { principalId: ctx.principal.id, request });
-  const refusal = request.enabled && request.family === "agent-plugin" ? await agentPluginEnablePreflight(routeDeps, request) : undefined;
+  const refusal = request.enabled && request.family === AGENT_PLUGIN_FAMILY ? await agentPluginEnablePreflight(routeDeps, request) : undefined;
   const identity = request.enabled && refusal === undefined ? await pluginApprovalIdentity({ deps: routeDeps, request }) : undefined;
   const consent = await siteConsentFor(routeDeps, { request, identity });
   return { request, identity, refusal, confirm: enableNeedsConfirmation(routeDeps, consent), capabilities: consent.capabilities, added: consent.added };
@@ -848,7 +851,7 @@ async function runSetEnabled(
   // The owner approved exactly these capabilities (the identity key pins the manifest). Recorded
   // before the write so a failed record leaves the plugin off rather than enabled unrecorded.
   if (confirm && capabilities !== undefined && routeDeps.pluginSource) await routeDeps.pluginSource.recordApproval({ id: request.pluginId, capabilities }, {});
-  return request.family === "agent-plugin"
+  return request.family === AGENT_PLUGIN_FAMILY
     ? applyAgentPluginDecision(routeDeps, ctx.principal.id, request)
     : applySiteRuntimeDecision(routeDeps, ctx.principal.id, request, { discovery: currentIdentity?.discovery });
 }
@@ -944,7 +947,7 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
       const family = readFamily(input);
       const pluginId = requireString({ input: input, key: "pluginId" });
 
-      if (family === "agent-plugin") return requireAgentPluginHost(routeDeps).uninstall({ surfaces, ctx, pluginId, executionOptions: optional }, {});
+      if (family === AGENT_PLUGIN_FAMILY) return requireAgentPluginHost(routeDeps).uninstall({ surfaces, ctx, pluginId, executionOptions: optional }, {});
 
       await requireEnablePermission(routeDeps, { principalId: ctx.principal.id, entityType: "plugin", entityId: pluginId });
 
@@ -986,7 +989,7 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
 export function contributePluginsTools(
   required: { createPluginHost?: (required: { deps: PluginsToolDeps }) => PluginHostPort } = {},
   _optional: Record<string, never> = {},
-): ToolContributor {
+): ToolContributor<PluginsToolDeps, AssistantSurfaceDeps> {
   return { domain: "plugins", build: (deps, surfaces) => buildPluginsRegistrations({
     ...deps, pluginHost: deps.pluginHost ?? required.createPluginHost?.({ deps }),
   }, surfaces), risk: pluginsDerivedRisk };

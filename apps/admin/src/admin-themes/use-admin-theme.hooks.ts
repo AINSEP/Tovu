@@ -116,8 +116,12 @@ export function useAdminThemeDocument(_required: object, { port = defaultAdminTh
     paint();
     if (preference !== "system" || !resolved.matchMedia) return;
     const media = resolved.matchMedia("(prefers-color-scheme: dark)");
+    // A partial host port must not open a subscription it cannot dispose.
+    if (!media.removeEventListener) return;
     media.addEventListener?.("change", paint);
-    return () => media.removeEventListener?.("change", paint);
+    return () => {
+      if (media.removeEventListener) media.removeEventListener("change", paint);
+    };
   }, [themeId, preference, env]);
 }
 

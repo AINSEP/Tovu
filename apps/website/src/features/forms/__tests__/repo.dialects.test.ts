@@ -10,7 +10,7 @@ import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { FORMS_SUBMIT_PROFILE } from "../rate-limit-profile.js";
 import { formDefinitionRepoFor, formSubmissionRepoFor } from "@jini-ai/cms/forms/sql";
 import { submitForm } from "#src/features/forms/index";
-import { outboxFor } from "#src/platform/db/repos/outbox-repo";
+import { SqlOutboxAdapter } from "#src/platform/db/repos/outbox-repo";
 import type { FormDefinitionRecord, FormSubmissionRecord } from "@jini-ai/cms/forms";
 
 /**
@@ -65,7 +65,7 @@ describeEachDialect(
     test("transaction rolls a submission back with the event write that failed after it, and commits both on success", async () => {
       const { kernel, defs, subs } = makeRepos();
       await defs.create(definition("def-1", "contact"));
-      const outbox = outboxFor(kernel);
+      const outbox = new SqlOutboxAdapter(kernel);
       const event = (id: string, submissionId: string) => ({
         id, name: "form.submission.received", occurredAt: T0, workspaceId: WS, aggregateId: submissionId,
         payload: { workspaceId: WS, formDefinitionId: "def-1", submissionId },
@@ -94,7 +94,7 @@ describeEachDialect(
       await defs.create(definition("def-1", "contact"));
       const clock = { nowMs: () => Date.parse(T0) };
       let n = 0;
-      const realOutbox = outboxFor(kernel);
+      const realOutbox = new SqlOutboxAdapter(kernel);
       let failNext = true;
       const outbox = Object.assign(Object.create(realOutbox) as typeof realOutbox, {
         enqueue: async (event: Parameters<typeof realOutbox.enqueue>[0]) => {
@@ -125,7 +125,7 @@ describeEachDialect(
       const clock = { nowMs: () => Date.parse(T0) };
       let n = 0;
       const deps = {
-        definitionRepo: defs, submissionRepo: subs, outbox: outboxFor(kernel), bus: new InMemoryEventBus(), clock,
+        definitionRepo: defs, submissionRepo: subs, outbox: new SqlOutboxAdapter(kernel), bus: new InMemoryEventBus(), clock,
         idGen: { newId: () => `id-${++n}` }, rateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
       };
       const input = { workspaceId: WS, slug: "contact", body: { name: "Ada", _attempt: "tok-1" }, sourceIp: "203.0.113.9" };

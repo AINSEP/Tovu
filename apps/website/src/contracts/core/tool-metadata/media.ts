@@ -1,5 +1,5 @@
 import type { ToolMetadataById } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-policy.js';
+import type { ToolApprovalPolicy } from './approval-policy.js';
 
 /** media registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
@@ -12,7 +12,8 @@ export const toolMetadata = {
     approval: { class: 'read', confirmation: 'direct' },
   },
   "library_save_attachment": {
-    search: { keywords: "library document save attachment attached file persist keep permanent markdown pdf docx" },
+    search: { keywords: "library document save attachment attached file persist keep permanent markdown pdf docx generated text content write brand notes private",
+      queries: ["Save this generated Markdown document to the private Library.", "Save the BRAND.md text you wrote to the Library."] },
     approval: { class: 'edit', confirmation: 'direct' },
   },
   "chat_list_pending_attachments": {

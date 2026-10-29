@@ -39,7 +39,7 @@ import { ContentTypeAlreadyExistsError, NoopContentTypeIndexProvisioner, toConte
 import { createEntry, importEntry, updateEntry, toEntryOutbox, VersionConflictError, type EntryListPort, type EntryRepoPort } from "@jini-ai/cms/entries";
 import { createPublicPostReader, isTrashed, updatePost, restorePostForward, findPublishedPostById, findPublishedPostBySlug, PostVersionConflictError, PostNotFoundError, type PostRecord, type BeforeSaveHookPort, type ForgetRemovedPostFn, type PostRepoPort } from "../post/index.js";
 import { findMediaByIdOrSlug, getLatestTransformDefinition } from "@jini-ai/cms/media";
-import { CORE_PUBLIC_TRANSFORM_NAME } from "../media/bootstrap.js";
+import { CORE_PUBLIC_TRANSFORM_NAME } from "../media/index.js";
 import { extractEntryRefs } from "../../contracts/core/entry-refs/extractor.js";
 import { toSlug } from "../../platform/html/slug.js";
 import { getEntryLockState, type WidgetHostPorts } from "@jini-ai/cms/widgets";

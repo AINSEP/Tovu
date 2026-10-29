@@ -108,7 +108,8 @@ function dropShared(
   for (const [key, owners] of claimants) {
     if (owners.length < 2) continue;
     owners.forEach((owner) => dropped.add(owner));
-    refusals.push(`${what(key)} was not loaded: ${why} (${owners.map((owner) => `'${owner.pluginId}'`).sort().join(", ")})`);
+    const pluginIds = owners.map((owner) => `'${owner.pluginId}'`).sort().join(", ");
+    refusals.push(`${what(key)} was not loaded: ${why} (${pluginIds})`);
   }
   return entries.filter((entry) => !dropped.has(entry));
 }

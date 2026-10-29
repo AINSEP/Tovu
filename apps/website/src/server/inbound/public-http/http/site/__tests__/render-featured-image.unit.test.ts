@@ -21,7 +21,7 @@ function meta(overrides: Partial<MediaAssetRenderMeta> = {}): MediaAssetRenderMe
   return { width: 1200, height: 630, cssClass: null, htmlAttributes: null, contentType: "image/jpeg", slug: "launch-cover", ...overrides };
 }
 
-function post(overrides: Partial<Parameters<typeof buildPostRecord>[0]> = {}) {
+function post(overrides: Partial<import("#src/features/post/index").PublicPostRecord> = {}) {
   return buildPostRecord({
     id: "post-1",
     workspaceId: "ws-1",
@@ -56,6 +56,14 @@ function context(overrides: Partial<SiteRenderContext> = {}): SiteRenderContext 
 }
 
 const EXPECTED = { url: "/m/launch-cover/public.v3/image.jpg", alt: "Launch notes", width: 1200, height: 630 };
+
+// Guards featuredImageView's canonical versioned URL for hero and post-card template data.
+test("featured images and post cards use the current source hash in their public URLs", () => {
+  const data = buildTemplateRenderData(context({ mediaAssetMetadata: new Map([[ASSET_ID, meta({ sha256: "0123456789abcdef".repeat(4) })]]) }));
+  const expected = { ...EXPECTED, url: "/m/launch-cover/public.v3/image.jpg?v=0123456789ab" };
+  assert.deepEqual((data.post as Record<string, unknown>).featuredImage, expected);
+  assert.deepEqual((data.posts as Array<Record<string, unknown>>)[0]!.featuredImage, expected);
+});
 
 test("featfallback: body image supplies detail/list data, both template loops, and the generic list", async () => {
   const bodyOnly = post({ bodyJson: { type: "doc", content: [{ type: "image", attrs: { assetId: ASSET_ID, alt: "Body alt" } }] } });

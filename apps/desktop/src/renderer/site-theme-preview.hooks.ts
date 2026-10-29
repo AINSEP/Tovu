@@ -7,7 +7,7 @@ function publicPath(path: string): boolean {
   if (!path.startsWith('/') || path.startsWith('//') || /[\\\u0000-\u0020]/.test(path)) return false;
   try {
     const decoded = decodeURIComponent(path.split(/[?#]/, 1)[0]!);
-    const normalized = new URL(path, 'http://preview.invalid').pathname;
+    const normalized = new URL(path, 'https://preview.invalid').pathname;
     return !/[\\\u0000-\u0020]|^\/\/|(?:^|\/)\.\.(?:\/|$)|^\/(?:admin|api)(?:\/|$)/i.test(decoded)
       && !/^\/(?:admin|api)(?:\/|$)/i.test(normalized);
   } catch { return false; }

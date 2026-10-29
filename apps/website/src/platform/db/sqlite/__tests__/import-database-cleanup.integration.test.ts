@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { rebuildImportDatabase } from "../import-database.js";
+import { rebuildImportDatabase } from "#src/server/runtime/composition/site-portability";
 
 for (const interruption of ["cancellation", "timeout"] as const) test(`B worker ${interruption} removes every nested artifact`, { timeout: 30_000 }, async t => {
   const fork = childProcess.fork;
